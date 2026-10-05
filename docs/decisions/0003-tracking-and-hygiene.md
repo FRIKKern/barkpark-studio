@@ -29,6 +29,8 @@
 - A read-only Barkpark token in CI would be one more secret to mint, store and
   rotate, for data the bridge already publishes. The mirror lags the board by
   seconds and only carries open/closed plus a status label. That is all we need.
+- No required status checks on main: merge-on-green is a convention. A required
+  check would deadlock housekeeping (its `GITHUB_TOKEN` pushes start no workflow runs).
 - No loop: the bot pushes with `GITHUB_TOKEN`, and GitHub does not start new
   workflow runs from those pushes. The commit also carries `[skip ci]`.
 
