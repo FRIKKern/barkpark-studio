@@ -7,6 +7,9 @@
 //
 // With SANITY_TOKEN set, verify also reads the reference Sanity dataset live and
 // checks it maps to the same documents.
+//
+// Not seeded here: the workspace seats. studio-editor-{a,b,c,d}@example.com are
+// members of studio-parity for multi-editor journeys (dev sign-in, presence).
 import {readFileSync, readdirSync} from 'node:fs'
 import {isDeepStrictEqual} from 'node:util'
 

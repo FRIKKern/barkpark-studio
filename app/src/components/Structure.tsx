@@ -34,7 +34,6 @@ function usePaneWidth(hint: number) {
 export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}) {
   const [ref, width] = usePaneWidth(widthHint)
   useEffect(() => {
-    document.documentElement.dataset.hydrated = ''
     addEventListener('pagehide', flushOnUnload)
     return () => removeEventListener('pagehide', flushOnUnload)
   }, [])

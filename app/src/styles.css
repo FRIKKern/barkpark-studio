@@ -203,3 +203,11 @@ textarea.input { resize: vertical; }
 .used-in { list-style: none; margin: 0; padding: 4px 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
 .used-in li .preview { margin: 0 4px; min-height: 41px; }
 .muted { color: var(--muted); }
+
+/* Dev sign-in */
+.login { height: 100vh; display: grid; place-items: center; background: #f6f6f8; }
+.login form { width: 340px; display: flex; flex-direction: column; gap: 10px; padding: 24px; background: #fff; border-radius: 6px; box-shadow: 0 0 0 1px var(--border); }
+.login h1 { margin: 0; font-size: 20px; }
+.login label { font-size: 13px; font-weight: 500; }
+.dev-badge { font-size: 12px; padding: 2px 6px; border-radius: 3px; background: #fdf3c8; color: #6b5300; }
+.navbar .editor { justify-self: end; display: flex; align-items: center; gap: 8px; color: var(--muted); }

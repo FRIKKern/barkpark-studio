@@ -11,3 +11,4 @@ e2e/reference/*.mp4
 e2e/evidence/
 *.tmp.mjs
 *.tmp.sh
+.studio-dev-tokens.json
