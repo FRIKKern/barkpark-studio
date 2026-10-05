@@ -93,3 +93,10 @@ export function seenAt(page: Page, selector: string, value: string): Promise<num
     {selector, value},
   )
 }
+
+/**
+ * A budget that crosses the network to Barkpark (F3 cold load, F4 remote edit).
+ * QUALITY.md budgets are for a local machine near the server; CI runs far from it
+ * and sets BUDGET_NETWORK_SCALE to stretch them. In-browser budgets (F1, F2) don't scale.
+ */
+export const networkBudget = (ms: number) => ms * Number(process.env.BUDGET_NETWORK_SCALE || 1)

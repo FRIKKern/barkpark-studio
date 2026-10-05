@@ -6,9 +6,12 @@ import {defineConfig} from '@playwright/test'
 export default defineConfig({
   testDir: '.',
   testMatch: ['*.spec.ts', 'journeys/*.spec.ts'],
+  globalSetup: './rig/warmup.ts',
   fullyParallel: false,
   workers: 1,
-  timeout: 30_000,
+  timeout: process.env.CI ? 15_000 : 30_000,
+  // Fail fast: a run that can't start or hydrate stops instead of timing out test by test.
+  maxFailures: process.env.CI ? 3 : 0,
   reporter: [['list']],
   // @baseline specs measure, they don't gate: only `pnpm baseline` runs them.
   grepInvert: process.env.BASELINE ? undefined : /@baseline/,
@@ -17,8 +20,10 @@ export default defineConfig({
     {name: 'sanity', use: {baseURL: 'http://localhost:3333'}},
     {name: 'studio', use: {baseURL: 'http://localhost:3000'}},
   ],
+  // CI runs ours only (the reference needs a Sanity login); side-by-side stays local.
   webServer: [
-    {command: 'pnpm --dir ../reference/sanity dev', url: 'http://localhost:3333', reuseExistingServer: true, timeout: 60_000},
-    {command: 'pnpm --dir ../app dev', url: 'http://localhost:3000', reuseExistingServer: true, timeout: 60_000},
+    ...(process.env.CI ? [] : [{command: 'pnpm --dir ../reference/sanity dev', url: 'http://localhost:3333', reuseExistingServer: true, timeout: 60_000}]),
+    // CI times a production build (what users get); locally the dev server.
+    {command: process.env.CI ? 'pnpm --dir ../app serve' : 'pnpm --dir ../app dev', url: 'http://localhost:3000/health', reuseExistingServer: !process.env.CI, timeout: 60_000, stdout: 'pipe'},
   ],
 })

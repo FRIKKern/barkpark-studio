@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {installProbes, timeToReady} from '../rig/feel'
+import {installProbes, networkBudget, timeToReady} from '../rig/feel'
 import {target} from '../rig/targets'
 
 // Crown references, same steps on both studios: J08 (pick by search, open in the
@@ -106,7 +106,7 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
 
     const focus = await b.evaluate(() => ({id: document.activeElement?.id, caret: (document.activeElement as HTMLInputElement)?.selectionStart}))
     expect(focus, 'F6: focus and caret stay put in B').toEqual({id: 'title', caret: 4})
-    if (t.name === 'studio') expect(ms, 'F4 edit seen in 2nd browser').toBeLessThan(300)
+    if (t.name === 'studio') expect(ms, 'F4 edit seen in 2nd browser').toBeLessThan(networkBudget(300))
     console.log(`[J23 ${t.name}] A's edit seen in B after ${Math.round(ms)} ms`)
   } finally {
     await t.restore('author-grace', {name: 'Grace Hopper'}, 'author')

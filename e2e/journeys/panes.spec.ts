@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {installProbes, timeToReady} from '../rig/feel'
+import {installProbes, networkBudget, timeToReady} from '../rig/feel'
 import {target} from '../rig/targets'
 
 // Crown slice, one spec for both studios: J01 (list), J02 (deep URL restore),
@@ -50,7 +50,7 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   expect(await strips(page)).toEqual([false, false, false])
 
   if (t.name === 'studio') {
-    expect(coldMs, 'F3 cold load to usable list').toBeLessThan(1500)
+    expect(coldMs, 'F3 cold load to usable list').toBeLessThan(networkBudget(1500))
     expect(open.ms, 'F2 pane open (warm)').toBeLessThan(100)
     expect(open.cls, 'F2 zero layout shift').toBe(0)
   }

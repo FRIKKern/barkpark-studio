@@ -1,0 +1,53 @@
+# Our-side journey specs against Barkpark workspace studio-parity. The Sanity
+# side of each spec stays local (needs a Sanity login). Budget: whole run < 60 s.
+name: e2e
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: e2e-studio-parity # one shared dataset: never two runs at once
+  cancel-in-progress: false
+jobs:
+  studio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CI: 'true'
+      BARKPARK_URL: https://guerrilla.barkpark.cloud
+      BARKPARK_WORKSPACE: studio-parity
+      BARKPARK_PROJECT: default
+      BARKPARK_DATASET: production
+      BARKPARK_TOKEN: ${{ secrets.BARKPARK_TOKEN }} # read/write, studio-parity only
+      BUDGET_NETWORK_SCALE: '4' # runner is far from guerrilla; see e2e/rig/feel.ts
+      BARKPARK_SCHEMA_SOURCE: fixtures # member tokens can't read schemas yet (task-23c4ac86976c46a9)
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.0 }
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            app/pnpm-lock.yaml
+            e2e/pnpm-lock.yaml
+      - run: pnpm --dir app install --frozen-lockfile && pnpm --dir e2e install --frozen-lockfile
+      - name: .env from secrets
+        run: env | grep '^BARKPARK_' > .env
+      - name: Reset studio-parity to the fixture
+        run: node --env-file=.env scripts/seed-barkpark.mjs --data
+      - name: Journeys (ours)
+        working-directory: e2e
+        timeout-minutes: 4
+        run: node --env-file=../.env node_modules/@playwright/test/cli.js test --project studio
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            e2e/test-results/
+            e2e/journeys/*-snapshots/
+          if-no-files-found: ignore
