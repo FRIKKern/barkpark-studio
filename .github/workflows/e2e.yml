@@ -41,6 +41,8 @@ jobs:
         run: node --env-file=.env scripts/seed-barkpark.mjs --data
       - name: Build the studio (outside the suite's 60 s budget)
         run: pnpm --dir app build
+      - name: Warm Chrome's first launch (cold start is runner disk, not the studio)
+        run: timeout 30 google-chrome --headless=new --disable-gpu --no-sandbox --dump-dom about:blank > /dev/null
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
