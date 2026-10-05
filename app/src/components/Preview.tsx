@@ -20,7 +20,7 @@ function useSubtitle(doc: Doc | null | undefined) {
 type Sel = {selected: boolean; active?: boolean}
 
 /** Without `href` it renders as a plain row (e.g. a search option). */
-export function DocPreview({doc, href, selected, active, testId}: {doc: Doc | null | undefined; href?: string; testId?: string} & Sel) {
+export function DocPreview({doc, href, selected, active, testId, badge}: {doc: Doc | null | undefined; href?: string; testId?: string; badge?: string} & Sel) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const subtitle = useSubtitle(doc)
   const body = (
@@ -32,6 +32,7 @@ export function DocPreview({doc, href, selected, active, testId}: {doc: Doc | nu
         <div className="t">{doc ? previewTitle(doc, schemaOf(schemas, doc._type)) : '…'}</div>
         {subtitle && <div className="s">{subtitle}</div>}
       </span>
+      {badge && <span className="badge">{badge}</span>}
       {doc?._draft && <span className="ring" title="Draft" />}
       {doc?._hasPublished !== false && doc && <span className="dot" title="Published" />}
     </>

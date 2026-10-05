@@ -3,6 +3,7 @@ import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery, searchQuery, type Doc} from '../lib/data'
 import {createDoc} from '../lib/edits'
+import {focusFirstField} from '../lib/focus'
 import {Add, ChevronDown, Close, Ellipsis} from './icons'
 import {DocPreview, RefPreview} from './Preview'
 
@@ -99,12 +100,6 @@ export function RefInput({id, refType, value: outer, onChange, linkFor}: Props) 
   )
 }
 
-/** Put the caret in the new doc's first input once its pane has mounted. */
-function focusFirstField(id: string, frames = 30) {
-  const el = document.querySelector<HTMLElement>(`[data-pane="doc:${id}"] .doc-form .input`)
-  if (el) el.focus()
-  else if (frames > 0) requestAnimationFrame(() => focusFirstField(id, frames - 1))
-}
 
 type SearchProps = {
   id: string

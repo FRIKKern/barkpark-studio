@@ -26,7 +26,16 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
   })
 
   return (
-    <section className="pane doc" data-testid="document-pane" data-pane={`doc:${pane.id}`} data-pane-index={index}>
+    <section
+      className="pane doc"
+      data-testid="document-pane"
+      data-pane={`doc:${pane.id}`}
+      data-pane-index={index}
+      onKeyDown={(e) => {
+        // Sanity's publish shortcut.
+        if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc) (e.preventDefault(), void publish(qc, doc))
+      }}
+    >
       <header className="pane-header">
         <span className="title chips">
           <span className="chip" data-off={doc?._hasPublished === false ? '' : undefined}>
@@ -233,7 +242,8 @@ function DocFooter({doc}: {doc: Doc}) {
       </span>
       <button
         className="publish"
-        disabled={!doc._draft || state !== 'saved' || publishing}
+        disabled={!doc._draft || state === 'error' || publishing}
+        aria-keyshortcuts="Control+Alt+P"
         onClick={async () => {
           setPublishing(true)
           try {
