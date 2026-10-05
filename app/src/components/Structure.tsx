@@ -1,15 +1,16 @@
-import {useEffect, useLayoutEffect, useRef, useState} from 'react'
+import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {docQuery, listQuery, previewTitle, publishedListQuery, publishedQuery, schemaOf, schemasQuery} from '../lib/data'
+import {docQuery, listQuery, previewTitle, publishedListQuery, publishedQuery, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {usePublishedPerspective} from '../lib/perspective'
+import {DEFAULT_SORT, DEFAULT_VIEW, useListPrefs, type Sort, type View} from '../lib/list-prefs'
 import {collapsed} from '../lib/layout'
 import {useLive} from '../lib/live'
 import {draftNew, flushOnUnload} from '../lib/edits'
 import {focusFirstField} from '../lib/focus'
 import {closeFrom, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
-import {Add, ChevronRight, Close, Search} from './icons'
+import {Add, ChevronRight, Close, Ellipsis, Search} from './icons'
 import {DocPreview} from './Preview'
 import {PaneLink} from './PaneLink'
 
@@ -158,6 +159,30 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
   const draftList = useQuery({...listQuery(type), enabled: !published})
   const publishedList = useQuery({...publishedListQuery(type), enabled: published})
   const {data: docs, error} = published ? publishedList : draftList
+  const {sort, view, set} = useListPrefs(type)
+  const [query, setQuery] = useState('')
+  // J24: filter as you type, on the list already here (no request per key). Every
+  // word must appear in one of the doc's text values, Sanity-style.
+  const shown = useMemo(() => {
+    const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
+    const text = (d: Doc) => Object.entries(d).filter(([k, v]) => !k.startsWith('_') && typeof v === 'string').map(([, v]) => (v as string).toLowerCase()).join(' ')
+    const hits = (docs ?? []).filter((d) => terms.every((w) => text(d).includes(w)))
+    if (terms.length) {
+      // Sorted by relevance, like Sanity: words of the title that start with a
+      // search term count most, then the list's own order.
+      const score = (d: Doc) => {
+        const words = previewTitle(d, schemaOf(schemas, type)).toLowerCase().split(/\W+/)
+        return terms.filter((t) => words.some((w) => w.startsWith(t))).length
+      }
+      return [...hits].sort((a, b) => score(b) - score(a) || b._updatedAt.localeCompare(a._updatedAt))
+    }
+    const by = {
+      title: (a: Doc, b: Doc) => previewTitle(a, schemaOf(schemas, type)).localeCompare(previewTitle(b, schemaOf(schemas, type))),
+      updated: (a: Doc, b: Doc) => b._updatedAt.localeCompare(a._updatedAt),
+      created: (a: Doc, b: Doc) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')),
+    }[sort]
+    return [...hits].sort(by)
+  }, [docs, query, sort, schemas, type])
   return (
     <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-pane-index={index}>
       <header className="pane-header">
@@ -177,16 +202,32 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
         >
           <Add />
         </button>
+        <ListMenu sort={sort} view={view} set={set} />
       </header>
       <div className="search">
-        <span style={{position: 'absolute', left: 2, top: 3}}>
+        <span className="search-icon">
           <Search />
         </span>
-        Search list
+        <input
+          type="search"
+          aria-label="Search list"
+          placeholder="Search list"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+        />
+        {query && (
+          <button type="button" className="icon-btn search-clear" aria-label="Clear search" onClick={() => setQuery('')}>
+            <Close />
+          </button>
+        )}
       </div>
-      <div className="pane-body list-rows">
+      {query && <div className="sorted-by">Sorted by relevance</div>}
+      <div className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}>
         {error && <p role="alert">Could not load {type}: {String(error)}</p>}
-        {docs?.map((d) => (
+        {docs && docs.length === 0 && <p className="list-empty">No documents of this type</p>}
+        {docs && docs.length > 0 && shown.length === 0 && <p className="list-empty">No results found</p>}
+        {shown.map((d) => (
           <DocPreview
             key={d._publishedId}
             doc={d}
@@ -198,5 +239,54 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
         ))}
       </div>
     </section>
+  )
+}
+
+/** J25: the list's "…" menu, Sanity's: sort (title / last edited / created) and layout. */
+function ListMenu({sort, view, set}: {sort: Sort; view: View; set: (p: {sort?: Sort; view?: View}) => void}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    ref.current?.querySelector<HTMLElement>('[role=menuitemradio]')?.focus()
+    const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+  const item = (label: string, checked: boolean, run: () => void, disabled = false) => (
+    <button type="button" role="menuitemradio" aria-checked={checked} disabled={disabled} className="menu-item check" onClick={() => (setOpen(false), run())}>
+      {label}
+    </button>
+  )
+  return (
+    <div
+      className="menu-wrap"
+      ref={ref}
+      onKeyDown={(e) => {
+        const items = [...(ref.current?.querySelectorAll<HTMLElement>('[role=menuitemradio]:not(:disabled)') ?? [])]
+        const i = items.indexOf(document.activeElement as HTMLElement)
+        if (e.key === 'Escape') setOpen(false)
+        if (e.key === 'ArrowDown' && open) (e.preventDefault(), items[(i + 1) % items.length]?.focus())
+        if (e.key === 'ArrowUp' && open) (e.preventDefault(), items[(i - 1 + items.length) % items.length]?.focus())
+      }}
+    >
+      <button type="button" className="icon-btn" aria-label="List options" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <Ellipsis />
+      </button>
+      {open && (
+        <div className="popover menu" role="menu">
+          <div className="menu-label">Actions</div>
+          {item('Sort by Title', sort === 'title', () => set({sort: 'title'}))}
+          {item('Sort by Last Edited', sort === 'updated', () => set({sort: 'updated'}))}
+          {item('Sort by Created', sort === 'created', () => set({sort: 'created'}))}
+          {item('Default sort', false, () => set({sort: DEFAULT_SORT}), sort === DEFAULT_SORT)}
+          <hr />
+          <div className="menu-label">Layout</div>
+          {item('Compact view', view === 'compact', () => set({view: 'compact'}))}
+          {item('Detailed view', view === 'detailed', () => set({view: 'detailed'}))}
+          {item('Default view', false, () => set({view: DEFAULT_VIEW}), view === DEFAULT_VIEW)}
+        </div>
+      )}
+    </div>
   )
 }

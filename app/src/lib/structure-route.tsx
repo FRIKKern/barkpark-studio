@@ -4,6 +4,8 @@ import {Structure} from '../components/Structure'
 import {docQuery, ensureDocs, fetchViewportHint, listQuery, schemaOf, schemasQuery, type Doc, type Schema} from './data'
 import {parsePanes, type Pane} from './panes'
 import {meQuery} from './session'
+import {fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
+import {useState} from 'react'
 import {redirect} from '@tanstack/react-router'
 
 // Everything a pane chain needs before it paints: schemas, the list, every open
@@ -23,9 +25,10 @@ export async function requireEditor(queryClient: QueryClient, href: string) {
 export async function loadPanes(queryClient: QueryClient, splat: string | undefined) {
   const panes = parsePanes(splat)
   const onServer = typeof window === 'undefined'
-  const [schemas, widthHint] = await Promise.all([
+  const [schemas, widthHint, listPrefs] = await Promise.all([
     queryClient.ensureQueryData(schemasQuery),
     onServer ? fetchViewportHint() : document.querySelector('[data-testid=panes]')?.clientWidth ?? window.innerWidth,
+    onServer ? (fetchListPrefs() as Promise<ListPrefs>) : readListPrefsCookie(),
   ])
   const listed = await Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [queryClient.ensureQueryData(listQuery(p.type))] : [])))
   const open = await Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [queryClient.ensureQueryData(docQuery(p.type, p.id))] : [])))
@@ -38,7 +41,7 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   })()
   if (onServer) await refs
   else void refs.catch(() => {}) // a preview that fails shows its own state
-  return {panes, widthHint}
+  return {panes, widthHint, listPrefs}
 }
 
 /** For each [doc, allRefs]: the preview-subtitle ref, and (allRefs) every reference field. */
@@ -67,11 +70,18 @@ async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [D
   return [...byType.values()].flatMap((ids) => [...ids].map((id) => qc.getQueryData<Doc | null>(['doc', id])).filter((d): d is Doc => !!d))
 }
 
-export function StructureView({panes, widthHint}: {panes: Pane[]; widthHint: number}) {
+export function StructureView({panes, widthHint, listPrefs}: {panes: Pane[]; widthHint: number; listPrefs: ListPrefs}) {
+  const [prefs, setPrefs] = useState(listPrefs)
+  const set = (type: string, p: ListPrefs[string]) =>
+    setPrefs((all) => {
+      const next = {...all, [type]: {...all[type], ...p}}
+      writeListPrefs(next)
+      return next
+    })
   return (
-    <>
+    <ListPrefsContext.Provider value={{prefs, set}}>
       <Navbar />
       <Structure panes={panes} widthHint={widthHint} />
-    </>
+    </ListPrefsContext.Provider>
   )
 }
