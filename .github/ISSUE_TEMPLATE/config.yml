@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feels off
+    url: https://github.com/FRIKKern/barkpark/issues/new?title=Studio%20feels%20off%3A%20Jxx%20&body=**Journey%3A**%20Jxx%0A**QUALITY%20row%3A**%20Fx%20(see%20FRIKKern%2Fbarkpark-studio%20QUALITY.md)%0A**What%20feels%20off%3A**%0A**What%20Sanity%20does%20instead%3A**%0A**Clip%20or%20screenshot%3A**%20(drag%20it%20in%20here)%0A%0AGoal%3A%20task-130be6b834d485ae
+    about: Something feels worse than Sanity Studio. Needs a journey id, a clip and the QUALITY row. Opens on the Barkpark board (see docs/decisions/0003).
+  - name: Server gap
+    url: https://github.com/FRIKKern/barkpark/issues/new?title=Studio%20server%20gap%3A%20&body=**Missing%20in%20Barkpark%3A**%20(endpoint%20or%20capability)%0A**Blocks%20journey%3A**%20Jxx%0A**What%20the%20Sanity%20API%20does%3A**%0A**Workaround%20today%3A**%20none%2C%20we%20do%20not%20hack%20around%20gaps%20in%20the%20client%0A%0AGoal%3A%20task-130be6b834d485ae
+    about: Barkpark lacks an API the Studio needs. Opens on the Barkpark board (see docs/decisions/0003).
