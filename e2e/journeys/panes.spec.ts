@@ -52,7 +52,7 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   if (t.name === 'studio') {
     expect(coldMs, 'F3 cold load to usable list').toBeLessThan(networkBudget(1500))
     expect(open.ms, 'F2 pane open (warm)').toBeLessThan(100)
-    expect(open.cls, 'F2 zero layout shift').toBe(0)
+    expect(open.cls, `F2 zero layout shift (moved: ${open.shifted})`).toBe(0)
   }
 })
 

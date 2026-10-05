@@ -7,13 +7,13 @@ import type {BrowserContext, Locator, Page} from '@playwright/test'
 //  F2  layout shifts (CLS) collected continuously; timeToReady() reads its window.
 declare global {
   interface Window {
-    __feel: {keys: number[]; slowKeys: number[]; shifts: {t: number; v: number}[]}
+    __feel: {keys: number[]; slowKeys: number[]; shifts: {t: number; v: number; src: string}[]}
   }
 }
 
 export async function installProbes(ctx: BrowserContext) {
   await ctx.addInitScript(() => {
-    const feel = (window.__feel = {keys: [] as number[], slowKeys: [] as number[], shifts: [] as {t: number; v: number}[]})
+    const feel = (window.__feel = {keys: [] as number[], slowKeys: [] as number[], shifts: [] as {t: number; v: number; src: string}[]})
     addEventListener(
       'keydown',
       (e) => {
@@ -30,8 +30,15 @@ export async function installProbes(ctx: BrowserContext) {
       for (const e of l.getEntries()) if (e.name === 'keydown') feel.slowKeys.push(e.duration)
     }).observe({type: 'event', durationThreshold: 16, buffered: true} as PerformanceObserverInit)
     new PerformanceObserver((l) => {
-      for (const e of l.getEntries() as (PerformanceEntry & {value: number; hadRecentInput: boolean})[])
-        if (!e.hadRecentInput) feel.shifts.push({t: e.startTime, v: e.value})
+      for (const e of l.getEntries() as (PerformanceEntry & {value: number; hadRecentInput: boolean; sources?: {node?: Node}[]})[]) {
+        if (e.hadRecentInput) continue
+        // Name what moved, so a CLS failure says where to look.
+        const src = (e.sources ?? []).map(({node}) => {
+          const el = node instanceof Element ? node : node?.parentElement
+          return el ? `${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).split(' ').join('.') : ''}` : '?'
+        })
+        feel.shifts.push({t: e.startTime, v: e.value, src: src.join(' ')})
+      }
     }).observe({type: 'layout-shift', buffered: true})
   })
 }
@@ -68,8 +75,8 @@ export async function timeToReady(page: Page, item: Locator, ready: string, arg:
       }
       const ms = performance.now() - t0
       await new Promise((r) => setTimeout(r, 300)) // let late shifts land
-      const cls = window.__feel.shifts.filter((s) => s.t >= t0).reduce((a, s) => a + s.v, 0)
-      return {ms, cls}
+      const shifts = window.__feel.shifts.filter((s) => s.t >= t0)
+      return {ms, cls: shifts.reduce((a, s) => a + s.v, 0), shifted: shifts.map((s) => s.src).join(' | ')}
     },
     {el: handle, ready, arg},
   )
