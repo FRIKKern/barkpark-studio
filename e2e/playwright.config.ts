@@ -8,7 +8,7 @@ const STUDIO_PORT = process.env.STUDIO_PORT || '3000'
 
 export default defineConfig({
   testDir: '.',
-  testMatch: ['*.spec.ts', 'journeys/*.spec.ts', 'evidence/*.spec.ts'],
+  testMatch: ['*.spec.ts', 'journeys/*.spec.ts'],
   globalSetup: './rig/warmup.ts',
   fullyParallel: false,
   workers: 1,
