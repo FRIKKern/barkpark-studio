@@ -9,7 +9,7 @@
 - **App: TanStack Start** — Router (pane path in the URL, typed), Query/DB
   (local cache, optimistic writes), Form (schema-driven fields), server functions
   (auth + proxy to Barkpark).
-- **Rich text:** Tiptap/ProseMirror, stored as Barkpark PortableDoc blocks.
+- **Rich text:** Barkpark's shared PortableDoc editor (`bp-paper-canvas`), hosted the way Barkdown hosts it. See [0004](0004-portabledoc-freeform.md).
 - **Bar:** a real Sanity Studio (`reference/sanity`, project `0ozn679s`) on the
   same schema and the same seed data (`fixtures/seed.ndjson`).
 - **Tests:** Playwright, including a two-browser rig, built *before* the UI.
