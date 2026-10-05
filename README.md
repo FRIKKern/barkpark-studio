@@ -19,10 +19,10 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 10 changes, 4 tasks closed
+- **Today** · 11 changes, 4 tasks closed
+  - THIRD-PARTY.md: Sanity MIT notice for the ported pane layout rule ([#10](https://github.com/FRIKKern/barkpark-studio/pull/10))
   - Load Inter through the stylesheet ([#9](https://github.com/FRIKKern/barkpark-studio/pull/9))
   - feat/j01 structure shell ([#8](https://github.com/FRIKKern/barkpark-studio/pull/8))
-  - Fixture: close the reference loop post -> author -> category -> post ([#7](https://github.com/FRIKKern/barkpark-studio/pull/7))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
