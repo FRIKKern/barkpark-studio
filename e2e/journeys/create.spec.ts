@@ -14,6 +14,9 @@ test('J18: new post from the list — initial values, slug generate', async ({pa
   await Promise.all([t.prepare(page.context()), installProbes(page.context())])
   await page.goto(t.listPath('post'))
   await t.settle(page)
+  // F2 is the warm open: open one doc first so the doc pane's code is loaded.
+  await t.listItem(page, 'post-01').click()
+  await expect(t.field(page, 'title')).toHaveValue('Fixture post 01')
 
   const opened = await timeToReady(page, t.newDocButton(t.pane(page, 1)), `() => !!document.querySelector('[data-pane-index="2"] [id="title"]')`, null)
   created = decodeURIComponent(page.url()).match(/;([0-9a-f-]{36})/)?.[1]
