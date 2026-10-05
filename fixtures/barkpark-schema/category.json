@@ -1,0 +1,9 @@
+{
+  "name": "category",
+  "title": "Category",
+  "visibility": "public",
+  "fields": [
+    {"name": "title", "title": "Title", "type": "string", "validation": {"required": true}},
+    {"name": "description", "title": "Description", "type": "text", "rows": 2}
+  ]
+}
