@@ -19,6 +19,8 @@ export type Target = {
   /** The reference preview link for `field` inside a pane. */
   refLink(pane: Locator, field: string): Locator
   closeButton(pane: Locator): Locator
+  /** The document actions "…" menu in a doc pane's footer. */
+  docMenu(page: Page): Locator
   /** The "…" actions button of a reference field showing a value. */
   refMenu(pane: Locator, field: string): Locator
   /** Write straight to the backend over HTTP, as another client would. */
@@ -78,6 +80,7 @@ const sanity: Target = {
     return pane.locator(`a[href$="parentRefPath%3D${f}"], a[href*="parentRefPath%3D${f}%2C"]`).first()
   },
   closeButton: (pane) => pane.locator('a:has([data-sanity-icon="close"])').first(),
+  docMenu: (page) => page.locator('[data-testid="action-menu-button"]').last(),
   refMenu: (pane, field) =>
     pane
       .locator(`a[href$="parentRefPath%3D${encodeURIComponent(field)}"]`)
@@ -124,6 +127,7 @@ const studio: Target = {
   pane: (page, index) => page.locator(`[data-pane-index="${index}"]`),
   refLink: (pane, field) => pane.locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]:not([data-testid="pane-close"])`).first(),
   closeButton: (pane) => pane.getByTestId('pane-close'),
+  docMenu: (page) => page.getByRole('button', {name: 'Document actions'}).last(),
   refMenu: (pane, field) =>
     pane
       .locator('.ref-row')

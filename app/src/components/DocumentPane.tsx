@@ -6,6 +6,8 @@ import {openAfter, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
+import {DeleteDialog} from './DeleteDialog'
+import {Ellipsis} from './icons'
 
 type Props = {panes: Pane[]; index: number; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -65,7 +67,7 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
           </div>
         )}
       </div>
-      {doc && <DocFooter doc={doc} />}
+      {doc && <DocFooter doc={doc} closeHref={closeHref} />}
     </section>
   )
 }
@@ -230,10 +232,12 @@ function DateTimeInput({id, value, onChange}: {id: string; value: string | undef
   )
 }
 
-function DocFooter({doc}: {doc: Doc}) {
+function DocFooter({doc, closeHref}: {doc: Doc; closeHref: string}) {
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
   const [publishing, setPublishing] = useState(false)
+  const [menu, setMenu] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const label = state === 'saving' ? 'Saving…' : state === 'error' ? 'Not saved — retrying' : doc._draft ? 'Saved' : 'Published'
   return (
     <footer className="doc-footer">
@@ -255,6 +259,19 @@ function DocFooter({doc}: {doc: Doc}) {
       >
         Publish
       </button>
+      <div className="menu-wrap">
+        <button type="button" className="icon-btn" aria-label="Document actions" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+          <Ellipsis />
+        </button>
+        {menu && (
+          <div className="popover menu up" role="menu" onKeyDown={(e) => e.key === 'Escape' && setMenu(false)}>
+            <button type="button" role="menuitem" className="menu-item danger" autoFocus onClick={() => (setMenu(false), setDeleting(true))}>
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+      {deleting && <DeleteDialog doc={doc} closeHref={closeHref} onClose={() => setDeleting(false)} />}
     </footer>
   )
 }
