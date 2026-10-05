@@ -23,6 +23,27 @@ export const dataset = () => config().dataset
  * failing a pane. Streams (listen) are not retried here.
  */
 export async function bpFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const method = (init.method ?? 'GET').toUpperCase()
+  const stream = new Headers(init.headers).get('accept') === 'text/event-stream'
+  if (method !== 'GET') recent.clear() // a write: no read may answer from before it
+  if (method !== 'GET' || stream) return send(path, init)
+  // Identical reads within READ_DEDUPE_MS share one request: a reload's loader,
+  // several panes and the SSR pass ask for the same things at once, and every
+  // editor shares this token's read budget (task-2c31de0cf6597d32).
+  let hit = recent.get(path)
+  if (!hit || hit.expires < Date.now()) {
+    hit = {expires: Date.now() + READ_DEDUPE_MS, res: send(path, init).then(async (r) => ({status: r.status, type: r.headers.get('content-type'), body: await r.text()}))}
+    if (recent.size > 500) for (const [k, v] of recent) if (v.expires < Date.now()) recent.delete(k)
+    recent.set(path, hit)
+  }
+  const {status, type, body} = await hit.res
+  return new Response(body, {status, headers: type ? {'content-type': type} : {}})
+}
+
+const READ_DEDUPE_MS = 500
+const recent = new Map<string, {expires: number; res: Promise<{status: number; type: string | null; body: string}>}>()
+
+async function send(path: string, init: RequestInit): Promise<Response> {
   const {base, token} = config()
   const headers = new Headers(init.headers)
   headers.set('authorization', `Bearer ${token}`)

@@ -7,13 +7,13 @@ import type {BrowserContext, Locator, Page} from '@playwright/test'
 //  F2  layout shifts (CLS) collected continuously; timeToReady() reads its window.
 declare global {
   interface Window {
-    __feel: {keys: number[]; slowKeys: number[]; shifts: {t: number; v: number}[]}
+    __feel: {keys: number[]; slowKeys: number[]; shifts: {t: number; v: number; src: string}[]}
   }
 }
 
 export async function installProbes(ctx: BrowserContext) {
   await ctx.addInitScript(() => {
-    const feel = (window.__feel = {keys: [] as number[], slowKeys: [] as number[], shifts: [] as {t: number; v: number}[]})
+    const feel = (window.__feel = {keys: [] as number[], slowKeys: [] as number[], shifts: [] as {t: number; v: number; src: string}[]})
     addEventListener(
       'keydown',
       (e) => {
@@ -30,8 +30,15 @@ export async function installProbes(ctx: BrowserContext) {
       for (const e of l.getEntries()) if (e.name === 'keydown') feel.slowKeys.push(e.duration)
     }).observe({type: 'event', durationThreshold: 16, buffered: true} as PerformanceObserverInit)
     new PerformanceObserver((l) => {
-      for (const e of l.getEntries() as (PerformanceEntry & {value: number; hadRecentInput: boolean})[])
-        if (!e.hadRecentInput) feel.shifts.push({t: e.startTime, v: e.value})
+      for (const e of l.getEntries() as (PerformanceEntry & {value: number; hadRecentInput: boolean; sources?: {node?: Node}[]})[]) {
+        if (e.hadRecentInput) continue
+        // Name what moved, so a CLS failure says where to look.
+        const src = (e.sources ?? []).map(({node}) => {
+          const el = node instanceof Element ? node : node?.parentElement
+          return el ? `${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).split(' ').join('.') : ''}` : '?'
+        })
+        feel.shifts.push({t: e.startTime, v: e.value, src: src.join(' ')})
+      }
     }).observe({type: 'layout-shift', buffered: true})
   })
 }
@@ -52,26 +59,34 @@ export async function typeAndMeasure(page: Page, field: Locator, text: string) {
 }
 
 /**
- * F2: click `item`, then time until `ready` holds in the page (polled every frame).
- * Returns ms from the click to the first frame where it holds, and CLS in that window.
+ * F2: click `item` with a real (trusted) click, then time from that click's event
+ * to the first frame where `ready` holds. A trusted click matters: layout that
+ * moves because the user clicked is not a layout shift (hadRecentInput), and a
+ * synthetic el.click() would make it look like one. Returns ms and CLS after it.
  */
 export async function timeToReady(page: Page, item: Locator, ready: string, arg: unknown) {
-  const handle = await item.elementHandle()
+  await page.evaluate(() => {
+    const w = window as {__clickAt?: number}
+    delete w.__clickAt
+    addEventListener('click', (e) => (w.__clickAt = e.timeStamp), {capture: true, once: true})
+  })
+  await item.click()
   return page.evaluate(
-    async ({el, ready, arg}) => {
+    async ({ready, arg}) => {
       const done = new Function('arg', `return (${ready})(arg)`) as (a: unknown) => boolean
-      const t0 = performance.now()
-      ;(el as HTMLElement).click()
+      const w = window as {__clickAt?: number}
+      const start = performance.now()
       while (!done(arg)) {
         await new Promise(requestAnimationFrame)
-        if (performance.now() - t0 > 10_000) throw new Error('timeToReady: never ready')
+        if (performance.now() - start > 10_000) throw new Error('timeToReady: never ready')
       }
+      const t0 = w.__clickAt ?? start
       const ms = performance.now() - t0
       await new Promise((r) => setTimeout(r, 300)) // let late shifts land
-      const cls = window.__feel.shifts.filter((s) => s.t >= t0).reduce((a, s) => a + s.v, 0)
-      return {ms, cls}
+      const shifts = window.__feel.shifts.filter((s) => s.t >= t0)
+      return {ms, cls: shifts.reduce((a, s) => a + s.v, 0), shifted: shifts.map((s) => s.src).join(' | ')}
     },
-    {el: handle, ready, arg},
+    {ready, arg},
   )
 }
 

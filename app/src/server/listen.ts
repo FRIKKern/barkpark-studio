@@ -1,6 +1,13 @@
 // One upstream SSE connection per server process, fanned out to browser
-// subscribers filtered by document id. Barkpark's listen stream is per dataset;
-// the browser only ever sees frames for the ids it asked for.
+// subscribers filtered by document id / type. Barkpark's listen stream is per
+// dataset; the browser only ever sees frames for what it asked for.
+//
+// Reconnects lose nothing: the hub keeps the last frames, and a browser that
+// comes back (EventSource sends Last-Event-ID; a new subscription passes
+// ?since=) gets every matching frame after its last one, in order, before live
+// ones. If its last frame is older than the buffer, it is told to `reset`
+// (refetch). The upstream stays open a minute after the last browser leaves, so
+// a browser that drops for a while doesn't take the history with it.
 import '@tanstack/react-start/server-only'
 import {bpFetch, dataset} from './barkpark'
 
@@ -9,18 +16,41 @@ type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) =
 const subscribers = new Set<Subscriber>()
 let upstream: AbortController | null = null
 let lastEventId: string | null = null
+let idleTimer: ReturnType<typeof setTimeout> | undefined
+
+type Buffered = {id: number; docId: string; type?: string; frame: string}
+const BUFFER = 2000
+const buffer: Buffered[] = []
+/** First event id this hub saw since it (re)connected without a gap; older is unknown. */
+let knownFrom: number | null = null
+
+const wants = (sub: Subscriber, docId: string, type?: string) => sub.ids.has(docId) || (!!type && sub.types.has(type))
+
+/** The newest event id the hub holds (-1: none yet). Sent as the welcome's id. */
+export const head = () => (buffer.length ? buffer[buffer.length - 1].id : -1)
 
 export const publishedId = (id: string) => (id.startsWith('drafts.') ? id.slice(7) : id)
 
-export function subscribe(ids: string[], types: string[], send: Subscriber['send']): () => void {
+export function subscribe(ids: string[], types: string[], send: Subscriber['send'], since?: number): () => void {
   const sub = {ids: new Set(ids.map(publishedId)), types: new Set(types), send}
+  if (since !== undefined && Number.isFinite(since)) {
+    // -1: the page had seen nothing yet when it was told the head (welcome) —
+    // everything buffered is after that.
+    if (since >= 0 && knownFrom !== null && since + 1 < knownFrom) send('event: reset\ndata: {}\n\n')
+    else for (const b of buffer) if (b.id > since && wants(sub, b.docId, b.type)) send(b.frame)
+  }
   subscribers.add(sub)
+  clearTimeout(idleTimer)
   if (!upstream) void connect()
   return () => {
     subscribers.delete(sub)
     if (subscribers.size === 0) {
-      upstream?.abort()
-      upstream = null
+      clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => {
+        if (subscribers.size > 0) return
+        upstream?.abort()
+        upstream = null
+      }, 60_000)
     }
   }
 }
@@ -71,8 +101,16 @@ function dispatch(frame: string) {
   if (id) lastEventId = id
   if (event !== 'mutation' || data.length === 0) return
   const payload = JSON.parse(data.join('\n')) as {documentId?: string; type?: string}
-  if (!payload.documentId) return
+  if (!payload.documentId || !id) return
+  const n = Number(id)
+  if (buffer.length && n <= buffer[buffer.length - 1].id) return // replayed by upstream after a reconnect
   const docId = publishedId(payload.documentId)
-  const out = `id: ${id ?? ''}\nevent: mutation\ndata: ${data.join('\n')}\n\n`
-  for (const sub of subscribers) if (sub.ids.has(docId) || (payload.type && sub.types.has(payload.type))) sub.send(out)
+  const out = `id: ${id}\nevent: mutation\ndata: ${data.join('\n')}\n\n`
+  buffer.push({id: n, docId, type: payload.type, frame: out})
+  if (buffer.length > BUFFER) {
+    buffer.shift()
+    knownFrom = buffer[0].id
+  }
+  knownFrom ??= n
+  for (const sub of subscribers) if (wants(sub, docId, payload.type)) sub.send(out)
 }
