@@ -50,12 +50,15 @@ const MARK_TYPES = {strong: 'strong', em: 'em', code: 'code', underline: 'underl
 function inline(block) {
   const defs = Object.fromEntries((block.markDefs ?? []).map((d) => [d._key, d]))
   return block.children.map((span) => {
+    if (span._type === 'chip') return {type: 'chip', tone: span.tone, text: span.text}
     if (span._type !== 'span') throw new Error(`unmapped inline ${span._type}`)
     // Marks become wrapper nodes, outermost first.
     return (span.marks ?? []).reduceRight((node, mark) => {
       if (MARK_TYPES[mark]) return {type: MARK_TYPES[mark], children: [node]}
       const def = defs[mark]
       if (def?._type === 'link') return {type: 'link', href: def.href, children: [node]}
+      const ref = def?._type === 'internalLink' && def.reference._ref
+      if (ref) return {type: 'wikilink', target: ref, docId: ref, children: [node]}
       throw new Error(`unmapped mark ${mark}`)
     }, {type: 'text', value: span.text})
   })
@@ -76,15 +79,28 @@ function portableTextToPortableDoc(blocks) {
   }
 }
 
+// Sanity fields Barkpark cannot hold yet; each has a gap task under the goal.
+const UNMAPPED = new Set([
+  'attachment', // file field: no upload/picker for non-image assets
+])
+
+// Item of a multi-type object array → one composite shape; `_type` becomes `kind`
+// (Barkpark arrayOf takes one member type).
+const objectItem = ({_type, _key, ...rest}) => ({
+  kind: _type,
+  ...Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v?._type === 'reference' ? v._ref : v])),
+})
+
 // One Sanity document → the Barkpark content it should equal (no system fields).
 function toBarkpark(doc) {
   const out = {}
   for (const [k, v] of Object.entries(doc)) {
-    if (k.startsWith('_')) continue
+    if (k.startsWith('_') || UNMAPPED.has(k)) continue
     if (v?._type === 'slug') out[k] = v.current
     else if (v?._type === 'reference') out[k] = v._ref
     else if (k === 'body') out[k] = portableTextToPortableDoc(v)
     else if (Array.isArray(v) && v.every((x) => x?._type === 'reference')) out[k] = v.map((x) => x._ref)
+    else if (Array.isArray(v) && v.every((x) => x?._type && x._key)) out[k] = v.map(objectItem)
     else out[k] = v
   }
   return out
