@@ -9,16 +9,27 @@ import {parsePanes, type Pane} from './panes'
 // reload this runs on the server, so the whole chain arrives in the HTML.
 // Referenced docs are fetched per type in one request (one shared token, one
 // rate bucket: see server/barkpark.ts).
+// In the browser, a pane opens as soon as its own doc is there; references load
+// behind it (their previews fill in), so opening never waits on the network for
+// data the pane can paint without.
 export async function loadPanes(queryClient: QueryClient, splat: string | undefined) {
   const panes = parsePanes(splat)
-  const [schemas, widthHint] = await Promise.all([queryClient.ensureQueryData(schemasQuery), fetchViewportHint()])
+  const onServer = typeof window === 'undefined'
+  const [schemas, widthHint] = await Promise.all([
+    queryClient.ensureQueryData(schemasQuery),
+    onServer ? fetchViewportHint() : document.querySelector('[data-testid=panes]')?.clientWidth ?? window.innerWidth,
+  ])
   const listed = await Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [queryClient.ensureQueryData(listQuery(p.type))] : [])))
   const open = await Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [queryClient.ensureQueryData(docQuery(p.type, p.id))] : [])))
   const openDocs = open.filter((d): d is Doc => !!d)
-  // Level 1: what open docs reference, and what every visible preview needs.
-  const refs = await ensureRefs(queryClient, schemas, [...openDocs.map((d) => [d, true] as const), ...listed.flat().map((d) => [d, false] as const)])
-  // Level 2: the subtitles of those references' own previews.
-  await ensureRefs(queryClient, schemas, refs.map((d) => [d, false] as const))
+  const refs = (async () => {
+    // Level 1: what open docs reference, and what every visible preview needs.
+    const l1 = await ensureRefs(queryClient, schemas, [...openDocs.map((d) => [d, true] as const), ...listed.flat().map((d) => [d, false] as const)])
+    // Level 2: the subtitles of those references' own previews.
+    await ensureRefs(queryClient, schemas, l1.map((d) => [d, false] as const))
+  })()
+  if (onServer) await refs
+  else void refs.catch(() => {}) // a preview that fails shows its own state
   return {panes, widthHint}
 }
 
