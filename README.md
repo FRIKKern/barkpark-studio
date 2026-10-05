@@ -19,10 +19,10 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 17 changes, 4 tasks closed
+- **Today** · 18 changes, 4 tasks closed
+  - Coalesce writes: one patch per doc per 750 ms, flush on leave ([#18](https://github.com/FRIKKern/barkpark-studio/pull/18))
   - e2e CI: enforce the 60 s suite budget (globalTimeout) ([#16](https://github.com/FRIKKern/barkpark-studio/pull/16))
   - e2e in CI: our-side journeys against studio-parity ([#13](https://github.com/FRIKKern/barkpark-studio/pull/13))
-  - J23: referenced docs stay live; reads fit one shared rate bucket ([#15](https://github.com/FRIKKern/barkpark-studio/pull/15))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
