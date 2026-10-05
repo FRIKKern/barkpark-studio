@@ -21,9 +21,12 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 Generated from merged PRs on `main` and closed tasks. Do not edit by hand.
 
 <!-- timeline:start -->
-- **Today** · 1 change, 1 task closed
+- **Today** · 4 changes, 2 tasks closed
+  - Done: [P0 Scaffold TanStack Start app with same-origin Barkpark proxy](https://github.com/FRIKKern/barkpark/issues/21670)
+  - Tracking and hygiene: generated timeline + roadmap, few-fast-tests policy, issue routing, housekeeping Actions ([#2](https://github.com/FRIKKern/barkpark-studio/pull/2))
+  - Scaffold TanStack Start app with same-origin Barkpark proxy ([#3](https://github.com/FRIKKern/barkpark-studio/pull/3))
   - Done: [P0 Fixture schema + seed into Barkpark workspace studio-parity](https://github.com/FRIKKern/barkpark/issues/21668)
-  - Barkpark Studio: parity plan, quality bar, journeys, Sanity reference studio
+  - …and 2 more
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)

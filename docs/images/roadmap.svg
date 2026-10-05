@@ -28,7 +28,7 @@
 <text x="60" y="314" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">Two-browser Playwright r…</tspan></text>
 <text x="60" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">Record reference clips f…</tspan></text>
 <text x="60" y="374" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">Fixture schema + seed in…</tspan></text>
-<text x="60" y="404" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">Scaffold TanStack Start…</tspan></text>
+<text x="60" y="404" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">Scaffold TanStack Start…</tspan></text>
 <text x="60" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">Spike: same-field concur…</tspan></text>
 <text x="60" y="464" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">CI: e2e journeys block m…</tspan></text>
 </g>
