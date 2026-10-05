@@ -59,26 +59,34 @@ export async function typeAndMeasure(page: Page, field: Locator, text: string) {
 }
 
 /**
- * F2: click `item`, then time until `ready` holds in the page (polled every frame).
- * Returns ms from the click to the first frame where it holds, and CLS in that window.
+ * F2: click `item` with a real (trusted) click, then time from that click's event
+ * to the first frame where `ready` holds. A trusted click matters: layout that
+ * moves because the user clicked is not a layout shift (hadRecentInput), and a
+ * synthetic el.click() would make it look like one. Returns ms and CLS after it.
  */
 export async function timeToReady(page: Page, item: Locator, ready: string, arg: unknown) {
-  const handle = await item.elementHandle()
+  await page.evaluate(() => {
+    const w = window as {__clickAt?: number}
+    delete w.__clickAt
+    addEventListener('click', (e) => (w.__clickAt = e.timeStamp), {capture: true, once: true})
+  })
+  await item.click()
   return page.evaluate(
-    async ({el, ready, arg}) => {
+    async ({ready, arg}) => {
       const done = new Function('arg', `return (${ready})(arg)`) as (a: unknown) => boolean
-      const t0 = performance.now()
-      ;(el as HTMLElement).click()
+      const w = window as {__clickAt?: number}
+      const start = performance.now()
       while (!done(arg)) {
         await new Promise(requestAnimationFrame)
-        if (performance.now() - t0 > 10_000) throw new Error('timeToReady: never ready')
+        if (performance.now() - start > 10_000) throw new Error('timeToReady: never ready')
       }
+      const t0 = w.__clickAt ?? start
       const ms = performance.now() - t0
       await new Promise((r) => setTimeout(r, 300)) // let late shifts land
       const shifts = window.__feel.shifts.filter((s) => s.t >= t0)
       return {ms, cls: shifts.reduce((a, s) => a + s.v, 0), shifted: shifts.map((s) => s.src).join(' | ')}
     },
-    {el: handle, ready, arg},
+    {ready, arg},
   )
 }
 
