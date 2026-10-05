@@ -3,6 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
 import {bpFetch, dataset} from '../server/barkpark'
 import {readSchemas} from '../server/schemas'
+import type {Condition} from './conditions'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -21,9 +22,12 @@ export type Field = {
   rows?: number
   of?: Field
   fields?: Field[]
-  options?: Record<string, unknown>
+  options?: Record<string, unknown> | unknown[]
+  layout?: string
   group?: string
   validation?: {required?: boolean; min?: number; max?: number}
+  visibleWhen?: Condition
+  readOnly?: boolean | Condition
 }
 export type Group = {name: string; title?: string; default?: boolean}
 export type Schema = {name: string; title: string; fields: Field[]; listPreview?: Record<string, string>; groups?: Group[]; initialValues?: Record<string, unknown>}

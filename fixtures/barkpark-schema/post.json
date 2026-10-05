@@ -23,7 +23,8 @@
      "options": [{"value": "article", "title": "Article"}, {"value": "tutorial", "title": "Tutorial"}, {"value": "brief", "title": "News brief"}]},
     {"name": "featuredNote", "title": "Featured note", "type": "string", "group": "meta",
      "visibleWhen": {"field": "featured", "operator": "eq", "value": true}},
-    {"name": "reviewNote", "title": "Review note", "type": "text", "rows": 2, "group": "meta"},
+    {"name": "reviewNote", "title": "Review note", "type": "text", "rows": 2, "group": "meta",
+     "readOnly": {"field": "stage", "operator": "eq", "value": "done"}},
     {"name": "attachment", "title": "Attachment", "type": "file", "group": "meta"},
     {"name": "links", "title": "Links", "type": "arrayOf", "ordered": true, "group": "meta",
      "of": {"type": "composite", "preview": {"title": "title", "subtitle": "kind"}, "fields": [

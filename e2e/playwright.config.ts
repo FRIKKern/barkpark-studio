@@ -20,8 +20,9 @@ export default defineConfig({
   // QUALITY.md rule 5: the whole suite fits in 60 s; in CI going over fails the run.
   globalTimeout: process.env.CI ? 60_000 : 0,
   reporter: [['list']],
-  // @baseline specs measure, they don't gate: only `pnpm baseline` runs them.
-  grepInvert: process.env.BASELINE ? undefined : /@baseline/,
+  // @baseline specs measure and @evidence specs take side-by-side stills and clips;
+  // neither gates: only `pnpm baseline` / `pnpm evidence` run them.
+  grepInvert: process.env.BASELINE || process.env.EVIDENCE ? undefined : /@baseline|@evidence/,
   use: {channel: 'chrome', viewport: {width: 1440, height: 900}},
   projects: [
     {name: 'sanity', use: {baseURL: 'http://localhost:3333'}},
