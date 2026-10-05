@@ -56,6 +56,7 @@ cd reference/sanity && pnpm dev                 # the bar, http://localhost:3333
 npx sanity dataset import ../../fixtures/seed.ndjson production --replace   # reset its data
 cp .env.example .env                            # BARKPARK_TOKEN (+ SANITY_TOKEN to verify the reference)
 node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify Barkpark studio-parity (--verify: check only)
-cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 · /debug/live?id=post-01
+cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
 pnpm check                                      # typecheck + build; fails if client code imports src/server
+cd ../e2e && pnpm install && pnpm test          # journey specs, same steps on both studios
 ```

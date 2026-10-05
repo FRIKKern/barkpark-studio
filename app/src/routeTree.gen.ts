@@ -10,10 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HealthRouteImport } from './routes/health'
 import { Route as ApiListenRouteImport } from './routes/api/listen'
 import { Route as ApiMutateRouteImport } from './routes/api/mutate'
 import { Route as ApiSchemasRouteImport } from './routes/api/schemas'
 import { Route as DebugLiveRouteImport } from './routes/debug/live'
+import { Route as StructureIndexRouteImport } from './routes/structure/index'
+import { Route as StructureSplatRouteImport } from './routes/structure/$'
 import { Route as ApiBacklinksIdRouteImport } from './routes/api/backlinks/$id'
 import { Route as ApiQueryTypeRouteImport } from './routes/api/query/$type'
 import { Route as ApiDocTypeIdRouteImport } from './routes/api/doc/$type/$id'
@@ -22,6 +25,11 @@ import { Route as ApiHistoryTypeIdRouteImport } from './routes/api/history/$type
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiListenRoute = ApiListenRouteImport.update({
@@ -42,6 +50,16 @@ const ApiSchemasRoute = ApiSchemasRouteImport.update({
 const DebugLiveRoute = DebugLiveRouteImport.update({
   id: '/debug/live',
   path: '/debug/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StructureIndexRoute = StructureIndexRouteImport.update({
+  id: '/structure/',
+  path: '/structure/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StructureSplatRoute = StructureSplatRouteImport.update({
+  id: '/structure/$',
+  path: '/structure/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiBacklinksIdRoute = ApiBacklinksIdRouteImport.update({
@@ -67,10 +85,13 @@ const ApiHistoryTypeIdRoute = ApiHistoryTypeIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/health': typeof HealthRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
   '/api/schemas': typeof ApiSchemasRoute
   '/debug/live': typeof DebugLiveRoute
+  '/structure/$': typeof StructureSplatRoute
+  '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
@@ -78,10 +99,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/health': typeof HealthRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
   '/api/schemas': typeof ApiSchemasRoute
   '/debug/live': typeof DebugLiveRoute
+  '/structure/$': typeof StructureSplatRoute
+  '/structure': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
@@ -90,10 +114,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/health': typeof HealthRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
   '/api/schemas': typeof ApiSchemasRoute
   '/debug/live': typeof DebugLiveRoute
+  '/structure/$': typeof StructureSplatRoute
+  '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
@@ -103,10 +130,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/health'
     | '/api/listen'
     | '/api/mutate'
     | '/api/schemas'
     | '/debug/live'
+    | '/structure/$'
+    | '/structure/'
     | '/api/backlinks/$id'
     | '/api/query/$type'
     | '/api/doc/$type/$id'
@@ -114,10 +144,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/health'
     | '/api/listen'
     | '/api/mutate'
     | '/api/schemas'
     | '/debug/live'
+    | '/structure/$'
+    | '/structure'
     | '/api/backlinks/$id'
     | '/api/query/$type'
     | '/api/doc/$type/$id'
@@ -125,10 +158,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/health'
     | '/api/listen'
     | '/api/mutate'
     | '/api/schemas'
     | '/debug/live'
+    | '/structure/$'
+    | '/structure/'
     | '/api/backlinks/$id'
     | '/api/query/$type'
     | '/api/doc/$type/$id'
@@ -137,10 +173,13 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HealthRoute: typeof HealthRoute
   ApiListenRoute: typeof ApiListenRoute
   ApiMutateRoute: typeof ApiMutateRoute
   ApiSchemasRoute: typeof ApiSchemasRoute
   DebugLiveRoute: typeof DebugLiveRoute
+  StructureSplatRoute: typeof StructureSplatRoute
+  StructureIndexRoute: typeof StructureIndexRoute
   ApiBacklinksIdRoute: typeof ApiBacklinksIdRoute
   ApiQueryTypeRoute: typeof ApiQueryTypeRoute
   ApiDocTypeIdRoute: typeof ApiDocTypeIdRoute
@@ -154,6 +193,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/listen': {
@@ -182,6 +228,20 @@ declare module '@tanstack/react-router' {
       path: '/debug/live'
       fullPath: '/debug/live'
       preLoaderRoute: typeof DebugLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/structure/': {
+      id: '/structure/'
+      path: '/structure'
+      fullPath: '/structure/'
+      preLoaderRoute: typeof StructureIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/structure/$': {
+      id: '/structure/$'
+      path: '/structure/$'
+      fullPath: '/structure/$'
+      preLoaderRoute: typeof StructureSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/backlinks/$id': {
@@ -217,10 +277,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HealthRoute: HealthRoute,
   ApiListenRoute: ApiListenRoute,
   ApiMutateRoute: ApiMutateRoute,
   ApiSchemasRoute: ApiSchemasRoute,
   DebugLiveRoute: DebugLiveRoute,
+  StructureSplatRoute: StructureSplatRoute,
+  StructureIndexRoute: StructureIndexRoute,
   ApiBacklinksIdRoute: ApiBacklinksIdRoute,
   ApiQueryTypeRoute: ApiQueryTypeRoute,
   ApiDocTypeIdRoute: ApiDocTypeIdRoute,

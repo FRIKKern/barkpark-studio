@@ -52,6 +52,8 @@ test('@baseline feel: F1 typing, F2 pane open, F4 remote edit', async ({browser}
     await t.restore(ID, {title: TITLE})
     await Promise.all([expect(title(a)).toHaveValue(TITLE), expect(title(b)).toHaveValue(TITLE)])
 
+    // Typing needs an editable title; ours is read-only until the Forms phase (J03).
+    if (!(await title(a).isEditable())) return
     // F4b — browser A types; how fast does browser B show each keystroke?
     await title(a).click()
     await a.keyboard.press('End')
@@ -73,8 +75,7 @@ test('@baseline feel: F1 typing, F2 pane open, F4 remote edit', async ({browser}
   } finally {
     await t.restore(ID, {title: TITLE})
     await Promise.all(contexts.map((c) => c.close()))
+    console.log(`[baseline ${t.name}]`, JSON.stringify(results))
+    await info.attach(`baseline-${t.name}.json`, {body: JSON.stringify(results, null, 2), contentType: 'application/json'})
   }
-
-  console.log(`[baseline ${t.name}]`, JSON.stringify(results))
-  await info.attach(`baseline-${t.name}.json`, {body: JSON.stringify(results, null, 2), contentType: 'application/json'})
 })

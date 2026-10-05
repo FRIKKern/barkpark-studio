@@ -4,7 +4,7 @@
 import '@tanstack/react-start/server-only'
 import {bpFetch, dataset} from './barkpark'
 
-type Subscriber = {ids: Set<string>; send: (frame: string) => void}
+type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
 const subscribers = new Set<Subscriber>()
 let upstream: AbortController | null = null
@@ -12,8 +12,8 @@ let lastEventId: string | null = null
 
 export const publishedId = (id: string) => (id.startsWith('drafts.') ? id.slice(7) : id)
 
-export function subscribe(ids: string[], send: Subscriber['send']): () => void {
-  const sub = {ids: new Set(ids.map(publishedId)), send}
+export function subscribe(ids: string[], types: string[], send: Subscriber['send']): () => void {
+  const sub = {ids: new Set(ids.map(publishedId)), types: new Set(types), send}
   subscribers.add(sub)
   if (!upstream) void connect()
   return () => {
@@ -70,9 +70,9 @@ function dispatch(frame: string) {
   }
   if (id) lastEventId = id
   if (event !== 'mutation' || data.length === 0) return
-  const payload = JSON.parse(data.join('\n')) as {documentId?: string}
+  const payload = JSON.parse(data.join('\n')) as {documentId?: string; type?: string}
   if (!payload.documentId) return
   const docId = publishedId(payload.documentId)
   const out = `id: ${id ?? ''}\nevent: mutation\ndata: ${data.join('\n')}\n\n`
-  for (const sub of subscribers) if (sub.ids.has(docId)) sub.send(out)
+  for (const sub of subscribers) if (sub.ids.has(docId) || (payload.type && sub.types.has(payload.type))) sub.send(out)
 }

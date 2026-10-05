@@ -14,6 +14,11 @@ export type Target = {
   docPath(type: string, id: string): string
   listItem(page: Page, id: string): Locator
   field(page: Page, path: string): Locator
+  /** The pane at `index` (both studios mark panes with data-pane-index, strips with data-pane-collapsed). */
+  pane(page: Page, index: number): Locator
+  /** The reference preview link for `field` inside a pane. */
+  refLink(pane: Locator, field: string): Locator
+  closeButton(pane: Locator): Locator
   /** Write straight to the backend over HTTP, as another client would. */
   patch(id: string, set: Record<string, unknown>): Promise<void>
   /** Drop drafts a test left behind and restore published values. */
@@ -55,6 +60,9 @@ const sanity: Target = {
   docPath: (type, id) => `/structure/${type};${id}`,
   listItem: (page, id) => page.locator(`a[href$=";${id}"]`),
   field: (page, path) => page.locator(`[id="${path}"]`),
+  pane: (page, index) => page.locator(`[data-pane-index="${index}"]`),
+  refLink: (pane, field) => pane.locator(`a[href$="parentRefPath%3D${encodeURIComponent(field)}"]`).first(),
+  closeButton: (pane) => pane.locator('a:has([data-sanity-icon="close"])').first(),
   patch: (id, set) => sanityMutate([{patch: {id, set}}]).then(() => {}),
   restore: (id, set) => sanityMutate([{delete: {id: `drafts.${id}`}}, {patch: {id, set}}]).then(() => {}),
 }
@@ -71,11 +79,15 @@ const bpMutate = (mutations: unknown[]) =>
 const studio: Target = {
   name: 'studio',
   async prepare() {},
-  async settle() {},
+  // SSR paints before hydration; a click before then is a full page load, not a pane open.
+  settle: (page) => page.locator('html[data-hydrated]').waitFor({state: 'attached'}),
   listPath: (type) => `/structure/${type}`,
   docPath: (type, id) => `/structure/${type};${id}`,
   listItem: (page, id) => page.locator(`a[href$=";${id}"]`),
   field: (page, path) => page.locator(`[id="${path}"]`),
+  pane: (page, index) => page.locator(`[data-pane-index="${index}"]`),
+  refLink: (pane, field) => pane.locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]:not([data-testid="pane-close"])`).first(),
+  closeButton: (pane) => pane.getByTestId('pane-close'),
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
   patch: (id, set) => bpMutate([{patch: {id, type: 'post', set}}, {publish: {id, type: 'post'}}]).then(() => {}),
   restore: (id, set) => bpMutate([{patch: {id, type: 'post', set}}, {publish: {id, type: 'post'}}]).then(() => {}),
