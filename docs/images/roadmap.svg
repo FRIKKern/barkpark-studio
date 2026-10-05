@@ -42,7 +42,7 @@
 <text x="344" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J02 Open post</tspan></text>
 <text x="344" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J08 Pick author by search</tspan></text>
 <text x="344" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J17 Delete author with i…</tspan></text>
-<text x="344" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J19 Keyboard only</tspan></text>
+<text x="344" y="434" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J19 Keyboard only</tspan></text>
 <text x="344" y="464" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J21 Endless pane chain</tspan></text>
 <text x="344" y="494" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J22 Create new from a re…</tspan></text>
 <text x="344" y="524" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J23 Edit a referenced do…</tspan></text>
