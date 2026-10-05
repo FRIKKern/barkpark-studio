@@ -39,3 +39,14 @@ cp .env.example .env                                  # fill BARKPARK_TOKEN (+ S
 node --env-file=.env scripts/seed-barkpark.mjs        # apply fixtures/barkpark-schema, reset studio-parity, verify
 node --env-file=.env scripts/seed-barkpark.mjs --verify
 ```
+
+## Run the studio
+
+```sh
+cd app && pnpm install && pnpm dev     # http://localhost:3000 (health) · /debug/live?id=post-01 (live stream)
+pnpm check                             # typecheck + build; fails if client code imports src/server
+```
+
+The Barkpark token stays server-side: `app/src/server/` reads the repo-root `.env`
+and is the only code that talks to Barkpark. The browser calls same-origin
+`/api/{query,doc,mutate,history,backlinks,schemas,listen}`.
