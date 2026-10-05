@@ -111,7 +111,13 @@ export function flushOnUnload() {
 function toPatch(fields: Map<string, unknown>) {
   const set: Record<string, Json> = {}
   const unset: string[] = []
-  for (const [k, v] of fields) (v === '' || v === undefined || v === null ? unset.push(k) : (set[k] = v as Json))
+  for (const [k, v] of fields) {
+    const empty = v === '' || v === undefined || v === null
+    // Barkpark keeps `title` as a row column: `unset` leaves it, `set ""` clears it.
+    if (empty && k === 'title') set[k] = ''
+    else if (empty) unset.push(k)
+    else set[k] = v as Json
+  }
   return {set, unset}
 }
 

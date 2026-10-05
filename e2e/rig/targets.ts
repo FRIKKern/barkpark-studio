@@ -175,7 +175,7 @@ const studio: Target = {
   resetDoc: async (id, type) => {
     const seed = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
     // Put back the seed's plain fields the journeys edit, and publish.
-    await bpMutate([{patch: {id, type, set: {title: seed.title, seo: seed.seo}}}, {publish: {id, type}}])
+    await bpMutate([{patch: {id, type, set: {title: seed.title, seo: seed.seo, rating: seed.rating}}}, {publish: {id, type}}])
   },
   publishedTitle: async (id) => {
     const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=published`, {

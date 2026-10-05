@@ -1,7 +1,8 @@
-import {useEffect, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode} from 'react'
+import {createContext, useContext, useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
+import {validate, type Problem} from '../lib/validation'
 import {docQuery, previewTitle, publishedQuery, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
 import {discardDraft, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, type Pane} from '../lib/panes'
@@ -9,7 +10,7 @@ import {PaneLink} from './PaneLink'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
 import {DeleteDialog} from './DeleteDialog'
-import {Ellipsis} from './icons'
+import {Close as CloseIcon, Ellipsis, ErrorOutline} from './icons'
 
 type Props = {panes: Pane[]; index: number; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -28,6 +29,14 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
   const defaultGroup = schemaOf(schemas, pane.type)?.groups?.find((g) => g.default)?.name ?? ''
   const [chosenGroup, setGroup] = useState<string | null>(null)
   const group = chosenGroup ?? defaultGroup
+  // J13: the schema's rules, checked as you type (the draft only; published is what it is).
+  const schemaForPane = schemaOf(schemas, pane.type)
+  const problems = useMemo(() => (doc && schemaForPane && !viewingPublished ? validate(doc, schemaForPane) : []), [doc, schemaForPane, viewingPublished])
+  const [inspecting, setInspecting] = useState(false)
+  const goTo = (p: Problem) => {
+    if (group && p.group !== group) setGroup('')
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-pane="doc:${pane.id}"] [id="${p.path}"]`)?.focus())
+  }
   const schema = schemaOf(schemas, pane.type)
   const next = panes[index + 1]
   const qc = useQueryClient()
@@ -48,7 +57,7 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
       data-pane-index={index}
       onKeyDown={(e) => {
         // Sanity's publish shortcut.
-        if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc) (e.preventDefault(), void publish(qc, doc))
+        if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !problems.length) (e.preventDefault(), void publish(qc, doc))
       }}
     >
       <header className="pane-header">
@@ -76,11 +85,24 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
             Draft
           </button>
         </span>
+        {!viewingPublished && (
+          <button
+            type="button"
+            className="icon-btn validation-btn"
+            aria-label="Validation"
+            aria-pressed={inspecting}
+            data-problems={problems.length || undefined}
+            onClick={() => setInspecting((v) => !v)}
+          >
+            <ErrorOutline />
+          </button>
+        )}
         <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
           {closeIcon}
         </PaneLink>
       </header>
       <div className="doc-title-bar">{header}</div>
+      <div className="doc-main">
       <div className="pane-body">
         {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
         {!isPending && !doc && !error && <p role="alert">Document {pane.id} not found.</p>}
@@ -88,20 +110,55 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
           <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
-            <GroupTabs schema={schema} value={group} onChange={setGroup} />
+            <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
+            <ProblemsContext.Provider value={problems}>
             <fieldset className="form-fields" disabled={viewingPublished}>
               {schema.fields.filter((f) => !group || f.group === group).map((f) => (
                 <FieldView key={f.name} field={f} path={f.name} value={doc[f.name]} openRef={openRef} onChange={(v) => onEdit(f.name, v)} />
               ))}
             </fieldset>
+            </ProblemsContext.Provider>
           </div>
         )}
       </div>
+      {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => setInspecting(false)} />}
+      </div>
       {viewingPublished
         ? doc && <PublishedFooter doc={doc} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} />}
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} />}
     </section>
+  )
+}
+
+/** Sanity's validation inspector: every problem, click one to go to its field. */
+function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPick: (p: Problem) => void; onClose: () => void}) {
+  return (
+    <aside className="inspector" aria-label="Validation">
+      <header>
+        <h2>Validation</h2>
+        <button type="button" className="icon-btn" aria-label="Close validation" onClick={onClose}>
+          <CloseIcon />
+        </button>
+      </header>
+      {problems.length === 0 ? (
+        <p className="muted">No validation errors</p>
+      ) : (
+        <ul>
+          {problems.map((p) => (
+            <li key={p.path}>
+              <button type="button" className="problem" onClick={() => onPick(p)}>
+                <ErrorOutline />
+                <span>
+                  <strong>{p.title}</strong>
+                  <span>{p.message}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </aside>
   )
 }
 
@@ -109,7 +166,7 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
  * Sanity's field-group tabs: "All fields" + one per group. Arrow keys move between
  * tabs (roving tabindex), Enter/Space or a click selects. No groups, no tabs.
  */
-function GroupTabs({schema, value, onChange}: {schema: Schema; value: string; onChange: (g: string) => void}) {
+function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: string; onChange: (g: string) => void; problems: Problem[]}) {
   if (!schema.groups?.length) return null
   const tabs = [{name: '', title: 'All fields'}, ...schema.groups]
   return (
@@ -136,16 +193,21 @@ function GroupTabs({schema, value, onChange}: {schema: Schema; value: string; on
           onClick={() => onChange(g.name)}
         >
           {g.title ?? g.name}
+          {problems.some((p) => !g.name || p.group === g.name) && (
+            <span className="error-icon" role="img" aria-label="has validation errors">
+              <ErrorOutline />
+            </span>
+          )}
         </button>
       ))}
     </div>
   )
 }
 
-/** Sanity names an untitled doc "New <Type>" in its own pane, "Untitled" elsewhere. */
+/** Sanity names a new untitled doc "New <Type>" in its own pane; anything else untitled is "Untitled". */
 export const docTitle = (doc: Doc, schema: Schema) => {
   const t = previewTitle(doc, schema)
-  return t === 'Untitled' ? `New ${schema.title}` : t
+  return t === 'Untitled' && doc._hasPublished === false ? `New ${schema.title}` : t
 }
 
 type OpenRef = (type: string, id: string, parentRefPath: string) => {href: string; selected: boolean; active: boolean}
@@ -154,8 +216,22 @@ type OpenRef = (type: string, id: string, parentRefPath: string) => {href: strin
 // id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
 type FieldProps = {field: Field; path: string; value: unknown; openRef: OpenRef; onChange: (v: unknown) => void}
 
+const ProblemsContext = createContext<Problem[]>([])
+
+/** The error mark beside a field label: Sanity shows the message on hover. */
+function ProblemMark({path}: {path: string}) {
+  const problem = useContext(ProblemsContext).find((p) => p.path === path)
+  if (!problem) return null
+  return (
+    <span className="error-icon" role="img" aria-label={`Validation error: ${problem.message}`} title={problem.message}>
+      <ErrorOutline />
+    </span>
+  )
+}
+
 function FieldView(props: FieldProps) {
   const label = props.field.title ?? props.field.name
+  const invalid = useContext(ProblemsContext).some((p) => p.path === props.path) || undefined
   // Sanity: a boolean is a switch with its label beside it, in a box.
   if (props.field.type === 'boolean')
     return (
@@ -170,13 +246,19 @@ function FieldView(props: FieldProps) {
   if (props.field.type === 'composite')
     return (
       <fieldset className="field object-field">
-        <legend>{label}</legend>
+        <legend>
+          {label}
+          <ProblemMark path={props.path} />
+        </legend>
         <FieldInput {...props} />
       </fieldset>
     )
   return (
-    <div className="field">
-      <label htmlFor={props.path}>{label}</label>
+    <div className="field" data-invalid={invalid}>
+      <label htmlFor={props.path}>
+        {label}
+        <ProblemMark path={props.path} />
+      </label>
       <FieldInput {...props} />
     </div>
   )
@@ -333,7 +415,7 @@ function DateTimeInput({id, value, onChange}: {id: string; value: string | undef
   )
 }
 
-function DocFooter({doc, closeHref}: {doc: Doc; closeHref: string}) {
+function DocFooter({doc, closeHref, blocked}: {doc: Doc; closeHref: string; blocked: number}) {
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
   const [publishing, setPublishing] = useState(false)
@@ -350,7 +432,8 @@ function DocFooter({doc, closeHref}: {doc: Doc; closeHref: string}) {
       </span>
       <button
         className="publish"
-        disabled={!doc._draft || state === 'error' || publishing}
+        disabled={!doc._draft || state === 'error' || publishing || blocked > 0}
+        title={blocked ? `Fix ${blocked} validation ${blocked === 1 ? 'error' : 'errors'} before publishing` : undefined}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async () => {
           setPublishing(true)
