@@ -2,6 +2,7 @@ import {queryOptions, type QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
 import {bpFetch, dataset} from '../server/barkpark'
+import {readSchemas} from '../server/schemas'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -34,8 +35,8 @@ async function bpJson<T>(path: string): Promise<T> {
 }
 
 const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
-  const r = await bpJson<{schemas: Schema[]}>(`/v1/schemas/${dataset()}`)
-  return r.schemas.map(({name, title, fields, listPreview}) => ({name, title, fields, listPreview})) as unknown as Json
+  const schemas = await readSchemas()
+  return schemas.map(({name, title, fields, listPreview, list_preview}) => ({name, title, fields, listPreview: listPreview ?? list_preview})) as unknown as Json
 })
 
 const fetchList = createServerFn({method: 'GET'})

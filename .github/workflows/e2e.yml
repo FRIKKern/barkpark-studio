@@ -13,7 +13,7 @@ concurrency:
 jobs:
   studio:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8
     env:
       CI: 'true'
       BARKPARK_URL: https://guerrilla.barkpark.cloud
@@ -21,6 +21,7 @@ jobs:
       BARKPARK_PROJECT: default
       BARKPARK_DATASET: production
       BARKPARK_TOKEN: ${{ secrets.BARKPARK_TOKEN }} # read/write, studio-parity only
+      BARKPARK_SCHEMA_SOURCE: fixtures # member tokens can't read schemas yet (task-23c4ac86976c46a9)
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -39,6 +40,7 @@ jobs:
         run: node --env-file=.env scripts/seed-barkpark.mjs --data
       - name: Journeys (ours)
         working-directory: e2e
+        timeout-minutes: 4
         run: node --env-file=../.env node_modules/@playwright/test/cli.js test --project studio --update-snapshots=missing
       - if: always()
         uses: actions/upload-artifact@v4

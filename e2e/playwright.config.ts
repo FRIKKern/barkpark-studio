@@ -8,7 +8,9 @@ export default defineConfig({
   testMatch: ['*.spec.ts', 'journeys/*.spec.ts'],
   fullyParallel: false,
   workers: 1,
-  timeout: 30_000,
+  timeout: process.env.CI ? 15_000 : 30_000,
+  // Fail fast: a run that can't start or hydrate stops instead of timing out test by test.
+  maxFailures: process.env.CI ? 3 : 0,
   reporter: [['list']],
   // @baseline specs measure, they don't gate: only `pnpm baseline` runs them.
   grepInvert: process.env.BASELINE ? undefined : /@baseline/,
