@@ -63,6 +63,6 @@ cp .env.example .env                            # BARKPARK_TOKEN (+ SANITY_TOKEN
 node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify Barkpark studio-parity (--verify: check only)
 cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
 pnpm check                                      # typecheck + build; fails if client code imports src/server
-cd ../e2e && pnpm install && pnpm test          # journey specs, same steps on both studios
+cd ../e2e && pnpm install && pnpm test          # journeys on both studios; ours on :3100 against dataset e2e-local
 STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (dev only; app/src/server/auth.ts)
 ```
