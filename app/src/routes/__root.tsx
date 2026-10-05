@@ -1,7 +1,6 @@
 import type {ReactNode} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
 import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
-import interCss from '@fontsource-variable/inter/index.css?url'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRouteWithContext<{queryClient: QueryClient}>()({
@@ -13,7 +12,6 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient}>()({
     ],
     links: [
       {rel: 'icon', href: 'data:,'},
-      {rel: 'stylesheet', href: interCss},
       {rel: 'stylesheet', href: appCss},
     ],
   }),
