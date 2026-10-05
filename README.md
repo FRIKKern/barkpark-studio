@@ -20,7 +20,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change
+- **Today** · 2 changes, 1 task closed
+  - Fixture: file field, two-type object array, inline object + internal link, conditional fields, select lists ([#30](https://github.com/FRIKKern/barkpark-studio/pull/30))
+  - Done: [Barkpark: refuse delete of a document with incoming references](https://github.com/FRIKKern/barkpark/issues/21697)
   - J13: validation — inline errors, publish blocked, validation panel ([#29](https://github.com/FRIKKern/barkpark-studio/pull/29))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
