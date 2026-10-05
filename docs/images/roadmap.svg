@@ -50,7 +50,7 @@
 <text x="492" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J24</tspan></text>
 <text x="344" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J25</tspan></text>
 <text x="418" y="398" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J26</tspan></text>
-<text x="492" y="398" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J27</tspan></text>
+<text x="492" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J27</tspan></text>
 </g>
 <g data-phase="2">
 <rect x="608" y="196" width="268" height="334" rx="12" class="card"/>
