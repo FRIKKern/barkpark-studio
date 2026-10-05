@@ -11,6 +11,7 @@ import {DocContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
 import {DeleteDialog} from './DeleteDialog'
 import {DocHeaderMenu, DocShareMenu} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
+import {PortableDocEditor} from './PortableDocEditor'
 import {toast} from './Toasts'
 import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical} from './icons'
 
@@ -50,6 +51,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-pane="doc:${pane.id}"] [id="${p.path}"]`)?.focus())
   }
   const schema = schemaOf(schemas, pane.type)
+  // Decision 0004: a doc that carries a PortableDoc block list (its type has a layout)
+  // also opens in Barkpark's block canvas. The doc says so; the schema read omits
+  // `layout` (task-28082a4cf187403d). FF3 makes it the default per type.
+  const freeform = Array.isArray(doc?.blocks) && !viewingPublished
   const next = panes[index + 1]
   const qc = useQueryClient()
   // An id nobody has written yet is a new doc (Sanity treats it the same way).
@@ -146,7 +151,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       <div className="doc-title-bar">
         {header}
         <div className="view-tabs" role="tablist" aria-label="Views">
-          {VIEWS.map((v) => (
+          {[...VIEWS, ...(freeform ? [{id: 'freeform', title: 'Freeform'}] : [])].map((v) => (
             <button key={v.id} type="button" role="tab" aria-selected={(pane.view ?? '') === v.id} onClick={() => navigate({href: withView(panes, index, v.id)})}>
               {v.title}
             </button>
@@ -158,7 +163,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
         {doc && pane.view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
-        {doc && schema && pane.view !== 'json' && (
+        {freeform && pane.view === 'freeform' && <PortableDocEditor type={pane.type} id={pane.id} />}
+        {doc && schema && pane.view !== 'json' && pane.view !== 'freeform' && (
           <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
