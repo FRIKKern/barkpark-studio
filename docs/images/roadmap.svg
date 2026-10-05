@@ -54,7 +54,7 @@
 <text x="628" y="262" font-size="23" font-weight="600">Forms</text>
 <path d="M628 282H856" class="rule"/>
 <text x="628" y="314" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J03 Edit title</tspan></text>
-<text x="628" y="344" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J04 Draft lifecycle</tspan></text>
+<text x="628" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J04 Draft lifecycle</tspan></text>
 <text x="628" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J13 Validation</tspan></text>
 <text x="628" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J14 Field groups</tspan></text>
 <text x="628" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J18 New post from list</tspan></text>
