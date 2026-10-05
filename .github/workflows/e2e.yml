@@ -45,6 +45,12 @@ jobs:
         working-directory: e2e
         run: |
           node --input-type=module -e "const {chromium} = await import('@playwright/test'); const b = await chromium.launch({channel: 'chrome'}); await (await b.newPage()).goto('about:blank'); await b.close()"
+      - name: Start the studio (server boot is outside the budget too)
+        run: |
+          set -a; . ./.env; set +a
+          nohup pnpm --dir app exec vite preview --port 3100 --strictPort > preview.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3100/health > /dev/null && exit 0; sleep 1; done
+          cat preview.log; exit 1
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
