@@ -183,6 +183,7 @@ export async function publish(qc: QueryClient, doc: Doc) {
   if (!qc.getQueryData<Doc>(['doc', id])?._draft) return // nothing to publish
   const r = (await mutate({data: {mutations: [{publish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
   applyServer(qc, r.results[0].document)
+  qc.setQueryData(['doc-published', id], r.results[0].document)
 }
 
 export function useSaveState(id: string): Snap {
@@ -200,4 +201,26 @@ export async function deleteDoc(qc: QueryClient, doc: Doc) {
   docs.delete(id)
   qc.setQueryData(['list', doc._type], (list: Doc[] | undefined) => list?.filter((d) => d._publishedId !== id))
   qc.removeQueries({queryKey: ['doc', id]})
+}
+
+/** Unpublish: the published version goes; its content stays on as the draft. */
+export async function unpublish(qc: QueryClient, doc: Doc) {
+  const id = doc._publishedId
+  flush(qc, id)
+  await whenSaved(id)
+  const r = (await mutate({data: {mutations: [{unpublish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
+  writeCache(qc, id, doc._type, {...r.results[0].document, _hasPublished: false, ...overlay(id)} as Doc)
+  qc.setQueryData(['doc-published', id], null)
+}
+
+/** Discard the draft: back to the published version; anything unsent is dropped too. */
+export async function discardDraft(qc: QueryClient, doc: Doc) {
+  const id = doc._publishedId
+  const e = docs.get(id)
+  if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear())
+  await whenSaved(id)
+  await mutate({data: {mutations: [{discardDraft: {id, type: doc._type}}]}})
+  const published = qc.getQueryData<Doc | null>(['doc-published', id])
+  if (published) writeCache(qc, id, doc._type, {...published, _hasPublished: true} as Doc)
+  await qc.invalidateQueries({queryKey: ['doc', id]})
 }

@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs'
 import type {BrowserContext, Locator, Page, TestInfo} from '@playwright/test'
 
 // One adapter per backend. Specs talk to the adapter, never to a backend directly,
@@ -27,6 +28,10 @@ export type Target = {
   patch(id: string, set: Record<string, unknown>, type?: string): Promise<void>
   /** A reference value in this backend's shape. */
   ref(id: string): unknown
+  /** Titles of both versions, straight from the backend (undefined = no such version). */
+  versions(id: string): Promise<{draft?: string; published?: string}>
+  /** Put a seed document back exactly as fixtures/seed.ndjson has it, no draft. */
+  resetDoc(id: string, type: string): Promise<void>
   /** The title of the published version, straight from the backend. */
   publishedTitle(id: string): Promise<string | undefined>
   /** Delete a document (draft and published) a test created. */
@@ -89,6 +94,18 @@ const sanity: Target = {
       .locator('button:has([data-sanity-icon="ellipsis-horizontal"])')
       .first(),
   ref: (id) => ({_type: 'reference', _ref: id}),
+  versions: async (id) => {
+    const q = encodeURIComponent(`*[_id in ["${id}", "drafts.${id}"]]{_id, title}`)
+    const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/production?query=${q}&perspective=raw`, {
+      headers: {authorization: `Bearer ${need('SANITY_TOKEN')}`},
+    }).then(ok)
+    const rows = ((await r.json()) as {result: {_id: string; title: string}[]}).result
+    return {draft: rows.find((x) => x._id.startsWith('drafts.'))?.title, published: rows.find((x) => x._id === id)?.title}
+  },
+  resetDoc: async (id) => {
+    const seed = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
+    await sanityMutate([{delete: {id: `drafts.${id}`}}, {createOrReplace: seed}])
+  },
   publishedTitle: async (id) => {
     const q = encodeURIComponent(`*[_id == "${id}"][0].title`)
     const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/production?query=${q}&perspective=published`, {
@@ -134,6 +151,19 @@ const studio: Target = {
       .filter({has: pane.page().locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]`)})
       .getByRole('button', {name: 'Reference actions'}),
   ref: (id) => id,
+  versions: async (id) => {
+    const get = async (p: string) => {
+      const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=${p}`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
+      return r.ok ? ((await r.json()) as {result: {_draft: boolean; title: string}}).result : undefined
+    }
+    const [d, p] = await Promise.all([get('drafts'), get('published')])
+    return {draft: d?._draft ? d.title : undefined, published: p?.title}
+  },
+  resetDoc: async (id, type) => {
+    const seed = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
+    // Titles are all the lifecycle test changes; put the seed's back and publish it.
+    await bpMutate([{patch: {id, type, set: {title: seed.title}}}, {publish: {id, type}}])
+  },
   publishedTitle: async (id) => {
     const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=published`, {
       headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`},

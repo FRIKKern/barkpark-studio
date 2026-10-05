@@ -42,6 +42,8 @@ export function useLive(ids: string[], types: string[]) {
       ;(window as {__liveFrames?: string[]}).__liveFrames?.push(lastSeen ?? '') // e2e probe
       const f = JSON.parse((e as MessageEvent).data) as Frame
       const id = f.documentId.replace(/^drafts\./, '')
+      // A change to the published row itself (publish, unpublish, direct write).
+      if (!f.documentId.startsWith('drafts.')) void qc.invalidateQueries({queryKey: ['doc-published', id]})
       if (!f.result || f.mutation === 'delete') {
         void qc.invalidateQueries({queryKey: ['doc', id]})
         void qc.invalidateQueries({queryKey: ['list', f.type]})
