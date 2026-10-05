@@ -9,6 +9,7 @@ import {openAfter, panesPath, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {DocContext, FieldView, ProblemsContext} from './Fields'
 import {DeleteDialog} from './DeleteDialog'
+import {DocHeaderMenu} from './DocHeaderMenu'
 import {Close as CloseIcon, Ellipsis, ErrorOutline} from './icons'
 
 type Props = {panes: Pane[]; index: number; closeHref: string; header: ReactNode; closeIcon: ReactNode}
@@ -101,6 +102,7 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
             <ErrorOutline />
           </button>
         )}
+        {doc && schema && <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished} />}
         <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
           {closeIcon}
         </PaneLink>
