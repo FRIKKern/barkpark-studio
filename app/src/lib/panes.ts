@@ -2,10 +2,12 @@
 // opens the same panes in both studios:
 //   /structure/post;post-01;author-alan,type=author,parentRefPath=author
 // segment 0 = the type list, then one doc per segment. Params are URI-encoded.
+// A split (J26) puts siblings in one segment, joined by "|"; an empty sibling id
+// means the same doc as the first: /structure/post;post-26|,view=json
 export type Pane =
   | {kind: 'types'}
   | {kind: 'list'; type: string}
-  | {kind: 'doc'; id: string; type: string; parentRefPath?: string}
+  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean}
 
 export function parsePanes(splat: string | undefined): Pane[] {
   const panes: Pane[] = [{kind: 'types'}]
@@ -14,9 +16,21 @@ export function parsePanes(splat: string | undefined): Pane[] {
   const listType = segs[0]
   panes.push({kind: 'list', type: listType})
   for (const seg of segs.slice(1)) {
-    const [id, ...params] = seg.split(',')
-    const p = Object.fromEntries(params.map((kv) => kv.split('=').map(decodeURIComponent)))
-    panes.push({kind: 'doc', id: decodeURIComponent(id), type: p.type ?? listType, parentRefPath: p.parentRefPath})
+    let first: Extract<Pane, {kind: 'doc'}> | undefined
+    for (const part of seg.split('|')) {
+      const [id, ...params] = part.split(',')
+      const p = Object.fromEntries(params.filter(Boolean).map((kv) => kv.split('=').map(decodeURIComponent)))
+      const pane: Pane = {
+        kind: 'doc',
+        id: id ? decodeURIComponent(id) : first?.id ?? '',
+        type: p.type ?? first?.type ?? listType,
+        parentRefPath: p.parentRefPath ?? first?.parentRefPath,
+        view: p.view,
+        sibling: !!first || undefined,
+      }
+      first ??= pane
+      panes.push(pane)
+    }
   }
   return panes
 }
@@ -27,19 +41,51 @@ export function panesPath(panes: Pane[]): string {
     if (p.kind === 'list') segs.push(p.type)
     if (p.kind === 'doc') {
       const list = panes.find((x) => x.kind === 'list')
-      const params = p.parentRefPath
+      let params = p.parentRefPath
         ? `,type=${encodeURIComponent(p.type)},parentRefPath=${encodeURIComponent(p.parentRefPath)}`
         : list?.kind === 'list' && list.type === p.type
           ? ''
           : `,type=${encodeURIComponent(p.type)}`
-      segs.push(encodeURIComponent(p.id) + params)
+      if (p.view) params += `,view=${encodeURIComponent(p.view)}`
+      // A sibling of the same doc carries only its own params, like Sanity's "|,".
+      if (p.sibling) segs[segs.length - 1] += `|,${p.view ? `view=${encodeURIComponent(p.view)}` : ''}`
+      else segs.push(encodeURIComponent(p.id) + params)
     }
   }
   return segs.length ? `/structure/${segs.join(';')}` : '/structure'
 }
 
-/** Href for opening `next` to the right of pane `index` (everything right of it is replaced). */
-export const openAfter = (panes: Pane[], index: number, next: Pane) => panesPath([...panes.slice(0, index + 1), next])
+/** The last pane of the split group `index` is in (itself when not split). */
+export function groupEnd(panes: Pane[], index: number) {
+  let end = index
+  while (panes[end + 1]?.kind === 'doc' && (panes[end + 1] as {sibling?: boolean}).sibling) end++
+  return end
+}
+/** Whether pane `index` shares its segment with another (a split). */
+export const isSplit = (panes: Pane[], index: number) => {
+  const p = panes[index]
+  return p.kind === 'doc' && (!!p.sibling || groupEnd(panes, index) > index)
+}
+
+/** Href for opening `next` to the right of pane `index`'s group (everything right of it is replaced). */
+export const openAfter = (panes: Pane[], index: number, next: Pane) => panesPath([...panes.slice(0, groupEnd(panes, index) + 1), next])
+/** Href for "Split pane right": the same doc again, beside it in its group. */
+export function splitRight(panes: Pane[], index: number) {
+  const p = panes[index] as Extract<Pane, {kind: 'doc'}>
+  return panesPath([...panes.slice(0, index + 1), {...p, sibling: true}, ...panes.slice(index + 1)])
+}
+/** Href for "Close split pane": drop just this one; the next sibling takes its place. */
+export function closeSplit(panes: Pane[], index: number) {
+  const rest = panes.filter((_, i) => i !== index)
+  const p = panes[index] as Extract<Pane, {kind: 'doc'}>
+  const heir = rest[index]
+  if (!p.sibling && heir?.kind === 'doc') rest[index] = {...heir, sibling: undefined}
+  return panesPath(rest)
+}
+/** Href for showing pane `index` in another view ('' = the editor). */
+export function withView(panes: Pane[], index: number, view: string) {
+  return panesPath(panes.map((p, i) => (i === index && p.kind === 'doc' ? {...p, view: view || undefined} : p)))
+}
 /** Href for closing pane `index` and everything to its right. */
 export const closeFrom = (panes: Pane[], index: number) => panesPath(panes.slice(0, index))
 

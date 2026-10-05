@@ -110,6 +110,13 @@ a.preview:hover { background: var(--hover); }
 
 /* Document form */
 .doc-title-bar { height: 50px; flex: none; display: flex; align-items: center; padding: 0 20px; font-size: 13px; line-height: 19px; font-weight: 600; color: var(--fg-header); }
+/* J26: the views row under the title (Sanity: Editor | JSON). */
+.doc-title-bar:has(.view-tabs) { height: 87px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; padding: 0 12px 0 20px; }
+.view-tabs { display: flex; gap: 4px; margin-left: -8px; }
+.view-tabs [role=tab] { font: inherit; font-size: 13px; font-weight: 400; padding: 3px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
+.view-tabs [role=tab]:hover { background: var(--hover); }
+.view-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
+.json-view { margin: 0; padding: 16px; font-size: 13px; }
 .doc-form { max-width: 664px; margin: 0 auto; padding: 27px 32px 120px; }
 .doc-form .kind { font-size: 13px; line-height: 19px; color: var(--muted); }
 .doc-form h1 { margin: 8px 0 52px; font-size: 33px; line-height: 41px; font-weight: 700; color: var(--fg); }

@@ -5,15 +5,21 @@ import {usePublishedPerspective} from '../lib/perspective'
 import {validate, type Problem} from '../lib/validation'
 import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {discardDraft, draftNew, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
-import {openAfter, panesPath, type Pane} from '../lib/panes'
+import {openAfter, panesPath, splitRight, withView, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {DocContext, FieldView, ProblemsContext} from './Fields'
 import {DeleteDialog} from './DeleteDialog'
-import {Close as CloseIcon, Ellipsis, ErrorOutline} from './icons'
+import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical} from './icons'
 
-type Props = {panes: Pane[]; index: number; closeHref: string; header: ReactNode; closeIcon: ReactNode}
+type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
-export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props) {
+// Sanity's document views, as the reference configures them: the form, and the doc as JSON.
+const VIEWS = [
+  {id: '', title: 'Editor'},
+  {id: 'json', title: 'JSON'},
+]
+
+export function DocumentPane({panes, index, split, closeHref, header, closeIcon}: Props) {
   const pane = panes[index] as Extract<Pane, {kind: 'doc'}>
   const {data: schemas = []} = useQuery(schemasQuery)
   // Sanity's two perspectives, in the URL: the draft you edit (default), or the
@@ -105,16 +111,36 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
             <ErrorOutline />
           </button>
         )}
-        <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
-          {closeIcon}
-        </PaneLink>
+        <button type="button" className="icon-btn" aria-label="Split pane right" title="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
+          <SplitVertical />
+        </button>
+        {split ? (
+          // Like Sanity: closing one side of a split is a button, closing a pane a link.
+          <button type="button" className="icon-btn" aria-label="Close split pane" data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
+            {closeIcon}
+          </button>
+        ) : (
+          <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
+            {closeIcon}
+          </PaneLink>
+        )}
       </header>
-      <div className="doc-title-bar">{header}</div>
+      <div className="doc-title-bar">
+        {header}
+        <div className="view-tabs" role="tablist" aria-label="Views">
+          {VIEWS.map((v) => (
+            <button key={v.id} type="button" role="tab" aria-selected={(pane.view ?? '') === v.id} onClick={() => navigate({href: withView(panes, index, v.id)})}>
+              {v.title}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="doc-main">
       <div className="pane-body">
         {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
-        {doc && schema && (
+        {doc && pane.view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
+        {doc && schema && pane.view !== 'json' && (
           <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
