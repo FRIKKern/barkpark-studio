@@ -1,7 +1,7 @@
-import {useState, type ReactNode} from 'react'
+import {useEffect, useState, type ReactNode} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
-import {edit, publish, useSaveState} from '../lib/edits'
+import {edit, flush, publish, useSaveState} from '../lib/edits'
 import {openAfter, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {RefPreview} from './Preview'
@@ -17,6 +17,8 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
   const next = panes[index + 1]
   const qc = useQueryClient()
   const onEdit = (field: string, value: unknown) => doc && edit(qc, doc, field, value)
+  // Closing the pane (or navigating it away) sends what is still waiting.
+  useEffect(() => () => flush(qc, pane.id), [qc, pane.id])
   const openRef = (type: string, id: string, parentRefPath: string) => ({
     href: openAfter(panes, index, {kind: 'doc', id, type, parentRefPath}),
     selected: next?.kind === 'doc' && next.id === id && next.parentRefPath === parentRefPath,
@@ -45,7 +47,7 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
         {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
         {!isPending && !doc && !error && <p role="alert">Document {pane.id} not found.</p>}
         {doc && schema && (
-          <div className="doc-form">
+          <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
             {schema.fields.map((f) => (
