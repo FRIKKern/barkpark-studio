@@ -19,10 +19,10 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes, 3 tasks closed
+- **Today** · 8 changes, 4 tasks closed
+  - Fixture: close the reference loop post -> author -> category -> post ([#7](https://github.com/FRIKKern/barkpark-studio/pull/7))
+  - Done: [P0 Two-browser Playwright rig + feel budgets, proven against reference Sanity](https://github.com/FRIKKern/barkpark/issues/21666)
   - Two-browser feel rig + measured Sanity baseline in QUALITY.md ([#6](https://github.com/FRIKKern/barkpark-studio/pull/6))
-  - Done: [Studio repo: bump Actions to checkout@v5 / setup-node@v5 (Node 20 deprecation)](https://github.com/FRIKKern/barkpark/issues/21705)
-  - Actions: checkout@v5 and setup-node@v5 (Node 24 runtime) ([#5](https://github.com/FRIKKern/barkpark-studio/pull/5))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
