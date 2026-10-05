@@ -4,7 +4,7 @@
 // cost seconds of the suite budget.
 export default async function warmup() {
   if (process.env.CI) return
-  const base = 'http://localhost:3000'
+  const base = 'http://localhost:3100'
   for (const path of ['/health', '/structure', '/structure/post', '/structure/post;post-01;author-alan,type=author,parentRefPath=author'])
     await fetch(base + path).then((r) => r.text())
 }

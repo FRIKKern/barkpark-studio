@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: e2e-studio-parity # one shared dataset: never two runs at once
+  group: e2e-dataset-ci # one `ci` dataset: never two runs at once
   cancel-in-progress: false
 jobs:
   studio:
@@ -19,7 +19,7 @@ jobs:
       BARKPARK_URL: https://guerrilla.barkpark.cloud
       BARKPARK_WORKSPACE: studio-parity
       BARKPARK_PROJECT: default
-      BARKPARK_DATASET: production
+      BARKPARK_DATASET: ci # GitHub's own dataset; local runs use e2e-local, people use production
       BARKPARK_TOKEN: ${{ secrets.BARKPARK_TOKEN }} # read/write, studio-parity only
       BUDGET_NETWORK_SCALE: '4' # runner is far from guerrilla; see e2e/rig/feel.ts
       BARKPARK_SCHEMA_SOURCE: fixtures # member tokens can't read schemas yet (task-23c4ac86976c46a9)

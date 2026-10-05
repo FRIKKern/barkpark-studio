@@ -133,7 +133,7 @@ async function reset() {
     for (const d of await listAll(type, 'raw')) existing.push({type, id: d._publishedId ?? d._id})
   }
   const ids = [...new Map(existing.map((e) => [e.id, e])).values()]
-  if (ids.length) await mutate(ids.map(({id, type}) => ({delete: {id, type}})))
+  if (ids.length) await mutate(ids.map(({id, type}) => ({delete: {id, type, force: true}}))) // a reset wipes everything, references included
 
   const ordered = TYPES.flatMap((t) => seed.filter((d) => d._type === t))
   await mutate(ordered.map((d) => ({createOrReplace: {_id: d._id, _type: d._type, ...toBarkpark(d)}})))
