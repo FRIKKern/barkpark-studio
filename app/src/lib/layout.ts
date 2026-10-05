@@ -6,6 +6,7 @@
 //  - a pane collapses when its min width exceeds what is left; an open pane uses
 //    (min - 51) of it, a collapsed one 51 more (Sanity's accounting, kept exact).
 // Min widths: list 320, document 600 (DOCUMENT_PANEL_INITIAL_MIN_WIDTH).
+// Ported from Sanity (MIT, Copyright (c) 2016 - 2026 Sanity.io): see THIRD-PARTY.md.
 export const STRIP = 51
 const MIN = {types: 320, list: 320, doc: 600} as const
 
