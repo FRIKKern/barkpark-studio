@@ -19,10 +19,10 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 5 changes, 2 tasks closed
+- **Today** · 6 changes, 2 tasks closed
+  - Actions: checkout@v5 and setup-node@v5 (Node 24 runtime) ([#5](https://github.com/FRIKKern/barkpark-studio/pull/5))
   - README fits its 80-line cap as the timeline grows ([#4](https://github.com/FRIKKern/barkpark-studio/pull/4))
   - Done: [P0 Scaffold TanStack Start app with same-origin Barkpark proxy](https://github.com/FRIKKern/barkpark/issues/21670)
-  - Tracking and hygiene: generated timeline + roadmap, few-fast-tests policy, issue routing, housekeeping Actions ([#2](https://github.com/FRIKKern/barkpark-studio/pull/2))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
