@@ -42,7 +42,8 @@ jobs:
       - name: Build the studio (outside the suite's 60 s budget)
         run: pnpm --dir app build
       - name: Warm Chrome's first launch (cold start is runner disk, not the studio)
-        run: timeout 30 google-chrome --headless=new --disable-gpu --no-sandbox --dump-dom about:blank > /dev/null
+        working-directory: e2e
+        run: node -e "const {chromium} = await import('@playwright/test'); const b = await chromium.launch({channel: 'chrome'}); await (await b.newPage()).goto('about:blank'); await b.close()"
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
