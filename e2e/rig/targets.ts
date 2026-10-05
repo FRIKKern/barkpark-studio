@@ -25,6 +25,8 @@ export type Target = {
   patch(id: string, set: Record<string, unknown>, type?: string): Promise<void>
   /** A reference value in this backend's shape. */
   ref(id: string): unknown
+  /** The title of the published version, straight from the backend. */
+  publishedTitle(id: string): Promise<string | undefined>
   /** Delete a document (draft and published) a test created. */
   deleteDoc(id: string, type: string): Promise<void>
   /** Drop drafts a test left behind and restore published values. */
@@ -57,6 +59,9 @@ const sanity: Target = {
     }, need('SANITY_TOKEN'))
   },
   async settle(page) {
+    // Its onboarding popups arrive a moment after the panes and take the keyboard.
+    await page.locator('[data-testid="structure-tool-list-pane"]').first().waitFor()
+    await page.waitForTimeout(1500)
     for (const name of ['Got it', 'Dismiss announcements']) {
       const b = page.getByRole('button', {name})
       if (await b.isVisible().catch(() => false)) await b.click()
@@ -81,6 +86,13 @@ const sanity: Target = {
       .locator('button:has([data-sanity-icon="ellipsis-horizontal"])')
       .first(),
   ref: (id) => ({_type: 'reference', _ref: id}),
+  publishedTitle: async (id) => {
+    const q = encodeURIComponent(`*[_id == "${id}"][0].title`)
+    const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/production?query=${q}&perspective=published`, {
+      headers: {authorization: `Bearer ${need('SANITY_TOKEN')}`},
+    }).then(ok)
+    return ((await r.json()) as {result?: string}).result
+  },
   deleteDoc: (id) => sanityMutate([{delete: {id: `drafts.${id}`}}, {delete: {id}}]).then(() => {}),
   patch: (id, set) => sanityMutate([{patch: {id, set}}]).then(() => {}),
   restore: (id, set) => sanityMutate([{delete: {id: `drafts.${id}`}}, {patch: {id, set}}]).then(() => {}),
@@ -118,6 +130,12 @@ const studio: Target = {
       .filter({has: pane.page().locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]`)})
       .getByRole('button', {name: 'Reference actions'}),
   ref: (id) => id,
+  publishedTitle: async (id) => {
+    const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=published`, {
+      headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`},
+    }).then(ok)
+    return ((await r.json()) as {result?: {title?: string}}).result?.title
+  },
   deleteDoc: (id, type) => bpMutate([{delete: {id, type}}]).then(() => {}),
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
   patch: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),

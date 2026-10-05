@@ -74,7 +74,8 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown) {
   const e = entry(id, doc._type)
   e.dirty.set(field, value)
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
-  writeCache(qc, id, doc._type, {...held, [field]: value} as Doc)
+  // An edit makes (or updates) the draft: show it as one now.
+  writeCache(qc, id, doc._type, {...held, _draft: true, [field]: value} as Doc)
   if (e.snap.state === 'saved') setState(e, 'saving')
   schedule(qc, id)
 }
@@ -161,8 +162,25 @@ export async function createDoc(qc: QueryClient, type: string, id: string, field
   }
 }
 
+/** Resolves once nothing typed into `id` is waiting or in flight. */
+export function whenSaved(id: string): Promise<void> {
+  const idle = () => {
+    const e = docs.get(id)
+    return !e || (!e.inflight && !e.timer && e.dirty.size === 0)
+  }
+  if (idle()) return Promise.resolve()
+  return new Promise((resolve) => {
+    const check = () => idle() && (listeners.delete(check), resolve())
+    listeners.add(check)
+  })
+}
+
+/** Publish what the editor sees: unsent edits go first. */
 export async function publish(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
+  flush(qc, id)
+  await whenSaved(id)
+  if (!qc.getQueryData<Doc>(['doc', id])?._draft) return // nothing to publish
   const r = (await mutate({data: {mutations: [{publish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
   applyServer(qc, r.results[0].document)
 }
