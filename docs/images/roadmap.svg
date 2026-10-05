@@ -40,7 +40,7 @@
 <path d="M344 282H572" class="rule"/>
 <text x="344" y="314" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J01 Cold open</tspan></text>
 <text x="344" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J02 Open post</tspan></text>
-<text x="344" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J08 Pick author by search</tspan></text>
+<text x="344" y="374" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J08 Pick author by search</tspan></text>
 <text x="344" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J17 Delete author with i…</tspan></text>
 <text x="344" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J19 Keyboard only</tspan></text>
 <text x="344" y="464" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J21 Endless pane chain</tspan></text>
@@ -53,7 +53,7 @@
 <text x="856" y="228" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="todo">LATER</text>
 <text x="628" y="262" font-size="23" font-weight="600">Forms</text>
 <path d="M628 282H856" class="rule"/>
-<text x="628" y="314" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J03 Edit title</tspan></text>
+<text x="628" y="314" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J03 Edit title</tspan></text>
 <text x="628" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J04 Draft lifecycle</tspan></text>
 <text x="628" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J13 Validation</tspan></text>
 <text x="628" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J14 Field groups</tspan></text>
