@@ -7,7 +7,7 @@ import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQue
 import {createDoc, discardDraft, draftNew, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
-import {DocContext, FieldView, ProblemsContext} from './Fields'
+import {DocContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
 import {DeleteDialog} from './DeleteDialog'
 import {DocHeaderMenu, DocShareMenu} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
@@ -165,6 +165,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
             <DocContext.Provider value={doc}>
+            <EditPathContext.Provider value={onEdit}>
             <ProblemsContext.Provider value={problems}>
             <fieldset className="form-fields" disabled={viewingPublished}>
               {schema.fields.filter((f) => !group || f.group === group).map((f) => (
@@ -172,6 +173,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               ))}
             </fieldset>
             </ProblemsContext.Provider>
+            </EditPathContext.Provider>
             </DocContext.Provider>
           </div>
         )}

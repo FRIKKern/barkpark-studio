@@ -17,6 +17,8 @@ export type OpenRef = (type: string, id: string, parentRefPath: string) => {href
 type FieldProps = {field: Field; path: string; value: unknown; openRef: OpenRef; onChange: (v: unknown) => void; readOnly?: boolean}
 
 export const ProblemsContext = createContext<Problem[]>([])
+/** Writes one value at a dotted path ("seo.metaTitle"), so a subfield edit sends only that path. */
+export const EditPathContext = createContext<((path: string, value: unknown) => void) | null>(null)
 /** The doc being edited, for inputs that read a sibling field (slug's source). */
 export const DocContext = createContext<Doc | null>(null)
 
@@ -127,6 +129,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
 // the same way. Editable now: string, slug, text, number, datetime, boolean,
 // object subfields, references (search + pick). Arrays and rich text: J09/J10.
 function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProps) {
+  const editPath = useContext(EditPathContext)
   const invalid = useContext(ProblemsContext).some((p) => p.path === path)
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
@@ -198,10 +201,9 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
               path={`${path}.${f.name}`}
               value={(value as Record<string, unknown>)?.[f.name]}
               openRef={openRef}
-              // Barkpark patches top-level fields only (task-bfb66a2ff491f6e7), so a
-              // subfield edit sends the whole object. Two editors on different
-              // subfields at once: last write wins for the object (the J14 risk).
-              onChange={(v) => onChange({...(value as Record<string, unknown>), [f.name]: v})}
+              // Barkpark patches paths (task-bfb66a2ff491f6e7): a subfield edit sends
+              // only its own path, so two editors on different subfields both keep theirs.
+              onChange={(v) => (editPath ? editPath(`${path}.${f.name}`, v) : onChange({...(value as Record<string, unknown>), [f.name]: v}))}
             />
           ))}
         </div>
