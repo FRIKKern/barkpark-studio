@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.sanity/
+.env*
+!.env.example
+test-results/
+playwright-report/
+e2e/reference/*.mp4
+.DS_Store
+.papers-wc/
