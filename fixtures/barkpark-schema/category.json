@@ -4,6 +4,7 @@
   "visibility": "public",
   "fields": [
     {"name": "title", "title": "Title", "type": "string", "validation": {"required": true}},
-    {"name": "description", "title": "Description", "type": "text", "rows": 2}
+    {"name": "description", "title": "Description", "type": "text", "rows": 2},
+    {"name": "featuredPost", "title": "Featured post", "type": "reference", "refType": "post"}
   ]
 }
