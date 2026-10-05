@@ -18,7 +18,7 @@ task board, not here.
 | J07 | 3 | Presence avatars on document and on the focused field | F4 |
 | J08 | 1 ★ | Pick author by search; open it in the next pane | F2 F5 |
 | J09 | 4 | Categories array: add, drag-reorder, remove | F1 F7 |
-| J10 | 5 | Type in body: styles, bold/italic, link, lists | F1 F5 F7 |
+| J10 | 5 | Type in body (shared PortableDoc canvas, [0004](docs/decisions/0004-portabledoc-freeform.md)): styles, bold/italic, link, lists | F1 F5 F7 |
 | J11 | 5 | Insert callout + image block, edit in dialog | F2 F10 |
 | J12 | 5 | Upload image, set hotspot/crop, alt text | F9 F10 |
 | J13 | 2 | Validation: inline errors, publish blocked, validation panel | F9 F10 |
@@ -33,8 +33,17 @@ task board, not here.
 | J22 | 1 ★ | "Create new" from a reference field: new doc opens in the next pane, ref is set the moment it exists | F2 F9 |
 | J23 | 1 ★ | Edit a referenced doc in its pane while the parent stays open and live; parent's ref preview updates | F4 F6 |
 
-★ = crown journeys. Endless panes + references are what make Sanity convenient,
-so they are built first and held to the highest bar.
+★ = crown journeys (endless panes + references), built first, judged hardest.
 
-Build order: **J01 → J02 → J21 → J08 → J22 → J23 → J17**, then **J03 → J05 → J06**
-(live editing). Then widen phase by phase.
+## Freeform track (PortableDoc documents)
+
+Beyond Sanity, in the shared canvas ([0004](docs/decisions/0004-portabledoc-freeform.md)).
+Side track, counted apart. Editor bar: Barkdown's `docs/EDITOR-PARITY.md`.
+
+| ID | Mode | Journey | Feel rows that matter most |
+|---|---|---|---|
+| D01 | main | Open a Freeform-main type: the doc opens in the canvas, bound fields sit in place as field blocks | F2 F3 |
+| D02 | alternative | Classic ⇄ Freeform toggle on an Expectation type: lossless both ways; a Classic edit never moves free blocks | F9 F10 |
+| D03 | both | Edit a bound field in Freeform; the Classic view in a 2nd browser updates, and back | F4 F6 |
+| D04 | both | New doc from an Expectation: layout scaffold + prefill, cursor in the first block | F2 F5 |
+| D05 | main | Two tabs, same doc: 412 → "load theirs / re-apply mine", nothing lost | F8 F9 |
