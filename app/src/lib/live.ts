@@ -10,14 +10,36 @@ type Frame = {documentId: string; type: string; mutation: string; result: Doc | 
  * Each frame carries the document as it now reads (draft over published), so it
  * goes into the cache (under any unsent local edits); deletes and discards refetch.
  */
+// The newest frame this page has applied: a subscription opened after navigating
+// asks the server for everything since, so nothing falls between two streams.
+let lastSeen: string | null = null
+
 export function useLive(ids: string[], types: string[]) {
   const qc = useQueryClient()
   const key = `ids=${[...new Set(ids)].sort().join(',')}&types=${[...new Set(types)].sort().join(',')}`
   const empty = ids.length + types.length === 0
   useEffect(() => {
     if (empty) return
-    const es = new EventSource(`/api/listen?${key}`)
-    es.addEventListener('mutation', (e) => {
+    let es: EventSource
+    let stopped = false
+    let retry: ReturnType<typeof setTimeout> | undefined
+    const open = () => {
+      es = new EventSource(`/api/listen?${key}${lastSeen ? `&since=${lastSeen}` : ''}`)
+      // EventSource retries a dropped stream by itself (sending Last-Event-ID); one
+      // it gave up on (CLOSED) is reopened here with ?since=.
+      es.onerror = () => {
+        if (es.readyState === EventSource.CLOSED && !stopped) retry = setTimeout(open, 1000)
+      }
+      // The server lost track of where we were: refetch what is on screen.
+      es.addEventListener('reset', () => void qc.invalidateQueries())
+      es.addEventListener('welcome', (e) => ((e as MessageEvent).lastEventId && !lastSeen ? (lastSeen = (e as MessageEvent).lastEventId) : null))
+      es.addEventListener('mutation', onFrame)
+    }
+    // e2e probe: cut the stream for `ms`, as a dead network would.
+    ;(window as {__dropLive?: (ms: number) => void}).__dropLive = (ms) => (es.close(), (retry = setTimeout(open, ms)))
+    const onFrame = (e: Event) => {
+      if ((e as MessageEvent).lastEventId) lastSeen = (e as MessageEvent).lastEventId
+      ;(window as {__liveFrames?: string[]}).__liveFrames?.push(lastSeen ?? '') // e2e probe
       const f = JSON.parse((e as MessageEvent).data) as Frame
       const id = f.documentId.replace(/^drafts\./, '')
       if (!f.result || f.mutation === 'delete') {
@@ -26,7 +48,12 @@ export function useLive(ids: string[], types: string[]) {
         return
       }
       applyServer(qc, f.result)
-    })
-    return () => es.close()
+    }
+    open()
+    return () => {
+      stopped = true
+      clearTimeout(retry)
+      es.close()
+    }
   }, [key, empty, qc])
 }
