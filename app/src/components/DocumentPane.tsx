@@ -1,6 +1,7 @@
-import type {ReactNode} from 'react'
-import {useQuery} from '@tanstack/react-query'
+import {useState, type ReactNode} from 'react'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
+import {edit, publish, useSaveState} from '../lib/edits'
 import {openAfter, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {RefPreview} from './Preview'
@@ -13,6 +14,8 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
   const {data: doc, isPending, error} = useQuery(docQuery(pane.type, pane.id))
   const schema = schemaOf(schemas, pane.type)
   const next = panes[index + 1]
+  const qc = useQueryClient()
+  const onEdit = (field: string, value: unknown) => doc && edit(qc, doc, field, value)
   const openRef = (type: string, id: string, parentRefPath: string) => ({
     href: openAfter(panes, index, {kind: 'doc', id, type, parentRefPath}),
     selected: next?.kind === 'doc' && next.id === id && next.parentRefPath === parentRefPath,
@@ -22,7 +25,16 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
   return (
     <section className="pane doc" data-testid="document-pane" data-pane={`doc:${pane.id}`} data-pane-index={index}>
       <header className="pane-header">
-        <span className="title" />
+        <span className="title chips">
+          <span className="chip">
+            <span className="dot published" />
+            Published
+          </span>
+          <span className="chip" data-active={doc?._draft ? '' : undefined}>
+            <span className="dot draft" />
+            Draft
+          </span>
+        </span>
         <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
           {closeIcon}
         </PaneLink>
@@ -36,11 +48,12 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
             <div className="kind">{schema.title}</div>
             <h1>{previewTitle(doc, schema)}</h1>
             {schema.fields.map((f) => (
-              <FieldView key={f.name} field={f} path={f.name} value={doc[f.name]} openRef={openRef} />
+              <FieldView key={f.name} field={f} path={f.name} value={doc[f.name]} openRef={openRef} onChange={(v) => onEdit(f.name, v)} />
             ))}
           </div>
         )}
       </div>
+      {doc && <DocFooter doc={doc} />}
     </section>
   )
 }
@@ -49,22 +62,40 @@ type OpenRef = (type: string, id: string, parentRefPath: string) => {href: strin
 
 // Read-only for now: editing arrives with the Forms phase (J03). Inputs carry
 // id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
-function FieldView({field, path, value, openRef}: {field: Field; path: string; value: unknown; openRef: OpenRef}) {
-  const label = field.title ?? field.name
+type FieldProps = {field: Field; path: string; value: unknown; openRef: OpenRef; onChange: (v: unknown) => void}
+
+function FieldView(props: FieldProps) {
+  const label = props.field.title ?? props.field.name
   return (
     <div className="field">
-      <label htmlFor={path}>{label}</label>
-      <FieldInput field={field} path={path} value={value} openRef={openRef} />
+      <label htmlFor={props.path}>{label}</label>
+      <FieldInput {...props} />
     </div>
   )
 }
 
-function FieldInput({field, path, value, openRef}: {field: Field; path: string; value: unknown; openRef: OpenRef}) {
+// Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios
+// the same way. Editable now: string, slug, text, number, datetime, boolean,
+// object subfields. References, arrays and rich text get their editors in J08/J09/J10.
+function FieldInput({field, path, value, openRef, onChange}: FieldProps) {
+  const str = value == null ? '' : String(value)
   switch (field.type) {
+    case 'string':
+    case 'slug':
+      return <TextInput id={path} value={str} onChange={onChange} />
     case 'text':
-      return <textarea id={path} className="input" rows={field.rows ?? 3} readOnly value={(value as string) ?? ''} />
+      return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 3} />
+    case 'number':
+      return <NumberInput id={path} value={value as number | undefined} onChange={onChange} />
+    case 'datetime':
+      return <DateTimeInput id={path} value={value as string | undefined} onChange={onChange} />
     case 'boolean':
-      return <input id={path} type="checkbox" readOnly checked={!!value} />
+      return (
+        <label className="switch">
+          <input id={path} type="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} />
+          <span />
+        </label>
+      )
     case 'reference':
       return value ? (
         <div className="ref-box">
@@ -97,7 +128,15 @@ function FieldInput({field, path, value, openRef}: {field: Field; path: string; 
       return (
         <div className="fieldset" id={path}>
           {field.fields?.map((f) => (
-            <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={(value as Record<string, unknown>)?.[f.name]} openRef={openRef} />
+            <FieldView
+              key={f.name}
+              field={f}
+              path={`${path}.${f.name}`}
+              value={(value as Record<string, unknown>)?.[f.name]}
+              openRef={openRef}
+              // Barkpark patches top-level fields only (task-bfb66a2ff491f6e7): send the whole object.
+              onChange={(v) => onChange({...(value as Record<string, unknown>), [f.name]: v})}
+            />
           ))}
         </div>
       )
@@ -106,8 +145,97 @@ function FieldInput({field, path, value, openRef}: {field: Field; path: string; 
     case 'image':
       return <div className="image-empty">No image</div>
     default:
-      return <input id={path} className="input" readOnly value={value == null ? '' : String(value)} />
+      return <input id={path} className="input" readOnly value={str} />
   }
+}
+
+/**
+ * The input owns its text between renders: React Query delivers cache updates a
+ * tick later, and a controlled input re-rendered with that older value drops the
+ * keystrokes typed in between. A new value from outside (remote edit) still wins.
+ */
+function TextInput({id, value, onChange, rows}: {id: string; value: string; onChange: (v: unknown) => void; rows?: number}) {
+  const [local, setLocal] = useState(value)
+  const [seen, setSeen] = useState(value)
+  if (value !== seen) {
+    setSeen(value)
+    setLocal(value)
+  }
+  const change = (v: string) => {
+    setLocal(v)
+    onChange(v)
+  }
+  return rows ? (
+    <textarea id={id} className="input" rows={rows} value={local} onChange={(e) => change(e.target.value)} />
+  ) : (
+    <input id={id} className="input" value={local} onChange={(e) => change(e.target.value)} />
+  )
+}
+
+/** Keeps what the user typed ("1.", "-") while the stored value stays a number. */
+function NumberInput({id, value, onChange}: {id: string; value: number | undefined; onChange: (v: unknown) => void}) {
+  const [text, setText] = useState<string | null>(null)
+  const shown = text !== null && Number(text) === value ? text : value == null ? '' : String(value)
+  return (
+    <input
+      id={id}
+      className="input"
+      inputMode="decimal"
+      value={shown}
+      onChange={(e) => {
+        setText(e.target.value)
+        const n = Number(e.target.value)
+        if (e.target.value === '') onChange(undefined)
+        else if (Number.isFinite(n)) onChange(n)
+      }}
+    />
+  )
+}
+
+// ISO in the store, local time in the input (Sanity shows local time too).
+const toLocal = (iso?: string) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+}
+function DateTimeInput({id, value, onChange}: {id: string; value: string | undefined; onChange: (v: unknown) => void}) {
+  return (
+    <input
+      id={id}
+      className="input"
+      type="datetime-local"
+      value={toLocal(value)}
+      onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+    />
+  )
+}
+
+function DocFooter({doc}: {doc: Doc}) {
+  const qc = useQueryClient()
+  const {state, error} = useSaveState(doc._publishedId)
+  const [publishing, setPublishing] = useState(false)
+  const label = state === 'saving' ? 'Saving…' : state === 'error' ? 'Not saved — retrying' : doc._draft ? 'Saved' : 'Published'
+  return (
+    <footer className="doc-footer">
+      <span className="save-state" data-state={state} title={error} role="status">
+        {label}
+      </span>
+      <button
+        className="publish"
+        disabled={!doc._draft || state !== 'saved' || publishing}
+        onClick={async () => {
+          setPublishing(true)
+          try {
+            await publish(qc, doc)
+          } finally {
+            setPublishing(false)
+          }
+        }}
+      >
+        Publish
+      </button>
+    </footer>
+  )
 }
 
 type Inline = {type: string; value?: string; children?: Inline[]}
