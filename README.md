@@ -1,6 +1,6 @@
 # Barkpark Studio
 
-[![Barkpark Studio roadmap: phases 0 to 6 and after, with journeys passing out of total](docs/images/roadmap.svg)](docs/ROADMAP.md)
+[![Barkpark Studio roadmap: phases 0 to 6 and after with journeys passing out of total, plus the Freeform side track counted apart](docs/images/roadmap.svg)](docs/ROADMAP.md)
 
 ## Vision
 
@@ -9,20 +9,21 @@ editing feel people love in Sanity Studio: panes that open to the right without
 end, references you can follow, pick, create and edit without losing your place,
 typing that never waits on the network, and two people in one document, live.
 
-We get there one journey at a time. A journey is done when it matches a real
-Sanity Studio side by side, in a real browser, signed off by the quality owner.
-Automated tests are few and fast, kept for what can break silently. After the
-six phases come plugins and a Presentation tool (click-to-edit on the live site).
+We get there one journey at a time, each signed off side by side against a real
+Sanity Studio in a real browser; tests stay few and fast. The journey list grows
+whenever a scout finds an honest gap. Then plugins and a Presentation tool.
 
-Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/decisions/0001-stack-and-backend.md).
+Past Sanity, the Freeform track: PortableDoc documents open in Barkpark's shared
+canvas, the editor Barkdown hosts ([0004](docs/decisions/0004-portabledoc-freeform.md)).
+Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-backend.md)).
 
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 26 changes, 7 tasks closed
-  - J14: field groups (tabs) and the seo object ([#27](https://github.com/FRIKKern/barkpark-studio/pull/27))
-  - Published perspective: pane title, strips and list show published versions ([#25](https://github.com/FRIKKern/barkpark-studio/pull/25))
-  - J04: draft lifecycle — publish, unpublish, discard, two perspectives ([#24](https://github.com/FRIKKern/barkpark-studio/pull/24))
+- **Today** · 29 changes, 7 tasks closed
+  - README: tighter vision so the worst-case timeline still fits 80 lines
+  - Roadmap counts every journey and shows the Freeform track apart
+  - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)

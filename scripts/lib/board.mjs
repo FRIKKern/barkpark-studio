@@ -20,30 +20,41 @@ export async function gh(path) {
   return res.json();
 }
 
-// One row per task: { id: 'J21' | 'P0' | 'gap', title, status, closedAt, url }.
-// status: done | cancelled | in_progress | open — from the bridge's status:* label.
-export async function tasks() {
+async function subIssues(issue) {
   const rows = [];
   for (let page = 1; ; page++) {
-    const batch = await gh(`repos/${GOAL.repo}/issues/${GOAL.issue}/sub_issues?per_page=100&page=${page}`);
+    const batch = await gh(`repos/${GOAL.repo}/issues/${issue}/sub_issues?per_page=100&page=${page}`);
     rows.push(...batch);
     if (batch.length < 100) break;
   }
-  return rows.map((i) => {
+  // Sub-goals (e.g. the Freeform track) carry their own children: walk them too.
+  for (const i of [...rows]) if (i.sub_issues_summary?.total) rows.push(...(await subIssues(i.number)));
+  return rows;
+}
+
+// One row per task: { id: 'J21' | 'D03' | 'P0' | 'gap' | 'other', title, status, closedAt, url }.
+// status: done | cancelled | in_progress | open — from the bridge's status:* label.
+export async function tasks() {
+  return (await subIssues(GOAL.issue)).map((i) => {
     const label = i.labels.map((l) => l.name).find((n) => n.startsWith('status:'));
     let status = label ? label.slice(7) : 'open';
     if (i.state === 'closed') status = i.state_reason === 'not_planned' ? 'cancelled' : 'done';
-    const j = i.title.match(/^(J\d\d)\b/);
+    const j = i.title.match(/^([JD]\d\d)\b/);
     const id = j ? j[1] : i.title.startsWith('P0 ') ? 'P0' : i.title.startsWith('Barkpark:') ? 'gap' : 'other';
     return { id, title: i.title, status, closedAt: i.closed_at, url: i.html_url };
   });
 }
 
-// Journey -> phase number, from the Phase column of JOURNEYS.md (its one home).
+// Journey -> phase key ('1'…'6' or 'after'), from the Phase column of JOURNEYS.md (its one home).
 export function journeyPhases(file = new URL('../../JOURNEYS.md', import.meta.url)) {
   const map = {};
-  for (const m of fs.readFileSync(file, 'utf8').matchAll(/^\| (J\d\d) \| (\d)\b/gm)) map[m[1]] = Number(m[2]);
+  for (const m of fs.readFileSync(file, 'utf8').matchAll(/^\| (J\d\d) \| (\d|after)\b/gm)) map[m[1]] = m[2];
   return map;
+}
+
+// Freeform-track journeys (D01…), from the "Freeform track" table in JOURNEYS.md.
+export function freeformJourneys(file = new URL('../../JOURNEYS.md', import.meta.url)) {
+  return [...fs.readFileSync(file, 'utf8').matchAll(/^\| (D\d\d) \|/gm)].map((m) => m[1]);
 }
 
 // Phases from the table in docs/ROADMAP.md (its one home).
