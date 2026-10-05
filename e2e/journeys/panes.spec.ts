@@ -1,0 +1,106 @@
+import {expect, test, type Page} from '@playwright/test'
+import {installProbes, timeToReady} from '../rig/feel'
+import {target} from '../rig/targets'
+
+// Crown slice, one spec for both studios: J01 (list), J02 (deep URL restore),
+// J21 (endless pane chain). The same steps run against reference/sanity and ours,
+// so "matches Sanity" is checked, not remembered. Feel budgets apply to ours only.
+
+const CHAIN = [
+  ['author', 'author-alan'],
+  ['expertise', 'category-guide'],
+  ['featuredPost', 'post-04'],
+  ['author', 'author-alan'],
+  ['expertise', 'category-guide'],
+  ['featuredPost', 'post-04'],
+] as const
+const TYPE = {author: 'author', expertise: 'category', featuredPost: 'post'} as const
+const chainUrl = (n: number) =>
+  '/structure/post;post-01' +
+  CHAIN.slice(0, n)
+    .map(([field, id]) => `;${id},type=${TYPE[field]},parentRefPath=${field}`)
+    .join('')
+
+const path = (page: Page) => decodeURIComponent(new URL(page.url()).pathname)
+/** Per pane: true when collapsed to a strip. */
+const strips = (page: Page) =>
+  page.locator('[data-pane-index]').evaluateAll((els) => els.map((e) => e.hasAttribute('data-pane-collapsed')))
+
+test.beforeEach(async ({context}, info) => {
+  await Promise.all([target(info).prepare(context), installProbes(context)])
+})
+
+test('J01 J02: open the post list, open a post, reload the deep URL', async ({page}, info) => {
+  const t = target(info)
+  const t0 = Date.now()
+  await page.goto('/structure')
+  await t.settle(page)
+  await page.locator('a[href="/structure/post"]').click()
+  // Sanity virtualises the list (renders ~25 rows); ours renders all 30.
+  if (t.name === 'studio') await expect(page.locator('a[href^="/structure/post;"]')).toHaveCount(30)
+  else await expect(t.listItem(page, 'post-02')).toBeVisible()
+  const coldMs = Date.now() - t0
+
+  const open = await timeToReady(page, t.listItem(page, 'post-02'), `(w) => document.getElementById('title')?.value === w`, 'Fixture post 02')
+  expect(path(page)).toBe('/structure/post;post-02')
+  await expect(t.listItem(page, 'post-02')).toHaveAttribute('data-selected')
+
+  await page.reload()
+  await expect(t.field(page, 'title')).toHaveValue('Fixture post 02')
+  expect(await strips(page)).toEqual([false, false, false])
+
+  if (t.name === 'studio') {
+    expect(coldMs, 'F3 cold load to usable list').toBeLessThan(1500)
+    expect(open.ms, 'F2 pane open (warm)').toBeLessThan(100)
+    expect(open.cls, 'F2 zero layout shift').toBe(0)
+  }
+})
+
+test('J21: endless pane chain — strips, URL round-trip, back/forward, close', async ({page}, info) => {
+  const t = target(info)
+  await page.goto('/structure/post;post-01')
+  await t.settle(page)
+  await expect(t.field(page, 'title')).toHaveValue('Fixture post 01')
+
+  // Follow references 6 deep: 9 panes. Each opens to the right of the last.
+  for (const [i, [field, id]] of CHAIN.entries()) {
+    const from = t.pane(page, i + 2)
+    const opened = await timeToReady(page, t.refLink(from, field), `(id) => !!document.querySelector('[data-pane-index="${i + 3}"]') && location.pathname.includes(id)`, id)
+    if (t.name === 'studio') expect(opened.ms, `F2 open ${id}`).toBeLessThan(100)
+  }
+  expect(path(page)).toBe(chainUrl(6))
+  // Sanity's layout at 1440 px: only the focused (last) pane stays open.
+  expect(await strips(page)).toEqual([true, true, true, true, true, true, true, true, false])
+  if (t.name === 'studio') await expect(page, 'F10 visual').toHaveScreenshot('j21-chain.png', {maxDiffPixelRatio: 0.01})
+
+  // URL round-trips: back, forward, reload.
+  await page.goBack()
+  await expect.poll(() => path(page)).toBe(chainUrl(5))
+  await expect(page.locator('[data-pane-index]')).toHaveCount(8)
+  await page.goForward()
+  await expect.poll(() => path(page)).toBe(chainUrl(6))
+  await page.reload()
+  await expect(page.locator('[data-pane-index]')).toHaveCount(9)
+  expect(await strips(page)).toEqual([true, true, true, true, true, true, true, true, false])
+
+  // A strip opens on click; the others make room (keyboard too, on ours).
+  await t.pane(page, 3).click({position: {x: 25, y: 300}})
+  await expect.poll(() => strips(page)).toEqual([true, true, true, false, true, true, true, true, true])
+  if (t.name === 'studio') {
+    await t.pane(page, 5).focus()
+    await page.keyboard.press('Enter')
+    await expect.poll(() => strips(page)).toEqual([true, true, true, true, true, false, true, true, true])
+    await t.pane(page, 3).focus()
+    await page.keyboard.press('Enter')
+  }
+
+  // Closing a pane closes it and everything to its right.
+  await t.closeButton(t.pane(page, 3)).click()
+  await expect.poll(() => path(page)).toBe('/structure/post;post-01')
+  await expect(page.locator('[data-pane-index]')).toHaveCount(3)
+
+  // F5: a reference opens from the keyboard.
+  await t.refLink(t.pane(page, 2), 'author').focus()
+  await page.keyboard.press('Enter')
+  await expect.poll(() => path(page)).toBe(chainUrl(1))
+})

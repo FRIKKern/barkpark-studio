@@ -1,12 +1,20 @@
 import type {ReactNode} from 'react'
-import {HeadContent, Outlet, Scripts, createRootRoute} from '@tanstack/react-router'
+import type {QueryClient} from '@tanstack/react-query'
+import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
+import interCss from '@fontsource-variable/inter/index.css?url'
+import appCss from '../styles.css?url'
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{queryClient: QueryClient}>()({
   head: () => ({
     meta: [
       {charSet: 'utf-8'},
       {name: 'viewport', content: 'width=device-width, initial-scale=1'},
       {title: 'Barkpark Studio'},
+    ],
+    links: [
+      {rel: 'icon', href: 'data:,'},
+      {rel: 'stylesheet', href: interCss},
+      {rel: 'stylesheet', href: appCss},
     ],
   }),
   component: () => (
@@ -22,7 +30,7 @@ function RootDocument({children}: {children: ReactNode}) {
       <head>
         <HeadContent />
       </head>
-      <body style={{fontFamily: 'system-ui, sans-serif', margin: 24}}>
+      <body>
         {children}
         <Scripts />
       </body>
