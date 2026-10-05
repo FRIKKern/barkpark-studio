@@ -4,7 +4,8 @@ import {isHidden, isReadOnly} from '../lib/conditions'
 import type {Problem} from '../lib/validation'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
-import {ErrorOutline} from './icons'
+import {ChevronDown, ClearCircle, ErrorOutline} from './icons'
+import {DateTimeInput} from './DateTimeInput'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -58,7 +59,7 @@ export function FieldView(props: FieldProps) {
     )
   return (
     <div className="field" data-invalid={invalid} data-readonly={props.readOnly || undefined}>
-      <label htmlFor={props.path}>
+      <label htmlFor={props.path} id={`${props.path}-label`}>
         {label}
         <ProblemMark path={props.path} />
       </label>
@@ -73,7 +74,7 @@ export function FieldView(props: FieldProps) {
 function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProps) {
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
-  if (readOnly && !['string', 'text', 'slug', 'composite'].includes(field.type))
+  if (readOnly && !['string', 'text', 'slug', 'composite', 'datetime'].includes(field.type))
     return (
       <fieldset className="readonly-wrap" disabled>
         <FieldInput field={field} path={path} value={value} openRef={openRef} onChange={onChange} />
@@ -89,7 +90,9 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'number':
       return <NumberInput id={path} value={value as number | undefined} onChange={onChange} />
     case 'datetime':
-      return <DateTimeInput id={path} value={value as string | undefined} onChange={onChange} />
+      return <DateTimeInput id={path} value={value as string | undefined} onChange={onChange} readOnly={readOnly} />
+    case 'select':
+      return <SelectInput id={path} field={field} value={value} onChange={onChange} />
     case 'boolean':
       return (
         <span className="switch">
@@ -214,6 +217,58 @@ function SlugInput({id, value, onChange, source, readOnly}: {id: string; value: 
   )
 }
 
+// Barkpark select options: plain values, or {value, title} (legacy {value, label}).
+type Option = {value: unknown; title: string}
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+function optionsOf(field: Field): Option[] {
+  const raw = (Array.isArray(field.options) ? field.options : (field.options as {list?: unknown[]})?.list) ?? []
+  return raw.map((o) =>
+    o && typeof o === 'object'
+      ? {value: (o as {value: unknown}).value, title: String((o as {title?: string; label?: string}).title ?? (o as {label?: string}).label ?? (o as {value: unknown}).value)}
+      : {value: o, title: capitalize(String(o))},
+  )
+}
+
+/**
+ * Sanity's string list (J31): `layout: "radio"` is a row of radios in a box with a
+ * clear button; otherwise a dropdown whose blank first option means "no value".
+ */
+function SelectInput({id, field, value, onChange}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void}) {
+  const options = optionsOf(field)
+  if (field.layout === 'radio')
+    return (
+      <div className="radio-box">
+        <div role="group" aria-labelledby={`${id}-label`} id={id}>
+          {options.map((o) => (
+            <label key={String(o.value)} className="radio">
+              <input type="radio" name={id} checked={value === o.value} onChange={() => onChange(o.value)} />
+              <span>{o.title}</span>
+            </label>
+          ))}
+        </div>
+        {value !== undefined && (
+          <button type="button" className="icon-btn" aria-label="Clear" title="Clear" onClick={() => onChange(undefined)}>
+            <ClearCircle />
+          </button>
+        )}
+      </div>
+    )
+  const index = options.findIndex((o) => o.value === value)
+  return (
+    <span className="select-box">
+      <select id={id} className="input" value={index} onChange={(e) => onChange(Number(e.target.value) < 0 ? undefined : options[Number(e.target.value)]!.value)}>
+        <option value={-1} />
+        {options.map((o, i) => (
+          <option key={i} value={i}>
+            {o.title}
+          </option>
+        ))}
+      </select>
+      <ChevronDown />
+    </span>
+  )
+}
+
 /** Keeps what the user typed ("1.", "-") while the stored value stays a number. */
 function NumberInput({id, value, onChange}: {id: string; value: number | undefined; onChange: (v: unknown) => void}) {
   const [text, setText] = useState<string | null>(null)
@@ -230,24 +285,6 @@ function NumberInput({id, value, onChange}: {id: string; value: number | undefin
         if (e.target.value === '') onChange(undefined)
         else if (Number.isFinite(n)) onChange(n)
       }}
-    />
-  )
-}
-
-// ISO in the store, local time in the input (Sanity shows local time too).
-const toLocal = (iso?: string) => {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
-}
-function DateTimeInput({id, value, onChange}: {id: string; value: string | undefined; onChange: (v: unknown) => void}) {
-  return (
-    <input
-      id={id}
-      className="input"
-      type="datetime-local"
-      value={toLocal(value)}
-      onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : undefined)}
     />
   )
 }

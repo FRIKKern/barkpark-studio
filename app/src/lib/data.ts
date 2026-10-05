@@ -22,7 +22,8 @@ export type Field = {
   rows?: number
   of?: Field
   fields?: Field[]
-  options?: Record<string, unknown>
+  options?: Record<string, unknown> | unknown[]
+  layout?: string
   group?: string
   validation?: {required?: boolean; min?: number; max?: number}
   visibleWhen?: Condition

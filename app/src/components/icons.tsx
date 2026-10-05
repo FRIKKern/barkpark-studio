@@ -45,3 +45,26 @@ export const ErrorOutline = () => (
     <path d="M12.5 8.5v5M12.5 15.5v1" />
   </svg>
 )
+export const ChevronLeft = () => (
+  <svg {...s}>
+    <path d="M14.5 7.5l-5 5 5 5" />
+  </svg>
+)
+export const Calendar = () => (
+  <svg {...s}>
+    <rect x="5.5" y="6.5" width="14" height="13" rx="1" />
+    <path d="M5.5 10.5h14M9.5 4.5v4M15.5 4.5v4" />
+  </svg>
+)
+export const Clock = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="7" />
+    <path d="M12.5 8.5v4l3 2" />
+  </svg>
+)
+export const ClearCircle = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="7" />
+    <path d="M10 10l5 5M15 10l-5 5" />
+  </svg>
+)
