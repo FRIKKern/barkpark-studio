@@ -1,3 +1,5 @@
+@import '@fontsource-variable/inter';
+
 /* Sizes and colours measured on reference/sanity (computed styles), not guessed. */
 :root {
   --fg: #252837;
