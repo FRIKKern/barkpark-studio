@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: e2e-studio-parity # one shared dataset: never two runs at once
+  group: e2e-dataset-ci # one `ci` dataset: never two runs at once
   cancel-in-progress: false
 jobs:
   studio:
@@ -19,7 +19,7 @@ jobs:
       BARKPARK_URL: https://guerrilla.barkpark.cloud
       BARKPARK_WORKSPACE: studio-parity
       BARKPARK_PROJECT: default
-      BARKPARK_DATASET: production
+      BARKPARK_DATASET: ci # GitHub's own dataset; local runs use e2e-local, people use production
       BARKPARK_TOKEN: ${{ secrets.BARKPARK_TOKEN }} # read/write, studio-parity only
       BUDGET_NETWORK_SCALE: '4' # runner is far from guerrilla; see e2e/rig/feel.ts
       BARKPARK_SCHEMA_SOURCE: fixtures # member tokens can't read schemas yet (task-23c4ac86976c46a9)
@@ -41,6 +41,16 @@ jobs:
         run: node --env-file=.env scripts/seed-barkpark.mjs --data
       - name: Build the studio (outside the suite's 60 s budget)
         run: pnpm --dir app build
+      - name: Warm Chrome's first launch (cold start is runner disk, not the studio)
+        working-directory: e2e
+        run: |
+          node --input-type=module -e "const {chromium} = await import('@playwright/test'); const b = await chromium.launch({channel: 'chrome'}); await (await b.newPage()).goto('about:blank'); await b.close()"
+      - name: Start the studio (server boot is outside the budget too)
+        run: |
+          set -a; . ./.env; set +a
+          nohup pnpm --dir app exec vite preview --port 3100 --strictPort > preview.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3100/health > /dev/null && exit 0; sleep 1; done
+          cat preview.log; exit 1
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4

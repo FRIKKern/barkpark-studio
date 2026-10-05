@@ -20,6 +20,8 @@ export type Target = {
   /** The reference preview link for `field` inside a pane. */
   refLink(pane: Locator, field: string): Locator
   closeButton(pane: Locator): Locator
+  /** The "…" options menu of a type list pane (sort, layout). */
+  listMenu(listPane: Locator): Locator
   /** The "+" that creates a new document from a type list pane. */
   newDocButton(listPane: Locator): Locator
   /** The document actions "…" menu in a doc pane's footer. */
@@ -91,6 +93,7 @@ const sanity: Target = {
   closeButton: (pane) => pane.locator('a:has([data-sanity-icon="close"])').first(),
   docMenu: (page) => page.locator('[data-testid="action-menu-button"]').last(),
   newDocButton: (listPane) => listPane.locator('a:has([data-sanity-icon="add"]), button:has([data-sanity-icon="add"])').first(),
+  listMenu: (listPane) => listPane.getByTestId('pane-context-menu-button').first(),
   refMenu: (pane, field) =>
     pane
       .locator(`a[href$="parentRefPath%3D${encodeURIComponent(field)}"]`)
@@ -158,6 +161,7 @@ const studio: Target = {
   closeButton: (pane) => pane.getByTestId('pane-close'),
   docMenu: (page) => page.getByRole('button', {name: 'Document actions'}).last(),
   newDocButton: (listPane) => listPane.getByRole('button', {name: /^Create new/}),
+  listMenu: (listPane) => listPane.getByRole('button', {name: 'List options'}),
   refMenu: (pane, field) =>
     pane
       .locator('.ref-row')

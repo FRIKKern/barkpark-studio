@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --env-file=../.env node_modules/@playwright/test/cli.js test",
-    "baseline": "BASELINE=1 node --env-file=../.env node_modules/@playwright/test/cli.js test --grep @baseline",
-    "evidence": "EVIDENCE=1 node --env-file=../.env node_modules/@playwright/test/cli.js test --grep @evidence"
+    "test": "BARKPARK_DATASET=${BARKPARK_DATASET:-e2e-local} node --env-file=../.env node_modules/@playwright/test/cli.js test",
+    "baseline": "BASELINE=1 BARKPARK_DATASET=${BARKPARK_DATASET:-e2e-local} node --env-file=../.env node_modules/@playwright/test/cli.js test --grep @baseline",
+    "evidence": "EVIDENCE=1 BARKPARK_DATASET=${BARKPARK_DATASET:-e2e-local} node --env-file=../.env node_modules/@playwright/test/cli.js test --grep @evidence",
+    "reset": "BARKPARK_DATASET=${BARKPARK_DATASET:-e2e-local} node --env-file=../.env ../scripts/seed-barkpark.mjs --data"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

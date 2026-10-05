@@ -1,11 +1,13 @@
 import {defineConfig} from '@playwright/test'
 
 // Two targets, same specs: `sanity` (reference/sanity, the bar) and `studio` (app/, ours).
+// Ours runs its own server on :3100 against BARKPARK_DATASET — `e2e-local` from
+// pnpm test, `ci` in GitHub — never the hand-poke `production` your :3000 uses.
+// E2E_PORT: one per worktree when several agents run e2e side by side (default 3100).
+const PORT = Number(process.env.E2E_PORT || 3100)
+const STUDIO = `http://localhost:${PORT}`
 // Secrets come from the repo-root .env: run as `node --env-file=../.env node_modules/.bin/playwright test`
 // (or `pnpm test`, which does that).
-// Ours on another port when 3000 is taken (a second worktree): STUDIO_PORT=3100.
-const STUDIO_PORT = process.env.STUDIO_PORT || '3000'
-
 export default defineConfig({
   testDir: '.',
   testMatch: ['*.spec.ts', 'journeys/*.spec.ts'],
@@ -18,18 +20,26 @@ export default defineConfig({
   // QUALITY.md rule 5: the whole suite fits in 60 s; in CI going over fails the run.
   globalTimeout: process.env.CI ? 60_000 : 0,
   reporter: [['list']],
-  // @baseline specs measure and @evidence specs take side-by-side screenshots;
+  // @baseline specs measure and @evidence specs take side-by-side stills and clips;
   // neither gates: only `pnpm baseline` / `pnpm evidence` run them.
   grepInvert: process.env.BASELINE || process.env.EVIDENCE ? undefined : /@baseline|@evidence/,
   use: {channel: 'chrome', viewport: {width: 1440, height: 900}},
   projects: [
     {name: 'sanity', use: {baseURL: 'http://localhost:3333'}},
-    {name: 'studio', use: {baseURL: `http://localhost:${STUDIO_PORT}`}},
+    {name: 'studio', use: {baseURL: STUDIO}},
   ],
   // CI runs ours only (the reference needs a Sanity login); side-by-side stays local.
   webServer: [
     ...(process.env.CI ? [] : [{command: 'pnpm --dir ../reference/sanity dev', url: 'http://localhost:3333', reuseExistingServer: true, timeout: 60_000}]),
     // CI times a production build (what users get; built in an earlier step); locally the dev server.
-    {command: process.env.CI ? 'pnpm --dir ../app exec vite preview --port 3000 --strictPort' : `pnpm --dir ../app dev --port ${STUDIO_PORT}`, url: `http://localhost:${STUDIO_PORT}/health`, reuseExistingServer: !process.env.CI, timeout: 60_000, stdout: 'pipe'},
+    {
+      command: process.env.CI ? `pnpm --dir ../app exec vite preview --port ${PORT} --strictPort` : `pnpm --dir ../app dev --port ${PORT} --strictPort`,
+      url: `${STUDIO}/health`,
+      // Locally never reuse: a server already on the port may be another worktree's
+      // code. CI starts it in an earlier step (server boot is outside the budget).
+      reuseExistingServer: !!process.env.CI,
+      timeout: 60_000,
+      stdout: 'pipe',
+    },
   ],
 })
