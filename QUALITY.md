@@ -5,18 +5,24 @@ side with `reference/sanity`, before its task can close.
 
 ## Feel budgets
 
-| # | Check | Bar | How it is measured |
-|---|---|---|---|
-| F1 | Keystroke → screen | < 16 ms, never waits on network | Playwright trace, input→paint |
-| F2 | Pane open (warm) | < 100 ms, zero layout shift | timing mark + CLS = 0 |
-| F3 | Cold load to usable list | < 1.5 s on local | timing mark |
-| F4 | Edit seen in 2nd browser | p95 < 300 ms | two-browser rig |
-| F5 | Keyboard | whole journey without a mouse | Playwright, keyboard only |
-| F6 | Focus | never lost or moved by a remote update | two-browser rig asserts `activeElement` |
-| F7 | Undo / redo | works across fields, across remote edits | Playwright |
-| F8 | Network blip | 10 s offline while typing → zero lost edits, visible status | `context.setOffline` |
-| F9 | Errors | none silent; every failure is visible and recoverable | console + network assertions |
-| F10 | Visual | matches the approved screenshot | Playwright screenshot diff |
+| # | Check | Bar | Sanity baseline | How it is measured |
+|---|---|---|---|---|
+| F1 | Keystroke → screen | < 16 ms, never waits on network | p50 12 / p95 21 ms (Event Timing p50 28 / p95 36) | rig: keydown → frame after paint |
+| F2 | Pane open (warm) | < 100 ms, zero layout shift | p50 296 / p95 318 ms, CLS 0 | rig: list click → doc title shown |
+| F3 | Cold load to usable list | < 1.5 s on local | not measured yet | timing mark |
+| F4 | Edit seen in 2nd browser | p95 < 300 ms | HTTP write: p50 180 / p95 237 ms. Typed in A: p50 768 / p95 1104 ms | rig: two browsers, one doc |
+| F5 | Keyboard | whole journey without a mouse | | Playwright, keyboard only |
+| F6 | Focus | never lost or moved by a remote update | | two-browser rig asserts `activeElement` |
+| F7 | Undo / redo | works across fields, across remote edits | | Playwright |
+| F8 | Network blip | 10 s offline while typing → zero lost edits, visible status | | `context.setOffline` |
+| F9 | Errors | none silent; every failure is visible and recoverable | | console + network assertions |
+| F10 | Visual | matches the approved screenshot | | Playwright screenshot diff |
+
+The rig is [`e2e/baseline.spec.ts`](e2e/baseline.spec.ts): `cd e2e && pnpm baseline --project sanity`
+(or `--project studio` for ours). Baseline = mean of two runs, 2026-10-05: production
+build (`sanity build && sanity preview`), headless Chrome 1440×900 on an M-series Mac,
+Sanity cloud dataset. F4 "HTTP write" is another client patching over the API;
+"typed in A" includes Sanity's own mutation batching.
 
 ## Rules
 
