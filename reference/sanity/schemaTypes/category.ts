@@ -7,5 +7,6 @@ export const category = defineType({
   fields: [
     defineField({name: 'title', type: 'string', validation: (r) => r.required()}),
     defineField({name: 'description', type: 'text', rows: 2}),
+    defineField({name: 'featuredPost', type: 'reference', to: [{type: 'post'}]}),
   ],
 })
