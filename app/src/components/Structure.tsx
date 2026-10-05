@@ -3,6 +3,7 @@ import {useQuery} from '@tanstack/react-query'
 import {docQuery, listQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
 import {collapsed} from '../lib/layout'
 import {useLive} from '../lib/live'
+import {flushOnUnload} from '../lib/edits'
 import {closeFrom, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
 import {ChevronRight, Close, Search} from './icons'
@@ -32,7 +33,11 @@ function usePaneWidth(hint: number) {
 
 export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}) {
   const [ref, width] = usePaneWidth(widthHint)
-  useEffect(() => void (document.documentElement.dataset.hydrated = ''), [])
+  useEffect(() => {
+    document.documentElement.dataset.hydrated = ''
+    addEventListener('pagehide', flushOnUnload)
+    return () => removeEventListener('pagehide', flushOnUnload)
+  }, [])
   const {data: schemas = []} = useQuery(schemasQuery)
   // Live: open docs, open lists, and every type an open doc references, so a
   // reference preview follows edits made anywhere (J23).

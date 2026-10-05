@@ -6,8 +6,11 @@ import type {Doc} from './data'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
 // title, list row all repaint with no network wait); the write goes to Barkpark
-// behind it, one request in flight per document, everything typed meanwhile
-// riding the next one. Server truth (mutate responses, live frames) is folded
+// behind it. Writes are coalesced per document: at most one patch every
+// WRITE_GAP_MS (the first after a pause goes at once), one in flight, later
+// values for a field replacing earlier ones. Leaving a field, closing a pane or
+// the page flushes. Interim for task-2c31de0cf6597d32: every editor shares the
+// server token's 60 writes/min. Server truth (mutate responses, live frames) is folded
 // back in under whatever is still unsent, and never older than what we hold.
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -27,7 +30,9 @@ export const mutate = createServerFn({method: 'POST'})
 
 export type SaveState = 'saved' | 'saving' | 'error'
 type Snap = {state: SaveState; error?: string}
-type DocEdits = {type: string; dirty: Map<string, unknown>; inflight: Map<string, unknown> | null; snap: Snap}
+type DocEdits = {type: string; dirty: Map<string, unknown>; inflight: Map<string, unknown> | null; snap: Snap; lastSent: number; timer?: ReturnType<typeof setTimeout>}
+
+export const WRITE_GAP_MS = 750
 
 const SAVED: Snap = {state: 'saved'}
 const docs = new Map<string, DocEdits>()
@@ -39,7 +44,7 @@ const setState = (e: DocEdits, state: SaveState, error?: string) => {
 
 const entry = (id: string, type: string) => {
   let e = docs.get(id)
-  if (!e) docs.set(id, (e = {type, dirty: new Map(), inflight: null, snap: SAVED}))
+  if (!e) docs.set(id, (e = {type, dirty: new Map(), inflight: null, snap: SAVED, lastSent: 0}))
   return e
 }
 
@@ -70,7 +75,43 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown) {
   e.dirty.set(field, value)
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
   writeCache(qc, id, doc._type, {...held, [field]: value} as Doc)
+  if (e.snap.state === 'saved') setState(e, 'saving')
+  schedule(qc, id)
+}
+
+/** Send now if the last write was WRITE_GAP_MS ago, else once that gap has passed. */
+function schedule(qc: QueryClient, id: string) {
+  const e = docs.get(id)
+  if (!e || e.timer || e.dirty.size === 0) return
+  const wait = Math.max(0, e.lastSent + WRITE_GAP_MS - Date.now())
+  if (wait === 0) void send(qc, id)
+  else e.timer = setTimeout(() => ((e.timer = undefined), void send(qc, id)), wait)
+}
+
+/** Send whatever is waiting right away (field blur, pane close). */
+export function flush(qc: QueryClient, id: string) {
+  const e = docs.get(id)
+  if (!e) return
+  clearTimeout(e.timer)
+  e.timer = undefined
   void send(qc, id)
+}
+
+/** Page is going away: hand every unsent change to the browser to deliver. */
+export function flushOnUnload() {
+  const mutations = [...docs].flatMap(([id, e]) => {
+    if (e.dirty.size === 0) return []
+    const {set, unset} = toPatch(e.dirty)
+    return [{patch: {id, type: e.type, set, unset}}]
+  })
+  if (mutations.length) navigator.sendBeacon('/api/mutate', new Blob([JSON.stringify({mutations})], {type: 'application/json'}))
+}
+
+function toPatch(fields: Map<string, unknown>) {
+  const set: Record<string, Json> = {}
+  const unset: string[] = []
+  for (const [k, v] of fields) (v === '' || v === undefined || v === null ? unset.push(k) : (set[k] = v as Json))
+  return {set, unset}
 }
 
 async function send(qc: QueryClient, id: string) {
@@ -78,10 +119,9 @@ async function send(qc: QueryClient, id: string) {
   if (!e || e.inflight || e.dirty.size === 0) return
   e.inflight = e.dirty
   e.dirty = new Map()
+  e.lastSent = Date.now()
   setState(e, 'saving')
-  const set: Record<string, Json> = {}
-  const unset: string[] = []
-  for (const [k, v] of e.inflight) (v === '' || v === undefined || v === null ? unset.push(k) : (set[k] = v as Json))
+  const {set, unset} = toPatch(e.inflight)
   try {
     const r = (await mutate({data: {mutations: [{patch: {id, type: e.type, set, unset}}]}})) as {results: {document: Doc}[]}
     e.inflight = null
@@ -95,7 +135,7 @@ async function send(qc: QueryClient, id: string) {
     setTimeout(() => void send(qc, id), 2000)
     return
   }
-  void send(qc, id)
+  schedule(qc, id)
 }
 
 /**
@@ -113,7 +153,7 @@ export async function createDoc(qc: QueryClient, type: string, id: string, field
     e.inflight = null
     applyServer(qc, r.results[0].document)
     setState(e, e.dirty.size ? 'saving' : 'saved')
-    void send(qc, id)
+    schedule(qc, id)
   } catch (err) {
     e.inflight = null
     setState(e, 'error', (err as Error).message)

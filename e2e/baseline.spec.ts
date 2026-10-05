@@ -72,6 +72,8 @@ test('@baseline feel: F1 typing, F2 pane open, F4 remote edit', async ({browser}
     // F1 — keystroke → paint while typing a sentence in A.
     const f1 = await typeAndMeasure(a, title(a), ' the quick brown fox jumps')
     results.F1 = {frame: stats(f1.keys), eventTiming: stats(f1.slowKeys)}
+    // Ours coalesces writes: let the last one land before restoring.
+    if (t.name === 'studio') await a.getByText(/^Saved$/).waitFor()
   } finally {
     await t.restore(ID, {title: TITLE})
     await Promise.all(contexts.map((c) => c.close()))
