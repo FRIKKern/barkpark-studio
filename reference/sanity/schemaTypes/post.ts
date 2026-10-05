@@ -114,6 +114,15 @@ export const post = defineType({
         }),
       ],
     }),
+    // Odd reference states (J27): a filtered reference and one with two target types.
+    defineField({
+      name: 'reviewer',
+      type: 'reference',
+      group: 'meta',
+      to: [{type: 'author'}],
+      options: {filter: 'name != $skip', filterParams: {skip: 'Alan Turing'}},
+    }),
+    defineField({name: 'related', type: 'reference', group: 'meta', to: [{type: 'post'}, {type: 'author'}]}),
     defineField({name: 'publishedAt', type: 'datetime', group: 'meta'}),
     defineField({name: 'featured', type: 'boolean', group: 'meta', initialValue: false}),
     defineField({name: 'rating', type: 'number', group: 'meta', validation: (r) => r.min(0).max(5)}),

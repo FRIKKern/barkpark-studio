@@ -1,5 +1,5 @@
 import {createContext, useContext, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
-import type {Doc, Field} from '../lib/data'
+import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import type {Problem} from '../lib/validation'
 import {RefPreview} from './Preview'
@@ -127,6 +127,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
 // the same way. Editable now: string, slug, text, number, datetime, boolean,
 // object subfields, references (search + pick). Arrays and rich text: J09/J10.
 function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProps) {
+  const invalid = useContext(ProblemsContext).some((p) => p.path === path)
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
   if (readOnly && !['string', 'text', 'slug', 'composite', 'datetime'].includes(field.type))
@@ -159,10 +160,12 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       return (
         <RefInput
           id={path}
-          refType={field.refType!}
+          types={refTypesOf(field)}
+          filter={field.options?.filter as RefFilter | undefined}
           value={value as string | undefined}
+          invalid={invalid}
           onChange={onChange}
-          linkFor={(id) => openRef(field.refType!, id, path)}
+          linkFor={(id, type) => openRef(type, id, path)}
         />
       )
     case 'arrayOf': {
