@@ -3,6 +3,8 @@ import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
 import {docQuery, ensureDocs, fetchViewportHint, listQuery, schemaOf, schemasQuery, type Doc, type Schema} from './data'
 import {parsePanes, type Pane} from './panes'
+import {meQuery} from './session'
+import {redirect} from '@tanstack/react-router'
 
 // Everything a pane chain needs before it paints: schemas, the list, every open
 // doc, and the docs their previews follow (refs + preview subtitles). On a
@@ -12,6 +14,12 @@ import {parsePanes, type Pane} from './panes'
 // In the browser, a pane opens as soon as its own doc is there; references load
 // behind it (their previews fill in), so opening never waits on the network for
 // data the pane can paint without.
+/** With dev sign-in on, the structure needs an editor: send others to /login. */
+export async function requireEditor(queryClient: QueryClient, href: string) {
+  const me = await queryClient.ensureQueryData(meQuery)
+  if (me.devLogin && !me.email) throw redirect({to: '/login', search: {redirect: href}})
+}
+
 export async function loadPanes(queryClient: QueryClient, splat: string | undefined) {
   const panes = parsePanes(splat)
   const onServer = typeof window === 'undefined'

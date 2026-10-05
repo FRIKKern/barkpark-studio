@@ -4,7 +4,7 @@
 import '@tanstack/react-start/server-only'
 import {readdir, readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
-import {bpFetch, dataset} from './barkpark'
+import {bpFetch, dataset, serviceToken} from './barkpark'
 
 type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown}
 
@@ -14,7 +14,8 @@ export async function readSchemas(): Promise<RawSchema[]> {
     const files = (await readdir(dir)).filter((f) => f.endsWith('.json'))
     return Promise.all(files.map(async (f) => JSON.parse(await readFile(join(dir, f), 'utf8')) as RawSchema))
   }
-  const res = await bpFetch(`/v1/schemas/${dataset()}`)
+  // The studio's token: editors' member tokens can't read schemas yet (same task).
+  const res = await bpFetch(`/v1/schemas/${dataset()}`, {}, serviceToken())
   if (!res.ok) throw new Error(`Barkpark /v1/schemas/${dataset()} → ${res.status}`)
   return ((await res.json()) as {schemas: RawSchema[]}).schemas
 }

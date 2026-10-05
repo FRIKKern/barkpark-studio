@@ -13,25 +13,42 @@ import {bpFetch, dataset} from './barkpark'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
-const subscribers = new Set<Subscriber>()
-let upstream: AbortController | null = null
-let lastEventId: string | null = null
-let idleTimer: ReturnType<typeof setTimeout> | undefined
-
 type Buffered = {id: number; docId: string; type?: string; frame: string}
 const BUFFER = 2000
-const buffer: Buffered[] = []
-/** First event id this hub saw since it (re)connected without a gap; older is unknown. */
-let knownFrom: number | null = null
+
+// One hub per token: each editor listens as themself (their own access, their own
+// rate bucket), and an editor's tabs share one upstream.
+type Hub = {
+  token: string
+  subscribers: Set<Subscriber>
+  upstream: AbortController | null
+  lastEventId: string | null
+  idleTimer?: ReturnType<typeof setTimeout>
+  buffer: Buffered[]
+  /** First event id this hub saw since it (re)connected without a gap; older is unknown. */
+  knownFrom: number | null
+}
+const hubs = new Map<string, Hub>()
+const hubFor = (token: string): Hub => {
+  let h = hubs.get(token)
+  if (!h) hubs.set(token, (h = {token, subscribers: new Set(), upstream: null, lastEventId: null, buffer: [], knownFrom: null}))
+  return h
+}
 
 const wants = (sub: Subscriber, docId: string, type?: string) => sub.ids.has(docId) || (!!type && sub.types.has(type))
 
 /** The newest event id the hub holds (-1: none yet). Sent as the welcome's id. */
-export const head = () => (buffer.length ? buffer[buffer.length - 1].id : -1)
+export const head = (token: string) => {
+  const b = hubFor(token).buffer
+  return b.length ? b[b.length - 1].id : -1
+}
 
 export const publishedId = (id: string) => (id.startsWith('drafts.') ? id.slice(7) : id)
 
-export function subscribe(ids: string[], types: string[], send: Subscriber['send'], since?: number): () => void {
+export function subscribe(token: string, ids: string[], types: string[], send: Subscriber['send'], since?: number): () => void {
+  const hub = hubFor(token)
+  const {buffer, subscribers} = hub
+  const knownFrom = hub.knownFrom
   const sub = {ids: new Set(ids.map(publishedId)), types: new Set(types), send}
   if (since !== undefined && Number.isFinite(since)) {
     // -1: the page had seen nothing yet when it was told the head (welcome) —
@@ -40,33 +57,33 @@ export function subscribe(ids: string[], types: string[], send: Subscriber['send
     else for (const b of buffer) if (b.id > since && wants(sub, b.docId, b.type)) send(b.frame)
   }
   subscribers.add(sub)
-  clearTimeout(idleTimer)
-  if (!upstream) void connect()
+  clearTimeout(hub.idleTimer)
+  if (!hub.upstream) void connect(hub)
   return () => {
     subscribers.delete(sub)
     if (subscribers.size === 0) {
-      clearTimeout(idleTimer)
-      idleTimer = setTimeout(() => {
+      clearTimeout(hub.idleTimer)
+      hub.idleTimer = setTimeout(() => {
         if (subscribers.size > 0) return
-        upstream?.abort()
-        upstream = null
+        hub.upstream?.abort()
+        hub.upstream = null
       }, 60_000)
     }
   }
 }
 
-async function connect() {
+async function connect(hub: Hub) {
   const ctrl = new AbortController()
-  upstream = ctrl
+  hub.upstream = ctrl
   let delay = 500
-  while (upstream === ctrl) {
+  while (hub.upstream === ctrl) {
     try {
       const headers: Record<string, string> = {accept: 'text/event-stream'}
-      if (lastEventId) headers['last-event-id'] = lastEventId
-      const res = await bpFetch(`/v1/data/listen/${dataset()}`, {headers, signal: ctrl.signal})
+      if (hub.lastEventId) headers['last-event-id'] = hub.lastEventId
+      const res = await bpFetch(`/v1/data/listen/${dataset()}`, {headers, signal: ctrl.signal}, hub.token)
       if (!res.ok || !res.body) throw new Error(`listen ${res.status}`)
       delay = 500
-      await pump(res.body)
+      await pump(hub, res.body)
     } catch (err) {
       if (ctrl.signal.aborted) return
       console.error('[listen] upstream dropped, reconnecting:', (err as Error).message)
@@ -76,20 +93,21 @@ async function connect() {
   }
 }
 
-async function pump(body: ReadableStream<Uint8Array>) {
+async function pump(hub: Hub, body: ReadableStream<Uint8Array>) {
   const decoder = new TextDecoder()
   let buf = ''
   for await (const chunk of body) {
     buf += decoder.decode(chunk, {stream: true})
     let end
     while ((end = buf.indexOf('\n\n')) !== -1) {
-      dispatch(buf.slice(0, end))
+      dispatch(hub, buf.slice(0, end))
       buf = buf.slice(end + 2)
     }
   }
 }
 
-function dispatch(frame: string) {
+function dispatch(hub: Hub, frame: string) {
+  const {buffer, subscribers} = hub
   let id: string | null = null
   let event = 'message'
   const data: string[] = []
@@ -98,7 +116,7 @@ function dispatch(frame: string) {
     else if (line.startsWith('event:')) event = line.slice(6).trim()
     else if (line.startsWith('data:')) data.push(line.slice(5).trimStart())
   }
-  if (id) lastEventId = id
+  if (id) hub.lastEventId = id
   if (event !== 'mutation' || data.length === 0) return
   const payload = JSON.parse(data.join('\n')) as {documentId?: string; type?: string}
   if (!payload.documentId || !id) return
@@ -109,8 +127,8 @@ function dispatch(frame: string) {
   buffer.push({id: n, docId, type: payload.type, frame: out})
   if (buffer.length > BUFFER) {
     buffer.shift()
-    knownFrom = buffer[0].id
+    hub.knownFrom = buffer[0].id
   }
-  knownFrom ??= n
+  hub.knownFrom ??= n
   for (const sub of subscribers) if (wants(sub, docId, payload.type)) sub.send(out)
 }

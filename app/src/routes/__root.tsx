@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react'
+import {useEffect, type ReactNode} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
 import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
 import appCss from '../styles.css?url'
@@ -26,6 +26,8 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient}>()({
 })
 
 function RootDocument({children}: {children: ReactNode}) {
+  // Marks the page interactive (e2e waits for it: a click before hydration is a full page load).
+  useEffect(() => void (document.documentElement.dataset.hydrated = ''), [])
   return (
     <html lang="en">
       <head>
