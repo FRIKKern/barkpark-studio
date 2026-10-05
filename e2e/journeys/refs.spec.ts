@@ -3,7 +3,8 @@ import {installProbes, timeToReady} from '../rig/feel'
 import {target} from '../rig/targets'
 
 // Crown references, same steps on both studios: J08 (pick by search, open in the
-// next pane), J22 (create a new doc from the field). Budgets apply to ours.
+// next pane), J22 (create a new doc from the field), J23 (edit the referenced doc;
+// parents follow, live, in a second browser). Budgets apply to ours.
 const ID = 'post-07' // author: Alan Turing
 
 test.beforeEach(async ({context}, info) => {
@@ -75,4 +76,40 @@ test('J22: create a new author from the reference field, edit it in the next pan
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.type('Barbara Liskov')
   await expect(t.refLink(pane, 'author')).toContainText('Barbara Liskov', {timeout: 10_000})
+})
+
+test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd browser', async ({browser}, info) => {
+  const t = target(info)
+  const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])
+  await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
+  const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
+  try {
+    await Promise.all([a.goto('/structure/post;post-08;author-grace,type=author,parentRefPath=author'), b.goto(t.docPath('post', 'post-08'))])
+    await Promise.all([t.settle(a), t.settle(b)])
+    await expect(t.field(a, 'name')).toHaveValue('Grace Hopper')
+    const bRef = t.refLink(t.pane(b, 2), 'author')
+    await expect(bRef).toContainText('Grace Hopper')
+    // B is typing in its own title, caret mid-word: a remote change must not move it (F6).
+    await t.field(b, 'title').click()
+    await t.field(b, 'title').evaluate((el: HTMLInputElement) => el.setSelectionRange(4, 4))
+
+    await t.field(a, 'name').click()
+    await a.keyboard.press('End')
+    await a.keyboard.type(' X')
+    const sent = Date.now()
+    const seen = bRef.evaluate(async (el) => {
+      while (!el.textContent?.includes('Grace Hopper X')) await new Promise(requestAnimationFrame)
+      return performance.timeOrigin + performance.now()
+    })
+    await expect(t.refLink(t.pane(a, 2), 'author')).toContainText('Grace Hopper X')
+    const ms = (await seen) - sent
+
+    const focus = await b.evaluate(() => ({id: document.activeElement?.id, caret: (document.activeElement as HTMLInputElement)?.selectionStart}))
+    expect(focus, 'F6: focus and caret stay put in B').toEqual({id: 'title', caret: 4})
+    if (t.name === 'studio') expect(ms, 'F4 edit seen in 2nd browser').toBeLessThan(300)
+    console.log(`[J23 ${t.name}] A's edit seen in B after ${Math.round(ms)} ms`)
+  } finally {
+    await t.restore('author-grace', {name: 'Grace Hopper'}, 'author')
+    await Promise.all([ctxA.close(), ctxB.close()])
+  }
 })

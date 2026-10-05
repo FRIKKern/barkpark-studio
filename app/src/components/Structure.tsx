@@ -33,9 +33,14 @@ function usePaneWidth(hint: number) {
 export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}) {
   const [ref, width] = usePaneWidth(widthHint)
   useEffect(() => void (document.documentElement.dataset.hydrated = ''), [])
+  const {data: schemas = []} = useQuery(schemasQuery)
+  // Live: open docs, open lists, and every type an open doc references, so a
+  // reference preview follows edits made anywhere (J23).
+  const refTypes = (type: string) =>
+    (schemaOf(schemas, type)?.fields ?? []).flatMap((f) => [f.refType, f.of?.refType]).filter((t): t is string => !!t)
   useLive(
     panes.flatMap((p) => (p.kind === 'doc' ? [p.id] : [])),
-    panes.flatMap((p) => (p.kind === 'list' ? [p.type] : p.kind === 'doc' ? [p.type] : [])),
+    panes.flatMap((p) => (p.kind === 'list' ? [p.type] : p.kind === 'doc' ? [p.type, ...refTypes(p.type)] : [])),
   )
   const path = panesPath(panes)
   // A clicked strip takes focus until the path changes.

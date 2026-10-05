@@ -16,12 +16,23 @@ const config = () => ({
 
 export const dataset = () => config().dataset
 
-/** Fetch a Barkpark API path (`/v1/...`, dataset already substituted) with the token attached. */
-export function bpFetch(path: string, init: RequestInit = {}): Promise<Response> {
+/**
+ * Fetch a Barkpark API path (`/v1/...`, dataset already substituted) with the token
+ * attached. Every studio user shares this one token, and so its rate bucket: a 429
+ * waits out Retry-After (capped) and tries again, up to 3 times, rather than
+ * failing a pane. Streams (listen) are not retried here.
+ */
+export async function bpFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const {base, token} = config()
   const headers = new Headers(init.headers)
   headers.set('authorization', `Bearer ${token}`)
-  return fetch(`${base}${path}`, {...init, headers})
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`${base}${path}`, {...init, headers})
+    if (res.status !== 429 || attempt === 3 || headers.get('accept') === 'text/event-stream') return res
+    const wait = Math.min(Number(res.headers.get('retry-after')) || 1, 5)
+    console.warn(`[barkpark] 429 on ${path}, retrying in ${wait}s`)
+    await new Promise((r) => setTimeout(r, wait * 1000 + Math.random() * 250))
+  }
 }
 
 /** Pass a Barkpark response through to the browser: status + body + content type, nothing else. */

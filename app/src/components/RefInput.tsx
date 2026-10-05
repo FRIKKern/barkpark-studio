@@ -124,7 +124,13 @@ function RefSearch({id, refType, current, onPick, onCancel, onCreate, error}: Se
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listId = useId()
-  const {data: results = []} = useQuery({...searchQuery(refType, q.trim()), enabled: open, placeholderData: keepPreviousData})
+  // One request per pause in typing, not per keystroke (one shared rate bucket).
+  const [query, setQuery] = useState(q.trim())
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(q.trim()), 120)
+    return () => clearTimeout(t)
+  }, [q])
+  const {data: results = []} = useQuery({...searchQuery(refType, query), enabled: open, placeholderData: keepPreviousData})
 
   useEffect(() => {
     // Replacing: focus with the current title selected, so typing starts a new search.
