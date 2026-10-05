@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 27 changes, 7 tasks closed
+- **Today** · 29 changes, 7 tasks closed
+  - README: tighter vision so the worst-case timeline still fits 80 lines
+  - Roadmap counts every journey and shows the Freeform track apart
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
-  - J14: field groups (tabs) and the seo object ([#27](https://github.com/FRIKKern/barkpark-studio/pull/27))
-  - Published perspective: pane title, strips and list show published versions ([#25](https://github.com/FRIKKern/barkpark-studio/pull/25))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
