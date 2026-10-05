@@ -28,10 +28,16 @@ export type Target = {
   docMenu(page: Page): Locator
   /** The "…" actions button of a reference field showing a value. */
   refMenu(pane: Locator, field: string): Locator
+  /** The "…" of a reference whose doc does not exist ("Document unavailable"). */
+  unavailableRefMenu(pane: Locator): Locator
   /** Write straight to the backend over HTTP, as another client would. */
   patch(id: string, set: Record<string, unknown>, type?: string): Promise<void>
   /** A reference value in this backend's shape. */
   ref(id: string): unknown
+  /** A reference to a missing doc, or (with `type`) to an unpublished one: Sanity needs these weak. */
+  weakRef(id: string, type?: string): unknown
+  /** Create a doc that exists only as a draft (never published). */
+  draftOnly(id: string, type: string, set: Record<string, unknown>): Promise<void>
   /** Titles of both versions, straight from the backend (undefined = no such version). */
   versions(id: string): Promise<{draft?: string; published?: string}>
   /** A field as editors now see it (draft if there is one, else published). */
@@ -43,7 +49,7 @@ export type Target = {
   /** Delete a document (draft and published) a test created. */
   deleteDoc(id: string, type: string): Promise<void>
   /** Drop drafts a test left behind and restore published values. */
-  restore(id: string, set: Record<string, unknown>, type?: string): Promise<void>
+  restore(id: string, set: Record<string, unknown>, type?: string, unset?: string[]): Promise<void>
 }
 
 const need = (k: string) => process.env[k] ?? fail(`missing ${k} in ../.env`)
@@ -101,7 +107,15 @@ const sanity: Target = {
       .locator('xpath=ancestor::*[.//button[.//*[@data-sanity-icon="ellipsis-horizontal"]]][1]')
       .locator('button:has([data-sanity-icon="ellipsis-horizontal"])')
       .first(),
+  unavailableRefMenu: (pane) =>
+    pane
+      .getByText('Document unavailable')
+      .locator('xpath=ancestor::*[.//button[.//*[@data-sanity-icon="ellipsis-horizontal"]]][1]')
+      .locator('button:has([data-sanity-icon="ellipsis-horizontal"])')
+      .first(),
   ref: (id) => ({_type: 'reference', _ref: id}),
+  weakRef: (id, type) => ({_type: 'reference', _ref: id, _weak: true, ...(type && {_strengthenOnPublish: {type}})}),
+  draftOnly: (id, type, set) => sanityMutate([{delete: {id}}, {createOrReplace: {_id: `drafts.${id}`, _type: type, ...set}}]).then(() => {}),
   versions: async (id) => {
     const q = encodeURIComponent(`*[_id in ["${id}", "drafts.${id}"]]{_id, title}`)
     const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/production?query=${q}&perspective=raw`, {
@@ -130,7 +144,7 @@ const sanity: Target = {
   },
   deleteDoc: (id) => sanityMutate([{delete: {id: `drafts.${id}`}}, {delete: {id}}]).then(() => {}),
   patch: (id, set) => sanityMutate([{patch: {id, set}}]).then(() => {}),
-  restore: (id, set) => sanityMutate([{delete: {id: `drafts.${id}`}}, {patch: {id, set}}]).then(() => {}),
+  restore: (id, set, _type, unset = []) => sanityMutate([{delete: {id: `drafts.${id}`}}, {patch: {id, set, unset}}]).then(() => {}),
 }
 
 const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
@@ -167,7 +181,13 @@ const studio: Target = {
       .locator('.ref-row')
       .filter({has: pane.page().locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]`)})
       .getByRole('button', {name: 'Reference actions'}),
+  unavailableRefMenu: (pane) => pane.locator('.ref-row:has(.unavailable)').getByRole('button', {name: 'Reference actions'}),
   ref: (id) => id,
+  weakRef: (id) => id,
+  draftOnly: async (id, type, set) => {
+    await bpMutate([{delete: {id, type}}]).catch(() => {}) // a leftover from an earlier run
+    await bpMutate([{create: {_id: id, _type: type, ...set}}])
+  },
   versions: async (id) => {
     const get = async (p: string) => {
       const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=${p}`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
@@ -194,7 +214,7 @@ const studio: Target = {
   deleteDoc: (id, type) => bpMutate([{delete: {id, type}}]).then(() => {}, () => {}), // gone already is fine
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
   patch: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),
-  restore: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),
+  restore: (id, set, type = 'post', unset = []) => bpMutate([{patch: {id, type, set, unset}}, {publish: {id, type}}]).then(() => {}),
 }
 
 export const target = (info: TestInfo): Target => (info.project.name === 'sanity' ? sanity : studio)

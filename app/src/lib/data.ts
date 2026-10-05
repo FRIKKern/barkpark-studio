@@ -19,6 +19,8 @@ export type Field = {
   title?: string
   type: string
   refType?: string
+  /** A reference's target types; Barkpark keeps `to` as given, `refType` is its first. */
+  to?: {type: string}[]
   rows?: number
   of?: Field
   fields?: Field[]
@@ -57,15 +59,19 @@ const fetchList = createServerFn({method: 'GET'})
     return (await withHasPublished(data.type, r.result.documents)) as unknown as Json
   })
 
+// A reference with several target types names them all; the doc is whichever has the id.
 const fetchDoc = createServerFn({method: 'GET'})
-  .validator((d: {type: string; id: string}) => d)
+  .validator((d: {type: string | string[]; id: string}) => d)
   .handler(async ({data}) => {
-    const path = `/v1/data/doc/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?perspective=drafts`
-    const res = await bpFetch(path)
-    if (res.status === 404) return null
-    if (!res.ok) throw new Error(`Barkpark ${path} → ${res.status}`)
-    const [doc] = await withHasPublished(data.type, [((await res.json()) as {result: Doc}).result])
-    return doc as unknown as Json
+    for (const type of [data.type].flat()) {
+      const path = `/v1/data/doc/${dataset()}/${encodeURIComponent(type)}/${encodeURIComponent(data.id)}?perspective=drafts`
+      const res = await bpFetch(path)
+      if (res.status === 404) continue
+      if (!res.ok) throw new Error(`Barkpark ${path} → ${res.status}`)
+      const [doc] = await withHasPublished(type, [((await res.json()) as {result: Doc}).result])
+      return doc as unknown as Json
+    }
+    return null
   })
 
 const fetchPublished = createServerFn({method: 'GET'})
@@ -104,27 +110,35 @@ async function withHasPublished(type: string, docs: Doc[]): Promise<Doc[]> {
 const fetchMany = createServerFn({method: 'GET'})
   .validator((d: {type: string; ids: string[]}) => d)
   .handler(async ({data}) => {
-    const ids = data.ids.map(encodeURIComponent).join(',')
+    // `_id in` matches a draft only by its drafts. id: a never-published doc has no other.
+    const ids = data.ids.flatMap((id) => [id, `drafts.${id}`]).map(encodeURIComponent).join(',')
     const r = await bpJson<{result: {documents: Doc[]}}>(
-      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&limit=200&filter[_id][in]=${ids}`,
+      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&limit=400&filter[_id][in]=${ids}`,
     )
-    return (await withHasPublished(data.type, r.result.documents)) as unknown as Json
+    const byId = new Map<string, Doc>()
+    for (const d of r.result.documents) if (d._draft || !byId.has(d._publishedId)) byId.set(d._publishedId, d)
+    return (await withHasPublished(data.type, [...byId.values()])) as unknown as Json
   })
 
-/** Put any of `ids` not already cached into the cache, with one request per call. */
-export async function ensureDocs(client: QueryClient, type: string, ids: string[]) {
+/** Put any of `ids` not already cached into the cache, with one request per type. */
+export async function ensureDocs(client: QueryClient, types: string[], ids: string[]) {
   const missing = [...new Set(ids)].filter((id) => client.getQueryData(['doc', id]) === undefined)
   if (!missing.length) return
-  const docs = (await fetchMany({data: {type, ids: missing}})) as unknown as Doc[]
+  const docs = (await Promise.all(types.map((type) => fetchMany({data: {type, ids: missing}})))).flat() as unknown as Doc[]
   for (const d of docs) client.setQueryData(['doc', d._publishedId], d)
   for (const id of missing) if (client.getQueryData(['doc', id]) === undefined) client.setQueryData(['doc', id], null)
 }
 
+/** A reference field's filter, in Barkpark's query terms: {field: {op: value}}. */
+export type RefFilter = Record<string, Record<string, string>>
+
 const fetchSearch = createServerFn({method: 'GET'})
-  .validator((d: {type: string; q: string}) => d)
+  .validator((d: {type: string; q: string; filter?: RefFilter}) => d)
   .handler(async ({data}) => {
     // `contains` is case-insensitive; `title` is the row's preview title for every type.
-    const filter = data.q ? `&filter[title][contains]=${encodeURIComponent(data.q)}` : ''
+    let filter = data.q ? `&filter[title][contains]=${encodeURIComponent(data.q)}` : ''
+    for (const [field, ops] of Object.entries(data.filter ?? {}))
+      for (const [op, v] of Object.entries(ops)) filter += `&filter[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
     const r = await bpJson<{result: {documents: Doc[]}}>(
       `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&order=_updatedAt:desc&limit=20${filter}`,
     )
@@ -176,21 +190,26 @@ export const publishedListQuery = (type: string) =>
     },
   })
 
-export const docQuery = (type: string, id: string) =>
+export const docQuery = (type: string | string[], id: string) =>
   queryOptions({queryKey: ['doc', id], staleTime: 30_000, queryFn: async () => (await fetchDoc({data: {type, id}})) as unknown as Doc | null})
 
-export const searchQuery = (type: string, q: string) =>
+export const searchQuery = (type: string | string[], q: string, filter?: RefFilter) =>
   queryOptions({
-    queryKey: ['search', type, q],
+    queryKey: ['search', [type].flat().join(','), q, filter],
     staleTime: 10_000,
     queryFn: async ({client}) => {
-      const docs = (await fetchSearch({data: {type, q}})) as unknown as Doc[]
+      const types = [type].flat()
+      const found = (await Promise.all(types.map((t) => fetchSearch({data: {type: t, q, filter}})))).flat() as unknown as Doc[]
+      const docs = types.length > 1 ? found.sort((a, b) => b._updatedAt.localeCompare(a._updatedAt)).slice(0, 20) : found
       for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
       return docs
     },
   })
 
 export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) => s.name === type)
+
+/** The types a reference field (or a reference array's member) may point to. */
+export const refTypesOf = (field: Field | undefined): string[] => field?.to?.map((t) => t.type) ?? (field?.refType ? [field.refType] : [])
 
 /** Preview title per Sanity's rules: list_preview.title, else title/name. */
 export function previewTitle(doc: Doc | null | undefined, schema?: Schema): string {

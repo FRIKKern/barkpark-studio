@@ -1,18 +1,23 @@
 import {useEffect, useId, useLayoutEffect, useRef, useState} from 'react'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {docQuery, previewTitle, schemaOf, schemasQuery, searchQuery, type Doc} from '../lib/data'
+import {docQuery, previewTitle, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
 import {createDoc} from '../lib/edits'
 import {focusFirstField} from '../lib/focus'
-import {Add, ChevronDown, Close, Ellipsis} from './icons'
-import {DocPreview, RefPreview} from './Preview'
+import {Add, ChevronDown, Close, Ellipsis, HelpCircle} from './icons'
+import {DocPreview} from './Preview'
 
 type Props = {
   id: string
-  refType: string
+  /** Target types; more than one adds a type badge to results and a type menu to Create. */
+  types: string[]
+  /** Only docs matching this show up in search (Sanity's `options.filter`). */
+  filter?: RefFilter
   value: string | undefined
+  /** Red, like Sanity, when the field has a validation error. */
+  invalid?: boolean
   onChange: (v: string | undefined) => void
-  linkFor: (id: string) => {href: string; selected: boolean; active: boolean}
+  linkFor: (id: string, type: string) => {href: string; selected: boolean; active: boolean}
 }
 
 /**
@@ -20,7 +25,7 @@ type Props = {
  * "…" menu (Clear / Replace / Open in new tab); empty or replacing, a combobox
  * that searches the referenced type. Keyboard: arrows move, Enter picks, Esc cancels.
  */
-export function RefInput({id, refType, value: outer, onChange, linkFor}: Props) {
+export function RefInput({id, types, filter, value: outer, invalid, onChange, linkFor}: Props) {
   // Show a pick at once; the cache (and so `outer`) catches up a tick later.
   const [value, setValue] = useState(outer)
   const [seen, setSeen] = useState(outer)
@@ -43,6 +48,9 @@ export function RefInput({id, refType, value: outer, onChange, linkFor}: Props) 
   const navigate = useNavigate()
   const {data: schemas = []} = useQuery(schemasQuery)
   const [createError, setCreateError] = useState<string>()
+  // null: the id points at no doc (deleted, or never there).
+  const {data: target} = useQuery({...docQuery(types, value ?? ''), enabled: !!value})
+  const targetType = target?._type ?? types[0]
   const change = (v: string | undefined) => {
     setValue(v)
     setSearching(!v)
@@ -51,14 +59,14 @@ export function RefInput({id, refType, value: outer, onChange, linkFor}: Props) 
 
   if (!searching && value)
     return (
-      <div className="ref-box ref-row" ref={previewRef}>
+      <div className="ref-box ref-row" ref={previewRef} data-invalid={invalid || undefined}>
         <div className="ref-preview">
-          <RefPreview type={refType} id={value} {...linkFor(value)} />
+          {target === null ? <Unavailable id={value} /> : <DocPreview doc={target} {...linkFor(value, targetType)} />}
         </div>
         <RefMenu
           onClear={() => change(undefined)}
           onReplace={() => setSearching(true)}
-          newTabHref={`/structure/${refType};${value}`}
+          newTabHref={`/structure/${targetType};${value}`}
         />
       </div>
     )
@@ -66,14 +74,15 @@ export function RefInput({id, refType, value: outer, onChange, linkFor}: Props) 
   return (
     <RefSearch
       id={id}
-      refType={refType}
+      types={types}
+      filter={filter}
       current={value}
       onPick={(picked) => {
         focusPreview.current = true
         change(picked)
       }}
       onCancel={value ? () => setSearching(false) : undefined}
-      onCreate={async (q) => {
+      onCreate={async (q, refType) => {
         // J22: a new draft of the referenced type, opened in the next pane at once
         // (it is in the cache before the request leaves); the reference is set
         // as soon as the server has the doc. The search text becomes its title.
@@ -84,7 +93,7 @@ export function RefInput({id, refType, value: outer, onChange, linkFor}: Props) 
         setValue(newId)
         setSearching(false)
         setCreateError(undefined)
-        void navigate({href: linkFor(newId).href})
+        void navigate({href: linkFor(newId, refType).href})
         focusFirstField(newId)
         try {
           await created
@@ -101,20 +110,37 @@ export function RefInput({id, refType, value: outer, onChange, linkFor}: Props) 
 }
 
 
+/** Sanity's card for a reference to a doc that does not exist, with the why on hover. */
+function Unavailable({id}: {id: string}) {
+  return (
+    <div className="preview unavailable">
+      <span className="text">Document unavailable</span>
+      <span className="help" tabIndex={0} role="img" aria-label="Not found" aria-describedby={`${id}-why`}>
+        <HelpCircle />
+        <span className="tip" role="tooltip" id={`${id}-why`}>
+          <b>Not found</b>
+          The referenced document does not exist (ID: <code>{id}</code>). You can either remove the reference or replace it with another document.
+        </span>
+      </span>
+    </div>
+  )
+}
+
 type SearchProps = {
   id: string
-  refType: string
+  types: string[]
+  filter?: RefFilter
   current?: string
   onPick: (id: string) => void
   onCancel?: () => void
-  onCreate: (q: string) => void
+  onCreate: (q: string, type: string) => void
   error?: string
 }
 
-function RefSearch({id, refType, current, onPick, onCancel, onCreate, error}: SearchProps) {
+function RefSearch({id, types, filter, current, onPick, onCancel, onCreate, error}: SearchProps) {
   const {data: schemas = []} = useQuery(schemasQuery)
-  const {data: currentDoc} = useQuery({...docQuery(refType, current ?? ''), enabled: !!current})
-  const [q, setQ] = useState(() => (currentDoc ? previewTitle(currentDoc, schemaOf(schemas, refType)) : ''))
+  const {data: currentDoc} = useQuery({...docQuery(types, current ?? ''), enabled: !!current})
+  const [q, setQ] = useState(() => (currentDoc ? previewTitle(currentDoc, schemaOf(schemas, currentDoc._type)) : ''))
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -125,7 +151,9 @@ function RefSearch({id, refType, current, onPick, onCancel, onCreate, error}: Se
     const t = setTimeout(() => setQuery(q.trim()), 120)
     return () => clearTimeout(t)
   }, [q])
-  const {data: results = []} = useQuery({...searchQuery(refType, query), enabled: open, placeholderData: keepPreviousData})
+  const search = useQuery({...searchQuery(types, query, filter), enabled: open, placeholderData: keepPreviousData})
+  const results = search.data ?? []
+  const typeTitle = (t: string) => schemaOf(schemas, t)?.title ?? t
 
   useEffect(() => {
     // Replacing: focus with the current title selected, so typing starts a new search.
@@ -184,10 +212,14 @@ function RefSearch({id, refType, current, onPick, onCancel, onCreate, error}: Se
       >
         <ChevronDown />
       </button>
-      <button type="button" className="btn-create" onClick={() => onCreate(q.trim())}>
-        <Add />
-        Create
-      </button>
+      {types.length > 1 ? (
+        <CreateMenu types={types} title={typeTitle} onPick={(t) => onCreate(q.trim(), t)} />
+      ) : (
+        <button type="button" className="btn-create" onClick={() => onCreate(q.trim(), types[0])}>
+          <Add />
+          Create
+        </button>
+      )}
       {error && (
         <p className="field-error" role="alert">
           Could not create: {error}
@@ -204,8 +236,53 @@ function RefSearch({id, refType, current, onPick, onCancel, onCreate, error}: Se
               onMouseDown={(e) => (e.preventDefault(), pick(d))}
               onMouseEnter={() => setActive(i)}
             >
-              <DocPreview doc={d} selected={false} />
+              <DocPreview doc={d} selected={false} badge={types.length > 1 ? typeTitle(d._type) : undefined} />
             </div>
+          ))}
+        </div>
+      )}
+      {open && query && search.isSuccess && !search.isPlaceholderData && results.length === 0 && (
+        <div className="popover options empty" role="status">
+          No results for <b>“{query}”</b>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Several target types: Sanity's "Create…" asks which one first. */
+function CreateMenu({types, title, onPick}: {types: string[]; title: (t: string) => string; onPick: (type: string) => void}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    ref.current?.querySelector<HTMLElement>('[role=menuitem]')?.focus()
+    const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+  return (
+    <div
+      className="menu-wrap"
+      ref={ref}
+      onKeyDown={(e) => {
+        const items = [...(ref.current?.querySelectorAll<HTMLElement>('[role=menuitem]') ?? [])]
+        const i = items.indexOf(document.activeElement as HTMLElement)
+        if (e.key === 'Escape') setOpen(false)
+        if (e.key === 'ArrowDown' && open) (e.preventDefault(), items[(i + 1) % items.length]?.focus())
+        if (e.key === 'ArrowUp' && open) (e.preventDefault(), items[(i - 1 + items.length) % items.length]?.focus())
+      }}
+    >
+      <button type="button" className="btn-create" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <Add />
+        Create…
+      </button>
+      {open && (
+        <div className="popover menu" role="menu">
+          {types.map((t) => (
+            <button key={t} type="button" role="menuitem" className="menu-item" onClick={() => (setOpen(false), onPick(t))}>
+              {title(t)}
+            </button>
           ))}
         </div>
       )}

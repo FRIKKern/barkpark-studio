@@ -68,3 +68,9 @@ export const ClearCircle = () => (
     <path d="M10 10l5 5M15 10l-5 5" />
   </svg>
 )
+export const HelpCircle = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="7" />
+    <path d="M10.5 10.5a2 2 0 1 1 2.75 1.85c-.5.2-.75.6-.75 1.15v.5M12.5 15.5v1" />
+  </svg>
+)
