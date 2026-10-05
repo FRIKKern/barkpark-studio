@@ -116,3 +116,17 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
     await Promise.all([ctxA.close(), ctxB.close()])
   }
 })
+
+test('J17: deleting a referenced author shows where it is used', async ({page}, info) => {
+  const t = target(info)
+  await page.goto(t.docPath('author', 'author-alan'))
+  await t.settle(page)
+  await t.docMenu(page).click()
+  await page.getByRole('menuitem', {name: 'Delete'}).click()
+  const dialog = page.getByRole('dialog').last()
+  await expect(dialog).toContainText('10 documents refer to “Alan Turing”')
+  await expect(dialog).toContainText('Fixture post 01')
+  await dialog.getByRole('button', {name: 'Cancel'}).click()
+  await expect(dialog).toBeHidden()
+  await expect(t.field(page, 'name')).toHaveValue('Alan Turing')
+})

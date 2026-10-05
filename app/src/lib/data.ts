@@ -108,6 +108,19 @@ const fetchSearch = createServerFn({method: 'GET'})
     return r.result.documents as unknown as Json
   })
 
+export type Backlink = {from_doc_id: string; type: string; title: string; via_field: string}
+
+const fetchBacklinks = createServerFn({method: 'GET'})
+  .validator((d: {id: string}) => d)
+  .handler(async ({data}) => {
+    const r = await bpJson<{result: {backlinks: Backlink[]}}>(`/v1/data/backlinks/${dataset()}/${encodeURIComponent(data.id)}`)
+    return r.result.backlinks.map(({from_doc_id, type, title, via_field}) => ({from_doc_id, type, title, via_field})) as unknown as Json
+  })
+
+/** Documents that reference `id` ("used in"). Barkpark indexes edges a moment after a write. */
+export const backlinksQuery = (id: string) =>
+  queryOptions({queryKey: ['backlinks', id], staleTime: 5_000, queryFn: async () => (await fetchBacklinks({data: {id}})) as unknown as Backlink[]})
+
 /** Last known viewport width (cookie), so the server lays panes out like the client will. */
 export const fetchViewportHint = createServerFn({method: 'GET'}).handler(async () => {
   const w = Number(getCookie('bp_vw'))

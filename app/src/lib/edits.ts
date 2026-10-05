@@ -192,3 +192,12 @@ export function useSaveState(id: string): Snap {
     () => SAVED,
   )
 }
+
+/** Delete a document (draft and published). The server is the judge of whether it may. */
+export async function deleteDoc(qc: QueryClient, doc: Doc) {
+  const id = doc._publishedId
+  await mutate({data: {mutations: [{delete: {id, type: doc._type}}]}})
+  docs.delete(id)
+  qc.setQueryData(['list', doc._type], (list: Doc[] | undefined) => list?.filter((d) => d._publishedId !== id))
+  qc.removeQueries({queryKey: ['doc', id]})
+}
