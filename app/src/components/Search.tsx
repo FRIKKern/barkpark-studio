@@ -65,6 +65,13 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
     .sort((a, b) => b._updatedAt.localeCompare(a._updatedAt))
     .slice(0, 30)
   useEffect(() => setActive(0), [query])
+  // Enter pressed before the results for what is typed have arrived opens the
+  // first of THOSE results, not a stale row from the previous query.
+  const settled = query === q.trim() && perType.every((r) => !r.isFetching)
+  const [pendingEnter, setPendingEnter] = useState(false)
+  useEffect(() => {
+    if (pendingEnter && settled) (setPendingEnter(false), openDoc(results[0]))
+  })
 
   const openDoc = (d: Doc | undefined) => {
     if (!d) return
@@ -90,7 +97,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') (e.preventDefault(), setActive((a) => Math.min(a + 1, results.length - 1)))
               else if (e.key === 'ArrowUp') (e.preventDefault(), setActive((a) => Math.max(a - 1, 0)))
-              else if (e.key === 'Enter') (e.preventDefault(), openDoc(results[active]))
+              else if (e.key === 'Enter') (e.preventDefault(), settled ? openDoc(results[active]) : setPendingEnter(true))
               else if (e.key === 'Escape') (e.preventDefault(), onClose(true))
               else if (e.key === 'Tab') e.preventDefault() // focus stays in the dialog
             }}
