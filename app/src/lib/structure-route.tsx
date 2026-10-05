@@ -1,7 +1,7 @@
 import type {QueryClient} from '@tanstack/react-query'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
-import {docQuery, ensureDocs, fetchViewportHint, listQuery, schemaOf, schemasQuery, type Doc, type Schema} from './data'
+import {docQuery, ensureDocs, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {parsePanes, type Pane} from './panes'
 import {meQuery} from './session'
 import {fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
@@ -46,11 +46,13 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
 
 /** For each [doc, allRefs]: the preview-subtitle ref, and (allRefs) every reference field. */
 async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [Doc, boolean])[]): Promise<Doc[]> {
+  // Keyed by the field's target types ("post,author"): an id is looked up in all of them.
   const byType = new Map<string, Set<string>>()
-  const want = (type: string | undefined, id: unknown) => {
-    if (!type || typeof id !== 'string' || !id) return
-    if (!byType.has(type)) byType.set(type, new Set())
-    byType.get(type)!.add(id)
+  const want = (field: Field | undefined, id: unknown) => {
+    const types = refTypesOf(field).join(',')
+    if (!types || typeof id !== 'string' || !id) return
+    if (!byType.has(types)) byType.set(types, new Set())
+    byType.get(types)!.add(id)
   }
   for (const [doc, allRefs] of docs) {
     const schema = schemaOf(schemas, doc._type)
@@ -58,15 +60,15 @@ async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [D
     const sub = schema.listPreview?.subtitle
     if (sub?.includes('.')) {
       const f = schema.fields.find((x) => x.name === sub.split('.')[0])
-      want(f?.refType, doc[f?.name ?? ''])
+      want(f, doc[f?.name ?? ''])
     }
     if (allRefs)
       for (const f of schema.fields) {
-        if (f.type === 'reference') want(f.refType, doc[f.name])
-        if (f.type === 'arrayOf' && f.of?.type === 'reference') for (const id of (doc[f.name] as unknown[]) ?? []) want(f.of.refType, id)
+        if (f.type === 'reference') want(f, doc[f.name])
+        if (f.type === 'arrayOf' && f.of?.type === 'reference') for (const id of (doc[f.name] as unknown[]) ?? []) want(f.of, id)
       }
   }
-  await Promise.all([...byType].map(([type, ids]) => ensureDocs(qc, type, [...ids])))
+  await Promise.all([...byType].map(([type, ids]) => ensureDocs(qc, type.split(','), [...ids])))
   return [...byType.values()].flatMap((ids) => [...ids].map((id) => qc.getQueryData<Doc | null>(['doc', id])).filter((d): d is Doc => !!d))
 }
 

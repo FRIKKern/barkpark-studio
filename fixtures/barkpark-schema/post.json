@@ -33,6 +33,8 @@
        {"name": "url", "title": "URL", "type": "url"},
        {"name": "target", "title": "Target", "type": "reference", "refType": "post"}
      ]}},
+    {"name": "reviewer", "title": "Reviewer", "type": "reference", "refType": "author", "group": "meta", "options": {"filter": {"name": {"neq": "Alan Turing"}}}},
+    {"name": "related", "title": "Related", "type": "reference", "refType": "post", "to": [{"type": "post"}, {"type": "author"}], "refTypeTolerant": true, "group": "meta"},
     {"name": "publishedAt", "title": "Published at", "type": "datetime", "group": "meta"},
     {"name": "featured", "title": "Featured", "type": "boolean", "group": "meta"},
     {"name": "rating", "title": "Rating", "type": "number", "group": "meta", "validation": {"min": 0, "max": 5}},

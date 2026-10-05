@@ -1,7 +1,7 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {docQuery, listQuery, previewTitle, publishedListQuery, publishedQuery, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {docQuery, listQuery, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {usePublishedPerspective} from '../lib/perspective'
 import {DEFAULT_SORT, DEFAULT_VIEW, useListPrefs, type Sort, type View} from '../lib/list-prefs'
 import {collapsed} from '../lib/layout'
@@ -45,7 +45,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
   // Live: open docs, open lists, and every type an open doc references, so a
   // reference preview follows edits made anywhere (J23).
   const refTypes = (type: string) =>
-    (schemaOf(schemas, type)?.fields ?? []).flatMap((f) => [f.refType, f.of?.refType]).filter((t): t is string => !!t)
+    (schemaOf(schemas, type)?.fields ?? []).flatMap((f) => [...refTypesOf(f), ...refTypesOf(f.of)])
   useLive(
     panes.flatMap((p) => (p.kind === 'doc' ? [p.id] : [])),
     panes.flatMap((p) => (p.kind === 'list' ? [p.type] : p.kind === 'doc' ? [p.type, ...refTypes(p.type)] : [])),
