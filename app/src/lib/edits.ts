@@ -3,6 +3,7 @@ import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import type {Doc} from './data'
+import {applyPaths, setPath, within} from './paths'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
 // title, list row all repaint with no network wait); the write goes to Barkpark
@@ -57,10 +58,10 @@ const entry = (id: string, type: string) => {
   return e
 }
 
-/** Values typed here that the server has not confirmed yet. */
-function overlay(id: string): Record<string, unknown> {
+/** `doc` with the values typed here that the server has not confirmed yet on top (keys may be paths). */
+function overlay(id: string, doc: Doc): Doc {
   const e = docs.get(id)
-  return e ? {...Object.fromEntries(e.inflight ?? []), ...Object.fromEntries(e.dirty)} : {}
+  return e ? applyPaths(applyPaths(doc, e.inflight ?? []), e.dirty) : doc
 }
 
 function writeCache(qc: QueryClient, id: string, type: string, doc: Doc) {
@@ -75,16 +76,24 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   if (held && held._updatedAt > doc._updatedAt) return
   // A published row (or a publish) proves a published version; a draft keeps what we knew.
   const _hasPublished = !doc._draft || (doc._hasPublished ?? held?._hasPublished ?? false)
-  writeCache(qc, id, doc._type, {...doc, _hasPublished, ...overlay(id)} as Doc)
+  writeCache(qc, id, doc._type, overlay(id, {...doc, _hasPublished} as Doc))
 }
 
+/** `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. */
 export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown) {
   const id = doc._publishedId
   const e = entry(id, doc._type)
-  e.dirty.set(field, value)
+  // One pending write per spot: a path inside an object already pending whole goes
+  // into that value; a whole value replaces the paths pending inside it.
+  const outer = [...e.dirty.keys()].find((k) => k !== field && within(field, k))
+  if (outer) e.dirty.set(outer, setPath({[outer]: e.dirty.get(outer)}, field, value)[outer])
+  else {
+    for (const k of [...e.dirty.keys()]) if (k !== field && within(k, field)) e.dirty.delete(k)
+    e.dirty.set(field, value)
+  }
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
   // An edit makes (or updates) the draft: show it as one now.
-  writeCache(qc, id, doc._type, {...held, _draft: true, [field]: value} as Doc)
+  writeCache(qc, id, doc._type, setPath({...held, _draft: true} as Doc, field, value))
   if (e.snap.state === 'saved') setState(e, 'saving')
   schedule(qc, id)
 }
@@ -112,7 +121,7 @@ export function flushOnUnload() {
   const mutations = [...docs].flatMap(([id, e]) => {
     if (e.dirty.size === 0) return []
     const {set, unset} = toPatch(e.dirty)
-    return [e.pendingCreate ? {create: {_id: id, _type: e.type, ...e.pendingCreate, ...set}} : {patch: {id, type: e.type, set, unset}}]
+    return [e.pendingCreate ? {create: {_id: id, _type: e.type, ...applyPaths(e.pendingCreate as Record<string, Json>, e.dirty)}} : {patch: {id, type: e.type, set, unset}}]
   })
   if (mutations.length) navigator.sendBeacon('/api/mutate', new Blob([JSON.stringify({mutations})], {type: 'application/json'}))
 }
@@ -141,7 +150,7 @@ async function send(qc: QueryClient, id: string) {
   const creating = e.pendingCreate
   try {
     const mutation: Json = creating
-      ? {create: {_id: id, _type: e.type, ...(creating as Record<string, Json>), ...set}}
+      ? {create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}
       : {patch: {id, type: e.type, set, unset}}
     const r = (await mutate({data: {mutations: [mutation]}})) as {results: {document: Doc}[]}
     if (creating) e.pendingCreate = undefined
@@ -241,7 +250,7 @@ export async function unpublish(qc: QueryClient, doc: Doc) {
   flush(qc, id)
   await whenSaved(id)
   const r = (await mutate({data: {mutations: [{unpublish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
-  writeCache(qc, id, doc._type, {...r.results[0].document, _hasPublished: false, ...overlay(id)} as Doc)
+  writeCache(qc, id, doc._type, overlay(id, {...r.results[0].document, _hasPublished: false} as Doc))
   qc.setQueryData(['doc-published', id], null)
 }
 
