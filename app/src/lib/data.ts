@@ -23,6 +23,7 @@ export type Field = {
   fields?: Field[]
   options?: Record<string, unknown>
   group?: string
+  validation?: {required?: boolean; min?: number; max?: number}
 }
 export type Group = {name: string; title?: string; default?: boolean}
 export type Schema = {name: string; title: string; fields: Field[]; listPreview?: Record<string, string>; groups?: Group[]}

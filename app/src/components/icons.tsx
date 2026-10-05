@@ -39,3 +39,9 @@ export const Add = () => (
     <path d="M12.5 6v13M6 12.5h13" />
   </svg>
 )
+export const ErrorOutline = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="7" />
+    <path d="M12.5 8.5v5M12.5 15.5v1" />
+  </svg>
+)
