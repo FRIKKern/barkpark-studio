@@ -1,0 +1,12 @@
+{
+  "name": "author",
+  "title": "Author",
+  "visibility": "public",
+  "list_preview": {"title": "name", "media": "image"},
+  "fields": [
+    {"name": "name", "title": "Name", "type": "string", "validation": {"required": true}},
+    {"name": "slug", "title": "Slug", "type": "slug", "options": {"source": "name"}},
+    {"name": "image", "title": "Image", "type": "image", "options": {"hotspot": true}},
+    {"name": "bio", "title": "Bio", "type": "text", "rows": 4}
+  ]
+}

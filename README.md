@@ -31,3 +31,11 @@ docs/decisions/      ADRs, max one page
 cd reference/sanity && pnpm dev        # http://localhost:3333
 npx sanity dataset import ../../fixtures/seed.ndjson production --replace   # reset data
 ```
+
+## Seed Barkpark
+
+```sh
+cp .env.example .env                                  # fill BARKPARK_TOKEN (+ SANITY_TOKEN to also verify the reference)
+node --env-file=.env scripts/seed-barkpark.mjs        # apply fixtures/barkpark-schema, reset studio-parity, verify
+node --env-file=.env scripts/seed-barkpark.mjs --verify
+```

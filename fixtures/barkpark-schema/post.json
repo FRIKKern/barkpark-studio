@@ -1,0 +1,30 @@
+{
+  "name": "post",
+  "title": "Post",
+  "visibility": "public",
+  "groups": [{"name": "content", "title": "Content", "default": true}, {"name": "meta", "title": "Meta"}],
+  "initial_values": {"featured": false},
+  "list_preview": {"title": "title", "subtitle": "author.name", "media": "mainImage"},
+  "fields": [
+    {"name": "title", "title": "Title", "type": "string", "group": "content", "validation": {"required": true, "max": 120}},
+    {"name": "slug", "title": "Slug", "type": "slug", "group": "content", "options": {"source": "title"}, "validation": {"required": true}},
+    {"name": "excerpt", "title": "Excerpt", "type": "text", "rows": 3, "group": "content"},
+    {"name": "author", "title": "Author", "type": "reference", "refType": "author", "group": "content"},
+    {"name": "categories", "title": "Categories", "type": "arrayOf", "ordered": true, "group": "content",
+     "of": {"type": "reference", "refType": "category"}},
+    {"name": "mainImage", "title": "Main image", "type": "image", "group": "content", "options": {"hotspot": true}},
+    {"name": "body", "title": "Body", "type": "richText", "editor": "blocks", "group": "content",
+     "blocks": {"styles": ["normal", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"], "lists": ["bullet", "number"],
+                "marks": ["strong", "em", "code", "underline", "strikethrough"], "annotations": [{"name": "link"}],
+                "of": ["image", "callout"]}},
+    {"name": "publishedAt", "title": "Published at", "type": "datetime", "group": "meta"},
+    {"name": "featured", "title": "Featured", "type": "boolean", "group": "meta"},
+    {"name": "rating", "title": "Rating", "type": "number", "group": "meta", "validation": {"min": 0, "max": 5}},
+    {"name": "tags", "title": "Tags", "type": "arrayOf", "ordered": true, "group": "meta", "options": {"layout": "tags"},
+     "of": {"type": "string"}},
+    {"name": "seo", "title": "SEO", "type": "composite", "group": "meta", "fields": [
+      {"name": "metaTitle", "title": "Meta title", "type": "string"},
+      {"name": "metaDescription", "title": "Meta description", "type": "text", "rows": 2}
+    ]}
+  ]
+}
