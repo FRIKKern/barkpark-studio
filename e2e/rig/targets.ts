@@ -20,6 +20,8 @@ export type Target = {
   /** The reference preview link for `field` inside a pane. */
   refLink(pane: Locator, field: string): Locator
   closeButton(pane: Locator): Locator
+  /** The "+" that creates a new document from a type list pane. */
+  newDocButton(listPane: Locator): Locator
   /** The document actions "…" menu in a doc pane's footer. */
   docMenu(page: Page): Locator
   /** The "…" actions button of a reference field showing a value. */
@@ -88,6 +90,7 @@ const sanity: Target = {
   },
   closeButton: (pane) => pane.locator('a:has([data-sanity-icon="close"])').first(),
   docMenu: (page) => page.locator('[data-testid="action-menu-button"]').last(),
+  newDocButton: (listPane) => listPane.locator('a:has([data-sanity-icon="add"]), button:has([data-sanity-icon="add"])').first(),
   refMenu: (pane, field) =>
     pane
       .locator(`a[href$="parentRefPath%3D${encodeURIComponent(field)}"]`)
@@ -154,6 +157,7 @@ const studio: Target = {
   refLink: (pane, field) => pane.locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]:not([data-testid="pane-close"])`).first(),
   closeButton: (pane) => pane.getByTestId('pane-close'),
   docMenu: (page) => page.getByRole('button', {name: 'Document actions'}).last(),
+  newDocButton: (listPane) => listPane.getByRole('button', {name: /^Create new/}),
   refMenu: (pane, field) =>
     pane
       .locator('.ref-row')
@@ -169,8 +173,8 @@ const studio: Target = {
     return {draft: d?._draft ? d.title : undefined, published: p?.title}
   },
   docValue: async (id, field) => {
-    const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=drafts`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
-    return ((await r.json()) as {result: Record<string, unknown>}).result[field]
+    const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${encodeURIComponent(id)}?perspective=drafts`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
+    return r.ok ? ((await r.json()) as {result: Record<string, unknown>}).result[field] : undefined
   },
   resetDoc: async (id, type) => {
     const seed = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
@@ -183,7 +187,7 @@ const studio: Target = {
     }).then(ok)
     return ((await r.json()) as {result?: {title?: string}}).result?.title
   },
-  deleteDoc: (id, type) => bpMutate([{delete: {id, type}}]).then(() => {}),
+  deleteDoc: (id, type) => bpMutate([{delete: {id, type}}]).then(() => {}, () => {}), // gone already is fine
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
   patch: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),
   restore: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),

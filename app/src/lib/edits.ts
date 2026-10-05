@@ -30,7 +30,16 @@ export const mutate = createServerFn({method: 'POST'})
 
 export type SaveState = 'saved' | 'saving' | 'error'
 type Snap = {state: SaveState; error?: string}
-type DocEdits = {type: string; dirty: Map<string, unknown>; inflight: Map<string, unknown> | null; snap: Snap; lastSent: number; timer?: ReturnType<typeof setTimeout>}
+type DocEdits = {
+  type: string
+  dirty: Map<string, unknown>
+  inflight: Map<string, unknown> | null
+  snap: Snap
+  lastSent: number
+  timer?: ReturnType<typeof setTimeout>
+  /** A new doc that exists only here: its first write creates it with these values. */
+  pendingCreate?: Record<string, unknown>
+}
 
 export const WRITE_GAP_MS = 750
 
@@ -103,7 +112,7 @@ export function flushOnUnload() {
   const mutations = [...docs].flatMap(([id, e]) => {
     if (e.dirty.size === 0) return []
     const {set, unset} = toPatch(e.dirty)
-    return [{patch: {id, type: e.type, set, unset}}]
+    return [e.pendingCreate ? {create: {_id: id, _type: e.type, ...e.pendingCreate, ...set}} : {patch: {id, type: e.type, set, unset}}]
   })
   if (mutations.length) navigator.sendBeacon('/api/mutate', new Blob([JSON.stringify({mutations})], {type: 'application/json'}))
 }
@@ -129,8 +138,13 @@ async function send(qc: QueryClient, id: string) {
   e.lastSent = Date.now()
   setState(e, 'saving')
   const {set, unset} = toPatch(e.inflight)
+  const creating = e.pendingCreate
   try {
-    const r = (await mutate({data: {mutations: [{patch: {id, type: e.type, set, unset}}]}})) as {results: {document: Doc}[]}
+    const mutation: Json = creating
+      ? {create: {_id: id, _type: e.type, ...(creating as Record<string, Json>), ...set}}
+      : {patch: {id, type: e.type, set, unset}}
+    const r = (await mutate({data: {mutations: [mutation]}})) as {results: {document: Doc}[]}
+    if (creating) e.pendingCreate = undefined
     e.inflight = null
     applyServer(qc, r.results[0].document)
     setState(e, e.dirty.size ? 'saving' : 'saved')
@@ -143,6 +157,18 @@ async function send(qc: QueryClient, id: string) {
     return
   }
   schedule(qc, id)
+}
+
+/**
+ * A new doc, Sanity-style: it opens at once with its initial values but exists
+ * only here until the first edit, which creates it. Leaving untouched leaves
+ * nothing behind.
+ */
+export function draftNew(qc: QueryClient, type: string, id: string, initial: Record<string, unknown>) {
+  const e = entry(id, type)
+  if (qc.getQueryData(['doc', id])) return
+  e.pendingCreate = initial
+  qc.setQueryData(['doc', id], {_id: `drafts.${id}`, _publishedId: id, _type: type, _draft: true, _hasPublished: false, _rev: '', _updatedAt: '', ...initial} as Doc)
 }
 
 /**

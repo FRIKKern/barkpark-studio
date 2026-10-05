@@ -26,7 +26,7 @@ export type Field = {
   validation?: {required?: boolean; min?: number; max?: number}
 }
 export type Group = {name: string; title?: string; default?: boolean}
-export type Schema = {name: string; title: string; fields: Field[]; listPreview?: Record<string, string>; groups?: Group[]}
+export type Schema = {name: string; title: string; fields: Field[]; listPreview?: Record<string, string>; groups?: Group[]; initialValues?: Record<string, unknown>}
 
 // Server functions return plain JSON; the typed views below cast it once.
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -39,7 +39,8 @@ async function bpJson<T>(path: string): Promise<T> {
 
 const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
   const schemas = await readSchemas()
-  return schemas.map(({name, title, fields, listPreview, list_preview, groups}) => ({name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? []})) as unknown as Json
+  return schemas
+    .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values}) => ({name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? [], initialValues: initialValues ?? initial_values ?? {}})) as unknown as Json
 })
 
 const fetchList = createServerFn({method: 'GET'})
