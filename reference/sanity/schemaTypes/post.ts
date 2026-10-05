@@ -32,7 +32,30 @@ export const post = defineType({
       type: 'array',
       group: 'content',
       of: [
-        defineArrayMember({type: 'block'}),
+        defineArrayMember({
+          type: 'block',
+          // Inline object + internal-link annotation (J35, J39).
+          of: [
+            defineArrayMember({
+              name: 'chip',
+              type: 'object',
+              fields: [
+                defineField({name: 'text', type: 'string'}),
+                defineField({name: 'tone', type: 'string', options: {list: ['neutral', 'positive', 'caution']}}),
+              ],
+            }),
+          ],
+          marks: {
+            annotations: [
+              defineArrayMember({name: 'link', type: 'object', fields: [defineField({name: 'href', type: 'url'})]}),
+              defineArrayMember({
+                name: 'internalLink',
+                type: 'object',
+                fields: [defineField({name: 'reference', type: 'reference', to: [{type: 'post'}, {type: 'author'}]})],
+              }),
+            ],
+          },
+        }),
         defineArrayMember({type: 'image', options: {hotspot: true}}),
         defineArrayMember({
           name: 'callout',
@@ -41,6 +64,53 @@ export const post = defineType({
             defineField({name: 'tone', type: 'string', options: {list: ['info', 'warning', 'danger']}}),
             defineField({name: 'text', type: 'text', rows: 2}),
           ],
+        }),
+      ],
+    }),
+    // Select lists, radio and dropdown (J31).
+    defineField({
+      name: 'stage',
+      type: 'string',
+      group: 'meta',
+      options: {list: ['idea', 'writing', 'review', 'done'], layout: 'radio', direction: 'horizontal'},
+    }),
+    defineField({
+      name: 'format',
+      type: 'string',
+      group: 'meta',
+      options: {
+        list: [
+          {title: 'Article', value: 'article'},
+          {title: 'Tutorial', value: 'tutorial'},
+          {title: 'News brief', value: 'brief'},
+        ],
+        layout: 'dropdown',
+      },
+    }),
+    // Conditional fields (J30): shown only when featured; locked once done.
+    defineField({name: 'featuredNote', type: 'string', group: 'meta', hidden: ({document}) => !document?.featured}),
+    defineField({name: 'reviewNote', type: 'text', rows: 2, group: 'meta', readOnly: ({document}) => document?.stage === 'done'}),
+    // File field (J36).
+    defineField({name: 'attachment', type: 'file', group: 'meta'}),
+    // Object array with two member types (J33).
+    defineField({
+      name: 'links',
+      type: 'array',
+      group: 'meta',
+      of: [
+        defineArrayMember({
+          name: 'externalLink',
+          type: 'object',
+          fields: [defineField({name: 'title', type: 'string'}), defineField({name: 'url', type: 'url'})],
+        }),
+        defineArrayMember({
+          name: 'docLink',
+          type: 'object',
+          fields: [
+            defineField({name: 'title', type: 'string'}),
+            defineField({name: 'target', type: 'reference', to: [{type: 'post'}]}),
+          ],
+          preview: {select: {title: 'title', subtitle: 'target.title'}},
         }),
       ],
     }),
