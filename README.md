@@ -19,10 +19,10 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 24 changes, 7 tasks closed
+- **Today** · 25 changes, 7 tasks closed
+  - Published perspective: pane title, strips and list show published versions ([#25](https://github.com/FRIKKern/barkpark-studio/pull/25))
   - J04: draft lifecycle — publish, unpublish, discard, two perspectives ([#24](https://github.com/FRIKKern/barkpark-studio/pull/24))
   - Per-editor Barkpark tokens (dev sign-in) ([#23](https://github.com/FRIKKern/barkpark-studio/pull/23))
-  - Dropped: [Barkpark: per-editor auth for an external studio (login -> token usable on scoped data API)](https://github.com/FRIKKern/barkpark/issues/21750)
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
