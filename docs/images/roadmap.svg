@@ -18,7 +18,7 @@
 <text x="1160" y="102" font-size="16" text-anchor="end" class="muted">journeys pass side by side</text>
 <rect x="40" y="124" width="1120" height="8" rx="4" class="track"/>
 <text x="40" y="168" font-size="16"><tspan class="done">✓ passed</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>
-<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 0 / 10</text>
+<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 0 / 14</text>
 <g data-phase="0">
 <rect x="40" y="196" width="268" height="364" rx="12" class="card on"/>
 <text x="60" y="228" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">PHASE 0</text>
@@ -30,7 +30,7 @@
 <text x="60" y="374" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">Fixture schema + seed in…</tspan></text>
 <text x="60" y="404" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">Scaffold TanStack Start…</tspan></text>
 <text x="60" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">Spike: same-field concur…</tspan></text>
-<text x="60" y="464" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">CI: e2e journeys block m…</tspan></text>
+<text x="60" y="464" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">CI: e2e journeys block m…</tspan></text>
 </g>
 <g data-phase="1">
 <rect x="324" y="196" width="268" height="364" rx="12" class="card"/>
@@ -42,7 +42,7 @@
 <text x="344" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J02 Open post</tspan></text>
 <text x="344" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J08 Pick author by search</tspan></text>
 <text x="344" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J17 Delete author with i…</tspan></text>
-<text x="344" y="434" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J19 Keyboard only</tspan></text>
+<text x="344" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J19 Keyboard only</tspan></text>
 <text x="344" y="464" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J21 Endless pane chain</tspan></text>
 <text x="344" y="494" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J22 Create new from a re…</tspan></text>
 <text x="344" y="524" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J23 Edit a referenced do…</tspan></text>
@@ -54,7 +54,7 @@
 <text x="628" y="262" font-size="23" font-weight="600">Forms</text>
 <path d="M628 282H856" class="rule"/>
 <text x="628" y="314" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J03 Edit title</tspan></text>
-<text x="628" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J04 Draft lifecycle</tspan></text>
+<text x="628" y="344" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J04 Draft lifecycle</tspan></text>
 <text x="628" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J13 Validation</tspan></text>
 <text x="628" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J14 Field groups</tspan></text>
 <text x="628" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J18 New post from list</tspan></text>

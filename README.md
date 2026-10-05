@@ -19,10 +19,10 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 19 changes, 4 tasks closed
-  - J19: keyboard only — global search, open, edit, publish ([#19](https://github.com/FRIKKern/barkpark-studio/pull/19))
-  - Coalesce writes: one patch per doc per 750 ms, flush on leave ([#18](https://github.com/FRIKKern/barkpark-studio/pull/18))
-  - e2e CI: enforce the 60 s suite budget (globalTimeout) ([#16](https://github.com/FRIKKern/barkpark-studio/pull/16))
+- **Today** · 23 changes, 7 tasks closed
+  - Per-editor Barkpark tokens (dev sign-in) ([#23](https://github.com/FRIKKern/barkpark-studio/pull/23))
+  - Dropped: [Barkpark: per-editor auth for an external studio (login -> token usable on scoped data API)](https://github.com/FRIKKern/barkpark/issues/21750)
+  - Docs: F4 split into push and typed bars; merge-on-green by convention ([#22](https://github.com/FRIKKern/barkpark-studio/pull/22))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
