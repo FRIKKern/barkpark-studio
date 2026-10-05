@@ -88,12 +88,17 @@ const sanity: Target = {
 
 const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
 const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
-const bpMutate = (mutations: unknown[]) =>
-  fetch(`${bpBase()}/v1/data/mutate/${bpDataset()}`, {
+// Two first patches on a published doc race to fork its draft and one gets 422
+// "doc_id has already been taken" (task-324b4d00706a6cfb); the rig retries once.
+const bpMutate = async (mutations: unknown[], retry = true): Promise<Response> => {
+  const res = await fetch(`${bpBase()}/v1/data/mutate/${bpDataset()}`, {
     method: 'POST',
     headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`, 'content-type': 'application/json'},
     body: JSON.stringify({mutations}),
-  }).then(ok)
+  })
+  if (retry && res.status === 422) return new Promise((r) => setTimeout(() => r(bpMutate(mutations, false)), 300))
+  return ok(res)
+}
 
 const studio: Target = {
   name: 'studio',
