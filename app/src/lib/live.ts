@@ -39,8 +39,8 @@ export function useLive(ids: string[], types: string[]) {
     ;(window as {__dropLive?: (ms: number) => void}).__dropLive = (ms) => (es.close(), (retry = setTimeout(open, ms)))
     const onFrame = (e: Event) => {
       if ((e as MessageEvent).lastEventId) lastSeen = (e as MessageEvent).lastEventId
-      ;(window as {__liveFrames?: string[]}).__liveFrames?.push(lastSeen ?? '') // e2e probe
       const f = JSON.parse((e as MessageEvent).data) as Frame
+      ;(window as {__liveFrames?: string[]}).__liveFrames?.push(`${lastSeen}|${f.documentId}`) // e2e probe
       const id = f.documentId.replace(/^drafts\./, '')
       // A change to the published row itself (publish, unpublish, direct write).
       if (!f.documentId.startsWith('drafts.')) {
