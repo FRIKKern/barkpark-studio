@@ -1,0 +1,13 @@
+{
+  "name": "barkpark-studio-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --env-file=../.env node_modules/@playwright/test/cli.js test",
+    "baseline": "BASELINE=1 node --env-file=../.env node_modules/@playwright/test/cli.js test --grep @baseline"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.5"
+  }
+}
