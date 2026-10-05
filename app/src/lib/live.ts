@@ -1,13 +1,14 @@
 import {useEffect} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import type {Doc} from './data'
+import {applyServer} from './edits'
 
 type Frame = {documentId: string; type: string; mutation: string; result: Doc | null}
 
 /**
  * Keep open panes live: one EventSource for the docs and list types on screen.
  * Each frame carries the document as it now reads (draft over published), so it
- * goes straight into the cache; deletes and discards refetch instead.
+ * goes into the cache (under any unsent local edits); deletes and discards refetch.
  */
 export function useLive(ids: string[], types: string[]) {
   const qc = useQueryClient()
@@ -24,9 +25,7 @@ export function useLive(ids: string[], types: string[]) {
         void qc.invalidateQueries({queryKey: ['list', f.type]})
         return
       }
-      const doc = f.result
-      qc.setQueryData(['doc', id], doc)
-      qc.setQueryData(['list', f.type], (docs: Doc[] | undefined) => docs?.map((d) => (d._publishedId === id ? doc : d)))
+      applyServer(qc, f.result)
     })
     return () => es.close()
   }, [key, empty, qc])

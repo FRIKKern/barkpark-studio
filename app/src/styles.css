@@ -95,7 +95,8 @@ a.preview:hover { background: var(--hover); }
 .preview .s { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preview[aria-current='true'] .s { color: rgba(255, 255, 255, 0.8); }
 .preview .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--published); margin: 0 12px; }
-.preview .dot.draft { background: #f5a623; }
+.preview .ring { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #f5a623; margin-left: 8px; }
+.preview .ring + .dot { margin-left: 6px; }
 .preview[aria-current='true'] .dot { box-shadow: 0 0 0 1px #fff; }
 .preview[aria-current='true'] .media { background: transparent; color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
 .list-rows { padding: 0 12px 12px; }
@@ -123,3 +124,22 @@ textarea.input { resize: vertical; }
 .rich p, .rich h2 { margin: 0 0 8px; }
 .callout { padding: 8px 12px; border-radius: 3px; background: #eef3ff; font-size: 14px; }
 .image-empty { height: 43px; display: flex; align-items: center; padding: 0 16px; border-radius: 3px; background: #f6f6f8; box-shadow: inset 0 0 0 1px #dfe1e6; font-size: 13px; color: var(--muted); }
+
+/* Edit state */
+.input:focus { outline: none; box-shadow: inset 0 0 0 1px var(--selected); }
+.chips { display: flex; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 500; box-shadow: inset 0 0 0 1px var(--border); color: var(--fg-header); }
+.chip[data-active] { background: #fdf3c8; box-shadow: none; }
+.chip .dot { width: 5px; height: 5px; border-radius: 50%; }
+.dot.published { background: var(--published); }
+.dot.draft { background: #f5a623; }
+.doc-footer { height: 51px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-size: 13px; color: var(--muted); }
+.publish { font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: #1f2230; color: #fff; cursor: pointer; }
+.publish:disabled { background: #c7cad3; cursor: default; }
+.switch { display: inline-block; position: relative; width: 33px; height: 19px; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch span { position: absolute; inset: 0; border-radius: 999px; background: #c7cad3; pointer-events: none; }
+.switch span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: left 0.1s; }
+.switch input:checked + span { background: var(--selected); }
+.switch input:checked + span::after { left: 17px; }
+.switch input:focus-visible + span { box-shadow: 0 0 0 2px var(--selected); }

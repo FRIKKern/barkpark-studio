@@ -31,7 +31,8 @@ export function DocPreview({doc, href, selected, active, testId}: {doc: Doc | nu
         <div className="t">{doc ? previewTitle(doc, schemaOf(schemas, doc._type)) : '…'}</div>
         {subtitle && <div className="s">{subtitle}</div>}
       </span>
-      {doc && <span className={doc._draft ? 'dot draft' : 'dot'} />}
+      {doc?._draft && <span className="ring" title="Draft" />}
+      {doc && <span className="dot" title="Published" />}
     </PaneLink>
   )
 }
