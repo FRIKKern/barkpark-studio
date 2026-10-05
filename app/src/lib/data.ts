@@ -59,6 +59,20 @@ const fetchDoc = createServerFn({method: 'GET'})
     return doc as unknown as Json
   })
 
+const fetchPublished = createServerFn({method: 'GET'})
+  .validator((d: {type: string; id: string}) => d)
+  .handler(async ({data}) => {
+    const path = `/v1/data/doc/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?perspective=published`
+    const res = await bpFetch(path)
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error(`Barkpark ${path} → ${res.status}`)
+    return ((await res.json()) as {result: Json}).result
+  })
+
+/** The published version alone (the Published perspective), null if there is none. */
+export const publishedQuery = (type: string, id: string) =>
+  queryOptions({queryKey: ['doc-published', id], staleTime: 30_000, queryFn: async () => (await fetchPublished({data: {type, id}})) as unknown as Doc | null})
+
 /**
  * Mark which docs have a published version. A row read through the drafts
  * perspective that is not a draft is published; only drafts need asking, in one

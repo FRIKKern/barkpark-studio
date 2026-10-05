@@ -1,8 +1,9 @@
-import {useEffect, useState, type ReactNode} from 'react'
+import {useEffect, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {docQuery, previewTitle, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
-import {edit, flush, publish, useSaveState} from '../lib/edits'
-import {openAfter, type Pane} from '../lib/panes'
+import {useNavigate, useRouterState} from '@tanstack/react-router'
+import {docQuery, previewTitle, publishedQuery, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
+import {discardDraft, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
+import {openAfter, panesPath, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
@@ -14,7 +15,15 @@ type Props = {panes: Pane[]; index: number; closeHref: string; header: ReactNode
 export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props) {
   const pane = panes[index] as Extract<Pane, {kind: 'doc'}>
   const {data: schemas = []} = useQuery(schemasQuery)
-  const {data: doc, isPending, error} = useQuery(docQuery(pane.type, pane.id))
+  // Sanity's two perspectives, in the URL: the draft you edit (default), or the
+  // published version, read-only (?perspective=published).
+  const perspective = useRouterState({select: (s) => (s.location.search as {perspective?: string}).perspective})
+  const viewingPublished = perspective === 'published'
+  const draftQ = useQuery(docQuery(pane.type, pane.id))
+  const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished})
+  const {data: doc, isPending, error} = viewingPublished ? publishedQ : draftQ
+  const base = panesPath(panes)
+  const navigate = useNavigate()
   const schema = schemaOf(schemas, pane.type)
   const next = panes[index + 1]
   const qc = useQueryClient()
@@ -40,14 +49,28 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
     >
       <header className="pane-header">
         <span className="title chips">
-          <span className="chip" data-off={doc?._hasPublished === false ? '' : undefined}>
-            <span className="dot published" />
-            Published
-          </span>
-          <span className="chip" data-active={doc?._draft ? '' : undefined}>
+          {draftQ.data?._hasPublished === false ? (
+            <span className="chip" data-off="" aria-disabled="true" title="Not published">
+              <span className="dot published" />
+              Published
+            </span>
+          ) : (
+            <button type="button" className="chip" data-selected={viewingPublished ? '' : undefined} aria-pressed={viewingPublished} onClick={() => navigate({href: `${base}?perspective=published`})}>
+              <span className="dot published" />
+              Published
+            </button>
+          )}
+          <button
+            type="button"
+            className="chip"
+            data-active={!viewingPublished && draftQ.data?._draft ? '' : undefined}
+            data-selected={!viewingPublished ? '' : undefined}
+            aria-pressed={!viewingPublished}
+            onClick={() => navigate({href: base})}
+          >
             <span className="dot draft" />
             Draft
-          </span>
+          </button>
         </span>
         <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
           {closeIcon}
@@ -61,13 +84,18 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
           <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
-            {schema.fields.map((f) => (
-              <FieldView key={f.name} field={f} path={f.name} value={doc[f.name]} openRef={openRef} onChange={(v) => onEdit(f.name, v)} />
-            ))}
+            {/* The published version is read-only: a disabled fieldset disables every control in it. */}
+            <fieldset className="form-fields" disabled={viewingPublished}>
+              {schema.fields.map((f) => (
+                <FieldView key={f.name} field={f} path={f.name} value={doc[f.name]} openRef={openRef} onChange={(v) => onEdit(f.name, v)} />
+              ))}
+            </fieldset>
           </div>
         )}
       </div>
-      {doc && <DocFooter doc={doc} closeHref={closeHref} />}
+      {viewingPublished
+        ? doc && <PublishedFooter doc={doc} />
+        : doc && <DocFooter doc={doc} closeHref={closeHref} />}
     </section>
   )
 }
@@ -190,8 +218,19 @@ function TextInput({id, value, onChange, rows}: {id: string; value: string; onCh
   return rows ? (
     <textarea id={id} className="input" rows={rows} value={local} onChange={(e) => change(e.target.value)} />
   ) : (
-    <input id={id} className="input" value={local} onChange={(e) => change(e.target.value)} />
+    <input id={id} className="input" value={local} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
   )
+}
+
+/**
+ * Home/End with the caret already at that end do nothing in the input, so the
+ * browser scrolls the pane instead (a jump Sanity doesn't make). Swallow those.
+ */
+function keepPaneStill(e: ReactKeyboardEvent<HTMLInputElement>) {
+  const el = e.currentTarget
+  const atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length
+  const atStart = el.selectionStart === 0 && el.selectionEnd === 0
+  if ((e.key === 'End' && atEnd) || (e.key === 'Home' && atStart)) e.preventDefault()
 }
 
 /** Keeps what the user typed ("1.", "-") while the stored value stays a number. */
@@ -238,6 +277,9 @@ function DocFooter({doc, closeHref}: {doc: Doc; closeHref: string}) {
   const [publishing, setPublishing] = useState(false)
   const [menu, setMenu] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
+  // Discard needs a draft to drop and a published version to fall back to.
+  const canDiscard = !!doc._draft && doc._hasPublished !== false
   const label = state === 'saving' ? 'Saving…' : state === 'error' ? 'Not saved — retrying' : doc._draft ? 'Saved' : 'Published'
   return (
     <footer className="doc-footer">
@@ -265,14 +307,98 @@ function DocFooter({doc, closeHref}: {doc: Doc; closeHref: string}) {
         </button>
         {menu && (
           <div className="popover menu up" role="menu" onKeyDown={(e) => e.key === 'Escape' && setMenu(false)}>
-            <button type="button" role="menuitem" className="menu-item danger" autoFocus onClick={() => (setMenu(false), setDeleting(true))}>
+            <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canDiscard} onClick={() => (setMenu(false), setDiscarding(true))}>
+              Discard changes
+            </button>
+            <button type="button" role="menuitem" className="menu-item danger" onClick={() => (setMenu(false), setDeleting(true))}>
               Delete
             </button>
           </div>
         )}
       </div>
       {deleting && <DeleteDialog doc={doc} closeHref={closeHref} onClose={() => setDeleting(false)} />}
+      {discarding && (
+        <ConfirmDialog
+          title="Discard changes?"
+          body="Are you sure you want to discard all changes since last published?"
+          action="Discard changes"
+          run={() => discardDraft(qc, doc)}
+          onClose={() => setDiscarding(false)}
+        />
+      )}
     </footer>
+  )
+}
+
+/** The Published perspective: read-only, and the way to take a document down. */
+function PublishedFooter({doc}: {doc: Doc}) {
+  const qc = useQueryClient()
+  const [confirm, setConfirm] = useState(false)
+  return (
+    <footer className="doc-footer">
+      <span className="save-state" role="status">
+        Published
+      </span>
+      <button className="publish danger" onClick={() => setConfirm(true)}>
+        Unpublish
+      </button>
+      {confirm && (
+        <ConfirmDialog
+          title="Unpublish document?"
+          body="It will no longer be live. Its content stays as a draft you can publish again."
+          action="Unpublish now"
+          run={() => unpublish(qc, doc)}
+          onClose={() => setConfirm(false)}
+        />
+      )}
+    </footer>
+  )
+}
+
+/** A Sanity-style confirm over the pane: Cancel (focused) or the red action. Failures show inline. */
+function ConfirmDialog({title, body, action, run, onClose}: {title: string; body: string; action: string; run: () => Promise<unknown>; onClose: () => void}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string>()
+  return (
+    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="dialog" role="dialog" aria-modal="true" aria-label={title} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+        <header>
+          <h2>{title}</h2>
+        </header>
+        <div className="dialog-body">
+          <p>{body}</p>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+        <footer>
+          <button type="button" className="btn" autoFocus onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn danger"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              setError(undefined)
+              try {
+                await run()
+                onClose()
+              } catch (err) {
+                setError((err as Error).message)
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            {action}
+          </button>
+        </footer>
+      </div>
+    </div>
   )
 }
 
