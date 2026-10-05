@@ -19,10 +19,10 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 14 changes, 4 tasks closed
+- **Today** · 15 changes, 4 tasks closed
+  - J23: referenced docs stay live; reads fit one shared rate bucket ([#15](https://github.com/FRIKKern/barkpark-studio/pull/15))
   - J22: create a new doc from a reference field ([#14](https://github.com/FRIKKern/barkpark-studio/pull/14))
   - J08: reference input — search, pick, open in the next pane ([#12](https://github.com/FRIKKern/barkpark-studio/pull/12))
-  - J03: editable fields, local-first saving, edited state ([#11](https://github.com/FRIKKern/barkpark-studio/pull/11))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
