@@ -43,7 +43,8 @@ jobs:
         run: pnpm --dir app build
       - name: Warm Chrome's first launch (cold start is runner disk, not the studio)
         working-directory: e2e
-        run: node -e "const {chromium} = await import('@playwright/test'); const b = await chromium.launch({channel: 'chrome'}); await (await b.newPage()).goto('about:blank'); await b.close()"
+        run: |
+          node --input-type=module -e "const {chromium} = await import('@playwright/test'); const b = await chromium.launch({channel: 'chrome'}); await (await b.newPage()).goto('about:blank'); await b.close()"
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
