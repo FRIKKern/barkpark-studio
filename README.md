@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes, 5 tasks closed
+- **Today** · 10 changes, 5 tasks closed
+  - J29: copy / paste a field or a whole document; mismatched types refused with Sanity's toast ([#38](https://github.com/FRIKKern/barkpark-studio/pull/38))
   - J26: split pane right, edit both sides, close the split ([#37](https://github.com/FRIKKern/barkpark-studio/pull/37))
   - J27: odd reference states — missing doc + Clear, draft-only target flagged, filtered search, Create asks the type ([#36](https://github.com/FRIKKern/barkpark-studio/pull/36))
-  - J30 + J31: conditional fields; select lists and the date-time picker ([#34](https://github.com/FRIKKern/barkpark-studio/pull/34))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
