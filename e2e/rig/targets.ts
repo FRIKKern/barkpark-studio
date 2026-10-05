@@ -25,6 +25,8 @@ export type Target = {
   patch(id: string, set: Record<string, unknown>): Promise<void>
   /** A reference value in this backend's shape. */
   ref(id: string): unknown
+  /** Delete a document (draft and published) a test created. */
+  deleteDoc(id: string, type: string): Promise<void>
   /** Drop drafts a test left behind and restore published values. */
   restore(id: string, set: Record<string, unknown>): Promise<void>
 }
@@ -65,7 +67,11 @@ const sanity: Target = {
   listItem: (page, id) => page.locator(`a[href$=";${id}"]`),
   field: (page, path) => page.locator(`[id="${path}"]`),
   pane: (page, index) => page.locator(`[data-pane-index="${index}"]`),
-  refLink: (pane, field) => pane.locator(`a[href$="parentRefPath%3D${encodeURIComponent(field)}"]`).first(),
+  refLink: (pane, field) => {
+    // Sanity puts parentRefPath last, except on a just-created doc (…,parentRefPath=x,type=y).
+    const f = encodeURIComponent(field)
+    return pane.locator(`a[href$="parentRefPath%3D${f}"], a[href*="parentRefPath%3D${f}%2C"]`).first()
+  },
   closeButton: (pane) => pane.locator('a:has([data-sanity-icon="close"])').first(),
   refMenu: (pane, field) =>
     pane
@@ -75,6 +81,7 @@ const sanity: Target = {
       .locator('button:has([data-sanity-icon="ellipsis-horizontal"])')
       .first(),
   ref: (id) => ({_type: 'reference', _ref: id}),
+  deleteDoc: (id) => sanityMutate([{delete: {id: `drafts.${id}`}}, {delete: {id}}]).then(() => {}),
   patch: (id, set) => sanityMutate([{patch: {id, set}}]).then(() => {}),
   restore: (id, set) => sanityMutate([{delete: {id: `drafts.${id}`}}, {patch: {id, set}}]).then(() => {}),
 }
@@ -106,6 +113,7 @@ const studio: Target = {
       .filter({has: pane.page().locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]`)})
       .getByRole('button', {name: 'Reference actions'}),
   ref: (id) => id,
+  deleteDoc: (id, type) => bpMutate([{delete: {id, type}}]).then(() => {}),
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
   patch: (id, set) => bpMutate([{patch: {id, type: 'post', set}}, {publish: {id, type: 'post'}}]).then(() => {}),
   restore: (id, set) => bpMutate([{patch: {id, type: 'post', set}}, {publish: {id, type: 'post'}}]).then(() => {}),

@@ -33,7 +33,7 @@ export function DocPreview({doc, href, selected, active, testId}: {doc: Doc | nu
         {subtitle && <div className="s">{subtitle}</div>}
       </span>
       {doc?._draft && <span className="ring" title="Draft" />}
-      {doc && <span className="dot" title="Published" />}
+      {doc?._hasPublished !== false && doc && <span className="dot" title="Published" />}
     </>
   )
   if (!href) return <div className="preview">{body}</div>

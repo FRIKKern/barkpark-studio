@@ -27,7 +27,7 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
     <section className="pane doc" data-testid="document-pane" data-pane={`doc:${pane.id}`} data-pane-index={index}>
       <header className="pane-header">
         <span className="title chips">
-          <span className="chip">
+          <span className="chip" data-off={doc?._hasPublished === false ? '' : undefined}>
             <span className="dot published" />
             Published
           </span>
@@ -47,7 +47,7 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
         {doc && schema && (
           <div className="doc-form">
             <div className="kind">{schema.title}</div>
-            <h1>{previewTitle(doc, schema)}</h1>
+            <h1>{docTitle(doc, schema)}</h1>
             {schema.fields.map((f) => (
               <FieldView key={f.name} field={f} path={f.name} value={doc[f.name]} openRef={openRef} onChange={(v) => onEdit(f.name, v)} />
             ))}
@@ -57,6 +57,12 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
       {doc && <DocFooter doc={doc} />}
     </section>
   )
+}
+
+/** Sanity names an untitled doc "New <Type>" in its own pane, "Untitled" elsewhere. */
+export const docTitle = (doc: Doc, schema: Schema) => {
+  const t = previewTitle(doc, schema)
+  return t === 'Untitled' ? `New ${schema.title}` : t
 }
 
 type OpenRef = (type: string, id: string, parentRefPath: string) => {href: string; selected: boolean; active: boolean}

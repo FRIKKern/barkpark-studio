@@ -4,7 +4,7 @@ import {docQuery, listQuery, previewTitle, schemaOf, schemasQuery} from '../lib/
 import {collapsed} from '../lib/layout'
 import {useLive} from '../lib/live'
 import {closeFrom, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
-import {DocumentPane} from './DocumentPane'
+import {DocumentPane, docTitle} from './DocumentPane'
 import {ChevronRight, Close, Search} from './icons'
 import {DocPreview} from './Preview'
 import {PaneLink} from './PaneLink'
@@ -69,7 +69,8 @@ function usePaneTitle(pane: Pane) {
   })
   if (pane.kind === 'types') return 'Content'
   if (pane.kind === 'list') return schemaOf(schemas, pane.type)?.title ?? pane.type
-  return previewTitle(doc, schemaOf(schemas, pane.type))
+  const schema = schemaOf(schemas, pane.type)
+  return doc && schema ? docTitle(doc, schema) : previewTitle(doc, schema)
 }
 
 function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => void}) {

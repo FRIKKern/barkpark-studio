@@ -59,7 +59,9 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   const held = qc.getQueryData<Doc | null>(['doc', id])
   if (held && held._updatedAt > doc._updatedAt) return
-  writeCache(qc, id, doc._type, {...doc, ...overlay(id)} as Doc)
+  // A published row (or a publish) proves a published version; a draft keeps what we knew.
+  const _hasPublished = !doc._draft || (doc._hasPublished ?? held?._hasPublished ?? false)
+  writeCache(qc, id, doc._type, {...doc, _hasPublished, ...overlay(id)} as Doc)
 }
 
 export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown) {
@@ -94,6 +96,29 @@ async function send(qc: QueryClient, id: string) {
     return
   }
   void send(qc, id)
+}
+
+/**
+ * Create a draft now and hold every edit to it until the server has it. The
+ * cache gets the doc at once (a pane can open on it in the same frame); its
+ * empty _updatedAt lets the server's copy replace it.
+ */
+export async function createDoc(qc: QueryClient, type: string, id: string, fields: Record<string, unknown>) {
+  const e = entry(id, type)
+  writeCache(qc, id, type, {_id: `drafts.${id}`, _publishedId: id, _type: type, _draft: true, _hasPublished: false, _rev: '', _updatedAt: '', ...fields} as Doc)
+  e.inflight = new Map(Object.entries(fields))
+  setState(e, 'saving')
+  try {
+    const r = (await mutate({data: {mutations: [{create: {_id: id, _type: type, ...(fields as Record<string, Json>)}}]}})) as {results: {document: Doc}[]}
+    e.inflight = null
+    applyServer(qc, r.results[0].document)
+    setState(e, e.dirty.size ? 'saving' : 'saved')
+    void send(qc, id)
+  } catch (err) {
+    e.inflight = null
+    setState(e, 'error', (err as Error).message)
+    throw err
+  }
 }
 
 export async function publish(qc: QueryClient, doc: Doc) {

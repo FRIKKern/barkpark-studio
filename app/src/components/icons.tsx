@@ -34,3 +34,8 @@ export const Ellipsis = () => (
     <circle cx="18.5" cy="12.5" r="1.25" />
   </svg>
 )
+export const Add = () => (
+  <svg {...s}>
+    <path d="M12.5 6v13M6 12.5h13" />
+  </svg>
+)
