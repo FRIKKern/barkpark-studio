@@ -218,6 +218,9 @@ button.chip:hover { box-shadow: inset 0 0 0 1px #c7cad3; }
 .chip[data-selected]:not([data-active]) { background: var(--hover-strong); box-shadow: none; }
 .form-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
 .form-fields:disabled .input { background: #f6f6f8; color: var(--muted); }
+/* Read-only fields (J30): text stays selectable, controls disable, all look muted like Sanity's */
+.input[readonly], .readonly-wrap .input { background: #f6f6f8; }
+.readonly-wrap { border: 0; margin: 0; padding: 0; min-width: 0; }
 .menu-item:disabled { color: #b0b4c0; cursor: default; background: none; }
 
 /* Field groups + objects + booleans (J14), after Sanity's */

@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "node --env-file=../.env node_modules/@playwright/test/cli.js test",
-    "baseline": "BASELINE=1 node --env-file=../.env node_modules/@playwright/test/cli.js test --grep @baseline"
+    "baseline": "BASELINE=1 node --env-file=../.env node_modules/@playwright/test/cli.js test --grep @baseline",
+    "evidence": "EVIDENCE=1 node --env-file=../.env node_modules/@playwright/test/cli.js test --grep @evidence"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
