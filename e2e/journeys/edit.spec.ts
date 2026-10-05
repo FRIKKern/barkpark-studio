@@ -14,7 +14,7 @@ test('J03: type in title — nothing dropped, saved as draft, undo works', async
     await page.goto(t.docPath('post', ID))
     await t.settle(page)
     const title = t.field(page, 'title')
-    await expect(title).toHaveValue(TITLE)
+    await expect(title).toHaveValue(TITLE + ' deliberately broken')
     await title.click()
     await page.keyboard.press('End')
     await page.keyboard.type(' the quick brown fox', {delay: 0})
