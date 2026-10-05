@@ -1,6 +1,6 @@
 # Barkpark Studio
 
-[![Barkpark Studio roadmap: phases 0 to 6 and after, with journeys passing out of total](docs/images/roadmap.svg)](docs/ROADMAP.md)
+[![Barkpark Studio roadmap: phases 0 to 6 and after with journeys passing out of total, plus the Freeform side track counted apart](docs/images/roadmap.svg)](docs/ROADMAP.md)
 
 ## Vision
 
@@ -13,16 +13,21 @@ We get there one journey at a time. A journey is done when it matches a real
 Sanity Studio side by side, in a real browser, signed off by the quality owner.
 Automated tests are few and fast, kept for what can break silently. After the
 six phases come plugins and a Presentation tool (click-to-edit on the live site).
+The journey list grows whenever a scout finds an honest gap.
+
+One step past Sanity: the Freeform track. Documents written in PortableDoc open
+in Barkpark's shared canvas, the same editor Barkdown hosts
+([0004](docs/decisions/0004-portabledoc-freeform.md)). Counted apart.
 
 Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/decisions/0001-stack-and-backend.md).
 
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 25 changes, 7 tasks closed
+- **Today** · 27 changes, 7 tasks closed
+  - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
+  - J14: field groups (tabs) and the seo object ([#27](https://github.com/FRIKKern/barkpark-studio/pull/27))
   - Published perspective: pane title, strips and list show published versions ([#25](https://github.com/FRIKKern/barkpark-studio/pull/25))
-  - J04: draft lifecycle — publish, unpublish, discard, two perspectives ([#24](https://github.com/FRIKKern/barkpark-studio/pull/24))
-  - Per-editor Barkpark tokens (dev sign-in) ([#23](https://github.com/FRIKKern/barkpark-studio/pull/23))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
