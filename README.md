@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 5 changes, 2 tasks closed
-  - J24 J25: list search, empty states, sort/view menu that sticks; e2e port per worktree ([#35](https://github.com/FRIKKern/barkpark-studio/pull/35))
-  - Datasets per writer: production, e2e-local, ci ([#33](https://github.com/FRIKKern/barkpark-studio/pull/33))
-  - J18: new document from the list — initial values, slug generate ([#31](https://github.com/FRIKKern/barkpark-studio/pull/31))
+- **Today** · 6 changes, 4 tasks closed
+  - e2e under budget; Sanity file asset reproducible ([#32](https://github.com/FRIKKern/barkpark-studio/pull/32))
+  - Done: [Barkpark: presence API with field focus](https://github.com/FRIKKern/barkpark/issues/21698)
+  - Done: [Barkpark: nested path patches + array insert/unset by _key](https://github.com/FRIKKern/barkpark/issues/21694)
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))

@@ -18,7 +18,7 @@
 <text x="1160" y="102" font-size="16" text-anchor="end" class="muted">journeys pass side by side</text>
 <rect x="40" y="124" width="1120" height="8" rx="4" class="track"/>
 <text x="40" y="168" font-size="16"><tspan class="done">✓ passed</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>
-<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 1 / 25</text>
+<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 3 / 25</text>
 <g data-phase="0">
 <rect x="40" y="196" width="268" height="334" rx="12" class="card on"/>
 <text x="60" y="228" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">PHASE 0</text>
@@ -47,10 +47,10 @@
 <text x="492" y="342" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J21</tspan></text>
 <text x="344" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J22</tspan></text>
 <text x="418" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J23</tspan></text>
-<text x="492" y="370" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J24</tspan></text>
-<text x="344" y="398" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J25</tspan></text>
-<text x="418" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J26</tspan></text>
-<text x="492" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J27</tspan></text>
+<text x="492" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J24</tspan></text>
+<text x="344" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J25</tspan></text>
+<text x="418" y="398" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J26</tspan></text>
+<text x="492" y="398" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J27</tspan></text>
 </g>
 <g data-phase="2">
 <rect x="608" y="196" width="268" height="334" rx="12" class="card"/>
@@ -65,7 +65,7 @@
 <text x="702" y="342" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J18</tspan></text>
 <text x="776" y="342" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J28</tspan></text>
 <text x="628" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J29</tspan></text>
-<text x="702" y="370" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J30</tspan></text>
+<text x="702" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J30</tspan></text>
 <text x="776" y="370" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J31</tspan></text>
 </g>
 <g data-phase="3">
