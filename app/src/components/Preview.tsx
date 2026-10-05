@@ -19,11 +19,12 @@ function useSubtitle(doc: Doc | null | undefined) {
 // Like Sanity: the item whose pane is open next is grey; blue only when that pane is the last one.
 type Sel = {selected: boolean; active?: boolean}
 
-export function DocPreview({doc, href, selected, active, testId}: {doc: Doc | null | undefined; href: string; testId?: string} & Sel) {
+/** Without `href` it renders as a plain row (e.g. a search option). */
+export function DocPreview({doc, href, selected, active, testId}: {doc: Doc | null | undefined; href?: string; testId?: string} & Sel) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const subtitle = useSubtitle(doc)
-  return (
-    <PaneLink href={href} className="preview" aria-current={selected && !!active} data-selected={selected ? '' : undefined} data-testid={testId}>
+  const body = (
+    <>
       <span className="media">
         <DocumentIcon />
       </span>
@@ -33,6 +34,12 @@ export function DocPreview({doc, href, selected, active, testId}: {doc: Doc | nu
       </span>
       {doc?._draft && <span className="ring" title="Draft" />}
       {doc && <span className="dot" title="Published" />}
+    </>
+  )
+  if (!href) return <div className="preview">{body}</div>
+  return (
+    <PaneLink href={href} className="preview" aria-current={selected && !!active} data-selected={selected ? '' : undefined} data-testid={testId}>
+      {body}
     </PaneLink>
   )
 }

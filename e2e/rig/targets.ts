@@ -19,8 +19,12 @@ export type Target = {
   /** The reference preview link for `field` inside a pane. */
   refLink(pane: Locator, field: string): Locator
   closeButton(pane: Locator): Locator
+  /** The "…" actions button of a reference field showing a value. */
+  refMenu(pane: Locator, field: string): Locator
   /** Write straight to the backend over HTTP, as another client would. */
   patch(id: string, set: Record<string, unknown>): Promise<void>
+  /** A reference value in this backend's shape. */
+  ref(id: string): unknown
   /** Drop drafts a test left behind and restore published values. */
   restore(id: string, set: Record<string, unknown>): Promise<void>
 }
@@ -63,6 +67,14 @@ const sanity: Target = {
   pane: (page, index) => page.locator(`[data-pane-index="${index}"]`),
   refLink: (pane, field) => pane.locator(`a[href$="parentRefPath%3D${encodeURIComponent(field)}"]`).first(),
   closeButton: (pane) => pane.locator('a:has([data-sanity-icon="close"])').first(),
+  refMenu: (pane, field) =>
+    pane
+      .locator(`a[href$="parentRefPath%3D${encodeURIComponent(field)}"]`)
+      .first()
+      .locator('xpath=ancestor::*[.//button[.//*[@data-sanity-icon="ellipsis-horizontal"]]][1]')
+      .locator('button:has([data-sanity-icon="ellipsis-horizontal"])')
+      .first(),
+  ref: (id) => ({_type: 'reference', _ref: id}),
   patch: (id, set) => sanityMutate([{patch: {id, set}}]).then(() => {}),
   restore: (id, set) => sanityMutate([{delete: {id: `drafts.${id}`}}, {patch: {id, set}}]).then(() => {}),
 }
@@ -88,6 +100,12 @@ const studio: Target = {
   pane: (page, index) => page.locator(`[data-pane-index="${index}"]`),
   refLink: (pane, field) => pane.locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]:not([data-testid="pane-close"])`).first(),
   closeButton: (pane) => pane.getByTestId('pane-close'),
+  refMenu: (pane, field) =>
+    pane
+      .locator('.ref-row')
+      .filter({has: pane.page().locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]`)})
+      .getByRole('button', {name: 'Reference actions'}),
+  ref: (id) => id,
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
   patch: (id, set) => bpMutate([{patch: {id, type: 'post', set}}, {publish: {id, type: 'post'}}]).then(() => {}),
   restore: (id, set) => bpMutate([{patch: {id, type: 'post', set}}, {publish: {id, type: 'post'}}]).then(() => {}),

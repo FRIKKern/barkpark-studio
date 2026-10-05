@@ -5,6 +5,7 @@ import {edit, publish, useSaveState} from '../lib/edits'
 import {openAfter, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {RefPreview} from './Preview'
+import {RefInput} from './RefInput'
 
 type Props = {panes: Pane[]; index: number; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -76,7 +77,7 @@ function FieldView(props: FieldProps) {
 
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios
 // the same way. Editable now: string, slug, text, number, datetime, boolean,
-// object subfields. References, arrays and rich text get their editors in J08/J09/J10.
+// object subfields, references (search + pick). Arrays and rich text: J09/J10.
 function FieldInput({field, path, value, openRef, onChange}: FieldProps) {
   const str = value == null ? '' : String(value)
   switch (field.type) {
@@ -97,12 +98,14 @@ function FieldInput({field, path, value, openRef, onChange}: FieldProps) {
         </label>
       )
     case 'reference':
-      return value ? (
-        <div className="ref-box">
-          <RefPreview type={field.refType!} id={value as string} {...openRef(field.refType!, value as string, path)} />
-        </div>
-      ) : (
-        <div className="ref-box empty">Not set</div>
+      return (
+        <RefInput
+          id={path}
+          refType={field.refType!}
+          value={value as string | undefined}
+          onChange={onChange}
+          linkFor={(id) => openRef(field.refType!, id, path)}
+        />
       )
     case 'arrayOf': {
       const items = (value as unknown[]) ?? []

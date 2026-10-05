@@ -54,6 +54,17 @@ const fetchDoc = createServerFn({method: 'GET'})
     return ((await res.json()) as {result: Json}).result
   })
 
+const fetchSearch = createServerFn({method: 'GET'})
+  .validator((d: {type: string; q: string}) => d)
+  .handler(async ({data}) => {
+    // `contains` is case-insensitive; `title` is the row's preview title for every type.
+    const filter = data.q ? `&filter[title][contains]=${encodeURIComponent(data.q)}` : ''
+    const r = await bpJson<{result: {documents: Doc[]}}>(
+      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&order=_updatedAt:desc&limit=20${filter}`,
+    )
+    return r.result.documents as unknown as Json
+  })
+
 /** Last known viewport width (cookie), so the server lays panes out like the client will. */
 export const fetchViewportHint = createServerFn({method: 'GET'}).handler(async () => {
   const w = Number(getCookie('bp_vw'))
@@ -76,6 +87,17 @@ export const listQuery = (type: string) =>
 
 export const docQuery = (type: string, id: string) =>
   queryOptions({queryKey: ['doc', id], staleTime: 30_000, queryFn: async () => (await fetchDoc({data: {type, id}})) as unknown as Doc | null})
+
+export const searchQuery = (type: string, q: string) =>
+  queryOptions({
+    queryKey: ['search', type, q],
+    staleTime: 10_000,
+    queryFn: async ({client}) => {
+      const docs = (await fetchSearch({data: {type, q}})) as unknown as Doc[]
+      for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
+      return docs
+    },
+  })
 
 export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) => s.name === type)
 

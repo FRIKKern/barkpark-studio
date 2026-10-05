@@ -22,3 +22,15 @@ export const Search = () => (
     <path d="M15 15l4.5 4.5" />
   </svg>
 )
+export const ChevronDown = () => (
+  <svg {...s}>
+    <path d="M7.5 10.5l5 5 5-5" />
+  </svg>
+)
+export const Ellipsis = () => (
+  <svg {...s} fill="currentColor" stroke="none">
+    <circle cx="6.5" cy="12.5" r="1.25" />
+    <circle cx="12.5" cy="12.5" r="1.25" />
+    <circle cx="18.5" cy="12.5" r="1.25" />
+  </svg>
+)
