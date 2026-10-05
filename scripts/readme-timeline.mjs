@@ -7,8 +7,8 @@ import { tasks, replaceBlock } from './lib/board.mjs';
 const README = new URL('../README.md', import.meta.url);
 const TZ = process.env.TIMELINE_TZ || 'Europe/Oslo';
 const BOT = /github-actions|\[bot\]/;
-// Items shown per period; the rest is counted. Keeps README under its 80-line cap.
-const SHOW = { Today: 4, Yesterday: 3, 'This week': 3, 'Last week': 3, 'This month': 2, 'Last month': 2 };
+// Items listed per period; older periods show counts only. Keeps README under its 80-line cap.
+const SHOW = { Today: 3, Yesterday: 2, 'This week': 2, 'Last week': 2 };
 
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', cwd: new URL('..', import.meta.url) });
 const repo = process.env.GITHUB_REPOSITORY
@@ -36,10 +36,16 @@ function periods(now) {
   ];
 }
 
+// The current and previous quarter get their own line; anything older is "Earlier".
+function quarter(k, today) {
+  const start = Date.UTC(today.getUTCFullYear(), Math.floor(today.getUTCMonth() / 3) * 3 - 3, 1);
+  return k < start ? 'Earlier' : `${k.getUTCFullYear()} Q${Math.floor(k.getUTCMonth() / 3) + 1}`;
+}
+
 function bucket(d, list) {
   const k = day(d);
   for (const [name, start] of list) if (k >= start) return name;
-  return `${k.getUTCFullYear()} Q${Math.floor(k.getUTCMonth() / 3) + 1}`;
+  return quarter(k, list[0][1]);
 }
 
 function events() {
@@ -76,9 +82,7 @@ function render(items, now = new Date()) {
     const closed = its.length - changes;
     const counts = [changes && plural(changes, 'change'), closed && plural(closed, 'task') + ' closed'].filter(Boolean).join(', ');
     lines.push(`- **${name}** · ${counts}`);
-    const show = SHOW[name] ?? 0; // quarters: counts only
-    for (const it of its.slice(0, show)) lines.push(`  - ${it.text}`);
-    if (show && its.length > show) lines.push(`  - …and ${its.length - show} more`);
+    for (const it of its.slice(0, SHOW[name] ?? 0)) lines.push(`  - ${it.text}`);
   }
   return lines.map((l) => l + '\n').join('');
 }

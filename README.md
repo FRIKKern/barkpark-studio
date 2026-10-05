@@ -18,15 +18,11 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 
 ## What happened
 
-Generated from merged PRs on `main` and closed tasks. Do not edit by hand.
-
 <!-- timeline:start -->
 - **Today** · 4 changes, 2 tasks closed
   - Done: [P0 Scaffold TanStack Start app with same-origin Barkpark proxy](https://github.com/FRIKKern/barkpark/issues/21670)
   - Tracking and hygiene: generated timeline + roadmap, few-fast-tests policy, issue routing, housekeeping Actions ([#2](https://github.com/FRIKKern/barkpark-studio/pull/2))
   - Scaffold TanStack Start app with same-origin Barkpark proxy ([#3](https://github.com/FRIKKern/barkpark-studio/pull/3))
-  - Done: [P0 Fixture schema + seed into Barkpark workspace studio-parity](https://github.com/FRIKKern/barkpark/issues/21668)
-  - …and 2 more
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
@@ -45,36 +41,21 @@ Generated from merged PRs on `main` and closed tasks. Do not edit by hand.
 ## Layout
 
 ```
-app/                 TanStack Start studio (ours)
+app/                 TanStack Start studio (ours); only app/src/server/ talks to Barkpark
 reference/sanity/    real Sanity Studio, the bar (project 0ozn679s, dataset production)
-fixtures/seed.ndjson same seed data for both sides
+fixtures/            seed data + Barkpark schema, same content on both sides
 e2e/                 Playwright: few, fast specs for what can break silently
-scripts/             README timeline, roadmap picture, doc size checks
+scripts/             seed Barkpark, README timeline, roadmap picture, doc checks
 docs/                roadmap, decisions (one page each)
 ```
 
-## Run the reference
+## Run it
 
 ```sh
-cd reference/sanity && pnpm dev        # http://localhost:3333
-npx sanity dataset import ../../fixtures/seed.ndjson production --replace   # reset data
+cd reference/sanity && pnpm dev                 # the bar, http://localhost:3333
+npx sanity dataset import ../../fixtures/seed.ndjson production --replace   # reset its data
+cp .env.example .env                            # BARKPARK_TOKEN (+ SANITY_TOKEN to verify the reference)
+node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify Barkpark studio-parity (--verify: check only)
+cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 · /debug/live?id=post-01
+pnpm check                                      # typecheck + build; fails if client code imports src/server
 ```
-
-## Seed Barkpark
-
-```sh
-cp .env.example .env                                  # fill BARKPARK_TOKEN (+ SANITY_TOKEN to also verify the reference)
-node --env-file=.env scripts/seed-barkpark.mjs        # apply fixtures/barkpark-schema, reset studio-parity, verify
-node --env-file=.env scripts/seed-barkpark.mjs --verify
-```
-
-## Run the studio
-
-```sh
-cd app && pnpm install && pnpm dev     # http://localhost:3000 (health) · /debug/live?id=post-01 (live stream)
-pnpm check                             # typecheck + build; fails if client code imports src/server
-```
-
-The Barkpark token stays server-side: `app/src/server/` reads the repo-root `.env`
-and is the only code that talks to Barkpark. The browser calls same-origin
-`/api/{query,doc,mutate,history,backlinks,schemas,listen}`.
