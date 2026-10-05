@@ -4,7 +4,7 @@ import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {validate, type Problem} from '../lib/validation'
 import {docQuery, previewTitle, publishedQuery, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
-import {discardDraft, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
+import {discardDraft, draftNew, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {RefPreview} from './Preview'
@@ -40,6 +40,11 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
   const schema = schemaOf(schemas, pane.type)
   const next = panes[index + 1]
   const qc = useQueryClient()
+  // An id nobody has written yet is a new doc (Sanity treats it the same way).
+  const initialValues = schemaOf(schemas, pane.type)?.initialValues
+  useEffect(() => {
+    if (draftQ.data === null && initialValues) draftNew(qc, pane.type, pane.id, initialValues)
+  }, [draftQ.data, initialValues, qc, pane.type, pane.id])
   const onEdit = (field: string, value: unknown) => doc && edit(qc, doc, field, value)
   // Closing the pane (or navigating it away) sends what is still waiting.
   useEffect(() => () => flush(qc, pane.id), [qc, pane.id])
@@ -105,13 +110,14 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
       <div className="doc-main">
       <div className="pane-body">
         {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
-        {!isPending && !doc && !error && <p role="alert">Document {pane.id} not found.</p>}
+        {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
         {doc && schema && (
           <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
+            <DocContext.Provider value={doc}>
             <ProblemsContext.Provider value={problems}>
             <fieldset className="form-fields" disabled={viewingPublished}>
               {schema.fields.filter((f) => !group || f.group === group).map((f) => (
@@ -119,6 +125,7 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
               ))}
             </fieldset>
             </ProblemsContext.Provider>
+            </DocContext.Provider>
           </div>
         )}
       </div>
@@ -217,6 +224,8 @@ type OpenRef = (type: string, id: string, parentRefPath: string) => {href: strin
 type FieldProps = {field: Field; path: string; value: unknown; openRef: OpenRef; onChange: (v: unknown) => void}
 
 const ProblemsContext = createContext<Problem[]>([])
+/** The doc being edited, for inputs that read a sibling field (slug's source). */
+const DocContext = createContext<Doc | null>(null)
 
 /** The error mark beside a field label: Sanity shows the message on hover. */
 function ProblemMark({path}: {path: string}) {
@@ -271,8 +280,9 @@ function FieldInput({field, path, value, openRef, onChange}: FieldProps) {
   const str = value == null ? '' : String(value)
   switch (field.type) {
     case 'string':
-    case 'slug':
       return <TextInput id={path} value={str} onChange={onChange} />
+    case 'slug':
+      return <SlugInput id={path} value={str} onChange={onChange} source={(field.options as {source?: string})?.source} />
     case 'text':
       return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 3} />
     case 'number':
@@ -375,6 +385,32 @@ function keepPaneStill(e: ReactKeyboardEvent<HTMLInputElement>) {
   const atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length
   const atStart = el.selectionStart === 0 && el.selectionEnd === 0
   if ((e.key === 'End' && atEnd) || (e.key === 'Home' && atStart)) e.preventDefault()
+}
+
+// Sanity's slugify: lowercase, accents dropped, runs of anything else become '-'.
+const slugify = (s: string) =>
+  s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 200)
+
+/** A slug: a text input plus Sanity's Generate, from the field named in options.source. */
+function SlugInput({id, value, onChange, source}: {id: string; value: string; onChange: (v: unknown) => void; source?: string}) {
+  const doc = useContext(DocContext)
+  const from = source && doc ? doc[source] : undefined
+  const [, force] = useState(0)
+  return (
+    <div className="slug-row">
+      <TextInput id={id} value={value} onChange={onChange} />
+      {source && (
+        <button
+          type="button"
+          className="btn-create"
+          disabled={typeof from !== 'string' || !from}
+          onClick={() => (onChange(slugify(String(from))), force((n) => n + 1))}
+        >
+          Generate
+        </button>
+      )}
+    </div>
+  )
 }
 
 /** Keeps what the user typed ("1.", "-") while the stored value stays a number. */

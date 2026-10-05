@@ -1,13 +1,15 @@
 import {useEffect, useLayoutEffect, useRef, useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useNavigate} from '@tanstack/react-router'
 import {docQuery, listQuery, previewTitle, publishedListQuery, publishedQuery, schemaOf, schemasQuery} from '../lib/data'
 import {usePublishedPerspective} from '../lib/perspective'
 import {collapsed} from '../lib/layout'
 import {useLive} from '../lib/live'
-import {flushOnUnload} from '../lib/edits'
+import {draftNew, flushOnUnload} from '../lib/edits'
+import {focusFirstField} from '../lib/focus'
 import {closeFrom, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
-import {ChevronRight, Close, Search} from './icons'
+import {Add, ChevronRight, Close, Search} from './icons'
 import {DocPreview} from './Preview'
 import {PaneLink} from './PaneLink'
 
@@ -150,6 +152,8 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
 
 function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number; type: string; selected?: string}) {
   const {data: schemas = []} = useQuery(schemasQuery)
+  const qc = useQueryClient()
+  const navigate = useNavigate()
   const published = usePublishedPerspective()
   const draftList = useQuery({...listQuery(type), enabled: !published})
   const publishedList = useQuery({...publishedListQuery(type), enabled: published})
@@ -158,6 +162,21 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
     <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-pane-index={index}>
       <header className="pane-header">
         <span className="title">{schemaOf(schemas, type)?.title ?? type}</span>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={`Create new ${schemaOf(schemas, type)?.title ?? type}`}
+          onClick={() => {
+            // J18: a new doc opens in the next pane with the type's initial values;
+            // it is created on its first edit (Sanity's way: leaving it costs nothing).
+            const id = crypto.randomUUID()
+            draftNew(qc, type, id, schemaOf(schemas, type)?.initialValues ?? {})
+            void navigate({href: openAfter(panes, index, {kind: 'doc', id, type})})
+            focusFirstField(id)
+          }}
+        >
+          <Add />
+        </button>
       </header>
       <div className="search">
         <span style={{position: 'absolute', left: 2, top: 3}}>

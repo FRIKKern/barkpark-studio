@@ -247,3 +247,6 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .problem svg { flex: none; width: 19px; height: 19px; }
 .problem span { display: flex; flex-direction: column; }
 .problem strong { color: var(--fg); font-weight: 500; }
+.slug-row { display: flex; gap: 4px; }
+.slug-row .input { flex: 1; }
+.btn-create:disabled { color: #b0b4c0; cursor: default; }

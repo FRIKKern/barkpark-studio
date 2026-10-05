@@ -6,7 +6,7 @@ import {readdir, readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
 import {bpFetch, dataset, serviceToken} from './barkpark'
 
-type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown}
+type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; initialValues?: unknown; initial_values?: unknown}
 
 export async function readSchemas(): Promise<RawSchema[]> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') {
