@@ -17,8 +17,9 @@ export default defineConfig({
     {name: 'sanity', use: {baseURL: 'http://localhost:3333'}},
     {name: 'studio', use: {baseURL: 'http://localhost:3000'}},
   ],
+  // CI runs ours only (the reference needs a Sanity login); side-by-side stays local.
   webServer: [
-    {command: 'pnpm --dir ../reference/sanity dev', url: 'http://localhost:3333', reuseExistingServer: true, timeout: 60_000},
-    {command: 'pnpm --dir ../app dev', url: 'http://localhost:3000', reuseExistingServer: true, timeout: 60_000},
+    ...(process.env.CI ? [] : [{command: 'pnpm --dir ../reference/sanity dev', url: 'http://localhost:3333', reuseExistingServer: true, timeout: 60_000}]),
+    {command: 'pnpm --dir ../app dev', url: 'http://localhost:3000', reuseExistingServer: !process.env.CI, timeout: 60_000},
   ],
 })

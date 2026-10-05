@@ -3,6 +3,7 @@
 //
 //   node --env-file=.env scripts/seed-barkpark.mjs           # schema + reset + verify
 //   node --env-file=.env scripts/seed-barkpark.mjs --verify  # verify only
+//   node --env-file=.env scripts/seed-barkpark.mjs --data    # reset data, leave schemas (CI token can't write schemas)
 //
 // With SANITY_TOKEN set, verify also reads the reference Sanity dataset live and
 // checks it maps to the same documents.
@@ -150,7 +151,7 @@ async function verify() {
 }
 
 if (!process.argv.includes('--verify')) {
-  await applySchemas()
+  if (!process.argv.includes('--data')) await applySchemas()
   await reset()
 }
 await verify()
