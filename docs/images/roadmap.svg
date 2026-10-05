@@ -47,8 +47,8 @@
 <text x="492" y="342" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J21</tspan></text>
 <text x="344" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J22</tspan></text>
 <text x="418" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J23</tspan></text>
-<text x="492" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J24</tspan></text>
-<text x="344" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J25</tspan></text>
+<text x="492" y="370" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J24</tspan></text>
+<text x="344" y="398" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J25</tspan></text>
 <text x="418" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J26</tspan></text>
 <text x="492" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J27</tspan></text>
 </g>
