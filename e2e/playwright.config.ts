@@ -34,8 +34,9 @@ export default defineConfig({
     {
       command: process.env.CI ? `pnpm --dir ../app exec vite preview --port ${PORT} --strictPort` : `pnpm --dir ../app dev --port ${PORT} --strictPort`,
       url: `${STUDIO}/health`,
-      // Never reuse: a server already on the port may be another worktree's code.
-      reuseExistingServer: false,
+      // Locally never reuse: a server already on the port may be another worktree's
+      // code. CI starts it in an earlier step (server boot is outside the budget).
+      reuseExistingServer: !!process.env.CI,
       timeout: 60_000,
       stdout: 'pipe',
     },

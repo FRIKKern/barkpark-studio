@@ -17,7 +17,7 @@ test.afterEach(async ({}, info) => {
   for (const id of created.splice(0)) await t.deleteDoc(id, 'author')
 })
 
-test('J08: replace the author by search, open it in the next pane', async ({page}, info) => {
+test('J08: replace the author by search, open it in the next pane; then the same by keyboard (F5)', async ({page}, info) => {
   const t = target(info)
   await page.goto(t.docPath('post', ID))
   await t.settle(page)
@@ -32,14 +32,12 @@ test('J08: replace the author by search, open it in the next pane', async ({page
   const opened = await timeToReady(page, t.refLink(pane, 'author'), `() => location.pathname.includes('author-grace')`, null)
   await expect(t.field(page, 'name')).toHaveValue('Grace Hopper')
   if (t.name === 'studio') expect(opened.ms, 'F2 open picked ref').toBeLessThan(100)
-})
 
-test('J08 F5: the same journey with the keyboard only', async ({page}, info) => {
-  const t = target(info)
+  // F5, same pane, keyboard only: close the author pane, then replace again and open.
   test.skip(t.name === 'sanity', 'keyboard budget is ours; Sanity drops focus to <body> after a pick')
-  await page.goto(t.docPath('post', ID))
-  await t.settle(page)
-  await t.refMenu(t.pane(page, 2), 'author').focus()
+  await t.closeButton(t.pane(page, 3)).click()
+  await expect(page.locator('[data-pane-index]')).toHaveCount(3)
+  await t.refMenu(pane, 'author').focus()
   for (const key of ['Enter', 'ArrowDown', 'Enter']) await page.keyboard.press(key) // menu → Replace
   await page.keyboard.type('ada')
   await expect(page.getByRole('option', {name: /Ada Lovelace/})).toBeVisible()

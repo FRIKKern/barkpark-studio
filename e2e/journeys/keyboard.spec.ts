@@ -24,7 +24,6 @@ test('J19: keyboard only — search, open, edit, publish', async ({page}, info) 
   // Ours puts the caret in the doc's first field. Sanity leaves focus on <body> and
   // 80 Tab presses did not reach the title (measured 2026-10-05): the keyboard-only
   // journey stops there in the reference, so the rest runs on ours only.
-  await page.waitForTimeout(500) // let each studio place focus after opening
   test.skip(t.name === 'sanity', 'Sanity: focus on <body> after opening from search; Tab does not reach the title')
   await expect(t.field(page, 'title')).toBeFocused()
   await page.keyboard.press('End')
