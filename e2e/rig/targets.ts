@@ -30,6 +30,8 @@ export type Target = {
   ref(id: string): unknown
   /** Titles of both versions, straight from the backend (undefined = no such version). */
   versions(id: string): Promise<{draft?: string; published?: string}>
+  /** A field as editors now see it (draft if there is one, else published). */
+  docValue(id: string, field: string): Promise<unknown>
   /** Put a seed document back exactly as fixtures/seed.ndjson has it, no draft. */
   resetDoc(id: string, type: string): Promise<void>
   /** The title of the published version, straight from the backend. */
@@ -102,6 +104,13 @@ const sanity: Target = {
     const rows = ((await r.json()) as {result: {_id: string; title: string}[]}).result
     return {draft: rows.find((x) => x._id.startsWith('drafts.'))?.title, published: rows.find((x) => x._id === id)?.title}
   },
+  docValue: async (id, field) => {
+    const q = encodeURIComponent(`coalesce(*[_id == "drafts.${id}"][0], *[_id == "${id}"][0]).${field}`)
+    const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/production?query=${q}&perspective=raw`, {
+      headers: {authorization: `Bearer ${need('SANITY_TOKEN')}`},
+    }).then(ok)
+    return ((await r.json()) as {result: unknown}).result
+  },
   resetDoc: async (id) => {
     const seed = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
     await sanityMutate([{delete: {id: `drafts.${id}`}}, {createOrReplace: seed}])
@@ -159,10 +168,14 @@ const studio: Target = {
     const [d, p] = await Promise.all([get('drafts'), get('published')])
     return {draft: d?._draft ? d.title : undefined, published: p?.title}
   },
+  docValue: async (id, field) => {
+    const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=drafts`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
+    return ((await r.json()) as {result: Record<string, unknown>}).result[field]
+  },
   resetDoc: async (id, type) => {
     const seed = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
-    // Titles are all the lifecycle test changes; put the seed's back and publish it.
-    await bpMutate([{patch: {id, type, set: {title: seed.title}}}, {publish: {id, type}}])
+    // Put back the seed's plain fields the journeys edit, and publish.
+    await bpMutate([{patch: {id, type, set: {title: seed.title, seo: seed.seo}}}, {publish: {id, type}}])
   },
   publishedTitle: async (id) => {
     const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=published`, {

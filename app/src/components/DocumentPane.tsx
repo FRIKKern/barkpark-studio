@@ -24,6 +24,10 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
   const {data: doc, isPending, error} = viewingPublished ? publishedQ : draftQ
   const base = panesPath(panes)
   const navigate = useNavigate()
+  // Field groups (Sanity's tabs): the schema's default group first; '' = all fields.
+  const defaultGroup = schemaOf(schemas, pane.type)?.groups?.find((g) => g.default)?.name ?? ''
+  const [chosenGroup, setGroup] = useState<string | null>(null)
+  const group = chosenGroup ?? defaultGroup
   const schema = schemaOf(schemas, pane.type)
   const next = panes[index + 1]
   const qc = useQueryClient()
@@ -84,9 +88,10 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
           <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
+            <GroupTabs schema={schema} value={group} onChange={setGroup} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
             <fieldset className="form-fields" disabled={viewingPublished}>
-              {schema.fields.map((f) => (
+              {schema.fields.filter((f) => !group || f.group === group).map((f) => (
                 <FieldView key={f.name} field={f} path={f.name} value={doc[f.name]} openRef={openRef} onChange={(v) => onEdit(f.name, v)} />
               ))}
             </fieldset>
@@ -97,6 +102,43 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
         ? doc && <PublishedFooter doc={doc} />
         : doc && <DocFooter doc={doc} closeHref={closeHref} />}
     </section>
+  )
+}
+
+/**
+ * Sanity's field-group tabs: "All fields" + one per group. Arrow keys move between
+ * tabs (roving tabindex), Enter/Space or a click selects. No groups, no tabs.
+ */
+function GroupTabs({schema, value, onChange}: {schema: Schema; value: string; onChange: (g: string) => void}) {
+  if (!schema.groups?.length) return null
+  const tabs = [{name: '', title: 'All fields'}, ...schema.groups]
+  return (
+    <div
+      className="group-tabs"
+      role="tablist"
+      aria-label="Field groups"
+      onKeyDown={(e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+        const btns = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')]
+        const i = btns.indexOf(document.activeElement as HTMLButtonElement)
+        btns[(i + (e.key === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length]?.focus()
+        e.preventDefault()
+      }}
+    >
+      {tabs.map((g) => (
+        <button
+          key={g.name}
+          type="button"
+          role="tab"
+          id={`group-tab-${g.name || 'all-fields'}`}
+          aria-selected={value === g.name}
+          tabIndex={value === g.name ? 0 : -1}
+          onClick={() => onChange(g.name)}
+        >
+          {g.title ?? g.name}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -114,6 +156,24 @@ type FieldProps = {field: Field; path: string; value: unknown; openRef: OpenRef;
 
 function FieldView(props: FieldProps) {
   const label = props.field.title ?? props.field.name
+  // Sanity: a boolean is a switch with its label beside it, in a box.
+  if (props.field.type === 'boolean')
+    return (
+      <div className="field">
+        <label className="bool-box">
+          <FieldInput {...props} />
+          <span>{label}</span>
+        </label>
+      </div>
+    )
+  // An object: a fieldset with its title as the legend.
+  if (props.field.type === 'composite')
+    return (
+      <fieldset className="field object-field">
+        <legend>{label}</legend>
+        <FieldInput {...props} />
+      </fieldset>
+    )
   return (
     <div className="field">
       <label htmlFor={props.path}>{label}</label>
@@ -139,10 +199,10 @@ function FieldInput({field, path, value, openRef, onChange}: FieldProps) {
       return <DateTimeInput id={path} value={value as string | undefined} onChange={onChange} />
     case 'boolean':
       return (
-        <label className="switch">
-          <input id={path} type="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} />
+        <span className="switch">
+          <input id={path} type="checkbox" role="switch" checked={!!value} onChange={(e) => onChange(e.target.checked)} />
           <span />
-        </label>
+        </span>
       )
     case 'reference':
       return (
@@ -184,7 +244,9 @@ function FieldInput({field, path, value, openRef, onChange}: FieldProps) {
               path={`${path}.${f.name}`}
               value={(value as Record<string, unknown>)?.[f.name]}
               openRef={openRef}
-              // Barkpark patches top-level fields only (task-bfb66a2ff491f6e7): send the whole object.
+              // Barkpark patches top-level fields only (task-bfb66a2ff491f6e7), so a
+              // subfield edit sends the whole object. Two editors on different
+              // subfields at once: last write wins for the object (the J14 risk).
               onChange={(v) => onChange({...(value as Record<string, unknown>), [f.name]: v})}
             />
           ))}
