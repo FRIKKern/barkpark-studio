@@ -19,10 +19,10 @@ Built with TanStack Start on top of Barkpark. Why: [`docs/decisions/0001`](docs/
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 25 changes, 7 tasks closed
+- **Today** · 26 changes, 7 tasks closed
+  - J14: field groups (tabs) and the seo object ([#27](https://github.com/FRIKKern/barkpark-studio/pull/27))
   - Published perspective: pane title, strips and list show published versions ([#25](https://github.com/FRIKKern/barkpark-studio/pull/25))
   - J04: draft lifecycle — publish, unpublish, discard, two perspectives ([#24](https://github.com/FRIKKern/barkpark-studio/pull/24))
-  - Per-editor Barkpark tokens (dev sign-in) ([#23](https://github.com/FRIKKern/barkpark-studio/pull/23))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
