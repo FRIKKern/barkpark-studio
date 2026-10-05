@@ -6,6 +6,7 @@ import {defineConfig} from '@playwright/test'
 export default defineConfig({
   testDir: '.',
   testMatch: ['*.spec.ts', 'journeys/*.spec.ts'],
+  globalSetup: './rig/warmup.ts',
   fullyParallel: false,
   workers: 1,
   timeout: process.env.CI ? 15_000 : 30_000,
