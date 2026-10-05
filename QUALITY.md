@@ -20,17 +20,22 @@ side with `reference/sanity`, before its task can close.
 
 ## Rules
 
-1. **Side by side or it didn't happen.** Compare against the running reference, not memory.
+1. **Side by side or it didn't happen.** Compare against the running reference, not
+   memory. The sign-off plus the reference clip is the proof a journey passes.
 2. **Real browser only.** Unit tests and server tests do not count as a pass.
 3. **No self-sign-off.** Whoever built a journey cannot close it. The quality owner does.
 4. **Deep, not wide.** No new journey starts until the current one passes.
-5. **A pass is locked.** Its Playwright spec runs in CI and blocks merge forever.
+5. **Few, fast tests.** Add an automated test only if it is fast (< 5 s each, whole
+   e2e suite < 60 s in CI) and guards something that can break silently: the crown
+   journeys (J21 J08 J22 J23) and live edit (J05 J06). One spec covering several
+   journeys beats many small ones. A spec that blows the budget is merged or cut.
 6. **Gaps become tasks immediately.** "Feels off" is a valid bug. File it, with a clip.
 
 ## Anti-slop rules for docs
 
 - One fact, one home (see README table). Never copy a fact; link to it.
 - No status in docs. Status is the task board and the test run.
-- Size caps: README ≤ 60 lines, a decision ≤ 1 page, a journey ≤ 10 lines.
+- Size caps: README ≤ 80 lines, CONTRIBUTING ≤ 40, a decision ≤ 40 (one page),
+  a journey = one table row. CI checks them (`node scripts/check-docs.mjs`).
 - A doc nobody links to gets deleted.
 - If code and doc disagree, the doc is the bug — fix it in the same PR.

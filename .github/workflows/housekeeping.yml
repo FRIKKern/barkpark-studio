@@ -1,0 +1,77 @@
+# Keeps README's timeline and the roadmap picture current, and the repo tidy.
+# Why and how: docs/decisions/0003-tracking-and-hygiene.md
+name: housekeeping
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 4 * * *' # daily refresh
+    - cron: '23 5 * * 1' # weekly hygiene, Mondays
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: housekeeping
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Regenerate timeline and roadmap
+        env: { GITHUB_TOKEN: '${{ github.token }}' }
+        run: node scripts/readme-timeline.mjs && node scripts/generate-roadmap.mjs
+      - name: Doc size caps and links
+        run: node scripts/check-docs.mjs
+      - name: Commit only if the output changed
+        run: |
+          git add README.md docs/images/roadmap.svg
+          git diff --cached --quiet && { echo "no change"; exit 0; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: refresh README timeline and roadmap [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+  hygiene:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '23 5 * * 1'
+    runs-on: ubuntu-latest
+    env: { GH_TOKEN: '${{ github.token }}' }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Delete merged branches left on the remote
+        run: |
+          gh pr list --state merged --limit 200 --json headRefName,headRefOid \
+            --jq '.[] | select(.headRefName != "main") | "\(.headRefName) \(.headRefOid)"' |
+          while read -r branch sha; do
+            tip=$(git ls-remote --heads origin "$branch" | cut -f1)
+            [ "$tip" = "$sha" ] || continue # gone, or reused with new commits
+            echo "deleting merged branch $branch"
+            git push origin --delete "$branch"
+          done
+      - name: Flag PRs and branches idle for 7+ days
+        run: |
+          cutoff=$(date -u -d '7 days ago' +%s)
+          gh pr list --state open --json number,updatedAt --jq '.[] | "\(.number) \(.updatedAt)"' |
+          while read -r pr at; do
+            [ "$(date -u -d "$at" +%s)" -lt "$cutoff" ] || continue
+            gh pr comment "$pr" --body "Idle for 7+ days (weekly hygiene). Merge it, close it, or say what it waits for. See CONTRIBUTING.md."
+          done
+          open_heads=$(gh pr list --state open --json headRefName --jq '.[].headRefName')
+          git fetch --prune origin
+          git for-each-ref refs/remotes/origin --format='%(refname:lstrip=3) %(committerdate:unix)' |
+          while read -r branch at; do
+            case "$branch" in main|HEAD) continue ;; esac
+            [ "$at" -lt "$cutoff" ] || continue
+            grep -qx "$branch" <<<"$open_heads" && continue
+            echo "::warning::branch $branch idle 7+ days with no open PR"
+            echo "- \`$branch\` idle 7+ days, no open PR" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Doc size caps and links
+        run: node scripts/check-docs.mjs
