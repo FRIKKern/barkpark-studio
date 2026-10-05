@@ -6,7 +6,9 @@ import {bpFetch, dataset} from '../server/barkpark'
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
 
-export type Doc = {_id: string; _publishedId: string; _type: string; _draft: boolean; _rev: string; _updatedAt: string} & Record<
+// `_hasPublished` is ours, not Barkpark's: the drafts perspective can't tell a
+// draft of a published doc from a brand-new draft, so reads ask both perspectives.
+export type Doc = {_id: string; _publishedId: string; _type: string; _draft: boolean; _rev: string; _updatedAt: string; _hasPublished?: boolean} & Record<
   string,
   unknown
 >
@@ -39,19 +41,24 @@ const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
 const fetchList = createServerFn({method: 'GET'})
   .validator((d: {type: string}) => d)
   .handler(async ({data}) => {
-    const q = `perspective=drafts&order=_updatedAt:desc&limit=200`
-    const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?${q}`)
-    return r.result.documents as unknown as Json
+    const base = `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=_updatedAt:desc&limit=200`
+    const [drafts, published] = await Promise.all([
+      bpJson<{result: {documents: Doc[]}}>(`${base}&perspective=drafts`),
+      bpJson<{result: {documents: Doc[]}}>(`${base}&perspective=published&fields=_id`),
+    ])
+    const live = new Set(published.result.documents.map((d) => d._id))
+    return drafts.result.documents.map((d) => ({...d, _hasPublished: live.has(d._publishedId)})) as unknown as Json
   })
 
 const fetchDoc = createServerFn({method: 'GET'})
   .validator((d: {type: string; id: string}) => d)
   .handler(async ({data}) => {
-    const path = `/v1/data/doc/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?perspective=drafts`
-    const res = await bpFetch(path)
+    const path = `/v1/data/doc/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?perspective=`
+    const [res, pub] = await Promise.all([bpFetch(path + 'drafts'), bpFetch(path + 'published')])
     if (res.status === 404) return null
-    if (!res.ok) throw new Error(`Barkpark ${path} → ${res.status}`)
-    return ((await res.json()) as {result: Json}).result
+    if (!res.ok) throw new Error(`Barkpark ${path}drafts → ${res.status}`)
+    const doc = ((await res.json()) as {result: Record<string, Json>}).result
+    return {...doc, _hasPublished: pub.ok} as Json
   })
 
 const fetchSearch = createServerFn({method: 'GET'})

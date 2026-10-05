@@ -1,7 +1,9 @@
 import {useEffect, useId, useLayoutEffect, useRef, useState} from 'react'
-import {keepPreviousData, useQuery} from '@tanstack/react-query'
+import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
+import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery, searchQuery, type Doc} from '../lib/data'
-import {ChevronDown, Close, Ellipsis} from './icons'
+import {createDoc} from '../lib/edits'
+import {Add, ChevronDown, Close, Ellipsis} from './icons'
 import {DocPreview, RefPreview} from './Preview'
 
 type Props = {
@@ -36,6 +38,10 @@ export function RefInput({id, refType, value: outer, onChange, linkFor}: Props) 
     focusPreview.current = false
     previewRef.current?.querySelector('a')?.focus()
   })
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const [createError, setCreateError] = useState<string>()
   const change = (v: string | undefined) => {
     setValue(v)
     setSearching(!v)
@@ -66,11 +72,51 @@ export function RefInput({id, refType, value: outer, onChange, linkFor}: Props) 
         change(picked)
       }}
       onCancel={value ? () => setSearching(false) : undefined}
+      onCreate={async (q) => {
+        // J22: a new draft of the referenced type, opened in the next pane at once
+        // (it is in the cache before the request leaves); the reference is set
+        // as soon as the server has the doc. The search text becomes its title.
+        const schema = schemaOf(schemas, refType)
+        const titleField = schema?.listPreview?.title ?? (schema?.fields.some((f) => f.name === 'title') ? 'title' : 'name')
+        const newId = crypto.randomUUID()
+        const created = createDoc(qc, refType, newId, q ? {[titleField]: q} : {})
+        setValue(newId)
+        setSearching(false)
+        setCreateError(undefined)
+        void navigate({href: linkFor(newId).href})
+        focusFirstField(newId)
+        try {
+          await created
+          onChange(newId)
+        } catch (err) {
+          setValue(outer)
+          setSearching(!outer)
+          setCreateError((err as Error).message)
+        }
+      }}
+      error={createError}
     />
   )
 }
 
-function RefSearch({id, refType, current, onPick, onCancel}: {id: string; refType: string; current?: string; onPick: (id: string) => void; onCancel?: () => void}) {
+/** Put the caret in the new doc's first input once its pane has mounted. */
+function focusFirstField(id: string, frames = 30) {
+  const el = document.querySelector<HTMLElement>(`[data-pane="doc:${id}"] .doc-form .input`)
+  if (el) el.focus()
+  else if (frames > 0) requestAnimationFrame(() => focusFirstField(id, frames - 1))
+}
+
+type SearchProps = {
+  id: string
+  refType: string
+  current?: string
+  onPick: (id: string) => void
+  onCancel?: () => void
+  onCreate: (q: string) => void
+  error?: string
+}
+
+function RefSearch({id, refType, current, onPick, onCancel, onCreate, error}: SearchProps) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: currentDoc} = useQuery({...docQuery(refType, current ?? ''), enabled: !!current})
   const [q, setQ] = useState(() => (currentDoc ? previewTitle(currentDoc, schemaOf(schemas, refType)) : ''))
@@ -137,6 +183,15 @@ function RefSearch({id, refType, current, onPick, onCancel}: {id: string; refTyp
       >
         <ChevronDown />
       </button>
+      <button type="button" className="btn-create" onClick={() => onCreate(q.trim())}>
+        <Add />
+        Create
+      </button>
+      {error && (
+        <p className="field-error" role="alert">
+          Could not create: {error}
+        </p>
+      )}
       {open && results.length > 0 && (
         <div className="popover options" role="listbox" id={listId}>
           {results.map((d, i) => (
