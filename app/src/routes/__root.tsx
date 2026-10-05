@@ -3,6 +3,7 @@ import type {QueryClient} from '@tanstack/react-query'
 import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
 import appCss from '../styles.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
+import {ToastHost} from '../components/Toasts'
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url'
 
 export const Route = createRootRouteWithContext<{queryClient: QueryClient}>()({
@@ -35,6 +36,7 @@ function RootDocument({children}: {children: ReactNode}) {
       </head>
       <body>
         {children}
+        <ToastHost />
         <Scripts />
       </body>
     </html>

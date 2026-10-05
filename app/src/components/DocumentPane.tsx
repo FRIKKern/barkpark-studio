@@ -9,6 +9,7 @@ import {openAfter, panesPath, splitRight, withView, type Pane} from '../lib/pane
 import {PaneLink} from './PaneLink'
 import {DocContext, FieldView, ProblemsContext} from './Fields'
 import {DeleteDialog} from './DeleteDialog'
+import {DocHeaderMenu} from './DocHeaderMenu'
 import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
@@ -111,6 +112,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <ErrorOutline />
           </button>
         )}
+        {doc && schema && <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished} />}
         <button type="button" className="icon-btn" aria-label="Split pane right" title="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
           <SplitVertical />
         </button>

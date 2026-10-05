@@ -40,7 +40,7 @@ quality first, never a shrinking finish line.
 | J28 | 2 | Doc actions menu: Duplicate (opens in place), copy ID / URL; Inspect (Ctrl+Alt+I) raw JSON | F2 F5 |
 | J29 | 2 | Field "…" menu: copy / paste a field or whole doc; clear error when types don't match | F9 |
 | J30 | 2 | Conditional fields: hidden / read-only react instantly, no layout jump, focus kept | F1 F10 |
-| J31 | 2 | Select list (dropdown + radio) and Sanity's date-time picker (calendar, "now", past-date warning) | F5 F10 |
+| J31 | 2 | Select list (dropdown + radio) and Sanity's date-time picker (calendar, "now"; its past-date warning is scheduling-only) | F5 F10 |
 | J32 | 3 | Someone deletes or changes the doc you have open, or a referenced one: banner + Restore / Reload / Close | F4 F9 |
 | J33 | 4 | Array of objects: insert menu with several types, edit item in dialog or inline, preview in list | F2 F7 |
 | J34 | 4 | Tags input (Enter/comma add, Backspace remove) and reorderable rows for plain string arrays | F1 F5 |

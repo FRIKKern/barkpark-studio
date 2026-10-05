@@ -4,7 +4,9 @@ import {isHidden, isReadOnly} from '../lib/conditions'
 import type {Problem} from '../lib/validation'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
-import {ChevronDown, ClearCircle, ErrorOutline} from './icons'
+import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline} from './icons'
+import {copy, fits, read, signature} from '../lib/clipboard'
+import {toast} from './Toasts'
 import {DateTimeInput} from './DateTimeInput'
 
 // Field rendering for the document form: one component per Barkpark field type.
@@ -40,6 +42,7 @@ export function FieldView(props: FieldProps) {
   if (props.field.type === 'boolean')
     return (
       <div className="field">
+        <FieldActions {...props} />
         <label className="bool-box">
           <FieldInput {...props} />
           <span>{label}</span>
@@ -50,6 +53,7 @@ export function FieldView(props: FieldProps) {
   if (props.field.type === 'composite')
     return (
       <fieldset className="field object-field">
+        <FieldActions {...props} />
         <legend>
           {label}
           <ProblemMark path={props.path} />
@@ -59,11 +63,62 @@ export function FieldView(props: FieldProps) {
     )
   return (
     <div className="field" data-invalid={invalid} data-readonly={props.readOnly || undefined}>
+      <FieldActions {...props} />
       <label htmlFor={props.path} id={`${props.path}-label`}>
         {label}
         <ProblemMark path={props.path} />
       </label>
       <FieldInput {...props} />
+    </div>
+  )
+}
+
+/**
+ * Sanity's field "…" menu (J29), shown on hover or focus at the top right of a
+ * field: Copy field, Paste field. A paste whose schema type doesn't match is
+ * refused with Sanity's toast. Absolutely placed, so it never moves the form.
+ */
+function FieldActions({field, value, onChange, readOnly}: FieldProps) {
+  const [open, setOpen] = useState(false)
+  const close = () => setOpen(false)
+  return (
+    <div className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+      <button type="button" className="icon-btn" aria-label="Field actions" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <Ellipsis />
+      </button>
+      {open && (
+        <div className="popover menu" role="menu" aria-label="Field actions" onKeyDown={(e) => e.key === 'Escape' && close()}>
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            autoFocus
+            onClick={() => {
+              copy({kind: 'field', field: {name: field.name, sig: signature(field), value}})
+              close()
+            }}
+          >
+            Copy field
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            disabled={readOnly}
+            onClick={() => {
+              close()
+              const clip = read()
+              const item = clip?.kind === 'field' ? clip.field : undefined
+              if (!item) return toast({tone: 'critical', title: 'Nothing to paste', description: 'Copy a field first'})
+              if (!fits(item.sig, item.value, field))
+                return toast({tone: 'critical', title: 'Invalid clipboard item', description: 'Source and target schema types are not compatible'})
+              onChange(item.value)
+            }}
+          >
+            Paste field
+          </button>
+        </div>
+      )}
     </div>
   )
 }
