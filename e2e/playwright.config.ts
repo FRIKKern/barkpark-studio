@@ -12,6 +12,8 @@ export default defineConfig({
   timeout: process.env.CI ? 15_000 : 30_000,
   // Fail fast: a run that can't start or hydrate stops instead of timing out test by test.
   maxFailures: process.env.CI ? 3 : 0,
+  // QUALITY.md rule 5: the whole suite fits in 60 s; in CI going over fails the run.
+  globalTimeout: process.env.CI ? 60_000 : 0,
   reporter: [['list']],
   // @baseline specs measure, they don't gate: only `pnpm baseline` runs them.
   grepInvert: process.env.BASELINE ? undefined : /@baseline/,
