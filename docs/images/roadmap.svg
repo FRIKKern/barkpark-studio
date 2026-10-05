@@ -38,7 +38,7 @@
 <text x="572" y="228" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="muted">NEXT</text>
 <text x="344" y="262" font-size="23" font-weight="600">Panes + Refs ★</text>
 <path d="M344 282H572" class="rule"/>
-<text x="344" y="314" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J01 Cold open</tspan></text>
+<text x="344" y="314" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J01 Cold open</tspan></text>
 <text x="344" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J02 Open post</tspan></text>
 <text x="344" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J08 Pick author by search</tspan></text>
 <text x="344" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J17 Delete author with i…</tspan></text>
