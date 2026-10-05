@@ -63,7 +63,7 @@
 <text x="776" y="314" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J13</tspan></text>
 <text x="628" y="342" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J14</tspan></text>
 <text x="702" y="342" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J18</tspan></text>
-<text x="776" y="342" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J28</tspan></text>
+<text x="776" y="342" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J28</tspan></text>
 <text x="628" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J29</tspan></text>
 <text x="702" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J30</tspan></text>
 <text x="776" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J31</tspan></text>
