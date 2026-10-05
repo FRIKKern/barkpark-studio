@@ -79,3 +79,8 @@ export const SplitVertical = () => (
     <path d="M5.5 6.5h14v12h-14zM12.5 6.5v12M15 11h2.5M16.25 9.75v2.5" />
   </svg>
 )
+export const Share = () => (
+  <svg {...s}>
+    <path d="M12.5 15.5v-11M8.5 8.5l4-4 4 4M6.5 12.5v7h12v-7" />
+  </svg>
+)

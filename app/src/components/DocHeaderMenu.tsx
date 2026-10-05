@@ -3,7 +3,7 @@ import {useQueryClient} from '@tanstack/react-query'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
-import {Ellipsis} from './icons'
+import {Ellipsis, Share} from './icons'
 import {toast} from './Toasts'
 
 /**
@@ -12,7 +12,7 @@ import {toast} from './Toasts'
  * copied document's and leaves the rest alone, so pasting a post into an author
  * moves only what fits.
  */
-export function DocHeaderMenu({doc, schema, readOnly}: {doc: Doc; schema: Schema; readOnly: boolean}) {
+export function DocHeaderMenu({doc, schema, readOnly, onInspect}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void}) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
@@ -23,11 +23,14 @@ export function DocHeaderMenu({doc, schema, readOnly}: {doc: Doc; schema: Schema
       </button>
       {open && (
         <div className="popover menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && close()}>
+          <button type="button" role="menuitem" className="menu-item" autoFocus aria-keyshortcuts="Control+Alt+I" onClick={() => (close(), onInspect())}>
+            Inspect
+            <kbd>Ctrl Alt I</kbd>
+          </button>
           <button
             type="button"
             role="menuitem"
             className="menu-item"
-            autoFocus
             onClick={() => {
               copy({kind: 'document', docType: schema.name, fields: schema.fields.map((f) => ({name: f.name, sig: signature(f), value: doc[f.name]}))})
               close()
@@ -53,6 +56,40 @@ export function DocHeaderMenu({doc, schema, readOnly}: {doc: Doc; schema: Schema
             }}
           >
             Paste document
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The share button that heads Sanity's document pane (J28): Copy document URL,
+ * Copy document ID, each confirmed with Sanity's toast. The URL is this studio's
+ * deep link to the document.
+ */
+export function DocShareMenu({doc}: {doc: Doc}) {
+  const [open, setOpen] = useState(false)
+  const close = () => setOpen(false)
+  const put = (text: string, what: string) => {
+    void navigator.clipboard
+      ?.writeText(text)
+      .then(() => toast({title: `${what} copied to clipboard`}))
+      .catch(() => toast({tone: 'critical', title: `Could not copy ${what.toLowerCase()}`}))
+    close()
+  }
+  return (
+    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+      <button type="button" className="icon-btn" aria-label="Share document" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <Share />
+      </button>
+      {open && (
+        <div className="popover menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && close()}>
+          <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => put(`${location.origin}/structure/${doc._type};${doc._publishedId}`, 'Document URL')}>
+            Copy document URL
+          </button>
+          <button type="button" role="menuitem" className="menu-item" onClick={() => put(doc._id, 'Document ID')}>
+            Copy document ID
           </button>
         </div>
       )}

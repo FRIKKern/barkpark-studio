@@ -4,12 +4,14 @@ import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {validate, type Problem} from '../lib/validation'
 import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
-import {discardDraft, draftNew, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
+import {createDoc, discardDraft, draftNew, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {DocContext, FieldView, ProblemsContext} from './Fields'
 import {DeleteDialog} from './DeleteDialog'
-import {DocHeaderMenu} from './DocHeaderMenu'
+import {DocHeaderMenu, DocShareMenu} from './DocHeaderMenu'
+import {InspectDialog} from './InspectDialog'
+import {toast} from './Toasts'
 import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
@@ -58,6 +60,18 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const onEdit = (field: string, value: unknown) => doc && edit(qc, doc, field, value)
   // Closing the pane (or navigating it away) sends what is still waiting.
   useEffect(() => () => flush(qc, pane.id), [qc, pane.id])
+  // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
+  const [inspectOpen, setInspectOpen] = useState(false)
+  const duplicate = (from: Doc) => {
+    const id = crypto.randomUUID()
+    const fields = Object.fromEntries(Object.entries(from).filter(([k]) => !k.startsWith('_')))
+    const created = createDoc(qc, from._type, id, fields)
+    navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined}])})
+    created.then(
+      () => toast({title: 'The document was successfully duplicated'}),
+      (err) => toast({tone: 'critical', title: 'Could not duplicate the document', description: (err as Error).message}),
+    )
+  }
   const openRef = (type: string, id: string, parentRefPath: string) => ({
     href: openAfter(panes, index, {kind: 'doc', id, type, parentRefPath}),
     selected: next?.kind === 'doc' && next.id === id && next.parentRefPath === parentRefPath,
@@ -73,6 +87,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       onKeyDown={(e) => {
         // Sanity's publish shortcut.
         if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !problems.length) (e.preventDefault(), void publish(qc, doc))
+        if (e.ctrlKey && e.altKey && e.code === 'KeyI' && doc) (e.preventDefault(), setInspectOpen(true))
       }}
     >
       <header className="pane-header">
@@ -100,6 +115,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             Draft
           </button>
         </span>
+        {doc && <DocShareMenu doc={doc} />}
         {!viewingPublished && (
           <button
             type="button"
@@ -112,7 +128,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <ErrorOutline />
           </button>
         )}
-        {doc && schema && <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished} />}
+        {doc && schema && <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished} onInspect={() => setInspectOpen(true)} />}
         <button type="button" className="icon-btn" aria-label="Split pane right" title="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
           <SplitVertical />
         </button>
@@ -164,7 +180,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       </div>
       {viewingPublished
         ? doc && <PublishedFooter doc={doc} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} />}
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} onDuplicate={() => duplicate(doc)} />}
+      {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema)} onClose={() => setInspectOpen(false)} />}
     </section>
   )
 }
@@ -248,7 +265,7 @@ export const docTitle = (doc: Doc, schema: Schema) => {
   return t === 'Untitled' && doc._hasPublished === false ? `New ${schema.title}` : t
 }
 
-function DocFooter({doc, closeHref, blocked}: {doc: Doc; closeHref: string; blocked: number}) {
+function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref: string; blocked: number; onDuplicate: () => void}) {
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
   const [publishing, setPublishing] = useState(false)
@@ -285,7 +302,10 @@ function DocFooter({doc, closeHref, blocked}: {doc: Doc; closeHref: string; bloc
         </button>
         {menu && (
           <div className="popover menu up" role="menu" onKeyDown={(e) => e.key === 'Escape' && setMenu(false)}>
-            <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canDiscard} onClick={() => (setMenu(false), setDiscarding(true))}>
+            <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (setMenu(false), onDuplicate())}>
+              Duplicate
+            </button>
+            <button type="button" role="menuitem" className="menu-item" disabled={!canDiscard} onClick={() => (setMenu(false), setDiscarding(true))}>
               Discard changes
             </button>
             <button type="button" role="menuitem" className="menu-item danger" onClick={() => (setMenu(false), setDeleting(true))}>
