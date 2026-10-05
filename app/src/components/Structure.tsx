@@ -8,7 +8,7 @@ import {collapsed} from '../lib/layout'
 import {useLive} from '../lib/live'
 import {draftNew, flushOnUnload} from '../lib/edits'
 import {focusFirstField} from '../lib/focus'
-import {closeFrom, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
+import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
 import {Add, ChevronRight, Close, Ellipsis, Search} from './icons'
 import {DocPreview} from './Preview'
@@ -116,7 +116,8 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
     <DocumentPane
       panes={panes}
       index={index}
-      closeHref={closeFrom(panes, index)}
+      split={isSplit(panes, index)}
+      closeHref={isSplit(panes, index) ? closeSplit(panes, index) : closeFrom(panes, index)}
       header={<PaneTitle pane={pane} />}
       closeIcon={<Close />}
     />

@@ -20,6 +20,8 @@ export type Target = {
   /** The reference preview link for `field` inside a pane. */
   refLink(pane: Locator, field: string): Locator
   closeButton(pane: Locator): Locator
+  /** The close of one side of a split (Sanity: "Close split pane"). */
+  closeSplit(pane: Locator): Locator
   /** The "…" options menu of a type list pane (sort, layout). */
   listMenu(listPane: Locator): Locator
   /** The "+" that creates a new document from a type list pane. */
@@ -97,6 +99,7 @@ const sanity: Target = {
     return pane.locator(`a[href$="parentRefPath%3D${f}"], a[href*="parentRefPath%3D${f}%2C"]`).first()
   },
   closeButton: (pane) => pane.locator('a:has([data-sanity-icon="close"])').first(),
+  closeSplit: (pane) => pane.locator('button:has([data-sanity-icon="close"])').first(),
   docMenu: (page) => page.locator('[data-testid="action-menu-button"]').last(),
   newDocButton: (listPane) => listPane.locator('a:has([data-sanity-icon="add"]), button:has([data-sanity-icon="add"])').first(),
   listMenu: (listPane) => listPane.getByTestId('pane-context-menu-button').first(),
@@ -173,6 +176,7 @@ const studio: Target = {
   pane: (page, index) => page.locator(`[data-pane-index="${index}"]`),
   refLink: (pane, field) => pane.locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]:not([data-testid="pane-close"])`).first(),
   closeButton: (pane) => pane.getByTestId('pane-close'),
+  closeSplit: (pane) => pane.getByRole('button', {name: 'Close split pane'}),
   docMenu: (page) => page.getByRole('button', {name: 'Document actions'}).last(),
   newDocButton: (listPane) => listPane.getByRole('button', {name: /^Create new/}),
   listMenu: (listPane) => listPane.getByRole('button', {name: 'List options'}),

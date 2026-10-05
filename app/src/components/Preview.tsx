@@ -1,3 +1,4 @@
+import {memo} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {DocumentIcon} from './icons'
@@ -19,8 +20,11 @@ function useSubtitle(doc: Doc | null | undefined) {
 // Like Sanity: the item whose pane is open next is grey; blue only when that pane is the last one.
 type Sel = {selected: boolean; active?: boolean}
 
-/** Without `href` it renders as a plain row (e.g. a search option). */
-export function DocPreview({doc, href, selected, active, testId, badge}: {doc: Doc | null | undefined; href?: string; testId?: string; badge?: string} & Sel) {
+/**
+ * Without `href` it renders as a plain row (e.g. a search option). Memo: a list
+ * re-renders on every pane change, and its rows mostly stay the same.
+ */
+export const DocPreview = memo(function DocPreview({doc, href, selected, active, testId, badge}: {doc: Doc | null | undefined; href?: string; testId?: string; badge?: string} & Sel) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const subtitle = useSubtitle(doc)
   const body = (
@@ -43,7 +47,7 @@ export function DocPreview({doc, href, selected, active, testId, badge}: {doc: D
       {body}
     </PaneLink>
   )
-}
+})
 
 /** Preview of a referenced doc, fetched by id (usually already cached). */
 export function RefPreview({type, id, href, selected, active}: {type: string; id: string; href: string} & Sel) {
