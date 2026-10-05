@@ -22,13 +22,13 @@ export type Target = {
   /** The "…" actions button of a reference field showing a value. */
   refMenu(pane: Locator, field: string): Locator
   /** Write straight to the backend over HTTP, as another client would. */
-  patch(id: string, set: Record<string, unknown>): Promise<void>
+  patch(id: string, set: Record<string, unknown>, type?: string): Promise<void>
   /** A reference value in this backend's shape. */
   ref(id: string): unknown
   /** Delete a document (draft and published) a test created. */
   deleteDoc(id: string, type: string): Promise<void>
   /** Drop drafts a test left behind and restore published values. */
-  restore(id: string, set: Record<string, unknown>): Promise<void>
+  restore(id: string, set: Record<string, unknown>, type?: string): Promise<void>
 }
 
 const need = (k: string) => process.env[k] ?? fail(`missing ${k} in ../.env`)
@@ -115,8 +115,8 @@ const studio: Target = {
   ref: (id) => id,
   deleteDoc: (id, type) => bpMutate([{delete: {id, type}}]).then(() => {}),
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
-  patch: (id, set) => bpMutate([{patch: {id, type: 'post', set}}, {publish: {id, type: 'post'}}]).then(() => {}),
-  restore: (id, set) => bpMutate([{patch: {id, type: 'post', set}}, {publish: {id, type: 'post'}}]).then(() => {}),
+  patch: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),
+  restore: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),
 }
 
 export const target = (info: TestInfo): Target => (info.project.name === 'sanity' ? sanity : studio)
