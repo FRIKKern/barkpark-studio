@@ -1,6 +1,7 @@
 import {useEffect, useLayoutEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {docQuery, listQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
+import {docQuery, listQuery, previewTitle, publishedListQuery, publishedQuery, schemaOf, schemasQuery} from '../lib/data'
+import {usePublishedPerspective} from '../lib/perspective'
 import {collapsed} from '../lib/layout'
 import {useLive} from '../lib/live'
 import {flushOnUnload} from '../lib/edits'
@@ -72,10 +73,12 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
 
 function usePaneTitle(pane: Pane) {
   const {data: schemas = []} = useQuery(schemasQuery)
-  const {data: doc} = useQuery({
-    ...docQuery(pane.kind === 'doc' ? pane.type : '', pane.kind === 'doc' ? pane.id : ''),
-    enabled: pane.kind === 'doc',
-  })
+  const published = usePublishedPerspective()
+  const id = pane.kind === 'doc' ? pane.id : ''
+  const type = pane.kind === 'doc' ? pane.type : ''
+  const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && !published})
+  const {data: live} = useQuery({...publishedQuery(type, id), enabled: pane.kind === 'doc' && published})
+  const doc = published ? live : draft
   if (pane.kind === 'types') return 'Content'
   if (pane.kind === 'list') return schemaOf(schemas, pane.type)?.title ?? pane.type
   const schema = schemaOf(schemas, pane.type)
@@ -147,7 +150,10 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
 
 function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number; type: string; selected?: string}) {
   const {data: schemas = []} = useQuery(schemasQuery)
-  const {data: docs, error} = useQuery(listQuery(type))
+  const published = usePublishedPerspective()
+  const draftList = useQuery({...listQuery(type), enabled: !published})
+  const publishedList = useQuery({...publishedListQuery(type), enabled: published})
+  const {data: docs, error} = published ? publishedList : draftList
   return (
     <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-pane-index={index}>
       <header className="pane-header">
