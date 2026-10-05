@@ -31,7 +31,7 @@
 <text x="60" y="404" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">Scaffold TanStack Start…</tspan></text>
 <text x="60" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">Spike: same-field concur…</tspan></text>
 <text x="60" y="464" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">CI: e2e journeys block m…</tspan></text>
-<text x="60" y="494" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">Extend the reference fix…</tspan></text>
+<text x="60" y="494" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">Extend the reference fix…</tspan></text>
 </g>
 <g data-phase="1">
 <rect x="324" y="196" width="268" height="334" rx="12" class="card"/>

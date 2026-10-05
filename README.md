@@ -20,10 +20,11 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 28 changes, 7 tasks closed
+- **Today** · 1 change
+  - J13: validation — inline errors, publish blocked, validation panel ([#29](https://github.com/FRIKKern/barkpark-studio/pull/29))
+- **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
-  - J14: field groups (tabs) and the seo object ([#27](https://github.com/FRIKKern/barkpark-studio/pull/27))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
