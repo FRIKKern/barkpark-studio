@@ -1,6 +1,7 @@
 import {useEffect, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {useNavigate, useRouterState} from '@tanstack/react-router'
+import {useNavigate} from '@tanstack/react-router'
+import {usePublishedPerspective} from '../lib/perspective'
 import {docQuery, previewTitle, publishedQuery, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
 import {discardDraft, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, type Pane} from '../lib/panes'
@@ -17,8 +18,7 @@ export function DocumentPane({panes, index, closeHref, header, closeIcon}: Props
   const {data: schemas = []} = useQuery(schemasQuery)
   // Sanity's two perspectives, in the URL: the draft you edit (default), or the
   // published version, read-only (?perspective=published).
-  const perspective = useRouterState({select: (s) => (s.location.search as {perspective?: string}).perspective})
-  const viewingPublished = perspective === 'published'
+  const viewingPublished = usePublishedPerspective()
   const draftQ = useQuery(docQuery(pane.type, pane.id))
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished})
   const {data: doc, isPending, error} = viewingPublished ? publishedQ : draftQ

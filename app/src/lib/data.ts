@@ -40,11 +40,12 @@ const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
 })
 
 const fetchList = createServerFn({method: 'GET'})
-  .validator((d: {type: string}) => d)
+  .validator((d: {type: string; published?: boolean}) => d)
   .handler(async ({data}) => {
     const r = await bpJson<{result: {documents: Doc[]}}>(
-      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=_updatedAt:desc&limit=200&perspective=drafts`,
+      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=_updatedAt:desc&limit=200&perspective=${data.published ? 'published' : 'drafts'}`,
     )
+    if (data.published) return r.result.documents.map((d) => ({...d, _hasPublished: true})) as unknown as Json
     return (await withHasPublished(data.type, r.result.documents)) as unknown as Json
   })
 
@@ -151,6 +152,18 @@ export const listQuery = (type: string) =>
       const docs = (await fetchList({data: {type}})) as unknown as Doc[]
       // A list row already holds the whole doc: opening it needs no second request.
       for (const d of docs) client.setQueryData(['doc', d._publishedId], d)
+      return docs
+    },
+  })
+
+/** The list as the Published perspective shows it: published versions only. */
+export const publishedListQuery = (type: string) =>
+  queryOptions({
+    queryKey: ['list-published', type],
+    staleTime: 30_000,
+    queryFn: async ({client}) => {
+      const docs = (await fetchList({data: {type, published: true}})) as unknown as Doc[]
+      for (const d of docs) client.setQueryData(['doc-published', d._publishedId], d)
       return docs
     },
   })

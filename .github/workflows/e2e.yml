@@ -39,6 +39,8 @@ jobs:
         run: env | grep '^BARKPARK_' > .env
       - name: Reset studio-parity to the fixture
         run: node --env-file=.env scripts/seed-barkpark.mjs --data
+      - name: Build the studio (outside the suite's 60 s budget)
+        run: pnpm --dir app build
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
