@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 38 changes, 12 tasks closed
-  - J45: dark mode — System / Light / Dark in the user menu, no white flash ([#67](https://github.com/FRIKKern/barkpark-studio/pull/67))
-  - F13: axe on the J01–J04 screens; fix our violations ([#66](https://github.com/FRIKKern/barkpark-studio/pull/66))
-  - J36: image drop, paste, upload error + retry, library select + usage, replace/remove ([#65](https://github.com/FRIKKern/barkpark-studio/pull/65))
+- **Today** · 40 changes, 14 tasks closed
+  - 0004: fit the one-page cap (server gaps point to their tasks) ([#70](https://github.com/FRIKKern/barkpark-studio/pull/70))
+  - Done: [FF3 Per-type editor mode: Freeform-main vs Classic with toggle](https://github.com/FRIKKern/barkpark/issues/21759)
+  - Done: [Barkpark: HTTP route for field-scoped batch block ops](https://github.com/FRIKKern/barkpark/issues/21760)
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
