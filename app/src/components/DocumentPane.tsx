@@ -4,7 +4,7 @@ import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {validate, type Problem} from '../lib/validation'
 import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
-import {createDoc, discardDraft, draftNew, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
+import {createDoc, discardDraft, draftNew, edit, flush, publish, undo, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {DocContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
@@ -98,6 +98,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         // Sanity's publish shortcut.
         if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !problems.length) (e.preventDefault(), void publish(qc, doc))
         if (e.ctrlKey && e.altKey && e.code === 'KeyI' && doc) (e.preventDefault(), setInspectOpen(true))
+        // F7: the document's own undo (this editor's changes only, across fields and
+        // across others' edits). The block canvas keeps its own.
+        const mod = e.metaKey || e.ctrlKey
+        const key = e.key.toLowerCase()
+        if (mod && !e.altKey && (key === 'z' || key === 'y') && !viewingPublished && !(e.target as HTMLElement).closest('bp-paper-canvas')) {
+          e.preventDefault()
+          const field = undo(qc, pane.id, key === 'z' && !e.shiftKey)
+          if (field) requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-pane="doc:${pane.id}"] [id="${field}"]`)?.focus())
+        }
       }}
     >
       <header className="pane-header">

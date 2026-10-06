@@ -18,7 +18,7 @@
 <text x="1160" y="102" font-size="16" text-anchor="end" class="muted">journeys pass side by side</text>
 <rect x="40" y="124" width="1120" height="8" rx="4" class="track"/>
 <text x="40" y="168" font-size="16"><tspan class="done">✓ passed</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>
-<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 3 / 25</text>
+<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 4 / 26</text>
 <g data-phase="0">
 <rect x="40" y="196" width="268" height="334" rx="12" class="card on"/>
 <text x="60" y="228" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">PHASE 0</text>
@@ -75,7 +75,7 @@
 <text x="912" y="262" font-size="23" font-weight="600">Live</text>
 <path d="M912 282H1140" class="rule"/>
 <text x="912" y="314" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J05 Two browsers</tspan></text>
-<text x="912" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J06 Two browsers type in…</tspan></text>
+<text x="912" y="344" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J06 Two browsers type in…</tspan></text>
 <text x="912" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J07 Presence everywhere</tspan></text>
 <text x="912" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J20 10 s offline while t…</tspan></text>
 <text x="912" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J32 Someone deletes or c…</tspan></text>
@@ -109,7 +109,7 @@
 <text x="628" y="612" font-size="23" font-weight="600">History</text>
 <path d="M628 632H856" class="rule"/>
 <text x="628" y="664" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J15 Review changes</tspan></text>
-<text x="628" y="694" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J16 Browse history</tspan></text>
+<text x="628" y="694" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J16 Browse history</tspan></text>
 </g>
 <g data-phase="after">
 <rect x="892" y="546" width="268" height="274" rx="12" class="card"/>

@@ -1,6 +1,7 @@
-import {createContext, useContext, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
+import {createContext, useContext, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
 import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
+import {mapCaret} from '../lib/merge'
 import type {Problem} from '../lib/validation'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
@@ -232,18 +233,28 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
 function TextInput({id, value, onChange, rows, readOnly}: {id: string; value: string; onChange: (v: unknown) => void; rows?: number; readOnly?: boolean}) {
   const [local, setLocal] = useState(value)
   const [seen, setSeen] = useState(value)
+  const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
+  const caret = useRef<number | null>(null)
   if (value !== seen) {
+    // Someone else's edit (J06): keep the caret on the same text, not at the end (F6).
+    const el = ref.current
+    if (el && el === document.activeElement && el.value !== value) caret.current = mapCaret(el.value, value, el.selectionStart ?? 0)
     setSeen(value)
     setLocal(value)
   }
+  useLayoutEffect(() => {
+    if (caret.current === null) return
+    ref.current?.setSelectionRange(caret.current, caret.current)
+    caret.current = null
+  })
   const change = (v: string) => {
     setLocal(v)
     onChange(v)
   }
   return rows ? (
-    <textarea id={id} className="input" rows={rows} value={local} readOnly={readOnly} onChange={(e) => change(e.target.value)} />
+    <textarea ref={ref} id={id} className="input" rows={rows} value={local} readOnly={readOnly} onChange={(e) => change(e.target.value)} />
   ) : (
-    <input id={id} className="input" value={local} readOnly={readOnly} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
+    <input ref={ref} id={id} className="input" value={local} readOnly={readOnly} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
   )
 }
 
