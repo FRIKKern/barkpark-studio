@@ -2,8 +2,9 @@ import {useSyncExternalStore} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
-import type {Doc} from './data'
-import {applyPaths, setPath, within} from './paths'
+import {docQuery, type Doc} from './data'
+import {merge3} from './merge'
+import {applyPaths, getPath, setPath, within} from './paths'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
 // title, list row all repaint with no network wait); the write goes to Barkpark
@@ -13,6 +14,11 @@ import {applyPaths, setPath, within} from './paths'
 // the page flushes. Interim for task-2c31de0cf6597d32: every editor shares the
 // server token's 60 writes/min. Server truth (mutate responses, live frames) is folded
 // back in under whatever is still unsent, and never older than what we hold.
+//
+// Concurrent edits (J05, J06): every patch carries the rev it was made against
+// (ifRevisionID). Someone else wrote first → 412 → read theirs, rebase ours on it
+// (text fields merge with diff-match-patch, other values: ours wins), send again.
+// A live frame that changes a field being typed in rebases it the same way at once.
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 
@@ -40,6 +46,12 @@ type DocEdits = {
   timer?: ReturnType<typeof setTimeout>
   /** A new doc that exists only here: its first write creates it with these values. */
   pendingCreate?: Record<string, unknown>
+  /** The server rev our unsent edits are made against (sent as ifRevisionID). */
+  rev?: string
+  /** For each field with edits in dirty or inflight: the server value they were made from. */
+  base: Map<string, unknown>
+  /** Rebases in a row (a guard against a write that never gets through). */
+  conflicts: number
 }
 
 export const WRITE_GAP_MS = 750
@@ -54,7 +66,7 @@ const setState = (e: DocEdits, state: SaveState, error?: string) => {
 
 const entry = (id: string, type: string) => {
   let e = docs.get(id)
-  if (!e) docs.set(id, (e = {type, dirty: new Map(), inflight: null, snap: SAVED, lastSent: 0}))
+  if (!e) docs.set(id, (e = {type, dirty: new Map(), inflight: null, snap: SAVED, lastSent: 0, base: new Map(), conflicts: 0}))
   return e
 }
 
@@ -69,11 +81,34 @@ function writeCache(qc: QueryClient, id: string, type: string, doc: Doc) {
   qc.setQueryData(['list', type], (list: Doc[] | undefined) => list && [doc, ...list.filter((d) => d._publishedId !== id)])
 }
 
+const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
+
+/** Move our unsent edits onto server doc `d`: fields someone else changed meanwhile merge. */
+function rebase(e: DocEdits, d: Doc) {
+  e.rev = d._rev
+  for (const [f, base] of e.base) {
+    const theirs = getPath(d, f)
+    if (same(theirs, base)) continue
+    // Our own write coming back is not someone else's change.
+    if (e.inflight?.has(f) && same(theirs, e.inflight.get(f))) {
+      e.base.set(f, theirs)
+      continue
+    }
+    // An inflight-only field waits for its 412; a dirty one merges now.
+    if (!e.dirty.has(f)) continue
+    const mine = e.dirty.get(f)
+    if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') e.dirty.set(f, merge3(base, mine, theirs))
+    e.base.set(f, theirs)
+  }
+}
+
 /** Fold server truth into the cache: skip it when older than what we hold, keep unsent edits on top. */
 export function applyServer(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   const held = qc.getQueryData<Doc | null>(['doc', id])
   if (held && held._updatedAt > doc._updatedAt) return
+  const e = docs.get(id)
+  if (e) rebase(e, doc)
   // A published row (or a publish) proves a published version; a draft keeps what we knew.
   const _hasPublished = !doc._draft || (doc._hasPublished ?? held?._hasPublished ?? false)
   writeCache(qc, id, doc._type, overlay(id, {...doc, _hasPublished} as Doc))
@@ -83,6 +118,11 @@ export function applyServer(qc: QueryClient, doc: Doc) {
 export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown) {
   const id = doc._publishedId
   const e = entry(id, doc._type)
+  const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
+  // What this edit is made against: the server's value (and rev) as this browser has it.
+  if (!e.dirty.size && !e.inflight) e.rev = held._rev || undefined
+  const pending = [...e.base.keys()].some((k) => within(field, k) || within(k, field))
+  if (!pending) e.base.set(field, getPath(held, field))
   // One pending write per spot: a path inside an object already pending whole goes
   // into that value; a whole value replaces the paths pending inside it.
   const outer = [...e.dirty.keys()].find((k) => k !== field && within(field, k))
@@ -91,7 +131,6 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown) {
     for (const k of [...e.dirty.keys()]) if (k !== field && within(k, field)) e.dirty.delete(k)
     e.dirty.set(field, value)
   }
-  const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
   // An edit makes (or updates) the draft: show it as one now.
   writeCache(qc, id, doc._type, setPath({...held, _draft: true} as Doc, field, value))
   if (e.snap.state === 'saved') setState(e, 'saving')
@@ -151,13 +190,37 @@ async function send(qc: QueryClient, id: string) {
   try {
     const mutation: Json = creating
       ? {create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}
-      : {patch: {id, type: e.type, set, unset}}
+      : {patch: {id, type: e.type, set, unset, ...(e.rev ? {ifRevisionID: e.rev} : {})}}
     const r = (await mutate({data: {mutations: [mutation]}})) as {results: {document: Doc}[]}
+    const saved = r.results[0].document
     if (creating) e.pendingCreate = undefined
+    // What we sent is now the server's: a field still being typed builds on it.
+    for (const f of e.inflight.keys()) {
+      if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
+      else e.base.delete(f)
+    }
     e.inflight = null
-    applyServer(qc, r.results[0].document)
+    e.conflicts = 0
+    applyServer(qc, saved)
     setState(e, e.dirty.size ? 'saving' : 'saved')
   } catch (err) {
+    // Someone else wrote first (stale rev; or both forked the draft at once,
+    // task-324b4d00706a6cfb): read theirs, rebase ours onto it, send again.
+    if (!creating && /^mutate (409|412)\b|already been taken/.test((err as Error).message) && e.conflicts++ < 5) {
+      try {
+        const latest = await qc.fetchQuery({...docQuery(e.type, id), staleTime: 0})
+        e.dirty = new Map([...e.inflight!, ...e.dirty])
+        e.inflight = null
+        if (latest) {
+          rebase(e, latest)
+          writeCache(qc, id, e.type, overlay(id, latest))
+        }
+        void send(qc, id)
+        return
+      } catch {
+        // fall through: a plain failure, retried below
+      }
+    }
     // Keep every value: put the failed batch back under anything typed since, retry.
     e.dirty = new Map([...e.inflight!, ...e.dirty])
     e.inflight = null
