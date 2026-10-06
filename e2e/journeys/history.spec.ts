@@ -1,14 +1,17 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
 import {target, type Target} from '../rig/targets'
 
-// J16 evidence, both studios: edit and publish, edit again; open History from
-// the document "…" menu; pick the published revision: it shows read-only at a
-// deep URL that survives a reload; Revert to revision writes it back as the draft. Stills +
-// clips go to e2e/evidence/ (gitignored). Not a CI gate (`pnpm evidence`).
+// J16 evidence, both studios, on post-history: a document with a real history on
+// each side (scripts/reference-history.mjs: edits by two authors, publishes, an
+// unpublish — fixture imports rewrite history, so it isn't in the seed). Open
+// History from the "…" menu; pick a published revision: it shows
+// read-only at a deep URL that survives a reload; Revert to revision writes it
+// back as the draft. Stills + clips go to e2e/evidence/. Not a CI gate.
+// Re-run scripts/reference-history.mjs after (the revert leaves a draft).
 // Authors by name on ours need dev sign-in (STUDIO_DEV_LOGIN=1 + an admin token);
 // without it every author is "API token" (task-d0c6a847e2a4658e).
-const ID = 'post-16'
-const TITLE = 'Fixture post 16'
+const ID = 'post-history'
+const FIRST = 'History fixture v4'
 const shot = (name: string, step: string) => `evidence/J16-${name}-${step}.png`
 test.use({video: 'on'})
 
@@ -22,6 +25,13 @@ async function openMenu(t: Target, page: Page, button: Locator) {
 const docMenu = (t: Target, page: Page) =>
   t.name === 'sanity' ? t.pane(page, 2).locator('button:has([data-sanity-icon="ellipsis-horizontal"])').first() : page.getByRole('button', {name: 'Show document actions'})
 
+async function retitle(t: Target, page: Page, title: string) {
+  await t.field(page, 'title').click()
+  await page.keyboard.press('ControlOrMeta+a')
+  await page.keyboard.type(title)
+  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: title})
+}
+
 async function signInIfAsked(page: Page) {
   if (!page.url().includes('/login')) return
   await page.locator('html[data-hydrated]').waitFor({state: 'attached'}) // typing before hydration is lost
@@ -30,15 +40,6 @@ async function signInIfAsked(page: Page) {
   await page.waitForURL((u) => !u.pathname.startsWith('/login'))
 }
 
-async function retitle(t: Target, page: Page, title: string) {
-  await t.field(page, 'title').click()
-  await page.keyboard.press('ControlOrMeta+a')
-  await page.keyboard.type(title)
-  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: title})
-}
-
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: TITLE}))
-
 test('@evidence J16: history timeline, an old revision read-only, revert', async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
@@ -46,11 +47,12 @@ test('@evidence J16: history timeline, an old revision read-only, revert', async
   await signInIfAsked(page)
   await t.settle(page)
 
-  // Two versions to go back to: v1 published, then v2 as the draft.
-  await retitle(t, page, 'Post 16 v1')
+  // Two more versions, made here in each studio: Sanity's timeline only resolves
+  // revisions for edits it has indexed, and the newest are the reliable ones.
+  await retitle(t, page, FIRST)
   await page.getByRole('button', {name: /^Publish$/}).last().click()
-  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toEqual({draft: undefined, published: 'Post 16 v1'})
-  await retitle(t, page, 'Post 16 v2')
+  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toEqual({draft: undefined, published: FIRST})
+  await retitle(t, page, 'History fixture v5')
 
   // History, from the document "…" menu.
   await (await openMenu(t, page, docMenu(t, page))).getByRole('menuitem', {name: 'History'}).click()
@@ -59,25 +61,26 @@ test('@evidence J16: history timeline, an old revision read-only, revert', async
   await expect(revisions.getByRole('option', {name: /Published/}).first()).toBeVisible({timeout: 15_000})
   await page.screenshot({path: shot(t.name, '1-timeline')})
 
-  // The published revision: read-only, at a deep URL.
+  // The published v4: read-only, at a deep URL.
   await revisions.getByRole('option', {name: /Published/}).first().getByRole('button').first().click()
-  await expect(t.field(page, 'title')).toHaveValue('Post 16 v1')
+  await expect(t.field(page, 'title')).toHaveValue(FIRST, {timeout: 15_000})
   await expect.poll(() => decodeURIComponent(page.url())).toMatch(/rev=[0-9a-f-]+/)
   const deepUrl = page.url()
   await page.screenshot({path: shot(t.name, '2-old-revision')})
-  // The deep URL survives a reload on ours. Sanity's reference answers "We couldn't
-  // find the document revision selected" after a reload (observed 2026-10-06), so
-  // there the revert runs straight from the timeline pick.
+  // The deep URL survives a reload on ours. The reference can only show a revision
+  // in the session that loaded its timeline: after a reload the form is empty (seen
+  // on a fresh doc too, 2026-10-06), so there the revert runs first and the
+  // reload's still comes last.
   if (t.name === 'studio') {
     await page.goto(deepUrl)
     await t.settle(page)
-    await expect(t.field(page, 'title')).toHaveValue('Post 16 v1', {timeout: 15_000})
+    await expect(t.field(page, 'title')).toHaveValue(FIRST, {timeout: 15_000})
     await page.screenshot({path: shot(t.name, '2b-reloaded')})
   }
 
-  // Revert to revision: the old revision becomes the draft.
+  // Revert to revision: both ask "Are you sure you want to restore this document?",
+  // then the old revision becomes the draft.
   await page.getByRole('button', {name: 'Revert to revision'}).last().click()
-  // Both ask first: "Are you sure you want to restore this document?"
   await expect(page.getByText('Are you sure you want to restore this document?')).toBeVisible()
   await page.waitForTimeout(t.name === 'sanity' ? 500 : 0) // its popover animates in
   await page.screenshot({path: shot(t.name, '2c-revert-confirm')})
@@ -87,12 +90,20 @@ test('@evidence J16: history timeline, an old revision read-only, revert', async
     .getByRole('button', {name: 'Confirm'})
     .click()
   if (t.name === 'sanity') {
-    // The reference answers "An error occurred during restore" on this dataset
-    // (observed 2026-10-06; its history was rewritten by fixture imports). Keep the still.
+    // On this project the reference's restore fails ("An error occurred during
+    // restore"): its history API doesn't return the revision (2026-10-06). Keep the still.
     await page.waitForTimeout(3000)
     await page.screenshot({path: shot(t.name, '3-restored')})
-    return
+    console.log(`[J16 sanity] after revert: ${JSON.stringify(await t.versions(ID))}`)
+  } else {
+    await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: FIRST})
+    await page.screenshot({path: shot(t.name, '3-restored')})
   }
-  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: 'Post 16 v1'})
-  await page.screenshot({path: shot(t.name, '3-restored')})
+
+  if (t.name === 'sanity') {
+    await page.goto(deepUrl)
+    await t.settle(page)
+    await page.waitForTimeout(4000)
+    await page.screenshot({path: shot(t.name, '2b-reloaded')})
+  }
 })
