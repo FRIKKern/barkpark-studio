@@ -34,7 +34,7 @@ export const readBlocks = async (type: string, id: string, field?: string) => (a
  * or none, fenced on `ifRev`; `rev` is the doc's rev after it. A field's own list
  * goes to /fields/:field/ops, the doc's to /ops.
  */
-export type OpsResult = {ok: true; rev: string} | {ok: false; status: number; code?: string; message: string; rev: string}
+export type OpsResult = {ok: true; rev: string} | {ok: false; status: number; code?: string; message: string; rev: string; actual?: string}
 export const applyBlockOps = createServerFn({method: 'POST'})
   .validator((d: {type: string; id: string; field?: string; ops: Json[]; ifRev: string}) => d)
   .handler(async ({data}) => {
@@ -44,8 +44,9 @@ export const applyBlockOps = createServerFn({method: 'POST'})
       headers: {'content-type': 'application/json'},
       body: JSON.stringify({ops: data.ops, ifRev: data.ifRev}),
     })
-    const body = (await res.json().catch(() => ({}))) as {result?: {rev: string}; error?: {code?: string; message?: string}}
-    if (!res.ok) return {ok: false, status: res.status, code: body.error?.code, message: body.error?.message ?? `Barkpark ${res.status}`, rev: data.ifRev} as Json
+    const body = (await res.json().catch(() => ({}))) as {result?: {rev: string}; error?: {code?: string; message?: string; details?: {actual?: string}}}
+    // A 412 names the doc's current rev (`details.actual`): the batch goes again on it.
+    if (!res.ok) return {ok: false, status: res.status, code: body.error?.code, message: body.error?.message ?? `Barkpark ${res.status}`, rev: data.ifRev, actual: body.error?.details?.actual} as Json
     return {ok: true, rev: body.result!.rev} as Json
   })
 

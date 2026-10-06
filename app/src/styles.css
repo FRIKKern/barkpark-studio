@@ -728,6 +728,17 @@ fieldset.object-field > .field-actions { top: -38px; }
 .studio-error { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
 .studio-error .pane-error { max-width: 640px; }
 
+/* D01: a bound field block in the canvas reads like the Classic form's field: its title
+   above, the control full width (the shared editor ships no style for native controls). */
+.pd-editor .bp-canvas-field { display: flex; flex-direction: column; gap: 8px; margin: 0 0 20px; font-family: var(--font, inherit); }
+.pd-editor .bp-canvas-field-label { font: 500 13px/19px Inter, system-ui, sans-serif; color: var(--fg); }
+.pd-editor .bp-canvas-field-control { box-sizing: border-box; width: 100%; padding: 7px 12px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); font: 400 15px/21px Inter, system-ui, sans-serif; color: var(--fg); }
+.pd-editor textarea.bp-canvas-field-control { resize: vertical; min-height: 84px; }
+.pd-editor .bp-canvas-field-control:focus { outline: none; box-shadow: inset 0 0 0 1px var(--selected), 0 0 0 1px var(--selected); }
+/* The paper's section rule bleeds past a reading column; in a pane it stays inside. */
+.pd-editor .bp-paper-editor-body { background: transparent; }
+.pd-editor .bp-paper-editor-body > .ProseMirror > h2 { margin-inline: 0; padding-inline: 0; width: auto; margin-top: 32px; }
+
 /* Broken values (J39): Sanity's cards in place of an input it can't edit */
 .broken-card { border-radius: 3px; font-size: 13px; overflow: hidden; }
 .broken-card[data-tone='warn'] { background: var(--warn-bg); color: var(--warn-fg); }
