@@ -88,7 +88,7 @@
 <path d="M60 632H288" class="rule"/>
 <text x="60" y="664" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J09 Arrays of refs and o…</tspan></text>
 <text x="60" y="694" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J33 Array of objects</tspan></text>
-<text x="60" y="724" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J34 Tags input</tspan></text>
+<text x="60" y="724" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J34 Tags input</tspan></text>
 </g>
 <g data-phase="5">
 <rect x="324" y="546" width="268" height="274" rx="12" class="card"/>

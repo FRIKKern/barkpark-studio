@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 13 changes, 6 tasks closed
+- **Today** · 14 changes, 6 tasks closed
+  - J18: warm the new-doc path before timing F2 (CI timed the browser's first run: 101-118 ms vs 7 ms locally on the prod build) ([#44](https://github.com/FRIKKern/barkpark-studio/pull/44))
   - J34: tags input and reorderable rows for plain string arrays ([#42](https://github.com/FRIKKern/barkpark-studio/pull/42))
   - Object subfields write by path: two editors on different subfields both keep theirs (J14 risk gone) ([#40](https://github.com/FRIKKern/barkpark-studio/pull/40))
-  - Done: [Paper canvas ignores {name, fields} object entries in a richText vocabulary's blocks.of](https://github.com/FRIKKern/barkpark/issues/21744)
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
