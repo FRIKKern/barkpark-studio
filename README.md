@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 66 changes, 18 tasks closed
+- **Today** · 67 changes, 18 tasks closed
+  - D08: undo/redo in the canvas, a paste included, each step saved; the leading field block no longer replaced by typing ([#96](https://github.com/FRIKKern/barkpark-studio/pull/96))
   - D06: a wikilink in the canvas opens its doc in the next pane; hover shows title + excerpt; [[ searches every type ([#95](https://github.com/FRIKKern/barkpark-studio/pull/95))
   - J37: navbar shell — Structure / Vision tool switcher, Vision for Barkpark queries, Sanity's user menu ([#94](https://github.com/FRIKKern/barkpark-studio/pull/94))
-  - D05: two tabs, same doc — a 412 resends on the other's rev, both edits kept; remote blocks no longer dropped while the author is in a block ([#93](https://github.com/FRIKKern/barkpark-studio/pull/93))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
