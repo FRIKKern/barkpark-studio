@@ -41,7 +41,7 @@ export function useFocusScope<T extends HTMLElement>({trap = false, menu = false
         return
       }
       if (menu && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
-        const items = [...root.querySelectorAll<HTMLElement>('[role=menuitem]:not([disabled])')]
+        const items = [...root.querySelectorAll<HTMLElement>('[role^=menuitem]:not([disabled])')]
         if (!items.length) return
         // Handled here: an outer handler (a menu-wrap's own arrow keys) must not move focus again.
         e.preventDefault()
@@ -72,7 +72,7 @@ export function useFocusScope<T extends HTMLElement>({trap = false, menu = false
   // Focus moves in if nothing inside took it (no autoFocus); it goes back out on close.
   useEffect(() => {
     const root = node.current
-    if (root && !root.contains(document.activeElement)) (menu ? root.querySelector<HTMLElement>('[role=menuitem]:not([disabled])') : focusables(root)[0])?.focus()
+    if (root && !root.contains(document.activeElement)) (menu ? root.querySelector<HTMLElement>('[role^=menuitem]:not([disabled])') : focusables(root)[0])?.focus()
     return () => {
       const active = document.activeElement
       const lost = !active || active === document.body || (root && root.contains(active)) || !active.isConnected
