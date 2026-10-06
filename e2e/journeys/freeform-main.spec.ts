@@ -32,7 +32,7 @@ test('@local D01: a Freeform-main doc opens in the canvas, bound fields as title
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-only: Sanity has no Freeform')
   before = (await read()).blocks
-  expect(before.map((b) => b.id), 'seeded note-01').toEqual(['synth-f-title-0', 'synth-f-label-1', 'n01h', 'n01p'])
+  expect(before.map((b) => b.id), 'seeded note-01').toEqual(['synth-f-title-0', 'synth-f-label-1', 'n01h', 'n01p', 'n01l'])
   await page.goto(t.docPath('note', ID))
   await t.settle(page)
   const canvas = page.locator('bp-paper-canvas')
@@ -69,5 +69,5 @@ test.fixme('@local D01: typing in a free block saves it and keeps the field bloc
   await page.keyboard.press('End')
   await page.keyboard.type(' Typed here.')
   await expect.poll(async () => JSON.stringify((await read()).blocks.find((b) => b.id === 'n01p')), {timeout: 10_000}).toContain('Typed here.')
-  expect((await read()).blocks.map((b) => b.id)).toEqual(['synth-f-title-0', 'synth-f-label-1', 'n01h', 'n01p'])
+  expect((await read()).blocks.map((b) => b.id)).toEqual(['synth-f-title-0', 'synth-f-label-1', 'n01h', 'n01p', 'n01l'])
 })

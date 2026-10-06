@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
-import {docQuery} from '../lib/data'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult} from '../lib/blocks'
 import {toast} from './Toasts'
 
@@ -21,8 +21,12 @@ type Canvas = HTMLElement & {
   applyServerBlocks(blocks: Block[], echo?: {mode?: 'own' | 'own-stale'; requestId?: string}): void
   applyServerBlocksIfIdle(blocks: Block[]): boolean
   resolveConflictWithServerBlocks(blocks: Block[]): void
+  linkPreviewSource: ((t: LinkTarget) => Promise<{title?: string; excerpt?: string; href?: string} | null>) | null
+  wikilinkSource: ((query: string) => Promise<{title: string; id: string; type: string}[]>) | null
   hasPendingChanges(): boolean
 }
+
+type LinkTarget = {kind: 'link' | 'wikilink'; href: string | null; target: string | null; docId: string | null; alias: string | null}
 
 let bundle: Promise<void> | null = null
 /** Load the canvas once per page: script + both stylesheets, from the connected Barkpark. */
@@ -59,10 +63,23 @@ type Problem = {message: string}
  * `field`: edit that richText field's own block list (J10) instead of the document's;
  * `vocabulary`: the field's declared blocks/styles/marks (the schema's `blocks`), which
  * the canvas offers and enforces, as Barkpark's LiveView stamps it (`data-vocabulary`);
- * `labels`: field name → title, shown on the bound field blocks that carry no label.
+ * `labels`: field name → title, shown on the bound field blocks that carry no label;
+ * `openDoc`: where a wikilink goes (D06).
  */
-export function PortableDocEditor({type, id, field, vocabulary, labels, editable = true}: {type: string; id: string; field?: string; vocabulary?: unknown; labels?: Record<string, string>; editable?: boolean}) {
+export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc, editable = true}: {
+  type: string
+  id: string
+  field?: string
+  vocabulary?: unknown
+  labels?: Record<string, string>
+  /** D06: open a linked doc (a wikilink) in the next pane. */
+  openDoc?: (id: string, type: string) => void
+  editable?: boolean
+}) {
   const host = useRef<HTMLDivElement>(null)
+  const qc = useQueryClient()
+  const openDocRef = useRef(openDoc)
+  openDocRef.current = openDoc
   const vocabularyKey = vocabulary ? JSON.stringify(vocabulary) : ''
   const canvas = useRef<Canvas | null>(null)
   const loop = useRef({rev: '', saving: 0, requests: 0})
@@ -155,12 +172,29 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, editable
           console.error('[canvas] node failed', d)
           toast({tone: 'critical', title: `A ${d.type ?? 'block'} could not be shown`, description: d.message ?? d.error})
         })
-        // Plain links open in a new tab; wikilinks into panes arrive with D06.
+        // D06: a wikilink opens its doc in the next pane; a plain link a new tab.
         el.addEventListener('bp-canvas-open-link', (e) => {
-          const {href} = (e as CustomEvent<{href?: string}>).detail
+          const {kind, docId} = (e as CustomEvent<LinkTarget>).detail
+          if (kind !== 'wikilink') return // the canvas opens it in a new window itself
           e.preventDefault()
-          if (href) window.open(href, '_blank', 'noopener')
+          if (docId && openDocRef.current)
+            void qc.fetchQuery(anyDocQuery(docId)).then((doc) =>
+              doc ? openDocRef.current?.(docId, doc._type) : toast({tone: 'critical', title: 'This link points to a document that does not exist', description: docId}),
+            )
         })
+        // The hover card: a wikilink shows its doc's title and excerpt.
+        el.linkPreviewSource = async ({kind, docId}) => {
+          if (kind !== 'wikilink' || !docId) return null
+          const doc = await qc.fetchQuery(anyDocQuery(docId))
+          if (!doc) return {title: 'Document not found', excerpt: docId}
+          const schema = schemaOf(qc.getQueryData<Schema[]>(['schemas']) ?? [], doc._type)
+          return {title: previewTitle(doc, schema), excerpt: doc.preview?.description ?? schema?.title}
+        }
+        // The `[[` menu: documents of any type.
+        el.wikilinkSource = async (query) => {
+          const schemas = qc.getQueryData<Schema[]>(['schemas']) ?? []
+          return (await searchAllDocs(query)).map((d) => ({title: previewTitle(d, schemaOf(schemas, d._type)), id: d._publishedId, type: d._type}))
+        }
         l.rev = first.rev
         host.current.replaceChildren(el)
         canvas.current = el
