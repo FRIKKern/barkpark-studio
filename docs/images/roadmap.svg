@@ -70,7 +70,7 @@
 <text x="628" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J29</tspan></text>
 <text x="702" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J30</tspan></text>
 <text x="776" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J31</tspan></text>
-<text x="628" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J43</tspan></text>
+<text x="628" y="398" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J43</tspan></text>
 </g>
 <g data-phase="3">
 <rect x="892" y="196" width="268" height="364" rx="12" class="card"/>
@@ -93,7 +93,7 @@
 <text x="60" y="694" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J09 Arrays of refs and o…</tspan></text>
 <text x="60" y="724" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J33 Array of objects</tspan></text>
 <text x="60" y="754" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J34 Tags input</tspan></text>
-<text x="60" y="784" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J44 Very long doc</tspan></text>
+<text x="60" y="784" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J44 Very long doc</tspan></text>
 </g>
 <g data-phase="5">
 <rect x="324" y="576" width="268" height="334" rx="12" class="card"/>
@@ -162,7 +162,7 @@
 <text x="60" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B01 Norwegian</tspan></text>
 <text x="60" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B02 Switch workspace / p…</tspan></text>
 <text x="60" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B03 Select several list…</tspan></text>
-<text x="330" y="1304" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">B04 Every Barkpark field…</tspan></text>
+<text x="330" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B04 Every Barkpark field…</tspan></text>
 <text x="330" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B05 Codelist fields</tspan></text>
 <text x="330" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B06 localizedText</tspan></text>
 <text x="600" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B07 Unpublish a doc othe…</tspan></text>

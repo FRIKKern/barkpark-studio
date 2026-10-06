@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 29 changes, 12 tasks closed
+- **Today** · 30 changes, 12 tasks closed
+  - J43: focus trap + restore to opener for dialogs and menus ([#58](https://github.com/FRIKKern/barkpark-studio/pull/58))
   - B04: every Barkpark field type renders sanely — colour picker, read-only JSON and source, number keyboards, never [object Object] ([#57](https://github.com/FRIKKern/barkpark-studio/pull/57))
   - Done: [P0 CI fixtures: add Barkpark-native types (task, book) so field-type gaps show](https://github.com/FRIKKern/barkpark/issues/21859)
-  - CI fixtures: a Barkpark-native type (volume) with codelist, localizedText, arrayOf composite, color, json, source and more ([#56](https://github.com/FRIKKern/barkpark-studio/pull/56))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
