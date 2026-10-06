@@ -76,6 +76,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const freeform = mode !== 'none' && !viewingPublished && (mode === 'main' || Array.isArray(doc?.blocks))
   // Published is read in Classic: the canvas edits the draft.
   const view: View = viewOf(pane.view, mode) === 'freeform' && !freeform ? 'classic' : viewOf(pane.view, mode)
+  const [canvasSeen, setCanvasSeen] = useState<string | null>(null)
+  if (freeform && view === 'freeform' && canvasSeen !== pane.id) setCanvasSeen(pane.id)
   const views: {id: View; title: string}[] = [
     {id: 'classic', title: freeform ? 'Classic' : 'Editor'},
     ...(freeform ? [{id: 'freeform' as View, title: 'Freeform'}] : []),
@@ -237,7 +239,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
         {doc && view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
-        {freeform && view === 'freeform' && <PortableDocEditor type={pane.type} id={pane.id} />}
+        {/* Mounted once per doc and then only hidden: the canvas mis-places typing
+            after it is mounted again in a page (task-f24549dea0618da2), and a remount costs a load. */}
+        {freeform && (view === 'freeform' || canvasSeen === pane.id) && (
+          <div hidden={view !== 'freeform'}>
+            <PortableDocEditor type={pane.type} id={pane.id} />
+          </div>
+        )}
         {pane.rev && revQ.data === null && <p role="alert">This revision can't be found. Pick another entry in the history.</p>}
         {doc && schema && view === 'classic' && (!pane.rev || revision) && (
           <div className="doc-form" onBlur={() => flush(qc, pane.id)}>

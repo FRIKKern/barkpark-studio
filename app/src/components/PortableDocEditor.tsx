@@ -55,7 +55,7 @@ function loadCanvas(): Promise<void> {
 type Save = {state: 'saved' | 'saving' | 'error' | 'conflict' | 'idle'; message?: string}
 type Problem =
   | {kind: 'conflict'; server: {rev: string; blocks: Block[]}; retry: {ops: BlockOp[]; seq: number}}
-  | {kind: 'failed'; message: string; discarded: boolean; partial: boolean; retry: {ops: BlockOp[]; seq: number}}
+  | {kind: 'failed'; message: string; discarded: boolean; retry: {ops: BlockOp[]; seq: number}}
 
 /**
  * `field`: edit that richText field's own block list (J10) instead of the document's;
@@ -105,7 +105,7 @@ export function PortableDocEditor({type, id, field, vocabulary, editable = true}
           l.mergeAfterSave = false
           return
         }
-        if (r.status === 412 && r.applied === 0) {
+        if (r.status === 412) {
           // Someone else wrote first. Keep the batch; the author chooses.
           const server = await readBlocks(type, id, field)
           if (gone) return
@@ -113,18 +113,15 @@ export function PortableDocEditor({type, id, field, vocabulary, editable = true}
           setProblem({kind: 'conflict', server, retry: {ops, seq}})
           return
         }
-        // Refused, or landed part-way (one op per request): never leave the canvas
-        // waiting on this batch. Part-way, only the server's copy is safe to diff against.
-        const partial = r.applied > 0
-        const discarded = !partial && el.discardInflightOps(seq)
-        if (partial) el.resolveConflictWithServerBlocks((await readBlocks(type, id, field)).blocks)
+        // Refused (a batch is all or nothing): never leave the canvas waiting on it.
+        const discarded = el.discardInflightOps(seq)
         setSave({state: 'error', message: r.message})
-        setProblem({kind: 'failed', message: r.message, discarded, partial, retry: {ops, seq}})
+        setProblem({kind: 'failed', message: r.message, discarded, retry: {ops, seq}})
       } catch (e) {
         if (gone) return
         const discarded = el.discardInflightOps(seq)
         setSave({state: 'error', message: (e as Error).message})
-        setProblem({kind: 'failed', message: (e as Error).message, discarded, partial: false, retry: {ops, seq}})
+        setProblem({kind: 'failed', message: (e as Error).message, discarded, retry: {ops, seq}})
       } finally {
         l.saving--
       }
@@ -204,6 +201,8 @@ export function PortableDocEditor({type, id, field, vocabulary, editable = true}
 
   // Someone else saved (the live stream refreshed the doc): take their blocks if the
   // canvas is idle. Busy, it keeps the author's state and the next save's rev decides.
+  // Known canvas bug: after it takes a changed block, the next keystroke can replace
+  // the first block (task-f24549dea0618da2).
   const {data: doc} = useQuery(docQuery(type, id))
   const seenRev = doc?._rev
   useEffect(() => {
@@ -241,15 +240,12 @@ export function PortableDocEditor({type, id, field, vocabulary, editable = true}
       {problem?.kind === 'failed' && (
         <div className="pd-conflict" role="alert">
           <strong>Could not save:</strong> {problem.message}
-          {problem.partial && ' Part of the edit was saved; the saved version is shown.'}
           <div>
-            {!problem.partial && (
-              <button type="button" className="btn-text" onClick={() => resolveRef.current?.retry(problem)}>
-                Retry
-              </button>
-            )}
+            <button type="button" className="btn-text" onClick={() => resolveRef.current?.retry(problem)}>
+              Retry
+            </button>
             <button type="button" className="btn-text" onClick={() => void resolveRef.current?.discard()}>
-              {problem.partial ? 'OK' : 'Discard unsaved edits'}
+              Discard unsaved edits
             </button>
           </div>
         </div>
