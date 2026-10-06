@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 57 changes, 17 tasks closed
+- **Today** · 58 changes, 18 tasks closed
+  - J38: global search filters (types, field filters, order, recent) ([#87](https://github.com/FRIKKern/barkpark-studio/pull/87))
+  - Done: [FF2 Fixture: one Freeform-main type and one Expectation type in both seeds](https://github.com/FRIKKern/barkpark/issues/21758)
   - FF2: Freeform fixtures — note (Freeform-main) + story Expectation (layout + prefill) ([#86](https://github.com/FRIKKern/barkpark-studio/pull/86))
-  - List rows show the main image as their thumbnail, like Sanity ([#85](https://github.com/FRIKKern/barkpark-studio/pull/85))
-  - J42: narrow window — one pane with a back link, like Sanity under 600 px ([#84](https://github.com/FRIKKern/barkpark-studio/pull/84))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
