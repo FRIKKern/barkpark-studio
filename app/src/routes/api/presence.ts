@@ -58,7 +58,8 @@ function queueFocus(token: string, sessionId: string, body: string) {
     const out = [...q.pending.values()]
     q.pending.clear()
     for (const b of out)
-      void bpFetch(`/v1/data/presence/${dataset()}/focus`, {method: 'POST', headers: {'content-type': 'application/json'}, body: b}, token).catch(() => {})
+      // No retry on 429: a late focus is worth less than the content write it would delay.
+      void bpFetch(`/v1/data/presence/${dataset()}/focus`, {method: 'POST', headers: {'content-type': 'application/json'}, body: b}, token, {retry: false}).catch(() => {})
   }
   const wait = q.last + FOCUS_FLUSH_MS - Date.now()
   if (wait <= 0) flush()
