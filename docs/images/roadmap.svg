@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1468" viewBox="0 0 1200 1468" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1498" viewBox="0 0 1200 1498" role="img" aria-labelledby="t d">
 <title id="t">Barkpark Studio roadmap</title>
-<desc id="d">1 of 47 journeys pass side by side. Phase 0 Foundation: now. Phase 1 Panes + Refs ★: next. Phase 2 Forms: later. Phase 3 Live: later. Phase 4 Arrays: later. Phase 5 Rich text + media: later. Phase 6 History: later. Phase after Plugins + Presentation: later. Freeform track: 0 of 14. Barkpark-native track: 0 of 10.</desc>
+<desc id="d">1 of 53 journeys pass side by side. Phase 0 Foundation: now. Phase 1 Panes + Refs ★: next. Phase 2 Forms: later. Phase 3 Live: later. Phase 4 Arrays: later. Phase 5 Rich text + media: later. Phase 6 History: later. Phase after Plugins + Presentation: later. Freeform track: 0 of 14. Barkpark-native track: 0 of 11.</desc>
 <style>
   svg { --bg:#fbfaf7; --card:#ffffff; --line:#e3e0d6; --ink:#1f1e1b; --muted:#6c6a63; --done:#2c7a4b; --now:#b26b00; --todo:#a3a097; --nowbg:#fff6e5; }
   @media (prefers-color-scheme: dark) {
@@ -11,13 +11,13 @@
   .bg { fill: var(--bg); } .track { fill: var(--line); } .bar { fill: var(--done); } .rule { stroke: var(--line); }
   .card { fill: var(--card); stroke: var(--line); } .card.on { fill: var(--nowbg); stroke: var(--now); stroke-width: 2; }
 </style>
-<rect class="bg" width="1200" height="1468" rx="16"/>
+<rect class="bg" width="1200" height="1498" rx="16"/>
 <text x="40" y="70" font-size="36" font-weight="700" letter-spacing="-0.8">Barkpark Studio</text>
 <text x="40" y="102" font-size="19" class="muted">Sanity-quality editing on Barkpark, one journey at a time.</text>
-<text x="1160" y="70" font-size="40" font-weight="700" text-anchor="end">1<tspan class="muted" font-weight="400"> / 47</tspan></text>
+<text x="1160" y="70" font-size="40" font-weight="700" text-anchor="end">1<tspan class="muted" font-weight="400"> / 53</tspan></text>
 <text x="1160" y="102" font-size="16" text-anchor="end" class="muted">journeys pass side by side</text>
 <rect x="40" y="124" width="1120" height="8" rx="4" class="track"/>
-<rect x="40" y="124" width="23.829787234042552" height="8" rx="4" class="bar"/>
+<rect x="40" y="124" width="21.132075471698112" height="8" rx="4" class="bar"/>
 <text x="40" y="168" font-size="16"><tspan class="done">✓ passed</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>
 <text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 8 / 31</text>
 <g data-phase="0">
@@ -55,6 +55,8 @@
 <text x="492" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J27</tspan></text>
 <text x="344" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J41</tspan></text>
 <text x="418" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J42</tspan></text>
+<text x="492" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J50</tspan></text>
+<text x="344" y="454" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J51</tspan></text>
 </g>
 <g data-phase="2">
 <rect x="608" y="196" width="268" height="364" rx="12" class="card"/>
@@ -72,6 +74,8 @@
 <text x="702" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J30</tspan></text>
 <text x="776" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J31</tspan></text>
 <text x="628" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J43</tspan></text>
+<text x="702" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J49</tspan></text>
+<text x="776" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J52</tspan></text>
 </g>
 <g data-phase="3">
 <rect x="892" y="196" width="268" height="364" rx="12" class="card"/>
@@ -83,10 +87,11 @@
 <text x="912" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J06 Two browsers type in…</tspan></text>
 <text x="912" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J07 Presence everywhere</tspan></text>
 <text x="912" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J20 10 s offline while t…</tspan></text>
-<text x="912" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J32 Someone deletes or c…</tspan></text>
+<text x="912" y="434" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J32 Someone deletes or c…</tspan></text>
+<text x="912" y="464" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J48 Session lost mid-edit</tspan></text>
 </g>
 <g data-phase="4">
-<rect x="40" y="576" width="268" height="334" rx="12" class="card"/>
+<rect x="40" y="576" width="268" height="364" rx="12" class="card"/>
 <text x="60" y="608" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">PHASE 4</text>
 <text x="288" y="608" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="todo">LATER</text>
 <text x="60" y="642" font-size="23" font-weight="600">Arrays</text>
@@ -97,7 +102,7 @@
 <text x="60" y="784" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J44 Very long doc</tspan></text>
 </g>
 <g data-phase="5">
-<rect x="324" y="576" width="268" height="334" rx="12" class="card"/>
+<rect x="324" y="576" width="268" height="364" rx="12" class="card"/>
 <text x="344" y="608" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">PHASE 5</text>
 <text x="572" y="608" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="todo">LATER</text>
 <text x="344" y="642" font-size="23" font-weight="600">Rich text + media</text>
@@ -109,7 +114,7 @@
 <text x="344" y="814" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J36 Image actions</tspan></text>
 </g>
 <g data-phase="6">
-<rect x="608" y="576" width="268" height="334" rx="12" class="card"/>
+<rect x="608" y="576" width="268" height="364" rx="12" class="card"/>
 <text x="628" y="608" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">PHASE 6</text>
 <text x="856" y="608" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="todo">LATER</text>
 <text x="628" y="642" font-size="23" font-weight="600">History</text>
@@ -118,7 +123,7 @@
 <text x="628" y="724" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J16 Browse history</tspan></text>
 </g>
 <g data-phase="after">
-<rect x="892" y="576" width="268" height="334" rx="12" class="card"/>
+<rect x="892" y="576" width="268" height="364" rx="12" class="card"/>
 <text x="912" y="608" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">AFTER</text>
 <text x="1140" y="608" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="todo">LATER</text>
 <text x="912" y="642" font-size="19" font-weight="600">Plugins + Presentation</text>
@@ -130,46 +135,48 @@
 <text x="912" y="814" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J45 Dark mode</tspan></text>
 <text x="912" y="844" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J46 Phone width</tspan></text>
 <text x="912" y="874" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J47 Screen reader pass J…</tspan></text>
+<text x="912" y="904" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J53 New Studio version w…</tspan></text>
 </g>
 <g data-track="freeform">
-<rect x="40" y="926" width="1120" height="244" rx="12" class="card"/>
-<text x="60" y="958" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">SIDE TRACK · COUNTED APART</text>
-<text x="1140" y="958" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="muted">D-JOURNEYS PASS</text>
-<text x="60" y="992" font-size="23" font-weight="600">Freeform<tspan class="muted" font-weight="400" font-size="17" dx="12">PortableDoc documents in Barkpark's shared canvas</tspan></text>
-<text x="1140" y="992" font-size="26" font-weight="700" text-anchor="end">0<tspan class="muted" font-weight="400"> / 14</tspan></text>
-<path d="M60 1012H1140" class="rule"/>
-<text x="60" y="1044" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D01 Open a Freeform-main…</tspan></text>
-<text x="60" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D02 Classic ⇄ Freeform t…</tspan></text>
-<text x="60" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D03 Edit a bound field i…</tspan></text>
-<text x="60" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D04 New doc from an Expe…</tspan></text>
-<text x="330" y="1044" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D05 Two tabs</tspan></text>
-<text x="330" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D06 A wikilink/link in t…</tspan></text>
-<text x="330" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D07 Drop or paste an ima…</tspan></text>
-<text x="330" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D08 Undo/redo incl. undo…</tspan></text>
-<text x="600" y="1044" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D09 Slash menu</tspan></text>
-<text x="600" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D10 Norwegian dead keys…</tspan></text>
-<text x="600" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D11 Known limit</tspan></text>
-<text x="600" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D12 Paper sidebar</tspan></text>
-<text x="870" y="1044" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D13 Paper masters</tspan></text>
-<text x="870" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D14 Task blocks inside a…</tspan></text>
+<rect x="40" y="956" width="1120" height="244" rx="12" class="card"/>
+<text x="60" y="988" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">SIDE TRACK · COUNTED APART</text>
+<text x="1140" y="988" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="muted">D-JOURNEYS PASS</text>
+<text x="60" y="1022" font-size="23" font-weight="600">Freeform<tspan class="muted" font-weight="400" font-size="17" dx="12">PortableDoc documents in Barkpark's shared canvas</tspan></text>
+<text x="1140" y="1022" font-size="26" font-weight="700" text-anchor="end">0<tspan class="muted" font-weight="400"> / 14</tspan></text>
+<path d="M60 1042H1140" class="rule"/>
+<text x="60" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D01 Open a Freeform-main…</tspan></text>
+<text x="60" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D02 Classic ⇄ Freeform t…</tspan></text>
+<text x="60" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D03 Edit a bound field i…</tspan></text>
+<text x="60" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D04 New doc from an Expe…</tspan></text>
+<text x="330" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D05 Two tabs</tspan></text>
+<text x="330" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D06 A wikilink/link in t…</tspan></text>
+<text x="330" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D07 Drop or paste an ima…</tspan></text>
+<text x="330" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D08 Undo/redo incl. undo…</tspan></text>
+<text x="600" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D09 Slash menu</tspan></text>
+<text x="600" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D10 Norwegian dead keys…</tspan></text>
+<text x="600" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D11 Known limit</tspan></text>
+<text x="600" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D12 Paper sidebar</tspan></text>
+<text x="870" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D13 Paper masters</tspan></text>
+<text x="870" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D14 Task blocks inside a…</tspan></text>
 </g>
 <g data-track="native">
-<rect x="40" y="1186" width="1120" height="214" rx="12" class="card"/>
-<text x="60" y="1218" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">SIDE TRACK · COUNTED APART</text>
-<text x="1140" y="1218" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="muted">B-JOURNEYS PASS</text>
-<text x="60" y="1252" font-size="23" font-weight="600">Barkpark-native<tspan class="muted" font-weight="400" font-size="17" dx="12">What editors use in the LiveView Studio today</tspan></text>
-<text x="1140" y="1252" font-size="26" font-weight="700" text-anchor="end">0<tspan class="muted" font-weight="400"> / 10</tspan></text>
-<path d="M60 1272H1140" class="rule"/>
-<text x="60" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B01 Norwegian</tspan></text>
-<text x="60" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B02 Switch workspace / p…</tspan></text>
-<text x="60" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B03 Select several list…</tspan></text>
-<text x="330" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B04 Every Barkpark field…</tspan></text>
-<text x="330" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B05 Codelist fields</tspan></text>
-<text x="330" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B06 localizedText</tspan></text>
-<text x="600" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B07 Unpublish a doc othe…</tspan></text>
-<text x="600" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B08 Media library</tspan></text>
-<text x="600" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B09 Related-doc views fr…</tspan></text>
-<text x="870" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B10 Schema-declared docu…</tspan></text>
+<rect x="40" y="1216" width="1120" height="214" rx="12" class="card"/>
+<text x="60" y="1248" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">SIDE TRACK · COUNTED APART</text>
+<text x="1140" y="1248" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="muted">B-JOURNEYS PASS</text>
+<text x="60" y="1282" font-size="23" font-weight="600">Barkpark-native<tspan class="muted" font-weight="400" font-size="17" dx="12">What editors use in the LiveView Studio today</tspan></text>
+<text x="1140" y="1282" font-size="26" font-weight="700" text-anchor="end">0<tspan class="muted" font-weight="400"> / 11</tspan></text>
+<path d="M60 1302H1140" class="rule"/>
+<text x="60" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B01 Norwegian</tspan></text>
+<text x="60" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B02 Switch workspace / p…</tspan></text>
+<text x="60" y="1394" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B03 Select several list…</tspan></text>
+<text x="330" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B04 Every Barkpark field…</tspan></text>
+<text x="330" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B05 Codelist fields</tspan></text>
+<text x="330" y="1394" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B06 localizedText</tspan></text>
+<text x="600" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B07 Unpublish a doc othe…</tspan></text>
+<text x="600" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B08 Media library</tspan></text>
+<text x="600" y="1394" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B09 Related-doc views fr…</tspan></text>
+<text x="870" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B10 Schema-declared docu…</tspan></text>
+<text x="870" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B11 Closing the tab with…</tspan></text>
 </g>
-<text x="40" y="1438" font-size="14" class="muted">Generated from the task board by scripts/generate-roadmap.mjs. Phases: docs/ROADMAP.md · journeys: JOURNEYS.md · bar: QUALITY.md</text>
+<text x="40" y="1468" font-size="14" class="muted">Generated from the task board by scripts/generate-roadmap.mjs. Phases: docs/ROADMAP.md · journeys: JOURNEYS.md · bar: QUALITY.md</text>
 </svg>
