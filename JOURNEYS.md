@@ -42,14 +42,21 @@ quality first, never a shrinking finish line.
 | J30 | 2 | Conditional fields: hidden / read-only react instantly, no layout jump, focus kept | F1 F10 |
 | J31 | 2 | Select list (dropdown + radio) and Sanity's date-time picker (calendar, "now"; its past-date warning is scheduling-only) | F5 F10 |
 | J32 | 3 | Someone deletes or changes the doc you have open, or a referenced one: banner + Restore / Reload / Close | F4 F9 |
-| J33 | 4 | Array of objects: insert menu with several types, edit item in dialog or inline, preview in list | F2 F7 |
+| J33 | 4 | Array of objects: insert menu with several types, edit item in dialog or inline, preview in list, incl. Barkpark arrayOf-composite items (never "[object Object]") | F2 F7 |
 | J34 | 4 | Tags input (Enter adds, × removes; the reference ignores comma and Backspace) and reorderable rows for plain string arrays | F1 F5 |
 | J35 | 5 | Body editor expand to full screen and back, caret and scroll kept; paste from Docs/Word/HTML keeps structure | F1 F7 |
 | J36 | 5 | Image actions: drop overlay, paste an image, upload error + retry, replace/remove, pick existing from library + "used in" | F9 F10 |
-| J37 | after | Navbar shell: tool switcher (Vision), user menu with dark mode and language | F10 |
+| J37 | after | Navbar shell: tool switcher (Vision), user menu | F10 |
 | J38 | after | Global search filters: type chips, field filters, ordering | F2 F5 |
 | J39 | after | Broken values: wrong-type or unknown field shows Convert / Remove, bad array keys alert, invalid rich text gets a fix-it card | F9 |
 | J40 | after | Comments and releases/scheduled publish — only if the reference project shows them (plan-gated, verify first) | F10 |
+| J41 | 1 | Big list: 5,000 docs scroll smoothly, more load near the bottom, "max items" note at 2,000, list search finds docs beyond the first page | F2 F11 |
+| J42 | 1 | Narrow window: below the minimum width one pane shows with a Back button; panes and URL stay right both ways | F2 F12 |
+| J43 | 2 | Dialogs and popovers trap focus; on close, focus returns to the button that opened them | F5 F13 |
+| J44 | 4 | Very long doc: 200 fields + a 300-item array still meet F1 and F2 | F1 F2 F11 |
+| J45 | after | Dark mode: follows the system, user menu System / Light / Dark, survives reload, no white flash, everything readable | F10 |
+| J46 | after | Phone width: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px | F12 |
+| J47 | after | Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced | F13 |
 
 ★ = crown journeys (endless panes + references), built first, judged hardest.
 
@@ -71,3 +78,25 @@ Side track, counted apart. Editor bar: Barkdown's `docs/EDITOR-PARITY.md`.
 | D09 | both | Slash menu, drag blocks, keyboard block moves; paste markdown/HTML/URL over selection | F1 F5 |
 | D10 | both | Norwegian dead keys and IME type correctly; a 500-block doc still meets F1 | F1 |
 | D11 | both | Known limit, written down: no live co-editing in the canvas yet (remote edits apply when idle) | F4 |
+| D12 | main | Paper sidebar: weighted tags (strength + rationale), labels, description, slug | F5 F9 |
+| D13 | main | Paper masters: insert, save, pin, detach; bound values write back | F9 |
+| D14 | main | Task blocks inside a paper show live previews | F4 |
+
+## Barkpark-native track
+
+What editors use in Barkpark's own LiveView Studio today, beyond Sanity. Side
+track, counted apart. Out of scope (link out to LiveView): sheets, admin console.
+
+| ID | Phase | Journey | Feel rows that matter most |
+|---|---|---|---|
+| B01 | 1 | Norwegian (nb-NO) Studio UI, chosen per workspace | F10 |
+| B02 | 1 | Switch workspace / project / dataset; the URL carries it | F2 |
+| B03 | 1 | Select several list rows → bulk publish / unpublish | F5 F9 |
+| B04 | 2 | Every Barkpark field type renders sanely: color picker, read-only JSON/source, numeric keyboard; never "[object Object]" | F9 F10 |
+| B05 | 2 | Codelist fields (flat and tree): searchable code picker | F2 F5 |
+| B06 | 2 | localizedText: language tabs per field | F1 F5 |
+| B07 | 2 | Unpublish a doc others reference → guard lists them | F9 |
+| B08 | 5 | Media library: collections, visibility, checkout lock on asset edits | F9 |
+| B09 | after | Related-doc views from the schema's desk.views | F2 |
+| B10 | after | Schema-declared document actions with a dry-run confirm | F9 |
+
