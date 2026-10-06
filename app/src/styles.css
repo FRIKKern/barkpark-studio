@@ -164,6 +164,8 @@ a.preview:hover { background: var(--hover); }
   border-radius: 2px; box-shadow: inset 0 0 0 1px var(--border); color: var(--muted); background: var(--bg);
 }
 .preview .text { flex: 1; min-width: 0; }
+.preview .media:has(img) { position: relative; overflow: hidden; }
+.preview .media img { position: absolute; max-width: none; }
 .preview .t { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preview .s { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preview[aria-current='true'] .s { color: var(--on-selected-soft); }

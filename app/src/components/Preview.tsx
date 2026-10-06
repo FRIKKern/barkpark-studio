@@ -1,4 +1,5 @@
-import {memo, type ReactNode} from 'react'
+import {memo, useState, type ReactNode} from 'react'
+import {assetUrl, frame, NO_CROP, NO_HOTSPOT, type ImageValue} from '../lib/image'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {DocumentIcon} from './icons'
@@ -27,11 +28,12 @@ type Sel = {selected: boolean; active?: boolean}
 export const DocPreview = memo(function DocPreview({doc, href, selected, active, testId, badge, extra}: {doc: Doc | null | undefined; href?: string; testId?: string; badge?: string; extra?: ReactNode} & Sel) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const subtitle = useSubtitle(doc)
+  // The schema's list_preview.media: an image field shows as the row's thumbnail, like Sanity.
+  const mediaKey = doc ? schemaOf(schemas, doc._type)?.listPreview?.media : undefined
+  const media = mediaKey ? (doc?.[mediaKey] as ImageValue | undefined) : undefined
   const body = (
     <>
-      <span className="media">
-        <DocumentIcon />
-      </span>
+      <span className="media">{media ? <Thumb value={media} /> : <DocumentIcon />}</span>
       <span className="text">
         <div className="t">{doc ? previewTitle(doc, schemaOf(schemas, doc._type)) : '…'}</div>
         {subtitle && <div className="s">{subtitle}</div>}
@@ -49,6 +51,22 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
     </PaneLink>
   )
 })
+
+/** An image value as a square thumbnail: its crop, cut to the square around the hotspot (Sanity's image URL rules). */
+function Thumb({value}: {value: ImageValue}) {
+  const [natural, setNatural] = useState<{width: number; height: number}>()
+  const ref = value.asset?._ref
+  if (!ref) return <DocumentIcon />
+  const f = natural && frame(value.crop ?? NO_CROP, value.hotspot ?? NO_HOTSPOT, natural, 1)
+  return (
+    <img
+      src={`${assetUrl(ref)}?size=thumb`}
+      alt=""
+      onLoad={(e) => setNatural({width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight})}
+      style={f ? {width: `${100 / f.width}%`, height: `${100 / f.height}%`, left: `${(-f.left / f.width) * 100}%`, top: `${(-f.top / f.height) * 100}%`} : {opacity: 0}}
+    />
+  )
+}
 
 /** Preview of a referenced doc, fetched by id (usually already cached). */
 export function RefPreview({type, id, href, selected, active}: {type: string; id: string; href: string} & Sel) {
