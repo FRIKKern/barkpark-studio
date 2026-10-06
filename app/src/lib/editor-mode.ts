@@ -13,6 +13,7 @@ export type EditorMode = 'main' | 'alternative' | 'none'
 export const EDITOR_MODES: Record<string, EditorMode> = {
   paper: 'main', // Bulldocs' PortableDoc type
   story: 'alternative', // the Expectation fixture (fixtures/barkpark-schema/story.json)
+  note: 'main', // the Freeform-main fixture (fixtures/barkpark-schema/note.json)
 }
 
 export function editorMode(type: string, schema?: Schema & {layout?: unknown}): EditorMode {

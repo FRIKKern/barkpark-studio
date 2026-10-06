@@ -20,7 +20,10 @@ const BASE = `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${env('BAR
 const DATASET = env('BARKPARK_DATASET', 'production')
 const TYPES = ['longform', 'author', 'category', 'post'] // refs point left: posts last
 // Barkpark-native types: no Sanity mirror, seeded as written (fixtures/barkpark-only.ndjson).
-const NATIVE_TYPES = ['volume', 'story'] // not 'book': Barkpark's onixedit plugin owns that type
+// story and note are PortableDoc types (decision 0004; Sanity has no equivalent): story
+// is the Expectation fixture seeded as a block list; note is Freeform-main, with a
+// layout + prefill, seeded through its body (create builds its blocks from the layout).
+const NATIVE_TYPES = ['volume', 'story', 'note'] // not 'book': Barkpark's onixedit plugin owns that type
 
 function fail(msg) {
   console.error(`seed-barkpark: ${msg}`)
@@ -122,9 +125,16 @@ function toBarkpark(doc) {
 // list_preview.title when the type has no title field) — compare it only where
 // the seed has one.
 // Projection output (body, preview, body_html) is derived, never seeded.
-const DERIVED = new Set(['body', 'preview', 'body_html'])
+// `blocks` too, for a type whose layout builds them; a seeded body is compared without
+// the html Barkpark renders from it.
+const DERIVED = new Set(['body', 'preview', 'body_html', 'blocks'])
+const withoutHtml = (body) => Object.fromEntries(Object.entries(body).filter(([k]) => k !== 'html'))
 const stripSystem = (doc, want) =>
-  Object.fromEntries(Object.entries(doc).filter(([k]) => !k.startsWith('_') && (k !== 'title' || 'title' in want) && !(DERIVED.has(k) && !(k in want))))
+  Object.fromEntries(
+    Object.entries(doc)
+      .filter(([k]) => !k.startsWith('_') && (k !== 'title' || 'title' in want) && !(DERIVED.has(k) && !(k in want)))
+      .map(([k, v]) => (k === 'body' && v && typeof v === 'object' && want.body && !('html' in want.body) ? [k, withoutHtml(v)] : [k, v])),
+  )
 
 // ── steps ───────────────────────────────────────────────────────────────────
 
