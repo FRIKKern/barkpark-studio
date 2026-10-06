@@ -675,3 +675,5 @@ fieldset.object-field > .field-actions { top: -38px; }
 .sign-in-again { display: flex; flex-direction: column; gap: 8px; padding: 20px; }
 .sign-in-again h2 { font-size: 15px; margin: 0; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+/* J49: a locked action looks it (its title says why). */
+.icon-btn:disabled { opacity: 0.35; cursor: default; background: none; }

@@ -11,6 +11,7 @@ import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
+import {useCanWrite} from '../lib/session'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
 import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
@@ -74,6 +75,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Decision 0004: a doc that carries a PortableDoc block list (its type has a layout)
   // also opens in Barkpark's block canvas. The doc says so; the schema read omits
   // `layout` (task-28082a4cf187403d). FF3 makes it the default per type.
+  const {canWrite, editReason} = useCanWrite()
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
   const freeform = mode !== 'none' && !viewingPublished && (mode === 'main' || Array.isArray(doc?.blocks))
   // Published is read in Classic: the canvas edits the draft.
@@ -211,7 +213,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </button>
         )}
         {doc && schema && (
-          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} />
+          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} />
         )}
         <button type="button" className="icon-btn" aria-label="Split pane right" title="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
           <SplitVertical />
@@ -240,9 +242,22 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       <div className="doc-main">
       <PresenceHints docId={pane.id} scroller={body} />
       <div className="pane-body" ref={body}>
-        {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
+        {error &&
+          (/→ 403\b/.test(String(error)) ? (
+            // J49: a doc this editor may not read.
+            <div className="pane-banner" role="alert">
+              <span>You don't have access to this document.</span>
+            </div>
+          ) : (
+            <p role="alert">Could not load {pane.id}: {String(error)}</p>
+          ))}
         {deleted && !doc && <DeletedBanner type={pane.type} id={pane.id} />}
         <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
+        {editReason && doc && (
+          <div className="pane-banner" role="note">
+            <span>{editReason}</span>
+          </div>
+        )}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
         {doc && view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
         {/* Mounted once per doc and then only hidden: the canvas mis-places typing
@@ -265,7 +280,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <DocContext.Provider value={revision ? ({...doc, ...revision.content} as Doc) : doc}>
             <EditPathContext.Provider value={onEdit}>
             <ProblemsContext.Provider value={revision ? NO_PROBLEMS : steadyProblems}>
-            <fieldset className="form-fields" disabled={viewingPublished || !!revision}>
+            <fieldset className="form-fields" disabled={viewingPublished || !!revision || !canWrite} title={editReason}>
               {formFields.slice(0, revealed).map((f) => (
                 <FieldView key={f.name} field={f} path={f.name} value={(revision ? revision.content : doc)[f.name]} openRef={openRef} onChange={onChangeOf(f.name)} />
               ))}
@@ -394,6 +409,7 @@ export const docTitle = (doc: Doc, schema: Schema) => {
 function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref: string; blocked: number; onDuplicate: () => void}) {
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
+  const {canWrite, editReason, publishReason, createReason} = useCanWrite()
   const [publishing, setPublishing] = useState(false)
   const [menu, setMenu] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -420,8 +436,8 @@ function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref:
       )}
       <button
         className="publish"
-        disabled={!doc._draft || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
-        title={blocked ? `Fix ${blocked} validation ${blocked === 1 ? 'error' : 'errors'} before publishing` : undefined}
+        disabled={!canWrite || !doc._draft || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
+        title={publishReason ?? (blocked ? `Fix ${blocked} validation ${blocked === 1 ? 'error' : 'errors'} before publishing` : undefined)}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async () => {
           setPublishing(true)
@@ -440,13 +456,13 @@ function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref:
         </button>
         {menu && (
           <MenuPopover className="popover menu up" onClose={() => setMenu(false)}>
-            <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (setMenu(false), onDuplicate())}>
+            <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
               Duplicate
             </button>
-            <button type="button" role="menuitem" className="menu-item" disabled={!canDiscard} onClick={() => (setMenu(false), setDiscarding(true))}>
+            <button type="button" role="menuitem" className="menu-item" disabled={!canDiscard || !canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
               Discard changes
             </button>
-            <button type="button" role="menuitem" className="menu-item danger" onClick={() => (setMenu(false), setDeleting(true))}>
+            <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
               Delete
             </button>
           </MenuPopover>
@@ -470,12 +486,13 @@ function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref:
 function PublishedFooter({doc}: {doc: Doc}) {
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
+  const {canWrite, publishReason} = useCanWrite()
   return (
     <footer className="doc-footer">
       <span className="save-state" role="status">
         Published
       </span>
-      <button className="publish danger" onClick={() => setConfirm(true)}>
+      <button className="publish danger" disabled={!canWrite} title={publishReason} onClick={() => setConfirm(true)}>
         Unpublish
       </button>
       {confirm && (
