@@ -3,9 +3,12 @@
 // (a cold compile or cold connection is not what F2/F3 measure). In parallel: in CI
 // each request crosses to a far-away Barkpark, and the suite has a 60 s budget.
 export default async function warmup() {
-  const base = `http://localhost:${process.env.E2E_PORT || 3100}`
-  await fetch(`${base}/health`).then((r) => r.text())
+  const port = Number(process.env.E2E_PORT || 3100)
+  const bases = [port, ...(process.env.E2E_SPLIT ? [port + 1] : [])].map((p) => `http://localhost:${p}`)
+  await Promise.all(bases.map((base) => fetch(`${base}/health`).then((r) => r.text())))
   await Promise.all(
-    ['/structure', '/structure/post', '/structure/post;post-01;author-alan,type=author,parentRefPath=author'].map((path) => fetch(base + path).then((r) => r.text())),
+    bases.flatMap((base) =>
+      ['/structure', '/structure/post', '/structure/post;post-01;author-alan,type=author,parentRefPath=author'].map((path) => fetch(base + path).then((r) => r.text())),
+    ),
   )
 }

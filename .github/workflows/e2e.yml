@@ -19,7 +19,9 @@ jobs:
       BARKPARK_URL: https://guerrilla.barkpark.cloud
       BARKPARK_WORKSPACE: studio-parity
       BARKPARK_PROJECT: default
-      BARKPARK_DATASET: ci # GitHub's own dataset; local runs use e2e-local, people use production
+      BARKPARK_DATASET: ci # GitHub's own datasets (ci, ci-2: one per worker); local runs use e2e-local, people use production
+      BARKPARK_DATASET_B: ci-2
+      E2E_SPLIT: '1' # two workers, each with its own studio server + dataset (e2e/playwright.config.ts)
       BARKPARK_TOKEN: ${{ secrets.BARKPARK_TOKEN }} # read/write, studio-parity only
       BUDGET_NETWORK_SCALE: '4' # runner is far from guerrilla; see e2e/rig/feel.ts
       BARKPARK_SCHEMA_SOURCE: fixtures # member tokens can't read schemas yet (task-23c4ac86976c46a9)
@@ -37,24 +39,28 @@ jobs:
       - run: pnpm --dir app install --frozen-lockfile && pnpm --dir e2e install --frozen-lockfile
       - name: .env from secrets
         run: env | grep '^BARKPARK_' > .env
-      - name: Reset studio-parity to the fixture
-        run: node --env-file=.env scripts/seed-barkpark.mjs --data
+      - name: Reset both CI datasets to the fixture
+        run: |
+          node --env-file=.env scripts/seed-barkpark.mjs --data &
+          BARKPARK_DATASET=ci-2 node --env-file=.env scripts/seed-barkpark.mjs --data &
+          wait %1 && wait %2
       - name: Build the studio (outside the suite's 60 s budget)
         run: pnpm --dir app build
       - name: Warm Chrome's first launch (cold start is runner disk, not the studio)
         working-directory: e2e
         run: |
           node --input-type=module -e "const {chromium} = await import('@playwright/test'); const b = await chromium.launch({channel: 'chrome'}); await (await b.newPage()).goto('about:blank'); await b.close()"
-      - name: Start the studio (server boot is outside the budget too)
+      - name: Start both studios (server boot is outside the budget too)
         run: |
           set -a; . ./.env; set +a
           nohup pnpm --dir app exec vite preview --port 3100 --strictPort > preview.log 2>&1 &
-          for i in $(seq 1 60); do curl -sf http://localhost:3100/health > /dev/null && exit 0; sleep 1; done
-          cat preview.log; exit 1
+          BARKPARK_DATASET=ci-2 nohup pnpm --dir app exec vite preview --port 3101 --strictPort > preview-b.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3100/health > /dev/null && curl -sf http://localhost:3101/health > /dev/null && exit 0; sleep 1; done
+          cat preview.log preview-b.log; exit 1
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
-        run: node --env-file=../.env node_modules/@playwright/test/cli.js test --project studio
+        run: node --env-file=../.env node_modules/@playwright/test/cli.js test --project 'studio*'
       - if: always()
         uses: actions/upload-artifact@v4
         with:
