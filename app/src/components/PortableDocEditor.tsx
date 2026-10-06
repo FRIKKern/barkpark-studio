@@ -23,6 +23,7 @@ type Canvas = HTMLElement & {
   resolveConflictWithServerBlocks(blocks: Block[]): void
   linkPreviewSource: ((t: LinkTarget) => Promise<{title?: string; excerpt?: string; href?: string} | null>) | null
   wikilinkSource: ((query: string) => Promise<{title: string; id: string; type: string}[]>) | null
+  mediaUploader: ((file: File) => Promise<{src?: string; url?: string; alt?: string}>) | null
   hasPendingChanges(): boolean
   focusBlock(id: string): boolean
 }
@@ -190,6 +191,17 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           if (!doc) return {title: 'Document not found', excerpt: docId}
           const schema = schemaOf(qc.getQueryData<Schema[]>(['schemas']) ?? [], doc._type)
           return {title: previewTitle(doc, schema), excerpt: doc.preview?.description ?? schema?.title}
+        }
+        // D07: a dropped or pasted picture uploads to Barkpark's media; the block stores the
+        // file's Barkpark path. The canvas shows "uploading" and any failure on the block.
+        el.mediaUploader = async (file) => {
+          const body = new FormData()
+          body.append('file', file)
+          const res = await fetch('/api/media/upload', {method: 'POST', body})
+          if (!res.ok) throw new Error(`upload failed (${res.status})`)
+          const {url} = (await res.json()) as {url?: string}
+          if (!url) throw new Error('upload failed (no file url)')
+          return {src: url}
         }
         // The `[[` menu: documents of any type.
         el.wikilinkSource = async (query) => {

@@ -20,6 +20,7 @@ import { Route as ApiSchemasRouteImport } from './routes/api/schemas'
 import { Route as DebugLiveRouteImport } from './routes/debug/live'
 import { Route as StructureIndexRouteImport } from './routes/structure/index'
 import { Route as StructureSplatRouteImport } from './routes/structure/$'
+import { Route as WSplatRouteImport } from './routes/w/$'
 import { Route as ApiBacklinksIdRouteImport } from './routes/api/backlinks/$id'
 import { Route as ApiMediaIndexRouteImport } from './routes/api/media/index'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
@@ -84,6 +85,11 @@ const StructureSplatRoute = StructureSplatRouteImport.update({
   path: '/structure/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WSplatRoute = WSplatRouteImport.update({
+  id: '/w/$',
+  path: '/w/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBacklinksIdRoute = ApiBacklinksIdRouteImport.update({
   id: '/api/backlinks/$id',
   path: '/api/backlinks/$id',
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/api/schemas': typeof ApiSchemasRoute
   '/debug/live': typeof DebugLiveRoute
   '/structure/$': typeof StructureSplatRoute
+  '/w/$': typeof WSplatRoute
   '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/api/schemas': typeof ApiSchemasRoute
   '/debug/live': typeof DebugLiveRoute
   '/structure/$': typeof StructureSplatRoute
+  '/w/$': typeof WSplatRoute
   '/structure': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/api/schemas': typeof ApiSchemasRoute
   '/debug/live': typeof DebugLiveRoute
   '/structure/$': typeof StructureSplatRoute
+  '/w/$': typeof WSplatRoute
   '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
     | '/api/schemas'
     | '/debug/live'
     | '/structure/$'
+    | '/w/$'
     | '/structure/'
     | '/api/backlinks/$id'
     | '/api/media/upload'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/api/schemas'
     | '/debug/live'
     | '/structure/$'
+    | '/w/$'
     | '/structure'
     | '/api/backlinks/$id'
     | '/api/media/upload'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/api/schemas'
     | '/debug/live'
     | '/structure/$'
+    | '/w/$'
     | '/structure/'
     | '/api/backlinks/$id'
     | '/api/media/upload'
@@ -266,6 +278,7 @@ export interface RootRouteChildren {
   ApiSchemasRoute: typeof ApiSchemasRoute
   DebugLiveRoute: typeof DebugLiveRoute
   StructureSplatRoute: typeof StructureSplatRoute
+  WSplatRoute: typeof WSplatRoute
   StructureIndexRoute: typeof StructureIndexRoute
   ApiBacklinksIdRoute: typeof ApiBacklinksIdRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
@@ -356,6 +369,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StructureSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/w/$': {
+      id: '/w/$'
+      path: '/w/$'
+      fullPath: '/w/$'
+      preLoaderRoute: typeof WSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/backlinks/$id': {
       id: '/api/backlinks/$id'
       path: '/api/backlinks/$id'
@@ -426,6 +446,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSchemasRoute: ApiSchemasRoute,
   DebugLiveRoute: DebugLiveRoute,
   StructureSplatRoute: StructureSplatRoute,
+  WSplatRoute: WSplatRoute,
   StructureIndexRoute: StructureIndexRoute,
   ApiBacklinksIdRoute: ApiBacklinksIdRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
