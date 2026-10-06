@@ -536,3 +536,7 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .crop-previews figcaption { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .crop-preview { position: relative; overflow: hidden; background: #f3f3f5; }
 .crop-preview img { position: absolute; max-width: none; }
+/* Big lists (J41): rows off screen skip layout and paint; Sanity's "max items" note. */
+.list-rows > .preview { content-visibility: auto; contain-intrinsic-size: auto 49px; }
+.list-sentinel { height: 1px; }
+.list-max { margin: 12px 0; text-align: center; font-size: 13px; color: var(--muted); }

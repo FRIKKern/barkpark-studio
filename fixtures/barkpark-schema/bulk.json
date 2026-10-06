@@ -1,0 +1,6 @@
+{
+  "name": "bulk",
+  "title": "Bulk",
+  "visibility": "public",
+  "fields": [{"name": "title", "title": "Title", "type": "string"}]
+}
