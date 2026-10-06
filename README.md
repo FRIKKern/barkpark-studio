@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 49 changes, 16 tasks closed
+- **Today** · 50 changes, 17 tasks closed
+  - J49: a read-only editor sees why everything is locked ([#79](https://github.com/FRIKKern/barkpark-studio/pull/79))
+  - Done: [BUG: lost session silently writes as the shared studio token (wrong author)](https://github.com/FRIKKern/barkpark/issues/21928)
   - Fix: a lost session never writes as the studio; a 403 says why and stops ([#78](https://github.com/FRIKKern/barkpark-studio/pull/78))
-  - J20: offline, stalled and recovering save states; nothing lost ([#77](https://github.com/FRIKKern/barkpark-studio/pull/77))
-  - J32: banners for a deleted doc and a changed or removed reference ([#76](https://github.com/FRIKKern/barkpark-studio/pull/76))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
