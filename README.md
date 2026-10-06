@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 44 changes, 16 tasks closed
+- **Today** · 45 changes, 16 tasks closed
+  - Canvas saves a batch as one atomic write; keep the Freeform canvas mounted ([#74](https://github.com/FRIKKern/barkpark-studio/pull/74))
   - J35: expand the body over the pane and back; caret mapped by block ([#73](https://github.com/FRIKKern/barkpark-studio/pull/73))
   - J11: block editing evidence; the canvas reports blocks it can't draw ([#72](https://github.com/FRIKKern/barkpark-studio/pull/72))
-  - J10: the body is Barkpark's canvas, scoped to the field ([#71](https://github.com/FRIKKern/barkpark-studio/pull/71))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
