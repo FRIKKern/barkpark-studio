@@ -76,6 +76,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-pane="doc:${pane.id}"] [id="${p.path}"]`)?.focus())
   }
   const schema = schemaOf(schemas, pane.type)
+  const fieldLabels = useMemo(() => Object.fromEntries((schema?.fields ?? []).map((f) => [f.name, f.title ?? f.name])), [schema])
   // Decision 0004: a doc that carries a PortableDoc block list (its type has a layout)
   // also opens in Barkpark's block canvas. The doc says so; the schema read omits
   // `layout` (task-28082a4cf187403d). FF3 makes it the default per type.
@@ -324,7 +325,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             after it is mounted again in a page (task-f24549dea0618da2), and a remount costs a load. */}
         {freeform && (view === 'freeform' || canvasSeen === pane.id) && (
           <div hidden={view !== 'freeform'}>
-            <PortableDocEditor type={pane.type} id={pane.id} />
+            <PortableDocEditor type={pane.type} id={pane.id} labels={fieldLabels} />
           </div>
         )}
         {pane.rev && revQ.data === null && <p role="alert">This revision can't be found. Pick another entry in the history.</p>}

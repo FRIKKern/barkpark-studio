@@ -8,12 +8,12 @@
   web component (source `barkpark/api/assets/paper-editor`). Barkdown hosts it;
   so do we. We never build our own Tiptap editor. Supersedes the rich-text line
   in [0001](0001-stack-and-backend.md).
-- **Host it the Barkdown way:** load the bundle from the connected Barkpark
-  (browser only, no SSR), wrap it in one React component
-  (`<PortableDocEditor>`: `blocks` in, `bp-canvas-ops` out, `acknowledgeOps` /
-  `applyServerBlocksIfIdle` / conflict card on 412). Port the save loop from
-  `barkdown/app/renderer/src/tabs/paper.js`; reuse Barkdown's
-  `docs/EDITOR-PARITY.md` rows as our bar for the editor itself.
+- **Host it by the contract:** load the bundle from the connected Barkpark
+  (browser only, no SSR), wrap it in one React component (`<PortableDocEditor>`).
+  Follows EMBED-CONTRACT HTTP host @cad5a11f7: one batch in flight, a 412 resends
+  it on `details.actual`, the saved doc goes back as the canvas's own echo before
+  `acknowledgeOps`. Reads use `perspective=drafts`, not `raw` (we edit the draft).
+  Barkdown's `docs/EDITOR-PARITY.md` rows are our bar for the editor itself.
 - **Where it appears, per document type:**
   - **Freeform-main:** types defined as PortableDoc open in the canvas by default.
   - **Freeform-alternative:** types with an Expectation (`layout`) open in the

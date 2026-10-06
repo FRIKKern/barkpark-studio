@@ -77,7 +77,7 @@ Side track, counted apart. Editor bar: Barkdown's `docs/EDITOR-PARITY.md`.
 | D02 | alternative | Classic ⇄ Freeform toggle on an Expectation type: lossless both ways; a Classic edit never moves free blocks | F9 F10 |
 | D03 | both | Edit a bound field in Freeform; the Classic view in a 2nd browser updates, and back | F4 F6 |
 | D04 | both | New doc from an Expectation: layout scaffold + prefill, cursor in the first block | F2 F5 |
-| D05 | main | Two tabs, same doc: 412 → "load theirs / re-apply mine", nothing lost | F8 F9 |
+| D05 | main | Two tabs, same doc: a 412 resends the batch on the other's rev (block ops are id-keyed), both kept, nothing lost | F8 F9 |
 | D06 | main | A wikilink/link in the canvas opens its target in the next Studio pane; hover preview | F2 F5 |
 | D07 | both | Drop or paste an image into the canvas: uploads to Barkpark media, badge while uploading, failure on the block | F9 |
 | D08 | both | Undo/redo incl. undo of a paste; the server holds the undone state | F7 F9 |

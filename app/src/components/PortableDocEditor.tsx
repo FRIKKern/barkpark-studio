@@ -4,21 +4,21 @@ import {docQuery} from '../lib/data'
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult} from '../lib/blocks'
 import {toast} from './Toasts'
 
-// Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted the way Barkdown
-// hosts it. Blocks in; `bp-canvas-ops` batches out, each saved with the doc's rev and
-// acknowledged, then the server echo fed back so minted ids land. A stale rev (412)
-// keeps the edit on screen and asks: load theirs, or re-apply mine on top.
-// The save loop is ported from Barkdown (app/renderer/src/tabs/paper.js, Apache-2.0;
-// see THIRD-PARTY.md).
+// Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
+// EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
+// Blocks in; `bp-canvas-ops` batches out, each saved fenced on the doc's rev; the saved
+// doc goes back in as the canvas's own echo, then the batch is acknowledged. A refused
+// batch keeps the edit on screen with Retry / Discard.
 
 /** The element's host-facing surface (barkpark api/assets/paper-editor/src/canvas/index.js). */
 type Canvas = HTMLElement & {
   blocks: Block[]
   acknowledgedSaves: boolean
   acknowledgeOps(seq: number, saved: boolean): boolean
+  identifyOpsRequest(seq: number, requestId: string, previousRequestId?: string | null): boolean
   discardInflightOps(seq: number): boolean
   resendPendingOps(): boolean
-  applyServerBlocks(blocks: Block[]): void
+  applyServerBlocks(blocks: Block[], echo?: {mode?: 'own' | 'own-stale'; requestId?: string}): void
   applyServerBlocksIfIdle(blocks: Block[]): boolean
   resolveConflictWithServerBlocks(blocks: Block[]): void
   hasPendingChanges(): boolean
@@ -52,104 +52,80 @@ function loadCanvas(): Promise<void> {
   return bundle
 }
 
-type Save = {state: 'saved' | 'saving' | 'error' | 'conflict' | 'idle'; message?: string}
-type Problem =
-  | {kind: 'conflict'; server: {rev: string; blocks: Block[]}; retry: {ops: BlockOp[]; seq: number}}
-  | {kind: 'failed'; message: string; discarded: boolean; retry: {ops: BlockOp[]; seq: number}}
+type Save = {state: 'saved' | 'saving' | 'error' | 'idle'; message?: string}
+type Problem = {message: string}
 
 /**
  * `field`: edit that richText field's own block list (J10) instead of the document's;
  * `vocabulary`: the field's declared blocks/styles/marks (the schema's `blocks`), which
- * the canvas offers and enforces, as Barkpark's LiveView stamps it (`data-vocabulary`).
+ * the canvas offers and enforces, as Barkpark's LiveView stamps it (`data-vocabulary`);
+ * `labels`: field name → title, shown on the bound field blocks that carry no label.
  */
-export function PortableDocEditor({type, id, field, vocabulary, editable = true}: {type: string; id: string; field?: string; vocabulary?: unknown; editable?: boolean}) {
+export function PortableDocEditor({type, id, field, vocabulary, labels, editable = true}: {type: string; id: string; field?: string; vocabulary?: unknown; labels?: Record<string, string>; editable?: boolean}) {
   const host = useRef<HTMLDivElement>(null)
   const vocabularyKey = vocabulary ? JSON.stringify(vocabulary) : ''
   const canvas = useRef<Canvas | null>(null)
-  const loop = useRef({rev: '', latestSeq: -1, saving: 0, mergeAfterSave: false})
+  const loop = useRef({rev: '', saving: 0, requests: 0})
   const [save, setSave] = useState<Save>({state: 'idle'})
   const [problem, setProblem] = useState<Problem | null>(null)
   const [failed, setFailed] = useState<string>()
-  // The conflict / failure card's buttons, bound to the save loop below.
-  const resolveRef = useRef<{
-    theirs: (server: {rev: string; blocks: Block[]}) => void
-    mine: (server: {rev: string; blocks: Block[]}, retry: {ops: BlockOp[]; seq: number}) => void
-    retry: (failed: Extract<Problem, {kind: 'failed'}>) => void
-    discard: () => Promise<void>
-  } | null>(null)
+  // The failure card's buttons, bound to the save loop below.
+  const resolveRef = useRef<{retry: () => void; discard: () => Promise<void>} | null>(null)
+  // D01: a bound field block shows its field's title (the server's projection carries none).
+  const decorate = useRef((blocks: Block[]) => blocks)
+  decorate.current = (blocks) => (labels ? blocks.map((b) => (typeof b.fieldName === 'string' && !b.label && labels[b.fieldName] ? {...b, label: labels[b.fieldName]} : b)) : blocks)
 
   useEffect(() => {
     let gone = false
     const l = loop.current
+    const read = () => readBlocks(type, id, field).then((r) => ({...r, blocks: decorate.current(r.blocks)}))
+    // Barkpark's EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7):
+    // one batch in flight; a 412 resends the same batch fenced on the other writer's rev
+    // (ops are id-keyed, so both writers' blocks are kept); after a save, read the doc
+    // and hand its blocks back as the canvas's own echo BEFORE acknowledging.
     async function applyOps(ops: BlockOp[], seq: number) {
       const el = canvas.current
       if (!el || !ops.length) return
+      const requestId = `http-${++l.requests}`
+      el.identifyOpsRequest(seq, requestId)
       l.saving++
       setSave({state: 'saving'})
       try {
-        const r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+        let r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+        for (let tries = 0; !r.ok && r.status === 412 && r.actual && tries < 3; tries++) {
+          l.rev = r.actual
+          r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+        }
         if (gone) return
+        if (!r.ok) throw new Error(r.message)
         l.rev = r.rev
-        if (r.ok) {
-          el.acknowledgeOps(seq, true)
-          // Saved only when nothing newer is queued (an ack may flush the next batch).
-          if (seq === l.latestSeq && !el.hasPendingChanges()) setSave({state: 'saved'})
-          setProblem((p) => (p?.kind === 'conflict' && p.retry.seq !== seq ? p : null))
-          // Echo: the server's blocks carry the ids it minted for new blocks.
-          const echoRev = l.rev
-          const fresh = await readBlocks(type, id, field)
-          if (gone || echoRev !== l.rev || seq !== l.latestSeq) return
-          if (l.mergeAfterSave && !el.hasPendingChanges()) el.resolveConflictWithServerBlocks(fresh.blocks)
-          else el.applyServerBlocks(fresh.blocks)
-          l.rev = fresh.rev
-          l.mergeAfterSave = false
-          return
+        const echo = await read().catch(() => null) // if it fails, the save still stands: r.rev fences the next
+        if (gone) return
+        if (echo) {
+          l.rev = echo.rev
+          el.applyServerBlocks(echo.blocks, {mode: 'own', requestId})
         }
-        if (r.status === 412) {
-          // Someone else wrote first. Keep the batch; the author chooses.
-          const server = await readBlocks(type, id, field)
-          if (gone) return
-          setSave({state: 'conflict'})
-          setProblem({kind: 'conflict', server, retry: {ops, seq}})
-          return
-        }
-        // Refused (a batch is all or nothing): never leave the canvas waiting on it.
-        const discarded = el.discardInflightOps(seq)
-        setSave({state: 'error', message: r.message})
-        setProblem({kind: 'failed', message: r.message, discarded, retry: {ops, seq}})
+        el.acknowledgeOps(seq, true)
+        setProblem(null)
+        if (!el.hasPendingChanges()) setSave({state: 'saved'})
       } catch (e) {
         if (gone) return
-        const discarded = el.discardInflightOps(seq)
+        // Refused: the edit stays on screen and goes out with the next batch.
+        el.discardInflightOps(seq)
         setSave({state: 'error', message: (e as Error).message})
-        setProblem({kind: 'failed', message: (e as Error).message, discarded, retry: {ops, seq}})
+        setProblem({message: (e as Error).message})
       } finally {
         l.saving--
       }
     }
     resolveRef.current = {
-      theirs: (server) => {
-        canvas.current?.resolveConflictWithServerBlocks(server.blocks)
-        l.rev = server.rev
-        l.mergeAfterSave = false
+      retry: () => {
         setProblem(null)
-        setSave({state: 'saved'})
-      },
-      mine: (server, retry) => {
-        setProblem(null)
-        l.rev = server.rev
-        l.mergeAfterSave = true
-        void applyOps(retry.ops, retry.seq)
-      },
-      // Discarded, the canvas re-diffs (resending old ops could land an insert twice);
-      // otherwise the batch is still in flight and goes again as it was.
-      retry: (failed) => {
-        setProblem(null)
-        if (!failed.discarded) return void applyOps(failed.retry.ops, failed.retry.seq)
         setSave({state: 'saving'})
         if (!canvas.current?.resendPendingOps()) setSave({state: 'saved'})
       },
       discard: async () => {
-        const fresh = await readBlocks(type, id, field)
+        const fresh = await read()
         if (gone) return
         canvas.current?.resolveConflictWithServerBlocks(fresh.blocks)
         l.rev = fresh.rev
@@ -160,7 +136,9 @@ export function PortableDocEditor({type, id, field, vocabulary, editable = true}
 
     void (async () => {
       try {
-        const [first] = await Promise.all([readBlocks(type, id, field), loadCanvas()])
+        // Seeded from the server's read and nothing else: a projected doc's block ids
+        // (synth-f-title-0, …) are the only ones its ops may name.
+        const [first] = await Promise.all([read(), loadCanvas()])
         if (gone || !host.current) return
         const el = document.createElement('bp-paper-canvas') as Canvas
         el.acknowledgedSaves = true
@@ -169,7 +147,6 @@ export function PortableDocEditor({type, id, field, vocabulary, editable = true}
         if (vocabulary) el.setAttribute('data-vocabulary', JSON.stringify(vocabulary))
         el.addEventListener('bp-canvas-ops', (e) => {
           const {ops, seq} = (e as CustomEvent<{ops: BlockOp[]; seq: number}>).detail
-          l.latestSeq = seq
           void applyOps(ops, seq)
         })
         // A block the canvas could not draw says so (never a silent gap: F8).
@@ -212,7 +189,7 @@ export function PortableDocEditor({type, id, field, vocabulary, editable = true}
     let gone = false
     void readBlocks(type, id, field).then((fresh) => {
       if (gone || fresh.rev === l.rev || l.saving) return
-      if (el.applyServerBlocksIfIdle(fresh.blocks)) l.rev = fresh.rev
+      if (el.applyServerBlocksIfIdle(decorate.current(fresh.blocks))) l.rev = fresh.rev
     })
     return () => {
       gone = true
@@ -222,26 +199,13 @@ export function PortableDocEditor({type, id, field, vocabulary, editable = true}
   return (
     <div className="pd-editor">
       <div className="pd-status" role="status">
-        {save.state === 'saving' ? 'Saving…' : save.state === 'saved' ? 'Saved' : save.state === 'conflict' ? 'Conflict' : save.state === 'error' ? 'Not saved' : ''}
+        {save.state === 'saving' ? 'Saving…' : save.state === 'saved' ? 'Saved' : save.state === 'error' ? 'Not saved' : ''}
       </div>
-      {problem?.kind === 'conflict' && (
+      {problem && (
         <div className="pd-conflict" role="alert">
-          <strong>Someone else changed this document.</strong> Your unsaved edit is still on screen.
+          <strong>Could not save:</strong> {problem.message}. Your edit is still on screen.
           <div>
-            <button type="button" className="btn-text" onClick={() => resolveRef.current?.theirs(problem.server)}>
-              Load their version
-            </button>
-            <button type="button" className="btn-text" onClick={() => resolveRef.current?.mine(problem.server, problem.retry)}>
-              Re-apply my edit on top
-            </button>
-          </div>
-        </div>
-      )}
-      {problem?.kind === 'failed' && (
-        <div className="pd-conflict" role="alert">
-          <strong>Could not save:</strong> {problem.message}
-          <div>
-            <button type="button" className="btn-text" onClick={() => resolveRef.current?.retry(problem)}>
+            <button type="button" className="btn-text" onClick={() => resolveRef.current?.retry()}>
               Retry
             </button>
             <button type="button" className="btn-text" onClick={() => void resolveRef.current?.discard()}>
