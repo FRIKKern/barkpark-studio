@@ -176,8 +176,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, editable
     }
   }, [type, id, field, editable, vocabularyKey])
 
-  // Someone else saved (the live stream refreshed the doc): take their blocks if the
-  // canvas is idle. Busy, it keeps the author's state and the next save's rev decides.
+  // Someone else saved (the live stream refreshed the doc): take their blocks, now or
+  // when the author leaves the block they are in. Saving, the next save's rev decides.
   // Known canvas bug: after it takes a changed block, the next keystroke can replace
   // the first block (task-f24549dea0618da2).
   const {data: doc} = useQuery(docQuery(type, id))
@@ -189,7 +189,10 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, editable
     let gone = false
     void readBlocks(type, id, field).then((fresh) => {
       if (gone || fresh.rev === l.rev || l.saving) return
-      if (el.applyServerBlocksIfIdle(decorate.current(fresh.blocks))) l.rev = fresh.rev
+      // Idle: taken now. Focused (the author is in a field block, say): the canvas defers
+      // it until they leave (EMBED-CONTRACT applyServerBlocks) instead of dropping it (D05).
+      if (!el.applyServerBlocksIfIdle(decorate.current(fresh.blocks))) el.applyServerBlocks(decorate.current(fresh.blocks))
+      l.rev = fresh.rev
     })
     return () => {
       gone = true
