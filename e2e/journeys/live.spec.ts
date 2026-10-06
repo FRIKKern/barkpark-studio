@@ -3,8 +3,8 @@ import {target} from '../rig/targets'
 
 // Live stream survives a network blip (task-c1b6d7ed2e05b73a, F8): offline while
 // another client writes; on reconnect every frame arrives, in order, once. The CI
-// suite cuts for 3 s to fit its budget; LIVE_OFFLINE_MS=10000 is the 10 s check.
-const OFFLINE_MS = Number(process.env.LIVE_OFFLINE_MS || 3000)
+// suite cuts for 2 s to fit its budget; LIVE_OFFLINE_MS=10000 is the 10 s check.
+const OFFLINE_MS = Number(process.env.LIVE_OFFLINE_MS || 2000)
 const ID = 'post-10'
 const TITLE = 'Fixture post 10'
 

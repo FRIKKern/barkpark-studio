@@ -105,3 +105,34 @@ export const Users = () => (
     <path d="M4.5 19c.5-3 2.7-4.5 5.5-4.5s5 1.5 5.5 4.5M15.5 6.75a3 3 0 0 1 0 5.5M17.5 14.75c1.6.5 2.7 1.9 3 4.25" />
   </svg>
 )
+export const ImageIcon = () => (
+  <svg {...s}>
+    <path d="M5.5 6.5h14v12h-14zM5.5 15.5l4-4 3 3 2-2 5 5" />
+    <circle cx="15.5" cy="10" r="1.5" />
+  </svg>
+)
+export const Crop = () => (
+  <svg {...s}>
+    <path d="M8.5 4.5v12h12M4.5 8.5h12v12" />
+  </svg>
+)
+export const Upload = () => (
+  <svg {...s}>
+    <path d="M12.5 15.5v-10M8 10l4.5-4.5L17 10M5.5 15.5v4h14v-4" />
+  </svg>
+)
+export const Download = () => (
+  <svg {...s}>
+    <path d="M12.5 5.5v10M8 11l4.5 4.5L17 11M5.5 15.5v4h14v-4" />
+  </svg>
+)
+export const LinkIcon = () => (
+  <svg {...s}>
+    <path d="M11 14l3-3M10 9.5l1.8-1.8a3 3 0 014.2 4.2L14.2 13.7M15 15.5l-1.8 1.8A3 3 0 019 13.1l1.8-1.8" />
+  </svg>
+)
+export const Reset = () => (
+  <svg {...s}>
+    <path d="M6.5 8.5h12M10.5 8.5v-2h4v2M8 8.5l1 11h7l1-11" />
+  </svg>
+)

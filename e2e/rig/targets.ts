@@ -237,3 +237,6 @@ export async function signInIfAsked(page: Page, email = 'studio-editor-a@example
   await page.getByRole('button', {name: 'Sign in'}).click()
   await page.waitForURL((u) => !u.pathname.startsWith('/login'))
 }
+
+/** expect.poll on the backend: ask every 250 ms, not the default's 1 s steps (keeps CI near its budget). */
+export const BACKEND_POLL = {timeout: 10_000, intervals: [100, 250]}

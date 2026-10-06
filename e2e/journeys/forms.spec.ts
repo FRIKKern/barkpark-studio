@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, BACKEND_POLL} from '../rig/targets'
 
 // J14 + J13, both studios, one doc, one page load. J14: field-group tabs (keyboard
 // too) and the nested seo object, edited by two browsers at once (each subfield
@@ -38,7 +38,7 @@ test('J14 J13: field groups, the seo object, validation', async ({page, browser}
     await p.keyboard.type(text)
   }
   await Promise.all([typeInto(page, 'seo.metaTitle', 'Better SEO title'), typeInto(b, 'seo.metaDescription', 'Better description')])
-  await expect.poll(() => t.docValue(ID, 'seo'), {timeout: 10_000}).toMatchObject({metaTitle: 'Better SEO title', metaDescription: 'Better description'})
+  await expect.poll(() => t.docValue(ID, 'seo'), BACKEND_POLL).toMatchObject({metaTitle: 'Better SEO title', metaDescription: 'Better description'})
   await ctxB.close()
 
   // All fields shows both groups.

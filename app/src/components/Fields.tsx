@@ -14,6 +14,7 @@ import {StringArrayInput, TagsInput} from './ArrayInputs'
 import {ObjectArrayInput} from './ObjectArrayInput'
 import {RefArrayInput} from './RefArrayInput'
 import {CodeInput, ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
+import {ImageInput} from './ImageInput'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -78,8 +79,8 @@ function FieldBody(props: FieldProps) {
         </label>
       </div>
     )
-  // An object: a fieldset with its title as the legend.
-  if (props.field.type === 'composite')
+  // An object (or an image, with its own fields below it): a fieldset with its title as the legend.
+  if (props.field.type === 'composite' || props.field.type === 'image')
     return (
       <fieldset className="field object-field">
         <FieldActions {...props} />
@@ -271,7 +272,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'richText':
       return <RichText id={path} value={value} />
     case 'image':
-      return <div className="image-empty">No image</div>
+      return <ImageInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
     default:
       // A type this Studio has no editor for: never "[object Object]".
       return value !== null && typeof value === 'object' ? <ReadOnlyJson id={path} value={value} note="read-only — no editor for this field type yet" /> : <input id={path} className="input" readOnly value={str} />
