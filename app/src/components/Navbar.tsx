@@ -7,8 +7,10 @@ import {MenuPopover} from './FocusScopes'
 import {UserCircle as UserIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
 import {useState} from 'react'
+import {useHydratedMark} from '../lib/hydrated'
 
 export function Navbar() {
+  useHydratedMark()
   return (
     <nav className="navbar">
       <div className="brand">

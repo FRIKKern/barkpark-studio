@@ -2,6 +2,7 @@ import {useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {createFileRoute, useNavigate} from '@tanstack/react-router'
 import {devSignIn, meQuery} from '../lib/session'
+import {useHydratedMark} from '../lib/hydrated'
 
 // Dev-only sign-in (server/auth.ts): names who you are; no password yet.
 // The seated test editors are studio-editor-{a..d}@example.com.
@@ -11,6 +12,7 @@ export const Route = createFileRoute('/login')({
 })
 
 function Login() {
+  useHydratedMark()
   const {redirect} = Route.useSearch()
   const navigate = useNavigate()
   const qc = useQueryClient()

@@ -22,6 +22,8 @@ const chainUrl = (n: number) =>
     .map(([field, id]) => `;${id},type=${TYPE[field]},parentRefPath=${field}`)
     .join('')
 
+// Page-state polls: check every 50 ms, not the default's growing steps.
+const LOCAL_POLL = {intervals: [50, 100]}
 const path = (page: Page) => decodeURIComponent(new URL(page.url()).pathname)
 /** Per pane: true when collapsed to a strip. */
 const strips = (page: Page) =>
@@ -79,32 +81,32 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
 
   // URL round-trips: back, forward, reload.
   await page.goBack()
-  await expect.poll(() => path(page)).toBe(chainUrl(5))
+  await expect.poll(() => path(page), LOCAL_POLL).toBe(chainUrl(5))
   await expect(page.locator('[data-pane-index]')).toHaveCount(8)
   await page.goForward()
-  await expect.poll(() => path(page)).toBe(chainUrl(6))
+  await expect.poll(() => path(page), LOCAL_POLL).toBe(chainUrl(6))
   await page.reload()
   await expect(page.locator('[data-pane-index]')).toHaveCount(9)
   expect(await strips(page)).toEqual([true, true, true, true, true, true, true, true, false])
 
   // A strip opens on click; the others make room (keyboard too, on ours).
   await t.pane(page, 3).click({position: {x: 25, y: 300}})
-  await expect.poll(() => strips(page)).toEqual([true, true, true, false, true, true, true, true, true])
+  await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, false, true, true, true, true, true])
   if (t.name === 'studio') {
     await t.pane(page, 5).focus()
     await page.keyboard.press('Enter')
-    await expect.poll(() => strips(page)).toEqual([true, true, true, true, true, false, true, true, true])
+    await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, true, true, false, true, true, true])
     await t.pane(page, 3).focus()
     await page.keyboard.press('Enter')
   }
 
   // Closing a pane closes it and everything to its right.
   await t.closeButton(t.pane(page, 3)).click()
-  await expect.poll(() => path(page)).toBe('/structure/post;post-01')
+  await expect.poll(() => path(page), LOCAL_POLL).toBe('/structure/post;post-01')
   await expect(page.locator('[data-pane-index]')).toHaveCount(3)
 
   // F5: a reference opens from the keyboard.
   await t.refLink(t.pane(page, 2), 'author').focus()
   await page.keyboard.press('Enter')
-  await expect.poll(() => path(page)).toBe(chainUrl(1))
+  await expect.poll(() => path(page), LOCAL_POLL).toBe(chainUrl(1))
 })
