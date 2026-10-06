@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 51 changes, 17 tasks closed
+- **Today** · 52 changes, 17 tasks closed
+  - J52: the focused field lives in the URL (Sanity's path=) ([#82](https://github.com/FRIKKern/barkpark-studio/pull/82))
   - J48: a logged-out banner on the document, the session re-checked on focus ([#80](https://github.com/FRIKKern/barkpark-studio/pull/80))
   - J49: a read-only editor sees why everything is locked ([#79](https://github.com/FRIKKern/barkpark-studio/pull/79))
-  - Done: [BUG: lost session silently writes as the shared studio token (wrong author)](https://github.com/FRIKKern/barkpark/issues/21928)
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
