@@ -15,6 +15,8 @@ import {ObjectArrayInput} from './ObjectArrayInput'
 import {RefArrayInput} from './RefArrayInput'
 import {CodeInput, ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {ImageInput} from './ImageInput'
+import {InvalidValueCard, KeysAlert, RichTextCard} from './BrokenValues'
+import {invalidValue, keyProblem, richTextProblem} from '../lib/broken'
 import {PortableDocEditor} from './PortableDocEditor'
 import {PortableDocView} from './PortableDocView'
 
@@ -72,7 +74,7 @@ function FieldBody(props: FieldProps) {
   const label = props.field.title ?? props.field.name
   const invalid = useContext(ProblemsContext).some((p) => p.path === props.path) || undefined
   // Sanity: a boolean is a switch with its label beside it, in a box.
-  if (props.field.type === 'boolean')
+  if (props.field.type === 'boolean' && !invalidValue(props.field, props.value))
     return (
       <div className="field">
         <FieldActions {...props} />
@@ -172,6 +174,9 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
 function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProps) {
   const editPath = useContext(EditPathContext)
   const invalid = useContext(ProblemsContext).some((p) => p.path === path)
+  // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
+  const wrongType = invalidValue(field, value)
+  if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
   if (readOnly && !['string', 'url', 'email', 'text', 'slug', 'composite', 'datetime', 'arrayOf', 'markdown', 'date', 'time', 'tags', 'color', 'source', 'json', 'localizedText', 'codelist'].includes(field.type))
@@ -238,6 +243,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       )
     case 'arrayOf': {
       const items = (value as unknown[]) ?? []
+      const keys = keyProblem(items)
+      if (keys) return <KeysAlert problem={keys} onChange={onChange} />
       if (field.of?.type === 'reference') return <RefArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       if (field.of?.type === 'string' || field.of?.type === 'text')
         return (field.options as {layout?: string} | undefined)?.layout === 'tags' ? (
@@ -273,9 +280,12 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
           ))}
         </div>
       )
-    case 'richText':
+    case 'richText': {
+      const broken = richTextProblem(value)
+      if (broken) return <RichTextCard problem={broken} onChange={onChange} />
       // J10: a block-editor field is Barkpark's canvas (decision 0004), scoped to the field.
       return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} /> : <RichText id={path} value={value} />
+    }
     case 'image':
       return <ImageInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
     default:
