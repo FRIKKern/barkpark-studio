@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 63 changes, 18 tasks closed
+- **Today** · 64 changes, 18 tasks closed
+  - D05: two tabs, same doc — a 412 resends on the other's rev, both edits kept; remote blocks no longer dropped while the author is in a block ([#93](https://github.com/FRIKKern/barkpark-studio/pull/93))
   - D04: new doc from an Expectation — created at once from layout + prefill, caret in the first block ([#92](https://github.com/FRIKKern/barkpark-studio/pull/92))
   - D03: a bound field edited in Freeform shows in Classic in a 2nd browser, and back ([#91](https://github.com/FRIKKern/barkpark-studio/pull/91))
-  - D02: Classic ⇄ Freeform lossless both ways — a Freeform field edit is the Classic field, free blocks untouched ([#90](https://github.com/FRIKKern/barkpark-studio/pull/90))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))

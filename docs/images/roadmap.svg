@@ -147,8 +147,8 @@
 <text x="60" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D01 Open a Freeform-main…</tspan></text>
 <text x="60" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D02 Classic ⇄ Freeform t…</tspan></text>
 <text x="60" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D03 Edit a bound field i…</tspan></text>
-<text x="60" y="1164" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">D04 New doc from an Expe…</tspan></text>
-<text x="330" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D05 Two tabs</tspan></text>
+<text x="60" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D04 New doc from an Expe…</tspan></text>
+<text x="330" y="1074" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">D05 Two tabs</tspan></text>
 <text x="330" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D06 A wikilink/link in t…</tspan></text>
 <text x="330" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D07 Drop or paste an ima…</tspan></text>
 <text x="330" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D08 Undo/redo incl. undo…</tspan></text>
