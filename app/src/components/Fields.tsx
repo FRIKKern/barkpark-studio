@@ -1,4 +1,4 @@
-import {createContext, memo, useContext, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
+import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
@@ -15,6 +15,8 @@ import {ObjectArrayInput} from './ObjectArrayInput'
 import {RefArrayInput} from './RefArrayInput'
 import {CodeInput, ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {ImageInput} from './ImageInput'
+import {PortableDocEditor} from './PortableDocEditor'
+import {PortableDocView} from './PortableDocView'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -33,6 +35,8 @@ export const ChangesContext = createContext<{changed: Set<string>; review: () =>
 export const DocContext = createContext<Doc | null>(null)
 /** The doc's id: steady while typing, for what only needs to know which doc. */
 export const DocIdContext = createContext<string | null>(null)
+/** The doc's type, steady too (a richText field's canvas saves to its own doc). */
+export const DocTypeContext = createContext<string | null>(null)
 
 /** The error mark beside a field label: Sanity shows the message on hover. */
 function ProblemMark({path}: {path: string}) {
@@ -270,7 +274,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         </div>
       )
     case 'richText':
-      return <RichText id={path} value={value} />
+      // J10: a block-editor field is Barkpark's canvas (decision 0004), scoped to the field.
+      return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} /> : <RichText id={path} value={value} />
     case 'image':
       return <ImageInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
     default:
@@ -445,6 +450,62 @@ export function RichText({id, value}: {id: string; value: unknown}) {
   )
 }
 
+
+/**
+ * J10: the body is drawn read-only until it is activated — a click, or Enter/typing
+ * on it — then Barkpark's canvas mounts in its place with the caret at the end, as
+ * Sanity's portable-text input asks for one click to activate. Until then a doc
+ * with a body costs nothing extra (no canvas bundle, no block reads), and a remote
+ * edit to the body just redraws.
+ */
+function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value: unknown; vocabulary?: unknown; readOnly?: boolean}) {
+  const id = useContext(DocIdContext)
+  const type = useContext(DocTypeContext)
+  const [active, setActive] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  // Where the activating click landed: the caret goes there once the canvas is up
+  // (one click activates and places it). By keyboard: the end of the text.
+  const at = useRef<{x: number; y: number} | null>(null)
+  useEffect(() => {
+    if (!active) return
+    const t = setInterval(() => {
+      const pm = box.current?.querySelector<HTMLElement>('.ProseMirror')
+      if (!pm) return
+      clearInterval(t)
+      if (pm.contains(document.activeElement)) return // the author got there first
+      pm.focus()
+      const range = at.current ? document.caretRangeFromPoint(at.current.x, at.current.y) : null
+      const sel = getSelection()
+      if (!sel) return
+      if (range && pm.contains(range.startContainer)) (sel.removeAllRanges(), sel.addRange(range))
+      else (sel.selectAllChildren(pm), sel.collapseToEnd())
+    }, 30)
+    return () => clearInterval(t)
+  }, [active])
+  if (!id || !type) return null
+  const blocks = ((value as {blocks?: unknown[]} | undefined)?.blocks ?? []) as Parameters<typeof PortableDocView>[0]['blocks']
+  if (!active)
+    return (
+      <div
+        className="body-canvas body-static"
+        id={field}
+        role="textbox"
+        aria-multiline="true"
+        aria-labelledby={`${field}-label`}
+        aria-readonly={readOnly || undefined}
+        tabIndex={0}
+        onClick={(e) => !readOnly && !(e.target as HTMLElement).closest('a') && ((at.current = {x: e.clientX, y: e.clientY}), setActive(true))}
+        onKeyDown={(e) => !readOnly && (e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey && (e.preventDefault(), setActive(true))}
+      >
+        <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">Empty</p>}</div>
+      </div>
+    )
+  return (
+    <div className="body-canvas" id={field} ref={box}>
+      <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} editable={!readOnly} />
+    </div>
+  )
+}
 
 /** J07: who else has their caret in this field. */
 function FieldPresenceHere({path}: {path: string}) {

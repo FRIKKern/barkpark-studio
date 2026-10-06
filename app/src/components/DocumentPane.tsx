@@ -11,7 +11,7 @@ import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
-import {ChangesContext, DocContext, DocIdContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
+import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
 import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
@@ -247,6 +247,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
             <ChangesContext.Provider value={changes}>
             <DocIdContext.Provider value={doc._publishedId}>
+            <DocTypeContext.Provider value={pane.type}>
             <DocContext.Provider value={revision ? ({...doc, ...revision.content} as Doc) : doc}>
             <EditPathContext.Provider value={onEdit}>
             <ProblemsContext.Provider value={revision ? NO_PROBLEMS : steadyProblems}>
@@ -258,6 +259,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             </ProblemsContext.Provider>
             </EditPathContext.Provider>
             </DocContext.Provider>
+            </DocTypeContext.Provider>
             </DocIdContext.Provider>
             </ChangesContext.Provider>
           </div>
