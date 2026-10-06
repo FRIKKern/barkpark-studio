@@ -20,7 +20,7 @@ side with `reference/sanity`, before its task can close.
 | F11 | Scale | 5k-doc list scrolls at 60 fps and keeps F2; a 200-field doc keeps F1 | | seeded dataset + perf trace |
 | F12 | Narrow | at 768 and 390 px: no sideways page scroll, every journey completes, tap targets ≥ 44 px | | Playwright viewport + screenshot vs Sanity |
 | F13 | Accessible | zero axe violations; Tab stays inside open dialogs; focus returns to the opener | Sanity: 5–8 axe rules fail per J01–J04 screen (2026-10-06) | @axe-core/playwright on J01–J04 screens |
-| F14 | Slow network | on Fast 3G the shell paints < 2 s and every pane shows a loading state within 300 ms; never blank | | Playwright network throttling |
+| F14 | Slow network | on Fast 3G the shell paints < 2 s and every pane shows a loading state within 300 ms; never blank | cold, no cache: shell 21 s, rows 26 s; pane after a click 15 ms (2026-10-06, prod build) | Playwright network throttling |
 | F15 | Identity | an edit is never written as anyone but the signed-in editor; lost session or refused write shows the reason and stops writing | | rig: expire session / read-only token mid-edit |
 
 The rig is [`e2e/baseline.spec.ts`](e2e/baseline.spec.ts): `cd e2e && pnpm baseline --project sanity`
