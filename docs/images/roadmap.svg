@@ -105,7 +105,7 @@
 <text x="344" y="724" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J11 Insert callout + ima…</tspan></text>
 <text x="344" y="754" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J12 Image</tspan></text>
 <text x="344" y="784" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J35 Body editor expand t…</tspan></text>
-<text x="344" y="814" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J36 Image actions</tspan></text>
+<text x="344" y="814" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J36 Image actions</tspan></text>
 </g>
 <g data-phase="6">
 <rect x="608" y="576" width="268" height="334" rx="12" class="card"/>
@@ -164,7 +164,7 @@
 <text x="60" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B03 Select several list…</tspan></text>
 <text x="330" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B04 Every Barkpark field…</tspan></text>
 <text x="330" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B05 Codelist fields</tspan></text>
-<text x="330" y="1364" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">B06 localizedText</tspan></text>
+<text x="330" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B06 localizedText</tspan></text>
 <text x="600" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B07 Unpublish a doc othe…</tspan></text>
 <text x="600" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B08 Media library</tspan></text>
 <text x="600" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B09 Related-doc views fr…</tspan></text>
