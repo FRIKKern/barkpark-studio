@@ -1,3 +1,5 @@
+import {createContext} from 'react'
+
 // Which panes collapse to strips — Sanity's own algorithm (structure/components/pane/
 // paneLayoutController.ts, _notifyObservers), ported as-is so the two studios
 // collapse the same panes at every width:
@@ -21,3 +23,11 @@ export function collapsed(kinds: (keyof typeof MIN)[], width: number, focus = ki
   }
   return out
 }
+
+/**
+ * J42: below this width the structure shows one pane, the last, with a back link
+ * (Sanity: the PaneLayout's minWidth is theme media[1] = 600; under it the layout
+ * collapses, BackLink appears and split/close go: StructureTool.tsx, StructureToolProvider.tsx).
+ */
+export const NARROW = 600
+export const NarrowContext = createContext(false)

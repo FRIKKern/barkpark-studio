@@ -117,6 +117,12 @@ a { color: inherit; text-decoration: none; }
 .pane.filler { flex: 2 1 0; border-right: 0; }
 .pane.strip { flex: 0 0 var(--strip); min-width: var(--strip); max-width: var(--strip); cursor: pointer; }
 .pane.strip:hover { background: var(--hover); }
+/* J42: a narrow window shows one pane, full width. */
+.panes[data-narrow] > .pane { flex: 1 1 auto; min-width: 0; max-width: none; }
+.panes[data-narrow] .doc-form { padding-left: 20px; padding-right: 20px; }
+.panes[data-narrow] .doc-form h1 { font-size: 27px; line-height: 35px; }
+.back-link { flex: none; margin-left: -8px; }
+.title-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .strip-title {
   writing-mode: vertical-rl; padding: 19px 16px; font-size: 13px; line-height: 19px;
   font-weight: 600; color: var(--fg-header); white-space: nowrap;

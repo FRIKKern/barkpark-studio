@@ -1,4 +1,5 @@
-import {useCallback, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {NarrowContext} from '../lib/layout'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
@@ -43,6 +44,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Sanity's two perspectives, in the URL: the draft you edit (default), or the
   // published version, read-only (?perspective=published).
   const viewingPublished = usePublishedPerspective()
+  const narrow = useContext(NarrowContext)
   const draftQ = useQuery(docQuery(pane.type, pane.id))
   // The published version: for its perspective, and (J15) to see what the draft changed.
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished || (!!draftQ.data?._draft && draftQ.data?._hasPublished !== false)})
@@ -254,18 +256,23 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {doc && schema && (
           <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} />
         )}
-        <button type="button" className="icon-btn" aria-label="Split pane right" title="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
-          <SplitVertical />
-        </button>
-        {split ? (
-          // Like Sanity: closing one side of a split is a button, closing a pane a link.
-          <button type="button" className="icon-btn" aria-label="Close split pane" data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
-            {closeIcon}
-          </button>
-        ) : (
-          <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
-            {closeIcon}
-          </PaneLink>
+        {/* J42: a narrow window has no splits and no close: the back link goes back. */}
+        {!narrow && (
+          <>
+            <button type="button" className="icon-btn" aria-label="Split pane right" title="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
+              <SplitVertical />
+            </button>
+            {split ? (
+              // Like Sanity: closing one side of a split is a button, closing a pane a link.
+              <button type="button" className="icon-btn" aria-label="Close split pane" data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
+                {closeIcon}
+              </button>
+            ) : (
+              <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
+                {closeIcon}
+              </PaneLink>
+            )}
+          </>
         )}
       </header>
       <div className="doc-title-bar">
