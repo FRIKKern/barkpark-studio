@@ -4,7 +4,8 @@ import {target} from '../rig/targets'
 
 // J05 + J06, both studios, two browsers on one post. J05: each types in a different
 // field and sees the other's. J06: both type in the same field at once; the text
-// converges with both edits in it. Throughout, nobody's focus or caret moves (F6).
+// converges with both edits in it. Throughout, nobody's focus or caret moves (F6),
+// and undo takes back only your own typing, others' kept (F7; Sanity does nothing).
 const ID = 'post-14'
 const SEED = {title: 'Fixture post 14', excerpt: 'Short excerpt for post 14.'}
 
@@ -49,6 +50,17 @@ test('J05 J06: two browsers, different fields then the same field', async ({brow
     console.log(`[J06 ${t.name}] carets after merge: A ${carets.a.at}/${both.length}, B ${carets.b.at} (typed 4)`)
     if (t.name === 'studio') expect(carets, 'F6: carets stay put').toEqual({a: {id: 'title', at: both.length}, b: {id: 'title', at: 'bbb '.length}})
     expect(await value(b, 'excerpt')).toBe(`${SEED.excerpt} B`)
+
+    // F7: A's undo takes back A's " aaa" only; B's "bbb " stays, here and in B. Redo.
+    await a.keyboard.press('ControlOrMeta+z')
+    console.log(`[F7 ${t.name}] A after undo: ${JSON.stringify(await value(a, 'title'))}`)
+    if (t.name === 'studio') {
+      const undone = `bbb ${SEED.title} A`
+      await expect(t.field(a, 'title')).toHaveValue(undone)
+      await expect(t.field(b, 'title')).toHaveValue(undone, {timeout: 10_000})
+      await a.keyboard.press('ControlOrMeta+Shift+z')
+      await expect(t.field(b, 'title')).toHaveValue(both, {timeout: 10_000})
+    }
     // Ours coalesces writes: let the last land before the reset.
     if (t.name === 'studio') await Promise.all([a.getByText(/^Saved$/).waitFor(), b.getByText(/^Saved$/).waitFor()])
   } finally {
