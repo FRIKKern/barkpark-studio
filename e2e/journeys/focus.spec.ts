@@ -40,7 +40,7 @@ async function openMenu(t: Target, page: Page, button: Locator) {
   return page.locator(`[role=menu][aria-labelledby="${id}"]`)
 }
 
-test.use({video: 'on'})
+test.use({video: process.env.EVIDENCE ? 'on' : 'off'}) // CI has no ffmpeg
 
 test('@evidence J43: dialogs trap focus; focus returns to the opener', async ({page}, info) => {
   const t = target(info)
