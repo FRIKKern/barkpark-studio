@@ -6,7 +6,7 @@ import {target} from '../rig/targets'
 const firstRow = (page: Page) => page.locator('a[href^="/structure/post;"]').first()
 const firstTitle = async (page: Page) => (await firstRow(page).innerText()).split('\n')[0]
 
-test('J24 J25: list search, empty state, sort that sticks', async ({page}, info) => {
+test('@local J24 J25: list search, empty state, sort that sticks', async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
   await page.goto(t.listPath('post'))

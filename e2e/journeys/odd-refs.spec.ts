@@ -20,7 +20,7 @@ test.afterEach(async ({}, info) => {
   await t.deleteDoc(DRAFT, 'author')
 })
 
-test('J27: missing doc + Clear, draft-only target, filtered search, create asks the type', async ({page}, info) => {
+test('@local J27: missing doc + Clear, draft-only target, filtered search, create asks the type', async ({page}, info) => {
   const t = target(info)
   await t.draftOnly(DRAFT, 'author', {name: 'Draft Only'})
   await t.patch(ID, {author: t.weakRef('author-missing'), reviewer: t.weakRef(DRAFT, 'author')})

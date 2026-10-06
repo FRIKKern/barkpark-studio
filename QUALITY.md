@@ -37,6 +37,7 @@ editors share one write budget). F4 "push" is another client patching over the A
    e2e suite < 60 s in CI) and guards something that can break silently: the crown
    journeys (J21 J08 J22 J23) and live edit (J05 J06). One spec covering several
    journeys beats many small ones. A spec that blows the budget is merged or cut.
+   Specs for other journeys are tagged `@local`: `pnpm test` runs them, CI doesn't.
 6. **Gaps become tasks immediately.** "Feels off" is a valid bug. File it, with a clip.
 
 ## Anti-slop rules for docs

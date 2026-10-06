@@ -9,7 +9,7 @@ test.afterEach(async ({}, info) => {
   created = undefined
 })
 
-test('J18: new post from the list — initial values, slug generate', async ({page}, info) => {
+test('@local J18: new post from the list — initial values, slug generate', async ({page}, info) => {
   const t = target(info)
   await Promise.all([t.prepare(page.context()), installProbes(page.context())])
   await page.goto(t.listPath('post'))

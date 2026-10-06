@@ -24,8 +24,9 @@ export default defineConfig({
   globalTimeout: process.env.CI ? 60_000 : 0,
   reporter: [['list']],
   // @baseline specs measure and @evidence specs take side-by-side stills and clips;
-  // neither gates: only `pnpm baseline` / `pnpm evidence` run them.
-  grepInvert: process.env.BASELINE || process.env.EVIDENCE ? undefined : /@baseline|@evidence/,
+  // neither gates: only `pnpm baseline` / `pnpm evidence` run them. @local specs
+  // (journeys outside QUALITY.md rule 5) run in `pnpm test`, not in CI's budget.
+  grepInvert: process.env.BASELINE || process.env.EVIDENCE ? undefined : process.env.CI ? /@baseline|@evidence|@local/ : /@baseline|@evidence/,
   use: {channel: 'chrome', viewport: {width: 1440, height: 900}},
   projects: [
     {name: 'sanity', use: {baseURL: SANITY}},

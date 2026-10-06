@@ -9,7 +9,7 @@ const path = (page: Page) => decodeURIComponent(new URL(page.url()).pathname)
 
 test.afterEach(async ({}, info) => target(info).resetDoc(ID, 'post'))
 
-test('J26: split pane right, edit both sides, close the split', async ({page}, info) => {
+test('@local J26: split pane right, edit both sides, close the split', async ({page}, info) => {
   const t = target(info)
   await Promise.all([t.prepare(page.context()), installProbes(page.context())])
   await page.goto(t.docPath('post', ID))
