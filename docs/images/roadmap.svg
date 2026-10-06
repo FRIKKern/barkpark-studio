@@ -75,8 +75,8 @@
 <text x="912" y="262" font-size="23" font-weight="600">Live</text>
 <path d="M912 282H1140" class="rule"/>
 <text x="912" y="314" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J05 Two browsers</tspan></text>
-<text x="912" y="344" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J06 Two browsers type in…</tspan></text>
-<text x="912" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J07 Presence everywhere</tspan></text>
+<text x="912" y="344" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J06 Two browsers type in…</tspan></text>
+<text x="912" y="374" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J07 Presence everywhere</tspan></text>
 <text x="912" y="404" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J20 10 s offline while t…</tspan></text>
 <text x="912" y="434" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J32 Someone deletes or c…</tspan></text>
 </g>
