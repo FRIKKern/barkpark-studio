@@ -6,5 +6,12 @@
     {"name": "title", "title": "Title", "type": "string", "validation": {"required": true}},
     {"name": "kicker", "title": "Kicker", "type": "string"},
     {"name": "summary", "title": "Summary", "type": "text", "rows": 3}
-  ]
+  ],
+  "layout": [
+    {"kind": "field", "name": "title", "max": 1, "enforce": true},
+    {"kind": "field", "name": "kicker", "max": 1},
+    {"kind": "field", "name": "summary", "max": 1},
+    {"kind": "region", "name": "body"}
+  ],
+  "prefill": {"kicker": "New story"}
 }

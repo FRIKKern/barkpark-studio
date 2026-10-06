@@ -1,0 +1,16 @@
+{
+  "name": "note",
+  "title": "Note",
+  "visibility": "public",
+  "fields": [
+    {"name": "title", "title": "Title", "type": "string", "validation": {"required": true}},
+    {"name": "label", "title": "Label", "type": "string"},
+    {"name": "body", "title": "Body", "type": "richText"}
+  ],
+  "layout": [
+    {"kind": "field", "name": "title", "max": 1, "enforce": true},
+    {"kind": "field", "name": "label", "max": 1},
+    {"kind": "region", "name": "body"}
+  ],
+  "prefill": {"label": "Idea"}
+}

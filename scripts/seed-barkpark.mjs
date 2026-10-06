@@ -20,7 +20,10 @@ const BASE = `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${env('BAR
 const DATASET = env('BARKPARK_DATASET', 'production')
 const TYPES = ['longform', 'author', 'category', 'post'] // refs point left: posts last
 // Barkpark-native types: no Sanity mirror, seeded as written (fixtures/barkpark-only.ndjson).
-const NATIVE_TYPES = ['volume', 'story'] // not 'book': Barkpark's onixedit plugin owns that type
+// story and note are PortableDoc types (decision 0004; Sanity has no equivalent): story
+// is the Expectation fixture seeded as a block list; note is Freeform-main, with a
+// layout + prefill, seeded through its body (create builds its blocks from the layout).
+const NATIVE_TYPES = ['volume', 'story', 'note'] // not 'book': Barkpark's onixedit plugin owns that type
 
 function fail(msg) {
   console.error(`seed-barkpark: ${msg}`)
@@ -122,9 +125,16 @@ function toBarkpark(doc) {
 // list_preview.title when the type has no title field) — compare it only where
 // the seed has one.
 // Projection output (body, preview, body_html) is derived, never seeded.
-const DERIVED = new Set(['body', 'preview', 'body_html'])
+// `blocks` too, for a type whose layout builds them; a seeded body is compared without
+// the html Barkpark renders from it.
+const DERIVED = new Set(['body', 'preview', 'body_html', 'blocks'])
+const withoutHtml = (body) => Object.fromEntries(Object.entries(body).filter(([k]) => k !== 'html'))
 const stripSystem = (doc, want) =>
-  Object.fromEntries(Object.entries(doc).filter(([k]) => !k.startsWith('_') && (k !== 'title' || 'title' in want) && !(DERIVED.has(k) && !(k in want))))
+  Object.fromEntries(
+    Object.entries(doc)
+      .filter(([k]) => !k.startsWith('_') && (k !== 'title' || 'title' in want) && !(DERIVED.has(k) && !(k in want)))
+      .map(([k, v]) => (k === 'body' && v && typeof v === 'object' && want.body && !('html' in want.body) ? [k, withoutHtml(v)] : [k, v])),
+  )
 
 // ── steps ───────────────────────────────────────────────────────────────────
 
@@ -162,10 +172,11 @@ async function reset() {
   const ordered = TYPES.flatMap((t) => seed.filter((d) => d._type === t))
   const docs = [...ordered.map((d) => ({_id: d._id, _type: d._type, ...toBarkpark(d)})), ...native]
   await mutate(docs.map((d) => ({createOrReplace: d})))
-  // A create doesn't project a block list into its fields (task-b43256e0d9d90733); a patch does
-  // (BoundFieldSync + projection), so block docs get a no-op title patch first.
+  // A create doesn't project a block list into its fields (task-b43256e0d9d90733), and on a
+  // type with a layout it builds the blocks from the layout + prefill instead of taking
+  // ours. A patch of the block list does both right (BoundFieldSync + projection).
   const blockDocs = docs.filter((d) => Array.isArray(d.blocks))
-  if (blockDocs.length) await mutate(blockDocs.map((d) => ({patch: {id: d._id, type: d._type, set: {title: d.title}}})))
+  if (blockDocs.length) await mutate(blockDocs.map((d) => ({patch: {id: d._id, type: d._type, set: {blocks: d.blocks}}})))
   await mutate(docs.map((d) => ({publish: {id: d._id, type: d._type}})))
   console.log(`reset: deleted ${ids.length}, created + published ${docs.length}`)
 }
