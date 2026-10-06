@@ -24,3 +24,10 @@ test('split, open a ref from the left side, close the split', () => {
   assert.equal(closeSplit(two, 3), '/structure/post;post-26')
   assert.equal(closeSplit(two, 2), '/structure/post;post-26')
 })
+
+test('a focused field rides in the pane (J52), nested paths included', () => {
+  for (const p of ['/structure/post;post-22,path=excerpt', '/structure/post;post-22,path=seo.metaTitle', '/structure/post;post-22;author-ada,type=author,parentRefPath=author,path=bio'])
+    assert.equal(round(p), p)
+  const [, , doc] = parsePanes('post;post-22,path=seo.metaTitle')
+  assert.equal((doc as {path?: string}).path, 'seo.metaTitle')
+})

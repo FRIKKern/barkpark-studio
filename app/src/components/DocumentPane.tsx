@@ -76,6 +76,42 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // also opens in Barkpark's block canvas. The doc says so; the schema read omits
   // `layout` (task-28082a4cf187403d). FF3 makes it the default per type.
   const {canWrite, editReason, signedOut} = useCanWrite()
+
+  // J52: the focused field lives in the URL (Sanity's `path=`): a reload or a copied
+  // link opens on it. Opening: focus the named field (showing all groups if it sits
+  // in another). Editing: the URL follows focus, replaced (no history entries).
+  const schemaHere = schemaOf(schemas, pane.type)
+  const opened = useRef<string | null>(null)
+  useEffect(() => {
+    const want = pane.path
+    if (!want || !doc || !schemaHere || opened.current === `${pane.id}|${want}`) return
+    opened.current = `${pane.id}|${want}`
+    const top = schemaHere.fields.find((f) => f.name === want.split(/[.[]/)[0])
+    if (top?.group && group && top.group !== group) setGroup('')
+    let frames = 90
+    const tryFocus = () => {
+      const el = document.querySelector<HTMLElement>(`[data-pane="doc:${CSS.escape(pane.id)}"] [id="${CSS.escape(want)}"]`)
+      if (el) (el.focus({preventScroll: true}), el.scrollIntoView({block: 'center'}))
+      else if (frames-- > 0) requestAnimationFrame(tryFocus)
+    }
+    requestAnimationFrame(tryFocus)
+  }, [pane.path, pane.id, doc, schemaHere, group])
+  const pathTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // Only focus the author moved (a click or a key in the form), not the studio's own
+  // focusing of a field on open.
+  const userMoved = useRef(0)
+  const keepPathInUrl = (id: string) => {
+    if (Date.now() - userMoved.current > 1000) return
+    if (!id || id === pane.path || !schemaHere?.fields.some((f) => f.name === id.split(/[.[]/)[0])) return
+    clearTimeout(pathTimer.current)
+    const at = location.pathname
+    pathTimer.current = setTimeout(() => {
+      // The panes moved meanwhile (a reference opened, a pane closed): that URL wins.
+      if (location.pathname !== at) return
+      opened.current = `${pane.id}|${id}` // ours, not a link to follow
+      void navigate({href: withParams(panes, index, {path: id}), replace: true})
+    }, 300)
+  }
   const loggedOut = useSaveState(pane.id).state === 'signedOut' || signedOut
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
   const freeform = mode !== 'none' && !viewingPublished && (mode === 'main' || Array.isArray(doc?.blocks))
@@ -277,7 +313,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         )}
         {pane.rev && revQ.data === null && <p role="alert">This revision can't be found. Pick another entry in the history.</p>}
         {doc && schema && view === 'classic' && (!pane.rev || revision) && (
-          <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
+          <div
+            className="doc-form"
+            onBlur={() => flush(qc, pane.id)}
+            onFocus={(e) => keepPathInUrl((e.target as HTMLElement).id)}
+            onPointerDown={() => (userMoved.current = Date.now())}
+            onKeyDown={() => (userMoved.current = Date.now())}
+          >
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />

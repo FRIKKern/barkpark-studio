@@ -7,7 +7,7 @@
 export type Pane =
   | {kind: 'types'}
   | {kind: 'list'; type: string}
-  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean; inspect?: string; rev?: string}
+  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean; inspect?: string; rev?: string; path?: string}
 
 export function parsePanes(splat: string | undefined): Pane[] {
   const panes: Pane[] = [{kind: 'types'}]
@@ -30,6 +30,9 @@ export function parsePanes(splat: string | undefined): Pane[] {
         // old revision shown read-only in its place (`rev=<revision id>`).
         inspect: p.inspect,
         rev: p.rev,
+        // J52: the focused field (Sanity's `path=seo.metaTitle`): a reload or a copied
+        // link opens on it.
+        path: p.path,
         sibling: !!first || undefined,
       }
       first ??= pane
@@ -53,6 +56,7 @@ export function panesPath(panes: Pane[]): string {
       if (p.view) params += `,view=${encodeURIComponent(p.view)}`
       if (p.inspect) params += `,inspect=${encodeURIComponent(p.inspect)}`
       if (p.rev) params += `,rev=${encodeURIComponent(p.rev)}`
+      if (p.path) params += `,path=${encodeURIComponent(p.path)}`
       // A sibling of the same doc carries only its own params, like Sanity's "|,".
       if (p.sibling) segs[segs.length - 1] += `|,${p.view ? `view=${encodeURIComponent(p.view)}` : ''}`
       else segs.push(encodeURIComponent(p.id) + params)
@@ -93,7 +97,7 @@ export function withView(panes: Pane[], index: number, view: string) {
   return panesPath(panes.map((p, i) => (i === index && p.kind === 'doc' ? {...p, view: view || undefined} : p)))
 }
 /** Href for pane `index` with some of its params changed (undefined removes one). */
-export function withParams(panes: Pane[], index: number, params: {inspect?: string; rev?: string}) {
+export function withParams(panes: Pane[], index: number, params: {inspect?: string; rev?: string; path?: string}) {
   return panesPath(panes.map((p, i) => (i === index && p.kind === 'doc' ? {...p, ...params} : p)))
 }
 /** Href for closing pane `index` and everything to its right. */
