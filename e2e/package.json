@@ -9,6 +9,7 @@
     "reset": "BARKPARK_DATASET=${BARKPARK_DATASET:-e2e-local} node --env-file=../.env ../scripts/seed-barkpark.mjs --data"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "1.63.0",
     "@types/node": "22.20.5"
   }

@@ -104,7 +104,7 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
 
   return (
     <div className="array-field" id={id}>
-      <div ref={rows} className="array-box" role="list" aria-describedby={`${id}-dnd-help`}>
+      <div ref={rows} className="array-box" role={items.length ? 'list' : undefined} aria-describedby={`${id}-dnd-help`}>
         {items.length === 0 && <div className="array-empty">No items</div>}
         {order.slice(0, revealed).map((orig, i) => (
           <Row

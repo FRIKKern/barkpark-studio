@@ -9,7 +9,7 @@
   --border: #e6e8ec;
   --hover: #f2f3f5;
   --hover-strong: #e9eaee;
-  --selected: #556bfc;
+  --selected: #465be8; /* F13: white text on it passes AA (5.3:1) */
   --published: #3ab667;
   --nav-h: 51px;
   --strip: 51px;
@@ -94,7 +94,7 @@ a.preview:hover { background: var(--hover); }
 .preview .text { flex: 1; min-width: 0; }
 .preview .t { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preview .s { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.preview[aria-current='true'] .s { color: rgba(255, 255, 255, 0.8); }
+.preview[aria-current='true'] .s { color: rgba(255, 255, 255, 0.9); }
 .preview .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--published); margin: 0 12px; }
 .preview .ring { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #f5a623; margin-left: 8px; }
 .preview .ring + .dot { margin-left: 6px; }
@@ -147,7 +147,7 @@ textarea.input { resize: vertical; }
 .doc-footer .save-state { margin-right: auto; }
 .publish { font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: #1f2230; color: #fff; cursor: pointer; }
 .publish:disabled { background: #c7cad3; cursor: default; }
-.publish.danger { background: #e5483f; }
+.publish.danger { background: #d83d35; }
 .switch { display: inline-block; position: relative; width: 33px; height: 19px; }
 .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .switch span { position: absolute; inset: 0; border-radius: 999px; background: #c7cad3; pointer-events: none; }
@@ -207,7 +207,7 @@ textarea.input { resize: vertical; }
 .dialog footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px; }
 .btn { font: inherit; font-size: 13px; font-weight: 500; padding: 6px 12px; border: 0; border-radius: 3px; background: none; color: var(--fg); cursor: pointer; }
 .btn:hover { background: var(--hover); }
-.btn.danger { background: #e5483f; color: #fff; }
+.btn.danger { background: #d83d35; color: #fff; }
 .btn.danger:disabled { background: #f0b3ae; cursor: default; }
 .warning { padding: 8px 12px; border-radius: 3px; background: #fdf3c8; }
 .used-in { list-style: none; margin: 0; padding: 4px 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
