@@ -1,9 +1,8 @@
 import {createContext, useContext, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
-import {itemPath, refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
+import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
 import type {Problem} from '../lib/validation'
-import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
 import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline} from './icons'
 import {copy, fits, read, signature} from '../lib/clipboard'
@@ -12,6 +11,7 @@ import {FieldPresence} from './Presence'
 import {DateTimeInput} from './DateTimeInput'
 import {StringArrayInput, TagsInput} from './ArrayInputs'
 import {ObjectArrayInput} from './ObjectArrayInput'
+import {RefArrayInput} from './RefArrayInput'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -192,14 +192,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       )
     case 'arrayOf': {
       const items = (value as unknown[]) ?? []
-      if (field.of?.type === 'reference')
-        return (
-          <div className="ref-box" id={path}>
-            {items.map((item, i) => (
-              <RefPreview key={(item as {_key?: string})?._key ?? i} type={field.of!.refType!} id={refId(item)!} {...openRef(field.of!.refType!, refId(item)!, itemPath(path, item, i))} />
-            ))}
-          </div>
-        )
+      if (field.of?.type === 'reference') return <RefArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       if (field.of?.type === 'string' || field.of?.type === 'text')
         return (field.options as {layout?: string} | undefined)?.layout === 'tags' ? (
           <TagsInput id={path} value={value} onChange={onChange} readOnly={readOnly} />

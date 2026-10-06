@@ -21,9 +21,13 @@ type Props<T> = {
   /** Called with the new item's index after an add, e.g. to open it for editing. */
   onAdded?: (index: number, items: T[]) => void
   addLabel?: string
+  /** More item-menu entries: after Remove (e.g. a reference's Replace), or at the end (`last`). */
+  extraActions?: (item: T, index: number) => {label: string; run: () => void; last?: boolean}[]
+  /** The item's id stem (its menu button is `<stem>-menuButton`), e.g. Sanity's `categories[_key=="c2"]`. */
+  itemId?: (item: T, index: number) => string
 }
 
-export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, duplicate = (x) => x, onCopy, keyOf = (_, i) => i, onAdded, addLabel = 'Add item'}: Props<T>) {
+export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, duplicate = (x) => x, onCopy, keyOf = (_, i) => i, onAdded, addLabel = 'Add item', extraActions, itemId}: Props<T>) {
   // While a row is being moved: which row (original index), and where it is now.
   const [moving, setMoving] = useState<{from: number; to: number} | null>(null)
   const rows = useRef<HTMLDivElement>(null)
@@ -96,9 +100,10 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
             </button>
             {renderItem(items[orig]!, orig)}
             <ItemMenu
-              id={`${id}[${i}]-menuButton`}
+              id={`${itemId ? itemId(items[orig]!, orig) : `${id}[${i}]`}-menuButton`}
               disabled={readOnly}
               onRemove={() => onChange(items.filter((_, j) => j !== orig))}
+              extra={extraActions?.(items[orig]!, orig) ?? []}
               onCopy={onCopy && (() => onCopy(items[orig]!, orig))}
               onDuplicate={() => onChange([...items.slice(0, orig + 1), duplicate(items[orig]!), ...items.slice(orig + 1)])}
               onAddBefore={() => insert(orig)}
@@ -124,7 +129,7 @@ export const reorder = <T,>(xs: T[], from: number, to: number) => {
   return out
 }
 
-function ItemMenu(props: {id: string; disabled?: boolean; onRemove: () => void; onCopy?: () => void; onDuplicate: () => void; onAddBefore: () => void; onAddAfter: () => void}) {
+function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string; run: () => void; last?: boolean}[]; onRemove: () => void; onCopy?: () => void; onDuplicate: () => void; onAddBefore: () => void; onAddAfter: () => void}) {
   const [open, setOpen] = useState(false)
   const pick = (f: () => void) => () => (setOpen(false), f())
   return (
@@ -137,6 +142,11 @@ function ItemMenu(props: {id: string; disabled?: boolean; onRemove: () => void; 
           <button type="button" role="menuitem" className="menu-item danger" autoFocus onClick={pick(props.onRemove)}>
             Remove
           </button>
+          {props.extra.filter((a) => !a.last).map((a) => (
+            <button key={a.label} type="button" role="menuitem" className="menu-item" onClick={pick(a.run)}>
+              {a.label}
+            </button>
+          ))}
           {props.onCopy && (
             <button type="button" role="menuitem" className="menu-item" onClick={pick(props.onCopy)}>
               Copy
@@ -151,6 +161,11 @@ function ItemMenu(props: {id: string; disabled?: boolean; onRemove: () => void; 
           <button type="button" role="menuitem" className="menu-item" onClick={pick(props.onAddAfter)}>
             Add item after
           </button>
+          {props.extra.filter((a) => a.last).map((a) => (
+            <button key={a.label} type="button" role="menuitem" className="menu-item" onClick={pick(a.run)}>
+              {a.label}
+            </button>
+          ))}
         </div>
       )}
     </div>
