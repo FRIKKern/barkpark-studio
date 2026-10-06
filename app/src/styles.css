@@ -701,6 +701,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .preview.skeleton .t, .preview.skeleton .s { height: 7px; margin: 6px 0; border-radius: 4px; background: var(--hover); }
 .preview.skeleton .t { width: 160px; }
 .preview.skeleton .s { width: 120px; }
+/* Sanity's loading states wait 300 ms before they show: a fast load never flashes them. */
+.list-loading, .pane-loading { opacity: 0; animation: loading-appear 0s 300ms forwards; }
+@keyframes loading-appear { to { opacity: 1; } }
 .pane-loading { display: flex; align-items: center; justify-content: center; min-height: 100%; font-size: 13px; color: var(--muted); }
 .studio-error { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
 .studio-error .pane-error { max-width: 640px; }

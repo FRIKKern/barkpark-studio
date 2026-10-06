@@ -33,14 +33,15 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
     onServer ? (fetchListPrefs() as Promise<ListPrefs>) : readListPrefsCookie(),
   ])
   // The list and the open docs don't depend on each other: one round trip, not two.
-  // J50: a read that fails is that pane's to show (error card, Retry), not the route's;
-  // in the browser the panes paint after LOADER_WAIT at most, with their loading state.
+  // J50: a read that fails is that pane's to show (error card, Retry), not the route's.
+  // J51: in the browser a click never waits on the network: what is cached paints at
+  // once, anything else paints its pane now and fills in (like Sanity's panes).
   const settle = <T,>(p: Promise<T>) => p.catch(() => undefined)
   const data = Promise.all([
     Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [settle(queryClient.ensureQueryData(listQuery(p.type, listPrefs[p.type]?.sort ?? DEFAULT_SORT)).then((l) => l.docs))] : []))),
     Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : []))),
   ])
-  if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, LOADER_WAIT, false))]))) {
+  if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, 0, false))]))) {
     void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))
     return {panes, widthHint, listPrefs}
   }
@@ -49,9 +50,6 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   if (onServer) await refs
   return {panes, widthHint, listPrefs}
 }
-
-/** How long a pane opening in the browser waits for its data before it paints its loading state (Sanity's skeleton delay). */
-const LOADER_WAIT = 300
 
 /** The docs open docs reference, and what every visible preview needs; a preview that fails shows its own state. */
 async function followRefs(queryClient: QueryClient, schemas: Schema[], listed: (Doc[] | undefined)[], open: (Doc | null | undefined)[]) {

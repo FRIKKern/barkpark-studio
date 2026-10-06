@@ -10,6 +10,22 @@ import {useEffect} from 'react'
 export function useHydratedMark() {
   useEffect(() => {
     document.documentElement.dataset.hydrated = ''
+    releaseEarlyClicks()
     return () => void delete document.documentElement.dataset.hydrated
   }, [])
+}
+
+/**
+ * J51, inline in <head>: on a slow network the server-rendered page shows a while
+ * before its code runs. Links work meanwhile (full page loads); a button would do
+ * nothing, so its click is held (window.__earlyClicks) until releaseEarlyClicks().
+ */
+export const EARLY_CLICKS = `window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
+
+/** The page is interactive: stop holding clicks and click what was held. Once per page load. */
+export function releaseEarlyClicks() {
+  const w = window as {__earlyClicks?: HTMLElement[] | null}
+  const held = w.__earlyClicks ?? []
+  w.__earlyClicks = null
+  for (const el of held) if (el.isConnected) el.click()
 }

@@ -299,7 +299,7 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
 /** Sanity's loading list: placeholder rows in the shape of the real ones. */
 function ListSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading documents" data-testid="list-loading">
+    <div className="list-loading" aria-busy="true" aria-label="Loading documents" data-testid="list-loading">
       {Array.from({length: 30}, (_, i) => (
         <div key={i} className="preview skeleton">
           <span className="media" />
