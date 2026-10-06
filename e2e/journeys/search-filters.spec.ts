@@ -34,7 +34,7 @@ test('@evidence J38: search filters side by side', async ({page, context}, info)
   await page.screenshot({path: shot(t.name, '3-add-filter')})
 })
 
-test('J38: field filter, type filter, order, recent searches', async ({page, context}, info) => {
+test('@local J38: field filter, type filter, order, recent searches', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)
