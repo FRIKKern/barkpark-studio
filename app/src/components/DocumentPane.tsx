@@ -5,12 +5,14 @@ import {usePublishedPerspective} from '../lib/perspective'
 import {validate, type Problem} from '../lib/validation'
 import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {createDoc, discardDraft, draftNew, edit, flush, publish, unpublish, useSaveState} from '../lib/edits'
-import {openAfter, panesPath, splitRight, withView, type Pane} from '../lib/panes'
+import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {PaneLink} from './PaneLink'
 import {DocContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
 import {DeleteDialog} from './DeleteDialog'
 import {DocHeaderMenu, DocShareMenu} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
+import {HistoryPanel, RevisionFooter} from './HistoryPanel'
+import {revisionQuery} from '../lib/history'
 import {PortableDocEditor} from './PortableDocEditor'
 import {toast} from './Toasts'
 import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical} from './icons'
@@ -32,6 +34,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const draftQ = useQuery(docQuery(pane.type, pane.id))
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished})
   const {data: doc, isPending, error} = viewingPublished ? publishedQ : draftQ
+  // J16: an old revision (rev=… in the URL) shows in the form's place, read-only.
+  const revQ = useQuery({...revisionQuery(pane.rev ?? ''), enabled: !!pane.rev})
+  const revision = pane.rev ? revQ.data : undefined
   const base = panesPath(panes)
   const navigate = useNavigate()
   // Field groups (Sanity's tabs): the schema's default group first; '' = all fields.
@@ -133,7 +138,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <ErrorOutline />
           </button>
         )}
-        {doc && schema && <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished} onInspect={() => setInspectOpen(true)} />}
+        {doc && schema && (
+          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} />
+        )}
         <button type="button" className="icon-btn" aria-label="Split pane right" title="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
           <SplitVertical />
         </button>
@@ -164,18 +171,19 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
         {doc && pane.view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
         {freeform && pane.view === 'freeform' && <PortableDocEditor type={pane.type} id={pane.id} />}
-        {doc && schema && pane.view !== 'json' && pane.view !== 'freeform' && (
+        {pane.rev && revQ.data === null && <p role="alert">This revision can't be found. Pick another entry in the history.</p>}
+        {doc && schema && pane.view !== 'json' && pane.view !== 'freeform' && (!pane.rev || revision) && (
           <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
-            <DocContext.Provider value={doc}>
+            <DocContext.Provider value={revision ? ({...doc, ...revision.content} as Doc) : doc}>
             <EditPathContext.Provider value={onEdit}>
-            <ProblemsContext.Provider value={problems}>
-            <fieldset className="form-fields" disabled={viewingPublished}>
+            <ProblemsContext.Provider value={revision ? [] : problems}>
+            <fieldset className="form-fields" disabled={viewingPublished || !!revision}>
               {schema.fields.filter((f) => !group || f.group === group).map((f) => (
-                <FieldView key={f.name} field={f} path={f.name} value={doc[f.name]} openRef={openRef} onChange={(v) => onEdit(f.name, v)} />
+                <FieldView key={f.name} field={f} path={f.name} value={(revision ? revision.content : doc)[f.name]} openRef={openRef} onChange={(v) => onEdit(f.name, v)} />
               ))}
             </fieldset>
             </ProblemsContext.Provider>
@@ -185,8 +193,19 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         )}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => setInspecting(false)} />}
+      {pane.inspect === 'history' && (
+        <HistoryPanel
+          type={pane.type}
+          id={pane.id}
+          selected={pane.rev}
+          onPick={(e) => navigate({href: withParams(panes, index, {rev: e?.revision.id})})}
+          onClose={() => navigate({href: withParams(panes, index, {inspect: undefined, rev: undefined})})}
+        />
+      )}
       </div>
-      {viewingPublished
+      {pane.rev
+        ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
+        : viewingPublished
         ? doc && <PublishedFooter doc={doc} />
         : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} onDuplicate={() => duplicate(doc)} />}
       {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema)} onClose={() => setInspectOpen(false)} />}

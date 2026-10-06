@@ -12,7 +12,7 @@ import {toast} from './Toasts'
  * copied document's and leaves the rest alone, so pasting a post into an author
  * moves only what fits.
  */
-export function DocHeaderMenu({doc, schema, readOnly, onInspect}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void}) {
+export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void; onHistory: () => void}) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
@@ -23,7 +23,10 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect}: {doc: Doc; sch
       </button>
       {open && (
         <div className="popover menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && close()}>
-          <button type="button" role="menuitem" className="menu-item" autoFocus aria-keyshortcuts="Control+Alt+I" onClick={() => (close(), onInspect())}>
+          <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (close(), onHistory())}>
+            History
+          </button>
+          <button type="button" role="menuitem" className="menu-item" aria-keyshortcuts="Control+Alt+I" onClick={() => (close(), onInspect())}>
             Inspect
             <kbd>Ctrl Alt I</kbd>
           </button>
