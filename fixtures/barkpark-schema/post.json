@@ -12,7 +12,7 @@
     {"name": "author", "title": "Author", "type": "reference", "refType": "author", "group": "content"},
     {"name": "categories", "title": "Categories", "type": "arrayOf", "ordered": true, "group": "content",
      "of": {"type": "reference", "refType": "category"}},
-    {"name": "mainImage", "title": "Main image", "type": "image", "group": "content", "options": {"hotspot": true}},
+    {"name": "mainImage", "title": "Main image", "type": "image", "group": "content", "options": {"hotspot": true}, "fields": [{"name": "alt", "title": "Alternative text", "type": "string"}]},
     {"name": "body", "title": "Body", "type": "richText", "editor": "blocks", "group": "content",
      "blocks": {"styles": ["normal", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"], "lists": ["bullet", "number"],
                 "marks": ["strong", "em", "code", "underline", "strikethrough"], "annotations": [{"name": "link"}, {"name": "wikilink"}],

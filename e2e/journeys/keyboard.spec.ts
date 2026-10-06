@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, BACKEND_POLL} from '../rig/targets'
 
 // J19, keyboard only on both studios: global search → open → edit → publish.
 // Proof of publish is the backend's published document, not the UI.
@@ -30,6 +30,6 @@ test('J19: keyboard only — search, open, edit, publish', async ({page}, info) 
   await page.keyboard.type(' kb')
   await page.keyboard.press('Control+Alt+p')
 
-  await expect.poll(() => t.publishedTitle(ID), {timeout: 10_000}).toBe(`${TITLE} kb`)
+  await expect.poll(() => t.publishedTitle(ID), BACKEND_POLL).toBe(`${TITLE} kb`)
   await expect(t.field(page, 'title'), 'F6: focus stays in the field').toBeFocused()
 })

@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {target, type Target} from '../rig/targets'
+import {target, type Target, BACKEND_POLL} from '../rig/targets'
 
 // J03 + J04, both studios, one doc, one page load. J03: typing is local-first —
 // fast typing never drops a keystroke (a controlled input re-rendered from a stale
@@ -40,23 +40,23 @@ test('J03 J04: type without drops, undo, draft, publish, discard, unpublish', as
   await expect(title).toHaveValue(TYPED)
 
   // J04: the edit is a draft next to the published version; J03: it survives a reload.
-  await expect.poll(versions, {timeout: 10_000}).toEqual({draft: TYPED, published: TITLE})
+  await expect.poll(versions, BACKEND_POLL).toEqual({draft: TYPED, published: TITLE})
   await page.reload()
   await t.settle(page)
   await expect(title).toHaveValue(TYPED)
 
   // Publish → one version again, the new one.
   await page.getByRole('button', {name: /^Publish$/}).last().click()
-  await expect.poll(versions, {timeout: 10_000}).toEqual({draft: undefined, published: TYPED})
+  await expect.poll(versions, BACKEND_POLL).toEqual({draft: undefined, published: TYPED})
 
   // Edit, then discard → back to what is published.
   await title.click()
   await page.keyboard.press('End')
   await page.keyboard.type(' oops')
-  await expect.poll(versions, {timeout: 10_000}).toEqual({draft: `${TYPED} oops`, published: TYPED})
+  await expect.poll(versions, BACKEND_POLL).toEqual({draft: `${TYPED} oops`, published: TYPED})
   await docMenuItem(t, page, /Discard changes/)
   await confirm(page, /^Discard changes$/).click()
-  await expect.poll(versions, {timeout: 10_000}).toEqual({draft: undefined, published: TYPED})
+  await expect.poll(versions, BACKEND_POLL).toEqual({draft: undefined, published: TYPED})
   await expect(title).toHaveValue(TYPED)
 
   // Unpublish (from the Published perspective) → only a draft is left.
@@ -64,5 +64,5 @@ test('J03 J04: type without drops, undo, draft, publish, discard, unpublish', as
   await t.settle(page)
   await page.getByRole('button', {name: /^Unpublish$/}).last().click()
   await confirm(page, /^Unpublish( now)?$/).click()
-  await expect.poll(versions, {timeout: 10_000}).toEqual({draft: TYPED, published: undefined})
+  await expect.poll(versions, BACKEND_POLL).toEqual({draft: TYPED, published: undefined})
 })
