@@ -25,11 +25,11 @@ const stored = () => bp(`/v1/data/doc/${process.env.BARKPARK_DATASET}/story/${ID
 const draftOrPublished = async () => (await bp(`/v1/data/doc/${process.env.BARKPARK_DATASET}/story/${ID}?perspective=drafts`))
 
 test.afterEach(async ({}, info) => {
-  // Back to the seed: the whole block list (the canvas edit) and the bound summary.
-  if (target(info).name === 'studio') await target(info).restore(ID, {summary: SUMMARY, blocks: SEED_BLOCKS}, 'story')
+  // Back to the seed: the whole block list (the canvas edit) and the bound fields.
+  if (target(info).name === 'studio') await target(info).restore(ID, {summary: SUMMARY, kicker: 'Freeform fixture', blocks: SEED_BLOCKS}, 'story')
 })
 
-test('@evidence FF3: per-type editor mode; Classic ⇄ Freeform is lossless', async ({page}, info) => {
+test('@evidence FF3 D02: per-type editor mode; Classic ⇄ Freeform is lossless both ways', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-only: Freeform has no Sanity reference (decision 0004)')
   const before = await stored()
@@ -69,6 +69,22 @@ test('@evidence FF3: per-type editor mode; Classic ⇄ Freeform is lossless', as
   await page.screenshot({path: shot('3-freeform-after-classic-edit')})
   await tabs.getByRole('tab', {name: 'Classic'}).click()
   expect((await draftOrPublished()).blocks).toEqual(edited)
+
+  // D02, the other way: a field block edited in Freeform is the Classic field; the free
+  // blocks and the order stay as they were.
+  await tabs.getByRole('tab', {name: 'Freeform'}).click()
+  const kicker = canvas.locator('.bp-canvas-field').filter({has: page.locator('.bp-canvas-field-label', {hasText: 'Kicker'})}).locator('input')
+  await expect(kicker).toHaveValue('Freeform fixture', {timeout: 20_000})
+  await kicker.fill('Edited in Freeform.')
+  await expect.poll(async () => (await draftOrPublished()).blocks.find((b) => b.id === 'st-kicker')?.value, {timeout: 10_000}).toBe('Edited in Freeform.')
+  const both = (await draftOrPublished()).blocks
+  expect(both.map((b) => b.id), 'same blocks, same order').toEqual(before.blocks.map((b) => b.id))
+  expect(both.filter((b) => b.id !== 'st-kicker'), 'every other block as Classic left it').toEqual(edited.filter((b) => b.id !== 'st-kicker'))
+  await page.screenshot({path: shot('4-freeform-edit')})
+  await tabs.getByRole('tab', {name: 'Classic'}).click()
+  await expect(t.field(page, 'kicker')).toHaveValue('Edited in Freeform.')
+  await expect(t.field(page, 'summary')).toHaveValue('Edited in Classic.')
+  await page.screenshot({path: shot('5-classic-after-freeform-edit')})
 })
 
 // Typing in the canvas saves as one atomic batch (/ops {ops[], ifRev}). After a
