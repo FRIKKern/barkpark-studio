@@ -136,3 +136,10 @@ export const Reset = () => (
     <path d="M6.5 8.5h12M10.5 8.5v-2h4v2M8 8.5l1 11h7l1-11" />
   </svg>
 )
+export const UserCircle = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="8" />
+    <circle cx="12.5" cy="10.5" r="2.5" />
+    <path d="M7.5 18.5c1.2-2 2.9-3 5-3s3.8 1 5 3" />
+  </svg>
+)
