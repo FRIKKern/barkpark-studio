@@ -258,6 +258,31 @@ export const searchQuery = (type: string | string[], q: string, filter?: RefFilt
     },
   })
 
+/** D06: a doc by its id alone, whatever its type (a wikilink names only the id); null if none. */
+const fetchDocAnyType = createServerFn({method: 'GET'})
+  .validator((d: {id: string}) => d)
+  .handler(async ({data}) => {
+    const types = (await readSchemas()).map((s) => s.name)
+    const hits = await Promise.all(
+      types.map(async (type) => {
+        const res = await bpFetch(`/v1/data/doc/${dataset()}/${encodeURIComponent(type)}/${encodeURIComponent(data.id)}?perspective=drafts`)
+        return res.ok ? ((await res.json()) as {result: Json}).result : null
+      }),
+    )
+    return hits.find(Boolean) ?? null
+  })
+export const anyDocQuery = (id: string) =>
+  queryOptions({queryKey: ['doc-any', id], staleTime: 30_000, queryFn: async () => (await fetchDocAnyType({data: {id}})) as unknown as (Doc & {preview?: {description?: string}}) | null})
+
+/** D06: docs of any type matching `q` (the canvas's `[[` menu), newest first. */
+const fetchSearchAll = createServerFn({method: 'GET'})
+  .validator((d: {q: string}) => d)
+  .handler(async ({data}) => {
+    const r = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?q=${encodeURIComponent(data.q)}&limit=10&perspective=drafts`)
+    return r.documents as unknown as Json
+  })
+export const searchAllDocs = async (q: string) => (await fetchSearchAll({data: {q}})) as unknown as Doc[]
+
 export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) => s.name === type)
 
 /** The types a reference field (or a reference array's member) may point to. */

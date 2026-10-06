@@ -763,6 +763,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .broken-field { padding: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 4px; }
 .broken-name { font-size: 12px; color: var(--fg); }
 .broken-unknown { margin-top: 32px; }
+/* D06: a wikilink reads as a link to another doc (the editor leaves it unstyled). */
+.pd-editor [data-wikilink] { color: var(--paper-accent, #1e5347); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+
 
 /* Navbar tools (J37) and Vision */
 .navbar .tools { display: flex; gap: 4px; }

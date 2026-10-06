@@ -328,7 +328,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {/* A doc still being created has no block list yet (D04): the canvas waits for it. */}
         {freeform && !!doc?._rev && (view === 'freeform' || canvasSeen === pane.id) && (
           <div hidden={view !== 'freeform'}>
-            <PortableDocEditor type={pane.type} id={pane.id} labels={fieldLabels} />
+            <PortableDocEditor type={pane.type} id={pane.id} labels={fieldLabels} openDoc={(docId, docType) => navigate({href: openAfter(panes, index, {kind: 'doc', id: docId, type: docType})})} />
           </div>
         )}
         {pane.rev && revQ.data === null && <p role="alert">This revision can't be found. Pick another entry in the history.</p>}
