@@ -154,13 +154,19 @@ const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/
 const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
 // Two first patches on a published doc race to fork its draft and one gets 422
 // "doc_id has already been taken" (task-324b4d00706a6cfb); the rig retries once.
-const bpMutate = async (mutations: unknown[], retry = true): Promise<Response> => {
+// A 429 waits out Retry-After, as the studio's own server does: here one token is
+// shared by both browsers, the rig and presence (task-2c31de0cf6597d32).
+const bpMutate = async (mutations: unknown[], retry = true, waits = 3): Promise<Response> => {
   const res = await fetch(`${bpBase()}/v1/data/mutate/${bpDataset()}`, {
     method: 'POST',
     headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`, 'content-type': 'application/json'},
     body: JSON.stringify({mutations}),
   })
-  if (retry && res.status === 422) return new Promise((r) => setTimeout(() => r(bpMutate(mutations, false)), 300))
+  if (res.status === 429 && waits > 0) {
+    const s = Math.min(Number(res.headers.get('retry-after')) || 1, 5)
+    return new Promise((r) => setTimeout(() => r(bpMutate(mutations, retry, waits - 1)), s * 1000 + 100))
+  }
+  if (retry && res.status === 422) return new Promise((r) => setTimeout(() => r(bpMutate(mutations, false, waits)), 300))
   return ok(res)
 }
 

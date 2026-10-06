@@ -1,4 +1,5 @@
 import type {QueryClient} from '@tanstack/react-query'
+import {usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
 import {docQuery, ensureDocs, refId, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
@@ -85,8 +86,15 @@ export function StructureView({panes, widthHint, listPrefs}: {panes: Pane[]; wid
     })
   return (
     <ListPrefsContext.Provider value={{prefs, set}}>
+      <PresenceStream />
       <Navbar />
       <Structure panes={panes} widthHint={widthHint} />
     </ListPrefsContext.Provider>
   )
+}
+
+/** One presence stream for the tab (J07). */
+function PresenceStream() {
+  usePresenceStream()
+  return null
 }
