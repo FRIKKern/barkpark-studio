@@ -84,3 +84,13 @@ export const Share = () => (
     <path d="M12.5 15.5v-11M8.5 8.5l4-4 4 4M6.5 12.5v7h12v-7" />
   </svg>
 )
+export const DragHandle = () => (
+  <svg {...s} fill="currentColor" stroke="none">
+    <circle cx="10" cy="7.5" r="1.1" />
+    <circle cx="15" cy="7.5" r="1.1" />
+    <circle cx="10" cy="12.5" r="1.1" />
+    <circle cx="15" cy="12.5" r="1.1" />
+    <circle cx="10" cy="17.5" r="1.1" />
+    <circle cx="15" cy="17.5" r="1.1" />
+  </svg>
+)

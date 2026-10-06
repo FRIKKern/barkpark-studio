@@ -127,6 +127,8 @@ export const post = defineType({
     defineField({name: 'featured', type: 'boolean', group: 'meta', initialValue: false}),
     defineField({name: 'rating', type: 'number', group: 'meta', validation: (r) => r.min(0).max(5)}),
     defineField({name: 'tags', type: 'array', group: 'meta', of: [{type: 'string'}], options: {layout: 'tags'}}),
+    // A plain string array: reorderable rows (J34).
+    defineField({name: 'highlights', type: 'array', group: 'meta', of: [{type: 'string'}]}),
     defineField({
       name: 'seo',
       type: 'object',

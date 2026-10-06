@@ -8,6 +8,7 @@ import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline} from './icons'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {toast} from './Toasts'
 import {DateTimeInput} from './DateTimeInput'
+import {StringArrayInput, TagsInput} from './ArrayInputs'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -133,7 +134,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   const invalid = useContext(ProblemsContext).some((p) => p.path === path)
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
-  if (readOnly && !['string', 'text', 'slug', 'composite', 'datetime'].includes(field.type))
+  if (readOnly && !['string', 'text', 'slug', 'composite', 'datetime', 'arrayOf'].includes(field.type))
     return (
       <fieldset className="readonly-wrap" disabled>
         <FieldInput field={field} path={path} value={value} openRef={openRef} onChange={onChange} />
@@ -180,6 +181,12 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
               <RefPreview key={i} type={field.of!.refType!} id={id as string} {...openRef(field.of!.refType!, id as string, `${path}[${i}]`)} />
             ))}
           </div>
+        )
+      if (field.of?.type === 'string' || field.of?.type === 'text')
+        return (field.options as {layout?: string} | undefined)?.layout === 'tags' ? (
+          <TagsInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
+        ) : (
+          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
         )
       return (
         <div className="tags" id={path}>

@@ -6,6 +6,9 @@ import {defineConfig} from '@playwright/test'
 // E2E_PORT: one per worktree when several agents run e2e side by side (default 3100).
 const PORT = Number(process.env.E2E_PORT || 3100)
 const STUDIO = `http://localhost:${PORT}`
+// SANITY_PORT: the reference on another port when a worktree changes its schema
+// (the project's CORS list has 3333 and 3334).
+const SANITY = `http://localhost:${process.env.SANITY_PORT || 3333}`
 // Secrets come from the repo-root .env: run as `node --env-file=../.env node_modules/.bin/playwright test`
 // (or `pnpm test`, which does that).
 export default defineConfig({
@@ -25,12 +28,12 @@ export default defineConfig({
   grepInvert: process.env.BASELINE || process.env.EVIDENCE ? undefined : /@baseline|@evidence/,
   use: {channel: 'chrome', viewport: {width: 1440, height: 900}},
   projects: [
-    {name: 'sanity', use: {baseURL: 'http://localhost:3333'}},
+    {name: 'sanity', use: {baseURL: SANITY}},
     {name: 'studio', use: {baseURL: STUDIO}},
   ],
   // CI runs ours only (the reference needs a Sanity login); side-by-side stays local.
   webServer: [
-    ...(process.env.CI ? [] : [{command: 'pnpm --dir ../reference/sanity dev', url: 'http://localhost:3333', reuseExistingServer: true, timeout: 60_000}]),
+    ...(process.env.CI ? [] : [{command: `pnpm --dir ../reference/sanity dev --port ${process.env.SANITY_PORT || 3333}`, url: SANITY, reuseExistingServer: true, timeout: 60_000}]),
     // CI times a production build (what users get; built in an earlier step); locally the dev server.
     {
       command: process.env.CI ? `pnpm --dir ../app exec vite preview --port ${PORT} --strictPort` : `pnpm --dir ../app dev --port ${PORT} --strictPort`,
