@@ -130,7 +130,7 @@
 <path d="M912 662H1140" class="rule"/>
 <text x="912" y="694" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J37 Navbar shell</tspan></text>
 <text x="912" y="724" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J38 Global search filters</tspan></text>
-<text x="912" y="754" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J39 Broken values</tspan></text>
+<text x="912" y="754" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J39 Broken values</tspan></text>
 <text x="912" y="784" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J40 Comments and release…</tspan></text>
 <text x="912" y="814" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J45 Dark mode</tspan></text>
 <text x="912" y="844" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J46 Phone width</tspan></text>

@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 59 changes, 18 tasks closed
+- **Today** · 60 changes, 18 tasks closed
+  - D01: Freeform-main doc opens in the canvas, bound fields as titled field blocks; canvas host follows EMBED-CONTRACT ([#88](https://github.com/FRIKKern/barkpark-studio/pull/88))
   - J39: broken values — Convert / Reset, missing or duplicate keys, unknown fields, invalid rich text ([#89](https://github.com/FRIKKern/barkpark-studio/pull/89))
   - J38: global search filters (types, field filters, order, recent) ([#87](https://github.com/FRIKKern/barkpark-studio/pull/87))
-  - Done: [FF2 Fixture: one Freeform-main type and one Expectation type in both seeds](https://github.com/FRIKKern/barkpark/issues/21758)
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
