@@ -22,3 +22,7 @@ export const applyPaths = <T extends Record<string, unknown>>(obj: T, edits: Ite
 
 /** Is `a` the same path as `b` or inside it? */
 export const within = (a: string, b: string) => a === b || a.startsWith(`${b}.`)
+
+/** The value at `path` in `obj` (undefined when any step is missing). */
+export const getPath = (obj: unknown, path: string): unknown =>
+  path.split('.').reduce<unknown>((o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), obj)
