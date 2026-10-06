@@ -20,7 +20,7 @@ const BASE = `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${env('BAR
 const DATASET = env('BARKPARK_DATASET', 'production')
 const TYPES = ['longform', 'author', 'category', 'post'] // refs point left: posts last
 // Barkpark-native types: no Sanity mirror, seeded as written (fixtures/barkpark-only.ndjson).
-const NATIVE_TYPES = ['volume'] // not 'book': Barkpark's onixedit plugin owns that type
+const NATIVE_TYPES = ['volume', 'story'] // not 'book': Barkpark's onixedit plugin owns that type
 
 function fail(msg) {
   console.error(`seed-barkpark: ${msg}`)
@@ -121,8 +121,10 @@ function toBarkpark(doc) {
 // `title` is a Barkpark row column, present on every type (derived from
 // list_preview.title when the type has no title field) — compare it only where
 // the seed has one.
+// Projection output (body, preview, body_html) is derived, never seeded.
+const DERIVED = new Set(['body', 'preview', 'body_html'])
 const stripSystem = (doc, want) =>
-  Object.fromEntries(Object.entries(doc).filter(([k]) => !k.startsWith('_') && (k !== 'title' || 'title' in want)))
+  Object.fromEntries(Object.entries(doc).filter(([k]) => !k.startsWith('_') && (k !== 'title' || 'title' in want) && !(DERIVED.has(k) && !(k in want))))
 
 // ── steps ───────────────────────────────────────────────────────────────────
 
@@ -136,7 +138,9 @@ const native = readFileSync(new URL('fixtures/barkpark-only.ndjson', root), 'utf
   .split('\n')
   .filter(Boolean)
   .map((l) => JSON.parse(l))
-const nativeContent = ({_id, _type, ...content}) => content
+// A block doc also holds its bound blocks' values as fields (projection).
+const nativeContent = ({_id, _type, ...content}) =>
+  Array.isArray(content.blocks) ? {...Object.fromEntries(content.blocks.filter((b) => b.fieldName && b.fieldName !== 'title').map((b) => [b.fieldName, b.value])), ...content} : content
 const mirrored = new Map(seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d)}]))
 const expected = new Map([...mirrored, ...native.map((d) => [d._id, {type: d._type, content: nativeContent(d)}])])
 
@@ -158,6 +162,10 @@ async function reset() {
   const ordered = TYPES.flatMap((t) => seed.filter((d) => d._type === t))
   const docs = [...ordered.map((d) => ({_id: d._id, _type: d._type, ...toBarkpark(d)})), ...native]
   await mutate(docs.map((d) => ({createOrReplace: d})))
+  // A create doesn't project a block list into its fields (task-b43256e0d9d90733); a patch does
+  // (BoundFieldSync + projection), so block docs get a no-op title patch first.
+  const blockDocs = docs.filter((d) => Array.isArray(d.blocks))
+  if (blockDocs.length) await mutate(blockDocs.map((d) => ({patch: {id: d._id, type: d._type, set: {title: d.title}}})))
   await mutate(docs.map((d) => ({publish: {id: d._id, type: d._type}})))
   console.log(`reset: deleted ${ids.length}, created + published ${docs.length}`)
 }

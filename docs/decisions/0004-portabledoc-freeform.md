@@ -20,6 +20,11 @@
     Classic form, with a Classic ⇄ Freeform toggle over the same block list.
   - **Field:** a `richText` field (J10, J11) is the same canvas, scoped to that field.
   - Everything else: Classic form only (the Sanity-parity path).
+- **Where the mode comes from (FF3):** `app/src/lib/editor-mode.ts`. A studio
+  map (`EDITOR_MODES`: `paper` main, `story` alternative) wins; otherwise a
+  schema `layout` means alternative (once Barkpark's schema read carries it,
+  task-28082a4cf187403d); otherwise none. The URL's `view` names only a
+  non-default view, so a type opens in its own default.
 - **The one invariant:** both views read one block list. A Classic edit changes
   only bound values (server `BoundFieldSync`), never free blocks or order.
   Switching views is lossless both ways.
