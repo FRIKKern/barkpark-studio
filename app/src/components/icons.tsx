@@ -169,3 +169,9 @@ export const ArrowLeft = () => (
     <path d="M5.5 12.5H20M11 18L5.5 12.5L11 7" />
   </svg>
 )
+export const WarningOutline = () => (
+  <svg {...s}>
+    <path d="M12.5 5.5l7 13h-14z" strokeLinejoin="round" />
+    <path d="M12.5 10.5v4M12.5 16v1" />
+  </svg>
+)
