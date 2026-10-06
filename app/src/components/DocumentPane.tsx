@@ -9,6 +9,7 @@ import {createDoc, discardDraft, draftNew, edit, flush, publish, undo, unpublish
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
+import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
 import {ChangesContext, DocContext, DocIdContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
 import {ReviewChanges} from './ReviewChanges'
@@ -25,11 +26,8 @@ import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical} from './icons
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
-// Sanity's document views, as the reference configures them: the form, and the doc as JSON.
-const VIEWS = [
-  {id: '', title: 'Editor'},
-  {id: 'json', title: 'JSON'},
-]
+// Sanity's document views, as the reference configures them: the form, and the doc as
+// JSON; plus Freeform where the type's editor mode offers it (FF3, lib/editor-mode.ts).
 
 const NO_PROBLEMS: Problem[] = []
 /** J44: fields drawn in the first frame; a longer form gets the rest right after. */
@@ -74,7 +72,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Decision 0004: a doc that carries a PortableDoc block list (its type has a layout)
   // also opens in Barkpark's block canvas. The doc says so; the schema read omits
   // `layout` (task-28082a4cf187403d). FF3 makes it the default per type.
-  const freeform = Array.isArray(doc?.blocks) && !viewingPublished
+  const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
+  const freeform = mode !== 'none' && !viewingPublished && (mode === 'main' || Array.isArray(doc?.blocks))
+  // Published is read in Classic: the canvas edits the draft.
+  const view: View = viewOf(pane.view, mode) === 'freeform' && !freeform ? 'classic' : viewOf(pane.view, mode)
+  const views: {id: View; title: string}[] = [
+    {id: 'classic', title: freeform ? 'Classic' : 'Editor'},
+    ...(freeform ? [{id: 'freeform' as View, title: 'Freeform'}] : []),
+    {id: 'json', title: 'JSON'},
+  ]
   const next = panes[index + 1]
   const qc = useQueryClient()
   // An id nobody has written yet is a new doc (Sanity treats it the same way).
@@ -218,8 +224,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       <div className="doc-title-bar">
         {header}
         <div className="view-tabs" role="tablist" aria-label="Views">
-          {[...VIEWS, ...(freeform ? [{id: 'freeform', title: 'Freeform'}] : [])].map((v) => (
-            <button key={v.id} type="button" role="tab" aria-selected={(pane.view ?? '') === v.id} onClick={() => navigate({href: withView(panes, index, v.id)})}>
+          {views.map((v) => (
+            <button key={v.id} type="button" role="tab" aria-selected={view === v.id} onClick={() => navigate({href: withView(panes, index, viewParam(v.id, mode))})}>
               {v.title}
             </button>
           ))}
@@ -230,10 +236,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       <div className="pane-body" ref={body}>
         {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
-        {doc && pane.view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
-        {freeform && pane.view === 'freeform' && <PortableDocEditor type={pane.type} id={pane.id} />}
+        {doc && view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
+        {freeform && view === 'freeform' && <PortableDocEditor type={pane.type} id={pane.id} />}
         {pane.rev && revQ.data === null && <p role="alert">This revision can't be found. Pick another entry in the history.</p>}
-        {doc && schema && pane.view !== 'json' && pane.view !== 'freeform' && (!pane.rev || revision) && (
+        {doc && schema && view === 'classic' && (!pane.rev || revision) && (
           <div className="doc-form" onBlur={() => flush(qc, pane.id)}>
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>

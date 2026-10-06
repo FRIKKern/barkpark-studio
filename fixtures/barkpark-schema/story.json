@@ -1,0 +1,10 @@
+{
+  "name": "story",
+  "title": "Story",
+  "visibility": "public",
+  "fields": [
+    {"name": "title", "title": "Title", "type": "string", "validation": {"required": true}},
+    {"name": "kicker", "title": "Kicker", "type": "string"},
+    {"name": "summary", "title": "Summary", "type": "text", "rows": 3}
+  ]
+}

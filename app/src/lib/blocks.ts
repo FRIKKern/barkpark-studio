@@ -3,7 +3,8 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 
 // A document's PortableDoc block list, for the Freeform canvas (decision 0004).
-// Reads take `?perspective=raw` (the draft when there is one); writes go one op per
+// Reads take `?perspective=drafts` (the draft when there is one: `raw` answers the
+// published row by its exact id, so a Classic edit's draft was missing); writes go one op per
 // request to /v1/data/doc/.../ops, each fenced on the rev the last one returned.
 
 export type Block = {id: string; type: string} & Record<string, unknown>
@@ -15,7 +16,7 @@ const docPath = (type: string, id: string) => `/v1/data/doc/${dataset()}/${encod
 const fetchBlocks = createServerFn({method: 'GET'})
   .validator((d: {type: string; id: string}) => d)
   .handler(async ({data}) => {
-    const res = await bpFetch(`${docPath(data.type, data.id)}?perspective=raw`)
+    const res = await bpFetch(`${docPath(data.type, data.id)}?perspective=drafts`)
     if (!res.ok) throw new Error(`Barkpark ${res.status} reading ${data.id}`)
     const doc = ((await res.json()) as {result: {_rev: string; blocks?: Json[]}}).result
     return {rev: doc._rev, blocks: doc.blocks ?? []} as Json
