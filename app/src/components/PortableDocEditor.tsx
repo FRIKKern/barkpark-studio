@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery} from '../lib/data'
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult} from '../lib/blocks'
+import {toast} from './Toasts'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted the way Barkdown
 // hosts it. Blocks in; `bp-canvas-ops` batches out, each saved with the doc's rev and
@@ -173,6 +174,12 @@ export function PortableDocEditor({type, id, field, vocabulary, editable = true}
           const {ops, seq} = (e as CustomEvent<{ops: BlockOp[]; seq: number}>).detail
           l.latestSeq = seq
           void applyOps(ops, seq)
+        })
+        // A block the canvas could not draw says so (never a silent gap: F8).
+        el.addEventListener('bp-canvas-node-failed', (e) => {
+          const d = (e as CustomEvent<{type?: string; message?: string; error?: string}>).detail ?? {}
+          console.error('[canvas] node failed', d)
+          toast({tone: 'critical', title: `A ${d.type ?? 'block'} could not be shown`, description: d.message ?? d.error})
         })
         // Plain links open in a new tab; wikilinks into panes arrive with D06.
         el.addEventListener('bp-canvas-open-link', (e) => {
