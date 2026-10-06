@@ -790,3 +790,5 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 .vision-out { overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-word; }
 .vision-foot { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; padding: 16px 8px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
 .vision-url { font-size: 12px; word-break: break-all; }
+/* D07: figures and images pull wider than the reading column; in a pane they keep to it. */
+.pd-editor { --bp-evidence-pull: 0px; --bp-evidence-width: 100%; }
