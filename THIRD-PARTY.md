@@ -30,3 +30,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Barkdown (FRIKKern/barkdown at bb3c8ad7, Apache-2.0)
+
+Ported: the save loop in `app/src/components/PortableDocEditor.tsx`. It comes from
+`app/renderer/src/tabs/paper.js` (`applyOps`, the conflict card) and loads the bundle the
+way `app/renderer/src/canvas-bundle.js` does. Same owner as this repo. At that commit the
+Barkdown repo carries no LICENSE file; the license is as stated on the FF1 task.
