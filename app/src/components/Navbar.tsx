@@ -1,10 +1,10 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {useNavigate} from '@tanstack/react-router'
+import {Link, useNavigate} from '@tanstack/react-router'
 import {devSignOut, meQuery} from '../lib/session'
 import {GlobalSearch} from './Search'
 import {WhoIsOnline} from './Presence'
 import {MenuPopover} from './FocusScopes'
-import {UserCircle as UserIcon} from './icons'
+import {Desktop, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
 import {useState} from 'react'
 import {useHydratedMark} from '../lib/hydrated'
@@ -18,8 +18,13 @@ export function Navbar() {
         Barkpark Studio
         <GlobalSearch />
       </div>
-      <div>
-        <span className="tab">Structure</span>
+      {/* J37: Sanity's tool switcher. The active tool is the highlighted tab. */}
+      <div className="tools">
+        {TOOLS.map(([to, label]) => (
+          <Link key={to} to={to} className="tool" activeProps={{className: 'tool tab', 'aria-current': 'page'}}>
+            {label}
+          </Link>
+        ))}
       </div>
       <div className="nav-right">
         <WhoIsOnline />
@@ -56,9 +61,11 @@ function Editor() {
           <MenuPopover className="popover menu user-menu" onClose={() => setOpen(false)} aria-labelledby="user-menu">
             <div className="user-head">{signedIn ? me!.email : 'Barkpark Studio'}</div>
             <hr />
-            {APPEARANCES.map(([a, label]) => (
-              <button key={a} type="button" role="menuitemradio" aria-checked={appearance === a} className="menu-item" onClick={choose(a)}>
-                <span className="check">{appearance === a ? '✓' : ''}</span> {label}
+            {APPEARANCES.map(([a, label, Icon]) => (
+              <button key={a} type="button" role="menuitemradio" aria-checked={appearance === a} aria-label={`Use ${a} appearance`} className="menu-item check" onClick={choose(a)}>
+                <span className="menu-icon-text">
+                  <Icon /> {label}
+                </span>
               </button>
             ))}
             {signedIn && (
@@ -67,7 +74,7 @@ function Editor() {
                 <button
                   type="button"
                   role="menuitem"
-                  className="menu-item"
+                  className="menu-item spread"
                   onClick={async () => {
                     setOpen(false)
                     await devSignOut()
@@ -75,7 +82,8 @@ function Editor() {
                     await navigate({to: '/login', search: {redirect: '/structure'}})
                   }}
                 >
-                  Sign out
+                  <span className="menu-icon-text">Sign out</span>
+                  <SignOut />
                 </button>
               </>
             )}
@@ -86,8 +94,14 @@ function Editor() {
   )
 }
 
-const APPEARANCES: [Appearance, string][] = [
-  ['system', 'Use system appearance'],
-  ['dark', 'Use dark appearance'],
-  ['light', 'Use light appearance'],
+const TOOLS = [
+  ['/structure', 'Structure'],
+  ['/vision', 'Vision'],
+] as const
+
+// Sanity's wording: the item reads "System", its name is "Use system appearance".
+const APPEARANCES: [Appearance, string, () => React.JSX.Element][] = [
+  ['system', 'System', Desktop],
+  ['dark', 'Dark', Moon],
+  ['light', 'Light', Sun],
 ]

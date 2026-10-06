@@ -175,3 +175,25 @@ export const WarningOutline = () => (
     <path d="M12.5 10.5v4M12.5 16v1" />
   </svg>
 )
+export const Desktop = () => (
+  <svg {...s}>
+    <rect x="5.5" y="6.5" width="14" height="9" rx="1" />
+    <path d="M10 19.5h5M12.5 15.5v4" />
+  </svg>
+)
+export const Moon = () => (
+  <svg {...s}>
+    <path d="M18.5 14.5a6.5 6.5 0 01-8-8 6.5 6.5 0 108 8z" strokeLinejoin="round" />
+  </svg>
+)
+export const Sun = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="3" />
+    <path d="M12.5 5v2M12.5 18v2M5 12.5h2M18 12.5h2M7.2 7.2l1.4 1.4M16.4 16.4l1.4 1.4M7.2 17.8l1.4-1.4M16.4 8.6l1.4-1.4" />
+  </svg>
+)
+export const SignOut = () => (
+  <svg {...s}>
+    <path d="M14.5 8.5v-2h-8v12h8v-2M11 12.5h9M17 9.5l3 3-3 3" strokeLinejoin="round" />
+  </svg>
+)
