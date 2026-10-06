@@ -379,3 +379,26 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .pd-status { position: absolute; top: 0; right: 20px; font-size: 12px; color: var(--muted); }
 .pd-conflict { margin: 0 0 16px; padding: 12px; border-radius: 3px; background: #fef5f4; box-shadow: inset 0 0 0 1px #f5c4bf; font-size: 13px; line-height: 1.5; }
 .pd-conflict div { display: flex; gap: 8px; margin-top: 8px; }
+
+/* History (J16), after Sanity's: timeline of revisions with author, action badge and time */
+.inspector.history header { padding-left: 0; }
+.history-note { margin: 0 0 8px; padding: 4px 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); font-size: 11px; color: var(--muted); }
+.inspector .history-list { gap: 2px; }
+.history-list button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px; border: 0; border-radius: 3px; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg-strong); }
+.history-list button:hover { background: var(--hover); }
+.history-list [aria-selected=true] button { background: var(--hover-strong); }
+.history-list .avatar { position: relative; flex: none; display: grid; place-items: center; width: 33px; height: 33px; border-radius: 50%; background: #2f3f9e; color: #fff; font-size: 12px; font-weight: 600; }
+.history-list .badge { position: absolute; right: -3px; bottom: -3px; width: 15px; height: 15px; border-radius: 50%; border: 2px solid #fff; background: var(--muted); }
+.history-list .badge[data-kind=published] { background: var(--published); }
+.history-list .badge[data-kind=unpublished] { background: #f08a24; }
+.history-list .badge[data-kind=discarded] { background: #e5533d; }
+.history-list .badge[data-kind=edited] { background: #f0b429; }
+.history-list .badge[data-kind=created] { background: var(--published); }
+.history-text { display: flex; flex-direction: column; font-size: 13px; line-height: 17px; font-weight: 500; }
+.history-text time { font-weight: 400; color: var(--muted); }
+.revision-footer { background: #fdf3c8; }
+.revision-footer .save-state { color: #6e5300; }
+.publish.caution { background: #8a6100; }
+.popover.confirm { right: 0; bottom: 36px; width: 320px; padding: 0; }
+.popover.confirm p { margin: 0; padding: 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+.confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; }

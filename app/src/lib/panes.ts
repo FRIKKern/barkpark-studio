@@ -7,7 +7,7 @@
 export type Pane =
   | {kind: 'types'}
   | {kind: 'list'; type: string}
-  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean}
+  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean; inspect?: string; rev?: string}
 
 export function parsePanes(splat: string | undefined): Pane[] {
   const panes: Pane[] = [{kind: 'types'}]
@@ -26,6 +26,10 @@ export function parsePanes(splat: string | undefined): Pane[] {
         type: p.type ?? first?.type ?? listType,
         parentRefPath: p.parentRefPath ?? first?.parentRefPath,
         view: p.view,
+        // J16: an inspector open beside the doc (Sanity's `inspect=…/history`), and an
+        // old revision shown read-only in its place (`rev=<revision id>`).
+        inspect: p.inspect,
+        rev: p.rev,
         sibling: !!first || undefined,
       }
       first ??= pane
@@ -47,6 +51,8 @@ export function panesPath(panes: Pane[]): string {
           ? ''
           : `,type=${encodeURIComponent(p.type)}`
       if (p.view) params += `,view=${encodeURIComponent(p.view)}`
+      if (p.inspect) params += `,inspect=${encodeURIComponent(p.inspect)}`
+      if (p.rev) params += `,rev=${encodeURIComponent(p.rev)}`
       // A sibling of the same doc carries only its own params, like Sanity's "|,".
       if (p.sibling) segs[segs.length - 1] += `|,${p.view ? `view=${encodeURIComponent(p.view)}` : ''}`
       else segs.push(encodeURIComponent(p.id) + params)
@@ -85,6 +91,10 @@ export function closeSplit(panes: Pane[], index: number) {
 /** Href for showing pane `index` in another view ('' = the editor). */
 export function withView(panes: Pane[], index: number, view: string) {
   return panesPath(panes.map((p, i) => (i === index && p.kind === 'doc' ? {...p, view: view || undefined} : p)))
+}
+/** Href for pane `index` with some of its params changed (undefined removes one). */
+export function withParams(panes: Pane[], index: number, params: {inspect?: string; rev?: string}) {
+  return panesPath(panes.map((p, i) => (i === index && p.kind === 'doc' ? {...p, ...params} : p)))
 }
 /** Href for closing pane `index` and everything to its right. */
 export const closeFrom = (panes: Pane[], index: number) => panesPath(panes.slice(0, index))
