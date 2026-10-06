@@ -2,6 +2,7 @@ import {useEffect} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import type {Doc} from './data'
 import {applyServer} from './edits'
+import {setLiveDown} from './connection'
 
 type Frame = {documentId: string; type: string; mutation: string; result: Doc | null}
 
@@ -28,11 +29,12 @@ export function useLive(ids: string[], types: string[]) {
       // EventSource retries a dropped stream by itself (sending Last-Event-ID); one
       // it gave up on (CLOSED) is reopened here with ?since=.
       es.onerror = () => {
+        setLiveDown(true) // J50: "Trying to connect…" if it stays down
         if (es.readyState === EventSource.CLOSED && !stopped) retry = setTimeout(open, 1000)
       }
       // The server lost track of where we were: refetch what is on screen.
       es.addEventListener('reset', () => void qc.invalidateQueries())
-      es.addEventListener('welcome', (e) => ((e as MessageEvent).lastEventId && !lastSeen ? (lastSeen = (e as MessageEvent).lastEventId) : null))
+      es.addEventListener('welcome', (e) => (setLiveDown(false), (e as MessageEvent).lastEventId && !lastSeen ? (lastSeen = (e as MessageEvent).lastEventId) : null))
       es.addEventListener('mutation', onFrame)
     }
     // e2e probe: cut the stream for `ms`, as a dead network would.
@@ -57,6 +59,7 @@ export function useLive(ids: string[], types: string[]) {
     open()
     return () => {
       stopped = true
+      setLiveDown(false)
       clearTimeout(retry)
       es.close()
     }

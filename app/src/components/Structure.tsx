@@ -17,6 +17,7 @@ import {DocPreview} from './Preview'
 import {AvatarStack} from './Presence'
 import {usePresences, type Presence} from '../lib/presence'
 import {PaneLink} from './PaneLink'
+import {PaneBoundary, ReadErrorCard} from './PaneError'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -70,7 +71,9 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
         isCollapsed[i] ? (
           <Strip key={paneKey(pane) + i} pane={pane} index={i} onOpen={() => setFocus({path, index: i})} />
         ) : (
-          <PaneView key={paneKey(pane) + i} panes={panes} index={i} />
+          <PaneBoundary key={paneKey(pane) + i}>
+            <PaneView panes={panes} index={i} />
+          </PaneBoundary>
         ),
       )}
       {panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
@@ -113,6 +116,8 @@ function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => 
 
 function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
+  // e2e probe (J50): this pane throws while rendering, as a bug would.
+  if ((globalThis as {__crashPane?: string}).__crashPane === paneKey(pane)) throw new Error(`e2e probe: ${paneKey(pane)} crashed`)
   const next = panes[index + 1]
   if (pane.kind === 'types') return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.type : undefined} />
   if (pane.kind === 'list') return <ListPane panes={panes} index={index} type={pane.type} selected={next?.kind === 'doc' ? next.id : undefined} />
@@ -169,7 +174,8 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
   const [limit, setLimit] = useState(LIST_PAGE)
   const draftList = useQuery({...listQuery(type, sort, limit), enabled: !published, placeholderData: keepPreviousData})
   const publishedList = useQuery({...publishedListQuery(type, sort, limit), enabled: published, placeholderData: keepPreviousData})
-  const {data: page, error} = published ? publishedList : draftList
+  const listQ = published ? publishedList : draftList
+  const page = listQ.data
   const [query, setQuery] = useState('')
   // A list with more on the server is searched there too, so search reaches every doc.
   const [q, setQ] = useState('')
@@ -264,7 +270,12 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
       </div>
       {query && <div className="sorted-by">Sorted by relevance</div>}
       <div className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}>
-        {error && <p role="alert">Could not load {type}: {String(error)}</p>}
+        {!page &&
+          (listQ.failureCount > 0 ? (
+            <ReadErrorCard title="Could not fetch list items" error={listQ.failureReason ?? listQ.error} failures={listQ.failureCount} retrying={listQ.fetchStatus !== 'idle'} onRetry={() => void listQ.refetch()} />
+          ) : (
+            <ListSkeleton />
+          ))}
         {docs && docs.length === 0 && <p className="list-empty">No documents of this type</p>}
         {docs && docs.length > 0 && shown.length === 0 && <p className="list-empty">No results found</p>}
         {shown.map((d) => (
@@ -282,6 +293,23 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
         {!query && page?.hasMore && limit >= LIST_MAX && <p className="list-max">Displaying a maximum of {LIST_MAX} documents</p>}
       </div>
     </section>
+  )
+}
+
+/** Sanity's loading list: placeholder rows in the shape of the real ones. */
+function ListSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading documents" data-testid="list-loading">
+      {Array.from({length: 30}, (_, i) => (
+        <div key={i} className="preview skeleton">
+          <span className="media" />
+          <span className="text">
+            <div className="t" />
+            <div className="s" />
+          </span>
+        </div>
+      ))}
+    </div>
   )
 }
 
