@@ -325,7 +325,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {doc && view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
         {/* Mounted once per doc and then only hidden: the canvas mis-places typing
             after it is mounted again in a page (task-f24549dea0618da2), and a remount costs a load. */}
-        {freeform && (view === 'freeform' || canvasSeen === pane.id) && (
+        {/* A doc still being created has no block list yet (D04): the canvas waits for it. */}
+        {freeform && !!doc?._rev && (view === 'freeform' || canvasSeen === pane.id) && (
           <div hidden={view !== 'freeform'}>
             <PortableDocEditor type={pane.type} id={pane.id} labels={fieldLabels} />
           </div>
