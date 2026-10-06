@@ -31,14 +31,10 @@
 
 ## Focus rule
 
-Freeform is a side track. It gets at most one PR in five, never interrupts a
-Sanity journey in progress, and is counted separately (D-journeys), so the
-Sanity 1:1 number stays honest.
+Side track: at most one PR in five, never interrupts a Sanity journey, counted
+apart (D-journeys) so the Sanity 1:1 number stays honest.
 
-## Server gaps (filed as tasks)
+## Server gaps
 
-- HTTP route for field-scoped batch block ops (today LiveView-only).
-- Batch ops on `/v1/data/doc/.../ops` (today one op per request).
-- A schema hint for a type's default editor (freeform or classic).
-- The canvas as a versioned ESM package with a written contract, pinned by
-  Barkdown and Studio alike.
+Filed under the Freeform sub-goal (task-3d324bcfec068fee): field-scoped and batch
+block ops, a schema editor hint, the canvas as a versioned package.
