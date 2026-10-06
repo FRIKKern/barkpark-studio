@@ -3,7 +3,7 @@ import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import {docQuery, type Doc} from './data'
-import {merge3} from './merge'
+import {merge3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
@@ -52,7 +52,18 @@ type DocEdits = {
   base: Map<string, unknown>
   /** Rebases in a row (a guard against a write that never gets through). */
   conflicts: number
+  /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
+  undo: Change[]
+  redo: Change[]
 }
+
+/**
+ * One of this editor's own changes: typing in one field within UNDO_GROUP_MS is one
+ * change, kept as its keystrokes (each from the value as it stood then, so someone
+ * else's text merged in between is never part of a step).
+ */
+type Change = {field: string; steps: {before: unknown; after: unknown}[]; at: number}
+const UNDO_GROUP_MS = 600
 
 export const WRITE_GAP_MS = 750
 
@@ -66,7 +77,7 @@ const setState = (e: DocEdits, state: SaveState, error?: string) => {
 
 const entry = (id: string, type: string) => {
   let e = docs.get(id)
-  if (!e) docs.set(id, (e = {type, dirty: new Map(), inflight: null, snap: SAVED, lastSent: 0, base: new Map(), conflicts: 0}))
+  if (!e) docs.set(id, (e = {type, dirty: new Map(), inflight: null, snap: SAVED, lastSent: 0, base: new Map(), conflicts: 0, undo: [], redo: []}))
   return e
 }
 
@@ -115,10 +126,17 @@ export function applyServer(qc: QueryClient, doc: Doc) {
 }
 
 /** `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. */
-export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown) {
+export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, record = true) {
   const id = doc._publishedId
   const e = entry(id, doc._type)
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
+  if (record) {
+    const step = {before: getPath(held, field), after: value}
+    const last = e.undo.at(-1)
+    if (last?.field === field && Date.now() - last.at < UNDO_GROUP_MS) (last.steps.push(step), (last.at = Date.now()))
+    else e.undo.push({field, steps: [step], at: Date.now()})
+    e.redo = []
+  }
   // What this edit is made against: the server's value (and rev) as this browser has it.
   if (!e.dirty.size && !e.inflight) e.rev = held._rev || undefined
   const pending = [...e.base.keys()].some((k) => within(field, k) || within(k, field))
@@ -144,6 +162,24 @@ function schedule(qc: QueryClient, id: string) {
   const wait = Math.max(0, e.lastSent + WRITE_GAP_MS - Date.now())
   if (wait === 0) void send(qc, id)
   else e.timer = setTimeout(() => ((e.timer = undefined), void send(qc, id)), wait)
+}
+
+/**
+ * Undo (or redo) this editor's last own change, Sanity's Mod+Z, on top of whatever
+ * the doc holds now: someone else's edits since stay (text reverts by patch). Returns
+ * the field it changed, for focus.
+ */
+export function undo(qc: QueryClient, id: string, back = true): string | undefined {
+  const e = docs.get(id)
+  const doc = qc.getQueryData<Doc>(['doc', id])
+  const change = (back ? e?.undo : e?.redo)?.pop()
+  if (!e || !doc || !change) return
+  const steps = back ? [...change.steps].reverse().map((x) => [x.after, x.before] as const) : change.steps.map((x) => [x.before, x.after] as const)
+  let now = getPath(doc, change.field)
+  for (const [from, to] of steps) now = typeof from === 'string' && typeof to === 'string' && typeof now === 'string' ? unapply(from, to, now) : to
+  edit(qc, doc, change.field, now, false)
+  ;(back ? e.redo : e.undo).push({...change, at: 0})
+  return change.field
 }
 
 /** Send whatever is waiting right away (field blur, pane close). */

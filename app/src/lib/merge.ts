@@ -11,6 +11,9 @@ export function merge3(base: string, mine: string, theirs: string): string {
   return applyPatches(makePatches(base, mine), theirs)[0]
 }
 
+/** Undo text change `from` → `to` on `now`, keeping what changed elsewhere since (F7). */
+export const unapply = (from: string, to: string, now: string): string => (now === from ? to : applyPatches(makePatches(from, to), now)[0])
+
 /** Where a caret at `pos` in `before` lands in `after` (text changed around it, not under it). */
 export function mapCaret(before: string, after: string, pos: number): number {
   let start = 0
