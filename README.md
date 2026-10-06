@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 41 changes, 15 tasks closed
+- **Today** · 42 changes, 16 tasks closed
+  - J10: the body is Barkpark's canvas, scoped to the field ([#71](https://github.com/FRIKKern/barkpark-studio/pull/71))
+  - Done: [J19 flake: Ctrl+K sometimes does not open global search in CI](https://github.com/FRIKKern/barkpark/issues/21882)
   - CI budget: fold J13 into lifecycle, faster local polls ([#69](https://github.com/FRIKKern/barkpark-studio/pull/69))
-  - Done: [Barkpark: batch block ops on /v1/data/doc/.../ops](https://github.com/FRIKKern/barkpark/issues/21761)
-  - 0004: fit the one-page cap (server gaps point to their tasks) ([#70](https://github.com/FRIKKern/barkpark-studio/pull/70))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
