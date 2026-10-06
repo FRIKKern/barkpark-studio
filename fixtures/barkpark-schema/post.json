@@ -40,6 +40,7 @@
     {"name": "rating", "title": "Rating", "type": "number", "group": "meta", "validation": {"min": 0, "max": 5}},
     {"name": "tags", "title": "Tags", "type": "arrayOf", "ordered": true, "group": "meta", "options": {"layout": "tags"},
      "of": {"type": "string"}},
+    {"name": "highlights", "title": "Highlights", "type": "arrayOf", "ordered": true, "group": "meta", "of": {"type": "string"}},
     {"name": "seo", "title": "SEO", "type": "composite", "group": "meta", "fields": [
       {"name": "metaTitle", "title": "Meta title", "type": "string"},
       {"name": "metaDescription", "title": "Meta description", "type": "text", "rows": 2}
