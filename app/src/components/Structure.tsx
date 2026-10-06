@@ -7,7 +7,9 @@ import {usePublishedPerspective} from '../lib/perspective'
 import {DEFAULT_SORT, DEFAULT_VIEW, useListPrefs, type Sort, type View} from '../lib/list-prefs'
 import {collapsed, NARROW, NarrowContext} from '../lib/layout'
 import {useLive} from '../lib/live'
-import {draftNew, flushOnUnload} from '../lib/edits'
+import {createDoc, draftNew, flushOnUnload} from '../lib/edits'
+import {editorMode} from '../lib/editor-mode'
+import {toast} from './Toasts'
 import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
 import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
@@ -269,8 +271,12 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
           onClick={() => {
             // J18: a new doc opens in the next pane with the type's initial values;
             // it is created on its first edit (Sanity's way: leaving it costs nothing).
+            // D04: a type with an Expectation is created at once: Barkpark builds its
+            // block list from the layout and fills it from the prefill (neither reaches us).
             const id = crypto.randomUUID()
-            draftNew(qc, type, id, schemaOf(schemas, type)?.initialValues ?? {})
+            if (editorMode(type, schemaOf(schemas, type)) !== 'none')
+              void createDoc(qc, type, id, {}).catch((err) => toast({tone: 'critical', title: 'Could not create the document', description: (err as Error).message}))
+            else draftNew(qc, type, id, schemaOf(schemas, type)?.initialValues ?? {})
             void navigate({href: openAfter(panes, index, {kind: 'doc', id, type})})
             focusFirstField(id)
           }}
