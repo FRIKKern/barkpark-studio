@@ -2,6 +2,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {devSignOut, meQuery} from '../lib/session'
 import {GlobalSearch} from './Search'
+import {WhoIsOnline} from './Presence'
 
 export function Navbar() {
   return (
@@ -14,7 +15,10 @@ export function Navbar() {
       <div>
         <span className="tab">Structure</span>
       </div>
-      <Editor />
+      <div className="nav-right">
+        <WhoIsOnline />
+        <Editor />
+      </div>
     </nav>
   )
 }

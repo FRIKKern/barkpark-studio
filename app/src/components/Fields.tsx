@@ -8,6 +8,7 @@ import {RefInput} from './RefInput'
 import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline} from './icons'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {toast} from './Toasts'
+import {FieldPresence} from './Presence'
 import {DateTimeInput} from './DateTimeInput'
 import {StringArrayInput, TagsInput} from './ArrayInputs'
 
@@ -66,6 +67,7 @@ export function FieldView(props: FieldProps) {
         <legend>
           {label}
           <ProblemMark path={props.path} />
+          <FieldPresenceHere path={props.path} />
         </legend>
         <FieldInput {...props} />
       </fieldset>
@@ -77,6 +79,7 @@ export function FieldView(props: FieldProps) {
       <label htmlFor={props.path} id={`${props.path}-label`}>
         {label}
         <ProblemMark path={props.path} />
+        <FieldPresenceHere path={props.path} />
       </label>
       <FieldInput {...props} />
     </div>
@@ -401,3 +404,9 @@ export function RichText({id, value}: {id: string; value: unknown}) {
   )
 }
 
+
+/** J07: who else has their caret in this field. */
+function FieldPresenceHere({path}: {path: string}) {
+  const doc = useContext(DocContext)
+  return doc ? <FieldPresence docId={doc._publishedId} path={path} /> : null
+}

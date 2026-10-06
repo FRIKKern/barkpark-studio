@@ -1,4 +1,4 @@
-import {useEffect, useState, type ReactNode} from 'react'
+import {useEffect, useRef, useState, type ReactNode} from 'react'
 import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
@@ -6,6 +6,7 @@ import {validate, type Problem} from '../lib/validation'
 import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {createDoc, discardDraft, draftNew, edit, flush, publish, undo, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
+import {reportFocus} from '../lib/presence'
 import {PaneLink} from './PaneLink'
 import {ChangesContext, DocContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
 import {ReviewChanges} from './ReviewChanges'
@@ -16,6 +17,7 @@ import {InspectDialog} from './InspectDialog'
 import {HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {revisionQuery} from '../lib/history'
 import {PortableDocEditor} from './PortableDocEditor'
+import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical} from './icons'
 
@@ -95,12 +97,25 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     active: index === panes.length - 2,
   })
 
+  // J07: the room sees this doc as where we are when it is the last pane, and the
+  // field as soon as the caret enters one (inputs carry id = the field path).
+  const here = useDocPresence(pane.id)
+  const body = useRef<HTMLDivElement>(null)
+  const isLast = index === panes.length - 1
+  useEffect(() => {
+    if (isLast) reportFocus(pane.id, null)
+  }, [isLast, pane.id])
+
   return (
     <section
       className="pane doc"
       data-testid="document-pane"
       data-pane={`doc:${pane.id}`}
       data-pane-index={index}
+      onFocus={(e) => {
+        const field = (e.target as HTMLElement).closest('.form-fields [id]')?.id
+        reportFocus(pane.id, field ?? null)
+      }}
       onKeyDown={(e) => {
         // Sanity's publish shortcut.
         if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !problems.length) (e.preventDefault(), void publish(qc, doc))
@@ -117,6 +132,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       }}
     >
       <header className="pane-header">
+        <AvatarStack people={here} />
         <span className="title chips">
           {draftQ.data?._hasPublished === false ? (
             <span className="chip" data-off="" aria-disabled="true" title="Not published">
@@ -182,7 +198,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         </div>
       </div>
       <div className="doc-main">
-      <div className="pane-body">
+      <PresenceHints docId={pane.id} scroller={body} />
+      <div className="pane-body" ref={body}>
         {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
         {doc && pane.view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
