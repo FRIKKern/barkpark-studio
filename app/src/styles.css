@@ -483,3 +483,19 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 /* Reference arrays (J09): rows of reference previews; a new row searches */
 .ref-row-preview, .ref-row-search { flex: 1; min-width: 0; }
 .ref-row-preview .preview { border-radius: 3px; }
+
+/* Barkpark-native field types (B04), after the LiveView Studio */
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.color-field { display: flex; align-items: center; gap: 10px; }
+.color-field .swatch { width: 36px; height: 36px; padding: 0; border: 1px solid #dfe1e6; border-radius: 6px; background: transparent; cursor: pointer; }
+.color-field .swatch[data-unset] { opacity: .4; }
+.btn-sm { padding: 3px 8px; font-size: 12px; box-shadow: inset 0 0 0 1px #dfe1e6; }
+.readonly-view pre { margin: 0; padding: 8px 10px; border: 1px dashed #c7cad3; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 60vh; overflow: auto; color: var(--fg-strong); }
+.readonly-view.source pre { white-space: pre; }
+.readonly-view > span { display: block; margin-top: 4px; font-size: 11px; }
+.localized { display: flex; flex-direction: column; gap: 8px; }
+.localized-row { display: grid; grid-template-columns: 40px 1fr; gap: 8px; align-items: start; }
+.localized-row .lang { padding-top: 7px; font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--muted); }
+.code-field { display: flex; align-items: center; gap: 8px; }
+.code-field .input { max-width: 240px; }
+.code-list { font-size: 12px; }

@@ -12,6 +12,7 @@ import {DateTimeInput} from './DateTimeInput'
 import {StringArrayInput, TagsInput} from './ArrayInputs'
 import {ObjectArrayInput} from './ObjectArrayInput'
 import {RefArrayInput} from './RefArrayInput'
+import {CodeInput, ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -150,7 +151,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   const invalid = useContext(ProblemsContext).some((p) => p.path === path)
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
-  if (readOnly && !['string', 'url', 'email', 'text', 'slug', 'composite', 'datetime', 'arrayOf'].includes(field.type))
+  if (readOnly && !['string', 'url', 'email', 'text', 'slug', 'composite', 'datetime', 'arrayOf', 'markdown', 'date', 'time', 'tags', 'color', 'source', 'json', 'localizedText', 'codelist'].includes(field.type))
     return (
       <fieldset className="readonly-wrap" disabled>
         <FieldInput field={field} path={path} value={value} openRef={openRef} onChange={onChange} />
@@ -166,7 +167,29 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'text':
       return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 3} readOnly={readOnly} />
     case 'number':
+    case 'float':
       return <NumberInput id={path} value={value as number | undefined} onChange={onChange} />
+    case 'integer':
+      return <NumberInput id={path} value={value as number | undefined} onChange={onChange} integer />
+    // Barkpark-native types (B04), after the LiveView Studio.
+    case 'markdown':
+      return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 5} readOnly={readOnly} />
+    case 'date':
+      return <input id={path} className="input" type="date" value={str} readOnly={readOnly} onChange={(e) => onChange(e.target.value || undefined)} />
+    case 'time':
+      return <input id={path} className="input" type="time" value={str} readOnly={readOnly} onChange={(e) => onChange(e.target.value || undefined)} />
+    case 'tags':
+      return <TagsInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
+    case 'color':
+      return <ColorInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
+    case 'source':
+      return <SourceView id={path} value={value} />
+    case 'json':
+      return <ReadOnlyJson id={path} value={value} />
+    case 'localizedText':
+      return <LocalizedTextInput id={path} languages={field.languages ?? []} value={value} onChange={onChange} readOnly={readOnly} />
+    case 'codelist':
+      return <CodeInput id={path} codelistId={field.codelistId} value={value} onChange={onChange} readOnly={readOnly} />
     case 'datetime':
       return <DateTimeInput id={path} value={value as string | undefined} onChange={onChange} readOnly={readOnly} />
     case 'select':
@@ -232,7 +255,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'image':
       return <div className="image-empty">No image</div>
     default:
-      return <input id={path} className="input" readOnly value={str} />
+      // A type this Studio has no editor for: never "[object Object]".
+      return value !== null && typeof value === 'object' ? <ReadOnlyJson id={path} value={value} note="read-only — no editor for this field type yet" /> : <input id={path} className="input" readOnly value={str} />
   }
 }
 
@@ -359,20 +383,21 @@ function SelectInput({id, field, value, onChange}: {id: string; field: Field; va
 }
 
 /** Keeps what the user typed ("1.", "-") while the stored value stays a number. */
-function NumberInput({id, value, onChange}: {id: string; value: number | undefined; onChange: (v: unknown) => void}) {
+function NumberInput({id, value, onChange, integer}: {id: string; value: number | undefined; onChange: (v: unknown) => void; integer?: boolean}) {
   const [text, setText] = useState<string | null>(null)
   const shown = text !== null && Number(text) === value ? text : value == null ? '' : String(value)
   return (
     <input
       id={id}
       className="input"
-      inputMode="decimal"
+      // The phone's number pad: digits only for integers.
+      inputMode={integer ? 'numeric' : 'decimal'}
       value={shown}
       onChange={(e) => {
         setText(e.target.value)
         const n = Number(e.target.value)
         if (e.target.value === '') onChange(undefined)
-        else if (Number.isFinite(n)) onChange(n)
+        else if (Number.isFinite(n) && (!integer || Number.isInteger(n))) onChange(n)
       }}
     />
   )
