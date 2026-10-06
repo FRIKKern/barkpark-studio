@@ -39,7 +39,7 @@ export async function tasks() {
     const label = i.labels.map((l) => l.name).find((n) => n.startsWith('status:'));
     let status = label ? label.slice(7) : 'open';
     if (i.state === 'closed') status = i.state_reason === 'not_planned' ? 'cancelled' : 'done';
-    const j = i.title.match(/^([JD]\d\d)\b/);
+    const j = i.title.match(/^([JDB]\d\d)\b/);
     const id = j ? j[1] : i.title.startsWith('P0 ') ? 'P0' : i.title.startsWith('Barkpark:') ? 'gap' : 'other';
     return { id, title: i.title, status, closedAt: i.closed_at, url: i.html_url };
   });
@@ -52,10 +52,11 @@ export function journeyPhases(file = new URL('../../JOURNEYS.md', import.meta.ur
   return map;
 }
 
-// Freeform-track journeys (D01…), from the "Freeform track" table in JOURNEYS.md.
-export function freeformJourneys(file = new URL('../../JOURNEYS.md', import.meta.url)) {
-  return [...fs.readFileSync(file, 'utf8').matchAll(/^\| (D\d\d) \|/gm)].map((m) => m[1]);
-}
+// Side-track journeys from their own JOURNEYS.md tables: Freeform (D01…), Barkpark-native (B01…).
+const sideTrack = (prefix) => (file = new URL('../../JOURNEYS.md', import.meta.url)) =>
+  [...fs.readFileSync(file, 'utf8').matchAll(new RegExp(`^\\| (${prefix}\\d\\d) \\|`, 'gm'))].map((m) => m[1]);
+export const freeformJourneys = sideTrack('D');
+export const nativeJourneys = sideTrack('B');
 
 // Phases from the table in docs/ROADMAP.md (its one home).
 export function phases(file = new URL('../../docs/ROADMAP.md', import.meta.url)) {
