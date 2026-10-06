@@ -19,7 +19,7 @@ side with `reference/sanity`, before its task can close.
 | F10 | Visual | matches the approved screenshot | | Playwright screenshot diff |
 | F11 | Scale | 5k-doc list scrolls at 60 fps and keeps F2; a 200-field doc keeps F1 | | seeded dataset + perf trace |
 | F12 | Narrow | at 768 and 390 px: no sideways page scroll, every journey completes, tap targets ≥ 44 px | | Playwright viewport + screenshot vs Sanity |
-| F13 | Accessible | zero axe violations; Tab stays inside open dialogs; focus returns to the opener | | @axe-core/playwright on J01–J04 screens |
+| F13 | Accessible | zero axe violations; Tab stays inside open dialogs; focus returns to the opener | Sanity: 5–8 axe rules fail per J01–J04 screen (2026-10-06) | @axe-core/playwright on J01–J04 screens |
 
 The rig is [`e2e/baseline.spec.ts`](e2e/baseline.spec.ts): `cd e2e && pnpm baseline --project sanity`
 (or `--project studio` for ours). Baseline = mean of two runs, 2026-10-05: production

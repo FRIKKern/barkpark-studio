@@ -53,7 +53,7 @@ export function StringArrayInput({id, value, onChange, readOnly}: Props) {
       readOnly={readOnly}
       blank={() => ''}
       onCopy={(v, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'string', value: v}})}
-      renderItem={(v, i) => <input id={`${id}[${i}]`} className="input" value={v} readOnly={readOnly} onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))} />}
+      renderItem={(v, i) => <input id={`${id}[${i}]`} className="input" aria-label={`Item ${i + 1}`} value={v} readOnly={readOnly} onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))} />}
     />
   )
 }

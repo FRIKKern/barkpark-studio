@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import {expect, test, type Page} from '@playwright/test'
 import {installProbes, networkBudget, timeToReady} from '../rig/feel'
 import {target} from '../rig/targets'
@@ -53,6 +54,9 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
     expect(coldMs, 'F3 cold load to usable list').toBeLessThan(networkBudget(1500))
     expect(open.ms, 'F2 pane open (warm)').toBeLessThan(100)
     expect(open.cls, `F2 zero layout shift (moved: ${open.shifted})`).toBe(0)
+    // F13: the list + open post, WCAG 2.1 AA by axe (the full J01–J04 scan is a11y.spec.ts).
+    const {violations} = await new AxeBuilder({page}).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+    expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`), 'F13 axe').toEqual([])
   }
 })
 
