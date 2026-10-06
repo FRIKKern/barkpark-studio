@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 46 changes, 16 tasks closed
+- **Today** · 47 changes, 16 tasks closed
+  - J32: banners for a deleted doc and a changed or removed reference ([#76](https://github.com/FRIKKern/barkpark-studio/pull/76))
   - Spec round 3: J48–J53, B11, F14–F15 (permissions, session loss, errors, slow network) ([#75](https://github.com/FRIKKern/barkpark-studio/pull/75))
   - Canvas saves a batch as one atomic write; keep the Freeform canvas mounted ([#74](https://github.com/FRIKKern/barkpark-studio/pull/74))
-  - J35: expand the body over the pane and back; caret mapped by block ([#73](https://github.com/FRIKKern/barkpark-studio/pull/73))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
