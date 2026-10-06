@@ -1,8 +1,10 @@
-import {useContext, useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent} from 'react'
+import {useContext, useEffect, useId, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent} from 'react'
+import {useQuery} from '@tanstack/react-query'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {EditPathContext, FieldView, type OpenRef} from './Fields'
 import {toast} from './Toasts'
-import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ImageIcon, LinkIcon, Reset, Upload} from './icons'
+import {PaneLink} from './PaneLink'
+import {Close as CloseIcon, Crop as CropIcon, DocumentIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
 import type {Field} from '../lib/data'
 import {assetUrl, dragCrop, frame, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 
@@ -11,9 +13,20 @@ import {assetUrl, dragCrop, frame, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, r
 // the image's own fields (alt) below it. Hotspot and crop are edited in a dialog
 // with the mouse or the keyboard: the circle (hotspot) and the rectangle (crop)
 // are focusable, arrows move them by 0.5% of the image, Shift+arrows by 2.5%.
-// Drop, paste, retry, and picking an existing asset are J36.
+// J36: drop a file on it ("Drop to upload"), paste one into it, a failed upload
+// says so and offers Retry (Sanity only toasts), replace (Upload / Select in the
+// menu) and Clear, and Select picks an image already in the library, whose "…"
+// shows which documents use it.
 
 type Props = {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}
+
+const imageOf = (list: FileList | DataTransferItemList | undefined | null): File | undefined => {
+  for (const item of Array.from((list ?? []) as ArrayLike<File | DataTransferItem>)) {
+    const f = item instanceof File ? item : item.kind === 'file' ? item.getAsFile() : null
+    if (f && f.type.startsWith('image/')) return f
+  }
+}
+const carriesFiles = (e: DragEvent<HTMLElement>) => [...e.dataTransfer.types].includes('Files')
 
 export function ImageInput({id, field, value, onChange, readOnly, openRef}: Props) {
   const image = (value && typeof value === 'object' ? value : {}) as ImageValue
@@ -21,46 +34,96 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   const editPath = useContext(EditPathContext)
   const file = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [failed, setFailed] = useState<File | null>(null)
+  const [over, setOver] = useState(false)
   const [menu, setMenu] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
+  const title = field.title ?? field.name
   const hotspot = !!(field.options as {hotspot?: boolean} | undefined)?.hotspot
   // One path per part, so an editor on the alt text and one on the crop both keep theirs.
   const setPart = (part: string, v: unknown) => (editPath ? editPath(`${id}.${part}`, v) : onChange({...image, [part]: v}))
+  // A new image: its own fields (alt) stay, the old hotspot and crop go.
+  const use = (next: string) => {
+    const {hotspot: _h, crop: _c, ...keep} = image
+    onChange({...keep, asset: {_ref: next}})
+  }
 
   const upload = async (f: File) => {
     setUploading(true)
+    setFailed(null)
     try {
       const body = new FormData()
       body.append('file', f)
       const res = await fetch('/api/media/upload', {method: 'POST', body})
-      if (!res.ok) throw new Error(`upload failed (${res.status})`)
-      const {ref: next} = (await res.json()) as {ref: string}
-      // A new image: its own fields (alt) stay, the old hotspot and crop go.
-      const {hotspot: _h, crop: _c, ...keep} = image
-      onChange({...keep, asset: {_ref: next}})
+      if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+      use(((await res.json()) as {ref: string}).ref)
     } catch (err) {
-      toast({tone: 'critical', title: 'The image could not be uploaded', description: (err as Error).message})
+      setFailed(f)
+      toast({tone: 'critical', title: 'Upload failed', description: err instanceof TypeError ? 'The network is unreachable.' : (err as Error).message})
     } finally {
       setUploading(false)
     }
   }
   const pick = () => file.current?.click()
   const url = ref ? assetUrl(ref) : undefined
+  // Drop and paste land on the image box (empty or filled), as in Sanity.
+  const target = readOnly
+    ? {}
+    : {
+        onDragEnter: (e: DragEvent<HTMLElement>) => carriesFiles(e) && (e.preventDefault(), setOver(true)),
+        onDragOver: (e: DragEvent<HTMLElement>) => carriesFiles(e) && e.preventDefault(),
+        onDragLeave: (e: DragEvent<HTMLElement>) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setOver(false),
+        onDrop: (e: DragEvent<HTMLElement>) => {
+          e.preventDefault()
+          setOver(false)
+          const f = imageOf(e.dataTransfer.files)
+          if (f) void upload(f)
+        },
+        onPaste: (e: ClipboardEvent<HTMLElement>) => {
+          const f = imageOf(e.clipboardData.files) ?? imageOf(e.clipboardData.items)
+          if (f) (e.preventDefault(), void upload(f))
+        },
+      }
+  const overlay = over && (
+    <div className="drop-overlay" aria-live="polite">
+      <Upload /> Drop to upload
+    </div>
+  )
 
   return (
     <div className="image-input" id={id}>
       <input ref={file} type="file" accept="image/*" hidden onChange={(e) => (e.target.files?.[0] && upload(e.target.files[0]), (e.target.value = ''))} />
       {!ref ? (
-        <div className="image-empty-box" data-uploading={uploading || undefined}>
-          <span className="hint">
-            <ImageIcon /> {uploading ? 'Uploading…' : 'Drag or paste image here'}
+        // Focusable so a paste has somewhere to land.
+        <div className="image-empty-box" tabIndex={readOnly ? undefined : 0} aria-label={`${title}: drop, paste or upload an image`} data-uploading={uploading || undefined} data-over={over || undefined} {...target}>
+          {overlay}
+          {failed && !uploading ? (
+            <span className="hint failed" role="alert">
+              <ErrorOutline /> Upload failed
+            </span>
+          ) : (
+            <span className="hint">
+              <ImageIcon /> {uploading ? 'Uploading…' : 'Drag or paste image here'}
+            </span>
+          )}
+          <span className="image-empty-actions">
+            {failed && !uploading && (
+              <button type="button" className="btn" onClick={() => upload(failed)}>
+                <Undo /> Retry
+              </button>
+            )}
+            <button type="button" className="btn" disabled={readOnly || uploading} onClick={pick}>
+              <Upload /> Upload
+            </button>
+            <button type="button" className="btn" disabled={readOnly || uploading} onClick={() => setBrowsing(true)}>
+              <SearchIcon /> Select
+            </button>
           </span>
-          <button type="button" className="btn" disabled={readOnly || uploading} onClick={pick}>
-            <Upload /> Upload
-          </button>
         </div>
       ) : (
-        <div className="image-preview">
+        <div className="image-preview" tabIndex={readOnly ? undefined : 0} aria-label={`${title}: drop or paste an image to replace it`} data-over={over || undefined} {...target}>
+          {overlay}
           <img src={url} alt="Preview of uploaded image" />
           {uploading && <span className="uploading">Uploading…</span>}
           <div className="image-actions">
@@ -77,6 +140,9 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
                 <MenuPopover className="popover menu image-menu" onClose={() => setMenu(false)} aria-labelledby={`${id}-menuButton`}>
                   <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), pick())}>
                     <Upload /> Upload
+                  </button>
+                  <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), setBrowsing(true))}>
+                    <SearchIcon /> Select
                   </button>
                   <a role="menuitem" className="menu-item" href={url} download onClick={() => setMenu(false)}>
                     <Download /> Download
@@ -103,7 +169,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       ))}
       {editing && url && (
         <HotspotDialog
-          title={field.title ?? field.name}
+          title={title}
           url={url}
           hotspot={image.hotspot ?? NO_HOTSPOT}
           crop={image.crop ?? NO_CROP}
@@ -111,6 +177,94 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
           onClose={() => setEditing(false)}
         />
       )}
+      {browsing && <AssetPicker title={title} path={id} openRef={openRef} onPick={(next) => (setBrowsing(false), use(next))} onClose={() => setBrowsing(false)} />}
+    </div>
+  )
+}
+
+type Asset = {id: string; name: string}
+type Use = {_id: string; _type: string; title?: string}
+
+/** Sanity's "Select image for <field>": the library as tiles; each tile's "…" shows where it is used. */
+function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; path: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
+  const {data: assets, isPending, error} = useQuery({queryKey: ['media'], queryFn: () => fetch('/api/media/').then((r) => (r.ok ? (r.json() as Promise<Asset[]>) : Promise.reject(new Error(`media list → ${r.status}`))))})
+  const [usageOf, setUsageOf] = useState<Asset | null>(null)
+  const [menuFor, setMenuFor] = useState<string | null>(null)
+  return (
+    <PaneOverlay>
+      <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+        <DialogBox className="dialog asset-dialog" aria-modal="true" aria-labelledby={`${path}-assets-title`} onClose={onClose}>
+          <header>
+            <h2 id={`${path}-assets-title`}>Select image for "{title}"</h2>
+            <button type="button" className="icon-btn" aria-label="Close dialog" onClick={onClose}>
+              <CloseIcon />
+            </button>
+          </header>
+          <div className="dialog-body">
+            {isPending && <p className="muted">Loading images…</p>}
+            {error && <p role="alert">Could not load the images: {(error as Error).message}</p>}
+            {assets?.length === 0 && <p className="muted">No images yet. Upload one first.</p>}
+            <div className="asset-grid">
+              {assets?.map((a) => (
+                <div key={a.id} className="asset-tile">
+                  <button type="button" className="asset-pick" aria-label={a.name} title={a.name} onClick={() => onPick(`asset-${a.id}`)}>
+                    <img src={`${assetUrl(a.id)}?size=thumb`} alt={a.name} />
+                  </button>
+                  <div className="menu-wrap asset-more" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenuFor(null)}>
+                    <button id={`asset-${a.id}-menuButton`} type="button" className="icon-btn" aria-label={`${a.name}: more`} aria-haspopup="menu" aria-expanded={menuFor === a.id} onClick={() => setMenuFor(menuFor === a.id ? null : a.id)}>
+                      <Ellipsis />
+                    </button>
+                    {menuFor === a.id && (
+                      <MenuPopover className="popover menu image-menu" onClose={() => setMenuFor(null)} aria-labelledby={`asset-${a.id}-menuButton`}>
+                        <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenuFor(null), setUsageOf(a))}>
+                          <LinkIcon /> Show usage
+                        </button>
+                      </MenuPopover>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogBox>
+        {usageOf && <UsageDialog asset={usageOf} path={path} openRef={openRef} onClose={() => setUsageOf(null)} onOpen={onClose} />}
+      </div>
+    </PaneOverlay>
+  )
+}
+
+/** Sanity's "Documents using file": every document whose image field uses the asset. */
+function UsageDialog({asset, path, openRef, onClose, onOpen}: {asset: Asset; path: string; openRef: OpenRef; onClose: () => void; onOpen: () => void}) {
+  const {data: uses, isPending} = useQuery({queryKey: ['media-usage', asset.id], queryFn: () => fetch(`/api/media/${encodeURIComponent(asset.id)}/usage`).then((r) => r.json() as Promise<Use[]>)})
+  return (
+    <div className="dialog-backdrop nested" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <DialogBox className="dialog usage-dialog" aria-modal="true" aria-label="Documents using file" onClose={onClose}>
+        <header>
+          <h2>Documents using file</h2>
+          <button type="button" className="icon-btn" aria-label="Close dialog" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </header>
+        <div className="dialog-body">
+          {isPending && <p className="muted">Looking…</p>}
+          {uses?.length === 0 && (
+            <h3 className="usage-none">
+              No documents are using file <code>{asset.name}</code>
+            </h3>
+          )}
+          {!!uses?.length && (
+            <ul className="usage-list">
+              {uses.map((u) => (
+                <li key={u._id} onClick={onOpen}>
+                  <PaneLink href={openRef(u._type, u._id, path).href}>
+                    <DocumentIcon /> {u.title || 'Untitled'} <span className="muted">{u._type}</span>
+                  </PaneLink>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </DialogBox>
     </div>
   )
 }

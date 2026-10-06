@@ -323,6 +323,8 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 /* Field "…" menu (J29): top right of the field, on hover or focus; placed absolutely so the form never moves */
 .field { position: relative; }
 .field-actions { position: absolute; top: -4px; right: 0; z-index: 2; opacity: 0; }
+/* A fieldset's box starts below its legend: lift its actions back up beside the legend. */
+fieldset.object-field > .field-actions { top: -38px; }
 .field:hover > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
 .field-actions .icon-btn { width: 25px; height: 25px; }
 .field-actions .popover.menu { top: 29px; right: 0; min-width: 160px; }
@@ -544,3 +546,27 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .list-rows > .preview { content-visibility: auto; contain-intrinsic-size: auto 49px; }
 .list-sentinel { height: 1px; }
 .list-max { margin: 12px 0; text-align: center; font-size: 13px; color: var(--muted); }
+
+/* J36: drop overlay, a failed upload, the library picker and "Documents using file". */
+.image-empty-box, .image-preview { position: relative; }
+.image-empty-box:focus-visible, .image-preview:focus-visible { outline: 2px solid #2276fc; outline-offset: 1px; }
+.image-empty-actions { display: inline-flex; gap: 4px; }
+.image-empty-box .hint.failed { color: #c4362a; }
+.image-empty-box .hint.failed svg { color: #c4362a; }
+.drop-overlay { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 3px; background: rgba(240, 245, 255, .92); box-shadow: inset 0 0 0 1px #9eb9f8; color: #1f3a7a; font-size: 16px; pointer-events: none; }
+.drop-overlay svg { width: 25px; height: 25px; }
+.dialog.asset-dialog { width: min(780px, calc(100% - 32px)); min-height: 40%; }
+.asset-dialog h2, .usage-dialog h2 { font-size: 13px; font-weight: 600; margin: 0; }
+.asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; padding: 16px 0; }
+.asset-tile { position: relative; }
+.asset-pick { display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 0; border-radius: 3px; cursor: pointer; background: repeating-conic-gradient(#f3f3f5 0 25%, #fff 0 50%) 0 0 / 16px 16px; box-shadow: inset 0 0 0 1px #dfe1e6; overflow: hidden; }
+.asset-pick img { width: 100%; height: 100%; object-fit: contain; }
+.asset-pick:hover, .asset-pick:focus-visible { box-shadow: inset 0 0 0 2px #2276fc; outline: none; }
+.asset-more { position: absolute; top: 4px; right: 4px; opacity: 0; }
+.asset-tile:hover .asset-more, .asset-more:focus-within { opacity: 1; }
+.asset-more .icon-btn { background: rgba(255,255,255,.9); box-shadow: inset 0 0 0 1px #dfe1e6; }
+.dialog-backdrop.nested { z-index: 70; }
+.usage-none { font-size: 13px; font-weight: 500; margin: 24px 0; text-align: center; }
+.usage-list { list-style: none; padding: 0; margin: 8px 0; }
+.usage-list a { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 3px; color: inherit; text-decoration: none; }
+.usage-list a:hover { background: var(--hover); }

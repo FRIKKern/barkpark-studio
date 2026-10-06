@@ -65,6 +65,11 @@ async function send(path: string, init: RequestInit, token: string, retry = true
   }
 }
 
+/** A path under the workspace/project prefix (`/media/renditions/...`), raw (binary-safe), with the token. */
+export function bpRaw(path: string): Promise<Response> {
+  return fetch(`${config().base}${path}`, {headers: {authorization: `Bearer ${requestToken()}`}})
+}
+
 /** A media file by the path an asset record gives (`/w/<ws>/p/<project>/media/files/...`), with the token. */
 export function bpFile(path: string): Promise<Response> {
   return fetch(`${env('BARKPARK_URL')}${path}`, {headers: {authorization: `Bearer ${requestToken()}`}})
