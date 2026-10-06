@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
+import {useFocusScope} from '../lib/focus-scope'
 import {Calendar, ChevronLeft, ChevronRight, ChevronDown} from './icons'
 
 // Sanity's date-time input (J31): a text field in local time ("2026-09-06 11:00")
@@ -88,7 +89,9 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
   const [focused, setFocused] = useState(() => value ?? new Date())
   const [year, setYear] = useState(String(focused.getFullYear()))
   const [time, setTime] = useState(value ? `${pad(value.getHours())}:${pad(value.getMinutes())}` : '00:00')
-  const root = useRef<HTMLDivElement>(null)
+  const root = useRef<HTMLDivElement | null>(null)
+  // J43: Tab stays in the picker, Escape closes it, focus goes back to its button.
+  const scope = useFocusScope<HTMLDivElement>({trap: true, onDismiss: onClose})
   const grid = useRef<HTMLDivElement>(null)
   const today = new Date()
 
@@ -123,11 +126,10 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
 
   return (
     <div
-      ref={root}
+      ref={(el) => ((root.current = el), scope(el))}
       className="popover datepicker"
       role="dialog"
       aria-label="Select date"
-      onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onClose())}
     >
       <div className="dp-head">
         <span className="dp-month">

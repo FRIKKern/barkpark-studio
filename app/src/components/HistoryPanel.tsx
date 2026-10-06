@@ -1,4 +1,5 @@
 import {useState, type ReactNode} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {historyQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
 import {applyServer} from '../lib/edits'
@@ -124,7 +125,7 @@ export function RevisionFooter({type, revisionId, timestamp, onRestored}: {type:
           Revert to revision
         </button>
         {asking && (
-          <div className="popover confirm up" role="dialog" aria-label="Restore this document?" onKeyDown={(e) => e.key === 'Escape' && setAsking(false)}>
+          <DialogBox className="popover confirm up" aria-label="Restore this document?" onClose={() => setAsking(false)}>
             <p>Are you sure you want to restore this document?</p>
             <div className="confirm-actions">
               <button type="button" className="btn" autoFocus onClick={() => setAsking(false)}>
@@ -134,7 +135,7 @@ export function RevisionFooter({type, revisionId, timestamp, onRestored}: {type:
                 Confirm
               </button>
             </div>
-          </div>
+          </DialogBox>
         )}
       </div>
     </footer>

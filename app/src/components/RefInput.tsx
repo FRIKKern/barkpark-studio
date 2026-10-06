@@ -1,4 +1,5 @@
 import {useEffect, useId, useLayoutEffect, useRef, useState} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
@@ -278,13 +279,13 @@ function CreateMenu({types, title, onPick}: {types: string[]; title: (t: string)
         Create…
       </button>
       {open && (
-        <div className="popover menu" role="menu">
+        <MenuPopover onClose={() => setOpen(false)}>
           {types.map((t) => (
             <button key={t} type="button" role="menuitem" className="menu-item" onClick={() => (setOpen(false), onPick(t))}>
               {title(t)}
             </button>
           ))}
-        </div>
+        </MenuPopover>
       )}
     </div>
   )
@@ -321,12 +322,12 @@ function RefMenu({onClear, onReplace, newTabHref}: {onClear: () => void; onRepla
         <Ellipsis />
       </button>
       {open && (
-        <div className="popover menu" role="menu">
+        <MenuPopover onClose={() => setOpen(false)}>
           {item('Clear', onClear, 'danger')}
           {item('Replace', onReplace)}
           <hr />
           {item('Open in new tab', () => window.open(newTabHref, '_blank'))}
-        </div>
+        </MenuPopover>
       )}
     </div>
   )

@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {backlinksQuery, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
@@ -25,7 +26,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
 
   return (
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="delete-title" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <DialogBox className="dialog" aria-modal="true" aria-labelledby="delete-title" onClose={onClose}>
         <header>
           <h2 id="delete-title">Delete document?</h2>
           <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
@@ -92,7 +93,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
             {used > 0 ? 'Delete anyway' : 'Delete now'}
           </button>
         </footer>
-      </div>
+      </DialogBox>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import {useState} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import type {Doc} from '../lib/data'
 import {Close as CloseIcon, Search as SearchIcon} from './icons'
 
@@ -16,7 +17,7 @@ export function InspectDialog({doc, title, onClose}: {doc: Doc; title: string; o
   const value = Object.fromEntries(Object.entries(stored).sort(([a], [b]) => a.localeCompare(b))) as Json
   return (
     <div className="dialog-backdrop inspect-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog inspect" role="dialog" aria-modal="true" aria-label={`Inspecting ${title}`} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <DialogBox className="dialog inspect" aria-modal="true" aria-label={`Inspecting ${title}`} onClose={onClose}>
         <header>
           <h2>
             Inspecting <em>{title}</em>
@@ -48,7 +49,7 @@ export function InspectDialog({doc, title, onClose}: {doc: Doc; title: string; o
             <pre className="json-raw">{JSON.stringify(value, null, 2)}</pre>
           )}
         </div>
-      </div>
+      </DialogBox>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState, type RefObject} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
@@ -102,13 +103,13 @@ export function WhoIsOnline() {
         {people.length > 0 && <span className="count">{people.length}</span>}
       </button>
       {open && (
-        <div className="popover menu who-menu" role="menu">
+        <MenuPopover className="popover menu who-menu" onClose={() => setOpen(false)}>
           {people.length === 0 ? (
             <p className="menu-empty">No one else is here</p>
           ) : (
             people.map((p) => <OnlineRow key={p.sessionId} p={p} onDone={() => setOpen(false)} />)
           )}
-        </div>
+        </MenuPopover>
       )}
     </div>
   )

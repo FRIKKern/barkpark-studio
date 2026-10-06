@@ -1,4 +1,5 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, listQuery, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
@@ -285,7 +286,7 @@ function ListMenu({sort, view, set}: {sort: Sort; view: View; set: (p: {sort?: S
         <Ellipsis />
       </button>
       {open && (
-        <div className="popover menu" role="menu">
+        <MenuPopover onClose={() => setOpen(false)}>
           <div className="menu-label">Actions</div>
           {item('Sort by Title', sort === 'title', () => set({sort: 'title'}))}
           {item('Sort by Last Edited', sort === 'updated', () => set({sort: 'updated'}))}
@@ -296,7 +297,7 @@ function ListMenu({sort, view, set}: {sort: Sort; view: View; set: (p: {sort?: S
           {item('Compact view', view === 'compact', () => set({view: 'compact'}))}
           {item('Detailed view', view === 'detailed', () => set({view: 'detailed'}))}
           {item('Default view', false, () => set({view: DEFAULT_VIEW}), view === DEFAULT_VIEW)}
-        </div>
+        </MenuPopover>
       )}
     </div>
   )
