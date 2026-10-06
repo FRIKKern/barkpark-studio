@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 40 changes, 14 tasks closed
+- **Today** · 41 changes, 15 tasks closed
+  - CI budget: fold J13 into lifecycle, faster local polls ([#69](https://github.com/FRIKKern/barkpark-studio/pull/69))
+  - Done: [Barkpark: batch block ops on /v1/data/doc/.../ops](https://github.com/FRIKKern/barkpark/issues/21761)
   - 0004: fit the one-page cap (server gaps point to their tasks) ([#70](https://github.com/FRIKKern/barkpark-studio/pull/70))
-  - Done: [FF3 Per-type editor mode: Freeform-main vs Classic with toggle](https://github.com/FRIKKern/barkpark/issues/21759)
-  - Done: [Barkpark: HTTP route for field-scoped batch block ops](https://github.com/FRIKKern/barkpark/issues/21760)
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
