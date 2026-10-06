@@ -1,5 +1,5 @@
-import {createContext, useContext, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
-import {DialogBox, MenuPopover} from './FocusScopes'
+import {createContext, memo, useContext, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
+import {MenuPopover} from './FocusScopes'
 import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
@@ -27,8 +27,11 @@ export const ProblemsContext = createContext<Problem[]>([])
 export const EditPathContext = createContext<((path: string, value: unknown) => void) | null>(null)
 /** J15: top-level fields the draft changed since publish, and how to open Review changes. */
 export const ChangesContext = createContext<{changed: Set<string>; review: () => void} | null>(null)
-/** The doc being edited, for inputs that read a sibling field (slug's source). */
+/** The doc being edited, for inputs that read a sibling field (slug's source,
+ *  conditional fields). It changes on every keystroke, so only those read it. */
 export const DocContext = createContext<Doc | null>(null)
+/** The doc's id: steady while typing, for what only needs to know which doc. */
+export const DocIdContext = createContext<string | null>(null)
 
 /** The error mark beside a field label: Sanity shows the message on hover. */
 function ProblemMark({path}: {path: string}) {
@@ -41,12 +44,26 @@ function ProblemMark({path}: {path: string}) {
   )
 }
 
-/** One field: label, error mark, input. Hidden and read-only follow the doc as it is edited (J30). */
-export function FieldView(props: FieldProps) {
+/**
+ * One field: label, error mark, input. Memoized (J44): a keystroke re-renders the
+ * field it changed, not all 200 of a long doc. So the props must stay steady while
+ * typing (DocumentPane keeps onChange and openRef stable), and only a field with a
+ * condition reads the whole doc. Hidden and read-only follow the doc as it is edited (J30).
+ */
+export const FieldView = memo(function FieldView(props: FieldProps) {
+  const conditional = !!props.field.visibleWhen || (typeof props.field.readOnly === 'object' && props.field.readOnly !== null)
+  return conditional ? <ConditionalField {...props} /> : <FieldBody {...props} />
+})
+
+function ConditionalField(props: FieldProps) {
   const doc = useContext(DocContext)
-  const changes = useContext(ChangesContext)
   if (doc && isHidden(props.field, doc)) return null
-  if (doc && isReadOnly(props.field, doc)) props = {...props, readOnly: true}
+  return <FieldBody {...props} readOnly={props.readOnly || (doc ? isReadOnly(props.field, doc) : false)} />
+}
+
+function FieldBody(props: FieldProps) {
+  if (props.field.readOnly === true) props = {...props, readOnly: true}
+  const changes = useContext(ChangesContext)
   const label = props.field.title ?? props.field.name
   const invalid = useContext(ProblemsContext).some((p) => p.path === props.path) || undefined
   // Sanity: a boolean is a switch with its label beside it, in a box.
@@ -430,6 +447,6 @@ export function RichText({id, value}: {id: string; value: unknown}) {
 
 /** J07: who else has their caret in this field. */
 function FieldPresenceHere({path}: {path: string}) {
-  const doc = useContext(DocContext)
-  return doc ? <FieldPresence docId={doc._publishedId} path={path} /> : null
+  const docId = useContext(DocIdContext)
+  return docId ? <FieldPresence docId={docId} path={path} /> : null
 }

@@ -1,5 +1,5 @@
 import {useState} from 'react'
-import {DialogBox, MenuPopover} from './FocusScopes'
+import {DialogBox} from './FocusScopes'
 import type {Doc} from '../lib/data'
 import {Close as CloseIcon, Search as SearchIcon} from './icons'
 

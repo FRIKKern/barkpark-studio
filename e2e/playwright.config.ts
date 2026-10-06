@@ -35,9 +35,10 @@ export default defineConfig({
   // CI runs ours only (the reference needs a Sanity login); side-by-side stays local.
   webServer: [
     ...(process.env.CI ? [] : [{command: `pnpm --dir ../reference/sanity dev --port ${process.env.SANITY_PORT || 3333}`, url: SANITY, reuseExistingServer: true, timeout: 60_000}]),
-    // CI times a production build (what users get; built in an earlier step); locally the dev server.
+    // CI times a production build (what users get; built in an earlier step); locally the
+    // dev server, or the build with E2E_PROD=1 (perf evidence: dev React is far slower).
     {
-      command: process.env.CI ? `pnpm --dir ../app exec vite preview --port ${PORT} --strictPort` : `pnpm --dir ../app dev --port ${PORT} --strictPort`,
+      command: process.env.CI || process.env.E2E_PROD ? `pnpm --dir ../app exec vite preview --port ${PORT} --strictPort` : `pnpm --dir ../app dev --port ${PORT} --strictPort`,
       url: `${STUDIO}/health`,
       // Locally never reuse: a server already on the port may be another worktree's
       // code. CI starts it in an earlier step (server boot is outside the budget).

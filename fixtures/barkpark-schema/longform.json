@@ -1,0 +1,1071 @@
+{
+  "name": "longform",
+  "title": "Longform",
+  "visibility": "public",
+  "fields": [
+    {
+      "name": "title",
+      "title": "Title",
+      "type": "string"
+    },
+    {
+      "name": "f002",
+      "title": "Field 002",
+      "type": "number"
+    },
+    {
+      "name": "f003",
+      "title": "Field 003",
+      "type": "boolean"
+    },
+    {
+      "name": "f004",
+      "title": "Field 004",
+      "type": "string"
+    },
+    {
+      "name": "f005",
+      "title": "Field 005",
+      "type": "string"
+    },
+    {
+      "name": "f006",
+      "title": "Field 006",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f007",
+      "title": "Field 007",
+      "type": "number"
+    },
+    {
+      "name": "f008",
+      "title": "Field 008",
+      "type": "boolean"
+    },
+    {
+      "name": "f009",
+      "title": "Field 009",
+      "type": "string"
+    },
+    {
+      "name": "f010",
+      "title": "Field 010",
+      "type": "string"
+    },
+    {
+      "name": "f011",
+      "title": "Field 011",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f012",
+      "title": "Field 012",
+      "type": "number"
+    },
+    {
+      "name": "f013",
+      "title": "Field 013",
+      "type": "boolean"
+    },
+    {
+      "name": "f014",
+      "title": "Field 014",
+      "type": "string"
+    },
+    {
+      "name": "f015",
+      "title": "Field 015",
+      "type": "string"
+    },
+    {
+      "name": "f016",
+      "title": "Field 016",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f017",
+      "title": "Field 017",
+      "type": "number"
+    },
+    {
+      "name": "f018",
+      "title": "Field 018",
+      "type": "boolean"
+    },
+    {
+      "name": "f019",
+      "title": "Field 019",
+      "type": "string"
+    },
+    {
+      "name": "f020",
+      "title": "Field 020",
+      "type": "string"
+    },
+    {
+      "name": "f021",
+      "title": "Field 021",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f022",
+      "title": "Field 022",
+      "type": "number"
+    },
+    {
+      "name": "f023",
+      "title": "Field 023",
+      "type": "boolean"
+    },
+    {
+      "name": "f024",
+      "title": "Field 024",
+      "type": "string"
+    },
+    {
+      "name": "f025",
+      "title": "Field 025",
+      "type": "string"
+    },
+    {
+      "name": "f026",
+      "title": "Field 026",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f027",
+      "title": "Field 027",
+      "type": "number"
+    },
+    {
+      "name": "f028",
+      "title": "Field 028",
+      "type": "boolean"
+    },
+    {
+      "name": "f029",
+      "title": "Field 029",
+      "type": "string"
+    },
+    {
+      "name": "f030",
+      "title": "Field 030",
+      "type": "string"
+    },
+    {
+      "name": "f031",
+      "title": "Field 031",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f032",
+      "title": "Field 032",
+      "type": "number"
+    },
+    {
+      "name": "f033",
+      "title": "Field 033",
+      "type": "boolean"
+    },
+    {
+      "name": "f034",
+      "title": "Field 034",
+      "type": "string"
+    },
+    {
+      "name": "f035",
+      "title": "Field 035",
+      "type": "string"
+    },
+    {
+      "name": "f036",
+      "title": "Field 036",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f037",
+      "title": "Field 037",
+      "type": "number"
+    },
+    {
+      "name": "f038",
+      "title": "Field 038",
+      "type": "boolean"
+    },
+    {
+      "name": "f039",
+      "title": "Field 039",
+      "type": "string"
+    },
+    {
+      "name": "f040",
+      "title": "Field 040",
+      "type": "string"
+    },
+    {
+      "name": "f041",
+      "title": "Field 041",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f042",
+      "title": "Field 042",
+      "type": "number"
+    },
+    {
+      "name": "f043",
+      "title": "Field 043",
+      "type": "boolean"
+    },
+    {
+      "name": "f044",
+      "title": "Field 044",
+      "type": "string"
+    },
+    {
+      "name": "f045",
+      "title": "Field 045",
+      "type": "string"
+    },
+    {
+      "name": "f046",
+      "title": "Field 046",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f047",
+      "title": "Field 047",
+      "type": "number"
+    },
+    {
+      "name": "f048",
+      "title": "Field 048",
+      "type": "boolean"
+    },
+    {
+      "name": "f049",
+      "title": "Field 049",
+      "type": "string"
+    },
+    {
+      "name": "f050",
+      "title": "Field 050",
+      "type": "string"
+    },
+    {
+      "name": "f051",
+      "title": "Field 051",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f052",
+      "title": "Field 052",
+      "type": "number"
+    },
+    {
+      "name": "f053",
+      "title": "Field 053",
+      "type": "boolean"
+    },
+    {
+      "name": "f054",
+      "title": "Field 054",
+      "type": "string"
+    },
+    {
+      "name": "f055",
+      "title": "Field 055",
+      "type": "string"
+    },
+    {
+      "name": "f056",
+      "title": "Field 056",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f057",
+      "title": "Field 057",
+      "type": "number"
+    },
+    {
+      "name": "f058",
+      "title": "Field 058",
+      "type": "boolean"
+    },
+    {
+      "name": "f059",
+      "title": "Field 059",
+      "type": "string"
+    },
+    {
+      "name": "f060",
+      "title": "Field 060",
+      "type": "string"
+    },
+    {
+      "name": "f061",
+      "title": "Field 061",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f062",
+      "title": "Field 062",
+      "type": "number"
+    },
+    {
+      "name": "f063",
+      "title": "Field 063",
+      "type": "boolean"
+    },
+    {
+      "name": "f064",
+      "title": "Field 064",
+      "type": "string"
+    },
+    {
+      "name": "f065",
+      "title": "Field 065",
+      "type": "string"
+    },
+    {
+      "name": "f066",
+      "title": "Field 066",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f067",
+      "title": "Field 067",
+      "type": "number"
+    },
+    {
+      "name": "f068",
+      "title": "Field 068",
+      "type": "boolean"
+    },
+    {
+      "name": "f069",
+      "title": "Field 069",
+      "type": "string"
+    },
+    {
+      "name": "f070",
+      "title": "Field 070",
+      "type": "string"
+    },
+    {
+      "name": "f071",
+      "title": "Field 071",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f072",
+      "title": "Field 072",
+      "type": "number"
+    },
+    {
+      "name": "f073",
+      "title": "Field 073",
+      "type": "boolean"
+    },
+    {
+      "name": "f074",
+      "title": "Field 074",
+      "type": "string"
+    },
+    {
+      "name": "f075",
+      "title": "Field 075",
+      "type": "string"
+    },
+    {
+      "name": "f076",
+      "title": "Field 076",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f077",
+      "title": "Field 077",
+      "type": "number"
+    },
+    {
+      "name": "f078",
+      "title": "Field 078",
+      "type": "boolean"
+    },
+    {
+      "name": "f079",
+      "title": "Field 079",
+      "type": "string"
+    },
+    {
+      "name": "f080",
+      "title": "Field 080",
+      "type": "string"
+    },
+    {
+      "name": "f081",
+      "title": "Field 081",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f082",
+      "title": "Field 082",
+      "type": "number"
+    },
+    {
+      "name": "f083",
+      "title": "Field 083",
+      "type": "boolean"
+    },
+    {
+      "name": "f084",
+      "title": "Field 084",
+      "type": "string"
+    },
+    {
+      "name": "f085",
+      "title": "Field 085",
+      "type": "string"
+    },
+    {
+      "name": "f086",
+      "title": "Field 086",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f087",
+      "title": "Field 087",
+      "type": "number"
+    },
+    {
+      "name": "f088",
+      "title": "Field 088",
+      "type": "boolean"
+    },
+    {
+      "name": "f089",
+      "title": "Field 089",
+      "type": "string"
+    },
+    {
+      "name": "f090",
+      "title": "Field 090",
+      "type": "string"
+    },
+    {
+      "name": "f091",
+      "title": "Field 091",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f092",
+      "title": "Field 092",
+      "type": "number"
+    },
+    {
+      "name": "f093",
+      "title": "Field 093",
+      "type": "boolean"
+    },
+    {
+      "name": "f094",
+      "title": "Field 094",
+      "type": "string"
+    },
+    {
+      "name": "f095",
+      "title": "Field 095",
+      "type": "string"
+    },
+    {
+      "name": "f096",
+      "title": "Field 096",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f097",
+      "title": "Field 097",
+      "type": "number"
+    },
+    {
+      "name": "f098",
+      "title": "Field 098",
+      "type": "boolean"
+    },
+    {
+      "name": "f099",
+      "title": "Field 099",
+      "type": "string"
+    },
+    {
+      "name": "f100",
+      "title": "Field 100",
+      "type": "string"
+    },
+    {
+      "name": "f101",
+      "title": "Field 101",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f102",
+      "title": "Field 102",
+      "type": "number"
+    },
+    {
+      "name": "f103",
+      "title": "Field 103",
+      "type": "boolean"
+    },
+    {
+      "name": "f104",
+      "title": "Field 104",
+      "type": "string"
+    },
+    {
+      "name": "f105",
+      "title": "Field 105",
+      "type": "string"
+    },
+    {
+      "name": "f106",
+      "title": "Field 106",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f107",
+      "title": "Field 107",
+      "type": "number"
+    },
+    {
+      "name": "f108",
+      "title": "Field 108",
+      "type": "boolean"
+    },
+    {
+      "name": "f109",
+      "title": "Field 109",
+      "type": "string"
+    },
+    {
+      "name": "f110",
+      "title": "Field 110",
+      "type": "string"
+    },
+    {
+      "name": "f111",
+      "title": "Field 111",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f112",
+      "title": "Field 112",
+      "type": "number"
+    },
+    {
+      "name": "f113",
+      "title": "Field 113",
+      "type": "boolean"
+    },
+    {
+      "name": "f114",
+      "title": "Field 114",
+      "type": "string"
+    },
+    {
+      "name": "f115",
+      "title": "Field 115",
+      "type": "string"
+    },
+    {
+      "name": "f116",
+      "title": "Field 116",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f117",
+      "title": "Field 117",
+      "type": "number"
+    },
+    {
+      "name": "f118",
+      "title": "Field 118",
+      "type": "boolean"
+    },
+    {
+      "name": "f119",
+      "title": "Field 119",
+      "type": "string"
+    },
+    {
+      "name": "f120",
+      "title": "Field 120",
+      "type": "string"
+    },
+    {
+      "name": "f121",
+      "title": "Field 121",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f122",
+      "title": "Field 122",
+      "type": "number"
+    },
+    {
+      "name": "f123",
+      "title": "Field 123",
+      "type": "boolean"
+    },
+    {
+      "name": "f124",
+      "title": "Field 124",
+      "type": "string"
+    },
+    {
+      "name": "f125",
+      "title": "Field 125",
+      "type": "string"
+    },
+    {
+      "name": "f126",
+      "title": "Field 126",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f127",
+      "title": "Field 127",
+      "type": "number"
+    },
+    {
+      "name": "f128",
+      "title": "Field 128",
+      "type": "boolean"
+    },
+    {
+      "name": "f129",
+      "title": "Field 129",
+      "type": "string"
+    },
+    {
+      "name": "f130",
+      "title": "Field 130",
+      "type": "string"
+    },
+    {
+      "name": "f131",
+      "title": "Field 131",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f132",
+      "title": "Field 132",
+      "type": "number"
+    },
+    {
+      "name": "f133",
+      "title": "Field 133",
+      "type": "boolean"
+    },
+    {
+      "name": "f134",
+      "title": "Field 134",
+      "type": "string"
+    },
+    {
+      "name": "f135",
+      "title": "Field 135",
+      "type": "string"
+    },
+    {
+      "name": "f136",
+      "title": "Field 136",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f137",
+      "title": "Field 137",
+      "type": "number"
+    },
+    {
+      "name": "f138",
+      "title": "Field 138",
+      "type": "boolean"
+    },
+    {
+      "name": "f139",
+      "title": "Field 139",
+      "type": "string"
+    },
+    {
+      "name": "f140",
+      "title": "Field 140",
+      "type": "string"
+    },
+    {
+      "name": "f141",
+      "title": "Field 141",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f142",
+      "title": "Field 142",
+      "type": "number"
+    },
+    {
+      "name": "f143",
+      "title": "Field 143",
+      "type": "boolean"
+    },
+    {
+      "name": "f144",
+      "title": "Field 144",
+      "type": "string"
+    },
+    {
+      "name": "f145",
+      "title": "Field 145",
+      "type": "string"
+    },
+    {
+      "name": "f146",
+      "title": "Field 146",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f147",
+      "title": "Field 147",
+      "type": "number"
+    },
+    {
+      "name": "f148",
+      "title": "Field 148",
+      "type": "boolean"
+    },
+    {
+      "name": "f149",
+      "title": "Field 149",
+      "type": "string"
+    },
+    {
+      "name": "f150",
+      "title": "Field 150",
+      "type": "string"
+    },
+    {
+      "name": "f151",
+      "title": "Field 151",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f152",
+      "title": "Field 152",
+      "type": "number"
+    },
+    {
+      "name": "f153",
+      "title": "Field 153",
+      "type": "boolean"
+    },
+    {
+      "name": "f154",
+      "title": "Field 154",
+      "type": "string"
+    },
+    {
+      "name": "f155",
+      "title": "Field 155",
+      "type": "string"
+    },
+    {
+      "name": "f156",
+      "title": "Field 156",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f157",
+      "title": "Field 157",
+      "type": "number"
+    },
+    {
+      "name": "f158",
+      "title": "Field 158",
+      "type": "boolean"
+    },
+    {
+      "name": "f159",
+      "title": "Field 159",
+      "type": "string"
+    },
+    {
+      "name": "f160",
+      "title": "Field 160",
+      "type": "string"
+    },
+    {
+      "name": "f161",
+      "title": "Field 161",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f162",
+      "title": "Field 162",
+      "type": "number"
+    },
+    {
+      "name": "f163",
+      "title": "Field 163",
+      "type": "boolean"
+    },
+    {
+      "name": "f164",
+      "title": "Field 164",
+      "type": "string"
+    },
+    {
+      "name": "f165",
+      "title": "Field 165",
+      "type": "string"
+    },
+    {
+      "name": "f166",
+      "title": "Field 166",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f167",
+      "title": "Field 167",
+      "type": "number"
+    },
+    {
+      "name": "f168",
+      "title": "Field 168",
+      "type": "boolean"
+    },
+    {
+      "name": "f169",
+      "title": "Field 169",
+      "type": "string"
+    },
+    {
+      "name": "f170",
+      "title": "Field 170",
+      "type": "string"
+    },
+    {
+      "name": "f171",
+      "title": "Field 171",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f172",
+      "title": "Field 172",
+      "type": "number"
+    },
+    {
+      "name": "f173",
+      "title": "Field 173",
+      "type": "boolean"
+    },
+    {
+      "name": "f174",
+      "title": "Field 174",
+      "type": "string"
+    },
+    {
+      "name": "f175",
+      "title": "Field 175",
+      "type": "string"
+    },
+    {
+      "name": "f176",
+      "title": "Field 176",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f177",
+      "title": "Field 177",
+      "type": "number"
+    },
+    {
+      "name": "f178",
+      "title": "Field 178",
+      "type": "boolean"
+    },
+    {
+      "name": "f179",
+      "title": "Field 179",
+      "type": "string"
+    },
+    {
+      "name": "f180",
+      "title": "Field 180",
+      "type": "string"
+    },
+    {
+      "name": "f181",
+      "title": "Field 181",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f182",
+      "title": "Field 182",
+      "type": "number"
+    },
+    {
+      "name": "f183",
+      "title": "Field 183",
+      "type": "boolean"
+    },
+    {
+      "name": "f184",
+      "title": "Field 184",
+      "type": "string"
+    },
+    {
+      "name": "f185",
+      "title": "Field 185",
+      "type": "string"
+    },
+    {
+      "name": "f186",
+      "title": "Field 186",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f187",
+      "title": "Field 187",
+      "type": "number"
+    },
+    {
+      "name": "f188",
+      "title": "Field 188",
+      "type": "boolean"
+    },
+    {
+      "name": "f189",
+      "title": "Field 189",
+      "type": "string"
+    },
+    {
+      "name": "f190",
+      "title": "Field 190",
+      "type": "string"
+    },
+    {
+      "name": "f191",
+      "title": "Field 191",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f192",
+      "title": "Field 192",
+      "type": "number"
+    },
+    {
+      "name": "f193",
+      "title": "Field 193",
+      "type": "boolean"
+    },
+    {
+      "name": "f194",
+      "title": "Field 194",
+      "type": "string"
+    },
+    {
+      "name": "f195",
+      "title": "Field 195",
+      "type": "string"
+    },
+    {
+      "name": "f196",
+      "title": "Field 196",
+      "type": "text",
+      "rows": 2
+    },
+    {
+      "name": "f197",
+      "title": "Field 197",
+      "type": "number"
+    },
+    {
+      "name": "f198",
+      "title": "Field 198",
+      "type": "boolean"
+    },
+    {
+      "name": "f199",
+      "title": "Field 199",
+      "type": "string"
+    },
+    {
+      "name": "f200",
+      "title": "Field 200",
+      "type": "string"
+    },
+    {
+      "name": "rows",
+      "title": "Rows",
+      "type": "arrayOf",
+      "ordered": true,
+      "of": {
+        "type": "composite",
+        "preview": {
+          "title": "title",
+          "subtitle": "note"
+        },
+        "fields": [
+          {
+            "name": "title",
+            "title": "Title",
+            "type": "string"
+          },
+          {
+            "name": "note",
+            "title": "Note",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import {useState, type ReactNode} from 'react'
-import {DialogBox, MenuPopover} from './FocusScopes'
+import {DialogBox} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {historyQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
 import {applyServer} from '../lib/edits'

@@ -1,5 +1,6 @@
-import {useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode} from 'react'
-import {DialogBox, MenuPopover} from './FocusScopes'
+import {memo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode} from 'react'
+import {MenuPopover} from './FocusScopes'
+import {useRevealed} from '../lib/reveal'
 import {Add, DragHandle, Ellipsis} from './icons'
 
 // Sanity's array rows (J34 strings, J33 objects, J09 references): a drag handle
@@ -33,6 +34,8 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
   const [moving, setMoving] = useState<{from: number; to: number} | null>(null)
   const rows = useRef<HTMLDivElement>(null)
   const order = moving ? reorder([...items.keys()], moving.from, moving.to) : [...items.keys()]
+  // J44: a long array draws its first rows at once and the rest right after.
+  const revealed = useRevealed(items.length, 50, id)
   const focusHandle = (i: number) => requestAnimationFrame(() => rows.current?.querySelectorAll<HTMLButtonElement>('.drag-handle')[i]?.focus())
   const insert = (at: number) => {
     const next = [...items.slice(0, at), blank(), ...items.slice(at)]
@@ -81,36 +84,40 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
     addEventListener('pointerup', up)
   }
 
+  // What a row does, read at the moment it does it: rows are memoized (J44: editing
+  // one row of 300 re-renders that row), so they never hold a stale `items`.
+  const latest = useRef({items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, extraActions})
+  latest.current = {items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, extraActions}
+  const [act] = useState<RowActions<T>>(() => ({
+    key: (i) => (e) => latest.current.onHandleKey(i)(e),
+    pointer: (i) => (e) => latest.current.onPointerDown(i)(e),
+    remove: (orig) => latest.current.onChange(latest.current.items.filter((_, j) => j !== orig)),
+    copy: (orig) => latest.current.onCopy?.(latest.current.items[orig]!, orig),
+    hasCopy: () => !!latest.current.onCopy,
+    duplicate: (orig) => {
+      const xs = latest.current.items
+      latest.current.onChange([...xs.slice(0, orig + 1), latest.current.duplicate(xs[orig]!), ...xs.slice(orig + 1)])
+    },
+    insert: (at) => latest.current.insert(at),
+    extra: (item, orig) => latest.current.extraActions?.(item, orig) ?? [],
+  }))
+
   return (
     <div className="array-field" id={id}>
       <div ref={rows} className="array-box" role="list" aria-describedby={`${id}-dnd-help`}>
         {items.length === 0 && <div className="array-empty">No items</div>}
-        {order.map((orig, i) => (
-          <div key={keyOf(items[orig]!, orig)} role="listitem" className="array-row" data-moving={moving?.from === orig || undefined}>
-            <button
-              type="button"
-              className="icon-btn drag-handle"
-              aria-roledescription="sortable"
-              aria-label={`Move item ${i + 1}`}
-              aria-pressed={moving?.from === orig}
-              disabled={readOnly}
-              onKeyDown={onHandleKey(i)}
-              onPointerDown={onPointerDown(i)}
-            >
-              <DragHandle />
-            </button>
-            {renderItem(items[orig]!, orig)}
-            <ItemMenu
-              id={`${itemId ? itemId(items[orig]!, orig) : `${id}[${i}]`}-menuButton`}
-              disabled={readOnly}
-              onRemove={() => onChange(items.filter((_, j) => j !== orig))}
-              extra={extraActions?.(items[orig]!, orig) ?? []}
-              onCopy={onCopy && (() => onCopy(items[orig]!, orig))}
-              onDuplicate={() => onChange([...items.slice(0, orig + 1), duplicate(items[orig]!), ...items.slice(orig + 1)])}
-              onAddBefore={() => insert(orig)}
-              onAddAfter={() => insert(orig + 1)}
-            />
-          </div>
+        {order.slice(0, revealed).map((orig, i) => (
+          <Row
+            key={keyOf(items[orig]!, orig)}
+            item={items[orig]!}
+            orig={orig}
+            at={i}
+            moving={moving?.from === orig}
+            readOnly={readOnly}
+            menuId={`${itemId ? itemId(items[orig]!, orig) : `${id}[${i}]`}-menuButton`}
+            renderItem={renderItem}
+            act={act}
+          />
         ))}
       </div>
       <p id={`${id}-dnd-help`} hidden>
@@ -122,6 +129,51 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
     </div>
   )
 }
+
+type RowActions<T> = {
+  key: (i: number) => (e: KeyboardEvent<HTMLButtonElement>) => void
+  pointer: (i: number) => (e: PointerEvent<HTMLButtonElement>) => void
+  remove: (orig: number) => void
+  copy: (orig: number) => void
+  hasCopy: () => boolean
+  duplicate: (orig: number) => void
+  insert: (at: number) => void
+  extra: (item: T, orig: number) => {label: string; run: () => void; last?: boolean}[]
+}
+
+type RowProps<T> = {item: T; orig: number; at: number; moving: boolean; readOnly?: boolean; menuId: string; renderItem: (item: T, index: number) => ReactNode; act: RowActions<T>}
+
+// One row. Re-renders when its item, place or state changes, or when the caller's
+// renderItem does (callers keep it steady with useCallback where it matters).
+const Row = memo(function Row<T>({item, orig, at, moving, readOnly, menuId, renderItem, act}: RowProps<T>) {
+  return (
+    <div role="listitem" className="array-row" data-moving={moving || undefined}>
+      <button
+        type="button"
+        className="icon-btn drag-handle"
+        aria-roledescription="sortable"
+        aria-label={`Move item ${at + 1}`}
+        aria-pressed={moving}
+        disabled={readOnly}
+        onKeyDown={act.key(at)}
+        onPointerDown={act.pointer(at)}
+      >
+        <DragHandle />
+      </button>
+      {renderItem(item, orig)}
+      <ItemMenu
+        id={menuId}
+        disabled={readOnly}
+        onRemove={() => act.remove(orig)}
+        extra={act.extra(item, orig)}
+        onCopy={act.hasCopy() ? () => act.copy(orig) : undefined}
+        onDuplicate={() => act.duplicate(orig)}
+        onAddBefore={() => act.insert(orig)}
+        onAddAfter={() => act.insert(orig + 1)}
+      />
+    </div>
+  )
+}) as <T>(props: RowProps<T>) => ReactNode
 
 export const reorder = <T,>(xs: T[], from: number, to: number) => {
   const out = [...xs]

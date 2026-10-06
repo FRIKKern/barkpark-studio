@@ -4,6 +4,7 @@
 //   node --env-file=.env scripts/seed-barkpark.mjs           # schema + reset + verify
 //   node --env-file=.env scripts/seed-barkpark.mjs --verify  # verify only
 //   node --env-file=.env scripts/seed-barkpark.mjs --data    # reset data, leave schemas (CI token can't write schemas)
+//   node --env-file=.env scripts/seed-barkpark.mjs --schemas # schemas only, data untouched (other lanes' datasets)
 //
 // With SANITY_TOKEN set, verify also reads the reference Sanity dataset live and
 // checks it maps to the same documents.
@@ -17,7 +18,7 @@ const root = new URL('..', import.meta.url)
 const env = (k, d) => process.env[k] ?? d ?? fail(`missing env ${k} (see .env.example)`)
 const BASE = `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${env('BARKPARK_PROJECT', 'default')}`
 const DATASET = env('BARKPARK_DATASET', 'production')
-const TYPES = ['author', 'category', 'post'] // refs point left: posts last
+const TYPES = ['longform', 'author', 'category', 'post'] // refs point left: posts last
 // Barkpark-native types: no Sanity mirror, seeded as written (fixtures/barkpark-only.ndjson).
 const NATIVE_TYPES = ['volume'] // not 'book': Barkpark's onixedit plugin owns that type
 
@@ -26,13 +27,18 @@ function fail(msg) {
   process.exit(1)
 }
 
-async function bp(method, path, body) {
+async function bp(method, path, body, tries = 3) {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'},
     body: body && JSON.stringify(body),
   })
   const json = await res.json().catch(() => ({}))
+  // Rate limited (other lanes share the workspace): wait as told, then retry.
+  if (res.status === 429 && tries > 1) {
+    await new Promise((r) => setTimeout(r, 1000 * (json.error?.details?.retry_after ?? 1)))
+    return bp(method, path, body, tries - 1)
+  }
   if (!res.ok) fail(`${method} ${path} → ${res.status} ${JSON.stringify(json).slice(0, 500)}`)
   return json
 }
@@ -184,8 +190,11 @@ async function verify() {
   compare('sanity', sanityDocs, mirrored)
 }
 
-if (!process.argv.includes('--verify')) {
-  if (!process.argv.includes('--data')) await applySchemas()
-  await reset()
+if (process.argv.includes('--schemas')) await applySchemas()
+else {
+  if (!process.argv.includes('--verify')) {
+    if (!process.argv.includes('--data')) await applySchemas()
+    await reset()
+  }
+  await verify()
 }
-await verify()

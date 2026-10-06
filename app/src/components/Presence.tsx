@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState, type RefObject} from 'react'
-import {DialogBox, MenuPopover} from './FocusScopes'
+import {MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'

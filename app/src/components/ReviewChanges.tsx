@@ -1,5 +1,5 @@
 import {useState} from 'react'
-import {DialogBox, MenuPopover} from './FocusScopes'
+import {DialogBox} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
 import {historyQuery, revisionQuery, type Revision} from '../lib/history'
