@@ -669,4 +669,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .pane-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 8px 8px 8px 12px; border-radius: 3px; background: var(--warn-bg); color: var(--warn-fg); font-size: 13px; }
 .pane-banner .btn { flex: none; color: inherit; box-shadow: inset 0 0 0 1px currentColor; }
 /* J20: saving is not keeping up — say so plainly. */
-.save-state:is([data-state=offline], [data-state=stalled], [data-state=error]) { color: var(--warn-fg); font-weight: 500; }
+.save-state:is([data-state=offline], [data-state=stalled], [data-state=error], [data-state=signedOut], [data-state=refused]) { color: var(--warn-fg); font-weight: 500; }
+
+/* J48: sign in again without leaving the page. */
+.sign-in-again { display: flex; flex-direction: column; gap: 8px; padding: 20px; }
+.sign-in-again h2 { font-size: 15px; margin: 0; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }

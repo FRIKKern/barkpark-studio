@@ -2,7 +2,7 @@
 // code fails the build. Calls go out with the signed-in editor's own token
 // (server/auth.ts), else the studio's BARKPARK_TOKEN.
 import '@tanstack/react-start/server-only'
-import {currentEditor} from './auth'
+import {currentEditor, devLoginEnabled} from './auth'
 
 function env(key: string): string {
   const v = process.env[key]
@@ -33,6 +33,12 @@ export const dataset = () => config().dataset
 export async function bpFetch(path: string, init: RequestInit = {}, token = requestToken(), {retry = true} = {}): Promise<Response> {
   const method = (init.method ?? 'GET').toUpperCase()
   const stream = new Headers(init.headers).get('accept') === 'text/event-stream'
+  // Fail closed (task-ccd1876176b0fc08): with sign-in on, a write by nobody — the
+  // session was lost to a studio restart or an expired cookie — never goes out under
+  // the shared studio token (history would name the wrong author). The editor is
+  // told to sign in again; their unsent edits wait.
+  if (method !== 'GET' && !stream && devLoginEnabled() && !currentEditor())
+    return Response.json({error: {code: 'session_lost', message: "You've been logged out"}}, {status: 401})
   if (method !== 'GET') recent.clear() // a write: no read may answer from before it
   if (method !== 'GET' || stream) return send(path, init, token, retry)
   // Identical reads within READ_DEDUPE_MS share one request: a reload's loader,
