@@ -94,3 +94,8 @@ export const DragHandle = () => (
     <circle cx="15" cy="17.5" r="1.1" />
   </svg>
 )
+export const Undo = () => (
+  <svg {...s}>
+    <path d="M9.5 8.5l-4 4 4 4M5.5 12.5h9a4 4 0 010 8h-2" />
+  </svg>
+)

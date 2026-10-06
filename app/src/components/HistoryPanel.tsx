@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useState, type ReactNode} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {historyQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
 import {applyServer} from '../lib/edits'
@@ -23,17 +23,27 @@ export function ago(iso: string, now = Date.now()): string {
 }
 const initials = (name: string) => (name === 'API token' ? '·' : name.replace(/@.*/, '').split(/[.\s_-]+/).map((w) => w[0]?.toUpperCase() ?? '').join('').slice(0, 2))
 
-export function HistoryPanel({type, id, selected, onPick, onClose}: {type: string; id: string; selected?: string; onPick: (entry: HistoryEntry | null) => void; onClose: () => void}) {
+export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'history', onTab, review}: {
+  type: string
+  id: string
+  selected?: string
+  onPick: (entry: HistoryEntry | null) => void
+  onClose: () => void
+  /** History (the timeline) or Review changes (J15, `review`). */
+  tab?: 'history' | 'review'
+  onTab: (tab: 'history' | 'review') => void
+  review: ReactNode
+}) {
   const {data: revisions, error} = useQuery({...historyQuery(type, id), refetchInterval: 10_000})
   const entries = revisions ? timeline(revisions) : []
   return (
     <aside className="inspector history" aria-label="History">
       <header>
         <div className="view-tabs" role="tablist" aria-label="Inspector">
-          <button type="button" role="tab" aria-selected>
+          <button type="button" role="tab" aria-selected={tab === 'history'} onClick={() => onTab('history')}>
             History
           </button>
-          <button type="button" role="tab" aria-selected={false} disabled title="Review changes arrives with J15">
+          <button type="button" role="tab" aria-selected={tab === 'review'} onClick={() => onTab('review')}>
             Review changes
           </button>
         </div>
@@ -41,6 +51,8 @@ export function HistoryPanel({type, id, selected, onPick, onClose}: {type: strin
           <CloseIcon />
         </button>
       </header>
+      <div role="tabpanel" aria-label={tab === 'review' ? 'Review changes' : 'History'}>
+      {tab === 'review' ? review : <>
       <p className="history-note">
         Showing the history for the <strong>Draft</strong> version of this document.
       </p>
@@ -68,6 +80,8 @@ export function HistoryPanel({type, id, selected, onPick, onClose}: {type: strin
           )
         })}
       </ul>
+      </>}
+      </div>
     </aside>
   )
 }

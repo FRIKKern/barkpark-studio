@@ -21,6 +21,8 @@ type FieldProps = {field: Field; path: string; value: unknown; openRef: OpenRef;
 export const ProblemsContext = createContext<Problem[]>([])
 /** Writes one value at a dotted path ("seo.metaTitle"), so a subfield edit sends only that path. */
 export const EditPathContext = createContext<((path: string, value: unknown) => void) | null>(null)
+/** J15: top-level fields the draft changed since publish, and how to open Review changes. */
+export const ChangesContext = createContext<{changed: Set<string>; review: () => void} | null>(null)
 /** The doc being edited, for inputs that read a sibling field (slug's source). */
 export const DocContext = createContext<Doc | null>(null)
 
@@ -38,6 +40,7 @@ function ProblemMark({path}: {path: string}) {
 /** One field: label, error mark, input. Hidden and read-only follow the doc as it is edited (J30). */
 export function FieldView(props: FieldProps) {
   const doc = useContext(DocContext)
+  const changes = useContext(ChangesContext)
   if (doc && isHidden(props.field, doc)) return null
   if (doc && isReadOnly(props.field, doc)) props = {...props, readOnly: true}
   const label = props.field.title ?? props.field.name
@@ -47,6 +50,7 @@ export function FieldView(props: FieldProps) {
     return (
       <div className="field">
         <FieldActions {...props} />
+        {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
         <label className="bool-box">
           <FieldInput {...props} />
           <span>{label}</span>
@@ -58,6 +62,7 @@ export function FieldView(props: FieldProps) {
     return (
       <fieldset className="field object-field">
         <FieldActions {...props} />
+        {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
         <legend>
           {label}
           <ProblemMark path={props.path} />
@@ -68,6 +73,7 @@ export function FieldView(props: FieldProps) {
   return (
     <div className="field" data-invalid={invalid} data-readonly={props.readOnly || undefined}>
       <FieldActions {...props} />
+      {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
       <label htmlFor={props.path} id={`${props.path}-label`}>
         {label}
         <ProblemMark path={props.path} />
@@ -75,6 +81,11 @@ export function FieldView(props: FieldProps) {
       <FieldInput {...props} />
     </div>
   )
+}
+
+/** Sanity's change bar (J15): a thin line beside a field the draft changed; it opens Review changes. */
+function ChangeBar({onClick}: {onClick: () => void}) {
+  return <button type="button" className="change-bar" aria-label="Review changes" title="Review changes" onClick={onClick} />
 }
 
 /**
