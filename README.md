@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 25 changes, 9 tasks closed
-  - J33: object arrays — preview rows, edit an item in a dialog, add, reorder ([#53](https://github.com/FRIKKern/barkpark-studio/pull/53))
-  - J07: presence — avatars on the field, the doc and its list row; who's online jumps to a doc; above/below hints ([#49](https://github.com/FRIKKern/barkpark-studio/pull/49))
-  - Spec round 2: J41–J47, Barkpark-native B01–B10, D12–D14, F11–F13 ([#52](https://github.com/FRIKKern/barkpark-studio/pull/52))
+- **Today** · 26 changes, 11 tasks closed
+  - Done: [Barkpark: listen filtered by document id / type](https://github.com/FRIKKern/barkpark/issues/21696)
+  - Done: [JS SDK listen: send ?ids= and drop the stale 'server ignores ?types=' comment](https://github.com/FRIKKern/barkpark/issues/21745)
+  - J09: reference arrays — keyed rows, add by search, drag by handle or keyboard, item menu ([#54](https://github.com/FRIKKern/barkpark-studio/pull/54))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
