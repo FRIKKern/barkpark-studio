@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 12 changes, 6 tasks closed
+- **Today** · 13 changes, 6 tasks closed
+  - J34: tags input and reorderable rows for plain string arrays ([#42](https://github.com/FRIKKern/barkpark-studio/pull/42))
   - Object subfields write by path: two editors on different subfields both keep theirs (J14 risk gone) ([#40](https://github.com/FRIKKern/barkpark-studio/pull/40))
   - Done: [Paper canvas ignores {name, fields} object entries in a richText vocabulary's blocks.of](https://github.com/FRIKKern/barkpark/issues/21744)
-  - J28: share (copy document URL / ID), Inspect (Ctrl+Alt+I, Parsed + Raw JSON), Duplicate opens the copy in place ([#39](https://github.com/FRIKKern/barkpark-studio/pull/39))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
