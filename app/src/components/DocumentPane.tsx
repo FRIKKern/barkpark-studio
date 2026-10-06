@@ -75,7 +75,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Decision 0004: a doc that carries a PortableDoc block list (its type has a layout)
   // also opens in Barkpark's block canvas. The doc says so; the schema read omits
   // `layout` (task-28082a4cf187403d). FF3 makes it the default per type.
-  const {canWrite, editReason} = useCanWrite()
+  const {canWrite, editReason, signedOut} = useCanWrite()
+  const loggedOut = useSaveState(pane.id).state === 'signedOut' || signedOut
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
   const freeform = mode !== 'none' && !viewingPublished && (mode === 'main' || Array.isArray(doc?.blocks))
   // Published is read in Classic: the canvas edits the draft.
@@ -253,6 +254,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           ))}
         {deleted && !doc && <DeletedBanner type={pane.type} id={pane.id} />}
         <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
+        {loggedOut && doc && (
+          // J48: the session is gone — said where you are editing, with the way back.
+          <div className="pane-banner" role="alert">
+            <span>You've been logged out. Your edits are kept here and saved once you sign in again.</span>
+            <SignInAgain />
+          </div>
+        )}
         {editReason && doc && (
           <div className="pane-banner" role="note">
             <span>{editReason}</span>
