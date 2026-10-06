@@ -88,13 +88,12 @@ test('@evidence FF3 D02: per-type editor mode; Classic ⇄ Freeform is lossless 
 })
 
 // Typing in the canvas saves as one atomic batch (/ops {ops[], ifRev}). After a
-// Classic edit reaches the canvas, the next keystroke replaces the bound title
-// block instead (canvas bug task-f24549dea0618da2): marked failing until it is fixed;
-// Playwright reports "unexpectedly passed" the day it is.
+// Classic edit reaches the canvas, the next keystroke used to replace the bound title
+// block (canvas bug task-f24549dea0618da2); PortableDocEditor now parks the caret in a
+// text block at mount, which keeps it off the field.
 test('@evidence FF3: typing in Freeform after a Classic edit edits that block', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-only')
-  test.fail(true, 'task-f24549dea0618da2: the keystroke replaces the first block')
   await page.goto(`${t.docPath('story', ID)},view=freeform`)
   await t.settle(page)
   const canvas = page.locator('bp-paper-canvas')

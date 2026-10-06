@@ -24,6 +24,7 @@ type Canvas = HTMLElement & {
   linkPreviewSource: ((t: LinkTarget) => Promise<{title?: string; excerpt?: string; href?: string} | null>) | null
   wikilinkSource: ((query: string) => Promise<{title: string; id: string; type: string}[]>) | null
   hasPendingChanges(): boolean
+  focusBlock(id: string): boolean
 }
 
 type LinkTarget = {kind: 'link' | 'wikilink'; href: string | null; target: string | null; docId: string | null; alias: string | null}
@@ -195,6 +196,20 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           const schemas = qc.getQueryData<Schema[]>(['schemas']) ?? []
           return (await searchAllDocs(query)).map((d) => ({title: previewTitle(d, schemaOf(schemas, d._type)), id: d._publishedId, type: d._type}))
         }
+        // A fresh canvas starts with a node selection on its first block. When that is a
+        // bound field and a click into text doesn't reach the editor's state, the next
+        // keystroke replaces the field (canvas bug task-f24549dea0618da2). Until it is
+        // fixed there, park the caret in the last text block instead, without keeping focus.
+        el.addEventListener(
+          'bp-ready',
+          () => {
+            const text = [...first.blocks].reverse().find((b) => b.type === 'paragraph' || b.type === 'heading')
+            if (!text || !first.blocks[0]?.type.startsWith('field-')) return
+            const had = document.activeElement
+            if (el.focusBlock(text.id) && document.activeElement !== had) (had as HTMLElement | null)?.focus?.() ?? (document.activeElement as HTMLElement | null)?.blur()
+          },
+          {once: true},
+        )
         l.rev = first.rev
         host.current.replaceChildren(el)
         canvas.current = el

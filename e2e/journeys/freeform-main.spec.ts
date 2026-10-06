@@ -56,11 +56,11 @@ test('@local D01: a Freeform-main doc opens in the canvas, bound fields as title
 })
 
 // Typing in a free block: on a fresh canvas the first keystroke after a click into a
-// paragraph can replace the leading bound field block (here: the title) with a new
-// paragraph — 3 runs in 4, no server update involved. Canvas bug task-f24549dea0618da2;
-// on until it is fixed upstream, then this becomes part of the test above.
-test.fixme('@local D01: typing in a free block saves it and keeps the field blocks', async ({page}, info) => {
+// paragraph used to replace the leading bound field block (canvas bug
+// task-f24549dea0618da2); PortableDocEditor parks the caret in a text block at mount.
+test('@local D01: typing in a free block saves it and keeps the field blocks', async ({page}, info) => {
   const t = target(info)
+  test.skip(t.name === 'sanity', 'Barkpark-only: Sanity has no Freeform')
   before = (await read()).blocks
   await page.goto(t.docPath('note', ID))
   await t.settle(page)
