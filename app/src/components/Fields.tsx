@@ -1,5 +1,5 @@
 import {createContext, useContext, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
-import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
+import {itemPath, refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
 import type {Problem} from '../lib/validation'
@@ -189,8 +189,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       if (field.of?.type === 'reference')
         return (
           <div className="ref-box" id={path}>
-            {items.map((id, i) => (
-              <RefPreview key={i} type={field.of!.refType!} id={id as string} {...openRef(field.of!.refType!, id as string, `${path}[${i}]`)} />
+            {items.map((item, i) => (
+              <RefPreview key={(item as {_key?: string})?._key ?? i} type={field.of!.refType!} id={refId(item)!} {...openRef(field.of!.refType!, refId(item)!, itemPath(path, item, i))} />
             ))}
           </div>
         )

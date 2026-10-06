@@ -84,9 +84,10 @@ const UNMAPPED = new Set([
   'attachment', // file field: no upload/picker for non-image assets
 ])
 
-// Item of a multi-type object array → one composite shape; `_type` becomes `kind`
-// (Barkpark arrayOf takes one member type).
+// Item of a multi-type object array → one composite shape, keyed like Sanity's;
+// `_type` becomes `kind` (Barkpark arrayOf takes one member type).
 const objectItem = ({_type, _key, ...rest}) => ({
+  _key,
   kind: _type,
   ...Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v?._type === 'reference' ? v._ref : v])),
 })
@@ -99,7 +100,10 @@ function toBarkpark(doc) {
     if (v?._type === 'slug') out[k] = v.current
     else if (v?._type === 'reference') out[k] = v._ref
     else if (k === 'body') out[k] = portableTextToPortableDoc(v)
-    else if (Array.isArray(v) && v.every((x) => x?._type === 'reference')) out[k] = v.map((x) => x._ref)
+    // Keyed reference arrays keep Sanity's item identity ({_key, _type, _ref}), so
+    // reorder/remove and array patches by _key have something to address (J09).
+    // From the finish-keys lane's draft (fix/seed-keyed-refs-object-blocks, 8f70b7f).
+    else if (Array.isArray(v) && v.every((x) => x?._type === 'reference')) out[k] = v.map(({_key, _ref}) => ({_key, _type: 'reference', _ref}))
     else if (Array.isArray(v) && v.every((x) => x?._type && x._key)) out[k] = v.map(objectItem)
     else out[k] = v
   }
@@ -118,6 +122,8 @@ const seed = readFileSync(new URL('fixtures/seed.ndjson', root), 'utf8')
   .split('\n')
   .filter(Boolean)
   .map((l) => JSON.parse(l))
+// Docs scripts/reference-history.mjs keeps outside the seed (fixture imports rewrite history).
+const REFERENCE_ONLY = new Set(['post-history'])
 const expected = new Map(seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d)}]))
 
 async function applySchemas() {
@@ -150,7 +156,7 @@ function compare(label, docs) {
     else if (!isDeepStrictEqual(stripSystem(got, want.content), want.content))
       problems.push(`${id}: differs\n  want ${JSON.stringify(want.content)}\n  got  ${JSON.stringify(stripSystem(got, want.content))}`)
   }
-  for (const id of seen.keys()) if (!expected.has(id)) problems.push(`${id}: not in seed`)
+  for (const id of seen.keys()) if (!expected.has(id) && !REFERENCE_ONLY.has(id)) problems.push(`${id}: not in seed`)
   if (problems.length) fail(`${label}: ${problems.length} problem(s)\n${problems.join('\n')}`)
   console.log(`verify ${label}: ${expected.size}/${expected.size} docs field-by-field equal`)
 }

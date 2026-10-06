@@ -209,6 +209,13 @@ export const searchQuery = (type: string | string[], q: string, filter?: RefFilt
 export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) => s.name === type)
 
 /** The types a reference field (or a reference array's member) may point to. */
+/** A reference value: a bare id, or a keyed array item {_key, _type: 'reference', _ref} (task-fb4c4703cc92b32e). */
+export const refId = (v: unknown): string | undefined => (typeof v === 'string' ? v : typeof (v as {_ref?: unknown})?._ref === 'string' ? (v as {_ref: string})._ref : undefined)
+/** An array item's path: by _key when it has one (Sanity's `categories[_key=="c2"]`), else by index. */
+export const itemPath = (path: string, item: unknown, i: number) => {
+  const key = (item as {_key?: unknown})?._key
+  return typeof key === 'string' ? `${path}[_key=="${key}"]` : `${path}[${i}]`
+}
 export const refTypesOf = (field: Field | undefined): string[] => field?.to?.map((t) => t.type) ?? (field?.refType ? [field.refType] : [])
 
 /** Preview title per Sanity's rules: list_preview.title, else title/name. */
