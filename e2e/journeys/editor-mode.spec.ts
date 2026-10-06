@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
 import {target} from '../rig/targets'
 
@@ -10,6 +11,9 @@ import {target} from '../rig/targets'
 const ID = 'story-01'
 const SUMMARY = 'A story whose fields live in its block list.'
 const shot = (step: string) => `evidence/FF3-studio-${step}.png`
+const SEED_BLOCKS = (JSON.parse(
+  readFileSync(new URL('../../fixtures/barkpark-only.ndjson', import.meta.url), 'utf8').split('\n').find((l) => l.includes('"story-01"'))!,
+) as {blocks: unknown[]}).blocks
 type Block = {id: string; type: string; fieldName?: string; value?: unknown}
 
 const bp = async (path: string) => {
@@ -21,7 +25,8 @@ const stored = () => bp(`/v1/data/doc/${process.env.BARKPARK_DATASET}/story/${ID
 const draftOrPublished = async () => (await bp(`/v1/data/doc/${process.env.BARKPARK_DATASET}/story/${ID}?perspective=drafts`))
 
 test.afterEach(async ({}, info) => {
-  if (target(info).name === 'studio') await target(info).restore(ID, {summary: SUMMARY}, 'story')
+  // Back to the seed: the whole block list (the canvas edit) and the bound summary.
+  if (target(info).name === 'studio') await target(info).restore(ID, {summary: SUMMARY, blocks: SEED_BLOCKS}, 'story')
 })
 
 test('@evidence FF3: per-type editor mode; Classic ⇄ Freeform is lossless', async ({page}, info) => {
@@ -64,4 +69,25 @@ test('@evidence FF3: per-type editor mode; Classic ⇄ Freeform is lossless', as
   await page.screenshot({path: shot('3-freeform-after-classic-edit')})
   await tabs.getByRole('tab', {name: 'Classic'}).click()
   expect((await draftOrPublished()).blocks).toEqual(edited)
+})
+
+// Typing in the canvas saves as one atomic batch (/ops {ops[], ifRev}). After a
+// Classic edit reaches the canvas, the next keystroke replaces the bound title
+// block instead (canvas bug task-f24549dea0618da2): marked failing until it is fixed;
+// Playwright reports "unexpectedly passed" the day it is.
+test('@evidence FF3: typing in Freeform after a Classic edit edits that block', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'Barkpark-only')
+  test.fail(true, 'task-f24549dea0618da2: the keystroke replaces the first block')
+  await page.goto(`${t.docPath('story', ID)},view=freeform`)
+  await t.settle(page)
+  const canvas = page.locator('bp-paper-canvas')
+  await canvas.getByText(/A second free paragraph/).waitFor()
+  await t.patch(ID, {summary: 'Edited in Classic.'}, 'story')
+  await page.waitForTimeout(2500) // the canvas takes the server's blocks
+  await canvas.getByText(/A second free paragraph/).click()
+  await page.keyboard.press('End')
+  await page.keyboard.type(' Typed in Freeform.')
+  await expect.poll(async () => JSON.stringify((await draftOrPublished()).blocks.find((b) => b.id === 'st-p2')), {timeout: 10_000}).toContain('Typed in Freeform.')
+  expect((await draftOrPublished()).blocks.map((b) => b.id), 'no block replaced').toEqual(['st-title', 'st-kicker', 'st-p1', 'st-summary', 'st-p2'])
 })
