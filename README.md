@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 36 changes, 12 tasks closed
+- **Today** · 37 changes, 12 tasks closed
+  - F13: axe on the J01–J04 screens; fix our violations ([#66](https://github.com/FRIKKern/barkpark-studio/pull/66))
   - J36: image drop, paste, upload error + retry, library select + usage, replace/remove ([#65](https://github.com/FRIKKern/barkpark-studio/pull/65))
   - B06: localizedText language tabs ([#64](https://github.com/FRIKKern/barkpark-studio/pull/64))
-  - J41: big lists page like Sanity (100, then up to 2,000 near the bottom, then the max note); list search reaches the whole type ([#63](https://github.com/FRIKKern/barkpark-studio/pull/63))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))

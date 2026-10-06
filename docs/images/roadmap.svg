@@ -105,7 +105,7 @@
 <text x="344" y="724" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J11 Insert callout + ima…</tspan></text>
 <text x="344" y="754" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J12 Image</tspan></text>
 <text x="344" y="784" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J35 Body editor expand t…</tspan></text>
-<text x="344" y="814" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J36 Image actions</tspan></text>
+<text x="344" y="814" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J36 Image actions</tspan></text>
 </g>
 <g data-phase="6">
 <rect x="608" y="576" width="268" height="334" rx="12" class="card"/>
