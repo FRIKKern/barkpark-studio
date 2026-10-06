@@ -206,7 +206,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'json':
       return <ReadOnlyJson id={path} value={value} />
     case 'localizedText':
-      return <LocalizedTextInput id={path} languages={field.languages ?? []} value={value} onChange={onChange} readOnly={readOnly} />
+      return <LocalizedTextInput id={path} languages={field.languages ?? []} fallbackChain={field.fallbackChain} value={value} onChange={onChange} readOnly={readOnly} />
     case 'codelist':
       return <CodeInput id={path} codelistId={field.codelistId} value={value} onChange={onChange} readOnly={readOnly} />
     case 'datetime':
