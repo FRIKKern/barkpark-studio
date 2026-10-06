@@ -9,6 +9,7 @@ import {createDoc, discardDraft, draftNew, edit, flush, publish, undo, unpublish
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
+import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
 import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
@@ -85,11 +86,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   ]
   const next = panes[index + 1]
   const qc = useQueryClient()
-  // An id nobody has written yet is a new doc (Sanity treats it the same way).
+  // An id nobody has written yet is a new doc (Sanity treats it the same way); one
+  // whose history ends in a delete is a deleted doc (J32): a banner, not a new draft.
   const initialValues = schemaOf(schemas, pane.type)?.initialValues
+  const deleted = useDeleted(pane.type, pane.id, draftQ.data === null && !viewingPublished)
   useEffect(() => {
-    if (draftQ.data === null && initialValues) draftNew(qc, pane.type, pane.id, initialValues)
-  }, [draftQ.data, initialValues, qc, pane.type, pane.id])
+    if (draftQ.data === null && initialValues && deleted === false) draftNew(qc, pane.type, pane.id, initialValues)
+  }, [draftQ.data, initialValues, deleted, qc, pane.type, pane.id])
   // J44: the form's fields are memoized, so what they get must hold still while
   // typing: one steady onEdit (it reads the latest doc), one onChange per field
   // name, and context values that change only when their content does.
@@ -237,6 +240,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       <PresenceHints docId={pane.id} scroller={body} />
       <div className="pane-body" ref={body}>
         {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
+        {deleted && !doc && <DeletedBanner type={pane.type} id={pane.id} />}
+        <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
         {doc && view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
         {/* Mounted once per doc and then only hidden: the canvas mis-places typing
