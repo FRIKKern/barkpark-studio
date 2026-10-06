@@ -78,7 +78,9 @@ test('J22: create a new author from the reference field, edit it in the next pan
 
 test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd browser', async ({browser}, info) => {
   const t = target(info)
-  const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])
+  const recording = !!process.env.REFERENCE_RUN_ID
+  const options = recording ? {recordVideo: {dir: info.outputPath('videos'), size: {width: 1440, height: 900}}, viewport: {width: 1440, height: 900}} : {}
+  const [ctxA, ctxB] = await Promise.all([browser.newContext(options), browser.newContext(options)])
   await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
   const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
   try {
@@ -110,8 +112,16 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
     if (t.name === 'studio') expect(ms, 'F4 edit seen in 2nd browser').toBeLessThan(networkBudget(1000))
     console.log(`[J23 ${t.name}] A's edit seen in B after ${Math.round(ms)} ms`)
   } finally {
-    await t.restore('author-grace', {name: 'Grace Hopper'}, 'author')
-    await Promise.all([ctxA.close(), ctxB.close()])
+    try {
+      await t.restore('author-grace', {name: 'Grace Hopper'}, 'author')
+    } finally {
+      await Promise.all([ctxA.close(), ctxB.close()])
+      if (recording) {
+        for (const [name, page] of [['editor', a], ['observer', b]] as const) {
+          await info.attach(`J23-${name}`, {path: await page.video()!.path(), contentType: 'video/webm'})
+        }
+      }
+    }
   }
 })
 
