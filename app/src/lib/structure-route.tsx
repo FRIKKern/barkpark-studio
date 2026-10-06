@@ -30,8 +30,11 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
     onServer ? fetchViewportHint() : document.querySelector('[data-testid=panes]')?.clientWidth ?? window.innerWidth,
     onServer ? (fetchListPrefs() as Promise<ListPrefs>) : readListPrefsCookie(),
   ])
-  const listed = await Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [queryClient.ensureQueryData(listQuery(p.type))] : [])))
-  const open = await Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [queryClient.ensureQueryData(docQuery(p.type, p.id))] : [])))
+  // The list and the open docs don't depend on each other: one round trip, not two.
+  const [listed, open] = await Promise.all([
+    Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [queryClient.ensureQueryData(listQuery(p.type))] : []))),
+    Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [queryClient.ensureQueryData(docQuery(p.type, p.id))] : []))),
+  ])
   const openDocs = open.filter((d): d is Doc => !!d)
   const refs = (async () => {
     // Level 1: what open docs reference, and what every visible preview needs.
