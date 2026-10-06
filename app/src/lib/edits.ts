@@ -3,7 +3,7 @@ import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {expectEcho, mutatedIds} from '../server/listen'
-import {docQuery, type Doc} from './data'
+import {docQuery, type Doc, type ListPage} from './data'
 import {merge3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 
@@ -91,7 +91,7 @@ function overlay(id: string, doc: Doc): Doc {
 
 function writeCache(qc: QueryClient, id: string, type: string, doc: Doc) {
   qc.setQueryData(['doc', id], doc)
-  qc.setQueryData(['list', type], (list: Doc[] | undefined) => list && [doc, ...list.filter((d) => d._publishedId !== id)])
+  qc.setQueriesData<ListPage>({queryKey: ['list', type]}, (page) => page && {...page, docs: [doc, ...page.docs.filter((d) => d._publishedId !== id)]})
 }
 
 const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
@@ -341,7 +341,7 @@ export async function deleteDoc(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   await mutate({data: {mutations: [{delete: {id, type: doc._type}}]}})
   docs.delete(id)
-  qc.setQueryData(['list', doc._type], (list: Doc[] | undefined) => list?.filter((d) => d._publishedId !== id))
+  qc.setQueriesData<ListPage>({queryKey: ['list', doc._type]}, (page) => page && {...page, docs: page.docs.filter((d) => d._publishedId !== id)})
   qc.removeQueries({queryKey: ['doc', id]})
 }
 

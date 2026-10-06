@@ -55,14 +55,49 @@ const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
     .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values}) => ({name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? [], initialValues: initialValues ?? initial_values ?? {}})) as unknown as Json
 })
 
+// J41, Sanity's paging: a list opens with its first LIST_PAGE rows and loads up to
+// LIST_MAX when you scroll near the end; past that it says so. Order is the server's.
+export const LIST_PAGE = 100
+export const LIST_MAX = 2000
+export type ListOrder = 'updated' | 'created' | 'title'
+const ORDER: Record<ListOrder, string> = {updated: '_updatedAt:desc', created: '_createdAt:desc', title: 'title:asc'}
+/** One loaded list: its rows, and whether the server holds more. */
+export type ListPage = {docs: Doc[]; hasMore: boolean}
+
 const fetchList = createServerFn({method: 'GET'})
-  .validator((d: {type: string; published?: boolean}) => d)
+  .validator((d: {type: string; published?: boolean; limit?: number; order?: ListOrder}) => d)
   .handler(async ({data}) => {
-    const r = await bpJson<{result: {documents: Doc[]}}>(
-      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=_updatedAt:desc&limit=200&perspective=${data.published ? 'published' : 'drafts'}`,
-    )
-    if (data.published) return r.result.documents.map((d) => ({...d, _hasPublished: true})) as unknown as Json
-    return (await withHasPublished(data.type, r.result.documents)) as unknown as Json
+    const limit = Math.min(data.limit ?? LIST_PAGE, LIST_MAX)
+    const docs: Doc[] = []
+    let hasMore = true
+    // Barkpark serves at most 1000 rows a request.
+    while (hasMore && docs.length < limit) {
+      const r = await bpJson<{result: {documents: Doc[]; hasMore: boolean}}>(
+        `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=${ORDER[data.order ?? 'updated']}&limit=${Math.min(limit - docs.length, 1000)}&offset=${docs.length}&perspective=${data.published ? 'published' : 'drafts'}`,
+      )
+      docs.push(...r.result.documents)
+      hasMore = r.result.hasMore
+    }
+    const out = data.published ? docs.map((d) => ({...d, _hasPublished: true})) : await withHasPublished(data.type, docs)
+    return {docs: out, hasMore} as unknown as Json
+  })
+
+/** List search over the whole type, not just the rows loaded (J41): Barkpark's full-text search. */
+const fetchListSearch = createServerFn({method: 'GET'})
+  .validator((d: {type: string; q: string}) => d)
+  .handler(async ({data}) => {
+    const search = (q: string, limit: number) =>
+      bpJson<{documents: Doc[]; count: number}>(`/v1/data/search/${dataset()}?q=${encodeURIComponent(q)}&type=${encodeURIComponent(data.type)}&limit=${limit}&perspective=drafts`)
+    // Barkpark matches ANY word, newest first; the list wants docs with EVERY word (the
+    // pane filters for that). So search the rarest word: its matches hold them all.
+    const terms = data.q.split(/\s+/).filter(Boolean)
+    let best = terms[0] ?? ''
+    if (terms.length > 1) {
+      const counts = await Promise.all(terms.map((t) => search(t, 1).then((r) => r.count)))
+      best = terms[counts.indexOf(Math.min(...counts))]!
+    }
+    const r = await search(best, LIST_PAGE)
+    return (await withHasPublished(data.type, r.documents)) as unknown as Json
   })
 
 // A reference with several target types names them all; the doc is whichever has the id.
@@ -172,29 +207,32 @@ export const fetchViewportHint = createServerFn({method: 'GET'}).handler(async (
 
 export const schemasQuery = queryOptions({queryKey: ['schemas'], queryFn: async () => (await fetchSchemas()) as unknown as Schema[], staleTime: Infinity})
 
-export const listQuery = (type: string) =>
+export const listQuery = (type: string, order: ListOrder = 'updated', limit = LIST_PAGE) =>
   queryOptions({
-    queryKey: ['list', type],
+    queryKey: ['list', type, order, limit],
     staleTime: 30_000,
     queryFn: async ({client}) => {
-      const docs = (await fetchList({data: {type}})) as unknown as Doc[]
+      const page = (await fetchList({data: {type, order, limit}})) as unknown as ListPage
       // A list row already holds the whole doc: opening it needs no second request.
-      for (const d of docs) client.setQueryData(['doc', d._publishedId], d)
-      return docs
+      for (const d of page.docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
+      return page
     },
   })
 
 /** The list as the Published perspective shows it: published versions only. */
-export const publishedListQuery = (type: string) =>
+export const publishedListQuery = (type: string, order: ListOrder = 'updated', limit = LIST_PAGE) =>
   queryOptions({
-    queryKey: ['list-published', type],
+    queryKey: ['list-published', type, order, limit],
     staleTime: 30_000,
     queryFn: async ({client}) => {
-      const docs = (await fetchList({data: {type, published: true}})) as unknown as Doc[]
-      for (const d of docs) client.setQueryData(['doc-published', d._publishedId], d)
-      return docs
+      const page = (await fetchList({data: {type, published: true, order, limit}})) as unknown as ListPage
+      for (const d of page.docs) client.setQueryData(['doc-published', d._publishedId], d)
+      return page
     },
   })
+
+export const listSearchQuery = (type: string, q: string) =>
+  queryOptions({queryKey: ['list-search', type, q], staleTime: 10_000, queryFn: async () => (await fetchListSearch({data: {type, q}})) as unknown as Doc[]})
 
 export const docQuery = (type: string | string[], id: string) =>
   queryOptions({queryKey: ['doc', id], staleTime: 30_000, queryFn: async () => (await fetchDoc({data: {type, id}})) as unknown as Doc | null})
