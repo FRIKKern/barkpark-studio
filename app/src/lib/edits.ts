@@ -37,7 +37,13 @@ export const mutate = createServerFn({method: 'POST'})
     return body
   })
 
-export type SaveState = 'saved' | 'saving' | 'error'
+/**
+ * J20: what the footer says about saving. `offline`: the browser has no network, so
+ * nothing is sent and every edit stays here; `stalled`: a write has been on its way
+ * longer than STALL_MS; `recovering`: back online, sending what was kept; `error`:
+ * the server refused, retried.
+ */
+export type SaveState = 'saved' | 'saving' | 'stalled' | 'offline' | 'recovering' | 'error'
 type Snap = {state: SaveState; error?: string}
 type DocEdits = {
   type: string
@@ -68,6 +74,27 @@ type Change = {field: string; steps: {before: unknown; after: unknown}[]; at: nu
 const UNDO_GROUP_MS = 600
 
 export const WRITE_GAP_MS = 750
+const STALL_MS = 4000
+const OFFLINE_RETRY_MS = 5000
+
+const online = () => typeof navigator === 'undefined' || navigator.onLine
+const isNetworkError = (err: unknown) => !online() || err instanceof TypeError || /failed to fetch|networkerror|load failed|fetch failed/i.test(String((err as Error)?.message))
+// Docs waiting for the network to come back: each sends again on the 'online' event.
+const waiting = new Map<string, () => void>()
+if (typeof window !== 'undefined') {
+  addEventListener('online', () => {
+    const go = [...waiting.values()]
+    waiting.clear()
+    go.forEach((f) => f())
+  })
+  // Leaving while offline with edits not sent would lose them (the unload beacon
+  // can't go out either): the browser asks first.
+  addEventListener('beforeunload', (ev) => {
+    if (online() || ![...docs.values()].some((d) => d.dirty.size || d.inflight)) return
+    ev.preventDefault()
+    ev.returnValue = ''
+  })
+}
 
 const SAVED: Snap = {state: 'saved'}
 const docs = new Map<string, DocEdits>()
@@ -216,13 +243,23 @@ function toPatch(fields: Map<string, unknown>) {
   return {set, unset}
 }
 
+/** Offline: hold everything, send again when the network is back (or try every few seconds). */
+function waitForNetwork(qc: QueryClient, id: string, e: DocEdits) {
+  setState(e, 'offline')
+  waiting.set(id, () => void send(qc, id))
+  setTimeout(() => waiting.has(id) && online() && (waiting.delete(id), void send(qc, id)), OFFLINE_RETRY_MS)
+}
+
 async function send(qc: QueryClient, id: string) {
   const e = docs.get(id)
   if (!e || e.inflight || e.dirty.size === 0) return
+  if (!online()) return waitForNetwork(qc, id, e)
   e.inflight = e.dirty
   e.dirty = new Map()
   e.lastSent = Date.now()
-  setState(e, 'saving')
+  const after = e.snap.state === 'offline' || e.snap.state === 'recovering'
+  setState(e, after ? 'recovering' : 'saving')
+  const stall = setTimeout(() => e.inflight && setState(e, 'stalled'), STALL_MS)
   const {set, unset} = toPatch(e.inflight)
   const creating = e.pendingCreate
   try {
@@ -239,9 +276,17 @@ async function send(qc: QueryClient, id: string) {
     }
     e.inflight = null
     e.conflicts = 0
+    clearTimeout(stall)
     applyServer(qc, saved)
     setState(e, e.dirty.size ? 'saving' : 'saved')
   } catch (err) {
+    clearTimeout(stall)
+    // No network: keep every value and wait for it, no error, no retry storm.
+    if (isNetworkError(err)) {
+      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      e.inflight = null
+      return waitForNetwork(qc, id, e)
+    }
     // Someone else wrote first (stale rev; or both forked the draft at once,
     // task-324b4d00706a6cfb): read theirs, rebase ours onto it, send again.
     if (!creating && /^mutate (409|412)\b|already been taken/.test((err as Error).message) && e.conflicts++ < 5) {

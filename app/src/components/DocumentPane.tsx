@@ -399,7 +399,9 @@ function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref:
   const [discarding, setDiscarding] = useState(false)
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
-  const label = state === 'saving' ? 'Saving…' : state === 'error' ? 'Not saved — retrying' : doc._draft ? 'Saved' : 'Published'
+  const label =
+    {saving: 'Saving…', stalled: 'Saving is taking longer than usual…', offline: 'Offline — not saving. Your edits are kept here.', recovering: 'Back online — saving your edits…', error: 'Not saved — retrying'}[state as string] ??
+    (doc._draft ? 'Saved' : 'Published')
   return (
     <footer className="doc-footer">
       <span className="save-state" data-state={state} title={error} role="status">
@@ -407,7 +409,7 @@ function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref:
       </span>
       <button
         className="publish"
-        disabled={!doc._draft || state === 'error' || publishing || blocked > 0}
+        disabled={!doc._draft || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
         title={blocked ? `Fix ${blocked} validation ${blocked === 1 ? 'error' : 'errors'} before publishing` : undefined}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async () => {
