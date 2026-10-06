@@ -31,6 +31,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         onChange={set}
         readOnly={readOnly}
         keyOf={(it, i) => it._key ?? i}
+        itemId={(it, i) => (it._key ? `${id}[_key=="${it._key}"]` : `${id}[${i}]`)}
         blank={() => ({_key: newKey()})}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
