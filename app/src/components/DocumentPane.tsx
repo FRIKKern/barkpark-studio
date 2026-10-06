@@ -10,6 +10,7 @@ import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from 
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
+import {SignInAgain} from './SignInAgain'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
 import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
@@ -400,13 +401,23 @@ function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref:
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
   const label =
-    {saving: 'Saving…', stalled: 'Saving is taking longer than usual…', offline: 'Offline — not saving. Your edits are kept here.', recovering: 'Back online — saving your edits…', error: 'Not saved — retrying'}[state as string] ??
-    (doc._draft ? 'Saved' : 'Published')
+    {
+      saving: 'Saving…',
+      stalled: 'Saving is taking longer than usual…',
+      offline: 'Offline — not saving. Your edits are kept here.',
+      recovering: 'Back online — saving your edits…',
+      error: 'Not saved — retrying',
+      signedOut: "You've been logged out — not saving. Sign in to save your edits.",
+      refused: `Not saved: ${error ?? 'Barkpark refused the change'}`,
+    }[state as string] ?? (doc._draft ? 'Saved' : 'Published')
   return (
     <footer className="doc-footer">
       <span className="save-state" data-state={state} title={error} role="status">
         {label}
       </span>
+      {state === 'signedOut' && (
+        <SignInAgain />
+      )}
       <button
         className="publish"
         disabled={!doc._draft || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}

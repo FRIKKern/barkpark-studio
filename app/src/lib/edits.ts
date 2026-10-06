@@ -41,9 +41,12 @@ export const mutate = createServerFn({method: 'POST'})
  * J20: what the footer says about saving. `offline`: the browser has no network, so
  * nothing is sent and every edit stays here; `stalled`: a write has been on its way
  * longer than STALL_MS; `recovering`: back online, sending what was kept; `error`:
- * the server refused, retried.
+ * a failed write, retried. And (task-ccd1876176b0fc08, J48) two that stop writing
+ * and keep every edit: `signedOut` — the session is gone, nothing is sent until the
+ * editor signs in again (resumeSaving); `refused` — Barkpark said no (403, e.g.
+ * read-only), with its reason; the next edit tries again, nothing retries on its own.
  */
-export type SaveState = 'saved' | 'saving' | 'stalled' | 'offline' | 'recovering' | 'error'
+export type SaveState = 'saved' | 'saving' | 'stalled' | 'offline' | 'recovering' | 'error' | 'signedOut' | 'refused'
 type Snap = {state: SaveState; error?: string}
 type DocEdits = {
   type: string
@@ -181,6 +184,8 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
   // An edit makes (or updates) the draft: show it as one now.
   writeCache(qc, id, doc._type, setPath({...held, _draft: true} as Doc, field, value))
   if (e.snap.state === 'saved') setState(e, 'saving')
+  // Signed out: hold it with the rest until the editor signs in again.
+  if (e.snap.state === 'signedOut') return
   schedule(qc, id)
 }
 
@@ -243,6 +248,21 @@ function toPatch(fields: Map<string, unknown>) {
   return {set, unset}
 }
 
+/** Barkpark's own reason, from a thrown "mutate 403: {error: {message}}". */
+function reasonOf(msg: string): string | undefined {
+  try {
+    const body = JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {message?: string; hint?: string}}
+    return body.error?.message
+  } catch {
+    return undefined
+  }
+}
+
+/** After signing in again: send every doc's edits that waited for it. */
+export function resumeSaving(qc: QueryClient) {
+  for (const [id, e] of docs) if (e.snap.state === 'signedOut' && e.dirty.size) (setState(e, 'saving'), void send(qc, id))
+}
+
 /** Offline: hold everything, send again when the network is back (or try every few seconds). */
 function waitForNetwork(qc: QueryClient, id: string, e: DocEdits) {
   setState(e, 'offline')
@@ -253,6 +273,8 @@ function waitForNetwork(qc: QueryClient, id: string, e: DocEdits) {
 async function send(qc: QueryClient, id: string) {
   const e = docs.get(id)
   if (!e || e.inflight || e.dirty.size === 0) return
+  // Signed out: nothing goes until the editor is back (resumeSaving) — not even a flush on blur.
+  if (e.snap.state === 'signedOut') return
   if (!online()) return waitForNetwork(qc, id, e)
   e.inflight = e.dirty
   e.dirty = new Map()
@@ -281,6 +303,18 @@ async function send(qc: QueryClient, id: string) {
     setState(e, e.dirty.size ? 'saving' : 'saved')
   } catch (err) {
     clearTimeout(stall)
+    const msg = (err as Error).message ?? ''
+    // Signed out, or not allowed: keep every value, say why, stop writing.
+    if (/^mutate 401\b/.test(msg) || /session_lost/.test(msg)) {
+      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      e.inflight = null
+      return setState(e, 'signedOut', "You've been logged out")
+    }
+    if (/^mutate 403\b/.test(msg)) {
+      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      e.inflight = null
+      return setState(e, 'refused', reasonOf(msg) ?? 'Barkpark refused the change')
+    }
     // No network: keep every value and wait for it, no error, no retry storm.
     if (isNetworkError(err)) {
       e.dirty = new Map([...e.inflight!, ...e.dirty])
