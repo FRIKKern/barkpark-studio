@@ -3,7 +3,8 @@ import type {ReactNode} from 'react'
 // A PortableDoc block list drawn read-only (J10): the body field before its canvas
 // is activated, and anywhere a body is only shown. Covers what the post vocabulary
 // can hold: headings, paragraphs, lists, quotes, callouts, images, and the inline
-// marks and links inside them. An unknown block draws as its text.
+// marks and links inside them. An unknown block draws as its text. Blocks carry
+// data-bp-id like the canvas's, so a caret maps from one to the other.
 
 type Inline = {type: string; value?: string; href?: string; children?: Inline[]}
 type Block = {id: string; type: string; level?: number; tone?: string; text?: string; content?: Inline[]; items?: Inline[][]; ordered?: boolean; url?: string; alt?: string}
@@ -29,21 +30,21 @@ export function PortableDocView({blocks}: {blocks: Block[]}) {
         switch (b.type) {
           case 'heading': {
             const H = `h${Math.min(6, Math.max(1, b.level ?? 2))}` as 'h2'
-            return <H key={b.id}>{body}</H>
+            return <H key={b.id} data-bp-id={b.id}>{body}</H>
           }
           case 'list': {
             const L = b.ordered ? 'ol' : 'ul'
-            return <L key={b.id}>{(b.items ?? []).map((item, i) => <li key={i}>{inline(item)}</li>)}</L>
+            return <L key={b.id} data-bp-id={b.id}>{(b.items ?? []).map((item, i) => <li key={i}>{inline(item)}</li>)}</L>
           }
           case 'pullquote':
           case 'blockquote':
-            return <blockquote key={b.id}>{body}</blockquote>
+            return <blockquote key={b.id} data-bp-id={b.id}>{body}</blockquote>
           case 'callout':
-            return <div key={b.id} className="callout" data-tone={b.tone}>{body}</div>
+            return <div key={b.id} className="callout" data-tone={b.tone} data-bp-id={b.id}>{body}</div>
           case 'image':
             return b.url ? <img key={b.id} src={b.url} alt={b.alt ?? ''} /> : null
           default:
-            return <p key={b.id}>{body}</p>
+            return <p key={b.id} data-bp-id={b.id}>{body}</p>
         }
       })}
     </>

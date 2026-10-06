@@ -658,3 +658,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .body-canvas .bp-paper-editor-body :is(h4, h5, h6) { font-size: 15px; }
 .body-canvas .bp-paper-editor-body p { margin: 0 0 8px; }
 .body-canvas .pd-conflict { margin: 8px; }
+
+/* J35: the body expanded over its pane (same canvas, its frame moved). */
+.body-expand { position: absolute; top: 4px; right: 4px; z-index: 3; width: 27px; height: 27px; }
+.body-canvas[data-expanded] { background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 16px 40px var(--shadow); display: flex; flex-direction: column; }
+.body-canvas[data-expanded] .pd-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.body-canvas[data-expanded] .pd-canvas { flex: 1; max-height: none; }

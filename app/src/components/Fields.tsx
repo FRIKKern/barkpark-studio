@@ -1,11 +1,11 @@
-import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
+import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
 import type {Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
-import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline} from './icons'
+import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline, Collapse, Expand} from './icons'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {toast} from './Toasts'
 import {FieldPresence} from './Presence'
@@ -462,10 +462,14 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
   const id = useContext(DocIdContext)
   const type = useContext(DocTypeContext)
   const [active, setActive] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const box = useRef<HTMLDivElement>(null)
-  // Where the activating click landed: the caret goes there once the canvas is up
-  // (one click activates and places it). By keyboard: the end of the text.
-  const at = useRef<{x: number; y: number} | null>(null)
+  const area = useExpandArea(box, expanded)
+  // Where the activating click landed, as (block id, text offset): the caret goes
+  // there once the canvas is up (one click activates and places it). By keyboard:
+  // the end of the text. Mapped by block, not by pixel: the canvas lays out a
+  // little differently from the read-only view.
+  const at = useRef<{block: string; offset: number} | null>(null)
   useEffect(() => {
     if (!active) return
     const t = setInterval(() => {
@@ -474,10 +478,10 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       clearInterval(t)
       if (pm.contains(document.activeElement)) return // the author got there first
       pm.focus()
-      const range = at.current ? document.caretRangeFromPoint(at.current.x, at.current.y) : null
       const sel = getSelection()
       if (!sel) return
-      if (range && pm.contains(range.startContainer)) (sel.removeAllRanges(), sel.addRange(range))
+      const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
+      if (target) sel.collapse(target.node, target.offset)
       else (sel.selectAllChildren(pm), sel.collapseToEnd())
     }, 30)
     return () => clearInterval(t)
@@ -494,17 +498,84 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         aria-labelledby={`${field}-label`}
         aria-readonly={readOnly || undefined}
         tabIndex={0}
-        onClick={(e) => !readOnly && !(e.target as HTMLElement).closest('a') && ((at.current = {x: e.clientX, y: e.clientY}), setActive(true))}
+        onClick={(e) => !readOnly && !(e.target as HTMLElement).closest('a') && ((at.current = clickedAt(e.clientX, e.clientY)), setActive(true))}
         onKeyDown={(e) => !readOnly && (e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey && (e.preventDefault(), setActive(true))}
       >
+        {!readOnly && (
+          <button type="button" className="icon-btn body-expand" aria-label="Expand editor" onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))}>
+            <Expand />
+          </button>
+        )}
         <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">Empty</p>}</div>
       </div>
     )
+  // J35: expand over the document pane and back. The same canvas stays mounted (only
+  // its frame moves), the button never takes focus, and the caret is scrolled back
+  // into view after: caret, selection and edits are kept.
+  const toggle = () => {
+    setExpanded((x) => !x)
+    requestAnimationFrame(() => getSelection()?.focusNode?.parentElement?.scrollIntoView({block: 'nearest'}))
+  }
   return (
-    <div className="body-canvas" id={field} ref={box}>
+    <div
+      className="body-canvas"
+      id={field}
+      ref={box}
+      data-expanded={expanded || undefined}
+      style={expanded ? area : undefined}
+      onKeyDown={(e) => expanded && e.key === 'Escape' && !e.defaultPrevented && (e.stopPropagation(), toggle())}
+    >
+      <button type="button" className="icon-btn body-expand" aria-label={expanded ? 'Collapse editor' : 'Expand editor'} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle}>
+        {expanded ? <Collapse /> : <Expand />}
+      </button>
       <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} editable={!readOnly} />
     </div>
   )
+}
+
+/** The block (data-bp-id) and text offset under a point in the read-only body. */
+function clickedAt(x: number, y: number) {
+  const range = document.caretRangeFromPoint(x, y)
+  const block = range?.startContainer.parentElement?.closest<HTMLElement>('[data-bp-id]')
+  if (!range || !block) return null
+  const before = document.createRange()
+  before.setStart(block, 0)
+  before.setEnd(range.startContainer, range.startOffset)
+  return {block: block.dataset.bpId!, offset: before.toString().length}
+}
+
+/** The text node and offset `offset` characters into `el`. */
+function caretIn(el: HTMLElement | null, offset: number): {node: Node; offset: number} | null {
+  if (!el) return null
+  const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+  let left = offset
+  let last: Text | null = null
+  for (let n = walk.nextNode() as Text | null; n; n = walk.nextNode() as Text | null) {
+    if (left <= n.length) return {node: n, offset: left}
+    left -= n.length
+    last = n
+  }
+  return last ? {node: last, offset: last.length} : {node: el, offset: 0}
+}
+
+/** Where an expanded body sits: over its document pane's body, kept in step as it resizes. */
+function useExpandArea(box: RefObject<HTMLDivElement | null>, on: boolean) {
+  const [area, setArea] = useState<CSSProperties>()
+  useLayoutEffect(() => {
+    if (!on) return
+    const pane = box.current?.closest('.pane-body')
+    if (!pane) return
+    const place = () => {
+      const r = pane.getBoundingClientRect()
+      setArea({position: 'fixed', top: r.top + 8, left: r.left + 8, width: r.width - 16, height: r.height - 16, zIndex: 40})
+    }
+    place()
+    const ro = new ResizeObserver(place)
+    ro.observe(pane)
+    addEventListener('resize', place)
+    return () => (ro.disconnect(), removeEventListener('resize', place))
+  }, [on, box])
+  return area
 }
 
 /** J07: who else has their caret in this field. */

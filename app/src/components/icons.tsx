@@ -143,3 +143,13 @@ export const UserCircle = () => (
     <path d="M7.5 18.5c1.2-2 2.9-3 5-3s3.8 1 5 3" />
   </svg>
 )
+export const Expand = () => (
+  <svg {...s}>
+    <path d="M14.5 5.5h5v5M19.5 5.5l-6 6M10.5 19.5h-5v-5M5.5 19.5l6-6" />
+  </svg>
+)
+export const Collapse = () => (
+  <svg {...s}>
+    <path d="M13.5 6.5v5h5M13.5 11.5l6-6M11.5 18.5v-5h-5M11.5 13.5l-6 6" />
+  </svg>
+)
