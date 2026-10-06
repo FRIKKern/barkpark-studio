@@ -1,7 +1,8 @@
 import {useSyncExternalStore} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {bpFetch, dataset} from '../server/barkpark'
+import {bpFetch, dataset, requestToken} from '../server/barkpark'
+import {expectEcho, mutatedIds} from '../server/listen'
 import {docQuery, type Doc} from './data'
 import {merge3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
@@ -32,6 +33,7 @@ export const mutate = createServerFn({method: 'POST'})
     })
     const body = (await res.json().catch(() => ({}))) as Json
     if (!res.ok) throw new Error(`mutate ${res.status}: ${JSON.stringify(body).slice(0, 300)}`)
+    expectEcho(requestToken(), mutatedIds(data.mutations))
     return body
   })
 
