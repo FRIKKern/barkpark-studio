@@ -151,11 +151,7 @@ const sanity: Target = {
 }
 
 const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
-// A project may name its own dataset (CI splits the suite over two workers, each
-// with its own studio server and dataset). A worker runs one test at a time, so
-// the project of the test in hand decides.
-let projectDataset: string | undefined
-const bpDataset = () => projectDataset || process.env.BARKPARK_DATASET || 'production'
+const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
 // Two first patches on a published doc race to fork its draft and one gets 422
 // "doc_id has already been taken" (task-324b4d00706a6cfb); the rig retries once.
 const bpMutate = async (mutations: unknown[], retry = true): Promise<Response> => {
@@ -225,7 +221,4 @@ const studio: Target = {
   restore: (id, set, type = 'post', unset = []) => bpMutate([{patch: {id, type, set, unset}}, {publish: {id, type}}]).then(() => {}),
 }
 
-export function target(info: TestInfo): Target {
-  projectDataset = (info.project.metadata as {dataset?: string} | undefined)?.dataset
-  return info.project.name === 'sanity' ? sanity : studio
-}
+export const target = (info: TestInfo): Target => (info.project.name === 'sanity' ? sanity : studio)

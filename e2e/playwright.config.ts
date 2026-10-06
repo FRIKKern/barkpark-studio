@@ -9,14 +9,6 @@ const STUDIO = `http://localhost:${PORT}`
 // SANITY_PORT: the reference on another port when a worktree changes its schema
 // (the project's CORS list has 3333 and 3334).
 const SANITY = `http://localhost:${process.env.SANITY_PORT || 3333}`
-// E2E_SPLIT (CI): the suite runs on two workers, each against its own studio server
-// and dataset, so no two tests ever share a document. Files in A_FILES go to
-// `studio` (:PORT, BARKPARK_DATASET), everything else to `studio-b` (:PORT+1, its
-// dataset). Keep the two halves about equal in time.
-const SPLIT = !!process.env.E2E_SPLIT
-const A_FILES = /journeys\/(refs|panes|lifecycle|list)\.spec\.ts$/
-const STUDIO_B = `http://localhost:${PORT + 1}`
-const DATASET_B = process.env.BARKPARK_DATASET_B || 'ci-2'
 // Secrets come from the repo-root .env: run as `node --env-file=../.env node_modules/.bin/playwright test`
 // (or `pnpm test`, which does that).
 export default defineConfig({
@@ -24,7 +16,7 @@ export default defineConfig({
   testMatch: ['*.spec.ts', 'journeys/*.spec.ts'],
   globalSetup: './rig/warmup.ts',
   fullyParallel: false,
-  workers: SPLIT ? 2 : 1,
+  workers: 1,
   timeout: process.env.CI ? 15_000 : 30_000,
   // Fail fast: a run that can't start or hydrate stops instead of timing out test by test.
   maxFailures: process.env.CI ? 3 : 0,
@@ -37,12 +29,7 @@ export default defineConfig({
   use: {channel: 'chrome', viewport: {width: 1440, height: 900}},
   projects: [
     {name: 'sanity', use: {baseURL: SANITY}},
-    ...(SPLIT
-      ? [
-          {name: 'studio', testMatch: A_FILES, use: {baseURL: STUDIO}},
-          {name: 'studio-b', testIgnore: A_FILES, use: {baseURL: STUDIO_B}, metadata: {dataset: DATASET_B}},
-        ]
-      : [{name: 'studio', use: {baseURL: STUDIO}}]),
+    {name: 'studio', use: {baseURL: STUDIO}},
   ],
   // CI runs ours only (the reference needs a Sanity login); side-by-side stays local.
   webServer: [
