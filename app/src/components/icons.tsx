@@ -164,3 +164,8 @@ export const Copy = () => (
     <path d="M8.5 8.5H5.5V20.5H16.5V16.5M19.5 4.5H8.5V16.5H19.5V4.5Z" />
   </svg>
 )
+export const ArrowLeft = () => (
+  <svg {...s}>
+    <path d="M5.5 12.5H20M11 18L5.5 12.5L11 7" />
+  </svg>
+)

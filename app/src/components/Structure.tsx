@@ -1,18 +1,18 @@
-import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {useContext, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {usePublishedPerspective} from '../lib/perspective'
 import {DEFAULT_SORT, DEFAULT_VIEW, useListPrefs, type Sort, type View} from '../lib/list-prefs'
-import {collapsed} from '../lib/layout'
+import {collapsed, NARROW, NarrowContext} from '../lib/layout'
 import {useLive} from '../lib/live'
 import {draftNew, flushOnUnload} from '../lib/edits'
 import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
 import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
-import {Add, ChevronRight, Close, Ellipsis, Search} from './icons'
+import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search} from './icons'
 import {DocPreview} from './Preview'
 import {AvatarStack} from './Presence'
 import {usePresences, type Presence} from '../lib/presence'
@@ -65,19 +65,42 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     focusIndex,
   )
 
+  // J42: a narrow window shows only the last pane; its back link walks the URL back.
+  const narrow = width < NARROW
   return (
-    <div className="panes" ref={ref} data-testid="panes">
-      {panes.map((pane, i) =>
-        isCollapsed[i] ? (
-          <Strip key={paneKey(pane) + i} pane={pane} index={i} onOpen={() => setFocus({path, index: i})} />
-        ) : (
-          <PaneBoundary key={paneKey(pane) + i}>
-            <PaneView panes={panes} index={i} />
-          </PaneBoundary>
-        ),
-      )}
-      {panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
-    </div>
+    <NarrowContext.Provider value={narrow}>
+      <div className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined}>
+        {panes.map((pane, i) =>
+          narrow ? (
+            i === panes.length - 1 && (
+              <PaneBoundary key={paneKey(pane) + i}>
+                <PaneView panes={panes} index={i} />
+              </PaneBoundary>
+            )
+          ) : isCollapsed[i] ? (
+            <Strip key={paneKey(pane) + i} pane={pane} index={i} onOpen={() => setFocus({path, index: i})} />
+          ) : (
+            <PaneBoundary key={paneKey(pane) + i}>
+              <PaneView panes={panes} index={i} />
+            </PaneBoundary>
+          ),
+        )}
+        {!narrow && panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
+      </div>
+    </NarrowContext.Provider>
+  )
+}
+
+/** J42: in a narrow window, the way back: the URL without this pane's group (Sanity's BackLink). */
+function BackLink({panes, index}: {panes: Pane[]; index: number}) {
+  const narrow = useContext(NarrowContext)
+  if (!narrow || index === 0) return null
+  let start = index
+  while (start > 1 && (panes[start] as {sibling?: boolean}).sibling) start--
+  return (
+    <PaneLink href={panesPath(panes.slice(0, start))} className="icon-btn back-link" aria-label="Back" data-testid="pane-back">
+      <ArrowLeft />
+    </PaneLink>
   )
 }
 
@@ -127,7 +150,12 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
       index={index}
       split={isSplit(panes, index)}
       closeHref={isSplit(panes, index) ? closeSplit(panes, index) : closeFrom(panes, index)}
-      header={<PaneTitle pane={pane} />}
+      header={
+        <span className="title-row">
+          <BackLink panes={panes} index={index} />
+          <PaneTitle pane={pane} />
+        </span>
+      }
       closeIcon={<Close />}
     />
   )
@@ -230,6 +258,7 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
   return (
     <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-pane-index={index}>
       <header className="pane-header">
+        <BackLink panes={panes} index={index} />
         <span className="title">{schemaOf(schemas, type)?.title ?? type}</span>
         <button
           type="button"
