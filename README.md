@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 20 changes, 8 tasks closed
+- **Today** · 21 changes, 8 tasks closed
+  - J15: review changes — change bars, per-field word diff with authors, revert one field or all ([#50](https://github.com/FRIKKern/barkpark-studio/pull/50))
   - Reference history for J16/J15: scripts/reference-history.mjs edits post-history through both APIs ([#48](https://github.com/FRIKKern/barkpark-studio/pull/48))
   - J16: history timeline with authors, an old revision read-only at a deep URL, revert to it ([#47](https://github.com/FRIKKern/barkpark-studio/pull/47))
-  - F7: the document's own undo — Mod+Z takes back only this editor's changes, across fields and across others' edits ([#46](https://github.com/FRIKKern/barkpark-studio/pull/46))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))

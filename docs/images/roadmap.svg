@@ -108,7 +108,7 @@
 <text x="856" y="578" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="todo">LATER</text>
 <text x="628" y="612" font-size="23" font-weight="600">History</text>
 <path d="M628 632H856" class="rule"/>
-<text x="628" y="664" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J15 Review changes</tspan></text>
+<text x="628" y="664" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J15 Review changes</tspan></text>
 <text x="628" y="694" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J16 Browse history</tspan></text>
 </g>
 <g data-phase="after">
