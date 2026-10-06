@@ -172,10 +172,11 @@ async function reset() {
   const ordered = TYPES.flatMap((t) => seed.filter((d) => d._type === t))
   const docs = [...ordered.map((d) => ({_id: d._id, _type: d._type, ...toBarkpark(d)})), ...native]
   await mutate(docs.map((d) => ({createOrReplace: d})))
-  // A create doesn't project a block list into its fields (task-b43256e0d9d90733); a patch does
-  // (BoundFieldSync + projection), so block docs get a no-op title patch first.
+  // A create doesn't project a block list into its fields (task-b43256e0d9d90733), and on a
+  // type with a layout it builds the blocks from the layout + prefill instead of taking
+  // ours. A patch of the block list does both right (BoundFieldSync + projection).
   const blockDocs = docs.filter((d) => Array.isArray(d.blocks))
-  if (blockDocs.length) await mutate(blockDocs.map((d) => ({patch: {id: d._id, type: d._type, set: {title: d.title}}})))
+  if (blockDocs.length) await mutate(blockDocs.map((d) => ({patch: {id: d._id, type: d._type, set: {blocks: d.blocks}}})))
   await mutate(docs.map((d) => ({publish: {id: d._id, type: d._type}})))
   console.log(`reset: deleted ${ids.length}, created + published ${docs.length}`)
 }
