@@ -222,3 +222,12 @@ const studio: Target = {
 }
 
 export const target = (info: TestInfo): Target => (info.project.name === 'sanity' ? sanity : studio)
+
+/** With dev sign-in on (STUDIO_DEV_LOGIN=1), ours asks who you are first: answer as editor A. */
+export async function signInIfAsked(page: Page, email = 'studio-editor-a@example.com') {
+  if (!page.url().includes('/login')) return
+  await page.locator('html[data-hydrated]').waitFor({state: 'attached'}) // typing before hydration is lost
+  await page.locator('#email').fill(email)
+  await page.getByRole('button', {name: 'Sign in'}).click()
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'))
+}

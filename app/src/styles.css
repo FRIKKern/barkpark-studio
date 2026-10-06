@@ -402,3 +402,29 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .popover.confirm { right: 0; bottom: 36px; width: 320px; padding: 0; }
 .popover.confirm p { margin: 0; padding: 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
 .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; }
+
+/* Review changes (J15), after Sanity's: change bars beside changed fields, and the inspector's diff list */
+.change-bar { position: absolute; top: 34px; bottom: 0; right: -10px; width: 2px; padding: 0; border: 0; border-radius: 1px; background: #e8783f; cursor: pointer; }
+.change-bar:hover, .change-bar:focus-visible { width: 5px; right: -11px; outline: none; }
+.review-range { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; margin: 0 0 12px; padding: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
+.review-range div { display: contents; }
+.review-range dt { color: var(--muted); }
+.review-range dd { margin: 0; font-weight: 500; }
+.review-empty { padding: 32px 8px; text-align: center; }
+.review-empty h3 { margin: 0 0 8px; font-size: 14px; }
+.inspector .review-list { gap: 12px; }
+.review-list li { padding: 4px 0; }
+.review-body { margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--border); }
+.review-head { display: flex; align-items: center; gap: 8px; }
+.review-field { flex: 1; font-weight: 600; }
+.review-authors { display: flex; gap: 2px; }
+.avatar.small { display: inline-grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: #2f3f9e; color: #fff; font-size: 10px; font-weight: 600; }
+.review-diff { margin: 6px 0 0; font-size: 13px; line-height: 19px; white-space: pre-wrap; word-break: break-word; }
+.review-diff del { background: #fde6d8; color: #8a3a12; text-decoration: line-through; }
+.review-diff ins { background: #fde6d8; color: #8a3a12; text-decoration: none; }
+.revert-one { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; padding: 2px 4px; font: inherit; font-size: 13px; border: 0; border-radius: 3px; background: none; color: #d03a3a; cursor: pointer; }
+.revert-one svg { width: 17px; height: 17px; }
+.revert-all { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 16px; padding: 7px; font: inherit; font-size: 13px; border: 0; border-radius: 3px; background: #fef1f0; box-shadow: inset 0 0 0 1px #f5c9c5; color: #d03a3a; cursor: pointer; }
+.review .menu-wrap { display: block; }
+.review .popover.confirm { top: calc(100% + 4px); bottom: auto; left: 0; right: auto; }
+.revert-all svg { width: 19px; height: 19px; }

@@ -7,7 +7,9 @@ import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQue
 import {createDoc, discardDraft, draftNew, edit, flush, publish, undo, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {PaneLink} from './PaneLink'
-import {DocContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
+import {ChangesContext, DocContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
+import {ReviewChanges} from './ReviewChanges'
+import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {DocHeaderMenu, DocShareMenu} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
@@ -32,11 +34,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // published version, read-only (?perspective=published).
   const viewingPublished = usePublishedPerspective()
   const draftQ = useQuery(docQuery(pane.type, pane.id))
-  const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished})
+  // The published version: for its perspective, and (J15) to see what the draft changed.
+  const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished || (!!draftQ.data?._draft && draftQ.data?._hasPublished !== false)})
   const {data: doc, isPending, error} = viewingPublished ? publishedQ : draftQ
   // J16: an old revision (rev=… in the URL) shows in the form's place, read-only.
   const revQ = useQuery({...revisionQuery(pane.rev ?? ''), enabled: !!pane.rev})
   const revision = pane.rev ? revQ.data : undefined
+  const reviewSchema = schemaOf(schemas, pane.type)
+  const changedSet = new Set(
+    !viewingPublished && !pane.rev && draftQ.data?._draft && publishedQ.data && reviewSchema ? changedFields(reviewSchema, publishedQ.data, draftQ.data).map((c) => c.field.name) : [],
+  )
   const base = panesPath(panes)
   const navigate = useNavigate()
   // Field groups (Sanity's tabs): the schema's default group first; '' = all fields.
@@ -187,6 +194,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <h1>{docTitle(doc, schema)}</h1>
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
+            <ChangesContext.Provider value={{changed: changedSet, review: () => navigate({href: withParams(panes, index, {inspect: 'review'})})}}>
             <DocContext.Provider value={revision ? ({...doc, ...revision.content} as Doc) : doc}>
             <EditPathContext.Provider value={onEdit}>
             <ProblemsContext.Provider value={revision ? [] : problems}>
@@ -198,14 +206,27 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             </ProblemsContext.Provider>
             </EditPathContext.Provider>
             </DocContext.Provider>
+            </ChangesContext.Provider>
           </div>
         )}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => setInspecting(false)} />}
-      {pane.inspect === 'history' && (
+      {(pane.inspect === 'history' || pane.inspect === 'review') && (
         <HistoryPanel
           type={pane.type}
           id={pane.id}
+          tab={pane.inspect}
+          onTab={(tab) => navigate({href: withParams(panes, index, {inspect: tab, rev: undefined})})}
+          review={
+            draftQ.data && reviewSchema && (
+              <ReviewChanges
+                schema={reviewSchema}
+                draft={draftQ.data}
+                published={publishedQ.data}
+                onRevert={(changes) => changes.forEach((c) => onEdit(c.field.name, c.before))}
+              />
+            )
+          }
           selected={pane.rev}
           onPick={(e) => navigate({href: withParams(panes, index, {rev: e?.revision.id})})}
           onClose={() => navigate({href: withParams(panes, index, {inspect: undefined, rev: undefined})})}

@@ -1,5 +1,5 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target} from '../rig/targets'
 
 // J16 evidence, both studios, on post-history: a document with a real history on
 // each side (scripts/reference-history.mjs: edits by two authors, publishes, an
@@ -30,14 +30,6 @@ async function retitle(t: Target, page: Page, title: string) {
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.type(title)
   await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: title})
-}
-
-async function signInIfAsked(page: Page) {
-  if (!page.url().includes('/login')) return
-  await page.locator('html[data-hydrated]').waitFor({state: 'attached'}) // typing before hydration is lost
-  await page.locator('#email').fill('studio-editor-a@example.com')
-  await page.getByRole('button', {name: 'Sign in'}).click()
-  await page.waitForURL((u) => !u.pathname.startsWith('/login'))
 }
 
 test('@evidence J16: history timeline, an old revision read-only, revert', async ({page}, info) => {

@@ -40,32 +40,28 @@ const STEPS = [
 ]
 
 // ── Sanity ──────────────────────────────────────────────────────────────────
+// Through the Actions API (create, edit, publish, unpublish), as Sanity Studio
+// writes: raw mutations leave a history the Studio can't rebuild ("Since: unknown
+// version", empty revisions, failing restore).
 const SANITY = 'https://0ozn679s.api.sanity.io/v2025-02-19/data'
-async function sanity(token, mutations) {
-  const res = await fetch(`${SANITY}/mutate/production`, {method: 'POST', headers: {authorization: `Bearer ${token}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations})})
-  if (!res.ok) fail(`sanity mutate ${res.status} ${await res.text()}`)
+async function act(token, actions, okStatuses = []) {
+  const res = await fetch(`${SANITY}/actions/production`, {method: 'POST', headers: {authorization: `Bearer ${token}`, 'content-type': 'application/json'}, body: JSON.stringify({actions})})
+  if (!res.ok && !okStatuses.includes(res.status)) fail(`sanity actions ${res.status} ${await res.text()}`)
 }
-async function sanityGet(id) {
-  const q = encodeURIComponent(`*[_id == "${id}"][0]`)
-  const res = await fetch(`${SANITY}/query/production?query=${q}&perspective=raw`, {headers: {authorization: `Bearer ${env('SANITY_TOKEN')}`}})
-  return (await res.json()).result
-}
-const strip = ({_rev, _createdAt, _updatedAt, ...d}) => d
 async function sanityHistory() {
   const tokens = {a: env('SANITY_TOKEN'), b: process.env.SANITY_TOKEN_B || env('SANITY_TOKEN')}
-  await sanity(tokens.a, [{delete: {id: `drafts.${ID}`}}, {createOrReplace: base}])
+  const ids = {publishedId: ID, draftId: `drafts.${ID}`}
+  const {_id, ...attributes} = base
+  // Start over: a deleted document's history no longer counts for the new one.
+  await act(tokens.a, [{actionType: 'sanity.action.document.delete', publishedId: ID, includeDrafts: [ids.draftId], purge: false}], [404, 409])
+  await act(tokens.a, [{actionType: 'sanity.action.document.create', publishedId: ID, attributes: {...attributes, _id: ids.draftId}, ifExists: 'fail'}])
+  await act(tokens.a, [{actionType: 'sanity.action.document.publish', ...ids}])
   for (const [who, action, fields] of STEPS) {
     await pause()
     if (action === 'edit') {
-      const live = (await sanityGet(`drafts.${ID}`)) ?? (await sanityGet(ID))
-      await sanity(tokens[who], [{createIfNotExists: {...strip(live), _id: `drafts.${ID}`}}, {patch: {id: `drafts.${ID}`, set: fields}}])
-    } else if (action === 'publish') {
-      const draft = await sanityGet(`drafts.${ID}`)
-      if (draft) await sanity(tokens[who], [{createOrReplace: {...strip(draft), _id: ID}}, {delete: {id: `drafts.${ID}`}}])
-    } else {
-      const published = await sanityGet(ID)
-      await sanity(tokens[who], [{createOrReplace: {...strip(published), _id: `drafts.${ID}`}}, {delete: {id: ID}}])
-    }
+      // An edit on a published doc needs its draft first, as the Studio does.
+      await act(tokens[who], [{actionType: 'sanity.action.document.edit', ...ids, patch: {set: fields}}], [409])
+    } else await act(tokens[who], [{actionType: `sanity.action.document.${action}`, ...ids}])
   }
   console.log(`sanity: ${ID} has ${STEPS.length + 1} steps of history${process.env.SANITY_TOKEN_B ? ' by two authors' : ' (one author: set SANITY_TOKEN_B for two)'}`)
 }
