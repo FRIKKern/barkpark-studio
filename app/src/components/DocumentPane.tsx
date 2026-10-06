@@ -15,6 +15,8 @@ import {SignInAgain} from './SignInAgain'
 import {useCanWrite} from '../lib/session'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
+import {UnknownFields} from './BrokenValues'
+import {unknownFields} from '../lib/broken'
 import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
 import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
@@ -351,6 +353,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               {formFields.slice(0, revealed).map((f) => (
                 <FieldView key={f.name} field={f} path={f.name} value={(revision ? revision.content : doc)[f.name]} openRef={openRef} onChange={onChangeOf(f.name)} />
               ))}
+              {!revision && revealed >= formFields.length && (
+                <UnknownFields doc={doc} names={unknownFields(schema, doc)} onRemove={(name) => onEdit(name, undefined)} />
+              )}
             </fieldset>
             </ProblemsContext.Provider>
             </EditPathContext.Provider>
