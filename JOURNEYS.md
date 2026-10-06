@@ -59,7 +59,7 @@ quality first, never a shrinking finish line.
 | J47 | after | Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced | F13 |
 | J48 | 3 | Session lost mid-edit: "You've been logged out" banner, writes stop (never saved as anyone else), sign in again, pending edits survive | F9 F15 |
 | J49 | 2 | Read-only role or denied doc: banner, locked form, actions disabled with the reason, list "+" greyed | F9 F15 |
-| J50 | 1 | A pane crashes or the backend is down: per-pane error card + Retry; list "Trying to connect…" | F9 |
+| J50 | 1 | Backend down: list "Could not fetch list items" + Retry, bounded auto-retries; "Trying to connect…" toast; a pane that crashes shows an error card + Retry (Sanity: whole tool) | F9 |
 | J51 | 1 | Slow network (Fast 3G): shell paints, every pane shows a loading state, never a blank or dead click | F3 F14 |
 | J52 | 2 | Focused field lives in the URL: reload or a copied link returns to that field | F2 |
 | J53 | after | New Studio version while tabs are open: "ready to update" prompt, reload, nothing lost | F9 |

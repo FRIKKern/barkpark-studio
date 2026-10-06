@@ -4,6 +4,7 @@ import {getCookie} from '@tanstack/react-start/server'
 import {bpFetch, dataset} from '../server/barkpark'
 import {readSchemas} from '../server/schemas'
 import type {Condition} from './conditions'
+import {paneRetry} from './connection'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -131,7 +132,7 @@ const fetchPublished = createServerFn({method: 'GET'})
 
 /** The published version alone (the Published perspective), null if there is none. */
 export const publishedQuery = (type: string, id: string) =>
-  queryOptions({queryKey: ['doc-published', id], staleTime: 30_000, queryFn: async () => (await fetchPublished({data: {type, id}})) as unknown as Doc | null})
+  queryOptions({queryKey: ['doc-published', id], staleTime: 30_000, ...paneRetry, queryFn: async () => (await fetchPublished({data: {type, id}})) as unknown as Doc | null})
 
 /**
  * Mark which docs have a published version. A row read through the drafts
@@ -215,6 +216,7 @@ export const listQuery = (type: string, order: ListOrder = 'updated', limit = LI
   queryOptions({
     queryKey: ['list', type, order, limit],
     staleTime: 30_000,
+    ...paneRetry,
     queryFn: async ({client}) => {
       const page = (await fetchList({data: {type, order, limit}})) as unknown as ListPage
       // A list row already holds the whole doc: opening it needs no second request.
@@ -228,6 +230,7 @@ export const publishedListQuery = (type: string, order: ListOrder = 'updated', l
   queryOptions({
     queryKey: ['list-published', type, order, limit],
     staleTime: 30_000,
+    ...paneRetry,
     queryFn: async ({client}) => {
       const page = (await fetchList({data: {type, published: true, order, limit}})) as unknown as ListPage
       for (const d of page.docs) client.setQueryData(['doc-published', d._publishedId], d)
@@ -239,7 +242,7 @@ export const listSearchQuery = (type: string, q: string) =>
   queryOptions({queryKey: ['list-search', type, q], staleTime: 10_000, queryFn: async () => (await fetchListSearch({data: {type, q}})) as unknown as Doc[]})
 
 export const docQuery = (type: string | string[], id: string) =>
-  queryOptions({queryKey: ['doc', id], staleTime: 30_000, queryFn: async () => (await fetchDoc({data: {type, id}})) as unknown as Doc | null})
+  queryOptions({queryKey: ['doc', id], staleTime: 30_000, ...paneRetry, queryFn: async () => (await fetchDoc({data: {type, id}})) as unknown as Doc | null})
 
 export const searchQuery = (type: string | string[], q: string, filter?: RefFilter) =>
   queryOptions({

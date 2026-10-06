@@ -24,6 +24,7 @@ import {revisionQuery} from '../lib/history'
 import {PortableDocEditor} from './PortableDocEditor'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
+import {ReadErrorCard} from './PaneError'
 import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
@@ -44,7 +45,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const draftQ = useQuery(docQuery(pane.type, pane.id))
   // The published version: for its perspective, and (J15) to see what the draft changed.
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished || (!!draftQ.data?._draft && draftQ.data?._hasPublished !== false)})
-  const {data: doc, isPending, error} = viewingPublished ? publishedQ : draftQ
+  const docQ = viewingPublished ? publishedQ : draftQ
+  const {data: doc, isPending, error} = docQ
   // J16: an old revision (rev=… in the URL) shows in the form's place, read-only.
   const revQ = useQuery({...revisionQuery(pane.rev ?? ''), enabled: !!pane.rev})
   const revision = pane.rev ? revQ.data : undefined
@@ -240,7 +242,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       <div className="doc-main">
       <PresenceHints docId={pane.id} scroller={body} />
       <div className="pane-body" ref={body}>
-        {error && <p role="alert">Could not load {pane.id}: {String(error)}</p>}
+        {/* J50: a read that fails is tried again by itself (the toast says "Trying to connect…"); after that, Retry. */}
+        {isPending && !error && (
+          <div className="pane-loading" aria-busy="true" data-testid="doc-loading">
+            Loading document…
+          </div>
+        )}
+        {error && !doc && <ReadErrorCard title="Could not load the document" error={error} failures={docQ.failureCount} retrying={docQ.fetchStatus !== 'idle'} onRetry={() => void docQ.refetch()} />}
         {deleted && !doc && <DeletedBanner type={pane.type} id={pane.id} />}
         <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}

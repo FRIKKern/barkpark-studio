@@ -7,6 +7,7 @@ import {parsePanes, type Pane} from './panes'
 import {meQuery} from './session'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useState} from 'react'
+import {useReconnectingToast} from './connection'
 import {redirect} from '@tanstack/react-router'
 
 // Everything a pane chain needs before it paints: schemas, the list, every open
@@ -32,20 +33,35 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
     onServer ? (fetchListPrefs() as Promise<ListPrefs>) : readListPrefsCookie(),
   ])
   // The list and the open docs don't depend on each other: one round trip, not two.
-  const [listed, open] = await Promise.all([
-    Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [queryClient.ensureQueryData(listQuery(p.type, listPrefs[p.type]?.sort ?? DEFAULT_SORT)).then((l) => l.docs)] : []))),
-    Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [queryClient.ensureQueryData(docQuery(p.type, p.id))] : []))),
+  // J50: a read that fails is that pane's to show (error card, Retry), not the route's;
+  // in the browser the panes paint after LOADER_WAIT at most, with their loading state.
+  const settle = <T,>(p: Promise<T>) => p.catch(() => undefined)
+  const data = Promise.all([
+    Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [settle(queryClient.ensureQueryData(listQuery(p.type, listPrefs[p.type]?.sort ?? DEFAULT_SORT)).then((l) => l.docs))] : []))),
+    Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : []))),
   ])
+  if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, LOADER_WAIT, false))]))) {
+    void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))
+    return {panes, widthHint, listPrefs}
+  }
+  const [listed, open] = await data
+  const refs = followRefs(queryClient, schemas, listed, open)
+  if (onServer) await refs
+  return {panes, widthHint, listPrefs}
+}
+
+/** How long a pane opening in the browser waits for its data before it paints its loading state (Sanity's skeleton delay). */
+const LOADER_WAIT = 300
+
+/** The docs open docs reference, and what every visible preview needs; a preview that fails shows its own state. */
+async function followRefs(queryClient: QueryClient, schemas: Schema[], listed: (Doc[] | undefined)[], open: (Doc | null | undefined)[]) {
   const openDocs = open.filter((d): d is Doc => !!d)
-  const refs = (async () => {
+  try {
     // Level 1: what open docs reference, and what every visible preview needs.
-    const l1 = await ensureRefs(queryClient, schemas, [...openDocs.map((d) => [d, true] as const), ...listed.flat().map((d) => [d, false] as const)])
+    const l1 = await ensureRefs(queryClient, schemas, [...openDocs.map((d) => [d, true] as const), ...listed.flat().flatMap((d) => (d ? [[d, false] as const] : []))])
     // Level 2: the subtitles of those references' own previews.
     await ensureRefs(queryClient, schemas, l1.map((d) => [d, false] as const))
-  })()
-  if (onServer) await refs
-  else void refs.catch(() => {}) // a preview that fails shows its own state
-  return {panes, widthHint, listPrefs}
+  } catch {}
 }
 
 /** For each [doc, allRefs]: the preview-subtitle ref, and (allRefs) every reference field. */
@@ -87,6 +103,7 @@ export function StructureView({panes, widthHint, listPrefs}: {panes: Pane[]; wid
   return (
     <ListPrefsContext.Provider value={{prefs, set}}>
       <PresenceStream />
+      <Reconnecting />
       <Navbar />
       <Structure panes={panes} widthHint={widthHint} />
     </ListPrefsContext.Provider>
@@ -96,5 +113,11 @@ export function StructureView({panes, widthHint, listPrefs}: {panes: Pane[]; wid
 /** One presence stream for the tab (J07). */
 function PresenceStream() {
   usePresenceStream()
+  return null
+}
+
+/** J50: "Trying to connect…" while reads or the live stream keep failing. */
+function Reconnecting() {
+  useReconnectingToast()
   return null
 }

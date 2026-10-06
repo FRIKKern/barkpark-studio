@@ -402,6 +402,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 .toast span { color: var(--muted); }
 .toast[data-tone=critical] { background: var(--danger-bg); box-shadow: inset 0 0 0 1px var(--danger-line); }
 .toast[data-tone=critical] strong, .toast[data-tone=critical] span { color: var(--danger-fg); }
+.toast[data-tone=caution] { background: var(--warn-bg); box-shadow: inset 0 0 0 1px var(--ring); }
+.toast[data-tone=caution] strong { font-weight: 400; color: var(--warn-fg); }
 
 /* Inspect (J28), after Sanity's: a dialog over the pane, Parsed tree or Raw JSON */
 .inspect-backdrop { place-items: start stretch; padding: 98px 12px 60px; }
@@ -675,3 +677,28 @@ fieldset.object-field > .field-actions { top: -38px; }
 .sign-in-again { display: flex; flex-direction: column; gap: 8px; padding: 20px; }
 .sign-in-again h2 { font-size: 15px; margin: 0; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* J50: a pane's read that keeps failing, or a pane that crashed (Sanity's error cards). */
+.pane-error { display: flex; flex-direction: column; gap: 16px; padding: 20px 20px; margin: auto 0; font-size: 15px; line-height: 21px; color: var(--fg-strong); }
+.pane-body > .pane-error { min-height: 100%; justify-content: center; box-sizing: border-box; }
+.list-rows > .pane-error { padding: 20px 8px; }
+.pane-error h3 { margin: 0; font-size: 21px; line-height: 27px; font-weight: 700; }
+.pane-error p { margin: 0; }
+.pane-error code { font-family: ui-monospace, Menlo, monospace; font-size: 14px; background: var(--hover); padding: 0 2px; }
+.pane-error .muted { font-size: 13px; color: var(--muted); }
+.pane-error .error-detail { margin: 0; padding: 12px; border-radius: 3px; background: var(--danger-bg); color: var(--danger-fg); font-size: 12px; white-space: pre-wrap; overflow: auto; }
+.pane-crashed { justify-content: center; background: var(--bg); }
+.error-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.error-actions .btn { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 4px; font-size: 13px; }
+.error-actions svg { width: 21px; height: 21px; }
+.btn-primary { background: var(--selected); color: var(--on-selected); }
+.btn-primary:hover { background: #3a4ed6; }
+.btn-ghost { box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+/* Loading rows: the shape of a preview row, so the list fills in without a jump. */
+.preview.skeleton .media { box-shadow: none; background: var(--hover); }
+.preview.skeleton .t, .preview.skeleton .s { height: 7px; margin: 6px 0; border-radius: 4px; background: var(--hover); }
+.preview.skeleton .t { width: 160px; }
+.preview.skeleton .s { width: 120px; }
+.pane-loading { display: flex; align-items: center; justify-content: center; min-height: 100%; font-size: 13px; color: var(--muted); }
+.studio-error { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+.studio-error .pane-error { max-width: 640px; }
