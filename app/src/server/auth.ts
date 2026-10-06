@@ -24,11 +24,12 @@ if (devLoginEnabled() && import.meta.env.PROD)
   throw new Error('STUDIO_DEV_LOGIN is dev-only and refused in a production build: it trusts an email without a password.')
 
 const COOKIE = 'bp_sid'
-const sessions = new Map<string, {email: string; token: string}>()
+type Editor = {email: string; token: string; permissions: string[]}
+const sessions = new Map<string, Editor>()
 const TOKENS_FILE = resolve(process.cwd(), '../.studio-dev-tokens.json')
 
 /** The signed-in editor for this request, if any. */
-export function currentEditor(): {email: string; token: string} | undefined {
+export function currentEditor(): Editor | undefined {
   if (!devLoginEnabled()) return undefined
   const sid = getCookie(COOKIE)
   return sid ? sessions.get(sid) : undefined
@@ -38,7 +39,7 @@ export async function signIn(email: string) {
   if (!devLoginEnabled()) throw new Error('dev login is off')
   const token = await editorToken(email.trim().toLowerCase())
   const sid = randomBytes(24).toString('base64url')
-  sessions.set(sid, {email, token})
+  sessions.set(sid, {email, token, permissions: await tokenPermissions(email.trim().toLowerCase())})
   setCookie(COOKIE, sid, {httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 12})
 }
 
@@ -81,6 +82,20 @@ async function editorToken(email: string): Promise<string> {
   const {token, workspace_id} = (await res.json()) as {token: string; workspace_id: string}
   await writeFile(TOKENS_FILE, JSON.stringify({workspaceId: workspace_id, tokens: {...tokens, [email]: token}}, null, 2))
   return token
+}
+
+/**
+ * What the editor's token may do (J49: a read-only editor sees a locked form, not
+ * refused writes). Barkpark has no "who am I" for an app token, so the admin list of
+ * the tokens this studio minted is read for the live one labelled with their email
+ * (no token "who am I" yet: task-bc2541aca8541ff1).
+ */
+async function tokenPermissions(email: string): Promise<string[]> {
+  const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/app-tokens?email=${encodeURIComponent(email)}`, {headers: {authorization: `Bearer ${admin()}`}}).catch(() => undefined)
+  if (!res?.ok) return ['read', 'write'] // unknown: Barkpark judges each write
+  const {tokens} = (await res.json()) as {tokens: {label: string; permissions: string[]; revoked_at: string | null; inserted_at: string}[]}
+  const live = tokens.filter((t) => t.label === `app:${email}` && !t.revoked_at).sort((a, b) => b.inserted_at.localeCompare(a.inserted_at))
+  return live[0]?.permissions ?? ['read', 'write']
 }
 
 /**

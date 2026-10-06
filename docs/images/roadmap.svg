@@ -55,7 +55,7 @@
 <text x="492" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J27</tspan></text>
 <text x="344" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J41</tspan></text>
 <text x="418" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J42</tspan></text>
-<text x="492" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J50</tspan></text>
+<text x="492" y="426" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J50</tspan></text>
 <text x="344" y="454" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J51</tspan></text>
 </g>
 <g data-phase="2">
@@ -75,7 +75,7 @@
 <text x="776" y="370" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J31</tspan></text>
 <text x="628" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J43</tspan></text>
 <text x="702" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J49</tspan></text>
-<text x="776" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J52</tspan></text>
+<text x="776" y="398" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J52</tspan></text>
 </g>
 <g data-phase="3">
 <rect x="892" y="196" width="268" height="364" rx="12" class="card"/>

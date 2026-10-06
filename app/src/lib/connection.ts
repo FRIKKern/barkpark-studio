@@ -9,9 +9,12 @@ import {stickyToast} from '../components/Toasts'
 // (core/hooks/useReconnectingToast.ts).
 export const AUTO_RETRIES = 10
 
-/** React Query retry options for a pane's reads. On the server a read fails at once: the page still renders. */
+/**
+ * React Query retry options for a pane's reads. On the server a read fails at once:
+ * the page still renders. A 4xx is an answer, not an outage (J49: 403 → no access).
+ */
 export const paneRetry = {
-  retry: (failures: number) => typeof window !== 'undefined' && failures < AUTO_RETRIES,
+  retry: (failures: number, error: Error) => typeof window !== 'undefined' && failures < AUTO_RETRIES && !/→ 4\d\d\b/.test(String(error)),
   retryDelay: (failures: number) => (failures - 1) * 1000,
 }
 

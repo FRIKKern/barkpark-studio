@@ -8,6 +8,7 @@ import {DEFAULT_SORT, DEFAULT_VIEW, useListPrefs, type Sort, type View} from '..
 import {collapsed} from '../lib/layout'
 import {useLive} from '../lib/live'
 import {draftNew, flushOnUnload} from '../lib/edits'
+import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
 import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
@@ -163,6 +164,7 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
 }
 
 function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number; type: string; selected?: string}) {
+  const {canWrite, createReason} = useCanWrite()
   const {data: schemas = []} = useQuery(schemasQuery)
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -233,6 +235,8 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
           type="button"
           className="icon-btn"
           aria-label={`Create new ${schemaOf(schemas, type)?.title ?? type}`}
+          disabled={!canWrite}
+          title={createReason}
           onClick={() => {
             // J18: a new doc opens in the next pane with the type's initial values;
             // it is created on its first edit (Sanity's way: leaving it costs nothing).

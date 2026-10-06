@@ -677,6 +677,10 @@ fieldset.object-field > .field-actions { top: -38px; }
 .sign-in-again { display: flex; flex-direction: column; gap: 8px; padding: 20px; }
 .sign-in-again h2 { font-size: 15px; margin: 0; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+<<<<<<< HEAD
+/* J49: a locked action looks it (its title says why). */
+.icon-btn:disabled { opacity: 0.35; cursor: default; background: none; }
+=======
 
 /* J50: a pane's read that keeps failing, or a pane that crashed (Sanity's error cards). */
 .pane-error { display: flex; flex-direction: column; gap: 16px; padding: 20px 20px; margin: auto 0; font-size: 15px; line-height: 21px; color: var(--fg-strong); }
@@ -702,3 +706,4 @@ fieldset.object-field > .field-actions { top: -38px; }
 .pane-loading { display: flex; align-items: center; justify-content: center; min-height: 100%; font-size: 13px; color: var(--muted); }
 .studio-error { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
 .studio-error .pane-error { max-width: 640px; }
+>>>>>>> 57746dc (J50: backend down — list error card + Retry, bounded retries, "Trying to connect…"; per-pane crash card)
