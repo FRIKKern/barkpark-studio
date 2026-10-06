@@ -57,6 +57,12 @@ quality first, never a shrinking finish line.
 | J45 | after | Dark mode: follows the system, user menu System / Light / Dark, survives reload, no white flash, everything readable | F10 |
 | J46 | after | Phone width: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px | F12 |
 | J47 | after | Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced | F13 |
+| J48 | 3 | Session lost mid-edit: "You've been logged out" banner, writes stop (never saved as anyone else), sign in again, pending edits survive | F9 F15 |
+| J49 | 2 | Read-only role or denied doc: banner, locked form, actions disabled with the reason, list "+" greyed | F9 F15 |
+| J50 | 1 | A pane crashes or the backend is down: per-pane error card + Retry; list "Trying to connect…" | F9 |
+| J51 | 1 | Slow network (Fast 3G): shell paints, every pane shows a loading state, never a blank or dead click | F3 F14 |
+| J52 | 2 | Focused field lives in the URL: reload or a copied link returns to that field | F2 |
+| J53 | after | New Studio version while tabs are open: "ready to update" prompt, reload, nothing lost | F9 |
 
 ★ = crown journeys (endless panes + references), built first, judged hardest.
 
@@ -99,4 +105,5 @@ track, counted apart. Out of scope (link out to LiveView): sheets, admin console
 | B08 | 5 | Media library: collections, visibility, checkout lock on asset edits | F9 |
 | B09 | after | Related-doc views from the schema's desk.views | F2 |
 | B10 | after | Schema-declared document actions with a dry-run confirm | F9 |
+| B11 | 3 | Closing the tab with unsaved or failed edits warns first (we batch writes, so this matters more than in Sanity) | F8 F9 |
 
