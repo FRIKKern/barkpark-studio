@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 33 changes, 12 tasks closed
+- **Today** · 34 changes, 12 tasks closed
+  - J41: big lists page like Sanity (100, then up to 2,000 near the bottom, then the max note); list search reaches the whole type ([#63](https://github.com/FRIKKern/barkpark-studio/pull/63))
   - J12: image upload, alt text, hotspot and crop by mouse and keyboard ([#61](https://github.com/FRIKKern/barkpark-studio/pull/61))
   - live: re-open a silent upstream instead of waiting for it to error ([#60](https://github.com/FRIKKern/barkpark-studio/pull/60))
-  - J44: 200 fields + 300 rows keep F1/F2 (memo + reveal) ([#59](https://github.com/FRIKKern/barkpark-studio/pull/59))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))

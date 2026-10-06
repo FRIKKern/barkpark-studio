@@ -52,7 +52,7 @@
 <text x="344" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J25</tspan></text>
 <text x="418" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J26</tspan></text>
 <text x="492" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J27</tspan></text>
-<text x="344" y="426" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J41</tspan></text>
+<text x="344" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J41</tspan></text>
 <text x="418" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J42</tspan></text>
 </g>
 <g data-phase="2">
@@ -164,7 +164,7 @@
 <text x="60" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B03 Select several list…</tspan></text>
 <text x="330" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B04 Every Barkpark field…</tspan></text>
 <text x="330" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B05 Codelist fields</tspan></text>
-<text x="330" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B06 localizedText</tspan></text>
+<text x="330" y="1364" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">B06 localizedText</tspan></text>
 <text x="600" y="1304" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B07 Unpublish a doc othe…</tspan></text>
 <text x="600" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B08 Media library</tspan></text>
 <text x="600" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B09 Related-doc views fr…</tspan></text>
