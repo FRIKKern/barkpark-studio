@@ -32,6 +32,8 @@ export type Field = {
   languages?: string[]
   /** localizedText: the order readers fall back through; its first is the primary language. */
   fallbackChain?: string[]
+  /** richText: `blocks` means Barkpark's block editor (the canvas). */
+  editor?: string
   /** codelist (B04/B05): `<plugin>:<name>`. */
   codelistId?: string
   /** Array item preview: which subfields title and subtitle a row (J33). */

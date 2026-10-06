@@ -56,8 +56,14 @@ type Problem =
   | {kind: 'conflict'; server: {rev: string; blocks: Block[]}; retry: {ops: BlockOp[]; seq: number}}
   | {kind: 'failed'; message: string; discarded: boolean; partial: boolean; retry: {ops: BlockOp[]; seq: number}}
 
-export function PortableDocEditor({type, id, editable = true}: {type: string; id: string; editable?: boolean}) {
+/**
+ * `field`: edit that richText field's own block list (J10) instead of the document's;
+ * `vocabulary`: the field's declared blocks/styles/marks (the schema's `blocks`), which
+ * the canvas offers and enforces, as Barkpark's LiveView stamps it (`data-vocabulary`).
+ */
+export function PortableDocEditor({type, id, field, vocabulary, editable = true}: {type: string; id: string; field?: string; vocabulary?: unknown; editable?: boolean}) {
   const host = useRef<HTMLDivElement>(null)
+  const vocabularyKey = vocabulary ? JSON.stringify(vocabulary) : ''
   const canvas = useRef<Canvas | null>(null)
   const loop = useRef({rev: '', latestSeq: -1, saving: 0, mergeAfterSave: false})
   const [save, setSave] = useState<Save>({state: 'idle'})
@@ -80,7 +86,7 @@ export function PortableDocEditor({type, id, editable = true}: {type: string; id
       l.saving++
       setSave({state: 'saving'})
       try {
-        const r = (await applyBlockOps({data: {type, id, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+        const r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
         if (gone) return
         l.rev = r.rev
         if (r.ok) {
@@ -90,7 +96,7 @@ export function PortableDocEditor({type, id, editable = true}: {type: string; id
           setProblem((p) => (p?.kind === 'conflict' && p.retry.seq !== seq ? p : null))
           // Echo: the server's blocks carry the ids it minted for new blocks.
           const echoRev = l.rev
-          const fresh = await readBlocks(type, id)
+          const fresh = await readBlocks(type, id, field)
           if (gone || echoRev !== l.rev || seq !== l.latestSeq) return
           if (l.mergeAfterSave && !el.hasPendingChanges()) el.resolveConflictWithServerBlocks(fresh.blocks)
           else el.applyServerBlocks(fresh.blocks)
@@ -100,7 +106,7 @@ export function PortableDocEditor({type, id, editable = true}: {type: string; id
         }
         if (r.status === 412 && r.applied === 0) {
           // Someone else wrote first. Keep the batch; the author chooses.
-          const server = await readBlocks(type, id)
+          const server = await readBlocks(type, id, field)
           if (gone) return
           setSave({state: 'conflict'})
           setProblem({kind: 'conflict', server, retry: {ops, seq}})
@@ -110,7 +116,7 @@ export function PortableDocEditor({type, id, editable = true}: {type: string; id
         // waiting on this batch. Part-way, only the server's copy is safe to diff against.
         const partial = r.applied > 0
         const discarded = !partial && el.discardInflightOps(seq)
-        if (partial) el.resolveConflictWithServerBlocks((await readBlocks(type, id)).blocks)
+        if (partial) el.resolveConflictWithServerBlocks((await readBlocks(type, id, field)).blocks)
         setSave({state: 'error', message: r.message})
         setProblem({kind: 'failed', message: r.message, discarded, partial, retry: {ops, seq}})
       } catch (e) {
@@ -145,7 +151,7 @@ export function PortableDocEditor({type, id, editable = true}: {type: string; id
         if (!canvas.current?.resendPendingOps()) setSave({state: 'saved'})
       },
       discard: async () => {
-        const fresh = await readBlocks(type, id)
+        const fresh = await readBlocks(type, id, field)
         if (gone) return
         canvas.current?.resolveConflictWithServerBlocks(fresh.blocks)
         l.rev = fresh.rev
@@ -156,12 +162,13 @@ export function PortableDocEditor({type, id, editable = true}: {type: string; id
 
     void (async () => {
       try {
-        const [first] = await Promise.all([readBlocks(type, id), loadCanvas()])
+        const [first] = await Promise.all([readBlocks(type, id, field), loadCanvas()])
         if (gone || !host.current) return
         const el = document.createElement('bp-paper-canvas') as Canvas
         el.acknowledgedSaves = true
         el.blocks = first.blocks
         el.setAttribute('editable', String(editable))
+        if (vocabulary) el.setAttribute('data-vocabulary', JSON.stringify(vocabulary))
         el.addEventListener('bp-canvas-ops', (e) => {
           const {ops, seq} = (e as CustomEvent<{ops: BlockOp[]; seq: number}>).detail
           l.latestSeq = seq
@@ -186,7 +193,7 @@ export function PortableDocEditor({type, id, editable = true}: {type: string; id
       canvas.current?.remove()
       canvas.current = null
     }
-  }, [type, id, editable])
+  }, [type, id, field, editable, vocabularyKey])
 
   // Someone else saved (the live stream refreshed the doc): take their blocks if the
   // canvas is idle. Busy, it keeps the author's state and the next save's rev decides.
@@ -197,14 +204,14 @@ export function PortableDocEditor({type, id, editable = true}: {type: string; id
     const el = canvas.current
     if (!el || !seenRev || seenRev === l.rev || l.saving || el.hasPendingChanges()) return
     let gone = false
-    void readBlocks(type, id).then((fresh) => {
+    void readBlocks(type, id, field).then((fresh) => {
       if (gone || fresh.rev === l.rev || l.saving) return
       if (el.applyServerBlocksIfIdle(fresh.blocks)) l.rev = fresh.rev
     })
     return () => {
       gone = true
     }
-  }, [seenRev, type, id])
+  }, [seenRev, type, id, field])
 
   return (
     <div className="pd-editor">

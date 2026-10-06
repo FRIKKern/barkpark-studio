@@ -20,8 +20,8 @@
   --ring: rgba(0, 0, 0, 0.06);
   --shadow: rgba(0, 0, 0, 0.12);
   --backdrop: rgba(240, 241, 245, 0.6);
-  --primary: #1f2230;
-  --on-primary: #fff;
+  --studio-primary: #1f2230;
+  --studio-on-primary: #fff;
   --disabled: #b0b4c0;
   --warn-bg: #fdf3c8;
   --warn-fg: #6b5300;
@@ -65,8 +65,8 @@
   --ring: rgba(255, 255, 255, 0.08);
   --shadow: rgba(0, 0, 0, 0.5);
   --backdrop: rgba(13, 14, 18, 0.6);
-  --primary: #e4e5e9;
-  --on-primary: #13141b;
+  --studio-primary: #e4e5e9;
+  --studio-on-primary: #13141b;
   --disabled: #5c6175;
   --warn-bg: #3b3216;
   --warn-fg: #f2d36b;
@@ -211,7 +211,7 @@ textarea.input { resize: vertical; }
 .dot.draft { background: #f5a623; }
 .doc-footer { height: 51px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 20px; font-size: 13px; color: var(--muted); }
 .doc-footer .save-state { margin-right: auto; }
-.publish { font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--primary); color: var(--on-primary); cursor: pointer; }
+.publish { font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
 .publish:disabled { background: var(--line-strong); cursor: default; }
 .publish.danger { background: #d83d35; }
 .switch { display: inline-block; position: relative; width: 33px; height: 19px; }
@@ -636,3 +636,25 @@ fieldset.object-field > .field-actions { top: -38px; }
 .usage-list { list-style: none; padding: 0; margin: 8px 0; }
 .usage-list a { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 3px; color: inherit; text-decoration: none; }
 .usage-list a:hover { background: var(--hover); }
+
+/* J10: a block-editor richText field is Barkpark's canvas (decision 0004), framed
+   as a form input like Sanity's portable-text box: the studio's font and colours,
+   a bordered box that scrolls past ~420 px, the paper's full-bleed rules off. */
+.body-canvas {
+  position: relative; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line);
+  /* The canvas's own knobs: no section rules or paper pull, the studio's font and colours. */
+  --bp-section-rule: 0px; --bp-section-beat: 16px; --bp-section-gap: 0px; --bp-evidence-pull: 0px; --bp-evidence-width: 100%;
+  --tok-reading-font: 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; --paper-bg: var(--bg); --paper-ink: var(--fg);
+}
+.body-canvas:focus-within { box-shadow: inset 0 0 0 1px var(--selected); }
+.body-canvas .pd-editor { padding: 0; }
+.body-canvas .pd-status { display: none; }
+.body-canvas .pd-canvas { max-height: 420px; overflow: auto; }
+.body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 1.6; padding: 6px 12px 6px 40px; min-height: 120px; }
+.body-canvas .bp-paper-editor-body :is(h1, h2, h3, h4, h5, h6) { font-family: inherit; font-weight: 700; color: var(--fg-strong); line-height: 1.25; margin: 16px 0 8px; }
+.body-canvas .bp-paper-editor-body h1 { font-size: 28px; }
+.body-canvas .bp-paper-editor-body h2 { font-size: 22px; }
+.body-canvas .bp-paper-editor-body h3 { font-size: 18px; }
+.body-canvas .bp-paper-editor-body :is(h4, h5, h6) { font-size: 15px; }
+.body-canvas .bp-paper-editor-body p { margin: 0 0 8px; }
+.body-canvas .pd-conflict { margin: 8px; }
