@@ -1,0 +1,30 @@
+{
+  "name": "volume",
+  "title": "Volume",
+  "visibility": "public",
+  "list_preview": {"title": "title", "subtitle": "subtitle"},
+  "groups": [{"name": "main", "title": "Main", "default": true}, {"name": "metadata", "title": "Metadata"}],
+  "fields": [
+    {"name": "title", "title": "Title", "type": "string", "group": "main", "validation": {"required": true}},
+    {"name": "subtitle", "title": "Subtitle", "type": "string", "group": "main"},
+    {"name": "blurb", "title": "Blurb", "type": "localizedText", "group": "main", "languages": ["nob", "eng"], "format": "plain", "fallbackChain": ["nob", "eng"]},
+    {"name": "subject", "title": "Subject (Thema)", "type": "codelist", "codelistId": "onixedit:thema", "group": "main"},
+    {"name": "audience", "title": "Audience", "type": "codelist", "codelistId": "onixedit:audience", "group": "main"},
+    {"name": "contributors", "title": "Contributors", "type": "arrayOf", "ordered": true, "group": "main",
+     "of": {"type": "composite", "preview": {"title": "name", "subtitle": "role"}, "fields": [
+       {"name": "name", "title": "Name", "type": "string"},
+       {"name": "role", "title": "Role", "type": "codelist", "codelistId": "onixedit:contributor_role"},
+       {"name": "share", "title": "Royalty share", "type": "integer"}
+     ]}},
+    {"name": "coverColor", "title": "Cover colour", "type": "color", "group": "metadata"},
+    {"name": "pages", "title": "Pages", "type": "integer", "group": "metadata", "validation": {"min": 1}},
+    {"name": "price", "title": "Price", "type": "float", "group": "metadata"},
+    {"name": "releaseDate", "title": "Release date", "type": "date", "group": "metadata"},
+    {"name": "homepage", "title": "Homepage", "type": "url", "group": "metadata"},
+    {"name": "contactEmail", "title": "Contact email", "type": "email", "group": "metadata"},
+    {"name": "keywords", "title": "Keywords", "type": "tags", "group": "metadata"},
+    {"name": "notes", "title": "Notes", "type": "markdown", "group": "metadata"},
+    {"name": "metadata", "title": "Metadata (JSON)", "type": "json", "group": "metadata"},
+    {"name": "onixSource", "title": "ONIX source", "type": "source", "group": "metadata"}
+  ]
+}

@@ -18,6 +18,8 @@ const env = (k, d) => process.env[k] ?? d ?? fail(`missing env ${k} (see .env.ex
 const BASE = `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${env('BARKPARK_PROJECT', 'default')}`
 const DATASET = env('BARKPARK_DATASET', 'production')
 const TYPES = ['author', 'category', 'post'] // refs point left: posts last
+// Barkpark-native types: no Sanity mirror, seeded as written (fixtures/barkpark-only.ndjson).
+const NATIVE_TYPES = ['volume'] // not 'book': Barkpark's onixedit plugin owns that type
 
 function fail(msg) {
   console.error(`seed-barkpark: ${msg}`)
@@ -124,7 +126,13 @@ const seed = readFileSync(new URL('fixtures/seed.ndjson', root), 'utf8')
   .map((l) => JSON.parse(l))
 // Docs scripts/reference-history.mjs keeps outside the seed (fixture imports rewrite history).
 const REFERENCE_ONLY = new Set(['post-history'])
-const expected = new Map(seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d)}]))
+const native = readFileSync(new URL('fixtures/barkpark-only.ndjson', root), 'utf8')
+  .split('\n')
+  .filter(Boolean)
+  .map((l) => JSON.parse(l))
+const nativeContent = ({_id, _type, ...content}) => content
+const mirrored = new Map(seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d)}]))
+const expected = new Map([...mirrored, ...native.map((d) => [d._id, {type: d._type, content: nativeContent(d)}])])
 
 async function applySchemas() {
   const dir = new URL('fixtures/barkpark-schema/', root)
@@ -135,19 +143,20 @@ async function applySchemas() {
 
 async function reset() {
   const existing = []
-  for (const type of [...TYPES].reverse()) {
+  for (const type of [...TYPES].reverse().concat(NATIVE_TYPES)) {
     for (const d of await listAll(type, 'raw')) existing.push({type, id: d._publishedId ?? d._id})
   }
   const ids = [...new Map(existing.map((e) => [e.id, e])).values()]
   if (ids.length) await mutate(ids.map(({id, type}) => ({delete: {id, type, force: true}}))) // a reset wipes everything, references included
 
   const ordered = TYPES.flatMap((t) => seed.filter((d) => d._type === t))
-  await mutate(ordered.map((d) => ({createOrReplace: {_id: d._id, _type: d._type, ...toBarkpark(d)}})))
-  await mutate(ordered.map((d) => ({publish: {id: d._id, type: d._type}})))
-  console.log(`reset: deleted ${ids.length}, created + published ${ordered.length}`)
+  const docs = [...ordered.map((d) => ({_id: d._id, _type: d._type, ...toBarkpark(d)})), ...native]
+  await mutate(docs.map((d) => ({createOrReplace: d})))
+  await mutate(docs.map((d) => ({publish: {id: d._id, type: d._type}})))
+  console.log(`reset: deleted ${ids.length}, created + published ${docs.length}`)
 }
 
-function compare(label, docs) {
+function compare(label, docs, expected) {
   const seen = new Map(docs.map((d) => [d._id, d]))
   const problems = []
   for (const [id, want] of expected) {
@@ -162,8 +171,8 @@ function compare(label, docs) {
 }
 
 async function verify() {
-  const docs = (await Promise.all(TYPES.map((t) => listAll(t, 'raw')))).flat()
-  compare('barkpark', docs)
+  const docs = (await Promise.all([...TYPES, ...NATIVE_TYPES].map((t) => listAll(t, 'raw')))).flat()
+  compare('barkpark', docs, expected)
 
   if (!process.env.SANITY_TOKEN) return console.log('verify sanity: skipped (no SANITY_TOKEN)')
   const q = encodeURIComponent(`*[_type in ${JSON.stringify(TYPES)}]`)
@@ -172,7 +181,7 @@ async function verify() {
   })
   if (!res.ok) fail(`sanity query → ${res.status}`)
   const sanityDocs = (await res.json()).result.map((d) => ({_id: d._id, ...toBarkpark(d)}))
-  compare('sanity', sanityDocs)
+  compare('sanity', sanityDocs, mirrored)
 }
 
 if (!process.argv.includes('--verify')) {
