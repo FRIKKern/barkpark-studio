@@ -52,7 +52,7 @@
 <text x="344" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J25</tspan></text>
 <text x="418" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J26</tspan></text>
 <text x="492" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J27</tspan></text>
-<text x="344" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J41</tspan></text>
+<text x="344" y="426" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J41</tspan></text>
 <text x="418" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J42</tspan></text>
 </g>
 <g data-phase="2">
@@ -93,7 +93,7 @@
 <text x="60" y="694" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J09 Arrays of refs and o…</tspan></text>
 <text x="60" y="724" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J33 Array of objects</tspan></text>
 <text x="60" y="754" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J34 Tags input</tspan></text>
-<text x="60" y="784" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J44 Very long doc</tspan></text>
+<text x="60" y="784" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J44 Very long doc</tspan></text>
 </g>
 <g data-phase="5">
 <rect x="324" y="576" width="268" height="334" rx="12" class="card"/>
