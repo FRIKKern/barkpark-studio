@@ -499,3 +499,8 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .code-field { display: flex; align-items: center; gap: 8px; }
 .code-field .input { max-width: 240px; }
 .code-list { font-size: 12px; }
+
+/* Big lists (J41): rows off screen skip layout and paint; Sanity's "max items" note. */
+.list-rows > .preview { content-visibility: auto; contain-intrinsic-size: auto 49px; }
+.list-sentinel { height: 1px; }
+.list-max { margin: 12px 0; text-align: center; font-size: 13px; color: var(--muted); }

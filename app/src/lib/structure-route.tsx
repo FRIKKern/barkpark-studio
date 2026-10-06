@@ -5,7 +5,7 @@ import {Structure} from '../components/Structure'
 import {docQuery, ensureDocs, refId, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {parsePanes, type Pane} from './panes'
 import {meQuery} from './session'
-import {fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
+import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useState} from 'react'
 import {redirect} from '@tanstack/react-router'
 
@@ -33,7 +33,7 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   ])
   // The list and the open docs don't depend on each other: one round trip, not two.
   const [listed, open] = await Promise.all([
-    Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [queryClient.ensureQueryData(listQuery(p.type))] : []))),
+    Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [queryClient.ensureQueryData(listQuery(p.type, listPrefs[p.type]?.sort ?? DEFAULT_SORT)).then((l) => l.docs)] : []))),
     Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [queryClient.ensureQueryData(docQuery(p.type, p.id))] : []))),
   ])
   const openDocs = open.filter((d): d is Doc => !!d)

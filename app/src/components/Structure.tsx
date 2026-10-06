@@ -1,8 +1,8 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {docQuery, listQuery, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {docQuery, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {usePublishedPerspective} from '../lib/perspective'
 import {DEFAULT_SORT, DEFAULT_VIEW, useListPrefs, type Sort, type View} from '../lib/list-prefs'
 import {collapsed} from '../lib/layout'
@@ -135,7 +135,9 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   const {data: schemas = []} = useQuery(schemasQuery)
   // Sanity's default structure: one row per document type, in schema order.
   const order = ['post', 'author', 'category']
-  const types = [...schemas].sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name))
+  // Types not named here keep the schema's order, after these (they used to sort first).
+  const rank = (name: string) => (order.includes(name) ? order.indexOf(name) : order.length)
+  const types = [...schemas].sort((a, b) => rank(a.name) - rank(b.name))
   return (
     <section className="pane types" data-testid="pane" data-pane="types" data-pane-index={index}>
       <header className="pane-header">
@@ -160,11 +162,34 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
   const qc = useQueryClient()
   const navigate = useNavigate()
   const published = usePublishedPerspective()
-  const draftList = useQuery({...listQuery(type), enabled: !published})
-  const publishedList = useQuery({...publishedListQuery(type), enabled: published})
-  const {data: docs, error} = published ? publishedList : draftList
   const {sort, view, set} = useListPrefs(type)
+  // J41: the first LIST_PAGE rows; near the end, up to LIST_MAX (Sanity's numbers).
+  const [limit, setLimit] = useState(LIST_PAGE)
+  const draftList = useQuery({...listQuery(type, sort, limit), enabled: !published, placeholderData: keepPreviousData})
+  const publishedList = useQuery({...publishedListQuery(type, sort, limit), enabled: published, placeholderData: keepPreviousData})
+  const {data: page, error} = published ? publishedList : draftList
   const [query, setQuery] = useState('')
+  // A list with more on the server is searched there too, so search reaches every doc.
+  const [q, setQ] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setQ(query.trim()), 150)
+    return () => clearTimeout(t)
+  }, [query])
+  const {data: found} = useQuery({...listSearchQuery(type, q), enabled: !!q && !published && !!page?.hasMore, placeholderData: keepPreviousData})
+  const docs = useMemo(() => {
+    if (!q || !found || !page?.hasMore) return page?.docs
+    const seen = new Set(page.docs.map((d) => d._publishedId))
+    return [...page.docs, ...found.filter((d) => !seen.has(d._publishedId))]
+  }, [page, found, q])
+  const sentinel = useRef<HTMLDivElement>(null)
+  const canGrow = !!page?.hasMore && limit < LIST_MAX && !query
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || !canGrow) return
+    const io = new IntersectionObserver(([e]) => e?.isIntersecting && setLimit(LIST_MAX), {rootMargin: '600px'})
+    io.observe(el)
+    return () => io.disconnect()
+  }, [canGrow])
   // J07: whose doc is open where, as avatars on the rows (only those rows re-render).
   const people = usePresences()
   const open = useMemo(() => {
@@ -249,6 +274,8 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
             extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} /> : undefined}
           />
         ))}
+        {canGrow && <div ref={sentinel} className="list-sentinel" />}
+        {!query && page?.hasMore && limit >= LIST_MAX && <p className="list-max">Displaying a maximum of {LIST_MAX} documents</p>}
       </div>
     </section>
   )
