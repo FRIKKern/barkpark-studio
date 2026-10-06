@@ -1,7 +1,7 @@
 import type {QueryClient} from '@tanstack/react-query'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
-import {docQuery, ensureDocs, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
+import {docQuery, ensureDocs, refId, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {parsePanes, type Pane} from './panes'
 import {meQuery} from './session'
 import {fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
@@ -68,7 +68,7 @@ async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [D
     if (allRefs)
       for (const f of schema.fields) {
         if (f.type === 'reference') want(f, doc[f.name])
-        if (f.type === 'arrayOf' && f.of?.type === 'reference') for (const id of (doc[f.name] as unknown[]) ?? []) want(f.of, id)
+        if (f.type === 'arrayOf' && f.of?.type === 'reference') for (const item of (doc[f.name] as unknown[]) ?? []) want(f.of, refId(item))
       }
   }
   await Promise.all([...byType].map(([type, ids]) => ensureDocs(qc, type.split(','), [...ids])))
