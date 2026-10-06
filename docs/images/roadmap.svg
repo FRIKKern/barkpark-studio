@@ -145,8 +145,8 @@
 <text x="1140" y="1022" font-size="26" font-weight="700" text-anchor="end">0<tspan class="muted" font-weight="400"> / 14</tspan></text>
 <path d="M60 1042H1140" class="rule"/>
 <text x="60" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D01 Open a Freeform-main…</tspan></text>
-<text x="60" y="1104" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">D02 Classic ⇄ Freeform t…</tspan></text>
-<text x="60" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D03 Edit a bound field i…</tspan></text>
+<text x="60" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D02 Classic ⇄ Freeform t…</tspan></text>
+<text x="60" y="1134" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">D03 Edit a bound field i…</tspan></text>
 <text x="60" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D04 New doc from an Expe…</tspan></text>
 <text x="330" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D05 Two tabs</tspan></text>
 <text x="330" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D06 A wikilink/link in t…</tspan></text>

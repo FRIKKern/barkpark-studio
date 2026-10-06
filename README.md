@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 61 changes, 18 tasks closed
+- **Today** · 62 changes, 18 tasks closed
+  - D03: a bound field edited in Freeform shows in Classic in a 2nd browser, and back ([#91](https://github.com/FRIKKern/barkpark-studio/pull/91))
   - D02: Classic ⇄ Freeform lossless both ways — a Freeform field edit is the Classic field, free blocks untouched ([#90](https://github.com/FRIKKern/barkpark-studio/pull/90))
   - D01: Freeform-main doc opens in the canvas, bound fields as titled field blocks; canvas host follows EMBED-CONTRACT ([#88](https://github.com/FRIKKern/barkpark-studio/pull/88))
-  - J39: broken values — Convert / Reset, missing or duplicate keys, unknown fields, invalid rich text ([#89](https://github.com/FRIKKern/barkpark-studio/pull/89))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
