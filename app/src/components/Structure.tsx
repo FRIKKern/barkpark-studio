@@ -12,6 +12,8 @@ import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane
 import {DocumentPane, docTitle} from './DocumentPane'
 import {Add, ChevronRight, Close, Ellipsis, Search} from './icons'
 import {DocPreview} from './Preview'
+import {AvatarStack} from './Presence'
+import {usePresences, type Presence} from '../lib/presence'
 import {PaneLink} from './PaneLink'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
@@ -162,6 +164,13 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
   const {data: docs, error} = published ? publishedList : draftList
   const {sort, view, set} = useListPrefs(type)
   const [query, setQuery] = useState('')
+  // J07: whose doc is open where, as avatars on the rows (only those rows re-render).
+  const people = usePresences()
+  const open = useMemo(() => {
+    const m = new Map<string, Presence[]>()
+    for (const p of people) if (p.documentId) m.set(p.documentId, [...(m.get(p.documentId) ?? []), p])
+    return m
+  }, [people])
   // J24: filter as you type, on the list already here (no request per key). Every
   // word must appear in one of the doc's text values, Sanity-style.
   const shown = useMemo(() => {
@@ -236,6 +245,7 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
             selected={selected === d._publishedId}
             active={index === panes.length - 2}
             testId="pane-item"
+            extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} /> : undefined}
           />
         ))}
       </div>

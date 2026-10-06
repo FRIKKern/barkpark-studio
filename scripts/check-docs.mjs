@@ -8,7 +8,7 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 const lines = (f) => read(f).trimEnd().split('\n').length;
 const bad = [];
 
-const CAPS = { 'README.md': 80, 'CONTRIBUTING.md': 40, 'QUALITY.md': 60, 'JOURNEYS.md': 90, 'docs/ROADMAP.md': 30 };
+const CAPS = { 'README.md': 80, 'CONTRIBUTING.md': 40, 'QUALITY.md': 60, 'JOURNEYS.md': 130, 'docs/ROADMAP.md': 30 };
 for (const [f, max] of Object.entries(CAPS)) if (lines(f) > max) bad.push(`${f}: ${lines(f)} lines > ${max}`);
 for (const f of fs.readdirSync(path.join(root, 'docs/decisions'))) {
   const n = lines(`docs/decisions/${f}`);

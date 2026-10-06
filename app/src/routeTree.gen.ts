@@ -14,6 +14,7 @@ import { Route as HealthRouteImport } from './routes/health'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ApiListenRouteImport } from './routes/api/listen'
 import { Route as ApiMutateRouteImport } from './routes/api/mutate'
+import { Route as ApiPresenceRouteImport } from './routes/api/presence'
 import { Route as ApiSchemasRouteImport } from './routes/api/schemas'
 import { Route as DebugLiveRouteImport } from './routes/debug/live'
 import { Route as StructureIndexRouteImport } from './routes/structure/index'
@@ -46,6 +47,11 @@ const ApiListenRoute = ApiListenRouteImport.update({
 const ApiMutateRoute = ApiMutateRouteImport.update({
   id: '/api/mutate',
   path: '/api/mutate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPresenceRoute = ApiPresenceRouteImport.update({
+  id: '/api/presence',
+  path: '/api/presence',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSchemasRoute = ApiSchemasRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
+  '/api/presence': typeof ApiPresenceRoute
   '/api/schemas': typeof ApiSchemasRoute
   '/debug/live': typeof DebugLiveRoute
   '/structure/$': typeof StructureSplatRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
+  '/api/presence': typeof ApiPresenceRoute
   '/api/schemas': typeof ApiSchemasRoute
   '/debug/live': typeof DebugLiveRoute
   '/structure/$': typeof StructureSplatRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
+  '/api/presence': typeof ApiPresenceRoute
   '/api/schemas': typeof ApiSchemasRoute
   '/debug/live': typeof DebugLiveRoute
   '/structure/$': typeof StructureSplatRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/api/listen'
     | '/api/mutate'
+    | '/api/presence'
     | '/api/schemas'
     | '/debug/live'
     | '/structure/$'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/api/listen'
     | '/api/mutate'
+    | '/api/presence'
     | '/api/schemas'
     | '/debug/live'
     | '/structure/$'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/api/listen'
     | '/api/mutate'
+    | '/api/presence'
     | '/api/schemas'
     | '/debug/live'
     | '/structure/$'
@@ -189,6 +201,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiListenRoute: typeof ApiListenRoute
   ApiMutateRoute: typeof ApiMutateRoute
+  ApiPresenceRoute: typeof ApiPresenceRoute
   ApiSchemasRoute: typeof ApiSchemasRoute
   DebugLiveRoute: typeof DebugLiveRoute
   StructureSplatRoute: typeof StructureSplatRoute
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mutate'
       fullPath: '/api/mutate'
       preLoaderRoute: typeof ApiMutateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/presence': {
+      id: '/api/presence'
+      path: '/api/presence'
+      fullPath: '/api/presence'
+      preLoaderRoute: typeof ApiPresenceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/schemas': {
@@ -301,6 +321,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiListenRoute: ApiListenRoute,
   ApiMutateRoute: ApiMutateRoute,
+  ApiPresenceRoute: ApiPresenceRoute,
   ApiSchemasRoute: ApiSchemasRoute,
   DebugLiveRoute: DebugLiveRoute,
   StructureSplatRoute: StructureSplatRoute,

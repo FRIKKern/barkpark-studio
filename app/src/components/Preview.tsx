@@ -1,4 +1,4 @@
-import {memo} from 'react'
+import {memo, type ReactNode} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {DocumentIcon} from './icons'
@@ -24,7 +24,7 @@ type Sel = {selected: boolean; active?: boolean}
  * Without `href` it renders as a plain row (e.g. a search option). Memo: a list
  * re-renders on every pane change, and its rows mostly stay the same.
  */
-export const DocPreview = memo(function DocPreview({doc, href, selected, active, testId, badge}: {doc: Doc | null | undefined; href?: string; testId?: string; badge?: string} & Sel) {
+export const DocPreview = memo(function DocPreview({doc, href, selected, active, testId, badge, extra}: {doc: Doc | null | undefined; href?: string; testId?: string; badge?: string; extra?: ReactNode} & Sel) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const subtitle = useSubtitle(doc)
   const body = (
@@ -37,6 +37,7 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
         {subtitle && <div className="s">{subtitle}</div>}
       </span>
       {badge && <span className="badge">{badge}</span>}
+      {extra}
       {doc?._draft && <span className="ring" title="Draft" />}
       {doc?._hasPublished !== false && doc && <span className="dot" title="Published" />}
     </>

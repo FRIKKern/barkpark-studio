@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 22 changes, 8 tasks closed
-  - Keyed array items in the fixture: categories as {_key,_type,_ref}, links items keep _key ([#51](https://github.com/FRIKKern/barkpark-studio/pull/51))
-  - J15: review changes — change bars, per-field word diff with authors, revert one field or all ([#50](https://github.com/FRIKKern/barkpark-studio/pull/50))
-  - Reference history for J16/J15: scripts/reference-history.mjs edits post-history through both APIs ([#48](https://github.com/FRIKKern/barkpark-studio/pull/48))
+- **Today** · 24 changes, 9 tasks closed
+  - J07: presence — avatars on the field, the doc and its list row; who's online jumps to a doc; above/below hints ([#49](https://github.com/FRIKKern/barkpark-studio/pull/49))
+  - Spec round 2: J41–J47, Barkpark-native B01–B10, D12–D14, F11–F13 ([#52](https://github.com/FRIKKern/barkpark-studio/pull/52))
+  - Done: [Barkpark: keyed arrayOf items ({_key,_ref}) still indexed as edges](https://github.com/FRIKKern/barkpark/issues/21702)
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
