@@ -64,11 +64,13 @@ node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify Barkpark studio-
 cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
 pnpm check                                      # typecheck + build; fails if client code imports src/server
 cd ../e2e && pnpm install && pnpm test          # journeys on both studios; ours on :3100 against dataset e2e-local
-pnpm reference                                # P0 crown clips, Sanity only; SANITY_TOKEN required
+pnpm reference                                # P0 crown clips, Sanity only; uses the Sanity CLI login
 STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (dev only; app/src/server/auth.ts)
 ```
 
 Reference recordings reuse J08/J17/J21/J22/J23 and save WebM clips plus an HTML
 report under `e2e/evidence/reference/<run>/`. Install the reference dependencies
-and run `pnpm --dir e2e exec playwright install ffmpeg` first. Link the reviewed
+and run `pnpm --dir e2e exec playwright install ffmpeg` first. Sign in with
+`pnpm --dir reference/sanity exec sanity login`; an explicit `SANITY_TOKEN` also works.
+The CLI login is passed in memory; it is never printed or copied to `.env`. Link the reviewed
 clips from the crown tasks; recordings alone do not constitute quality sign-off.
