@@ -493,9 +493,13 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .readonly-view pre { margin: 0; padding: 8px 10px; border: 1px dashed #c7cad3; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 60vh; overflow: auto; color: var(--fg-strong); }
 .readonly-view.source pre { white-space: pre; }
 .readonly-view > span { display: block; margin-top: 4px; font-size: 11px; }
-.localized { display: flex; flex-direction: column; gap: 8px; }
-.localized-row { display: grid; grid-template-columns: 40px 1fr; gap: 8px; align-items: start; }
-.localized-row .lang { padding-top: 7px; font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--muted); }
+.localized { display: flex; flex-direction: column; gap: 6px; }
+.lang-tabs { display: flex; gap: 2px; }
+.lang-tabs [role=tab] { position: relative; padding: 4px 10px; border: 0; border-radius: 3px; background: none; font: inherit; font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--muted); cursor: pointer; }
+.lang-tabs [role=tab]:hover { background: var(--hover); }
+.lang-tabs [role=tab][aria-selected=true] { background: var(--hover-strong); color: var(--fg); }
+.lang-tabs .filled { display: inline-block; width: 5px; height: 5px; margin-left: 5px; vertical-align: middle; border-radius: 50%; background: #43a047; }
+.localized-warning { margin: 0; font-size: 12px; color: #a35f00; }
 .code-field { display: flex; align-items: center; gap: 8px; }
 .code-field .input { max-width: 240px; }
 .code-list { font-size: 12px; }
