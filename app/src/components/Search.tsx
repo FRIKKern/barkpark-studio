@@ -3,14 +3,17 @@ import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {schemaOf, schemasQuery, searchQuery, type Doc} from '../lib/data'
 import {focusFirstField} from '../lib/focus'
-import {Close, Search as SearchIcon} from './icons'
+import {useFocusScope} from '../lib/focus-scope'
+import {Clock, Close, Search as SearchIcon} from './icons'
 import {DocPreview} from './Preview'
+import {filterFor, SearchFilters, type SearchFilter, type SearchSort} from './SearchFilters'
 
 /**
  * Global search, Sanity's: Cmd/Ctrl+K or the navbar button opens it, results
  * across every type with the first one active, arrows move, Enter opens the doc
  * as its type's list + the doc, and the caret lands in its first field. Esc
- * closes and gives focus back.
+ * closes and gives focus back. J38: types, field filters and the order sit
+ * under the input; an empty search lists the recent ones.
  */
 export function GlobalSearch() {
   const [open, setOpen] = useState(false)
@@ -46,25 +49,64 @@ export function GlobalSearch() {
   )
 }
 
+// Recent searches live in this browser only, as Sanity's do.
+const RECENT = 'bp-recent-searches'
+const readRecent = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT) ?? '[]')
+  } catch {
+    return []
+  }
+}
+const saveRecent = (q: string) => {
+  try {
+    localStorage.setItem(RECENT, JSON.stringify([q, ...readRecent().filter((r) => r !== q)].slice(0, 5)))
+  } catch {}
+}
+
+const ORDER: Record<SearchSort, string> = {best: '_updatedAt:desc', edited: '_updatedAt:desc', created: '_createdAt:desc'}
+
+/** Best match: a title that starts with the query, then one with it as a word, then newest. */
+const rank = (d: Doc, q: string) => {
+  const t = String(d.title ?? '').toLowerCase()
+  return t.startsWith(q) ? 0 : t.includes(` ${q}`) ? 1 : 2
+}
+
 function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
   const navigate = useNavigate()
   const {data: schemas = []} = useQuery(schemasQuery)
   const [q, setQ] = useState('')
   const [query, setQuery] = useState('')
+  const [types, setTypes] = useState<string[]>([])
+  const [filters, setFilters] = useState<SearchFilter[]>([])
+  const [sort, setSort] = useState<SearchSort>('best')
+  const [recent] = useState(readRecent)
   const [active, setActive] = useState(0)
   const listId = useId()
+  const scope = useFocusScope<HTMLDivElement>({trap: true, onDismiss: () => onClose(true)})
   useEffect(() => {
     const t = setTimeout(() => setQuery(q.trim()), 120)
     return () => clearTimeout(t)
   }, [q])
-  const perType = useQueries({
-    queries: schemas.map((s) => ({...searchQuery(s.name, query), placeholderData: keepPreviousData})),
+  // A field filter only asks the types that have that field.
+  const asked = (types.length ? schemas.filter((s) => types.includes(s.name)) : schemas).flatMap((s) => {
+    const filter = filterFor(s, filters)
+    return filter ? [{s, filter}] : []
   })
-  const results: Doc[] = perType
-    .flatMap((r) => r.data ?? [])
-    .sort((a, b) => b._updatedAt.localeCompare(a._updatedAt))
-    .slice(0, 30)
-  useEffect(() => setActive(0), [query])
+  const showRecent = !q && !filters.some((f) => f.value) && recent.length > 0
+  const perType = useQueries({
+    queries: asked.map(({s, filter}) => ({...searchQuery(s.name, query, filter, ORDER[sort]), placeholderData: keepPreviousData})),
+  })
+  const lower = query.toLowerCase()
+  const key = sort === 'created' ? '_createdAt' : '_updatedAt'
+  const results: Doc[] = showRecent
+    ? []
+    : perType
+        .flatMap((r) => r.data ?? [])
+        .sort((a, b) => (sort === 'best' && lower ? rank(a, lower) - rank(b, lower) : 0) || String(b[key]).localeCompare(String(a[key])))
+        .slice(0, 30)
+  const rows = showRecent ? recent.length : results.length
+  useEffect(() => setActive(0), [query, types, filters, sort, showRecent])
   // Enter pressed before the results for what is typed have arrived opens the
   // first of THOSE results, not a stale row from the previous query.
   const settled = query === q.trim() && perType.every((r) => !r.isFetching)
@@ -75,6 +117,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
 
   const openDoc = (d: Doc | undefined) => {
     if (!d) return
+    if (query) saveRecent(query)
     onClose(false)
     void navigate({href: `/structure/${d._type};${encodeURIComponent(d._publishedId)}`})
     focusFirstField(d._publishedId)
@@ -82,7 +125,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
 
   return (
     <div className="search-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose(true)}>
-      <div className="search-dialog" role="dialog" aria-modal="true" aria-label="Search">
+      <div ref={scope} className="search-dialog" role="dialog" aria-modal="true" aria-label="Search">
         <div className="search-bar">
           <SearchIcon />
           <input
@@ -90,23 +133,38 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
             role="combobox"
             aria-expanded="true"
             aria-controls={listId}
-            aria-activedescendant={results[active] ? `${listId}-${active}` : undefined}
+            aria-activedescendant={active < rows ? `${listId}-${active}` : undefined}
             placeholder="Search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'ArrowDown') (e.preventDefault(), setActive((a) => Math.min(a + 1, results.length - 1)))
+              if (e.key === 'ArrowDown') (e.preventDefault(), setActive((a) => Math.min(a + 1, rows - 1)))
               else if (e.key === 'ArrowUp') (e.preventDefault(), setActive((a) => Math.max(a - 1, 0)))
+              else if (e.key === 'Enter' && showRecent) (e.preventDefault(), recent[active] && setQ(recent[active]))
               else if (e.key === 'Enter') (e.preventDefault(), settled ? openDoc(results[active]) : setPendingEnter(true))
-              else if (e.key === 'Escape') (e.preventDefault(), onClose(true))
-              else if (e.key === 'Tab') e.preventDefault() // focus stays in the dialog
             }}
           />
           <button type="button" className="icon-btn" aria-label="Close search" tabIndex={-1} onClick={() => onClose(true)}>
             <Close />
           </button>
         </div>
-        <div className="search-results" role="listbox" id={listId}>
+        <SearchFilters schemas={schemas} types={types} onTypes={setTypes} filters={filters} onFilters={setFilters} sort={sort} onSort={setSort} />
+        <div className="search-results" role="listbox" id={listId} aria-label={showRecent ? 'Recent searches' : 'Results'}>
+          {showRecent && <p className="menu-label">Recent searches</p>}
+          {showRecent &&
+            recent.map((r, i) => (
+              <div
+                key={r}
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={i === active}
+                className="search-recent"
+                onMouseEnter={() => setActive(i)}
+                onMouseDown={(e) => (e.preventDefault(), setQ(r))}
+              >
+                <Clock /> {r}
+              </div>
+            ))}
           {results.map((d, i) => (
             <div
               key={d._id}
@@ -119,7 +177,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
               <DocPreview doc={d} selected={false} badge={schemaOf(schemas, d._type)?.title} />
             </div>
           ))}
-          {query && results.length === 0 && <p className="search-empty">No results for “{query}”</p>}
+          {!showRecent && (query || filters.some((f) => f.value)) && results.length === 0 && settled && <p className="search-empty">{query ? `No results for “${query}”` : 'No results'}</p>}
         </div>
       </div>
     </div>
