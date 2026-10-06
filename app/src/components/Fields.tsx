@@ -11,6 +11,7 @@ import {toast} from './Toasts'
 import {FieldPresence} from './Presence'
 import {DateTimeInput} from './DateTimeInput'
 import {StringArrayInput, TagsInput} from './ArrayInputs'
+import {ObjectArrayInput} from './ObjectArrayInput'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -149,7 +150,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   const invalid = useContext(ProblemsContext).some((p) => p.path === path)
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
-  if (readOnly && !['string', 'text', 'slug', 'composite', 'datetime', 'arrayOf'].includes(field.type))
+  if (readOnly && !['string', 'url', 'email', 'text', 'slug', 'composite', 'datetime', 'arrayOf'].includes(field.type))
     return (
       <fieldset className="readonly-wrap" disabled>
         <FieldInput field={field} path={path} value={value} openRef={openRef} onChange={onChange} />
@@ -157,6 +158,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     )
   switch (field.type) {
     case 'string':
+    case 'url':
+    case 'email':
       return <TextInput id={path} value={str} onChange={onChange} readOnly={readOnly} />
     case 'slug':
       return <SlugInput id={path} value={str} onChange={onChange} source={(field.options as {source?: string})?.source} readOnly={readOnly} />
@@ -203,6 +206,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         ) : (
           <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
         )
+      if (field.of?.type === 'composite') return <ObjectArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       return (
         <div className="tags" id={path}>
           {items.map((v, i) => (

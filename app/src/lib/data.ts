@@ -28,6 +28,8 @@ export type Field = {
   layout?: string
   group?: string
   validation?: {required?: boolean; min?: number; max?: number}
+  /** Array item preview: which subfields title and subtitle a row (J33). */
+  preview?: {title?: string; subtitle?: string}
   visibleWhen?: Condition
   readOnly?: boolean | Condition
 }

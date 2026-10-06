@@ -428,6 +428,21 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .review .menu-wrap { display: block; }
 .review .popover.confirm { top: calc(100% + 4px); bottom: auto; left: 0; right: auto; }
 .revert-all svg { width: 19px; height: 19px; }
+
+/* Object arrays (J33), after Sanity's: preview rows that open an item dialog over the pane */
+.array-item-preview { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px; border: 0; border-radius: 3px; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg-strong); }
+.array-item-preview:hover { background: var(--hover); }
+.array-item-preview .media { flex: none; display: grid; place-items: center; width: 35px; height: 35px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); color: var(--muted); }
+.array-item-preview .text { display: flex; flex-direction: column; min-width: 0; }
+.array-item-preview .title { font-size: 14px; font-weight: 500; line-height: 19px; }
+.array-item-preview .subtitle { font-size: 13px; line-height: 17px; color: var(--muted); }
+.dialog.item-dialog { width: min(640px, calc(100% - 64px)); min-height: 60%; }
+.item-dialog header { padding: 16px 16px 8px 20px; }
+.crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.crumb { font: inherit; border: 0; background: none; padding: 2px 4px; border-radius: 3px; color: var(--muted); cursor: pointer; }
+.crumb.current { color: var(--fg-strong); font-weight: 600; cursor: default; }
+.item-fields { padding: 16px 20px 24px; }
+
 /* Presence (J07), after Sanity's: initials in the editor's colour, stacked. */
 .p-avatars { display: inline-flex; align-items: center; margin-left: auto; padding-left: 6px; }
 .p-avatar { width: 23px; height: 23px; flex: none; display: inline-grid; place-items: center; border-radius: 50%; box-shadow: 0 0 0 2px var(--bg, #fff); color: #fff; font-size: 10px; font-weight: 600; line-height: 1; }
