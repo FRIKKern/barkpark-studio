@@ -1,4 +1,5 @@
 import {useState} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueryClient} from '@tanstack/react-query'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {edit} from '../lib/edits'
@@ -22,7 +23,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
         <Ellipsis />
       </button>
       {open && (
-        <div className="popover menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && close()}>
+        <MenuPopover onClose={close}>
           <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (close(), onHistory())}>
             History
           </button>
@@ -60,7 +61,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
           >
             Paste document
           </button>
-        </div>
+        </MenuPopover>
       )}
     </div>
   )
@@ -87,14 +88,14 @@ export function DocShareMenu({doc}: {doc: Doc}) {
         <Share />
       </button>
       {open && (
-        <div className="popover menu" role="menu" onKeyDown={(e) => e.key === 'Escape' && close()}>
+        <MenuPopover onClose={close}>
           <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => put(`${location.origin}/structure/${doc._type};${doc._publishedId}`, 'Document URL')}>
             Copy document URL
           </button>
           <button type="button" role="menuitem" className="menu-item" onClick={() => put(doc._id, 'Document ID')}>
             Copy document ID
           </button>
-        </div>
+        </MenuPopover>
       )}
     </div>
   )

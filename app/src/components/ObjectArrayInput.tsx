@@ -1,4 +1,5 @@
 import {useState} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Field} from '../lib/data'
 import {copy} from '../lib/clipboard'
@@ -98,7 +99,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
   const title = previewText(item, of, 'title') || 'Untitled'
   return (
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog item-dialog" role="dialog" aria-modal="true" aria-label={`${parentTitle} / ${title}`} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onClose())}>
+      <DialogBox className="dialog item-dialog" aria-modal="true" aria-label={`${parentTitle} / ${title}`} onClose={onClose}>
         <header>
           <nav className="crumbs" aria-label="Breadcrumb">
             <button type="button" className="crumb" onClick={onClose}>
@@ -120,7 +121,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
             ))}
           </fieldset>
         </div>
-      </div>
+      </DialogBox>
     </div>
   )
 }

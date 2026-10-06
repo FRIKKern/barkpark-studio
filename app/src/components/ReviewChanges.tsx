@@ -1,4 +1,5 @@
 import {useState} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
 import {historyQuery, revisionQuery, type Revision} from '../lib/history'
@@ -93,7 +94,7 @@ function Revert({label, className = 'revert-one', onConfirm, children}: {label: 
         {children}
       </button>
       {asking && (
-        <div className="popover confirm" role="dialog" aria-label="Revert the change?" onKeyDown={(e) => e.key === 'Escape' && setAsking(false)}>
+        <DialogBox className="popover confirm" aria-label="Revert the change?" onClose={() => setAsking(false)}>
           <p>Are you sure you want to revert the change?</p>
           <div className="confirm-actions">
             <button type="button" className="btn" autoFocus onClick={() => setAsking(false)}>
@@ -103,7 +104,7 @@ function Revert({label, className = 'revert-one', onConfirm, children}: {label: 
               Revert change
             </button>
           </div>
-        </div>
+        </DialogBox>
       )}
     </span>
   )

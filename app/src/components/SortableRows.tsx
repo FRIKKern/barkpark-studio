@@ -1,4 +1,5 @@
 import {useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {Add, DragHandle, Ellipsis} from './icons'
 
 // Sanity's array rows (J34 strings, J33 objects, J09 references): a drag handle
@@ -138,7 +139,7 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
         <Ellipsis />
       </button>
       {open && (
-        <div className="popover menu" role="menu" aria-labelledby={props.id} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
+        <MenuPopover onClose={() => setOpen(false)} aria-labelledby={props.id}>
           <button type="button" role="menuitem" className="menu-item danger" autoFocus onClick={pick(props.onRemove)}>
             Remove
           </button>
@@ -166,7 +167,7 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
               {a.label}
             </button>
           ))}
-        </div>
+        </MenuPopover>
       )}
     </div>
   )

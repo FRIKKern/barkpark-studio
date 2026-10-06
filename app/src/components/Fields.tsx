@@ -1,4 +1,5 @@
 import {createContext, useContext, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent} from 'react'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
@@ -107,7 +108,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
         <Ellipsis />
       </button>
       {open && (
-        <div className="popover menu" role="menu" aria-label="Field actions" onKeyDown={(e) => e.key === 'Escape' && close()}>
+        <MenuPopover onClose={close} aria-label="Field actions">
           <button
             type="button"
             role="menuitem"
@@ -137,7 +138,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
           >
             Paste field
           </button>
-        </div>
+        </MenuPopover>
       )}
     </div>
   )
