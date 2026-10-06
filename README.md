@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 26 changes, 11 tasks closed
+- **Today** · 27 changes, 12 tasks closed
+  - Done: [P0 CI fixtures: add Barkpark-native types (task, book) so field-type gaps show](https://github.com/FRIKKern/barkpark/issues/21859)
+  - Roadmap: Barkpark-native lane (B-ids), counted apart like Freeform; side-track lanes are one loop ([#55](https://github.com/FRIKKern/barkpark-studio/pull/55))
   - Done: [Barkpark: listen filtered by document id / type](https://github.com/FRIKKern/barkpark/issues/21696)
-  - Done: [JS SDK listen: send ?ids= and drop the stale 'server ignores ?types=' comment](https://github.com/FRIKKern/barkpark/issues/21745)
-  - J09: reference arrays — keyed rows, add by search, drag by handle or keyboard, item menu ([#54](https://github.com/FRIKKern/barkpark-studio/pull/54))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
