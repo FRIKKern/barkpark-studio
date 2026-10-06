@@ -1,5 +1,5 @@
 import {useState} from 'react'
-import {DialogBox, MenuPopover} from './FocusScopes'
+import {MenuPopover} from './FocusScopes'
 import {useQueryClient} from '@tanstack/react-query'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {edit} from '../lib/edits'

@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, type ReactNode} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
@@ -8,8 +8,9 @@ import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQue
 import {createDoc, discardDraft, draftNew, edit, flush, publish, undo, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
+import {useRevealed} from '../lib/reveal'
 import {PaneLink} from './PaneLink'
-import {ChangesContext, DocContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
+import {ChangesContext, DocContext, DocIdContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
 import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
@@ -29,6 +30,10 @@ const VIEWS = [
   {id: '', title: 'Editor'},
   {id: 'json', title: 'JSON'},
 ]
+
+const NO_PROBLEMS: Problem[] = []
+/** J44: fields drawn in the first frame; a longer form gets the rest right after. */
+const FIRST_FIELDS = 40
 
 export function DocumentPane({panes, index, split, closeHref, header, closeIcon}: Props) {
   const pane = panes[index] as Extract<Pane, {kind: 'doc'}>
@@ -77,7 +82,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => {
     if (draftQ.data === null && initialValues) draftNew(qc, pane.type, pane.id, initialValues)
   }, [draftQ.data, initialValues, qc, pane.type, pane.id])
-  const onEdit = (field: string, value: unknown) => doc && edit(qc, doc, field, value)
+  // J44: the form's fields are memoized, so what they get must hold still while
+  // typing: one steady onEdit (it reads the latest doc), one onChange per field
+  // name, and context values that change only when their content does.
+  const latestDoc = useRef(doc)
+  latestDoc.current = doc
+  const onEdit = useCallback((field: string, value: unknown) => latestDoc.current && edit(qc, latestDoc.current, field, value), [qc])
+  const onChangeOf = useMemo(() => {
+    const byName = new Map<string, (v: unknown) => void>()
+    return (name: string) => byName.get(name) ?? byName.set(name, (v) => onEdit(name, v)).get(name)!
+  }, [onEdit])
   // Closing the pane (or navigating it away) sends what is still waiting.
   useEffect(() => () => flush(qc, pane.id), [qc, pane.id])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
@@ -92,11 +106,24 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       (err) => toast({tone: 'critical', title: 'Could not duplicate the document', description: (err as Error).message}),
     )
   }
-  const openRef = (type: string, id: string, parentRefPath: string) => ({
-    href: openAfter(panes, index, {kind: 'doc', id, type, parentRefPath}),
-    selected: next?.kind === 'doc' && next.id === id && next.parentRefPath === parentRefPath,
-    active: index === panes.length - 2,
-  })
+  // Keyed by `base`, the pane chain as a string: a new array each render, the same chain.
+  const openRef = useCallback(
+    (type: string, id: string, parentRefPath: string) => ({
+      href: openAfter(panes, index, {kind: 'doc', id, type, parentRefPath}),
+      selected: next?.kind === 'doc' && next.id === id && next.parentRefPath === parentRefPath,
+      active: index === panes.length - 2,
+    }),
+    [base, index],
+  )
+  // Keyed by content: both are rebuilt on every render.
+  const formFields = (schema?.fields ?? []).filter((f) => !group || f.group === group)
+  const revealed = useRevealed(formFields.length, FIRST_FIELDS, `${pane.id}|${group}`)
+  const changedKey = [...changedSet].join(',')
+  const review = useRef(() => {})
+  review.current = () => navigate({href: withParams(panes, index, {inspect: 'review'})})
+  const changes = useMemo(() => ({changed: changedSet, review: () => review.current()}), [changedKey])
+  const problemsKey = JSON.stringify(problems)
+  const steadyProblems = useMemo(() => problems, [problemsKey])
 
   // J07: the room sees this doc as where we are when it is the last pane, and the
   // field as soon as the caret enters one (inputs carry id = the field path).
@@ -212,18 +239,20 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <h1>{docTitle(doc, schema)}</h1>
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
-            <ChangesContext.Provider value={{changed: changedSet, review: () => navigate({href: withParams(panes, index, {inspect: 'review'})})}}>
+            <ChangesContext.Provider value={changes}>
+            <DocIdContext.Provider value={doc._publishedId}>
             <DocContext.Provider value={revision ? ({...doc, ...revision.content} as Doc) : doc}>
             <EditPathContext.Provider value={onEdit}>
-            <ProblemsContext.Provider value={revision ? [] : problems}>
+            <ProblemsContext.Provider value={revision ? NO_PROBLEMS : steadyProblems}>
             <fieldset className="form-fields" disabled={viewingPublished || !!revision}>
-              {schema.fields.filter((f) => !group || f.group === group).map((f) => (
-                <FieldView key={f.name} field={f} path={f.name} value={(revision ? revision.content : doc)[f.name]} openRef={openRef} onChange={(v) => onEdit(f.name, v)} />
+              {formFields.slice(0, revealed).map((f) => (
+                <FieldView key={f.name} field={f} path={f.name} value={(revision ? revision.content : doc)[f.name]} openRef={openRef} onChange={onChangeOf(f.name)} />
               ))}
             </fieldset>
             </ProblemsContext.Provider>
             </EditPathContext.Provider>
             </DocContext.Provider>
+            </DocIdContext.Provider>
             </ChangesContext.Provider>
           </div>
         )}

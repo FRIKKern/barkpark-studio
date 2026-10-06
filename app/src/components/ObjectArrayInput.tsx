@@ -1,5 +1,5 @@
-import {useState} from 'react'
-import {DialogBox, MenuPopover} from './FocusScopes'
+import {useCallback, useState} from 'react'
+import {DialogBox} from './FocusScopes'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Field} from '../lib/data'
 import {copy} from '../lib/clipboard'
@@ -24,6 +24,21 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   const [editing, setEditing] = useState<string | null>(null)
   const index = items.findIndex((it) => it._key === editing)
   const set = (next: Item[]) => onChange(next)
+  // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
+  const renderItem = useCallback(
+    (it: Item) => (
+      <button type="button" className="array-item-preview" onClick={() => setEditing(it._key ?? null)}>
+        <span className="media">
+          <DocumentIcon />
+        </span>
+        <span className="text">
+          <span className="title">{previewText(it, of, 'title') || 'Untitled'}</span>
+          <Subtitle item={it} of={of} />
+        </span>
+      </button>
+    ),
+    [of],
+  )
   return (
     <>
       <SortableRows
@@ -38,17 +53,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
         onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'object', value: it}})}
         addLabel="Add item..."
-        renderItem={(it) => (
-          <button type="button" className="array-item-preview" onClick={() => setEditing(it._key ?? null)}>
-            <span className="media">
-              <DocumentIcon />
-            </span>
-            <span className="text">
-              <span className="title">{previewText(it, of, 'title') || 'Untitled'}</span>
-              <Subtitle item={it} of={of} />
-            </span>
-          </button>
-        )}
+        renderItem={renderItem}
       />
       {index >= 0 && (
         <ItemDialog

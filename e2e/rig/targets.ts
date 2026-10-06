@@ -43,7 +43,7 @@ export type Target = {
   /** Titles of both versions, straight from the backend (undefined = no such version). */
   versions(id: string): Promise<{draft?: string; published?: string}>
   /** A field as editors now see it (draft if there is one, else published). */
-  docValue(id: string, field: string): Promise<unknown>
+  docValue(id: string, field: string, type?: string): Promise<unknown>
   /** Put a seed document back exactly as fixtures/seed.ndjson has it, no draft. */
   resetDoc(id: string, type: string): Promise<void>
   /** The title of the published version, straight from the backend. */
@@ -206,8 +206,8 @@ const studio: Target = {
     const [d, p] = await Promise.all([get('drafts'), get('published')])
     return {draft: d?._draft ? d.title : undefined, published: p?.title}
   },
-  docValue: async (id, field) => {
-    const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${encodeURIComponent(id)}?perspective=drafts`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
+  docValue: async (id, field, type = 'post') => {
+    const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/${type}/${encodeURIComponent(id)}?perspective=drafts`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
     return r.ok ? ((await r.json()) as {result: Record<string, unknown>}).result[field] : undefined
   },
   resetDoc: async (id, type) => {
