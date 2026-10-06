@@ -55,8 +55,8 @@
 <text x="492" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J27</tspan></text>
 <text x="344" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J41</tspan></text>
 <text x="418" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J42</tspan></text>
-<text x="492" y="426" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J50</tspan></text>
-<text x="344" y="454" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J51</tspan></text>
+<text x="492" y="426" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J50</tspan></text>
+<text x="344" y="454" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J51</tspan></text>
 </g>
 <g data-phase="2">
 <rect x="608" y="196" width="268" height="364" rx="12" class="card"/>

@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 53 changes, 17 tasks closed
+- **Today** · 54 changes, 17 tasks closed
+  - J51: on Fast 3G a click paints its pane at once; loading states after 300 ms; early button clicks replayed ([#83](https://github.com/FRIKKern/barkpark-studio/pull/83))
   - J50: backend down — list error card + Retry, "Trying to connect…", per-pane crash card ([#81](https://github.com/FRIKKern/barkpark-studio/pull/81))
   - J52: the focused field lives in the URL (Sanity's path=) ([#82](https://github.com/FRIKKern/barkpark-studio/pull/82))
-  - J48: a logged-out banner on the document, the session re-checked on focus ([#80](https://github.com/FRIKKern/barkpark-studio/pull/80))
 - **Yesterday** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
