@@ -9,13 +9,13 @@ const TITLE = 'Fixture post 12'
 
 test.afterEach(async ({}, info) => target(info).restore(ID, {title: TITLE}))
 
-test('J19: keyboard only — search, open, edit, publish', async ({page}, info) => {
+test('J19: search recovery and visible keyboard selection', async ({page}, info) => {
   const t = target(info)
+  test.skip(t.name !== 'studio', 'Candidate failure and scrolling regression; reference comparison is recorded separately')
+  await page.setViewportSize({width: 1440, height: 450})
   await t.prepare(page.context())
   await page.goto('/structure')
   await t.settle(page)
-  await referenceHold(page, page.getByRole('link', {name: 'Post', exact: true}))
-
   await page.keyboard.press('ControlOrMeta+k')
   if (t.name === 'studio') {
     await page.route('**/_serverFn/**', (route) => route.request().method() === 'GET' ? route.abort('failed') : route.continue())
@@ -31,9 +31,7 @@ test('J19: keyboard only — search, open, edit, publish', async ({page}, info) 
     await expect(page.getByText('No results for “j19x”')).toBeVisible()
     await expect(page.getByRole('combobox')).toBeFocused()
     await page.keyboard.press('ControlOrMeta+a')
-    // A short window reaches clipped rows with fewer key round-trips; keep
-    // the same visible-selection assertion and the CI test below five seconds.
-    await page.setViewportSize({width: 1440, height: 450})
+    // A short window reaches clipped rows with fewer key round-trips.
     await page.keyboard.type('Fixture post')
     const options = page.getByRole('option')
     await expect(options).toHaveCount(20)
@@ -44,9 +42,16 @@ test('J19: keyboard only — search, open, edit, publish', async ({page}, info) 
       return row.top >= list.top && row.bottom <= list.bottom
     })).toBe(true)
     await expect(page.getByRole('combobox')).toBeFocused()
-    await page.setViewportSize({width: 1440, height: 900})
-    await page.keyboard.press('ControlOrMeta+a')
   }
+})
+
+test('J19: keyboard only — search, open, edit, publish', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto('/structure')
+  await t.settle(page)
+  await referenceHold(page, page.getByRole('link', {name: 'Post', exact: true}))
+  await page.keyboard.press('ControlOrMeta+k')
   await page.keyboard.type('post 12')
   await expect(page.getByText('Fixture post 12', {exact: true}).first()).toBeVisible()
   if (t.name === 'sanity') await page.waitForTimeout(1500) // its results settle after a refetch
