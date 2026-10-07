@@ -76,14 +76,19 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await referenceHold(page, t.field(page, 'title'), 'Fixture post 01')
 
   // Follow references 6 deep: 9 panes. Each opens to the right of the last.
+  const chainStart = await page.evaluate(() => performance.now())
   for (const [i, [field, id]] of CHAIN.entries()) {
     const from = t.pane(page, i + 2)
-    const opened = await timeToReady(page, t.refLink(from, field), `(id) => !!document.querySelector('[data-pane-index="${i + 3}"]') && location.pathname.includes(id)`, id)
+    const opened = await timeToReady(page, t.refLink(from, field), `(id) => !!document.querySelector('[data-pane-index="${i + 3}"]') && location.pathname.includes(id)`, id, 0)
     if (t.name === 'studio') expect(opened.ms, `F2 open ${id}`).toBeLessThan(100)
     const fieldName = field === 'author' ? 'name' : 'title'
     const value = field === 'author' ? 'Alan Turing' : field === 'expertise' ? 'Guide' : 'Fixture post 04'
     await referenceHold(page, t.pane(page, i + 3).locator(`[id="${fieldName}"]`), value)
   }
+  // One settling window for the whole chain; per-pane waits added 1.5 s while
+  // their CLS results went unused. Include every shift since the first click.
+  await page.waitForTimeout(300)
+  if (t.name === 'studio') expect(await page.evaluate((start) => window.__feel.shifts.filter((s) => s.t >= start).reduce((sum, s) => sum + s.v, 0), chainStart), 'F2 chain layout shift').toBe(0)
   expect(path(page)).toBe(chainUrl(6))
   // Sanity's layout at 1440 px: only the focused (last) pane stays open.
   expect(await strips(page)).toEqual([true, true, true, true, true, true, true, true, false])
@@ -110,13 +115,15 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   }
 
   // A strip opens on click; the others make room (keyboard too, on ours).
-  await t.pane(page, 3).click({position: {x: 25, y: 300}})
+  if (t.name === 'sanity') await t.pane(page, 3).locator('[data-testid="pane-header"] [tabindex="0"]').first().click()
+  else await t.pane(page, 3).click({position: {x: 25, y: 300}})
   await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, false, true, true, true, true, true])
   await referenceHold(page, t.pane(page, 3).locator('[id="name"]'), 'Alan Turing')
   if (t.name === 'studio') {
     await t.pane(page, 5).focus()
     await page.keyboard.press('Enter')
     await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, true, true, false, true, true, true])
+    await expect(t.pane(page, 5)).toBeFocused()
     await t.pane(page, 3).focus()
     await page.keyboard.press('Enter')
   }
@@ -132,4 +139,14 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await page.keyboard.press('Enter')
   await expect.poll(() => path(page), LOCAL_POLL).toBe(chainUrl(1))
   await referenceHold(page, t.pane(page, 3).locator('[id="name"]'), 'Alan Turing')
+  if (t.name === 'studio') {
+    // More strips than the viewport can fit must not clip the active editor.
+    await page.setViewportSize({width: 768, height: 900})
+    await page.goto(chainUrl(6) + chainUrl(6).slice('/structure/post;post-01'.length))
+    await expect(t.pane(page, 14)).toBeVisible()
+    await expect.poll(() => t.pane(page, 14).evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      return r.left >= 0 && r.right <= innerWidth
+    }), LOCAL_POLL).toBe(true)
+  }
 })
