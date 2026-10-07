@@ -78,6 +78,12 @@ const sanityMutate = (mutations: unknown[]) => {
 const sanity: Target = {
   name: 'sanity',
   async prepare(ctx) {
+    // Cover UI writes too, including Sanity's newer actions API. A reference
+    // accidentally built for production must never mutate it during a test.
+    await ctx.route(/\/data\/(?:mutate|actions)\//, (route) => {
+      const allowed = SANITY_DATASET !== 'production' && new URL(route.request().url()).pathname.endsWith(`/${SANITY_DATASET}`)
+      return allowed ? route.continue() : route.abort('blockedbyclient')
+    })
     await ctx.addInitScript((token) => {
       localStorage.setItem('__studio_auth_token_0ozn679s', JSON.stringify({token, time: new Date().toISOString()}))
     }, need('SANITY_TOKEN'))
