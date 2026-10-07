@@ -3,6 +3,7 @@
 ## Work
 
 - Pick a task from the board (goal `task-130be6b834d485ae`); one journey per branch.
+- `bp tasks` here opens that goal's board on guerrilla (`.barkpark.json`). Showing only this goal needs a bp built with FRIKKern/barkpark#21970.
 - Branch names: `feat/j21-pane-chain`, `fix/<what>`, `chore/<what>`, `docs/<what>`.
 - Never switch branches in the main checkout. Use a worktree:
   `git worktree add ../barkpark-studio-<name> -b feat/<name>`, remove it after merge.
