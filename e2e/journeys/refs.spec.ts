@@ -47,7 +47,10 @@ test('J08: replace the author by search, open it in the next pane; then the same
   await expect(t.field(page, 'name')).toHaveValue('Grace Hopper')
   await expect.poll(documentPath).toBe(`${t.docPath('post', ID)};author-grace`)
   await referenceHold(page, t.field(page, 'name'), 'Grace Hopper')
-  if (t.name === 'studio') expect(opened.ms, 'F2 open picked ref').toBeLessThan(100)
+  if (t.name === 'studio') {
+    expect(opened.ms, 'F2 open picked ref').toBeLessThan(100)
+    expect(opened.cls, 'F2 no late layout shift').toBe(0)
+  }
 
   // F5, same pane, keyboard only: close the author pane, then replace again and open.
   test.skip(t.name === 'sanity', 'keyboard budget is ours; Sanity drops focus to <body> after a pick')
