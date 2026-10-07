@@ -330,6 +330,10 @@ textarea.input { resize: vertical; }
 .warning { padding: 8px 12px; border-radius: 3px; background: var(--warn-bg); }
 .used-in { list-style: none; margin: 0; padding: 4px 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
 .used-in li .preview { margin: 0 4px; min-height: 41px; }
+@media (max-width: 768px) {
+  .doc-footer .icon-btn, .delete-dialog .icon-btn { width: 44px; height: 44px; }
+  .doc-footer .menu-item, .delete-dialog .btn, .delete-dialog .used-in .preview { min-height: 44px; }
+}
 .muted { color: var(--muted); }
 
 /* Dev sign-in */

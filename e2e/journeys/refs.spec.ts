@@ -225,13 +225,34 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
   await page.goto(t.docPath('author', 'author-alan'))
   await t.settle(page)
   await referenceHold(page, t.field(page, 'name'), 'Alan Turing')
+  if (t.name === 'studio') {
+    await expect(t.field(page, 'name')).toHaveValue('Alan Turing')
+    await page.route('**/_serverFn/**', (route) => route.request().method() === 'GET' ? route.abort('failed') : route.continue())
+  }
   await t.docMenu(page).click()
   await referenceHold(page, page.getByRole('menuitem', {name: 'Delete'}))
   await page.getByRole('menuitem', {name: 'Delete'}).click()
   const dialog = page.getByRole('dialog').last()
+  if (t.name === 'studio') {
+    await expect(dialog.getByRole('alert')).toContainText('Could not check where this document is used')
+    await expect(dialog.getByRole('button', {name: 'Delete now'})).toBeDisabled()
+    await page.unrouteAll({behavior: 'wait'})
+    await dialog.getByRole('button', {name: 'Retry', exact: true}).focus()
+    await page.keyboard.press('Enter')
+    await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
+  }
   await expect(dialog).toContainText('10 documents refer to “Alan Turing”')
   await expect(dialog).toContainText('Fixture post 01')
   await referenceHold(page, dialog)
+  if (t.name === 'studio') {
+    // Refuse the write before it reaches the API; a failed delete must keep focus.
+    await page.route('**/_serverFn/**', (route) => route.request().method() === 'POST' ? route.abort('failed') : route.continue())
+    await dialog.getByRole('button', {name: 'Delete anyway'}).focus()
+    await page.keyboard.press('Enter')
+    await expect(dialog.getByRole('alert')).toContainText('Could not delete')
+    await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
+    await page.unrouteAll({behavior: 'wait'})
+  }
   await dialog.getByRole('button', {name: 'Cancel'}).click()
   await expect(dialog).toBeHidden()
   await expect(t.field(page, 'name')).toHaveValue('Alan Turing')
