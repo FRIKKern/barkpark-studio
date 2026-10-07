@@ -76,14 +76,19 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await referenceHold(page, t.field(page, 'title'), 'Fixture post 01')
 
   // Follow references 6 deep: 9 panes. Each opens to the right of the last.
+  const chainStart = await page.evaluate(() => performance.now())
   for (const [i, [field, id]] of CHAIN.entries()) {
     const from = t.pane(page, i + 2)
-    const opened = await timeToReady(page, t.refLink(from, field), `(id) => !!document.querySelector('[data-pane-index="${i + 3}"]') && location.pathname.includes(id)`, id)
+    const opened = await timeToReady(page, t.refLink(from, field), `(id) => !!document.querySelector('[data-pane-index="${i + 3}"]') && location.pathname.includes(id)`, id, 0)
     if (t.name === 'studio') expect(opened.ms, `F2 open ${id}`).toBeLessThan(100)
     const fieldName = field === 'author' ? 'name' : 'title'
     const value = field === 'author' ? 'Alan Turing' : field === 'expertise' ? 'Guide' : 'Fixture post 04'
     await referenceHold(page, t.pane(page, i + 3).locator(`[id="${fieldName}"]`), value)
   }
+  // One settling window for the whole chain; per-pane waits added 1.5 s while
+  // their CLS results went unused. Include every shift since the first click.
+  await page.waitForTimeout(300)
+  if (t.name === 'studio') expect(await page.evaluate((start) => window.__feel.shifts.filter((s) => s.t >= start).reduce((sum, s) => sum + s.v, 0), chainStart), 'F2 chain layout shift').toBe(0)
   expect(path(page)).toBe(chainUrl(6))
   // Sanity's layout at 1440 px: only the focused (last) pane stays open.
   expect(await strips(page)).toEqual([true, true, true, true, true, true, true, true, false])

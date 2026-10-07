@@ -64,7 +64,7 @@ export async function typeAndMeasure(page: Page, field: Locator, text: string) {
  * moves because the user clicked is not a layout shift (hadRecentInput), and a
  * synthetic el.click() would make it look like one. Returns ms and CLS after it.
  */
-export async function timeToReady(page: Page, item: Locator, ready: string, arg: unknown) {
+export async function timeToReady(page: Page, item: Locator, ready: string, arg: unknown, settleMs = 300) {
   await page.evaluate(() => {
     const w = window as {__clickAt?: number}
     delete w.__clickAt
@@ -72,7 +72,7 @@ export async function timeToReady(page: Page, item: Locator, ready: string, arg:
   })
   await item.click()
   return page.evaluate(
-    async ({ready, arg}) => {
+    async ({ready, arg, settleMs}) => {
       const done = new Function('arg', `return (${ready})(arg)`) as (a: unknown) => boolean
       const w = window as {__clickAt?: number}
       const start = performance.now()
@@ -82,11 +82,11 @@ export async function timeToReady(page: Page, item: Locator, ready: string, arg:
       }
       const t0 = w.__clickAt ?? start
       const ms = performance.now() - t0
-      await new Promise((r) => setTimeout(r, 300)) // let late shifts land
+      if (settleMs) await new Promise((r) => setTimeout(r, settleMs)) // let late shifts land
       const shifts = window.__feel.shifts.filter((s) => s.t >= t0)
       return {ms, cls: shifts.reduce((a, s) => a + s.v, 0), shifted: shifts.map((s) => s.src).join(' | ')}
     },
-    {ready, arg},
+    {ready, arg, settleMs},
   )
 }
 
