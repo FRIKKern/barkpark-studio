@@ -75,7 +75,6 @@ STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (de
 `pnpm reference` records Sanity; `pnpm recording` records our built app against
 `e2e-local` (requires Barkpark environment variables). Both reuse J01/J02/J08/J17/
 J19/J21/J22/J23 with two-second holds after content is ready. Reports and WebM clips
-live under `e2e/evidence/{reference,studio}/<run>/`. Install the target dependencies
-and `pnpm --dir e2e exec playwright install ffmpeg`. Reference auth uses
-`pnpm --dir reference/sanity exec sanity login` or `SANITY_TOKEN`; CLI credentials
-stay in memory. Link reviewed clips to tasks; recording alone is not sign-off.
+live under `e2e/evidence/{reference,studio}/<run>/`. Install dependencies and `pnpm --dir e2e exec playwright install ffmpeg`. Reference auth uses
+`pnpm --dir reference/sanity exec sanity login` or `SANITY_TOKEN`; credentials stay in memory.
+Link reviewed clips to tasks; recording alone is not sign-off.
