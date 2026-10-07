@@ -325,7 +325,11 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
           />
         ))}
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
-        {!query && page?.hasMore && limit >= LIST_MAX && <p className="list-max">Displaying a maximum of {LIST_MAX} documents</p>}
+        {!query && page?.hasMore && limit >= LIST_MAX && (
+          listQ.isPlaceholderData
+            ? <p className="list-max" role="status" aria-busy="true">Loading more documents…</p>
+            : <p className="list-max">Displaying a maximum of {LIST_MAX} documents</p>
+        )}
       </div>
     </section>
   )
