@@ -92,10 +92,11 @@ if (typeof window !== 'undefined') {
     waiting.clear()
     go.forEach((f) => f())
   })
-  // Leaving while offline with edits not sent would lose them (the unload beacon
-  // can't go out either): the browser asks first.
+  // Offline edits and an unconfirmed create (including its parent reference)
+  // cannot safely finish on unload: the browser asks before losing them.
   addEventListener('beforeunload', (ev) => {
-    if (online() || ![...docs.values()].some((d) => d.dirty.size || d.inflight || d.createRequested)) return
+    const pending = [...docs.values()]
+    if (!pending.some((d) => d.createRequested) && (online() || !pending.some((d) => d.dirty.size || d.inflight))) return
     ev.preventDefault()
     ev.returnValue = ''
   })
@@ -230,6 +231,7 @@ export function flush(qc: QueryClient, id: string) {
 /** Page is going away: hand every unsent change to the browser to deliver. */
 export function flushOnUnload() {
   const mutations = [...docs].flatMap(([id, e]) => {
+    if (e.snap.state === 'signedOut' || e.snap.state === 'refused') return []
     if (e.dirty.size === 0 && (!e.createRequested || e.inflight)) return []
     const {set, unset} = toPatch(e.dirty)
     return [e.pendingCreate ? {create: {_id: id, _type: e.type, ...applyPaths(e.pendingCreate as Record<string, Json>, e.dirty)}} : {patch: {id, type: e.type, set, unset}}]

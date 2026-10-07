@@ -147,7 +147,11 @@ test('J22: create a new author from the reference field, edit it in the next pan
     if (t.name === 'studio') await page.context().setOffline(false)
     await expect(t.refLink(pane, 'author')).toContainText('Barbara Liskov II', {timeout: 10_000})
     await expect.poll(() => t.docValue(id!, 'name', 'author').catch(() => undefined)).toBe('Barbara Liskov II')
-    await expect.poll(() => t.docValue(ID, 'author')).toEqual(t.ref(id!))
+    await expect.poll(async () => {
+      const value = await t.docValue(ID, 'author')
+      // Sanity adds weak/strengthen-on-publish metadata for a new draft.
+      return typeof value === 'string' ? value : (value as {_ref?: string} | null)?._ref
+     }).toBe(id)
     await referenceHold(page, name, 'Barbara Liskov II')
   } finally {
     release?.()
