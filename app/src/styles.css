@@ -276,6 +276,7 @@ textarea.input { resize: vertical; }
 .btn-create:hover, .btn-square:hover { background: var(--hover); }
 .ref-search { flex-wrap: wrap; }
 @media (max-width: 768px) {
+  .doc-form input.input { min-height: 44px; }
   .ref-row .icon-btn, .ref-search .icon-btn, .ref-search .btn-square { width: 44px; height: 44px; flex-shrink: 0; }
   .ref-search .input, .ref-search .btn, .ref-search .btn-create, .ref-row .menu-item, .ref-search .menu-item { min-height: 44px; }
   .ref-search .combo { min-width: 0; }

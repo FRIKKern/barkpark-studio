@@ -102,25 +102,58 @@ test('J22: create a new author from the reference field, edit it in the next pan
   await page.keyboard.type('Barbara Liskov')
   await referenceHold(page, pane.getByRole('button', {name: /^Create$/}).last())
 
-  const opened = await timeToReady(
-    page,
-    pane.getByRole('button', {name: /^Create$/}).last(),
-    `() => !!document.querySelector('[data-pane-index="3"] [id="name"]')`,
-    null,
-  )
-  const id = decodeURIComponent(page.url()).match(/;([0-9a-f-]{36}),[^;]*parentRefPath=author/)?.[1]
-  expect(id, 'new doc id in the URL').toBeTruthy()
-  created.push(id!)
-  if (t.name === 'studio') expect(opened.ms, 'F2 new doc pane').toBeLessThan(100)
+  // A create interrupted by an offline blip must retry as a create, preserve
+  // typing in its optimistic pane, and only then set the parent's reference.
+  let release: (() => void) | undefined
+  let held = false
+  if (t.name === 'studio') {
+    const pending = new Promise<void>((resolve) => { release = resolve })
+    await page.route('**/_serverFn/**', async (route) => {
+      if (!held && route.request().method() === 'POST' && route.request().postData()?.includes('"create"')) {
+        held = true
+        await pending
+        await route.abort('failed')
+      } else await route.continue()
+    })
+  }
 
-  // Name it in the new pane; the parent's reference follows.
-  const name = t.field(page, 'name')
-  await referenceHold(page, name)
-  await name.click()
-  await page.keyboard.press('ControlOrMeta+a')
-  await page.keyboard.type('Barbara Liskov')
-  await expect(t.refLink(pane, 'author')).toContainText('Barbara Liskov', {timeout: 10_000})
-  await referenceHold(page, name, 'Barbara Liskov')
+  try {
+    const opened = await timeToReady(
+      page,
+      pane.getByRole('button', {name: /^Create$/}).last(),
+      `() => !!document.querySelector('[data-pane-index="3"] [id="name"]')`,
+      null,
+    )
+    const id = decodeURIComponent(page.url()).match(/;([0-9a-f-]{36}),[^;]*parentRefPath=author/)?.[1]
+    expect(id, 'new doc id in the URL').toBeTruthy()
+    created.push(id!)
+    if (t.name === 'studio') {
+      expect(opened.ms, 'F2 new doc pane').toBeLessThan(100)
+      expect(opened.cls, 'F2 no late layout shift').toBe(0)
+      await expect.poll(() => held).toBe(true)
+      await page.context().setOffline(true)
+      release!()
+      await page.unrouteAll({behavior: 'wait'})
+      await expect(t.pane(page, 3)).toContainText('Offline — not saving')
+      expect(await t.docValue(ID, 'author'), 'no reference before creation').toEqual(t.ref('author-alan'))
+    }
+
+    // Name it in the new pane; the parent's reference follows.
+    const name = t.field(page, 'name')
+    await referenceHold(page, name)
+    await name.click()
+    await page.keyboard.press('ControlOrMeta+a')
+    await page.keyboard.type('Barbara Liskov II')
+    if (t.name === 'studio') await page.context().setOffline(false)
+    await expect(t.refLink(pane, 'author')).toContainText('Barbara Liskov II', {timeout: 10_000})
+    await expect.poll(() => t.docValue(id!, 'name', 'author').catch(() => undefined)).toBe('Barbara Liskov II')
+    await expect.poll(() => t.docValue(ID, 'author')).toEqual(t.ref(id!))
+    await referenceHold(page, name, 'Barbara Liskov II')
+  } finally {
+    release?.()
+    await page.context().setOffline(false)
+    await page.unrouteAll({behavior: 'ignoreErrors'})
+  }
 })
 
 test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd browser', async ({browser}, info) => {
