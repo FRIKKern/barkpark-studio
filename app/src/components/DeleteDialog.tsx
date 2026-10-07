@@ -87,6 +87,8 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
             className="btn danger"
             disabled={busy || isPending || isFetching || isError || fetchStatus === 'paused'}
             onClick={async () => {
+              // Disabling the focused Delete button would drop focus onto the page.
+              cancel.current?.focus()
               setBusy(true)
               setError(undefined)
               try {
