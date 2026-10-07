@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 3 changes, 8 tasks closed
+- **Today** · 4 changes, 8 tasks closed
+  - Restore document tab titles and show recoverable missing deep links ([#102](https://github.com/FRIKKern/barkpark-studio/pull/102))
   - Fix list loading, search-result opening and narrow touch targets ([#101](https://github.com/FRIKKern/barkpark-studio/pull/101))
   - Measure concurrent editing and retain revision-checked merging ([#100](https://github.com/FRIKKern/barkpark-studio/pull/100))
-  - Record paired Studio journeys and prevent false-positive author picks ([#99](https://github.com/FRIKKern/barkpark-studio/pull/99))
 - **Yesterday** · 69 changes, 18 tasks closed
   - D10: Norwegian letters, dead keys and IME type correctly in the canvas; a 500-block doc keeps F1 ([#98](https://github.com/FRIKKern/barkpark-studio/pull/98))
   - D07: paste or drop a picture into the canvas — uploaded to Barkpark media, uploading badge, failure on the block ([#97](https://github.com/FRIKKern/barkpark-studio/pull/97))
