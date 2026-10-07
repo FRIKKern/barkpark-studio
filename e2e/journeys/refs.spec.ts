@@ -47,7 +47,10 @@ test('J08: replace the author by search, open it in the next pane; then the same
   await expect(t.field(page, 'name')).toHaveValue('Grace Hopper')
   await expect.poll(documentPath).toBe(`${t.docPath('post', ID)};author-grace`)
   await referenceHold(page, t.field(page, 'name'), 'Grace Hopper')
-  if (t.name === 'studio') expect(opened.ms, 'F2 open picked ref').toBeLessThan(100)
+  if (t.name === 'studio') {
+    expect(opened.ms, 'F2 open picked ref').toBeLessThan(100)
+    expect(opened.cls, 'F2 no late layout shift').toBe(0)
+  }
 
   // F5, same pane, keyboard only: close the author pane, then replace again and open.
   test.skip(t.name === 'sanity', 'keyboard budget is ours; Sanity drops focus to <body> after a pick')
@@ -55,8 +58,29 @@ test('J08: replace the author by search, open it in the next pane; then the same
   await expect(page.locator('[data-pane-index]')).toHaveCount(3)
   await t.refMenu(pane, 'author').focus()
   for (const key of ['Enter', 'ArrowDown', 'Enter']) await page.keyboard.press(key) // menu → Replace
-  await page.keyboard.press('ControlOrMeta+a')
-  await page.keyboard.type('ada')
+  await expect(page.getByRole('option', {name: /Grace Hopper/})).toBeVisible()
+  // A new query must not leave the old author selectable while the response is
+  // pending. ArrowDown on the empty result set must still allow the first hit.
+  let resume!: () => void
+  const pending = new Promise<void>((r) => { resume = r })
+  let held = false
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'GET') { held = true; await pending }
+    await route.continue()
+  })
+  try {
+    await page.keyboard.press('ControlOrMeta+a')
+    await page.keyboard.type('ada')
+    await expect.poll(() => held).toBe(true)
+    await expect(page.getByRole('status').filter({hasText: 'Searching…'})).toBeVisible()
+    await expect(page.getByRole('option')).toHaveCount(0)
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Enter')
+    await expect(t.field(page, 'author')).toBeFocused()
+  } finally {
+    resume()
+    await page.unrouteAll({behavior: 'wait'})
+  }
   await expect(page.getByRole('option', {name: /Ada Lovelace/})).toBeVisible()
   await page.keyboard.press('Enter') // pick; focus lands on the new preview
   await page.keyboard.press('Enter') // open it

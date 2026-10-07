@@ -61,8 +61,8 @@ docs/                roadmap, decisions (one page each)
 ## Run it
 
 ```sh
-cd reference/sanity && pnpm dev                 # the bar, http://localhost:3333
-npx sanity dataset import ../../fixtures/seed.ndjson production --replace   # reset its data
+cd reference/sanity && SANITY_STUDIO_DATASET=e2e-local pnpm dev # reference, :3333; use this env for e2e too
+pnpm exec sanity dataset import ../../fixtures/seed.ndjson --dataset e2e-local # seed isolated reference; never reset production
 cp .env.example .env                            # BARKPARK_TOKEN (+ SANITY_TOKEN to verify the reference)
 node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify Barkpark studio-parity (--verify: check only)
 cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
