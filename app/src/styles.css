@@ -151,6 +151,15 @@ a { color: inherit; text-decoration: none; }
 .type-row[aria-current='true'] { background: var(--selected); color: var(--on-selected); }
 .type-row[aria-current='true'] .chev { color: var(--on-selected); }
 
+/* J01: type/list navigation stays comfortable to tap on phones and tablets. */
+@media (max-width: 768px) {
+  .type-row { height: 44px; }
+  .pane.list .pane-header .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
+  .pane.list .search input { min-height: 44px; padding-right: 46px; }
+  .pane.list .search .search-icon { top: 50%; transform: translateY(-50%); }
+  .pane.list .search-clear { width: 44px; height: 44px; top: 0; }
+}
+
 /* Document previews (list rows and reference values) */
 .preview {
   display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 3px; min-height: 49px; margin-bottom: 4px;
