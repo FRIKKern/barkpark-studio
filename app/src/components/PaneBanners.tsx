@@ -3,7 +3,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, type Doc} from '../lib/data'
 import {historyQuery, restoreRevision} from '../lib/history'
-import {applyServer} from '../lib/edits'
+import {applyServer, useSaveState} from '../lib/edits'
 import {openAfter, type Pane} from '../lib/panes'
 import {toast} from './Toasts'
 
@@ -77,8 +77,14 @@ export function ReferenceBanner({panes, index, closeHref}: {panes: Pane[]; index
   const pane = panes[index] as Extract<Pane, {kind: 'doc'}>
   const parent = panes[index - 1]
   const parentDoc = parent?.kind === 'doc' ? parent : undefined
+  const {creating, state} = useSaveState(pane.id)
   const {data: doc} = useQuery({...docQuery(parentDoc?.type ?? '', parentDoc?.id ?? ''), enabled: !!parentDoc && !!pane.parentRefPath})
   if (!parentDoc || !pane.parentRefPath || !doc) return null
+  if (creating) return (
+    <div className="pane-banner" role={state === 'error' ? 'alert' : 'status'}>
+      <span>{state === 'error' ? 'Could not create the document. Retrying…' : 'This document has not been created yet. Your edits are kept here.'}</span>
+    </div>
+  )
   const now = refId(valueAtRefPath(doc, pane.parentRefPath))
   if (now === pane.id) return null
   if (!now)

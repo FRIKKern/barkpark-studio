@@ -1,15 +1,23 @@
-import {useEffect, useId, useLayoutEffect, useRef, useState} from 'react'
+import {useContext, useEffect, useId, useLayoutEffect, useRef, useState} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {docQuery, previewTitle, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
+import {docQuery, previewTitle, refId, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
 import {createDoc} from '../lib/edits'
 import {focusFirstField} from '../lib/focus'
 import {Add, ChevronDown, Close, Ellipsis, HelpCircle} from './icons'
 import {DocPreview} from './Preview'
+import {DocIdContext} from './Fields'
+import {valueAtRefPath} from './PaneBanners'
+
+// Survives collapsed parent panes. Only the latest creation for a field may set
+// its reference; picking/clearing it meanwhile cancels that pending assignment.
+const creatingReferences = new Map<string, symbol>()
 
 type Props = {
   id: string
+  /** Stable keyed path when the input id is an array index. */
+  referencePath?: string
   /** Target types; more than one adds a type badge to results and a type menu to Create. */
   types: string[]
   /** Only docs matching this show up in search (Sanity's `options.filter`). */
@@ -26,7 +34,9 @@ type Props = {
  * "…" menu (Clear / Replace / Open in new tab); empty or replacing, a combobox
  * that searches the referenced type. Keyboard: arrows move, Enter picks, Esc cancels.
  */
-export function RefInput({id, types, filter, value: outer, invalid, onChange, linkFor}: Props) {
+export function RefInput({id, referencePath = id, types, filter, value: outer, invalid, onChange, linkFor}: Props) {
+  const parentId = useContext(DocIdContext)
+  const creationKey = JSON.stringify([parentId, referencePath])
   // Show a pick at once; the cache (and so `outer`) catches up a tick later.
   const [value, setValue] = useState(outer)
   const [seen, setSeen] = useState(outer)
@@ -50,11 +60,11 @@ export function RefInput({id, types, filter, value: outer, invalid, onChange, li
   const qc = useQueryClient()
   const navigate = useNavigate()
   const {data: schemas = []} = useQuery(schemasQuery)
-  const [createError, setCreateError] = useState<string>()
   // null: the id points at no doc (deleted, or never there).
   const {data: target} = useQuery({...docQuery(types, value ?? ''), enabled: !!value})
   const targetType = target?._type ?? types[0]
   const change = (v: string | undefined) => {
+    creatingReferences.delete(creationKey)
     setValue(v)
     setSearching(!v)
     onChange(v)
@@ -93,22 +103,23 @@ export function RefInput({id, types, filter, value: outer, invalid, onChange, li
         const schema = schemaOf(schemas, refType)
         const titleField = schema?.listPreview?.title ?? (schema?.fields.some((f) => f.name === 'title') ? 'title' : 'name')
         const newId = crypto.randomUUID()
+        const choice = Symbol()
+        creatingReferences.set(creationKey, choice)
         const created = createDoc(qc, refType, newId, q ? {[titleField]: q} : {})
         setValue(newId)
         setSearching(false)
-        setCreateError(undefined)
         void navigate({href: linkFor(newId, refType).href})
         focusFirstField(newId)
-        try {
-          await created
-          onChange(newId)
-        } catch (err) {
-          setValue(outer)
-          setSearching(!outer)
-          setCreateError((err as Error).message)
+        await created
+        if (creatingReferences.get(creationKey) === choice) {
+          creatingReferences.delete(creationKey)
+          // A remote edit or a remounted parent's newer choice must win too.
+          const parent = qc.getQueryData<Doc>(['doc', parentId])
+          const current = valueAtRefPath(parent, referencePath)
+          const removedRow = referencePath.includes('[') && current === undefined
+          if (parent && !removedRow && refId(current) === outer) onChange(newId)
         }
       }}
-      error={createError}
     />
   )
 }
@@ -139,10 +150,9 @@ type SearchProps = {
   onPick: (id: string) => void
   onCancel?: () => void
   onCreate: (q: string, type: string) => void
-  error?: string
 }
 
-function RefSearch({id, types, filter, current, autoFocus, onPick, onCancel, onCreate, error}: SearchProps) {
+function RefSearch({id, types, filter, current, autoFocus, onPick, onCancel, onCreate}: SearchProps) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: currentDoc} = useQuery({...docQuery(types, current ?? ''), enabled: !!current})
   const [q, setQ] = useState(() => (currentDoc ? previewTitle(currentDoc, schemaOf(schemas, currentDoc._type)) : ''))
@@ -232,11 +242,6 @@ function RefSearch({id, types, filter, current, autoFocus, onPick, onCancel, onC
           <Add />
           Create
         </button>
-      )}
-      {error && (
-        <p className="field-error" role="alert">
-          Could not create: {error}
-        </p>
       )}
       {open && results.length > 0 && (
         <div className="popover options" role="listbox" id={listId}>
