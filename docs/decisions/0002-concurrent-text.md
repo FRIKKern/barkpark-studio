@@ -22,8 +22,8 @@ Preservation requires convergence and all input characters; Studio also checks p
 
 Local controls share 200 ms debounce + 100 ms simulated fanout, not live-backend latency predictions.
 Studio uses Guerrilla, an isolated test dataset,
-and repeated burst traffic. Tail latency fails the quality target; its cause was
-not isolated here. This matrix does not certify overlapping deletion, undo or IME.
+and repeated burst traffic. Preview logs recorded repeated HTTP 429 write retries;
+per-trial attribution is unavailable. This matrix does not certify overlapping deletion, undo or IME.
 
 ## Consequences and server work
 
