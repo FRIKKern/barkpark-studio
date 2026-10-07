@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import {expect, test, type Page} from '@playwright/test'
 import {installProbes, networkBudget, timeToReady} from '../rig/feel'
 import {target} from '../rig/targets'
+import {referenceHold} from '../rig/reference'
 
 // Crown slice, one spec for both studios: J01 (list), J02 (deep URL restore),
 // J21 (endless pane chain). The same steps run against reference/sanity and ours,
@@ -43,14 +44,17 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   if (t.name === 'studio') await expect(page.locator('a[href^="/structure/post;"]')).toHaveCount(30)
   else await expect(t.listItem(page, 'post-02')).toBeVisible()
   const coldMs = Date.now() - t0
+  await referenceHold(page, t.listItem(page, 'post-02'))
 
   const open = await timeToReady(page, t.listItem(page, 'post-02'), `(w) => document.getElementById('title')?.value === w`, 'Fixture post 02')
   expect(path(page)).toBe('/structure/post;post-02')
   await expect(t.listItem(page, 'post-02')).toHaveAttribute('data-selected')
+  await referenceHold(page, t.field(page, 'title'), 'Fixture post 02')
 
   await page.reload()
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 02')
   expect(await strips(page)).toEqual([false, false, false])
+  await referenceHold(page, t.field(page, 'title'), 'Fixture post 02')
 
   if (t.name === 'studio') {
     expect(coldMs, 'F3 cold load to usable list').toBeLessThan(networkBudget(1500))
@@ -67,12 +71,16 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await page.goto('/structure/post;post-01')
   await t.settle(page)
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 01')
+  await referenceHold(page, t.field(page, 'title'), 'Fixture post 01')
 
   // Follow references 6 deep: 9 panes. Each opens to the right of the last.
   for (const [i, [field, id]] of CHAIN.entries()) {
     const from = t.pane(page, i + 2)
     const opened = await timeToReady(page, t.refLink(from, field), `(id) => !!document.querySelector('[data-pane-index="${i + 3}"]') && location.pathname.includes(id)`, id)
     if (t.name === 'studio') expect(opened.ms, `F2 open ${id}`).toBeLessThan(100)
+    const fieldName = field === 'author' ? 'name' : 'title'
+    const value = field === 'author' ? 'Alan Turing' : field === 'expertise' ? 'Guide' : 'Fixture post 04'
+    await referenceHold(page, t.pane(page, i + 3).locator(`[id="${fieldName}"]`), value)
   }
   expect(path(page)).toBe(chainUrl(6))
   // Sanity's layout at 1440 px: only the focused (last) pane stays open.
@@ -83,15 +91,26 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await page.goBack()
   await expect.poll(() => path(page), LOCAL_POLL).toBe(chainUrl(5))
   await expect(page.locator('[data-pane-index]')).toHaveCount(8)
+  await referenceHold(page, t.pane(page, 7).locator('[id="title"]'), 'Guide')
   await page.goForward()
   await expect.poll(() => path(page), LOCAL_POLL).toBe(chainUrl(6))
+  await referenceHold(page, t.pane(page, 8).locator('[id="title"]'), 'Fixture post 04')
   await page.reload()
   await expect(page.locator('[data-pane-index]')).toHaveCount(9)
-  expect(await strips(page)).toEqual([true, true, true, true, true, true, true, true, false])
+  // The reference mounts all nine loading panes before restoring their layout.
+  if (process.env.RECORDING_RUN_ID && t.name === 'sanity') {
+    await referenceHold(page, page.locator('[data-pane-index]:not([data-pane-collapsed])').locator('input[id="title"], input[id="name"]').last())
+    // Keep a reference mismatch red in the report, but record the remaining
+    // actions too so reviewers can see the actual behavior after a reload.
+    expect.soft(await strips(page), 'Reference layout after reload').toEqual([true, true, true, true, true, true, true, true, false])
+  } else {
+    await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, true, true, true, true, true, false])
+  }
 
   // A strip opens on click; the others make room (keyboard too, on ours).
   await t.pane(page, 3).click({position: {x: 25, y: 300}})
   await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, false, true, true, true, true, true])
+  await referenceHold(page, t.pane(page, 3).locator('[id="name"]'), 'Alan Turing')
   if (t.name === 'studio') {
     await t.pane(page, 5).focus()
     await page.keyboard.press('Enter')
@@ -104,9 +123,11 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await t.closeButton(t.pane(page, 3)).click()
   await expect.poll(() => path(page), LOCAL_POLL).toBe('/structure/post;post-01')
   await expect(page.locator('[data-pane-index]')).toHaveCount(3)
+  await referenceHold(page, t.pane(page, 2).locator('[id="title"]'), 'Fixture post 01')
 
   // F5: a reference opens from the keyboard.
   await t.refLink(t.pane(page, 2), 'author').focus()
   await page.keyboard.press('Enter')
   await expect.poll(() => path(page), LOCAL_POLL).toBe(chainUrl(1))
+  await referenceHold(page, t.pane(page, 3).locator('[id="name"]'), 'Alan Turing')
 })
