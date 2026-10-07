@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes, 8 tasks closed
+- **Today** · 9 changes, 8 tasks closed
+  - fix(j23): keep reference subtitles live in list panes ([#109](https://github.com/FRIKKern/barkpark-studio/pull/109))
+  - Remove title from README.md
   - fix(J22): recover reference creation without losing edits ([#107](https://github.com/FRIKKern/barkpark-studio/pull/107))
-  - fix(J08): keep reference selection current and recoverable ([#105](https://github.com/FRIKKern/barkpark-studio/pull/105))
-  - Keep long pane chains visible and preserve keyboard focus ([#103](https://github.com/FRIKKern/barkpark-studio/pull/103))
 - **Yesterday** · 69 changes, 18 tasks closed
   - D10: Norwegian letters, dead keys and IME type correctly in the canvas; a 500-block doc keeps F1 ([#98](https://github.com/FRIKKern/barkpark-studio/pull/98))
   - D07: paste or drop a picture into the canvas — uploaded to Barkpark media, uploading badge, failure on the block ([#97](https://github.com/FRIKKern/barkpark-studio/pull/97))
