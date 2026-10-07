@@ -13,11 +13,11 @@ export default defineConfig({
   globalSetup: undefined,
   globalTimeout: 0,
   retries: 0,
-  timeout: 60_000,
+  timeout: 180_000,
   outputDir: `${output}/results`,
   preserveOutput: 'always',
   reporter: [['list'], ['html', {outputFolder: `${output}/report`, open: 'never'}]],
-  use: {...base.use, video: 'on'},
+  use: {...base.use, video: 'on', launchOptions: {slowMo: 250}},
   projects: [{name: 'sanity', use: {baseURL: `http://localhost:${port}`}}],
   webServer: [{
     command: `pnpm --dir ../reference/sanity dev --port ${port}`,

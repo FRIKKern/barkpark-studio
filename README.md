@@ -69,7 +69,8 @@ STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (de
 ```
 
 Reference recordings reuse J08/J17/J21/J22/J23 and save WebM clips plus an HTML
-report under `e2e/evidence/reference/<run>/`. Install the reference dependencies
+report with 250 ms action pacing and two-second holds after content is ready.
+Files live under `e2e/evidence/reference/<run>/`. Install the reference dependencies
 and run `pnpm --dir e2e exec playwright install ffmpeg` first. Sign in with
 `pnpm --dir reference/sanity exec sanity login`; an explicit `SANITY_TOKEN` also works.
 The CLI login is passed in memory; it is never printed or copied to `.env`. Link the reviewed
