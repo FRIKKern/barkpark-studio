@@ -9,7 +9,7 @@ export default defineConfig({
   title: 'barkpark-studio-reference',
 
   projectId: '0ozn679s',
-  dataset: 'production',
+  dataset: process.env.SANITY_STUDIO_DATASET || 'production',
 
   plugins: [structureTool({defaultDocumentNode}), visionTool()],
 

@@ -275,6 +275,14 @@ textarea.input { resize: vertical; }
 .btn-create { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 4px; height: 35px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); font: inherit; font-size: 13px; font-weight: 500; color: var(--fg); cursor: pointer; }
 .btn-create:hover, .btn-square:hover { background: var(--hover); }
 .ref-search { flex-wrap: wrap; }
+@media (max-width: 768px) {
+  .ref-row .icon-btn, .ref-search .icon-btn, .ref-search .btn-square { width: 44px; height: 44px; flex-shrink: 0; }
+  .ref-search .input, .ref-search .btn-create, .ref-row .menu-item, .ref-search .menu-item { min-height: 44px; }
+  .ref-search .combo { min-width: 0; }
+  .ref-search .combo .input { padding-right: 44px; }
+  .ref-search .combo .in-input { top: 0; right: 0; }
+  .ref-search .popover.options { top: 48px; }
+}
 .field-error { flex-basis: 100%; margin: 4px 0 0; font-size: 13px; color: var(--danger-text); }
 .chip[data-off] { color: var(--disabled); }
 .chip[data-off] .dot { background: var(--line-strong); }
