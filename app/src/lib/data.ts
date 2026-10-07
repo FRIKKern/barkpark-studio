@@ -2,9 +2,10 @@ import {queryOptions, type QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
 import {bpFetch, dataset} from '../server/barkpark'
-import {readSchemas} from '../server/schemas'
+import {readDesk, readSchemas} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
+import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -69,8 +70,14 @@ const ORDER: Record<ListOrder, string> = {updated: '_updatedAt:desc', created: '
 /** One loaded list: its rows, and whether the server holds more. */
 export type ListPage = {docs: Doc[]; hasMore: boolean}
 
+/** A desk list's filter as query parameters (B12): `is: null` and the other ops pass through as Barkpark reads them. */
+const filterParams = (filter?: DeskFilter) =>
+  Object.entries(filter ?? {})
+    .flatMap(([field, ops]) => Object.entries(ops).map(([op, v]) => `&filter[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(String(v))}`))
+    .join('')
+
 const fetchList = createServerFn({method: 'GET'})
-  .validator((d: {type: string; published?: boolean; limit?: number; order?: ListOrder}) => d)
+  .validator((d: {type: string; published?: boolean; limit?: number; order?: ListOrder; filter?: DeskFilter}) => d)
   .handler(async ({data}) => {
     const limit = Math.min(data.limit ?? LIST_PAGE, LIST_MAX)
     const docs: Doc[] = []
@@ -78,7 +85,7 @@ const fetchList = createServerFn({method: 'GET'})
     // Barkpark serves at most 1000 rows a request.
     while (hasMore && docs.length < limit) {
       const r = await bpJson<{result: {documents: Doc[]; hasMore: boolean}}>(
-        `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=${ORDER[data.order ?? 'updated']}&limit=${Math.min(limit - docs.length, 1000)}&offset=${docs.length}&perspective=${data.published ? 'published' : 'drafts'}`,
+        `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=${ORDER[data.order ?? 'updated']}&limit=${Math.min(limit - docs.length, 1000)}&offset=${docs.length}&perspective=${data.published ? 'published' : 'drafts'}${filterParams(data.filter)}`,
       )
       docs.push(...r.result.documents)
       hasMore = r.result.hasMore
@@ -213,13 +220,26 @@ export const fetchViewportHint = createServerFn({method: 'GET'}).handler(async (
 
 export const schemasQuery = queryOptions({queryKey: ['schemas'], queryFn: async () => (await fetchSchemas()) as unknown as Schema[], staleTime: Infinity})
 
-export const listQuery = (type: string, order: ListOrder = 'updated', limit = LIST_PAGE) =>
+const fetchDesk = createServerFn({method: 'GET'}).handler(async () => (await readDesk()) as Json)
+
+/** B12: the workspace's declared desk, or null for the plain type list. */
+export const deskQuery = queryOptions({
+  queryKey: ['desk'],
+  staleTime: Infinity,
+  queryFn: async (): Promise<DeskNode | null> => {
+    const raw = await fetchDesk()
+    return raw ? normalizeDesk(raw) : null
+  },
+})
+
+export const listQuery = (type: string, order: ListOrder = 'updated', limit = LIST_PAGE, filter?: DeskFilter) =>
   queryOptions({
-    queryKey: ['list', type, order, limit],
+    // The filter goes last and only when set, so ['list', type] still names every list of a type.
+    queryKey: filter ? ['list', type, order, limit, filter] : ['list', type, order, limit],
     staleTime: 30_000,
     ...paneRetry,
     queryFn: async ({client}) => {
-      const page = (await fetchList({data: {type, order, limit}})) as unknown as ListPage
+      const page = (await fetchList({data: {type, order, limit, filter}})) as unknown as ListPage
       // A list row already holds the whole doc: opening it needs no second request.
       for (const d of page.docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
       return page
@@ -227,13 +247,13 @@ export const listQuery = (type: string, order: ListOrder = 'updated', limit = LI
   })
 
 /** The list as the Published perspective shows it: published versions only. */
-export const publishedListQuery = (type: string, order: ListOrder = 'updated', limit = LIST_PAGE) =>
+export const publishedListQuery = (type: string, order: ListOrder = 'updated', limit = LIST_PAGE, filter?: DeskFilter) =>
   queryOptions({
-    queryKey: ['list-published', type, order, limit],
+    queryKey: filter ? ['list-published', type, order, limit, filter] : ['list-published', type, order, limit],
     staleTime: 30_000,
     ...paneRetry,
     queryFn: async ({client}) => {
-      const page = (await fetchList({data: {type, published: true, order, limit}})) as unknown as ListPage
+      const page = (await fetchList({data: {type, published: true, order, limit, filter}})) as unknown as ListPage
       for (const d of page.docs) client.setQueryData(['doc-published', d._publishedId], d)
       return page
     },

@@ -2,9 +2,10 @@ import {useContext, useEffect, useLayoutEffect, useMemo, useRef, useState} from 
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {docQuery, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {deskQuery, docQuery, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {deskIndex, deskSort, listFilter, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
-import {DEFAULT_SORT, DEFAULT_VIEW, useListPrefs, type Sort, type View} from '../lib/list-prefs'
+import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
 import {collapsed, NARROW, NarrowContext} from '../lib/layout'
 import {useLive} from '../lib/live'
 import {createDoc, draftNew, flushOnUnload} from '../lib/edits'
@@ -106,8 +107,17 @@ function BackLink({panes, index}: {panes: Pane[]; index: number}) {
   )
 }
 
+/** B12: a desk node by id, when the workspace has a declared desk. */
+function useDeskNode(id: string | undefined): DeskNode | undefined {
+  const {data: desk} = useQuery(deskQuery)
+  const index = useMemo(() => (desk ? deskIndex(desk) : undefined), [desk])
+  return id ? index?.get(id) : undefined
+}
+
 function usePaneTitle(pane: Pane) {
   const {data: schemas = []} = useQuery(schemasQuery)
+  const node = useDeskNode(pane.kind === 'types' ? undefined : pane.node)
+  const {data: treeParent} = useQuery({...docQuery(pane.kind === 'list' ? pane.type : '', pane.kind === 'list' ? pane.treeParent ?? '' : ''), enabled: pane.kind === 'list' && !!pane.treeParent})
   const published = usePublishedPerspective()
   const id = pane.kind === 'doc' ? pane.id : ''
   const type = pane.kind === 'doc' ? pane.type : ''
@@ -115,8 +125,12 @@ function usePaneTitle(pane: Pane) {
   const {data: live} = useQuery({...publishedQuery(type, id), enabled: pane.kind === 'doc' && published})
   const doc = published ? live : draft
   if (pane.kind === 'types') return 'Content'
-  if (pane.kind === 'list') return schemaOf(schemas, pane.type)?.title ?? pane.type
+  if (pane.kind === 'menu') return node?.title ?? pane.node
+  if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type))
+  if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? pane.type
   const schema = schemaOf(schemas, pane.type)
+  // A desk singleton is named by its desk row (Sanity's S.document().title()).
+  if (pane.node && node?.title) return node.title
   return doc && schema ? docTitle(doc, schema) : previewTitle(doc, schema)
 }
 
@@ -144,8 +158,9 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   // e2e probe (J50): this pane throws while rendering, as a bug would.
   if ((globalThis as {__crashPane?: string}).__crashPane === paneKey(pane)) throw new Error(`e2e probe: ${paneKey(pane)} crashed`)
   const next = panes[index + 1]
-  if (pane.kind === 'types') return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.type : undefined} />
-  if (pane.kind === 'list') return <ListPane panes={panes} index={index} type={pane.type} selected={next?.kind === 'doc' ? next.id : undefined} />
+  if (pane.kind === 'types' || pane.kind === 'menu') return <RootPane panes={panes} index={index} />
+  if (pane.kind === 'list')
+    return <ListPane panes={panes} index={index} type={pane.type} node={pane.node} treeParent={pane.treeParent} selected={next?.kind === 'doc' ? next.id : next?.kind === 'list' ? next.treeParent : undefined} />
   return (
     <DocumentPane
       panes={panes}
@@ -165,6 +180,56 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
 
 function PaneTitle({pane}: {pane: Pane}) {
   return <span className="title">{usePaneTitle(pane)}</span>
+}
+
+/** The first pane, and a nested desk list: the declared desk's items, or the plain type list. */
+function RootPane({panes, index}: {panes: Pane[]; index: number}) {
+  const {data: desk} = useQuery(deskQuery)
+  const pane = panes[index]
+  const menu = useDeskNode(pane.kind === 'menu' ? pane.node : undefined)
+  const next = panes[index + 1]
+  if (!desk) return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.type : undefined} />
+  return <DeskPane panes={panes} index={index} node={pane.kind === 'menu' ? menu : desk} />
+}
+
+/** The pane a desk node opens: one of its rows. */
+function opens(item: DeskNode): Pane | undefined {
+  if (item.type === 'list') return {kind: 'menu', node: item.id}
+  if (item.type === 'document') return {kind: 'doc', id: item.docId ?? item.id, type: item.typeName ?? '', node: item.id}
+  if (item.type === 'document_type_list') return {kind: 'list', type: item.typeName ?? '', node: item.id}
+}
+
+/** B12: a declared desk list, Sanity's S.list(): rows, titled dividers, singletons. */
+function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: DeskNode | undefined}) {
+  const next = panes[index + 1]
+  const selected = next && (next.kind === 'menu' || next.kind === 'list' || next.kind === 'doc') ? next.node : undefined
+  const isRoot = panes[index].kind === 'types'
+  return (
+    <section className="pane types" data-testid="pane" data-pane={isRoot ? 'types' : `menu:${node?.id ?? ''}`} data-pane-index={index}>
+      <header className="pane-header">
+        <BackLink panes={panes} index={index} />
+        <span className="title">{isRoot ? 'Content' : node?.title}</span>
+      </header>
+      <div className="pane-body">
+        {!node && <p className="list-empty">This list is not in the desk</p>}
+        {node?.items?.map((item, i) => {
+          if (item.type === 'divider') return item.title ? <div key={item.id ?? i} className="desk-divider">{item.title}</div> : <hr key={item.id ?? i} className="desk-divider" />
+          const target = opens(item)
+          if (!target) return null
+          return (
+            <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, target)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined} data-desk-node={item.id}>
+              {item.title ?? item.id}
+              {item.type !== 'document' && (
+                <span className="chev">
+                  <ChevronRight />
+                </span>
+              )}
+            </PaneLink>
+          )
+        })}
+      </div>
+    </section>
+  )
 }
 
 function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; selected?: string}) {
@@ -193,17 +258,26 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   )
 }
 
-function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number; type: string; selected?: string}) {
+function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {panes: Pane[]; index: number; type: string; node?: string; treeParent?: string; selected?: string}) {
   const {canWrite, createReason} = useCanWrite()
   const {data: schemas = []} = useQuery(schemasQuery)
   const qc = useQueryClient()
   const navigate = useNavigate()
   const published = usePublishedPerspective()
-  const {sort, view, set} = useListPrefs(type)
+  const {prefs} = useContext(ListPrefsContext)
+  const node = useDeskNode(nodeId)
+  // B12: a desk list reads its own filter (or one tree level) and opens in its own order.
+  const filter = listFilter(node, treeParent)
+  const missingOps = unsupportedOps(filter)
+  const {sort: prefSort, view, set} = useListPrefs(type)
+  const sort = prefs[type]?.sort ?? deskSort(node) ?? prefSort
+  const tree = !!node?.tree
+  const {data: parentDoc} = useQuery({...docQuery(type, treeParent ?? ''), enabled: !!treeParent})
   // J41: the first LIST_PAGE rows; near the end, up to LIST_MAX (Sanity's numbers).
   const [limit, setLimit] = useState(LIST_PAGE)
-  const draftList = useQuery({...listQuery(type, sort, limit), enabled: !published, placeholderData: keepPreviousData})
-  const publishedList = useQuery({...publishedListQuery(type, sort, limit), enabled: published, placeholderData: keepPreviousData})
+  const readable = !missingOps.length
+  const draftList = useQuery({...listQuery(type, sort, limit, filter), enabled: readable && !published, placeholderData: keepPreviousData})
+  const publishedList = useQuery({...publishedListQuery(type, sort, limit, filter), enabled: readable && published, placeholderData: keepPreviousData})
   const listQ = published ? publishedList : draftList
   const page = listQ.data
   const [query, setQuery] = useState('')
@@ -213,7 +287,7 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
     const t = setTimeout(() => setQ(query.trim()), 150)
     return () => clearTimeout(t)
   }, [query])
-  const {data: found} = useQuery({...listSearchQuery(type, q), enabled: !!q && !published && !!page?.hasMore, placeholderData: keepPreviousData})
+  const {data: found} = useQuery({...listSearchQuery(type, q), enabled: !!q && !published && !filter && !!page?.hasMore, placeholderData: keepPreviousData})
   const docs = useMemo(() => {
     if (!q || !found || !page?.hasMore) return page?.docs
     const seen = new Set(page.docs.map((d) => d._publishedId))
@@ -258,10 +332,10 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
     return [...hits].sort(by)
   }, [docs, query, sort, schemas, type])
   return (
-    <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-pane-index={index}>
+    <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
       <header className="pane-header">
         <BackLink panes={panes} index={index} />
-        <span className="title">{schemaOf(schemas, type)?.title ?? type}</span>
+        <PaneTitle pane={panes[index]} />
         <button
           type="button"
           className="icon-btn"
@@ -305,19 +379,26 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
       </div>
       {query && <div className="sorted-by">Sorted by relevance</div>}
       <div className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}>
-        {!page &&
+        {!readable && <p className="list-empty">This list filters with {missingOps.join(', ')}, which Barkpark's query API does not offer yet</p>}
+        {treeParent && parentDoc && (
+          <>
+            <DocPreview doc={parentDoc} href={openAfter(panes, index, {kind: 'doc', id: treeParent, type})} selected={selected === treeParent} active={index === panes.length - 2} testId="pane-item" />
+            <div className="desk-divider">{docs ? `${docs.length} under ${previewTitle(parentDoc, schemaOf(schemas, type))}` : ''}</div>
+          </>
+        )}
+        {readable && !page &&
           (listQ.failureCount > 0 ? (
             <ReadErrorCard title="Could not fetch list items" error={listQ.failureReason ?? listQ.error} failures={listQ.failureCount} retrying={listQ.fetchStatus !== 'idle'} onRetry={() => void listQ.refetch()} />
           ) : (
             <ListSkeleton />
           ))}
-        {docs && docs.length === 0 && <p className="list-empty">No documents of this type</p>}
+        {docs && docs.length === 0 && !treeParent && <p className="list-empty">No documents of this type</p>}
         {docs && docs.length > 0 && shown.length === 0 && <p className="list-empty">No results found</p>}
         {shown.map((d) => (
           <DocPreview
             key={d._publishedId}
             doc={d}
-            href={openAfter(panes, index, {kind: 'doc', id: d._publishedId, type})}
+            href={openAfter(panes, index, tree ? {kind: 'list', type, node: nodeId, treeParent: d._publishedId} : {kind: 'doc', id: d._publishedId, type})}
             selected={selected === d._publishedId}
             active={index === panes.length - 2}
             testId="pane-item"

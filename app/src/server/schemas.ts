@@ -19,3 +19,21 @@ export async function readSchemas(): Promise<RawSchema[]> {
   if (!res.ok) throw new Error(`Barkpark /v1/schemas/${dataset()} → ${res.status}`)
   return ((await res.json()) as {schemas: RawSchema[]}).schemas
 }
+
+// B12: the declared desk, when the workspace has one. Barkpark resolves a
+// `deskStructure` document into its structure tree; without that document the
+// tree is the LiveView Studio's default, not Sanity's type list, so this studio
+// keeps its own type list then (null). Any failure reads as "no desk": the
+// type list is always a working fallback. Fixtures mode (CI) has no desk.
+export async function readDesk(): Promise<unknown | null> {
+  if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return null
+  try {
+    const declared = await bpFetch(`/v1/data/doc/${dataset()}/deskStructure/deskStructure?perspective=published`, {}, serviceToken())
+    if (!declared.ok) return null
+    const res = await bpFetch(`/v1/structure/${dataset()}`, {}, serviceToken())
+    if (!res.ok) return null
+    return ((await res.json()) as {structure?: unknown}).structure ?? null
+  } catch {
+    return null
+  }
+}
