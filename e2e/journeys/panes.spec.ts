@@ -87,7 +87,8 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await expect.poll(() => path(page), LOCAL_POLL).toBe(chainUrl(6))
   await page.reload()
   await expect(page.locator('[data-pane-index]')).toHaveCount(9)
-  expect(await strips(page)).toEqual([true, true, true, true, true, true, true, true, false])
+  // The reference mounts all nine loading panes before restoring their layout.
+  await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, true, true, true, true, true, false])
 
   // A strip opens on click; the others make room (keyboard too, on ours).
   await t.pane(page, 3).click({position: {x: 25, y: 300}})
