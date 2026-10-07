@@ -180,12 +180,12 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
 
     await t.field(a, 'name').click()
     await a.keyboard.press('End')
-    await a.keyboard.type(' X')
-    const sent = Date.now()
     const seen = bRef.evaluate(async (el) => {
       while (!el.textContent?.includes('Grace Hopper X')) await new Promise(requestAnimationFrame)
       return performance.timeOrigin + performance.now()
     })
+    const sent = Date.now()
+    await a.keyboard.type(' X')
     await expect(t.refLink(t.pane(a, 2), 'author')).toContainText('Grace Hopper X')
     const ms = (await seen) - sent
 
@@ -197,6 +197,14 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
     if (t.name === 'studio') expect(ms, 'F4 edit seen in 2nd browser').toBeLessThan(networkBudget(1000))
     console.log(`[J23 ${t.name}] A's edit seen in B after ${Math.round(ms)} ms`)
     await Promise.all([referenceHold(a, t.field(a, 'name'), 'Grace Hopper X'), referenceHold(b, bRef)])
+    // The list's author subtitle must remain live after B closes its post pane;
+    // subscribing to post mutations alone leaves an already-loaded author stale.
+    await b.goto(t.listPath('post'))
+    const row = t.listItem(b, 'post-08')
+    await expect(row).toContainText('Grace Hopper X')
+    await t.patch('author-grace', {name: 'Grace Hopper live'}, 'author')
+    await expect(row).toContainText('Grace Hopper live')
+    await referenceHold(b, row)
   } finally {
     try {
       await t.restore('author-grace', {name: 'Grace Hopper'}, 'author')
