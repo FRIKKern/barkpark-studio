@@ -66,6 +66,26 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     width,
     focusIndex,
   )
+  const previousPath = useRef(path)
+  useIsoLayoutEffect(() => {
+    const moved = previousPath.current !== path
+    previousPath.current = path
+    const area = ref.current
+    const pane = area?.querySelector<HTMLElement>(`[data-pane-index="${focusIndex}"]`)
+    if (!area || !pane) return
+    // Expanding replaces the strip; following/closing a pane can remove the
+    // focused link too. Keep keyboard navigation in the pane that replaces it.
+    if ((moved || focus?.path === path) && document.activeElement === document.body) {
+      pane.tabIndex = -1
+      pane.focus({preventScroll: true})
+    }
+    // An arbitrarily long chain cannot fit all its strips beside the editor.
+    // Scroll the pane area, not the page, and reveal the whole active pane.
+    const bounds = area.getBoundingClientRect()
+    const target = pane.getBoundingClientRect()
+    if (target.right > bounds.right) area.scrollLeft += target.right - bounds.right
+    else if (target.left < bounds.left) area.scrollLeft += target.left - bounds.left
+  }, [path, focusIndex, focus, width, ref])
 
   // J42: a narrow window shows only the last pane; its back link walks the URL back.
   const narrow = width < NARROW

@@ -110,13 +110,15 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   }
 
   // A strip opens on click; the others make room (keyboard too, on ours).
-  await t.pane(page, 3).click({position: {x: 25, y: 300}})
+  if (t.name === 'sanity') await t.pane(page, 3).locator('[data-testid="pane-header"] [tabindex="0"]').first().click()
+  else await t.pane(page, 3).click({position: {x: 25, y: 300}})
   await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, false, true, true, true, true, true])
   await referenceHold(page, t.pane(page, 3).locator('[id="name"]'), 'Alan Turing')
   if (t.name === 'studio') {
     await t.pane(page, 5).focus()
     await page.keyboard.press('Enter')
     await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, true, true, false, true, true, true])
+    await expect(t.pane(page, 5)).toBeFocused()
     await t.pane(page, 3).focus()
     await page.keyboard.press('Enter')
   }
@@ -132,4 +134,14 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await page.keyboard.press('Enter')
   await expect.poll(() => path(page), LOCAL_POLL).toBe(chainUrl(1))
   await referenceHold(page, t.pane(page, 3).locator('[id="name"]'), 'Alan Turing')
+  if (t.name === 'studio') {
+    // More strips than the viewport can fit must not clip the active editor.
+    await page.setViewportSize({width: 768, height: 900})
+    await page.goto(chainUrl(6) + chainUrl(6).slice('/structure/post;post-01'.length))
+    await expect(t.pane(page, 14)).toBeVisible()
+    await expect.poll(() => t.pane(page, 14).evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      return r.left >= 0 && r.right <= innerWidth
+    }), LOCAL_POLL).toBe(true)
+  }
 })
