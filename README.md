@@ -20,11 +20,14 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 69 changes, 18 tasks closed
+- **Today** · 6 tasks closed
+  - Done: [J08 [1 Panes+Refs] Pick author by search; open it in the next pane](https://github.com/FRIKKern/barkpark/issues/21675)
+  - Done: [J21 [1 Panes+Refs] Endless pane chain: 8+ panes, narrow panes collapse to strips, any pane closes, URL round-trips, back/forward](https://github.com/FRIKKern/barkpark/issues/21674)
+  - Done: [J02 [1 Panes+Refs] Open post → reload deep URL → same panes restored; tab title follows the doc; unknown id/type shows "not found", not an alert](https://github.com/FRIKKern/barkpark/issues/21673)
+- **Yesterday** · 69 changes, 18 tasks closed
   - D10: Norwegian letters, dead keys and IME type correctly in the canvas; a 500-block doc keeps F1 ([#98](https://github.com/FRIKKern/barkpark-studio/pull/98))
   - D07: paste or drop a picture into the canvas — uploaded to Barkpark media, uploading badge, failure on the block ([#97](https://github.com/FRIKKern/barkpark-studio/pull/97))
-  - D08: undo/redo in the canvas, a paste included, each step saved; the leading field block no longer replaced by typing ([#96](https://github.com/FRIKKern/barkpark-studio/pull/96))
-- **Yesterday** · 28 changes, 7 tasks closed
+- **This week** · 28 changes, 7 tasks closed
   - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
   - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
 <!-- timeline:end -->
