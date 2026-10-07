@@ -106,5 +106,4 @@ track, counted apart. Out of scope (link out to LiveView): sheets, admin console
 | B09 | after | Related-doc views from the schema's desk.views | F2 |
 | B10 | after | Schema-declared document actions with a dry-run confirm | F9 |
 | B11 | 3 | Closing the tab with unsaved or failed edits warns first (we batch writes, so this matters more than in Sanity) | F8 F9 |
-| B12 | 1 | A workspace's declared desk drives the panes: nested lists, titled dividers, filtered lists, singletons, a parent-child tree | F2 F10 |
 
