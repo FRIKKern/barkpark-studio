@@ -10,10 +10,9 @@
   in [0001](0001-stack-and-backend.md).
 - **Host it by the contract:** load the bundle from the connected Barkpark
   (browser only, no SSR), wrap it in one React component (`<PortableDocEditor>`).
-  Follows EMBED-CONTRACT HTTP host @cad5a11f7: one batch in flight, a 412 resends
-  it on `details.actual`, the saved doc goes back as the canvas's own echo before
-  `acknowledgeOps`. Reads use `perspective=drafts`, not `raw` (we edit the draft).
-  Barkdown's `docs/EDITOR-PARITY.md` rows are our bar for the editor itself.
+  Follows EMBED-CONTRACT HTTP host @cad5a11f7 (one batch in flight, a 412 resends
+  on `details.actual`, echo before `acknowledgeOps`); reads use `perspective=drafts`
+  (we edit the draft). Barkdown's `docs/EDITOR-PARITY.md` is the editor's bar.
 - **Where it appears, per document type:**
   - **Freeform-main:** types defined as PortableDoc open in the canvas by default.
   - **Freeform-alternative:** types with an Expectation (`layout`) open in the
@@ -34,7 +33,8 @@
 Side track: at most one PR in five, never interrupts a Sanity journey, counted
 apart (D-journeys) so the Sanity 1:1 number stays honest.
 
-## Server gaps
+## Known limit (D11)
 
-Filed under the Freeform sub-goal (task-3d324bcfec068fee): field-scoped and batch
-block ops, a schema editor hint, the canvas as a versioned package.
+No live co-editing in the canvas: no remote carets; a remote edit lands when the
+author pauses or leaves the block. Edits to different blocks merge (id-keyed ops);
+one block typed in two places at once keeps the later save. Gaps: task-3d324bcfec068fee.

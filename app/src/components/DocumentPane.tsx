@@ -328,6 +328,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {/* A doc still being created has no block list yet (D04): the canvas waits for it. */}
         {freeform && !!doc?._rev && (view === 'freeform' || canvasSeen === pane.id) && (
           <div hidden={view !== 'freeform'}>
+            {/* D11: the canvas is not live co-editing (decision 0004, Known limit): say so
+                when someone else has this doc open. */}
+            {here.length > 0 && (
+              <p className="pd-hint" role="note" data-testid="coediting-hint">
+                {here.length === 1 ? `${here[0]!.name} has` : `${here.length} others have`} this document open. In Freeform their edits appear when you pause, and
+                the same paragraph typed by both keeps the later save.
+              </p>
+            )}
             <PortableDocEditor type={pane.type} id={pane.id} labels={fieldLabels} openDoc={(docId, docType) => navigate({href: openAfter(panes, index, {kind: 'doc', id: docId, type: docType})})} />
           </div>
         )}
