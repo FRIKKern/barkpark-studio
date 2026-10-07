@@ -49,13 +49,13 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     return () => removeEventListener('pagehide', flushOnUnload)
   }, [])
   const {data: schemas = []} = useQuery(schemasQuery)
-  // Live: open docs, open lists, and every type an open doc references, so a
-  // reference preview follows edits made anywhere (J23).
+  // Lists render reference subtitles too: keep those targets live even after
+  // the document pane closes (J23).
   const refTypes = (type: string) =>
     (schemaOf(schemas, type)?.fields ?? []).flatMap((f) => [...refTypesOf(f), ...refTypesOf(f.of)])
   useLive(
     panes.flatMap((p) => (p.kind === 'doc' ? [p.id] : [])),
-    panes.flatMap((p) => (p.kind === 'types' || !schemaOf(schemas, p.type) ? [] : p.kind === 'list' ? [p.type] : [p.type, ...refTypes(p.type)])),
+    panes.flatMap((p) => (p.kind === 'types' || !schemaOf(schemas, p.type) ? [] : [p.type, ...refTypes(p.type)])),
   )
   const path = panesPath(panes)
   // A clicked strip takes focus until the path changes.
