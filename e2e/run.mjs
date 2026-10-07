@@ -6,8 +6,8 @@ import {spawnSync} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 
 const [mode, ...args] = process.argv.slice(2)
-if (!['test', 'baseline', 'evidence', 'reference', 'reset'].includes(mode)) {
-  console.error('Usage: node run.mjs test|baseline|evidence|reference|reset [arguments]')
+if (!['test', 'baseline', 'evidence', 'reference', 'recording', 'reset'].includes(mode)) {
+  console.error('Usage: node run.mjs test|baseline|evidence|reference|recording|reset [arguments]')
   process.exit(1)
 }
 process.env.BARKPARK_DATASET ||= 'e2e-local'
@@ -32,13 +32,20 @@ if (mode === 'reference') {
     if (result.error) console.error(result.error.message)
     process.exit(result.status ?? 1)
   }
-  process.env.REFERENCE_RUN_ID = new Date().toISOString().replace(/[:.]/g, '-')
+}
+if (mode === 'reference' || mode === 'recording') {
+  process.env.RECORDING_RUN_ID = new Date().toISOString().replace(/[:.]/g, '-')
+  process.env.RECORDING_TARGET = mode === 'recording' ? 'studio' : 'sanity'
+  if (mode === 'recording' && !/^(?:e2e-local(?:-[a-z0-9-]+)?|ci)$/.test(process.env.BARKPARK_DATASET)) {
+    console.error('Candidate recordings write fixture data: use e2e-local, an e2e-local-* dataset, or ci, never production.')
+    process.exit(1)
+  }
 }
 const cli = mode === 'reset' ? '../scripts/seed-barkpark.mjs' : 'node_modules/@playwright/test/cli.js'
 const flags = mode === 'reset' ? ['--data'] : [
   'test',
   ...(mode === 'baseline' || mode === 'evidence' ? ['--grep', `@${mode}`] : []),
-  ...(mode === 'reference' ? ['--config', 'reference.config.ts'] : []),
+  ...(mode === 'reference' || mode === 'recording' ? ['--config', 'reference.config.ts'] : []),
 ]
 const result = spawnSync(process.execPath, [cli, ...flags, ...args], {
   cwd: fileURLToPath(new URL('.', import.meta.url)), stdio: 'inherit', env: process.env,

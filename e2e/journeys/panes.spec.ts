@@ -44,14 +44,17 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   if (t.name === 'studio') await expect(page.locator('a[href^="/structure/post;"]')).toHaveCount(30)
   else await expect(t.listItem(page, 'post-02')).toBeVisible()
   const coldMs = Date.now() - t0
+  await referenceHold(page, t.listItem(page, 'post-02'))
 
   const open = await timeToReady(page, t.listItem(page, 'post-02'), `(w) => document.getElementById('title')?.value === w`, 'Fixture post 02')
   expect(path(page)).toBe('/structure/post;post-02')
   await expect(t.listItem(page, 'post-02')).toHaveAttribute('data-selected')
+  await referenceHold(page, t.field(page, 'title'), 'Fixture post 02')
 
   await page.reload()
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 02')
   expect(await strips(page)).toEqual([false, false, false])
+  await referenceHold(page, t.field(page, 'title'), 'Fixture post 02')
 
   if (t.name === 'studio') {
     expect(coldMs, 'F3 cold load to usable list').toBeLessThan(networkBudget(1500))
@@ -95,7 +98,7 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await page.reload()
   await expect(page.locator('[data-pane-index]')).toHaveCount(9)
   // The reference mounts all nine loading panes before restoring their layout.
-  if (process.env.REFERENCE_RUN_ID) {
+  if (process.env.RECORDING_RUN_ID && t.name === 'sanity') {
     await referenceHold(page, page.locator('[data-pane-index]:not([data-pane-collapsed])').locator('input[id="title"], input[id="name"]').last())
     // Keep a reference mismatch red in the report, but record the remaining
     // actions too so reviewers can see the actual behavior after a reload.

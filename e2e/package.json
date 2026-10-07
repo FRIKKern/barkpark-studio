@@ -7,6 +7,7 @@
     "baseline": "node run.mjs baseline",
     "evidence": "node run.mjs evidence",
     "reference": "node run.mjs reference",
+    "recording": "node run.mjs recording",
     "reset": "node run.mjs reset"
   },
   "devDependencies": {

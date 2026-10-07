@@ -68,10 +68,10 @@ pnpm reference                                # P0 crown clips, Sanity only; use
 STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (dev only; app/src/server/auth.ts)
 ```
 
-Reference recordings reuse J08/J17/J21/J22/J23 and save WebM clips plus an HTML
-report with 250 ms action pacing and two-second holds after content is ready.
-Files live under `e2e/evidence/reference/<run>/`. Install the reference dependencies
-and run `pnpm --dir e2e exec playwright install ffmpeg` first. Sign in with
-`pnpm --dir reference/sanity exec sanity login`; an explicit `SANITY_TOKEN` also works.
-The CLI login is passed in memory; it is never printed or copied to `.env`. Link the reviewed
-clips from the crown tasks; recordings alone do not constitute quality sign-off.
+`pnpm reference` records Sanity; `pnpm recording` records our built app against
+`e2e-local` (requires Barkpark environment variables). Both reuse J01/J02/J08/J17/
+J19/J21/J22/J23 with two-second holds after content is ready. Reports and WebM clips
+live under `e2e/evidence/{reference,studio}/<run>/`. Install the target dependencies
+and `pnpm --dir e2e exec playwright install ffmpeg`. Reference auth uses
+`pnpm --dir reference/sanity exec sanity login` or `SANITY_TOKEN`; CLI credentials
+stay in memory. Link reviewed clips to tasks; recording alone is not sign-off.
