@@ -1,5 +1,3 @@
-# Barkpark Studio
-
 [![Barkpark Studio roadmap: phases 0 to 6 and after with journeys passing out of total, plus the Freeform side track counted apart](docs/images/roadmap.svg)](docs/ROADMAP.md)
 
 ## Vision
