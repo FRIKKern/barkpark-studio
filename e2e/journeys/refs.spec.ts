@@ -202,7 +202,8 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
     await b.goto(t.listPath('post'))
     const row = t.listItem(b, 'post-08')
     await expect(row).toContainText('Grace Hopper X')
-    await t.patch('author-grace', {name: 'Grace Hopper live'}, 'author')
+    // A's edit has forked a draft; Sanity's direct helper names versions explicitly.
+    await t.patch(t.name === 'sanity' ? 'drafts.author-grace' : 'author-grace', {name: 'Grace Hopper live'}, 'author')
     await expect(row).toContainText('Grace Hopper live')
     await referenceHold(b, row)
   } finally {
