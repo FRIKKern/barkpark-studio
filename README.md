@@ -54,6 +54,7 @@ reference/sanity/    real Sanity Studio, the bar (project 0ozn679s, dataset prod
 fixtures/            seed data + Barkpark schema, same content on both sides
 e2e/                 Playwright: few, fast specs for what can break silently
 scripts/             seed Barkpark, README timeline, roadmap picture, doc checks
+spikes/concurrent-text/  reproducible two-browser concurrency comparison (decision 0002)
 docs/                roadmap, decisions (one page each)
 ```
 

@@ -1,0 +1,1677 @@
+{
+  "measuredAt": "2026-10-07T05:19:34.249Z",
+  "appCommit": "00a067ad18dc317f86c196a212b2441472d3f4d5",
+  "node": "v22.13.1",
+  "chrome": "154.0.8037.98",
+  "playwright": "1.63.0",
+  "yjs": "13.6.27",
+  "method": "Two Chrome contexts. Each types four characters at 40 ms/key. 10 trials per online shape, 3 real Studio 10-second-offline trials. Local controls: 10 trials per shape, 200 ms debounce + 100 ms simulated fanout; local offline period 650 ms. Preservation checks equality plus character multiset; only Studio verifies persisted backend value. Latency starts after the last key; offline total includes outage. Small repeated burst workload, not a production load certification. No overlapping deletions or undo in this matrix.",
+  "groups": [
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "n": 10,
+      "preserved": 0,
+      "persisted": null,
+      "focusLosses": 0,
+      "p50ms": null,
+      "p95ms": null,
+      "recoveryP95ms": null
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "n": 10,
+      "preserved": 0,
+      "persisted": null,
+      "focusLosses": 0,
+      "p50ms": null,
+      "p95ms": null,
+      "recoveryP95ms": null
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "n": 10,
+      "preserved": 0,
+      "persisted": null,
+      "focusLosses": 0,
+      "p50ms": null,
+      "p95ms": null,
+      "recoveryP95ms": null
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "n": 10,
+      "preserved": 10,
+      "persisted": null,
+      "focusLosses": 0,
+      "p50ms": 281,
+      "p95ms": 297,
+      "recoveryP95ms": null
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "n": 10,
+      "preserved": 10,
+      "persisted": null,
+      "focusLosses": 0,
+      "p50ms": 281,
+      "p95ms": 283,
+      "recoveryP95ms": null
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "n": 10,
+      "preserved": 10,
+      "persisted": null,
+      "focusLosses": 0,
+      "p50ms": 778,
+      "p95ms": 810,
+      "recoveryP95ms": null
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "n": 10,
+      "preserved": 10,
+      "persisted": 10,
+      "focusLosses": 0,
+      "p50ms": 715,
+      "p95ms": 3104,
+      "recoveryP95ms": null
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "n": 10,
+      "preserved": 10,
+      "persisted": 10,
+      "focusLosses": 0,
+      "p50ms": 4088,
+      "p95ms": 5637,
+      "recoveryP95ms": null
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "offline",
+      "n": 3,
+      "preserved": 3,
+      "persisted": 3,
+      "focusLosses": 0,
+      "p50ms": 10214,
+      "p95ms": 10227,
+      "recoveryP95ms": 225
+    }
+  ],
+  "prototype": [
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 0,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 186
+    },
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 1,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 195
+    },
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 2,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 194
+    },
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 3,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "Fixture post 14 aaa",
+        "Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 185
+    },
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 4,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "Fixture post 14 aaa",
+        "Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 189
+    },
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 5,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "Fixture post 14 aaa",
+        "Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 199
+    },
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 6,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 183
+    },
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 7,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "Fixture post 14 aaa",
+        "Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 198
+    },
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 8,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "Fixture post 14 aaa",
+        "Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 194
+    },
+    {
+      "mode": "lww",
+      "shape": "opposite-ends",
+      "trial": 9,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 182
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 0,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 193
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 1,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 190
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 2,
+      "converged": true,
+      "kept": false,
+      "values": [
+        " aaaFixture post 14",
+        " aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 187
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 3,
+      "converged": true,
+      "kept": false,
+      "values": [
+        " aaaFixture post 14",
+        " aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 187
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 4,
+      "converged": true,
+      "kept": false,
+      "values": [
+        " aaaFixture post 14",
+        " aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 186
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 5,
+      "converged": true,
+      "kept": false,
+      "values": [
+        " aaaFixture post 14",
+        " aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 188
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 6,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 189
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 7,
+      "converged": true,
+      "kept": false,
+      "values": [
+        " aaaFixture post 14",
+        " aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 188
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 8,
+      "converged": true,
+      "kept": false,
+      "values": [
+        " aaaFixture post 14",
+        " aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 189
+    },
+    {
+      "mode": "lww",
+      "shape": "same-position",
+      "trial": 9,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 185
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 0,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 192
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 1,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 185
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 2,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 195
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 3,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 195
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 4,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 198
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 5,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 187
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 6,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 190
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 7,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 189
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 8,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 184
+    },
+    {
+      "mode": "lww",
+      "shape": "offline",
+      "trial": 9,
+      "converged": true,
+      "kept": false,
+      "values": [
+        "bbb Fixture post 14",
+        "bbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        19,
+        4
+      ],
+      "latencyFromLastKeyMs": null,
+      "typingMs": 212
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 0,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 279,
+      "typingMs": 187
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 1,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 283,
+      "typingMs": 198
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 2,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 284,
+      "typingMs": 193
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 3,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 281,
+      "typingMs": 189
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 4,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 276,
+      "typingMs": 198
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 5,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 279,
+      "typingMs": 191
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 6,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 297,
+      "typingMs": 214
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 7,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 281,
+      "typingMs": 188
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 8,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 280,
+      "typingMs": 189
+    },
+    {
+      "mode": "yjs",
+      "shape": "opposite-ends",
+      "trial": 9,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 282,
+      "typingMs": 196
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 0,
+      "converged": true,
+      "kept": true,
+      "values": [
+        " aaabbb Fixture post 14",
+        " aaabbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        8
+      ],
+      "latencyFromLastKeyMs": 281,
+      "typingMs": 199
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 1,
+      "converged": true,
+      "kept": true,
+      "values": [
+        " aaabbb Fixture post 14",
+        " aaabbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        8
+      ],
+      "latencyFromLastKeyMs": 282,
+      "typingMs": 187
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 2,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 281,
+      "typingMs": 195
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 3,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 281,
+      "typingMs": 196
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 4,
+      "converged": true,
+      "kept": true,
+      "values": [
+        " aaabbb Fixture post 14",
+        " aaabbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        8
+      ],
+      "latencyFromLastKeyMs": 282,
+      "typingMs": 191
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 5,
+      "converged": true,
+      "kept": true,
+      "values": [
+        " aaabbb Fixture post 14",
+        " aaabbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        8
+      ],
+      "latencyFromLastKeyMs": 282,
+      "typingMs": 186
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 6,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 281,
+      "typingMs": 190
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 7,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 283,
+      "typingMs": 192
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 8,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 281,
+      "typingMs": 187
+    },
+    {
+      "mode": "yjs",
+      "shape": "same-position",
+      "trial": 9,
+      "converged": true,
+      "kept": true,
+      "values": [
+        " aaabbb Fixture post 14",
+        " aaabbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        8
+      ],
+      "latencyFromLastKeyMs": 282,
+      "typingMs": 185
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 0,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 765,
+      "typingMs": 198
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 1,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 779,
+      "typingMs": 198
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 2,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 778,
+      "typingMs": 202
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 3,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 780,
+      "typingMs": 184
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 4,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 810,
+      "typingMs": 196
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 5,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 764,
+      "typingMs": 189
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 6,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 763,
+      "typingMs": 190
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 7,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 780,
+      "typingMs": 189
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 8,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 764,
+      "typingMs": 186
+    },
+    {
+      "mode": "yjs",
+      "shape": "offline",
+      "trial": 9,
+      "converged": true,
+      "kept": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 779,
+      "typingMs": 198
+    }
+  ],
+  "studio": [
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 0,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 610,
+      "recoveryMs": null,
+      "typingMs": 215
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 1,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 620,
+      "recoveryMs": null,
+      "typingMs": 191
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 2,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 760,
+      "recoveryMs": null,
+      "typingMs": 216
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 3,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 622,
+      "recoveryMs": null,
+      "typingMs": 206
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 4,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 761,
+      "recoveryMs": null,
+      "typingMs": 202
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 5,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 721,
+      "recoveryMs": null,
+      "typingMs": 201
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 6,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 715,
+      "recoveryMs": null,
+      "typingMs": 198
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 7,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 714,
+      "recoveryMs": null,
+      "typingMs": 191
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 8,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 3104,
+      "recoveryMs": null,
+      "typingMs": 191
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "opposite-ends",
+      "trial": 9,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 2372,
+      "recoveryMs": null,
+      "typingMs": 191
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 0,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb  aaaFixture post 14",
+      "persistedBoth": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 3631,
+      "recoveryMs": null,
+      "typingMs": 205
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 1,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb  aaaFixture post 14",
+      "persistedBoth": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 4657,
+      "recoveryMs": null,
+      "typingMs": 205
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 2,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb  aaaFixture post 14",
+      "persistedBoth": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 3384,
+      "recoveryMs": null,
+      "typingMs": 191
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 3,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb  aaaFixture post 14",
+      "persistedBoth": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 3379,
+      "recoveryMs": null,
+      "typingMs": 205
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 4,
+      "kept": true,
+      "converged": true,
+      "persisted": " bbb aaaFixture post 14",
+      "persistedBoth": true,
+      "values": [
+        " bbb aaaFixture post 14",
+        " bbb aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        5
+      ],
+      "latencyFromLastKeyMs": 4779,
+      "recoveryMs": null,
+      "typingMs": 193
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 5,
+      "kept": true,
+      "converged": true,
+      "persisted": "b aaabb Fixture post 14",
+      "persistedBoth": true,
+      "values": [
+        "b aaabb Fixture post 14",
+        "b aaabb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        5,
+        8
+      ],
+      "latencyFromLastKeyMs": 5637,
+      "recoveryMs": null,
+      "typingMs": 190
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 6,
+      "kept": true,
+      "converged": true,
+      "persisted": " bbb aaaFixture post 14",
+      "persistedBoth": true,
+      "values": [
+        " bbb aaaFixture post 14",
+        " bbb aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        5
+      ],
+      "latencyFromLastKeyMs": 4088,
+      "recoveryMs": null,
+      "typingMs": 191
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 7,
+      "kept": true,
+      "converged": true,
+      "persisted": " aaabbb Fixture post 14",
+      "persistedBoth": true,
+      "values": [
+        " aaabbb Fixture post 14",
+        " aaabbb Fixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        4,
+        8
+      ],
+      "latencyFromLastKeyMs": 4745,
+      "recoveryMs": null,
+      "typingMs": 206
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 8,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb  aaaFixture post 14",
+      "persistedBoth": true,
+      "values": [
+        "bbb  aaaFixture post 14",
+        "bbb  aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        4
+      ],
+      "latencyFromLastKeyMs": 3382,
+      "recoveryMs": null,
+      "typingMs": 193
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "same-position",
+      "trial": 9,
+      "kept": true,
+      "converged": true,
+      "persisted": " bbb aaaFixture post 14",
+      "persistedBoth": true,
+      "values": [
+        " bbb aaaFixture post 14",
+        " bbb aaaFixture post 14"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        8,
+        5
+      ],
+      "latencyFromLastKeyMs": 4582,
+      "recoveryMs": null,
+      "typingMs": 192
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "offline",
+      "trial": 0,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 10227,
+      "recoveryMs": 225,
+      "typingMs": 208
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "offline",
+      "trial": 1,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 10214,
+      "recoveryMs": 203,
+      "typingMs": 189
+    },
+    {
+      "mode": "studio-merge3",
+      "shape": "offline",
+      "trial": 2,
+      "kept": true,
+      "converged": true,
+      "persisted": "bbb Fixture post 14 aaa",
+      "persistedBoth": true,
+      "values": [
+        "bbb Fixture post 14 aaa",
+        "bbb Fixture post 14 aaa"
+      ],
+      "focusLosses": 0,
+      "carets": [
+        23,
+        4
+      ],
+      "latencyFromLastKeyMs": 10204,
+      "recoveryMs": 201,
+      "typingMs": 188
+    }
+  ]
+}
