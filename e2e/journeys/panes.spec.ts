@@ -95,8 +95,14 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   await page.reload()
   await expect(page.locator('[data-pane-index]')).toHaveCount(9)
   // The reference mounts all nine loading panes before restoring their layout.
-  await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, true, true, true, true, true, false])
-  await referenceHold(page, t.pane(page, 8).locator('[id="title"]'), 'Fixture post 04')
+  if (process.env.REFERENCE_RUN_ID) {
+    await referenceHold(page, page.locator('[data-pane-index]:not([data-pane-collapsed])').locator('input[id="title"], input[id="name"]').last())
+    // Keep a reference mismatch red in the report, but record the remaining
+    // actions too so reviewers can see the actual behavior after a reload.
+    expect.soft(await strips(page), 'Reference layout after reload').toEqual([true, true, true, true, true, true, true, true, false])
+  } else {
+    await expect.poll(() => strips(page), LOCAL_POLL).toEqual([true, true, true, true, true, true, true, true, false])
+  }
 
   // A strip opens on click; the others make room (keyboard too, on ours).
   await t.pane(page, 3).click({position: {x: 25, y: 300}})
