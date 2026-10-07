@@ -127,12 +127,22 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
 
 /** Sanity's card for a reference to a doc that does not exist, with the why on hover. */
 function Unavailable({id}: {id: string}) {
+  const tooltipId = useId()
+  const [dismissed, setDismissed] = useState(false)
+  useEffect(() => {
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDismissed(true)
+    }
+    window.addEventListener('keydown', dismiss)
+    return () => window.removeEventListener('keydown', dismiss)
+  }, [])
   return (
     <div className="preview unavailable">
       <span className="text">Document unavailable</span>
-      <span className="help" tabIndex={0} role="img" aria-label="Not found" aria-describedby={`${id}-why`}>
+      <span className="help" tabIndex={0} role="img" aria-label="Not found" aria-describedby={tooltipId}
+        data-dismissed={dismissed || undefined} onMouseEnter={() => setDismissed(false)} onFocus={() => setDismissed(false)}>
         <HelpCircle />
-        <span className="tip" role="tooltip" id={`${id}-why`}>
+        <span className="tip" role="tooltip" id={tooltipId}>
           <b>Not found</b>
           The referenced document does not exist (ID: <code>{id}</code>). You can either remove the reference or replace it with another document.
         </span>

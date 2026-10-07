@@ -439,6 +439,13 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .help .tip { display: none; position: absolute; left: -12px; top: calc(100% + 8px); z-index: 20; width: 420px; padding: 8px 12px; background: var(--bg, #fff); color: var(--fg, #101112); border-radius: 4px; box-shadow: 0 0 0 1px var(--line), 0 6px 16px rgb(0 0 0 / 0.12); font-size: 13px; line-height: 1.5; }
 .help .tip b { display: block; font-weight: 500; }
 .help:hover .tip, .help:focus .tip { display: block; }
+.help[data-dismissed] .tip { display: none; }
+.help:focus-visible { outline: 2px solid var(--selected); outline-offset: 2px; }
+@media (max-width: 768px) {
+  .preview.unavailable { position: relative; }
+  .preview.unavailable .help { position: static; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
+  .preview.unavailable .tip { left: 0; width: min(420px, 100%); overflow-wrap: anywhere; }
+}
 .popover.options.empty { padding: 16px; text-align: center; color: var(--muted); }
 
 
