@@ -387,6 +387,9 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 
 /* List search, empty states, menu (J24/J25) */
 .list-empty { margin: 16px 8px; font-size: 13px; color: var(--muted); text-align: center; }
+.list-rows:has(> .list-empty:only-child) { display: grid; place-items: center; }
+.list-search-error { margin: 16px 8px; font-size: 13px; }
+@media (max-width: 768px) { .list-search-error .btn { min-height: 44px; } }
 .menu-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-header); padding: 8px 12px 4px; }
 .menu-item.check { display: flex; justify-content: space-between; }
 .menu-item.check[aria-checked='true']::after { content: '✓'; color: var(--muted); }
