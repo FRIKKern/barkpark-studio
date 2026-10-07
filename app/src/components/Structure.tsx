@@ -55,7 +55,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     (schemaOf(schemas, type)?.fields ?? []).flatMap((f) => [...refTypesOf(f), ...refTypesOf(f.of)])
   useLive(
     panes.flatMap((p) => (p.kind === 'doc' ? [p.id] : [])),
-    panes.flatMap((p) => (p.kind === 'list' ? [p.type] : p.kind === 'doc' ? [p.type, ...refTypes(p.type)] : [])),
+    panes.flatMap((p) => (p.kind === 'types' || !schemaOf(schemas, p.type) ? [] : p.kind === 'list' ? [p.type] : [p.type, ...refTypes(p.type)])),
   )
   const path = panesPath(panes)
   // A clicked strip takes focus until the path changes.
@@ -72,6 +72,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
   return (
     <NarrowContext.Provider value={narrow}>
       <div className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined}>
+        <TabTitle pane={panes[panes.length - 1]} />
         {panes.map((pane, i) =>
           narrow ? (
             i === panes.length - 1 && (
@@ -111,13 +112,26 @@ function usePaneTitle(pane: Pane) {
   const published = usePublishedPerspective()
   const id = pane.kind === 'doc' ? pane.id : ''
   const type = pane.kind === 'doc' ? pane.type : ''
-  const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && !published})
-  const {data: live} = useQuery({...publishedQuery(type, id), enabled: pane.kind === 'doc' && published})
+  const known = !!schemaOf(schemas, type)
+  const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && known && !published})
+  const {data: live} = useQuery({...publishedQuery(type, id), enabled: pane.kind === 'doc' && known && published})
   const doc = published ? live : draft
   if (pane.kind === 'types') return 'Content'
-  if (pane.kind === 'list') return schemaOf(schemas, pane.type)?.title ?? pane.type
+  if (pane.kind === 'list') return schemaOf(schemas, pane.type)?.title ?? 'Type not found'
   const schema = schemaOf(schemas, pane.type)
+  if (!schema) return 'Type not found'
+  if (doc === null) return 'Document not found'
   return doc && schema ? docTitle(doc, schema) : previewTitle(doc, schema)
+}
+
+/** The last pane owns the tab title, including cached edits and browser history. */
+function TabTitle({pane}: {pane: Pane}) {
+  const title = usePaneTitle(pane)
+  useEffect(() => {
+    document.title = `${title} | Barkpark Studio`
+    return () => { document.title = 'Barkpark Studio' }
+  }, [title])
+  return null
 }
 
 function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => void}) {
@@ -141,9 +155,20 @@ function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => 
 
 function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
+  const {data: schemas = []} = useQuery(schemasQuery)
   // e2e probe (J50): this pane throws while rendering, as a bug would.
   if ((globalThis as {__crashPane?: string}).__crashPane === paneKey(pane)) throw new Error(`e2e probe: ${paneKey(pane)} crashed`)
   const next = panes[index + 1]
+  if (pane.kind !== 'types' && !schemaOf(schemas, pane.type)) return (
+    <section className="pane" data-pane-index={index}>
+      <header className="pane-header"><BackLink panes={panes} index={index} /><span className="title">Type not found</span></header>
+      <div className="pane-body pane-not-found">
+        <h2>Type not found</h2>
+        <p>The type “{pane.type}” is not in this Studio’s schema.</p>
+        <PaneLink className="btn" href={closeFrom(panes, index)}>Go back</PaneLink>
+      </div>
+    </section>
+  )
   if (pane.kind === 'types') return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.type : undefined} />
   if (pane.kind === 'list') return <ListPane panes={panes} index={index} type={pane.type} selected={next?.kind === 'doc' ? next.id : undefined} />
   return (

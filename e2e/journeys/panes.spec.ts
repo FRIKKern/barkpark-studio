@@ -50,9 +50,11 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   expect(path(page)).toBe('/structure/post;post-02')
   await expect(t.listItem(page, 'post-02')).toHaveAttribute('data-selected')
   await referenceHold(page, t.field(page, 'title'), 'Fixture post 02')
+  await expect(page).toHaveTitle(/^Fixture post 02 \| /)
 
   await page.reload()
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 02')
+  await expect(page).toHaveTitle(/^Fixture post 02 \| /)
   expect(await strips(page)).toEqual([false, false, false])
   await referenceHold(page, t.field(page, 'title'), 'Fixture post 02')
 

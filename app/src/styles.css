@@ -134,6 +134,10 @@ a { color: inherit; text-decoration: none; }
 }
 .pane-header .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pane-body { flex: 1; overflow: auto; }
+.pane-not-found { padding: 24px; }
+.pane-not-found h2 { font-size: 18px; }
+.pane-not-found p { color: var(--muted); }
+.pane-not-found .btn { display: inline-flex; align-items: center; min-height: 44px; }
 .icon-btn {
   border: 0; background: none; padding: 0; cursor: pointer;
   width: 25px; height: 25px; display: grid; place-items: center; border-radius: 3px; color: var(--muted);
@@ -158,6 +162,10 @@ a { color: inherit; text-decoration: none; }
   .pane.list .search input { min-height: 44px; padding-right: 46px; }
   .pane.list .search .search-icon { top: 50%; transform: translateY(-50%); }
   .pane.list .search-clear { width: 44px; height: 44px; top: 0; }
+  .pane.doc .pane-header .icon-btn, .pane-header > .back-link { width: 44px; height: 44px; flex-shrink: 0; }
+  .pane.doc .back-link { width: 44px; height: 44px; flex-shrink: 0; }
+  .pane.doc [role=tab] { min-width: 44px; min-height: 44px; }
+  .pane.doc .doc-title-bar:has(.view-tabs) { height: 112px; gap: 8px; }
 }
 
 /* Document previews (list rows and reference values) */
