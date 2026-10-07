@@ -20,10 +20,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change, 8 tasks closed
+- **Today** · 2 changes, 8 tasks closed
+  - Measure concurrent editing and retain revision-checked merging ([#100](https://github.com/FRIKKern/barkpark-studio/pull/100))
   - Record paired Studio journeys and prevent false-positive author picks ([#99](https://github.com/FRIKKern/barkpark-studio/pull/99))
   - Done: [J23 [1 Panes+Refs] Edit a referenced doc in its pane while parent stays open and live; parent preview updates](https://github.com/FRIKKern/barkpark/issues/21677)
-  - Done: [J22 [1 Panes+Refs] Create new from a reference field: new doc opens in next pane, ref set when it exists](https://github.com/FRIKKern/barkpark/issues/21676)
 - **Yesterday** · 69 changes, 18 tasks closed
   - D10: Norwegian letters, dead keys and IME type correctly in the canvas; a 500-block doc keeps F1 ([#98](https://github.com/FRIKKern/barkpark-studio/pull/98))
   - D07: paste or drop a picture into the canvas — uploaded to Barkpark media, uploading badge, failure on the block ([#97](https://github.com/FRIKKern/barkpark-studio/pull/97))
