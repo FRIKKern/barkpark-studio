@@ -6,7 +6,7 @@ import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {validate, type Problem} from '../lib/validation'
 import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
-import {createDoc, discardDraft, draftNew, edit, flush, publish, undo, unpublish, useSaveState} from '../lib/edits'
+import {createDoc, discardDraft, edit, flush, publish, undo, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
@@ -133,13 +133,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   ]
   const next = panes[index + 1]
   const qc = useQueryClient()
-  // An id nobody has written yet is a new doc (Sanity treats it the same way); one
-  // whose history ends in a delete is a deleted doc (J32): a banner, not a new draft.
-  const initialValues = schemaOf(schemas, pane.type)?.initialValues
+  // Creation actions seed their draft explicitly. A missing deep link must not
+  // silently become a new document; keep the deleted-document recovery (J32).
   const deleted = useDeleted(pane.type, pane.id, draftQ.data === null && !viewingPublished)
-  useEffect(() => {
-    if (draftQ.data === null && initialValues && deleted === false) draftNew(qc, pane.type, pane.id, initialValues)
-  }, [draftQ.data, initialValues, deleted, qc, pane.type, pane.id])
   // J44: the form's fields are memoized, so what they get must hold still while
   // typing: one steady onEdit (it reads the latest doc), one onChange per field
   // name, and context values that change only when their content does.
@@ -308,6 +304,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <ReadErrorCard title="Could not load the document" error={error} failures={docQ.failureCount} retrying={docQ.fetchStatus !== 'idle'} onRetry={() => void docQ.refetch()} />
           ))}
         {deleted && !doc && <DeletedBanner type={pane.type} id={pane.id} />}
+        {doc === null && !error && !viewingPublished && !deleted && (
+          <div className="pane-not-found">
+            <h2>Document not found</h2>
+            <p>This document does not exist or is no longer available.</p>
+            <PaneLink className="btn" href={closeHref}>Go back</PaneLink>
+          </div>
+        )}
         <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
         {loggedOut && doc && (
           // J48: the session is gone — said where you are editing, with the way back.

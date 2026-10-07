@@ -28,6 +28,7 @@ test('@local J18: new post from the list — initial values, slug generate', asy
 
   await t.field(page, 'title').click()
   await page.keyboard.type('My brand new post')
+  await expect(page).toHaveTitle(/^My brand new post \| /)
   await page.getByRole('button', {name: 'Generate'}).click()
   await expect(t.field(page, 'slug')).toHaveValue('my-brand-new-post')
 
