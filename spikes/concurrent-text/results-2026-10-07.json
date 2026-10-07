@@ -1676,7 +1676,7 @@
   ],
   "serverObservation": {
     "detail": "This line appeared repeatedly during the real Studio run. The buffer has no per-trial timestamps; throttling was observed, but individual latency tails cannot be attributed from this log.",
-    "source": "Buffered Vite preview terminal on port 3102, retrieved when stopped at 2026-10-07 05:30 UTC",
+    "source": "Buffered Vite preview terminal on port 3102, retrieved after the trials on 2026-10-07",
     "message": "[barkpark] 429 on /v1/data/mutate/e2e-local-codex-recording, retrying in 1s"
   }
 }
