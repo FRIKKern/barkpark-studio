@@ -5,8 +5,7 @@ import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type 
 import {formatPreview, previewRefs} from '../lib/preview'
 import {DocumentIcon} from './icons'
 import {PaneLink} from './PaneLink'
-import {ago} from './HistoryPanel'
-import {useLocale, useT} from '../lib/i18n'
+import {ago, useLocale, useT} from '../lib/i18n'
 import {useTip} from './Tip'
 
 /**

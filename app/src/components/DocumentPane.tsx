@@ -1,5 +1,5 @@
 import {announce} from '../lib/announce'
-import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {NarrowContext} from '../lib/layout'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
@@ -21,14 +21,21 @@ import {PaneLink} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
 import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
-import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
 import {DocHeaderMenu, DocShareMenu, Keys, useAltName} from './DocHeaderMenu'
-import {InspectDialog} from './InspectDialog'
-import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
-import {CommentsContext, CommentsPanel} from './Comments'
+import {CommentsContext} from './Comments'
+
+// Opened on demand, so their code loads then, not with every document (F3): the
+// history and review inspector, a revision's footer, the comments panel, Inspect.
+const HistoryPanel = lazy(() => import('./HistoryPanel').then((m) => ({default: m.HistoryPanel})))
+const RevisionFooter = lazy(() => import('./HistoryPanel').then((m) => ({default: m.RevisionFooter})))
+const ReviewChanges = lazy(() => import('./ReviewChanges').then((m) => ({default: m.ReviewChanges})))
+const CommentsPanel = lazy(() => import('./CommentsPanel').then((m) => ({default: m.CommentsPanel})))
+const InspectDialog = lazy(() => import('./InspectDialog').then((m) => ({default: m.InspectDialog})))
+/** What a lazy inspector shows while its code loads: the inspector's own box, so nothing moves. */
+const InspectorLoading = () => <aside className="inspector" aria-busy="true" />
 import {commentsQuery, threadsOf} from '../lib/comments'
 import {revisionQuery} from '../lib/history'
 import {PortableDocEditor} from './PortableDocEditor'
@@ -36,7 +43,7 @@ import {PaperSidebar} from './PaperSidebar'
 import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
-import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
+import {ago, intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {ReadErrorCard} from './PaneError'
 import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 
@@ -556,13 +563,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       )}
       </div>
       {pane.rev
-        ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
+        ? <Suspense fallback={<footer className="doc-footer" />}><RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} /></Suspense>
         : viewingPublished
         ? doc && <PublishedFooter doc={doc} single={single} />
         : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => void toggleValidation()} />}
       {pane.inspect === 'comments' && (
+        <Suspense fallback={<InspectorLoading />}>
         <CommentsPanel
           docId={pane.id}
           docType={pane.type}
@@ -571,8 +579,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           onGoToField={(path) => goTo({path, group: (schema?.fields.find((f) => f.name === path.split('.')[0]) as {group?: string} | undefined)?.group})}
           onClose={() => navigate({href: withParams(panes, index, {inspect: undefined})})}
         />
+        </Suspense>
       )}
       {(pane.inspect === 'history' || pane.inspect === 'review') && (
+        <Suspense fallback={<InspectorLoading />}>
         <HistoryPanel
           type={pane.type}
           id={pane.id}
@@ -592,9 +602,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           onPick={(e) => navigate({href: withParams(panes, index, {rev: e?.revision.id})})}
           onClose={() => navigate({href: withParams(panes, index, {inspect: undefined, rev: undefined})})}
         />
+        </Suspense>
       )}
       </div>
-      {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema, t)} onClose={() => setInspectOpen(false)} />}
+      {inspectOpen && doc && schema && (
+        <Suspense fallback={null}>
+          <InspectDialog doc={doc} title={docTitle(doc, schema, t)} onClose={() => setInspectOpen(false)} />
+        </Suspense>
+      )}
     </section>
   )
 }
