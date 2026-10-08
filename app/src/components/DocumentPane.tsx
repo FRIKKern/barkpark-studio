@@ -2,7 +2,7 @@ import {announce} from '../lib/announce'
 import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {NarrowContext} from '../lib/layout'
 import {DialogBox, MenuPopover} from './FocusScopes'
-import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query'
+import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
@@ -23,9 +23,9 @@ import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
-import {DocHeaderMenu, DocShareMenu} from './DocHeaderMenu'
+import {DocHeaderMenu, DocShareMenu, Keys, useAltName} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
-import {HistoryPanel, RevisionFooter} from './HistoryPanel'
+import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {CommentsContext, CommentsPanel} from './Comments'
 import {commentsQuery, threadsOf} from '../lib/comments'
 import {revisionQuery} from '../lib/history'
@@ -35,7 +35,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {ReadErrorCard} from './PaneError'
-import {Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, InfoOutline, SplitVertical, TagIcon, WarningOutline} from './icons'
+import {Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, InfoOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -148,7 +148,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       void navigate({href: withParams(panes, index, {path: id}), replace: true})
     }, 300)
   }
-  const loggedOut = useSaveState(pane.id).state === 'signedOut' || signedOut
+  const saveState = useSaveState(pane.id).state
+  const loggedOut = saveState === 'signedOut' || signedOut
+  const publishingKey = useRef(false)
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
   const freeform = mode !== 'none' && !viewingPublished && (mode === 'main' || Array.isArray(doc?.blocks))
   // Published is read in Classic: the canvas edits the draft.
@@ -186,6 +188,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => () => flush(qc, pane.id), [qc, pane.id])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   const [inspectOpen, setInspectOpen] = useState(false)
+  const [askDelete, setAskDelete] = useState(0)
   const metaButton = useRef<HTMLButtonElement>(null)
   const duplicate = (from: Doc) => {
     const id = crypto.randomUUID()
@@ -252,9 +255,19 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         reportFocus(pane.id, field ?? null)
       }}
       onKeyDown={(e) => {
-        // Sanity's publish shortcut.
-        if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !errors.length) (e.preventDefault(), void publish(qc, doc))
+        // Sanity's publish shortcut, also mid-edit (publish flushes first). Like its
+        // button, a no-op with nothing to publish or while a publish is running.
+        if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !errors.length) {
+          e.preventDefault()
+          if (!publishingKey.current && (doc._draft || saveState !== 'saved')) {
+            publishingKey.current = true
+            void publishAndTell(qc, doc)
+              .catch((err: Error) => toast({tone: 'critical', title: 'Could not publish', description: reasonOf(err.message) ?? err.message}))
+              .finally(() => (publishingKey.current = false))
+          }
+        }
         if (e.ctrlKey && e.altKey && e.code === 'KeyI' && doc) (e.preventDefault(), setInspectOpen(true))
+        if (e.ctrlKey && e.altKey && e.code === 'KeyD' && doc && !viewingPublished) (e.preventDefault(), setAskDelete((n) => n + 1))
         // F7: the document's own undo (this editor's changes only, across fields and
         // across others' edits). The block canvas keeps its own.
         const mod = e.metaKey || e.ctrlKey
@@ -518,7 +531,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
         : viewingPublished
         ? doc && <PublishedFooter doc={doc} single={single} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} />}
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
       {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema)} onClose={() => setInspectOpen(false)} />}
     </section>
   )
@@ -611,7 +624,7 @@ export const docTitle = (doc: Doc, schema: Schema) => {
 }
 
 /** `single` (B13): a singleton keeps Publish, Discard changes and (in History) Restore only. */
-function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void}) {
+function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void; askDelete: number}) {
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
   const {canWrite, editReason, publishReason, createReason} = useCanWrite()
@@ -621,6 +634,11 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; cl
   const [discarding, setDiscarding] = useState(false)
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
+  const alt = useAltName()
+  // J28: Sanity's Delete shortcut (Ctrl+Alt+D) asks here.
+  useEffect(() => {
+    if (askDelete && !single && canWrite) setDeleting(true)
+  }, [askDelete])
   const label =
     {
       saving: 'Saving…',
@@ -630,7 +648,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; cl
       error: 'Not saved — retrying',
       signedOut: "You've been logged out — not saving. Sign in to save your edits.",
       refused: `Not saved: ${error ?? 'Barkpark refused the change'}`,
-    }[state as string] ?? (doc._draft ? 'Saved' : 'Published')
+    }[state as string] ?? (doc._draft ? 'Saved' : `Last published ${ago(doc._updatedAt)}`)
   return (
     <footer className="doc-footer">
       <span className="save-state" data-state={state} title={error} role="status">
@@ -647,7 +665,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; cl
         onClick={async () => {
           setPublishing(true)
           try {
-            await publish(qc, doc)
+            await publishAndTell(qc, doc)
           } catch (e) {
             // D12: a refusal (a paper's publish wall, say) says why, never silently.
             toast({tone: 'critical', title: 'Could not publish', description: reasonOf((e as Error).message) ?? (e as Error).message})
@@ -658,7 +676,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; cl
       >
         Publish
       </button>
-      <div className="menu-wrap">
+      {(!single || canDiscard) && <div className="menu-wrap">
         <button type="button" className="icon-btn" aria-label="Document actions" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
@@ -666,27 +684,37 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; cl
           <MenuPopover className="popover menu up" onClose={() => setMenu(false)}>
             {!single && (
               <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
-                Duplicate
+                <span className="menu-icon-text">
+                  <Copy /> Duplicate
+                </span>
               </button>
             )}
-            <button type="button" role="menuitem" className="menu-item" autoFocus={single} disabled={!canDiscard || !canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
-              Discard changes
-            </button>
+            {/* Sanity offers Discard only when there is a draft to discard. */}
+            {canDiscard && (
+              <button type="button" role="menuitem" className="menu-item danger" autoFocus={single} disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
+                <span className="menu-icon-text">
+                  <Undo /> Discard changes
+                </span>
+              </button>
+            )}
             {!single && (
-              <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
-                Delete
+              <button type="button" role="menuitem" className="menu-item danger" aria-keyshortcuts="Control+Alt+D" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
+                <span className="menu-icon-text">
+                  <Trash /> Delete
+                </span>
+                <Keys keys={['Ctrl', alt, 'D']} />
               </button>
             )}
           </MenuPopover>
         )}
-      </div>
+      </div>}
       {deleting && <DeleteDialog doc={doc} closeHref={closeHref} onClose={() => setDeleting(false)} />}
       {discarding && (
         <ConfirmDialog
           title="Discard changes?"
           body="Are you sure you want to discard all changes since last published?"
           action="Discard changes"
-          run={() => discardDraft(qc, doc)}
+          run={() => discardDraft(qc, doc).then(() => toast({title: 'All changes has now been discarded. The discarded draft can still be recovered from history'}))}
           onClose={() => setDiscarding(false)}
         />
       )}
@@ -694,15 +722,29 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; cl
   )
 }
 
+// J04: Sanity's toast after each lifecycle action, the document's name in bold.
+const named = (qc: QueryClient, doc: Doc, rest: string) => (
+  <>
+    <strong>{previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type))}</strong> {rest}
+  </>
+)
+/** Publish, then say so (the footer button and Ctrl+Alt+P). */
+async function publishAndTell(qc: QueryClient, doc: Doc) {
+  await publish(qc, doc)
+  toast({tone: 'positive', title: named(qc, qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc, 'was published')})
+}
+
 /** The Published perspective: read-only, and the way to take a document down. */
 function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const {canWrite, publishReason} = useCanWrite()
+  const run = () =>
+    unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, 'was unpublished. A draft has been created from the latest published revision.')}))
   return (
     <footer className="doc-footer">
       <span className="save-state" role="status">
-        Published
+        Last published {ago(doc._updatedAt)}
       </span>
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
       {!single && (
@@ -711,7 +753,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
         </button>
       )}
       {/* B07: who refers to it is listed before it goes. */}
-      {confirm && <UnpublishDialog docs={[doc]} run={() => unpublish(qc, doc)} onClose={() => setConfirm(false)} />}
+      {confirm && <UnpublishDialog docs={[doc]} run={run} onClose={() => setConfirm(false)} />}
     </footer>
   )
 }
