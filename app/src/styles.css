@@ -1407,3 +1407,28 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .doc-badge[data-color=primary] { background: color-mix(in srgb, #2276fc 18%, transparent); color: color-mix(in srgb, #2276fc 60%, var(--fg)); }
 .doc-badge[data-color=warning] { background: var(--warn-bg); color: var(--warn-fg); }
 .doc-badge[data-color=danger] { background: color-mix(in srgb, #e5533d 18%, transparent); color: color-mix(in srgb, #e5533d 60%, var(--fg)); }
+
+/* J58: Presentation, after Sanity's — the site beside the document panel, its connection states over the frame. */
+.presentation { height: calc(100vh - var(--nav-h)); display: flex; color: var(--fg); }
+.presentation-preview { flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+.presentation-toolbar { height: 51px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 12px; border-bottom: 1px solid var(--border); }
+.presentation-url { flex: 1; min-width: 0; height: 33px; font-size: 13px; }
+.presentation-frame { position: relative; flex: 1; background: var(--hover); }
+.presentation-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+.presentation-overlay { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; backdrop-filter: blur(2px); }
+.presentation-overlay.connecting[data-timed-out] { backdrop-filter: blur(16px) saturate(0.5) grayscale(0.5); }
+.presentation-overlay.error { background: var(--bg); backdrop-filter: none; }
+.presentation-loading, .presentation-status { display: flex; flex-direction: column; align-items: center; gap: 16px; font-size: 13px; color: var(--muted); }
+.presentation-status { padding: 20px; border-radius: 3px; background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(0, 0, 0, .08); }
+.presentation-status[data-tone=caution] { background: var(--warn-bg); color: var(--warn-fg); }
+.presentation-error { width: 280px; font-size: 13px; }
+.presentation-error h2 { font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+.presentation-error p { color: var(--muted); margin: 0 0 16px; }
+.presentation-error div { display: flex; gap: 6px; }
+.presentation-error .btn { padding: 4px 8px; font-weight: 400; box-shadow: inset 0 0 0 1px var(--line); }
+.presentation-error .btn.continue { color: var(--danger-text); }
+.spinner { width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid currentColor; border-right-color: transparent; animation: spin 0.8s linear infinite; }
+.presentation-panel { width: 350px; flex: none; display: flex; flex-direction: column; }
+.presentation-panel h2 { font-size: 13px; font-weight: 600; margin: 0; padding: 0 20px; height: 51px; display: flex; align-items: center; }
+.presentation-empty { margin: auto; color: var(--muted); font-size: 15px; }
+@media (max-width: 900px) { .presentation-panel { display: none; } }

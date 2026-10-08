@@ -241,9 +241,10 @@ function Editor() {
   )
 }
 
-// J65: the studio config's tools follow the built-in ones.
+// J58: Presentation after Structure, as Sanity's. J65: the config's tools follow the built-in ones.
 const TOOLS: (readonly [string, string])[] = [
   ['/structure', 'Structure'],
+  ...(studio.presentation ? [['/presentation', 'Presentation'] as const] : []),
   ['/vision', 'Vision'],
   ['/media', 'Media'],
   ...(studio.tools ?? []).map((tool) => [`/${tool.name}`, tool.title] as const),

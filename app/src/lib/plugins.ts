@@ -19,6 +19,8 @@ export type DocumentBadge = (doc: Doc) => {label: string; color?: 'primary' | 's
 
 export type StudioConfig = {
   tools?: Tool[]
+  /** J58: the Presentation tool, over the site at `previewUrl`. */
+  presentation?: {previewUrl: string}
   form?: {
     /** Keyed `type.path` (`post.excerpt`). */
     inputs?: Record<string, ComponentType<InputProps>>

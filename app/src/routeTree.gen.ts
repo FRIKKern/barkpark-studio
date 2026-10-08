@@ -14,6 +14,7 @@ import { Route as ToolRouteImport } from './routes/$tool'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MediaRouteImport } from './routes/media'
+import { Route as PresentationRouteImport } from './routes/presentation'
 import { Route as VisionRouteImport } from './routes/vision'
 import { Route as ApiListenRouteImport } from './routes/api/listen'
 import { Route as ApiMutateRouteImport } from './routes/api/mutate'
@@ -58,6 +59,11 @@ const LoginRoute = LoginRouteImport.update({
 const MediaRoute = MediaRouteImport.update({
   id: '/media',
   path: '/media',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PresentationRoute = PresentationRouteImport.update({
+  id: '/presentation',
+  path: '/presentation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VisionRoute = VisionRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
+  '/presentation': typeof PresentationRoute
   '/vision': typeof VisionRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
+  '/presentation': typeof PresentationRoute
   '/vision': typeof VisionRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
+  '/presentation': typeof PresentationRoute
   '/vision': typeof VisionRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/login'
     | '/media'
+    | '/presentation'
     | '/vision'
     | '/api/listen'
     | '/api/mutate'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/login'
     | '/media'
+    | '/presentation'
     | '/vision'
     | '/api/listen'
     | '/api/mutate'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/login'
     | '/media'
+    | '/presentation'
     | '/vision'
     | '/api/listen'
     | '/api/mutate'
@@ -333,6 +345,7 @@ export interface RootRouteChildren {
   HealthRoute: typeof HealthRoute
   LoginRoute: typeof LoginRoute
   MediaRoute: typeof MediaRoute
+  PresentationRoute: typeof PresentationRoute
   VisionRoute: typeof VisionRoute
   ApiListenRoute: typeof ApiListenRoute
   ApiMutateRoute: typeof ApiMutateRoute
@@ -390,6 +403,13 @@ declare module '@tanstack/react-router' {
       path: '/media'
       fullPath: '/media'
       preLoaderRoute: typeof MediaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/presentation': {
+      id: '/presentation'
+      path: '/presentation'
+      fullPath: '/presentation'
+      preLoaderRoute: typeof PresentationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/vision': {
@@ -541,6 +561,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthRoute: HealthRoute,
   LoginRoute: LoginRoute,
   MediaRoute: MediaRoute,
+  PresentationRoute: PresentationRoute,
   VisionRoute: VisionRoute,
   ApiListenRoute: ApiListenRoute,
   ApiMutateRoute: ApiMutateRoute,
