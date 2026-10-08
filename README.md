@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 26 changes, 9 tasks closed
+- **Today** · 27 changes, 10 tasks closed
+  - docs(J40): comments are on the reference plan; releases and scheduled publish are not ([#143](https://github.com/FRIKKern/barkpark-studio/pull/143))
+  - Done: [J46 [after] Phone width: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px](https://github.com/FRIKKern/barkpark/issues/21843)
   - J46: phone width — the tools and user menu in a drawer, search at the right, 44 px targets ([#142](https://github.com/FRIKKern/barkpark-studio/pull/142))
-  - Done: [J47 [after] Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced](https://github.com/FRIKKern/barkpark/issues/21845)
-  - J47: list rows are a list, so a reader hears the position (Sanity: a listbox) ([#140](https://github.com/FRIKKern/barkpark-studio/pull/140))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
