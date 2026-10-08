@@ -67,6 +67,14 @@ quality first, never a shrinking finish line.
 | J55 | 1 | Schema orderings: the list menu offers the type's own orderings by title, and a desk list opens in its declared one | F2 |
 | J57 | 1 | Hover every icon button: a tooltip with its shortcut where one exists; toasts can be closed and repeats replace each other | F5 F10 |
 | J56 | 1 | Previews from select and prepare: a referenced title as subtitle, a formatted date, a fallback when empty, in lists and reference values; status tooltips with dates on list rows (Published {ago} / Edited {ago} / No unpublished edits) and the header chips (Published {date} / Edited {date}) | F2 F10 |
+| J58 | after | Presentation: the site page loads in an iframe beside the navigator; connecting/loading states, refresh, hide navigator, "could not connect" + Retry | F3 F9 F14 |
+| J59 | after | Click to edit: Edit overlay outlines; clicking a heading opens its document with that field focused | F2 F5 F6 |
+| J60 | after | Live preview: typing in the form updates the iframe without reload; focus and caret never lost | F1 F4 F6 |
+| J61 | after | Page navigation in the preview: links / URL bar; "Documents on this page" and "Main document" follow the page | F2 F9 |
+| J62 | after | Locations banner: "Used on N pages" / "Not used on any pages"; clicking opens Presentation | F2 |
+| J63 | after | Drafts vs published in the preview; after Publish the published view updates | F4 F9 |
+| J64 | after | Preview viewport full ↔ phone width; share menu: copy link, QR, sharing on/off by permission | F12 F15 |
+| J65 | after | Plugin surface: a custom tool in the navbar, a custom field input, a custom document action + badge, "Open preview" in the document menu | F5 F9 F10 |
 
 ★ = crown journeys (endless panes + references), built first, judged hardest.
 
