@@ -77,7 +77,7 @@ export function ReadErrorCard({title, error, failures, retrying, onRetry}: {titl
 
 /** One pane that throws while rendering shows this card in its place; the others keep working. */
 // Keyed by the pane: navigating it somewhere else starts it afresh.
-export class PaneBoundary extends Component<{children: ReactNode}, {error: unknown}> {
+export class PaneBoundary extends Component<{children: ReactNode; kind?: string}, {error: unknown}> {
   state = {error: null as unknown}
   static getDerivedStateFromError(error: unknown) {
     return {error}
@@ -88,7 +88,8 @@ export class PaneBoundary extends Component<{children: ReactNode}, {error: unkno
     return (
       <section className="pane pane-crashed" data-testid="pane" data-pane-crashed="">
         <div className="pane-error" role="alert">
-          <h3>An error occurred</h3>
+          {/* Sanity's words for its document and list panes. */}
+          <h3>{this.props.kind === 'doc' ? 'Could not render the document editor' : this.props.kind === 'list' ? 'Could not render the document list' : 'An error occurred'}</h3>
           <p>This pane hit an error it could not recover from. The other panes keep working.</p>
           {import.meta.env.DEV && <pre className="error-detail">{message}</pre>}
           <ErrorActions error={this.state.error} onRetry={() => this.setState({error: null})} />
