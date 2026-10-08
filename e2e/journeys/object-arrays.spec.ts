@@ -4,8 +4,8 @@ import {target, type Target} from '../rig/targets'
 // J33 evidence, both studios, on post-03's links (an external link and a doc
 // link): preview rows; open an item, edit it in the dialog; add an item; move it
 // to the top by keyboard. Stills + clips go to e2e/evidence/. Not a CI gate.
-// The links go back to what they were after the run, on both sides. Sanity's "Add item…" menu
-// of several types has no Barkpark equivalent yet (task-b3ebbd3ab1575e2a).
+// The links go back to what they were after the run, on both sides. Ours reads the types
+// from the member's options until Barkpark's arrayOf holds several (task-b3ebbd3ab1575e2a).
 const ID = 'post-03'
 const shot = (name: string, step: string) => `evidence/J33-${name}-${step}.png`
 test.use({video: 'on'})
@@ -44,10 +44,12 @@ test('@evidence J33: object array — previews, edit in a dialog, add, reorder',
   await expect(links.getByRole('button', {name: /Sanity docs v2/})).toBeVisible()
   await expect.poll(() => titles(t, page), {timeout: 10_000}).toEqual(['Sanity docs v2', 'Related post'])
 
-  // Add an item: Sanity asks which type; ours has one (Barkpark arrayOf).
+  // Add an item: both ask which type, and the new item shows that type's fields only.
   await links.getByRole('button', {name: /Add item/}).click()
-  if (t.name === 'sanity') await page.getByRole('menuitem', {name: 'External Link'}).click()
+  await page.getByRole('menuitem', {name: 'External link'}).click()
   const added = page.getByRole('dialog').last()
+  await expect(added.getByRole('textbox', {name: 'URL'})).toBeVisible()
+  await expect(added.getByText('Target', {exact: true})).toHaveCount(0)
   await added.getByRole('textbox', {name: 'Title'}).fill('Barkpark')
   await page.waitForTimeout(t.name === 'sanity' ? 800 : 300)
   await page.screenshot({path: shot(t.name, '3-new-item')})
