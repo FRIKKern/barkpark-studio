@@ -89,7 +89,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
 }
 
 /**
- * J33: several item types in one Barkpark arrayOf (it takes one member shape until
+ * J33 (decision 0005): several item types in one Barkpark arrayOf (it takes one member shape until
  * task-b3ebbd3ab1575e2a). The member says which select names the type and which fields
  * each type has: `options: {typeField: "kind", fieldsByType: {externalLink: ["title", "url"]}}`.
  * Then adding asks the type (Sanity's insert menu) and an item shows its type's fields
