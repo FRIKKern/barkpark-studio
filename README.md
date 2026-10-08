@@ -18,11 +18,11 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 40 changes, 15 tasks closed
-  - fix(J03): form fields sit where Sanity's do under the group tabs ([#156](https://github.com/FRIKKern/barkpark-studio/pull/156))
-  - Done: [J52 [2 Forms] Focused field lives in the URL: reload or a copied link returns to that field](https://github.com/FRIKKern/barkpark/issues/21925)
-  - fix(J52): a link to a field inside an array item opens that item ([#155](https://github.com/FRIKKern/barkpark-studio/pull/155))
-- **Yesterday** · 10 changes, 13 tasks closed
+- **Today** · 96 changes, 63 tasks closed
+  - Done: [Studio dialogs (history, share, access, delete, pickers) stay English in an nb-NO workspace](https://github.com/FRIKKern/barkpark/issues/22108)
+  - Papers open read-only with a banner until Barkpark can save a paper body ([#214](https://github.com/FRIKKern/barkpark-studio/pull/214))
+  - B01: Barkpark's own Norwegian wins where it has the string (Required, Show more) ([#213](https://github.com/FRIKKern/barkpark-studio/pull/213))
+- **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
 - **This week** · 97 changes, 25 tasks closed
