@@ -15,7 +15,10 @@ export default defineConfig(({mode}) => {
       return 'dev'
     }
   })()
-  const build = process.env.STUDIO_BUILD || `${commit}-${Date.now().toString(36)}`
+  // One id per build: the config runs once for the client and once for the server
+  // bundle, and two Date.now() values made every production tab offer a reload.
+  process.env.STUDIO_BUILD ||= `${commit}-${Date.now().toString(36)}`
+  const build = process.env.STUDIO_BUILD
   return {
     server: {port: 3000},
     define: {__STUDIO_BUILD__: JSON.stringify(build)},

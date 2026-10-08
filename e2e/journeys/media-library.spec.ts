@@ -64,7 +64,7 @@ test('@local B08: media library — search, visibility, checkout lock, title, fo
 
   await page.getByRole('button', {name: '+ New folder'}).click()
   await page.getByLabel('Folder name').fill('B08 folder')
-  await page.getByRole('button', {name: 'Create'}).click()
+  await page.getByRole('button', {name: 'Create', exact: true}).click()
   const row = page.getByRole('navigation', {name: 'Folders'}).getByRole('button', {name: 'B08 folder'})
   await expect(row).toHaveAttribute('aria-current', 'true')
   const list = (await (await fetch(`${media()}/collections?limit=100`, {headers: auth()})).json()) as {result: {collections: {id: string; title: string}[]}}
