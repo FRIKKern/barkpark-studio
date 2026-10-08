@@ -13,6 +13,7 @@ import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
+import {useTip} from './Tip'
 import {useCanWrite} from '../lib/session'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
@@ -311,14 +312,21 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               Published
             </span>
           ) : (
-            <button type="button" className="chip" data-selected={viewingPublished ? '' : undefined} aria-pressed={viewingPublished} onClick={() => navigate({href: `${base}?perspective=published`})}>
+            <TipChip
+              tip={() => {
+                const at = draftQ.data?._draft ? publishedQ.data?._updatedAt : draftQ.data?._updatedAt
+                return at ? `Published ${longDate(at)}` : 'Published'
+              }}
+              data-selected={viewingPublished ? '' : undefined}
+              aria-pressed={viewingPublished}
+              onClick={() => navigate({href: `${base}?perspective=published`})}
+            >
               <span className="dot published" />
               Published
-            </button>
+            </TipChip>
           )}
-          <button
-            type="button"
-            className="chip"
+          <TipChip
+            tip={() => (draftQ.data?._draft && draftQ.data._updatedAt ? `Edited ${longDate(draftQ.data._updatedAt)}` : 'No unpublished edits')}
             data-active={!viewingPublished && draftQ.data?._draft && !pristine ? '' : undefined}
             data-selected={!viewingPublished ? '' : undefined}
             aria-pressed={!viewingPublished}
@@ -326,7 +334,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           >
             <span className="dot draft" />
             Draft
-          </button>
+          </TipChip>
         </span>
         {doc && !pristine && <DocShareMenu doc={doc} />}
         {/* Sanity shows it only when there is something to show (an info alone: a check). */}
@@ -873,3 +881,17 @@ function useOpenObjects(docId: string) {
 
 /** A new doc that is still only in this tab: created on its first edit (J18). */
 const isPristine = (doc: Doc | null | undefined, state: string) => !!doc && doc._rev === '' && doc._hasPublished === false && state === 'saved'
+
+/** "Oct 8, 2026, 12:16 PM", as Sanity's header chips date a version. */
+const longDate = (iso: string) => new Date(iso).toLocaleString('en-US', {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'})
+
+/** A header chip (Published / Draft) with Sanity's dated tooltip (J56). */
+function TipChip({tip: content, children, ...rest}: {tip: () => string} & React.ButtonHTMLAttributes<HTMLButtonElement> & Record<`data-${string}`, string | undefined>) {
+  const {anchor, tip} = useTip(content)
+  return (
+    <button type="button" className="chip" {...rest} {...anchor}>
+      {children}
+      {tip}
+    </button>
+  )
+}

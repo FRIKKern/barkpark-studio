@@ -1,8 +1,8 @@
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {bpFetch, dataset} from '../server/barkpark'
+import {bpFetch, dataset, serviceToken} from '../server/barkpark'
 import {currentEditor} from '../server/auth'
-import {COMMENT_TYPE, type Comment, type CommentStatus} from './comment-threads'
+import {COMMENT_TYPE, mentionsIn, type Comment, type CommentStatus} from './comment-threads'
 
 export {COMMENT_TYPE, threadsOf, type Comment, type CommentStatus, type Thread} from './comment-threads'
 
@@ -48,6 +48,7 @@ export const postComment = createServerFn({method: 'POST'})
       threadId: data.parentCommentId ?? data.id,
       ...(data.parentCommentId ? {parentCommentId: data.parentCommentId} : {state: 'open'}),
       message,
+      mentions: mentionsIn(message),
       authorEmail: currentEditor()?.email ?? null,
       createdAt: now,
     }
@@ -77,7 +78,7 @@ export const editComment = createServerFn({method: 'POST'})
     await own(data.id)
     const message = data.message.trim()
     if (!message) throw new Error('A comment needs some text.')
-    await write([{patch: {id: data.id, type: COMMENT_TYPE, set: {message, editedAt: new Date().toISOString()}}}, {publish: {id: data.id, type: COMMENT_TYPE}}])
+    await write([{patch: {id: data.id, type: COMMENT_TYPE, set: {message, mentions: mentionsIn(message), editedAt: new Date().toISOString()}}}, {publish: {id: data.id, type: COMMENT_TYPE}}])
     return {ok: true}
   })
 
@@ -89,3 +90,16 @@ export const deleteComment = createServerFn({method: 'POST'})
     await write([data.id, ...data.replyIds].map((id) => ({delete: {id, type: COMMENT_TYPE, force: true}})))
     return {ok: true}
   })
+
+/**
+ * Who can be mentioned (J40): the workspace's people (Barkpark members that are
+ * users, not tokens), by email. Read with the studio's token (listing members
+ * needs it); only the emails reach the page.
+ */
+const fetchMentionable = createServerFn({method: 'GET'}).handler(async () => {
+  const res = await bpFetch('/v1/members?limit=200', {}, serviceToken())
+  if (!res.ok) throw new Error(`Could not load the users (${res.status})`)
+  const {members} = (await res.json()) as {members: {identity?: string; principal_type: string; revoked?: boolean | null}[]}
+  return [...new Set(members.filter((m) => m.principal_type === 'user' && !m.revoked && m.identity?.includes('@')).map((m) => m.identity!))].sort()
+})
+export const mentionableQuery = queryOptions({queryKey: ['mentionable'], staleTime: 5 * 60_000, queryFn: async () => (await fetchMentionable()) as string[]})
