@@ -16,7 +16,7 @@
 // upstream has been quiet, when one of our own writes gets no echo, and after 45 s
 // with no byte at all (Barkpark sends a keepalive every 30 s).
 import '@tanstack/react-start/server-only'
-import {bpFetch, READ_DEDUPE_MS, scope} from './barkpark'
+import {bpFetch, forgetReads, READ_DEDUPE_MS, scope} from './barkpark'
 import type {Scope} from '../lib/scope'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
@@ -68,22 +68,33 @@ export const head = (token: string) => {
 }
 
 /**
- * Where a page rendered on the server can resume its stream (?since=), or null
- * when this hub was not listening (the page then reads again once connected).
- * As of READ_DEDUPE_MS ago: a server read may be a shared one from that long
- * before; replaying a frame the page already has is harmless.
+ * Where a page rendered on the server resumes its stream (?since=); call it
+ * before the page's reads. A listening hub answers as of READ_DEDUPE_MS ago (a
+ * read may be a shared one from that long before; a frame replayed twice is
+ * harmless). A hub not listening yet starts now, and the shared reads are dropped
+ * so every read after this is newer than its first frame. Null only when Barkpark's
+ * stream does not answer in time: the page then reads again once it connects.
  */
-export function resumeMark(token: string): number | null {
-  const hub = hubs.get(hubKey(token, scope()))
+export async function resumeMark(token: string): Promise<number | null> {
+  const hub = hubFor(token)
   const before = Date.now() - READ_DEDUPE_MS
-  if (!hub?.upstream || !hub.liveSince || hub.liveSince > before) return null
-  for (let i = hub.buffer.length - 1; i >= 0; i--) if (hub.buffer[i].at <= before) return hub.buffer[i].id
-  return -1 // every frame it holds came after: replay them all
+  if (hub.upstream && hub.liveSince && hub.liveSince <= before) {
+    for (let i = hub.buffer.length - 1; i >= 0; i--) if (hub.buffer[i].at <= before) return hub.buffer[i].id
+    return -1 // every frame it holds came after: replay them all
+  }
+  if (!hub.upstream) {
+    void connect(hub)
+    if (hub.subscribers.size === 0) idleLater(hub)
+  }
+  for (const end = Date.now() + 1000; !hub.liveSince && Date.now() < end; ) await new Promise((r) => setTimeout(r, 20))
+  if (!hub.liveSince) return null
+  forgetReads()
+  return head(token)
 }
 
 export const publishedId = (id: string) => (id.startsWith('drafts.') ? id.slice(7) : id)
 
-export function subscribe(token: string, ids: string[], types: string[], send: Subscriber['send'], since?: number): () => void {
+export function subscribe(token: string, ids: string[], types: string[], send: Subscriber['send'], since?: number, resumed = false): () => void {
   const hub = hubFor(token)
   const {buffer, subscribers} = hub
   const knownFrom = hub.knownFrom
@@ -98,19 +109,23 @@ export function subscribe(token: string, ids: string[], types: string[], send: S
   clearTimeout(hub.idleTimer)
   if (!hub.upstream) void connect(hub)
   // A browser back after a gap: if the upstream has been quiet, it may be dead.
-  else if (since !== undefined && Date.now() - hub.lastByte > QUIET_MS) refresh(hub)
+  // Not for a page resuming from its server render: resumeMark just found the upstream live.
+  else if (since !== undefined && !resumed && Date.now() - hub.lastByte > QUIET_MS) refresh(hub)
   return () => {
     subscribers.delete(sub)
-    if (subscribers.size === 0) {
-      clearTimeout(hub.idleTimer)
-      hub.idleTimer = setTimeout(() => {
-        if (subscribers.size > 0) return
-        hub.upstream?.abort()
-        hub.upstream = null
-        hub.liveSince = 0
-      }, 60_000)
-    }
+    if (subscribers.size === 0) idleLater(hub)
   }
+}
+
+/** Close the upstream a minute after the last browser leaves (or none came). */
+function idleLater(hub: Hub) {
+  clearTimeout(hub.idleTimer)
+  hub.idleTimer = setTimeout(() => {
+    if (hub.subscribers.size > 0) return
+    hub.upstream?.abort()
+    hub.upstream = null
+    hub.liveSince = 0
+  }, 60_000)
 }
 
 /** Re-open the upstream now, resuming at the last event id. */

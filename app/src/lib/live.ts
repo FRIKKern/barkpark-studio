@@ -19,12 +19,13 @@ let lastSeen: string | null = null
 // server says where to resume from (its listen position as of that read); when it
 // was not listening yet (null), the page reads what is on screen again once connected.
 let readAgain = false
+let fromRender = false
 let resumed = false
 export function resumeLive(mark: number | null | undefined) {
   if (typeof window === 'undefined' || mark === undefined || resumed) return
   resumed = true
   if (mark === null) readAgain = true
-  else lastSeen = String(mark)
+  else (lastSeen = String(mark)), (fromRender = true)
 }
 
 export function useLive(ids: string[], types: string[]) {
@@ -37,7 +38,8 @@ export function useLive(ids: string[], types: string[]) {
     let stopped = false
     let retry: ReturnType<typeof setTimeout> | undefined
     const open = () => {
-      es = new EventSource(`/api/listen?${key}${lastSeen ? `&since=${lastSeen}` : ''}`)
+      es = new EventSource(`/api/listen?${key}${lastSeen ? `&since=${lastSeen}` : ''}${fromRender ? '&resumed=1' : ''}`)
+      fromRender = false
       // EventSource retries a dropped stream by itself (sending Last-Event-ID); one
       // it gave up on (CLOSED) is reopened here with ?since=.
       es.onerror = () => {
