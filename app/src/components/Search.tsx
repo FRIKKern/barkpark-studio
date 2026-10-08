@@ -2,6 +2,7 @@ import {useEffect, useId, useRef, useState} from 'react'
 import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {schemaOf, schemasQuery, searchQuery, type Doc} from '../lib/data'
+import {announce} from '../lib/announce'
 import {focusFirstField} from '../lib/focus'
 import {useFocusScope} from '../lib/focus-scope'
 import {ArrowLeft, Clock, Close, Controls, Search as SearchIcon} from './icons'
@@ -150,6 +151,11 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
   const failed = schemaResult.isError || perType.some((r) => r.isError)
   const loading = query !== q.trim() || schemaResult.isFetching || perType.some((r) => r.isFetching)
   const settled = !offline && !failed && !loading && schemaResult.isSuccess && perType.every((r) => r.isSuccess)
+  // J47: how many results, once they are in (a screen reader hears it after typing stops).
+  const resultCount = settled && searching ? results.length : -1
+  useEffect(() => {
+    if (resultCount >= 0) announce(resultCount ? `${resultCount} ${resultCount === 1 ? 'result' : 'results'}` : 'No results found')
+  }, [resultCount, query, types, filters])
   const [pendingEnter, setPendingEnter] = useState(false)
   useEffect(() => {
     if (pendingEnter && (offline || failed)) setPendingEnter(false)

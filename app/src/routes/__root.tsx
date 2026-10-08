@@ -4,6 +4,7 @@ import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstac
 import appCss from '../styles.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
 import {ToastHost} from '../components/Toasts'
+import {useAnnouncer} from '../lib/announce'
 import {THEME_BOOT} from '../lib/theme'
 import {EARLY_CLICKS, releaseEarlyClicks} from '../lib/hydrated'
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url'
@@ -28,6 +29,16 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient}>()({
   ),
 })
 
+/** J47: the always-present polite region lib/announce.ts speaks through. */
+function Announcer() {
+  const text = useAnnouncer()
+  return (
+    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="announcer">
+      {text}
+    </div>
+  )
+}
+
 function RootDocument({children}: {children: ReactNode}) {
   // A page that never marks itself hydrated (health, error screens) still gets its held clicks.
   useEffect(() => void setTimeout(releaseEarlyClicks, 1000), [])
@@ -42,6 +53,7 @@ function RootDocument({children}: {children: ReactNode}) {
       <body>
         {children}
         <ToastHost />
+        <Announcer />
         <Scripts />
       </body>
     </html>

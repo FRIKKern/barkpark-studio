@@ -23,7 +23,7 @@ test("@local J24 J25 J55: list search, empty state, the type's own sort that sti
   await expect.poll(() => firstTitle(page)).toMatch(/^Fixture post 1\d$/)
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.type('zzzz')
-  await expect(page.getByText('No results found')).toBeVisible()
+  await expect(list.getByText('No results found')).toBeVisible()
   const clear = t.name === 'sanity' ? list.locator('button:has([data-sanity-icon="close"])').first() : list.getByRole('button', {name: 'Clear search'})
   await clear.click()
   await expect(page.getByPlaceholder('Search list')).toBeFocused()

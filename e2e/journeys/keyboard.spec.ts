@@ -28,7 +28,7 @@ test('J19: search recovery and visible keyboard selection', async ({page}, info)
     for (let i = 0; i < 6 && !(await retry.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab')
     await expect(retry).toBeFocused()
     await page.keyboard.press('Enter')
-    await expect(page.getByText('No results found')).toBeVisible()
+    await expect(page.getByRole('dialog', {name: 'Search'}).getByText('No results found')).toBeVisible()
     await expect(page.getByRole('combobox')).toBeFocused()
     await page.keyboard.press('ControlOrMeta+a')
     // A short window reaches clipped rows with fewer key round-trips.

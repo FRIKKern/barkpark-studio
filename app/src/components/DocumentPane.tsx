@@ -1,3 +1,4 @@
+import {announce} from '../lib/announce'
 import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {NarrowContext} from '../lib/layout'
 import {DialogBox, MenuPopover} from './FocusScopes'
@@ -191,6 +192,19 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const changes = useMemo(() => ({changed: changedSet, review: () => review.current()}), [changedKey])
   const problemsKey = JSON.stringify(problems)
   const steadyProblems = useMemo(() => problems, [problemsKey])
+  // J47: validation is heard when an edit changes it, with what it blocks (the
+  // count, then the first field and message). Opening a doc says nothing new.
+  const problemCount = useRef<number | null>(null)
+  useEffect(() => {
+    if (!doc) return
+    const was = problemCount.current
+    problemCount.current = problems.length
+    if (was === null) return
+    if (problems.length && problemsKey !== '[]') {
+      if (problems.length !== was || was === 0)
+        announce(`${problems.length === 1 ? '1 validation error' : `${problems.length} validation errors`}. ${problems[0]!.title}: ${problems[0]!.message}. Publishing is blocked.`)
+    } else if (was > 0) announce('No validation errors')
+  }, [problemsKey, !!doc])
 
   // J07: the room sees this doc as where we are when it is the last pane, and the
   // field as soon as the caret enters one (inputs carry id = the field path).
@@ -204,6 +218,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   return (
     <section
       ref={paneRoot}
+      aria-label={doc && schema ? docTitle(doc, schema) : 'Document'}
       className="pane doc"
       data-testid="document-pane"
       data-pane={`doc:${pane.id}`}
