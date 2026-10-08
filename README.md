@@ -18,8 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change
-  - J64: phone viewport, Open preview, and the share menu in Presentation ([#233](https://github.com/FRIKKern/barkpark-studio/pull/233))
+- **Today** · 2 changes, 2 tasks closed
+  - J15/J16: history authors come from Barkpark, not our token-id mapping ([#234](https://github.com/FRIKKern/barkpark-studio/pull/234))
+  - Done: [Account, org admin, plugins and API tester pages stay English in an nb-NO workspace](https://github.com/FRIKKern/barkpark/issues/22241)
+  - Done: [Workspace Settings, where the Studio language is chosen, is itself English in an nb-NO workspace](https://github.com/FRIKKern/barkpark/issues/22238)
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
