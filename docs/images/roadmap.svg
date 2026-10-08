@@ -170,7 +170,7 @@
 <text x="1140" y="1282" font-size="26" font-weight="700" text-anchor="end">0<tspan class="muted" font-weight="400"> / 13</tspan></text>
 <path d="M60 1302H1140" class="rule"/>
 <text x="60" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B01 Norwegian</tspan></text>
-<text x="60" y="1364" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">B02 Switch workspace / p…</tspan></text>
+<text x="60" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B02 Switch workspace / p…</tspan></text>
 <text x="60" y="1394" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B03 Select several list…</tspan></text>
 <text x="60" y="1424" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B04 Every Barkpark field…</tspan></text>
 <text x="330" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B05 Codelist fields</tspan></text>
