@@ -1,10 +1,10 @@
 import {expect, test, type Page} from '@playwright/test'
-import {target, type Target} from '../rig/targets'
+import {closeAndSettle, target, type Target} from '../rig/targets'
 
 // J33 evidence, both studios, on post-03's links (an external link and a doc
 // link): preview rows; open an item, edit it in the dialog; add an item; move it
 // to the top by keyboard. Stills + clips go to e2e/evidence/. Not a CI gate.
-// The links go back to what they were after the run, on both sides. Ours reads the types
+// The post goes back to the seed after the run, on both sides. Ours reads the types
 // from the member's options until Barkpark's arrayOf holds several (task-b3ebbd3ab1575e2a).
 const ID = 'post-03'
 const shot = (name: string, step: string) => `evidence/J33-${name}-${step}.png`
@@ -15,12 +15,11 @@ const linksField = (t: Target, page: Page) =>
 const titles = async (t: Target, page: Page) =>
   ((await t.docValue(ID, 'links')) as {title?: string}[] | undefined)?.map((l) => l.title) ?? []
 
-let original: unknown
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: 'Fixture post 03', ...(original !== undefined && {links: original})}))
+// The seed's post back after every run, on both sides (a failed run must not leave the next one dirty).
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'post')))
 
 test('@evidence J33: object array — previews, edit in a dialog, add, reorder', async ({page}, info) => {
   const t = target(info)
-  original = await t.docValue(ID, 'links')
   await t.prepare(page.context())
   await page.goto(t.docPath('post', ID))
   await t.settle(page)

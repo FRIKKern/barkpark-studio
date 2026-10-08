@@ -1,5 +1,5 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {target, type Target} from '../rig/targets'
+import {closeAndSettle, target, type Target} from '../rig/targets'
 
 // J29 evidence, both studios: the field "…" menu copies one field and pastes it
 // into another of the same type; a mismatched paste is refused with Sanity's
@@ -33,7 +33,8 @@ const docMenu = (t: Target, page: Page) =>
     ? t.pane(page, 2).locator('button:has([data-sanity-icon="ellipsis-horizontal"])').first()
     : page.getByRole('button', {name: 'Show document actions'})
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   await t.resetDoc(FROM, 'post')
   await t.resetDoc(TO, 'post')

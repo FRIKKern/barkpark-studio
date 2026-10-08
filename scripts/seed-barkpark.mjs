@@ -5,13 +5,16 @@
 //   node --env-file=.env scripts/seed-barkpark.mjs --verify  # verify only
 //   node --env-file=.env scripts/seed-barkpark.mjs --data    # reset data, leave schemas (CI token can't write schemas)
 //   node --env-file=.env scripts/seed-barkpark.mjs --schemas # schemas only, data untouched (other lanes' datasets)
+//   … --no-history                                          # skip rebuilding post-history after a reset
 //
 // With SANITY_TOKEN set, verify also reads the reference Sanity dataset live and
 // checks it maps to the same documents.
 //
 // Not seeded here: the workspace seats. studio-editor-{a,b,c,d}@example.com are
 // members of studio-parity for multi-editor journeys (dev sign-in, presence).
+import {spawnSync} from 'node:child_process'
 import {readFileSync, readdirSync} from 'node:fs'
+import {fileURLToPath} from 'node:url'
 import {isDeepStrictEqual} from 'node:util'
 import {toBarkpark} from './lib/seed-map.mjs'
 
@@ -62,7 +65,7 @@ async function listAll(type, perspective) {
 // Projection output (body, preview, body_html, a paper's body_html_sv) is derived, never seeded.
 // `blocks` too, for a type whose layout builds them; a seeded body is compared without
 // the html Barkpark renders from it.
-const DERIVED = new Set(['body', 'preview', 'body_html', 'body_html_sv', 'blocks'])
+const DERIVED = new Set(['body', 'preview', 'body_html', 'body_html_sv', 'blocks', 'rev']) // rev: a paper's op rev, stamped by the server
 const withoutHtml = (body) => Object.fromEntries(Object.entries(body).filter(([k]) => k !== 'html'))
 const stripSystem = (doc, want) =>
   Object.fromEntries(
@@ -96,16 +99,21 @@ async function applySchemas() {
   }
 }
 
+// Upsert, then prune: the seed is written BEFORE anything is deleted, so a refused write
+// (a task id twinned in another dataset, a failed validation: Barkpark answers the whole
+// batch with one error) stops the reset with the dataset as it was. Only drafts of seed
+// docs are dropped up front: a replace keeps a draft, and publishing would ship it.
 async function reset() {
   const existing = []
   for (const type of [...TYPES].reverse().concat(NATIVE_TYPES)) {
-    for (const d of await listAll(type, 'raw')) existing.push({type, id: d._publishedId ?? d._id})
+    for (const d of await listAll(type, 'raw')) existing.push({type, id: d._publishedId ?? d._id, draft: d._id.startsWith('drafts.')})
   }
-  const ids = [...new Map(existing.map((e) => [e.id, e])).values()]
-  if (ids.length) await mutate(ids.map(({id, type}) => ({delete: {id, type, force: true}}))) // a reset wipes everything, references included
-
   const ordered = TYPES.flatMap((t) => seed.filter((d) => d._type === t))
   const docs = [...ordered.map((d) => ({_id: d._id, _type: d._type, ...toBarkpark(d)})), ...native]
+  const seeded = new Set(docs.map((d) => d._id))
+
+  const drafts = [...new Map(existing.filter((e) => e.draft && seeded.has(e.id)).map((e) => [e.id, e])).values()]
+  if (drafts.length) await mutate(drafts.map(({id, type}) => ({discardDraft: {id, type}})))
   await mutate(docs.map((d) => ({createOrReplace: d})))
   // A create doesn't project a block list into its fields (task-b43256e0d9d90733), and on a
   // type with a layout it builds the blocks from the layout + prefill instead of taking
@@ -113,7 +121,11 @@ async function reset() {
   const blockDocs = docs.filter((d) => Array.isArray(d.blocks))
   if (blockDocs.length) await mutate(blockDocs.map((d) => ({patch: {id: d._id, type: d._type, set: {blocks: d.blocks}}})))
   await mutate(docs.map((d) => ({publish: {id: d._id, type: d._type}})))
-  console.log(`reset: deleted ${ids.length}, created + published ${docs.length}`)
+
+  // Then everything the seed doesn't hold goes, references included.
+  const extra = [...new Map(existing.filter((e) => !seeded.has(e.id)).map((e) => [e.id, e])).values()]
+  if (extra.length) await mutate(extra.map(({id, type}) => ({delete: {id, type, force: true}})))
+  console.log(`reset: dropped ${drafts.length} drafts, wrote + published ${docs.length}, deleted ${extra.length} others`)
 }
 
 function compare(label, docs, expected) {
@@ -144,11 +156,24 @@ async function verify() {
   compare('sanity', sanityDocs, mirrored)
 }
 
+// J15/J16's post-history is made through each backend's API (an import rewrites
+// history), so a reset deletes it. Make it again right after: Barkpark always, the
+// reference Sanity too when SANITY_TOKEN is set and its dataset is a test one. Not in
+// CI (the history journeys are @evidence, and the CI token can't mint editor B).
+function history() {
+  if (process.env.CI || process.argv.includes('--no-history')) return
+  const sanity = process.env.SANITY_TOKEN && process.env.SANITY_STUDIO_DATASET && process.env.SANITY_STUDIO_DATASET !== 'production'
+  const args = [fileURLToPath(new URL('./reference-history.mjs', import.meta.url)), ...(sanity ? [] : ['--barkpark-only'])]
+  const run = spawnSync(process.execPath, args, {stdio: 'inherit', env: process.env})
+  if (run.status !== 0) console.warn('seed-barkpark: post-history not rebuilt (J15/J16 need it): run scripts/reference-history.mjs by hand')
+}
+
 if (process.argv.includes('--schemas')) await applySchemas()
 else {
   if (!process.argv.includes('--verify')) {
     if (!process.argv.includes('--data')) await applySchemas()
     await reset()
+    history()
   }
   await verify()
 }

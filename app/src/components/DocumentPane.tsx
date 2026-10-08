@@ -485,7 +485,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
                   : t('{n} others have this document open. Freeform has no shared carets. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {n: here.length})}
               </p>
             )}
-            <PortableDocEditor type={pane.type} id={pane.id} labels={fieldLabels} openDoc={(docId, docType) => navigate({href: openAfter(panes, index, {kind: 'doc', id: docId, type: docType})})} />
+            <PortableDocEditor
+              type={pane.type}
+              id={pane.id}
+              labels={fieldLabels}
+              openDoc={(docId, docType) => navigate({href: openAfter(panes, index, {kind: 'doc', id: docId, type: docType})})}
+            />
           </div>
         )}
         {pane.rev && revQ.data === null && <p role="alert">{t("This revision can't be found. Pick another entry in the history.")}</p>}
