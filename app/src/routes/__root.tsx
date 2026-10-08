@@ -18,7 +18,8 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
   // The navbar's workspace / dataset label, in the server render: fetched in the
   // browser it arrived late and pushed the buttons after it 209 px (a layout shift, J21 F2).
   // B01: the workspace's language too, so the server render is already in it.
-  loader: ({context}) => Promise.all([context.queryClient.ensureQueryData(currentScopeQuery), context.queryClient.ensureQueryData(localeQuery)]),
+  // Nothing is returned: a fresh value on every navigation re-rendered the whole app (F2).
+  loader: async ({context}) => void (await Promise.all([context.queryClient.ensureQueryData(currentScopeQuery), context.queryClient.ensureQueryData(localeQuery)])),
   head: () => ({
     meta: [
       {charSet: 'utf-8'},
