@@ -3,6 +3,7 @@
   "title": "Author",
   "visibility": "public",
   "list_preview": {"title": "name", "media": "image"},
+  "desk": {"views": [{"id": "posts", "title": "Posts", "type": "post", "by": "content.author", "orderings": [{"field": "title", "direction": "asc"}]}]},
   "fields": [
     {"name": "name", "title": "Name", "type": "string", "validation": {"required": true}},
     {"name": "slug", "title": "Slug", "type": "slug", "options": {"source": "name"}},

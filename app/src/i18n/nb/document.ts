@@ -202,4 +202,7 @@ export default {
   '“{title}” is referenced by {n} documents. Unpublishing it will leave those references pointing at nothing live:': '«{title}» er referert til av {n} dokumenter. Avpublisering vil la disse referansene peke på noe som ikke er publisert:',
   "Papers can't be edited here yet.": 'Papers kan ikke redigeres her ennå.',
   'Open in Barkpark Studio': 'Åpne i Barkpark Studio',
+  'Loading documents…': 'Laster dokumenter…',
+  'Could not load the documents': 'Kunne ikke laste dokumentene',
+  'No documents yet': 'Ingen dokumenter ennå',
 } satisfies Record<string, string>
