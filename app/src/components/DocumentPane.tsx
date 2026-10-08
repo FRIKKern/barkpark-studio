@@ -36,7 +36,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {ReadErrorCard} from './PaneError'
-import {CheckmarkCircle, Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
+import {CheckmarkCircle, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -409,8 +409,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <SignInAgain />
           </div>
         )}
+        {/* J49: Sanity's permission banner: no tint, the read-only icon, medium text. */}
         {editReason && doc && (
-          <div className="pane-banner" role="note">
+          <div className="pane-banner" data-tone="transparent" role="note">
+            <ReadOnlyIcon />
             <span>{editReason}</span>
           </div>
         )}
