@@ -8,8 +8,7 @@ import {signInIfAsked, target, type Target} from '../rig/targets'
 // read-only at a deep URL that survives a reload; Revert to revision writes it
 // back as the draft. Stills + clips go to e2e/evidence/. Not a CI gate.
 // Re-run scripts/reference-history.mjs after (the revert leaves a draft).
-// Authors by name on ours need dev sign-in (STUDIO_DEV_LOGIN=1 + an admin token);
-// without it every author is "API token" (task-d0c6a847e2a4658e).
+// Authors are named by Barkpark (each token owner's email, task-d0c6a847e2a4658e).
 const ID = 'post-history'
 const FIRST = 'History fixture v4'
 const shot = (name: string, step: string) => `evidence/J16-${name}-${step}.png`
