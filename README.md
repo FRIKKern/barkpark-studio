@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 101 changes, 69 tasks closed
+- **Today** · 102 changes, 69 tasks closed
+  - D13: paper masters — save, insert detached or linked, pin, unpin, detach ([#212](https://github.com/FRIKKern/barkpark-studio/pull/212))
   - e2e: J01 and J47 count the seeded posts instead of a fixed 30 ([#217](https://github.com/FRIKKern/barkpark-studio/pull/217))
   - seed: reset writes the seed before it deletes anything (upsert, then prune) ([#221](https://github.com/FRIKKern/barkpark-studio/pull/221))
-  - Papers save through Barkpark's member paper-ops route; the canvas is editable again ([#219](https://github.com/FRIKKern/barkpark-studio/pull/219))
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
