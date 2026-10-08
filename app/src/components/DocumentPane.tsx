@@ -155,6 +155,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const keepPathInUrl = (id: string) => {
     if (Date.now() - userMoved.current > 1000) return
     if (!id || id === pane.path || !schemaHere?.fields.some((f) => f.name === id.split(/[.[]/)[0])) return
+    // An array item's "…" button (links[_key=="l1"]-menuButton) is not a field: written as the
+    // path, it read as a link into the item and opened its dialog (J33).
+    if (id.endsWith('-menuButton')) return
     clearTimeout(pathTimer.current)
     const at = location.pathname
     pathTimer.current = setTimeout(() => {

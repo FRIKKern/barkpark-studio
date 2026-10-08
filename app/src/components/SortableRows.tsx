@@ -16,8 +16,10 @@ type Props<T> = {
   onChange: (items: T[]) => void
   readOnly?: boolean
   renderItem: (item: T, index: number) => ReactNode
-  /** A new empty item (Add item, Add item before/after). */
-  blank: () => T
+  /** A new empty item (Add item, Add item before/after), of `type` when the array has several. */
+  blank: (type?: string) => T
+  /** J33: an array of several item types: every add first asks which (Sanity's insert menu). */
+  types?: {value: string; title: string}[]
   /** A copy for Duplicate (new _key etc.). */
   duplicate?: (item: T) => T
   onCopy?: (item: T, index: number) => void
@@ -31,7 +33,7 @@ type Props<T> = {
   itemId?: (item: T, index: number) => string
 }
 
-export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, duplicate = (x) => x, onCopy, keyOf = (_, i) => i, onAdded, addLabel = 'Add item', extraActions, itemId}: Props<T>) {
+export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, duplicate = (x) => x, onCopy, keyOf = (_, i) => i, onAdded, addLabel = 'Add item', extraActions, itemId}: Props<T>) {
   // While a row is being moved: which row (original index), and where it is now.
   const [moving, setMoving] = useState<{from: number; to: number} | null>(null)
   const rows = useRef<HTMLDivElement>(null)
@@ -39,8 +41,9 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
   // J44: a long array draws its first rows at once and the rest right after.
   const revealed = useRevealed(items.length, 50, id)
   const focusHandle = (i: number) => requestAnimationFrame(() => rows.current?.querySelectorAll<HTMLButtonElement>('.drag-handle')[i]?.focus())
-  const insert = (at: number) => {
-    const next = [...items.slice(0, at), blank(), ...items.slice(at)]
+  const [adding, setAdding] = useState(false)
+  const insert = (at: number, type?: string) => {
+    const next = [...items.slice(0, at), blank(type), ...items.slice(at)]
     onChange(next)
     onAdded?.(at, next)
   }
@@ -88,8 +91,8 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
 
   // What a row does, read at the moment it does it: rows are memoized (J44: editing
   // one row of 300 re-renders that row), so they never hold a stale `items`.
-  const latest = useRef({items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, extraActions})
-  latest.current = {items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, extraActions}
+  const latest = useRef({items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, extraActions, types})
+  latest.current = {items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, extraActions, types}
   const [act] = useState<RowActions<T>>(() => ({
     key: (i) => (e) => latest.current.onHandleKey(i)(e),
     pointer: (i) => (e) => latest.current.onPointerDown(i)(e),
@@ -100,7 +103,8 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
       const xs = latest.current.items
       latest.current.onChange([...xs.slice(0, orig + 1), latest.current.duplicate(xs[orig]!), ...xs.slice(orig + 1)])
     },
-    insert: (at) => latest.current.insert(at),
+    insert: (at, type) => latest.current.insert(at, type),
+    types: () => latest.current.types,
     extra: (item, orig) => latest.current.extraActions?.(item, orig) ?? [],
   }))
 
@@ -125,9 +129,16 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
       <p id={`${id}-dnd-help`} hidden>
         To pick up an item, press Space or Enter on its handle. Use the arrow keys to move it, Space or Enter to drop, Escape to cancel.
       </p>
-      <button type="button" className="add-item" disabled={readOnly} onClick={() => insert(items.length)}>
-        <Add /> {addLabel}
-      </button>
+      <div className="menu-wrap add-item-wrap">
+        <button type="button" className="add-item" disabled={readOnly} aria-haspopup={types ? 'menu' : undefined} aria-expanded={types ? adding : undefined} onClick={() => (types ? setAdding((a) => !a) : insert(items.length))}>
+          <Add /> {addLabel}
+        </button>
+        {adding && types && (
+          <MenuPopover className="popover menu" onClose={() => setAdding(false)} aria-label={addLabel}>
+            <TypeItems types={types} pick={(type) => (setAdding(false), insert(items.length, type))} />
+          </MenuPopover>
+        )}
+      </div>
     </div>
   )
 }
@@ -139,7 +150,8 @@ type RowActions<T> = {
   copy: (orig: number) => void
   hasCopy: () => boolean
   duplicate: (orig: number) => void
-  insert: (at: number) => void
+  insert: (at: number, type?: string) => void
+  types: () => {value: string; title: string}[] | undefined
   extra: (item: T, orig: number) => {label: string; run: () => void; last?: boolean}[]
 }
 
@@ -172,8 +184,8 @@ const Row = memo(function Row<T>({item, orig, at, moving, readOnly, path, render
         extra={act.extra(item, orig)}
         onCopy={act.hasCopy() ? () => act.copy(orig) : undefined}
         onDuplicate={() => act.duplicate(orig)}
-        onAddBefore={() => act.insert(orig)}
-        onAddAfter={() => act.insert(orig + 1)}
+        types={act.types()}
+        onAdd={(after, type) => act.insert(orig + (after ? 1 : 0), type)}
       />
     </div>
   )
@@ -186,16 +198,26 @@ export const reorder = <T,>(xs: T[], from: number, to: number) => {
   return out
 }
 
-function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string; run: () => void; last?: boolean}[]; onRemove: () => void; onCopy?: () => void; onDuplicate: () => void; onAddBefore: () => void; onAddAfter: () => void}) {
+function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string; run: () => void; last?: boolean}[]; onRemove: () => void; onCopy?: () => void; onDuplicate: () => void; types?: {value: string; title: string}[]; onAdd: (after: boolean, type?: string) => void}) {
   const [open, setOpen] = useState(false)
-  const pick = (f: () => void) => () => (setOpen(false), f())
+  // With several item types, "Add item before…" turns the menu into the type list (Sanity's).
+  const [choosing, setChoosing] = useState<'before' | 'after' | null>(null)
+  const close = () => (setOpen(false), setChoosing(null))
+  const pick = (f: () => void) => () => (close(), f())
+  const add = (after: boolean) => () => (props.types ? setChoosing(after ? 'after' : 'before') : (close(), props.onAdd(after)))
+  const dots = props.types ? '...' : ''
   return (
-    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
-      <button id={props.id} type="button" className="icon-btn" aria-label="Item actions" aria-haspopup="menu" aria-expanded={open} disabled={props.disabled} onClick={() => setOpen((o) => !o)}>
+    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+      <button id={props.id} type="button" className="icon-btn" aria-label="Item actions" aria-haspopup="menu" aria-expanded={open} disabled={props.disabled} onClick={() => (open ? close() : setOpen(true))}>
         <Ellipsis />
       </button>
-      {open && (
-        <MenuPopover onClose={() => setOpen(false)} aria-labelledby={props.id}>
+      {open && choosing && props.types && (
+        <MenuPopover onClose={close} aria-labelledby={props.id}>
+          <TypeItems types={props.types} pick={(type) => (close(), props.onAdd(choosing === 'after', type))} />
+        </MenuPopover>
+      )}
+      {open && !choosing && (
+        <MenuPopover onClose={close} aria-labelledby={props.id}>
           <button type="button" role="menuitem" className="menu-item danger" autoFocus onClick={pick(props.onRemove)}>
             Remove
           </button>
@@ -212,11 +234,11 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
           <button type="button" role="menuitem" className="menu-item" onClick={pick(props.onDuplicate)}>
             Duplicate
           </button>
-          <button type="button" role="menuitem" className="menu-item" onClick={pick(props.onAddBefore)}>
-            Add item before
+          <button type="button" role="menuitem" className="menu-item" onClick={add(false)}>
+            Add item before{dots}
           </button>
-          <button type="button" role="menuitem" className="menu-item" onClick={pick(props.onAddAfter)}>
-            Add item after
+          <button type="button" role="menuitem" className="menu-item" onClick={add(true)}>
+            Add item after{dots}
           </button>
           {props.extra.filter((a) => a.last).map((a) => (
             <button key={a.label} type="button" role="menuitem" className="menu-item" onClick={pick(a.run)}>
@@ -226,6 +248,19 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
         </MenuPopover>
       )}
     </div>
+  )
+}
+
+/** The item types to add, one menu item each (the first takes focus). */
+function TypeItems({types, pick}: {types: {value: string; title: string}[]; pick: (type: string) => void}) {
+  return (
+    <>
+      {types.map((t, i) => (
+        <button key={t.value} type="button" role="menuitem" className="menu-item" autoFocus={i === 0} onClick={() => pick(t.value)}>
+          {t.title}
+        </button>
+      ))}
+    </>
   )
 }
 

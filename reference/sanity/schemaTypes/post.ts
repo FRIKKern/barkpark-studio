@@ -1,6 +1,7 @@
 import {defineArrayMember, defineField, defineType} from 'sanity'
 
-// Fixture type: one field of every kind the parity journeys exercise.
+// Fixture type: one field of every kind the parity journeys exercise. Titles are
+// spelled out where Barkpark's fixture names them (post.json), so labels read the same.
 export const post = defineType({
   name: 'post',
   title: 'Post',
@@ -23,6 +24,7 @@ export const post = defineType({
     }),
     defineField({
       name: 'mainImage',
+      title: 'Main image',
       type: 'image',
       group: 'content',
       options: {hotspot: true},
@@ -89,8 +91,8 @@ export const post = defineType({
       },
     }),
     // Conditional fields (J30): shown only when featured; locked once done.
-    defineField({name: 'featuredNote', type: 'string', group: 'meta', hidden: ({document}) => !document?.featured}),
-    defineField({name: 'reviewNote', type: 'text', rows: 2, group: 'meta', readOnly: ({document}) => document?.stage === 'done'}),
+    defineField({name: 'featuredNote', title: 'Featured note', type: 'string', group: 'meta', hidden: ({document}) => !document?.featured}),
+    defineField({name: 'reviewNote', title: 'Review note', type: 'text', rows: 2, group: 'meta', readOnly: ({document}) => document?.stage === 'done'}),
     // File field (J36).
     defineField({name: 'attachment', type: 'file', group: 'meta', options: {accept: 'application/pdf'}}),
     // Object array with two member types (J33).
@@ -101,12 +103,14 @@ export const post = defineType({
       of: [
         defineArrayMember({
           name: 'externalLink',
+          title: 'External link',
           type: 'object',
           initialValue: {title: 'Read more'}, // J18: initial values on new array items
-          fields: [defineField({name: 'title', type: 'string'}), defineField({name: 'url', type: 'url'})],
+          fields: [defineField({name: 'title', type: 'string'}), defineField({name: 'url', title: 'URL', type: 'url'})],
         }),
         defineArrayMember({
           name: 'docLink',
+          title: 'Document link',
           type: 'object',
           initialValue: {title: 'Read more'},
           fields: [
@@ -126,7 +130,7 @@ export const post = defineType({
       options: {filter: 'name != $skip', filterParams: {skip: 'Alan Turing'}},
     }),
     defineField({name: 'related', type: 'reference', group: 'meta', to: [{type: 'post'}, {type: 'author'}]}),
-    defineField({name: 'publishedAt', type: 'datetime', group: 'meta'}),
+    defineField({name: 'publishedAt', title: 'Published at', type: 'datetime', group: 'meta'}),
     defineField({name: 'featured', type: 'boolean', group: 'meta', initialValue: false}),
     defineField({name: 'rating', type: 'number', group: 'meta', validation: (r) => r.min(0).max(5)}),
     defineField({name: 'tags', type: 'array', group: 'meta', of: [{type: 'string'}], options: {layout: 'tags'}}),
@@ -134,13 +138,14 @@ export const post = defineType({
     defineField({name: 'highlights', type: 'array', group: 'meta', of: [{type: 'string'}]}),
     defineField({
       name: 'seo',
+      title: 'SEO',
       type: 'object',
       group: 'meta',
       // J13: an error inside a collapsed object, and an info.
       options: {collapsible: true, collapsed: true},
       fields: [
-        defineField({name: 'metaTitle', type: 'string', validation: (r) => r.max(60)}),
-        defineField({name: 'metaDescription', type: 'text', rows: 2, validation: (r) => r.min(50).info('Search results show about 150 characters')}),
+        defineField({name: 'metaTitle', title: 'Meta title', type: 'string', validation: (r) => r.max(60)}),
+        defineField({name: 'metaDescription', title: 'Meta description', type: 'text', rows: 2, validation: (r) => r.min(50).info('Search results show about 150 characters')}),
       ],
     }),
   ],

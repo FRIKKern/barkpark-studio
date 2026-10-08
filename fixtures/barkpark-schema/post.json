@@ -31,7 +31,8 @@
      "readOnly": {"field": "stage", "operator": "eq", "value": "done"}},
     {"name": "attachment", "title": "Attachment", "type": "file", "group": "meta", "options": {"accept": "application/pdf"}},
     {"name": "links", "title": "Links", "type": "arrayOf", "ordered": true, "group": "meta",
-     "of": {"type": "composite", "preview": {"title": "title", "subtitle": "target"}, "initialValue": {"title": "Read more"}, "fields": [
+     "of": {"type": "composite", "preview": {"title": "title", "subtitle": "target"}, "initialValue": {"title": "Read more"},
+      "options": {"typeField": "kind", "fieldsByType": {"externalLink": ["title", "url"], "docLink": ["title", "target"]}}, "fields": [
        {"name": "kind", "title": "Kind", "type": "select", "options": [{"value": "externalLink", "title": "External link"}, {"value": "docLink", "title": "Document link"}]},
        {"name": "title", "title": "Title", "type": "string"},
        {"name": "url", "title": "URL", "type": "url"},
