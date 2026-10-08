@@ -343,17 +343,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </>
         )}
       </header>
-      <div className="doc-title-bar">
-        {header}
-        <div className="view-tabs" role="tablist" aria-label="Views">
-          {views.map((v) => (
-            <button key={v.id} type="button" role="tab" aria-selected={view === v.id} onClick={() => navigate({href: withView(panes, index, viewParam(v.id, mode))})}>
-              {v.title}
-            </button>
-          ))}
-        </div>
-      </div>
-      {/* Sanity's banners sit under the header, above the scrolling form: always in view. */}
+      {/* Sanity's banners sit right under the pane header, above the title bar and the scrolling form: always in view. */}
       <div className="pane-banners">
         <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
         {loggedOut && doc && (
@@ -368,6 +358,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <span>{editReason}</span>
           </div>
         )}
+      </div>
+      <div className="doc-title-bar">
+        {header}
+        <div className="view-tabs" role="tablist" aria-label="Views">
+          {views.map((v) => (
+            <button key={v.id} type="button" role="tab" aria-selected={view === v.id} onClick={() => navigate({href: withView(panes, index, viewParam(v.id, mode))})}>
+              {v.title}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="doc-main">
       <PresenceHints docId={pane.id} scroller={body} />
