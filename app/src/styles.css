@@ -1305,3 +1305,6 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 }
 /* J33: object array rows and the item dialog's breadcrumb at phone width (F12). */
 @media (max-width: 768px) { .item-dialog button.crumb, .array-item-preview { min-height: 44px; } .item-dialog button.crumb { min-width: 44px; } }
+/* J34: a tag's × at phone width (F12). The button itself grows: a wider invisible
+   hit area would reach over the next tag's text and remove the wrong one. */
+@media (max-width: 768px) { .tags-box .tag button { width: 44px; height: 44px; } }
