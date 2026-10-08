@@ -155,10 +155,10 @@
 <text x="330" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D06 A wikilink/link in t…</tspan></text>
 <text x="330" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D07 Drop or paste an ima…</tspan></text>
 <text x="330" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D08 Undo/redo incl. undo…</tspan></text>
-<text x="600" y="1074" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">D09 Slash menu</tspan></text>
+<text x="600" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D09 Slash menu</tspan></text>
 <text x="600" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D10 Norwegian dead keys…</tspan></text>
 <text x="600" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D11 Known limit</tspan></text>
-<text x="600" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D12 Paper sidebar</tspan></text>
+<text x="600" y="1164" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">D12 Paper sidebar</tspan></text>
 <text x="870" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D13 Paper masters</tspan></text>
 <text x="870" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D14 Task blocks inside a…</tspan></text>
 </g>
