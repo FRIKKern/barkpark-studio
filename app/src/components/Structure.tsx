@@ -238,6 +238,15 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   )
 }
 
+// Search text in nested fields and rich-text blocks as well as scalar fields.
+// System metadata (ids, revisions and block keys) is not editor content.
+function listSearchText(value: unknown): string {
+  if (typeof value === 'string') return value.toLowerCase()
+  if (Array.isArray(value)) return value.map(listSearchText).join(' ')
+  if (value && typeof value === 'object') return Object.entries(value).filter(([key]) => !key.startsWith('_')).map(([, item]) => listSearchText(item)).join(' ')
+  return ''
+}
+
 function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number; type: string; selected?: string}) {
   const {canWrite, createReason} = useCanWrite()
   const {data: schemas = []} = useQuery(schemasQuery)
@@ -252,13 +261,20 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
   const listQ = published ? publishedList : draftList
   const page = listQ.data
   const [query, setQuery] = useState('')
+  const searchInput = useRef<HTMLInputElement>(null)
   // A list with more on the server is searched there too, so search reaches every doc.
   const [q, setQ] = useState('')
   useEffect(() => {
     const t = setTimeout(() => setQ(query.trim()), 150)
     return () => clearTimeout(t)
   }, [query])
-  const {data: found} = useQuery({...listSearchQuery(type, q), enabled: !!q && !published && !!page?.hasMore, placeholderData: keepPreviousData})
+  const needsRemote = !!query.trim() && !published && !!page?.hasMore
+  const searchQ = useQuery({...listSearchQuery(type, q), enabled: !!q && needsRemote, placeholderData: keepPreviousData, retry: false})
+  const found = searchQ.data
+  const searchOffline = needsRemote && searchQ.fetchStatus === 'paused'
+  const searchFailed = needsRemote && searchQ.isError && !searchQ.isFetching
+  const searchPending = needsRemote && (q !== query.trim() || searchQ.isPending || searchQ.isFetching || searchQ.isPlaceholderData)
+  const searchComplete = !needsRemote || (!searchOffline && !searchFailed && !searchPending)
   const docs = useMemo(() => {
     if (!q || !found || !page?.hasMore) return page?.docs
     const seen = new Set(page.docs.map((d) => d._publishedId))
@@ -282,10 +298,10 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
   }, [people])
   // J24: filter as you type, on the list already here (no request per key). Every
   // word must appear in one of the doc's text values, Sanity-style.
+  const indexed = useMemo(() => (docs ?? []).map((doc) => ({doc, text: listSearchText(doc)})), [docs])
   const shown = useMemo(() => {
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
-    const text = (d: Doc) => Object.entries(d).filter(([k, v]) => !k.startsWith('_') && typeof v === 'string').map(([, v]) => (v as string).toLowerCase()).join(' ')
-    const hits = (docs ?? []).filter((d) => terms.every((w) => text(d).includes(w)))
+    const hits = indexed.filter(({text}) => terms.every((w) => text.includes(w))).map(({doc}) => doc)
     if (terms.length) {
       // Sorted by relevance, like Sanity: words of the title that start with a
       // search term count most, then the list's own order.
@@ -301,7 +317,7 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
       created: (a: Doc, b: Doc) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')),
     }[sort]
     return [...hits].sort(by)
-  }, [docs, query, sort, schemas, type])
+  }, [indexed, query, sort, schemas, type])
   return (
     <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-pane-index={index}>
       <header className="pane-header">
@@ -335,6 +351,7 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
           <Search />
         </span>
         <input
+          ref={searchInput}
           type="search"
           aria-label="Search list"
           placeholder="Search list"
@@ -343,21 +360,26 @@ function ListPane({panes, index, type, selected}: {panes: Pane[]; index: number;
           onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
         />
         {query && (
-          <button type="button" className="icon-btn search-clear" aria-label="Clear search" onClick={() => setQuery('')}>
+          <button type="button" className="icon-btn search-clear" aria-label="Clear search" onClick={() => { searchInput.current?.focus(); setQuery('') }}>
             <Close />
           </button>
         )}
       </div>
       {query && <div className="sorted-by">Sorted by relevance</div>}
       <div className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}>
+        {searchOffline ? <p className="list-empty" role="status">You're offline. Reconnect to search all documents.</p> : searchFailed ? (
+          <div className="list-search-error" role="alert">
+            <p>Could not search all documents. Retry to see all matches.</p>
+            <button type="button" className="btn" onClick={() => { searchInput.current?.focus(); void searchQ.refetch() }}>Retry search</button>
+          </div>
+        ) : searchPending && <p className="list-empty" role="status">Searching all documents…</p>}
         {!page &&
           (listQ.failureCount > 0 ? (
             <ReadErrorCard title="Could not fetch list items" error={listQ.failureReason ?? listQ.error} failures={listQ.failureCount} retrying={listQ.fetchStatus !== 'idle'} onRetry={() => void listQ.refetch()} />
           ) : (
             <ListSkeleton />
           ))}
-        {docs && docs.length === 0 && <p className="list-empty">No documents of this type</p>}
-        {docs && docs.length > 0 && shown.length === 0 && <p className="list-empty">No results found</p>}
+        {docs && shown.length === 0 && searchComplete && <p className="list-empty" role="status">{query.trim() ? 'No results found' : 'No documents of this type'}</p>}
         {shown.map((d) => (
           <DocPreview
             key={d._publishedId}
