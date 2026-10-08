@@ -3,6 +3,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult} from '../lib/blocks'
 import {toast} from './Toasts'
+import {unsavedElsewhere} from '../lib/edits'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
 // EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
@@ -87,6 +88,14 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   const loop = useRef({rev: '', saving: 0, requests: 0})
   const [save, setSave] = useState<Save>({state: 'idle'})
   const [problem, setProblem] = useState<Problem | null>(null)
+  // B11: closing the tab asks first while this canvas holds a batch not yet saved or refused.
+  const refused = useRef(false)
+  refused.current = !!problem
+  useEffect(() => {
+    const check = () => refused.current || !!canvas.current?.hasPendingChanges()
+    unsavedElsewhere.add(check)
+    return () => void unsavedElsewhere.delete(check)
+  }, [])
   const [failed, setFailed] = useState<string>()
   // The failure card's buttons, bound to the save loop below.
   const resolveRef = useRef<{retry: () => void; discard: () => Promise<void>} | null>(null)

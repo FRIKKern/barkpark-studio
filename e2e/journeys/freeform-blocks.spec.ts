@@ -1,5 +1,5 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {target} from '../rig/targets'
+import {bpMutate, target} from '../rig/targets'
 
 // D09 (Freeform side track, ours only), in a fresh note's canvas: the block gutter is
 // whole and clickable inside the pane (+ and grip were clipped by the pane edge);
@@ -15,15 +15,8 @@ const flat = (xs: Inline[] = []): string => xs.map((x) => (x.type === 'link' ? `
 /** A block as one line: "paragraph Alpha.", "list a / b", … */
 const line = (b: Block) => `${b.type} ${b.text ?? (b.items ? b.items.map(flat).join(' / ') : flat(b.content))}`.trim()
 
-const base = () => `${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}`
-const mutate = (mutations: unknown[]) =>
-  fetch(`${base()}/v1/data/mutate/${process.env.BARKPARK_DATASET}`, {
-    method: 'POST',
-    headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`, 'content-type': 'application/json'},
-    body: JSON.stringify({mutations}),
-  }).then(async (r) => {
-    if (!r.ok) throw new Error(`mutate → ${r.status} ${await r.text()}`)
-  })
+// The rig's writer: it waits out a 429 (the suite shares one token's budget).
+const mutate = (mutations: unknown[]) => bpMutate(mutations).then(() => {})
 test.afterEach(async ({}, info) => {
   if (target(info).name === 'studio') await mutate([{delete: {id: ID, type: 'note', force: true}}]).catch(() => {})
 })

@@ -165,7 +165,7 @@ const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
 // "doc_id has already been taken" (task-324b4d00706a6cfb); the rig retries once.
 // A 429 waits out Retry-After, as the studio's own server does: here one token is
 // shared by both browsers, the rig and presence (task-2c31de0cf6597d32).
-const bpMutate = async (mutations: unknown[], retry = true, waits = 3): Promise<Response> => {
+export const bpMutate = async (mutations: unknown[], retry = true, waits = 3): Promise<Response> => {
   const res = await fetch(`${bpBase()}/v1/data/mutate/${bpDataset()}`, {
     method: 'POST',
     headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`, 'content-type': 'application/json'},

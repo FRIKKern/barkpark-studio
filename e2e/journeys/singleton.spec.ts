@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {bpMutate, target} from '../rig/targets'
 
 // B13 (Barkpark-native, ours only; the Agency Studio's frontpage / siteSettings): a
 // `singleton: true` type is no list. With no desk it sits under Settings and opens its
@@ -9,14 +9,8 @@ import {target} from '../rig/targets'
 // Missing, it opens empty and is created on the first edit.
 const ID = 'siteSettings'
 const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjson', import.meta.url), 'utf8').split('\n').find((l) => l.includes(`"_id": "${ID}"`))!) as Record<string, unknown>
-const mutate = (mutations: unknown[]) =>
-  fetch(`${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}/v1/data/mutate/${process.env.BARKPARK_DATASET}`, {
-    method: 'POST',
-    headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`, 'content-type': 'application/json'},
-    body: JSON.stringify({mutations}),
-  }).then(async (r) => {
-    if (!r.ok) throw new Error(`mutate → ${r.status} ${await r.text()}`)
-  })
+// The rig's writer: it waits out a 429 (the suite shares one token's budget).
+const mutate = (mutations: unknown[]) => bpMutate(mutations).then(() => {})
 // The seed, published, with no draft: before (a run before may have left one) and after.
 const reset = async (info: Parameters<Parameters<typeof test.afterEach>[0]>[1]) => {
   if (target(info).name !== 'studio') return

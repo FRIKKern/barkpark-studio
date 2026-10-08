@@ -47,7 +47,7 @@ test('@local B03: tick rows, publish and unpublish them in one go', async ({page
   const dialog = page.getByRole('dialog', {name: 'Unpublish 2 documents?'})
   await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
   await dialog.getByRole('button', {name: 'Unpublish now'}).click()
-  await expect(page.locator('.toast').last()).toContainText('Unpublished 2 of 2')
+  await expect(page.locator('.toast').last()).toContainText('Unpublished 2 of 2', {timeout: 15_000}) // one doc at a time, under the suite's shared rate budget
   await expect.poll(() => Promise.all(['note-02', 'note-03'].map((id) => versions(t, id)))).toEqual(['draft, not published', 'draft, not published'])
   await page.screenshot({path: 'evidence/B03-2-unpublished-studio.png'})
 })
