@@ -41,6 +41,8 @@ export const DocContext = createContext<Doc | null>(null)
 export const DocIdContext = createContext<string | null>(null)
 /** The doc's type, steady too (a richText field's canvas saves to its own doc). */
 export const DocTypeContext = createContext<string | null>(null)
+/** J52: the field path the URL asks for (`path=`), so an array can open the item it sits in. */
+export const UrlPathContext = createContext<string | undefined>(undefined)
 
 /** The error mark beside a field label: Sanity shows the message on hover. */
 function ProblemMark({path}: {path: string}) {

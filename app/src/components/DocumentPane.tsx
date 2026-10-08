@@ -18,7 +18,7 @@ import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
-import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FieldView, ProblemsContext} from './Fields'
+import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, ProblemsContext} from './Fields'
 import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
@@ -429,6 +429,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <DocIdContext.Provider value={doc._publishedId}>
             <DocTypeContext.Provider value={pane.type}>
             <DocContext.Provider value={revision ? ({...doc, ...revision.content} as Doc) : doc}>
+            <UrlPathContext.Provider value={pane.path}>
             <EditPathContext.Provider value={onEdit}>
             <ProblemsContext.Provider value={revision ? NO_PROBLEMS : steadyProblems}>
             <fieldset className="form-fields" disabled={viewingPublished || !!revision || !canWrite} title={editReason}>
@@ -441,6 +442,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             </fieldset>
             </ProblemsContext.Provider>
             </EditPathContext.Provider>
+            </UrlPathContext.Provider>
             </DocContext.Provider>
             </DocTypeContext.Provider>
             </DocIdContext.Provider>

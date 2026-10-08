@@ -30,6 +30,9 @@ test('a focused field rides in the pane (J52), nested paths included', () => {
     assert.equal(round(p), p)
   const [, , doc] = parsePanes('post;post-22,path=seo.metaTitle')
   assert.equal((doc as {path?: string}).path, 'seo.metaTitle')
+  // A field inside an array item, as the router shows the URL (decoded) and as it encodes it.
+  for (const url of ['post;post-03,path=links[_key=="l1"].title', `post;post-03,path=${encodeURIComponent('links[_key=="l1"].title')}`])
+    assert.equal((parsePanes(url)[2] as {path?: string}).path, 'links[_key=="l1"].title')
 })
 
 test('B13: with no desk, a singleton type opens its one doc, and prints back the same', () => {
