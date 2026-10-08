@@ -2,7 +2,10 @@
 // the server has made its first Barkpark round trips, before any timing is taken
 // (a cold compile or cold connection is not what F2/F3 measure). In parallel: in CI
 // each request crosses to a far-away Barkpark, and the suite has a 60 s budget.
+import {clearFeelLog} from './feel-summary'
+
 export default async function warmup() {
+  clearFeelLog()
   const base = `http://localhost:${process.env.E2E_PORT || 3100}`
   await fetch(`${base}/health`).then((r) => r.text())
   await Promise.all(

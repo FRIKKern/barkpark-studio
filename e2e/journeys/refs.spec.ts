@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {installProbes, networkBudget, timeToReady} from '../rig/feel'
+import {installProbes, networkBudget, recordFeel, timeToReady} from '../rig/feel'
 import {target} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
@@ -188,6 +188,7 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
     await a.keyboard.type(' X')
     await expect(t.refLink(t.pane(a, 2), 'author')).toContainText('Grace Hopper X')
     const ms = (await seen) - sent
+    recordFeel('F4', ms)
 
     const focus = await b.evaluate(() => ({id: document.activeElement?.id, caret: (document.activeElement as HTMLInputElement)?.selectionStart}))
     expect(focus, 'F6: focus and caret stay put in B').toEqual({id: 'title', caret: 4})

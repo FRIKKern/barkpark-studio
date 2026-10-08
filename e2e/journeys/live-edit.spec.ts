@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {networkBudget, seenAt} from '../rig/feel'
+import {networkBudget, recordFeel, seenAt} from '../rig/feel'
 import {target} from '../rig/targets'
 
 // J05 + J06, both studios, two browsers on one post. J05: each types in a different
@@ -31,6 +31,7 @@ test('J05 J06: two browsers, different fields then the same field', async ({brow
     const sent = Date.now()
     await Promise.all([a.keyboard.type(' A'), b.keyboard.type(' B')])
     const ms = (await seenInB) - sent
+    recordFeel('F4', ms)
     await expect(t.field(a, 'excerpt')).toHaveValue(`${SEED.excerpt} B`, {timeout: 10_000})
     expect(await caret(a), 'F6: A stays at the end of its title').toEqual({id: 'title', at: `${SEED.title} A`.length})
     expect(await caret(b), 'F6: B stays at the end of its excerpt').toEqual({id: 'excerpt', at: `${SEED.excerpt} B`.length})
