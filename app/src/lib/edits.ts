@@ -97,14 +97,26 @@ if (typeof window !== 'undefined') {
     waiting.clear()
     go.forEach((f) => f())
   })
-  // Offline edits and an unconfirmed create (including its parent reference)
-  // cannot safely finish on unload: the browser asks before losing them.
+  // B11: closing the tab (or reloading, or leaving the studio) with anything not yet
+  // saved asks first, as Sanity does: edits still batching or on their way, a save
+  // that failed or was refused, a lost session, an unconfirmed create, a Freeform
+  // canvas with a pending or refused batch. If the editor leaves anyway, pagehide
+  // still sends what it can (flushOnUnload).
   addEventListener('beforeunload', (ev) => {
-    const pending = [...docs.values()]
-    if (!pending.some((d) => d.createRequested) && (online() || !pending.some((d) => d.dirty.size || d.inflight))) return
+    if (!hasUnsaved()) return
     ev.preventDefault()
     ev.returnValue = ''
   })
+}
+
+/** B11: unsaved state held outside the field edits below (a Freeform canvas registers here). */
+export const unsavedElsewhere = new Set<() => boolean>()
+const UNSAVED_STATES: SaveState[] = ['stalled', 'offline', 'recovering', 'error', 'signedOut', 'refused']
+/** Whether anything typed here has not reached Barkpark yet (or was refused). */
+export function hasUnsaved() {
+  for (const d of docs.values()) if (d.dirty.size || d.inflight || d.createRequested || UNSAVED_STATES.includes(d.snap.state)) return true
+  for (const check of unsavedElsewhere) if (check()) return true
+  return false
 }
 
 const SAVED: Snap = {state: 'saved'}
