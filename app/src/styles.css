@@ -812,7 +812,7 @@ fieldset.object-field > .field-actions { top: -38px; }
 .crop-preview { position: relative; overflow: hidden; background: var(--bg-soft); }
 .crop-preview img { position: absolute; max-width: none; }
 /* Big lists (J41): rows off screen skip layout and paint; Sanity's "max items" note. */
-.list-rows > .preview { content-visibility: auto; contain-intrinsic-size: auto 49px; }
+.list-rows > .preview, .rows-item > .preview { content-visibility: auto; contain-intrinsic-size: auto 49px; }
 .list-sentinel { height: 1px; }
 .list-max { margin: 12px 0; text-align: center; font-size: 13px; color: var(--muted); }
 
@@ -1068,3 +1068,5 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
   .media-inspector { position: fixed; inset: 51px 0 0; z-index: 3; width: auto; background: var(--bg); }
   .media-inspector .icon-btn { width: 44px; height: 44px; }
 }
+/* J47: list semantics around the rows without changing the layout. */
+.rows-list, .rows-item { display: contents; }
