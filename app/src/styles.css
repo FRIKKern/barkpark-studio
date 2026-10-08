@@ -874,6 +874,7 @@ fieldset.object-field > .field-actions { top: -38px; }
 /* J10: a block-editor richText field is Barkpark's canvas (decision 0004), framed
    as a form input like Sanity's portable-text box: the studio's font and colours,
    a bordered box that scrolls past ~420 px, the paper's full-bleed rules off. */
+.block-presence { position: absolute; right: -36px; z-index: 2; pointer-events: none; }
 .body-canvas {
   position: relative; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line);
   /* The canvas's own knobs: no section rules or paper pull, the studio's font and colours. */
