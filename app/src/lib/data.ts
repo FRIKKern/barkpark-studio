@@ -16,7 +16,9 @@ import {parseTextQuery, textScore} from './text-search'
 
 // `_hasPublished` is ours, not Barkpark's: the drafts perspective can't tell a
 // draft of a published doc from a brand-new draft, so reads ask both perspectives.
-export type Doc = {_id: string; _publishedId: string; _type: string; _draft: boolean; _rev: string; _updatedAt: string; _hasPublished?: boolean} & Record<
+// `_publishedAt` (also ours): when the published version last changed, for the
+// list rows' status tooltip (J56).
+export type Doc = {_id: string; _publishedId: string; _type: string; _draft: boolean; _rev: string; _updatedAt: string; _hasPublished?: boolean; _publishedAt?: string} & Record<
   string,
   unknown
 >
@@ -121,7 +123,7 @@ const fetchList = createServerFn({method: 'GET'})
       docs.push(...r.result.documents)
       hasMore = r.result.hasMore
     }
-    const out = data.published ? docs.map((d) => ({...d, _hasPublished: true})) : await withHasPublished(data.type, docs)
+    const out = data.published ? docs.map((d) => ({...d, _hasPublished: true, _publishedAt: d._updatedAt})) : await withHasPublished(data.type, docs)
     return {docs: out, hasMore} as unknown as Json
   })
 
@@ -179,15 +181,15 @@ export const publishedQuery = (type: string, id: string) =>
  */
 async function withHasPublished(type: string, docs: Doc[]): Promise<Doc[]> {
   const drafts = docs.filter((d) => d._draft).map((d) => d._publishedId)
-  let live = new Set<string>()
+  let live = new Map<string, string>()
   if (drafts.length) {
     const ids = drafts.map(encodeURIComponent).join(',')
     const r = await bpJson<{result: {documents: Doc[]}}>(
       `/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=published&limit=200&filter[_id][in]=${ids}`,
     )
-    live = new Set(r.result.documents.map((d) => d._id))
+    live = new Map(r.result.documents.map((d) => [d._id, d._updatedAt]))
   }
-  return docs.map((d) => ({...d, _hasPublished: !d._draft || live.has(d._publishedId)}))
+  return docs.map((d) => ({...d, _hasPublished: !d._draft || live.has(d._publishedId), _publishedAt: d._draft ? live.get(d._publishedId) : d._updatedAt}))
 }
 
 /** Several docs of one type in one request (reference previews in a loader). */

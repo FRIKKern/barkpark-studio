@@ -5,6 +5,8 @@ import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type 
 import {formatPreview, previewRefs} from '../lib/preview'
 import {DocumentIcon} from './icons'
 import {PaneLink} from './PaneLink'
+import {ago} from './HistoryPanel'
+import {useTip} from './Tip'
 
 /**
  * Subtitle per the schema's list_preview.subtitle: a path ("author.name" follows
@@ -50,8 +52,7 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
       </span>
       {badge && <span className="badge">{badge}</span>}
       {extra}
-      {doc?._draft && <span className="ring" title="Draft" />}
-      {doc?._hasPublished !== false && doc && <span className="dot" title="Published" />}
+      {doc && <Status doc={doc} />}
     </>
   )
   if (!href) return <div className="preview">{body}</div>
@@ -82,4 +83,34 @@ function Thumb({value}: {value: ImageValue}) {
 export function RefPreview({type, id, href, selected, active}: {type: string; id: string; href: string} & Sel) {
   const {data} = useQuery(docQuery(type, id))
   return <DocPreview doc={data} href={href} selected={selected} active={active} />
+}
+
+/**
+ * A row's status dots with Sanity's tooltip (J56): "Published 3 hr. ago" or "Not
+ * published", then "Edited just now" or "No unpublished edits".
+ */
+function Status({doc}: {doc: Doc}) {
+  const published = doc._hasPublished !== false
+  const line = (label: string, when: string, dot: string) => (
+    <span className="tip-status">
+      <span>
+        <b>{label}</b>
+        <span className="muted">{when}</span>
+      </span>
+      <span className={dot} />
+    </span>
+  )
+  const {anchor, tip} = useTip(() => (
+    <>
+      {line('Published', published ? (doc._publishedAt ? `Published ${ago(doc._publishedAt)}` : 'Published') : 'Not published', published ? 'dot published' : 'dot off')}
+      {line('Draft', doc._draft ? `Edited ${ago(doc._updatedAt)}` : 'No unpublished edits', doc._draft ? 'dot draft' : 'dot off')}
+    </>
+  ))
+  return (
+    <span className="status" {...anchor} data-testid="row-status">
+      {doc._draft && <span className="ring" />}
+      {published && <span className="dot" />}
+      {tip}
+    </span>
+  )
 }

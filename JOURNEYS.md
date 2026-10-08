@@ -44,7 +44,7 @@ quality first, never a shrinking finish line.
 | J32 | 3 | Someone deletes or changes the doc you have open, or a referenced one: banner + Restore / Reload / Close | F4 F9 |
 | J33 | 4 | Array of objects: insert menu with several types, edit item in dialog or inline, preview in list, incl. Barkpark arrayOf-composite items (never "[object Object]") | F2 F7 |
 | J34 | 4 | Tags input (Enter adds, × removes; the reference ignores comma and Backspace) and reorderable rows for plain string arrays | F1 F5 |
-| J35 | 5 | Body editor expand to full screen and back, caret and scroll kept; paste from Docs/Word/HTML keeps structure | F1 F7 |
+| J35 | 5 | Body editor expand to full screen and back (button or Cmd/Ctrl+Enter, the hotkey in its tooltip), caret and scroll kept; paste from Docs/Word/HTML keeps structure | F1 F7 |
 | J36 | 5 | Image actions: drop overlay, paste an image, upload error + retry, replace/remove, pick existing from library + "used in" | F9 F10 |
 | J37 | after | Navbar shell: tool switcher (Vision), "+" create new document by type, user menu | F10 |
 | J38 | after | Global search filters: type picker, field filters with Sanity's operators, ordering; the search survives a reopen; recent searches (filters included) reapply, remove one, clear all; full screen at phone width | F2 F5 |
@@ -66,7 +66,7 @@ quality first, never a shrinking finish line.
 | J54 | 2 | File field: upload with an accept filter (PDF), file name and size shown, replace, remove, open the file | F5 F9 |
 | J55 | 1 | Schema orderings: the list menu offers the type's own orderings by title, and a desk list opens in its declared one | F2 |
 | J57 | 1 | Hover every icon button: a tooltip with its shortcut where one exists; toasts can be closed and repeats replace each other | F5 F10 |
-| J56 | 1 | Previews from select and prepare: a referenced title as subtitle, a formatted date, a fallback when empty, in lists and reference values | F2 F10 |
+| J56 | 1 | Previews from select and prepare: a referenced title as subtitle, a formatted date, a fallback when empty, in lists and reference values; status tooltips with dates on list rows (Published {ago} / Edited {ago} / No unpublished edits) and the header chips (Published {date} / Edited {date}) | F2 F10 |
 
 ★ = crown journeys (endless panes + references), built first, judged hardest.
 
