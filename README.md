@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 104 changes, 71 tasks closed
+- **Today** · 105 changes, 71 tasks closed
+  - D14: task blocks in a paper show Barkpark's live previews ([#218](https://github.com/FRIKKern/barkpark-studio/pull/218))
   - e2e: every F1/F2/F4 value in the run's output and a summary; F2 as a median of warm opens ([#222](https://github.com/FRIKKern/barkpark-studio/pull/222))
   - Done: [B09 [Barkpark-native after] Related-doc views from the schema's desk.views](https://github.com/FRIKKern/barkpark/issues/21857)
-  - B09: a schema's desk views as tabs beside the doc's own (related documents) ([#216](https://github.com/FRIKKern/barkpark-studio/pull/216))
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
