@@ -237,3 +237,10 @@ export const Stack = () => (
     <path d="M5.5 7.5h14v10h-14zM5.5 12.5h14" />
   </svg>
 )
+/** Sanity's InfoOutlineIcon. */
+export const InfoOutline = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="7" />
+    <path d="M12.5 11v6M12.5 8v1.5" />
+  </svg>
+)

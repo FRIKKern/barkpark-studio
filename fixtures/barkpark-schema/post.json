@@ -29,7 +29,7 @@
      "visibleWhen": {"field": "featured", "operator": "eq", "value": true}},
     {"name": "reviewNote", "title": "Review note", "type": "text", "rows": 2, "group": "meta",
      "readOnly": {"field": "stage", "operator": "eq", "value": "done"}},
-    {"name": "attachment", "title": "Attachment", "type": "file", "group": "meta"},
+    {"name": "attachment", "title": "Attachment", "type": "file", "group": "meta", "options": {"accept": "application/pdf"}},
     {"name": "links", "title": "Links", "type": "arrayOf", "ordered": true, "group": "meta",
      "of": {"type": "composite", "preview": {"title": "title", "subtitle": "target"}, "fields": [
        {"name": "kind", "title": "Kind", "type": "select", "options": [{"value": "externalLink", "title": "External link"}, {"value": "docLink", "title": "Document link"}]},

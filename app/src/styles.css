@@ -980,3 +980,38 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--border); }
 /* D11: the honest co-editing note above the canvas. */
 .pd-hint { margin: 12px 20px 0; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); color: var(--fg); font-size: 13px; line-height: 19px; }
+/* J54: the file field, Sanity's: a bordered row (icon, name, size, "…"), or the empty drop box. */
+.file-input { position: relative; }
+.file-box { position: relative; display: flex; align-items: center; gap: 12px; min-height: 51px; padding: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
+.file-box.empty { justify-content: space-between; min-height: 43px; padding: 4px 4px 4px 12px; color: var(--muted); }
+.file-box:focus-visible { outline: 2px solid #2276fc; outline-offset: 1px; }
+.file-box .hint { display: inline-flex; align-items: center; gap: 6px; }
+.file-box svg { width: 21px; height: 21px; flex-shrink: 0; }
+.file-box .hint.failed { color: var(--danger-text); }
+.file-actions { display: inline-flex; gap: 4px; }
+.file-actions .btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; }
+.file-actions .btn:hover { background: var(--hover); }
+.file-icon { display: inline-flex; align-items: center; justify-content: center; width: 35px; height: 35px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+.file-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.file-name { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { color: var(--muted); font-size: 12px; }
+.file-box .menu-wrap .popover.menu { right: 0; top: calc(100% + 4px); }
+.popover.menu.file-menu { min-width: 0; }
+.image-menu .menu-item.danger { color: var(--danger-text); }
+.file-icon { background: var(--bg-soft); }
+.drop-overlay[data-rejected] { color: var(--danger-text); }
+.dialog.asset-dialog.file-dialog { min-height: 0; }
+.accept-note { display: flex; align-items: center; gap: 6px; margin: 0 0 16px; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--selected) 20%, transparent); font-size: 13px; color: var(--fg); }
+.accept-note svg { width: 19px; height: 19px; color: var(--selected); }
+.file-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.file-table th { text-align: left; font-weight: 500; color: var(--fg); padding: 8px; border-bottom: 1px solid var(--border); }
+.file-table td { padding: 4px 8px; color: var(--fg); }
+.file-table tr:hover td { background: var(--hover); }
+.file-pick { display: inline-flex; align-items: center; gap: 8px; font: inherit; border: 0; background: none; color: inherit; cursor: pointer; padding: 6px 0; text-align: left; }
+.file-pick svg { width: 21px; height: 21px; color: var(--muted); }
+.file-table .menu-wrap { position: relative; display: flex; justify-content: flex-end; }
+.file-table .popover.menu { right: 0; top: 100%; }
+@media (max-width: 768px) {
+  .file-actions .btn, .file-box .icon-btn, .file-pick { min-height: 44px; }
+  .file-box.empty { flex-wrap: wrap; }
+}

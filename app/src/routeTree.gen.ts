@@ -23,11 +23,13 @@ import { Route as StructureSplatRouteImport } from './routes/structure/$'
 import { Route as WSplatRouteImport } from './routes/w/$'
 import { Route as ApiBacklinksIdRouteImport } from './routes/api/backlinks/$id'
 import { Route as ApiMediaIndexRouteImport } from './routes/api/media/index'
+import { Route as ApiMediaFilesRouteImport } from './routes/api/media/files'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
 import { Route as ApiQueryTypeRouteImport } from './routes/api/query/$type'
 import { Route as ApiDocTypeIdRouteImport } from './routes/api/doc/$type/$id'
 import { Route as ApiHistoryTypeIdRouteImport } from './routes/api/history/$type/$id'
 import { Route as ApiMediaIdIndexRouteImport } from './routes/api/media/$id/index'
+import { Route as ApiMediaIdInfoRouteImport } from './routes/api/media/$id/info'
 import { Route as ApiMediaIdUsageRouteImport } from './routes/api/media/$id/usage'
 
 const IndexRoute = IndexRouteImport.update({
@@ -100,6 +102,11 @@ const ApiMediaIndexRoute = ApiMediaIndexRouteImport.update({
   path: '/api/media/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaFilesRoute = ApiMediaFilesRouteImport.update({
+  id: '/api/media/files',
+  path: '/api/media/files',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMediaUploadRoute = ApiMediaUploadRouteImport.update({
   id: '/api/media/upload',
   path: '/api/media/upload',
@@ -125,6 +132,11 @@ const ApiMediaIdIndexRoute = ApiMediaIdIndexRouteImport.update({
   path: '/api/media/$id/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaIdInfoRoute = ApiMediaIdInfoRouteImport.update({
+  id: '/api/media/$id/info',
+  path: '/api/media/$id/info',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMediaIdUsageRoute = ApiMediaIdUsageRouteImport.update({
   id: '/api/media/$id/usage',
   path: '/api/media/$id/usage',
@@ -145,11 +157,13 @@ export interface FileRoutesByFullPath {
   '/w/$': typeof WSplatRoute
   '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
+  '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/media/': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
   '/api/history/$type/$id': typeof ApiHistoryTypeIdRoute
+  '/api/media/$id/info': typeof ApiMediaIdInfoRoute
   '/api/media/$id/usage': typeof ApiMediaIdUsageRoute
   '/api/media/$id/': typeof ApiMediaIdIndexRoute
 }
@@ -167,11 +181,13 @@ export interface FileRoutesByTo {
   '/w/$': typeof WSplatRoute
   '/structure': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
+  '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/media': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
   '/api/history/$type/$id': typeof ApiHistoryTypeIdRoute
+  '/api/media/$id/info': typeof ApiMediaIdInfoRoute
   '/api/media/$id/usage': typeof ApiMediaIdUsageRoute
   '/api/media/$id': typeof ApiMediaIdIndexRoute
 }
@@ -190,11 +206,13 @@ export interface FileRoutesById {
   '/w/$': typeof WSplatRoute
   '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
+  '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/media/': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
   '/api/history/$type/$id': typeof ApiHistoryTypeIdRoute
+  '/api/media/$id/info': typeof ApiMediaIdInfoRoute
   '/api/media/$id/usage': typeof ApiMediaIdUsageRoute
   '/api/media/$id/': typeof ApiMediaIdIndexRoute
 }
@@ -214,11 +232,13 @@ export interface FileRouteTypes {
     | '/w/$'
     | '/structure/'
     | '/api/backlinks/$id'
+    | '/api/media/files'
     | '/api/media/upload'
     | '/api/query/$type'
     | '/api/media/'
     | '/api/doc/$type/$id'
     | '/api/history/$type/$id'
+    | '/api/media/$id/info'
     | '/api/media/$id/usage'
     | '/api/media/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -236,11 +256,13 @@ export interface FileRouteTypes {
     | '/w/$'
     | '/structure'
     | '/api/backlinks/$id'
+    | '/api/media/files'
     | '/api/media/upload'
     | '/api/query/$type'
     | '/api/media'
     | '/api/doc/$type/$id'
     | '/api/history/$type/$id'
+    | '/api/media/$id/info'
     | '/api/media/$id/usage'
     | '/api/media/$id'
   id:
@@ -258,11 +280,13 @@ export interface FileRouteTypes {
     | '/w/$'
     | '/structure/'
     | '/api/backlinks/$id'
+    | '/api/media/files'
     | '/api/media/upload'
     | '/api/query/$type'
     | '/api/media/'
     | '/api/doc/$type/$id'
     | '/api/history/$type/$id'
+    | '/api/media/$id/info'
     | '/api/media/$id/usage'
     | '/api/media/$id/'
   fileRoutesById: FileRoutesById
@@ -281,11 +305,13 @@ export interface RootRouteChildren {
   WSplatRoute: typeof WSplatRoute
   StructureIndexRoute: typeof StructureIndexRoute
   ApiBacklinksIdRoute: typeof ApiBacklinksIdRoute
+  ApiMediaFilesRoute: typeof ApiMediaFilesRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiQueryTypeRoute: typeof ApiQueryTypeRoute
   ApiMediaIndexRoute: typeof ApiMediaIndexRoute
   ApiDocTypeIdRoute: typeof ApiDocTypeIdRoute
   ApiHistoryTypeIdRoute: typeof ApiHistoryTypeIdRoute
+  ApiMediaIdInfoRoute: typeof ApiMediaIdInfoRoute
   ApiMediaIdUsageRoute: typeof ApiMediaIdUsageRoute
   ApiMediaIdIndexRoute: typeof ApiMediaIdIndexRoute
 }
@@ -390,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/files': {
+      id: '/api/media/files'
+      path: '/api/media/files'
+      fullPath: '/api/media/files'
+      preLoaderRoute: typeof ApiMediaFilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/media/upload': {
       id: '/api/media/upload'
       path: '/api/media/upload'
@@ -425,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/$id/info': {
+      id: '/api/media/$id/info'
+      path: '/api/media/$id/info'
+      fullPath: '/api/media/$id/info'
+      preLoaderRoute: typeof ApiMediaIdInfoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/media/$id/usage': {
       id: '/api/media/$id/usage'
       path: '/api/media/$id/usage'
@@ -449,11 +489,13 @@ const rootRouteChildren: RootRouteChildren = {
   WSplatRoute: WSplatRoute,
   StructureIndexRoute: StructureIndexRoute,
   ApiBacklinksIdRoute: ApiBacklinksIdRoute,
+  ApiMediaFilesRoute: ApiMediaFilesRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiQueryTypeRoute: ApiQueryTypeRoute,
   ApiMediaIndexRoute: ApiMediaIndexRoute,
   ApiDocTypeIdRoute: ApiDocTypeIdRoute,
   ApiHistoryTypeIdRoute: ApiHistoryTypeIdRoute,
+  ApiMediaIdInfoRoute: ApiMediaIdInfoRoute,
   ApiMediaIdUsageRoute: ApiMediaIdUsageRoute,
   ApiMediaIdIndexRoute: ApiMediaIdIndexRoute,
 }

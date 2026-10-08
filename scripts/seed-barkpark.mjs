@@ -94,7 +94,7 @@ function portableTextToPortableDoc(blocks) {
 
 // Sanity fields Barkpark cannot hold yet; each has a gap task under the goal.
 const UNMAPPED = new Set([
-  'attachment', // file field: no upload/picker for non-image assets
+  'attachment', // file field (J54): Sanity's seed carries an asset; Barkpark's media is not seeded
 ])
 
 // Item of a multi-type object array → one composite shape, keyed like Sanity's;

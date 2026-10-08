@@ -91,7 +91,7 @@ export const post = defineType({
     defineField({name: 'featuredNote', type: 'string', group: 'meta', hidden: ({document}) => !document?.featured}),
     defineField({name: 'reviewNote', type: 'text', rows: 2, group: 'meta', readOnly: ({document}) => document?.stage === 'done'}),
     // File field (J36).
-    defineField({name: 'attachment', type: 'file', group: 'meta'}),
+    defineField({name: 'attachment', type: 'file', group: 'meta', options: {accept: 'application/pdf'}}),
     // Object array with two member types (J33).
     defineField({
       name: 'links',
