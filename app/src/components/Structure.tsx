@@ -503,6 +503,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             <ListSkeleton />
           ))}
         {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty">{query.trim() ? 'No results found' : 'No documents of this type'}</p>}
+        {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
+        {shown.length > 0 && <div role="list" aria-label={listTitle} className="rows-list">
         {shown.map((d) => {
           const row = (
             <DocPreview
@@ -515,9 +517,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} /> : undefined}
             />
           )
-          if (!selectable) return row
+          if (!selectable) return <div key={d._publishedId} role="listitem" className="rows-item">{row}</div>
           return (
-            <div key={d._publishedId} className="bulk-row" data-picked={picked.has(d._publishedId) || undefined}>
+            <div key={d._publishedId} role="listitem" className="bulk-row" data-picked={picked.has(d._publishedId) || undefined}>
               <label className="bulk-check">
                 <input type="checkbox" aria-label={`Select ${previewTitle(d, schemaOf(schemas, type))}`} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
               </label>
@@ -525,6 +527,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             </div>
           )
         })}
+        </div>}
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
         {!query && page?.hasMore && limit >= LIST_MAX && (
           listQ.isPlaceholderData
