@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 37 changes, 12 tasks closed
+- **Today** · 38 changes, 13 tasks closed
+  - fix(live): a write between a server render and the stream opening reaches the page ([#151](https://github.com/FRIKKern/barkpark-studio/pull/151))
+  - Done: [J43 [2 Forms] Dialogs and popovers trap focus; on close, focus returns to the button that opened them](https://github.com/FRIKKern/barkpark/issues/21840)
   - fix: the reconnecting watch never sets state while another component renders ([#154](https://github.com/FRIKKern/barkpark-studio/pull/154))
-  - fix(J43): closing the comment composer returns focus to Add comment ([#153](https://github.com/FRIKKern/barkpark-studio/pull/153))
-  - B02 (2/2): the workspace / project / dataset switcher; the URL carries the scope ([#152](https://github.com/FRIKKern/barkpark-studio/pull/152))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
