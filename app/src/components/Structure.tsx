@@ -80,7 +80,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
   const [focus, setFocus] = useState<{path: string; index: number} | null>(null)
   const focusIndex = focus?.path === path ? focus.index : panes.length - 1
   const isCollapsed = collapsed(
-    panes.map((p) => p.kind),
+    panes.map((p) => (p.kind === 'doc' && p.inspect ? 'docInspect' : p.kind)),
     width,
     focusIndex,
   )

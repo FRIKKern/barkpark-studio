@@ -69,11 +69,15 @@ function Thumb({value}: {value: ImageValue}) {
   const ref = value.asset?._ref
   if (!ref) return <DocumentIcon />
   const f = natural && frame(value.crop ?? NO_CROP, value.hotspot ?? NO_HOTSPOT, natural, 1)
+  const measure = (img: HTMLImageElement) => setNatural({width: img.naturalWidth, height: img.naturalHeight})
   return (
     <img
+      // A server-rendered thumbnail can load before hydration, and its load event
+      // is then missed: measure it as it mounts, or it stays hidden (blank row).
+      ref={(img) => void (img?.complete && img.naturalWidth && !natural && measure(img))}
       src={`${assetUrl(ref)}?size=thumb`}
       alt=""
-      onLoad={(e) => setNatural({width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight})}
+      onLoad={(e) => measure(e.currentTarget)}
       style={f ? {width: `${100 / f.width}%`, height: `${100 / f.height}%`, left: `${(-f.left / f.width) * 100}%`, top: `${(-f.top / f.height) * 100}%`} : {opacity: 0}}
     />
   )

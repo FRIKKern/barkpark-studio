@@ -31,6 +31,12 @@ test('@evidence list rows show the main image, cropped', async ({page}, info) =>
   await row.screenshot({path: shot(t.name, '1-row')})
   await page.screenshot({path: shot(t.name, '1-list')})
 
+  // A reload: the thumbnail arrives in the server render (it can load before
+  // hydration) and still shows, not a blank square.
+  await page.reload()
+  await t.settle(page)
+  await expect.poll(() => row.locator('img').first().evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0 && getComputedStyle(i).opacity !== '0'), {timeout: 10_000}).toBe(true)
+
   // A crop to the image's left half: the thumbnail follows.
   const value = (await t.docValue(ID, 'mainImage')) as Record<string, unknown>
   // Sanity: the upload made a draft, and the list shows the draft.

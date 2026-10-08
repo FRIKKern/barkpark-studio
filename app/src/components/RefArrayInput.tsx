@@ -1,7 +1,7 @@
-import {useEffect, useRef} from 'react'
+import {useContext, useEffect, useRef} from 'react'
 import {itemPath, refId, refTypesOf, type Field, type RefFilter} from '../lib/data'
 import {copy} from '../lib/clipboard'
-import type {OpenRef} from './Fields'
+import {ProblemMark, ProblemsContext, type OpenRef} from './Fields'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
 import {SortableRows} from './SortableRows'
@@ -24,6 +24,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
   useEffect(() => {
     focusKey.current = undefined
   })
+  const problems = useContext(ProblemsContext)
   return (
     <SortableRows
       id={id}
@@ -53,9 +54,14 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
           </div>
         ) : (
           <div className="ref-row-search">
+            {/* Sanity's: an empty row is labelled, and marked as a validation error. */}
+            <div className="ref-row-label">
+              Reference to {types.join(' or ')}
+              <ProblemMark path={itemPath(id, it, i)} />
+            </div>
             <RefInput
-              id={`${id}[${i}]`}
-              referencePath={itemPath(id, it, i)}
+              invalid={problems.some((p) => p.path === itemPath(id, it, i) && p.level === 'error') || undefined}
+              id={itemPath(id, it, i)}
               types={types}
               filter={field.of?.options && !Array.isArray(field.of.options) ? (field.of.options.filter as RefFilter | undefined) : undefined}
               value={undefined}
