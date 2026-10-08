@@ -8,9 +8,13 @@ import {ToastHost} from '../components/Toasts'
 import {useAnnouncer} from '../lib/announce'
 import {THEME_BOOT} from '../lib/theme'
 import {EARLY_CLICKS, releaseEarlyClicks} from '../lib/hydrated'
+import {currentScopeQuery} from '../lib/scope-switch'
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url'
 
 export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope: ScopeRef}>()({
+  // The navbar's workspace / dataset label, in the server render: fetched in the
+  // browser it arrived late and pushed the buttons after it 209 px (a layout shift, J21 F2).
+  loader: ({context}) => context.queryClient.ensureQueryData(currentScopeQuery),
   head: () => ({
     meta: [
       {charSet: 'utf-8'},
