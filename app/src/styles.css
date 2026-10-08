@@ -949,6 +949,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 .pane-banners { flex: none; }
 .pane-banners > .pane-banner { margin: 5px 4px 3px; border-radius: 6px; padding: 8px 8px 8px 12px; }
 .pane-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 8px 8px 8px 12px; border-radius: 3px; background: var(--warn-bg); color: var(--warn-fg); font-size: 13px; }
+.pane-banners > .pane-banner[data-tone=transparent] { justify-content: flex-start; padding: 8px 16px; background: none; color: var(--fg-strong); font-weight: 500; }
+.pane-banner[data-tone=transparent] > svg { flex: none; width: 17px; height: 17px; margin: -2px -4px -2px -2px; }
 .pane-banner .btn { flex: none; color: inherit; box-shadow: inset 0 0 0 1px currentColor; }
 /* J20: saving is not keeping up — say so plainly. */
 .save-state:is([data-state=offline], [data-state=stalled], [data-state=error], [data-state=signedOut], [data-state=refused]) { color: var(--warn-fg); font-weight: 500; }
