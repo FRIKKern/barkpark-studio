@@ -408,8 +408,9 @@ function SlugInput({id, value, onChange, source, readOnly}: {id: string; value: 
         <button
           type="button"
           className="btn-create"
-          disabled={readOnly || typeof from !== 'string' || !from}
-          onClick={() => (onChange(slugify(String(from))), force((n) => n + 1))}
+          // Sanity's stays enabled with an empty source; the click then does nothing.
+          disabled={readOnly}
+          onClick={() => typeof from === 'string' && from && (onChange(slugify(from)), force((n) => n + 1))}
         >
           Generate
         </button>

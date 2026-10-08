@@ -278,7 +278,7 @@ textarea.input { resize: vertical; }
 .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--line-strong); pointer-events: none; }
 .switch span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 13px; height: 13px; border-radius: 50%; background: var(--bg); transition: left 0.1s; }
-.switch input:checked + span { background: var(--selected); }
+.switch input:checked + span { background: var(--fg-strong); }
 .switch input:checked + span::after { left: 17px; }
 .switch input:focus-visible + span { box-shadow: 0 0 0 2px var(--selected); }
 
@@ -527,7 +527,7 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .error-icon[data-level=warning] { color: #c48a00; }
 .error-icon[data-level=info] { color: #3c6ef0; }
 .validation-btn[data-level=warning] { color: #c48a00; }
-.validation-btn[data-level=info] { color: #3c6ef0; }
+.validation-btn[data-level=info] { color: inherit; }
 .validation-btn[data-level=warning]::after, .validation-btn[data-level=info]::after { display: none; }
 /* J14: a collapsible object's title is its toggle. */
 .object-toggle { display: inline-flex; align-items: center; gap: 2px; margin-left: -4px; padding: 2px 4px 2px 0; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; cursor: pointer; }

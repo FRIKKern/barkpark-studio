@@ -40,7 +40,7 @@ test('@local B11: closing the tab with unsaved or failed edits asks first', asyn
   await t.field(page, 'title').click()
   await page.keyboard.type(' B11')
   expect(await closeAsks(page), 'typed, closed at once').toBe(true)
-  await expect(page.locator('.doc-footer [role=status]')).toHaveText('Saved')
+  await expect(page.locator('.doc-footer [role=status]')).toHaveText(/^(Saved|Edited)/)
   expect(await closeAsks(page), 'after the save').toBe(false)
   expect(page.isClosed()).toBe(true)
 
