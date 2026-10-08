@@ -1,21 +1,31 @@
 import {memo, useState, type ReactNode} from 'react'
 import {assetUrl, frame, NO_CROP, NO_HOTSPOT, type ImageValue} from '../lib/image'
-import {useQuery} from '@tanstack/react-query'
-import {docQuery, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {useQueries, useQuery} from '@tanstack/react-query'
+import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {formatPreview, previewRefs} from '../lib/preview'
 import {DocumentIcon} from './icons'
 import {PaneLink} from './PaneLink'
 
-/** Subtitle per the schema's list_preview.subtitle, e.g. "author.name" follows one reference. */
+/**
+ * Subtitle per the schema's list_preview.subtitle: a path ("author.name" follows
+ * one reference) or prepared parts with a fallback (J56, lib/preview.ts).
+ */
 function useSubtitle(doc: Doc | null | undefined) {
   const {data: schemas = []} = useQuery(schemasQuery)
-  const spec = doc ? schemaOf(schemas, doc._type)?.listPreview?.subtitle : undefined
-  const [refField, key] = spec?.includes('.') ? spec.split('.') : [undefined, spec]
-  const refId = refField && doc ? (doc[refField] as string | undefined) : undefined
-  const refType = refField && doc ? schemaOf(schemas, doc._type)?.fields.find((f) => f.name === refField)?.refType : undefined
-  const {data: ref} = useQuery({...docQuery(refType ?? '', refId ?? ''), enabled: !!refId && !!refType})
+  const schema = doc ? schemaOf(schemas, doc._type) : undefined
+  const spec = schema?.listPreview?.subtitle
+  const refs = previewRefs(spec).map((name) => {
+    const field = schema?.fields.find((f) => f.name === name)
+    return {name, id: refId(doc?.[name]), types: refTypesOf(field)}
+  })
+  const targets = useQueries({queries: refs.map((r) => ({...docQuery(r.types, r.id ?? ''), enabled: !!r.id && r.types.length > 0}))})
   if (!spec || !doc) return undefined
-  const v = refField ? ref?.[key!] : doc[key!]
-  return typeof v === 'string' ? v : undefined
+  return formatPreview(spec, (path) => {
+    const [head, ...rest] = path.split('.')
+    if (!rest.length) return doc[head!]
+    const target = targets[refs.findIndex((r) => r.name === head)]?.data
+    return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], target)
+  })
 }
 
 // Like Sanity: the item whose pane is open next is grey; blue only when that pane is the last one.
