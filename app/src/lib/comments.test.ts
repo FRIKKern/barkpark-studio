@@ -9,3 +9,13 @@ test('replies join their thread; status comes from the first comment', () => {
   const threads = threadsOf([c('a'), c('b', {state: 'resolved', fieldPath: 'excerpt'}), c('r1', {parentCommentId: 'a', threadId: 'a'})])
   assert.deepEqual(threads.map((t) => [t.root._id, t.status, t.replies.map((r) => r._id)]), [['a', 'open', ['r1']], ['b', 'resolved', []]])
 })
+
+test('mentions: typed after "@", inserted as @email, found and shown as chips', async () => {
+  const {mentionAt, insertMention, mentionsIn, messageParts} = await import('./comment-threads.ts')
+  assert.deepEqual(mentionAt('Hi @stu', 7), {start: 3, query: 'stu'})
+  assert.equal(mentionAt('mail me@x', 9), null) // not after a space
+  const ins = insertMention('Hi @stu', 3, 7, 'studio-editor-b@example.com')
+  assert.deepEqual(ins, {text: 'Hi @studio-editor-b@example.com ', caret: 32})
+  assert.deepEqual(mentionsIn(`${ins.text}and @a@b.co.`), ['studio-editor-b@example.com', 'a@b.co'])
+  assert.deepEqual(messageParts('Ask @a@b.co now'), [{text: 'Ask '}, {mention: 'a@b.co'}, {text: ' now'}])
+})

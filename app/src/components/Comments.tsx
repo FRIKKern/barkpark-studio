@@ -1,10 +1,11 @@
-import {createContext, useContext, useEffect, useRef, useState, type KeyboardEvent} from 'react'
+import {createContext, useContext, useEffect, useId, useRef, useState, type KeyboardEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {commentsQuery, deleteComment, editComment, postComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
+import {commentsQuery, deleteComment, editComment, mentionableQuery, postComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
+import {insertMention, mentionAt, messageParts, personName} from '../lib/comment-threads'
 import {meQuery} from '../lib/session'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {ago} from './HistoryPanel'
-import {AddComment, Check, ChevronDown, Close, CommentIcon, Ellipsis, Send, Undo} from './icons'
+import {AddComment, Check, ChevronDown, Close, CommentIcon, Ellipsis, Mention, Send, Undo} from './icons'
 import {toast} from './Toasts'
 
 // J40, Sanity's field comments: a comment button on every field (shown on hover,
@@ -84,6 +85,30 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
   useEffect(() => {
     if (autoFocus) box.current?.focus()
   }, [autoFocus])
+  // Mentions (Sanity's): "@" (typed, or the @ button) opens the list of users; a pick puts @<email> in.
+  const [men, setMen] = useState<{start: number; query: string} | null>(null)
+  const [active, setActive] = useState(0)
+  const listId = useId()
+  const {data: people = []} = useQuery({...mentionableQuery, enabled: men !== null})
+  const matches = men ? people.filter((p) => p.toLowerCase().includes(men.query.toLowerCase())).slice(0, 8) : []
+  const follow = (value: string, caret: number) => (setMen(mentionAt(value, caret)), setActive(0))
+  const pick = (email: string) => {
+    if (!men) return
+    const out = insertMention(text, men.start, box.current?.selectionStart ?? text.length, email)
+    setText(out.text)
+    setMen(null)
+    requestAnimationFrame(() => (box.current?.focus(), box.current?.setSelectionRange(out.caret, out.caret)))
+  }
+  const openMention = () => {
+    const at = box.current?.selectionStart ?? text.length
+    const space = at > 0 && !/\s/.test(text[at - 1]!) ? ' ' : ''
+    const value = `${text.slice(0, at)}${space}@${text.slice(at)}`
+    setText(value)
+    setMen({start: at + space.length, query: ''})
+    setActive(0)
+    const caret = at + space.length + 1
+    requestAnimationFrame(() => (box.current?.focus(), box.current?.setSelectionRange(caret, caret)))
+  }
   const send = async () => {
     if (!text.trim() || sending) return
     setSending(true)
@@ -98,6 +123,21 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
     }
   }
   const keys = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (men) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        if (matches.length) setActive((i) => (i + (e.key === 'ArrowDown' ? 1 : -1) + matches.length) % matches.length)
+        return
+      }
+      // Enter or Tab picks; with nothing to pick, Enter just closes the list (Sanity's).
+      if ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'Tab' && matches.length)) {
+        e.preventDefault()
+        if (matches[active]) pick(matches[active]!)
+        else setMen(null)
+        return
+      }
+      if (e.key === 'Escape') return void (e.preventDefault(), e.stopPropagation(), setMen(null))
+    }
     if (e.key === 'Enter' && !e.shiftKey) (e.preventDefault(), void send())
     if (e.key === 'Escape' && onCancel) {
       e.preventDefault()
@@ -111,11 +151,41 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
       {!compact && <span className="avatar">{initialOf(me?.email)}</span>}
       <div className="composer-box">
         {!text && <span className="composer-placeholder" aria-hidden="true">{placeholder}</span>}
-        <textarea ref={box} rows={1} aria-label={label} value={text} disabled={sending} onChange={(e) => setText(e.target.value)} onKeyDown={keys} />
+        <textarea
+          ref={box}
+          rows={1}
+          aria-label={label}
+          value={text}
+          disabled={sending}
+          aria-controls={men ? listId : undefined}
+          aria-activedescendant={men && matches[active] ? `${listId}-${active}` : undefined}
+          onChange={(e) => (setText(e.target.value), follow(e.target.value, e.target.selectionStart))}
+          onClick={(e) => follow(e.currentTarget.value, e.currentTarget.selectionStart)}
+          onBlur={() => setMen(null)}
+          onKeyDown={keys}
+        />
+        <button type="button" className="icon-btn mention" aria-label="Mention user" title="Mention user" disabled={sending} onMouseDown={(e) => e.preventDefault()} onClick={openMention}>
+          <Mention />
+        </button>
         <button type="button" className="icon-btn send" aria-label="Send comment" title="Send comment" disabled={!text.trim() || sending} onClick={() => void send()}>
           <Send />
         </button>
       </div>
+      {men && (
+        <div className="popover mention-menu" role="listbox" id={listId} aria-label="List of users to mention">
+          {matches.length ? (
+            matches.map((p, i) => (
+              <div key={p} id={`${listId}-${i}`} role="option" aria-selected={i === active} onMouseDown={(e) => (e.preventDefault(), pick(p))} onMouseEnter={() => setActive(i)}>
+                <span className="avatar small">{initialOf(p)}</span>
+                <span className="mention-name">{personName(p)}</span>
+                <span className="muted">{p}</span>
+              </div>
+            ))
+          ) : (
+            <p className="muted">No users found</p>
+          )}
+        </div>
+      )}
       {discard && (
         <ConfirmDialog
           title="Discard comment?"
@@ -308,7 +378,17 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
             onCancel={() => setEditing(false)}
           />
         ) : (
-          <p className="comment-message">{comment.message}</p>
+          <p className="comment-message">
+            {messageParts(comment.message).map((part, i) =>
+              'mention' in part ? (
+                <span key={i} className="mention-chip" title={part.mention}>
+                  @{personName(part.mention)}
+                </span>
+              ) : (
+                part.text
+              ),
+            )}
+          </p>
         )}
       </div>
       {deleting && (

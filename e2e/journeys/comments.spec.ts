@@ -4,7 +4,7 @@ import {signInIfAsked, target} from '../rig/targets'
 // J40, field comments on ours (the reference can't take writes: its project is over
 // its document quota; its composer and panel are the evidence clip). Comment on a
 // field, the field shows the count, resolve moves it to Resolved, delete removes it.
-test('@local J40: comment on a field, count, resolve, re-open, delete', async ({page}, info) => {
+test('@local J40: comment on a field, mention list, count, resolve, re-open, delete', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the reference refuses writes; its read-only states are the clip')
   await t.prepare(page.context())
@@ -15,7 +15,13 @@ test('@local J40: comment on a field, count, resolve, re-open, delete', async ({
   await field.hover()
   await field.getByRole('button', {name: 'Add comment'}).click()
   const text = `J40 ${Date.now().toString(36)}`
-  await page.getByRole('textbox', {name: 'Add comment to Title'}).fill(text)
+  const box = page.getByRole('textbox', {name: 'Add comment to Title'})
+  // Mentions (Sanity's): "@" opens the list of users; Escape closes it and keeps the text.
+  await box.pressSequentially('@')
+  await expect(page.getByRole('listbox', {name: 'List of users to mention'})).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('listbox', {name: 'List of users to mention'})).toBeHidden()
+  await box.fill(text)
   await page.keyboard.press('Enter')
   const panel = page.getByRole('complementary', {name: 'Comments'})
   await expect(panel.getByText(text)).toBeVisible()
