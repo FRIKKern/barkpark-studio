@@ -27,7 +27,7 @@ quality first, never a shrinking finish line.
 | J15 | 6 | Review changes: change bars, per-field diff by author, revert one field or all, image/rich-text diffs | F10 |
 | J16 | 6 | Browse history: timeline with authors, open an old revision read-only (deep URL), restore it | F9 |
 | J17 | 1 ★ | Delete author with incoming refs → blocked, "used in" shown | F9 |
-| J18 | 2 | New post from the list header "+": initial values (also on new array items), slug generate (error if source empty) | F2 F5 |
+| J18 | 2 | New post from the list header "+": quiet until the first edit, initial values (also on new array items), slug Generate (a no-op while its source is empty) | F2 F5 |
 | J19 | 1 | Keyboard only: Cmd+K search (arrows, Enter, Esc, recent searches) → open → edit → publish | F5 F6 |
 | J20 | 3 | 10 s offline while typing → "not saving" / stalled / recovering states → reconnect, nothing lost | F8 F9 |
 | J21 | 1 ★ | Endless pane chain: post → author → category → post…, 8+ panes; narrow panes collapse to strips, any pane closes, URL round-trips the whole chain, back/forward work | F2 F5 F10 |
