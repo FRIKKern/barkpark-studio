@@ -951,8 +951,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* Navbar tools (J37) and Vision */
 .navbar .tools { display: flex; gap: 4px; }
-/* B08: three tools fit a phone's navbar once the name beside the logo steps aside. */
-@media (max-width: 480px) { .navbar .brand-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
+
+
 .navbar .tool { padding: 3px 8px; border-radius: 3px; color: var(--fg-strong); }
 .navbar .tool:hover { background: var(--hover); }
 .menu-icon-text { display: inline-flex; align-items: center; gap: 8px; }
@@ -1070,3 +1070,37 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 }
 /* J47: list semantics around the rows without changing the layout. */
 .rows-list, .rows-item { display: contents; }
+/* J46: the phone navbar, Sanity's. Below 900 px the tools and the user menu sit in a
+   drawer; below 600 px search moves to the far right. Navbar targets are 44 px. */
+.nav-drawer-btn { display: none; }
+.drawer-backdrop { position: fixed; inset: 0; z-index: 60; background: var(--backdrop); }
+.nav-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: min(280px, calc(100vw - 48px)); display: flex; flex-direction: column; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 16px 40px var(--shadow); font-size: 13px; }
+.nav-drawer header { display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 12px; min-height: 52px; border-bottom: 1px solid var(--border); }
+.drawer-who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--fg); }
+.nav-drawer nav { display: flex; flex-direction: column; gap: 2px; padding: 8px; }
+.drawer-item { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 12px; border: 0; border-radius: 3px; background: none; font: inherit; font-weight: 500; color: var(--fg); text-align: left; cursor: pointer; }
+.drawer-item:hover, .drawer-item.on { background: var(--hover); }
+.drawer-item.check { justify-content: flex-start; gap: 8px; }
+.drawer-item.check[aria-pressed='true'] { background: var(--hover); }
+.drawer-item.check[aria-pressed='true']::after { content: '✓'; color: var(--muted); }
+.drawer-item svg { width: 21px; height: 21px; }
+.drawer-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding: 8px; border-top: 1px solid var(--border); }
+.drawer-foot hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; width: 100%; }
+@media (max-width: 899px) {
+  .nav-drawer-btn { display: inline-flex; }
+  .navbar { grid-template-columns: 1fr auto; }
+  .navbar .tools, .navbar .editor .menu-wrap { display: none; }
+}
+@media (max-width: 768px) {
+  .navbar .icon-btn { width: 44px; height: 44px; }
+  .navbar .brand { gap: 4px; }
+  .nav-right { gap: 0; }
+}
+@media (max-width: 599px) {
+  .navbar { display: flex; padding: 0 4px; }
+  .navbar .brand { display: contents; }
+  .navbar .logo { margin: 0 8px 0 4px; flex: none; }
+  .navbar .brand-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-right { margin-left: auto; order: 2; }
+  .nav-search { order: 3; margin-left: 0; }
+}

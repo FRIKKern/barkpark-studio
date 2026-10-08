@@ -244,3 +244,9 @@ export const InfoOutline = () => (
     <path d="M12.5 11v6M12.5 8v1.5" />
   </svg>
 )
+/** Sanity's MenuIcon (the phone navbar's drawer button). */
+export const MenuIcon = () => (
+  <svg {...s}>
+    <path d="M6 8.5h13M6 12.5h13M6 16.5h13" />
+  </svg>
+)
