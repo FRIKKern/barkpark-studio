@@ -498,6 +498,8 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 @media (max-width: 768px) { .list-search-error .btn { min-height: 44px; } }
 .menu-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-header); padding: 8px 12px 4px; }
 .menu-item.check { display: flex; justify-content: space-between; }
+.menu-item-label { display: inline-flex; align-items: center; gap: 8px; }
+.menu-item-label svg { width: 19px; height: 19px; margin: -3px 0 -3px -4px; }
 .menu-item.check[aria-checked='true']::after { content: '✓'; color: var(--muted); }
 .list-rows.detailed .preview { min-height: 73px; padding-block: 0; gap: 12px; contain-intrinsic-size: auto 73px; }
 .list-rows.detailed .preview .media { width: 73px; height: 73px; }

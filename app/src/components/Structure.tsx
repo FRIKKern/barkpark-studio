@@ -1,8 +1,8 @@
-import {useContext, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {Fragment, useContext, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {deskQuery, docQuery, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {deskQuery, docQuery, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {deskIndex, deskSort, listFilter, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
 import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
@@ -15,7 +15,7 @@ import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
 import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
-import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search} from './icons'
+import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search, Sort as SortIcon, Stack, StackCompact} from './icons'
 import {DocPreview} from './Preview'
 import {AvatarStack} from './Presence'
 import {usePresences, type Presence} from '../lib/presence'
@@ -388,12 +388,12 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
       }
       return [...hits].sort((a, b) => score(b) - score(a) || b._updatedAt.localeCompare(a._updatedAt))
     }
-    const by = {
-      title: (a: Doc, b: Doc) => previewTitle(a, schemaOf(schemas, type)).localeCompare(previewTitle(b, schemaOf(schemas, type))),
-      updated: (a: Doc, b: Doc) => b._updatedAt.localeCompare(a._updatedAt),
-      created: (a: Doc, b: Doc) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')),
-    }[sort]
-    return [...hits].sort(by)
+    const builtIn: Record<string, (a: Doc, b: Doc) => number> = {
+      title: (a, b) => previewTitle(a, schemaOf(schemas, type)).localeCompare(previewTitle(b, schemaOf(schemas, type))),
+      updated: (a, b) => b._updatedAt.localeCompare(a._updatedAt),
+      created: (a, b) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')),
+    }
+    return [...hits].sort(builtIn[sort] ?? byOrder(sort))
   }, [indexed, query, sort, schemas, type])
   return (
     <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
@@ -421,7 +421,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         >
           <Add />
         </button>
-        <ListMenu sort={sort} view={view} set={set} />
+        <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} />
       </header>
       <div className="search">
         <span className="search-icon">
@@ -504,8 +504,36 @@ function ListSkeleton() {
   )
 }
 
-/** J25: the list's "…" menu, Sanity's: sort (title / last edited / created) and layout. */
-function ListMenu({sort, view, set}: {sort: Sort; view: View; set: (p: {sort?: Sort; view?: View}) => void}) {
+/** Sanity's default "Sort by …" names the field the row's title comes from ("Name" for authors). */
+const titleFieldTitle = (schema: Schema | undefined) => {
+  const name = schema?.listPreview?.title ?? 'title'
+  return schema?.fields.find((f) => f.name === name)?.title ?? 'Title'
+}
+
+/** J55: compare by an order expression ("publishedAt:desc,title:asc"), the way the server sorts; empty values last. */
+function byOrder(sort: string) {
+  const keys = sort.split(',').map((k) => k.split(':') as [string, string])
+  const at = (d: Doc, path: string) => path.split('.').reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)
+  return (a: Doc, b: Doc) => {
+    for (const [path, dir] of keys) {
+      const x = at(a, path)
+      const y = at(b, path)
+      if (x == null || y == null) {
+        if (x !== y) return x == null ? 1 : -1
+        continue
+      }
+      const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))
+      if (c) return dir === 'desc' ? -c : c
+    }
+    return String(a._createdAt ?? '').localeCompare(String(b._createdAt ?? ''))
+  }
+}
+
+/**
+ * J25 + J55: the list's "…" menu, Sanity's: the type's own orderings when it
+ * declares any, else "Sort by <title field>"; then last edited, created; layout.
+ */
+function ListMenu({schema, sort, view, set}: {schema: Schema | undefined; sort: Sort; view: View; set: (p: {sort?: Sort; view?: View}) => void}) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -515,9 +543,12 @@ function ListMenu({sort, view, set}: {sort: Sort; view: View; set: (p: {sort?: S
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [open])
-  const item = (label: string, checked: boolean, run: () => void, disabled = false) => (
+  const item = (label: string, checked: boolean, run: () => void, disabled = false, icon?: ReactNode) => (
     <button type="button" role="menuitemradio" aria-checked={checked} disabled={disabled} className="menu-item check" onClick={() => (setOpen(false), run())}>
-      {label}
+      <span className="menu-item-label">
+        {icon}
+        {label}
+      </span>
     </button>
   )
   return (
@@ -538,14 +569,16 @@ function ListMenu({sort, view, set}: {sort: Sort; view: View; set: (p: {sort?: S
       {open && (
         <MenuPopover onClose={() => setOpen(false)}>
           <div className="menu-label">Actions</div>
-          {item('Sort by Title', sort === 'title', () => set({sort: 'title'}))}
-          {item('Sort by Last Edited', sort === 'updated', () => set({sort: 'updated'}))}
-          {item('Sort by Created', sort === 'created', () => set({sort: 'created'}))}
+          {schema?.orderings?.length
+            ? schema.orderings.map((o) => <Fragment key={o.name}>{item(`Sort by ${o.title}`, sort === orderingSort(o), () => set({sort: orderingSort(o)}), false, <SortIcon />)}</Fragment>)
+            : item(`Sort by ${titleFieldTitle(schema)}`, sort === 'title', () => set({sort: 'title'}), false, <SortIcon />)}
+          {item('Sort by Last Edited', sort === 'updated', () => set({sort: 'updated'}), false, <SortIcon />)}
+          {item('Sort by Created', sort === 'created', () => set({sort: 'created'}), false, <SortIcon />)}
           {item('Default sort', false, () => set({sort: DEFAULT_SORT}), sort === DEFAULT_SORT)}
           <hr />
           <div className="menu-label">Layout</div>
-          {item('Compact view', view === 'compact', () => set({view: 'compact'}))}
-          {item('Detailed view', view === 'detailed', () => set({view: 'detailed'}))}
+          {item('Compact view', view === 'compact', () => set({view: 'compact'}), false, <StackCompact />)}
+          {item('Detailed view', view === 'detailed', () => set({view: 'detailed'}), false, <Stack />)}
           {item('Default view', false, () => set({view: DEFAULT_VIEW}), view === DEFAULT_VIEW)}
         </MenuPopover>
       )}
