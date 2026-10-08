@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import {expect, test, type Page} from '@playwright/test'
 import {installProbes, networkBudget, timeToReady} from '../rig/feel'
-import {target} from '../rig/targets'
+import {seededCount, target} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
 // Crown slice, one spec for both studios: J01 (list), J02 (deep URL restore),
@@ -36,12 +36,13 @@ test.beforeEach(async ({context}, info) => {
 
 test('J01 J02: open the post list, open a post, reload the deep URL', async ({page}, info) => {
   const t = target(info)
+  const posts = t.name === 'studio' ? await seededCount(t, 'post') : 0 // before the clock: it asks the backend
   const t0 = Date.now()
   await page.goto('/structure')
   await t.settle(page)
   await page.locator('a[href="/structure/post"]').click()
-  // Sanity virtualises the list (renders ~25 rows); ours renders all 30.
-  if (t.name === 'studio') await expect(page.locator('a[href^="/structure/post;"]')).toHaveCount(30)
+  // Sanity virtualises the list (renders ~25 rows); ours renders all of them.
+  if (t.name === 'studio') await expect(page.locator('a[href^="/structure/post;"]')).toHaveCount(posts)
   else await expect(t.listItem(page, 'post-02')).toBeVisible()
   const coldMs = Date.now() - t0
   await referenceHold(page, t.listItem(page, 'post-02'))

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target} from '../rig/targets'
+import {seededCount, signInIfAsked, target} from '../rig/targets'
 
 // F13, axe (WCAG 2.1 A + AA) on the J01–J04 screens, both studios: the list,
 // an open post, the post with a draft, and the Discard changes confirm. Ours must
@@ -58,7 +58,7 @@ test('@local J47: the list, a list search and validation are announced', async (
   await t.settle(page)
   const heard = page.getByTestId('announcer')
   await page.locator('a[href="/structure/post"]').click()
-  await expect(heard).toHaveText('Post, 30 documents')
+  await expect(heard).toHaveText(`Post, ${await seededCount(t, 'post')} documents`)
   await expect(page.getByRole('region', {name: 'Post'})).toBeVisible()
   await page.getByRole('searchbox', {name: 'Search list'}).fill('zzzz')
   await expect(heard).toHaveText('No results found')

@@ -70,6 +70,24 @@ function seedDoc(id: string) {
   return doc ?? fail(`${id} is not in fixtures/seed.ndjson`)
 }
 
+/**
+ * How many documents of `type` a seeded list shows: the fixture's, plus post-history
+ * when it exists (scripts/reference-history.mjs makes it after every local reset;
+ * CI skips it). Counted, not hard-coded, so both studios compare on the same data.
+ */
+export async function seededCount(t: Target, type: string) {
+  const ids = new Set(
+    readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l) as {_id: string; _type: string})
+      .filter((d) => d._type === type)
+      .map((d) => d._id.replace(/^drafts\./, '')),
+  )
+  const history = type === 'post' && (await t.versions('post-history')).published !== undefined
+  return ids.size + (history ? 1 : 0)
+}
+
 const need = (k: string) => process.env[k] ?? fail(`missing ${k} in ../.env`)
 function fail(msg: string): never {
   throw new Error(msg)
