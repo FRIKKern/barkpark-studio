@@ -1,7 +1,7 @@
 import {useContext, useEffect, useId, useLayoutEffect, useRef, useState} from 'react'
+import {usePaneNavigate} from './PaneLink'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
-import {useNavigate} from '@tanstack/react-router'
 import {docQuery, isSingleton, previewTitle, refId, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
 import {createDoc} from '../lib/edits'
 import {focusFirstField} from '../lib/focus'
@@ -61,7 +61,7 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
     previewRef.current?.querySelector('a')?.focus()
   })
   const qc = useQueryClient()
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
   const {data: schemas = []} = useQuery(schemasQuery)
   // null: the id points at no doc (deleted, or never there).
   const {data: target} = useQuery({...docQuery(types, value ?? ''), enabled: !!value})

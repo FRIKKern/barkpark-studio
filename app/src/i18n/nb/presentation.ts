@@ -9,5 +9,6 @@ export default {
   'Could not connect to the preview': 'Kunne ikke koble til forhåndsvisningen',
   'Refresh preview': 'Oppdater forhåndsvisning',
   'Documents on this page': 'Dokumenter på denne siden',
+  'Missing a main document for': 'Mangler et hoveddokument for',
   'No matching documents': 'Ingen dokumenter funnet som samsvarer',
 }

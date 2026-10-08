@@ -1,6 +1,6 @@
 import {useState} from 'react'
+import {usePaneNavigate} from './PaneLink'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {useNavigate} from '@tanstack/react-router'
 import {docQuery, type Doc} from '../lib/data'
 import {historyQuery, restoreRevision} from '../lib/history'
 import {applyServer, useSaveState} from '../lib/edits'
@@ -76,7 +76,7 @@ export function valueAtRefPath(doc: unknown, path: string): unknown {
 /** In a pane opened from a reference: the parent's reference no longer leads here. */
 export function ReferenceBanner({panes, index, closeHref}: {panes: Pane[]; index: number; closeHref: string}) {
   const t = useT()
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
   const pane = panes[index] as Extract<Pane, {kind: 'doc'}>
   const parent = panes[index - 1]
   const parentDoc = parent?.kind === 'doc' ? parent : undefined

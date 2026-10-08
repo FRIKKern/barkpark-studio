@@ -1,12 +1,11 @@
 import {useEffect, useRef, useState} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {useNavigate} from '@tanstack/react-router'
 import {backlinksQuery, previewTitle, schemaOf, schemasQuery, type Backlink, type Doc} from '../lib/data'
 import {deleteDoc} from '../lib/edits'
 import {Close, DocumentIcon} from './icons'
 import {DocPreview} from './Preview'
-import {useScopedHref} from './PaneLink'
+import {useScopedHref, usePaneNavigate} from './PaneLink'
 import {useT} from '../lib/i18n'
 
 /**
@@ -17,7 +16,7 @@ import {useT} from '../lib/i18n'
 export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: string; onClose: () => void}) {
   const t = useT()
   const qc = useQueryClient()
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: refs, isPending, isFetching, isError, fetchStatus, refetch} = useQuery({
     ...backlinksQuery(doc._publishedId), refetchOnMount: 'always', retry: false,

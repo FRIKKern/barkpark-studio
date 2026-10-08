@@ -19,8 +19,8 @@ export type DocumentBadge = (doc: Doc) => {label: string; color?: 'primary' | 's
 
 export type StudioConfig = {
   tools?: Tool[]
-  /** J58: the Presentation tool, over the site at `previewUrl`. */
-  presentation?: {previewUrl: string}
+  /** J58: the Presentation tool, over the site at `previewUrl`; J61: its routes' main documents. */
+  presentation?: {previewUrl: string; mainDocuments?: MainDocument[]}
   form?: {
     /** Keyed `type.path` (`post.excerpt`). */
     inputs?: Record<string, ComponentType<InputProps>>
@@ -32,5 +32,8 @@ export type StudioConfig = {
     productionUrl?: (doc: Doc) => string | undefined
   }
 }
+
+/** A site route's main document: `/posts/:slug` with `field: 'slug'`, or `/authors/:id` (the id). */
+export type MainDocument = {route: string; type: string; field?: string}
 
 export const defineStudio = (config: StudioConfig) => config

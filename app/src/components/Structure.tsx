@@ -1,7 +1,6 @@
 import {Fragment, useContext, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
-import {useNavigate} from '@tanstack/react-router'
 import {deskQuery, docQuery, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {deskIndex, deskSort, listFilter, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
@@ -22,7 +21,7 @@ import {BulkBar} from './BulkBar'
 import {MAX_SELECTED} from '../lib/bulk'
 import {AvatarStack} from './Presence'
 import {usePresences, type Presence} from '../lib/presence'
-import {PaneLink} from './PaneLink'
+import {PaneLink, usePaneNavigate} from './PaneLink'
 import {PaneBoundary, ReadErrorCard} from './PaneError'
 import {t as tBrowser, useT} from '../lib/i18n'
 
@@ -366,7 +365,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const {canWrite, createReason} = useCanWrite()
   const {data: schemas = []} = useQuery(schemasQuery)
   const qc = useQueryClient()
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
   const published = usePublishedPerspective()
   const {prefs} = useContext(ListPrefsContext)
   const node = useDeskNode(nodeId)

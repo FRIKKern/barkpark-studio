@@ -3,7 +3,6 @@ import {useCallback, useContext, useEffect, useMemo, useRef, useState, type Reac
 import {NarrowContext} from '../lib/layout'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
-import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
 import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
@@ -17,7 +16,7 @@ import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
 import {useCanWrite} from '../lib/session'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
-import {PaneLink} from './PaneLink'
+import {PaneLink, usePaneNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
 import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
@@ -74,7 +73,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     !viewingPublished && !pane.rev && draftQ.data?._draft && publishedQ.data && reviewSchema ? changedFields(reviewSchema, publishedQ.data, draftQ.data).map((c) => c.field.name) : [],
   )
   const base = panesPath(panes)
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
   // Field groups (Sanity's tabs): the schema's default group first; '' = all fields.
   const defaultGroup = schemaOf(schemas, pane.type)?.groups?.find((g) => g.default)?.name ?? ''
   const [chosenGroup, setGroup] = useState<string | null>(null)
