@@ -57,7 +57,9 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     panes.flatMap((p) => (p.kind === 'doc' ? [p.id] : [])),
     panes.flatMap((p) => (p.kind === 'types' || !schemaOf(schemas, p.type) ? [] : [p.type, ...refTypes(p.type)])),
   )
-  const path = panesPath(panes)
+  // Remembering a field in the URL is not pane navigation. Keep an expanded
+  // earlier split open while its field path updates, or typing loses its input.
+  const path = panesPath(panes.map((p) => p.kind === 'doc' ? {...p, path: undefined} : p))
   // A clicked strip takes focus until the path changes.
   const [focus, setFocus] = useState<{path: string; index: number} | null>(null)
   const focusIndex = focus?.path === path ? focus.index : panes.length - 1

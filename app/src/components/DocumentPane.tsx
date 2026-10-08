@@ -42,6 +42,8 @@ const FIRST_FIELDS = 40
 
 export function DocumentPane({panes, index, split, closeHref, header, closeIcon}: Props) {
   const pane = panes[index] as Extract<Pane, {kind: 'doc'}>
+  // Split siblings share a document id; field focus belongs to this pane instance.
+  const paneRoot = useRef<HTMLElement>(null)
   const {data: schemas = []} = useQuery(schemasQuery)
   // Sanity's two perspectives, in the URL: the draft you edit (default), or the
   // published version, read-only (?perspective=published).
@@ -75,7 +77,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const [inspecting, setInspecting] = useState(false)
   const goTo = (p: Problem) => {
     if (group && p.group !== group) setGroup('')
-    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-pane="doc:${pane.id}"] [id="${p.path}"]`)?.focus())
+    requestAnimationFrame(() => paneRoot.current?.querySelector<HTMLElement>(`[id="${CSS.escape(p.path)}"]`)?.focus())
   }
   const schema = schemaOf(schemas, pane.type)
   const fieldLabels = useMemo(() => Object.fromEntries((schema?.fields ?? []).map((f) => [f.name, f.title ?? f.name])), [schema])
@@ -97,7 +99,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     if (top?.group && group && top.group !== group) setGroup('')
     let frames = 90
     const tryFocus = () => {
-      const el = document.querySelector<HTMLElement>(`[data-pane="doc:${CSS.escape(pane.id)}"] [id="${CSS.escape(want)}"]`)
+      const el = paneRoot.current?.querySelector<HTMLElement>(`[id="${CSS.escape(want)}"]`)
       if (el) (el.focus({preventScroll: true}), el.scrollIntoView({block: 'center'}))
       else if (frames-- > 0) requestAnimationFrame(tryFocus)
     }
@@ -190,6 +192,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
 
   return (
     <section
+      ref={paneRoot}
       className="pane doc"
       data-testid="document-pane"
       data-pane={`doc:${pane.id}`}
@@ -209,7 +212,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         if (mod && !e.altKey && (key === 'z' || key === 'y') && !viewingPublished && !(e.target as HTMLElement).closest('bp-paper-canvas')) {
           e.preventDefault()
           const field = undo(qc, pane.id, key === 'z' && !e.shiftKey)
-          if (field) requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-pane="doc:${pane.id}"] [id="${field}"]`)?.focus())
+          if (field) requestAnimationFrame(() => paneRoot.current?.querySelector<HTMLElement>(`[id="${CSS.escape(field)}"]`)?.focus())
         }
       }}
     >
