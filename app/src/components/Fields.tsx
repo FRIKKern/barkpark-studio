@@ -24,6 +24,7 @@ import {PortableDocEditor} from './PortableDocEditor'
 import {PortableDocView} from './PortableDocView'
 import {modKey, useTip} from './Tip'
 import {t as tBrowser, useT} from '../lib/i18n'
+import studio from '../studio.config'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -165,9 +166,17 @@ function FieldBody(props: FieldProps) {
         <ProblemMark path={props.path} />
         <FieldPresenceHere path={props.path} />
       </label>
-      <FieldInput {...props} />
+      <CustomOrDefault {...props} />
     </div>
   )
+}
+
+/** J65: the studio config's input for this `type.path` (it can render the default), else the default. */
+function CustomOrDefault(props: FieldProps) {
+  const type = useContext(DocTypeContext)
+  const Custom = type ? studio.form?.inputs?.[`${type}.${props.path}`] : undefined
+  if (!Custom) return <FieldInput {...props} />
+  return <Custom field={props.field} path={props.path} value={props.value} onChange={props.onChange} readOnly={props.readOnly} renderDefault={() => <FieldInput {...props} />} />
 }
 
 /** Sanity's change bar (J15): a thin line beside a field the draft changed; it opens Review changes. */

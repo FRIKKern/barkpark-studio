@@ -328,3 +328,9 @@ export const SyncIcon = () => (
     <path d="M14 17.56L11.5 20.5L14.5 23.06M11 7.44L13.5 4.5L10.5 1.94" strokeLinejoin="round" />
   </svg>
 )
+export const EarthGlobe = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="7" />
+    <path d="M5.5 12.5h14M12.5 5.5c-2.5 2.5-2.5 11.5 0 14M12.5 5.5c2.5 2.5 2.5 11.5 0 14" />
+  </svg>
+)

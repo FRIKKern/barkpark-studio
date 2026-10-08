@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ToolRouteImport } from './routes/$tool'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MediaRouteImport } from './routes/media'
@@ -37,6 +38,11 @@ import { Route as ApiMediaIdUsageRouteImport } from './routes/api/media/$id/usag
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolRoute = ToolRouteImport.update({
+  id: '/$tool',
+  path: '/$tool',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HealthRoute = HealthRouteImport.update({
@@ -157,6 +163,7 @@ const ApiMediaIdUsageRoute = ApiMediaIdUsageRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$tool': typeof ToolRoute
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
@@ -183,6 +190,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$tool': typeof ToolRoute
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
@@ -210,6 +218,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$tool': typeof ToolRoute
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$tool'
     | '/health'
     | '/login'
     | '/media'
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$tool'
     | '/health'
     | '/login'
     | '/media'
@@ -290,6 +301,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/$tool'
     | '/health'
     | '/login'
     | '/media'
@@ -317,6 +329,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ToolRoute: typeof ToolRoute
   HealthRoute: typeof HealthRoute
   LoginRoute: typeof LoginRoute
   MediaRoute: typeof MediaRoute
@@ -349,6 +362,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$tool': {
+      id: '/$tool'
+      path: '/$tool'
+      fullPath: '/$tool'
+      preLoaderRoute: typeof ToolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/health': {
@@ -517,6 +537,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ToolRoute: ToolRoute,
   HealthRoute: HealthRoute,
   LoginRoute: LoginRoute,
   MediaRoute: MediaRoute,

@@ -13,6 +13,7 @@ import {useHydratedMark} from '../lib/hydrated'
 import {BUILD, buildName, useNewVersion} from '../lib/version'
 import {saveAll} from '../lib/edits'
 import {useT} from '../lib/i18n'
+import studio from '../studio.config'
 
 export function Navbar() {
   useHydratedMark()
@@ -240,11 +241,13 @@ function Editor() {
   )
 }
 
-const TOOLS = [
+// J65: the studio config's tools follow the built-in ones.
+const TOOLS: (readonly [string, string])[] = [
   ['/structure', 'Structure'],
   ['/vision', 'Vision'],
   ['/media', 'Media'],
-] as const
+  ...(studio.tools ?? []).map((tool) => [`/${tool.name}`, tool.title] as const),
+]
 
 // Sanity's wording: the item reads "System", its name is "Use system appearance".
 const APPEARANCES: [Appearance, string, () => React.JSX.Element][] = [
