@@ -888,6 +888,7 @@ fieldset.object-field > .field-actions { top: -38px; }
 .list-rows > .pane-error { padding: 20px 8px; }
 .pane-error h3 { margin: 0; font-size: 21px; line-height: 27px; font-weight: 700; }
 .pane-error p { margin: 0; }
+@media (max-width: 768px) { .pane-error .btn { min-height: 44px; } }
 .pane-error code { font-family: ui-monospace, Menlo, monospace; font-size: 14px; background: var(--hover); padding: 0 2px; }
 .pane-error .muted { font-size: 13px; color: var(--muted); }
 .pane-error .error-detail { margin: 0; padding: 12px; border-radius: 3px; background: var(--danger-bg); color: var(--danger-fg); font-size: 12px; white-space: pre-wrap; overflow: auto; }
