@@ -18,16 +18,15 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 10 changes, 8 tasks closed
-  - J17: require successful reference checks before deletion ([#113](https://github.com/FRIKKern/barkpark-studio/pull/113))
-  - fix(j23): keep reference subtitles live in list panes ([#109](https://github.com/FRIKKern/barkpark-studio/pull/109))
-  - Remove title from README.md
-- **Yesterday** · 69 changes, 18 tasks closed
+- **Today** · 1 change, 1 task closed
+  - J19: keep keyboard search visible and recoverable ([#115](https://github.com/FRIKKern/barkpark-studio/pull/115))
+  - Done: [J27 [1 Panes+Refs] Odd reference states: missing doc (+ Clear), draft-only target badge, search respects the field filter, "Create new" asks which type](https://github.com/FRIKKern/barkpark/issues/21772)
+- **Yesterday** · 10 changes, 13 tasks closed
+  - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
+  - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
+- **This week** · 97 changes, 25 tasks closed
   - D10: Norwegian letters, dead keys and IME type correctly in the canvas; a 500-block doc keeps F1 ([#98](https://github.com/FRIKKern/barkpark-studio/pull/98))
   - D07: paste or drop a picture into the canvas — uploaded to Barkpark media, uploading badge, failure on the block ([#97](https://github.com/FRIKKern/barkpark-studio/pull/97))
-- **This week** · 28 changes, 7 tasks closed
-  - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
-  - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
