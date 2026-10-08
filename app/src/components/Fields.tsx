@@ -13,7 +13,8 @@ import {DateTimeInput} from './DateTimeInput'
 import {StringArrayInput, TagsInput} from './ArrayInputs'
 import {ObjectArrayInput} from './ObjectArrayInput'
 import {RefArrayInput} from './RefArrayInput'
-import {CodeInput, ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
+import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
+import {CodelistInput} from './CodelistInput'
 import {FileInput} from './FileInput'
 import {ImageInput} from './ImageInput'
 import {FieldComments} from './Comments'
@@ -292,7 +293,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'localizedText':
       return <LocalizedTextInput id={path} languages={field.languages ?? []} fallbackChain={field.fallbackChain} value={value} onChange={onChange} readOnly={readOnly} />
     case 'codelist':
-      return <CodeInput id={path} codelistId={field.codelistId} value={value} onChange={onChange} readOnly={readOnly} />
+      return <CodelistInput id={path} codelistId={field.codelistId} value={value} onChange={onChange} readOnly={readOnly} />
     case 'datetime':
       return <DateTimeInput id={path} value={value as string | undefined} onChange={onChange} readOnly={readOnly} />
     case 'select':

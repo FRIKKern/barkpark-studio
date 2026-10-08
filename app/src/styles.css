@@ -1360,3 +1360,25 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .doc-footer .save-state[data-state=saving] svg { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .publish svg { width: 17px; height: 17px; margin: -2px 0 -2px -4px; }
+/* B05: codelist fields, as Barkpark's Studio: a select, a search over a long flat list,
+   a searchable tree for a long tree. */
+.codelist-flat, .codelist-tree-field { display: flex; flex-direction: column; gap: 6px; }
+.codelist-label { font-size: 13px; color: var(--muted); }
+.codelist-label.invalid { color: var(--danger-text); }
+.codelist-current { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.codelist-current .codelist-label { flex: 1; color: var(--fg); }
+.codelist-search { display: flex; gap: 6px; }
+.codelist-search .input { flex: 1; }
+.codelist-tree { list-style: none; margin: 0; padding: 4px 0; max-height: 280px; overflow: auto; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
+.codelist-tree [role='treeitem'] { display: flex; align-items: baseline; gap: 6px; padding-top: 4px; padding-bottom: 4px; padding-right: 8px; cursor: pointer; }
+.codelist-tree [role='treeitem']:hover { background: var(--hover); }
+.codelist-tree [role='treeitem']:focus-visible { outline: 2px solid var(--selected); outline-offset: -2px; }
+.codelist-tree [role='treeitem'][aria-selected='true'] { background: var(--selected-bg, var(--hover-strong)); font-weight: 500; }
+.codelist-toggle { display: inline-grid; place-items: center; width: 16px; flex-shrink: 0; font-size: 10px; color: var(--muted); }
+.codelist-tree .mono { color: var(--muted); }
+.codelist-empty { margin: 4px 0 0; font-size: 13px; }
+@media (max-width: 768px) {
+  .codelist-tree [role='treeitem'] { min-height: 44px; align-items: center; }
+  .codelist-toggle { width: 44px; height: 44px; }
+  .codelist-current .icon-btn, .codelist-search .btn { min-width: 44px; min-height: 44px; }
+}

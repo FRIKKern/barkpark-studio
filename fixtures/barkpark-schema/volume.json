@@ -9,7 +9,7 @@
     {"name": "subtitle", "title": "Subtitle", "type": "string", "group": "main"},
     {"name": "blurb", "title": "Blurb", "type": "localizedText", "group": "main", "languages": ["nob", "eng"], "format": "plain", "fallbackChain": ["nob", "eng"]},
     {"name": "subject", "title": "Subject (Thema)", "type": "codelist", "codelistId": "onixedit:thema", "group": "main"},
-    {"name": "audience", "title": "Audience", "type": "codelist", "codelistId": "onixedit:audience", "group": "main"},
+    {"name": "audience", "title": "Audience", "type": "codelist", "codelistId": "onixedit:list_28", "group": "main"},
     {"name": "contributors", "title": "Contributors", "type": "arrayOf", "ordered": true, "group": "main",
      "of": {"type": "composite", "preview": {"title": "name", "subtitle": "role"}, "fields": [
        {"name": "name", "title": "Name", "type": "string"},

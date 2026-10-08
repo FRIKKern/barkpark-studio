@@ -131,7 +131,7 @@ function LocalText({id, label, value, onChange, readOnly}: {id: string; label: s
   return <textarea id={id} className="input" rows={3} aria-label={label} value={local} readOnly={readOnly} onChange={(e) => (setLocal(e.target.value), onChange(e.target.value))} />
 }
 
-/** A codelist code, as text: Barkpark can't list a codelist's codes over HTTP yet (task-93b24f20348f6df0); B05 adds the picker. */
+/** A codelist code as text: the fallback while a codelist can't be read (CodelistInput is the picker, B05). */
 export function CodeInput({id, codelistId, value, onChange, readOnly}: {id: string; codelistId?: string; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean}) {
   const [text, setText] = useState(typeof value === 'string' ? value : '')
   const [seen, setSeen] = useState(value)
