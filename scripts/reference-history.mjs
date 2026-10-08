@@ -9,7 +9,7 @@
 // for studio-editor-b@example.com (BARKPARK_ADMIN_TOKEN, else BARKPARK_TOKEN, must be
 // an admin). Sanity: SANITY_TOKEN, and SANITY_TOKEN_B if set (e.g. your own
 // `npx sanity debug --secrets` token) — otherwise one author there.
-// Run it after seeding (seed-barkpark's reset deletes posts that aren't in the seed).
+// seed-barkpark.mjs runs it after every reset (a reset deletes posts that aren't in the seed).
 import {readFileSync} from 'node:fs'
 
 const ID = 'post-history'

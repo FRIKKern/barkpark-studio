@@ -5,13 +5,16 @@
 //   node --env-file=.env scripts/seed-barkpark.mjs --verify  # verify only
 //   node --env-file=.env scripts/seed-barkpark.mjs --data    # reset data, leave schemas (CI token can't write schemas)
 //   node --env-file=.env scripts/seed-barkpark.mjs --schemas # schemas only, data untouched (other lanes' datasets)
+//   … --no-history                                          # skip rebuilding post-history after a reset
 //
 // With SANITY_TOKEN set, verify also reads the reference Sanity dataset live and
 // checks it maps to the same documents.
 //
 // Not seeded here: the workspace seats. studio-editor-{a,b,c,d}@example.com are
 // members of studio-parity for multi-editor journeys (dev sign-in, presence).
+import {spawnSync} from 'node:child_process'
 import {readFileSync, readdirSync} from 'node:fs'
+import {fileURLToPath} from 'node:url'
 import {isDeepStrictEqual} from 'node:util'
 import {toBarkpark} from './lib/seed-map.mjs'
 
@@ -144,11 +147,24 @@ async function verify() {
   compare('sanity', sanityDocs, mirrored)
 }
 
+// J15/J16's post-history is made through each backend's API (an import rewrites
+// history), so a reset deletes it. Make it again right after: Barkpark always, the
+// reference Sanity too when SANITY_TOKEN is set and its dataset is a test one. Not in
+// CI (the history journeys are @evidence, and the CI token can't mint editor B).
+function history() {
+  if (process.env.CI || process.argv.includes('--no-history')) return
+  const sanity = process.env.SANITY_TOKEN && process.env.SANITY_STUDIO_DATASET && process.env.SANITY_STUDIO_DATASET !== 'production'
+  const args = [fileURLToPath(new URL('./reference-history.mjs', import.meta.url)), ...(sanity ? [] : ['--barkpark-only'])]
+  const run = spawnSync(process.execPath, args, {stdio: 'inherit', env: process.env})
+  if (run.status !== 0) console.warn('seed-barkpark: post-history not rebuilt (J15/J16 need it): run scripts/reference-history.mjs by hand')
+}
+
 if (process.argv.includes('--schemas')) await applySchemas()
 else {
   if (!process.argv.includes('--verify')) {
     if (!process.argv.includes('--data')) await applySchemas()
     await reset()
+    history()
   }
   await verify()
 }
