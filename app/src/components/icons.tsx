@@ -250,3 +250,22 @@ export const MenuIcon = () => (
     <path d="M6 8.5h13M6 12.5h13M6 16.5h13" />
   </svg>
 )
+/** Sanity's CommentIcon: a speech bubble. */
+export const CommentIcon = () => (
+  <svg {...s}>
+    <path d="M6.5 7.5h12v8h-7l-3 3v-3h-2z" strokeLinejoin="round" />
+  </svg>
+)
+/** Sanity's AddCommentIcon: a speech bubble with a plus. */
+export const AddComment = () => (
+  <svg {...s}>
+    <path d="M13.5 7.5h-7v8h2v3l3-3h7v-4" strokeLinejoin="round" />
+    <path d="M18.5 4.5v6M15.5 7.5h6" />
+  </svg>
+)
+/** Sanity's ArrowRightIcon-like send arrow (the comment Send button). */
+export const Send = () => (
+  <svg {...s}>
+    <path d="M6.5 6.5l13 6-13 6 2-6zM8.5 12.5h11" strokeLinejoin="round" />
+  </svg>
+)
