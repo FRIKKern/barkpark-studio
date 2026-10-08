@@ -43,6 +43,8 @@ export function useLive(ids: string[], types: string[]) {
       if ((e as MessageEvent).lastEventId) lastSeen = (e as MessageEvent).lastEventId
       const f = JSON.parse((e as MessageEvent).data) as Frame
       ;(window as {__liveFrames?: string[]}).__liveFrames?.push(`${lastSeen}|${f.documentId}`) // e2e probe
+      // J40: a comment changed somewhere: the comment threads read again.
+      if (f.type === 'studioComment') return void qc.invalidateQueries({queryKey: ['comments']})
       const id = f.documentId.replace(/^drafts\./, '')
       // A change to the published row itself (publish, unpublish, direct write).
       if (!f.documentId.startsWith('drafts.')) {

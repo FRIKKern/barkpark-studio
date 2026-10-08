@@ -26,6 +26,8 @@ import {UnpublishDialog} from './UnpublishDialog'
 import {DocHeaderMenu, DocShareMenu} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
 import {HistoryPanel, RevisionFooter} from './HistoryPanel'
+import {CommentsContext, CommentsPanel} from './Comments'
+import {commentsQuery, threadsOf} from '../lib/comments'
 import {revisionQuery} from '../lib/history'
 import {PortableDocEditor} from './PortableDocEditor'
 import {PaperSidebar} from './PaperSidebar'
@@ -33,7 +35,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {ReadErrorCard} from './PaneError'
-import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon} from './icons'
+import {Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -79,10 +81,22 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const byId = new Map(refFields.map((f, i) => [doc![f.name] as string, targets[i].data]))
   const problems = doc && schemaForPane && !viewingPublished ? validate(doc, schemaForPane, (id) => byId.get(id)) : []
   const [inspecting, setInspecting] = useState(false)
-  const goTo = (p: Problem) => {
+  const goTo = (p: Pick<Problem, 'path' | 'group'>) => {
     if (group && p.group !== group) setGroup('')
     requestAnimationFrame(() => paneRoot.current?.querySelector<HTMLElement>(`[id="${CSS.escape(p.path)}"]`)?.focus())
   }
+  // J40: the document's comment threads, for the field buttons and the inspector.
+  const commentsQ = useQuery(commentsQuery(pane.id))
+  const [commentField, setCommentField] = useState<string | undefined>()
+  const openComments = useRef((_path?: string) => {})
+  openComments.current = (path) => {
+    setCommentField(path)
+    if (pane.inspect !== 'comments') void navigate({href: withParams(panes, index, {inspect: 'comments', rev: undefined})})
+  }
+  const commentsApi = useMemo(
+    () => ({docId: pane.id, docType: pane.type, threads: threadsOf(commentsQ.data ?? []), open: (path?: string) => openComments.current(path)}),
+    [pane.id, pane.type, commentsQ.data],
+  )
   const schema = schemaOf(schemas, pane.type)
   const fieldLabels = useMemo(() => Object.fromEntries((schema?.fields ?? []).map((f) => [f.name, f.title ?? f.name])), [schema])
   // Decision 0004: a doc that carries a PortableDoc block list (its type has a layout)
@@ -295,6 +309,18 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <TagIcon />
           </button>
         )}
+        {doc && (
+          <button
+            type="button"
+            className="icon-btn comments-btn"
+            aria-label="Comments"
+            title="Comments"
+            aria-pressed={pane.inspect === 'comments'}
+            onClick={() => navigate({href: withParams(panes, index, {inspect: pane.inspect === 'comments' ? undefined : 'comments', rev: undefined})})}
+          >
+            <CommentIcon />
+          </button>
+        )}
         {doc && schema && (
           <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} />
         )}
@@ -398,6 +424,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <h1>{docTitle(doc, schema)}</h1>
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
+            <CommentsContext.Provider value={commentsApi}>
             <ChangesContext.Provider value={changes}>
             <DocIdContext.Provider value={doc._publishedId}>
             <DocTypeContext.Provider value={pane.type}>
@@ -418,6 +445,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             </DocTypeContext.Provider>
             </DocIdContext.Provider>
             </ChangesContext.Provider>
+            </CommentsContext.Provider>
           </div>
         )}
       </div>
@@ -429,6 +457,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           published={!doc._draft || doc._hasPublished !== false}
           onEdit={onEdit}
           onClose={() => void navigate({href: withParams(panes, index, {inspect: undefined})}).then(() => metaButton.current?.focus())}
+        />
+      )}
+      {pane.inspect === 'comments' && (
+        <CommentsPanel
+          docId={pane.id}
+          docType={pane.type}
+          fieldTitle={(path) => path.split('.').map((part, i) => (i === 0 ? fieldLabels[part] ?? part : part)).join(' › ')}
+          focusField={commentField}
+          onGoToField={(path) => goTo({path, group: (schema?.fields.find((f) => f.name === path.split('.')[0]) as {group?: string} | undefined)?.group})}
+          onClose={() => navigate({href: withParams(panes, index, {inspect: undefined})})}
         />
       )}
       {(pane.inspect === 'history' || pane.inspect === 'review') && (

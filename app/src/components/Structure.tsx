@@ -59,7 +59,8 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     (schemaOf(schemas, type)?.fields ?? []).flatMap((f) => [...refTypesOf(f), ...refTypesOf(f.of)])
   useLive(
     panes.flatMap((p) => (p.kind === 'doc' ? [p.id] : [])),
-    panes.flatMap((p) => (!('type' in p) || !schemaOf(schemas, p.type) ? [] : [p.type, ...refTypes(p.type)])),
+    // J40: an open document also listens for its comments.
+    [...panes.flatMap((p) => (!('type' in p) || !schemaOf(schemas, p.type) ? [] : [p.type, ...refTypes(p.type)])), ...(panes.some((p) => p.kind === 'doc') ? ['studioComment'] : [])],
   )
   // Remembering a field in the URL is not pane navigation. Keep an expanded
   // earlier split open while its field path updates, or typing loses its input.

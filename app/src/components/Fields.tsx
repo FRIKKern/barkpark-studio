@@ -16,6 +16,7 @@ import {RefArrayInput} from './RefArrayInput'
 import {CodeInput, ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {FileInput} from './FileInput'
 import {ImageInput} from './ImageInput'
+import {FieldComments} from './Comments'
 import {InvalidValueCard, KeysAlert, RichTextCard} from './BrokenValues'
 import {invalidValue, keyProblem, richTextProblem} from '../lib/broken'
 import {PortableDocEditor} from './PortableDocEditor'
@@ -79,6 +80,7 @@ function FieldBody(props: FieldProps) {
     return (
       <div className="field">
         <FieldActions {...props} />
+        <FieldComments path={props.path} title={label} />
         {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
         <label className="bool-box">
           <FieldInput {...props} />
@@ -91,6 +93,7 @@ function FieldBody(props: FieldProps) {
     return (
       <fieldset className="field object-field">
         <FieldActions {...props} />
+        <FieldComments path={props.path} title={label} />
         {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
         <legend>
           {label}
@@ -103,6 +106,7 @@ function FieldBody(props: FieldProps) {
   return (
     <div className="field" data-invalid={invalid} data-readonly={props.readOnly || undefined}>
       <FieldActions {...props} />
+        <FieldComments path={props.path} title={label} />
       {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
       <label htmlFor={props.path} id={`${props.path}-label`} onClick={(e) => {
         // Split panes repeat field paths. Native label lookup finds the first copy.
