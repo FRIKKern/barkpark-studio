@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 110 changes, 74 tasks closed
+- **Today** · 111 changes, 74 tasks closed
+  - J11: the body canvas no longer clips its own block menu ([#229](https://github.com/FRIKKern/barkpark-studio/pull/229))
   - J65: plugin surface — a studio config with a tool, an input, an action, a badge and Open preview ([#228](https://github.com/FRIKKern/barkpark-studio/pull/228))
   - Done: [Top-menu tab names, Network shares and the API tester buttons read English in a Norwegian Studio](https://github.com/FRIKKern/barkpark/issues/22172)
-  - P0: Presentation in the reference Studio, over a tiny preview site ([#227](https://github.com/FRIKKern/barkpark-studio/pull/227))
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
