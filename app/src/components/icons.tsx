@@ -203,3 +203,25 @@ export const TagIcon = () => (
     <circle cx="16" cy="9" r="1" />
   </svg>
 )
+export const Check = () => (
+  <svg {...s}>
+    <path d="M5.5 12.5l5 5 9-9" />
+  </svg>
+)
+/** Sanity's SortIcon: a down arrow and an up arrow side by side. */
+export const Sort = () => (
+  <svg {...s}>
+    <path d="M8.5 6.5v12M5.5 15.5l3 3 3-3M16.5 18.5v-12M13.5 9.5l3-3 3 3" />
+  </svg>
+)
+/** Sanity's ControlsIcon: three sliders (the search "Show filters" toggle). */
+export const Controls = () => (
+  <svg {...s}>
+    <path d="M7.5 5.5v14M12.5 5.5v14M17.5 5.5v14M5.5 9.5h4M10.5 15.5h4M15.5 11.5h4" />
+  </svg>
+)
+export const Trash = () => (
+  <svg {...s}>
+    <path d="M6.5 7.5h12M10.5 7.5v-2h4v2M8 7.5l.8 12h7.4l.8-12M11 10.5v6M14 10.5v6" />
+  </svg>
+)
