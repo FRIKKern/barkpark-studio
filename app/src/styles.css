@@ -675,8 +675,13 @@ fieldset.object-field > .field-actions { top: -38px; }
 /* History (J16), after Sanity's: timeline of revisions with author, action badge and time */
 .inspector.history header { padding-left: 0; }
 .inspector .history-list { gap: 2px; }
+.history-list li { display: flex; gap: 4px; }
+.history-list li > button:first-child { flex: 1; min-width: 0; }
+.history-list li[data-child] { padding-left: 16px; }
 .history-list button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px; border: 0; border-radius: 3px; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg-strong); }
 .history-list button:hover { background: var(--hover); }
+.history-list .history-expand { flex: none; width: 25px; justify-content: center; padding: 0; color: var(--muted); }
+.history-list .history-expand[aria-expanded=true] { background: var(--hover); }
 .history-list [aria-selected=true] button { background: var(--hover-strong); }
 .history-list .avatar { position: relative; flex: none; display: grid; place-items: center; width: 33px; height: 33px; border-radius: 50%; background: #2f3f9e; color: #fff; font-size: 12px; font-weight: 600; }
 .history-list .badge { position: absolute; right: -3px; bottom: -3px; width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--bg); background: var(--muted); }
