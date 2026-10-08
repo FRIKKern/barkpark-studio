@@ -47,7 +47,8 @@ export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => P
             </div>
           )}
           {!checking && !failed && used.length === 0 && (
-            <p>{many ? 'They will no longer be live. Each one stays as a draft you can publish again.' : 'It will no longer be live. Its content stays as a draft you can publish again.'}</p>
+            // J04: Sanity's words for one document.
+            <p>{many ? 'They will no longer be live. Each one stays as a draft you can publish again.' : <>Are you sure you want to unpublish “<strong>{title(docs[0]!)}</strong>”?</>}</p>
           )}
           {used.map(({doc, refs}) => (
             <section key={doc._publishedId} aria-label={`Referring to ${title(doc)}`}>

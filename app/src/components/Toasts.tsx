@@ -1,9 +1,10 @@
-import {useSyncExternalStore} from 'react'
+import {useSyncExternalStore, type ReactNode} from 'react'
 
 // Sanity-style toasts, bottom right: a title, a line of detail, gone after a few
 // seconds. `toast()` works from anywhere; <ToastHost/> sits once in the root layout.
 
-type Toast = {id: number; title: string; description?: string; tone: 'critical' | 'caution' | 'positive' | 'default'}
+/** A title may carry markup (Sanity bolds the document's name: "<b>Post</b> was published"). */
+type Toast = {id: number; title: ReactNode; description?: string; tone: 'critical' | 'caution' | 'positive' | 'default'}
 
 let toasts: Toast[] = []
 const listeners = new Set<() => void>()
@@ -41,7 +42,7 @@ export function ToastHost() {
     <div className="toasts" aria-live="polite">
       {list.map((t) => (
         <div key={t.id} className="toast" data-tone={t.tone} role={t.tone === 'critical' ? 'alert' : 'status'}>
-          <strong>{t.title}</strong>
+          {typeof t.title === 'string' ? <strong>{t.title}</strong> : <span className="toast-title">{t.title}</span>}
           {t.description && <span>{t.description}</span>}
         </div>
       ))}
