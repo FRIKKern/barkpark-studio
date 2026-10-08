@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes, 1 task closed
+- **Today** · 10 changes, 1 task closed
+  - B12: a workspace's declared desk drives the panes ([#106](https://github.com/FRIKKern/barkpark-studio/pull/106))
   - D11: show the Freeform collaboration limit when another editor is present ([#126](https://github.com/FRIKKern/barkpark-studio/pull/126))
   - chore: bp tasks in this repo opens the Studio Parity goal ([#104](https://github.com/FRIKKern/barkpark-studio/pull/104))
-  - docs: journeys for the Agency Studio's core Sanity features ([#110](https://github.com/FRIKKern/barkpark-studio/pull/110))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
