@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 113 changes, 77 tasks closed
+- **Today** · 114 changes, 77 tasks closed
+  - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
   - Done: [Barkpark: login session tokens accepted on the scoped data API for workspace members](https://github.com/FRIKKern/barkpark/issues/21753)
-  - Done: [Desk list rows announce the English status word (draft/published) to Norwegian screen-reader users](https://github.com/FRIKKern/barkpark/issues/22198)
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
