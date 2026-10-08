@@ -36,6 +36,8 @@ export default defineConfig({
   // CI runs ours only (the reference needs a Sanity login); side-by-side stays local.
   webServer: [
     ...(process.env.CI ? [] : [{command: `pnpm --dir ../reference/sanity dev --port ${process.env.SANITY_PORT || 3333}`, url: SANITY, reuseExistingServer: true, timeout: 60_000}]),
+    // J58–J64: the site Presentation shows, on both sides (reference/preview-site).
+    ...(process.env.CI ? [] : [{command: 'pnpm --dir ../reference/preview-site dev', url: 'http://localhost:3536', reuseExistingServer: true, timeout: 60_000, env: {...process.env, SANITY_STUDIO_URL: SANITY} as Record<string, string>}]),
     // CI times a production build (what users get; built in an earlier step); locally the
     // dev server, or the build with E2E_PROD=1 (perf evidence: dev React is far slower).
     {

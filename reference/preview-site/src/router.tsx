@@ -3,7 +3,7 @@ import type {HistoryAdapter} from '@sanity/visual-editing'
 
 // A tiny pushState router. Presentation drives it through the history adapter:
 // its URL bar navigates the page, and page links update its URL bar.
-const listeners = new Set<() => void>()
+export const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 window.addEventListener('popstate', emit)
 

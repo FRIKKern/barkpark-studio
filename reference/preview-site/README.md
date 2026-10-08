@@ -19,3 +19,7 @@ SANITY_STUDIO_DATASET=e2e-local pnpm dev   # http://localhost:3536 (PREVIEW_PORT
   (`SANITY_STUDIO_PREVIEW_ORIGIN`, default `http://localhost:3536`), main documents
   per route, and locations for posts and authors. Set `SANITY_STUDIO_URL` here when
   the Studio is not on :3333.
+- Barkpark Studio's Presentation (J58) talks to the page through `src/barkpark.ts`:
+  the page posts `{bp: 'preview', type: 'hello' | 'location'}` to its parent and
+  takes `{bp: 'studio', type: 'navigate' | 'refresh'}` back. Sanity's comlink is
+  untouched, so the same page serves both studios.

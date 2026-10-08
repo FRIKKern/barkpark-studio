@@ -1,0 +1,13 @@
+// Norwegian (nb-NO) for Presentation (J58–J64), from Sanity's nb-NO pack.
+export default {
+  Presentation: 'Presentasjon',
+  'Loading.': 'Laster.',
+  'Connecting.': 'Kobler til.',
+  'Refreshing.': 'Oppdaterer.',
+  'Unable to connect, check the browser console for more information.': 'Kan ikke koble til, sjekk nettleserkonsollen for mer informasjon.',
+  'Continue anyway': 'Fortsett uansett',
+  'Could not connect to the preview': 'Kunne ikke koble til forhåndsvisningen',
+  'Refresh preview': 'Oppdater forhåndsvisning',
+  'Documents on this page': 'Dokumenter på denne siden',
+  'No matching documents': 'Ingen dokumenter funnet som samsvarer',
+}
