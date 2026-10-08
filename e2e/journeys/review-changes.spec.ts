@@ -47,7 +47,10 @@ test('@evidence J15: change bars, review changes, revert one field and all', asy
   await bar.click()
   await expect(panel(page)).toContainText('Post 24 reviewed', {timeout: 15_000})
   await expect(panel(page)).toContainText('Changed for review.')
-  await expect(panel(page)).toContainText('Draft created', {timeout: 15_000}) // both: the draft's own history has loaded
+  // Ours: the draft's own history has loaded. (Sanity's panel no longer names "Draft
+  // created", checked 2026-10-08; its From/To line is the same signal.)
+  if (t.name === 'studio') await expect(panel(page)).toContainText('Draft created', {timeout: 15_000})
+  else await expect(panel(page)).toContainText('Published:')
   await page.screenshot({path: shot(t.name, '1-review')})
 
   // Revert one field: Title goes back, Excerpt stays changed.

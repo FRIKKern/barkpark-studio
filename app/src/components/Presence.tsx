@@ -40,11 +40,60 @@ export function AvatarStack({people, max = 3}: {people: Presence[]; max?: number
 /** Everyone with this doc open. */
 export const useDocPresence = (id: string) => usePresences().filter((p) => p.documentId === id)
 
-/** Everyone whose caret is in this field of this doc. */
+/** A focus path is at `path` or inside it (`links[_key=="l1"].title` is inside `links`). */
+export const within = (field: string | null, path: string) => !!field && (field === path || field.startsWith(`${path}[`) || field.startsWith(`${path}.`))
+
+/** Everyone whose caret is in this field (or an item inside it) of this doc. */
 export function FieldPresence({docId, path}: {docId: string; path: string}) {
-  const here = usePresences().filter((p) => p.documentId === docId && p.field === path)
+  const here = usePresences().filter((p) => p.documentId === docId && within(p.field, path))
   return <AvatarStack people={here} />
 }
+
+/**
+ * Sanity's block presence in the body (J07): whoever has their caret in a block
+ * (`body[_key=="p5"]`) shows at that block's right edge. Drawn over the canvas,
+ * not in it (the canvas owns its DOM); re-measured on resize and while shown.
+ */
+export function BlockPresence({docId, field}: {docId: string; field: string}) {
+  const prefix = `${field}[_key=="`
+  const people = usePresences().filter((p) => p.documentId === docId && p.field?.startsWith(prefix))
+  const ref = useRef<HTMLSpanElement>(null)
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const box = ref.current?.closest('.body-canvas')
+    if (!people.length || !box) return
+    tick((n) => n + 1)
+    const ro = new ResizeObserver(() => tick((n) => n + 1))
+    ro.observe(box)
+    const t = setInterval(() => tick((n) => n + 1), 1000)
+    return () => (ro.disconnect(), clearInterval(t))
+  }, [people.length])
+  const box = ref.current?.closest('.body-canvas')
+  const byBlock = new Map<string, Presence[]>()
+  for (const p of people) {
+    const key = p.field!.slice(prefix.length).split('"]')[0]!
+    byBlock.set(key, [...(byBlock.get(key) ?? []), p])
+  }
+  return (
+    <span ref={ref} className="block-presence-root">
+      {box &&
+        [...byBlock].map(([key, ps]) => {
+          const el = box.querySelector(`[data-bp-id="${CSS.escape(key)}"]`)
+          if (!el) return null
+          const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top
+          return (
+            <span key={key} className="block-presence" style={{top}}>
+              <AvatarStack people={ps} />
+            </span>
+          )
+        })}
+    </span>
+  )
+}
+
+/** The element a focus path is shown on: the field, or an array item row (J07). */
+export const placeOf = (root: ParentNode, field: string) =>
+  root.querySelector(`[id="${CSS.escape(field)}"]`) ?? root.querySelector(`[data-presence-path="${CSS.escape(field)}"]`)
 
 /**
  * Sanity's above/below hints: someone is in a field scrolled out of view in this
@@ -63,12 +112,12 @@ export function PresenceHints({docId, scroller}: {docId: string; scroller: RefOb
   const box = scroller.current?.getBoundingClientRect()
   if (!box) return null
   const where = (p: Presence) => {
-    const r = scroller.current!.querySelector(`[id="${CSS.escape(p.field!)}"]`)?.getBoundingClientRect()
+    const r = placeOf(scroller.current!, p.field!)?.getBoundingClientRect()
     return !r ? null : r.bottom < box.top ? 'above' : r.top > box.bottom ? 'below' : null
   }
   const above = people.filter((p) => where(p) === 'above')
   const below = people.filter((p) => where(p) === 'below')
-  const go = (p: Presence) => scroller.current?.querySelector(`[id="${CSS.escape(p.field!)}"]`)?.scrollIntoView({block: 'center', behavior: 'smooth'})
+  const go = (p: Presence) => (scroller.current && placeOf(scroller.current, p.field!))?.scrollIntoView({block: 'center', behavior: 'smooth'})
   return (
     <>
       {above.length > 0 && (

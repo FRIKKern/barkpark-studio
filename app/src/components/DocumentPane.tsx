@@ -132,6 +132,20 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     }
     requestAnimationFrame(tryFocus)
   }, [pane.path, pane.id, doc, schemaHere, group])
+  // J07: in the body canvas the caret moves between blocks without a focus event;
+  // the block it is in is this editor's presence (`body[_key=="p5"]`, Sanity's path).
+  useEffect(() => {
+    const on = () => {
+      const node = getSelection()?.focusNode
+      const el = node && (node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element))
+      if (!el || !paneRoot.current?.contains(el)) return
+      const block = el.closest('[data-bp-id]')
+      const canvas = el.closest('.body-canvas')
+      if (block && canvas?.id) reportFocus(pane.id, `${canvas.id}[_key=="${block.getAttribute('data-bp-id')}"]`)
+    }
+    document.addEventListener('selectionchange', on)
+    return () => document.removeEventListener('selectionchange', on)
+  }, [pane.id])
   const pathTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   // Only focus the author moved (a click or a key in the form), not the studio's own
   // focusing of a field on open.
@@ -251,8 +265,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       data-pane={`doc:${pane.id}`}
       data-pane-index={index}
       onFocus={(e) => {
-        const field = (e.target as HTMLElement).closest('.form-fields [id]')?.id
-        reportFocus(pane.id, field ?? null)
+        // J07: the most specific path: an array item (data-presence-path) unless a
+        // field inside it has its own, longer one.
+        const target = e.target as HTMLElement
+        const field = target.closest('.form-fields [id]')?.id
+        const item = target.closest<HTMLElement>('[data-presence-path]')?.dataset.presencePath
+        reportFocus(pane.id, (item && !(field?.startsWith(`${item}.`) || field?.startsWith(`${item}[`)) ? item : field) ?? null)
       }}
       onKeyDown={(e) => {
         // Sanity's publish shortcut, also mid-edit (publish flushes first). Like its
@@ -651,7 +669,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
     }[state as string] ?? (doc._draft ? 'Saved' : `Last published ${ago(doc._updatedAt)}`)
   return (
     <footer className="doc-footer">
-      <span className="save-state" data-state={state} title={error} role="status">
+      {/* "N sec. ago" differs between the server render and hydration: not an error. */}
+      <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
         {label}
       </span>
       {state === 'signedOut' && (
@@ -743,7 +762,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
     unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, 'was unpublished. A draft has been created from the latest published revision.')}))
   return (
     <footer className="doc-footer">
-      <span className="save-state" role="status">
+      <span className="save-state" role="status" suppressHydrationWarning>
         Last published {ago(doc._updatedAt)}
       </span>
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
