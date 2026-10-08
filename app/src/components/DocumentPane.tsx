@@ -214,7 +214,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     const id = crypto.randomUUID()
     const fields = Object.fromEntries(Object.entries(from).filter(([k]) => !k.startsWith('_')))
     const created = createDoc(qc, from._type, id, fields)
-    navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined}])})
+    navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined, path: undefined, rev: undefined}])})
     created.then(
       () => toast({title: 'The document was successfully duplicated'}),
       (err) => toast({tone: 'critical', title: 'Could not duplicate the document', description: (err as Error).message}),
