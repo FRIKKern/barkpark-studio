@@ -48,7 +48,8 @@ test('@evidence J48: session lost mid-edit fails closed; signing in again saves 
   await context.clearCookies()
   await page.keyboard.type(' A2 while logged out')
   await expect(footer).toContainText("You've been logged out — not saving. Sign in to save your edits.", {timeout: 10_000})
-  await expect(page.getByRole('alert').filter({hasText: "You've been logged out. Your edits are kept here"})).toBeVisible()
+  // Above the scrolling form, like Sanity's banners: in view wherever the editor is.
+  await expect(page.getByRole('alert').filter({hasText: "You've been logged out. Your edits are kept here"})).toBeInViewport()
   await page.waitForTimeout(3000)
   expect(await t.docValue(ID, 'excerpt'), 'nothing saved as the studio').toBe(`${EXCERPT} A1`)
   await page.screenshot({path: shot('1-logged-out')})
@@ -59,6 +60,7 @@ test('@evidence J48: session lost mid-edit fails closed; signing in again saves 
   await dialog.locator('#sign-in-again-email').fill('studio-editor-a@example.com')
   await dialog.getByRole('button', {name: 'Sign in'}).click()
   await expect(dialog).toHaveCount(0)
+  await expect(excerpt, 'back where they were typing').toBeFocused()
   await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`${EXCERPT} A1 A2 while logged out`)
   expect(await lastAuthor(), 'saved as editor A, not the studio').toBe(editorA)
   await page.screenshot({path: shot('2-signed-in-again')})

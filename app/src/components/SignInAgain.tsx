@@ -12,6 +12,9 @@ export function SignInAgain() {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  // Where the editor was typing when the session went: signed in again, they go back
+  // there (the Sign in that opened the dialog leaves with the banner).
+  const [editing] = useState(() => (typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)))
   const submit = async () => {
     setBusy(true)
     setError(undefined)
@@ -20,6 +23,7 @@ export function SignInAgain() {
       await qc.invalidateQueries({queryKey: ['me']})
       resumeSaving(qc)
       setOpen(false)
+      requestAnimationFrame(() => editing?.isConnected && editing !== document.body && editing.focus({preventScroll: true}))
     } catch (e) {
       setError((e as Error).message)
     } finally {

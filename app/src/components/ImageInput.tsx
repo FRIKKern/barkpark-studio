@@ -1,10 +1,10 @@
-import {useContext, useEffect, useId, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent} from 'react'
+import {useCallback, useContext, useEffect, useId, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {EditPathContext, FieldView, type OpenRef} from './Fields'
 import {toast} from './Toasts'
-import {PaneLink} from './PaneLink'
-import {Close as CloseIcon, Crop as CropIcon, DocumentIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
+import {RefPreview} from './Preview'
+import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
 import type {Field} from '../lib/data'
 import {assetUrl, dragCrop, frame, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 
@@ -253,15 +253,19 @@ function UsageDialog({asset, path, openRef, onClose, onOpen}: {asset: Asset; pat
             </h3>
           )}
           {!!uses?.length && (
-            <ul className="usage-list">
-              {uses.map((u) => (
-                <li key={u._id} onClick={onOpen}>
-                  <PaneLink href={openRef(u._type, u._id, path).href}>
-                    <DocumentIcon /> {u.title || 'Untitled'} <span className="muted">{u._type}</span>
-                  </PaneLink>
-                </li>
-              ))}
-            </ul>
+            <>
+              <h3 className="usage-count">
+                {uses.length === 1 ? 'One document is' : `${uses.length} documents are`} using file <code>{asset.name}</code>
+              </h3>
+              {/* Each one as its list row (thumbnail, title, subtitle), like Sanity's. */}
+              <ul className="usage-list">
+                {uses.map((u) => (
+                  <li key={u._id} onClick={onOpen}>
+                    <RefPreview type={u._type} id={u._id} href={openRef(u._type, u._id, path).href} selected={false} />
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       </DialogBox>
@@ -295,6 +299,17 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
   const maskId = useId()
   const H = natural ? (W * natural.height) / natural.width : 350
   const svg = useRef<SVGSVGElement>(null)
+  // SVG units per screen pixel: the handles' grab circles stay 44 px wide however
+  // small the tool is drawn (phone width, F12; shown only there, in CSS).
+  // (A callback ref: the dialog mounts through a portal, after this component's effects.)
+  const [unit, setUnit] = useState(1)
+  const sized = useRef<ResizeObserver | null>(null)
+  const svgRef = useCallback((el: SVGSVGElement | null) => {
+    svg.current = el
+    sized.current?.disconnect()
+    sized.current = el && new ResizeObserver(() => el.getBoundingClientRect().width && setUnit(W / el.getBoundingClientRect().width))
+    if (el) sized.current!.observe(el)
+  }, [])
   const at = (e: PointerEvent) => {
     const r = svg.current!.getBoundingClientRect()
     return {x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height}
@@ -357,7 +372,7 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
           <p className="label">Hotspot &amp; Crop</p>
           <p className="muted">Adjust the rectangle to crop image. Adjust the circle to specify the area that should always be visible.</p>
           <div className="hotspot-tool" aria-label={`${title}: hotspot and crop`}>
-            <svg ref={svg} viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{touchAction: 'none'}}>
+            <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{touchAction: 'none'}}>
               <image href={url} width={W} height={H} opacity={0.25} />
               <svg x={crect.x} y={crect.y} width={crect.w} height={crect.h} viewBox={`${crect.x} ${crect.y} ${crect.w} ${crect.h}`} overflow="hidden">
                 <image href={url} width={W} height={H} />
@@ -396,26 +411,25 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
                 onKeyDown={keys('hotspot')}
                 onPointerDown={drag((p, s, from) => ({h: moveHotspot(from.h, p.x - s.x, p.y - s.y), c: from.c}))}
               />
-              <circle
-                className="hotspot-handle"
-                data-handle="hotspotHandle"
-                cx={cx + rx * Math.SQRT1_2}
-                cy={cy + ry * Math.SQRT1_2}
-                r={8}
-                onPointerDown={drag((p, s, from) => ({h: resizeHotspot(from.h, p.x - s.x, p.y - s.y), c: from.c}))}
-              />
-              {handles.map(([side, x, y]) => (
-                <rect
-                  key={side}
-                  className="crop-handle"
-                  data-handle={`crop-${side}`}
-                  x={x - 6}
-                  y={y - 6}
-                  width={12}
-                  height={12}
-                  onPointerDown={drag((p, _s, from) => ({h: from.h, c: dragCrop(from.c, side, p.x, p.y)}))}
-                />
-              ))}
+              {(() => {
+                const resize = drag((p, s, from) => ({h: resizeHotspot(from.h, p.x - s.x, p.y - s.y), c: from.c}))
+                const [hx, hy] = [cx + rx * Math.SQRT1_2, cy + ry * Math.SQRT1_2]
+                return (
+                  <>
+                    <circle className="handle-grab" cx={hx} cy={hy} r={22 * unit} onPointerDown={resize} />
+                    <circle className="hotspot-handle" data-handle="hotspotHandle" cx={hx} cy={hy} r={8} onPointerDown={resize} />
+                  </>
+                )
+              })()}
+              {handles.map(([side, x, y]) => {
+                const pull = drag((p, _s, from) => ({h: from.h, c: dragCrop(from.c, side, p.x, p.y)}))
+                return (
+                  <g key={side}>
+                    <circle className="handle-grab" cx={x} cy={y} r={22 * unit} onPointerDown={pull} />
+                    <rect className="crop-handle" data-handle={`crop-${side}`} x={x - 6} y={y - 6} width={12} height={12} onPointerDown={pull} />
+                  </g>
+                )
+              })}
             </svg>
             {natural && (
               <span className="crop-size">

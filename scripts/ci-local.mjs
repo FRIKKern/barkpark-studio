@@ -7,6 +7,17 @@ const primary = process.env.CI_LOCAL_ENV ?? '/Volumes/SATECHI/github/barkpark-st
 const base = Object.fromEntries(fs.readFileSync(primary, 'utf8').split('\n').filter((l) => /^BARKPARK_(URL|WORKSPACE|PROJECT|TOKEN)=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]))
 const env = {...process.env, ...base, CI: 'true', BUDGET_NETWORK_SCALE: '4', BARKPARK_SCHEMA_SOURCE: 'fixtures'}
 const sh = (cmd, extra = {}, cwd) => execSync(cmd, {stdio: 'inherit', env: {...env, ...extra}, cwd})
+// One run per machine: every run reseeds and edits the shared ci / ci-2 datasets.
+const LOCK = '/tmp/barkpark-studio-ci-local.lock'
+const alive = (pid) => { try { process.kill(pid, 0); return true } catch { return false } }
+for (;;) {
+  try { fs.mkdirSync(LOCK); fs.writeFileSync(`${LOCK}/pid`, String(process.pid)); break } catch {}
+  const pid = Number(fs.readFileSync(`${LOCK}/pid`, 'utf8') || 0)
+  if (!pid || !alive(pid)) { fs.rmSync(LOCK, {recursive: true, force: true}); continue }
+  console.error(`ci-local: waiting for run ${pid}…`); execSync('sleep 15')
+}
+const unlock = () => fs.rmSync(LOCK, {recursive: true, force: true})
+process.on('exit', unlock); for (const s of ['SIGINT', 'SIGTERM']) process.on(s, () => process.exit(130))
 const out = []
 sh('node scripts/check-docs.mjs'); out.push('docs: ok')
 sh('pnpm --dir app install --frozen-lockfile --silent && pnpm --dir e2e install --frozen-lockfile --silent && pnpm --dir app build')

@@ -592,7 +592,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       <button type="button" className="icon-btn body-expand" aria-label={expanded ? 'Collapse editor' : 'Expand editor'} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle}>
         {expanded ? <Collapse /> : <Expand />}
       </button>
-      <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} editable={!readOnly} />
+      <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} />
     </div>
   )
 }
