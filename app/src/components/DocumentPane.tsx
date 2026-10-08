@@ -25,7 +25,7 @@ import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
-import {DocHeaderMenu, DocShareMenu, Keys, useAltName} from './DocHeaderMenu'
+import {DocHeaderMenu, DocShareMenu, Keys, openPreview, useAltName} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {CommentsContext, CommentsPanel} from './Comments'
@@ -39,6 +39,7 @@ import {toast} from './Toasts'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {ReadErrorCard} from './PaneError'
 import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
+import studio from '../studio.config'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -299,6 +300,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           }
         }
         if (e.ctrlKey && e.altKey && e.code === 'KeyI' && doc) (e.preventDefault(), setInspectOpen(true))
+        if (e.ctrlKey && e.altKey && e.code === 'KeyO' && doc) {
+          const url = studio.document?.productionUrl?.(doc)
+          if (url) (e.preventDefault(), openPreview(url))
+        }
         if (e.ctrlKey && e.altKey && e.code === 'KeyD' && doc && !viewingPublished) (e.preventDefault(), setAskDelete((n) => n + 1))
         // F7: the document's own undo (this editor's changes only, across fields and
         // across others' edits). The block canvas keeps its own.
@@ -716,6 +721,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   const [discarding, setDiscarding] = useState(false)
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
+  const set = (field: string, value: unknown) => edit(qc, doc, field, value)
+  const actions = (studio.document?.actions?.(doc._type) ?? []).flatMap((action) => action({doc, set}) ?? [])
   const alt = useAltName()
   const reason = publishReason ?? (blocked ? t('There are validation errors that need to be fixed before this document can be published') : undefined)
   const publishTip = useTip(() =>
@@ -772,6 +779,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       {state === 'signedOut' && (
         <SignInAgain />
       )}
+      <DocBadges doc={doc} />
       {/* Sanity's tooltip: the shortcut while there is something to publish, else when it was published. */}
       <span className="publish-tip" {...(reason ? {} : publishTip.anchor)}>
       <button
@@ -796,7 +804,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       </button>
       {publishTip.tip}
       </span>
-      {(!single || canDiscard) && <div className="menu-wrap">
+      {(!single || canDiscard || actions.length > 0) && <div className="menu-wrap">
         <button type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
@@ -817,6 +825,12 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
                 </span>
               </button>
             )}
+            {/* J65: the studio config's actions, after Sanity's built-in ones and before Delete. */}
+            {actions.map((action) => (
+              <button key={action.label} type="button" role="menuitem" className="menu-item" disabled={!canWrite || action.disabled} title={editReason} onClick={() => (setMenu(false), action.onHandle())}>
+                {action.label}
+              </button>
+            ))}
             {!single && (
               <button type="button" role="menuitem" className="menu-item danger" aria-keyshortcuts="Control+Alt+D" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
                 <span className="menu-icon-text">
@@ -854,6 +868,21 @@ async function publishAndTell(qc: QueryClient, doc: Doc) {
   toast({tone: 'positive', title: named(qc, qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc, tt('was published'))})
 }
 
+/** J65: the studio config's badges, beside the save state, Sanity's colors. */
+function DocBadges({doc}: {doc: Doc}) {
+  const badges = (studio.document?.badges?.(doc._type) ?? []).flatMap((badge) => badge(doc) ?? [])
+  if (!badges.length) return null
+  return (
+    <span className="doc-badges">
+      {badges.map((b) => (
+        <span key={b.label} className="doc-badge" data-color={b.color ?? 'default'} title={b.title}>
+          {b.label}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 /** The Published perspective: read-only, and the way to take a document down. */
 function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const t = useT()
@@ -868,6 +897,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
       <span className="save-state" role="status" suppressHydrationWarning>
         {t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}
       </span>
+      <DocBadges doc={doc} />
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
       {!single && (
         <button className="publish danger" disabled={!canWrite} title={publishReason} onClick={() => setConfirm(true)}>

@@ -4,6 +4,7 @@ import {visionTool} from '@sanity/vision'
 import {schemaTypes} from './schemaTypes'
 import {defaultDocumentNode} from './views'
 import {presentation} from './presentation'
+import {pluginSurface} from './plugin'
 
 export default defineConfig({
   name: 'default',
@@ -12,7 +13,7 @@ export default defineConfig({
   projectId: 'ecu57yeh',
   dataset: process.env.SANITY_STUDIO_DATASET || 'production',
 
-  plugins: [structureTool({defaultDocumentNode}), presentation, visionTool()],
+  plugins: [structureTool({defaultDocumentNode}), presentation, visionTool(), pluginSurface()],
 
   schema: {
     types: schemaTypes,

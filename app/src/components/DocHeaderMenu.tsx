@@ -4,7 +4,8 @@ import {useQueryClient} from '@tanstack/react-query'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
-import {Braces, ClipboardIcon, Clock, Copy, Ellipsis, Share} from './icons'
+import {Braces, ClipboardIcon, Clock, Copy, EarthGlobe, Ellipsis, Share} from './icons'
+import studio from '../studio.config'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
 import {t as tt, useT} from '../lib/i18n'
@@ -27,6 +28,11 @@ export function Keys({keys}: {keys: string[]}) {
   )
 }
 
+/** J65: "Open preview" (menu and Ctrl+Alt+O) opens the studio config's URL for the document in a new tab. */
+export function openPreview(url: string) {
+  window.open(url, '_blank', 'noopener')
+}
+
 /** Copy the document's URL or ID, confirmed with Sanity's toast. */
 function useCopyRef(doc: Doc, after: () => void) {
   const scoped = useScopedHref()
@@ -46,7 +52,7 @@ function useCopyRef(doc: Doc, after: () => void) {
 
 /**
  * The document pane header's "…" menu, after Sanity's:
- * History, Inspect, Copy document, Paste
+ * History, Inspect, Open preview (J65), Copy document, Paste
  * document (J29). A paste fills every field whose name and schema type match the
  * copied document's and leaves the rest alone, so pasting a post into an author
  * moves only what fits.
@@ -57,6 +63,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const alt = useAltName()
+  const previewUrl = studio.document?.productionUrl?.(doc)
   return (
     <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
       <button type="button" className="icon-btn" aria-label={t('Show document actions')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
@@ -76,6 +83,18 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
             <Keys keys={['Ctrl', alt, 'I']} />
           </button>
           <hr />
+          {/* J65: the studio config's preview URL, opened in a new tab. */}
+          {previewUrl && (
+            <>
+              <button type="button" role="menuitem" className="menu-item" aria-keyshortcuts="Control+Alt+O" onClick={() => (close(), openPreview(previewUrl))}>
+                <span className="menu-icon-text">
+                  <EarthGlobe /> {t('Open preview')}
+                </span>
+                <Keys keys={['Ctrl', alt, 'O']} />
+              </button>
+              <hr />
+            </>
+          )}
           <button
             type="button"
             role="menuitem"

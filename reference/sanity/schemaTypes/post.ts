@@ -1,4 +1,5 @@
 import {defineArrayMember, defineField, defineType} from 'sanity'
+import {CountedInput} from '../plugin'
 
 // Fixture type: one field of every kind the parity journeys exercise. Titles are
 // spelled out where Barkpark's fixture names them (post.json), so labels read the same.
@@ -14,7 +15,7 @@ export const post = defineType({
     defineField({name: 'title', type: 'string', group: 'content', validation: (r) => r.required().max(120)}),
     defineField({name: 'slug', type: 'slug', group: 'content', options: {source: 'title'}, validation: (r) => r.required()}),
     // J13: a warning (never blocks publish).
-    defineField({name: 'excerpt', type: 'text', rows: 3, group: 'content', validation: (r) => r.max(160).warning('Long excerpts get cut off in previews')}),
+    defineField({name: 'excerpt', type: 'text', rows: 3, group: 'content', components: {input: CountedInput}, validation: (r) => r.max(160).warning('Long excerpts get cut off in previews')}),
     defineField({name: 'author', type: 'reference', to: [{type: 'author'}], group: 'content'}),
     defineField({
       name: 'categories',
