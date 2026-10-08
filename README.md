@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 24 changes, 8 tasks closed
+- **Today** · 25 changes, 8 tasks closed
+  - J47: list rows are a list, so a reader hears the position (Sanity: a listbox) ([#140](https://github.com/FRIKKern/barkpark-studio/pull/140))
   - B08: a Media tool — folders, visibility, the checkout lock, title and alt text ([#141](https://github.com/FRIKKern/barkpark-studio/pull/141))
   - Done: [Barkpark: backlinks and media relations don't index image asset refs (used-in, delete protection)](https://github.com/FRIKKern/barkpark/issues/21884)
-  - J47: screen reader pass J01→J04 — panes named, counts and validation announced ([#139](https://github.com/FRIKKern/barkpark-studio/pull/139))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)

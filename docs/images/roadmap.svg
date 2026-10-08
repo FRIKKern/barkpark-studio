@@ -176,7 +176,7 @@
 <text x="330" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B05 Codelist fields</tspan></text>
 <text x="330" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B06 localizedText</tspan></text>
 <text x="330" y="1394" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B07 Unpublish a doc othe…</tspan></text>
-<text x="330" y="1424" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">B08 Media library</tspan></text>
+<text x="330" y="1424" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B08 Media library</tspan></text>
 <text x="600" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B09 Related-doc views fr…</tspan></text>
 <text x="600" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B10 Schema-declared docu…</tspan></text>
 <text x="600" y="1394" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B11 Closing the tab with…</tspan></text>
