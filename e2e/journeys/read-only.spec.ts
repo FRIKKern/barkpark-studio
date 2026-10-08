@@ -42,7 +42,8 @@ test('@evidence J49: a read-only editor sees why everything is locked', async ({
   await page.screenshot({path: shot('1-locked')})
 
   await page.getByRole('button', {name: 'Document actions'}).last().click()
-  for (const name of ['Duplicate', 'Discard changes', 'Delete']) await expect(page.getByRole('menuitem', {name})).toBeDisabled()
+  // No draft here, so no Discard (Sanity's menu since #158); the rest is disabled with the reason.
+  for (const name of ['Duplicate', 'Delete']) await expect(page.getByRole('menuitem', {name})).toBeDisabled()
   await page.screenshot({path: shot('2-actions')})
   await page.keyboard.press('Escape')
   await page.getByRole('button', {name: 'Show document actions'}).click()
