@@ -125,6 +125,13 @@ a { color: inherit; text-decoration: none; }
 .pane.strip:hover { background: var(--hover); }
 /* J42: a narrow window shows one pane, full width. */
 .panes[data-narrow] > .pane { flex: 1 1 auto; min-width: 0; max-width: none; }
+/* J51: a first visit on a phone paints before the server knows the width (no bp_vw
+   cookie yet), so the HTML has the desktop panes. Until the app takes over, show only the
+   last one, as the narrow layout will: no overflowing panes, no jump at hydration. */
+@media (max-width: 599px) {
+  html:not([data-hydrated]) .panes:not([data-narrow]) > :not(:nth-last-child(1 of [data-pane-index])) { display: none; }
+  html:not([data-hydrated]) .panes:not([data-narrow]) > :nth-last-child(1 of [data-pane-index]) { flex: 1 1 auto; min-width: 0; max-width: none; }
+}
 .panes[data-narrow] .doc-form { padding-left: 20px; padding-right: 20px; }
 .panes[data-narrow] .doc-form h1 { font-size: 27px; line-height: 35px; }
 .back-link { flex: none; margin-left: -8px; }
@@ -445,7 +452,7 @@ button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .menu-item:disabled { color: var(--disabled); cursor: default; background: none; }
 
 /* Field groups + objects + booleans (J14), after Sanity's */
-.group-tabs { display: flex; gap: 4px; margin: -12px 0 64px; }
+.group-tabs { display: flex; gap: 4px; margin: -7px 0 78px; }
 .group-tabs [role=tab] { font: inherit; font-size: 13px; padding: 5px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
 .group-tabs [role=tab]:hover { background: var(--hover); }
 .group-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
@@ -892,6 +899,7 @@ fieldset.object-field > .field-actions { top: -38px; }
 .list-rows > .pane-error { padding: 20px 8px; }
 .pane-error h3 { margin: 0; font-size: 21px; line-height: 27px; font-weight: 700; }
 .pane-error p { margin: 0; }
+@media (max-width: 768px) { .pane-error .btn { min-height: 44px; } }
 .pane-error code { font-family: ui-monospace, Menlo, monospace; font-size: 14px; background: var(--hover); padding: 0 2px; }
 .pane-error .muted { font-size: 13px; color: var(--muted); }
 .pane-error .error-detail { margin: 0; padding: 12px; border-radius: 3px; background: var(--danger-bg); color: var(--danger-fg); font-size: 12px; white-space: pre-wrap; overflow: auto; }
@@ -1170,3 +1178,16 @@ fieldset.object-field > .field-comments { top: -38px; }
 .scope-actions { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 768px) { .scope-ws { display: none; } .scope-button { min-height: 44px; max-width: 120px; } .scope-actions button, .scope-field .input { min-height: 44px; } }
 @media (max-width: 480px) { .scope-popover { position: fixed; top: 52px; left: 8px; right: 8px; width: auto; } }
+
+/* J42/F12: on a touch-size screen every control in a doc pane is a 44 px tap. The
+   perspective chips sit in a clipping title, so a clear border grows their box (the inset
+   ring and background keep their drawn size); Publish gets an invisible hit area; the field
+   menu and Generate, stacked close together, take real size so their taps don't overlap. */
+@media (max-width: 768px) {
+  button.chip, button.chip[data-active], button.chip[data-selected]:not([data-active]), button.chip:hover { border-style: solid; border-color: transparent; border-width: 10px 0; background-clip: padding-box; }
+  .doc-footer .publish { position: relative; }
+  .doc-footer .publish::after { content: ''; position: absolute; z-index: 1; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+  button.icon-btn[aria-label='Field actions'] { min-width: 44px; min-height: 44px; }
+  .field > .field-actions, .field > .field-comments { top: -10px; } /* their 44 px end where the input begins */
+  .btn-create { min-height: 44px; }
+}
