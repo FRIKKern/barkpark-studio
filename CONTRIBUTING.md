@@ -14,12 +14,10 @@
 ## Tests
 
 - The side-by-side sign-off and the reference clip are the proof. Not a test.
-- Add a test only if it is fast (< 5 s, whole e2e suite < 60 s) and guards
-  something that can break silently. Rule 5 in [`QUALITY.md`](QUALITY.md).
+- Add a test only if it is fast (< 5 s, whole e2e suite < 60 s) and guards something that can break silently (rule 5, [`QUALITY.md`](QUALITY.md)).
 - Local lanes: `node --env-file=.env scripts/lane-token.mjs e2e-<lane>` once gives that dataset its own
   Barkpark tokens (rate limits are per token); `BARKPARK_DATASET=e2e-<lane> pnpm test` uses them. J48/J49 evidence (dev sign-in) also needs `scripts/rig-editor-tokens.mjs e2e-<lane>` (read-only editors c, d; `--revoke` after).
-- A full suite, `@evidence` or audit run goes through `scripts/with-lock.sh <cmd>` (the machine lock ci-local takes); a spec
-  restores every fixture doc it edits, so runs pass back to back without a reset.
+- Full suite, `@evidence` or audit runs: `scripts/with-lock.sh <cmd>` (ci-local's machine lock). A spec restores the fixture docs it edits.
 
 ## Docs
 
