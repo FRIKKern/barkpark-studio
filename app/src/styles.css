@@ -872,6 +872,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* J35: the body expanded over its pane (same canvas, its frame moved). */
 .body-expand { position: absolute; top: 4px; right: 4px; z-index: 3; width: 27px; height: 27px; }
+/* F12: a 44 px tap target on phones and tablets (Sanity's is 25 px; the bar is ours). */
+@media (max-width: 768px) { .body-expand { top: 0; right: 0; width: 44px; height: 44px; } }
 .body-canvas[data-expanded] { background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 16px 40px var(--shadow); display: flex; flex-direction: column; }
 .body-canvas[data-expanded] .pd-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .body-canvas[data-expanded] .pd-canvas { flex: 1; max-height: none; }
