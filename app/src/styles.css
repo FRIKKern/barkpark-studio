@@ -1303,3 +1303,5 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
   .array-row > .drag-handle, .array-row .menu-wrap > .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
   .array-row [role='menu'] .menu-item, .add-item { min-height: 44px; }
 }
+/* J33: object array rows and the item dialog's breadcrumb at phone width (F12). */
+@media (max-width: 768px) { .item-dialog button.crumb, .array-item-preview { min-height: 44px; } .item-dialog button.crumb { min-width: 44px; } }

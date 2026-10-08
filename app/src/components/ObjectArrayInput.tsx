@@ -1,5 +1,5 @@
-import {useCallback, useContext, useEffect, useState} from 'react'
-import {DialogBox} from './FocusScopes'
+import {useCallback, useContext, useEffect, useRef, useState} from 'react'
+import {DialogBox, PaneOverlay} from './FocusScopes'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Field} from '../lib/data'
 import {copy} from '../lib/clipboard'
@@ -27,8 +27,14 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   // path=links[_key=="l1"]) opens that item's dialog; the pane then focuses the field.
   const urlPath = useContext(UrlPathContext)
   const wantKey = urlPath?.startsWith(`${id}[_key=="`) ? urlPath.slice(id.length + 8).split('"]')[0] : undefined
+  // Once per item: closing the dialog puts focus (and so the URL) back on the item's
+  // row, which must not open it again. Any open counts, a click's too.
+  const openedFor = useRef<string | undefined>(undefined)
+  useEffect(() => void (editing && (openedFor.current = editing)), [editing])
   useEffect(() => {
-    if (wantKey && items.some((it) => it._key === wantKey)) setEditing(wantKey)
+    if (!wantKey || wantKey === openedFor.current || !items.some((it) => it._key === wantKey)) return
+    openedFor.current = wantKey
+    setEditing(wantKey)
     // Only when the URL names another item, not on every edit of this one.
   }, [wantKey])
   const set = (next: Item[]) => onChange(next)
@@ -110,7 +116,9 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
   onClose: () => void
 }) {
   const title = previewText(item, of, 'title') || 'Untitled'
+  // Over the whole document pane, as the other dialogs (not over the field's box).
   return (
+    <PaneOverlay>
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog item-dialog" aria-modal="true" aria-label={`${parentTitle} / ${title}`} onClose={onClose}>
         <header>
@@ -136,5 +144,6 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
         </div>
       </DialogBox>
     </div>
+    </PaneOverlay>
   )
 }
