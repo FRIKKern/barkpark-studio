@@ -8,6 +8,7 @@ import {paneRetry} from './connection'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
 import type {PreviewText} from './preview'
+import {parseTextQuery, textScore} from './text-search'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -222,7 +223,58 @@ const fetchSearch = createServerFn({method: 'GET'})
     return r.result.documents as unknown as Json
   })
 
-export type Backlink = {from_doc_id: string; type: string; title: string; via_field: string}
+/**
+ * J38: global search over every text field, Sanity's way. Barkpark's search
+ * (title + every content string) finds the candidates; each type's query then
+ * narrows them by its field filters, so those keep Barkpark's own semantics;
+ * textScore keeps the hits Sanity would show and scores them. The best `limit`
+ * by `order` (`_score:desc` is best match) come back with `_score` set.
+ */
+const fetchTextSearch = createServerFn({method: 'GET'})
+  .validator((d: {q: string; asked: {type: string; filter: RefFilter}[]; order: string; limit: number}) => d)
+  .handler(async ({data}) => {
+    const types = data.asked.map((a) => a.type)
+    const found = await bpJson<{documents: Doc[]}>(
+      `/v1/data/search/${dataset()}?perspective=drafts&limit=200&q=${encodeURIComponent(data.q)}&types=${types.map(encodeURIComponent).join(',')}`,
+    )
+    const schemas = await readSchemas()
+    const q = parseTextQuery(data.q)
+    let hits = found.documents
+      .map((d): Doc => ({...d, _score: textScore(d, q, schemas.find((s) => s.name === d._type) as Schema | undefined)}))
+      .filter((d) => (d._score as number) > 0 && types.includes(d._type))
+    const kept = await Promise.all(
+      data.asked.map(async ({type, filter}) => {
+        const ids = hits.filter((d) => d._type === type).flatMap((d) => [d._id, d._publishedId])
+        if (!ids.length || !Object.keys(filter).length) return ids
+        let f = `&filter[_id][in]=${[...new Set(ids)].map(encodeURIComponent).join(',')}`
+        for (const [field, ops] of Object.entries(filter))
+          for (const [op, v] of Object.entries(ops)) f += `&filter[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
+        const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${f}`)
+        return r.result.documents.flatMap((d) => [d._id, d._publishedId])
+      }),
+    )
+    const keep = new Set(kept.flat())
+    const [key, dir] = data.order.split(':') as [string, string]
+    hits = hits
+      .filter((d) => keep.has(d._id))
+      // Ties stay in the dataset's order, oldest first (Sanity's, for equal scores).
+      .sort((a, b) => (dir === 'desc' ? -1 : 1) * cmp(a[key], b[key]) || cmp(a._createdAt, b._createdAt) || cmp(a._id, b._id))
+    return hits.slice(0, data.limit) as unknown as Json
+  })
+const cmp = (a: unknown, b: unknown) => (typeof a === 'number' && typeof b === 'number' ? a - b : String(a ?? '').localeCompare(String(b ?? '')))
+
+export const textSearchQuery = (q: string, asked: {type: string; filter: RefFilter}[], order: string, limit: number) =>
+  queryOptions({
+    queryKey: ['text-search', q, asked, order, limit],
+    staleTime: 10_000,
+    queryFn: async ({client}) => {
+      const docs = (await fetchTextSearch({data: {q, asked, order, limit}})) as unknown as Doc[]
+      for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
+      return docs
+    },
+  })
+
+export type Backlink ={from_doc_id: string; type: string; title: string; via_field: string}
 
 const fetchBacklinks = createServerFn({method: 'GET'})
   .validator((d: {id: string}) => d)

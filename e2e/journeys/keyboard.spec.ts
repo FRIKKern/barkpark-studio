@@ -33,8 +33,10 @@ test('J19: search recovery and visible keyboard selection', async ({page}, info)
     await page.keyboard.press('ControlOrMeta+a')
     // A short window reaches clipped rows with fewer key round-trips.
     await page.keyboard.type('Fixture post')
+    // Every "Fixture …" doc matches (Sanity ORs the words); posts match both words in the title, so they lead.
     const options = page.getByRole('option')
-    await expect(options).toHaveCount(30)
+    await expect(options.nth(30)).toBeAttached()
+    await expect(options.nth(29)).toContainText('Fixture post')
     for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowDown')
     await expect.poll(() => page.getByRole('option', {selected: true}).evaluate((el) => {
       const row = el.getBoundingClientRect()

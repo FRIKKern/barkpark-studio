@@ -1,7 +1,7 @@
 import {useEffect, useId, useRef, useState} from 'react'
 import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {schemaOf, schemasQuery, searchQuery, type Doc} from '../lib/data'
+import {schemaOf, schemasQuery, searchQuery, textSearchQuery, type Doc} from '../lib/data'
 import {announce} from '../lib/announce'
 import {focusFirstField} from '../lib/focus'
 import {useFocusScope} from '../lib/focus-scope'
@@ -77,18 +77,12 @@ const addRecent = (list: Recent[], r: Recent) => [r, ...list.filter((x) => !same
 const strip = (filters: SearchFilter[]) => filters.filter(isComplete).map(({id: _, ...f}) => f)
 
 const ORDER: Record<SearchSort, [string, string]> = {
-  // Best match: Sanity ranks by score, then in the dataset's own order (oldest first here).
+  // Best match: by score when there is a query (lib/text-search), else the dataset's own order, oldest first.
   best: ['_createdAt', 'asc'],
   createdAsc: ['_createdAt', 'asc'],
   createdDesc: ['_createdAt', 'desc'],
   updatedAsc: ['_updatedAt', 'asc'],
   updatedDesc: ['_updatedAt', 'desc'],
-}
-
-/** Best match: a title that starts with the query, then one with it as a word, then newest. */
-const rank = (d: Doc, q: string) => {
-  const t = String(d.title ?? '').toLowerCase()
-  return t.startsWith(q) ? 0 : t.includes(` ${q}`) ? 1 : 2
 }
 
 type Kept = {q: string; types: string[]; filters: SearchFilter[]; sort: SearchSort}
@@ -129,16 +123,26 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
   // Ask once the typed query has settled (debounced), never for the empty one in between.
   const asking = !!query || types.length > 0 || filters.some(isComplete)
   const [key, dir] = ORDER[sort]
-  const perType = useQueries({
-    queries: asking ? asked.map(({s, filter}) => ({...searchQuery(s.name, query, filter, `${key}:${dir}`, 50), placeholderData: keepPreviousData, retry: false})) : [],
+  // A query searches every text field at once, ranked by Sanity's score (lib/text-search);
+  // types and filters alone list each type in the chosen order.
+  const textResult = useQuery({
+    ...textSearchQuery(query, asked.map(({s, filter}) => ({type: s.name, filter})), sort === 'best' ? '_score:desc' : `${key}:${dir}`, 50),
+    enabled: !!query && asked.length > 0,
+    placeholderData: keepPreviousData,
+    retry: false,
   })
-  const lower = query.toLowerCase()
+  const listResults = useQueries({
+    queries: asking && !query ? asked.map(({s, filter}) => ({...searchQuery(s.name, '', filter, `${key}:${dir}`, 50), placeholderData: keepPreviousData, retry: false})) : [],
+  })
+  const perType = query ? [textResult] : listResults
   const results: Doc[] = !searching
     ? []
-    : perType
-        .flatMap((r) => r.data ?? [])
-        .sort((a, b) => (sort === 'best' && lower ? rank(a, lower) - rank(b, lower) : 0) || (dir === 'desc' ? -1 : 1) * String(a[key]).localeCompare(String(b[key])))
-        .slice(0, 50)
+    : query
+      ? (textResult.data ?? [])
+      : perType
+          .flatMap((r) => r.data ?? [])
+          .sort((a, b) => (dir === 'desc' ? -1 : 1) * String(a[key]).localeCompare(String(b[key])))
+          .slice(0, 50)
   const rows = showRecent ? recent.length : results.length
   useEffect(() => setActive(0), [query, types, filters, sort, showRecent])
   // Keep keyboard selection visible without moving the caret out of search.
