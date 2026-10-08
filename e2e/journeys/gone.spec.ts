@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {sanityMutate, signInIfAsked, target, type Target} from '../rig/targets'
 
 // J32 evidence, both studios: someone else (an API write, as another editor would)
 // (1) deletes the doc you have open → "This document has been deleted." + Restore
@@ -14,8 +14,7 @@ const shot = (name: string, step: string) => `evidence/J32-${name}-${step}.png`
 test.use({video: 'on'})
 test.setTimeout(150_000)
 
-const sanity = (mutations: unknown[]) =>
-  fetch('https://ecu57yeh.api.sanity.io/v2025-02-19/data/mutate/production', {method: 'POST', headers: {authorization: `Bearer ${process.env.SANITY_TOKEN}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations})}).then((r) => r.json())
+const sanity = (mutations: unknown[]) => sanityMutate(mutations).then((r) => r.json())
 const bp = (mutations: unknown[]) =>
   fetch(`${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}/v1/data/mutate/${process.env.BARKPARK_DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations})}).then((r) => r.json())
 

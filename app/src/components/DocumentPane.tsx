@@ -343,6 +343,22 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </>
         )}
       </header>
+      {/* Sanity's banners sit right under the pane header, above the title bar and the scrolling form: always in view. */}
+      <div className="pane-banners">
+        <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
+        {loggedOut && doc && (
+          // J48: the session is gone — said where you are editing, with the way back.
+          <div className="pane-banner" role="alert">
+            <span>You've been logged out. Your edits are kept here and saved once you sign in again.</span>
+            <SignInAgain />
+          </div>
+        )}
+        {editReason && doc && (
+          <div className="pane-banner" role="note">
+            <span>{editReason}</span>
+          </div>
+        )}
+      </div>
       <div className="doc-title-bar">
         {header}
         <div className="view-tabs" role="tablist" aria-label="Views">
@@ -378,19 +394,6 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <h2>Document not found</h2>
             <p>This document does not exist or is no longer available.</p>
             <PaneLink className="btn" href={closeHref}>Go back</PaneLink>
-          </div>
-        )}
-        <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
-        {loggedOut && doc && (
-          // J48: the session is gone — said where you are editing, with the way back.
-          <div className="pane-banner" role="alert">
-            <span>You've been logged out. Your edits are kept here and saved once you sign in again.</span>
-            <SignInAgain />
-          </div>
-        )}
-        {editReason && doc && (
-          <div className="pane-banner" role="note">
-            <span>{editReason}</span>
           </div>
         )}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}

@@ -3,8 +3,8 @@ import {useQuery} from '@tanstack/react-query'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {EditPathContext, FieldView, type OpenRef} from './Fields'
 import {toast} from './Toasts'
-import {PaneLink} from './PaneLink'
-import {Close as CloseIcon, Crop as CropIcon, DocumentIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
+import {RefPreview} from './Preview'
+import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
 import type {Field} from '../lib/data'
 import {assetUrl, dragCrop, frame, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 
@@ -253,15 +253,19 @@ function UsageDialog({asset, path, openRef, onClose, onOpen}: {asset: Asset; pat
             </h3>
           )}
           {!!uses?.length && (
-            <ul className="usage-list">
-              {uses.map((u) => (
-                <li key={u._id} onClick={onOpen}>
-                  <PaneLink href={openRef(u._type, u._id, path).href}>
-                    <DocumentIcon /> {u.title || 'Untitled'} <span className="muted">{u._type}</span>
-                  </PaneLink>
-                </li>
-              ))}
-            </ul>
+            <>
+              <h3 className="usage-count">
+                {uses.length === 1 ? 'One document is' : `${uses.length} documents are`} using file <code>{asset.name}</code>
+              </h3>
+              {/* Each one as its list row (thumbnail, title, subtitle), like Sanity's. */}
+              <ul className="usage-list">
+                {uses.map((u) => (
+                  <li key={u._id} onClick={onOpen}>
+                    <RefPreview type={u._type} id={u._id} href={openRef(u._type, u._id, path).href} selected={false} />
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       </DialogBox>
