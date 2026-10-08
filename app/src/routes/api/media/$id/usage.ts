@@ -2,7 +2,7 @@ import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, dataset} from '../../../../server/barkpark'
 import {readSchemas} from '../../../../server/schemas'
 
-// GET /api/media/<asset id>/usage → the documents whose image fields use this
+// GET /api/media/<asset id>/usage → the documents whose image or file fields use this
 // asset: [{_id, _type, title}]. Barkpark's backlinks and media relations don't
 // index image asset refs (task-94891b81179a0855), so this asks each type with an image
 // field for docs whose `<field>.asset._ref` is the asset — a documented filter.
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/api/media/$id/usage')({
         const ref = `asset-${params.id}`
         const schemas = await readSchemas()
         const asks = schemas.flatMap((s) =>
-          (s.fields as Field[]).filter((f) => f.type === 'image').map((f) => ({type: s.name, field: f.name})),
+          (s.fields as Field[]).filter((f) => f.type === 'image' || f.type === 'file').map((f) => ({type: s.name, field: f.name})),
         )
         const found = await Promise.all(
           asks.map(async ({type, field}) => {

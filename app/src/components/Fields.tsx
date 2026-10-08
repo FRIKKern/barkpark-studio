@@ -14,6 +14,7 @@ import {StringArrayInput, TagsInput} from './ArrayInputs'
 import {ObjectArrayInput} from './ObjectArrayInput'
 import {RefArrayInput} from './RefArrayInput'
 import {CodeInput, ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
+import {FileInput} from './FileInput'
 import {ImageInput} from './ImageInput'
 import {InvalidValueCard, KeysAlert, RichTextCard} from './BrokenValues'
 import {invalidValue, keyProblem, richTextProblem} from '../lib/broken'
@@ -296,6 +297,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     }
     case 'image':
       return <ImageInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
+    case 'file':
+      return <FileInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
     default:
       // A type this Studio has no editor for: never "[object Object]".
       return value !== null && typeof value === 'object' ? <ReadOnlyJson id={path} value={value} note="read-only — no editor for this field type yet" /> : <input id={path} className="input" readOnly value={str} />
