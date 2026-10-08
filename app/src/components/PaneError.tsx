@@ -1,4 +1,4 @@
-import {Component, type ReactNode} from 'react'
+import {Component, useLayoutEffect, useRef, type ReactNode} from 'react'
 import {useRouter, type ErrorComponentProps} from '@tanstack/react-router'
 import {AUTO_RETRIES} from '../lib/connection'
 import {toast} from './Toasts'
@@ -38,8 +38,23 @@ function ErrorActions({error, onRetry}: {error: unknown; onRetry?: () => void}) 
 export function ReadErrorCard({title, error, failures, retrying, onRetry}: {title: string; error: unknown; failures: number; retrying: boolean; onRetry: () => void}) {
   const online = typeof navigator === 'undefined' || navigator.onLine
   const message = error instanceof Error ? error.message : String(error)
+  // J50/F6: Retry worked and the card goes: focus moves on to what loaded (the pane's
+  // first row or field), not to the page.
+  const card = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = card.current
+    const pane = el?.closest<HTMLElement>('[data-pane-index]')
+    return () => {
+      if (!el || !pane || !el.contains(document.activeElement)) return
+      requestAnimationFrame(() => {
+        if (document.activeElement && document.activeElement !== document.body) return
+        const next = ['[data-testid="pane-item"]', '.pane-body input:not([type=checkbox]), .pane-body textarea', '.pane-body a, .pane-body button'].map((q) => pane.querySelector<HTMLElement>(q)).find(Boolean)
+        next?.focus()
+      })
+    }
+  }, [])
   return (
-    <div className="pane-error" role="alert">
+    <div className="pane-error" role="alert" ref={card}>
       <h3>{title}</h3>
       <p>
         {!online ? (
