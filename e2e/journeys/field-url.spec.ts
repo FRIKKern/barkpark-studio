@@ -40,6 +40,7 @@ test('@evidence J52: the focused field lives in the URL', async ({page, context}
 
   // A nested field in another group, then the URL copied into a fresh tab.
   await page.getByRole('tab', {name: 'Meta'}).click()
+  await page.getByText(/^(SEO|Seo)$/).first().click() // collapsed by default (J13/J14)
   await t.field(page, 'seo.metaTitle').click()
   await expect.poll(() => decodeURIComponent(page.url())).toContain('path=seo.metaTitle')
   const copied = page.url()

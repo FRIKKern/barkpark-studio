@@ -1,11 +1,11 @@
-import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
+import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
-import type {Problem} from '../lib/validation'
+import {worst, type Level, type Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
-import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline, Collapse, Expand} from './icons'
+import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {toast} from './Toasts'
 import {FieldPresence} from './Presence'
@@ -30,6 +30,11 @@ export type OpenRef = (type: string, id: string, parentRefPath: string) => {href
 type FieldProps = {field: Field; path: string; value: unknown; openRef: OpenRef; onChange: (v: unknown) => void; readOnly?: boolean}
 
 export const ProblemsContext = createContext<Problem[]>([])
+/**
+ * J13/J14: which collapsible objects are open (Sanity's `options.collapsible` /
+ * `collapsed`). The pane owns it, so a validation click can open the way to a field.
+ */
+export const OpenObjectsContext = createContext<{isOpen: (path: string, byDefault: boolean) => boolean; toggle: (path: string, open: boolean) => void} | null>(null)
 /** Writes one value at a dotted path ("seo.metaTitle"), so a subfield edit sends only that path. */
 export const EditPathContext = createContext<((path: string, value: unknown) => void) | null>(null)
 /** J15: top-level fields the draft changed since publish, and how to open Review changes. */
@@ -44,15 +49,26 @@ export const DocTypeContext = createContext<string | null>(null)
 /** J52: the field path the URL asks for (`path=`), so an array can open the item it sits in. */
 export const UrlPathContext = createContext<string | undefined>(undefined)
 
-/** The error mark beside a field label: Sanity shows the message on hover. */
-function ProblemMark({path}: {path: string}) {
-  const problem = useContext(ProblemsContext).find((p) => p.path === path)
-  if (!problem) return null
+const LEVEL_ICON: Record<Level, () => ReactElement> = {error: ErrorOutline, warning: WarningOutline, info: InfoOutline}
+const LEVEL_WORD: Record<Level, string> = {error: 'Validation error', warning: 'Validation warning', info: 'Validation info'}
+
+/** Sanity's mark for an error, warning or info: one icon per level, the message on hover. */
+export function LevelIcon({level, label}: {level: Level; label?: string}) {
+  const Icon = LEVEL_ICON[level]
   return (
-    <span className="error-icon" role="img" aria-label={`Validation error: ${problem.message}`} title={problem.message}>
-      <ErrorOutline />
+    <span className="error-icon" data-level={level} role="img" aria-label={label ?? LEVEL_WORD[level]} title={label}>
+      <Icon />
     </span>
   )
+}
+
+/** The mark beside a field label; `within`: also what a collapsed object hides. */
+function ProblemMark({path, within}: {path: string; within?: boolean}) {
+  const all = useContext(ProblemsContext).filter((p) => p.path === path || (within && p.path.startsWith(`${path}.`)))
+  const level = worst(all)
+  if (!level) return null
+  const problem = all.find((p) => p.level === level)!
+  return <LevelIcon level={level} label={`${LEVEL_WORD[level]}: ${problem.message}`} />
 }
 
 /**
@@ -72,11 +88,42 @@ function ConditionalField(props: FieldProps) {
   return <FieldBody {...props} readOnly={props.readOnly || (doc ? isReadOnly(props.field, doc) : false)} />
 }
 
+/** An object (or an image): a fieldset, its title the legend. Collapsible ones fold, like Sanity's. */
+function ObjectField(props: FieldProps & {label: string; changed: boolean; review?: () => void}) {
+  const {label, changed, review, ...field} = props
+  const options = (Array.isArray(field.field.options) ? {} : field.field.options ?? {}) as {collapsible?: boolean; collapsed?: boolean}
+  const opened = useContext(OpenObjectsContext)
+  const collapsible = !!options.collapsible || !!options.collapsed
+  const open = !collapsible || (opened ? opened.isOpen(field.path, !options.collapsed) : !options.collapsed)
+  return (
+    <fieldset className="field object-field" data-collapsible={collapsible || undefined} data-open={collapsible ? open : undefined}>
+      <FieldActions {...field} />
+      <FieldComments path={field.path} title={label} />
+      {changed && review && <ChangeBar onClick={review} />}
+      <legend>
+        {collapsible ? (
+          <button type="button" className="object-toggle" aria-expanded={open} onClick={() => opened?.toggle(field.path, !open)}>
+            <span className="toggle-arrow" data-open={open}>
+              <ToggleArrowRight />
+            </span>
+            {label}
+          </button>
+        ) : (
+          label
+        )}
+        <ProblemMark path={field.path} within={!open} />
+        <FieldPresenceHere path={field.path} />
+      </legend>
+      {open && <FieldInput {...field} />}
+    </fieldset>
+  )
+}
+
 function FieldBody(props: FieldProps) {
   if (props.field.readOnly === true) props = {...props, readOnly: true}
   const changes = useContext(ChangesContext)
   const label = props.field.title ?? props.field.name
-  const invalid = useContext(ProblemsContext).some((p) => p.path === props.path) || undefined
+  const invalid = useContext(ProblemsContext).some((p) => p.path === props.path && p.level === 'error') || undefined
   // Sanity: a boolean is a switch with its label beside it, in a box.
   if (props.field.type === 'boolean' && !invalidValue(props.field, props.value))
     return (
@@ -93,17 +140,7 @@ function FieldBody(props: FieldProps) {
   // An object (or an image, with its own fields below it): a fieldset with its title as the legend.
   if (props.field.type === 'composite' || props.field.type === 'image')
     return (
-      <fieldset className="field object-field">
-        <FieldActions {...props} />
-        <FieldComments path={props.path} title={label} />
-        {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
-        <legend>
-          {label}
-          <ProblemMark path={props.path} />
-          <FieldPresenceHere path={props.path} />
-        </legend>
-        <FieldInput {...props} />
-      </fieldset>
+      <ObjectField {...props} label={label} changed={!!changes?.changed.has(props.path)} review={changes?.review} />
     )
   return (
     <div className="field" data-invalid={invalid} data-readonly={props.readOnly || undefined}>
@@ -188,7 +225,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
 // object subfields, references (search + pick). Arrays and rich text: J09/J10.
 function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProps) {
   const editPath = useContext(EditPathContext)
-  const invalid = useContext(ProblemsContext).some((p) => p.path === path)
+  const invalid = useContext(ProblemsContext).some((p) => p.path === path && p.level === 'error')
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
   if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />
