@@ -16,17 +16,21 @@
 // upstream has been quiet, when one of our own writes gets no echo, and after 45 s
 // with no byte at all (Barkpark sends a keepalive every 30 s).
 import '@tanstack/react-start/server-only'
-import {bpFetch, dataset} from './barkpark'
+import {bpFetch, scope} from './barkpark'
+import type {Scope} from '../lib/scope'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
 type Buffered = {id: number; docId: string; type?: string; frame: string}
 const BUFFER = 2000
 
-// One hub per token: each editor listens as themself (their own access, their own
-// rate bucket), and an editor's tabs share one upstream.
+// One hub per token and scope: each editor listens as themself (their own access, their
+// own rate bucket), an editor's tabs share one upstream, and a tab in another dataset
+// (B02) gets its own: the scope is pinned when the hub is made, inside a request, so the
+// reconnect loop never asks a request that is gone.
 type Hub = {
   token: string
+  scope: Scope
   subscribers: Set<Subscriber>
   upstream: AbortController | null
   lastEventId: string | null
@@ -44,9 +48,12 @@ const QUIET_MS = 1000
 const ECHO_MS = 3000
 const SILENT_MS = 45_000
 const hubs = new Map<string, Hub>()
+const hubKey = (token: string, at: Scope) => `${token}|${at.workspace}/${at.project}/${at.dataset}`
 const hubFor = (token: string): Hub => {
-  let h = hubs.get(token)
-  if (!h) hubs.set(token, (h = {token, subscribers: new Set(), upstream: null, lastEventId: null, buffer: [], knownFrom: null, attempt: null, lastByte: 0, lastFrameFor: new Map()}))
+  const at = scope()
+  const key = hubKey(token, at)
+  let h = hubs.get(key)
+  if (!h) hubs.set(key, (h = {token, scope: at, subscribers: new Set(), upstream: null, lastEventId: null, buffer: [], knownFrom: null, attempt: null, lastByte: 0, lastFrameFor: new Map()}))
   return h
 }
 
@@ -100,7 +107,7 @@ export const mutatedIds = (mutations: unknown[]): string[] =>
 
 /** After one of our writes: its frame should come back soon; if not, the upstream is dead. */
 export function expectEcho(token: string, docIds: string[]) {
-  const hub = hubs.get(token)
+  const hub = hubs.get(hubKey(token, scope()))
   if (!hub?.upstream || !docIds.length) return
   const sent = Date.now()
   setTimeout(() => {
@@ -123,7 +130,7 @@ async function connect(hub: Hub) {
     try {
       const headers: Record<string, string> = {accept: 'text/event-stream'}
       if (hub.lastEventId) headers['last-event-id'] = hub.lastEventId
-      const res = await bpFetch(`/v1/data/listen/${dataset()}`, {headers, signal: attempt.signal}, hub.token)
+      const res = await bpFetch(`/v1/data/listen/${hub.scope.dataset}`, {headers, signal: attempt.signal}, hub.token, {at: hub.scope})
       if (!res.ok || !res.body) throw new Error(`listen ${res.status}`)
       hub.lastByte = Date.now()
       delay = 500

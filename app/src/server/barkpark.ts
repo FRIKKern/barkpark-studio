@@ -2,7 +2,9 @@
 // code fails the build. Calls go out with the signed-in editor's own token
 // (server/auth.ts), else the studio's BARKPARK_TOKEN.
 import '@tanstack/react-start/server-only'
+import {getRequestHeader, getRequestUrl} from '@tanstack/react-start/server'
 import {currentEditor, devLoginEnabled} from './auth'
+import {parseScope, type Scope} from '../lib/scope'
 
 function env(key: string): string {
   const v = process.env[key]
@@ -10,9 +12,34 @@ function env(key: string): string {
   return v
 }
 
-const config = () => ({
-  base: `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`,
-  dataset: process.env.BARKPARK_DATASET || 'production',
+/**
+ * B02: the workspace, project and dataset this request works in. A page names them in
+ * its URL (lib/scope.ts); a server function, an API route or the live stream is asked
+ * for by a page, whose URL is its Referer. Neither: the studio's default from .env.
+ */
+export function scope(): Scope {
+  const fallback = {workspace: env('BARKPARK_WORKSPACE'), project: process.env.BARKPARK_PROJECT || 'default', dataset: process.env.BARKPARK_DATASET || 'production'}
+  let url: URL
+  try {
+    url = getRequestUrl()
+  } catch {
+    return fallback // outside a request (a script, a test)
+  }
+  const own = parseScope(url.pathname).scope
+  if (own) return own
+  const referer = getRequestHeader('referer')
+  if (!referer) return fallback
+  try {
+    const page = new URL(referer)
+    return (page.host === url.host && parseScope(page.pathname).scope) || fallback
+  } catch {
+    return fallback
+  }
+}
+
+const config = (at: Scope = scope()) => ({
+  base: `${env('BARKPARK_URL')}/w/${at.workspace}/p/${at.project}`,
+  dataset: at.dataset,
   token: currentEditor()?.token ?? env('BARKPARK_TOKEN'),
 })
 
@@ -32,7 +59,7 @@ export const dataset = () => config().dataset
  * waits out Retry-After (capped) and tries again, up to 3 times, rather than
  * failing a pane. Streams (listen) are not retried here.
  */
-export async function bpFetch(path: string, init: RequestInit = {}, token = requestToken(), {retry = true} = {}): Promise<Response> {
+export async function bpFetch(path: string, init: RequestInit = {}, token = requestToken(), {retry = true, at}: {retry?: boolean; at?: Scope} = {}): Promise<Response> {
   const method = (init.method ?? 'GET').toUpperCase()
   const stream = new Headers(init.headers).get('accept') === 'text/event-stream'
   // Fail closed (task-ccd1876176b0fc08): with sign-in on, a write by nobody — the
@@ -42,14 +69,15 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
   if (method !== 'GET' && !stream && devLoginEnabled() && !currentEditor())
     return Response.json({error: {code: 'session_lost', message: "You've been logged out"}}, {status: 401})
   if (method !== 'GET') recent.clear() // a write: no read may answer from before it
-  if (method !== 'GET' || stream) return send(path, init, token, retry)
+  const base = config(at ?? scope()).base
+  if (method !== 'GET' || stream) return send(base, path, init, token, retry)
   // Identical reads within READ_DEDUPE_MS share one request: a reload's loader,
   // several panes and the SSR pass ask for the same things at once, and every
   // editor shares this token's read budget (task-2c31de0cf6597d32).
-  const key = `${token.slice(-12)} ${path}`
+  const key = `${token.slice(-12)} ${base}${path}`
   let hit = recent.get(key)
   if (!hit || hit.expires < Date.now()) {
-    hit = {expires: Date.now() + READ_DEDUPE_MS, res: send(path, init, token).then(async (r) => ({status: r.status, type: r.headers.get('content-type'), body: await r.text()}))}
+    hit = {expires: Date.now() + READ_DEDUPE_MS, res: send(base, path, init, token).then(async (r) => ({status: r.status, type: r.headers.get('content-type'), body: await r.text()}))}
     if (recent.size > 500) for (const [k, v] of recent) if (v.expires < Date.now()) recent.delete(k)
     recent.set(key, hit)
   }
@@ -60,8 +88,7 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
 const READ_DEDUPE_MS = 500
 const recent = new Map<string, {expires: number; res: Promise<{status: number; type: string | null; body: string}>}>()
 
-async function send(path: string, init: RequestInit, token: string, retry = true): Promise<Response> {
-  const {base} = config()
+async function send(base: string, path: string, init: RequestInit, token: string, retry = true): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set('authorization', `Bearer ${token}`)
   for (let attempt = 0; ; attempt++) {
