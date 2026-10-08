@@ -48,13 +48,16 @@ test('@evidence J16: history timeline, an old revision read-only, revert', async
 
   // History, from the document "…" menu.
   await (await openMenu(t, page, docMenu(t, page))).getByRole('menuitem', {name: 'History'}).click()
-  const revisions = page.getByRole('listbox', {name: 'Document revisions'})
-  await expect(revisions.getByRole('option').first()).toBeVisible()
-  await expect(revisions.getByRole('option', {name: /Published/}).first()).toBeVisible({timeout: 15_000})
+  // Sanity's timeline is a listbox of options holding buttons; ours a list of buttons
+  // (the same rows without axe's nested-interactive, F13).
+  const revisions = t.name === 'sanity' ? page.getByRole('listbox', {name: 'Document revisions'}) : page.getByRole('list', {name: 'Document revisions'})
+  const entry = (name?: RegExp) => (t.name === 'sanity' ? revisions.getByRole('option', {name}).first().getByRole('button').first() : revisions.getByRole('button', {name}).first())
+  await expect(entry()).toBeVisible()
+  await expect(entry(/Published/)).toBeVisible({timeout: 15_000})
   await page.screenshot({path: shot(t.name, '1-timeline')})
 
   // The published v4: read-only, at a deep URL.
-  await revisions.getByRole('option', {name: /Published/}).first().getByRole('button').first().click()
+  await entry(/Published/).click()
   await expect(t.field(page, 'title')).toHaveValue(FIRST, {timeout: 15_000})
   await expect.poll(() => decodeURIComponent(page.url())).toMatch(/rev=[0-9a-f-]+/)
   const deepUrl = page.url()
