@@ -35,7 +35,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {ReadErrorCard} from './PaneError'
-import {Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, InfoOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
+import {CheckmarkCircle, Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -79,7 +79,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const refFields = (schemaForPane?.fields ?? []).filter((f) => f.type === 'reference' && typeof doc?.[f.name] === 'string')
   const targets = useQueries({queries: refFields.map((f) => docQuery(refTypesOf(f), doc![f.name] as string))})
   const byId = new Map(refFields.map((f, i) => [doc![f.name] as string, targets[i].data]))
-  const problems = doc && schemaForPane && !viewingPublished ? validate(doc, schemaForPane, (id) => byId.get(id)) : []
+  // J18: a new doc nobody has typed in yet exists only here; Sanity checks nothing until the first edit.
+  const pristine = isPristine(doc, useSaveState(pane.id).state)
+  const problems = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id)) : []
   // J13: only errors block publishing; warnings and infos are shown, never in the way.
   const errors = errorsOf(problems)
   const openObjects = useOpenObjects(pane.id)
@@ -277,7 +279,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         // button, a no-op with nothing to publish or while a publish is running.
         if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !errors.length) {
           e.preventDefault()
-          if (!publishingKey.current && (doc._draft || saveState !== 'saved')) {
+          if (!publishingKey.current && !pristine && (doc._draft || saveState !== 'saved')) {
             publishingKey.current = true
             void publishAndTell(qc, doc)
               .catch((err: Error) => toast({tone: 'critical', title: 'Could not publish', description: reasonOf(err.message) ?? err.message}))
@@ -314,7 +316,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           <button
             type="button"
             className="chip"
-            data-active={!viewingPublished && draftQ.data?._draft ? '' : undefined}
+            data-active={!viewingPublished && draftQ.data?._draft && !pristine ? '' : undefined}
             data-selected={!viewingPublished ? '' : undefined}
             aria-pressed={!viewingPublished}
             onClick={() => navigate({href: base})}
@@ -323,8 +325,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             Draft
           </button>
         </span>
-        {doc && <DocShareMenu doc={doc} />}
-        {!viewingPublished && (
+        {doc && !pristine && <DocShareMenu doc={doc} />}
+        {/* Sanity shows it only when there is something to show (an info alone: a check). */}
+        {!viewingPublished && (problems.length > 0 || inspecting) && (
           <button
             type="button"
             className="icon-btn validation-btn"
@@ -334,7 +337,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             data-level={worst(problems)}
             onClick={() => void toggleValidation()}
           >
-            {worst(problems) === 'warning' ? <WarningOutline /> : worst(problems) === 'info' ? <InfoOutline /> : <ErrorOutline />}
+            {worst(problems) === 'warning' ? <WarningOutline /> : worst(problems) === 'info' ? <CheckmarkCircle /> : <ErrorOutline />}
           </button>
         )}
         {/* D12: a paper's metadata (slug, description, weighted tags) beside the canvas. */}
@@ -657,6 +660,23 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   useEffect(() => {
     if (askDelete && !single && canWrite) setDeleting(true)
   }, [askDelete])
+  // J04: Sanity says "Saved" for about 3 s after a save, then "Edited N ago" (a
+  // draft opened later says "Edited" at once). The 30 s tick keeps "ago" current.
+  const [justSaved, setJustSaved] = useState(false)
+  const [, tick] = useState(0)
+  const was = useRef(state)
+  useEffect(() => {
+    const before = was.current
+    was.current = state
+    if (state !== 'saved' || before === 'saved') return
+    setJustSaved(true)
+    const t = setTimeout(() => setJustSaved(false), 3000)
+    return () => clearTimeout(t)
+  }, [state])
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 30_000)
+    return () => clearInterval(t)
+  }, [])
   const label =
     {
       saving: 'Saving…',
@@ -666,7 +686,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       error: 'Not saved — retrying',
       signedOut: "You've been logged out — not saving. Sign in to save your edits.",
       refused: `Not saved: ${error ?? 'Barkpark refused the change'}`,
-    }[state as string] ?? (doc._draft ? 'Saved' : `Last published ${ago(doc._updatedAt)}`)
+    }[state as string] ?? (isPristine(doc, state) ? '' : !doc._draft ? `Last published ${ago(doc._updatedAt)}` : justSaved || !doc._updatedAt ? 'Saved' : `Edited ${ago(doc._updatedAt)}`)
   return (
     <footer className="doc-footer">
       {/* "N sec. ago" differs between the server render and hydration: not an error. */}
@@ -678,7 +698,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       )}
       <button
         className="publish"
-        disabled={!canWrite || !doc._draft || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
+        disabled={!canWrite || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
         title={publishReason ?? (blocked ? 'There are validation errors that need to be fixed before this document can be published' : undefined)}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async () => {
@@ -826,22 +846,25 @@ export function ConfirmDialog({title, body, action, run, onClose}: {title: strin
 
 export type {Doc, Schema}
 
-// J14: which collapsible objects are open, per doc, kept while the Studio is open
-// (reopen the doc and they are as you left them, as in Sanity).
-const openObjectsByDoc = new Map<string, Map<string, boolean>>()
+// J14: which collapsible objects are open while the doc stays open (switching group
+// tabs keeps them). Like Sanity's, opening the doc again starts from the schema's defaults.
 function useOpenObjects(docId: string) {
   const [version, bump] = useState(0)
-  return useMemo(() => {
-    let open = openObjectsByDoc.get(docId)
-    if (!open) openObjectsByDoc.set(docId, (open = new Map()))
-    const state = open
-    return {
+  const byDoc = useRef<{id: string; open: Map<string, boolean>}>({id: docId, open: new Map()})
+  if (byDoc.current.id !== docId) byDoc.current = {id: docId, open: new Map()}
+  const state = byDoc.current.open
+  return useMemo(
+    () => ({
       isOpen: (path: string, byDefault: boolean) => state.get(path) ?? byDefault,
       toggle: (path: string, value: boolean) => {
         if (state.get(path) === value) return
         state.set(path, value)
         bump((n) => n + 1)
       },
-    }
-  }, [docId, version])
+    }),
+    [state, version],
+  )
 }
+
+/** A new doc that is still only in this tab: created on its first edit (J18). */
+const isPristine = (doc: Doc | null | undefined, state: string) => !!doc && doc._rev === '' && doc._hasPublished === false && state === 'saved'
