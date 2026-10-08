@@ -334,3 +334,14 @@ export const EarthGlobe = () => (
     <path d="M5.5 12.5h14M12.5 5.5c-2.5 2.5-2.5 11.5 0 14M12.5 5.5c2.5 2.5 2.5 11.5 0 14" />
   </svg>
 )
+export const Mobile = () => (
+  <svg {...s}>
+    <rect x="8.5" y="5.5" width="8" height="14" rx="1" />
+    <path d="M11.5 17.5h2" />
+  </svg>
+)
+export const LaunchIcon = () => (
+  <svg {...s}>
+    <path d="M13.5 6.5h5v5M18.5 6.5l-7 7M11.5 7.5h-5v11h11v-5" />
+  </svg>
+)

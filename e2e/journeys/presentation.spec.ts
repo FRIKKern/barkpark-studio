@@ -147,3 +147,46 @@ test('@evidence J61: the panel follows the page, side by side', async ({page, co
     await page.screenshot({path: `evidence/J61-${t.name}-${step}.png`})
   }
 })
+
+// J64: the phone viewport (Sanity's 375×650, kept in the URL), Open preview, and the
+// share menu, whose switch waits for Barkpark's share links (task-6812c3100d7aedbc).
+test('J64: viewport toggle, Open preview, share menu', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await context.route(`${SITE}/**`, (route) => route.fulfill({contentType: 'text/html', body: standIn(new URL(route.request().url()).pathname)}))
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  const toggle = page.getByRole('button', {name: 'Toggle viewport size'})
+  await expect(toggle).toHaveAttribute('data-tip', 'Switch to narrow viewport')
+  await toggle.click()
+  await expect(page).toHaveURL(/viewport=mobile/)
+  await expect(page.locator('.presentation-frame iframe')).toHaveCSS('width', '375px')
+  await expect(toggle).toHaveAttribute('data-tip', 'Switch to full viewport')
+  await page.reload()
+  await expect(page.locator('.presentation-frame iframe')).toHaveCSS('width', '375px')
+  await toggle.click()
+  await expect(page).not.toHaveURL(/viewport=/)
+
+  await expect(page.getByRole('link', {name: 'Open preview'})).toHaveAttribute('href', `${SITE}/posts/fixture-post-01`)
+  await page.getByRole('button', {name: 'Share this preview'}).click()
+  const share = page.getByRole('dialog', {name: 'Share this preview'})
+  await expect(share.getByRole('switch')).toBeDisabled()
+  await expect(share.getByRole('button', {name: 'Copy preview link'})).toBeDisabled()
+  await page.keyboard.press('Escape')
+  await expect(share).toBeHidden()
+})
+
+test('@evidence J64: phone viewport and share menu, side by side', async ({page, context}, info) => {
+  const t = target(info)
+  await t.prepare(context)
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  await page.frameLocator('iframe').getByRole('heading', {name: 'Fixture post 01', level: 1}).waitFor({timeout: 30_000})
+  await page.getByRole('button', {name: 'Toggle viewport size'}).click()
+  await page.waitForTimeout(2000)
+  await page.screenshot({path: `evidence/J64-${t.name}-1-mobile.png`})
+  await page.getByRole('button', {name: 'Share this preview'}).click()
+  await page.waitForTimeout(1000)
+  await page.screenshot({path: `evidence/J64-${t.name}-2-share.png`})
+})
