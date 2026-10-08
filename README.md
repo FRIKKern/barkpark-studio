@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 14 changes, 2 tasks closed
+- **Today** · 15 changes, 3 tasks closed
+  - B03: tick list rows, publish or unpublish them in one go ([#131](https://github.com/FRIKKern/barkpark-studio/pull/131))
+  - Done: [J38 [after] Global search filters: type chips, field filters, ordering](https://github.com/FRIKKern/barkpark/issues/21783)
   - J38: global search filters match Sanity side by side ([#130](https://github.com/FRIKKern/barkpark-studio/pull/130))
-  - Done: [Barkpark canvas: the / menu's Image in a field canvas inserts nothing](https://github.com/FRIKKern/barkpark/issues/21914)
-  - D12: paper metadata sidebar — slug, description, weighted tags; publish refusals say why ([#129](https://github.com/FRIKKern/barkpark-studio/pull/129))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
