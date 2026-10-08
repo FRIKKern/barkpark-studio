@@ -21,6 +21,7 @@ import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContex
 import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
+import {UnpublishDialog} from './UnpublishDialog'
 import {DocHeaderMenu, DocShareMenu} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
 import {HistoryPanel, RevisionFooter} from './HistoryPanel'
@@ -611,15 +612,8 @@ function PublishedFooter({doc}: {doc: Doc}) {
       <button className="publish danger" disabled={!canWrite} title={publishReason} onClick={() => setConfirm(true)}>
         Unpublish
       </button>
-      {confirm && (
-        <ConfirmDialog
-          title="Unpublish document?"
-          body="It will no longer be live. Its content stays as a draft you can publish again."
-          action="Unpublish now"
-          run={() => unpublish(qc, doc)}
-          onClose={() => setConfirm(false)}
-        />
-      )}
+      {/* B07: who refers to it is listed before it goes. */}
+      {confirm && <UnpublishDialog docs={[doc]} run={() => unpublish(qc, doc)} onClose={() => setConfirm(false)} />}
     </footer>
   )
 }

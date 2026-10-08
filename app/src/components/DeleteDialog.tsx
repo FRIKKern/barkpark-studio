@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {backlinksQuery, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {backlinksQuery, previewTitle, schemaOf, schemasQuery, type Backlink, type Doc} from '../lib/data'
 import {deleteDoc} from '../lib/edits'
 import {Close, DocumentIcon} from './icons'
 import {DocPreview} from './Preview'
@@ -55,21 +55,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
                 {used} {used === 1 ? 'document refers' : 'documents refer'} to “{title}”
               </p>
               <p>You may not be able to delete “{title}” because the following documents refer to it:</p>
-              <ul className="used-in">
-                {refs!.map((r) => (
-                  <li key={`${r.type}:${r.from_doc_id}`}>
-                    <a className="preview" href={`/structure/${r.type};${encodeURIComponent(r.from_doc_id)}`} target="_blank" rel="noreferrer" title={`Open in a new tab (${schemaOf(schemas, r.type)?.title ?? r.type})`}>
-                      <span className="media">
-                        <DocumentIcon />
-                      </span>
-                      <span className="text">
-                        <div className="t">{r.title}</div>
-                      </span>
-                      <span className="dot" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <UsedInList refs={refs!} />
             </section>
           )}
           {error && (
@@ -111,5 +97,28 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
         </footer>
       </DialogBox>
     </div>
+  )
+}
+
+/** The documents that refer to one ("used in"), each opening in a new tab; `field` adds the field that refers (B07). */
+export function UsedInList({refs, field}: {refs: Backlink[]; field?: boolean}) {
+  const {data: schemas = []} = useQuery(schemasQuery)
+  return (
+    <ul className="used-in">
+      {refs.map((r) => (
+        <li key={`${r.type}:${r.from_doc_id}:${r.via_field}`}>
+          <a className="preview" href={`/structure/${r.type};${encodeURIComponent(r.from_doc_id)}`} target="_blank" rel="noreferrer" title={`Open in a new tab (${schemaOf(schemas, r.type)?.title ?? r.type})`}>
+            <span className="media">
+              <DocumentIcon />
+            </span>
+            <span className="text">
+              <div className="t">{r.title}</div>
+              {field && <div className="s">{`${schemaOf(schemas, r.type)?.title ?? r.type} / ${r.via_field}`}</div>}
+            </span>
+            <span className="dot" />
+          </a>
+        </li>
+      ))}
+    </ul>
   )
 }
