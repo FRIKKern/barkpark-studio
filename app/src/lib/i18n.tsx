@@ -2,7 +2,6 @@ import {createContext, useContext, type ReactNode} from 'react'
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch} from '../server/barkpark'
-import {NB} from '../i18n/nb'
 
 // B01: the Studio speaks the workspace's language, chosen in Barkpark (workspace
 // settings `locale`, read at GET /v1/workspace/locale: "en" or "nb-NO"). English
@@ -14,31 +13,53 @@ export type Locale = 'en' | 'nb-NO'
 export type Vars = Record<string, string | number>
 export type T = (en: string, vars?: Vars) => string
 
-const fetchLocale = createServerFn({method: 'GET'}).handler(async (): Promise<Locale> => {
+/** The workspace's locale and, for one other than English, its strings. */
+export type LocaleData = {locale: Locale; strings?: Record<string, string>}
+
+// The strings come with the locale, so a server render carries them in its payload and
+// hydration has them; an English workspace downloads none (the dictionary is not in
+// the client bundle: it is imported here, server side only).
+const fetchLocale = createServerFn({method: 'GET'}).handler(async (): Promise<LocaleData> => {
+  const pick = async (locale: Locale): Promise<LocaleData> => (locale === 'nb-NO' ? {locale, strings: (await import('../i18n/nb')).NB} : {locale})
   // A lane's dev server can force one (evidence runs): the workspace setting is shared.
   const forced = process.env.STUDIO_LOCALE
-  if (forced === 'en' || forced === 'nb-NO') return forced
+  if (forced === 'en' || forced === 'nb-NO') return pick(forced)
   try {
     const res = await bpFetch('/v1/workspace/locale', {}, undefined, {retry: false})
     const locale = res.ok ? ((await res.json()) as {locale?: string}).locale : undefined
-    return locale === 'nb-NO' ? 'nb-NO' : 'en'
+    return pick(locale === 'nb-NO' ? 'nb-NO' : 'en')
   } catch {
-    return 'en'
+    return {locale: 'en'}
   }
 })
 
+// One dictionary per locale, filled from the locale read (static per locale, so one
+// module-level map is safe across server renders).
+const dictionaries: Partial<Record<Locale, Record<string, string>>> = {}
+const register = (d: LocaleData | undefined) => void (d?.strings && (dictionaries[d.locale] ??= d.strings))
+
 /** The workspace's locale; a scope switch reloads the page, so it is read once. */
-export const localeQuery = queryOptions({queryKey: ['locale'], queryFn: () => fetchLocale(), staleTime: Infinity})
+export const localeQuery = queryOptions({
+  queryKey: ['locale'],
+  queryFn: async () => {
+    const d = await fetchLocale()
+    register(d)
+    return d
+  },
+  staleTime: Infinity,
+})
 
 export function translate(locale: Locale, en: string, vars?: Vars): string {
-  const s = locale === 'nb-NO' ? (NB[en] ?? en) : en
+  const s = locale === 'en' ? en : (dictionaries[locale]?.[en] ?? en)
   return vars ? s.replace(/\{(\w+)\}/g, (all, k: string) => (k in vars ? String(vars[k]) : all)) : s
 }
 
 const LocaleContext = createContext<Locale>('en')
 
 /** Rendering: the server render knows the request's locale through this, not a global. */
-export function LocaleProvider({locale, children}: {locale: Locale; children: ReactNode}) {
+export function LocaleProvider({data, children}: {data: LocaleData; children: ReactNode}) {
+  register(data) // a hydrating page: its strings came in the server's payload
+  const locale = data.locale
   browserLocale = typeof window === 'undefined' ? browserLocale : locale
   return <LocaleContext.Provider value={locale}>{children}</LocaleContext.Provider>
 }
