@@ -15,7 +15,10 @@ export default defineConfig(({mode}) => {
       return 'dev'
     }
   })()
-  const build = process.env.STUDIO_BUILD || `${commit}-${Date.now().toString(36)}`
+  // Vite evaluates this config once per environment (client, then server): keep the
+  // first id for the whole build, or the two bundles disagree and every tab offers
+  // an update at once.
+  const build = (process.env.STUDIO_BUILD ||= `${commit}-${Date.now().toString(36)}`)
   return {
     server: {port: 3000},
     define: {__STUDIO_BUILD__: JSON.stringify(build)},
