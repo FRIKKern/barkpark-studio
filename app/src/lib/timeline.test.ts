@@ -17,3 +17,23 @@ test("a run of one author's edits is one entry, counted", () => {
   const es = timeline([r('update', 'draft'), r('update', 'draft'), r('update', 'draft', 'b')])
   assert.deepEqual(es.map((e) => [e.label, e.count]), [['Edited', 2], ['Edited', 1]])
 })
+
+test('Review changes range: From is the state before its changes, To the state at it', async () => {
+  const {reviewRange, rangeOptions, flatEntries} = await import('./timeline.ts')
+  const revs = [r('update', 'draft', 'b'), r('update', 'draft'), r('create', 'draft'), r('publish', 'published')]
+  const es = flatEntries(timeline(revs)) // Edited(b), Edited(a), Draft created, Published
+  const [eb, ea, created] = es
+  // From "Draft created" to now: base is the publish, all three draft writes credited.
+  const all = reviewRange(revs, created!, null)
+  assert.equal(all.base?.id, revs[3]!.id)
+  assert.equal(all.target, undefined)
+  assert.equal(all.between.length, 3)
+  // From "Edited (a)" to "Edited (a)": base is the create, only a's write counts.
+  const one = reviewRange(revs, ea!, ea!)
+  assert.equal(one.base?.id, revs[2]!.id)
+  assert.deepEqual(one.between.map((x) => x.id), [revs[1]!.id])
+  // To can't be older than From; From can't be newer than To.
+  const opts = rangeOptions(revs, es, ea!, ea!)
+  assert.ok(!opts.to.includes(created!) && opts.to.includes(eb!))
+  assert.ok(!opts.from.includes(eb!) && opts.from.includes(created!))
+})

@@ -94,10 +94,12 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
 }
 
 /** One timeline entry: avatar with what-happened badge, the label and when. */
-function Row({e, selected, child, onPick, children}: {e: HistoryEntry; selected: boolean; child?: boolean; onPick: () => void; children?: ReactNode}) {
+export function Row({e, selected, child, plain, onPick, children}: {e: HistoryEntry; selected: boolean; child?: boolean; plain?: boolean; onPick: () => void; children?: ReactNode}) {
+  const name = `${e.revision.author} ${e.label} ${ago(e.revision.timestamp)}`
   return (
-    <li role="option" aria-selected={selected} aria-label={`${e.revision.author} ${e.label} ${ago(e.revision.timestamp)}`} data-child={child || undefined}>
-      <button type="button" onClick={onPick}>
+    // `plain`: a list of buttons (the Review changes pickers), the picked one aria-current.
+    <li role={plain ? undefined : 'option'} aria-selected={plain ? undefined : selected} aria-label={plain ? undefined : name} data-current={plain && selected ? '' : undefined} data-child={child || undefined}>
+      <button type="button" onClick={onPick} aria-label={plain ? name : undefined} aria-current={plain && selected ? 'true' : undefined}>
         <span className="avatar" title={e.revision.author}>
           {initials(e.revision.author)}
           <span className="badge" data-kind={BADGE[e.label] ?? 'edited'} />
