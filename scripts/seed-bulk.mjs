@@ -48,7 +48,7 @@ for (let i = 0; i < N; i += BATCH) {
 console.log()
 
 if (process.env.SANITY_TOKEN) {
-  const api = `https://0ozn679s.api.sanity.io/v2025-02-19/data/mutate/${SANITY_DATASET}`
+  const api = `https://ecu57yeh.api.sanity.io/v2025-02-19/data/mutate/${SANITY_DATASET}`
   for (let i = 0; i < N; i += BATCH) {
     const res = await fetch(api, {
       method: 'POST',

@@ -10,7 +10,8 @@
   (local cache, optimistic writes), Form (schema-driven fields), server functions
   (auth + proxy to Barkpark).
 - **Rich text:** Barkpark's shared PortableDoc editor (`bp-paper-canvas`), hosted the way Barkdown hosts it. See [0004](0004-portabledoc-freeform.md).
-- **Bar:** a real Sanity Studio (`reference/sanity`, project `0ozn679s`) on the
+- **Bar:** a real Sanity Studio (`reference/sanity`, project `ecu57yeh`; it replaced
+  `0ozn679s`, locked at the free plan's document quota, on 2026-10-08) on the
   same schema and the same seed data (`fixtures/seed.ndjson`).
 - **Tests:** Playwright, including a two-browser rig, built *before* the UI.
 - **First slice: endless panes + references** (J21, J08, J22, J23, J17) — the most-loved part of Sanity, so it gets built first and judged hardest.

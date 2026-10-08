@@ -203,7 +203,7 @@ async function verify() {
 
   if (!process.env.SANITY_TOKEN) return console.log('verify sanity: skipped (no SANITY_TOKEN)')
   const q = encodeURIComponent(`*[_type in ${JSON.stringify(TYPES)}]`)
-  const res = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/production?query=${q}`, {
+  const res = await fetch(`https://ecu57yeh.api.sanity.io/v2025-02-19/data/query/production?query=${q}`, {
     headers: {authorization: `Bearer ${process.env.SANITY_TOKEN}`},
   })
   if (!res.ok) fail(`sanity query → ${res.status}`)

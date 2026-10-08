@@ -43,7 +43,7 @@ const STEPS = [
 // Through the Actions API (create, edit, publish, unpublish), as Sanity Studio
 // writes: raw mutations leave a history the Studio can't rebuild ("Since: unknown
 // version", empty revisions, failing restore).
-const SANITY = 'https://0ozn679s.api.sanity.io/v2025-02-19/data'
+const SANITY = 'https://ecu57yeh.api.sanity.io/v2025-02-19/data'
 async function act(token, actions, okStatuses = []) {
   const res = await fetch(`${SANITY}/actions/production`, {method: 'POST', headers: {authorization: `Bearer ${token}`, 'content-type': 'application/json'}, body: JSON.stringify({actions})})
   if (!res.ok && !okStatuses.includes(res.status)) fail(`sanity actions ${res.status} ${await res.text()}`)
