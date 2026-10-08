@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 97 changes, 67 tasks closed
-  - e2e: specs reset what they edit after the page is closed; B04 reads the codelist picker ([#215](https://github.com/FRIKKern/barkpark-studio/pull/215))
-  - Done: [Public paper and sheet readers declare lang=en and show English chrome for a Norwegian workspace](https://github.com/FRIKKern/barkpark/issues/22135)
-  - Done: [Studio pages other than the desk (Media, Settings, Account, Chat, Plugins) stay English in an nb-NO workspace](https://github.com/FRIKKern/barkpark/issues/22147)
+- **Today** · 98 changes, 69 tasks closed
+  - fix(F2): pane open back to the last green speed (B01 made relative times costly) ([#220](https://github.com/FRIKKern/barkpark-studio/pull/220))
+  - Done: [Paper editor: lead and featured-image slots, undo/redo and block controls read English to Norwegian authors](https://github.com/FRIKKern/barkpark/issues/22166)
+  - Done: [Media library (bp-asset-explorer) renders English in an nb-NO workspace: no strings hook](https://github.com/FRIKKern/barkpark/issues/22148)
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
