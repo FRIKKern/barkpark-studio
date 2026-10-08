@@ -1384,3 +1384,9 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 }
 /* D13: the masters carrier's wrapper takes no space (Barkpark's shell pads .bp-paper-editor on a phone). */
 .pd-masters.bp-paper-editor { padding: 0; }
+/* D13: the paper's linked master blocks under the canvas (Barkpark's LiveView note + Pin / Detach). */
+.pd-linked-masters { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.pd-linked { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
+.pd-linked-title { font-weight: 600; }
+.pd-linked-note { flex: 1 1 260px; color: var(--muted); }
+@media (max-width: 768px) { .pd-linked .btn { min-height: 44px; } }

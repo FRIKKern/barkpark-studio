@@ -208,8 +208,10 @@ export default {
   'Your edit is still on screen.': 'Endringen din vises fortsatt.',
   'Discard unsaved edits': 'Forkast ulagrede endringer',
   'The editor could not load: {reason}': 'Redigeringsverktøyet kunne ikke lastes: {reason}',
-  // D13 paper masters (the canvas's own menu says "Masters"; Barkpark has no Norwegian for it)
-  'Saved as master': 'Lagret som master',
-  'Could not save the block as a master': 'Kunne ikke lagre blokken som master',
-  'Could not insert the master': 'Kunne ikke sette inn masteren',
+  // D13 paper masters ("mal", as Barkpark's own Studio says it)
+  'Saved as master': 'Lagret som mal',
+  'Could not save the block as a master': 'Kunne ikke lagre blokken som mal',
+  'Could not insert the master': 'Kunne ikke sette inn malen',
+  'Linked masters': 'Koblede maler',
+  'Could not change the linked master': 'Kunne ikke endre den koblede malen',
 } satisfies Record<string, string>

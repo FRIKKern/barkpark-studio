@@ -44,3 +44,13 @@ export const insertMaster = createServerFn({method: 'POST'})
     async ({data}) =>
       (await call(`${base(data.slug)}/${encodeURIComponent(data.masterId)}/insert`, {mode: data.mode ?? 'detached', ...(data.afterId && {afterId: data.afterId}), requestId: data.requestId})) as never,
   )
+
+/** Pin a linked master block to the master's published version, or unpin it (follow the latest). */
+export const pinMaster = createServerFn({method: 'POST'})
+  .validator((d: {slug: string; blockId: string; pin: boolean; requestId: string}) => d)
+  .handler(async ({data}) => (await call(`${base(data.slug)}/blocks/${encodeURIComponent(data.blockId)}/pin`, {pin: data.pin, requestId: data.requestId})) as never)
+
+/** Replace a linked master block with a plain copy of the published version. */
+export const detachMaster = createServerFn({method: 'POST'})
+  .validator((d: {slug: string; blockId: string; requestId: string}) => d)
+  .handler(async ({data}) => (await call(`${base(data.slug)}/blocks/${encodeURIComponent(data.blockId)}/detach`, {requestId: data.requestId})) as never)

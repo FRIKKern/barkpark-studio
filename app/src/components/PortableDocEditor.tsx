@@ -4,7 +4,7 @@ import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schem
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult, type Rev} from '../lib/blocks'
 import {toast} from './Toasts'
 import {unsavedElsewhere} from '../lib/edits'
-import {insertMaster, mastersQuery, saveMaster, type MasterResult} from '../lib/paper-masters'
+import {detachMaster, insertMaster, mastersQuery, pinMaster, saveMaster, type Master, type MasterResult} from '../lib/paper-masters'
 import {t as translate, useT} from '../lib/i18n'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
@@ -89,6 +89,11 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // D13: a Bulldocs paper's own canvas offers its masters (never a field canvas).
   const mastersOn = type === 'paper' && !field && editable
   const {data: masters} = useQuery({...mastersQuery(id), enabled: mastersOn})
+  // Linked master blocks (`master-ref`): the canvas shows a chip; their note and
+  // Pin / Unpin / Detach are ours, as LiveView draws them outside its canvas.
+  const [linked, setLinked] = useState<LinkedRef[]>([])
+  const track = (blocks: Block[]) => mastersOn && setLinked(blocks.filter((b) => b.type === 'master-ref').map((b) => ({id: b.id, master: String(b.master ?? ''), pinned: b.version != null})))
+  const masterActions = useRef<{refresh: () => Promise<void>; idle: () => Promise<void>} | null>(null)
   const qc = useQueryClient()
   const openDocRef = useRef(openDoc)
   openDocRef.current = openDoc
@@ -115,7 +120,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   useEffect(() => {
     let gone = false
     const l = loop.current
-    const read = () => readBlocks(type, id, field).then((r) => ({...r, blocks: decorate.current(r.blocks)}))
+    const read = () => readBlocks(type, id, field).then((r) => (track(r.blocks), {...r, blocks: decorate.current(r.blocks)}))
     // Barkpark's EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7):
     // one batch in flight; a 412 resends the same batch fenced on the other writer's rev
     // (ops are id-keyed, so both writers' blocks are kept); after a save, read the doc
@@ -205,6 +210,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
             l.rev = fresh.rev
             if (!el.applyServerBlocksIfIdle(fresh.blocks)) el.applyServerBlocks(fresh.blocks)
           }
+          masterActions.current = {refresh, idle}
           const refused = (r: MasterResult, title: string) => !r.ok && (toast({tone: 'critical', title, description: r.message}), true)
           el.addEventListener('bp-save-master', (e) => {
             const {block_id} = (e as CustomEvent<{block_id: string}>).detail
@@ -317,6 +323,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     if (!el || !seenRev || seenRev === l.rev || l.saving || el.hasPendingChanges()) return
     let gone = false
     void readBlocks(type, id, field).then((fresh) => {
+      track(fresh.blocks)
       if (gone || fresh.rev === l.rev || l.saving) return
       // Idle: taken now. Focused (the author is in a field block, say): the canvas defers
       // it until they leave (EMBED-CONTRACT applyServerBlocks) instead of dropping it (D05).
@@ -353,10 +360,66 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         <div className="bp-paper-editor pd-masters">
           <div hidden data-paper-masters={JSON.stringify((masters ?? []).map((m) => ({id: m.docId, title: m.title, tier: m.tier, block_type: m.blockType})))} />
           <div className="pd-canvas" ref={host} />
+          {linked.length > 0 && <LinkedMasters slug={id} linked={linked} masters={masters ?? []} actions={masterActions} />}
         </div>
       ) : (
         <div className="pd-canvas" ref={host} />
       )}
+    </div>
+  )
+}
+
+type LinkedRef = {id: string; master: string; pinned: boolean}
+
+/**
+ * D13: the paper's linked master blocks, each with Barkpark's note and its Pin / Unpin
+ * and Detach (LiveView's paper_editor.ex wording). An action writes, then the canvas
+ * takes the paper's blocks again.
+ */
+function LinkedMasters({slug, linked, masters, actions}: {slug: string; linked: LinkedRef[]; masters: Master[]; actions: {current: {refresh: () => Promise<void>; idle: () => Promise<void>} | null}}) {
+  const t = useT()
+  const [busy, setBusy] = useState<string | null>(null)
+  const run = async (blockId: string, write: () => Promise<unknown>) => {
+    setBusy(blockId)
+    try {
+      await actions.current?.idle()
+      const r = (await write()) as MasterResult
+      if (!r.ok) return void toast({tone: 'critical', title: t('Could not change the linked master'), description: r.message})
+      await actions.current?.refresh()
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <div className="pd-linked-masters" role="list" aria-label={t('Linked masters')}>
+      {linked.map((l) => (
+        <div role="listitem" key={l.id} className="pd-linked" data-testid="linked-master">
+          <span className="pd-linked-title">{masters.find((m) => m.docId === l.master)?.title ?? l.master}</span>
+          <span className="pd-linked-note">
+            {l.pinned
+              ? t('Pinned to a published version of the master — readers see exactly this. Unpin to follow the master, or Detach to edit it here.')
+              : t('Linked master — it shows the master\'s content. Edit the master, or Detach to edit it here.')}
+          </span>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy === l.id}
+            title={l.pinned ? t("Unpin: follow the master's latest") : t("Pin to the master's published version")}
+            onClick={() => void run(l.id, () => pinMaster({data: {slug, blockId: l.id, pin: !l.pinned, requestId: crypto.randomUUID()}}))}
+          >
+            {l.pinned ? t('Unpin') : t('Pin')}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy === l.id}
+            title={t('Detach: copy the published version readers see in as plain blocks')}
+            onClick={() => void run(l.id, () => detachMaster({data: {slug, blockId: l.id, requestId: crypto.randomUUID()}}))}
+          >
+            {t('Detach')}
+          </button>
+        </div>
+      ))}
     </div>
   )
 }
