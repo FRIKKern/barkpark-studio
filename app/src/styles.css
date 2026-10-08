@@ -844,7 +844,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .asset-more .icon-btn { background: var(--bg-glass); box-shadow: inset 0 0 0 1px var(--line); }
 .dialog-backdrop.nested { z-index: 70; }
 .usage-none { font-size: 13px; font-weight: 500; margin: 24px 0; text-align: center; }
+.usage-count { font-size: 13px; font-weight: 500; margin: 16px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .usage-list { list-style: none; padding: 0; margin: 8px 0; }
+.usage-list .ring, .usage-list .dot { display: none; } /* Sanity's usage rows carry no status */
 .usage-list a { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 3px; color: inherit; text-decoration: none; }
 .usage-list a:hover { background: var(--hover); }
 
