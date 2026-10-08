@@ -269,3 +269,15 @@ export const Send = () => (
     <path d="M6.5 6.5l13 6-13 6 2-6zM8.5 12.5h11" strokeLinejoin="round" />
   </svg>
 )
+/** Sanity's CodeBlockIcon-like braces (Inspect). */
+export const Braces = () => (
+  <svg {...s}>
+    <path d="M10.5 6.5h-1a2 2 0 00-2 2v2l-1.5 2 1.5 2v2a2 2 0 002 2h1M14.5 6.5h1a2 2 0 012 2v2l1.5 2-1.5 2v2a2 2 0 01-2 2h-1" />
+  </svg>
+)
+/** Sanity's ClipboardIcon (Paste document). */
+export const ClipboardIcon = () => (
+  <svg {...s}>
+    <path d="M9.5 5.5h6v2h-6zM9.5 6.5h-2v13h11v-13h-2" strokeLinejoin="round" />
+  </svg>
+)
