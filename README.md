@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 23 changes, 7 tasks closed
+- **Today** · 24 changes, 8 tasks closed
+  - B08: a Media tool — folders, visibility, the checkout lock, title and alt text ([#141](https://github.com/FRIKKern/barkpark-studio/pull/141))
+  - Done: [Barkpark: backlinks and media relations don't index image asset refs (used-in, delete protection)](https://github.com/FRIKKern/barkpark/issues/21884)
   - J47: screen reader pass J01→J04 — panes named, counts and validation announced ([#139](https://github.com/FRIKKern/barkpark-studio/pull/139))
-  - B11: closing the tab with unsaved or failed edits asks first ([#138](https://github.com/FRIKKern/barkpark-studio/pull/138))
-  - Done: [J53 [after] New Studio version while tabs are open: "ready to update" prompt, reload, nothing lost](https://github.com/FRIKKern/barkpark/issues/21926)
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
