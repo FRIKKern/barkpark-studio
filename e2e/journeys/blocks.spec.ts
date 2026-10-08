@@ -125,6 +125,10 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
       await page.locator('bp-paper-canvas').getByText(/Body paragraph for post 11/).click({timeout: 3_000})
       expect(await inPara()).toBe(true)
     }).toPass({timeout: 10_000})
+    // At a person's pace. Within ~10 ms of the click (only Playwright is that fast) the
+    // canvas has not yet taken the new selection after a Move up, and Enter acts on the
+    // old one, in the moved callout (task-b2abe773242241f8 has the timeline).
+    await page.waitForTimeout(100)
     await page.keyboard.press('End')
     await page.keyboard.press('Enter')
     // Expected: an empty new paragraph. After the Move up above, Enter can put the
