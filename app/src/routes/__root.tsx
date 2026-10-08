@@ -1,5 +1,6 @@
 import {useEffect, type ReactNode} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
+import type {ScopeRef} from '../router'
 import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
 import appCss from '../styles.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
@@ -9,7 +10,7 @@ import {THEME_BOOT} from '../lib/theme'
 import {EARLY_CLICKS, releaseEarlyClicks} from '../lib/hydrated'
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url'
 
-export const Route = createRootRouteWithContext<{queryClient: QueryClient}>()({
+export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope: ScopeRef}>()({
   head: () => ({
     meta: [
       {charSet: 'utf-8'},

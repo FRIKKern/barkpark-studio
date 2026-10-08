@@ -100,6 +100,11 @@ async function send(base: string, path: string, init: RequestInit, token: string
   }
 }
 
+/** B02: a Barkpark path outside any workspace (`/api/workspaces/…`), as this request's token. */
+export function bpRoot(path: string): Promise<Response> {
+  return fetch(`${env('BARKPARK_URL')}${path}`, {headers: {authorization: `Bearer ${requestToken()}`}})
+}
+
 /** A path under the workspace/project prefix (`/media/renditions/...`), raw (binary-safe), with the token. */
 export function bpRaw(path: string): Promise<Response> {
   return fetch(`${config().base}${path}`, {headers: {authorization: `Bearer ${requestToken()}`}})
