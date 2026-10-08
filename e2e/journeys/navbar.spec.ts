@@ -52,3 +52,22 @@ test('@local J37: tool switcher, Vision query, user menu', async ({page, context
   await tool('Structure').click()
   await expect(page).toHaveURL(/\/structure$/)
 })
+
+test('@local J53: a newer build on the server shows the update dot and "Reload to update"', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'a local Sanity Studio has no auto-updates to announce')
+  await t.prepare(context)
+  await page.goto('/structure')
+  await signInIfAsked(page)
+  await t.settle(page)
+  const help = page.getByRole('button', {name: 'Help and resources'})
+  await help.click()
+  await expect(page.getByRole('menuitem', {name: /Barkpark Studio\s*Up to date/})).toBeVisible()
+  await page.keyboard.press('Escape')
+  // A redeploy: the server now answers another build.
+  await page.route('**/api/version', (route) => route.fulfill({json: {build: 'abc1234-next'}}))
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect(help).toHaveAttribute('title', 'New version available')
+  await help.click()
+  await expect(page.getByRole('menuitem', {name: /Reload to update to abc1234/})).toBeEnabled()
+})

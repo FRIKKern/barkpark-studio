@@ -1015,3 +1015,16 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
   .file-actions .btn, .file-box .icon-btn, .file-pick { min-height: 44px; }
   .file-box.empty { flex-wrap: wrap; }
 }
+/* J53: Sanity's help menu — the update dot, the Studio item with its version badge. */
+.menu-wrap.help { position: relative; }
+.menu-wrap.help .icon-btn { position: relative; }
+.update-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: #f5a623; box-shadow: 0 0 0 1.5px var(--bg); }
+.popover.menu.help-menu { right: 0; left: auto; top: calc(100% + 4px); min-width: 230px; max-width: calc(100vw - 32px); white-space: normal; }
+.help-menu .menu-item { text-decoration: none; }
+.menu-item.studio-version { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.menu-item.studio-version:disabled { color: var(--fg); cursor: default; }
+.version-text { display: flex; flex-direction: column; gap: 4px; }
+.version-text .muted { color: var(--muted); }
+.studio-version[data-update] .version-text .muted { color: var(--warn-fg); }
+.version-badge { padding: 1px 5px; border-radius: 3px; background: var(--hover); color: var(--muted); font-size: 12px; }
+.studio-version[data-update] .version-badge { background: var(--warn-bg); color: var(--warn-fg); }
