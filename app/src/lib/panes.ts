@@ -4,10 +4,16 @@
 // segment 0 = the type list, then one doc per segment. Params are URI-encoded.
 // A split (J26) puts siblings in one segment, joined by "|"; an empty sibling id
 // means the same doc as the first: /structure/post;post-26|,view=json
+// B12: with a declared desk (lib/desk.ts) the segments before the docs are desk
+// node ids, as in Sanity's custom structures: /structure/utgivelser;uten-omslag;pub-1.
+// A `menu` is a nested desk list; a `list` may carry its desk `node` and, in a
+// parent-child tree, the `treeParent` whose children it lists; a singleton `doc`
+// carries the `node` that opened it, which is what its URL segment says.
 export type Pane =
   | {kind: 'types'}
-  | {kind: 'list'; type: string}
-  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean; inspect?: string; rev?: string; path?: string}
+  | {kind: 'menu'; node: string}
+  | {kind: 'list'; type: string; node?: string; treeParent?: string}
+  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean; inspect?: string; rev?: string; path?: string; node?: string}
 
 export function parsePanes(splat: string | undefined): Pane[] {
   const panes: Pane[] = [{kind: 'types'}]
@@ -15,12 +21,19 @@ export function parsePanes(splat: string | undefined): Pane[] {
   if (segs.length === 0) return panes
   const listType = segs[0]
   panes.push({kind: 'list', type: listType})
-  for (const seg of segs.slice(1)) {
+  panes.push(...parseDocSegments(segs.slice(1), listType))
+  return panes
+}
+
+/** Doc segments (one doc, or split siblings joined by "|") after a list of `listType`. */
+export function parseDocSegments(segs: string[], listType: string): Extract<Pane, {kind: 'doc'}>[] {
+  const panes: Extract<Pane, {kind: 'doc'}>[] = []
+  for (const seg of segs) {
     let first: Extract<Pane, {kind: 'doc'}> | undefined
     for (const part of seg.split('|')) {
       const [id, ...params] = part.split(',')
       const p = Object.fromEntries(params.filter(Boolean).map((kv) => kv.split('=').map(decodeURIComponent)))
-      const pane: Pane = {
+      const pane: Extract<Pane, {kind: 'doc'}> = {
         kind: 'doc',
         id: id ? decodeURIComponent(id) : first?.id ?? '',
         type: p.type ?? first?.type ?? listType,
@@ -44,13 +57,15 @@ export function parsePanes(splat: string | undefined): Pane[] {
 
 export function panesPath(panes: Pane[]): string {
   const segs: string[] = []
-  for (const p of panes) {
-    if (p.kind === 'list') segs.push(p.type)
+  for (const [i, p] of panes.entries()) {
+    if (p.kind === 'menu') segs.push(encodeURIComponent(p.node))
+    if (p.kind === 'list') segs.push(encodeURIComponent(p.treeParent ?? p.node ?? p.type))
     if (p.kind === 'doc') {
-      const list = panes.find((x) => x.kind === 'list')
+      // The list this doc was opened from: the nearest one to its left.
+      const list = panes.slice(0, i).reverse().find((x) => x.kind === 'list')
       let params = p.parentRefPath
         ? `,type=${encodeURIComponent(p.type)},parentRefPath=${encodeURIComponent(p.parentRefPath)}`
-        : list?.kind === 'list' && list.type === p.type
+        : p.node || (list?.kind === 'list' && list.type === p.type)
           ? ''
           : `,type=${encodeURIComponent(p.type)}`
       if (p.view) params += `,view=${encodeURIComponent(p.view)}`
@@ -59,7 +74,7 @@ export function panesPath(panes: Pane[]): string {
       if (p.path) params += `,path=${encodeURIComponent(p.path)}`
       // A sibling of the same doc carries only its own params, like Sanity's "|,".
       if (p.sibling) segs[segs.length - 1] += `|,${p.view ? `view=${encodeURIComponent(p.view)}` : ''}`
-      else segs.push(encodeURIComponent(p.id) + params)
+      else segs.push(encodeURIComponent(p.node ?? p.id) + params)
     }
   }
   return segs.length ? `/structure/${segs.join(';')}` : '/structure'
@@ -103,4 +118,5 @@ export function withParams(panes: Pane[], index: number, params: {inspect?: stri
 /** Href for closing pane `index` and everything to its right. */
 export const closeFrom = (panes: Pane[], index: number) => panesPath(panes.slice(0, index))
 
-export const paneKey = (p: Pane) => (p.kind === 'types' ? 'types' : p.kind === 'list' ? `list:${p.type}` : `doc:${p.id}`)
+export const paneKey = (p: Pane) =>
+  p.kind === 'types' ? 'types' : p.kind === 'menu' ? `menu:${p.node}` : p.kind === 'list' ? `list:${[p.type, p.node, p.treeParent].filter(Boolean).join(':')}` : `doc:${p.id}`

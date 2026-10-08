@@ -2,7 +2,8 @@ import type {QueryClient} from '@tanstack/react-query'
 import {usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
-import {docQuery, ensureDocs, refId, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
+import {deskQuery, docQuery, ensureDocs, refId, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
+import {deskIndex, deskSort, listFilter, parseDeskPanes, unsupportedOps} from './desk'
 import {parsePanes, type Pane} from './panes'
 import {meQuery} from './session'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
@@ -25,8 +26,11 @@ export async function requireEditor(queryClient: QueryClient, href: string) {
 }
 
 export async function loadPanes(queryClient: QueryClient, splat: string | undefined) {
-  const panes = parsePanes(splat)
   const onServer = typeof window === 'undefined'
+  // B12: a declared desk decides what the URL's segments name.
+  const desk = await queryClient.ensureQueryData(deskQuery)
+  const panes = desk ? parseDeskPanes(splat, desk) : parsePanes(splat)
+  const nodes = desk ? deskIndex(desk) : undefined
   const [schemas, widthHint, listPrefs] = await Promise.all([
     queryClient.ensureQueryData(schemasQuery),
     onServer ? fetchViewportHint() : document.querySelector('[data-testid=panes]')?.clientWidth ?? window.innerWidth,
@@ -38,8 +42,17 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   // once, anything else paints its pane now and fills in (like Sanity's panes).
   const settle = <T,>(p: Promise<T>) => p.catch(() => undefined)
   const data = Promise.all([
-    Promise.all(panes.flatMap((p) => (p.kind === 'list' && schemaOf(schemas, p.type) ? [settle(queryClient.ensureQueryData(listQuery(p.type, listPrefs[p.type]?.sort ?? DEFAULT_SORT)).then((l) => l.docs))] : []))),
-    Promise.all(panes.flatMap((p) => (p.kind === 'doc' && schemaOf(schemas, p.type) ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : []))),
+    Promise.all(
+      panes.flatMap((p) => {
+        if (p.kind !== 'list' || !schemaOf(schemas, p.type)) return []
+        const node = p.node ? nodes?.get(p.node) : undefined
+        const filter = listFilter(node, p.treeParent)
+        if (unsupportedOps(filter).length) return []
+        return [settle(queryClient.ensureQueryData(listQuery(p.type, listPrefs[p.type]?.sort ?? deskSort(node) ?? DEFAULT_SORT, undefined, filter)).then((l) => l.docs))]
+      }),
+    ),
+    // A tree level shows its parent category on top (B12): that doc too.
+    Promise.all(panes.flatMap((p) => (!('type' in p) || !schemaOf(schemas, p.type) ? [] : p.kind === 'doc' ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : p.kind === 'list' && p.treeParent ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.treeParent)))] : []))),
   ])
   if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, 0, false))]))) {
     void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))

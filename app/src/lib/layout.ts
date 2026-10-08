@@ -10,7 +10,7 @@ import {createContext} from 'react'
 // Min widths: list 320, document 600 (DOCUMENT_PANEL_INITIAL_MIN_WIDTH).
 // Ported from Sanity (MIT, Copyright (c) 2016 - 2026 Sanity.io): see THIRD-PARTY.md.
 export const STRIP = 51
-const MIN = {types: 320, list: 320, doc: 600} as const
+const MIN = {types: 320, menu: 320, list: 320, doc: 600} as const
 
 export function collapsed(kinds: (keyof typeof MIN)[], width: number, focus = kinds.length - 1): boolean[] {
   const order = [focus, ...kinds.map((_, i) => kinds.length - 1 - i).filter((i) => i !== focus)]
