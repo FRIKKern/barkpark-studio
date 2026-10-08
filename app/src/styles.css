@@ -702,7 +702,7 @@ fieldset.object-field > .field-actions { top: -38px; }
 .history-list button:hover { background: var(--hover); }
 .history-list .history-expand { flex: none; width: 25px; justify-content: center; padding: 0; color: var(--muted); }
 .history-list .history-expand[aria-expanded=true] { background: var(--hover); }
-.history-list [aria-selected=true] button { background: var(--hover-strong); }
+.history-list [aria-selected=true] button, .history-list [data-current] button { background: var(--hover-strong); }
 .history-list .avatar { position: relative; flex: none; display: grid; place-items: center; width: 33px; height: 33px; border-radius: 50%; background: #2f3f9e; color: #fff; font-size: 12px; font-weight: 600; }
 .history-list .badge { position: absolute; right: -3px; bottom: -3px; width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--bg); background: var(--muted); }
 .history-list .badge[data-kind=published] { background: var(--published); }
@@ -725,10 +725,18 @@ fieldset.object-field > .field-actions { top: -38px; }
 .history-note { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; padding: 4px 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); font-size: 10px; line-height: 14px; color: var(--muted); }
 .history-note strong { color: var(--fg); font-weight: 600; }
 .history-note svg { flex: none; width: 13px; height: 13px; }
-.review-range { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; margin: 0 0 12px; padding: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
-.review-range div { display: contents; }
+.review-range { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 12px; margin: 0 0 16px; }
+.review-range > div { display: contents; }
 .review-range dt { color: var(--muted); }
-.review-range dd { margin: 0; font-weight: 500; }
+.review-range dd { margin: 0; min-width: 0; }
+.review-range .menu-wrap { display: block; position: relative; }
+/* Sanity's From / To: a select-like button; open, the timeline under it. */
+.review-pick { display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 100%; padding: 4px 4px 4px 8px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); font: inherit; font-size: 13px; font-weight: 500; color: var(--fg-strong); text-align: left; cursor: pointer; }
+.review-pick > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-pick svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
+.review-pick:hover:not(:disabled), .review-pick[aria-expanded=true] { background: var(--hover); }
+.review-pick:disabled { cursor: default; }
+.review-pick-menu { position: absolute; top: calc(100% + 2px); right: 0; left: 0; z-index: 5; max-height: 320px; overflow: auto; padding: 4px; }
 .review-empty { padding: 32px 8px; text-align: center; }
 .review-empty h3 { margin: 0 0 8px; font-size: 14px; }
 .inspector .review-list { gap: 12px; }
