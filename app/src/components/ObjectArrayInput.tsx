@@ -1,4 +1,4 @@
-import {useCallback, useContext, useEffect, useState} from 'react'
+import {useCallback, useContext, useEffect, useRef, useState} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Field} from '../lib/data'
@@ -27,15 +27,19 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   // path=links[_key=="l1"]) opens that item's dialog; the pane then focuses the field.
   const urlPath = useContext(UrlPathContext)
   const wantKey = urlPath?.startsWith(`${id}[_key=="`) ? urlPath.slice(id.length + 8).split('"]')[0] : undefined
+  // Items already opened here are not opened again by the URL: the path this pane
+  // writes while you type in a dialog lands after you close it (it reopened).
+  const opened = useRef(new Set<string>())
+  const open = (key: string | null) => (key && opened.current.add(key), setEditing(key))
   useEffect(() => {
-    if (wantKey && items.some((it) => it._key === wantKey)) setEditing(wantKey)
+    if (wantKey && !opened.current.has(wantKey) && items.some((it) => it._key === wantKey)) open(wantKey)
     // Only when the URL names another item, not on every edit of this one.
   }, [wantKey])
   const set = (next: Item[]) => onChange(next)
   // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
   const renderItem = useCallback(
     (it: Item) => (
-      <button type="button" className="array-item-preview" onClick={() => setEditing(it._key ?? null)}>
+      <button type="button" className="array-item-preview" onClick={() => open(it._key ?? null)}>
         <span className="media">
           <DocumentIcon />
         </span>
@@ -58,7 +62,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         itemId={(it, i) => (it._key ? `${id}[_key=="${it._key}"]` : `${id}[${i}]`)}
         blank={() => ({...of.initialValue, _key: newKey()})}
         duplicate={(it) => ({...it, _key: newKey()})}
-        onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
+        onAdded={(i, next) => open(next[i]!._key ?? null)}
         onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'object', value: it}})}
         addLabel="Add item..."
         renderItem={renderItem}
