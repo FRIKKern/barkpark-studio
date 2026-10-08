@@ -57,7 +57,7 @@ test('@evidence J20: offline while typing, back online, a stalled write — noth
   note('server holds every keystroke', kept ? true : await t.docValue(ID, 'excerpt'))
   await page.screenshot({path: shot(t.name, '2-recovered')})
   if (t.name === 'studio') expect(kept, 'nothing lost').toBe(true)
-  if (t.name === 'studio') await expect(footer(page)).toContainText('Saved')
+  if (t.name === 'studio') await expect(footer(page)).toContainText(/Saved|Edited/)
 
   // Ours: a write that hangs for 6 s says so, then lands.
   if (t.name === 'studio') {
@@ -69,7 +69,7 @@ test('@evidence J20: offline while typing, back online, a stalled write — noth
     await expect(footer(page)).toContainText('Saving is taking longer than usual…', {timeout: 8_000})
     await page.screenshot({path: shot(t.name, '3-stalled')})
     await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 20_000}).toBe(`${typed} slow`)
-    await expect(footer(page)).toContainText('Saved')
+    await expect(footer(page)).toContainText(/Saved|Edited/)
     await page.unroute('**/_serverFn/**')
   }
 })

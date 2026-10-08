@@ -1,11 +1,13 @@
-import {useState} from 'react'
+import {useState, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
-import {historyQuery, revisionQuery, type Revision} from '../lib/history'
+import {historyQuery, revisionQuery, type HistoryEntry, type Revision} from '../lib/history'
+import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
+import {docDiff, type DocBlock, type Piece} from '../lib/doc-diff'
 import type {Doc, Schema} from '../lib/data'
-import {rangeDate} from './HistoryPanel'
-import {Undo} from './icons'
+import {rangeDate, Row} from './HistoryPanel'
+import {ChevronDown, Undo} from './icons'
 import {userColorVars} from '../lib/user-colors'
 import {assetUrl, type ImageValue} from '../lib/image'
 
@@ -18,21 +20,36 @@ const SNAPSHOTS = 12
 export function ReviewChanges({schema, draft, published, onRevert}: {schema: Schema; draft: Doc; published: Doc | null | undefined; onRevert: (changes: FieldChange[]) => void}) {
   const {data: revisions = [], isPending} = useQuery(historyQuery(draft._type, draft._publishedId))
   const {draft: drafts, publish} = sinceLastPublish(revisions)
-  const wanted = [...drafts.slice(0, SNAPSHOTS), ...(publish ? [publish] : [])]
+  // Sanity's From / To: picked points of the timeline; unpicked, the draft since it was last published.
+  const entries = flatEntries(timeline(revisions))
+  const [picked, setPicked] = useState<{from?: string; to?: string}>({})
+  const fromEntry = entries.find((e) => e.revision.id === picked.from) ?? (drafts.length ? entries.find((e) => e.revision.id === drafts.at(-1)!.id) : undefined)
+  const toEntry = entries.find((e) => e.revision.id === picked.to) ?? null
+  const custom = !!(picked.from || picked.to) && !!fromEntry
+  const range = custom ? reviewRange(revisions, fromEntry!, toEntry) : undefined
+  const wanted = custom
+    ? [...range!.between.slice(0, SNAPSHOTS), ...(range!.base ? [range!.base] : [])]
+    : [...drafts.slice(0, SNAPSHOTS), ...(publish ? [publish] : [])]
   const snaps = useQueries({queries: wanted.map((r) => revisionQuery(r.id))})
   const ready = snaps.every((s) => s.data)
+  const content = (r?: Revision) => (r ? snaps[wanted.indexOf(r)]?.data?.content : undefined)
   const authors = ready ? authorsByField(wanted.map((r, i) => [r, snaps[i]!.data!.content] as [Revision, Record<string, unknown>])) : new Map<string, string[]>()
-  const changes = changedFields(schema, published, draft).map((c) => ({...c, authors: authors.get(c.field.name) ?? []}))
+  const before = custom ? (range!.base ? content(range!.base) : {}) : published
+  const after = custom ? (range!.target ? content(range!.target) : draft) : draft
+  const changes = before === undefined || after === undefined ? [] : changedFields(schema, before, after).map((c) => ({...c, authors: authors.get(c.field.name) ?? []}))
+  const options = fromEntry ? rangeOptions(revisions, entries, fromEntry, toEntry) : {from: [], to: []}
+  const fromText = fromEntry ? `${fromEntry.label}: ${rangeDate(fromEntry.revision.timestamp)}` : published ? 'Published' : 'Not published'
+  const toText = toEntry ? `${toEntry.label}: ${rangeDate(toEntry.revision.timestamp)}` : drafts[0] ? `Edited: ${rangeDate(drafts[0].timestamp)}` : 'Current draft'
   return (
     <div className="review">
       <dl className="review-range">
         <div>
           <dt>From</dt>
-          <dd>{isPending ? '…' : drafts.at(-1) ? `Draft created: ${rangeDate(drafts.at(-1)!.timestamp)}` : published ? 'Published' : 'Not published'}</dd>
+          <dd>{isPending ? '…' : <RangePicker label="From" text={fromText} options={options.from} selected={fromEntry} onPick={(e) => setPicked((p) => ({...p, from: e.revision.id}))} />}</dd>
         </div>
         <div>
           <dt>To</dt>
-          <dd>{isPending ? '…' : drafts[0] ? `Edited: ${rangeDate(drafts[0].timestamp)}` : 'Current draft'}</dd>
+          <dd>{isPending ? '…' : <RangePicker label="To" text={toText} options={options.to} selected={toEntry ?? entries[0]} onPick={(e) => setPicked((p) => ({...p, to: e === entries[0] ? undefined : e.revision.id}))} />}</dd>
         </div>
       </dl>
       {changes.length === 0 ? (
@@ -86,6 +103,10 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
       </p>
     )
   }
+  // Rich text: only the changed blocks, in their own style, marks kept (Sanity's).
+  const blocksOf = (v: unknown) => (v as {blocks?: DocBlock[]} | undefined)?.blocks
+  if (Array.isArray(blocksOf(change.before)) || Array.isArray(blocksOf(change.after)))
+    return <BlocksDiff before={blocksOf(change.before)} after={blocksOf(change.after)} author={author} />
   const before = asText(change.before)
   const after = asText(change.after)
   if (before === undefined || after === undefined)
@@ -98,6 +119,70 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
         s.kind === 'removed' ? <del key={i} title={by('Removed')}>{s.text}</del> : s.kind === 'added' ? <ins key={i} title={by('Added')}>{s.text}</ins> : <span key={i}>{s.text}</span>,
       )}
     </p>
+  )
+}
+
+const MARK_TAGS: Record<string, string> = {strong: 'strong', em: 'em', code: 'code', underline: 'u', strikethrough: 's', highlight: 'mark', sub: 'sub', sup: 'sup'}
+
+/** A rich-text change: each changed block drawn as itself, the diff inside it. */
+function BlocksDiff({before, after, author}: {before?: DocBlock[]; after?: DocBlock[]; author?: string}) {
+  const by = (what: string) => (author ? `${what} by ${author}` : what)
+  const piece = (x: Piece, i: number) => {
+    let node: ReactNode = x.text
+    for (const m of [...x.marks].reverse()) {
+      const Tag = (MARK_TAGS[m] ?? 'span') as 'span'
+      node = <Tag>{node}</Tag>
+    }
+    if (x.href) node = <a href={x.href} target="_blank" rel="noopener noreferrer">{node}</a>
+    return x.change === 'removed' ? <del key={i} title={by('Removed')}>{node}</del> : x.change === 'added' ? <ins key={i} title={by('Added')}>{node}</ins> : <span key={i}>{node}</span>
+  }
+  const changes = docDiff(before, after)
+  return (
+    <div className="review-diff review-blocks" style={userColorVars(author ?? 'unknown')}>
+      {changes.map(({kind, block: b, pieces, items}) => {
+        const body = pieces.map(piece)
+        const k = `${kind}-${b.id}`
+        switch (b.type) {
+          case 'heading': {
+            const H = `h${Math.min(6, Math.max(1, b.level ?? 2))}` as 'h2'
+            return <H key={k} data-change={kind}>{body}</H>
+          }
+          case 'list': {
+            const L = b.ordered ? 'ol' : 'ul'
+            return <L key={k} data-change={kind}>{(items ?? []).map((it, i) => (it.some((x) => x.change !== 'same') ? <li key={i}>{it.map(piece)}</li> : null))}</L>
+          }
+          case 'pullquote':
+          case 'blockquote':
+            return <blockquote key={k} data-change={kind}>{body}</blockquote>
+          case 'callout':
+            return <div key={k} className="callout" data-tone={b.tone} data-change={kind}>{body}</div>
+          default:
+            return <p key={k} data-change={kind}>{body}</p>
+        }
+      })}
+    </div>
+  )
+}
+
+/** Sanity's From / To picker: the range end as text; open, the timeline to pick another from. */
+function RangePicker({label, text, options, selected, onPick}: {label: string; text: string; options: HistoryEntry[]; selected?: HistoryEntry; onPick: (e: HistoryEntry) => void}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <button type="button" className="review-pick" aria-label={`${label}: ${text}`} aria-expanded={open} disabled={!options.length} onClick={() => setOpen((o) => !o)}>
+        <span>{text}</span>
+        <ChevronDown />
+      </button>
+      {open && (
+        <DialogBox className="popover review-pick-menu" onClose={() => setOpen(false)} aria-label={label}>
+          <ul className="history-list" aria-label={label}>
+            {options.map((e) => (
+              <Row key={e.revision.id} e={e} plain selected={e === selected} onPick={() => (setOpen(false), onPick(e))} />
+            ))}
+          </ul>
+        </DialogBox>
+      )}
+    </span>
   )
 }
 

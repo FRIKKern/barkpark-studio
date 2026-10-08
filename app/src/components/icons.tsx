@@ -287,3 +287,10 @@ export const ClipboardIcon = () => (
     <path d="M9.5 5.5h6v2h-6zM9.5 6.5h-2v13h11v-13h-2" strokeLinejoin="round" />
   </svg>
 )
+/** Sanity's CheckmarkCircleIcon (the validation button when only infos are left). */
+export const CheckmarkCircle = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="7" />
+    <path d="M9.5 12.5l2 2 4-4" />
+  </svg>
+)
