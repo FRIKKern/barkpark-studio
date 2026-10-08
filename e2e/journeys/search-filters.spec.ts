@@ -89,4 +89,8 @@ test('@local J38: field filter, type filter, order, recent searches', async ({pa
   await dialog(page).getByRole('button', {name: 'Clear', exact: true}).click()
   await dialog(page).getByRole('button', {name: 'Clear recent searches'}).click()
   await expect(recent).toHaveCount(0)
+
+  // Every text field is searched, not only titles (Sanity's): "newsletter" is in the posts' featured note.
+  await dialog(page).getByRole('combobox').fill('newsletter')
+  await expect(results.getByText('Fixture post 05', {exact: true})).toBeVisible()
 })
