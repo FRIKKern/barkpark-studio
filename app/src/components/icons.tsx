@@ -269,6 +269,12 @@ export const Send = () => (
     <path d="M6.5 6.5l13 6-13 6 2-6zM8.5 12.5h11" strokeLinejoin="round" />
   </svg>
 )
+/** Sanity's ToggleArrowRightIcon: the filled triangle on a collapsible object (J14). */
+export const ToggleArrowRight = () => (
+  <svg {...s}>
+    <path d="M10.5 16.5V8.5L15.5 12.5L10.5 16.5Z" fill="currentColor" stroke="none" />
+  </svg>
+)
 /** Sanity's CodeBlockIcon-like braces (Inspect). */
 export const Braces = () => (
   <svg {...s}>

@@ -69,6 +69,10 @@ test('J03 J04 J13: type without drops, undo, draft, publish, validation, discard
   await page.getByRole('tab', {name: 'Content'}).click()
   await title.fill(`${TYPED} oops`)
   await expect(publish).toBeEnabled({timeout: 10_000})
+  // A warning is listed but never blocks publishing (J13 levels).
+  await t.field(page, 'excerpt').fill('x'.repeat(170))
+  await expect(page.getByText('Long excerpts get cut off in previews').filter({visible: true}).first()).toBeVisible()
+  await expect(publish).toBeEnabled({timeout: 10_000})
 
   // Edit, then discard → back to what is published.
   await expect.poll(versions, BACKEND_POLL).toEqual({draft: `${TYPED} oops`, published: TYPED})

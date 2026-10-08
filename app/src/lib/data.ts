@@ -20,6 +20,9 @@ export type Doc = {_id: string; _publishedId: string; _type: string; _draft: boo
   string,
   unknown
 >
+/** Barkpark's field rule: Sanity's checks, `level` (default error) and a `message` that replaces the generated one. */
+export type Rule = {required?: boolean; min?: number; max?: number; level?: string; message?: string}
+
 export type Field = {
   name: string
   title?: string
@@ -33,7 +36,8 @@ export type Field = {
   options?: Record<string, unknown> | unknown[]
   layout?: string
   group?: string
-  validation?: {required?: boolean; min?: number; max?: number}
+  /** A rule map or a list of them; `level` warning/info never blocks publish (J13). */
+  validation?: Rule | Rule[]
   /** localizedText (B04/B06): the languages it holds. */
   languages?: string[]
   /** localizedText: the order readers fall back through; its first is the primary language. */

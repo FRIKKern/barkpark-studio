@@ -12,7 +12,7 @@
   "fields": [
     {"name": "title", "title": "Title", "type": "string", "group": "content", "validation": {"required": true, "max": 120}},
     {"name": "slug", "title": "Slug", "type": "slug", "group": "content", "options": {"source": "title"}, "validation": {"required": true}},
-    {"name": "excerpt", "title": "Excerpt", "type": "text", "rows": 3, "group": "content"},
+    {"name": "excerpt", "title": "Excerpt", "type": "text", "rows": 3, "group": "content", "validation": {"max": 160, "level": "warning", "message": "Long excerpts get cut off in previews"}},
     {"name": "author", "title": "Author", "type": "reference", "refType": "author", "group": "content"},
     {"name": "categories", "title": "Categories", "type": "arrayOf", "ordered": true, "group": "content",
      "of": {"type": "reference", "refType": "category"}},
@@ -45,9 +45,9 @@
     {"name": "tags", "title": "Tags", "type": "arrayOf", "ordered": true, "group": "meta", "options": {"layout": "tags"},
      "of": {"type": "string"}},
     {"name": "highlights", "title": "Highlights", "type": "arrayOf", "ordered": true, "group": "meta", "of": {"type": "string"}},
-    {"name": "seo", "title": "SEO", "type": "composite", "group": "meta", "fields": [
-      {"name": "metaTitle", "title": "Meta title", "type": "string"},
-      {"name": "metaDescription", "title": "Meta description", "type": "text", "rows": 2}
+    {"name": "seo", "title": "SEO", "type": "composite", "group": "meta", "options": {"collapsible": true, "collapsed": true}, "fields": [
+      {"name": "metaTitle", "title": "Meta title", "type": "string", "validation": {"max": 60}},
+      {"name": "metaDescription", "title": "Meta description", "type": "text", "rows": 2, "validation": {"min": 50, "level": "info", "message": "Search results show about 150 characters"}}
     ]}
   ]
 }

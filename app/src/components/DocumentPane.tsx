@@ -5,7 +5,7 @@ import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
-import {validate, type Problem} from '../lib/validation'
+import {errorsOf, validate, worst, type Problem} from '../lib/validation'
 import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {createDoc, discardDraft, draftNew, edit, flush, publish, reasonOf, undo, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
@@ -18,7 +18,7 @@ import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
-import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, ProblemsContext} from './Fields'
+import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext} from './Fields'
 import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
@@ -35,7 +35,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {ReadErrorCard} from './PaneError'
-import {Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, Copy, Trash, Undo} from './icons'
+import {Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, InfoOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -80,9 +80,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const targets = useQueries({queries: refFields.map((f) => docQuery(refTypesOf(f), doc![f.name] as string))})
   const byId = new Map(refFields.map((f, i) => [doc![f.name] as string, targets[i].data]))
   const problems = doc && schemaForPane && !viewingPublished ? validate(doc, schemaForPane, (id) => byId.get(id)) : []
-  const [inspecting, setInspecting] = useState(false)
+  // J13: only errors block publishing; warnings and infos are shown, never in the way.
+  const errors = errorsOf(problems)
+  const openObjects = useOpenObjects(pane.id)
+  // Sanity's `inspect=…/validation`: the panel survives a reload and a copied link.
+  const inspecting = pane.inspect === 'validation'
+  const toggleValidation = () => navigate({href: withParams(panes, index, {inspect: inspecting ? undefined : 'validation', rev: undefined})})
   const goTo = (p: Pick<Problem, 'path' | 'group'>) => {
     if (group && p.group !== group) setGroup('')
+    // A field inside collapsed objects: open each one on the way (Sanity does).
+    p.path.split('.').slice(0, -1).forEach((_, i, parts) => openObjects.toggle(parts.slice(0, i + 1).join('.'), true))
     requestAnimationFrame(() => paneRoot.current?.querySelector<HTMLElement>(`[id="${CSS.escape(p.path)}"]`)?.focus())
   }
   // J40: the document's comment threads, for the field buttons and the inspector.
@@ -115,6 +122,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     opened.current = `${pane.id}|${want}`
     const top = schemaHere.fields.find((f) => f.name === want.split(/[.[]/)[0])
     if (top?.group && group && top.group !== group) setGroup('')
+    // A field inside collapsed objects opens them (J13/J14).
+    want.split('[')[0]!.split('.').slice(0, -1).forEach((_, i, parts) => openObjects.toggle(parts.slice(0, i + 1).join('.'), true))
     let frames = 90
     const tryFocus = () => {
       const el = paneRoot.current?.querySelector<HTMLElement>(`[id="${CSS.escape(want)}"]`)
@@ -226,16 +235,17 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // J47: validation is heard when an edit changes it, with what it blocks (the
   // count, then the first field and message). Opening a doc says nothing new.
   const problemCount = useRef<number | null>(null)
+  const errorsKey = JSON.stringify(errors)
   useEffect(() => {
     if (!doc) return
     const was = problemCount.current
-    problemCount.current = problems.length
+    problemCount.current = errors.length
     if (was === null) return
-    if (problems.length && problemsKey !== '[]') {
-      if (problems.length !== was || was === 0)
-        announce(`${problems.length === 1 ? '1 validation error' : `${problems.length} validation errors`}. ${problems[0]!.title}: ${problems[0]!.message}. Publishing is blocked.`)
+    if (errors.length) {
+      if (errors.length !== was || was === 0)
+        announce(`${errors.length === 1 ? '1 validation error' : `${errors.length} validation errors`}. ${errors[0]!.title}: ${errors[0]!.message}. Publishing is blocked.`)
     } else if (was > 0) announce('No validation errors')
-  }, [problemsKey, !!doc])
+  }, [errorsKey, !!doc])
 
   // J07: the room sees this doc as where we are when it is the last pane, and the
   // field as soon as the caret enters one (inputs carry id = the field path).
@@ -265,7 +275,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       onKeyDown={(e) => {
         // Sanity's publish shortcut, also mid-edit (publish flushes first). Like its
         // button, a no-op with nothing to publish or while a publish is running.
-        if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !problems.length) {
+        if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !errors.length) {
           e.preventDefault()
           if (!publishingKey.current && (doc._draft || saveState !== 'saved')) {
             publishingKey.current = true
@@ -321,9 +331,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             aria-label="Validation"
             aria-pressed={inspecting}
             data-problems={problems.length || undefined}
-            onClick={() => setInspecting((v) => !v)}
+            data-level={worst(problems)}
+            onClick={() => void toggleValidation()}
           >
-            <ErrorOutline />
+            {worst(problems) === 'warning' ? <WarningOutline /> : worst(problems) === 'info' ? <InfoOutline /> : <ErrorOutline />}
           </button>
         )}
         {/* D12: a paper's metadata (slug, description, weighted tags) beside the canvas. */}
@@ -469,6 +480,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <UrlPathContext.Provider value={pane.path}>
             <EditPathContext.Provider value={onEdit}>
             <ProblemsContext.Provider value={revision ? NO_PROBLEMS : steadyProblems}>
+            <OpenObjectsContext.Provider value={openObjects}>
             <fieldset className="form-fields" disabled={viewingPublished || !!revision || !canWrite} title={editReason}>
               {formFields.slice(0, revealed).map((f) => (
                 <FieldView key={f.name} field={f} path={f.name} value={(revision ? revision.content : doc)[f.name]} openRef={openRef} onChange={onChangeOf(f.name)} />
@@ -477,6 +489,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
                 <UnknownFields doc={doc} names={unknownFields(schema, doc)} onRemove={(name) => onEdit(name, undefined)} />
               )}
             </fieldset>
+            </OpenObjectsContext.Provider>
             </ProblemsContext.Provider>
             </EditPathContext.Provider>
             </UrlPathContext.Provider>
@@ -502,9 +515,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
         : viewingPublished
         ? doc && <PublishedFooter doc={doc} single={single} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
       </div>
-      {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => setInspecting(false)} />}
+      {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => void toggleValidation()} />}
       {pane.inspect === 'comments' && (
         <CommentsPanel
           docId={pane.id}
@@ -557,11 +570,18 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
       ) : (
         <ul>
           {problems.map((p) => (
-            <li key={p.path}>
-              <button type="button" className="problem" onClick={() => onPick(p)}>
-                <ErrorOutline />
+            <li key={`${p.path} ${p.message}`}>
+              <button type="button" className="problem" data-level={p.level} onClick={() => onPick(p)}>
+                <LevelIcon level={p.level} label="" />
                 <span>
-                  <strong>{p.title}</strong>
+                  <strong>
+                    {p.parents?.map((t) => (
+                      <span key={t} className="problem-parent">
+                        {t} <span className="problem-slash">/</span>{' '}
+                      </span>
+                    ))}
+                    {p.title}
+                  </strong>
                   <span>{p.message}</span>
                 </span>
               </button>
@@ -604,11 +624,11 @@ function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: 
           onClick={() => onChange(g.name)}
         >
           {g.title ?? g.name}
-          {problems.some((p) => !g.name || p.group === g.name) && (
-            <span className="error-icon" role="img" aria-label="has validation errors">
-              <ErrorOutline />
-            </span>
-          )}
+          {/* The most serious level in the group, like Sanity's tab icons. */}
+          {(() => {
+            const level = worst(problems.filter((p) => !g.name || p.group === g.name))
+            return level && <LevelIcon level={level} label={`has validation ${level === 'error' ? 'errors' : level === 'warning' ? 'warnings' : 'info'}`} />
+          })()}
         </button>
       ))}
     </div>
@@ -659,7 +679,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       <button
         className="publish"
         disabled={!canWrite || !doc._draft || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
-        title={publishReason ?? (blocked ? `Fix ${blocked} validation ${blocked === 1 ? 'error' : 'errors'} before publishing` : undefined)}
+        title={publishReason ?? (blocked ? 'There are validation errors that need to be fixed before this document can be published' : undefined)}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async () => {
           setPublishing(true)
@@ -805,3 +825,23 @@ export function ConfirmDialog({title, body, action, run, onClose}: {title: strin
 }
 
 export type {Doc, Schema}
+
+// J14: which collapsible objects are open, per doc, kept while the Studio is open
+// (reopen the doc and they are as you left them, as in Sanity).
+const openObjectsByDoc = new Map<string, Map<string, boolean>>()
+function useOpenObjects(docId: string) {
+  const [version, bump] = useState(0)
+  return useMemo(() => {
+    let open = openObjectsByDoc.get(docId)
+    if (!open) openObjectsByDoc.set(docId, (open = new Map()))
+    const state = open
+    return {
+      isOpen: (path: string, byDefault: boolean) => state.get(path) ?? byDefault,
+      toggle: (path: string, value: boolean) => {
+        if (state.get(path) === value) return
+        state.set(path, value)
+        bump((n) => n + 1)
+      },
+    }
+  }, [docId, version])
+}
