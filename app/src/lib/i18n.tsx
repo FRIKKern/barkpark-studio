@@ -66,10 +66,13 @@ export const intlTag = (locale: Locale) => (locale === 'nb-NO' ? 'nb-NO' : 'en-U
  * "just now", "29 sec. ago", "12 min. ago", "3 hr. ago", "2 days ago" (Sanity's short
  * relative times, which are Intl's) and in Norwegian "akkurat nå", "for 12 min siden".
  */
+// One formatter per locale: building one per call cost every list row (F2).
+const shortRtf: Partial<Record<Locale, Intl.RelativeTimeFormat>> = {}
+
 export function ago(iso: string, locale: Locale = browserLocale, now = Date.now()): string {
   const s = Math.max(0, (now - new Date(iso).getTime()) / 1000)
   if (s < 10) return translate(locale, 'just now')
-  const rtf = new Intl.RelativeTimeFormat(intlTag(locale), {style: 'short', numeric: 'always'})
+  const rtf = (shortRtf[locale] ??= new Intl.RelativeTimeFormat(intlTag(locale), {style: 'short', numeric: 'always'}))
   if (s < 60) return rtf.format(-Math.floor(s), 'second')
   if (s < 3600) return rtf.format(-Math.floor(s / 60), 'minute')
   if (s < 86_400) return rtf.format(-Math.floor(s / 3600), 'hour')
