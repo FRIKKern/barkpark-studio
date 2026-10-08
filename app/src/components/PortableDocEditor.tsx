@@ -4,6 +4,8 @@ import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schem
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult} from '../lib/blocks'
 import {toast} from './Toasts'
 import {unsavedElsewhere} from '../lib/edits'
+import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
+import {useLive} from '../lib/live'
 import {t as translate, useT} from '../lib/i18n'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
@@ -85,6 +87,27 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
 }) {
   const host = useRef<HTMLDivElement>(null)
   const t = useT()
+  // D14: a paper's task blocks show Barkpark's live previews (lib/fleet.ts).
+  const fleetOn = type === 'paper' && !field
+  const {data: fleet} = useQuery({...fleetQuery(id), enabled: fleetOn})
+  useLive([], fleetOn && fleet && Object.keys(fleet).length ? ['task'] : [])
+  const fleetRef = useRef<FleetBlocks | undefined>(undefined)
+  fleetRef.current = fleet
+  const emptyText = t('Nothing to show yet.')
+  useEffect(() => {
+    const root = host.current
+    if (!fleetOn || !root) return
+    // The canvas draws (and redraws) the holes; paint whatever is there, once a frame.
+    let frame = 0
+    const paint = () => {
+      frame = 0
+      if (fleetRef.current) paintFleet(root, fleetRef.current, emptyText)
+    }
+    const watch = new MutationObserver(() => void (frame ||= requestAnimationFrame(paint)))
+    watch.observe(root, {childList: true, subtree: true})
+    paint()
+    return () => (watch.disconnect(), cancelAnimationFrame(frame))
+  }, [fleetOn, fleet, emptyText])
   const qc = useQueryClient()
   const openDocRef = useRef(openDoc)
   openDocRef.current = openDoc
@@ -139,6 +162,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           el.applyServerBlocks(echo.blocks, {mode: 'own', requestId})
         }
         el.acknowledgeOps(seq, true)
+        if (type === 'paper' && !field) void qc.invalidateQueries({queryKey: ['fleet', id]})
         setProblem(null)
         if (!el.hasPendingChanges()) setSave({state: 'saved'})
       } catch (e) {

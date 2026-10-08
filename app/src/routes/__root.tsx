@@ -3,6 +3,7 @@ import type {QueryClient} from '@tanstack/react-query'
 import type {ScopeRef} from '../router'
 import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
 import appCss from '../styles.css?url'
+import fleetCss from '../vendor/barkpark-fleet.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
 import {IconTips} from '../components/Tip'
 import {ToastHost} from '../components/Toasts'
@@ -29,6 +30,7 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
       {rel: 'icon', href: 'data:,'},
       {rel: 'preload', href: interLatin, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous'},
       {rel: 'stylesheet', href: appCss},
+      {rel: 'stylesheet', href: fleetCss},
     ],
   }),
   component: () => (

@@ -14,6 +14,7 @@ type Frame = {documentId: string; type: string; mutation: string; result: Doc | 
 // The newest frame this page has applied: a subscription opened after navigating
 // asks the server for everything since, so nothing falls between two streams.
 let lastSeen: string | null = null
+let fleetTimer: ReturnType<typeof setTimeout> | undefined
 
 // A page rendered on the server read its data before its stream opened. The
 // server says where to resume from (its listen position as of that read); when it
@@ -63,6 +64,9 @@ export function useLive(ids: string[], types: string[]) {
       ;(window as {__liveFrames?: string[]}).__liveFrames?.push(`${lastSeen}|${f.documentId}`) // e2e probe
       // J40: a comment changed somewhere: the comment threads read again.
       if (f.type === 'studioComment') return void qc.invalidateQueries({queryKey: ['comments']})
+      // D14: a task changed: papers' task previews read again (debounced: a bulk
+      // edit is one read).
+      if (f.type === 'task') return void (clearTimeout(fleetTimer), (fleetTimer = setTimeout(() => void qc.invalidateQueries({queryKey: ['fleet']}), 400)))
       const id = f.documentId.replace(/^drafts\./, '')
       // A change to the published row itself (publish, unpublish, direct write).
       if (!f.documentId.startsWith('drafts.')) {

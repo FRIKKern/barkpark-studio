@@ -29,7 +29,7 @@ const TYPES = ['longform', 'author', 'category', 'post'] // refs point left: pos
 // layout + prefill, seeded through its body (create builds its blocks from the layout).
 // paper is Bulldocs' paper (D12): its weighted tags must name published `tag` docs, so
 // tags are written first and deleted last.
-const NATIVE_TYPES = ['volume', 'story', 'note', 'paper', 'tag', 'siteSettings'] // not 'book': Barkpark's onixedit plugin owns that type; siteSettings is B13's singleton (its one doc's id is its type)
+const NATIVE_TYPES = ['volume', 'story', 'note', 'paper', 'tag', 'siteSettings', 'task'] // not 'book': Barkpark's onixedit plugin owns that type; siteSettings is B13's singleton (its one doc's id is its type)
 
 function fail(msg) {
   console.error(`seed-barkpark: ${msg}`)
@@ -65,7 +65,7 @@ async function listAll(type, perspective) {
 // Projection output (body, preview, body_html, a paper's body_html_sv) is derived, never seeded.
 // `blocks` too, for a type whose layout builds them; a seeded body is compared without
 // the html Barkpark renders from it.
-const DERIVED = new Set(['body', 'preview', 'body_html', 'body_html_sv', 'blocks'])
+const DERIVED = new Set(['body', 'preview', 'body_html', 'body_html_sv', 'blocks', 'created_by', 'claim']) // created_by, claim: stamped on a task by the server
 const withoutHtml = (body) => Object.fromEntries(Object.entries(body).filter(([k]) => k !== 'html'))
 const stripSystem = (doc, want) =>
   Object.fromEntries(
@@ -82,7 +82,9 @@ const seed = readFileSync(new URL('fixtures/seed.ndjson', root), 'utf8')
   .map((l) => JSON.parse(l))
 // Docs scripts/reference-history.mjs keeps outside the seed (fixture imports rewrite history).
 const REFERENCE_ONLY = new Set(['post-history'])
-const native = readFileSync(new URL('fixtures/barkpark-only.ndjson', root), 'utf8')
+// Task ids are unique across a workspace's datasets (Barkpark refuses a twin), so the
+// fixture's tasks (D14) carry the dataset in theirs: `{dataset}` is filled in here.
+const native = readFileSync(new URL('fixtures/barkpark-only.ndjson', root), 'utf8').replaceAll('{dataset}', DATASET)
   .split('\n')
   .filter(Boolean)
   .map((l) => JSON.parse(l))
