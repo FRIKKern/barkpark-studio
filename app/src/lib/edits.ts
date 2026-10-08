@@ -373,9 +373,10 @@ async function send(qc: QueryClient, id: string) {
         // Keep the original create queued until its outcome can be read.
       }
     }
-    // Someone else wrote first (stale rev; or both forked the draft at once,
-    // task-324b4d00706a6cfb): read theirs, rebase ours onto it, send again.
-    if (!creating && /^mutate (409|412)\b|already been taken/.test((err as Error).message) && e.conflicts++ < 5) {
+    // Someone else wrote first (a stale rev): read theirs, rebase ours onto it, send again.
+    // (Two first edits forking one draft no longer collide: Barkpark fixed that,
+    // task-324b4d00706a6cfb.)
+    if (!creating && /^mutate (409|412)\b/.test((err as Error).message) && e.conflicts++ < 5) {
       try {
         const latest = await qc.fetchQuery({...docQuery(e.type, id), staleTime: 0})
         e.dirty = new Map([...e.inflight!, ...e.dirty])
