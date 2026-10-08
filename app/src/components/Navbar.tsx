@@ -136,7 +136,7 @@ function Help() {
         type="button"
         className="icon-btn"
         aria-label="Help and resources"
-        title={next ? 'New version available' : 'Help and resources'}
+        data-tip={next ? 'New version available' : 'Help and resources'}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}

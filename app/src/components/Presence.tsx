@@ -147,7 +147,7 @@ export function WhoIsOnline() {
   }, [open])
   return (
     <div className="menu-wrap" ref={ref} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
-      <button type="button" className="icon-btn who" aria-label="Who's online" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn who" aria-label="Who's online" data-tip="Who is here" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Users />
         {people.length > 0 && <span className="count">{people.length}</span>}
       </button>

@@ -1,3 +1,4 @@
+import {modKey} from './Tip'
 import {useEffect, useId, useRef, useState} from 'react'
 import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
@@ -44,6 +45,8 @@ export function GlobalSearch() {
         type="button"
         className="icon-btn nav-search"
         aria-label="Search"
+        data-tip="Search"
+        data-tip-keys={`${modKey()}+K`}
         aria-keyshortcuts="Control+K Meta+K"
         onClick={(e) => ((opener.current = e.currentTarget), setOpen(true))}
       >

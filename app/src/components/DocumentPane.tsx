@@ -343,6 +343,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             type="button"
             className="icon-btn validation-btn"
             aria-label="Validation"
+            data-tip="Validation"
             aria-pressed={inspecting}
             data-problems={problems.length || undefined}
             data-level={worst(problems)}
@@ -370,6 +371,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             type="button"
             className="icon-btn comments-btn"
             aria-label="Comments"
+            data-tip="Comments"
             title="Comments"
             aria-pressed={pane.inspect === 'comments'}
             onClick={() => navigate({href: withParams(panes, index, {inspect: pane.inspect === 'comments' ? undefined : 'comments', rev: undefined})})}
@@ -383,16 +385,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {/* J42: a narrow window has no splits and no close: the back link goes back. */}
         {!narrow && (
           <>
-            <button type="button" className="icon-btn" aria-label="Split pane right" title="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
+            <button type="button" className="icon-btn" aria-label="Split pane right" data-tip="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
               <SplitVertical />
             </button>
             {split ? (
               // Like Sanity: closing one side of a split is a button, closing a pane a link.
-              <button type="button" className="icon-btn" aria-label="Close split pane" data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
+              <button type="button" className="icon-btn" aria-label="Close split pane" data-tip="Close pane" data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
                 {closeIcon}
               </button>
             ) : (
-              <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
+              <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-tip="Close pane" data-testid="pane-close">
                 {closeIcon}
               </PaneLink>
             )}
@@ -744,7 +746,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       {publishTip.tip}
       </span>
       {(!single || canDiscard) && <div className="menu-wrap">
-        <button type="button" className="icon-btn" aria-label="Document actions" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+        <button type="button" className="icon-btn" aria-label="Document actions" data-tip="Document actions" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
         {menu && (

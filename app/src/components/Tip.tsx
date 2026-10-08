@@ -45,3 +45,72 @@ export function useTip(content: () => ReactNode) {
 
 /** The key that pairs with Enter etc. in a hotkey hint, as Sanity names it. */
 export const modKey = () => (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? 'Cmd' : 'Ctrl')
+
+/**
+ * J57: Sanity's tooltip on every icon button. Mark the button with `data-tip="Label"`
+ * (and `data-tip-keys="Ctrl+K"` for its shortcut); this one layer, mounted once in the
+ * root, shows it after the same pause on hover or keyboard focus and hides it on
+ * leave, blur, Escape or a click. A disabled button keeps its `title` with the reason.
+ */
+export function IconTips() {
+  const [shown, setShown] = useState<{rect: DOMRect; text: string; keys?: string[]} | null>(null)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let current: Element | null = null
+    const hide = () => (clearTimeout(timer), (current = null), setShown(null))
+    const show = (e: Event) => {
+      const el = (e.target as Element | null)?.closest?.('[data-tip]')
+      if (!el || el === current) return
+      hide()
+      current = el
+      timer = setTimeout(() => {
+        const keys = el.getAttribute('data-tip-keys')
+        setShown({rect: el.getBoundingClientRect(), text: el.getAttribute('data-tip') ?? '', keys: keys ? keys.split('+') : undefined})
+      }, 300)
+    }
+    const leave = (e: Event) => {
+      const to = (e as PointerEvent | FocusEvent).relatedTarget as Node | null
+      if (current && !(to && current.contains(to))) hide()
+    }
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && hide()
+    document.addEventListener('pointerover', show)
+    document.addEventListener('focusin', show)
+    document.addEventListener('pointerout', leave)
+    document.addEventListener('focusout', leave)
+    document.addEventListener('pointerdown', hide)
+    document.addEventListener('keydown', esc)
+    addEventListener('scroll', hide, true)
+    return () => {
+      hide()
+      document.removeEventListener('pointerover', show)
+      document.removeEventListener('focusin', show)
+      document.removeEventListener('pointerout', leave)
+      document.removeEventListener('focusout', leave)
+      document.removeEventListener('pointerdown', hide)
+      document.removeEventListener('keydown', esc)
+      removeEventListener('scroll', hide, true)
+    }
+  }, [])
+  if (!shown) return null
+  const {rect, text, keys} = shown
+  const below = rect.bottom + 80 < innerHeight
+  return createPortal(
+    <span
+      role="tooltip"
+      className="hover-tip icon-tip"
+      style={{left: Math.min(Math.max(rect.left + rect.width / 2, 100), innerWidth - 100), ...(below ? {top: rect.bottom + 6} : {bottom: innerHeight - rect.top + 6})}}
+    >
+      <span className="tip-line">
+        {text}
+        {keys && (
+          <span className="keys">
+            {keys.map((k) => (
+              <kbd key={k}>{k}</kbd>
+            ))}
+          </span>
+        )}
+      </span>
+    </span>,
+    document.body,
+  )
+}
