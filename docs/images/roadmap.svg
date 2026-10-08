@@ -132,7 +132,7 @@
 <text x="912" y="642" font-size="19" font-weight="600">Plugins + Presentation</text>
 <path d="M912 662H1140" class="rule"/>
 <text x="912" y="694" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J37 Navbar shell</tspan></text>
-<text x="912" y="724" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J38 Global search filters</tspan></text>
+<text x="912" y="724" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J38 Global search filters</tspan></text>
 <text x="912" y="754" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J39 Broken values</tspan></text>
 <text x="912" y="784" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J40 Comments and release…</tspan></text>
 <text x="912" y="814" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J45 Dark mode</tspan></text>
@@ -155,9 +155,9 @@
 <text x="330" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D06 A wikilink/link in t…</tspan></text>
 <text x="330" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D07 Drop or paste an ima…</tspan></text>
 <text x="330" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D08 Undo/redo incl. undo…</tspan></text>
-<text x="600" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D09 Slash menu</tspan></text>
+<text x="600" y="1074" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">D09 Slash menu</tspan></text>
 <text x="600" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D10 Norwegian dead keys…</tspan></text>
-<text x="600" y="1134" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">D11 Known limit</tspan></text>
+<text x="600" y="1134" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D11 Known limit</tspan></text>
 <text x="600" y="1164" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D12 Paper sidebar</tspan></text>
 <text x="870" y="1074" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D13 Paper masters</tspan></text>
 <text x="870" y="1104" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D14 Task blocks inside a…</tspan></text>
@@ -180,7 +180,7 @@
 <text x="600" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B09 Related-doc views fr…</tspan></text>
 <text x="600" y="1364" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B10 Schema-declared docu…</tspan></text>
 <text x="600" y="1394" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B11 Closing the tab with…</tspan></text>
-<text x="600" y="1424" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">B12 A workspace's declar…</tspan></text>
+<text x="600" y="1424" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B12 A workspace's declar…</tspan></text>
 <text x="870" y="1334" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B13 Singleton types</tspan></text>
 </g>
 <text x="40" y="1498" font-size="14" class="muted">Generated from the task board by scripts/generate-roadmap.mjs. Phases: docs/ROADMAP.md · journeys: JOURNEYS.md · bar: QUALITY.md</text>
