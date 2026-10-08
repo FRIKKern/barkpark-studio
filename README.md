@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 28 changes, 10 tasks closed
+- **Today** · 29 changes, 11 tasks closed
+  - J40: field comments — add, reply, resolve / re-open, edit and delete your own, the Comments panel ([#145](https://github.com/FRIKKern/barkpark-studio/pull/145))
+  - Done: [Barkpark: PATCH /v1/media/:dataset/:id answers 404 for an asset uploaded through /v1/media/:dataset/upload](https://github.com/FRIKKern/barkpark/issues/22041)
   - chore: one Barkpark token pair per local e2e lane (rate limits are per token) ([#144](https://github.com/FRIKKern/barkpark-studio/pull/144))
-  - docs(J40): comments are on the reference plan; releases and scheduled publish are not ([#143](https://github.com/FRIKKern/barkpark-studio/pull/143))
-  - Done: [J46 [after] Phone width: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px](https://github.com/FRIKKern/barkpark/issues/21843)
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
