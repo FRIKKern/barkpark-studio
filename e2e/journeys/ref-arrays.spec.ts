@@ -1,10 +1,10 @@
 import {expect, test, type Page} from '@playwright/test'
-import {target, type Target} from '../rig/targets'
+import {closeAndSettle, target, type Target} from '../rig/targets'
 
 // J09 evidence, both studios, on post-26's categories (a keyed reference array):
 // add an item by search, move it by keyboard, the item "…" menu (Duplicate,
 // Remove). Stills + clips go to e2e/evidence/. Not a CI gate.
-// The categories go back to the seed's after the run, on both sides.
+// The post goes back to the seed after the run, on both sides.
 const ID = 'post-26'
 const shot = (name: string, step: string) => `evidence/J09-${name}-${step}.png`
 test.use({video: 'on'})
@@ -22,8 +22,8 @@ async function itemMenu(t: Target, page: Page, row: number, item: string) {
   await menu.getByRole('menuitem', {name: item}).click()
 }
 
-const SEEDED = [{_type: 'reference', _ref: 'category-opinion', _key: 'c26'}]
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: 'Fixture post 26', categories: SEEDED}))
+// The seed's post back after every run, on both sides (a failed run must not leave the next one dirty).
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'post')))
 
 test('@evidence J09: reference array — add by search, reorder by keyboard, item menu', async ({page}, info) => {
   const t = target(info)
