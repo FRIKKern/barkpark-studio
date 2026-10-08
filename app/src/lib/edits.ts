@@ -233,6 +233,12 @@ export function flush(qc: QueryClient, id: string) {
   void send(qc, id)
 }
 
+/** J53: before a reload to update, send everything waiting and wait for it (at most `ms`). */
+export async function saveAll(qc: QueryClient, ms = 5000) {
+  for (const id of docs.keys()) flush(qc, id)
+  await Promise.race([Promise.all([...docs.keys()].map(whenSaved)), new Promise((r) => setTimeout(r, ms))])
+}
+
 /** Page is going away: hand every unsent change to the browser to deliver. */
 export function flushOnUnload() {
   const mutations = [...docs].flatMap(([id, e]) => {

@@ -4,10 +4,12 @@ import {devSignOut, meQuery} from '../lib/session'
 import {GlobalSearch} from './Search'
 import {WhoIsOnline} from './Presence'
 import {MenuPopover} from './FocusScopes'
-import {Desktop, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
+import {Desktop, HelpCircle, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
 import {useState} from 'react'
 import {useHydratedMark} from '../lib/hydrated'
+import {BUILD, buildName, useNewVersion} from '../lib/version'
+import {saveAll} from '../lib/edits'
 
 export function Navbar() {
   useHydratedMark()
@@ -28,9 +30,64 @@ export function Navbar() {
       </div>
       <div className="nav-right">
         <WhoIsOnline />
+        <Help />
         <Editor />
       </div>
     </nav>
+  )
+}
+
+/**
+ * J53, Sanity's "Help and resources" (top right): a dot on the button when a new
+ * Studio version is out; the Studio item names this build and, when the server
+ * runs a newer one, reads "Reload to update to …" and reloads once every waiting
+ * edit is saved. Sanity's other entries become ours: report a problem, the docs.
+ */
+function Help() {
+  const next = useNewVersion()
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [reloading, setReloading] = useState(false)
+  const reload = async () => {
+    setReloading(true)
+    await saveAll(qc)
+    location.reload()
+  }
+  return (
+    <div className="menu-wrap help" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <button
+        id="help-menu"
+        type="button"
+        className="icon-btn"
+        aria-label="Help and resources"
+        title={next ? 'New version available' : 'Help and resources'}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <HelpCircle />
+        {next && <span className="update-dot" aria-hidden="true" />}
+      </button>
+      {open && (
+        <MenuPopover className="popover menu help-menu" onClose={() => setOpen(false)} aria-labelledby="help-menu">
+          <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio/issues/new/choose" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+            Report a problem
+          </a>
+          <hr />
+          <button type="button" role="menuitem" className="menu-item studio-version" disabled={!next || reloading} data-update={next ? '' : undefined} onClick={reload}>
+            <span className="version-text">
+              <span>Barkpark Studio</span>
+              <span className="muted">{reloading ? 'Saving, then reloading…' : next ? (buildName(next) === buildName(BUILD) ? 'Reload to update' : `Reload to update to ${buildName(next)}`) : 'Up to date'}</span>
+            </span>
+            <span className="version-badge">{buildName(BUILD)}</span>
+          </button>
+          <hr />
+          <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio#readme" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+            Documentation
+          </a>
+        </MenuPopover>
+      )}
+    </div>
   )
 }
 
