@@ -26,7 +26,7 @@ test('@evidence B04: every Barkpark field type renders sanely', async ({page}, i
   await t.settle(page)
   await page.getByRole('tab', {name: 'Main'}).click()
   await expect(t.field(page, 'blurb.nob')).toHaveValue('En bok om felter.')
-  await expect(t.field(page, 'subject')).toHaveValue('FBA')
+  await expect(page.locator('.codelist-tree-field .codelist-current')).toContainText('FBA') // B05: the Thema tree's current code
   await expect(page.getByRole('button', {name: /Ada Lovelace/})).toBeVisible() // contributors: preview rows
   await page.getByRole('tab', {name: 'Metadata'}).click()
   await expect(t.field(page, 'coverColor')).toHaveValue('#2f3f9e')
