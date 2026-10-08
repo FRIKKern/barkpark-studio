@@ -23,7 +23,7 @@ import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
-import {DocHeaderMenu, DocShareMenu} from './DocHeaderMenu'
+import {DocHeaderMenu, DocShareMenu, Keys, useAltName} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
 import {HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {CommentsContext, CommentsPanel} from './Comments'
@@ -35,7 +35,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {ReadErrorCard} from './PaneError'
-import {Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon} from './icons'
+import {Close as CloseIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, Copy, Trash, Undo} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -177,6 +177,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => () => flush(qc, pane.id), [qc, pane.id])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   const [inspectOpen, setInspectOpen] = useState(false)
+  const [askDelete, setAskDelete] = useState(0)
   const metaButton = useRef<HTMLButtonElement>(null)
   const duplicate = (from: Doc) => {
     const id = crypto.randomUUID()
@@ -245,6 +246,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         // Sanity's publish shortcut.
         if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !problems.length) (e.preventDefault(), void publish(qc, doc))
         if (e.ctrlKey && e.altKey && e.code === 'KeyI' && doc) (e.preventDefault(), setInspectOpen(true))
+        if (e.ctrlKey && e.altKey && e.code === 'KeyD' && doc && !viewingPublished) (e.preventDefault(), setAskDelete((n) => n + 1))
         // F7: the document's own undo (this editor's changes only, across fields and
         // across others' edits). The block canvas keeps its own.
         const mod = e.metaKey || e.ctrlKey
@@ -497,7 +499,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
         : viewingPublished
         ? doc && <PublishedFooter doc={doc} single={single} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} single={single} onDuplicate={() => duplicate(doc)} />}
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
       {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema)} onClose={() => setInspectOpen(false)} />}
     </section>
   )
@@ -583,7 +585,7 @@ export const docTitle = (doc: Doc, schema: Schema) => {
 }
 
 /** `single` (B13): a singleton keeps Publish, Discard changes and (in History) Restore only. */
-function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void}) {
+function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void; askDelete: number}) {
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
   const {canWrite, editReason, publishReason, createReason} = useCanWrite()
@@ -593,6 +595,11 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; cl
   const [discarding, setDiscarding] = useState(false)
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
+  const alt = useAltName()
+  // J28: Sanity's Delete shortcut (Ctrl+Alt+D) asks here.
+  useEffect(() => {
+    if (askDelete && !single && canWrite) setDeleting(true)
+  }, [askDelete])
   const label =
     {
       saving: 'Saving…',
@@ -630,7 +637,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; cl
       >
         Publish
       </button>
-      <div className="menu-wrap">
+      {(!single || canDiscard) && <div className="menu-wrap">
         <button type="button" className="icon-btn" aria-label="Document actions" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
@@ -638,20 +645,30 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; cl
           <MenuPopover className="popover menu up" onClose={() => setMenu(false)}>
             {!single && (
               <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
-                Duplicate
+                <span className="menu-icon-text">
+                  <Copy /> Duplicate
+                </span>
               </button>
             )}
-            <button type="button" role="menuitem" className="menu-item" autoFocus={single} disabled={!canDiscard || !canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
-              Discard changes
-            </button>
+            {/* Sanity offers Discard only when there is a draft to discard. */}
+            {canDiscard && (
+              <button type="button" role="menuitem" className="menu-item danger" autoFocus={single} disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
+                <span className="menu-icon-text">
+                  <Undo /> Discard changes
+                </span>
+              </button>
+            )}
             {!single && (
-              <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
-                Delete
+              <button type="button" role="menuitem" className="menu-item danger" aria-keyshortcuts="Control+Alt+D" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
+                <span className="menu-icon-text">
+                  <Trash /> Delete
+                </span>
+                <Keys keys={['Ctrl', alt, 'D']} />
               </button>
             )}
           </MenuPopover>
         )}
-      </div>
+      </div>}
       {deleting && <DeleteDialog doc={doc} closeHref={closeHref} onClose={() => setDeleting(false)} />}
       {discarding && (
         <ConfirmDialog
