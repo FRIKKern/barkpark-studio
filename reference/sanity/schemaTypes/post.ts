@@ -139,5 +139,10 @@ export const post = defineType({
       ],
     }),
   ],
+  // J55: the type's own orderings, offered first in the list's "…" menu.
+  orderings: [
+    {title: 'Publish date, newest', name: 'publishedAtDesc', by: [{field: 'publishedAt', direction: 'desc'}]},
+    {title: 'Rating, highest', name: 'ratingDesc', by: [{field: 'rating', direction: 'desc'}]},
+  ],
   preview: {select: {title: 'title', subtitle: 'author.name', media: 'mainImage'}},
 })

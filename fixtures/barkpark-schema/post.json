@@ -5,6 +5,10 @@
   "groups": [{"name": "content", "title": "Content", "default": true}, {"name": "meta", "title": "Meta"}],
   "initial_values": {"featured": false},
   "list_preview": {"title": "title", "subtitle": "author.name", "media": "mainImage"},
+  "desk": {"orderings": [
+    {"name": "publishedAtDesc", "title": "Publish date, newest", "field": "publishedAt", "direction": "desc"},
+    {"name": "ratingDesc", "title": "Rating, highest", "field": "rating", "direction": "desc"}
+  ]},
   "fields": [
     {"name": "title", "title": "Title", "type": "string", "group": "content", "validation": {"required": true, "max": 120}},
     {"name": "slug", "title": "Slug", "type": "slug", "group": "content", "options": {"source": "title"}, "validation": {"required": true}},

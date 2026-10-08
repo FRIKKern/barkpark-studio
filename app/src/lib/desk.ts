@@ -74,10 +74,13 @@ export function listFilter(node: DeskNode | undefined, treeParent?: string): Des
 export function deskSort(node: DeskNode | undefined): Sort | undefined {
   const o = node?.orderings?.[0]
   if (!o) return undefined
-  if (o.field === 'title' && o.direction === 'asc') return 'title'
-  if (o.field === '_updatedAt' && o.direction === 'desc') return 'updated'
-  if (o.field === '_createdAt' && o.direction === 'desc') return 'created'
-  return undefined
+  if (node!.orderings!.length === 1) {
+    if (o.field === 'title' && o.direction === 'asc') return 'title'
+    if (o.field === '_updatedAt' && o.direction === 'desc') return 'updated'
+    if (o.field === '_createdAt' && o.direction === 'desc') return 'created'
+  }
+  // J55: any other declared order opens as is (Sanity's defaultOrdering), e.g. "year:desc".
+  return node!.orderings!.map((x) => `${x.field}:${x.direction}`).join(',') as Sort
 }
 
 /**

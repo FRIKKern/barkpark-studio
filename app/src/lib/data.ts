@@ -6,6 +6,7 @@ import {readDesk, readSchemas} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
+import type {Sort} from './list-prefs'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -44,7 +45,18 @@ export type Field = {
   readOnly?: boolean | Condition
 }
 export type Group = {name: string; title?: string; default?: boolean}
-export type Schema = {name: string; title: string; fields: Field[]; listPreview?: Record<string, string>; groups?: Group[]; initialValues?: Record<string, unknown>; singleton?: boolean}
+/** J55: a type's own sort, Sanity's `orderings` (Barkpark: the schema's `desk.orderings`). */
+export type Ordering = {name: string; title: string; by: {field: string; direction: 'asc' | 'desc'}[]}
+export type Schema = {name: string; title: string; fields: Field[]; listPreview?: Record<string, string>; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean}
+
+type RawOrdering = {name?: string; title?: string; field?: string; direction?: 'asc' | 'desc'; by?: Ordering['by']}
+const startCase = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase())
+const ordering = (o: RawOrdering): Ordering => {
+  const by = o.by ?? [{field: o.field!, direction: o.direction ?? 'asc'}]
+  return {name: o.name ?? by.map((b) => `${b.field}${startCase(b.direction)}`).join(''), title: o.title ?? startCase(by[0]!.field), by}
+}
+/** An ordering as the list's sort (Barkpark's order expression). */
+export const orderingSort = (o: Ordering) => o.by.map((b) => `${b.field}:${b.direction}`).join(',') as Sort
 
 // Server functions return plain JSON; the typed views below cast it once.
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -58,15 +70,23 @@ async function bpJson<T>(path: string): Promise<T> {
 const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
   const schemas = await readSchemas()
   return schemas
-    .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values, singleton}) => ({name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? [], initialValues: initialValues ?? initial_values ?? {}, singleton: singleton === true})) as unknown as Json
+    .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values, desk, singleton}) => ({
+      name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? [], initialValues: initialValues ?? initial_values ?? {},
+      singleton: singleton === true,
+      orderings: ((desk as {orderings?: RawOrdering[]} | undefined)?.orderings ?? []).filter((o) => o.field || o.by?.length).map(ordering),
+    })) as unknown as Json
 })
 
 // J41, Sanity's paging: a list opens with its first LIST_PAGE rows and loads up to
 // LIST_MAX when you scroll near the end; past that it says so. Order is the server's.
 export const LIST_PAGE = 100
 export const LIST_MAX = 2000
-export type ListOrder = 'updated' | 'created' | 'title'
-const ORDER: Record<ListOrder, string> = {updated: '_updatedAt:desc', created: '_createdAt:desc', title: 'title:asc'}
+export type ListOrder = Sort
+const ORDER: Record<string, string> = {updated: '_updatedAt:desc', created: '_createdAt:desc', title: 'title:asc'}
+// A type ordering arrives as its own order expression; anything else (an old cookie) falls back to last edited.
+// Ties keep creation order, as Sanity's do (its ties fall back to document order).
+const ORDER_EXPR = /^[A-Za-z_][\w.]*:(asc|desc)(,[A-Za-z_][\w.]*:(asc|desc))*$/
+const orderParam = (o: ListOrder | undefined) => ORDER[o ?? 'updated'] ?? (ORDER_EXPR.test(o!) ? `${o},_createdAt:asc` : ORDER.updated)
 /** One loaded list: its rows, and whether the server holds more. */
 export type ListPage = {docs: Doc[]; hasMore: boolean}
 
@@ -85,7 +105,7 @@ const fetchList = createServerFn({method: 'GET'})
     // Barkpark serves at most 1000 rows a request.
     while (hasMore && docs.length < limit) {
       const r = await bpJson<{result: {documents: Doc[]; hasMore: boolean}}>(
-        `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=${ORDER[data.order ?? 'updated']}&limit=${Math.min(limit - docs.length, 1000)}&offset=${docs.length}&perspective=${data.published ? 'published' : 'drafts'}${filterParams(data.filter)}`,
+        `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=${orderParam(data.order)}&limit=${Math.min(limit - docs.length, 1000)}&offset=${docs.length}&perspective=${data.published ? 'published' : 'drafts'}${filterParams(data.filter)}`,
       )
       docs.push(...r.result.documents)
       hasMore = r.result.hasMore

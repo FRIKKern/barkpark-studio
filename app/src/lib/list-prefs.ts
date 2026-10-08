@@ -5,7 +5,8 @@ import {getCookie} from '@tanstack/react-start/server'
 // J25: a list's sort and view stick per type, per viewer (like Sanity's per-user
 // setting). Kept in a cookie so the server renders the list the same way the
 // browser will — no reorder or relayout after the page appears.
-export type Sort = 'title' | 'updated' | 'created'
+// J55: or one of the type's own orderings, as Barkpark's order expression ("publishedAt:desc,title:asc").
+export type Sort = 'title' | 'updated' | 'created' | `${string}:${'asc' | 'desc'}`
 export type View = 'compact' | 'detailed'
 export type ListPrefs = Record<string, {sort?: Sort; view?: View}>
 

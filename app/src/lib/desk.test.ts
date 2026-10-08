@@ -82,4 +82,6 @@ test('filters, tree levels, ops the query API lacks, and orderings', () => {
   assert.deepEqual(unsupportedOps(tree.filter), [])
   assert.equal(deskSort(desk.items?.[2].items?.[0]), 'title')
   assert.equal(deskSort(tree), undefined)
+  // J55: a declared order the menu has no name for still opens as declared.
+  assert.equal(deskSort({...tree, orderings: [{field: 'year', direction: 'desc'}, {field: 'title', direction: 'asc'}]}), 'year:desc,title:asc')
 })

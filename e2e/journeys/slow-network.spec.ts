@@ -69,7 +69,7 @@ test('@evidence J51: Fast 3G — shell, then a loading state in every pane, neve
   const menu = t.listMenu(t.pane(cold, 1))
   await menu.click()
   const clickedAt = await cold.evaluate(() => Math.round(performance.now()))
-  await expect(cold.getByText('Sort by Title')).toBeVisible({timeout: 30_000})
+  await expect(cold.getByText('Sort by Last Edited')).toBeVisible({timeout: 30_000})
   note('list "…" clicked at first sight → menu open (ms from navigation)', {clickedAt, open: await cold.evaluate(() => Math.round(performance.now()))})
   await cold.keyboard.press('Escape')
   // Ours is server-rendered: its links work before hydration, as full page loads.

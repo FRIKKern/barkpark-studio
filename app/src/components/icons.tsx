@@ -225,3 +225,15 @@ export const Trash = () => (
     <path d="M6.5 7.5h12M10.5 7.5v-2h4v2M8 7.5l.8 12h7.4l.8-12M11 10.5v6M14 10.5v6" />
   </svg>
 )
+/** Sanity's StackCompactIcon (list layout: compact). */
+export const StackCompact = () => (
+  <svg {...s}>
+    <path d="M5.5 7.5h14v10h-14zM5.5 10.5h14M5.5 14.5h14" />
+  </svg>
+)
+/** Sanity's StackIcon (list layout: detailed). */
+export const Stack = () => (
+  <svg {...s}>
+    <path d="M5.5 7.5h14v10h-14zM5.5 12.5h14" />
+  </svg>
+)
