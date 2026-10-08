@@ -64,17 +64,26 @@ async function ok(res: Response) {
   return res
 }
 
-const SANITY_API = 'https://0ozn679s.api.sanity.io/v2025-02-19/data/mutate/production'
-const sanityMutate = (mutations: unknown[]) =>
-  fetch(SANITY_API, {
+const SANITY_DATASET = process.env.SANITY_STUDIO_DATASET || 'production'
+const SANITY_API = `https://0ozn679s.api.sanity.io/v2025-02-19/data/mutate/${SANITY_DATASET}`
+const sanityMutate = (mutations: unknown[]) => {
+  if (SANITY_DATASET === 'production') throw new Error('Reference test writes require SANITY_STUDIO_DATASET=e2e-local; start the reference with the same dataset.')
+  return fetch(SANITY_API, {
     method: 'POST',
     headers: {authorization: `Bearer ${need('SANITY_TOKEN')}`, 'content-type': 'application/json'},
     body: JSON.stringify({mutations}),
   }).then(ok)
+}
 
 const sanity: Target = {
   name: 'sanity',
   async prepare(ctx) {
+    // Cover UI writes too, including Sanity's newer actions API. A reference
+    // accidentally built for production must never mutate it during a test.
+    await ctx.route(/\/data\/(?:mutate|actions)\//, (route) => {
+      const allowed = SANITY_DATASET !== 'production' && new URL(route.request().url()).pathname.endsWith(`/${SANITY_DATASET}`)
+      return allowed ? route.continue() : route.abort('blockedbyclient')
+    })
     await ctx.addInitScript((token) => {
       localStorage.setItem('__studio_auth_token_0ozn679s', JSON.stringify({token, time: new Date().toISOString()}))
     }, need('SANITY_TOKEN'))
@@ -121,7 +130,7 @@ const sanity: Target = {
   draftOnly: (id, type, set) => sanityMutate([{delete: {id}}, {createOrReplace: {_id: `drafts.${id}`, _type: type, ...set}}]).then(() => {}),
   versions: async (id) => {
     const q = encodeURIComponent(`*[_id in ["${id}", "drafts.${id}"]]{_id, title}`)
-    const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/production?query=${q}&perspective=raw`, {
+    const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/${SANITY_DATASET}?query=${q}&perspective=raw`, {
       headers: {authorization: `Bearer ${need('SANITY_TOKEN')}`},
     }).then(ok)
     const rows = ((await r.json()) as {result: {_id: string; title: string}[]}).result
@@ -129,7 +138,7 @@ const sanity: Target = {
   },
   docValue: async (id, field) => {
     const q = encodeURIComponent(`coalesce(*[_id == "drafts.${id}"][0], *[_id == "${id}"][0]).${field}`)
-    const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/production?query=${q}&perspective=raw`, {
+    const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/${SANITY_DATASET}?query=${q}&perspective=raw`, {
       headers: {authorization: `Bearer ${need('SANITY_TOKEN')}`},
     }).then(ok)
     return ((await r.json()) as {result: unknown}).result
@@ -140,7 +149,7 @@ const sanity: Target = {
   },
   publishedTitle: async (id) => {
     const q = encodeURIComponent(`*[_id == "${id}"][0].title`)
-    const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/production?query=${q}&perspective=published`, {
+    const r = await fetch(`https://0ozn679s.api.sanity.io/v2025-02-19/data/query/${SANITY_DATASET}?query=${q}&perspective=published`, {
       headers: {authorization: `Bearer ${need('SANITY_TOKEN')}`},
     }).then(ok)
     return ((await r.json()) as {result?: string}).result

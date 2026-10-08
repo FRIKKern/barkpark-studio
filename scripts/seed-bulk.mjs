@@ -2,14 +2,19 @@
 // J41's big list: 5,000 `bulk` docs in the Barkpark dataset and the reference Sanity
 // dataset. Kept out of seed-barkpark.mjs so the main seed stays small and fast.
 //
-//   node --env-file=.env scripts/seed-bulk.mjs     # BARKPARK_DATASET, default production
+//   node --env-file=.env scripts/seed-bulk.mjs     # defaults to e2e-local
+// Both targets must be e2e-local or e2e-local-*; production is never seeded here.
 import {readFileSync} from 'node:fs'
 
 const N = 5000
 const BATCH = 250
 const env = (k, d) => process.env[k] ?? d ?? fail(`missing env ${k}`)
 const BASE = `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${env('BARKPARK_PROJECT', 'default')}`
-const DATASET = env('BARKPARK_DATASET', 'production')
+const DATASET = env('BARKPARK_DATASET', 'e2e-local')
+const SANITY_DATASET = env('SANITY_STUDIO_DATASET', DATASET)
+for (const dataset of [DATASET, ...(process.env.SANITY_TOKEN ? [SANITY_DATASET] : [])]) {
+  if (!/^e2e-local(?:-[a-z0-9-]+)?$/.test(dataset)) fail('bulk fixtures require an e2e-local dataset')
+}
 function fail(msg) {
   console.error(`seed-bulk: ${msg}`)
   process.exit(1)
@@ -43,7 +48,7 @@ for (let i = 0; i < N; i += BATCH) {
 console.log()
 
 if (process.env.SANITY_TOKEN) {
-  const api = 'https://0ozn679s.api.sanity.io/v2025-02-19/data/mutate/production'
+  const api = `https://0ozn679s.api.sanity.io/v2025-02-19/data/mutate/${SANITY_DATASET}`
   for (let i = 0; i < N; i += BATCH) {
     const res = await fetch(api, {
       method: 'POST',
@@ -51,7 +56,7 @@ if (process.env.SANITY_TOKEN) {
       body: JSON.stringify({mutations: docs.slice(i, i + BATCH).map((d) => ({createOrReplace: d}))}),
     })
     if (!res.ok) fail(`sanity → ${res.status} ${(await res.text()).slice(0, 300)}`)
-    process.stdout.write(`\rsanity production: ${Math.min(i + BATCH, N)}/${N}`)
+    process.stdout.write(`\rsanity ${SANITY_DATASET}: ${Math.min(i + BATCH, N)}/${N}`)
   }
   console.log()
 }
