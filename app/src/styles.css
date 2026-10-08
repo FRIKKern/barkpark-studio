@@ -833,6 +833,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* Reference arrays (J09): rows of reference previews; a new row searches */
 .ref-row-preview, .ref-row-search { flex: 1; min-width: 0; }
+/* Sanity's empty reference row: a small label (with its error mark) over the search. */
+.ref-row-label { display: flex; align-items: center; gap: 4px; font-size: 13px; line-height: 19px; font-weight: 500; margin: 4px 0 8px; }
 .ref-row-preview .preview { border-radius: 3px; }
 
 /* Barkpark-native field types (B04), after the LiveView Studio */

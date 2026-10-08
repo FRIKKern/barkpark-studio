@@ -64,7 +64,7 @@ export function LevelIcon({level, label}: {level: Level; label?: string}) {
 }
 
 /** The mark beside a field label; `within`: also what a collapsed object hides. */
-function ProblemMark({path, within}: {path: string; within?: boolean}) {
+export function ProblemMark({path, within}: {path: string; within?: boolean}) {
   const all = useContext(ProblemsContext).filter((p) => p.path === path || (within && p.path.startsWith(`${path}.`)))
   const level = worst(all)
   if (!level) return null

@@ -1,4 +1,4 @@
-import type {Doc, Field, Rule, Schema} from './data'
+import {itemPath, refId, type Doc, type Field, type Rule, type Schema} from './data'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
 // Barkpark keeps rules as data on each field: a map or a list of maps
@@ -36,6 +36,9 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
     const doc = target(value)
     if (doc === null || doc?._hasPublished === false) push({}, 'Referenced document must be published')
   }
+  // Sanity: an empty row in an array of references is an error on that row.
+  if (field.of?.type === 'reference' && Array.isArray(value))
+    value.forEach((it, i) => refId(it) || out.push({path: itemPath(path, it, i), title, message: 'Must be a reference to a document', level: 'error', ...(parents.length ? {parents} : {}), group}))
   if (field.type === 'composite')
     for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target)
 }
