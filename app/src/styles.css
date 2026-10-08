@@ -1207,3 +1207,5 @@ fieldset.object-field > .field-comments { top: -38px; }
   .image-empty-box .btn { min-height: 44px; }
   .hotspot-tool .handle-grab { display: inline; }
 }
+/* J35: the body's expand button at phone width (F12). */
+@media (max-width: 768px) { .body-expand { width: 44px; height: 44px; top: 0; right: 0; } }

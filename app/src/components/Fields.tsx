@@ -526,7 +526,8 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         aria-readonly={readOnly || undefined}
         tabIndex={0}
         onClick={(e) => !readOnly && !(e.target as HTMLElement).closest('a') && ((at.current = clickedAt(e.clientX, e.clientY)), setActive(true))}
-        onKeyDown={(e) => !readOnly && (e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey && (e.preventDefault(), setActive(true))}
+        // Keys on the box itself; Enter or Space on the expand button is that button's own click.
+        onKeyDown={(e) => !readOnly && e.target === e.currentTarget && (e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey && (e.preventDefault(), setActive(true))}
       >
         {!readOnly && (
           <button type="button" className="icon-btn body-expand" aria-label="Expand editor" onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))}>
@@ -550,7 +551,15 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       ref={box}
       data-expanded={expanded || undefined}
       style={expanded ? area : undefined}
-      onKeyDown={(e) => expanded && e.key === 'Escape' && !e.defaultPrevented && (e.stopPropagation(), toggle())}
+      // Escape collapses. Caught before the canvas, whose own keymap takes Escape to
+      // select the parent block; an open canvas menu or the link input keeps it.
+      onKeyDownCapture={(e) =>
+        expanded &&
+        e.key === 'Escape' &&
+        (e.target as HTMLElement).closest('.ProseMirror') &&
+        ![...document.querySelectorAll('[role="listbox"], [role="menu"]')].some((m) => m.checkVisibility()) &&
+        (e.preventDefault(), e.stopPropagation(), toggle())
+      }
     >
       <button type="button" className="icon-btn body-expand" aria-label={expanded ? 'Collapse editor' : 'Expand editor'} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle}>
         {expanded ? <Collapse /> : <Expand />}
