@@ -6,7 +6,7 @@ import {target} from '../rig/targets'
 const firstRow = (page: Page) => page.locator('a[href^="/structure/post;"]').first()
 const firstTitle = async (page: Page) => (await firstRow(page).innerText()).split('\n')[0]
 
-test('@local J24 J25: list search, empty state, sort that sticks', async ({page}, info) => {
+test("@local J24 J25 J55: list search, empty state, the type's own sort that sticks", async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
   await page.goto(t.listPath('post'))
@@ -29,14 +29,15 @@ test('@local J24 J25: list search, empty state, sort that sticks', async ({page}
   await expect(page.getByPlaceholder('Search list')).toBeFocused()
   await expect(page.getByPlaceholder('Search list')).toHaveValue('')
 
-  // J25: sort by title, survives a reload; back to the default.
+  // J25 + J55: sort by one of the type's own orderings (rating, highest; ties in
+  // creation order), survives a reload; back to the default.
   try {
     await t.listMenu(list).click()
-    await page.getByText('Sort by Title').click()
-    await expect.poll(() => firstTitle(page)).toBe('Fixture post 01')
+    await page.getByText('Sort by Rating, highest').click()
+    await expect.poll(() => firstTitle(page)).toBe('Fixture post 05')
     await page.reload()
     await t.settle(page)
-    await expect.poll(() => firstTitle(page)).toBe('Fixture post 01')
+    await expect.poll(() => firstTitle(page)).toBe('Fixture post 05')
   } finally {
     await t.listMenu(t.pane(page, 1)).click()
     await page.getByText('Default sort').click()
