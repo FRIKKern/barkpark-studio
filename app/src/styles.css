@@ -1280,3 +1280,8 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .review-img-none { display: grid; place-items: center; font-size: 12px; color: var(--muted); }
 /* J37: Vision's selects and Fetch at phone width (F12). */
 @media (max-width: 768px) { .vision select, .vision .btn { min-height: 44px; } }
+/* J09: array rows at phone width (F12): handle, item "…" and its menu, Add item. */
+@media (max-width: 768px) {
+  .array-row > .drag-handle, .array-row .menu-wrap > .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
+  .array-row [role='menu'] .menu-item, .add-item { min-height: 44px; }
+}
