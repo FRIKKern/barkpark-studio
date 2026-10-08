@@ -45,6 +45,8 @@ export default defineConfig({
       reuseExistingServer: !!process.env.CI,
       timeout: 60_000,
       stdout: 'pipe',
+      // A local lane's studio server writes on its own token (scripts/lane-token.mjs).
+      ...(process.env.BARKPARK_APP_TOKEN ? {env: {...process.env, BARKPARK_TOKEN: process.env.BARKPARK_APP_TOKEN} as Record<string, string>} : {}),
     },
   ],
 })

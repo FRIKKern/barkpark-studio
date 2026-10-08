@@ -16,8 +16,10 @@ const config = () => ({
   token: currentEditor()?.token ?? env('BARKPARK_TOKEN'),
 })
 
-/** The studio's own token, for what isn't any one editor's business (the content model). */
-export const serviceToken = () => env('BARKPARK_TOKEN')
+/** The studio's own token, for what isn't any one editor's business (the content model).
+ *  A local e2e lane runs on its own member token (scripts/lane-token.mjs) and keeps the
+ *  .env token here, since member tokens can't read schemas yet (task-23c4ac86976c46a9). */
+export const serviceToken = () => process.env.BARKPARK_SERVICE_TOKEN || env('BARKPARK_TOKEN')
 
 /** The token this request acts with (the editor's, or the studio's). */
 export const requestToken = () => config().token

@@ -16,6 +16,8 @@
 - The side-by-side sign-off and the reference clip are the proof. Not a test.
 - Add a test only if it is fast (< 5 s, whole e2e suite < 60 s) and guards
   something that can break silently. Rule 5 in [`QUALITY.md`](QUALITY.md).
+- Local lanes: `node --env-file=.env scripts/lane-token.mjs e2e-<lane>` once gives that dataset its own
+  Barkpark tokens (rate limits are per token); `BARKPARK_DATASET=e2e-<lane> pnpm test` uses them.
 
 ## Docs
 
