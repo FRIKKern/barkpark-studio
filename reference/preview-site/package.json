@@ -1,0 +1,26 @@
+{
+  "name": "barkpark-studio-reference-preview",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port ${PREVIEW_PORT:-3536} --strictPort",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@sanity/client": "^7.27.0",
+    "@sanity/preview-url-secret": "^4.1.5",
+    "@sanity/react-loader": "^2.2.3",
+    "@sanity/visual-editing": "^3.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "styled-components": "^6.5.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^5.8",
+    "vite": "^8.3.4"
+  }
+}
