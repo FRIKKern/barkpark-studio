@@ -41,9 +41,13 @@ export function useReconnectingToast() {
   const [reads, setReads] = useState(false)
   useEffect(() => {
     const cache = qc.getQueryCache()
-    const check = () => setReads(cache.getAll().some(struggling))
+    // The cache reports while other components render (a useQuery registering its
+    // query): look after that render, never set state inside it.
+    let gone = false
+    const check = () => queueMicrotask(() => !gone && setReads(cache.getAll().some(struggling)))
     check()
-    return cache.subscribe(check)
+    const unsubscribe = cache.subscribe(check)
+    return () => ((gone = true), unsubscribe())
   }, [qc])
   const down = live || reads
   useEffect(() => {
