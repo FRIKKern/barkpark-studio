@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 30 changes, 11 tasks closed
+- **Today** · 31 changes, 11 tasks closed
+  - chore: the reference is Sanity project ecu57yeh (0ozn679s is quota-locked) ([#147](https://github.com/FRIKKern/barkpark-studio/pull/147))
   - fix(J38): global search matches every text field, ranked like Sanity ([#146](https://github.com/FRIKKern/barkpark-studio/pull/146))
   - J40: field comments — add, reply, resolve / re-open, edit and delete your own, the Comments panel ([#145](https://github.com/FRIKKern/barkpark-studio/pull/145))
-  - Done: [Barkpark: PATCH /v1/media/:dataset/:id answers 404 for an asset uploaded through /v1/media/:dataset/upload](https://github.com/FRIKKern/barkpark/issues/22041)
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
