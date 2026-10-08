@@ -445,7 +445,7 @@ button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .menu-item:disabled { color: var(--disabled); cursor: default; background: none; }
 
 /* Field groups + objects + booleans (J14), after Sanity's */
-.group-tabs { display: flex; gap: 4px; margin: -12px 0 64px; }
+.group-tabs { display: flex; gap: 4px; margin: -7px 0 78px; }
 .group-tabs [role=tab] { font: inherit; font-size: 13px; padding: 5px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
 .group-tabs [role=tab]:hover { background: var(--hover); }
 .group-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
