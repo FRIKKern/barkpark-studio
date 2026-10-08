@@ -12,3 +12,4 @@ e2e/evidence/
 *.tmp.mjs
 *.tmp.sh
 .studio-dev-tokens.json
+.e2e-lane-tokens.json

@@ -1,6 +1,6 @@
 // Run identically in PowerShell, cmd and POSIX shells. Keep the test dataset out
 // of the hand-poke production dataset, even when .env names production.
-import {existsSync} from 'node:fs'
+import {existsSync, readFileSync} from 'node:fs'
 import {loadEnvFile} from 'node:process'
 import {spawnSync} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
@@ -14,6 +14,16 @@ process.env.BARKPARK_DATASET ||= 'e2e-local'
 const envFile = fileURLToPath(new URL('../.env', import.meta.url))
 if (existsSync(envFile)) loadEnvFile(envFile)
 process.env.SANITY_TOKEN ||= process.env.SANITY_AUTH_TOKEN || ''
+// A lane's own member tokens (scripts/lane-token.mjs): the studio server on `app`, the
+// specs on `rig`, so neither shares a rate-limit bucket with the other or another lane.
+// The .env token stays the studio's service token (schemas).
+const laneTokens = fileURLToPath(new URL('../.e2e-lane-tokens.json', import.meta.url))
+const lane = existsSync(laneTokens) && JSON.parse(readFileSync(laneTokens, 'utf8'))[process.env.BARKPARK_DATASET]
+if (lane?.app && lane?.rig && mode !== 'reset') {
+  process.env.BARKPARK_SERVICE_TOKEN = process.env.BARKPARK_TOKEN
+  process.env.BARKPARK_APP_TOKEN = lane.app
+  process.env.BARKPARK_TOKEN = lane.rig
+}
 if (mode === 'baseline') process.env.BASELINE = '1'
 if (mode === 'evidence') process.env.EVIDENCE = '1'
 if (mode === 'reference') {
