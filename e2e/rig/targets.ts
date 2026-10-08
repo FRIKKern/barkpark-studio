@@ -76,6 +76,16 @@ export const sanityMutate = (mutations: unknown[]) => {
   }).then(ok)
 }
 
+/** Sanity's document actions (edit a draft, publish it), same guard as sanityMutate. */
+const sanityActions = (actions: unknown[]) => {
+  if (SANITY_DATASET === 'production') throw new Error('Reference test writes require SANITY_STUDIO_DATASET=e2e-local; start the reference with the same dataset.')
+  return fetch(SANITY_API.replace('/data/mutate/', '/data/actions/'), {
+    method: 'POST',
+    headers: {authorization: `Bearer ${need('SANITY_TOKEN')}`, 'content-type': 'application/json'},
+    body: JSON.stringify({actions}),
+  }).then(ok)
+}
+
 const sanity: Target = {
   name: 'sanity',
   async prepare(ctx) {
@@ -157,7 +167,15 @@ const sanity: Target = {
   },
   deleteDoc: (id) => sanityMutate([{delete: {id: `drafts.${id}`}}, {delete: {id}}]).then(() => {}),
   patch: (id, set) => sanityMutate([{patch: {id, set}}]).then(() => {}),
-  restore: (id, set, _type, unset = []) => sanityMutate([{delete: {id: `drafts.${id}`}}, {patch: {id, set, unset}}]).then(() => {}),
+  // Restored through a draft and a real publish: a patch straight onto the published
+  // doc leaves Sanity's history without a publish event, and its Review changes then
+  // reads "Since: unknown version" with no changes listed (J15).
+  restore: async (id, set, _type, unset = []) => {
+    await sanityMutate([{delete: {id: `drafts.${id}`}}])
+    const draftId = `drafts.${id}`
+    await sanityActions([{actionType: 'sanity.action.document.edit', draftId, publishedId: id, patch: {set, unset}}])
+    await sanityActions([{actionType: 'sanity.action.document.publish', draftId, publishedId: id}])
+  },
 }
 
 const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
