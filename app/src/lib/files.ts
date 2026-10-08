@@ -33,7 +33,8 @@ export function formatBytes(bytes: number): string {
 /** The picker's size column: "99 byte", "2.48 MB" (Sanity's getHumanFriendlyBytes, 1000-based, Intl units; B01: in the Studio's language). */
 export function humanBytes(bytes: number, locale: 'en' | 'nb-NO' = 'en'): string {
   const [n, unit] = bytes < 1e3 ? [bytes, 'byte'] : bytes < 1e6 ? [bytes / 1e3, 'kilobyte'] : bytes < 1e9 ? [bytes / 1e6, 'megabyte'] : [bytes / 1e9, 'gigabyte']
-  return new Intl.NumberFormat(locale === 'nb-NO' ? 'nb-NO' : 'en-US', {style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: 2}).format(n)
+  const tag = locale === 'nb-NO' ? 'nb-NO' : 'en-US'
+  return (unitFormats[`${tag} ${unit}`] ??= new Intl.NumberFormat(tag, {style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: 2})).format(n)
 }
 
 const MIME: Record<string, string> = {
@@ -64,8 +65,13 @@ export function mimeTitle(mime: string | undefined): string {
 export function ago(iso: string, now = Date.now(), locale: 'en' | 'nb-NO' = 'en'): string {
   const s = Math.round((now - new Date(iso).getTime()) / 1000)
   if (s < 60) return locale === 'nb-NO' ? 'akkurat nå' : 'just now'
-  const rtf = new Intl.RelativeTimeFormat(locale === 'nb-NO' ? 'nb' : 'en', {numeric: 'auto'})
+  const tag = locale === 'nb-NO' ? 'nb' : 'en'
+  const rtf = (longRtf[tag] ??= new Intl.RelativeTimeFormat(tag, {numeric: 'auto'}))
   for (const [unit, size] of [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]] as const)
     if (Math.abs(s) >= size) return rtf.format(-Math.floor(s / size), unit)
   return rtf.format(-s, 'second')
 }
+
+// Formatters are costly to build: one per locale (and unit), kept.
+const unitFormats: Record<string, Intl.NumberFormat> = {}
+const longRtf: Record<string, Intl.RelativeTimeFormat> = {}

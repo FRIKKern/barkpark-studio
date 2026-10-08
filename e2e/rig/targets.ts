@@ -55,6 +55,15 @@ export type Target = {
   restore(id: string, set: Record<string, unknown>, type?: string, unset?: string[]): Promise<void>
 }
 
+/**
+ * Before an afterEach puts fixture docs back: close the page and give a save it already
+ * sent time to land, or that save lands after the reset and leaves a draft behind.
+ */
+export async function closeAndSettle(page: Page) {
+  await page.close()
+  await new Promise((r) => setTimeout(r, 1500))
+}
+
 /** One document of fixtures/seed.ndjson, as Sanity holds it. */
 function seedDoc(id: string) {
   const doc = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
@@ -252,6 +261,8 @@ const studio: Target = {
   // The whole seed document, as scripts/seed-barkpark.mjs writes it, replaces the draft
   // and is published: whatever a journey changed (a pasted document, J29) is gone.
   resetDoc: async (id, type) => {
+    // A draft the run left would otherwise survive the replace and be what gets published.
+    await bpMutate([{discardDraft: {id, type}}]).catch(() => {}) // none: nothing to discard
     await bpMutate([{createOrReplace: {_id: id, _type: type, ...toBarkpark(seedDoc(id))}}, {publish: {id, type}}])
   },
   publishedTitle: async (id) => {
