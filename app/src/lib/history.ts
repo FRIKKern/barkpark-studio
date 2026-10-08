@@ -1,13 +1,13 @@
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {bpFetch, dataset, serviceToken} from '../server/barkpark'
+import {bpFetch, dataset} from '../server/barkpark'
 import type {Doc} from './data'
 
 // Document history (J16), from Barkpark's snapshots: /v1/data/history lists the
 // revisions (newest first), /v1/data/revision/:id is one snapshot, and its
 // /restore writes that snapshot back as the draft — what Sanity's Restore does.
-// Barkpark names who acted only by token id (task-d0c6a847e2a4658e); the studio
-// server turns the per-editor dev tokens' ids into their emails.
+// Barkpark names who acted: actor_label is the acting token owner's email, read with
+// any member token (task-d0c6a847e2a4658e, barkpark #22115).
 
 export type {Revision} from './timeline'
 export {actionLabel, timeline, type HistoryEntry} from './timeline'
@@ -16,29 +16,12 @@ type RawRevision = {id: string; action: string; status: 'draft' | 'published'; t
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 
-/**
- * Token id → editor email, for the tokens this studio minted (label "app:<email>",
- * server/auth.ts). Listing them needs an admin token; without one (CI) authors stay
- * "API token". Barkpark should name actors itself: task-d0c6a847e2a4658e.
- */
-let names: Promise<Map<string, string>> | undefined
-async function actorNames(): Promise<Map<string, string>> {
-  names ??= (async () => {
-    const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/app-tokens`, {headers: {authorization: `Bearer ${serviceToken()}`}}).catch(() => undefined)
-    if (!res?.ok) return new Map()
-    const {tokens} = (await res.json()) as {tokens: {id: string; label: string}[]}
-    return new Map(tokens.filter((t) => t.label.startsWith('app:')).map((t) => [t.id, t.label.slice(4)]))
-  })()
-  return names
-}
-
 const fetchHistory = createServerFn({method: 'GET'})
   .validator((d: {type: string; id: string}) => d)
   .handler(async ({data}) => {
     const res = await bpFetch(`/v1/data/history/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?limit=100`)
     if (!res.ok) throw new Error(`history ${res.status}`)
     const {revisions} = (await res.json()) as {revisions: RawRevision[]}
-    const known = await actorNames()
     return revisions.map((r) => ({
       id: r.id,
       action: r.action,
@@ -46,7 +29,7 @@ const fetchHistory = createServerFn({method: 'GET'})
       timestamp: r.timestamp,
       title: r.title,
       actorId: r.actor_id,
-      author: r.actor_label || (r.actor_id && known.get(r.actor_id)) || 'API token',
+      author: r.actor_label || 'API token', // a row with no owner (a service token)
     })) as unknown as Json
   })
 
