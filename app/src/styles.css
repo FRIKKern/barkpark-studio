@@ -468,6 +468,8 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .validation-btn[data-problems] { color: #e5483f; position: relative; }
 .validation-btn[data-problems]::after { content: ''; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: #e5483f; }
 .validation-btn[aria-pressed='true'] { background: var(--hover-strong); }
+.doc-split { flex: 1; display: flex; min-height: 0; }
+.doc-column { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .doc-main { flex: 1; display: flex; min-height: 0; }
 .doc-main > .pane-body { flex: 1; }
 .inspector { width: 345px; flex: none; border-left: 1px solid var(--border); padding: 12px; overflow: auto; font-size: 13px; }
@@ -664,7 +666,6 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* History (J16), after Sanity's: timeline of revisions with author, action badge and time */
 .inspector.history header { padding-left: 0; }
-.history-note { margin: 0 0 8px; padding: 4px 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); font-size: 11px; color: var(--muted); }
 .inspector .history-list { gap: 2px; }
 .history-list button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px; border: 0; border-radius: 3px; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg-strong); }
 .history-list button:hover { background: var(--hover); }
@@ -688,6 +689,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 /* Review changes (J15), after Sanity's: change bars beside changed fields, and the inspector's diff list */
 .change-bar { position: absolute; top: 34px; bottom: 0; right: -10px; width: 2px; padding: 0; border: 0; border-radius: 1px; background: #e8783f; cursor: pointer; }
 .change-bar:hover, .change-bar:focus-visible { width: 5px; right: -11px; outline: none; }
+.history-note { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; padding: 4px 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); font-size: 10px; line-height: 14px; color: var(--muted); }
+.history-note strong { color: var(--fg); font-weight: 600; }
+.history-note svg { flex: none; width: 13px; height: 13px; }
 .review-range { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; margin: 0 0 12px; padding: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
 .review-range div { display: contents; }
 .review-range dt { color: var(--muted); }
