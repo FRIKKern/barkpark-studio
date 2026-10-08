@@ -32,6 +32,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## Barkpark (FRIKKern/barkpark at daf78d095, Apache-2.0)
+
+Copied: `app/src/vendor/barkpark-fleet.css`, the task/fleet block rules of
+`api/assets/paper-surface/paper-surface.css`, until Barkpark serves that stylesheet to
+external hosts (task-7fb8088ab39c7a36). Same owner as this repo.
+
 ## Barkdown (FRIKKern/barkdown at bb3c8ad7, Apache-2.0)
 
 Ported: the save loop in `app/src/components/PortableDocEditor.tsx`. It comes from

@@ -208,6 +208,8 @@ export default {
   'Your edit is still on screen.': 'Endringen din vises fortsatt.',
   'Discard unsaved edits': 'Forkast ulagrede endringer',
   'The editor could not load: {reason}': 'Redigeringsverktøyet kunne ikke lastes: {reason}',
+  // D14: a task block with nothing to show (Barkpark's own words)
+  'Nothing to show yet.': 'Ingenting å vise ennå.',
   // D13 paper masters ("mal", as Barkpark's own Studio says it)
   'Saved as master': 'Lagret som mal',
   'Could not save the block as a master': 'Kunne ikke lagre blokken som mal',
