@@ -48,3 +48,27 @@ test('@evidence F13: axe on the J01–J04 screens', async ({page}, info) => {
 
   if (t.name === 'studio') expect(all.flat(), 'axe violations on our J01–J04 screens').toEqual([])
 })
+
+test('@local J47: the list, a list search and validation are announced', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'Sanity announces none of these; the check runs on ours')
+  await t.prepare(page.context())
+  await page.goto('/structure')
+  await signInIfAsked(page)
+  await t.settle(page)
+  const heard = page.getByTestId('announcer')
+  await page.locator('a[href="/structure/post"]').click()
+  await expect(heard).toHaveText('Post, 30 documents')
+  await expect(page.getByRole('region', {name: 'Post'})).toBeVisible()
+  await page.getByRole('searchbox', {name: 'Search list'}).fill('zzzz')
+  await expect(heard).toHaveText('No results found')
+  await page.getByRole('searchbox', {name: 'Search list'}).fill('')
+  await t.listItem(page, ID).click()
+  await expect(page.getByRole('region', {name: TITLE})).toBeVisible()
+  try {
+    await t.field(page, 'title').fill('')
+    await expect(heard).toHaveText('1 validation error. Title: Required. Publishing is blocked.')
+  } finally {
+    await t.restore(ID, {title: TITLE})
+  }
+})

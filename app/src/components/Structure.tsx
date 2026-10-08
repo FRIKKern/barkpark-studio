@@ -5,6 +5,7 @@ import {useNavigate} from '@tanstack/react-router'
 import {deskQuery, docQuery, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {deskIndex, deskSort, listFilter, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
+import {announce} from '../lib/announce'
 import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
 import {collapsed, NARROW, NarrowContext} from '../lib/layout'
 import {useLive} from '../lib/live'
@@ -255,7 +256,7 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
   const selected = next && (next.kind === 'menu' || next.kind === 'list' || next.kind === 'doc') ? next.node : undefined
   const isRoot = panes[index].kind === 'types'
   return (
-    <section className="pane types" data-testid="pane" data-pane={isRoot ? 'types' : `menu:${node?.id ?? ''}`} data-pane-index={index}>
+    <section className="pane types" aria-label={node?.title ?? (isRoot ? 'Content' : 'List')} data-testid="pane" data-pane={isRoot ? 'types' : `menu:${node?.id ?? ''}`} data-pane-index={index}>
       <header className="pane-header">
         <BackLink panes={panes} index={index} />
         <span className="title">{node?.title ?? (isRoot ? 'Content' : '')}</span>
@@ -293,7 +294,7 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   // each opening its one document (id = the type's name).
   const singletons = schemas.filter((s) => s.singleton)
   return (
-    <section className="pane types" data-testid="pane" data-pane="types" data-pane-index={index}>
+    <section className="pane types" aria-label="Content" data-testid="pane" data-pane="types" data-pane-index={index}>
       <header className="pane-header">
         <span className="title">Content</span>
       </header>
@@ -419,8 +420,20 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   // Ticked docs as the list has them now (a live edit since the tick is taken into account).
   const pickedDocs = useMemo(() => [...picked.values()].map((d) => docs?.find((x) => x._publishedId === d._publishedId) ?? d), [picked, docs])
   const selectable = !tree && !published && !isSingleton(schemas, type)
+  // J47: a list says what it holds when it opens, and what a search found (the last pane only).
+  const listTitle = node?.title ?? schemaOf(schemas, type)?.title ?? type
+  const isLastPane = index === panes.length - 1
+  const heard = useRef('')
+  useEffect(() => {
+    if (!isLastPane || !docs || !searchComplete) return
+    const q = query.trim()
+    const text = q
+      ? shown.length ? `${shown.length} ${shown.length === 1 ? 'result' : 'results'} for ${q}` : 'No results found'
+      : `${listTitle}, ${docs.length}${page?.hasMore ? ' or more' : ''} ${docs.length === 1 ? 'document' : 'documents'}`
+    if (text !== heard.current) (heard.current = text, announce(text))
+  }, [isLastPane, docs, shown.length, searchComplete, query, listTitle, page?.hasMore])
   return (
-    <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
+    <section className="pane list" aria-label={listTitle} aria-busy={!page || undefined} data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
       <header className="pane-header">
         <BackLink panes={panes} index={index} />
         <PaneTitle pane={panes[index]} />
@@ -489,7 +502,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           ) : (
             <ListSkeleton />
           ))}
-        {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty" role="status">{query.trim() ? 'No results found' : 'No documents of this type'}</p>}
+        {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty">{query.trim() ? 'No results found' : 'No documents of this type'}</p>}
         {shown.map((d) => {
           const row = (
             <DocPreview
