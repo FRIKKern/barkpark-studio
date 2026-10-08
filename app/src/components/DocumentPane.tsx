@@ -3,8 +3,6 @@ import {useCallback, useContext, useEffect, useMemo, useRef, useState, type Reac
 import {NarrowContext} from '../lib/layout'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
-import {currentScopeQuery} from '../lib/scope-switch'
-import {canvasOrigin} from '../lib/blocks'
 import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
@@ -494,12 +492,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
                   : t('{n} others have this document open. Freeform has no shared carets. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {n: here.length})}
               </p>
             )}
-            {pane.type === 'paper' && <PaperReadOnly id={pane.id} />}
             <PortableDocEditor
               type={pane.type}
               id={pane.id}
               labels={fieldLabels}
-              editable={pane.type !== 'paper'}
               openDoc={(docId, docType) => navigate({href: openAfter(panes, index, {kind: 'doc', id: docId, type: docType})})}
             />
           </div>
@@ -1000,29 +996,6 @@ function copyPasteKey(e: React.KeyboardEvent) {
     e.stopPropagation()
     return key === 'c' ? entry.copy() : entry.paste!()
   }
-}
-
-/**
- * A paper's body can't be saved over HTTP with a member token yet (Barkpark
- * task-7ee817f37630d669: the document ops route refuses papers, the Bulldocs one takes
- * the ingest token only), so its canvas opens read-only and says where to edit it. The
- * paper sidebar (metadata) saves through the document API and stays editable.
- */
-function PaperReadOnly({id}: {id: string}) {
-  const t = useT()
-  const {data: scope} = useQuery(currentScopeQuery)
-  const {data: origin} = useQuery({queryKey: ['canvas-origin'], queryFn: () => canvasOrigin(), staleTime: Infinity})
-  const href = scope && origin ? `${origin}/w/${scope.workspace}/p/${scope.project}/d/${scope.dataset}/studio/paper/${encodeURIComponent(id)}` : undefined
-  return (
-    <div className="pane-banner paper-read-only" role="note" data-testid="paper-read-only">
-      <span>{t("Papers can't be edited here yet.")}</span>
-      {href && (
-        <a href={href} target="_blank" rel="noreferrer">
-          {t('Open in Barkpark Studio')}
-        </a>
-      )}
-    </div>
-  )
 }
 
 /** B09: the docs a desk view relates to this one (Barkpark's view bar), each opening to the right. */
