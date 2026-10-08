@@ -1,9 +1,9 @@
-import {useCallback, useState} from 'react'
+import {useCallback, useContext, useEffect, useState} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Field} from '../lib/data'
 import {copy} from '../lib/clipboard'
-import {FieldView, type OpenRef} from './Fields'
+import {FieldView, UrlPathContext, type OpenRef} from './Fields'
 import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, DocumentIcon} from './icons'
 
@@ -23,6 +23,14 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   const of = field.of!
   const [editing, setEditing] = useState<string | null>(null)
   const index = items.findIndex((it) => it._key === editing)
+  // J52: a link to a field inside an item (path=links[_key=="l1"].title, or Sanity's
+  // path=links[_key=="l1"]) opens that item's dialog; the pane then focuses the field.
+  const urlPath = useContext(UrlPathContext)
+  const wantKey = urlPath?.startsWith(`${id}[_key=="`) ? urlPath.slice(id.length + 8).split('"]')[0] : undefined
+  useEffect(() => {
+    if (wantKey && items.some((it) => it._key === wantKey)) setEditing(wantKey)
+    // Only when the URL names another item, not on every edit of this one.
+  }, [wantKey])
   const set = (next: Item[]) => onChange(next)
   // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
   const renderItem = useCallback(

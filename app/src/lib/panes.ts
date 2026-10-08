@@ -32,7 +32,9 @@ export function parseDocSegments(segs: string[], listType: string): Extract<Pane
     let first: Extract<Pane, {kind: 'doc'}> | undefined
     for (const part of seg.split('|')) {
       const [id, ...params] = part.split(',')
-      const p = Object.fromEntries(params.filter(Boolean).map((kv) => kv.split('=').map(decodeURIComponent)))
+      // Split each param at its first "=" only: the router shows the URL decoded, and a
+      // field path inside an array item has its own (path=links[_key=="l1"].title).
+      const p = Object.fromEntries(params.filter(Boolean).map((kv) => [kv.slice(0, kv.indexOf('=') < 0 ? kv.length : kv.indexOf('=')), kv.indexOf('=') < 0 ? '' : kv.slice(kv.indexOf('=') + 1)].map(decodeURIComponent)))
       const pane: Extract<Pane, {kind: 'doc'}> = {
         kind: 'doc',
         id: id ? decodeURIComponent(id) : first?.id ?? '',
