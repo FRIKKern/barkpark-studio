@@ -177,7 +177,7 @@ function RangePicker({label, text, options, selected, onPick}: {label: string; t
         <DialogBox className="popover review-pick-menu" onClose={() => setOpen(false)} aria-label={label}>
           <ul className="history-list" aria-label={label}>
             {options.map((e) => (
-              <Row key={e.revision.id} e={e} plain selected={e === selected} onPick={() => (setOpen(false), onPick(e))} />
+              <Row key={e.revision.id} e={e} selected={e === selected} onPick={() => (setOpen(false), onPick(e))} />
             ))}
           </ul>
         </DialogBox>
