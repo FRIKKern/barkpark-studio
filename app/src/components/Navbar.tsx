@@ -17,7 +17,7 @@ export function Navbar() {
     <nav className="navbar">
       <div className="brand">
         <span className="logo">B</span>
-        Barkpark Studio
+        <span className="brand-name">Barkpark Studio</span>
         <GlobalSearch />
       </div>
       {/* J37: Sanity's tool switcher. The active tool is the highlighted tab. */}
@@ -154,6 +154,7 @@ function Editor() {
 const TOOLS = [
   ['/structure', 'Structure'],
   ['/vision', 'Vision'],
+  ['/media', 'Media'],
 ] as const
 
 // Sanity's wording: the item reads "System", its name is "Use system appearance".
