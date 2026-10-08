@@ -1166,3 +1166,16 @@ fieldset.object-field > .field-comments { top: -38px; }
 .scope-actions { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 768px) { .scope-ws { display: none; } .scope-button { min-height: 44px; max-width: 120px; } .scope-actions button, .scope-field .input { min-height: 44px; } }
 @media (max-width: 480px) { .scope-popover { position: fixed; top: 52px; left: 8px; right: 8px; width: auto; } }
+
+/* J42/F12: on a touch-size screen every control in a doc pane is a 44 px tap. The
+   perspective chips sit in a clipping title, so a clear border grows their box (the inset
+   ring and background keep their drawn size); Publish gets an invisible hit area; the field
+   menu and Generate, stacked close together, take real size so their taps don't overlap. */
+@media (max-width: 768px) {
+  button.chip, button.chip[data-active], button.chip[data-selected]:not([data-active]), button.chip:hover { border-style: solid; border-color: transparent; border-width: 10px 0; background-clip: padding-box; }
+  .doc-footer .publish { position: relative; }
+  .doc-footer .publish::after { content: ''; position: absolute; z-index: 1; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+  button.icon-btn[aria-label='Field actions'] { min-width: 44px; min-height: 44px; }
+  .field > .field-actions, .field > .field-comments { top: -10px; } /* their 44 px end where the input begins */
+  .btn-create { min-height: 44px; }
+}
