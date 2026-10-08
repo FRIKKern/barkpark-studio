@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
-import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult} from '../lib/blocks'
+import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult, type Rev} from '../lib/blocks'
 import {toast} from './Toasts'
 import {unsavedElsewhere} from '../lib/edits'
 import {t as translate, useT} from '../lib/i18n'
@@ -90,7 +90,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   openDocRef.current = openDoc
   const vocabularyKey = vocabulary ? JSON.stringify(vocabulary) : ''
   const canvas = useRef<Canvas | null>(null)
-  const loop = useRef({rev: '', saving: 0, requests: 0})
+  const loop = useRef<{rev: Rev; saving: number; requests: number}>({rev: '', saving: 0, requests: 0})
   const [save, setSave] = useState<Save>({state: 'idle'})
   const [problem, setProblem] = useState<Problem | null>(null)
   // B11: closing the tab asks first while this canvas holds a batch not yet saved or refused.
@@ -125,7 +125,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       setSave({state: 'saving'})
       try {
         let r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
-        for (let tries = 0; !r.ok && r.status === 412 && r.actual && tries < 3; tries++) {
+        for (let tries = 0; !r.ok && r.status === 412 && r.actual !== undefined && r.actual !== null && tries < 3; tries++) {
           l.rev = r.actual
           r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
         }
