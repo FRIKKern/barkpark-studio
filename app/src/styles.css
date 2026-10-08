@@ -1310,3 +1310,6 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 /* J34: a tag's × at phone width (F12). The button itself grows: a wider invisible
    hit area would reach over the next tag's text and remove the wrong one. */
 @media (max-width: 768px) { .tags-box .tag button { width: 44px; height: 44px; } }
+/* J44: a boolean switch at phone width (F12): its invisible input reaches 45x45
+   around the 33x19 track. */
+@media (max-width: 768px) { .switch input { inset: -13px -6px; } }
