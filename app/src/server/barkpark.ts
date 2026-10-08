@@ -85,7 +85,9 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
   return new Response(body, {status, headers: type ? {'content-type': type} : {}})
 }
 
-const READ_DEDUPE_MS = 500
+export const READ_DEDUPE_MS = 500
+/** Drop the shared reads: none may answer for a point after this one. */
+export const forgetReads = () => recent.clear()
 const recent = new Map<string, {expires: number; res: Promise<{status: number; type: string | null; body: string}>}>()
 
 async function send(base: string, path: string, init: RequestInit, token: string, retry = true): Promise<Response> {

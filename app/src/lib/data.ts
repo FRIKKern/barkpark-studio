@@ -1,7 +1,8 @@
 import {queryOptions, type QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
-import {bpFetch, dataset} from '../server/barkpark'
+import {bpFetch, dataset, requestToken} from '../server/barkpark'
+import {resumeMark} from '../server/listen'
 import {readDesk, readSchemas} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
@@ -286,6 +287,9 @@ const fetchBacklinks = createServerFn({method: 'GET'})
 /** Documents that reference `id` ("used in"). Barkpark indexes edges a moment after a write. */
 export const backlinksQuery = (id: string) =>
   queryOptions({queryKey: ['backlinks', id], staleTime: 5_000, queryFn: async () => (await fetchBacklinks({data: {id}})) as unknown as Backlink[]})
+
+/** Where a server-rendered page resumes its live stream (see server/listen.ts resumeMark). */
+export const fetchResumeMark = createServerFn({method: 'GET'}).handler(async () => resumeMark(requestToken()))
 
 /** Last known viewport width (cookie), so the server lays panes out like the client will. */
 export const fetchViewportHint = createServerFn({method: 'GET'}).handler(async () => {

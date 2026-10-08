@@ -199,14 +199,19 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
     await Promise.all([referenceHold(a, t.field(a, 'name'), 'Grace Hopper X'), referenceHold(b, bRef)])
     // The list's author subtitle must remain live after B closes its post pane;
     // subscribing to post mutations alone leaves an already-loaded author stale.
-    // Ours: the list is live once its stream is open; a write before that would be a page-load race, not J23.
-    const listening = t.name === 'studio' ? b.waitForResponse((r) => r.url().includes('/api/listen?')) : null
+    // Ours: the write lands after the list rendered on the server but before its
+    // stream opens (held), and still reaches it (task-e888fb12ca6ff84c).
+    let release = () => {}
+    if (t.name === 'studio') {
+      const held = new Promise<void>((r) => (release = r))
+      await b.route('**/api/listen?**', async (route) => (await held, route.continue()))
+    }
     await b.goto(t.listPath('post'))
     const row = t.listItem(b, 'post-08')
     await expect(row).toContainText('Grace Hopper X')
-    await listening
     // A's edit has forked a draft; Sanity's direct helper names versions explicitly.
     await t.patch(t.name === 'sanity' ? 'drafts.author-grace' : 'author-grace', {name: 'Grace Hopper live'}, 'author')
+    release()
     await expect(row).toContainText('Grace Hopper live')
     await referenceHold(b, row)
   } finally {

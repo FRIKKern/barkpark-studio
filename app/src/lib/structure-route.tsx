@@ -2,7 +2,7 @@ import type {QueryClient} from '@tanstack/react-query'
 import {usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
-import {deskQuery, docQuery, ensureDocs, refId, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
+import {deskQuery, docQuery, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {deskIndex, deskSort, listFilter, parseDeskPanes, unsupportedOps} from './desk'
 import {parseSingletonPanes, type Pane} from './panes'
 import {previewRefs} from './preview'
@@ -10,6 +10,7 @@ import {meQuery} from './session'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useState} from 'react'
 import {useReconnectingToast} from './connection'
+import {resumeLive} from './live'
 import {redirect} from '@tanstack/react-router'
 
 // Everything a pane chain needs before it paints: schemas, the list, every open
@@ -28,6 +29,8 @@ export async function requireEditor(queryClient: QueryClient, href: string) {
 
 export async function loadPanes(queryClient: QueryClient, splat: string | undefined) {
   const onServer = typeof window === 'undefined'
+  // Before any read: frames after this point reach the page once its stream opens.
+  const resume = onServer ? await fetchResumeMark() : undefined
   // B12: a declared desk decides what the URL's segments name.
   // B13: without a desk, a singleton type's segment is its one doc, so schemas come first too.
   const [desk, schemas] = await Promise.all([queryClient.ensureQueryData(deskQuery), queryClient.ensureQueryData(schemasQuery)])
@@ -57,12 +60,12 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   ])
   if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, 0, false))]))) {
     void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))
-    return {panes, widthHint, listPrefs}
+    return {panes, widthHint, listPrefs, resume}
   }
   const [listed, open] = await data
   const refs = followRefs(queryClient, schemas, listed, open)
   if (onServer) await refs
-  return {panes, widthHint, listPrefs}
+  return {panes, widthHint, listPrefs, resume}
 }
 
 /** The docs open docs reference, and what every visible preview needs; a preview that fails shows its own state. */
@@ -103,7 +106,8 @@ async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [D
   return [...byType.values()].flatMap((ids) => [...ids].map((id) => qc.getQueryData<Doc | null>(['doc', id])).filter((d): d is Doc => !!d))
 }
 
-export function StructureView({panes, widthHint, listPrefs}: {panes: Pane[]; widthHint: number; listPrefs: ListPrefs}) {
+export function StructureView({panes, widthHint, listPrefs, resume}: {panes: Pane[]; widthHint: number; listPrefs: ListPrefs; resume?: number | null}) {
+  resumeLive(resume)
   const [prefs, setPrefs] = useState(listPrefs)
   const set = (type: string, p: ListPrefs[string]) =>
     setPrefs((all) => {

@@ -16,12 +16,12 @@
 // upstream has been quiet, when one of our own writes gets no echo, and after 45 s
 // with no byte at all (Barkpark sends a keepalive every 30 s).
 import '@tanstack/react-start/server-only'
-import {bpFetch, scope} from './barkpark'
+import {bpFetch, forgetReads, READ_DEDUPE_MS, scope} from './barkpark'
 import type {Scope} from '../lib/scope'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
-type Buffered = {id: number; docId: string; type?: string; frame: string}
+type Buffered = {id: number; docId: string; type?: string; frame: string; at: number}
 const BUFFER = 2000
 
 // One hub per token and scope: each editor listens as themself (their own access, their
@@ -42,6 +42,8 @@ type Hub = {
   attempt: AbortController | null
   lastByte: number
   lastFrameFor: Map<string, number>
+  /** When the upstream first answered (0: not listening). A reconnect resumes at Last-Event-ID, so it stays live. */
+  liveSince: number
 }
 
 const QUIET_MS = 1000
@@ -53,7 +55,7 @@ const hubFor = (token: string): Hub => {
   const at = scope()
   const key = hubKey(token, at)
   let h = hubs.get(key)
-  if (!h) hubs.set(key, (h = {token, scope: at, subscribers: new Set(), upstream: null, lastEventId: null, buffer: [], knownFrom: null, attempt: null, lastByte: 0, lastFrameFor: new Map()}))
+  if (!h) hubs.set(key, (h = {token, scope: at, subscribers: new Set(), upstream: null, lastEventId: null, buffer: [], knownFrom: null, attempt: null, lastByte: 0, lastFrameFor: new Map(), liveSince: 0}))
   return h
 }
 
@@ -65,9 +67,34 @@ export const head = (token: string) => {
   return b.length ? b[b.length - 1].id : -1
 }
 
+/**
+ * Where a page rendered on the server resumes its stream (?since=); call it
+ * before the page's reads. A listening hub answers as of READ_DEDUPE_MS ago (a
+ * read may be a shared one from that long before; a frame replayed twice is
+ * harmless). A hub not listening yet starts now, and the shared reads are dropped
+ * so every read after this is newer than its first frame. Null only when Barkpark's
+ * stream does not answer in time: the page then reads again once it connects.
+ */
+export async function resumeMark(token: string): Promise<number | null> {
+  const hub = hubFor(token)
+  const before = Date.now() - READ_DEDUPE_MS
+  if (hub.upstream && hub.liveSince && hub.liveSince <= before) {
+    for (let i = hub.buffer.length - 1; i >= 0; i--) if (hub.buffer[i].at <= before) return hub.buffer[i].id
+    return -1 // every frame it holds came after: replay them all
+  }
+  if (!hub.upstream) {
+    void connect(hub)
+    if (hub.subscribers.size === 0) idleLater(hub)
+  }
+  for (const end = Date.now() + 1000; !hub.liveSince && Date.now() < end; ) await new Promise((r) => setTimeout(r, 20))
+  if (!hub.liveSince) return null
+  forgetReads()
+  return head(token)
+}
+
 export const publishedId = (id: string) => (id.startsWith('drafts.') ? id.slice(7) : id)
 
-export function subscribe(token: string, ids: string[], types: string[], send: Subscriber['send'], since?: number): () => void {
+export function subscribe(token: string, ids: string[], types: string[], send: Subscriber['send'], since?: number, resumed = false): () => void {
   const hub = hubFor(token)
   const {buffer, subscribers} = hub
   const knownFrom = hub.knownFrom
@@ -82,18 +109,23 @@ export function subscribe(token: string, ids: string[], types: string[], send: S
   clearTimeout(hub.idleTimer)
   if (!hub.upstream) void connect(hub)
   // A browser back after a gap: if the upstream has been quiet, it may be dead.
-  else if (since !== undefined && Date.now() - hub.lastByte > QUIET_MS) refresh(hub)
+  // Not for a page resuming from its server render: resumeMark just found the upstream live.
+  else if (since !== undefined && !resumed && Date.now() - hub.lastByte > QUIET_MS) refresh(hub)
   return () => {
     subscribers.delete(sub)
-    if (subscribers.size === 0) {
-      clearTimeout(hub.idleTimer)
-      hub.idleTimer = setTimeout(() => {
-        if (subscribers.size > 0) return
-        hub.upstream?.abort()
-        hub.upstream = null
-      }, 60_000)
-    }
+    if (subscribers.size === 0) idleLater(hub)
   }
+}
+
+/** Close the upstream a minute after the last browser leaves (or none came). */
+function idleLater(hub: Hub) {
+  clearTimeout(hub.idleTimer)
+  hub.idleTimer = setTimeout(() => {
+    if (hub.subscribers.size > 0) return
+    hub.upstream?.abort()
+    hub.upstream = null
+    hub.liveSince = 0
+  }, 60_000)
 }
 
 /** Re-open the upstream now, resuming at the last event id. */
@@ -133,6 +165,7 @@ async function connect(hub: Hub) {
       const res = await bpFetch(`/v1/data/listen/${hub.scope.dataset}`, {headers, signal: attempt.signal}, hub.token, {at: hub.scope})
       if (!res.ok || !res.body) throw new Error(`listen ${res.status}`)
       hub.lastByte = Date.now()
+      hub.liveSince ||= Date.now()
       delay = 500
       await pump(hub, res.body)
     } catch (err) {
@@ -183,7 +216,7 @@ function dispatch(hub: Hub, frame: string) {
   hub.lastFrameFor.set(docId, Date.now())
   if (hub.lastFrameFor.size > 5000) hub.lastFrameFor.clear()
   const out = `id: ${id}\nevent: mutation\ndata: ${data.join('\n')}\n\n`
-  buffer.push({id: n, docId, type: payload.type, frame: out})
+  buffer.push({id: n, docId, type: payload.type, frame: out, at: Date.now()})
   if (buffer.length > BUFFER) {
     buffer.shift()
     hub.knownFrom = buffer[0].id

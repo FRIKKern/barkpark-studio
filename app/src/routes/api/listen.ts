@@ -24,7 +24,9 @@ export const Route = createFileRoute('/api/listen')({
             // The welcome carries the stream position, so a page that has seen no frame
             // yet still knows where to resume from.
             send(`id: ${Number.isFinite(since) ? since : head(token)}\nevent: welcome\ndata: {}\n\n`)
-            const unsubscribe = subscribe(token, ids, types, send, Number.isFinite(since) ? since : undefined)
+            // resumed=1: the first stream of a server-rendered page (not a reconnect, which sends Last-Event-ID).
+            const resumed = q.get('resumed') === '1' && !request.headers.get('last-event-id')
+            const unsubscribe = subscribe(token, ids, types, send, Number.isFinite(since) ? since : undefined, resumed)
             const ping = setInterval(() => send(': ping\n\n'), 15_000)
             cleanup = () => {
               clearInterval(ping)

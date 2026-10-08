@@ -15,6 +15,19 @@ type Frame = {documentId: string; type: string; mutation: string; result: Doc | 
 // asks the server for everything since, so nothing falls between two streams.
 let lastSeen: string | null = null
 
+// A page rendered on the server read its data before its stream opened. The
+// server says where to resume from (its listen position as of that read); when it
+// was not listening yet (null), the page reads what is on screen again once connected.
+let readAgain = false
+let fromRender = false
+let resumed = false
+export function resumeLive(mark: number | null | undefined) {
+  if (typeof window === 'undefined' || mark === undefined || resumed) return
+  resumed = true
+  if (mark === null) readAgain = true
+  else (lastSeen = String(mark)), (fromRender = true)
+}
+
 export function useLive(ids: string[], types: string[]) {
   const qc = useQueryClient()
   const key = `ids=${[...new Set(ids)].sort().join(',')}&types=${[...new Set(types)].sort().join(',')}`
@@ -25,7 +38,8 @@ export function useLive(ids: string[], types: string[]) {
     let stopped = false
     let retry: ReturnType<typeof setTimeout> | undefined
     const open = () => {
-      es = new EventSource(`/api/listen?${key}${lastSeen ? `&since=${lastSeen}` : ''}`)
+      es = new EventSource(`/api/listen?${key}${lastSeen ? `&since=${lastSeen}` : ''}${fromRender ? '&resumed=1' : ''}`)
+      fromRender = false
       // EventSource retries a dropped stream by itself (sending Last-Event-ID); one
       // it gave up on (CLOSED) is reopened here with ?since=.
       es.onerror = () => {
@@ -34,7 +48,11 @@ export function useLive(ids: string[], types: string[]) {
       }
       // The server lost track of where we were: refetch what is on screen.
       es.addEventListener('reset', () => void qc.invalidateQueries())
-      es.addEventListener('welcome', (e) => (setLiveDown(false), (e as MessageEvent).lastEventId && !lastSeen ? (lastSeen = (e as MessageEvent).lastEventId) : null))
+      es.addEventListener('welcome', (e) => {
+        setLiveDown(false)
+        if ((e as MessageEvent).lastEventId && !lastSeen) lastSeen = (e as MessageEvent).lastEventId
+        if (readAgain) (readAgain = false), void qc.invalidateQueries()
+      })
       es.addEventListener('mutation', onFrame)
     }
     // e2e probe: cut the stream for `ms`, as a dead network would.
