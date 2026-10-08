@@ -1,0 +1,10 @@
+{
+  "name": "siteSettings",
+  "title": "Site settings",
+  "visibility": "public",
+  "singleton": true,
+  "fields": [
+    {"name": "title", "title": "Site title", "type": "string"},
+    {"name": "tagline", "title": "Tagline", "type": "string"}
+  ]
+}

@@ -5,8 +5,8 @@ import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {validate, type Problem} from '../lib/validation'
-import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
-import {createDoc, discardDraft, edit, flush, publish, reasonOf, undo, unpublish, useSaveState} from '../lib/edits'
+import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {createDoc, discardDraft, draftNew, edit, flush, publish, reasonOf, undo, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
@@ -141,6 +141,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Creation actions seed their draft explicitly. A missing deep link must not
   // silently become a new document; keep the deleted-document recovery (J32).
   const deleted = useDeleted(pane.type, pane.id, draftQ.data === null && !viewingPublished)
+  // B13: a singleton's one document (id = its type) that does not exist opens empty and
+  // is created on its first edit, like a new doc; never "not found" nor "deleted" (it
+  // can't be deleted here; History still restores an old version).
+  const single = isSingleton(schemas, pane.type)
+  useEffect(() => {
+    if (single && pane.id === pane.type && draftQ.data === null && !viewingPublished) draftNew(qc, pane.type, pane.id, schemaOf(schemas, pane.type)?.initialValues ?? {})
+  }, [single, pane.id, pane.type, draftQ.data, viewingPublished])
   // J44: the form's fields are memoized, so what they get must hold still while
   // typing: one steady onEdit (it reads the latest doc), one onChange per field
   // name, and context values that change only when their content does.
@@ -434,8 +441,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       {pane.rev
         ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
         : viewingPublished
-        ? doc && <PublishedFooter doc={doc} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} onDuplicate={() => duplicate(doc)} />}
+        ? doc && <PublishedFooter doc={doc} single={single} />
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} single={single} onDuplicate={() => duplicate(doc)} />}
       {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema)} onClose={() => setInspectOpen(false)} />}
     </section>
   )
@@ -520,7 +527,8 @@ export const docTitle = (doc: Doc, schema: Schema) => {
   return t === 'Untitled' && doc._hasPublished === false ? `New ${schema.title}` : t
 }
 
-function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref: string; blocked: number; onDuplicate: () => void}) {
+/** `single` (B13): a singleton keeps Publish, Discard changes and (in History) Restore only. */
+function DocFooter({doc, closeHref, blocked, single, onDuplicate}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void}) {
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
   const {canWrite, editReason, publishReason, createReason} = useCanWrite()
@@ -573,15 +581,19 @@ function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref:
         </button>
         {menu && (
           <MenuPopover className="popover menu up" onClose={() => setMenu(false)}>
-            <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
-              Duplicate
-            </button>
-            <button type="button" role="menuitem" className="menu-item" disabled={!canDiscard || !canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
+            {!single && (
+              <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
+                Duplicate
+              </button>
+            )}
+            <button type="button" role="menuitem" className="menu-item" autoFocus={single} disabled={!canDiscard || !canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
               Discard changes
             </button>
-            <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
-              Delete
-            </button>
+            {!single && (
+              <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
+                Delete
+              </button>
+            )}
           </MenuPopover>
         )}
       </div>
@@ -600,7 +612,7 @@ function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref:
 }
 
 /** The Published perspective: read-only, and the way to take a document down. */
-function PublishedFooter({doc}: {doc: Doc}) {
+function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const {canWrite, publishReason} = useCanWrite()
@@ -609,9 +621,12 @@ function PublishedFooter({doc}: {doc: Doc}) {
       <span className="save-state" role="status">
         Published
       </span>
-      <button className="publish danger" disabled={!canWrite} title={publishReason} onClick={() => setConfirm(true)}>
-        Unpublish
-      </button>
+      {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
+      {!single && (
+        <button className="publish danger" disabled={!canWrite} title={publishReason} onClick={() => setConfirm(true)}>
+          Unpublish
+        </button>
+      )}
       {/* B07: who refers to it is listed before it goes. */}
       {confirm && <UnpublishDialog docs={[doc]} run={() => unpublish(qc, doc)} onClose={() => setConfirm(false)} />}
     </footer>

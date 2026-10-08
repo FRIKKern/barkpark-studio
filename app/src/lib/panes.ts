@@ -55,6 +55,21 @@ export function parseDocSegments(segs: string[], listType: string): Extract<Pane
   return panes
 }
 
+/**
+ * B13: with no declared desk, a singleton type's segment opens its one document (id =
+ * the type, Barkpark's rule) instead of a list, as a desk singleton does (B12): the doc
+ * carries the segment as its `node`, so it prints back as just the type.
+ */
+export function parseSingletonPanes(splat: string | undefined, singletons: Set<string>): Pane[] {
+  const segs = (splat ?? '').split(';').filter(Boolean)
+  const idOf = (seg = '') => decodeURIComponent(seg.split('|')[0]!.split(',')[0]!)
+  const type = idOf(segs[0])
+  if (!singletons.has(type)) return parsePanes(splat)
+  // A list-style link to it (`type;id`: search, Copy URL, an old link) is the same doc.
+  const docs = idOf(segs[1]) === type ? segs.slice(1) : segs
+  return [{kind: 'types'}, ...parseDocSegments(docs, type).map((d, k) => (k === 0 ? {...d, node: type} : d))]
+}
+
 export function panesPath(panes: Pane[]): string {
   const segs: string[] = []
   for (const [i, p] of panes.entries()) {

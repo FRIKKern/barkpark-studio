@@ -50,7 +50,7 @@ export type Group = {name: string; title?: string; default?: boolean}
 export type Ordering = {name: string; title: string; by: {field: string; direction: 'asc' | 'desc'}[]}
 /** A row's preview: title and media name fields; the subtitle may be prepared (J56, lib/preview.ts). */
 export type ListPreview = {title?: string; subtitle?: PreviewText; media?: string}
-export type Schema = {name: string; title: string; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]}
+export type Schema = {name: string; title: string; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean}
 
 type RawOrdering = {name?: string; title?: string; field?: string; direction?: 'asc' | 'desc'; by?: Ordering['by']}
 const startCase = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase())
@@ -73,8 +73,9 @@ async function bpJson<T>(path: string): Promise<T> {
 const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
   const schemas = await readSchemas()
   return schemas
-    .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values, desk}) => ({
+    .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values, desk, singleton}) => ({
       name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? [], initialValues: initialValues ?? initial_values ?? {},
+      singleton: singleton === true,
       orderings: ((desk as {orderings?: RawOrdering[]} | undefined)?.orderings ?? []).filter((o) => o.field || o.by?.length).map(ordering),
     })) as unknown as Json
 })
@@ -336,6 +337,8 @@ const fetchSearchAll = createServerFn({method: 'GET'})
 export const searchAllDocs = async (q: string) => (await fetchSearchAll({data: {q}})) as unknown as Doc[]
 
 export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) => s.name === type)
+/** B13: a singleton type has one document, whose id is the type's name (Barkpark's rule): no list, no create, duplicate, delete or unpublish. */
+export const isSingleton = (schemas: Schema[], type: string) => schemaOf(schemas, type)?.singleton === true
 
 /** The types a reference field (or a reference array's member) may point to. */
 /** A reference value: a bare id, or a keyed array item {_key, _type: 'reference', _ref} (task-fb4c4703cc92b32e). */

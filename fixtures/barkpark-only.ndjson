@@ -8,3 +8,4 @@
 {"_id": "studio", "_type": "tag", "title": "studio"}
 {"_id": "portabledoc", "_type": "tag", "title": "portabledoc"}
 {"_id": "paper-01", "_type": "paper", "title": "Fixture paper 01", "description": "A paper fixture: its sidebar carries the slug, description and weighted tags.", "main_tag": "studio", "tags": [{"tag": "portabledoc", "strength": 60, "rationale": "the body is a PortableDoc block list in the canvas"}, {"tag": "studio", "strength": 85, "rationale": "part of the Studio Parity goal for a new Barkpark Studio"}], "body": {"blocks": [{"id": "pp1h", "type": "heading", "level": 2, "content": [{"type": "text", "value": "A paper"}]}, {"id": "pp1p", "type": "paragraph", "content": [{"type": "text", "value": "Its metadata lives in the sidebar, never in the body."}]}]}}
+{"_id": "siteSettings", "_type": "siteSettings", "title": "Fixture site", "tagline": "One document, opened from the desk."}

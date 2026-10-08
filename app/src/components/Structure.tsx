@@ -2,7 +2,7 @@ import {Fragment, useContext, type ReactNode, useEffect, useLayoutEffect, useMem
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {deskQuery, docQuery, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {deskQuery, docQuery, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {deskIndex, deskSort, listFilter, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
 import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
@@ -238,7 +238,7 @@ function RootPane({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
   const menu = useDeskNode(pane.kind === 'menu' ? pane.node : undefined)
   const next = panes[index + 1]
-  if (!desk) return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.type : undefined} />
+  if (!desk) return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.type : next?.kind === 'doc' ? next.id : undefined} />
   return <DeskPane panes={panes} index={index} node={pane.kind === 'menu' ? menu : desk} />
 }
 
@@ -288,7 +288,10 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   const order = ['post', 'author', 'category']
   // Types not named here keep the schema's order, after these (they used to sort first).
   const rank = (name: string) => (order.includes(name) ? order.indexOf(name) : order.length)
-  const types = [...schemas].sort((a, b) => rank(a.name) - rank(b.name))
+  const types = [...schemas].filter((s) => !s.singleton).sort((a, b) => rank(a.name) - rank(b.name))
+  // B13: singletons are not lists. Like Barkpark's default desk they sit under Settings,
+  // each opening its one document (id = the type's name).
+  const singletons = schemas.filter((s) => s.singleton)
   return (
     <section className="pane types" data-testid="pane" data-pane="types" data-pane-index={index}>
       <header className="pane-header">
@@ -301,6 +304,12 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
             <span className="chev">
               <ChevronRight />
             </span>
+          </PaneLink>
+        ))}
+        {singletons.length > 0 && <div className="desk-divider">Settings</div>}
+        {singletons.map((s) => (
+          <PaneLink key={s.name} className="type-row" href={openAfter(panes, index, {kind: 'doc', id: s.name, type: s.name, node: s.name})} aria-current={selected === s.name && index === panes.length - 2} data-selected={selected === s.name ? '' : undefined}>
+            {s.title}
           </PaneLink>
         ))}
       </div>
@@ -409,13 +418,14 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   }
   // Ticked docs as the list has them now (a live edit since the tick is taken into account).
   const pickedDocs = useMemo(() => [...picked.values()].map((d) => docs?.find((x) => x._publishedId === d._publishedId) ?? d), [picked, docs])
-  const selectable = !tree && !published
+  const selectable = !tree && !published && !isSingleton(schemas, type)
   return (
     <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
       <header className="pane-header">
         <BackLink panes={panes} index={index} />
         <PaneTitle pane={panes[index]} />
-        <button
+        {/* B13: a singleton type has its one document, never a new one. */}
+        {!isSingleton(schemas, type) && <button
           type="button"
           className="icon-btn"
           aria-label={`Create new ${schemaOf(schemas, type)?.title ?? type}`}
@@ -435,7 +445,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           }}
         >
           <Add />
-        </button>
+        </button>}
         <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} />
       </header>
       <div className="search">
