@@ -197,3 +197,9 @@ export const SignOut = () => (
     <path d="M14.5 8.5v-2h-8v12h8v-2M11 12.5h9M17 9.5l3 3-3 3" strokeLinejoin="round" />
   </svg>
 )
+export const TagIcon = () => (
+  <svg {...s}>
+    <path d="M12.5 5.5h7v7l-8 8-7-7 8-8z" />
+    <circle cx="16" cy="9" r="1" />
+  </svg>
+)

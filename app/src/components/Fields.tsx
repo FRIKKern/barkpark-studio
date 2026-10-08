@@ -307,7 +307,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
  * tick later, and a controlled input re-rendered with that older value drops the
  * keystrokes typed in between. A new value from outside (remote edit) still wins.
  */
-function TextInput({id, value, onChange, rows, readOnly}: {id: string; value: string; onChange: (v: unknown) => void; rows?: number; readOnly?: boolean}) {
+export function TextInput({id, value, onChange, rows, readOnly}: {id: string; value: string; onChange: (v: unknown) => void; rows?: number; readOnly?: boolean}) {
   const [local, setLocal] = useState(value)
   const [seen, setSeen] = useState(value)
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
