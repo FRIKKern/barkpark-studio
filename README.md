@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 112 changes, 75 tasks closed
-  - J11 spec: press End/Enter at a person's pace after the click ([#230](https://github.com/FRIKKern/barkpark-studio/pull/230))
-  - Done: [Disabled top-menu tab reason is an English sentence built in the plugin registry, so it cannot be translated](https://github.com/FRIKKern/barkpark/issues/22173)
-  - J11: the body canvas no longer clips its own block menu ([#229](https://github.com/FRIKKern/barkpark-studio/pull/229))
+- **Today** · 113 changes, 77 tasks closed
+  - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
+  - Done: [Barkpark: login session tokens accepted on the scoped data API for workspace members](https://github.com/FRIKKern/barkpark/issues/21753)
+  - Done: [Desk list rows announce the English status word (draft/published) to Norwegian screen-reader users](https://github.com/FRIKKern/barkpark/issues/22198)
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
