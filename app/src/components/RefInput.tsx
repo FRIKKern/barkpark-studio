@@ -93,6 +93,7 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
       filter={filter}
       current={value}
       autoFocus={autoFocus || focusSearch.current}
+      invalid={invalid}
       onPick={(picked) => {
         focusPreview.current = true
         change(picked)
@@ -159,12 +160,13 @@ type SearchProps = {
   filter?: RefFilter
   current?: string
   autoFocus?: boolean
+  invalid?: boolean
   onPick: (id: string) => void
   onCancel?: () => void
   onCreate: (q: string, type: string) => void
 }
 
-function RefSearch({id, types, filter, current, autoFocus, onPick, onCancel, onCreate}: SearchProps) {
+function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCancel, onCreate}: SearchProps) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: currentDoc} = useQuery({...docQuery(types, current ?? ''), enabled: !!current})
   const [q, setQ] = useState(() => (currentDoc ? previewTitle(currentDoc, schemaOf(schemas, currentDoc._type)) : ''))
@@ -206,6 +208,8 @@ function RefSearch({id, types, filter, current, autoFocus, onPick, onCancel, onC
           autoFocus={autoFocus}
           id={id}
           className="input"
+          data-invalid={invalid || undefined}
+          aria-invalid={invalid || undefined}
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
