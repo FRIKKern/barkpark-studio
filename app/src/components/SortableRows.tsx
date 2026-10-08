@@ -2,7 +2,7 @@ import {memo, useContext, useRef, useState, type KeyboardEvent, type PointerEven
 import {MenuPopover} from './FocusScopes'
 import {useRevealed} from '../lib/reveal'
 import {Add, DragHandle, Ellipsis} from './icons'
-import {DocIdContext} from './Fields'
+import {DocIdContext, fieldClipboard} from './Fields'
 import {FieldPresence} from './Presence'
 
 // Sanity's array rows (J34 strings, J33 objects, J09 references): a drag handle
@@ -162,7 +162,14 @@ type RowProps<T> = {item: T; orig: number; at: number; moving: boolean; readOnly
 const Row = memo(function Row<T>({item, orig, at, moving, readOnly, path, renderItem, act}: RowProps<T>) {
   return (
     // J07: the item's own path, so focus in it shows as presence on this row (Sanity's).
-    <div role="listitem" className="array-row" data-moving={moving || undefined} data-presence-path={path}>
+    <div
+      role="listitem"
+      className="array-row"
+      data-moving={moving || undefined}
+      data-presence-path={path}
+      // J29: Cmd/Ctrl+C on a focused row copies that item.
+      ref={(el) => void (el && act.hasCopy() && fieldClipboard.set(el, {copy: () => act.copy(orig)}))}
+    >
       <button
         type="button"
         className="icon-btn drag-handle"

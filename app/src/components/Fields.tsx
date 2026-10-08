@@ -176,11 +176,34 @@ function ChangeBar({onClick}: {onClick: () => void}) {
  * field: Copy field, Paste field. A paste whose schema type doesn't match is
  * refused with Sanity's toast. Absolutely placed, so it never moves the form.
  */
+/**
+ * J29: Cmd/Ctrl+C and V on a focused field that isn't text (an object, an image, a
+ * switch, an array row) copy and paste it, as Sanity's form does. Each field (and
+ * array row) registers its copy/paste on its element; the pane's keydown finds the
+ * nearest one (see DocumentPane).
+ */
+export const fieldClipboard = new WeakMap<Element, {copy: () => void; paste?: () => void}>()
+
 function FieldActions({field, value, onChange, readOnly}: FieldProps) {
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
+  const doCopy = () => copy({kind: 'field', field: {name: field.name, sig: signature(field), value}})
+  const doPaste = () => {
+    const clip = read()
+    const item = clip?.kind === 'field' ? clip.field : undefined
+    if (!item) return toast({tone: 'critical', title: 'Nothing to paste', description: 'Copy a field first'})
+    if (!fits(item.sig, item.value, field))
+      return toast({tone: 'critical', title: 'Invalid clipboard item', description: 'Source and target schema types are not compatible'})
+    onChange(item.value)
+  }
+  const latest = useRef({doCopy, doPaste, readOnly})
+  latest.current = {doCopy, doPaste, readOnly}
+  const register = (el: HTMLDivElement | null) => {
+    const host = el?.parentElement
+    if (host) fieldClipboard.set(host, {copy: () => latest.current.doCopy(), paste: () => !latest.current.readOnly && latest.current.doPaste()})
+  }
   return (
-    <div className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+    <div ref={register} className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
       <button type="button" className="icon-btn" aria-label="Field actions" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
@@ -192,7 +215,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
             className="menu-item"
             autoFocus
             onClick={() => {
-              copy({kind: 'field', field: {name: field.name, sig: signature(field), value}})
+              doCopy()
               close()
             }}
           >
@@ -207,12 +230,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
             disabled={readOnly}
             onClick={() => {
               close()
-              const clip = read()
-              const item = clip?.kind === 'field' ? clip.field : undefined
-              if (!item) return toast({tone: 'critical', title: 'Nothing to paste', description: 'Copy a field first'})
-              if (!fits(item.sig, item.value, field))
-                return toast({tone: 'critical', title: 'Invalid clipboard item', description: 'Source and target schema types are not compatible'})
-              onChange(item.value)
+              doPaste()
             }}
           >
             <span className="menu-icon-text">
