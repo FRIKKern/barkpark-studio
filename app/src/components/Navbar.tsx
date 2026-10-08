@@ -3,8 +3,8 @@ import {Link, useNavigate} from '@tanstack/react-router'
 import {devSignOut, meQuery} from '../lib/session'
 import {GlobalSearch} from './Search'
 import {WhoIsOnline} from './Presence'
-import {MenuPopover} from './FocusScopes'
-import {Desktop, HelpCircle, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
+import {DialogBox, MenuPopover} from './FocusScopes'
+import {Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
 import {useState} from 'react'
 import {useHydratedMark} from '../lib/hydrated'
@@ -16,6 +16,7 @@ export function Navbar() {
   return (
     <nav className="navbar">
       <div className="brand">
+        <NavDrawer />
         <span className="logo">B</span>
         <span className="brand-name">Barkpark Studio</span>
         <GlobalSearch />
@@ -34,6 +35,77 @@ export function Navbar() {
         <Editor />
       </div>
     </nav>
+  )
+}
+
+/**
+ * J46, Sanity's phone navbar: below 900 px the tools and the user menu move into
+ * a drawer from the left (who you are, the tools, the appearance, Sign out), opened
+ * by the menu button before the logo. Tab stays inside, Escape or Close shuts it,
+ * picking a tool closes it.
+ */
+function NavDrawer() {
+  const {data: me} = useQuery(meQuery)
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const appearance = useAppearance()
+  const [open, setOpen] = useState(false)
+  const signedIn = !!(me?.devLogin && me.email)
+  const close = () => setOpen(false)
+  return (
+    <>
+      <button type="button" className="icon-btn nav-drawer-btn" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+        <MenuIcon />
+      </button>
+      {open && (
+        <div className="drawer-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
+          <DialogBox className="nav-drawer" aria-modal="true" aria-label="Menu" onClose={close}>
+            <header>
+              {signedIn ? <span className="user-initial">{me!.email![0]!.toUpperCase()}</span> : <span className="logo">B</span>}
+              <span className="drawer-who">{signedIn ? me!.email : 'Barkpark Studio'}</span>
+              <button type="button" className="icon-btn" aria-label="Close menu" onClick={close}>
+                <Close />
+              </button>
+            </header>
+            <nav aria-label="Tools">
+              {TOOLS.map(([to, label]) => (
+                <Link key={to} to={to} className="drawer-item" activeProps={{className: 'drawer-item on', 'aria-current': 'page'}} onClick={close}>
+                  {label}
+                </Link>
+              ))}
+            </nav>
+            <div className="drawer-foot">
+              {APPEARANCES.map(([a, label, Icon]) => (
+                <button key={a} type="button" aria-pressed={appearance === a} aria-label={`Use ${a} appearance`} className="drawer-item check" onClick={() => setAppearance(a)}>
+                  <span className="menu-icon-text">
+                    <Icon /> {label}
+                  </span>
+                </button>
+              ))}
+              {signedIn && (
+                <>
+                  <hr />
+                  <button
+                    type="button"
+                    className="drawer-item"
+                    onClick={async () => {
+                      close()
+                      await devSignOut()
+                      qc.clear()
+                      await navigate({to: '/login', search: {redirect: '/structure'}})
+                    }}
+                  >
+                    <span className="menu-icon-text">
+                      Sign out <SignOut />
+                    </span>
+                  </button>
+                </>
+              )}
+            </div>
+          </DialogBox>
+        </div>
+      )}
+    </>
   )
 }
 
