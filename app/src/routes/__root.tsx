@@ -54,7 +54,8 @@ function Announcer() {
 function RootDocument({children}: {children: ReactNode}) {
   // A page that never marks itself hydrated (health, error screens) still gets its held clicks.
   useEffect(() => void setTimeout(releaseEarlyClicks, 1000), [])
-  const locale = useQuery(localeQuery).data ?? 'en'
+  const localeData = useQuery(localeQuery).data ?? {locale: 'en' as const}
+  const locale = localeData.locale
   return (
     // data-theme is set by THEME_BOOT before hydration; React must not fight it.
     <html lang={locale === 'nb-NO' ? 'nb' : 'en'} suppressHydrationWarning>
@@ -64,7 +65,7 @@ function RootDocument({children}: {children: ReactNode}) {
         <HeadContent />
       </head>
       <body>
-        <LocaleProvider locale={locale}>
+        <LocaleProvider data={localeData}>
           {children}
           <ToastHost />
           <IconTips />
