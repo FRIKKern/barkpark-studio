@@ -1,7 +1,7 @@
 # Journeys
 
 The spec. Each row is one end-to-end thing an editor does. Before building,
-record it in `reference/sanity` (clip → `e2e/reference/Jxx.mp4`). The clip and
+record it in `reference/sanity` (crown clips: `pnpm --dir e2e reference`). The clip and
 the side-by-side sign-off are the proof. A Playwright spec exists only where
 [`QUALITY.md`](QUALITY.md) rule 5 asks for one, and one spec may cover several
 journeys. Phase names: [`docs/ROADMAP.md`](docs/ROADMAP.md). Status lives on the
@@ -106,4 +106,3 @@ track, counted apart. Out of scope (link out to LiveView): sheets, admin console
 | B09 | after | Related-doc views from the schema's desk.views | F2 |
 | B10 | after | Schema-declared document actions with a dry-run confirm | F9 |
 | B11 | 3 | Closing the tab with unsaved or failed edits warns first (we batch writes, so this matters more than in Sanity) | F8 F9 |
-
