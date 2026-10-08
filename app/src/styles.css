@@ -121,16 +121,21 @@ a { color: inherit; text-decoration: none; }
 .pane.list, .pane.types { flex: 1 1 0; min-width: 320px; max-width: 350px; }
 .pane.doc { flex: 2.5 1 0; min-width: 320px; container: document-pane / inline-size; }
 /* Long chains can leave a small editor even in a wide window. Keep both
-   perspectives readable instead of squeezing them behind the action buttons. */
+   perspectives readable: the action buttons wrap to a second row only when the
+   chips would not fit beside them (a phone keeps one row, as Sanity's). */
 @container document-pane (max-width: 400px) {
-  .pane.doc > .pane-header { height: auto; min-height: 51px; flex-wrap: wrap; padding-block: 8px; }
-  .pane.doc > .pane-header .chips { flex: 1 0 100%; }
+  .pane.doc > .pane-header { height: auto; min-height: 51px; flex-wrap: wrap; gap: 0; padding: 8px 8px 8px 12px; }
+  .pane.doc > .pane-header .chips { flex: 1 0 auto; margin-right: 4px; }
 }
 .pane.filler { flex: 2 1 0; border-right: 0; }
 .pane.strip { flex: 0 0 var(--strip); min-width: var(--strip); max-width: var(--strip); cursor: pointer; }
 .pane.strip:hover { background: var(--hover); }
 /* J42: a narrow window shows one pane, full width. */
 .panes[data-narrow] > .pane { flex: 1 1 auto; min-width: 0; max-width: none; }
+/* An open inspector (History, Review changes, Comments, Validation) takes the whole
+   pane under the header, as Sanity's; closing it brings the document back. */
+.panes[data-narrow] .doc-split:has(> .inspector) > .doc-column { display: none; }
+.panes[data-narrow] .doc-split > .inspector { flex: 1 1 auto; width: auto; min-width: 0; border-left: 0; }
 /* J51: a first visit on a phone paints before the server knows the width (no bp_vw
    cookie yet), so the HTML has the desktop panes. Until the app takes over, show only the
    last one, as the narrow layout will: no overflowing panes, no jump at hydration. */

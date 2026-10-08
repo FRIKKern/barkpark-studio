@@ -7,12 +7,14 @@ import {createContext} from 'react'
 //  - start from the width left after giving every other pane a 51 px strip;
 //  - a pane collapses when its min width exceeds what is left; an open pane uses
 //    (min - 51) of it, a collapsed one 51 more (Sanity's accounting, kept exact).
-// Min widths: list 320, document 600 (DOCUMENT_PANEL_INITIAL_MIN_WIDTH).
+// Min widths: list 320, document 600 (DOCUMENT_PANEL_INITIAL_MIN_WIDTH), and 920
+// with an inspector open (DocumentPanel: 600 + 320, so earlier panes give way).
 // Ported from Sanity (MIT, Copyright (c) 2016 - 2026 Sanity.io): see THIRD-PARTY.md.
 export const STRIP = 51
-const MIN = {types: 320, menu: 320, list: 320, doc: 600} as const
+const MIN = {types: 320, menu: 320, list: 320, doc: 600, docInspect: 920} as const
 
-export function collapsed(kinds: (keyof typeof MIN)[], width: number, focus = kinds.length - 1): boolean[] {
+export type LayoutKind = keyof typeof MIN
+export function collapsed(kinds: LayoutKind[], width: number, focus = kinds.length - 1): boolean[] {
   const order = [focus, ...kinds.map((_, i) => kinds.length - 1 - i).filter((i) => i !== focus)]
   const out = kinds.map(() => false)
   let remaining = width - (kinds.length - 1) * STRIP
