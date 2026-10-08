@@ -19,7 +19,13 @@ function CountedInput(props: InputProps) {
 
 export default defineStudio({
   tools: [{name: 'stats', title: 'Stats', component: StatsTool}],
-  presentation: {previewUrl: PREVIEW_ORIGIN},
+  presentation: {
+    previewUrl: PREVIEW_ORIGIN,
+    mainDocuments: [
+      {route: '/posts/:slug', type: 'post', field: 'slug'},
+      {route: '/authors/:id', type: 'author'},
+    ],
+  },
   form: {inputs: {'post.excerpt': CountedInput}},
   document: {
     actions: (type) =>

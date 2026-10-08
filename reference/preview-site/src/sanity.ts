@@ -2,6 +2,7 @@ import {createClient} from '@sanity/client'
 import {useEffect, useState} from 'react'
 import {useQuery, type QueryResponseInitial} from '@sanity/react-loader'
 import type {QueryParams} from '@sanity/client'
+import {reportDocuments} from './barkpark'
 
 declare const __STUDIO_URL__: string
 declare const __DATASET__: string
@@ -37,5 +38,18 @@ export function useLoad<T>(query: string, params: QueryParams = {}) {
 }
 
 export function useLiveData<T>(query: string, params: QueryParams, initial: QueryResponseInitial<T>) {
-  return useQuery<T>(query, params, {initial}).data
+  const {data, sourceMap} = useQuery<T>(query, params, {initial})
+  // Barkpark Studio's "Documents on this page" (J61): what this page's query read.
+  // In the order the page shows them: the source map's mappings follow the result.
+  const at = (key: string) => (key.match(/\d+/g) ?? []).map(Number)
+  const byPosition = Object.entries(sourceMap?.mappings ?? {}).sort(([a], [b]) => {
+    const [x, y] = [at(a), at(b)]
+    for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? -1) !== (y[i] ?? -1)) return (x[i] ?? -1) - (y[i] ?? -1)
+    return 0
+  })
+  const order = [...new Set(byPosition.map(([, m]) => (m.source.type === 'documentValue' ? m.source.document : -1)))]
+  const docs = order.flatMap((i) => (sourceMap?.documents[i] ? [{_id: sourceMap.documents[i]._id.replace(/^drafts\./, ''), _type: sourceMap.documents[i]._type!}] : []))
+  const ids = docs.map((d) => d._id).join(',')
+  useEffect(() => reportDocuments(docs), [ids])
+  return data
 }

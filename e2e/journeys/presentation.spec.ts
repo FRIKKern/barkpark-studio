@@ -77,3 +77,73 @@ test('@local J58: the real site connects, follows its links, refreshes', async (
   await expect(site.getByRole('heading', {name: 'Posts'})).toBeVisible()
   await expect(page.locator('.presentation-frame').getByRole('status')).toBeHidden()
 })
+
+// J61 on a stand-in site that speaks the preview protocol: links and the URL bar move
+// it; the panel shows the page's main document (by slug, by id), the documents on a
+// page without one, and says when a route's document is missing.
+const standIn = (path: string) => `<!doctype html><title>${path}</title>
+<a href="/authors/author-alan">Alan</a> <a href="/">Home</a>
+<script>
+  const post = (m) => parent.postMessage({bp: 'preview', ...m}, '*')
+  post({type: 'hello'})
+  post({type: 'location', url: location.pathname})
+  post({type: 'documents', documents: location.pathname === '/' ? [{_id: 'post-01', _type: 'post'}, {_id: 'author-alan', _type: 'author'}] : []})
+  addEventListener('message', (e) => e.data?.bp === 'studio' && e.data.type === 'navigate' && location.assign(e.data.url))
+</script>`
+
+test('J61: links and the URL bar move the page; the panel follows it', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await context.route(`${SITE}/**`, (route) => route.fulfill({contentType: 'text/html', body: standIn(new URL(route.request().url()).pathname)}))
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  const panel = page.locator('.presentation-panel')
+  // The main document by slug, in the same document pane as /structure.
+  await expect(panel.locator('[id="title"]')).toHaveValue('Fixture post 01')
+  await expect(page).toHaveURL(/[?&]pane=post%3Bpost-01/)
+
+  // A link in the page: the URL, the URL bar and the panel follow.
+  await page.frameLocator('iframe').getByRole('link', {name: 'Alan'}).click()
+  await expect(page.getByLabel('URL')).toHaveValue(`${SITE}/authors/author-alan`)
+  await expect(page).toHaveURL(/preview=%2Fauthors%2Fauthor-alan/)
+  await expect(panel.locator('[id="name"]')).toHaveValue('Alan Turing')
+
+  // A page no route claims keeps the panel (Sanity's too).
+  await page.getByLabel('URL').fill('/')
+  await page.getByLabel('URL').press('Enter')
+  await expect(page).toHaveURL(/preview=%2F&pane=author/)
+  await expect(panel.locator('[id="name"]')).toHaveValue('Alan Turing')
+
+  // A route whose document does not exist says so, over the documents on the page.
+  await page.getByLabel('URL').fill(`${SITE}/authors/nobody`)
+  await page.getByLabel('URL').press('Enter')
+  await expect(panel.getByRole('status')).toHaveText(/Missing a main document for\s*\/authors\/nobody/)
+  await expect(panel.getByRole('heading', {name: 'Documents on this page'})).toBeVisible()
+
+  // The documents on a page open in the panel.
+  await page.frameLocator('iframe').getByRole('link', {name: 'Home'}).click()
+  await expect(panel.getByRole('link')).toHaveCount(2)
+  await panel.getByRole('link', {name: /Fixture post 01/}).click()
+  await expect(panel.locator('[id="title"]')).toHaveValue('Fixture post 01')
+  await expect(page).toHaveURL(/preview=%2F&pane=post/)
+})
+
+test('@evidence J61: the panel follows the page, side by side', async ({page, context}, info) => {
+  const t = target(info)
+  await t.prepare(context)
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  const site = page.frameLocator('iframe')
+  const bar = t.name === 'sanity' ? page.locator('input[value^="http://localhost:3536"]').first() : page.getByLabel('URL')
+  await site.getByRole('heading', {name: 'Fixture post 01', level: 1}).waitFor({timeout: 30_000})
+  await page.waitForTimeout(2500)
+  await page.screenshot({path: `evidence/J61-${t.name}-1-post.png`})
+  for (const [step, path, ready] of [['2-author', '/authors/author-alan', 'Alan Turing'], ['3-home', '/', 'Posts'], ['4-missing', '/authors/nobody', 'Not found']] as const) {
+    await bar.fill(`${SITE}${path}`)
+    await bar.press('Enter')
+    await site.getByRole('heading', {name: ready, level: 1}).waitFor()
+    await page.waitForTimeout(2500)
+    await page.screenshot({path: `evidence/J61-${t.name}-${step}.png`})
+  }
+})

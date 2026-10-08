@@ -1,6 +1,14 @@
-import {useEffect, useReducer, useRef, useState} from 'react'
+import {useCallback, useEffect, useReducer, useRef, useState} from 'react'
+import {useNavigate} from '@tanstack/react-router'
+import {useQueryClient} from '@tanstack/react-query'
 import {useT} from '../lib/i18n'
-import {SyncIcon} from './icons'
+import {docQuery, listQuery} from '../lib/data'
+import type {Pane} from '../lib/panes'
+import type {MainDocument} from '../lib/plugins'
+import {SyncIcon, WarningOutline} from './icons'
+import {PaneHrefContext} from './PaneLink'
+import {RefPreview} from './Preview'
+import {Structure} from './Structure'
 
 /**
  * J58, Sanity's Presentation tool: the site in an iframe beside the document
@@ -70,12 +78,35 @@ function reduce(s: State, a: Action): State {
   }
 }
 
-export function Presentation({previewUrl, initialPath = '/'}: {previewUrl: string; initialPath?: string}) {
+type PageDoc = {_id: string; _type: string}
+
+/** J61: the page's main document, from the config's routes (`/posts/:slug` → the post whose slug is that). */
+export function matchRoute(routes: MainDocument[], path: string): {route: MainDocument; value: string} | undefined {
+  for (const route of routes) {
+    const re = new RegExp(`^${route.route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:[A-Za-z_]+/, '([^/]+)')}/?$`)
+    const m = re.exec(path)
+    if (m) return {route, value: decodeURIComponent(m[1] ?? '')}
+  }
+}
+
+/**
+ * The page's state lives in the URL, like Sanity's: `?preview=` is the site's path and
+ * `?pane=` the document panel's pane chain (a structure path), so the panel is the
+ * same panes as /structure, hosted here (PaneHrefContext maps their hrefs).
+ */
+export function Presentation({previewUrl, preview = '/', panes, mainDocuments = []}: {previewUrl: string; preview?: string; panes: Pane[] | null; mainDocuments?: MainDocument[]}) {
   const t = useT()
+  const qc = useQueryClient()
+  const navigate = useNavigate()
   const origin = new URL(previewUrl).origin
   const frame = useRef<HTMLIFrameElement>(null)
-  const [src, setSrc] = useState(() => new URL(initialPath, previewUrl).toString())
+  const [src, setSrc] = useState(() => new URL(preview, previewUrl).toString())
   const [url, setUrl] = useState(src)
+  const [typed, setTyped] = useState<string | null>(null)
+  const [docs, setDocs] = useState<PageDoc[]>([])
+  const [missing, setMissing] = useState<string | null>(null)
+  const previewRef = useRef(preview)
+  previewRef.current = preview
   const [s, send] = useReducer(reduce, initial)
   // The frame mounts after hydration: one rendered on the server can fire its load
   // event before React listens, and the overlay would wait forever.
@@ -107,11 +138,65 @@ export function Presentation({previewUrl, initialPath = '/'}: {previewUrl: strin
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== origin || e.source !== frame.current?.contentWindow || e.data?.bp !== 'preview') return
       if (e.data.type === 'hello') send({type: 'hello'})
-      if (e.data.type === 'location' && typeof e.data.url === 'string') setUrl(new URL(e.data.url, origin).toString())
+      if (e.data.type === 'location' && typeof e.data.url === 'string') onPage(e.data.url)
+      if (e.data.type === 'documents' && Array.isArray(e.data.documents)) setDocs(e.data.documents.filter((d: PageDoc) => typeof d?._id === 'string' && typeof d?._type === 'string'))
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
   }, [origin])
+
+  // J61: the site moved (a link, the URL bar, back): the URL follows it, and the panel
+  // shows the page's main document; a route whose document is missing shows the
+  // documents on the page and says so.
+  const onPage = async (path: string) => {
+    setUrl(new URL(path, origin).toString())
+    setTyped(null)
+    setDocs([])
+    const hit = matchRoute(mainDocuments, path.split('?')[0]!)
+    let pane: string | undefined
+    if (hit) {
+      const id = hit.route.field
+        ? (await qc.fetchQuery(listQuery(hit.route.type, 'updated', 1, {[hit.route.field]: {eq: hit.value}})).catch(() => undefined))?.docs[0]?._publishedId
+        : (await qc.fetchQuery(docQuery(hit.route.type, hit.value)).catch(() => undefined))?._publishedId
+      if (id) pane = `${hit.route.type};${id}`
+    }
+    setMissing(hit && !pane ? path : null)
+    // As Sanity's: a page no route claims keeps the panel as it is.
+    void navigate({to: '/presentation', search: (prev: Record<string, unknown>) => ({...prev, preview: path, ...(hit ? {pane} : {})}), replace: true})
+  }
+
+  // The URL bar: a path or a URL on the site's origin; the site navigates itself when
+  // connected, else the frame loads it.
+  const go = (value: string) => {
+    let target: URL
+    try {
+      target = new URL(value, origin)
+    } catch {
+      return
+    }
+    if (target.origin !== origin) return setTyped(null)
+    const path = target.pathname + target.search
+    if (s.connected) frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'navigate', url: path}, origin)
+    else {
+      setUrl(target.toString())
+      send({type: 'reload'})
+      setSrc(target.toString())
+      setGeneration((g) => g + 1)
+    }
+    setTyped(null)
+  }
+
+  // Pane hrefs (`/structure/…`) stay in Presentation: the chain goes in `?pane=`.
+  const paneHref = useCallback((href: string) => {
+    if (!href.startsWith('/structure')) return href
+    const u = new URL(href, 'http://x')
+    const splat = decodeURIComponent(u.pathname.replace(/^\/structure\/?/, ''))
+    const q = new URLSearchParams(u.search)
+    q.set('preview', previewRef.current)
+    if (splat) q.set('pane', splat)
+    return `/presentation?${q}`
+  }, [])
+  const docPane = panes && panes[panes.length - 1]?.kind === 'doc'
 
   // A new frame each reload: assigning the same src to one still loading is ignored.
   const [generation, setGeneration] = useState(0)
@@ -138,7 +223,17 @@ export function Presentation({previewUrl, initialPath = '/'}: {previewUrl: strin
           <button type="button" className="icon-btn" aria-label={t('Refresh preview')} data-tip={status ?? t('Refresh preview')} aria-busy={s.refreshing || s.load === 'loading'} onClick={refresh}>
             <SyncIcon />
           </button>
-          <input className="input presentation-url" aria-label="URL" value={url} readOnly />
+          <input
+            className="input presentation-url"
+            aria-label="URL"
+            value={typed ?? url}
+            onChange={(e) => setTyped(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') go(e.currentTarget.value)
+              if (e.key === 'Escape') setTyped(null)
+            }}
+            onBlur={() => setTyped(null)}
+          />
         </div>
         <div className="presentation-frame" style={{cursor: busy ? 'wait' : undefined}}>
           {mounted && <iframe key={generation} ref={frame} src={src} title={t('Presentation')} style={{pointerEvents: blocked ? 'none' : undefined}} onLoad={() => send({type: 'loaded'})} />}
@@ -176,10 +271,31 @@ export function Presentation({previewUrl, initialPath = '/'}: {previewUrl: strin
           ) : null}
         </div>
       </section>
-      <aside className="presentation-panel" aria-label={t('Documents on this page')}>
-        <h2>{t('Documents on this page')}</h2>
-        <p className="presentation-empty">{t('No matching documents')}</p>
-      </aside>
+      <PaneHrefContext.Provider value={paneHref}>
+        {docPane ? (
+          <aside className="presentation-panel docked" aria-label={t('Document')}>
+            <Structure panes={panes} widthHint={350} />
+          </aside>
+        ) : (
+          <aside className="presentation-panel" aria-label={t('Documents on this page')}>
+            {missing && (
+              <p className="presentation-missing" role="status">
+                <WarningOutline /> <span>{t('Missing a main document for')} <code>{missing}</code></span>
+              </p>
+            )}
+            <h2>{t('Documents on this page')}</h2>
+            {docs.length ? (
+              <div className="presentation-docs">
+                {docs.map((d) => (
+                  <RefPreview key={d._id} type={d._type} id={d._id} href={`/structure/${d._type};${d._id}`} selected={false} />
+                ))}
+              </div>
+            ) : (
+              <p className="presentation-empty">{t('No matching documents')}</p>
+            )}
+          </aside>
+        )}
+      </PaneHrefContext.Provider>
     </div>
   )
 }

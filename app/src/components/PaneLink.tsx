@@ -1,5 +1,5 @@
-import type {AnchorHTMLAttributes} from 'react'
-import {useNavigate, useRouter} from '@tanstack/react-router'
+import {createContext, useCallback, useContext, type AnchorHTMLAttributes} from 'react'
+import {useNavigate, useRouter, type NavigateOptions} from '@tanstack/react-router'
 import {parseScope, scopedPath} from '../lib/scope'
 import type {ScopeRef} from '../router'
 
@@ -13,10 +13,24 @@ export function useScopedHref() {
   return (href: string) => (scope?.current && href.startsWith('/') && !parseScope(href).scope ? scopedPath(scope.current, href) : href)
 }
 
+/**
+ * J61: where a pane href leads. Panes build `/structure/…` hrefs; Presentation's
+ * document panel hosts the same panes and maps those hrefs onto its own URL.
+ */
+export const PaneHrefContext = createContext<(href: string) => string>((href) => href)
+
+/** useNavigate for pane hrefs: `{href}` goes where this pane host says. */
+export function usePaneNavigate() {
+  const navigate = useNavigate()
+  const map = useContext(PaneHrefContext)
+  return useCallback((options: NavigateOptions & {href?: string}) => navigate(options.href ? {...options, href: map(options.href)} : options), [navigate, map])
+}
+
 /** A real link (open in new tab works) that navigates client-side on a plain click. */
-export function PaneLink({href, ...rest}: AnchorHTMLAttributes<HTMLAnchorElement> & {href: string}) {
+export function PaneLink({href: paneHref, ...rest}: AnchorHTMLAttributes<HTMLAnchorElement> & {href: string}) {
   const navigate = useNavigate()
   const scoped = useScopedHref()
+  const href = useContext(PaneHrefContext)(paneHref)
   return (
     <a
       href={scoped(href)}
