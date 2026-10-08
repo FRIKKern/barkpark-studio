@@ -626,7 +626,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
     }[state as string] ?? (doc._draft ? 'Saved' : `Last published ${ago(doc._updatedAt)}`)
   return (
     <footer className="doc-footer">
-      <span className="save-state" data-state={state} title={error} role="status">
+      {/* "N sec. ago" differs between the server render and hydration: not an error. */}
+      <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
         {label}
       </span>
       {state === 'signedOut' && (
@@ -718,7 +719,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
     unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, 'was unpublished. A draft has been created from the latest published revision.')}))
   return (
     <footer className="doc-footer">
-      <span className="save-state" role="status">
+      <span className="save-state" role="status" suppressHydrationWarning>
         Last published {ago(doc._updatedAt)}
       </span>
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
