@@ -1,7 +1,7 @@
 // Pane URLs in Sanity's format, split siblings included (J26): parse → print is identity.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {closeSplit, openAfter, panesPath, parsePanes, splitRight} from './panes.ts'
+import {closeSplit, openAfter, panesPath, parsePanes, parseSingletonPanes, splitRight} from './panes.ts'
 
 const round = (p: string) => panesPath(parsePanes(p.replace('/structure/', '')))
 
@@ -30,4 +30,16 @@ test('a focused field rides in the pane (J52), nested paths included', () => {
     assert.equal(round(p), p)
   const [, , doc] = parsePanes('post;post-22,path=seo.metaTitle')
   assert.equal((doc as {path?: string}).path, 'seo.metaTitle')
+})
+
+test('B13: with no desk, a singleton type opens its one doc, and prints back the same', () => {
+  const one = new Set(['siteSettings'])
+  assert.deepEqual(JSON.parse(JSON.stringify(parseSingletonPanes('siteSettings', one))), [{kind: 'types'}, {kind: 'doc', id: 'siteSettings', type: 'siteSettings', node: 'siteSettings'}])
+  for (const url of ['/structure/siteSettings', '/structure/siteSettings,inspect=history', '/structure/siteSettings|,', '/structure/siteSettings;post-01,type=post,parentRefPath=featured'])
+    assert.equal(panesPath(parseSingletonPanes(url.replace('/structure/', ''), one)), url)
+  assert.deepEqual(parseSingletonPanes('post;post-01', one), parsePanes('post;post-01'))
+  // A list-style link (search, Copy URL) is the same one doc, params kept.
+  assert.equal(panesPath(parseSingletonPanes('siteSettings;siteSettings,view=json', one)), '/structure/siteSettings,view=json')
+  // Opened from the root row: the URL is the type alone.
+  assert.equal(openAfter([{kind: 'types'}], 0, {kind: 'doc', id: 'siteSettings', type: 'siteSettings', node: 'siteSettings'}), '/structure/siteSettings')
 })

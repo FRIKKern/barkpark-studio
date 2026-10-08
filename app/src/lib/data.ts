@@ -44,7 +44,7 @@ export type Field = {
   readOnly?: boolean | Condition
 }
 export type Group = {name: string; title?: string; default?: boolean}
-export type Schema = {name: string; title: string; fields: Field[]; listPreview?: Record<string, string>; groups?: Group[]; initialValues?: Record<string, unknown>}
+export type Schema = {name: string; title: string; fields: Field[]; listPreview?: Record<string, string>; groups?: Group[]; initialValues?: Record<string, unknown>; singleton?: boolean}
 
 // Server functions return plain JSON; the typed views below cast it once.
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -58,7 +58,7 @@ async function bpJson<T>(path: string): Promise<T> {
 const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
   const schemas = await readSchemas()
   return schemas
-    .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values}) => ({name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? [], initialValues: initialValues ?? initial_values ?? {}})) as unknown as Json
+    .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values, singleton}) => ({name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? [], initialValues: initialValues ?? initial_values ?? {}, singleton: singleton === true})) as unknown as Json
 })
 
 // J41, Sanity's paging: a list opens with its first LIST_PAGE rows and loads up to
@@ -314,6 +314,8 @@ const fetchSearchAll = createServerFn({method: 'GET'})
 export const searchAllDocs = async (q: string) => (await fetchSearchAll({data: {q}})) as unknown as Doc[]
 
 export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) => s.name === type)
+/** B13: a singleton type has one document, whose id is the type's name (Barkpark's rule): no list, no create, duplicate, delete or unpublish. */
+export const isSingleton = (schemas: Schema[], type: string) => schemaOf(schemas, type)?.singleton === true
 
 /** The types a reference field (or a reference array's member) may point to. */
 /** A reference value: a bare id, or a keyed array item {_key, _type: 'reference', _ref} (task-fb4c4703cc92b32e). */

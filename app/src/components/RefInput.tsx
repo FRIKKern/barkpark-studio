@@ -2,7 +2,7 @@ import {useContext, useEffect, useId, useLayoutEffect, useRef, useState} from 'r
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {docQuery, previewTitle, refId, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
+import {docQuery, isSingleton, previewTitle, refId, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
 import {createDoc} from '../lib/edits'
 import {focusFirstField} from '../lib/focus'
 import {Add, ChevronDown, Close, Ellipsis, HelpCircle} from './icons'
@@ -177,6 +177,7 @@ function RefSearch({id, types, filter, current, autoFocus, onPick, onCancel, onC
     return () => clearTimeout(t)
   }, [q])
   const search = useQuery({...searchQuery(types, query, filter), enabled: open, placeholderData: keepPreviousData})
+  const creatable = types.filter((t) => !isSingleton(schemas, t))
   const waiting = q.trim() !== query || search.isPending || search.isPlaceholderData
   // Never let Enter select a result belonging to the previous search text.
   const results = waiting || search.isError ? [] : search.data ?? []
@@ -245,14 +246,15 @@ function RefSearch({id, types, filter, current, autoFocus, onPick, onCancel, onC
       >
         <ChevronDown />
       </button>
-      {types.length > 1 ? (
-        <CreateMenu types={types} title={typeTitle} onPick={(t) => onCreate(q.trim(), t)} />
-      ) : (
-        <button type="button" className="btn-create" onClick={() => onCreate(q.trim(), types[0])}>
+      {/* B13: a singleton type is never created from here (it has its one document). */}
+      {creatable.length > 1 ? (
+        <CreateMenu types={creatable} title={typeTitle} onPick={(t) => onCreate(q.trim(), t)} />
+      ) : creatable.length === 1 ? (
+        <button type="button" className="btn-create" onClick={() => onCreate(q.trim(), creatable[0]!)}>
           <Add />
           Create
         </button>
-      )}
+      ) : null}
       {open && results.length > 0 && (
         <div className="popover options" role="listbox" id={listId}>
           {results.map((d, i) => (
