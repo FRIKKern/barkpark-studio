@@ -18,16 +18,14 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 114 changes, 77 tasks closed
+- **Today** · 1 change
+  - J64: phone viewport, Open preview, and the share menu in Presentation ([#233](https://github.com/FRIKKern/barkpark-studio/pull/233))
+- **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
-  - Done: [Barkpark: login session tokens accepted on the scoped data API for workspace members](https://github.com/FRIKKern/barkpark/issues/21753)
-- **Yesterday** · 10 changes, 12 tasks closed
+- **This week** · 107 changes, 37 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
-- **This week** · 97 changes, 25 tasks closed
-  - D10: Norwegian letters, dead keys and IME type correctly in the canvas; a 500-block doc keeps F1 ([#98](https://github.com/FRIKKern/barkpark-studio/pull/98))
-  - D07: paste or drop a picture into the canvas — uploaded to Barkpark media, uploading badge, failure on the block ([#97](https://github.com/FRIKKern/barkpark-studio/pull/97))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
