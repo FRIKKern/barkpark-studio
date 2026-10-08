@@ -21,6 +21,7 @@ import {InvalidValueCard, KeysAlert, RichTextCard} from './BrokenValues'
 import {invalidValue, keyProblem, richTextProblem} from '../lib/broken'
 import {PortableDocEditor} from './PortableDocEditor'
 import {PortableDocView} from './PortableDocView'
+import {modKey, useTip} from './Tip'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -569,12 +570,15 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         tabIndex={0}
         onClick={(e) => !readOnly && !(e.target as HTMLElement).closest('a') && ((at.current = clickedAt(e.clientX, e.clientY)), setActive(true))}
         // Keys on the box itself; Enter or Space on the expand button is that button's own click.
-        onKeyDown={(e) => !readOnly && e.target === e.currentTarget && (e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey && (e.preventDefault(), setActive(true))}
+        onKeyDown={(e) => {
+          if (readOnly || e.target !== e.currentTarget) return
+          // J35: Cmd/Ctrl+Enter opens it expanded, as Sanity's hotkey.
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) return e.preventDefault(), setActive(true), setExpanded(true)
+          if ((e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey) e.preventDefault(), setActive(true)
+        }}
       >
         {!readOnly && (
-          <button type="button" className="icon-btn body-expand" aria-label="Expand editor" onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))}>
-            <Expand />
-          </button>
+          <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />
         )}
         <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">Empty</p>}</div>
         {id && <BlockPresence docId={id} field={field} />}
@@ -597,19 +601,39 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       // Escape collapses. Caught before the canvas, whose own keymap takes Escape to
       // select the parent block; an open canvas menu or the link input keeps it.
       onKeyDownCapture={(e) =>
-        expanded &&
+        // J35: Cmd/Ctrl+Enter toggles (before the canvas, whose keymap takes it for a line break).
+        e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.altKey
+          ? (e.preventDefault(), e.stopPropagation(), toggle())
+          : expanded &&
         e.key === 'Escape' &&
         (e.target as HTMLElement).closest('.ProseMirror') &&
         ![...document.querySelectorAll('[role="listbox"], [role="menu"]')].some((m) => m.checkVisibility()) &&
         (e.preventDefault(), e.stopPropagation(), toggle())
       }
     >
-      <button type="button" className="icon-btn body-expand" aria-label={expanded ? 'Collapse editor' : 'Expand editor'} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle}>
-        {expanded ? <Collapse /> : <Expand />}
-      </button>
+      <ExpandButton expanded={expanded} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle} />
       <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} />
       {id && <BlockPresence docId={id} field={field} />}
     </div>
+  )
+}
+
+/** The body's expand button; its tooltip names the hotkey (J35, Sanity's "Expand editor ⌘ Enter"). */
+function ExpandButton({expanded, ...rest}: {expanded: boolean} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const label = expanded ? 'Collapse editor' : 'Expand editor'
+  const {anchor, tip} = useTip(() => (
+    <span className="tip-line">
+      {label}
+      <span>
+        <kbd>{modKey()}</kbd> <kbd>Enter</kbd>
+      </span>
+    </span>
+  ))
+  return (
+    <button type="button" className="icon-btn body-expand" aria-label={label} aria-keyshortcuts="Control+Enter Meta+Enter" {...rest} {...anchor}>
+      {expanded ? <Collapse /> : <Expand />}
+      {tip}
+    </button>
   )
 }
 

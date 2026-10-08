@@ -140,8 +140,10 @@ function overlay(id: string, doc: Doc): Doc {
 }
 
 function writeCache(qc: QueryClient, id: string, type: string, doc: Doc) {
-  qc.setQueryData(['doc', id], doc)
-  qc.setQueriesData<ListPage>({queryKey: ['list', type]}, (page) => page && {...page, docs: [doc, ...page.docs.filter((d) => d._publishedId !== id)]})
+  // J56: when the published version last changed; a draft keeps what the row knew.
+  const keep = (was: Doc | null | undefined): Doc => ({...doc, _publishedAt: doc._publishedAt ?? (doc._draft ? was?._publishedAt : doc._updatedAt)})
+  qc.setQueryData<Doc | null>(['doc', id], (was) => keep(was))
+  qc.setQueriesData<ListPage>({queryKey: ['list', type]}, (page) => page && {...page, docs: [keep(page.docs.find((d) => d._publishedId === id)), ...page.docs.filter((d) => d._publishedId !== id)]})
 }
 
 const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)

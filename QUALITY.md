@@ -13,7 +13,7 @@ side with `reference/sanity`, before its task can close.
 | F4 | Edit seen in 2nd browser | remote push (server → other browser) p95 < 300 ms; typed edit p95 < Sanity's | push: p50 180 / p95 237 ms. Typed in A: p50 768 / p95 1104 ms | rig: two browsers, one doc |
 | F5 | Keyboard | whole journey without a mouse | | Playwright, keyboard only |
 | F6 | Focus | never lost or moved by a remote update | | two-browser rig asserts `activeElement` |
-| F7 | Undo / redo | works across fields, across remote edits | | Playwright |
+| F7 | Undo / redo | works across fields, across remote edits. Intentional difference: Mod+Z is the document's undo even inside a text input (this editor's changes, in order, across fields); Sanity leaves an input's typing to the input's own undo. The body canvas keeps its own undo | | Playwright |
 | F8 | Network blip | 10 s offline while typing → zero lost edits, visible status | | `context.setOffline` |
 | F9 | Errors | none silent; every failure is visible and recoverable | | console + network assertions |
 | F10 | Visual | matches the approved screenshot | | Playwright screenshot diff |
