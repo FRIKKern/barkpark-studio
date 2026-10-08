@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 6 changes, 1 task closed
+- **Today** · 7 changes, 1 task closed
+  - docs: journeys for the Agency Studio's core Sanity features ([#110](https://github.com/FRIKKern/barkpark-studio/pull/110))
   - fix(j41): isolate bulk fixtures from production datasets ([#125](https://github.com/FRIKKern/barkpark-studio/pull/125))
   - fix(j27): keep missing-reference help visible and dismissible ([#123](https://github.com/FRIKKern/barkpark-studio/pull/123))
-  - fix(j26): keep split editing and field focus in the active pane ([#121](https://github.com/FRIKKern/barkpark-studio/pull/121))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)

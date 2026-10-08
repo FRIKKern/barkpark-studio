@@ -63,6 +63,9 @@ quality first, never a shrinking finish line.
 | J51 | 1 | Slow network (Fast 3G): shell paints, every pane shows a loading state, never a blank or dead click | F3 F14 |
 | J52 | 2 | Focused field lives in the URL: reload or a copied link returns to that field | F2 |
 | J53 | after | New Studio version while tabs are open: "ready to update" prompt, reload, nothing lost | F9 |
+| J54 | 2 | File field: upload with an accept filter (PDF), file name and size shown, replace, remove, open the file | F5 F9 |
+| J55 | 1 | Schema orderings: the list menu offers the type's own orderings by title, and a desk list opens in its declared one | F2 |
+| J56 | 1 | Previews from select and prepare: a referenced title as subtitle, a formatted date, a fallback when empty, in lists and reference values | F2 F10 |
 
 ★ = crown journeys (endless panes + references), built first, judged hardest.
 
@@ -106,3 +109,5 @@ track, counted apart. Out of scope (link out to LiveView): sheets, admin console
 | B09 | after | Related-doc views from the schema's desk.views | F2 |
 | B10 | after | Schema-declared document actions with a dry-run confirm | F9 |
 | B11 | 3 | Closing the tab with unsaved or failed edits warns first (we batch writes, so this matters more than in Sanity) | F8 F9 |
+| B12 | 1 | A workspace's declared desk drives the panes: nested lists, titled dividers, filtered lists, singletons, a parent-child tree | F2 F10 |
+| B13 | 1 | Singleton types: opened from the desk only; no create, duplicate or delete; publish, discard and restore only; never in Create new | F9 F10 |
