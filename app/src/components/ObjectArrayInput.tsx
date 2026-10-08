@@ -56,7 +56,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         readOnly={readOnly}
         keyOf={(it, i) => it._key ?? i}
         itemId={(it, i) => (it._key ? `${id}[_key=="${it._key}"]` : `${id}[${i}]`)}
-        blank={() => ({_key: newKey()})}
+        blank={() => ({...of.initialValue, _key: newKey()})}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
         onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'object', value: it}})}
