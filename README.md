@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 32 changes, 11 tasks closed
+- **Today** · 33 changes, 11 tasks closed
+  - B02 (1/2): every Barkpark call takes its workspace, project and dataset from the page's URL; .env stays the default ([#149](https://github.com/FRIKKern/barkpark-studio/pull/149))
   - test(J23): patch the author only once the list's live stream is open ([#148](https://github.com/FRIKKern/barkpark-studio/pull/148))
   - chore: the reference is Sanity project ecu57yeh (0ozn679s is quota-locked) ([#147](https://github.com/FRIKKern/barkpark-studio/pull/147))
-  - fix(J38): global search matches every text field, ranked like Sanity ([#146](https://github.com/FRIKKern/barkpark-studio/pull/146))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
