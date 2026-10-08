@@ -5,6 +5,7 @@ import {useNavigate} from '@tanstack/react-router'
 import {docQuery, isSingleton, previewTitle, refId, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
 import {createDoc} from '../lib/edits'
 import {focusFirstField} from '../lib/focus'
+import {useT} from '../lib/i18n'
 import {Add, ChevronDown, Close, Ellipsis, HelpCircle} from './icons'
 import {DocPreview} from './Preview'
 import {DocIdContext} from './Fields'
@@ -130,6 +131,9 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
 
 /** Sanity's card for a reference to a doc that does not exist, with the why on hover. */
 function Unavailable({id}: {id: string}) {
+  const t = useT()
+  // The id sits in a <code> inside the sentence: split the translated sentence around it.
+  const [before, after] = t('The referenced document does not exist (ID: {id}). You can either remove the reference or replace it with another document.').split('{id}')
   const tooltipId = useId()
   const [dismissed, setDismissed] = useState(false)
   useEffect(() => {
@@ -141,13 +145,13 @@ function Unavailable({id}: {id: string}) {
   }, [])
   return (
     <div className="preview unavailable">
-      <span className="text">Document unavailable</span>
-      <span className="help" tabIndex={0} role="img" aria-label="Not found" aria-describedby={tooltipId}
+      <span className="text">{t('Document unavailable')}</span>
+      <span className="help" tabIndex={0} role="img" aria-label={t('Not found')} aria-describedby={tooltipId}
         data-dismissed={dismissed || undefined} onMouseEnter={() => setDismissed(false)} onFocus={() => setDismissed(false)}>
         <HelpCircle />
         <span className="tip" role="tooltip" id={tooltipId}>
-          <b>Not found</b>
-          The referenced document does not exist (ID: <code>{id}</code>). You can either remove the reference or replace it with another document.
+          <b>{t('Not found')}</b>
+          {before}<code>{id}</code>{after}
         </span>
       </span>
     </div>
@@ -167,6 +171,7 @@ type SearchProps = {
 }
 
 function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCancel, onCreate}: SearchProps) {
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: currentDoc} = useQuery({...docQuery(types, current ?? ''), enabled: !!current})
   const [q, setQ] = useState(() => (currentDoc ? previewTitle(currentDoc, schemaOf(schemas, currentDoc._type)) : ''))
@@ -177,15 +182,15 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
   // One request per pause in typing, not per keystroke (one shared rate bucket).
   const [query, setQuery] = useState(q.trim())
   useEffect(() => {
-    const t = setTimeout(() => setQuery(q.trim()), 120)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setQuery(q.trim()), 120)
+    return () => clearTimeout(timer)
   }, [q])
   const search = useQuery({...searchQuery(types, query, filter), enabled: open, placeholderData: keepPreviousData})
   const creatable = types.filter((t) => !isSingleton(schemas, t))
   const waiting = q.trim() !== query || search.isPending || search.isPlaceholderData
   // Never let Enter select a result belonging to the previous search text.
   const results = waiting || search.isError ? [] : search.data ?? []
-  const typeTitle = (t: string) => schemaOf(schemas, t)?.title ?? t
+  const typeTitle = (type: string) => schemaOf(schemas, type)?.title ?? type
 
   const replacing = !!onCancel
   useEffect(() => {
@@ -216,7 +221,7 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
           aria-activedescendant={open && results[active] ? `${listId}-${active}` : undefined}
           aria-autocomplete="list"
           aria-busy={open && waiting}
-          placeholder="Type to search"
+          placeholder={t('Type to search')}
           autoComplete="off"
           value={q}
           onFocus={() => setOpen(true)}
@@ -233,7 +238,7 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
           }}
         />
         {onCancel && (
-          <button type="button" className="icon-btn in-input" aria-label="Cancel" onClick={onCancel}>
+          <button type="button" className="icon-btn in-input" aria-label={t('Cancel')} onClick={onCancel}>
             <Close />
           </button>
         )}
@@ -241,7 +246,7 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
       <button
         type="button"
         className="btn-square"
-        aria-label="Show all"
+        aria-label={t('Show all')}
         tabIndex={-1}
         onClick={() => {
           setQ('')
@@ -254,11 +259,11 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
       </button>
       {/* B13: a singleton type is never created from here (it has its one document). */}
       {creatable.length > 1 ? (
-        <CreateMenu types={creatable} title={typeTitle} onPick={(t) => onCreate(q.trim(), t)} />
+        <CreateMenu types={creatable} title={typeTitle} onPick={(type) => onCreate(q.trim(), type)} />
       ) : creatable.length === 1 ? (
         <button type="button" className="btn-create" onClick={() => onCreate(q.trim(), creatable[0]!)}>
           <Add />
-          Create
+          {t('Create')}
         </button>
       ) : null}
       {open && results.length > 0 && (
@@ -278,16 +283,16 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
         </div>
       )}
       {open && waiting && (
-        <div className="popover options empty" id={listId} role="status">Searching…</div>
+        <div className="popover options empty" id={listId} role="status">{t('Searching…')}</div>
       )}
       {open && !waiting && search.isError && (
         <div className="popover options empty" id={listId} role="alert">
-          Could not search references. <button type="button" className="btn" onMouseDown={(e) => e.preventDefault()} onClick={() => { inputRef.current?.focus(); void search.refetch() }}>Retry</button>
+          {t('Could not search references.')} <button type="button" className="btn" onMouseDown={(e) => e.preventDefault()} onClick={() => { inputRef.current?.focus(); void search.refetch() }}>{t('Retry')}</button>
         </div>
       )}
       {open && !waiting && query && search.isSuccess && results.length === 0 && (
         <div className="popover options empty" id={listId} role="status">
-          No results for <b>“{query}”</b>
+          {t('No results for')} <b>{t('“{query}”', {query})}</b>
         </div>
       )}
     </div>
@@ -295,7 +300,8 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
 }
 
 /** Several target types: Sanity's "Create…" asks which one first. */
-function CreateMenu({types, title, onPick}: {types: string[]; title: (t: string) => string; onPick: (type: string) => void}) {
+function CreateMenu({types, title, onPick}: {types: string[]; title: (type: string) => string; onPick: (type: string) => void}) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -319,13 +325,13 @@ function CreateMenu({types, title, onPick}: {types: string[]; title: (t: string)
     >
       <button type="button" className="btn-create" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Add />
-        Create…
+        {t('Create…')}
       </button>
       {open && (
         <MenuPopover onClose={() => setOpen(false)}>
-          {types.map((t) => (
-            <button key={t} type="button" role="menuitem" className="menu-item" onClick={() => (setOpen(false), onPick(t))}>
-              {title(t)}
+          {types.map((type) => (
+            <button key={type} type="button" role="menuitem" className="menu-item" onClick={() => (setOpen(false), onPick(type))}>
+              {title(type)}
             </button>
           ))}
         </MenuPopover>
@@ -335,6 +341,7 @@ function CreateMenu({types, title, onPick}: {types: string[]; title: (t: string)
 }
 
 function RefMenu({onClear, onReplace, newTabHref}: {onClear: () => void; onReplace: () => void; newTabHref: string}) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -346,7 +353,7 @@ function RefMenu({onClear, onReplace, newTabHref}: {onClear: () => void; onRepla
   }, [open])
   const item = (label: string, run: () => void, cls = '') => (
     <button type="button" role="menuitem" className={`menu-item ${cls}`} onClick={() => (setOpen(false), run())}>
-      {label}
+      {t(label)}
     </button>
   )
   return (
@@ -361,7 +368,7 @@ function RefMenu({onClear, onReplace, newTabHref}: {onClear: () => void; onRepla
         if (e.key === 'ArrowUp' && open) (e.preventDefault(), items[(i - 1 + items.length) % items.length]?.focus())
       }}
     >
-      <button type="button" className="icon-btn" aria-label="Reference actions" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={t('Reference actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (

@@ -3,6 +3,7 @@ import type {Doc} from '../lib/data'
 import {checkLabel, labelEntries, slugFeedback, type WeightedTag} from '../lib/paper'
 import {TextInput} from './Fields'
 import {ChevronDown, ChevronRight, Close as CloseIcon} from './icons'
+import {useT} from '../lib/i18n'
 
 // D12: a paper's metadata beside the canvas, after Barkpark's LiveView Studio sidebar
 // (paper_canvas.ex "t6"): Status (LiveView: Publish; renamed so it never shares a name
@@ -10,6 +11,7 @@ import {ChevronDown, ChevronRight, Close as CloseIcon} from './icons'
 // edit through the pane's own save path; none touches a block.
 
 export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; published: boolean; onEdit: (field: string, value: unknown) => void; onClose: () => void}) {
+  const t = useT()
   const [slug, setSlug] = useState(doc._publishedId)
   const fb = slugFeedback(slug)
   const description = typeof doc.description === 'string' ? doc.description : ''
@@ -29,55 +31,55 @@ export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; publi
     onEdit('tags', [...tags, r.entry])
   }
   return (
-    <aside ref={root} tabIndex={-1} className="inspector paper-sidebar" aria-label="Document metadata">
+    <aside ref={root} tabIndex={-1} className="inspector paper-sidebar" aria-label={t('Document metadata')}>
       <header>
-        <h2>Document metadata</h2>
-        <button type="button" className="icon-btn" aria-label="Close document metadata" onClick={onClose}>
+        <h2>{t('Document metadata')}</h2>
+        <button type="button" className="icon-btn" aria-label={t('Close document metadata')} onClick={onClose}>
           <CloseIcon />
         </button>
       </header>
-      <Section title="Status">
+      <Section title={t('Status')}>
         <dl className="paper-facts">
-          <dt>Status</dt>
-          <dd>{published ? (doc._draft ? 'Published, with unpublished changes' : 'Published') : 'Draft'}</dd>
-          <dt>Visibility</dt>
-          <dd>{published ? 'Public' : 'Draft'}</dd>
+          <dt>{t('Status')}</dt>
+          <dd>{published ? (doc._draft ? t('Published, with unpublished changes') : t('Published')) : t('Draft')}</dd>
+          <dt>{t('Visibility')}</dt>
+          <dd>{published ? t('Public') : t('Draft')}</dd>
         </dl>
       </Section>
-      <Section title="Slug">
-        <input className="input" aria-label="Slug" aria-describedby="paper-slug-fb" value={slug} onChange={(e) => setSlug(e.target.value)} />
+      <Section title={t('Slug')}>
+        <input className="input" aria-label={t('Slug')} aria-describedby="paper-slug-fb" value={slug} onChange={(e) => setSlug(e.target.value)} />
         <p id="paper-slug-fb" className="paper-fb" data-tone={fb.tone}>
-          {fb.message}
+          {t(fb.message)}
         </p>
-        <p className="muted paper-note">The slug is this paper's id: checked as you type, not renamed here.</p>
+        <p className="muted paper-note">{t("The slug is this paper's id: checked as you type, not renamed here.")}</p>
       </Section>
-      <Section title="Description">
+      <Section title={t('Description')}>
         <label className="sr-only" htmlFor="description">
-          Description
+          {t('Description')}
         </label>
         <TextInput id="description" value={description} rows={4} onChange={(v) => onEdit('description', v)} />
         {description.trim().length < 20 && (
           <p className="paper-fb" data-tone="warn">
-            Publishing needs a description of at least 20 characters.
+            {t('Publishing needs a description of at least 20 characters.')}
           </p>
         )}
       </Section>
-      <Section title="Labels">
+      <Section title={t('Labels')}>
         {labels.length === 0 ? (
-          <p className="muted">No labels yet.</p>
+          <p className="muted">{t('No labels yet.')}</p>
         ) : (
           <ul className="paper-tags">
             {labels.map((l) => (
               <li key={`${l.index}-${l.name}`} data-main={l.main || undefined} title={l.rationale ?? undefined}>
                 <span className="paper-tag-name">
                   {l.main ? <strong>{l.name}</strong> : l.name}
-                  {l.main && <span className="paper-tag-main">main</span>}
+                  {l.main && <span className="paper-tag-main">{t('main')}</span>}
                   {l.strength !== null && (
-                    <span className="paper-tag-strength" aria-label={`strength ${l.strength}`}>
+                    <span className="paper-tag-strength" aria-label={t('strength {n}', {n: l.strength})}>
                       {l.strength}
                     </span>
                   )}
-                  <button type="button" className="icon-btn paper-tag-remove" aria-label={`Remove label ${l.name}`} onClick={() => onEdit('tags', tags.filter((_, i) => i !== l.index))}>
+                  <button type="button" className="icon-btn paper-tag-remove" aria-label={t('Remove label {name}', {name: l.name})} onClick={() => onEdit('tags', tags.filter((_, i) => i !== l.index))}>
                     <CloseIcon />
                   </button>
                 </span>
@@ -86,17 +88,17 @@ export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; publi
             ))}
           </ul>
         )}
-        <form className="paper-add" onSubmit={submit} aria-label="Add a label">
-          <input className="input" aria-label="Tag name" placeholder="tag" value={add.tag} onChange={(e) => setAdd({...add, tag: e.target.value})} />
-          <input className="input" aria-label="Tag strength, 1 to 100" placeholder="strength 1–100" inputMode="numeric" value={add.strength} onChange={(e) => setAdd({...add, strength: e.target.value})} />
-          <input className="input" aria-label="Tag rationale" placeholder="why this tag fits (at least 20 characters)" value={add.rationale} onChange={(e) => setAdd({...add, rationale: e.target.value})} />
+        <form className="paper-add" onSubmit={submit} aria-label={t('Add a label')}>
+          <input className="input" aria-label={t('Tag name')} placeholder={t('tag')} value={add.tag} onChange={(e) => setAdd({...add, tag: e.target.value})} />
+          <input className="input" aria-label={t('Tag strength, 1 to 100')} placeholder={t('strength 1–100')} inputMode="numeric" value={add.strength} onChange={(e) => setAdd({...add, strength: e.target.value})} />
+          <input className="input" aria-label={t('Tag rationale')} placeholder={t('why this tag fits (at least 20 characters)')} value={add.rationale} onChange={(e) => setAdd({...add, rationale: e.target.value})} />
           {addError && (
             <p className="paper-fb" data-tone="danger" role="alert">
-              {addError}
+              {t(addError)}
             </p>
           )}
           <button type="submit" className="btn">
-            Add label
+            {t('Add label')}
           </button>
         </form>
       </Section>

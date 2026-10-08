@@ -5,6 +5,7 @@ import {insertMention, mentionAt, messageParts, personName} from '../lib/comment
 import {meQuery} from '../lib/session'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {ago} from './HistoryPanel'
+import {intlTag, useLocale, useT, type T} from '../lib/i18n'
 import {AddComment, Check, ChevronDown, Close, CommentIcon, Ellipsis, Mention, Send, Undo} from './icons'
 import {toast} from './Toasts'
 
@@ -23,35 +24,36 @@ type Api = {
 }
 export const CommentsContext = createContext<Api | null>(null)
 
-const nameOf = (email: string | null | undefined) => (email ? email.replace(/@.*/, '') : 'Unknown user')
+const nameOf = (t: T, email: string | null | undefined) => (email ? email.replace(/@.*/, '') : t('Unknown user'))
 const initialOf = (email: string | null | undefined) => (email ? email[0]!.toUpperCase() : '?')
 const newId = () => `comment-${crypto.randomUUID()}`
 
 /** The field's comment button and its composer (Sanity's CommentsField). */
 export function FieldComments({path, title}: {path: string; title: string}) {
   const api = useContext(CommentsContext)
+  const t = useT()
   const [composing, setComposing] = useState(false)
   // J43: closing the composer hands focus back to the button that opened it.
   const opener = useRef<HTMLButtonElement>(null)
   const close = () => (setComposing(false), requestAnimationFrame(() => opener.current?.focus()))
   if (!api) return null
-  const open = api.threads.filter((t) => t.root.fieldPath === path && t.status === 'open')
+  const open = api.threads.filter((th) => th.root.fieldPath === path && th.status === 'open')
   return (
     <div className="field-comments" data-has={open.length || undefined}>
       {open.length ? (
-        <button type="button" className="comment-count" aria-label="Open comments" title={open.length === 1 ? 'View comment' : 'View comments'} onClick={() => api.open(path)}>
+        <button type="button" className="comment-count" aria-label={t('Open comments')} title={open.length === 1 ? t('View comment') : t('View comments')} onClick={() => api.open(path)}>
           <CommentIcon /> {open.length}
         </button>
       ) : (
-        <button ref={opener} type="button" className="icon-btn comment-add" aria-label="Add comment" title="Add comment" aria-expanded={composing} onClick={() => setComposing(true)}>
+        <button ref={opener} type="button" className="icon-btn comment-add" aria-label={t('Add comment')} title={t('Add comment')} aria-expanded={composing} onClick={() => setComposing(true)}>
           <AddComment />
         </button>
       )}
       {composing && (
         <div className="popover comment-popover">
           <Composer
-            label={`Add comment to ${title}`}
-            placeholder={<>Add comment to <strong>{title}</strong></>}
+            label={t('Add comment to {field}', {field: title})}
+            placeholder={<>{t('Add comment to')} <strong>{title}</strong></>}
             autoFocus
             onSend={async (message) => {
               await postComment({data: {id: newId(), documentId: api.docId, documentType: api.docType, fieldPath: path, message}})
@@ -77,6 +79,7 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
   compact?: boolean
 }) {
   const {data: me} = useQuery(meQuery)
+  const t = useT()
   const qc = useQueryClient()
   const [text, setText] = useState(initial)
   const [sending, setSending] = useState(false)
@@ -117,7 +120,7 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
       setText('')
       void qc.invalidateQueries({queryKey: ['comments']})
     } catch (err) {
-      toast({tone: 'critical', title: 'Failed to send.', description: (err as Error).message})
+      toast({tone: 'critical', title: t('Failed to send.'), description: (err as Error).message})
     } finally {
       setSending(false)
     }
@@ -164,15 +167,15 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
           onBlur={() => setMen(null)}
           onKeyDown={keys}
         />
-        <button type="button" className="icon-btn mention" aria-label="Mention user" title="Mention user" disabled={sending} onMouseDown={(e) => e.preventDefault()} onClick={openMention}>
+        <button type="button" className="icon-btn mention" aria-label={t('Mention user')} title={t('Mention user')} disabled={sending} onMouseDown={(e) => e.preventDefault()} onClick={openMention}>
           <Mention />
         </button>
-        <button type="button" className="icon-btn send" aria-label="Send comment" title="Send comment" disabled={!text.trim() || sending} onClick={() => void send()}>
+        <button type="button" className="icon-btn send" aria-label={t('Send comment')} title={t('Send comment')} disabled={!text.trim() || sending} onClick={() => void send()}>
           <Send />
         </button>
       </div>
       {men && (
-        <div className="popover mention-menu" role="listbox" id={listId} aria-label="List of users to mention">
+        <div className="popover mention-menu" role="listbox" id={listId} aria-label={t('List of users to mention')}>
           {matches.length ? (
             matches.map((p, i) => (
               <div key={p} id={`${listId}-${i}`} role="option" aria-selected={i === active} onMouseDown={(e) => (e.preventDefault(), pick(p))} onMouseEnter={() => setActive(i)}>
@@ -182,15 +185,15 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
               </div>
             ))
           ) : (
-            <p className="muted">No users found</p>
+            <p className="muted">{t('No users found')}</p>
           )}
         </div>
       )}
       {discard && (
         <ConfirmDialog
-          title="Discard comment?"
-          body="Do you want to discard the comment?"
-          confirm="Discard"
+          title={t('Discard comment?')}
+          body={t('Do you want to discard the comment?')}
+          confirm={t('Discard')}
           onConfirm={() => (setDiscard(false), setText(''), onCancel?.())}
           onClose={() => (setDiscard(false), box.current?.focus())}
         />
@@ -201,13 +204,14 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
 
 /** Over the whole document pane (not inside the inspector or the field), like the other dialogs. */
 function ConfirmDialog({title, body, confirm, onConfirm, onClose}: {title: string; body: string; confirm: string; onConfirm: () => void; onClose: () => void}) {
+  const t = useT()
   return (
     <PaneOverlay>
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog confirm-dialog" aria-modal="true" aria-label={title} onClose={onClose}>
         <header>
           <h2>{title}</h2>
-          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+          <button type="button" className="icon-btn" aria-label={t('Close')} onClick={onClose}>
             <Close />
           </button>
         </header>
@@ -216,7 +220,7 @@ function ConfirmDialog({title, body, confirm, onConfirm, onClose}: {title: strin
         </div>
         <footer className="dialog-actions">
           <button type="button" className="btn" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button type="button" className="btn danger" onClick={onConfirm}>
             {confirm}
@@ -238,54 +242,55 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, onGoToFie
   onClose: () => void
 }) {
   const {data, isPending, isError} = useQuery(commentsQuery(docId))
+  const t = useT()
   const [status, setStatus] = useState<CommentStatus>('open')
   const [menu, setMenu] = useState(false)
-  const threads = threadsOf(data ?? []).filter((t) => t.status === status)
-  const fields = [...new Set(threads.map((t) => t.root.fieldPath))]
+  const threads = threadsOf(data ?? []).filter((th) => th.status === status)
+  const fields = [...new Set(threads.map((th) => th.root.fieldPath))]
   const list = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (focusField) list.current?.querySelector(`[data-field="${CSS.escape(focusField)}"]`)?.scrollIntoView({block: 'nearest'})
   }, [focusField, data])
   return (
-    <aside className="inspector comments" aria-label="Comments">
+    <aside className="inspector comments" aria-label={t('Comments')}>
       <header>
-        <h2>Comments</h2>
+        <h2>{t('Comments')}</h2>
         <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}>
           <button type="button" className="chip-btn plain" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
-            {status === 'open' ? 'Open' : 'Resolved'} <ChevronDown />
+            {status === 'open' ? t('Open') : t('Resolved')} <ChevronDown />
           </button>
           {menu && (
             <MenuPopover className="popover menu comments-status" onClose={() => setMenu(false)}>
               {(['open', 'resolved'] as const).map((s) => (
                 <button key={s} type="button" role="menuitemradio" aria-checked={status === s} className="menu-item check" onClick={() => (setStatus(s), setMenu(false))}>
-                  {s === 'open' ? 'Open comments' : 'Resolved comments'}
+                  {s === 'open' ? t('Open comments') : t('Resolved comments')}
                 </button>
               ))}
             </MenuPopover>
           )}
         </div>
-        <button type="button" className="icon-btn" aria-label="Close comments" onClick={onClose}>
+        <button type="button" className="icon-btn" aria-label={t('Close comments')} onClick={onClose}>
           <Close />
         </button>
       </header>
       <div className="comments-list" ref={list}>
-        {isPending && <p className="muted" role="status">Loading comments</p>}
-        {isError && <p role="alert">Something went wrong</p>}
+        {isPending && <p className="muted" role="status">{t('Loading comments')}</p>}
+        {isError && <p role="alert">{t('Something went wrong')}</p>}
         {data && threads.length === 0 && (
           <div className="comments-empty">
-            <p className="title">{status === 'open' ? 'No open comments yet' : 'No resolved comments yet'}</p>
-            <p className="muted">{status === 'open' ? 'Open comments on this document will be shown here.' : 'Resolved comments on this document will be shown here.'}</p>
+            <p className="title">{status === 'open' ? t('No open comments yet') : t('No resolved comments yet')}</p>
+            <p className="muted">{status === 'open' ? t('Open comments on this document will be shown here.') : t('Resolved comments on this document will be shown here.')}</p>
           </div>
         )}
         {fields.map((f) => (
           <section key={f} className="comment-group" data-field={f} data-focused={f === focusField || undefined}>
-            <button type="button" className="comment-field" aria-label={`Go to ${fieldTitle(f)} field`} onClick={() => onGoToField(f)}>
+            <button type="button" className="comment-field" aria-label={t('Go to {field} field', {field: fieldTitle(f)})} onClick={() => onGoToField(f)}>
               {fieldTitle(f)}
             </button>
             {threads
-              .filter((t) => t.root.fieldPath === f)
-              .map((t) => (
-                <ThreadCard key={t.root._id} thread={t} docId={docId} docType={docType} />
+              .filter((th) => th.root.fieldPath === f)
+              .map((th) => (
+                <ThreadCard key={th.root._id} thread={th} docId={docId} docType={docType} />
               ))}
           </section>
         ))}
@@ -296,6 +301,7 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, onGoToFie
 
 function ThreadCard({thread, docId, docType}: {thread: Thread; docId: string; docType: string}) {
   const qc = useQueryClient()
+  const t = useT()
   const refresh = () => void qc.invalidateQueries({queryKey: ['comments']})
   const resolved = thread.status === 'resolved'
   const toggle = async () => {
@@ -303,7 +309,7 @@ function ThreadCard({thread, docId, docType}: {thread: Thread; docId: string; do
       await setThreadStatus({data: {threadId: thread.root._id, status: resolved ? 'open' : 'resolved'}})
       refresh()
     } catch (err) {
-      toast({tone: 'critical', title: 'Could not update the comment', description: (err as Error).message})
+      toast({tone: 'critical', title: t('Could not update the comment'), description: (err as Error).message})
     }
   }
   return (
@@ -315,8 +321,8 @@ function ThreadCard({thread, docId, docType}: {thread: Thread; docId: string; do
       {!resolved && (
         <Composer
           compact
-          label="Reply"
-          placeholder="Reply"
+          label={t('Reply')}
+          placeholder={t('Reply')}
           onSend={async (message) => void (await postComment({data: {id: newId(), documentId: docId, documentType: docType, fieldPath: thread.root.fieldPath, message, parentCommentId: thread.root._id}}))}
         />
       )}
@@ -326,6 +332,8 @@ function ThreadCard({thread, docId, docType}: {thread: Thread; docId: string; do
 
 function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {comment: Comment; head?: boolean; replyIds?: string[]; resolved?: boolean; onToggle?: () => void}) {
   const {data: me} = useQuery(meQuery)
+  const t = useT()
+  const locale = useLocale()
   const qc = useQueryClient()
   const [menu, setMenu] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -337,29 +345,29 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
       <span className="avatar">{initialOf(comment.authorEmail)}</span>
       <div className="comment-body">
         <div className="comment-meta">
-          <strong>{nameOf(comment.authorEmail)}</strong>
-          <time dateTime={comment.createdAt} title={new Date(comment.createdAt).toLocaleString()}>
-            {ago(comment.createdAt)}
+          <strong>{nameOf(t, comment.authorEmail)}</strong>
+          <time dateTime={comment.createdAt} title={new Date(comment.createdAt).toLocaleString(intlTag(locale))}>
+            {ago(comment.createdAt, locale)}
           </time>
-          {comment.editedAt && <span className="muted">(edited)</span>}
+          {comment.editedAt && <span className="muted">{t('(edited)')}</span>}
           <span className="comment-actions">
             {head && onToggle && (
-              <button type="button" className="icon-btn" aria-label={resolved ? 'Re-open' : 'Mark comment as resolved'} title={resolved ? 'Re-open' : 'Mark as resolved'} onClick={onToggle}>
+              <button type="button" className="icon-btn" aria-label={resolved ? t('Re-open') : t('Mark comment as resolved')} title={resolved ? t('Re-open') : t('Mark as resolved')} onClick={onToggle}>
                 {resolved ? <Undo /> : <Check />}
               </button>
             )}
             {mine && (
               <span className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}>
-                <button type="button" className="icon-btn" aria-label="Open comment actions menu" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+                <button type="button" className="icon-btn" aria-label={t('Open comment actions menu')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
                   <Ellipsis />
                 </button>
                 {menu && (
                   <MenuPopover className="popover menu" onClose={() => setMenu(false)}>
                     <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenu(false), setEditing(true))}>
-                      Edit comment
+                      {t('Edit comment')}
                     </button>
                     <button type="button" role="menuitem" className="menu-item danger" onClick={() => (setMenu(false), setDeleting(true))}>
-                      Delete comment
+                      {t('Delete comment')}
                     </button>
                   </MenuPopover>
                 )}
@@ -371,7 +379,7 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
           <Composer
             compact
             autoFocus
-            label="Edit comment"
+            label={t('Edit comment')}
             placeholder=""
             initial={comment.message}
             onSend={async (message) => (await editComment({data: {id: comment._id, message}}), setEditing(false))}
@@ -393,16 +401,16 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
       </div>
       {deleting && (
         <ConfirmDialog
-          title={thread ? 'Delete this comment thread?' : 'Delete this comment?'}
-          body={thread ? 'This comment and its replies will be deleted, and once deleted cannot be recovered.' : 'Once deleted, a comment cannot be recovered.'}
-          confirm={thread ? 'Delete thread' : 'Delete comment'}
+          title={thread ? t('Delete this comment thread?') : t('Delete this comment?')}
+          body={thread ? t('This comment and its replies will be deleted, and once deleted cannot be recovered.') : t('Once deleted, a comment cannot be recovered.')}
+          confirm={thread ? t('Delete thread') : t('Delete comment')}
           onConfirm={async () => {
             setDeleting(false)
             try {
               await deleteComment({data: {id: comment._id, replyIds: head ? replyIds : []}})
               void qc.invalidateQueries({queryKey: ['comments']})
             } catch (err) {
-              toast({tone: 'critical', title: 'An error occurred while deleting the comment. Please try again.', description: (err as Error).message})
+              toast({tone: 'critical', title: t('An error occurred while deleting the comment. Please try again.'), description: (err as Error).message})
             }
           }}
           onClose={() => setDeleting(false)}

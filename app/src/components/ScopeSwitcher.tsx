@@ -5,12 +5,14 @@ import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
 import {scopedPath, type Scope} from '../lib/scope'
 import {DialogBox} from './FocusScopes'
 import {ChevronDown} from './icons'
+import {useT} from '../lib/i18n'
 
 // B02: switch workspace / project / dataset, like Barkpark's LiveView Studio. The choice
 // goes into the URL (/w/<ws>/p/<project>/d/<dataset>/…) and opens as a fresh page, so
 // nothing read in the old dataset can show in the new one. The tool you are in stays.
 
 export function ScopeSwitcher() {
+  const t = useT()
   const {data: current} = useQuery(currentScopeQuery)
   const [open, setOpen] = useState(false)
   if (!current) return null
@@ -21,7 +23,7 @@ export function ScopeSwitcher() {
         className="scope-button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Workspace ${current.workspace}, project ${current.project}, dataset ${current.dataset}. Switch`}
+        aria-label={t('Workspace {workspace}, project {project}, dataset {dataset}. Switch', {workspace: current.workspace, project: current.project, dataset: current.dataset})}
         onClick={() => setOpen((o) => !o)}
       >
         <span className="scope-ws">{current.workspace} /</span>
@@ -34,6 +36,7 @@ export function ScopeSwitcher() {
 }
 
 function ScopeDialog({current, onClose}: {current: Scope; onClose: () => void}) {
+  const t = useT()
   const [pick, setPick] = useState(current)
   const options = useQuery(scopeOptionsQuery(pick))
   const tool = useRouterState({select: (s) => '/' + (s.location.pathname.split('/')[1] || 'structure')})
@@ -59,27 +62,30 @@ function ScopeDialog({current, onClose}: {current: Scope; onClose: () => void}) 
     </label>
   )
   return (
-    <DialogBox className="popover scope-popover" aria-label="Switch workspace, project or dataset" onClose={onClose}>
+    <DialogBox className="popover scope-popover" aria-label={t('Switch workspace, project or dataset')} onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault()
           if (!same) window.location.assign(scopedPath(pick, tool))
         }}
       >
-        {field('Workspace', 'workspace', options.data?.workspaces)}
-        {field('Project', 'project', options.data?.projects)}
-        {field('Dataset', 'dataset', options.data?.datasets)}
+        {field(t('Workspace'), 'workspace', options.data?.workspaces)}
+        {field(t('Project'), 'project', options.data?.projects)}
+        {field(t('Dataset'), 'dataset', options.data?.datasets)}
         {options.isError && (
           <p className="field-error" role="alert">
-            Could not list where you can go. <button type="button" className="btn-text" onClick={() => void options.refetch()}>Retry</button>
+            {t('Could not list where you can go.')}{' '}
+            <button type="button" className="btn-text" onClick={() => void options.refetch()}>
+              {t('Retry')}
+            </button>
           </p>
         )}
         <div className="scope-actions">
           <button type="button" className="btn" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button type="submit" className="publish" disabled={same || options.isFetching}>
-            Switch
+            {t('Switch')}
           </button>
         </div>
       </form>

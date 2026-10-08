@@ -5,6 +5,7 @@ import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
 import {usePresences, type Presence} from '../lib/presence'
 import {Users} from './icons'
+import {useT} from '../lib/i18n'
 
 // J07: other editors, where Sanity shows them — on the field they are in, on the
 // list row and pane of the doc they have open, and in the navbar's "who's online".
@@ -136,6 +137,7 @@ export function PresenceHints({docId, scroller}: {docId: string; scroller: RefOb
 
 /** Navbar: who else is in the studio; pick one to open the doc they are on. */
 export function WhoIsOnline() {
+  const t = useT()
   const people = usePresences()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -147,14 +149,14 @@ export function WhoIsOnline() {
   }, [open])
   return (
     <div className="menu-wrap" ref={ref} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
-      <button type="button" className="icon-btn who" aria-label="Who's online" data-tip="Who is here" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn who" aria-label={t("Who's online")} data-tip={t('Who is here')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Users />
         {people.length > 0 && <span className="count">{people.length}</span>}
       </button>
       {open && (
         <MenuPopover className="popover menu who-menu" onClose={() => setOpen(false)}>
           {people.length === 0 ? (
-            <p className="menu-empty">No one else is here</p>
+            <p className="menu-empty">{t('No one else is here')}</p>
           ) : (
             people.map((p) => <OnlineRow key={p.sessionId} p={p} onDone={() => setOpen(false)} />)
           )}
@@ -165,6 +167,7 @@ export function WhoIsOnline() {
 }
 
 function OnlineRow({p, onDone}: {p: Presence; onDone: () => void}) {
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -184,7 +187,7 @@ function OnlineRow({p, onDone}: {p: Presence; onDone: () => void}) {
     >
       <Avatar p={p} />
       <span className="who-name">{p.name}</span>
-      <span className="who-doc">{p.documentId ? (doc ? previewTitle(doc, schemaOf(schemas, doc._type)) : '…') : 'Not in a document'}</span>
+      <span className="who-doc">{p.documentId ? (doc ? previewTitle(doc, schemaOf(schemas, doc._type)) : '…') : t('Not in a document')}</span>
     </button>
   )
 }

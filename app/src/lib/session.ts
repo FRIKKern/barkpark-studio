@@ -1,6 +1,7 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {currentEditor, devLoginEnabled, signIn, signOut} from '../server/auth'
+import {useT} from './i18n'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
 // httpOnly and the token never leaves the server.
@@ -32,14 +33,15 @@ export const meQuery = queryOptions({queryKey: ['me'], queryFn: () => whoAmI(), 
  * Viewer).
  */
 export function useCanWrite() {
+  const t = useT()
   const {data: me} = useQuery(meQuery)
   const canWrite = me?.canWrite !== false
   return {
     canWrite,
     /** Dev sign-in is on and nobody is signed in any more. */
     signedOut: !!me?.devLogin && !me.email,
-    editReason: canWrite ? undefined : 'Your role Viewer does not have permission to edit this document.',
-    publishReason: canWrite ? undefined : 'Your role Viewer does not have permission to publish this document.',
-    createReason: canWrite ? undefined : 'Your role Viewer does not have permission to create documents.',
+    editReason: canWrite ? undefined : t('Your role Viewer does not have permission to edit this document.'),
+    publishReason: canWrite ? undefined : t('Your role Viewer does not have permission to publish this document.'),
+    createReason: canWrite ? undefined : t('Your role Viewer does not have permission to create documents.'),
   }
 }

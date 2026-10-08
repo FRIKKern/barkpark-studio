@@ -12,9 +12,11 @@ import {useState} from 'react'
 import {useHydratedMark} from '../lib/hydrated'
 import {BUILD, buildName, useNewVersion} from '../lib/version'
 import {saveAll} from '../lib/edits'
+import {useT} from '../lib/i18n'
 
 export function Navbar() {
   useHydratedMark()
+  const t = useT()
   return (
     <nav className="navbar">
       <div className="brand">
@@ -29,7 +31,7 @@ export function Navbar() {
       <div className="tools">
         {TOOLS.map(([to, label]) => (
           <Link key={to} to={to} className="tool" activeProps={{className: 'tool tab', 'aria-current': 'page'}}>
-            {label}
+            {t(label)}
           </Link>
         ))}
       </div>
@@ -49,6 +51,7 @@ export function Navbar() {
  * picking a tool closes it.
  */
 function NavDrawer() {
+  const t = useT()
   const {data: me} = useQuery(meQuery)
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -58,31 +61,31 @@ function NavDrawer() {
   const close = () => setOpen(false)
   return (
     <>
-      <button type="button" className="icon-btn nav-drawer-btn" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+      <button type="button" className="icon-btn nav-drawer-btn" aria-label={t('Open menu')} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
         <MenuIcon />
       </button>
       {open && (
         <div className="drawer-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
-          <DialogBox className="nav-drawer" aria-modal="true" aria-label="Menu" onClose={close}>
+          <DialogBox className="nav-drawer" aria-modal="true" aria-label={t('Menu')} onClose={close}>
             <header>
               {signedIn ? <span className="user-initial">{me!.email![0]!.toUpperCase()}</span> : <span className="logo">B</span>}
               <span className="drawer-who">{signedIn ? me!.email : 'Barkpark Studio'}</span>
-              <button type="button" className="icon-btn" aria-label="Close menu" onClick={close}>
+              <button type="button" className="icon-btn" aria-label={t('Close menu')} onClick={close}>
                 <Close />
               </button>
             </header>
-            <nav aria-label="Tools">
+            <nav aria-label={t('Tools')}>
               {TOOLS.map(([to, label]) => (
                 <Link key={to} to={to} className="drawer-item" activeProps={{className: 'drawer-item on', 'aria-current': 'page'}} onClick={close}>
-                  {label}
+                  {t(label)}
                 </Link>
               ))}
             </nav>
             <div className="drawer-foot">
               {APPEARANCES.map(([a, label, Icon]) => (
-                <button key={a} type="button" aria-pressed={appearance === a} aria-label={`Use ${a} appearance`} className="drawer-item check" onClick={() => setAppearance(a)}>
+                <button key={a} type="button" aria-pressed={appearance === a} aria-label={t(`Use ${a} appearance`)} className="drawer-item check" onClick={() => setAppearance(a)}>
                   <span className="menu-icon-text">
-                    <Icon /> {label}
+                    <Icon /> {t(label)}
                   </span>
                 </button>
               ))}
@@ -100,7 +103,7 @@ function NavDrawer() {
                     }}
                   >
                     <span className="menu-icon-text">
-                      Sign out <SignOut />
+                      {t('Sign out')} <SignOut />
                     </span>
                   </button>
                 </>
@@ -120,6 +123,7 @@ function NavDrawer() {
  * edit is saved. Sanity's other entries become ours: report a problem, the docs.
  */
 function Help() {
+  const t = useT()
   const next = useNewVersion()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -135,8 +139,8 @@ function Help() {
         id="help-menu"
         type="button"
         className="icon-btn"
-        aria-label="Help and resources"
-        data-tip={next ? 'New version available' : 'Help and resources'}
+        aria-label={t('Help and resources')}
+        data-tip={next ? t('New version available') : t('Help and resources')}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
@@ -147,19 +151,27 @@ function Help() {
       {open && (
         <MenuPopover className="popover menu help-menu" onClose={() => setOpen(false)} aria-labelledby="help-menu">
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio/issues/new/choose" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
-            Report a problem
+            {t('Report a problem')}
           </a>
           <hr />
           <button type="button" role="menuitem" className="menu-item studio-version" disabled={!next || reloading} data-update={next ? '' : undefined} onClick={reload}>
             <span className="version-text">
               <span>Barkpark Studio</span>
-              <span className="muted">{reloading ? 'Saving, then reloading…' : next ? (buildName(next) === buildName(BUILD) ? 'Reload to update' : `Reload to update to ${buildName(next)}`) : 'Up to date'}</span>
+              <span className="muted">
+                {reloading
+                  ? t('Saving, then reloading…')
+                  : next
+                    ? buildName(next) === buildName(BUILD)
+                      ? t('Reload to update')
+                      : t('Reload to update to {version}', {version: buildName(next)})
+                    : t('Up to date')}
+              </span>
             </span>
             <span className="version-badge">{buildName(BUILD)}</span>
           </button>
           <hr />
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio#readme" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
-            Documentation
+            {t('Documentation')}
           </a>
         </MenuPopover>
       )}
@@ -172,6 +184,7 @@ function Help() {
  * Dark, Light, checked like radios) and, for dev sign-in, Sign out.
  */
 function Editor() {
+  const t = useT()
   const {data: me} = useQuery(meQuery)
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -182,12 +195,12 @@ function Editor() {
   return (
     <div className="editor">
       {signedIn && (
-        <span className="dev-badge" title="Dev sign-in: identity is asserted, not proven">
+        <span className="dev-badge" title={t('Dev sign-in: identity is asserted, not proven')}>
           DEV
         </span>
       )}
       <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
-        <button id="user-menu" type="button" className="icon-btn user-btn" aria-label="Open user menu" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <button id="user-menu" type="button" className="icon-btn user-btn" aria-label={t('Open user menu')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {signedIn ? <span className="user-initial">{me!.email![0]!.toUpperCase()}</span> : <UserIcon />}
         </button>
         {open && (
@@ -195,9 +208,9 @@ function Editor() {
             <div className="user-head">{signedIn ? me!.email : 'Barkpark Studio'}</div>
             <hr />
             {APPEARANCES.map(([a, label, Icon]) => (
-              <button key={a} type="button" role="menuitemradio" aria-checked={appearance === a} aria-label={`Use ${a} appearance`} className="menu-item check" onClick={choose(a)}>
+              <button key={a} type="button" role="menuitemradio" aria-checked={appearance === a} aria-label={t(`Use ${a} appearance`)} className="menu-item check" onClick={choose(a)}>
                 <span className="menu-icon-text">
-                  <Icon /> {label}
+                  <Icon /> {t(label)}
                 </span>
               </button>
             ))}
@@ -215,7 +228,7 @@ function Editor() {
                     await navigate({to: '/login', search: {redirect: '/structure'}})
                   }}
                 >
-                  <span className="menu-icon-text">Sign out</span>
+                  <span className="menu-icon-text">{t('Sign out')}</span>
                   <SignOut />
                 </button>
               </>

@@ -5,6 +5,7 @@ import {ProblemMark, ProblemsContext, type OpenRef} from './Fields'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
 import {SortableRows} from './SortableRows'
+import {useT} from '../lib/i18n'
 
 // Arrays of references (J09), after Sanity's: keyed rows ({_key, _type, _ref}),
 // each a preview that opens the doc in the next pane; the row's "…" menu adds
@@ -14,6 +15,7 @@ type Item = {_key?: string; _type?: string; _ref?: string}
 const newKey = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 
 export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}) {
+  const t = useT()
   // Old data may hold bare ids: give them the keyed shape on the next write.
   const items = (Array.isArray(value) ? value : []).map((v) => (typeof v === 'string' ? {_key: newKey(), _type: 'reference', _ref: v} : (v as Item)))
   const types = refTypesOf(field.of)
@@ -41,8 +43,8 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
         const ref = refId(it)
         if (!ref) return []
         return [
-          {label: 'Replace', run: () => { focusKey.current = it._key; set(items.map((x, j) => (j === i ? {_key: x._key, _type: 'reference'} : x))) }},
-          {label: 'Open in new tab', run: () => window.open(`/structure/${types[0]};${ref}`, '_blank'), last: true},
+          {label: t('Replace'), run: () => { focusKey.current = it._key; set(items.map((x, j) => (j === i ? {_key: x._key, _type: 'reference'} : x))) }},
+          {label: t('Open in new tab'), run: () => window.open(`/structure/${types[0]};${ref}`, '_blank'), last: true},
         ]
       }}
       renderItem={(it, i) => {
@@ -56,7 +58,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
           <div className="ref-row-search">
             {/* Sanity's: an empty row is labelled, and marked as a validation error. */}
             <div className="ref-row-label">
-              Reference to {types.join(' or ')}
+              {t('Reference to {types}', {types: types.join(t(' or '))})}
               <ProblemMark path={itemPath(id, it, i)} />
             </div>
             <RefInput

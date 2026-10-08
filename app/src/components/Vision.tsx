@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
+import {useT} from '../lib/i18n'
 
 // J37, Vision: Sanity's layout (dataset and perspective on top, the query on the
 // left, the result on the right, timings below), for Barkpark's query API.
@@ -16,6 +17,7 @@ const load = (): {query: string; perspective: Perspective} => {
 }
 
 export function Vision({dataset}: {dataset: string}) {
+  const t = useT()
   const [query, setQuery] = useState(EXAMPLE)
   const [perspective, setPerspective] = useState<Perspective>('drafts')
   const [result, setResult] = useState<VisionResult & {total?: number}>()
@@ -39,13 +41,13 @@ export function Vision({dataset}: {dataset: string}) {
     <main className="vision">
       <div className="vision-top">
         <label>
-          <span className="menu-label">Dataset</span>
+          <span className="menu-label">{t('Dataset')}</span>
           <select className="input" value={dataset} disabled>
             <option>{dataset}</option>
           </select>
         </label>
         <label>
-          <span className="menu-label">Perspective</span>
+          <span className="menu-label">{t('Perspective')}</span>
           <select className="input" value={perspective} onChange={(e) => setPerspective(e.target.value as Perspective)}>
             {PERSPECTIVES.map((p) => (
               <option key={p}>{p}</option>
@@ -56,7 +58,7 @@ export function Vision({dataset}: {dataset: string}) {
       <div className="vision-body">
         <section className="vision-query">
           <label htmlFor="vision-query" className="menu-label">
-            Query
+            {t('Query')}
           </label>
           <textarea
             id="vision-query"
@@ -67,14 +69,14 @@ export function Vision({dataset}: {dataset: string}) {
             onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
           />
           <p className="vision-hint">
-            A type, then Barkpark's query string: <code>filter[field][op]=value</code>, <code>order</code>, <code>limit</code>.
+            {t("A type, then Barkpark's query string:")} <code>filter[field][op]=value</code>, <code>order</code>, <code>limit</code>.
           </p>
           <button type="button" className="btn btn-primary vision-fetch" disabled={busy} aria-keyshortcuts="Control+Enter Meta+Enter" onClick={() => void fetchIt()}>
-            ▶ Fetch
+            ▶ {t('Fetch')}
           </button>
         </section>
-        <section className="vision-result" aria-label="Result" aria-busy={busy}>
-          <div className="menu-label">Result</div>
+        <section className="vision-result" aria-label={t('Result')} aria-busy={busy}>
+          <div className="menu-label">{t('Result')}</div>
           <div className="vision-out-wrap">
           {result?.error ? (
             <p role="alert" className="field-error">
@@ -83,15 +85,15 @@ export function Vision({dataset}: {dataset: string}) {
           ) : (
             result && (
               <>
-                {!result.ok && <p role="alert" className="field-error">Barkpark answered {result.status}</p>}
+                {!result.ok && <p role="alert" className="field-error">{t('Barkpark answered {status}', {status: result.status})}</p>}
                 <pre className="vision-code vision-out">{result.body}</pre>
               </>
             )
           )}
           </div>
           <footer className="vision-foot">
-            <span>Execution: {result && !result.error ? `${result.ms} ms` : 'n/a'}</span>
-            <span>End-to-end: {result?.total !== undefined && !result.error ? `${result.total} ms` : 'n/a'}</span>
+            <span>{t('Execution: {time}', {time: result && !result.error ? `${result.ms} ms` : t('n/a')})}</span>
+            <span>{t('End-to-end: {time}', {time: result?.total !== undefined && !result.error ? `${result.total} ms` : t('n/a')})}</span>
             {result?.url && <code className="vision-url">{result.url}</code>}
           </footer>
         </section>

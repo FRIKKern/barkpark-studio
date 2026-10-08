@@ -1,8 +1,11 @@
 import {Fragment, useEffect, useId, useRef, useState, type ReactNode} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {searchQuery, type Schema} from '../lib/data'
+import {intlTag, useLocale, useT, type T} from '../lib/i18n'
 import {useFocusScope} from '../lib/focus-scope'
 import {
+  english,
+  fieldTitle,
   filterLabel,
   filterMenu,
   isComplete,
@@ -29,17 +32,17 @@ export const SORTS: [SearchSort, string][][] = [
   [['createdAsc', 'Created: Oldest first'], ['createdDesc', 'Created: Newest first']],
   [['updatedAsc', 'Updated: Oldest first'], ['updatedDesc', 'Updated: Newest first']],
 ]
-export const sortLabel = (s: SearchSort) => SORTS.flat().find(([k]) => k === s)![1]
+export const sortLabel = (s: SearchSort, t: T = english) => t(SORTS.flat().find(([k]) => k === s)![1])
 
 /** Picked type titles, A–Z, cut to `chars` with "+N more" (Sanity's documentTypesTruncated). */
-export function typesLabel(schemas: Schema[], types: string[], chars = 40) {
-  if (!types.length) return 'All types'
+export function typesLabel(schemas: Schema[], types: string[], t: T = english, chars = 40) {
+  if (!types.length) return t('All types')
   const titles = types.map((t) => schemas.find((s) => s.name === t)?.title ?? t).sort((a, b) => a.localeCompare(b))
   const shown: string[] = []
   for (const t of titles) if (!shown.length || [...shown, t].join(', ').length <= chars) shown.push(t)
     else break
   const more = titles.length - shown.length
-  return more ? `${shown.join(', ')} +${more} more` : shown.join(', ')
+  return more ? t('{types} +{count} more', {types: shown.join(', '), count: more}) : shown.join(', ')
 }
 
 const ICON: Record<Kind, () => ReactNode> = {
@@ -87,6 +90,7 @@ function CommandPopover({groups, find, onFind, onClose, label, footer, className
   footer?: ReactNode
   className?: string
 }) {
+  const t = useT()
   const scope = useFocusScope<HTMLDivElement>({onDismiss: onClose})
   const outside = useOutside(onClose)
   const items = groups.flatMap((g) => g.items)
@@ -104,7 +108,7 @@ function CommandPopover({groups, find, onFind, onClose, label, footer, className
           aria-controls={items.length ? id : undefined}
           aria-label={label}
           aria-activedescendant={items.length ? `${id}-${at}` : undefined}
-          placeholder="Filter"
+          placeholder={t('Filter')}
           value={find}
           onChange={(e) => (onFind(e.target.value), setActive(0))}
           onKeyDown={(e) => {
@@ -114,7 +118,7 @@ function CommandPopover({groups, find, onFind, onClose, label, footer, className
           }}
         />
         {find && (
-          <button type="button" className="icon-btn" aria-label="Clear" tabIndex={-1} onClick={() => onFind('')}>
+          <button type="button" className="icon-btn" aria-label={t('Clear')} tabIndex={-1} onClick={() => onFind('')}>
             <Close />
           </button>
         )}
@@ -147,7 +151,7 @@ function CommandPopover({groups, find, onFind, onClose, label, footer, className
         ))}
         </div>
         )}
-        {!items.length && <p className="command-empty">No matches for {find}</p>}
+        {!items.length && <p className="command-empty">{t('No matches for {filter}', {filter: find})}</p>}
       </div>
       {footer}
     </div>
@@ -164,6 +168,7 @@ type Props = {
 }
 
 export function SearchFilters({schemas, fields, types, onTypes, filters, onFilters}: Props) {
+  const t = useT()
   const [menu, setMenu] = useState<'types' | 'add' | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [find, setFind] = useState('')
@@ -175,17 +180,17 @@ export function SearchFilters({schemas, fields, types, onTypes, filters, onFilte
   const typeItems: Item[] = sorted
     .filter((s) => s.title.toLowerCase().includes(find.trim().toLowerCase()))
     .map((s) => ({key: s.name, text: s.title, label: <span>{s.title}</span>, checked: types.includes(s.name), onPick: () => toggle(s.name)}))
-  const addGroups: Group[] = filterMenu(schemas, types, find).map((sec) => ({
+  const addGroups: Group[] = filterMenu(schemas, types, find, t).map((sec) => ({
     title: sec.title,
     items: sec.fields.map((f) => ({
       key: `${sec.title ?? ''}:${f.key}`,
-      text: f.title,
+      text: fieldTitle(f, t),
       label: (
         <span className={`field-choice${f.builtin ? ' builtin' : ''}`}>
           <span className="field-icon">{fieldIcon(f)}</span>
           <span>
             {f.parent && <small>{f.parent}</small>}
-            {f.title}
+            {fieldTitle(f, t)}
           </span>
         </span>
       ),
@@ -201,11 +206,11 @@ export function SearchFilters({schemas, fields, types, onTypes, filters, onFilte
     <div className="search-filter-row">
       <div className="menu-wrap">
         <button ref={typesBtn} type="button" className={`chip-btn${types.length ? ' on' : ''}`} aria-expanded={menu === 'types'} onClick={() => open('types')}>
-          {typesLabel(schemas, types)} <ChevronDown />
+          {typesLabel(schemas, types, t)} <ChevronDown />
         </button>
         {menu === 'types' && (
           <CommandPopover
-            label="Document types"
+            label={t('Document types')}
             groups={[{items: typeItems}]}
             find={find}
             onFind={setFind}
@@ -213,8 +218,8 @@ export function SearchFilters({schemas, fields, types, onTypes, filters, onFilte
             footer={
               types.length > 0 && (
                 <div className="command-footer">
-                  <button type="button" className="link-btn" aria-label="Clear checked filters" onMouseDown={(e) => e.preventDefault()} onClick={() => onTypes([])}>
-                    Clear
+                  <button type="button" className="link-btn" aria-label={t('Clear checked filters')} onMouseDown={(e) => e.preventDefault()} onClick={() => onTypes([])}>
+                    {t('Clear')}
                   </button>
                 </div>
               )
@@ -235,13 +240,13 @@ export function SearchFilters({schemas, fields, types, onTypes, filters, onFilte
       ))}
       <div className="menu-wrap">
         <button ref={addBtn} type="button" className="chip-btn plain" aria-expanded={menu === 'add'} onClick={() => open('add')}>
-          <Add /> Add filter
+          <Add /> {t('Add filter')}
         </button>
-        {menu === 'add' && <CommandPopover label="Filters" className="filter-menu" groups={addGroups} find={find} onFind={setFind} onClose={() => setMenu(null)} />}
+        {menu === 'add' && <CommandPopover label={t('Filters')} className="filter-menu" groups={addGroups} find={find} onFind={setFind} onClose={() => setMenu(null)} />}
       </div>
       {(types.length > 0 || filters.length > 0) && (
         <button type="button" className="link-btn danger clear-filters" onClick={() => (onTypes([]), onFilters([]), typesBtn.current?.focus())}>
-          Clear filters
+          {t('Clear filters')}
         </button>
       )}
     </div>
@@ -256,7 +261,9 @@ function FilterChip({filter, field, open, onOpen, onChange, onRemove}: {
   onChange: (f: SearchFilter) => void
   onRemove: () => void
 }) {
-  const l = filterLabel(filter, field)
+  const t = useT()
+  const locale = useLocale()
+  const l = filterLabel(filter, field, t, intlTag(locale))
   const text = [l.field, l.op, l.value].filter(Boolean).join(' ')
   return (
     <div className="menu-wrap">
@@ -266,7 +273,7 @@ function FilterChip({filter, field, open, onOpen, onChange, onRemove}: {
           {l.op && <span className="op"> {l.op} </span>}
           {l.value}
         </button>
-        <button type="button" className="icon-btn" aria-label="Remove filter" onClick={onRemove}>
+        <button type="button" className="icon-btn" aria-label={t('Remove filter')} onClick={onRemove}>
           <Close />
         </button>
       </span>
@@ -276,6 +283,7 @@ function FilterChip({filter, field, open, onOpen, onChange, onRemove}: {
 }
 
 function FilterEditor({filter, field, onChange, onClose, onRemove}: {filter: SearchFilter; field: FilterField; onChange: (f: SearchFilter) => void; onClose: () => void; onRemove: () => void}) {
+  const t = useT()
   const scope = useFocusScope<HTMLDivElement>({onDismiss: onClose})
   const outside = useOutside(onClose)
   // The value box takes the caret when the editor opens (Sanity's), not the operator button.
@@ -290,23 +298,23 @@ function FilterEditor({filter, field, onChange, onClose, onRemove}: {filter: Sea
     onChange({id: filter.id, field: filter.field, op, ...(op === 'last' && {value: '7', unit: 'days' as const})})
   }
   return (
-    <div ref={(el) => ((outside.current = el), scope(el))} className="popover filter-editor" role="dialog" aria-label={field.title}>
+    <div ref={(el) => ((outside.current = el), scope(el))} className="popover filter-editor" role="dialog" aria-label={fieldTitle(field, t)}>
       <div className="filter-editor-head">
         <p className="filter-editor-field">
           <span className="field-icon">{fieldIcon(field)}</span>
           <span>
             {field.parent && <small>{field.parent}</small>}
-            {field.title}
+            {fieldTitle(field, t)}
           </span>
           {/* Phone width: the chip has no ×, so the editor carries the remove. */}
-          <button type="button" className="icon-btn filter-trash" aria-label="Remove filter" onClick={onRemove}>
+          <button type="button" className="icon-btn filter-trash" aria-label={t('Remove filter')} onClick={onRemove}>
             <Trash />
           </button>
         </p>
         {groups.flat().length > 1 && (
           <div className="menu-wrap">
             <button type="button" className="chip-btn" aria-haspopup="menu" aria-expanded={ops} onClick={() => setOps(!ops)}>
-              {OPS[filter.op].name} <ChevronDown />
+              {t(OPS[filter.op].name)} <ChevronDown />
             </button>
             {ops && <OperatorMenu groups={groups} op={filter.op} onPick={pickOp} onClose={() => setOps(false)} />}
           </div>
@@ -322,6 +330,7 @@ function FilterEditor({filter, field, onChange, onClose, onRemove}: {filter: Sea
 }
 
 function OperatorMenu({groups, op, onPick, onClose}: {groups: OpName[][]; op: OpName; onPick: (op: OpName) => void; onClose: () => void}) {
+  const t = useT()
   const scope = useFocusScope<HTMLDivElement>({menu: true, onDismiss: onClose})
   const outside = useOutside(onClose)
   return (
@@ -331,7 +340,7 @@ function OperatorMenu({groups, op, onPick, onClose}: {groups: OpName[][]; op: Op
           {i > 0 && <hr />}
           {g.map((o) => (
             <button key={o} type="button" role="menuitemradio" aria-checked={o === op} className="menu-item" onClick={() => onPick(o)}>
-              {OPS[o].name}
+              {t(OPS[o].name)}
               {OPS[o].symbol && <kbd>{OPS[o].symbol}</kbd>}
             </button>
           ))}
@@ -342,31 +351,32 @@ function OperatorMenu({groups, op, onPick, onClose}: {groups: OpName[][]; op: Op
 }
 
 function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterField; set: (p: Partial<SearchFilter>) => void}) {
+  const t = useT()
   const {op, kind} = {op: filter.op, kind: field.kind}
   if (op === 'last')
     return (
       <div className="filter-pair">
-        <input className="input" type="number" min={1} aria-label="Unit value" autoFocus value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})} />
-        <select className="input" aria-label="Select unit" value={filter.unit ?? 'days'} onChange={(e) => set({unit: e.target.value as Unit})}>
-          <option value="days">Days</option>
-          <option value="months">Months</option>
-          <option value="years">Years</option>
+        <input className="input" type="number" min={1} aria-label={t('Unit value')} autoFocus value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})} />
+        <select className="input" aria-label={t('Select unit')} value={filter.unit ?? 'days'} onChange={(e) => set({unit: e.target.value as Unit})}>
+          <option value="days">{t('Days')}</option>
+          <option value="months">{t('Months')}</option>
+          <option value="years">{t('Years')}</option>
         </select>
       </div>
     )
   if (kind === 'reference') return <ReferenceValue filter={filter} field={field} set={set} />
   if (kind === 'boolean')
     return (
-      <select className="input" aria-label="Value" autoFocus value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})}>
-        <option value="" disabled>Select…</option>
-        <option value="true">True</option>
-        <option value="false">False</option>
+      <select className="input" aria-label={t('Value')} autoFocus value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})}>
+        <option value="" disabled>{t('Select…')}</option>
+        <option value="true">{t('True')}</option>
+        <option value="false">{t('False')}</option>
       </select>
     )
   if (kind === 'select' && (op === 'eq' || op === 'neq'))
     return (
-      <select className="input" aria-label="Value" autoFocus value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})}>
-        <option value="" disabled>Select…</option>
+      <select className="input" aria-label={t('Value')} autoFocus value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})}>
+        <option value="" disabled>{t('Select…')}</option>
         {field.options?.map((o) => (
           <option key={o.value} value={o.value}>
             {o.title}
@@ -379,8 +389,8 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
     const dates = kind === 'date' || kind === 'datetime'
     return (
       <div className="filter-pair">
-        <input className="input" type={type} autoFocus aria-label={dates ? 'Start date' : 'Min value'} placeholder={dates ? undefined : 'Min value'} value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})} />
-        <input className="input" type={type} aria-label={dates ? 'End date' : 'Max value'} placeholder={dates ? undefined : 'Max value'} value={filter.to ?? ''} onChange={(e) => set({to: e.target.value})} />
+        <input className="input" type={type} autoFocus aria-label={t(dates ? 'Start date' : 'Min value')} placeholder={dates ? undefined : t('Min value')} value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})} />
+        <input className="input" type={type} aria-label={t(dates ? 'End date' : 'Max value')} placeholder={dates ? undefined : t('Max value')} value={filter.to ?? ''} onChange={(e) => set({to: e.target.value})} />
       </div>
     )
   }
@@ -389,8 +399,8 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
       className="input"
       type={type}
       autoFocus
-      aria-label={type === 'date' || type === 'datetime-local' ? 'Date' : 'Value'}
-      placeholder={type === 'text' || type === 'number' ? 'Value' : undefined}
+      aria-label={t(type === 'date' || type === 'datetime-local' ? 'Date' : 'Value')}
+      placeholder={type === 'text' || type === 'number' ? t('Value') : undefined}
       value={filter.value ?? ''}
       onChange={(e) => set({value: e.target.value})}
     />
@@ -398,6 +408,7 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
 }
 
 function ReferenceValue({filter, field, set}: {filter: SearchFilter; field: FilterField; set: (p: Partial<SearchFilter>) => void}) {
+  const t = useT()
   const [q, setQ] = useState('')
   const found = useQuery({...searchQuery(field.refTypes ?? [], q.trim()), enabled: !filter.value})
   if (filter.value)
@@ -405,13 +416,13 @@ function ReferenceValue({filter, field, set}: {filter: SearchFilter; field: Filt
       <div className="filter-pair">
         <span className="filter-ref">{filter.label ?? filter.value}</span>
         <button type="button" className="btn" onClick={() => set({value: undefined, label: undefined})}>
-          Clear
+          {t('Clear')}
         </button>
       </div>
     )
   return (
     <div className="filter-ref-search">
-      <input className="input" autoFocus aria-label="Value" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+      <input className="input" autoFocus aria-label={t('Value')} placeholder={t('Search')} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="filter-ref-results">
         {(found.data ?? []).slice(0, 8).map((d) => (
           <button key={d._id} type="button" className="menu-item" onClick={() => set({value: d._publishedId, label: String(d.title ?? d._publishedId)})}>
@@ -424,12 +435,13 @@ function ReferenceValue({filter, field, set}: {filter: SearchFilter; field: Filt
 }
 
 export function SearchOrdering({sort, onSort}: {sort: SearchSort; onSort: (s: SearchSort) => void}) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   return (
     <div className="search-order">
       <div className="menu-wrap">
         <button type="button" className="chip-btn plain" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-          <Sort /> {sortLabel(sort)}
+          <Sort /> {sortLabel(sort, t)}
         </button>
         {open && <SortMenu sort={sort} onPick={(s) => (onSort(s), setOpen(false))} onClose={() => setOpen(false)} />}
       </div>
@@ -438,6 +450,7 @@ export function SearchOrdering({sort, onSort}: {sort: SearchSort; onSort: (s: Se
 }
 
 function SortMenu({sort, onPick, onClose}: {sort: SearchSort; onPick: (s: SearchSort) => void; onClose: () => void}) {
+  const t = useT()
   const scope = useFocusScope<HTMLDivElement>({menu: true, onDismiss: onClose})
   const outside = useOutside(onClose)
   return (
@@ -447,7 +460,7 @@ function SortMenu({sort, onPick, onClose}: {sort: SearchSort; onPick: (s: Search
           {i > 0 && <hr />}
           {g.map(([k, label]) => (
             <button key={k} type="button" role="menuitemradio" aria-checked={sort === k} className="menu-item" onClick={() => onPick(k)}>
-              {label}
+              {t(label)}
             </button>
           ))}
         </Fragment>

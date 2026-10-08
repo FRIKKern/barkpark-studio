@@ -2,10 +2,11 @@
 
 Code ported from other projects, with the license it came under.
 
-## Sanity (sanity 6.17.0, MIT)
+## Sanity (sanity 6.17.0, MIT; @sanity/locale-nb-no 1.1.39, MIT)
 
 Ported: `app/src/lib/layout.ts` (pane collapse rule from
-`packages/sanity/src/structure/components/pane/paneLayoutController.ts`).
+`packages/sanity/src/structure/components/pane/paneLayoutController.ts`). The Norwegian
+in `app/src/i18n/nb/*.ts` takes Sanity's nb-NO strings where our English is Sanity's.
 
 ```
 MIT License

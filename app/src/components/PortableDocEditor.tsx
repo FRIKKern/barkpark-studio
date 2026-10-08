@@ -4,6 +4,7 @@ import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schem
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult} from '../lib/blocks'
 import {toast} from './Toasts'
 import {unsavedElsewhere} from '../lib/edits'
+import {t as translate, useT} from '../lib/i18n'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
 // EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
@@ -48,7 +49,7 @@ function loadCanvas(): Promise<void> {
       const script = document.createElement('script')
       script.src = `${origin}/assets/bp-paper-editor.bundle.js`
       script.onload = () => resolve()
-      script.onerror = () => reject(new Error(`could not load the editor from ${origin}`))
+      script.onerror = () => reject(new Error(translate('could not load the editor from {origin}', {origin})))
       document.head.appendChild(script)
     })
     await customElements.whenDefined('bp-paper-canvas')
@@ -83,6 +84,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   editable?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
+  const t = useT()
   const qc = useQueryClient()
   const openDocRef = useRef(openDoc)
   openDocRef.current = openDoc
@@ -184,7 +186,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         el.addEventListener('bp-canvas-node-failed', (e) => {
           const d = (e as CustomEvent<{type?: string; message?: string; error?: string}>).detail ?? {}
           console.error('[canvas] node failed', d)
-          toast({tone: 'critical', title: `A ${d.type ?? 'block'} could not be shown`, description: d.message ?? d.error})
+          toast({tone: 'critical', title: t('A {type} could not be shown', {type: d.type ?? t('block')}), description: d.message ?? d.error})
         })
         // D06: a wikilink opens its doc in the next pane; a plain link a new tab.
         el.addEventListener('bp-canvas-open-link', (e) => {
@@ -193,14 +195,14 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           e.preventDefault()
           if (docId && openDocRef.current)
             void qc.fetchQuery(anyDocQuery(docId)).then((doc) =>
-              doc ? openDocRef.current?.(docId, doc._type) : toast({tone: 'critical', title: 'This link points to a document that does not exist', description: docId}),
+              doc ? openDocRef.current?.(docId, doc._type) : toast({tone: 'critical', title: t('This link points to a document that does not exist'), description: docId}),
             )
         })
         // The hover card: a wikilink shows its doc's title and excerpt.
         el.linkPreviewSource = async ({kind, docId}) => {
           if (kind !== 'wikilink' || !docId) return null
           const doc = await qc.fetchQuery(anyDocQuery(docId))
-          if (!doc) return {title: 'Document not found', excerpt: docId}
+          if (!doc) return {title: t('Document not found'), excerpt: docId}
           const schema = schemaOf(qc.getQueryData<Schema[]>(['schemas']) ?? [], doc._type)
           return {title: previewTitle(doc, schema), excerpt: doc.preview?.description ?? schema?.title}
         }
@@ -210,9 +212,9 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           const body = new FormData()
           body.append('file', file)
           const res = await fetch('/api/media/upload', {method: 'POST', body})
-          if (!res.ok) throw new Error(`upload failed (${res.status})`)
+          if (!res.ok) throw new Error(t('upload failed ({status})', {status: res.status}))
           const {url} = (await res.json()) as {url?: string}
-          if (!url) throw new Error('upload failed (no file url)')
+          if (!url) throw new Error(t('upload failed (no file url)'))
           return {src: url}
         }
         // The `[[` menu: documents of any type.
@@ -230,7 +232,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           () => {
             const pm = el.querySelector('.ProseMirror')
             if (labelledBy) pm?.setAttribute('aria-labelledby', labelledBy)
-            else pm?.setAttribute('aria-label', label ?? 'Document body')
+            else pm?.setAttribute('aria-label', label ?? t('Document body'))
           },
           {once: true},
         )
@@ -288,22 +290,22 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   return (
     <div className="pd-editor">
       <div className="pd-status" role="status">
-        {save.state === 'saving' ? 'Saving…' : save.state === 'saved' ? 'Saved' : save.state === 'error' ? 'Not saved' : ''}
+        {save.state === 'saving' ? t('Saving…') : save.state === 'saved' ? t('Saved') : save.state === 'error' ? t('Not saved') : ''}
       </div>
       {problem && (
         <div className="pd-conflict" role="alert">
-          <strong>Could not save:</strong> {problem.message}. Your edit is still on screen.
+          <strong>{t('Could not save:')}</strong> {problem.message}. {t('Your edit is still on screen.')}
           <div>
             <button type="button" className="btn-text" onClick={() => resolveRef.current?.retry()}>
-              Retry
+              {t('Retry')}
             </button>
             <button type="button" className="btn-text" onClick={() => void resolveRef.current?.discard()}>
-              Discard unsaved edits
+              {t('Discard unsaved edits')}
             </button>
           </div>
         </div>
       )}
-      {failed && <p role="alert">The editor could not load: {failed}</p>}
+      {failed && <p role="alert">{t('The editor could not load: {reason}', {reason: failed})}</p>}
       <div className="pd-canvas" ref={host} />
     </div>
   )

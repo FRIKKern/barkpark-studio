@@ -6,6 +6,7 @@ import {toast} from './Toasts'
 import {RefPreview} from './Preview'
 import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
 import type {Field} from '../lib/data'
+import {useT} from '../lib/i18n'
 import {assetUrl, dragCrop, frame, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 
 // J12, after Sanity's image input: upload; the image with an "Edit hotspot and
@@ -32,6 +33,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   const image = (value && typeof value === 'object' ? value : {}) as ImageValue
   const ref = image.asset?._ref
   const editPath = useContext(EditPathContext)
+  const t = useT()
   const file = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [failed, setFailed] = useState<File | null>(null)
@@ -56,11 +58,11 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       const body = new FormData()
       body.append('file', f)
       const res = await fetch('/api/media/upload', {method: 'POST', body})
-      if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+      if (!res.ok) throw new Error(t('The server answered {status}.', {status: res.status}))
       use(((await res.json()) as {ref: string}).ref)
     } catch (err) {
       setFailed(f)
-      toast({tone: 'critical', title: 'Upload failed', description: err instanceof TypeError ? 'The network is unreachable.' : (err as Error).message})
+      toast({tone: 'critical', title: t('Upload failed'), description: err instanceof TypeError ? t('The network is unreachable.') : (err as Error).message})
     } finally {
       setUploading(false)
     }
@@ -87,7 +89,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       }
   const overlay = over && (
     <div className="drop-overlay" aria-live="polite">
-      <Upload /> Drop to upload
+      <Upload /> {t('Drop to upload')}
     </div>
   )
 
@@ -96,67 +98,67 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       <input ref={file} type="file" accept="image/*" hidden onChange={(e) => (e.target.files?.[0] && upload(e.target.files[0]), (e.target.value = ''))} />
       {!ref ? (
         // Focusable so a paste has somewhere to land.
-        <div className="image-empty-box" tabIndex={readOnly ? undefined : 0} aria-label={`${title}: drop, paste or upload an image`} data-uploading={uploading || undefined} data-over={over || undefined} {...target}>
+        <div className="image-empty-box" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop, paste or upload an image', {title})} data-uploading={uploading || undefined} data-over={over || undefined} {...target}>
           {overlay}
           {failed && !uploading ? (
             <span className="hint failed" role="alert">
-              <ErrorOutline /> Upload failed
+              <ErrorOutline /> {t('Upload failed')}
             </span>
           ) : (
             <span className="hint">
-              <ImageIcon /> {uploading ? 'Uploading…' : 'Drag or paste image here'}
+              <ImageIcon /> {uploading ? t('Uploading…') : t('Drag or paste image here')}
             </span>
           )}
           <span className="image-empty-actions">
             {failed && !uploading && (
               <button type="button" className="btn" onClick={() => upload(failed)}>
-                <Undo /> Retry
+                <Undo /> {t('Retry')}
               </button>
             )}
             <button type="button" className="btn" disabled={readOnly || uploading} onClick={pick}>
-              <Upload /> Upload
+              <Upload /> {t('Upload')}
             </button>
             <button type="button" className="btn" disabled={readOnly || uploading} onClick={() => setBrowsing(true)}>
-              <SearchIcon /> Select
+              <SearchIcon /> {t('Select')}
             </button>
           </span>
         </div>
       ) : (
-        <div className="image-preview" tabIndex={readOnly ? undefined : 0} aria-label={`${title}: drop or paste an image to replace it`} data-over={over || undefined} {...target}>
+        <div className="image-preview" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste an image to replace it', {title})} data-over={over || undefined} {...target}>
           {overlay}
-          <img src={url} alt="Preview of uploaded image" />
-          {uploading && <span className="uploading">Uploading…</span>}
+          <img src={url} alt={t('Preview of uploaded image')} />
+          {uploading && <span className="uploading">{t('Uploading…')}</span>}
           <div className="image-actions">
             {hotspot && (
-              <button type="button" className="icon-btn" aria-label="Open image edit dialog" title="Edit hotspot and crop" disabled={readOnly} onClick={() => setEditing(true)}>
+              <button type="button" className="icon-btn" aria-label={t('Open image edit dialog')} title={t('Edit hotspot and crop')} disabled={readOnly} onClick={() => setEditing(true)}>
                 <CropIcon />
               </button>
             )}
             <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}>
-              <button id={`${id}-menuButton`} type="button" className="icon-btn" aria-label="Open image options menu" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+              <button id={`${id}-menuButton`} type="button" className="icon-btn" aria-label={t('Open image options menu')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
                 <Ellipsis />
               </button>
               {menu && (
                 <MenuPopover className="popover menu image-menu" onClose={() => setMenu(false)} aria-labelledby={`${id}-menuButton`}>
                   <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), pick())}>
-                    <Upload /> Upload
+                    <Upload /> {t('Upload')}
                   </button>
                   <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), setBrowsing(true))}>
-                    <SearchIcon /> Select
+                    <SearchIcon /> {t('Select')}
                   </button>
                   <a role="menuitem" className="menu-item" href={url} download onClick={() => setMenu(false)}>
-                    <Download /> Download
+                    <Download /> {t('Download')}
                   </a>
                   <button
                     type="button"
                     role="menuitem"
                     className="menu-item"
-                    onClick={() => (setMenu(false), navigator.clipboard.writeText(new URL(url!, location.href).href).then(() => toast({title: 'The URL is copied to the clipboard'})))}
+                    onClick={() => (setMenu(false), navigator.clipboard.writeText(new URL(url!, location.href).href).then(() => toast({title: t('The URL is copied to the clipboard')})))}
                   >
-                    <LinkIcon /> Copy URL
+                    <LinkIcon /> {t('Copy URL')}
                   </button>
                   <button type="button" role="menuitem" className="menu-item danger" disabled={readOnly} onClick={() => (setMenu(false), onChange(undefined))}>
-                    <Reset /> Clear field
+                    <Reset /> {t('Clear field')}
                   </button>
                 </MenuPopover>
               )}
@@ -188,6 +190,7 @@ type Use = {_id: string; _type: string; title?: string}
 /** Sanity's "Select image for <field>": the library as tiles; each tile's "…" shows where it is used. */
 function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; path: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
   const {data: assets, isPending, error} = useQuery({queryKey: ['media'], queryFn: () => fetch('/api/media/').then((r) => (r.ok ? (r.json() as Promise<Asset[]>) : Promise.reject(new Error(`media list → ${r.status}`))))})
+  const t = useT()
   const [usageOf, setUsageOf] = useState<Asset | null>(null)
   const [menuFor, setMenuFor] = useState<string | null>(null)
   return (
@@ -195,15 +198,15 @@ function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; pa
       <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
         <DialogBox className="dialog asset-dialog" aria-modal="true" aria-labelledby={`${path}-assets-title`} onClose={onClose}>
           <header>
-            <h2 id={`${path}-assets-title`}>Select image for "{title}"</h2>
-            <button type="button" className="icon-btn" aria-label="Close dialog" onClick={onClose}>
+            <h2 id={`${path}-assets-title`}>{t('Select image for "{title}"', {title})}</h2>
+            <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
               <CloseIcon />
             </button>
           </header>
           <div className="dialog-body">
-            {isPending && <p className="muted">Loading images…</p>}
-            {error && <p role="alert">Could not load the images: {(error as Error).message}</p>}
-            {assets?.length === 0 && <p className="muted">No images yet. Upload one first.</p>}
+            {isPending && <p className="muted">{t('Loading images…')}</p>}
+            {error && <p role="alert">{t('Could not load the images: {message}', {message: (error as Error).message})}</p>}
+            {assets?.length === 0 && <p className="muted">{t('No images yet. Upload one first.')}</p>}
             <div className="asset-grid">
               {assets?.map((a) => (
                 <div key={a.id} className="asset-tile">
@@ -211,13 +214,13 @@ function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; pa
                     <img src={`${assetUrl(a.id)}?size=thumb`} alt={a.name} />
                   </button>
                   <div className="menu-wrap asset-more" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenuFor(null)}>
-                    <button id={`asset-${a.id}-menuButton`} type="button" className="icon-btn" aria-label={`${a.name}: more`} aria-haspopup="menu" aria-expanded={menuFor === a.id} onClick={() => setMenuFor(menuFor === a.id ? null : a.id)}>
+                    <button id={`asset-${a.id}-menuButton`} type="button" className="icon-btn" aria-label={t('{name}: more', {name: a.name})} aria-haspopup="menu" aria-expanded={menuFor === a.id} onClick={() => setMenuFor(menuFor === a.id ? null : a.id)}>
                       <Ellipsis />
                     </button>
                     {menuFor === a.id && (
                       <MenuPopover className="popover menu image-menu" onClose={() => setMenuFor(null)} aria-labelledby={`asset-${a.id}-menuButton`}>
                         <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenuFor(null), setUsageOf(a))}>
-                          <LinkIcon /> Show usage
+                          <LinkIcon /> {t('Show usage')}
                         </button>
                       </MenuPopover>
                     )}
@@ -235,27 +238,28 @@ function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; pa
 
 /** Sanity's "Documents using file": every document whose image field uses the asset. */
 function UsageDialog({asset, path, openRef, onClose, onOpen}: {asset: Asset; path: string; openRef: OpenRef; onClose: () => void; onOpen: () => void}) {
+  const t = useT()
   const {data: uses, isPending} = useQuery({queryKey: ['media-usage', asset.id], queryFn: () => fetch(`/api/media/${encodeURIComponent(asset.id)}/usage`).then((r) => r.json() as Promise<Use[]>)})
   return (
     <div className="dialog-backdrop nested" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <DialogBox className="dialog usage-dialog" aria-modal="true" aria-label="Documents using file" onClose={onClose}>
+      <DialogBox className="dialog usage-dialog" aria-modal="true" aria-label={t('Documents using file')} onClose={onClose}>
         <header>
-          <h2>Documents using file</h2>
-          <button type="button" className="icon-btn" aria-label="Close dialog" onClick={onClose}>
+          <h2>{t('Documents using file')}</h2>
+          <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
             <CloseIcon />
           </button>
         </header>
         <div className="dialog-body">
-          {isPending && <p className="muted">Looking…</p>}
+          {isPending && <p className="muted">{t('Looking…')}</p>}
           {uses?.length === 0 && (
             <h3 className="usage-none">
-              No documents are using file <code>{asset.name}</code>
+              {t('No documents are using file')} <code>{asset.name}</code>
             </h3>
           )}
           {!!uses?.length && (
             <>
               <h3 className="usage-count">
-                {uses.length === 1 ? 'One document is' : `${uses.length} documents are`} using file <code>{asset.name}</code>
+                {uses.length === 1 ? t('One document is using file') : t('{n} documents are using file', {n: uses.length})} <code>{asset.name}</code>
               </h3>
               {/* Each one as its list row (thumbnail, title, subtitle), like Sanity's. */}
               <ul className="usage-list">
@@ -281,6 +285,7 @@ const PREVIEWS = [
 ]
 
 function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: string; url: string; hotspot: Hotspot; crop: Crop; onChange: (h: Hotspot, c: Crop) => void; onClose: () => void}) {
+  const t = useT()
   // Local while dragging; written on release (and on every key press).
   const [h, setH] = useState(hotspot)
   const [c, setC] = useState(crop)
@@ -363,15 +368,15 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog hotspot-dialog" aria-modal="true" aria-labelledby="hotspot-title" onClose={onClose}>
         <header>
-          <h2 id="hotspot-title">Edit hotspot and crop</h2>
-          <button type="button" className="icon-btn" aria-label="Close dialog" onClick={onClose}>
+          <h2 id="hotspot-title">{t('Edit hotspot and crop')}</h2>
+          <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
             <CloseIcon />
           </button>
         </header>
         <div className="dialog-body">
-          <p className="label">Hotspot &amp; Crop</p>
-          <p className="muted">Adjust the rectangle to crop image. Adjust the circle to specify the area that should always be visible.</p>
-          <div className="hotspot-tool" aria-label={`${title}: hotspot and crop`}>
+          <p className="label">{t('Hotspot & Crop')}</p>
+          <p className="muted">{t('Adjust the rectangle to crop image. Adjust the circle to specify the area that should always be visible.')}</p>
+          <div className="hotspot-tool" aria-label={t('{title}: hotspot and crop', {title})}>
             <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{touchAction: 'none'}}>
               <image href={url} width={W} height={H} opacity={0.25} />
               <svg x={crect.x} y={crect.y} width={crect.w} height={crect.h} viewBox={`${crect.x} ${crect.y} ${crect.w} ${crect.h}`} overflow="hidden">
@@ -388,8 +393,8 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
                 data-handle="crop"
                 tabIndex={0}
                 role="slider"
-                aria-label="Crop: arrow keys move it"
-                aria-valuetext={`left ${pct(c.left)}, top ${pct(c.top)}, right ${pct(c.right)}, bottom ${pct(c.bottom)}`}
+                aria-label={t('Crop: arrow keys move it')}
+                aria-valuetext={t('left {left}, top {top}, right {right}, bottom {bottom}', {left: pct(c.left), top: pct(c.top), right: pct(c.right), bottom: pct(c.bottom)})}
                 x={crect.x}
                 y={crect.y}
                 width={crect.w}
@@ -402,8 +407,8 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
                 data-handle="hotspot"
                 tabIndex={0}
                 role="slider"
-                aria-label="Hotspot: arrow keys move it"
-                aria-valuetext={`centre ${pct(h.x)} across, ${pct(h.y)} down; ${pct(h.width)} wide, ${pct(h.height)} high`}
+                aria-label={t('Hotspot: arrow keys move it')}
+                aria-valuetext={t('centre {x} across, {y} down; {width} wide, {height} high', {x: pct(h.x), y: pct(h.y), width: pct(h.width), height: pct(h.height)})}
                 cx={cx}
                 cy={cy}
                 rx={rx}
@@ -443,7 +448,7 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
                 const f = frame(c, h, natural, p.ratio)
                 return (
                   <figure key={p.name}>
-                    <figcaption>{p.name}</figcaption>
+                    <figcaption>{t(p.name)}</figcaption>
                     <div className="crop-preview" style={{aspectRatio: String(p.ratio)}}>
                       <img src={url} alt="" style={{width: `${100 / f.width}%`, left: `${(-f.left / f.width) * 100}%`, top: `${(-f.top / f.height) * 100}%`, height: `${100 / f.height}%`}} />
                     </div>

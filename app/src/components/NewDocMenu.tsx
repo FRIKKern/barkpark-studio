@@ -9,12 +9,14 @@ import {useFocusScope} from '../lib/focus-scope'
 import {useCanWrite} from '../lib/session'
 import {Add, Search} from './icons'
 import {toast} from './Toasts'
+import {t as tBrowser, useT} from '../lib/i18n'
 
 // J37, Sanity's navbar "+" ("Create new document"): a filterable list of the
 // types, A–Z; picking one opens a new document of it as the type's list + the
 // doc, created on its first edit like the list's own "+" (J18). Singletons are
 // never offered (B13).
 export function NewDocMenu() {
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -22,7 +24,7 @@ export function NewDocMenu() {
   const [open, setOpen] = useState(false)
   return (
     <div className="menu-wrap new-doc">
-      <button type="button" className="icon-btn" aria-label="Create new document" data-tip="New document…" title={canWrite ? undefined : createReason} disabled={!canWrite} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className="icon-btn" aria-label={t('Create new document')} data-tip={t('New document…')} title={canWrite ? undefined : createReason} disabled={!canWrite} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
         <Add />
       </button>
       {open && (
@@ -34,7 +36,7 @@ export function NewDocMenu() {
             const schema = schemas.find((s) => s.name === type)
             const id = crypto.randomUUID()
             if (editorMode(type, schema) !== 'none')
-              void createDoc(qc, type, id, {}).catch((err) => toast({tone: 'critical', title: 'Could not create the document', description: (err as Error).message}))
+              void createDoc(qc, type, id, {}).catch((err) => toast({tone: 'critical', title: tBrowser('Could not create the document'), description: (err as Error).message}))
             else draftNew(qc, type, id, schema?.initialValues ?? {})
             void navigate({href: `/structure/${type};${id}`})
             focusFirstField(id)
@@ -46,6 +48,7 @@ export function NewDocMenu() {
 }
 
 function TypePicker({types, onPick, onClose}: {types: {name: string; title: string}[]; onPick: (type: string) => void; onClose: () => void}) {
+  const tr = useT()
   const scope = useFocusScope<HTMLDivElement>({onDismiss: onClose})
   const [find, setFind] = useState('')
   const [active, setActive] = useState(0)
@@ -59,8 +62,8 @@ function TypePicker({types, onPick, onClose}: {types: {name: string; title: stri
         <input
           autoFocus
           role="combobox"
-          aria-label="Search document types"
-          placeholder="Search document types"
+          aria-label={tr('Search document types')}
+          placeholder={tr('Search document types')}
           aria-expanded={shown.length > 0}
           aria-controls={shown.length ? id : undefined}
           aria-activedescendant={shown.length ? `${id}-${at}` : undefined}
@@ -74,7 +77,7 @@ function TypePicker({types, onPick, onClose}: {types: {name: string; title: stri
         />
       </div>
       {shown.length > 0 ? (
-        <div role="listbox" id={id} aria-label="New document" className="command-list">
+        <div role="listbox" id={id} aria-label={tr('New document')} className="command-list">
           {shown.map((t, i) => (
             <div key={t.name} id={`${id}-${i}`} role="option" aria-selected={i === at} className="command-item" onMouseEnter={() => setActive(i)} onMouseDown={(e) => (e.preventDefault(), onPick(t.name))}>
               {t.title}
@@ -83,7 +86,7 @@ function TypePicker({types, onPick, onClose}: {types: {name: string; title: stri
         </div>
       ) : (
         <p className="command-empty">
-          No results for <strong>{find}</strong>
+          {tr('No results for')} <strong>{find}</strong>
         </p>
       )}
     </div>

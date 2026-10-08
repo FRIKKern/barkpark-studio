@@ -5,6 +5,7 @@ import {reasonOf} from '../lib/edits'
 import {DialogBox} from './FocusScopes'
 import {UsedInList} from './DeleteDialog'
 import {Close} from './icons'
+import {useT} from '../lib/i18n'
 
 /**
  * B07, after Barkpark's LiveView unpublish guard: before unpublishing, the documents that
@@ -15,6 +16,7 @@ import {Close} from './icons'
  * no HTTP route for that yet: task-0bc05ce5cdefd8dc.)
  */
 export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => Promise<unknown>; onClose: () => void}) {
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const lookups = useQueries({queries: docs.map((d) => ({...backlinksQuery(d._publishedId), refetchOnMount: 'always' as const, retry: false}))})
   const [error, setError] = useState<string>()
@@ -31,42 +33,50 @@ export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => P
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog delete-dialog" aria-modal="true" aria-labelledby="unpublish-title" onClose={onClose}>
         <header>
-          <h2 id="unpublish-title">{many ? `Unpublish ${docs.length} documents?` : 'Unpublish document?'}</h2>
-          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+          <h2 id="unpublish-title">{many ? t('Unpublish {n} documents?', {n: docs.length}) : t('Unpublish document?')}</h2>
+          <button type="button" className="icon-btn" aria-label={t('Close')} onClick={onClose}>
             <Close />
           </button>
         </header>
         <div className="dialog-body">
-          {checking && <p className="muted" role="status">{offline ? "You're offline. Reconnect to check which documents refer to them." : 'Looking for documents that refer to them…'}</p>}
+          {checking && <p className="muted" role="status">{offline ? t("You're offline. Reconnect to check which documents refer to them.") : t('Looking for documents that refer to them…')}</p>}
           {failed && (
             <div role="alert">
-              <p>Could not check which documents refer to them. Retry before unpublishing.</p>
+              <p>{t('Could not check which documents refer to them. Retry before unpublishing.')}</p>
               <button type="button" className="btn" onClick={() => (cancel.current?.focus(), lookups.forEach((q) => q.isError && void q.refetch()))}>
-                Retry
+                {t('Retry')}
               </button>
             </div>
           )}
           {!checking && !failed && used.length === 0 && (
             // J04: Sanity's words for one document.
-            <p>{many ? 'They will no longer be live. Each one stays as a draft you can publish again.' : <>Are you sure you want to unpublish “<strong>{title(docs[0]!)}</strong>”?</>}</p>
+            <p>
+              {many ? (
+                t('They will no longer be live. Each one stays as a draft you can publish again.')
+              ) : (
+                <WithStrong text={t('Are you sure you want to unpublish “{title}”?')} strong={title(docs[0]!)} />
+              )}
+            </p>
           )}
           {used.map(({doc, refs}) => (
-            <section key={doc._publishedId} aria-label={`Referring to ${title(doc)}`}>
+            <section key={doc._publishedId} aria-label={t('Referring to {title}', {title: title(doc)})}>
               <p className="warning" role="status">
-                “{title(doc)}” is referenced by {refs.length} {refs.length === 1 ? 'document' : 'documents'}. Unpublishing it will leave those references pointing at nothing live:
+                {refs.length === 1
+                  ? t('“{title}” is referenced by 1 document. Unpublishing it will leave those references pointing at nothing live:', {title: title(doc)})
+                  : t('“{title}” is referenced by {n} documents. Unpublishing it will leave those references pointing at nothing live:', {title: title(doc), n: refs.length})}
               </p>
               <UsedInList refs={refs} field />
             </section>
           ))}
           {error && (
             <p className="field-error" role="alert">
-              Could not unpublish: {error}
+              {t('Could not unpublish: {error}', {error: t(error)})}
             </p>
           )}
         </div>
         <footer>
           <button type="button" className="btn" ref={cancel} onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="button"
@@ -86,10 +96,22 @@ export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => P
               }
             }}
           >
-            {used.length > 0 ? 'Unpublish anyway' : 'Unpublish now'}
+            {used.length > 0 ? t('Unpublish anyway') : t('Unpublish now')}
           </button>
         </footer>
       </DialogBox>
     </div>
+  )
+}
+
+/** A translated sentence with one `{title}` drawn bold (Sanity's confirm texts). */
+export function WithStrong({text, strong}: {text: string; strong: string}) {
+  const [before, after = ''] = text.split('{title}')
+  return (
+    <>
+      {before}
+      <strong>{strong}</strong>
+      {after}
+    </>
   )
 }

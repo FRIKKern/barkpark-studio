@@ -4,6 +4,7 @@ import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {schemaOf, schemasQuery, searchQuery, textSearchQuery, type Doc} from '../lib/data'
 import {announce} from '../lib/announce'
+import {intlTag, useLocale, useT} from '../lib/i18n'
 import {focusFirstField} from '../lib/focus'
 import {useFocusScope} from '../lib/focus-scope'
 import {ArrowLeft, Clock, Close, Controls, Search as SearchIcon} from './icons'
@@ -19,6 +20,7 @@ import {SearchFilters, SearchOrdering, typesLabel, type SearchSort} from './Sear
  * under the input; an empty search lists the recent ones. Cmd/Ctrl+K again closes it.
  */
 export function GlobalSearch() {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const opener = useRef<HTMLElement | null>(null)
   useEffect(() => {
@@ -44,8 +46,8 @@ export function GlobalSearch() {
       <button
         type="button"
         className="icon-btn nav-search"
-        aria-label="Search"
-        data-tip="Search"
+        aria-label={t('Search')}
+        data-tip={t('Search')}
         data-tip-keys={`${modKey()}+K`}
         aria-keyshortcuts="Control+K Meta+K"
         onClick={(e) => ((opener.current = e.currentTarget), setOpen(true))}
@@ -94,6 +96,8 @@ type Kept = {q: string; types: string[]; filters: SearchFilter[]; sort: SearchSo
 const kept: {current: Kept} = {current: {q: '', types: [], filters: [], sort: 'best'}}
 
 function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
+  const t = useT()
+  const tag = intlTag(useLocale())
   const navigate = useNavigate()
   const schemaResult = useQuery(schemasQuery)
   const schemas = schemaResult.data ?? []
@@ -111,8 +115,8 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
   const listId = useId()
   const scope = useFocusScope<HTMLDivElement>({trap: true, onDismiss: () => onClose(true)})
   useEffect(() => {
-    const t = setTimeout(() => setQuery(q.trim()), 120)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setQuery(q.trim()), 120)
+    return () => clearTimeout(timer)
   }, [q])
   const fields = new Map<string, FilterField>([...BUILTINS, ...allFields(schemas)].map((f) => [f.key, f]))
   // A field filter only asks the types that have that field.
@@ -161,7 +165,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
   // J47: how many results, once they are in (a screen reader hears it after typing stops).
   const resultCount = settled && searching ? results.length : -1
   useEffect(() => {
-    if (resultCount >= 0) announce(resultCount ? `${resultCount} ${resultCount === 1 ? 'result' : 'results'}` : 'No results found')
+    if (resultCount >= 0) announce(resultCount ? t(resultCount === 1 ? '{n} result' : '{n} results', {n: resultCount}) : t('No results found'))
   }, [resultCount, query, types, filters])
   const [pendingEnter, setPendingEnter] = useState(false)
   useEffect(() => {
@@ -189,9 +193,9 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
 
   return (
     <div className="search-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose(true)}>
-      <div ref={scope} className="search-dialog" role="dialog" aria-modal="true" aria-label="Search">
+      <div ref={scope} className="search-dialog" role="dialog" aria-modal="true" aria-label={t('Search')}>
         <div className="search-bar">
-          <button type="button" className="icon-btn search-back" aria-label="Close search" tabIndex={-1} onClick={() => onClose(true)}>
+          <button type="button" className="icon-btn search-back" aria-label={t('Close search')} tabIndex={-1} onClick={() => onClose(true)}>
             <ArrowLeft />
           </button>
           <SearchIcon />
@@ -199,11 +203,11 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
             ref={input}
             autoFocus
             role="combobox"
-            aria-label={searching ? 'Search results' : 'Recent searches'}
+            aria-label={t(searching ? 'Search results' : 'Recent searches')}
             aria-expanded={rows > 0}
             aria-controls={rows > 0 ? listId : undefined}
             aria-activedescendant={active < rows ? `${listId}-${active}` : undefined}
-            placeholder="Search"
+            placeholder={t('Search')}
             value={q}
             onChange={(e) => { setPendingEnter(false); setQ(e.target.value) }}
             onKeyDown={(e) => {
@@ -214,31 +218,31 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
             }}
           />
           {q && (
-            <button type="button" className="icon-btn" aria-label="Clear" tabIndex={-1} onClick={() => (setQ(''), input.current?.focus())}>
+            <button type="button" className="icon-btn" aria-label={t('Clear')} tabIndex={-1} onClick={() => (setQ(''), input.current?.focus())}>
               <Close />
             </button>
           )}
-          <button type="button" className={`icon-btn search-toggle${filtersShown ? ' on' : ''}`} aria-label={filtersShown ? 'Hide filters' : 'Show filters'} onClick={() => setFiltersShown(!filtersShown)}>
+          <button type="button" className={`icon-btn search-toggle${filtersShown ? ' on' : ''}`} aria-label={t(filtersShown ? 'Hide filters' : 'Show filters')} onClick={() => setFiltersShown(!filtersShown)}>
             <Controls />
           </button>
         </div>
         {filtersShown && <SearchFilters schemas={schemas} fields={fields} types={types} onTypes={setTypes} filters={filters} onFilters={setFilters} />}
         {filtersShown && searching && <SearchOrdering sort={sort} onSort={setSort} />}
-        {searching && (offline ? <p className="search-empty" role="status">You're offline. Reconnect to search.</p> : failed ? (
+        {searching && (offline ? <p className="search-empty" role="status">{t("You're offline. Reconnect to search.")}</p> : failed ? (
           <div className="search-empty" role="alert">
-            <p>Could not fetch search results. Please retry.</p>
+            <p>{t('Could not fetch search results. Please retry.')}</p>
             <button type="button" className="btn" onClick={() => {
               input.current?.focus()
               if (schemaResult.isError) void schemaResult.refetch()
               for (const r of perType) if (r.isError) void r.refetch()
-            }}>Retry search</button>
+            }}>{t('Retry search')}</button>
           </div>
         ) : null)}
         {(searching || showRecent) && (
           <div className="search-results">
-            {showRecent && <p className="search-section-label">Recent searches</p>}
+            {showRecent && <p className="search-section-label">{t('Recent searches')}</p>}
             {rows > 0 && (
-            <div role="listbox" id={listId} aria-label={showRecent ? 'Recent searches' : 'Search results'} aria-busy={searching && loading}>
+            <div role="listbox" id={listId} aria-label={t(showRecent ? 'Recent searches' : 'Search results')} aria-busy={searching && loading}>
             {showRecent &&
               recent.map((r, i) => (
                 <div
@@ -246,21 +250,21 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
                   id={`${listId}-${i}`}
                   role="option"
                   aria-selected={i === active}
-                  aria-label={[r.query, r.types.length ? typesLabel(schemas, r.types) : '', ...r.filters.map((f) => labelText(filterLabel({...f, id: ''}, fields.get(f.field))))].filter(Boolean).join(', ')}
+                  aria-label={[r.query, r.types.length ? typesLabel(schemas, r.types, t) : '', ...r.filters.map((f) => labelText(filterLabel({...f, id: ''}, fields.get(f.field), t, tag)))].filter(Boolean).join(', ')}
                   className="search-recent"
                   onMouseEnter={() => setActive(i)}
                   onMouseDown={(e) => (e.preventDefault(), applyRecent(r))}
                 >
                   <Clock />
                   {r.query && <span className="recent-query">{r.query}</span>}
-                  {r.types.length > 0 && <span className="recent-pill">{typesLabel(schemas, r.types)}</span>}
+                  {r.types.length > 0 && <span className="recent-pill">{typesLabel(schemas, r.types, t)}</span>}
                   {r.filters.map((f, k) => (
-                    <span key={k} className="recent-pill filter">{labelText(filterLabel({...f, id: ''}, fields.get(f.field)))}</span>
+                    <span key={k} className="recent-pill filter">{labelText(filterLabel({...f, id: ''}, fields.get(f.field), t, tag))}</span>
                   ))}
                   <button
                     type="button"
                     className="icon-btn recent-remove"
-                    aria-label="Remove recent search"
+                    aria-label={t('Remove recent search')}
                     tabIndex={-1}
                     onMouseDown={(e) => (e.preventDefault(), e.stopPropagation(), remember(recent.filter((_, k) => k !== i)), input.current?.focus())}
                   >
@@ -284,18 +288,18 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
             )}
             {showRecent && (
               <button type="button" className="link-btn search-clear-recent" onClick={() => (remember([]), input.current?.focus())}>
-                Clear recent searches
+                {t('Clear recent searches')}
               </button>
             )}
             {searching && loading && results.length === 0 && !offline && !failed && (
-              <div className="search-skeleton" role="status" aria-label="Searching…">
+              <div className="search-skeleton" role="status" aria-label={t('Searching…')}>
                 {Array.from({length: 6}, (_, i) => <span key={i} />)}
               </div>
             )}
             {searching && results.length === 0 && settled && (
               <div className="search-none" role="status">
-                <p>No results found</p>
-                <p className="muted">Try another keyword or adjust your filters</p>
+                <p>{t('No results found')}</p>
+                <p className="muted">{t('Try another keyword or adjust your filters')}</p>
               </div>
             )}
           </div>

@@ -1,5 +1,6 @@
 import {useSyncExternalStore, type CSSProperties, type ReactNode} from 'react'
 import {Close} from './icons'
+import {useT} from '../lib/i18n'
 
 // Sanity-style toasts, bottom right: a title, a line of detail, gone after a few
 // seconds. `toast()` works from anywhere; <ToastHost/> sits once in the root layout.
@@ -45,6 +46,7 @@ export function stickyToast(key: string, t: (Omit<Toast, 'id' | 'tone'> & {tone?
 }
 
 export function ToastHost() {
+  const t = useT()
   const list = useSyncExternalStore(
     (l) => (listeners.add(l), () => listeners.delete(l)),
     () => toasts,
@@ -52,12 +54,12 @@ export function ToastHost() {
   )
   return (
     <div className="toasts" aria-live="polite">
-      {list.map((t) => (
-        <div key={t.id} className="toast" data-tone={t.tone} data-timed={t.ms ? '' : undefined} style={t.ms ? ({'--toast-ms': `${t.ms}ms`} as CSSProperties) : undefined} role={t.tone === 'critical' ? 'alert' : 'status'}>
-          {typeof t.title === 'string' ? <strong>{t.title}</strong> : <span className="toast-title">{t.title}</span>}
-          {t.description && <span>{t.description}</span>}
+      {list.map((x) => (
+        <div key={x.id} className="toast" data-tone={x.tone} data-timed={x.ms ? '' : undefined} style={x.ms ? ({'--toast-ms': `${x.ms}ms`} as CSSProperties) : undefined} role={x.tone === 'critical' ? 'alert' : 'status'}>
+          {typeof x.title === 'string' ? <strong>{x.title}</strong> : <span className="toast-title">{x.title}</span>}
+          {x.description && <span>{x.description}</span>}
           {/* Sanity's toasts are closable. */}
-          <button type="button" className="icon-btn toast-close" aria-label="Close" onClick={() => drop(t.id)}>
+          <button type="button" className="icon-btn toast-close" aria-label={t('Close')} onClick={() => drop(x.id)}>
             <Close />
           </button>
         </div>

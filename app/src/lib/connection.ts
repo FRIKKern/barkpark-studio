@@ -1,6 +1,7 @@
 import {useEffect, useState, useSyncExternalStore} from 'react'
 import {useQueryClient, type Query} from '@tanstack/react-query'
 import {stickyToast} from '../components/Toasts'
+import {t as translate} from './i18n'
 
 // J50: what the studio does when Barkpark (or this server) can't be reached, by
 // Sanity's numbers (structure/panes/documentList/useDocumentList.ts): a failed read
@@ -52,7 +53,7 @@ export function useReconnectingToast() {
   const down = live || reads
   useEffect(() => {
     if (!down) return
-    const t = setTimeout(() => stickyToast('reconnecting', {tone: 'caution', title: 'Trying to connect…'}), 2000)
+    const t = setTimeout(() => stickyToast('reconnecting', {tone: 'caution', title: translate('Trying to connect…')}), 2000)
     return () => (clearTimeout(t), stickyToast('reconnecting', null))
   }, [down])
 }
