@@ -65,7 +65,7 @@ async function listAll(type, perspective) {
 // Projection output (body, preview, body_html, a paper's body_html_sv) is derived, never seeded.
 // `blocks` too, for a type whose layout builds them; a seeded body is compared without
 // the html Barkpark renders from it.
-const DERIVED = new Set(['body', 'preview', 'body_html', 'body_html_sv', 'blocks', 'created_by', 'claim']) // created_by, claim: stamped on a task by the server
+const DERIVED = new Set(['body', 'preview', 'body_html', 'body_html_sv', 'blocks', 'created_by', 'claim', 'rev']) // stamped by the server: created_by, claim (tasks), rev (a paper's op rev)
 const withoutHtml = (body) => Object.fromEntries(Object.entries(body).filter(([k]) => k !== 'html'))
 const stripSystem = (doc, want) =>
   Object.fromEntries(
@@ -101,16 +101,21 @@ async function applySchemas() {
   }
 }
 
+// Upsert, then prune: the seed is written BEFORE anything is deleted, so a refused write
+// (a task id twinned in another dataset, a failed validation: Barkpark answers the whole
+// batch with one error) stops the reset with the dataset as it was. Only drafts of seed
+// docs are dropped up front: a replace keeps a draft, and publishing would ship it.
 async function reset() {
   const existing = []
   for (const type of [...TYPES].reverse().concat(NATIVE_TYPES)) {
-    for (const d of await listAll(type, 'raw')) existing.push({type, id: d._publishedId ?? d._id})
+    for (const d of await listAll(type, 'raw')) existing.push({type, id: d._publishedId ?? d._id, draft: d._id.startsWith('drafts.')})
   }
-  const ids = [...new Map(existing.map((e) => [e.id, e])).values()]
-  if (ids.length) await mutate(ids.map(({id, type}) => ({delete: {id, type, force: true}}))) // a reset wipes everything, references included
-
   const ordered = TYPES.flatMap((t) => seed.filter((d) => d._type === t))
   const docs = [...ordered.map((d) => ({_id: d._id, _type: d._type, ...toBarkpark(d)})), ...native]
+  const seeded = new Set(docs.map((d) => d._id))
+
+  const drafts = [...new Map(existing.filter((e) => e.draft && seeded.has(e.id)).map((e) => [e.id, e])).values()]
+  if (drafts.length) await mutate(drafts.map(({id, type}) => ({discardDraft: {id, type}})))
   await mutate(docs.map((d) => ({createOrReplace: d})))
   // A create doesn't project a block list into its fields (task-b43256e0d9d90733), and on a
   // type with a layout it builds the blocks from the layout + prefill instead of taking
@@ -118,7 +123,11 @@ async function reset() {
   const blockDocs = docs.filter((d) => Array.isArray(d.blocks))
   if (blockDocs.length) await mutate(blockDocs.map((d) => ({patch: {id: d._id, type: d._type, set: {blocks: d.blocks}}})))
   await mutate(docs.map((d) => ({publish: {id: d._id, type: d._type}})))
-  console.log(`reset: deleted ${ids.length}, created + published ${docs.length}`)
+
+  // Then everything the seed doesn't hold goes, references included.
+  const extra = [...new Map(existing.filter((e) => !seeded.has(e.id)).map((e) => [e.id, e])).values()]
+  if (extra.length) await mutate(extra.map(({id, type}) => ({delete: {id, type, force: true}})))
+  console.log(`reset: dropped ${drafts.length} drafts, wrote + published ${docs.length}, deleted ${extra.length} others`)
 }
 
 function compare(label, docs, expected) {
