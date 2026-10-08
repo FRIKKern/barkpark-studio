@@ -22,7 +22,7 @@ export function NewDocMenu() {
   const [open, setOpen] = useState(false)
   return (
     <div className="menu-wrap new-doc">
-      <button type="button" className="icon-btn" aria-label="Create new document" title={canWrite ? 'New document…' : createReason} disabled={!canWrite} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className="icon-btn" aria-label="Create new document" data-tip="New document…" title={canWrite ? undefined : createReason} disabled={!canWrite} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
         <Add />
       </button>
       {open && (

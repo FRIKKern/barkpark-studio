@@ -53,7 +53,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
   const alt = useAltName()
   return (
     <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label="Show document actions" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label="Show document actions" data-tip="Show more" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
@@ -121,7 +121,7 @@ export function DocShareMenu({doc}: {doc: Doc}) {
   const copyRef = useCopyRef(doc, close)
   return (
     <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label="Share document" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label="Share document" data-tip="Share" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Share />
       </button>
       {open && (

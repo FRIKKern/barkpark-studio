@@ -4,6 +4,7 @@ import type {ScopeRef} from '../router'
 import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
 import appCss from '../styles.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
+import {IconTips} from '../components/Tip'
 import {ToastHost} from '../components/Toasts'
 import {useAnnouncer} from '../lib/announce'
 import {THEME_BOOT} from '../lib/theme'
@@ -58,6 +59,7 @@ function RootDocument({children}: {children: ReactNode}) {
       <body>
         {children}
         <ToastHost />
+        <IconTips />
         <Announcer />
         <Scripts />
       </body>

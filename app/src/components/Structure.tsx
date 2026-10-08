@@ -465,7 +465,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           className="icon-btn"
           aria-label={`Create new ${schemaOf(schemas, type)?.title ?? type}`}
           disabled={!canWrite}
-          title={createReason}
+          data-tip="Create new document"
+          title={canWrite ? undefined : createReason}
           onClick={() => {
             // J18: a new doc opens in the next pane with the type's initial values;
             // it is created on its first edit (Sanity's way: leaving it costs nothing).
@@ -638,7 +639,7 @@ function ListMenu({schema, sort, view, set}: {schema: Schema | undefined; sort: 
         if (e.key === 'ArrowUp' && open) (e.preventDefault(), items[(i - 1 + items.length) % items.length]?.focus())
       }}
     >
-      <button type="button" className="icon-btn" aria-label="List options" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label="List options" data-tip="Show more" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
