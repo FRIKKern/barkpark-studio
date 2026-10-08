@@ -30,6 +30,9 @@ const newId = () => `comment-${crypto.randomUUID()}`
 export function FieldComments({path, title}: {path: string; title: string}) {
   const api = useContext(CommentsContext)
   const [composing, setComposing] = useState(false)
+  // J43: closing the composer hands focus back to the button that opened it.
+  const opener = useRef<HTMLButtonElement>(null)
+  const close = () => (setComposing(false), requestAnimationFrame(() => opener.current?.focus()))
   if (!api) return null
   const open = api.threads.filter((t) => t.root.fieldPath === path && t.status === 'open')
   return (
@@ -39,7 +42,7 @@ export function FieldComments({path, title}: {path: string; title: string}) {
           <CommentIcon /> {open.length}
         </button>
       ) : (
-        <button type="button" className="icon-btn comment-add" aria-label="Add comment" title="Add comment" aria-expanded={composing} onClick={() => setComposing(true)}>
+        <button ref={opener} type="button" className="icon-btn comment-add" aria-label="Add comment" title="Add comment" aria-expanded={composing} onClick={() => setComposing(true)}>
           <AddComment />
         </button>
       )}
@@ -54,7 +57,7 @@ export function FieldComments({path, title}: {path: string; title: string}) {
               setComposing(false)
               api.open(path)
             }}
-            onCancel={() => setComposing(false)}
+            onCancel={close}
           />
         </div>
       )}
