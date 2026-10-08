@@ -1175,6 +1175,12 @@ fieldset.object-field > .field-comments { top: -38px; }
 .scope-actions { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 768px) { .scope-ws { display: none; } .scope-button { min-height: 44px; max-width: 120px; } .scope-actions button, .scope-field .input { min-height: 44px; } }
 @media (max-width: 480px) { .scope-popover { position: fixed; top: 52px; left: 8px; right: 8px; width: auto; } }
+/* J37: the navbar "+" (Create new document), Sanity's type picker under it. */
+.menu-wrap.new-doc { position: relative; display: inline-flex; }
+.popover.new-doc-popover { top: calc(100% + 4px); left: 0; width: 320px; max-width: calc(100vw - 32px); padding: 0; display: flex; flex-direction: column; max-height: 420px; font-weight: 400; z-index: 60; }
+@media (max-width: 599px) {
+  .popover.new-doc-popover { position: fixed; top: calc(var(--nav-h) + 4px); left: 16px; right: 16px; width: auto; }
+}
 
 /* J42/F12: on a touch-size screen every control in a doc pane is a 44 px tap. The
    perspective chips sit in a clipping title, so a clear border grows their box (the inset
