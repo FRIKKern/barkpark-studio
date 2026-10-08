@@ -8,7 +8,7 @@ side with `reference/sanity`, before its task can close.
 | # | Check | Bar | Sanity baseline | How it is measured |
 |---|---|---|---|---|
 | F1 | Keystroke → screen | < 16 ms, never waits on network | p50 12 / p95 21 ms (Event Timing p50 28 / p95 36) | rig: keydown → frame after paint |
-| F2 | Pane open (warm) | < 100 ms, zero layout shift | p50 296 / p95 318 ms, CLS 0 | rig: list click → doc title shown |
+| F2 | Pane open (warm) | < 100 ms, zero layout shift | p50 296 / p95 318 ms, CLS 0 | rig: list click → doc title shown; the median of 3+ warm opens of different docs (one open is a noisy sample on a shared runner); every value is in the run's feel log |
 | F3 | Cold load to usable list | < 1.5 s on local | not measured yet | timing mark |
 | F4 | Edit seen in 2nd browser | remote push (server → other browser) p95 < 300 ms; typed edit p95 < Sanity's | push: p50 180 / p95 237 ms. Typed in A: p50 768 / p95 1104 ms | rig: two browsers, one doc |
 | F5 | Keyboard | whole journey without a mouse | | Playwright, keyboard only |

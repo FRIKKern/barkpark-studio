@@ -1,4 +1,5 @@
-import type {BrowserContext, Locator, Page} from '@playwright/test'
+import {appendFileSync, mkdirSync} from 'node:fs'
+import {test, type BrowserContext, type Locator, type Page} from '@playwright/test'
 
 // In-page probes for the QUALITY.md feel rows. Installed before any page script runs.
 //  F1  keydown → the frame after it painted (rAF + message = after paint), per key,
@@ -46,6 +47,32 @@ export async function installProbes(ctx: BrowserContext) {
   })
 }
 
+/**
+ * Every feel measurement goes to the run's output and to test-results/feel.jsonl;
+ * rig/feel-summary.ts sums them up at the end. A budget miss on a shared runner then
+ * has numbers beside it (runner or code?), not only the one assertion that failed.
+ */
+export const FEEL_LOG = new URL('../test-results/feel.jsonl', import.meta.url)
+export function recordFeel(row: 'F1' | 'F2' | 'F4', ms: number, label = '') {
+  let where = ''
+  try {
+    const info = test.info()
+    where = `${info.project.name} › ${info.titlePath.slice(1).join(' › ')}`
+  } catch {
+    // outside a test (warmup)
+  }
+  const line = {row, ms: Math.round(ms * 10) / 10, label, where}
+  console.log(`[feel] ${row} ${line.ms} ms ${label} (${where})`)
+  mkdirSync(new URL('.', FEEL_LOG), {recursive: true})
+  appendFileSync(FEEL_LOG, JSON.stringify(line) + '\n')
+}
+
+/** F2 over several warm opens: the median (one open on a shared runner is a noisy sample). */
+export const median = (xs: number[]) => {
+  const s = [...xs].sort((a, b) => a - b)
+  return s.length % 2 ? s[(s.length - 1) / 2]! : (s[s.length / 2 - 1]! + s[s.length / 2]!) / 2
+}
+
 export const stats = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b)
   const q = (p: number) => Math.round(s[Math.min(s.length - 1, Math.ceil(p * s.length) - 1)] ?? NaN)
@@ -58,7 +85,9 @@ export async function typeAndMeasure(page: Page, field: Locator, text: string) {
   await page.evaluate(() => ((window.__feel.keys = []), (window.__feel.slowKeys = [])))
   await page.keyboard.type(text, {delay: 60})
   await page.waitForTimeout(100)
-  return page.evaluate(() => ({keys: window.__feel.keys, slowKeys: window.__feel.slowKeys}))
+  const typed = await page.evaluate(() => ({keys: window.__feel.keys, slowKeys: window.__feel.slowKeys}))
+  if (typed.keys.length) recordFeel('F1', stats(typed.keys).p95, `p95 of ${typed.keys.length} keys`)
+  return typed
 }
 
 /**
@@ -100,9 +129,10 @@ export async function timeToReady(page: Page, item: Locator, ready: string, arg:
     if (timing?.error) throw new Error(timing.error)
     return timing?.result
   })
-  const result = await measured.jsonValue()
+  const result = (await measured.jsonValue())!
   await measured.dispose()
-  return result!
+  recordFeel('F2', result.ms, typeof arg === 'string' ? arg : '')
+  return result
 }
 
 /**
