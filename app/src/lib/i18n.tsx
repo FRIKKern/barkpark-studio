@@ -72,6 +72,15 @@ const shortRtf: Partial<Record<Locale, Intl.RelativeTimeFormat>> = {}
 export function ago(iso: string, locale: Locale = browserLocale, now = Date.now()): string {
   const s = Math.max(0, (now - new Date(iso).getTime()) / 1000)
   if (s < 10) return translate(locale, 'just now')
+  // English by plain arithmetic, as before i18n (the same strings as Intl's, cheaper on
+  // every list row); other locales through Intl.
+  if (locale === 'en') {
+    if (s < 60) return `${Math.floor(s)} sec. ago`
+    if (s < 3600) return `${Math.floor(s / 60)} min. ago`
+    if (s < 86_400) return `${Math.floor(s / 3600)} hr. ago`
+    const d = Math.floor(s / 86_400)
+    return `${d} ${d === 1 ? 'day' : 'days'} ago`
+  }
   const rtf = (shortRtf[locale] ??= new Intl.RelativeTimeFormat(intlTag(locale), {style: 'short', numeric: 'always'}))
   if (s < 60) return rtf.format(-Math.floor(s), 'second')
   if (s < 3600) return rtf.format(-Math.floor(s / 60), 'minute')
