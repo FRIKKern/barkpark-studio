@@ -2,6 +2,7 @@
   "name": "category",
   "title": "Category",
   "visibility": "public",
+  "list_preview": {"title": "title", "subtitle": {"parts": ["featuredPost.title", "featuredPost.publishedAt|date"], "join": " · ", "empty": "No featured post"}},
   "fields": [
     {"name": "title", "title": "Title", "type": "string", "validation": {"required": true}},
     {"name": "description", "title": "Description", "type": "text", "rows": 2},

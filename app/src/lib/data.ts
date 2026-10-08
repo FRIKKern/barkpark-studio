@@ -7,6 +7,7 @@ import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
+import type {PreviewText} from './preview'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -47,7 +48,9 @@ export type Field = {
 export type Group = {name: string; title?: string; default?: boolean}
 /** J55: a type's own sort, Sanity's `orderings` (Barkpark: the schema's `desk.orderings`). */
 export type Ordering = {name: string; title: string; by: {field: string; direction: 'asc' | 'desc'}[]}
-export type Schema = {name: string; title: string; fields: Field[]; listPreview?: Record<string, string>; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean}
+/** A row's preview: title and media name fields; the subtitle may be prepared (J56, lib/preview.ts). */
+export type ListPreview = {title?: string; subtitle?: PreviewText; media?: string}
+export type Schema = {name: string; title: string; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean}
 
 type RawOrdering = {name?: string; title?: string; field?: string; direction?: 'asc' | 'desc'; by?: Ordering['by']}
 const startCase = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase())

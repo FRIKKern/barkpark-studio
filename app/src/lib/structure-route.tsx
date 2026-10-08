@@ -5,6 +5,7 @@ import {Structure} from '../components/Structure'
 import {deskQuery, docQuery, ensureDocs, refId, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {deskIndex, deskSort, listFilter, parseDeskPanes, unsupportedOps} from './desk'
 import {parseSingletonPanes, type Pane} from './panes'
+import {previewRefs} from './preview'
 import {meQuery} from './session'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useState} from 'react'
@@ -88,10 +89,9 @@ async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [D
   for (const [doc, allRefs] of docs) {
     const schema = schemaOf(schemas, doc._type)
     if (!schema) continue
-    const sub = schema.listPreview?.subtitle
-    if (sub?.includes('.')) {
-      const f = schema.fields.find((x) => x.name === sub.split('.')[0])
-      want(f, doc[f?.name ?? ''])
+    for (const name of previewRefs(schema.listPreview?.subtitle)) {
+      const f = schema.fields.find((x) => x.name === name)
+      want(f, refId(doc[name]))
     }
     if (allRefs)
       for (const f of schema.fields) {
