@@ -67,9 +67,10 @@ type Problem = {message: string}
  * `vocabulary`: the field's declared blocks/styles/marks (the schema's `blocks`), which
  * the canvas offers and enforces, as Barkpark's LiveView stamps it (`data-vocabulary`);
  * `labels`: field name → title, shown on the bound field blocks that carry no label;
- * `openDoc`: where a wikilink goes (D06).
+ * `openDoc`: where a wikilink goes (D06);
+ * `label` / `labelledBy`: the editable area's accessible name (F13).
  */
-export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc, editable = true}: {
+export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc, label, labelledBy, editable = true}: {
   type: string
   id: string
   field?: string
@@ -77,6 +78,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   labels?: Record<string, string>
   /** D06: open a linked doc (a wikilink) in the next pane. */
   openDoc?: (id: string, type: string) => void
+  label?: string
+  labelledBy?: string
   editable?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
@@ -221,6 +224,16 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // bound field and a click into text doesn't reach the editor's state, the next
         // keystroke replaces the field (canvas bug task-f24549dea0618da2). Until it is
         // fixed there, park the caret in the last text block instead, without keeping focus.
+        // The canvas's ProseMirror area carries no name of its own (axe aria-input-field-name).
+        el.addEventListener(
+          'bp-ready',
+          () => {
+            const pm = el.querySelector('.ProseMirror')
+            if (labelledBy) pm?.setAttribute('aria-labelledby', labelledBy)
+            else pm?.setAttribute('aria-label', label ?? 'Document body')
+          },
+          {once: true},
+        )
         el.addEventListener(
           'bp-ready',
           () => {

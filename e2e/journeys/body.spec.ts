@@ -3,7 +3,7 @@ import {installProbes, stats} from '../rig/feel'
 import {signInIfAsked, target, type Target} from '../rig/targets'
 
 // J10 evidence, both studios, in post-10's body: markdown shortcuts (## heading,
-// - and 1. lists, > quote — ours can't yet: task-071f8c843336d12e), marks by keyboard (Ctrl+B / Ctrl+I), a style from the
+// - and 1. lists, > quote; ours: a pullquote block), marks by keyboard (Ctrl+B / Ctrl+I), a style from the
 // style control (Sanity's dropdown; ours: the canvas's / menu, decision 0004), a
 // link from the link control (Sanity's toolbar button; ours: the selection
 // bubble), and F1 while typing. What each side ends up with goes to the
@@ -125,7 +125,7 @@ test('@evidence J10: body — shortcuts, marks, styles, link, lists', async ({pa
     h3: [...el.querySelectorAll('h3')].map((h) => h.textContent),
     bullets: [...el.querySelectorAll('ul li')].map((li) => li.textContent),
     numbered: [...el.querySelectorAll('ol li')].map((li) => li.textContent),
-    quote: [...el.querySelectorAll('blockquote')].map((q) => q.textContent),
+    quote: [...el.querySelectorAll('blockquote, .bp-role-pullquote')].map((q) => q.textContent),
     strong: [...el.querySelectorAll('strong, b, [style*="bold"]')].map((s) => s.textContent),
     em: [...el.querySelectorAll('em, i, [style*="italic"]')].map((s) => s.textContent),
     links: [...el.querySelectorAll('a[href]')].map((a) => `${a.textContent} → ${a.getAttribute('href')}`),

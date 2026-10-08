@@ -1188,3 +1188,8 @@ fieldset.object-field > .field-comments { top: -38px; }
   .field > .field-actions, .field > .field-comments { top: -10px; } /* their 44 px end where the input begins */
   .btn-create { min-height: 44px; }
 }
+/* J10: the canvas's format bubble at phone width: 44 px buttons, wrapping inside the screen (F12). */
+@media (max-width: 768px) {
+  .bp-paper-format { flex-wrap: wrap; max-width: calc(100vw - 16px); }
+  .bp-paper-format button { min-width: 44px; min-height: 44px; }
+}
