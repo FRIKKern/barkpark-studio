@@ -66,7 +66,8 @@ async function ok(res: Response) {
 
 const SANITY_DATASET = process.env.SANITY_STUDIO_DATASET || 'production'
 const SANITY_API = `https://ecu57yeh.api.sanity.io/v2025-02-19/data/mutate/${SANITY_DATASET}`
-const sanityMutate = (mutations: unknown[]) => {
+/** A write to the reference's dataset (never its production one). */
+export const sanityMutate = (mutations: unknown[]) => {
   if (SANITY_DATASET === 'production') throw new Error('Reference test writes require SANITY_STUDIO_DATASET=e2e-local; start the reference with the same dataset.')
   return fetch(SANITY_API, {
     method: 'POST',
