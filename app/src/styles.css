@@ -684,6 +684,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .add-item { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 4px; padding: 4px; font: inherit; font-size: 13px; font-weight: 500; border: 0; border-radius: 3px; background: var(--hover); color: var(--fg); cursor: pointer; }
 .add-item:hover { background: var(--hover-strong); }
 .add-item svg { width: 19px; height: 19px; }
+/* J33: the insert menu of a several-type array, centred under Add item as Sanity's. */
+.menu-wrap.add-item-wrap { display: block; position: relative; }
+.add-item-wrap > .popover.menu { left: 50%; right: auto; top: calc(100% + 4px); transform: translateX(-50%); min-width: 120px; }
 /* Freeform (decision 0004): Barkpark's block canvas inside the doc pane. */
 .pd-editor { position: relative; padding: 16px 20px 64px; }
 .pd-status { position: absolute; top: 0; right: 20px; font-size: 12px; color: var(--muted); }

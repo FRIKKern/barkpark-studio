@@ -21,6 +21,7 @@ const newKey = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}) {
   const items = (Array.isArray(value) ? value : []) as Item[]
   const of = field.of!
+  const typing = memberTypes(of)
   const [editing, setEditing] = useState<string | null>(null)
   const index = items.findIndex((it) => it._key === editing)
   // J52: a link to a field inside an item (path=links[_key=="l1"].title, or Sanity's
@@ -62,7 +63,8 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         readOnly={readOnly}
         keyOf={(it, i) => it._key ?? i}
         itemId={(it, i) => (it._key ? `${id}[_key=="${it._key}"]` : `${id}[${i}]`)}
-        blank={() => ({...of.initialValue, _key: newKey()})}
+        blank={(type) => ({...of.initialValue, ...(typing && type ? {[typing.field]: type} : {}), _key: newKey()})}
+        types={typing?.types}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
         onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'object', value: it}})}
@@ -84,6 +86,29 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
       )}
     </>
   )
+}
+
+/**
+ * J33 (decision 0005): several item types in one Barkpark arrayOf (it takes one member shape until
+ * task-b3ebbd3ab1575e2a). The member says which select names the type and which fields
+ * each type has: `options: {typeField: "kind", fieldsByType: {externalLink: ["title", "url"]}}`.
+ * Then adding asks the type (Sanity's insert menu) and an item shows its type's fields
+ * only. Barkpark's LiveView ignores these options and shows the select and every field.
+ */
+type Typing = {field: string; types: {value: string; title: string}[]; fieldsByType: Record<string, string[]>}
+function memberTypes(of: Field): Typing | undefined {
+  const o = (Array.isArray(of.options) ? undefined : of.options) as {typeField?: string; fieldsByType?: Record<string, string[]>} | undefined
+  const select = of.fields?.find((f) => f.name === o?.typeField)
+  const list = select && Array.isArray(select.options) ? (select.options as {value: string; title?: string}[]) : undefined
+  if (!o?.typeField || !o.fieldsByType || !list) return undefined
+  return {field: o.typeField, types: list.map((t) => ({value: t.value, title: t.title ?? t.value})), fieldsByType: o.fieldsByType}
+}
+
+/** The fields an item shows: its type's, without the type select; all of them when it has no type. */
+function fieldsOf(of: Field, item: Item): Field[] {
+  const typing = memberTypes(of)
+  const names = typing && typeof item[typing.field] === 'string' ? typing.fieldsByType[item[typing.field] as string] : undefined
+  return names ? names.map((n) => of.fields?.find((f) => f.name === n)).filter((f): f is Field => !!f) : of.fields ?? []
 }
 
 /** The item's preview text: its schema's preview path, else its first string field. */
@@ -137,7 +162,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
         </header>
         <div className="dialog-body item-fields">
           <fieldset className="form-fields" disabled={readOnly}>
-            {of.fields?.map((f) => (
+            {fieldsOf(of, item).map((f) => (
               <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange({...item, [f.name]: v})} />
             ))}
           </fieldset>
