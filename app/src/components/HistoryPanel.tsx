@@ -4,7 +4,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {historyQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
 import {applyServer} from '../lib/edits'
 import type {Doc} from '../lib/data'
-import {Close as CloseIcon} from './icons'
+import {Close as CloseIcon, InfoOutline} from './icons'
 import {toast} from './Toasts'
 
 // Sanity's History inspector (J16), beside the document: a timeline of what
@@ -53,11 +53,15 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
           <CloseIcon />
         </button>
       </header>
+      {/* Sanity's note, above both tabs. */}
+      <p className="history-note">
+        <InfoOutline />
+        <span>
+          Showing the history for the <strong>Draft</strong> version of this document.
+        </span>
+      </p>
       <div role="tabpanel" aria-label={tab === 'review' ? 'Review changes' : 'History'}>
       {tab === 'review' ? review : <>
-      <p className="history-note">
-        Showing the history for the <strong>Draft</strong> version of this document.
-      </p>
       {error && <p role="alert">Could not load the history: {String(error)}</p>}
       <ul className="history-list" role="listbox" aria-label="Document revisions">
         {entries.map((e, i) => {
@@ -87,6 +91,10 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
     </aside>
   )
 }
+
+/** Sanity's Review changes range date: "Oct 8, 2026, 2:20 PM". */
+export const rangeDate = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'})
 
 /** Sanity's revision date: "Oct 6, 2026 @ 2:29:19 AM". */
 export const revisionDate = (iso: string) => {

@@ -356,6 +356,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </>
         )}
       </header>
+      {/* Sanity's document panel: a column (banners, title bar, form, footer) with the inspector beside it, under the pane header. */}
+      <div className="doc-split">
+      <div className="doc-column">
       {/* Sanity's banners sit right under the pane header, above the title bar and the scrolling form: always in view. */}
       <div className="pane-banners">
         <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
@@ -467,7 +470,6 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </div>
         )}
       </div>
-      {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => setInspecting(false)} />}
       {pane.inspect === 'meta' && doc && PAPER_TYPES.has(pane.type) && !viewingPublished && (
         <PaperSidebar
           key={pane.id}
@@ -477,6 +479,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           onClose={() => void navigate({href: withParams(panes, index, {inspect: undefined})}).then(() => metaButton.current?.focus())}
         />
       )}
+      </div>
+      {pane.rev
+        ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
+        : viewingPublished
+        ? doc && <PublishedFooter doc={doc} single={single} />
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
+      </div>
+      {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => setInspecting(false)} />}
       {pane.inspect === 'comments' && (
         <CommentsPanel
           docId={pane.id}
@@ -509,11 +519,6 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         />
       )}
       </div>
-      {pane.rev
-        ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
-        : viewingPublished
-        ? doc && <PublishedFooter doc={doc} single={single} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
       {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema)} onClose={() => setInspectOpen(false)} />}
     </section>
   )
