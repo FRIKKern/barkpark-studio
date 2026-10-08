@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 34 changes, 11 tasks closed
+- **Today** · 35 changes, 12 tasks closed
+  - B02 (2/2): the workspace / project / dataset switcher; the URL carries the scope ([#152](https://github.com/FRIKKern/barkpark-studio/pull/152))
+  - Done: [J45 [after] Dark mode: follows the system, user menu System / Light / Dark, survives reload, no white flash, everything readable](https://github.com/FRIKKern/barkpark/issues/21842)
   - fix(J54): the file picker says "just now" for files added under a minute ago, as Sanity ([#150](https://github.com/FRIKKern/barkpark-studio/pull/150))
-  - B02 (1/2): every Barkpark call takes its workspace, project and dataset from the page's URL; .env stays the default ([#149](https://github.com/FRIKKern/barkpark-studio/pull/149))
-  - test(J23): patch the author only once the list's live stream is open ([#148](https://github.com/FRIKKern/barkpark-studio/pull/148))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
