@@ -1,3 +1,4 @@
+import {useEffect, useRef} from 'react'
 import {itemPath, refId, refTypesOf, type Field, type RefFilter} from '../lib/data'
 import {copy} from '../lib/clipboard'
 import type {OpenRef} from './Fields'
@@ -17,6 +18,12 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
   const items = (Array.isArray(value) ? value : []).map((v) => (typeof v === 'string' ? {_key: newKey(), _type: 'reference', _ref: v} : (v as Item)))
   const types = refTypesOf(field.of)
   const set = (next: Item[]) => onChange(next)
+  // The row just added (or set to Replace): its search takes focus as it mounts, so
+  // typing searches at once (Sanity's). Once only.
+  const focusKey = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    focusKey.current = undefined
+  })
   return (
     <SortableRows
       id={id}
@@ -27,12 +34,13 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
       blank={() => ({_key: newKey(), _type: 'reference'})}
       duplicate={(it) => ({...it, _key: newKey()})}
       onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: `reference:${types.join(',')}`, value: refId(it)}})}
+      onAdded={(at, next) => (focusKey.current = next[at]?._key)}
       itemId={(it, i) => itemPath(id, it, i)}
       extraActions={(it, i) => {
         const ref = refId(it)
         if (!ref) return []
         return [
-          {label: 'Replace', run: () => set(items.map((x, j) => (j === i ? {_key: x._key, _type: 'reference'} : x)))},
+          {label: 'Replace', run: () => { focusKey.current = it._key; set(items.map((x, j) => (j === i ? {_key: x._key, _type: 'reference'} : x))) }},
           {label: 'Open in new tab', run: () => window.open(`/structure/${types[0]};${ref}`, '_blank'), last: true},
         ]
       }}
@@ -53,6 +61,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
               value={undefined}
               onChange={(v) => v && set(items.map((x, j) => (j === i ? {...x, _type: 'reference', _ref: v} : x)))}
               linkFor={(target, type) => link(target, type)}
+              autoFocus={it._key !== undefined && it._key === focusKey.current}
             />
           </div>
         )

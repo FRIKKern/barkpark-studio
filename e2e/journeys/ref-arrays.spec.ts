@@ -35,9 +35,10 @@ test('@evidence J09: reference array — add by search, reorder by keyboard, ite
   await expect(cats.getByRole('link', {name: /Opinion/})).toBeVisible()
   await cats.screenshot({path: shot(t.name, '1-rows')})
 
-  // Add item: a row with the reference search; pick News.
+  // Add item: a row with the reference search, focused, so typing searches at once; pick News.
   await cats.getByRole('button', {name: /Add item/}).click()
-  await cats.getByRole('combobox').last().fill('News')
+  await expect(cats.getByRole('combobox').last()).toBeFocused()
+  await page.keyboard.type('News')
   await page.getByRole('option', {name: /News/}).first().click()
   await expect.poll(() => refs(t), {timeout: 10_000}).toEqual(['category-opinion', 'category-news'])
 

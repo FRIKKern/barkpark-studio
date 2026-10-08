@@ -27,6 +27,8 @@ type Props = {
   invalid?: boolean
   onChange: (v: string | undefined) => void
   linkFor: (id: string, type: string) => {href: string; selected: boolean; active: boolean}
+  /** Focus the search when it mounts (a row just added, Sanity's). */
+  autoFocus?: boolean
 }
 
 /**
@@ -34,7 +36,7 @@ type Props = {
  * "…" menu (Clear / Replace / Open in new tab); empty or replacing, a combobox
  * that searches the referenced type. Keyboard: arrows move, Enter picks, Esc cancels.
  */
-export function RefInput({id, referencePath = id, types, filter, value: outer, invalid, onChange, linkFor}: Props) {
+export function RefInput({id, referencePath = id, types, filter, value: outer, invalid, onChange, linkFor, autoFocus}: Props) {
   const parentId = useContext(DocIdContext)
   const creationKey = JSON.stringify([parentId, referencePath])
   // Show a pick at once; the cache (and so `outer`) catches up a tick later.
@@ -90,7 +92,7 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
       types={types}
       filter={filter}
       current={value}
-      autoFocus={focusSearch.current}
+      autoFocus={autoFocus || focusSearch.current}
       onPick={(picked) => {
         focusPreview.current = true
         change(picked)
