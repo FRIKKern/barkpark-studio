@@ -103,7 +103,15 @@ function FieldBody(props: FieldProps) {
     <div className="field" data-invalid={invalid} data-readonly={props.readOnly || undefined}>
       <FieldActions {...props} />
       {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
-      <label htmlFor={props.path} id={`${props.path}-label`}>
+      <label htmlFor={props.path} id={`${props.path}-label`} onClick={(e) => {
+        // Split panes repeat field paths. Native label lookup finds the first copy.
+        if ((e.target as Element).closest('button, a, [role="button"]')) return
+        const control = e.currentTarget.parentElement?.querySelector<HTMLElement>(`[id="${CSS.escape(props.path)}"]`)
+        if (control?.matches('input, textarea, select, button') && e.currentTarget.control !== control) {
+          e.preventDefault()
+          control.focus()
+        }
+      }}>
         {label}
         <ProblemMark path={props.path} />
         <FieldPresenceHere path={props.path} />

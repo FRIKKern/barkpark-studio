@@ -9,14 +9,16 @@ import {DocPreview} from './Preview'
 
 /**
  * Sanity's delete dialog (J17): the doc, and when other documents refer to it a
- * warning plus the list of them ("used in"). Refusing the delete is the server's
- * job (task-c8c22ee8076535fe); until it does, "Delete anyway" deletes, as in Sanity.
+ * warning plus the list of them ("used in"). The server refuses deletion while
+ * references remain; a failed lookup must never look like an empty list.
  */
 export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: string; onClose: () => void}) {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const {data: schemas = []} = useQuery(schemasQuery)
-  const {data: refs, isPending} = useQuery(backlinksQuery(doc._publishedId))
+  const {data: refs, isPending, isFetching, isError, fetchStatus, refetch} = useQuery({
+    ...backlinksQuery(doc._publishedId), refetchOnMount: 'always', retry: false,
+  })
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
   const cancel = useRef<HTMLButtonElement>(null)
@@ -26,7 +28,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
 
   return (
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <DialogBox className="dialog" aria-modal="true" aria-labelledby="delete-title" onClose={onClose}>
+      <DialogBox className="dialog delete-dialog" aria-modal="true" aria-labelledby="delete-title" onClose={onClose}>
         <header>
           <h2 id="delete-title">Delete document?</h2>
           <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
@@ -38,7 +40,15 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
           <div className="ref-box">
             <DocPreview doc={doc} selected={false} />
           </div>
-          {isPending && <p className="muted">Looking for documents that refer to it…</p>}
+          {(isPending || isFetching || fetchStatus === 'paused') && <p className="muted" role="status">
+            {fetchStatus === 'paused' ? "You're offline. Reconnect to check where this document is used." : 'Looking for documents that refer to it…'}
+          </p>}
+          {isError && !isFetching && (
+            <div role="alert">
+              <p>Could not check where this document is used. Retry before deleting.</p>
+              <button type="button" className="btn" onClick={() => { cancel.current?.focus(); void refetch() }}>Retry</button>
+            </div>
+          )}
           {used > 0 && (
             <section aria-label="Used in">
               <p className="warning" role="status">
@@ -75,8 +85,10 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
           <button
             type="button"
             className="btn danger"
-            disabled={busy || isPending}
+            disabled={busy || isPending || isFetching || isError || fetchStatus === 'paused'}
             onClick={async () => {
+              // Disabling the focused Delete button would drop focus onto the page.
+              cancel.current?.focus()
               setBusy(true)
               setError(undefined)
               try {
@@ -84,7 +96,11 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
                 onClose()
                 void navigate({href: closeHref})
               } catch (err) {
-                setError((err as Error).message)
+                const message = (err as Error).message
+                setError(message.includes('document_referenced')
+                  ? 'This document is still referenced. Remove those references before deleting it.'
+                  : message)
+                void refetch()
               } finally {
                 setBusy(false)
               }

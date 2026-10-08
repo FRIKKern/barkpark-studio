@@ -2,8 +2,9 @@
 // README. Exits 1 with one line per violation.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 const lines = (f) => read(f).trimEnd().split('\n').length;
 const bad = [];

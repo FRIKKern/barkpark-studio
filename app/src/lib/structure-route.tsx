@@ -38,8 +38,8 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   // once, anything else paints its pane now and fills in (like Sanity's panes).
   const settle = <T,>(p: Promise<T>) => p.catch(() => undefined)
   const data = Promise.all([
-    Promise.all(panes.flatMap((p) => (p.kind === 'list' ? [settle(queryClient.ensureQueryData(listQuery(p.type, listPrefs[p.type]?.sort ?? DEFAULT_SORT)).then((l) => l.docs))] : []))),
-    Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : []))),
+    Promise.all(panes.flatMap((p) => (p.kind === 'list' && schemaOf(schemas, p.type) ? [settle(queryClient.ensureQueryData(listQuery(p.type, listPrefs[p.type]?.sort ?? DEFAULT_SORT)).then((l) => l.docs))] : []))),
+    Promise.all(panes.flatMap((p) => (p.kind === 'doc' && schemaOf(schemas, p.type) ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : []))),
   ])
   if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, 0, false))]))) {
     void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))

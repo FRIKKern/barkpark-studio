@@ -47,7 +47,7 @@ export const mutate = createServerFn({method: 'POST'})
  * read-only), with its reason; the next edit tries again, nothing retries on its own.
  */
 export type SaveState = 'saved' | 'saving' | 'stalled' | 'offline' | 'recovering' | 'error' | 'signedOut' | 'refused'
-type Snap = {state: SaveState; error?: string}
+type Snap = {state: SaveState; error?: string; creating?: boolean}
 type DocEdits = {
   type: string
   dirty: Map<string, unknown>
@@ -57,6 +57,8 @@ type DocEdits = {
   timer?: ReturnType<typeof setTimeout>
   /** A new doc that exists only here: its first write creates it with these values. */
   pendingCreate?: Record<string, unknown>
+  /** Create even without fields; untouched lazy drafts still cost no write. */
+  createRequested?: boolean
   /** The server rev our unsent edits are made against (sent as ifRevisionID). */
   rev?: string
   /** For each field with edits in dirty or inflight: the server value they were made from. */
@@ -90,10 +92,11 @@ if (typeof window !== 'undefined') {
     waiting.clear()
     go.forEach((f) => f())
   })
-  // Leaving while offline with edits not sent would lose them (the unload beacon
-  // can't go out either): the browser asks first.
+  // Offline edits and an unconfirmed create (including its parent reference)
+  // cannot safely finish on unload: the browser asks before losing them.
   addEventListener('beforeunload', (ev) => {
-    if (online() || ![...docs.values()].some((d) => d.dirty.size || d.inflight)) return
+    const pending = [...docs.values()]
+    if (!pending.some((d) => d.createRequested) && (online() || !pending.some((d) => d.dirty.size || d.inflight))) return
     ev.preventDefault()
     ev.returnValue = ''
   })
@@ -103,7 +106,7 @@ const SAVED: Snap = {state: 'saved'}
 const docs = new Map<string, DocEdits>()
 const listeners = new Set<() => void>()
 const setState = (e: DocEdits, state: SaveState, error?: string) => {
-  e.snap = {state, error}
+  e.snap = {state, error, creating: !!e.pendingCreate && !!e.createRequested}
   listeners.forEach((l) => l())
 }
 
@@ -192,7 +195,7 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
 /** Send now if the last write was WRITE_GAP_MS ago, else once that gap has passed. */
 function schedule(qc: QueryClient, id: string) {
   const e = docs.get(id)
-  if (!e || e.timer || e.dirty.size === 0) return
+  if (!e || e.timer || (e.dirty.size === 0 && !e.createRequested)) return
   const wait = Math.max(0, e.lastSent + WRITE_GAP_MS - Date.now())
   if (wait === 0) void send(qc, id)
   else e.timer = setTimeout(() => ((e.timer = undefined), void send(qc, id)), wait)
@@ -228,7 +231,8 @@ export function flush(qc: QueryClient, id: string) {
 /** Page is going away: hand every unsent change to the browser to deliver. */
 export function flushOnUnload() {
   const mutations = [...docs].flatMap(([id, e]) => {
-    if (e.dirty.size === 0) return []
+    if (e.snap.state === 'signedOut' || e.snap.state === 'refused') return []
+    if (e.dirty.size === 0 && (!e.createRequested || e.inflight)) return []
     const {set, unset} = toPatch(e.dirty)
     return [e.pendingCreate ? {create: {_id: id, _type: e.type, ...applyPaths(e.pendingCreate as Record<string, Json>, e.dirty)}} : {patch: {id, type: e.type, set, unset}}]
   })
@@ -260,7 +264,7 @@ function reasonOf(msg: string): string | undefined {
 
 /** After signing in again: send every doc's edits that waited for it. */
 export function resumeSaving(qc: QueryClient) {
-  for (const [id, e] of docs) if (e.snap.state === 'signedOut' && e.dirty.size) (setState(e, 'saving'), void send(qc, id))
+  for (const [id, e] of docs) if (e.snap.state === 'signedOut' && (e.dirty.size || e.createRequested)) (setState(e, 'saving'), void send(qc, id))
 }
 
 /** Offline: hold everything, send again when the network is back (or try every few seconds). */
@@ -272,9 +276,10 @@ function waitForNetwork(qc: QueryClient, id: string, e: DocEdits) {
 
 async function send(qc: QueryClient, id: string) {
   const e = docs.get(id)
-  if (!e || e.inflight || e.dirty.size === 0) return
+  if (!e || e.inflight || (e.dirty.size === 0 && !e.createRequested)) return
   // Signed out: nothing goes until the editor is back (resumeSaving) — not even a flush on blur.
   if (e.snap.state === 'signedOut') return
+  if (e.pendingCreate) e.createRequested = true
   if (!online()) return waitForNetwork(qc, id, e)
   e.inflight = e.dirty
   e.dirty = new Map()
@@ -290,7 +295,7 @@ async function send(qc: QueryClient, id: string) {
       : {patch: {id, type: e.type, set, unset, ...(e.rev ? {ifRevisionID: e.rev} : {})}}
     const r = (await mutate({data: {mutations: [mutation]}})) as {results: {document: Doc}[]}
     const saved = r.results[0].document
-    if (creating) e.pendingCreate = undefined
+    if (creating) { e.pendingCreate = undefined; e.createRequested = false }
     // What we sent is now the server's: a field still being typed builds on it.
     for (const f of e.inflight.keys()) {
       if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
@@ -320,6 +325,25 @@ async function send(qc: QueryClient, id: string) {
       e.dirty = new Map([...e.inflight!, ...e.dirty])
       e.inflight = null
       return waitForNetwork(qc, id, e)
+    }
+    // The create may have committed before its response was lost. Recover that
+    // same generated id; keep later typing queued instead of creating a duplicate.
+    if (creating && /^mutate 409\b|already been taken/.test(msg)) {
+      try {
+        const saved = await qc.fetchQuery({...docQuery(e.type, id), staleTime: 0})
+        if (saved) {
+          e.pendingCreate = undefined
+          e.createRequested = false
+          e.dirty = new Map([...e.inflight!, ...e.dirty])
+          e.inflight = null
+          applyServer(qc, saved)
+          setState(e, e.dirty.size ? 'saving' : 'saved')
+          schedule(qc, id)
+          return
+        }
+      } catch {
+        // Keep the original create queued until its outcome can be read.
+      }
     }
     // Someone else wrote first (stale rev; or both forked the draft at once,
     // task-324b4d00706a6cfb): read theirs, rebase ours onto it, send again.
@@ -367,27 +391,29 @@ export function draftNew(qc: QueryClient, type: string, id: string, initial: Rec
  */
 export async function createDoc(qc: QueryClient, type: string, id: string, fields: Record<string, unknown>) {
   const e = entry(id, type)
+  e.pendingCreate = fields
+  e.createRequested = true
+  e.dirty = new Map(Object.entries(fields))
   writeCache(qc, id, type, {_id: `drafts.${id}`, _publishedId: id, _type: type, _draft: true, _hasPublished: false, _rev: '', _updatedAt: '', ...fields} as Doc)
-  e.inflight = new Map(Object.entries(fields))
   setState(e, 'saving')
-  try {
-    const r = (await mutate({data: {mutations: [{create: {_id: id, _type: type, ...(fields as Record<string, Json>)}}]}})) as {results: {document: Doc}[]}
-    e.inflight = null
-    applyServer(qc, r.results[0].document)
-    setState(e, e.dirty.size ? 'saving' : 'saved')
+  // Reuse the edit queue's offline, refusal and retry handling. Callers that set
+  // a parent reference wait for actual creation, including after a reconnect.
+  await new Promise<void>((resolve) => {
+    const check = () => {
+      if (e.pendingCreate) return
+      listeners.delete(check)
+      resolve()
+    }
+    listeners.add(check)
     schedule(qc, id)
-  } catch (err) {
-    e.inflight = null
-    setState(e, 'error', (err as Error).message)
-    throw err
-  }
+  })
 }
 
 /** Resolves once nothing typed into `id` is waiting or in flight. */
 export function whenSaved(id: string): Promise<void> {
   const idle = () => {
     const e = docs.get(id)
-    return !e || (!e.inflight && !e.timer && e.dirty.size === 0)
+    return !e || (!e.inflight && !e.timer && e.dirty.size === 0 && !e.createRequested)
   }
   if (idle()) return Promise.resolve()
   return new Promise((resolve) => {

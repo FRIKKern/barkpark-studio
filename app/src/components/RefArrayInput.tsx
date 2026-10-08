@@ -47,6 +47,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
           <div className="ref-row-search">
             <RefInput
               id={`${id}[${i}]`}
+              referencePath={itemPath(id, it, i)}
               types={types}
               filter={field.of?.options && !Array.isArray(field.of.options) ? (field.of.options.filter as RefFilter | undefined) : undefined}
               value={undefined}
