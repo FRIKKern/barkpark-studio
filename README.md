@@ -49,6 +49,7 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ```
 app/                 TanStack Start studio (ours); only app/src/server/ talks to Barkpark
 reference/sanity/    real Sanity Studio, the bar (project ecu57yeh, dataset production)
+reference/preview-site/  the site its Presentation tool shows (J58–J64; see its README)
 fixtures/            seed data + Barkpark schema, same content on both sides
 e2e/                 Playwright: few, fast specs for what can break silently
 scripts/             seed Barkpark, README timeline, roadmap picture, doc checks
