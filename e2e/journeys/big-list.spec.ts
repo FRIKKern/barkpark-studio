@@ -45,6 +45,8 @@ async function frames(page: Page, steps: number) {
 
 test('@local J41: big list pages to 2,000 with the note; search reaches past it', async ({page}, info) => {
   test.setTimeout(90_000)
+  // seed-bulk.mjs seeds only e2e-local and e2e-local-*: another lane's dataset has no bulk docs.
+  test.skip(!/^e2e-local(-|$)/.test(process.env.BARKPARK_DATASET ?? 'e2e-local'), 'no bulk docs in this dataset (scripts/seed-bulk.mjs)')
   const t = target(info)
   await Promise.all([t.prepare(page.context()), installProbes(page.context())])
   await page.goto(t.listPath('bulk'))

@@ -5,7 +5,7 @@ import {target, type Target} from '../rig/targets'
 // into another of the same type; a mismatched paste is refused with Sanity's
 // toast; the document "…" menu copies a whole post into another. Stills + clips
 // go to e2e/evidence/ (gitignored). Not a CI gate (`pnpm evidence` runs it).
-// Ours leaves pasted drafts behind: re-seed after (`pnpm reset`).
+// Both posts go back to the seed after the run, on both sides.
 const FROM = 'post-22'
 const TO = 'post-23'
 const shot = (name: string, step: string) => `evidence/J29-${name}-${step}.png`
@@ -35,8 +35,8 @@ const docMenu = (t: Target, page: Page) =>
 
 test.afterEach(async ({}, info) => {
   const t = target(info)
-  await t.restore(FROM, {title: 'Fixture post 22'})
-  await t.restore(TO, {title: 'Fixture post 23'})
+  await t.resetDoc(FROM, 'post')
+  await t.resetDoc(TO, 'post')
 })
 
 test('@evidence J29: copy and paste a field and a document', async ({page}, info) => {

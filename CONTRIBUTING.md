@@ -18,6 +18,8 @@
   something that can break silently. Rule 5 in [`QUALITY.md`](QUALITY.md).
 - Local lanes: `node --env-file=.env scripts/lane-token.mjs e2e-<lane>` once gives that dataset its own
   Barkpark tokens (rate limits are per token); `BARKPARK_DATASET=e2e-<lane> pnpm test` uses them. J48/J49 evidence (dev sign-in) also needs `scripts/rig-editor-tokens.mjs e2e-<lane>` (read-only editors c, d; `--revoke` after).
+- A full suite, `@evidence` or audit run goes through `scripts/with-lock.sh <cmd>` (the machine lock ci-local takes); a spec
+  restores every fixture doc it edits, so runs pass back to back without a reset.
 
 ## Docs
 

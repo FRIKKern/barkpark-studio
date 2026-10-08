@@ -1,5 +1,6 @@
 import {readFileSync} from 'node:fs'
 import type {BrowserContext, Locator, Page, TestInfo} from '@playwright/test'
+import {toBarkpark} from '../../scripts/lib/seed-map.mjs'
 
 // One adapter per backend. Specs talk to the adapter, never to a backend directly,
 // so every spec runs against the reference (the bar) and against ours unchanged.
@@ -52,6 +53,12 @@ export type Target = {
   deleteDoc(id: string, type: string): Promise<void>
   /** Drop drafts a test left behind and restore published values. */
   restore(id: string, set: Record<string, unknown>, type?: string, unset?: string[]): Promise<void>
+}
+
+/** One document of fixtures/seed.ndjson, as Sanity holds it. */
+function seedDoc(id: string) {
+  const doc = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
+  return doc ?? fail(`${id} is not in fixtures/seed.ndjson`)
 }
 
 const need = (k: string) => process.env[k] ?? fail(`missing ${k} in ../.env`)
@@ -155,8 +162,12 @@ const sanity: Target = {
     return ((await r.json()) as {result: unknown}).result
   },
   resetDoc: async (id) => {
-    const seed = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
+    const seed = seedDoc(id)
     await sanityMutate([{delete: {id: `drafts.${id}`}}, {createOrReplace: seed}])
+    // Then a real publish, so Sanity's history knows this version (see restore).
+    const draftId = `drafts.${id}`
+    await sanityActions([{actionType: 'sanity.action.document.edit', draftId, publishedId: id, patch: {set: {title: seed.title}}}])
+    await sanityActions([{actionType: 'sanity.action.document.publish', draftId, publishedId: id}])
   },
   publishedTitle: async (id) => {
     const q = encodeURIComponent(`*[_id == "${id}"][0].title`)
@@ -238,10 +249,10 @@ const studio: Target = {
     const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/${type}/${encodeURIComponent(id)}?perspective=drafts`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
     return r.ok ? ((await r.json()) as {result: Record<string, unknown>}).result[field] : undefined
   },
+  // The whole seed document, as scripts/seed-barkpark.mjs writes it, replaces the draft
+  // and is published: whatever a journey changed (a pasted document, J29) is gone.
   resetDoc: async (id, type) => {
-    const seed = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
-    // Put back the seed's plain fields the journeys edit, and publish.
-    await bpMutate([{patch: {id, type, set: {title: seed.title, seo: seed.seo, rating: seed.rating}}}, {publish: {id, type}}])
+    await bpMutate([{createOrReplace: {_id: id, _type: type, ...toBarkpark(seedDoc(id))}}, {publish: {id, type}}])
   },
   publishedTitle: async (id) => {
     const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=published`, {
