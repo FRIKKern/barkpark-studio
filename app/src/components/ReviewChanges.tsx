@@ -6,6 +6,7 @@ import {historyQuery, revisionQuery, type Revision} from '../lib/history'
 import type {Doc, Schema} from '../lib/data'
 import {rangeDate} from './HistoryPanel'
 import {Undo} from './icons'
+import {userColorVars} from '../lib/user-colors'
 import {assetUrl, type ImageValue} from '../lib/image'
 
 // Sanity's "Review changes" (J15): every field the draft changed since it was last
@@ -46,26 +47,22 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
               <li key={c.field.name} data-field={c.field.name}>
                 <div className="review-head">
                   <span className="review-field">{c.field.title ?? c.field.name}</span>
-                  <span className="review-authors" role="img" aria-label={`Changed by ${c.authors.join(', ') || 'unknown'}`}>
-                    {c.authors.map((a) => (
-                      <span key={a} className="avatar small" title={a}>
-                        {a === 'API token' ? '·' : a[0]?.toUpperCase()}
-                      </span>
-                    ))}
-                  </span>
                 </div>
                 <div className="review-body">
-                  <ChangeView change={c} />
+                  <ChangeView change={c} author={c.authors[0]} />
                   <Revert label={`Revert changes to ${c.field.title ?? c.field.name}`} onConfirm={() => onRevert([c])}>
-                    <Undo /> Revert change
+                    <Undo />
                   </Revert>
                 </div>
               </li>
             ))}
           </ul>
-          <Revert label="Revert all" className="revert-all" onConfirm={() => onRevert(changes)}>
-            <Undo /> Revert all
-          </Revert>
+          {/* Sanity offers Revert all only when there is more than one change. */}
+          {changes.length > 1 && (
+            <Revert label="Revert all" className="revert-all" count={changes.length} onConfirm={() => onRevert(changes)}>
+              <Undo /> Revert all
+            </Revert>
+          )}
         </>
       )}
     </div>
@@ -75,7 +72,8 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
 /** An image value's asset id, if `v` is one. */
 const imageRef = (v: unknown) => (v as ImageValue | undefined)?.asset?._ref
 
-function ChangeView({change}: {change: FieldChange}) {
+/** One field's change; text is tinted with its author's colour, as Sanity's. */
+function ChangeView({change, author}: {change: FieldChange; author?: string}) {
   // An image: before → after thumbnails, as Sanity's image diff.
   if (imageRef(change.before) || imageRef(change.after)) {
     const thumb = (v: unknown, what: string) =>
@@ -92,32 +90,38 @@ function ChangeView({change}: {change: FieldChange}) {
   const after = asText(change.after)
   if (before === undefined || after === undefined)
     return <p className="review-diff muted">{change.before === undefined ? 'Added' : change.after === undefined ? 'Removed' : 'Changed'}</p>
+  const by = (what: string) => (author ? `${what} by ${author}` : what)
   return (
-    <p className="review-diff">
+    <p className="review-diff" style={userColorVars(author ?? 'unknown')}>
       {textDiff(before, after).map((s, i) =>
-        s.kind === 'removed' ? <del key={i}>{s.text}</del> : s.kind === 'added' ? <ins key={i}>{s.text}</ins> : <span key={i}>{s.text}</span>,
+        // Who did it, in the segment's tooltip (Sanity: "Added" / "Removed" with the author).
+        s.kind === 'removed' ? <del key={i} title={by('Removed')}>{s.text}</del> : s.kind === 'added' ? <ins key={i} title={by('Added')}>{s.text}</ins> : <span key={i}>{s.text}</span>,
       )}
     </p>
   )
 }
 
 /** A revert button that asks first, with Sanity's words. */
-function Revert({label, className = 'revert-one', onConfirm, children}: {label: string; className?: string; onConfirm: () => void; children: React.ReactNode}) {
+function Revert({label, className = 'revert-one', count, onConfirm, children}: {label: string; className?: string; count?: number; onConfirm: () => void; children: React.ReactNode}) {
+  // Sanity's per-field revert is an icon with a "Revert change" tooltip; Revert all keeps its words
+  // and asks about all `count` changes.
+  const title = className === 'revert-one' ? 'Revert change' : undefined
+  const question = count ? `Are you sure you want to revert all ${count} changes?` : 'Are you sure you want to revert the change?'
   const [asking, setAsking] = useState(false)
   return (
     <span className="menu-wrap">
-      <button type="button" className={className} aria-label={label} aria-expanded={asking} onClick={() => setAsking((a) => !a)}>
+      <button type="button" className={className} aria-label={label} title={title} aria-expanded={asking} onClick={() => setAsking((a) => !a)}>
         {children}
       </button>
       {asking && (
-        <DialogBox className="popover confirm" aria-label="Revert the change?" onClose={() => setAsking(false)}>
-          <p>Are you sure you want to revert the change?</p>
+        <DialogBox className="popover confirm" aria-label={question} onClose={() => setAsking(false)}>
+          <p>{question}</p>
           <div className="confirm-actions">
             <button type="button" className="btn" autoFocus onClick={() => setAsking(false)}>
               Cancel
             </button>
             <button type="button" className="btn danger" onClick={() => (setAsking(false), onConfirm())}>
-              Revert change
+              {count ? 'Revert all' : 'Revert change'}
             </button>
           </div>
         </DialogBox>
