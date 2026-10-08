@@ -60,9 +60,10 @@ export function mimeTitle(mime: string | undefined): string {
   return part.charAt(0).toUpperCase() + part.slice(1)
 }
 
-/** "23 hours ago", for the picker's date column. */
+/** "just now", "1 minute ago", "23 hours ago", for the picker's date column (Sanity's). */
 export function ago(iso: string, now = Date.now()): string {
   const s = Math.round((now - new Date(iso).getTime()) / 1000)
+  if (s < 60) return 'just now'
   const rtf = new Intl.RelativeTimeFormat('en', {numeric: 'auto'})
   for (const [unit, size] of [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]] as const)
     if (Math.abs(s) >= size) return rtf.format(-Math.floor(s / size), unit)
