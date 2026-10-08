@@ -17,14 +17,18 @@ async function revert(t: Target, page: Page, field: 'Title' | 'all') {
   else if (field === 'all') await p.getByRole('button', {name: 'Revert all'}).click()
   // Sanity: the icon button after the field's diff; From/To are the first two buttons.
   else await p.locator('button').nth(2).click()
-  // Both ask: "Are you sure you want to revert the change?" → Revert change.
-  await expect(page.getByText('Are you sure you want to revert the change?')).toBeVisible()
+  // Both ask, with Sanity's words: one field "…revert the change?" → Revert change;
+  // all "…revert all 2 changes?" → Revert all.
+  await expect(page.getByText(field === 'all' ? 'Are you sure you want to revert all 2 changes?' : 'Are you sure you want to revert the change?')).toBeVisible()
   await page.waitForTimeout(t.name === 'sanity' ? 600 : 0) // its popover animates in
   await page.screenshot({path: shot(t.name, `confirm-${field}`)})
-  await page.getByRole('button', {name: 'Revert change', exact: true}).filter({visible: true}).last().click()
+  await page.getByRole('button', {name: field === 'all' ? 'Revert all' : 'Revert change', exact: true}).filter({visible: true}).last().click()
 }
 
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: TITLE, excerpt: EXCERPT}))
+test.afterEach(async ({}, info) => {
+  const t = target(info)
+  await t.restore(ID, {title: TITLE, excerpt: EXCERPT, slug: t.name === 'sanity' ? {_type: 'slug', current: 'fixture-post-24'} : 'fixture-post-24'})
+})
 
 test('@evidence J15: change bars, review changes, revert one field and all', async ({page}, info) => {
   const t = target(info)
@@ -33,7 +37,8 @@ test('@evidence J15: change bars, review changes, revert one field and all', asy
   await signInIfAsked(page)
   await t.settle(page)
 
-  for (const [field, text] of [['title', 'Post 24 reviewed'], ['excerpt', 'Changed for review.']] as const) {
+  // Three fields: after one is reverted two remain, and Revert all is offered (both studios show it only for more than one change).
+  for (const [field, text] of [['title', 'Post 24 reviewed'], ['slug', 'post-24-reviewed'], ['excerpt', 'Changed for review.']] as const) {
     await t.field(page, field).click()
     await page.keyboard.press('ControlOrMeta+a')
     await page.keyboard.type(text)
@@ -62,5 +67,6 @@ test('@evidence J15: change bars, review changes, revert one field and all', asy
   // Revert all.
   await revert(t, page, 'all')
   await expect(t.field(page, 'excerpt')).toHaveValue(EXCERPT, {timeout: 10_000})
+  await expect(t.field(page, 'slug')).toHaveValue('fixture-post-24')
   await page.screenshot({path: shot(t.name, '3-all-reverted')})
 })
