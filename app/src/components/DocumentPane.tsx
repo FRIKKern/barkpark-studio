@@ -19,7 +19,7 @@ import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
-import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext} from './Fields'
+import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
@@ -36,7 +36,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {ReadErrorCard} from './PaneError'
-import {CheckmarkCircle, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
+import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -156,6 +156,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const keepPathInUrl = (id: string) => {
     if (Date.now() - userMoved.current > 1000) return
     if (!id || id === pane.path || !schemaHere?.fields.some((f) => f.name === id.split(/[.[]/)[0])) return
+    // An array item's "…" button (links[_key=="l1"]-menuButton) is not a field: written as the
+    // path, it read as a link into the item and opened its dialog (J33).
+    if (id.endsWith('-menuButton')) return
     clearTimeout(pathTimer.current)
     const at = location.pathname
     pathTimer.current = setTimeout(() => {
@@ -211,7 +214,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     const id = crypto.randomUUID()
     const fields = Object.fromEntries(Object.entries(from).filter(([k]) => !k.startsWith('_')))
     const created = createDoc(qc, from._type, id, fields)
-    navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined}])})
+    navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined, path: undefined, rev: undefined}])})
     created.then(
       () => toast({title: 'The document was successfully duplicated'}),
       (err) => toast({tone: 'critical', title: 'Could not duplicate the document', description: (err as Error).message}),
@@ -340,6 +343,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             type="button"
             className="icon-btn validation-btn"
             aria-label="Validation"
+            data-tip="Validation"
             aria-pressed={inspecting}
             data-problems={problems.length || undefined}
             data-level={worst(problems)}
@@ -367,6 +371,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             type="button"
             className="icon-btn comments-btn"
             aria-label="Comments"
+            data-tip="Comments"
             title="Comments"
             aria-pressed={pane.inspect === 'comments'}
             onClick={() => navigate({href: withParams(panes, index, {inspect: pane.inspect === 'comments' ? undefined : 'comments', rev: undefined})})}
@@ -380,16 +385,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {/* J42: a narrow window has no splits and no close: the back link goes back. */}
         {!narrow && (
           <>
-            <button type="button" className="icon-btn" aria-label="Split pane right" title="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
+            <button type="button" className="icon-btn" aria-label="Split pane right" data-tip="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
               <SplitVertical />
             </button>
             {split ? (
               // Like Sanity: closing one side of a split is a button, closing a pane a link.
-              <button type="button" className="icon-btn" aria-label="Close split pane" data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
+              <button type="button" className="icon-btn" aria-label="Close split pane" data-tip="Close pane" data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
                 {closeIcon}
               </button>
             ) : (
-              <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-testid="pane-close">
+              <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-tip="Close pane" data-testid="pane-close">
                 {closeIcon}
               </PaneLink>
             )}
@@ -449,8 +454,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {deleted && !doc && <DeletedBanner type={pane.type} id={pane.id} />}
         {doc === null && !error && !viewingPublished && !deleted && (
           <div className="pane-not-found">
-            <h2>Document not found</h2>
-            <p>This document does not exist or is no longer available.</p>
+            {/* J02: Sanity's title, its text with our known type. */}
+            <h2>The document was not found</h2>
+            <p>A document with the <code>{pane.id}</code> identifier could not be found.</p>
             <PaneLink className="btn" href={closeHref}>Go back</PaneLink>
           </div>
         )}
@@ -479,7 +485,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             onBlur={() => flush(qc, pane.id)}
             onFocus={(e) => keepPathInUrl((e.target as HTMLElement).id)}
             onPointerDown={() => (userMoved.current = Date.now())}
-            onKeyDown={() => (userMoved.current = Date.now())}
+            onKeyDown={(e) => {
+              userMoved.current = Date.now()
+              copyPasteKey(e)
+            }}
           >
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
@@ -666,6 +675,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
   const alt = useAltName()
+  const reason = publishReason ?? (blocked ? 'There are validation errors that need to be fixed before this document can be published' : undefined)
+  const publishTip = useTip(() =>
+    reason ? null : doc._draft && !isPristine(doc, state) ? <Keys keys={['Ctrl', alt, 'P']} /> : doc._hasPublished !== false && doc._updatedAt ? `Published ${ago(doc._updatedAt)}` : 'No unpublished changes',
+  )
   // J28: Sanity's Delete shortcut (Ctrl+Alt+D) asks here.
   useEffect(() => {
     if (askDelete && !single && canWrite) setDeleting(true)
@@ -701,15 +714,19 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
     <footer className="doc-footer">
       {/* "N sec. ago" differs between the server render and hydration: not an error. */}
       <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
+        {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
+        {label === 'Saved' ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : null}
         {label}
       </span>
       {state === 'signedOut' && (
         <SignInAgain />
       )}
+      {/* Sanity's tooltip: the shortcut while there is something to publish, else when it was published. */}
+      <span className="publish-tip" {...(reason ? {} : publishTip.anchor)}>
       <button
         className="publish"
         disabled={!canWrite || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
-        title={publishReason ?? (blocked ? 'There are validation errors that need to be fixed before this document can be published' : undefined)}
+        title={reason}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async () => {
           setPublishing(true)
@@ -723,10 +740,13 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
           }
         }}
       >
-        Publish
+        <PublishIcon />
+        {publishing ? 'Publishing…' : 'Publish'}
       </button>
+      {publishTip.tip}
+      </span>
       {(!single || canDiscard) && <div className="menu-wrap">
-        <button type="button" className="icon-btn" aria-label="Document actions" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+        <button type="button" className="icon-btn" aria-label="Document actions" data-tip="Document actions" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
         {menu && (
@@ -798,6 +818,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
       {!single && (
         <button className="publish danger" disabled={!canWrite} title={publishReason} onClick={() => setConfirm(true)}>
+          <UnpublishIcon />
           Unpublish
         </button>
       )}
@@ -891,4 +912,24 @@ function TipChip({tip: content, children, ...rest}: {tip: () => string} & React.
       {tip}
     </button>
   )
+}
+
+/**
+ * J29, Sanity's form hotkeys: Cmd/Ctrl+C or V on focus that isn't a native control (an
+ * array row, an object or image's buttons) copies or pastes that field or item. Inputs,
+ * switches and selects keep the browser's own behaviour, and so does a text selection.
+ */
+function copyPasteKey(e: React.KeyboardEvent) {
+  const key = e.key.toLowerCase()
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (key !== 'c' && key !== 'v')) return
+  const target = e.target as HTMLElement
+  if (target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return
+  if (key === 'c' && getSelection()?.toString()) return
+  for (let el: HTMLElement | null = target; el; el = el.parentElement) {
+    const entry = fieldClipboard.get(el)
+    if (!entry || (key === 'v' && !entry.paste)) continue
+    e.preventDefault()
+    e.stopPropagation()
+    return key === 'c' ? entry.copy() : entry.paste!()
+  }
 }

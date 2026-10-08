@@ -33,9 +33,12 @@ export async function installProbes(ctx: BrowserContext) {
       for (const e of l.getEntries() as (PerformanceEntry & {value: number; hadRecentInput: boolean; sources?: {node?: Node}[]})[]) {
         if (e.hadRecentInput) continue
         // Name what moved, so a CLS failure says where to look.
-        const src = (e.sources ?? []).map(({node}) => {
-          const el = node instanceof Element ? node : node?.parentElement
-          return el ? `${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).split(' ').join('.') : ''}` : '?'
+        const src = ((e.sources ?? []) as {node?: Node; previousRect?: DOMRectReadOnly; currentRect?: DOMRectReadOnly}[]).map(({node, previousRect, currentRect}: {node?: Node; previousRect?: DOMRectReadOnly; currentRect?: DOMRectReadOnly}) => {
+          let el = node instanceof Element ? node : node?.parentElement
+          // An SVG's className is an object: name what holds the icon instead.
+          while (el && el instanceof SVGElement) el = el.parentElement
+          const r = (x?: DOMRectReadOnly) => (x ? `${Math.round(x.x)},${Math.round(x.y)} ${Math.round(x.width)}x${Math.round(x.height)}` : '')
+          return el ? `${el.tagName.toLowerCase()}${typeof el.className === 'string' && el.className ? '.' + el.className.split(' ').join('.') : ''}${el.getAttribute('aria-label') ? `[${el.getAttribute('aria-label')}]` : ''} ${r(previousRect)}→${r(currentRect)}` : '?'
         })
         feel.shifts.push({t: e.startTime, v: e.value, src: src.join(' ')})
       }

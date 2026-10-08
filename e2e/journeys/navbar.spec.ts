@@ -67,7 +67,7 @@ test('@local J53: a newer build on the server shows the update dot and "Reload t
   // A redeploy: the server now answers another build.
   await page.route('**/api/version', (route) => route.fulfill({json: {build: 'abc1234-next'}}))
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await expect(help).toHaveAttribute('title', 'New version available')
+  await expect(help).toHaveAttribute('data-tip', 'New version available')
   await help.click()
   await expect(page.getByRole('menuitem', {name: /Reload to update to abc1234/})).toBeEnabled()
 })

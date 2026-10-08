@@ -52,6 +52,17 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     addEventListener('pagehide', flushOnUnload)
     return () => removeEventListener('pagehide', flushOnUnload)
   }, [])
+  // Sanity's structure tool: Ctrl/Cmd+S says edits save themselves (one toast, however
+  // often it is pressed) instead of the browser's Save page dialog.
+  useEffect(() => {
+    const save = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 's') return
+      e.preventDefault()
+      toast({key: 'auto-save-message', title: 'Your work is automatically saved!'})
+    }
+    addEventListener('keydown', save)
+    return () => removeEventListener('keydown', save)
+  }, [])
   const {data: schemas = []} = useQuery(schemasQuery)
   // Lists render reference subtitles too: keep those targets live even after
   // the document pane closes (J23).
@@ -69,7 +80,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
   const [focus, setFocus] = useState<{path: string; index: number} | null>(null)
   const focusIndex = focus?.path === path ? focus.index : panes.length - 1
   const isCollapsed = collapsed(
-    panes.map((p) => p.kind),
+    panes.map((p) => (p.kind === 'doc' && p.inspect ? 'docInspect' : p.kind)),
     width,
     focusIndex,
   )
@@ -103,14 +114,14 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
         {panes.map((pane, i) =>
           narrow ? (
             i === panes.length - 1 && (
-              <PaneBoundary key={paneKey(pane) + i}>
+              <PaneBoundary key={paneKey(pane) + i} kind={pane.kind}>
                 <PaneView panes={panes} index={i} />
               </PaneBoundary>
             )
           ) : isCollapsed[i] ? (
             <Strip key={paneKey(pane) + i} pane={pane} index={i} onOpen={() => setFocus({path, index: i})} />
           ) : (
-            <PaneBoundary key={paneKey(pane) + i}>
+            <PaneBoundary key={paneKey(pane) + i} kind={pane.kind}>
               <PaneView panes={panes} index={i} />
             </PaneBoundary>
           ),
@@ -156,10 +167,10 @@ function usePaneTitle(pane: Pane) {
   if (pane.kind === 'types') return desk?.title ?? 'Content'
   if (pane.kind === 'menu') return node?.title ?? pane.node
   if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type))
-  if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? 'Type not found'
+  if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? 'Unknown pane type'
   const schema = schemaOf(schemas, pane.type)
-  if (!schema) return 'Type not found'
-  if (doc === null) return 'Document not found'
+  if (!schema) return 'Unknown document type'
+  if (doc === null) return 'The document was not found'
   // A desk singleton is named by its desk row (Sanity's S.document().title()).
   if (pane.node && node?.title) return node.title
   return doc && schema ? docTitle(doc, schema) : previewTitle(doc, schema)
@@ -201,12 +212,22 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   if ((globalThis as {__crashPane?: string}).__crashPane === paneKey(pane)) throw new Error(`e2e probe: ${paneKey(pane)} crashed`)
   const next = panes[index + 1]
   if (pane.kind === 'types' || pane.kind === 'menu') return <RootPane panes={panes} index={index} />
+  // J02: Sanity's words. A document of a type the schema lacks, or a list pane of one.
   if (!schemaOf(schemas, pane.type)) return (
     <section className="pane" data-pane-index={index}>
-      <header className="pane-header"><BackLink panes={panes} index={index} /><span className="title">Type not found</span></header>
+      <header className="pane-header"><BackLink panes={panes} index={index} /><span className="title">{pane.kind === 'doc' ? 'Unknown document type' : 'Unknown pane type'}</span></header>
       <div className="pane-body pane-not-found">
-        <h2>Type not found</h2>
-        <p>The type “{pane.type}” is not in this Studio’s schema.</p>
+        {pane.kind === 'doc' ? (
+          <>
+            <h2>Unknown document type: <code>{pane.type}</code></h2>
+            <p>This document has the schema type <code>{pane.type}</code>, which is not defined as a type in the local content studio schema.</p>
+          </>
+        ) : (
+          <>
+            <h2>Unknown pane type</h2>
+            <p>Structure item of type <code>{pane.type}</code> is not a known entity.</p>
+          </>
+        )}
         <PaneLink className="btn" href={closeFrom(panes, index)}>Go back</PaneLink>
       </div>
     </section>
@@ -444,7 +465,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           className="icon-btn"
           aria-label={`Create new ${schemaOf(schemas, type)?.title ?? type}`}
           disabled={!canWrite}
-          title={createReason}
+          data-tip="Create new document"
+          title={canWrite ? undefined : createReason}
           onClick={() => {
             // J18: a new doc opens in the next pane with the type's initial values;
             // it is created on its first edit (Sanity's way: leaving it costs nothing).
@@ -617,7 +639,7 @@ function ListMenu({schema, sort, view, set}: {schema: Schema | undefined; sort: 
         if (e.key === 'ArrowUp' && open) (e.preventDefault(), items[(i - 1 + items.length) % items.length]?.focus())
       }}
     >
-      <button type="button" className="icon-btn" aria-label="List options" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label="List options" data-tip="Show more" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (

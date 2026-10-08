@@ -121,16 +121,21 @@ a { color: inherit; text-decoration: none; }
 .pane.list, .pane.types { flex: 1 1 0; min-width: 320px; max-width: 350px; }
 .pane.doc { flex: 2.5 1 0; min-width: 320px; container: document-pane / inline-size; }
 /* Long chains can leave a small editor even in a wide window. Keep both
-   perspectives readable instead of squeezing them behind the action buttons. */
+   perspectives readable: the action buttons wrap to a second row only when the
+   chips would not fit beside them (a phone keeps one row, as Sanity's). */
 @container document-pane (max-width: 400px) {
-  .pane.doc > .pane-header { height: auto; min-height: 51px; flex-wrap: wrap; padding-block: 8px; }
-  .pane.doc > .pane-header .chips { flex: 1 0 100%; }
+  .pane.doc > .pane-header { height: auto; min-height: 51px; flex-wrap: wrap; gap: 0; padding: 8px 8px 8px 12px; }
+  .pane.doc > .pane-header .chips { flex: 1 0 auto; margin-right: 4px; }
 }
 .pane.filler { flex: 2 1 0; border-right: 0; }
 .pane.strip { flex: 0 0 var(--strip); min-width: var(--strip); max-width: var(--strip); cursor: pointer; }
 .pane.strip:hover { background: var(--hover); }
 /* J42: a narrow window shows one pane, full width. */
 .panes[data-narrow] > .pane { flex: 1 1 auto; min-width: 0; max-width: none; }
+/* An open inspector (History, Review changes, Comments, Validation) takes the whole
+   pane under the header, as Sanity's; closing it brings the document back. */
+.panes[data-narrow] .doc-split:has(> .inspector) > .doc-column { display: none; }
+.panes[data-narrow] .doc-split > .inspector { flex: 1 1 auto; width: auto; min-width: 0; border-left: 0; }
 /* J51: a first visit on a phone paints before the server knows the width (no bp_vw
    cookie yet), so the HTML has the desktop panes. Until the app takes over, show only the
    last one, as the narrow layout will: no overflowing panes, no jump at hydration. */
@@ -271,7 +276,7 @@ textarea.input { resize: vertical; }
 .dot.draft { background: #f5a623; }
 .doc-footer { height: 51px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 20px; font-size: 13px; color: var(--muted); }
 .doc-footer .save-state { margin-right: auto; }
-.publish { font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
+.publish { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
 .publish:disabled { background: var(--line-strong); cursor: default; }
 .publish.danger { background: #d83d35; }
 .switch { display: inline-block; position: relative; width: 33px; height: 19px; }
@@ -594,6 +599,8 @@ fieldset.object-field[data-open=false] > legend { margin-bottom: 0; }
 .btn-text:hover { background: var(--hover); }
 /* J27: odd reference states, as Sanity draws them. */
 .ref-box[data-invalid] { background: var(--danger-bg); box-shadow: inset 0 0 0 1px var(--danger-line); }
+.ref-search .input[data-invalid] { background: var(--danger-bg); }
+.ref-search .input[data-invalid]::placeholder { color: var(--danger-text); }
 .preview.unavailable { gap: 6px; color: var(--danger-fg); padding: 8px; }
 .preview.unavailable .text { flex: 0 1 auto; }
 .help { position: relative; display: inline-flex; color: var(--danger-text); outline: none; }
@@ -622,8 +629,15 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* Toasts, after Sanity's: bottom right, title + one line */
 .toasts { position: fixed; right: 20px; bottom: 84px; z-index: 50; display: flex; flex-direction: column; gap: 8px; }
-.toast { width: 380px; display: flex; flex-direction: column; gap: 6px; padding: 12px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 17px; color: var(--fg-strong); }
+.toast { position: relative; width: 380px; display: flex; flex-direction: column; gap: 6px; padding: 12px 40px 12px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 17px; color: var(--fg-strong); }
 .toast strong { font-weight: 500; }
+.toast[data-tone=default] { background: var(--hover); }
+/* Sanity's time bar: fills along the bottom while the toast is up. */
+.toast[data-timed]::after { content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; border-radius: 0 0 0 6px; background: currentColor; opacity: 0.5; transform-origin: left; animation: toast-time var(--toast-ms) linear forwards; }
+@keyframes toast-time { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .toast[data-timed]::after { animation: none; display: none; } }
+.toast .toast-close { position: absolute; top: 6px; right: 6px; width: 25px; height: 25px; color: inherit; }
+.toast .toast-close svg { width: 19px; height: 19px; }
 .toast span { color: var(--muted); }
 .toast .toast-title { color: var(--fg-strong); font-weight: 400; }
 .toast .toast-title strong { font-weight: 600; }
@@ -677,6 +691,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .add-item { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 4px; padding: 4px; font: inherit; font-size: 13px; font-weight: 500; border: 0; border-radius: 3px; background: var(--hover); color: var(--fg); cursor: pointer; }
 .add-item:hover { background: var(--hover-strong); }
 .add-item svg { width: 19px; height: 19px; }
+/* J33: the insert menu of a several-type array, centred under Add item as Sanity's. */
+.menu-wrap.add-item-wrap { display: block; position: relative; }
+.add-item-wrap > .popover.menu { left: 50%; right: auto; top: calc(100% + 4px); transform: translateX(-50%); min-width: 120px; }
 /* Freeform (decision 0004): Barkpark's block canvas inside the doc pane. */
 .pd-editor { position: relative; padding: 16px 20px 64px; }
 .pd-status { position: absolute; top: 0; right: 20px; font-size: 12px; color: var(--muted); }
@@ -823,6 +840,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* Reference arrays (J09): rows of reference previews; a new row searches */
 .ref-row-preview, .ref-row-search { flex: 1; min-width: 0; }
+/* Sanity's empty reference row: a small label (with its error mark) over the search. */
+.ref-row-label { display: flex; align-items: center; gap: 4px; font-size: 13px; line-height: 19px; font-weight: 500; margin: 4px 0 8px; }
 .ref-row-preview .preview { border-radius: 3px; }
 
 /* Barkpark-native field types (B04), after the LiveView Studio */
@@ -1196,7 +1215,7 @@ fieldset.object-field > .field-comments { top: -38px; }
 .comment-count { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 6px 0 2px; border: 0; border-radius: 3px; background: var(--hover); font: inherit; font-size: 12px; font-weight: 500; color: var(--fg); cursor: pointer; }
 .comment-count svg, .field-comments svg { width: 21px; height: 21px; }
 .popover.comment-popover { top: 29px; right: 0; width: 320px; padding: 8px; }
-.composer { display: flex; gap: 8px; align-items: flex-start; }
+.composer { position: relative; display: flex; gap: 8px; align-items: flex-start; }
 .composer .avatar, .comment-item .avatar { flex: none; display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: var(--selected); color: var(--on-selected); font-size: 11px; font-weight: 600; }
 .composer-box { position: relative; flex: 1; display: flex; align-items: flex-end; gap: 4px; min-height: 57px; padding: 4px 4px 4px 4px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
 .composer-box:focus-within { box-shadow: inset 0 0 0 1px var(--selected); }
@@ -1205,6 +1224,16 @@ fieldset.object-field > .field-comments { top: -38px; }
 .composer-placeholder { position: absolute; left: 8px; top: 6px; font-size: 13px; color: var(--muted); pointer-events: none; }
 .composer-box .send { width: 25px; height: 25px; border-radius: 3px; }
 .composer-box .send:not(:disabled) { background: var(--selected); color: var(--on-selected); }
+.composer-box .mention { width: 25px; height: 25px; border-radius: 3px; color: var(--muted); }
+/* J40: Sanity's mention list under the composer, and the chip a mention shows as. */
+.mention-menu { top: calc(100% + 4px); left: 33px; right: 0; max-height: 240px; overflow: auto; }
+.composer.compact .mention-menu { left: 0; }
+.mention-menu [role=option] { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 3px; font-size: 13px; cursor: pointer; }
+.mention-menu [role=option][aria-selected=true] { background: var(--hover); }
+.mention-menu .mention-name { flex: none; font-weight: 500; color: var(--fg-strong); white-space: nowrap; }
+.mention-menu [role=option] > .muted { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mention-menu > p { margin: 0; padding: 6px 8px; font-size: 13px; }
+.mention-chip { padding: 0 2px; border-radius: 3px; background: var(--hover); color: var(--fg-strong); font-weight: 500; }
 .inspector.comments header { gap: 4px; }
 .inspector.comments header h2 { flex: 1; }
 .inspector.comments .popover.menu { right: 0; left: auto; top: calc(100% + 4px); }
@@ -1230,7 +1259,7 @@ fieldset.object-field > .field-comments { top: -38px; }
 .confirm-dialog { width: min(360px, calc(100vw - 32px)); }
 .confirm-dialog .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; }
 @media (max-width: 768px) {
-  .field-comments .comment-add, .comment-count, .comment-actions .icon-btn, .composer-box .send { min-width: 44px; min-height: 44px; }
+  .field-comments .comment-add, .comment-count, .comment-actions .icon-btn, .composer-box .send, .composer-box .mention { min-width: 44px; min-height: 44px; }
   .field-actions { right: 44px; }
   .popover.comment-popover { width: min(320px, calc(100vw - 48px)); }
 }
@@ -1325,3 +1354,9 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .hover-tip .dot { width: 7px; height: 7px; border-radius: 50%; }
 .hover-tip .dot.off { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .hover-tip .dot.draft { background: none; box-shadow: inset 0 0 0 1.5px #f5a623; }
+.publish-tip { display: inline-flex; }
+.doc-footer .save-state { display: inline-flex; align-items: center; gap: 6px; }
+.doc-footer .save-state svg { width: 19px; height: 19px; flex: none; }
+.doc-footer .save-state[data-state=saving] svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.publish svg { width: 17px; height: 17px; margin: -2px 0 -2px -4px; }

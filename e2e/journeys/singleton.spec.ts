@@ -52,7 +52,7 @@ test('@local B13: a singleton opens from Settings as its one doc; only publish, 
   await page.waitForTimeout(600) // past the studio server's 500 ms read dedupe (server/barkpark.ts)
   await page.goto('/structure/siteSettings')
   await t.settle(page)
-  await expect(page.getByText('Document not found')).toHaveCount(0)
+  await expect(page.getByText('The document was not found')).toHaveCount(0)
   await page.locator('[id="title"]').fill('Made by its first edit')
   await expect.poll(() => t.docValue(ID, 'title', ID), {timeout: 10_000}).toBe('Made by its first edit')
   await page.screenshot({path: 'evidence/B13-2-created-studio.png'})

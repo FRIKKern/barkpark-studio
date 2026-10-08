@@ -264,6 +264,13 @@ export const AddComment = () => (
   </svg>
 )
 /** Sanity's ArrowRightIcon-like send arrow (the comment Send button). */
+/** An "@": mention a user (J40). */
+export const Mention = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="3" />
+    <path d="M15.5 9.5v4.25a1.75 1.75 0 0 0 3.5 0V12.5a6.5 6.5 0 1 0-2.6 5.2" strokeLinecap="round" />
+  </svg>
+)
 export const Send = () => (
   <svg {...s}>
     <path d="M6.5 6.5l13 6-13 6 2-6zM8.5 12.5h11" strokeLinejoin="round" />
@@ -298,5 +305,26 @@ export const CheckmarkCircle = () => (
 export const ReadOnlyIcon = () => (
   <svg {...s}>
     <path d="M15 7L18 10M10 12L7 15L6 19L10 18L13 15M12 10L17 5L20 8L15 13M19 19L5 5" strokeLinejoin="round" />
+  </svg>
+)
+/** Sanity's PublishIcon (the footer's Publish button). */
+export const PublishIcon = () => (
+  <svg {...s}>
+    <path d="M5 5.5H20M12.5 9V20" />
+    <path d="M7.5 14L12.5 9L17.5 14" strokeLinejoin="round" />
+  </svg>
+)
+/** Sanity's UnpublishIcon (the Published view's red Unpublish). */
+export const UnpublishIcon = () => (
+  <svg {...s}>
+    <path d="M5 19.5H20M12.5 16V5" />
+    <path d="M17.5 11L12.5 16L7.5 11" strokeLinejoin="round" />
+  </svg>
+)
+/** Sanity's SyncIcon (the footer's "Saving…", turning). */
+export const SyncIcon = () => (
+  <svg {...s}>
+    <path d="M13.5 4.5H12.5C8.08 4.5 4.5 8.08 4.5 12.5C4.5 15.66 6.34 18.4 9 19.7M11.5 20.5H12.5C16.92 20.5 20.5 16.92 20.5 12.5C20.5 9.34 18.66 6.6 16 5.3" />
+    <path d="M14 17.56L11.5 20.5L14.5 23.06M11 7.44L13.5 4.5L10.5 1.94" strokeLinejoin="round" />
   </svg>
 )

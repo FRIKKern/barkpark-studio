@@ -42,7 +42,7 @@ quality first, never a shrinking finish line.
 | J30 | 2 | Conditional fields: hidden / read-only react instantly, no layout jump, focus kept | F1 F10 |
 | J31 | 2 | Select list (dropdown + radio) and Sanity's date-time picker (calendar, "now"; its past-date warning is scheduling-only) | F5 F10 |
 | J32 | 3 | Someone deletes or changes the doc you have open, or a referenced one: banner + Restore / Reload / Close | F4 F9 |
-| J33 | 4 | Array of objects: insert menu with several types, edit item in dialog or inline, preview in list, incl. Barkpark arrayOf-composite items (never "[object Object]") | F2 F7 |
+| J33 | 4 | Array of objects: insert menu with several types ([0005](docs/decisions/0005-multi-type-array-convention.md)), edit item in dialog or inline, preview in list, incl. Barkpark arrayOf-composite items (never "[object Object]") | F2 F7 |
 | J34 | 4 | Tags input (Enter adds, × removes; the reference ignores comma and Backspace) and reorderable rows for plain string arrays | F1 F5 |
 | J35 | 5 | Body editor expand to full screen and back (button or Cmd/Ctrl+Enter, the hotkey in its tooltip), caret and scroll kept; paste from Docs/Word/HTML keeps structure | F1 F7 |
 | J36 | 5 | Image actions: drop overlay, paste an image, upload error + retry, replace/remove, pick existing from library + "used in" | F9 F10 |

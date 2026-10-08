@@ -60,3 +60,34 @@ test('@local J42: narrow window — one pane with a back link; URL and panes rig
   await page.screenshot({path: shot(t.name, '4-narrow-again')})
   await expect(page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).resolves.toBe(true)
 })
+
+test('@local J42: an open inspector — earlier panes give way when wide, it takes the pane on a phone', async ({page, context}, info) => {
+  const t = target(info)
+  await t.prepare(context)
+  await page.setViewportSize({width: 1440, height: 800})
+  await page.goto(t.docPath('post', 'post-02'))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await expect.poll(() => shown(page)).toEqual([0, 1, 2])
+  // History from the document "…" menu (Sanity's menus stay mounted: take this button's).
+  const menu = t.name === 'sanity' ? t.pane(page, 2).locator('button:has([data-sanity-icon="ellipsis-horizontal"])').first() : page.getByRole('button', {name: 'Show document actions'})
+  const id = await menu.getAttribute('id')
+  await menu.click()
+  await page.waitForTimeout(t.name === 'sanity' ? 300 : 0)
+  await (t.name === 'sanity' ? page.locator(`[role=menu][aria-labelledby="${id}"]`) : page.getByRole('menu')).getByRole('menuitem', {name: 'History'}).click()
+  // Sanity's document needs 600 + 320 px with an inspector: the type list becomes a strip.
+  await expect.poll(() => shown(page)).toEqual([1, 2])
+  await page.screenshot({path: shot(t.name, '5-inspector-wide')})
+
+  // A phone: the inspector takes the whole pane, the header stays one row.
+  await page.setViewportSize({width: 390, height: 844})
+  const note = page.getByText(/Showing the history for the/).first()
+  await expect(note).toBeVisible()
+  await expect(t.field(page, 'title')).toBeHidden()
+  expect((await note.boundingBox())!.x).toBeLessThan(40)
+  const actions = t.name === 'sanity' ? page.locator('[data-testid="document-pane"] button:has([data-sanity-icon="ellipsis-horizontal"])').first() : page.getByRole('button', {name: 'Show document actions'})
+  const chip = (await page.getByText('Published', {exact: true}).first().boundingBox())!
+  const dots = (await actions.boundingBox())!
+  expect(Math.abs(chip.y + chip.height / 2 - (dots.y + dots.height / 2))).toBeLessThan(8)
+  await page.screenshot({path: shot(t.name, '6-inspector-phone')})
+})

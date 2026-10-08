@@ -25,3 +25,8 @@ test('a clicked strip stays open, the rest make room (1440, 9 panes, pane 3)', (
   const kinds = [T, L, D, D, D, D, D, D, D] as never
   assert.equal(collapsed(kinds, 1440, 3).map((c) => (c ? 'S' : '.')).join(''), 'SSS.SSSSS')
 })
+
+test('an open inspector widens the document, so earlier panes give way (1440, Sanity: 600 + 320)', () => {
+  assert.equal(collapsed([T, L, 'docInspect'] as never, 1440).map((c) => (c ? 'S' : '.')).join(''), 'S..')
+  assert.equal(collapsed([T, L, 'docInspect'] as never, 1200).map((c) => (c ? 'S' : '.')).join(''), 'SS.')
+})
