@@ -46,7 +46,7 @@ quality first, never a shrinking finish line.
 | J34 | 4 | Tags input (Enter adds, × removes; the reference ignores comma and Backspace) and reorderable rows for plain string arrays | F1 F5 |
 | J35 | 5 | Body editor expand to full screen and back, caret and scroll kept; paste from Docs/Word/HTML keeps structure | F1 F7 |
 | J36 | 5 | Image actions: drop overlay, paste an image, upload error + retry, replace/remove, pick existing from library + "used in" | F9 F10 |
-| J37 | after | Navbar shell: tool switcher (Vision), user menu | F10 |
+| J37 | after | Navbar shell: tool switcher (Vision), "+" create new document by type, user menu | F10 |
 | J38 | after | Global search filters: type picker, field filters with Sanity's operators, ordering; the search survives a reopen; recent searches (filters included) reapply, remove one, clear all; full screen at phone width | F2 F5 |
 | J39 | after | Broken values: wrong-type or unknown field shows Convert / Remove, bad array keys alert, invalid rich text gets a fix-it card | F9 |
 | J40 | after | Field comments: add, reply, mention, resolve; the Comments panel (open / resolved). Releases and scheduled publish are not on the reference plan ("Upgrade to unlock", checked 2026-10-08) | F4 F10 |

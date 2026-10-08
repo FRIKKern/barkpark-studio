@@ -2,6 +2,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Link, useNavigate} from '@tanstack/react-router'
 import {devSignOut, meQuery} from '../lib/session'
 import {GlobalSearch} from './Search'
+import {NewDocMenu} from './NewDocMenu'
 import {ScopeSwitcher} from './ScopeSwitcher'
 import {WhoIsOnline} from './Presence'
 import {DialogBox, MenuPopover} from './FocusScopes'
@@ -21,6 +22,7 @@ export function Navbar() {
         <span className="logo">B</span>
         <span className="brand-name">Barkpark Studio</span>
         <ScopeSwitcher />
+        <NewDocMenu />
         <GlobalSearch />
       </div>
       {/* J37: Sanity's tool switcher. The active tool is the highlighted tab. */}
