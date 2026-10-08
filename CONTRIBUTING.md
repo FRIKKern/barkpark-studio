@@ -37,3 +37,4 @@
 - Merged branches still on the remote are deleted.
 - Branches and PRs idle for more than 7 days get flagged.
 - Doc size caps are checked; the run fails if one is broken.
+- If GitHub Actions can't run (billing), merge only after `node scripts/ci-local.mjs` passes; paste its summary on the PR.
