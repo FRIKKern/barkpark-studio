@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 16 changes, 4 tasks closed
+- **Today** · 17 changes, 4 tasks closed
+  - J55: the list menu offers the type's own orderings; a desk list opens in its declared one ([#133](https://github.com/FRIKKern/barkpark-studio/pull/133))
   - B07: unpublishing a referenced doc lists who refers to it first ([#132](https://github.com/FRIKKern/barkpark-studio/pull/132))
   - Done: [Barkpark: concurrent first patches on a published doc race the draft fork (422 doc_id taken)](https://github.com/FRIKKern/barkpark/issues/21709)
-  - B03: tick list rows, publish or unpublish them in one go ([#131](https://github.com/FRIKKern/barkpark-studio/pull/131))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
