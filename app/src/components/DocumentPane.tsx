@@ -36,7 +36,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {ReadErrorCard} from './PaneError'
-import {CheckmarkCircle, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
+import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -666,6 +666,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
   const alt = useAltName()
+  const reason = publishReason ?? (blocked ? 'There are validation errors that need to be fixed before this document can be published' : undefined)
+  const publishTip = useTip(() =>
+    reason ? null : doc._draft && !isPristine(doc, state) ? <Keys keys={['Ctrl', alt, 'P']} /> : doc._hasPublished !== false && doc._updatedAt ? `Published ${ago(doc._updatedAt)}` : 'No unpublished changes',
+  )
   // J28: Sanity's Delete shortcut (Ctrl+Alt+D) asks here.
   useEffect(() => {
     if (askDelete && !single && canWrite) setDeleting(true)
@@ -701,15 +705,19 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
     <footer className="doc-footer">
       {/* "N sec. ago" differs between the server render and hydration: not an error. */}
       <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
+        {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
+        {label === 'Saved' ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : null}
         {label}
       </span>
       {state === 'signedOut' && (
         <SignInAgain />
       )}
+      {/* Sanity's tooltip: the shortcut while there is something to publish, else when it was published. */}
+      <span className="publish-tip" {...(reason ? {} : publishTip.anchor)}>
       <button
         className="publish"
         disabled={!canWrite || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
-        title={publishReason ?? (blocked ? 'There are validation errors that need to be fixed before this document can be published' : undefined)}
+        title={reason}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async () => {
           setPublishing(true)
@@ -723,8 +731,11 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
           }
         }}
       >
-        Publish
+        <PublishIcon />
+        {publishing ? 'Publishing…' : 'Publish'}
       </button>
+      {publishTip.tip}
+      </span>
       {(!single || canDiscard) && <div className="menu-wrap">
         <button type="button" className="icon-btn" aria-label="Document actions" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
@@ -798,6 +809,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
       {!single && (
         <button className="publish danger" disabled={!canWrite} title={publishReason} onClick={() => setConfirm(true)}>
+          <UnpublishIcon />
           Unpublish
         </button>
       )}

@@ -271,7 +271,7 @@ textarea.input { resize: vertical; }
 .dot.draft { background: #f5a623; }
 .doc-footer { height: 51px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 20px; font-size: 13px; color: var(--muted); }
 .doc-footer .save-state { margin-right: auto; }
-.publish { font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
+.publish { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
 .publish:disabled { background: var(--line-strong); cursor: default; }
 .publish.danger { background: #d83d35; }
 .switch { display: inline-block; position: relative; width: 33px; height: 19px; }
@@ -622,8 +622,15 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* Toasts, after Sanity's: bottom right, title + one line */
 .toasts { position: fixed; right: 20px; bottom: 84px; z-index: 50; display: flex; flex-direction: column; gap: 8px; }
-.toast { width: 380px; display: flex; flex-direction: column; gap: 6px; padding: 12px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 17px; color: var(--fg-strong); }
+.toast { position: relative; width: 380px; display: flex; flex-direction: column; gap: 6px; padding: 12px 40px 12px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 17px; color: var(--fg-strong); }
 .toast strong { font-weight: 500; }
+.toast[data-tone=default] { background: var(--hover); }
+/* Sanity's time bar: fills along the bottom while the toast is up. */
+.toast[data-timed]::after { content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; border-radius: 0 0 0 6px; background: currentColor; opacity: 0.5; transform-origin: left; animation: toast-time var(--toast-ms) linear forwards; }
+@keyframes toast-time { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .toast[data-timed]::after { animation: none; display: none; } }
+.toast .toast-close { position: absolute; top: 6px; right: 6px; width: 25px; height: 25px; color: inherit; }
+.toast .toast-close svg { width: 19px; height: 19px; }
 .toast span { color: var(--muted); }
 .toast .toast-title { color: var(--fg-strong); font-weight: 400; }
 .toast .toast-title strong { font-weight: 600; }
@@ -1335,3 +1342,9 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .hover-tip .dot { width: 7px; height: 7px; border-radius: 50%; }
 .hover-tip .dot.off { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .hover-tip .dot.draft { background: none; box-shadow: inset 0 0 0 1.5px #f5a623; }
+.publish-tip { display: inline-flex; }
+.doc-footer .save-state { display: inline-flex; align-items: center; gap: 6px; }
+.doc-footer .save-state svg { width: 19px; height: 19px; flex: none; }
+.doc-footer .save-state[data-state=saving] svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.publish svg { width: 17px; height: 17px; margin: -2px 0 -2px -4px; }
