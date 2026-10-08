@@ -264,6 +264,13 @@ export const AddComment = () => (
   </svg>
 )
 /** Sanity's ArrowRightIcon-like send arrow (the comment Send button). */
+/** An "@": mention a user (J40). */
+export const Mention = () => (
+  <svg {...s}>
+    <circle cx="12.5" cy="12.5" r="3" />
+    <path d="M15.5 9.5v4.25a1.75 1.75 0 0 0 3.5 0V12.5a6.5 6.5 0 1 0-2.6 5.2" strokeLinecap="round" />
+  </svg>
+)
 export const Send = () => (
   <svg {...s}>
     <path d="M6.5 6.5l13 6-13 6 2-6zM8.5 12.5h11" strokeLinejoin="round" />
