@@ -1437,3 +1437,14 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .presentation-docs { flex: 1; min-height: 0; padding: 0 8px; overflow: auto; }
 .presentation-missing { flex: none; display: flex; align-items: center; gap: 6px; margin: 0; padding: 0 20px; height: 51px; white-space: nowrap; overflow: hidden; background: var(--warn-bg); color: var(--warn-fg); font-size: 13px; }
 .presentation-missing svg { flex: none; }
+/* J64: the phone viewport (Sanity's 375×650, centred) and the share menu. */
+.presentation-frame[data-viewport=mobile] { display: flex; align-items: center; justify-content: center; }
+.presentation-frame[data-viewport=mobile] iframe { position: static; width: 375px; height: 650px; max-height: 100%; box-shadow: 0 0 0 1px var(--line); }
+.share-preview { right: 0; top: 40px; width: 248px; padding: 12px; font-size: 13px; }
+.share-toggle { display: flex; gap: 10px; align-items: flex-start; }
+.share-toggle small { display: block; color: var(--muted); font-size: 13px; }
+.share-toggle .switch input:disabled { cursor: default; }
+.share-toggle:has(input:disabled) .switch span { opacity: 0.5; }
+.share-qr { margin: 12px 0 0; aspect-ratio: 1; display: grid; place-items: center; padding: 0 48px; text-align: center; background: var(--hover); color: var(--muted); }
+.share-note { margin: 12px 0; color: var(--muted); }
+.share-preview .menu-item:disabled { color: var(--muted); }

@@ -8,13 +8,14 @@ import studio from '../studio.config'
 
 // J58: Presentation, when the studio config names a preview site. `?preview=/path`
 // is the site's page, like Sanity's; J61: `?pane=` the document panel's panes.
-type Search = {preview?: string; pane?: string; perspective?: string}
+type Search = {preview?: string; pane?: string; perspective?: string; viewport?: 'mobile'}
 
 export const Route = createFileRoute('/presentation')({
   validateSearch: (search: Record<string, unknown>): Search => ({
     ...(typeof search.preview === 'string' && search.preview.startsWith('/') ? {preview: search.preview} : {}),
     ...(typeof search.pane === 'string' && search.pane ? {pane: search.pane} : {}),
     ...(search.perspective === 'published' ? {perspective: 'published'} : {}),
+    ...(search.viewport === 'mobile' ? {viewport: 'mobile' as const} : {}),
   }),
   beforeLoad: ({context, location}) => {
     if (!studio.presentation) throw notFound()
@@ -28,11 +29,12 @@ export const Route = createFileRoute('/presentation')({
 
 function PresentationRoute() {
   const data = Route.useLoaderData()
+  const search = Route.useSearch()
   resumeLive(data?.resume)
   return (
     <>
       <Navbar />
-      <Presentation previewUrl={studio.presentation!.previewUrl} mainDocuments={studio.presentation!.mainDocuments} preview={Route.useSearch().preview} panes={data?.panes ?? null} />
+      <Presentation previewUrl={studio.presentation!.previewUrl} mainDocuments={studio.presentation!.mainDocuments} preview={search.preview} viewport={search.viewport} panes={data?.panes ?? null} />
     </>
   )
 }

@@ -5,7 +5,8 @@ import {useT} from '../lib/i18n'
 import {docQuery, listQuery} from '../lib/data'
 import type {Pane} from '../lib/panes'
 import type {MainDocument} from '../lib/plugins'
-import {SyncIcon, WarningOutline} from './icons'
+import {Desktop, LaunchIcon, Mobile, Share, SyncIcon, WarningOutline} from './icons'
+import {DialogBox} from './FocusScopes'
 import {PaneHrefContext} from './PaneLink'
 import {RefPreview} from './Preview'
 import {Structure} from './Structure'
@@ -94,7 +95,7 @@ export function matchRoute(routes: MainDocument[], path: string): {route: MainDo
  * `?pane=` the document panel's pane chain (a structure path), so the panel is the
  * same panes as /structure, hosted here (PaneHrefContext maps their hrefs).
  */
-export function Presentation({previewUrl, preview = '/', panes, mainDocuments = []}: {previewUrl: string; preview?: string; panes: Pane[] | null; mainDocuments?: MainDocument[]}) {
+export function Presentation({previewUrl, preview = '/', panes, mainDocuments = [], viewport}: {previewUrl: string; preview?: string; panes: Pane[] | null; mainDocuments?: MainDocument[]; viewport?: 'mobile'}) {
   const t = useT()
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -234,8 +235,23 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
             }}
             onBlur={() => setTyped(null)}
           />
+          <a className="icon-btn" href={url} target="_blank" rel="noopener" aria-label={t('Open preview')} data-tip={t('Open preview')}>
+            <LaunchIcon />
+          </a>
+          {/* J64: Sanity's viewport toggle, kept in the URL (?viewport=mobile). */}
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t('Toggle viewport size')}
+            data-tip={viewport === 'mobile' ? t('Switch to full viewport') : t('Switch to narrow viewport')}
+            aria-pressed={viewport === 'mobile'}
+            onClick={() => void navigate({to: '/presentation', search: (prev: Record<string, unknown>) => ({...prev, viewport: viewport === 'mobile' ? undefined : ('mobile' as const)}), replace: true})}
+          >
+            {viewport === 'mobile' ? <Desktop /> : <Mobile />}
+          </button>
+          <ShareMenu />
         </div>
-        <div className="presentation-frame" style={{cursor: busy ? 'wait' : undefined}}>
+        <div className="presentation-frame" data-viewport={viewport ?? 'desktop'} style={{cursor: busy ? 'wait' : undefined}}>
           {mounted && <iframe key={generation} ref={frame} src={src} title={t('Presentation')} style={{pointerEvents: blocked ? 'none' : undefined}} onLoad={() => send({type: 'loaded'})} />}
           {s.load === 'loading' ? (
             <Status text={t('Loading.')} />
@@ -296,6 +312,47 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
           </aside>
         )}
       </PaneHrefContext.Provider>
+    </div>
+  )
+}
+
+/**
+ * J64, Sanity's share menu: sharing on/off, a QR code of the shared link, Copy
+ * preview link. Sharing mints a secret preview link on the server, which Barkpark
+ * cannot do yet (task-6812c3100d7aedbc): the switch stays off and says why.
+ */
+function ShareMenu() {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  const close = () => setOpen(false)
+  return (
+    // Nothing inside can take focus while sharing is unavailable, so Escape is caught here too.
+    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()} onKeyDown={(e) => open && e.key === 'Escape' && (e.stopPropagation(), close())}>
+      <button type="button" className="icon-btn" aria-label={t('Share this preview')} data-tip={t('Share this preview')} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <Share />
+      </button>
+      {open && (
+        <DialogBox className="popover share-preview" aria-label={t('Share this preview')} onClose={close}>
+          <label className="share-toggle" title={t('Barkpark cannot share previews yet')}>
+            <span className="switch">
+              <input type="checkbox" role="switch" checked={false} disabled readOnly />
+              <span />
+            </span>
+            <span>
+              {t('Share this preview')}
+              <small>{t('with anyone who has the link')}</small>
+            </span>
+          </label>
+          <div className="share-qr" aria-hidden="true">
+            {t('QR code will appear here')}
+          </div>
+          <p className="share-note">{t('Scan the QR Code to open the preview on your phone.')}</p>
+          <hr />
+          <button type="button" className="menu-item" disabled>
+            {t('Copy preview link')}
+          </button>
+        </DialogBox>
+      )}
     </div>
   )
 }
