@@ -17,6 +17,7 @@ import {randomBytes} from 'node:crypto'
 import {readFile, writeFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {getCookie, setCookie, deleteCookie} from '@tanstack/react-start/server'
+import {scope} from './barkpark'
 
 export const devLoginEnabled = () => process.env.STUDIO_DEV_LOGIN === '1'
 
@@ -63,11 +64,12 @@ async function readTokens(): Promise<TokenFile> {
 /** Reuse the editor's token if it still works; otherwise revoke what is left and mint one. */
 async function editorToken(email: string): Promise<string> {
   const url = process.env.BARKPARK_URL
-  const workspace = process.env.BARKPARK_WORKSPACE
+  // B02: the token is minted for the workspace and dataset the sign-in happened in.
+  const {workspace, project, dataset} = scope()
   const file = await readTokens()
   const tokens = file.tokens
   if (tokens[email]) {
-    const probe = await fetch(`${url}/w/${workspace}/p/${process.env.BARKPARK_PROJECT || 'default'}/v1/schemas/${process.env.BARKPARK_DATASET || 'production'}`, {
+    const probe = await fetch(`${url}/w/${workspace}/p/${project}/v1/schemas/${dataset}`, {
       headers: {authorization: `Bearer ${tokens[email]}`},
     })
     if (probe.status !== 401) return tokens[email]
@@ -76,7 +78,7 @@ async function editorToken(email: string): Promise<string> {
   const res = await fetch(`${url}/v1/auth/app-tokens`, {
     method: 'POST',
     headers: {authorization: `Bearer ${admin()}`, 'content-type': 'application/json'},
-    body: JSON.stringify({email, workspace, permissions: ['read', 'write'], label: `app:${email}`, dataset: process.env.BARKPARK_DATASET || 'production'}),
+    body: JSON.stringify({email, workspace, permissions: ['read', 'write'], label: `app:${email}`, dataset}),
   })
   if (!res.ok) throw new Error(`minting an editor token for ${email}: ${res.status} ${await res.text()}`)
   const {token, workspace_id} = (await res.json()) as {token: string; workspace_id: string}
