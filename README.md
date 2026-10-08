@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 17 changes, 4 tasks closed
+- **Today** · 18 changes, 5 tasks closed
+  - J56: previews from select and prepare — referenced title, formatted date, fallback ([#135](https://github.com/FRIKKern/barkpark-studio/pull/135))
+  - Done: [Barkpark canvas: a field vocabulary with the blockquote style gives no way to make a quote](https://github.com/FRIKKern/barkpark/issues/21913)
   - J55: the list menu offers the type's own orderings; a desk list opens in its declared one ([#133](https://github.com/FRIKKern/barkpark-studio/pull/133))
-  - B07: unpublishing a referenced doc lists who refers to it first ([#132](https://github.com/FRIKKern/barkpark-studio/pull/132))
-  - Done: [Barkpark: concurrent first patches on a published doc race the draft fork (422 doc_id taken)](https://github.com/FRIKKern/barkpark/issues/21709)
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
