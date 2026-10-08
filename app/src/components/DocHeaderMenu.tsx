@@ -6,6 +6,7 @@ import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
 import {Ellipsis, Share} from './icons'
 import {toast} from './Toasts'
+import {useScopedHref} from './PaneLink'
 
 /**
  * The document pane header's "…" menu, after Sanity's: Copy document, Paste
@@ -74,6 +75,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
  */
 export function DocShareMenu({doc}: {doc: Doc}) {
   const [open, setOpen] = useState(false)
+  const scoped = useScopedHref()
   const close = () => setOpen(false)
   const put = (text: string, what: string) => {
     void navigator.clipboard
@@ -89,7 +91,7 @@ export function DocShareMenu({doc}: {doc: Doc}) {
       </button>
       {open && (
         <MenuPopover onClose={close}>
-          <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => put(`${location.origin}/structure/${doc._type};${doc._publishedId}`, 'Document URL')}>
+          <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => put(`${location.origin}${scoped(`/structure/${doc._type};${doc._publishedId}`)}`, 'Document URL')}>
             Copy document URL
           </button>
           <button type="button" role="menuitem" className="menu-item" onClick={() => put(doc._id, 'Document ID')}>

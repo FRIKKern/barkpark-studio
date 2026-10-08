@@ -6,6 +6,7 @@ import {backlinksQuery, previewTitle, schemaOf, schemasQuery, type Backlink, typ
 import {deleteDoc} from '../lib/edits'
 import {Close, DocumentIcon} from './icons'
 import {DocPreview} from './Preview'
+import {useScopedHref} from './PaneLink'
 
 /**
  * Sanity's delete dialog (J17): the doc, and when other documents refer to it a
@@ -103,11 +104,12 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
 /** The documents that refer to one ("used in"), each opening in a new tab; `field` adds the field that refers (B07). */
 export function UsedInList({refs, field}: {refs: Backlink[]; field?: boolean}) {
   const {data: schemas = []} = useQuery(schemasQuery)
+  const scoped = useScopedHref()
   return (
     <ul className="used-in">
       {refs.map((r) => (
         <li key={`${r.type}:${r.from_doc_id}:${r.via_field}`}>
-          <a className="preview" href={`/structure/${r.type};${encodeURIComponent(r.from_doc_id)}`} target="_blank" rel="noreferrer" title={`Open in a new tab (${schemaOf(schemas, r.type)?.title ?? r.type})`}>
+          <a className="preview" href={scoped(`/structure/${r.type};${encodeURIComponent(r.from_doc_id)}`)} target="_blank" rel="noreferrer" title={`Open in a new tab (${schemaOf(schemas, r.type)?.title ?? r.type})`}>
             <span className="media">
               <DocumentIcon />
             </span>

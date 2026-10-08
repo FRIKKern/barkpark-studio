@@ -1152,3 +1152,17 @@ fieldset.object-field > .field-comments { top: -38px; }
   .field-actions { right: 44px; }
   .popover.comment-popover { width: min(320px, calc(100vw - 48px)); }
 }
+
+/* B02: the workspace / project / dataset switcher beside the brand. */
+.scope-button { display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 4px 3px 8px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); cursor: pointer; }
+.scope-button:hover, .scope-button[aria-expanded='true'] { background: var(--hover); }
+.scope-button svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
+.scope-ws { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-ds { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 300px; padding: 12px; }
+.scope-popover form { display: flex; flex-direction: column; gap: 10px; }
+.scope-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.scope-field .input { width: 100%; box-sizing: border-box; }
+.scope-actions { display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 768px) { .scope-ws { display: none; } .scope-button { min-height: 44px; max-width: 120px; } .scope-actions button, .scope-field .input { min-height: 44px; } }
+@media (max-width: 480px) { .scope-popover { position: fixed; top: 52px; left: 8px; right: 8px; width: auto; } }
