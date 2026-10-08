@@ -382,6 +382,38 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .inspector header { display: flex; align-items: center; justify-content: space-between; padding: 0 0 12px 8px; }
 .inspector h2 { margin: 0; font-size: 13px; font-weight: 600; }
 .inspector ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+/* D12: a paper's metadata sidebar (after LiveView's): collapsible sections, weighted tags. */
+.paper-sidebar:focus { outline: none; }
+.paper-section { border-top: 1px solid var(--border); padding: 4px 0 8px; }
+.paper-section h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.paper-section h3 button { display: flex; align-items: center; gap: 2px; width: 100%; min-height: 36px; padding: 0; border: 0; background: none; font: inherit; color: var(--fg-strong); cursor: pointer; text-align: left; }
+.paper-section h3 svg { width: 19px; height: 19px; color: var(--muted); }
+.paper-section-body { display: flex; flex-direction: column; gap: 8px; padding: 0 0 4px 21px; }
+.paper-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+.paper-facts dt { color: var(--muted); }
+.paper-facts dd { margin: 0; color: var(--fg); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.paper-fb, .paper-note { margin: 0; font-size: 12px; }
+.paper-fb[data-tone=ok] { color: var(--muted); }
+.paper-fb[data-tone=warn] { color: var(--warn-fg); }
+.paper-fb[data-tone=danger] { color: var(--danger-fg); }
+.inspector .paper-tags { gap: 6px; }
+.paper-tags li { display: flex; flex-direction: column; gap: 2px; padding: 4px 4px 4px 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
+.paper-tags li[data-main] { box-shadow: inset 0 0 0 1px var(--selected); }
+.paper-tag-name { display: flex; align-items: center; gap: 6px; color: var(--fg); }
+.paper-tag-main { font-size: 11px; color: var(--selected); }
+.paper-tag-strength { margin-left: auto; min-width: 24px; padding: 0 4px; border-radius: 9px; background: var(--hover); font-size: 11px; text-align: center; color: var(--fg); font-variant-numeric: tabular-nums; }
+.paper-tag-remove { width: 27px; height: 27px; }
+.paper-tag-remove svg { width: 17px; height: 17px; }
+.paper-tag-why { font-size: 12px; color: var(--muted); }
+.paper-add { display: flex; flex-direction: column; gap: 6px; }
+.paper-add .btn { align-self: flex-start; }
+/* On a phone the sidebar covers the doc (LiveView: a full-screen layer); its close goes back. */
+@media (max-width: 480px) {
+  .doc-main:has(> .paper-sidebar) { position: relative; }
+  .paper-sidebar { position: absolute; inset: 0; z-index: 2; width: auto; border-left: 0; background: var(--bg); }
+  .paper-sidebar header .icon-btn, .paper-tag-remove { width: 44px; height: 44px; }
+}
 .problem { width: 100%; display: flex; gap: 6px; align-items: flex-start; text-align: left; font: inherit; font-size: 13px; padding: 8px; border: 0; border-radius: 3px; background: var(--danger-bg); color: #c13a32; cursor: pointer; }
 .problem svg { flex: none; width: 19px; height: 19px; }
 .problem span { display: flex; flex-direction: column; }

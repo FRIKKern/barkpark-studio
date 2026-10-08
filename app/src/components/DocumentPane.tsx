@@ -6,7 +6,7 @@ import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {validate, type Problem} from '../lib/validation'
 import {docQuery, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
-import {createDoc, discardDraft, edit, flush, publish, undo, unpublish, useSaveState} from '../lib/edits'
+import {createDoc, discardDraft, edit, flush, publish, reasonOf, undo, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
@@ -26,10 +26,12 @@ import {InspectDialog} from './InspectDialog'
 import {HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {revisionQuery} from '../lib/history'
 import {PortableDocEditor} from './PortableDocEditor'
+import {PaperSidebar} from './PaperSidebar'
+import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {ReadErrorCard} from './PaneError'
-import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical} from './icons'
+import {Close as CloseIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon} from './icons'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -152,6 +154,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => () => flush(qc, pane.id), [qc, pane.id])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   const [inspectOpen, setInspectOpen] = useState(false)
+  const metaButton = useRef<HTMLButtonElement>(null)
   const duplicate = (from: Doc) => {
     const id = crypto.randomUUID()
     const fields = Object.fromEntries(Object.entries(from).filter(([k]) => !k.startsWith('_')))
@@ -253,6 +256,20 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             onClick={() => setInspecting((v) => !v)}
           >
             <ErrorOutline />
+          </button>
+        )}
+        {/* D12: a paper's metadata (slug, description, weighted tags) beside the canvas. */}
+        {doc && PAPER_TYPES.has(pane.type) && !viewingPublished && (
+          <button
+            ref={metaButton}
+            type="button"
+            className="icon-btn"
+            aria-label="Document metadata"
+            title="Document metadata"
+            aria-pressed={pane.inspect === 'meta'}
+            onClick={() => navigate({href: withParams(panes, index, {inspect: pane.inspect === 'meta' ? undefined : 'meta'})})}
+          >
+            <TagIcon />
           </button>
         )}
         {doc && schema && (
@@ -382,6 +399,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         )}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => setInspecting(false)} />}
+      {pane.inspect === 'meta' && doc && PAPER_TYPES.has(pane.type) && !viewingPublished && (
+        <PaperSidebar
+          key={pane.id}
+          doc={doc}
+          published={!doc._draft || doc._hasPublished !== false}
+          onEdit={onEdit}
+          onClose={() => void navigate({href: withParams(panes, index, {inspect: undefined})}).then(() => metaButton.current?.focus())}
+        />
+      )}
       {(pane.inspect === 'history' || pane.inspect === 'review') && (
         <HistoryPanel
           type={pane.type}
@@ -530,6 +556,9 @@ function DocFooter({doc, closeHref, blocked, onDuplicate}: {doc: Doc; closeHref:
           setPublishing(true)
           try {
             await publish(qc, doc)
+          } catch (e) {
+            // D12: a refusal (a paper's publish wall, say) says why, never silently.
+            toast({tone: 'critical', title: 'Could not publish', description: reasonOf((e as Error).message) ?? (e as Error).message})
           } finally {
             setPublishing(false)
           }

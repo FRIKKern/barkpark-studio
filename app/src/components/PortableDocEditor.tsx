@@ -218,7 +218,10 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
             const text = [...first.blocks].reverse().find((b) => b.type === 'paragraph' || b.type === 'heading')
             if (!text || !first.blocks[0]?.type.startsWith('field-')) return
             const had = document.activeElement
-            if (el.focusBlock(text.id) && document.activeElement !== had) (had as HTMLElement | null)?.focus?.() ?? (document.activeElement as HTMLElement | null)?.blur()
+            if (!el.focusBlock(text.id) || document.activeElement === had) return
+            // Focus elsewhere (another field, a sidebar) gets it back; nothing focused stays so.
+            if (had instanceof HTMLElement && had !== document.body) had.focus({preventScroll: true})
+            else (document.activeElement as HTMLElement | null)?.blur()
           },
           {once: true},
         )

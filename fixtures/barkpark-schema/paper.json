@@ -1,0 +1,21 @@
+{
+  "name": "paper",
+  "title": "Paper",
+  "visibility": "public",
+  "fields": [
+    {"name": "title", "title": "Title", "type": "string", "validation": {"required": true}},
+    {"name": "description", "title": "Description", "type": "text", "rows": 3},
+    {"name": "main_tag", "title": "Main tag", "type": "string"},
+    {"name": "tags", "title": "Tags", "type": "arrayOf", "ordered": true,
+     "of": {"type": "composite", "preview": {"title": "tag", "subtitle": "rationale"}, "fields": [
+       {"name": "tag", "title": "Tag", "type": "string"},
+       {"name": "strength", "title": "Strength", "type": "number", "validation": {"min": 1, "max": 100}},
+       {"name": "rationale", "title": "Rationale", "type": "text", "rows": 2}
+     ]}},
+    {"name": "body", "title": "Body", "type": "richText"}
+  ],
+  "layout": [
+    {"kind": "field", "name": "title", "max": 1, "enforce": true},
+    {"kind": "region", "name": "body"}
+  ]
+}

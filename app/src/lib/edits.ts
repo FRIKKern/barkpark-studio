@@ -32,7 +32,12 @@ export const mutate = createServerFn({method: 'POST'})
       body: JSON.stringify({mutations: data.mutations}),
     })
     const body = (await res.json().catch(() => ({}))) as Json
-    if (!res.ok) throw new Error(`mutate ${res.status}: ${JSON.stringify(body).slice(0, 300)}`)
+    if (!res.ok) {
+      // The long `hint` is dropped so a publish wall's `details` (rule + fix) survive the cut.
+      const {error} = body as {error?: {[k: string]: Json}}
+      const {hint: _, ...short} = error ?? {}
+      throw new Error(`mutate ${res.status}: ${JSON.stringify(error ? {error: short} : body).slice(0, 600)}`)
+    }
     expectEcho(requestToken(), mutatedIds(data.mutations))
     return body
   })
@@ -252,13 +257,16 @@ function toPatch(fields: Map<string, unknown>) {
   return {set, unset}
 }
 
-/** Barkpark's own reason, from a thrown "mutate 403: {error: {message}}". */
-function reasonOf(msg: string): string | undefined {
+/** Barkpark's own reason, from a thrown "mutate 403: {error: {message}}" (cut at 600 characters). */
+export function reasonOf(msg: string): string | undefined {
   try {
-    const body = JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {message?: string; hint?: string}}
-    return body.error?.message
+    const body = JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {message?: string; details?: {rule?: unknown; fix?: unknown}}}
+    // A publish wall says which rule broke and how to fix it (D12).
+    const {rule, fix} = body.error?.details ?? {}
+    return body.error?.message && [body.error.message, rule, fix].filter((s): s is string => typeof s === 'string').map((s) => (/[.!?]$/.test(s) ? s : `${s}.`)).join(' ')
   } catch {
-    return undefined
+    const cut = /"message":"((?:[^"\\]|\\.)*)"/.exec(msg)?.[1]
+    return cut && (JSON.parse(`"${cut}"`) as string)
   }
 }
 
