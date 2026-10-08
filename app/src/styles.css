@@ -751,6 +751,16 @@ fieldset.object-field > .field-actions { top: -38px; }
 .review-diff del, .review-diff ins { border-radius: 1px; background: var(--user-100, var(--diff-bg)); color: var(--user-700, var(--diff-fg)); }
 :root[data-theme='dark'] .review-diff del, :root[data-theme='dark'] .review-diff ins { background: var(--user-900, var(--diff-bg)); color: var(--user-200, var(--diff-fg)); }
 .review-diff del { text-decoration: line-through; }
+/* Rich text: each changed block in its own style (Sanity's). */
+.review-blocks { white-space: normal; }
+.review-blocks > * { margin: 0 0 8px; }
+.review-blocks h1, .review-blocks h2 { font-size: 21px; line-height: 27px; font-weight: 700; }
+.review-blocks h3, .review-blocks h4 { font-size: 18px; line-height: 24px; font-weight: 700; }
+.review-blocks h5, .review-blocks h6 { font-size: 16px; line-height: 22px; font-weight: 700; }
+.review-blocks ul, .review-blocks ol { padding-left: 20px; }
+.review-blocks blockquote { padding-left: 12px; border-left: 2px solid var(--border); }
+.review-blocks .callout { padding: 8px 12px; border-radius: 3px; background: var(--hover); }
+.review-blocks [data-change=removed] { opacity: 0.7; }
 .review-diff ins { text-decoration: none; }
 .revert-one { display: inline-grid; place-items: center; width: 25px; height: 25px; margin-top: 2px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: pointer; }
 .revert-one:hover { background: var(--hover); color: var(--fg); }
@@ -1293,3 +1303,5 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
   .array-row > .drag-handle, .array-row .menu-wrap > .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
   .array-row [role='menu'] .menu-item, .add-item { min-height: 44px; }
 }
+/* J33: object array rows and the item dialog's breadcrumb at phone width (F12). */
+@media (max-width: 768px) { .item-dialog button.crumb, .array-item-preview { min-height: 44px; } .item-dialog button.crumb { min-width: 44px; } }
