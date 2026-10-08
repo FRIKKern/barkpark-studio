@@ -15,7 +15,7 @@ test.use({video: 'on'})
 test.setTimeout(150_000)
 
 const sanity = (mutations: unknown[]) =>
-  fetch('https://0ozn679s.api.sanity.io/v2025-02-19/data/mutate/production', {method: 'POST', headers: {authorization: `Bearer ${process.env.SANITY_TOKEN}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations})}).then((r) => r.json())
+  fetch('https://ecu57yeh.api.sanity.io/v2025-02-19/data/mutate/production', {method: 'POST', headers: {authorization: `Bearer ${process.env.SANITY_TOKEN}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations})}).then((r) => r.json())
 const bp = (mutations: unknown[]) =>
   fetch(`${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}/v1/data/mutate/${process.env.BARKPARK_DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations})}).then((r) => r.json())
 
