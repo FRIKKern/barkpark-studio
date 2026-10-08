@@ -41,10 +41,10 @@ test('@local B13: a singleton opens from Settings as its one doc; only publish, 
   await expect(page.getByRole('menuitem', {name: 'History'})).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('button', {name: 'Publish', exact: true}).click()
-  await expect(page.locator('.doc-footer [role=status]')).toHaveText('Published')
+  await expect(page.locator('.doc-footer [role=status]')).toHaveText(/^Last published/)
   await page.goto('/structure/siteSettings?perspective=published')
   await t.settle(page)
-  await expect(page.locator('.doc-footer')).toContainText('Published')
+  await expect(page.locator('.doc-footer')).toContainText('Last published')
   await expect(page.getByRole('button', {name: 'Unpublish'})).toHaveCount(0)
 
   // Missing: it opens empty (never "not found") and the first edit creates it.
