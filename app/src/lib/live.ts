@@ -15,6 +15,18 @@ type Frame = {documentId: string; type: string; mutation: string; result: Doc | 
 // asks the server for everything since, so nothing falls between two streams.
 let lastSeen: string | null = null
 
+// A page rendered on the server read its data before its stream opened. The
+// server says where to resume from (its listen position as of that read); when it
+// was not listening yet (null), the page reads what is on screen again once connected.
+let readAgain = false
+let resumed = false
+export function resumeLive(mark: number | null | undefined) {
+  if (typeof window === 'undefined' || mark === undefined || resumed) return
+  resumed = true
+  if (mark === null) readAgain = true
+  else lastSeen = String(mark)
+}
+
 export function useLive(ids: string[], types: string[]) {
   const qc = useQueryClient()
   const key = `ids=${[...new Set(ids)].sort().join(',')}&types=${[...new Set(types)].sort().join(',')}`
@@ -34,7 +46,11 @@ export function useLive(ids: string[], types: string[]) {
       }
       // The server lost track of where we were: refetch what is on screen.
       es.addEventListener('reset', () => void qc.invalidateQueries())
-      es.addEventListener('welcome', (e) => (setLiveDown(false), (e as MessageEvent).lastEventId && !lastSeen ? (lastSeen = (e as MessageEvent).lastEventId) : null))
+      es.addEventListener('welcome', (e) => {
+        setLiveDown(false)
+        if ((e as MessageEvent).lastEventId && !lastSeen) lastSeen = (e as MessageEvent).lastEventId
+        if (readAgain) (readAgain = false), void qc.invalidateQueries()
+      })
       es.addEventListener('mutation', onFrame)
     }
     // e2e probe: cut the stream for `ms`, as a dead network would.
