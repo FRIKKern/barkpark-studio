@@ -1253,3 +1253,5 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .review-img { display: flex; align-items: center; gap: 8px; }
 .review-img img, .review-img-none { width: 96px; height: 64px; object-fit: cover; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--line); }
 .review-img-none { display: grid; place-items: center; font-size: 12px; color: var(--muted); }
+/* J37: Vision's selects and Fetch at phone width (F12). */
+@media (max-width: 768px) { .vision select, .vision .btn { min-height: 44px; } }
