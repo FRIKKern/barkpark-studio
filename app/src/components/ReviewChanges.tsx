@@ -1,9 +1,10 @@
-import {useState} from 'react'
+import {useState, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
 import {historyQuery, revisionQuery, type HistoryEntry, type Revision} from '../lib/history'
 import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
+import {docDiff, type DocBlock, type Piece} from '../lib/doc-diff'
 import type {Doc, Schema} from '../lib/data'
 import {rangeDate, Row} from './HistoryPanel'
 import {ChevronDown, Undo} from './icons'
@@ -102,6 +103,10 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
       </p>
     )
   }
+  // Rich text: only the changed blocks, in their own style, marks kept (Sanity's).
+  const blocksOf = (v: unknown) => (v as {blocks?: DocBlock[]} | undefined)?.blocks
+  if (Array.isArray(blocksOf(change.before)) || Array.isArray(blocksOf(change.after)))
+    return <BlocksDiff before={blocksOf(change.before)} after={blocksOf(change.after)} author={author} />
   const before = asText(change.before)
   const after = asText(change.after)
   if (before === undefined || after === undefined)
@@ -114,6 +119,48 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
         s.kind === 'removed' ? <del key={i} title={by('Removed')}>{s.text}</del> : s.kind === 'added' ? <ins key={i} title={by('Added')}>{s.text}</ins> : <span key={i}>{s.text}</span>,
       )}
     </p>
+  )
+}
+
+const MARK_TAGS: Record<string, string> = {strong: 'strong', em: 'em', code: 'code', underline: 'u', strikethrough: 's', highlight: 'mark', sub: 'sub', sup: 'sup'}
+
+/** A rich-text change: each changed block drawn as itself, the diff inside it. */
+function BlocksDiff({before, after, author}: {before?: DocBlock[]; after?: DocBlock[]; author?: string}) {
+  const by = (what: string) => (author ? `${what} by ${author}` : what)
+  const piece = (x: Piece, i: number) => {
+    let node: ReactNode = x.text
+    for (const m of [...x.marks].reverse()) {
+      const Tag = (MARK_TAGS[m] ?? 'span') as 'span'
+      node = <Tag>{node}</Tag>
+    }
+    if (x.href) node = <a href={x.href} target="_blank" rel="noopener noreferrer">{node}</a>
+    return x.change === 'removed' ? <del key={i} title={by('Removed')}>{node}</del> : x.change === 'added' ? <ins key={i} title={by('Added')}>{node}</ins> : <span key={i}>{node}</span>
+  }
+  const changes = docDiff(before, after)
+  return (
+    <div className="review-diff review-blocks" style={userColorVars(author ?? 'unknown')}>
+      {changes.map(({kind, block: b, pieces, items}) => {
+        const body = pieces.map(piece)
+        const k = `${kind}-${b.id}`
+        switch (b.type) {
+          case 'heading': {
+            const H = `h${Math.min(6, Math.max(1, b.level ?? 2))}` as 'h2'
+            return <H key={k} data-change={kind}>{body}</H>
+          }
+          case 'list': {
+            const L = b.ordered ? 'ol' : 'ul'
+            return <L key={k} data-change={kind}>{(items ?? []).map((it, i) => (it.some((x) => x.change !== 'same') ? <li key={i}>{it.map(piece)}</li> : null))}</L>
+          }
+          case 'pullquote':
+          case 'blockquote':
+            return <blockquote key={k} data-change={kind}>{body}</blockquote>
+          case 'callout':
+            return <div key={k} className="callout" data-tone={b.tone} data-change={kind}>{body}</div>
+          default:
+            return <p key={k} data-change={kind}>{body}</p>
+        }
+      })}
+    </div>
   )
 }
 
