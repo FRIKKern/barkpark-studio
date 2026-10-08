@@ -31,7 +31,9 @@ test('J14: field groups, the seo object by two editors', async ({page, browser},
   await expect(t.field(page, 'title')).toHaveCount(0)
 
   // Two editors, two subfields of the seo object, at the same time: both survive.
+  // The seo object is collapsible and starts collapsed (J13/J14): open it first.
   const typeInto = async (p: typeof page, path: string, text: string) => {
+    if (!(await t.field(p, path).isVisible())) await p.getByText(/^(SEO|Seo)$/).first().click()
     await t.field(p, path).click()
     await p.keyboard.press('ControlOrMeta+a')
     await p.keyboard.type(text)

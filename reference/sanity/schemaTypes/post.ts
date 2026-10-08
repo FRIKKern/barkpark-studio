@@ -12,7 +12,8 @@ export const post = defineType({
   fields: [
     defineField({name: 'title', type: 'string', group: 'content', validation: (r) => r.required().max(120)}),
     defineField({name: 'slug', type: 'slug', group: 'content', options: {source: 'title'}, validation: (r) => r.required()}),
-    defineField({name: 'excerpt', type: 'text', rows: 3, group: 'content'}),
+    // J13: a warning (never blocks publish).
+    defineField({name: 'excerpt', type: 'text', rows: 3, group: 'content', validation: (r) => r.max(160).warning('Long excerpts get cut off in previews')}),
     defineField({name: 'author', type: 'reference', to: [{type: 'author'}], group: 'content'}),
     defineField({
       name: 'categories',
@@ -133,9 +134,11 @@ export const post = defineType({
       name: 'seo',
       type: 'object',
       group: 'meta',
+      // J13: an error inside a collapsed object, and an info.
+      options: {collapsible: true, collapsed: true},
       fields: [
-        defineField({name: 'metaTitle', type: 'string'}),
-        defineField({name: 'metaDescription', type: 'text', rows: 2}),
+        defineField({name: 'metaTitle', type: 'string', validation: (r) => r.max(60)}),
+        defineField({name: 'metaDescription', type: 'text', rows: 2, validation: (r) => r.min(50).info('Search results show about 150 characters')}),
       ],
     }),
   ],

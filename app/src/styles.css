@@ -32,6 +32,7 @@
   --danger-fg: #a12a22;
   --danger-text: #bd3328;
   --info-bg: #eef3ff;
+  --info-fg: #2550c7;
   --diff-bg: #fde6d8;
   --diff-fg: #8a3a12;
   --drop-bg: rgba(240, 245, 255, 0.92);
@@ -79,6 +80,7 @@
   --danger-fg: #ffb4ab;
   --danger-text: #ff7b72;
   --info-bg: #1d2540;
+  --info-fg: #9db6ff;
   --diff-bg: #4a2a17;
   --diff-fg: #ffc9a8;
   --drop-bg: rgba(29, 37, 64, 0.92);
@@ -516,6 +518,24 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .problem svg { flex: none; width: 19px; height: 19px; }
 .problem span { display: flex; flex-direction: column; }
 .problem strong { color: var(--fg); font-weight: 500; }
+.problem strong span { display: inline; }
+.problem .problem-slash { color: var(--muted); }
+.problem .error-icon { margin-left: 0; color: inherit; }
+/* J13: warnings and infos, in Sanity's caution and primary tones. */
+.problem[data-level=warning] { background: var(--warn-bg); color: var(--warn-fg); }
+.problem[data-level=info] { background: var(--info-bg); color: var(--info-fg); }
+.error-icon[data-level=warning] { color: #c48a00; }
+.error-icon[data-level=info] { color: #3c6ef0; }
+.validation-btn[data-level=warning] { color: #c48a00; }
+.validation-btn[data-level=info] { color: #3c6ef0; }
+.validation-btn[data-level=warning]::after, .validation-btn[data-level=info]::after { display: none; }
+/* J14: a collapsible object's title is its toggle. */
+.object-toggle { display: inline-flex; align-items: center; gap: 2px; margin-left: -4px; padding: 2px 4px 2px 0; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; cursor: pointer; }
+.object-toggle svg { width: 17px; height: 17px; }
+.toggle-arrow { display: inline-grid; transition: transform 100ms; }
+.toggle-arrow[data-open=true] { transform: rotate(90deg); }
+.object-toggle:focus-visible { outline: 2px solid var(--focus, #2276fc); }
+fieldset.object-field[data-open=false] > legend { margin-bottom: 0; }
 .slug-row { display: flex; gap: 4px; }
 .slug-row .input { flex: 1; }
 .btn-create:disabled { color: var(--disabled); cursor: default; }
