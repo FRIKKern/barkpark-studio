@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 96 changes, 63 tasks closed
-  - Done: [Studio dialogs (history, share, access, delete, pickers) stay English in an nb-NO workspace](https://github.com/FRIKKern/barkpark/issues/22108)
-  - Papers open read-only with a banner until Barkpark can save a paper body ([#214](https://github.com/FRIKKern/barkpark-studio/pull/214))
-  - B01: Barkpark's own Norwegian wins where it has the string (Required, Show more) ([#213](https://github.com/FRIKKern/barkpark-studio/pull/213))
+- **Today** · 97 changes, 67 tasks closed
+  - e2e: specs reset what they edit after the page is closed; B04 reads the codelist picker ([#215](https://github.com/FRIKKern/barkpark-studio/pull/215))
+  - Done: [Public paper and sheet readers declare lang=en and show English chrome for a Norwegian workspace](https://github.com/FRIKKern/barkpark/issues/22135)
+  - Done: [Studio pages other than the desk (Media, Settings, Account, Chat, Plugins) stay English in an nb-NO workspace](https://github.com/FRIKKern/barkpark/issues/22147)
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
