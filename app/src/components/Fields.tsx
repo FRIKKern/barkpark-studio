@@ -5,7 +5,7 @@ import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
 import {worst, type Level, type Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
-import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
+import {ChevronDown, ClearCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {toast} from './Toasts'
 import {BlockPresence, FieldPresence} from './Presence'
@@ -195,7 +195,9 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
               close()
             }}
           >
-            Copy field
+            <span className="menu-icon-text">
+              <Copy /> Copy field
+            </span>
           </button>
           <button
             type="button"
@@ -212,7 +214,9 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
               onChange(item.value)
             }}
           >
-            Paste field
+            <span className="menu-icon-text">
+              <ClipboardIcon /> Paste field
+            </span>
           </button>
         </MenuPopover>
       )}
