@@ -807,12 +807,13 @@ fieldset.object-field > .field-actions { top: -38px; }
 .hotspot-tool .hotspot { fill: rgba(255,255,255,.25); stroke: #fff; stroke-width: 1.5; cursor: move; }
 .hotspot-tool .hotspot-handle { fill: #fff; stroke: #101112; cursor: nwse-resize; }
 .hotspot-tool .crop-handle { fill: #fff; stroke: #2276fc; }
+.hotspot-tool .handle-grab { display: none; fill: transparent; }
 .hotspot-tool [data-handle="crop-top"], .hotspot-tool [data-handle="crop-bottom"] { cursor: ns-resize; }
 .hotspot-tool [data-handle="crop-left"], .hotspot-tool [data-handle="crop-right"] { cursor: ew-resize; }
 .hotspot-tool [data-handle="crop-topLeft"], .hotspot-tool [data-handle="crop-bottomRight"] { cursor: nwse-resize; }
 .hotspot-tool [data-handle="crop-topRight"], .hotspot-tool [data-handle="crop-bottomLeft"] { cursor: nesw-resize; }
 .hotspot-tool .crop-rect:focus-visible, .hotspot-tool .hotspot:focus-visible { outline: none; stroke: #2276fc; stroke-width: 3; }
-.hotspot-tool .crop-size { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); padding: 2px 8px; border-radius: 3px; background: #2276fc; color: #fff; font-size: 11px; }
+.hotspot-tool .crop-size { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); padding: 2px 8px; border-radius: 3px; background: #1f6ae6; color: #fff; font-size: 11px; }
 .crop-previews { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; align-items: start; }
 .crop-previews figure { margin: 0; }
 .crop-previews figcaption { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
@@ -1198,4 +1199,11 @@ fieldset.object-field > .field-comments { top: -38px; }
 @media (max-width: 768px) {
   .bp-paper-format { flex-wrap: wrap; max-width: calc(100vw - 16px); }
   .bp-paper-format button { min-width: 44px; min-height: 44px; }
+}
+/* J12: image field and dialog controls at phone width (F12). #1f6ae6 above: the crop
+   size label's white 11 px text at 4.9:1 (axe color-contrast; #2276fc is 4.2). */
+@media (max-width: 768px) {
+  .image-actions .icon-btn, .dialog > header .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
+  .image-empty-box .btn { min-height: 44px; }
+  .hotspot-tool .handle-grab { display: inline; }
 }
