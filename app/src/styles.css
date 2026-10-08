@@ -951,6 +951,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* Navbar tools (J37) and Vision */
 .navbar .tools { display: flex; gap: 4px; }
+/* B08: three tools fit a phone's navbar once the name beside the logo steps aside. */
+@media (max-width: 480px) { .navbar .brand-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
 .navbar .tool { padding: 3px 8px; border-radius: 3px; color: var(--fg-strong); }
 .navbar .tool:hover { background: var(--hover); }
 .menu-icon-text { display: inline-flex; align-items: center; gap: 8px; }
@@ -1028,3 +1030,41 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .studio-version[data-update] .version-text .muted { color: var(--warn-fg); }
 .version-badge { padding: 1px 5px; border-radius: 3px; background: var(--hover); color: var(--muted); font-size: 12px; }
 .studio-version[data-update] .version-badge { background: var(--warn-bg); color: var(--warn-fg); }
+
+/* B08: the Media tool — folders, tiles, the picked asset's inspector. */
+.media-tool { display: flex; height: calc(100vh - 51px); min-height: 0; background: var(--bg); }
+.media-folders { width: 240px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 12px; border-right: 1px solid var(--border); overflow: auto; }
+.media-folders h1 { margin: 4px 8px 8px; font-size: 13px; font-weight: 600; }
+.media-folders .type-row { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+.media-folders .type-row:hover { background: var(--hover); }
+.media-folders .type-row[aria-current='true'] { background: var(--selected); color: var(--on-selected); }
+.media-new-folder { display: flex; gap: 4px; margin-top: 8px; align-self: flex-start; }
+.media-empty-note { margin: 4px 8px; font-size: 13px; }
+.media-browse { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: auto; }
+.media-bar { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; align-items: center; padding: 12px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.media-bar .search { flex: 1; margin: 0; }
+.media-visibility { width: auto; }
+.media-grid { list-style: none; margin: 0; padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.media-tile { width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 0; border-radius: 3px; background: none; font: inherit; font-size: 12px; text-align: left; color: var(--fg); cursor: pointer; box-shadow: inset 0 0 0 1px var(--border); }
+.media-tile:hover { background: var(--hover); }
+.media-tile[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--selected); }
+.media-thumb { aspect-ratio: 4 / 3; display: grid; place-items: center; overflow: hidden; border-radius: 2px; background: var(--hover); color: var(--muted); }
+.media-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.media-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-badges { display: flex; gap: 4px; min-height: 18px; }
+.media-inspector { width: 320px; display: flex; flex-direction: column; gap: 12px; }
+.media-inspector header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-preview { max-width: 100%; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
+.media-note { margin: 0; font-size: 12px; }
+.media-section { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; border-top: 1px solid var(--border); padding-top: 10px; }
+.media-section h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.media-section p { margin: 0; }
+.media-section .input { width: 100%; box-sizing: border-box; }
+@media (max-width: 768px) {
+  .media-tool { flex-direction: column; height: auto; }
+  .media-folders { width: auto; flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); }
+  .media-folders h1, .media-folders .desk-divider { display: none; }
+  .media-folders .type-row, .media-tile, .media-bar .input, .media-section .btn { min-height: 44px; }
+  .media-inspector { position: fixed; inset: 51px 0 0; z-index: 3; width: auto; background: var(--bg); }
+  .media-inspector .icon-btn { width: 44px; height: 44px; }
+}
