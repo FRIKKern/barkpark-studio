@@ -6,8 +6,7 @@ import {signInIfAsked, target, type Target} from '../rig/targets'
 // Edit / Remove; ours: Duplicate / Move up / Move down / Delete), move a block,
 // insert an image block, an inline object. What each side ends up with goes to
 // the annotations; stills + clips go to e2e/evidence/. Not a CI gate (rule 5).
-// Ours can't yet: an image block from the / menu (task-9c04bcc87b3da42f), inline
-// objects (task-85fee859cf3bfef6).
+// Ours can't yet: inline objects (task-85fee859cf3bfef6).
 const ID = 'post-11'
 const shot = (name: string, step: string) => `evidence/J11-${name}-${step}.png`
 test.use({video: 'on'})
@@ -119,15 +118,25 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     await page.screenshot({path: shot(t.name, '4-inline')})
     await page.keyboard.press('Escape')
   } else {
-    await para.click({timeout: 10_000})
+    // The caret must be in that paragraph, not left in the callout typed above
+    // (a "/" typed there is text, and no menu opens).
+    const inPara = () => page.evaluate(() => /Body paragraph for post 11/.test(getSelection()?.focusNode?.textContent ?? ''))
+    await expect(async () => {
+      await page.locator('bp-paper-canvas').getByText(/Body paragraph for post 11/).click({timeout: 3_000})
+      expect(await inPara()).toBe(true)
+    }).toPass({timeout: 10_000})
     await page.keyboard.press('End')
     await page.keyboard.press('Enter')
+    // Expected: an empty new paragraph. After the Move up above, Enter can put the
+    // caret into the moved callout instead (task in the J11 note); "/" is then text.
+    note('caret after Enter', await page.evaluate(() => getSelection()?.focusNode?.textContent?.slice(0, 40) ?? ''))
     await page.keyboard.type('/')
     const item = page.locator('.bp-slash-item[data-type="image"]')
     await item.scrollIntoViewIfNeeded({timeout: 5_000}).catch(() => {})
     await item.click({timeout: 5_000}).catch(() => note('image item', 'not clickable'))
-    await page.waitForTimeout(1500)
-    note('image block', (await blockKinds(t)).includes('image') ? 'inserted' : 'not inserted (the / menu offers it; the insert is dropped)')
+    // Saved with the next batch, a moment after the pick.
+    const saved = await expect.poll(async () => (await blockKinds(t)).includes('image'), {timeout: 10_000}).toBe(true).then(() => true, () => false)
+    note('image block', saved ? 'inserted' : 'not inserted (no / menu: see caret after Enter)')
     note('inline object', 'none in the vocabulary (PortableDoc has no inline objects)')
     await page.screenshot({path: shot(t.name, '4-image')})
   }
