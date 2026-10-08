@@ -4,7 +4,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {historyQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
 import {applyServer} from '../lib/edits'
 import type {Doc} from '../lib/data'
-import {Close as CloseIcon, InfoOutline} from './icons'
+import {ChevronDown, ChevronLeft, Close as CloseIcon, InfoOutline} from './icons'
 import {toast} from './Toasts'
 
 // Sanity's History inspector (J16), beside the document: a timeline of what
@@ -38,6 +38,7 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
 }) {
   const {data: revisions, error} = useQuery({...historyQuery(type, id), refetchInterval: 10_000})
   const entries = revisions ? timeline(revisions) : []
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   return (
     <aside className="inspector history" aria-label="History">
       <header>
@@ -64,31 +65,52 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
       {tab === 'review' ? review : <>
       {error && <p role="alert">Could not load the history: {String(error)}</p>}
       <ul className="history-list" role="listbox" aria-label="Document revisions">
-        {entries.map((e, i) => {
-          // The newest entry is the document as it is now: picking it leaves the old-revision view.
-          const isSelected = selected ? e.revision.id === selected : i === 0
-          const name = `${e.revision.author} ${e.label} ${ago(e.revision.timestamp)}`
-          return (
-            <li key={e.revision.id} role="option" aria-selected={isSelected} aria-label={name}>
-              <button type="button" onClick={() => onPick(i === 0 ? null : e)}>
-                <span className="avatar" title={e.revision.author}>
-                  {initials(e.revision.author)}
-                  <span className="badge" data-kind={BADGE[e.label] ?? 'edited'} />
-                </span>
-                <span className="history-text">
-                  <span>{e.label}</span>
-                  <time dateTime={e.revision.timestamp} title={new Date(e.revision.timestamp).toLocaleString()}>
-                    {ago(e.revision.timestamp)}
-                  </time>
-                </span>
-              </button>
-            </li>
-          )
+        {entries.flatMap((e, i) => {
+          const open = expanded.has(e.revision.id)
+          return [
+            <Row key={e.revision.id} e={e} selected={selected ? e.revision.id === selected : i === 0} onPick={() => onPick(i === 0 ? null : e)}>
+              {e.children && (
+                // Sanity's: a publish holds the edits it published, collapsed until asked.
+                <button
+                  type="button"
+                  className="history-expand"
+                  aria-label={open ? 'Collapse' : 'Expand'}
+                  title={open ? 'Collapse' : 'Expand'}
+                  aria-expanded={open}
+                  onClick={() => setExpanded((x) => (x.has(e.revision.id) ? new Set([...x].filter((y) => y !== e.revision.id)) : new Set([...x, e.revision.id])))}
+                >
+                  {open ? <ChevronDown /> : <ChevronLeft />}
+                </button>
+              )}
+            </Row>,
+            ...(open ? (e.children ?? []).map((c) => <Row key={c.revision.id} e={c} child selected={c.revision.id === selected} onPick={() => onPick(c)} />) : []),
+          ]
         })}
       </ul>
       </>}
       </div>
     </aside>
+  )
+}
+
+/** One timeline entry: avatar with what-happened badge, the label and when. */
+function Row({e, selected, child, onPick, children}: {e: HistoryEntry; selected: boolean; child?: boolean; onPick: () => void; children?: ReactNode}) {
+  return (
+    <li role="option" aria-selected={selected} aria-label={`${e.revision.author} ${e.label} ${ago(e.revision.timestamp)}`} data-child={child || undefined}>
+      <button type="button" onClick={onPick}>
+        <span className="avatar" title={e.revision.author}>
+          {initials(e.revision.author)}
+          <span className="badge" data-kind={BADGE[e.label] ?? 'edited'} />
+        </span>
+        <span className="history-text">
+          <span>{e.label}</span>
+          <time dateTime={e.revision.timestamp} title={new Date(e.revision.timestamp).toLocaleString()}>
+            {ago(e.revision.timestamp)}
+          </time>
+        </span>
+      </button>
+      {children}
+    </li>
   )
 }
 
