@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 106 changes, 72 tasks closed
+- **Today** · 107 changes, 72 tasks closed
+  - Spec: after-phase journeys J58–J65 (Presentation tool + plugin surface) ([#225](https://github.com/FRIKKern/barkpark-studio/pull/225))
   - perf(B01): the Norwegian strings come only to a Norwegian workspace, in the SSR payload ([#223](https://github.com/FRIKKern/barkpark-studio/pull/223))
   - Done: [D14 [Freeform main] Task blocks inside a paper show live previews](https://github.com/FRIKKern/barkpark/issues/21847)
-  - D14: task blocks in a paper show Barkpark's live previews ([#218](https://github.com/FRIKKern/barkpark-studio/pull/218))
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
