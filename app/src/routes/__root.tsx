@@ -10,12 +10,15 @@ import {useAnnouncer} from '../lib/announce'
 import {THEME_BOOT} from '../lib/theme'
 import {EARLY_CLICKS, releaseEarlyClicks} from '../lib/hydrated'
 import {currentScopeQuery} from '../lib/scope-switch'
+import {LocaleProvider, localeQuery} from '../lib/i18n'
+import {useQuery} from '@tanstack/react-query'
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url'
 
 export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope: ScopeRef}>()({
   // The navbar's workspace / dataset label, in the server render: fetched in the
   // browser it arrived late and pushed the buttons after it 209 px (a layout shift, J21 F2).
-  loader: ({context}) => context.queryClient.ensureQueryData(currentScopeQuery),
+  // B01: the workspace's language too, so the server render is already in it.
+  loader: ({context}) => Promise.all([context.queryClient.ensureQueryData(currentScopeQuery), context.queryClient.ensureQueryData(localeQuery)]),
   head: () => ({
     meta: [
       {charSet: 'utf-8'},
@@ -48,19 +51,22 @@ function Announcer() {
 function RootDocument({children}: {children: ReactNode}) {
   // A page that never marks itself hydrated (health, error screens) still gets its held clicks.
   useEffect(() => void setTimeout(releaseEarlyClicks, 1000), [])
+  const locale = useQuery(localeQuery).data ?? 'en'
   return (
     // data-theme is set by THEME_BOOT before hydration; React must not fight it.
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale === 'nb-NO' ? 'nb' : 'en'} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{__html: THEME_BOOT}} />
         <script dangerouslySetInnerHTML={{__html: EARLY_CLICKS}} />
         <HeadContent />
       </head>
       <body>
-        {children}
-        <ToastHost />
-        <IconTips />
-        <Announcer />
+        <LocaleProvider locale={locale}>
+          {children}
+          <ToastHost />
+          <IconTips />
+          <Announcer />
+        </LocaleProvider>
         <Scripts />
       </body>
     </html>

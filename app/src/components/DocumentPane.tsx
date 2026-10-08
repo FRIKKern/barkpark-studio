@@ -35,6 +35,7 @@ import {PaperSidebar} from './PaperSidebar'
 import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
+import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {ReadErrorCard} from './PaneError'
 import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 
@@ -48,6 +49,8 @@ const NO_PROBLEMS: Problem[] = []
 const FIRST_FIELDS = 40
 
 export function DocumentPane({panes, index, split, closeHref, header, closeIcon}: Props) {
+  const t = useT()
+  const locale = useLocale()
   const pane = panes[index] as Extract<Pane, {kind: 'doc'}>
   // Split siblings share a document id; field focus belongs to this pane instance.
   const paneRoot = useRef<HTMLElement>(null)
@@ -82,7 +85,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const byId = new Map(refFields.map((f, i) => [doc![f.name] as string, targets[i].data]))
   // J18: a new doc nobody has typed in yet exists only here; Sanity checks nothing until the first edit.
   const pristine = isPristine(doc, useSaveState(pane.id).state)
-  const problems = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id)) : []
+  const problems = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
   // J13: only errors block publishing; warnings and infos are shown, never in the way.
   const errors = errorsOf(problems)
   const openObjects = useOpenObjects(pane.id)
@@ -178,8 +181,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const [canvasSeen, setCanvasSeen] = useState<string | null>(null)
   if (freeform && view === 'freeform' && canvasSeen !== pane.id) setCanvasSeen(pane.id)
   const views: {id: View; title: string}[] = [
-    {id: 'classic', title: freeform ? 'Classic' : 'Editor'},
-    ...(freeform ? [{id: 'freeform' as View, title: 'Freeform'}] : []),
+    {id: 'classic', title: freeform ? t('Classic') : t('Editor')},
+    ...(freeform ? [{id: 'freeform' as View, title: t('Freeform')}] : []),
     {id: 'json', title: 'JSON'},
   ]
   const next = panes[index + 1]
@@ -216,8 +219,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     const created = createDoc(qc, from._type, id, fields)
     navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined, path: undefined, rev: undefined}])})
     created.then(
-      () => toast({title: 'The document was successfully duplicated'}),
-      (err) => toast({tone: 'critical', title: 'Could not duplicate the document', description: (err as Error).message}),
+      () => toast({title: tt('The document was successfully duplicated')}),
+      (err) => toast({tone: 'critical', title: tt('Could not duplicate the document'), description: (err as Error).message}),
     )
   }
   // Keyed by `base`, the pane chain as a string: a new array each render, the same chain.
@@ -249,8 +252,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     if (was === null) return
     if (errors.length) {
       if (errors.length !== was || was === 0)
-        announce(`${errors.length === 1 ? '1 validation error' : `${errors.length} validation errors`}. ${errors[0]!.title}: ${errors[0]!.message}. Publishing is blocked.`)
-    } else if (was > 0) announce('No validation errors')
+        announce(
+          `${errors.length === 1 ? tt('1 validation error') : tt('{n} validation errors', {n: errors.length})}. ${errors[0]!.title}: ${errors[0]!.message}. ${tt('Publishing is blocked.')}`,
+        )
+    } else if (was > 0) announce(tt('No validation errors'))
   }, [errorsKey, !!doc])
 
   // J07: the room sees this doc as where we are when it is the last pane, and the
@@ -265,7 +270,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   return (
     <section
       ref={paneRoot}
-      aria-label={doc && schema ? docTitle(doc, schema) : 'Document'}
+      aria-label={doc && schema ? docTitle(doc, schema, t) : t('Document')}
       className="pane doc"
       data-testid="document-pane"
       data-pane={`doc:${pane.id}`}
@@ -286,7 +291,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           if (!publishingKey.current && !pristine && (doc._draft || saveState !== 'saved')) {
             publishingKey.current = true
             void publishAndTell(qc, doc)
-              .catch((err: Error) => toast({tone: 'critical', title: 'Could not publish', description: reasonOf(err.message) ?? err.message}))
+              .catch((err: Error) => toast({tone: 'critical', title: tt('Could not publish'), description: reasonOf(err.message) ?? err.message}))
               .finally(() => (publishingKey.current = false))
           }
         }
@@ -307,33 +312,33 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         <AvatarStack people={here} />
         <span className="title chips">
           {draftQ.data?._hasPublished === false ? (
-            <span className="chip" data-off="" aria-disabled="true" title="Not published">
+            <span className="chip" data-off="" aria-disabled="true" title={t('Not published')}>
               <span className="dot published" />
-              Published
+              {t('Published')}
             </span>
           ) : (
             <TipChip
               tip={() => {
                 const at = draftQ.data?._draft ? publishedQ.data?._updatedAt : draftQ.data?._updatedAt
-                return at ? `Published ${longDate(at)}` : 'Published'
+                return at ? t('Published {date}', {date: longDate(at, locale)}) : t('Published')
               }}
               data-selected={viewingPublished ? '' : undefined}
               aria-pressed={viewingPublished}
               onClick={() => navigate({href: `${base}?perspective=published`})}
             >
               <span className="dot published" />
-              Published
+              {t('Published')}
             </TipChip>
           )}
           <TipChip
-            tip={() => (draftQ.data?._draft && draftQ.data._updatedAt ? `Edited ${longDate(draftQ.data._updatedAt)}` : 'No unpublished edits')}
+            tip={() => (draftQ.data?._draft && draftQ.data._updatedAt ? t('Edited {date}', {date: longDate(draftQ.data._updatedAt, locale)}) : t('No unpublished edits'))}
             data-active={!viewingPublished && draftQ.data?._draft && !pristine ? '' : undefined}
             data-selected={!viewingPublished ? '' : undefined}
             aria-pressed={!viewingPublished}
             onClick={() => navigate({href: base})}
           >
             <span className="dot draft" />
-            Draft
+            {t('Draft')}
           </TipChip>
         </span>
         {doc && !pristine && <DocShareMenu doc={doc} />}
@@ -342,8 +347,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           <button
             type="button"
             className="icon-btn validation-btn"
-            aria-label="Validation"
-            data-tip="Validation"
+            aria-label={t('Validation')}
+            data-tip={t('Validation')}
             aria-pressed={inspecting}
             data-problems={problems.length || undefined}
             data-level={worst(problems)}
@@ -358,8 +363,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             ref={metaButton}
             type="button"
             className="icon-btn"
-            aria-label="Document metadata"
-            title="Document metadata"
+            aria-label={t('Document metadata')}
+            title={t('Document metadata')}
             aria-pressed={pane.inspect === 'meta'}
             onClick={() => navigate({href: withParams(panes, index, {inspect: pane.inspect === 'meta' ? undefined : 'meta'})})}
           >
@@ -370,9 +375,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           <button
             type="button"
             className="icon-btn comments-btn"
-            aria-label="Comments"
-            data-tip="Comments"
-            title="Comments"
+            aria-label={t('Comments')}
+            data-tip={t('Comments')}
+            title={t('Comments')}
             aria-pressed={pane.inspect === 'comments'}
             onClick={() => navigate({href: withParams(panes, index, {inspect: pane.inspect === 'comments' ? undefined : 'comments', rev: undefined})})}
           >
@@ -385,16 +390,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {/* J42: a narrow window has no splits and no close: the back link goes back. */}
         {!narrow && (
           <>
-            <button type="button" className="icon-btn" aria-label="Split pane right" data-tip="Split pane right" onClick={() => navigate({href: splitRight(panes, index)})}>
+            <button type="button" className="icon-btn" aria-label={t('Split pane right')} data-tip={t('Split pane right')} onClick={() => navigate({href: splitRight(panes, index)})}>
               <SplitVertical />
             </button>
             {split ? (
               // Like Sanity: closing one side of a split is a button, closing a pane a link.
-              <button type="button" className="icon-btn" aria-label="Close split pane" data-tip="Close pane" data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
+              <button type="button" className="icon-btn" aria-label={t('Close split pane')} data-tip={t('Close pane')} data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
                 {closeIcon}
               </button>
             ) : (
-              <PaneLink href={closeHref} className="icon-btn" aria-label="Close pane" data-tip="Close pane" data-testid="pane-close">
+              <PaneLink href={closeHref} className="icon-btn" aria-label={t('Close pane')} data-tip={t('Close pane')} data-testid="pane-close">
                 {closeIcon}
               </PaneLink>
             )}
@@ -410,7 +415,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {loggedOut && doc && (
           // J48: the session is gone — said where you are editing, with the way back.
           <div className="pane-banner" role="alert">
-            <span>You've been logged out. Your edits are kept here and saved once you sign in again.</span>
+            <span>{t("You've been logged out. Your edits are kept here and saved once you sign in again.")}</span>
             <SignInAgain />
           </div>
         )}
@@ -424,7 +429,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       </div>
       <div className="doc-title-bar">
         {header}
-        <div className="view-tabs" role="tablist" aria-label="Views">
+        <div className="view-tabs" role="tablist" aria-label={t('Views')}>
           {views.map((v) => (
             <button key={v.id} type="button" role="tab" aria-selected={view === v.id} onClick={() => navigate({href: withView(panes, index, viewParam(v.id, mode))})}>
               {v.title}
@@ -438,7 +443,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {/* J50: a read that fails is tried again by itself (the toast says "Trying to connect…"); after that, Retry. */}
         {isPending && !error && (
           <div className="pane-loading" aria-busy="true" data-testid="doc-loading">
-            Loading document…
+            {t('Loading document…')}
           </div>
         )}
         {error &&
@@ -446,21 +451,25 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           (/→ 403\b/.test(String(error)) ? (
             // J49: a doc this editor may not read.
             <div className="pane-banner" role="alert">
-              <span>You don't have access to this document.</span>
+              <span>{t("You don't have access to this document.")}</span>
             </div>
           ) : (
-            <ReadErrorCard title="Could not load the document" error={error} failures={docQ.failureCount} retrying={docQ.fetchStatus !== 'idle'} onRetry={() => void docQ.refetch()} />
+            <ReadErrorCard title={t('Could not load the document')} error={error} failures={docQ.failureCount} retrying={docQ.fetchStatus !== 'idle'} onRetry={() => void docQ.refetch()} />
           ))}
         {deleted && !doc && <DeletedBanner type={pane.type} id={pane.id} />}
         {doc === null && !error && !viewingPublished && !deleted && (
           <div className="pane-not-found">
             {/* J02: Sanity's title, its text with our known type. */}
-            <h2>The document was not found</h2>
-            <p>A document with the <code>{pane.id}</code> identifier could not be found.</p>
-            <PaneLink className="btn" href={closeHref}>Go back</PaneLink>
+            <h2>{t('The document was not found')}</h2>
+            <p>
+              <WithCode text={t('A document with the {id} identifier could not be found.')} code={pane.id} />
+            </p>
+            <PaneLink className="btn" href={closeHref}>
+              {t('Go back')}
+            </PaneLink>
           </div>
         )}
-        {!isPending && !doc && !error && viewingPublished && <p role="alert">Not published.</p>}
+        {!isPending && !doc && !error && viewingPublished && <p role="alert">{t('Not published.')}</p>}
         {doc && view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
         {/* Mounted once per doc and then only hidden: the canvas mis-places typing
             after it is mounted again in a page (task-f24549dea0618da2), and a remount costs a load. */}
@@ -471,14 +480,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
                 when someone else has this doc open. */}
             {here.length > 0 && (
               <p className="pd-hint" role="note" data-testid="coediting-hint">
-                {here.length === 1 ? `${here[0]!.name} has` : `${here.length} others have`} this document open. Freeform has no shared carets. Their saved changes
-                appear when this canvas is idle. Avoid editing the same block at the same time.
+                {here.length === 1
+                  ? t('{name} has this document open. Freeform has no shared carets. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {name: here[0]!.name})
+                  : t('{n} others have this document open. Freeform has no shared carets. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {n: here.length})}
               </p>
             )}
             <PortableDocEditor type={pane.type} id={pane.id} labels={fieldLabels} openDoc={(docId, docType) => navigate({href: openAfter(panes, index, {kind: 'doc', id: docId, type: docType})})} />
           </div>
         )}
-        {pane.rev && revQ.data === null && <p role="alert">This revision can't be found. Pick another entry in the history.</p>}
+        {pane.rev && revQ.data === null && <p role="alert">{t("This revision can't be found. Pick another entry in the history.")}</p>}
         {doc && schema && view === 'classic' && (!pane.rev || revision) && (
           <div
             className="doc-form"
@@ -491,7 +501,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             }}
           >
             <div className="kind">{schema.title}</div>
-            <h1>{docTitle(doc, schema)}</h1>
+            <h1>{docTitle(doc, schema, t)}</h1>
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
             <CommentsContext.Provider value={commentsApi}>
@@ -572,23 +582,24 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         />
       )}
       </div>
-      {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema)} onClose={() => setInspectOpen(false)} />}
+      {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema, t)} onClose={() => setInspectOpen(false)} />}
     </section>
   )
 }
 
 /** Sanity's validation inspector: every problem, click one to go to its field. */
 function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPick: (p: Problem) => void; onClose: () => void}) {
+  const t = useT()
   return (
-    <aside className="inspector" aria-label="Validation">
+    <aside className="inspector" aria-label={t('Validation')}>
       <header>
-        <h2>Validation</h2>
-        <button type="button" className="icon-btn" aria-label="Close validation" onClick={onClose}>
+        <h2>{t('Validation')}</h2>
+        <button type="button" className="icon-btn" aria-label={t('Close validation')} onClick={onClose}>
           <CloseIcon />
         </button>
       </header>
       {problems.length === 0 ? (
-        <p className="muted">No validation errors</p>
+        <p className="muted">{t('No validation errors')}</p>
       ) : (
         <ul>
           {problems.map((p) => (
@@ -597,9 +608,9 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
                 <LevelIcon level={p.level} label="" />
                 <span>
                   <strong>
-                    {p.parents?.map((t) => (
-                      <span key={t} className="problem-parent">
-                        {t} <span className="problem-slash">/</span>{' '}
+                    {p.parents?.map((parent) => (
+                      <span key={parent} className="problem-parent">
+                        {parent} <span className="problem-slash">/</span>{' '}
                       </span>
                     ))}
                     {p.title}
@@ -620,13 +631,14 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
  * tabs (roving tabindex), Enter/Space or a click selects. No groups, no tabs.
  */
 function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: string; onChange: (g: string) => void; problems: Problem[]}) {
+  const t = useT()
   if (!schema.groups?.length) return null
-  const tabs = [{name: '', title: 'All fields'}, ...schema.groups]
+  const tabs = [{name: '', title: t('All fields')}, ...schema.groups]
   return (
     <div
       className="group-tabs"
       role="tablist"
-      aria-label="Field groups"
+      aria-label={t('Field groups')}
       onKeyDown={(e) => {
         if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
         const btns = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')]
@@ -649,7 +661,7 @@ function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: 
           {/* The most serious level in the group, like Sanity's tab icons. */}
           {(() => {
             const level = worst(problems.filter((p) => !g.name || p.group === g.name))
-            return level && <LevelIcon level={level} label={`has validation ${level === 'error' ? 'errors' : level === 'warning' ? 'warnings' : 'info'}`} />
+            return level && <LevelIcon level={level} label={level === 'error' ? t('has validation errors') : level === 'warning' ? t('has validation warnings') : t('has validation info')} />
           })()}
         </button>
       ))}
@@ -657,14 +669,32 @@ function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: 
   )
 }
 
-/** Sanity names a new untitled doc "New <Type>" in its own pane; anything else untitled is "Untitled". */
-export const docTitle = (doc: Doc, schema: Schema) => {
-  const t = previewTitle(doc, schema)
-  return t === 'Untitled' && doc._hasPublished === false ? `New ${schema.title}` : t
+/**
+ * Sanity names a new untitled doc "New <Type>" in its own pane; anything else untitled is
+ * "Untitled". `t`: the render's translate (English when not given).
+ */
+export const docTitle = (doc: Doc, schema: Schema, t: T = (en, vars) => translate('en', en, vars)) => {
+  const title = previewTitle(doc, schema)
+  if (title !== 'Untitled') return title
+  return doc._hasPublished === false ? t('New {type}', {type: schema.title}) : t('Untitled')
+}
+
+/** A translated sentence with one `{id}` set as code. */
+function WithCode({text, code}: {text: string; code: string}) {
+  const [before, after = ''] = text.split('{id}')
+  return (
+    <>
+      {before}
+      <code>{code}</code>
+      {after}
+    </>
+  )
 }
 
 /** `single` (B13): a singleton keeps Publish, Discard changes and (in History) Restore only. */
 function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void; askDelete: number}) {
+  const t = useT()
+  const locale = useLocale()
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
   const {canWrite, editReason, publishReason, createReason} = useCanWrite()
@@ -675,9 +705,15 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
   const alt = useAltName()
-  const reason = publishReason ?? (blocked ? 'There are validation errors that need to be fixed before this document can be published' : undefined)
+  const reason = publishReason ?? (blocked ? t('There are validation errors that need to be fixed before this document can be published') : undefined)
   const publishTip = useTip(() =>
-    reason ? null : doc._draft && !isPristine(doc, state) ? <Keys keys={['Ctrl', alt, 'P']} /> : doc._hasPublished !== false && doc._updatedAt ? `Published ${ago(doc._updatedAt)}` : 'No unpublished changes',
+    reason ? null : doc._draft && !isPristine(doc, state) ? (
+      <Keys keys={['Ctrl', alt, 'P']} />
+    ) : doc._hasPublished !== false && doc._updatedAt ? (
+      t('Published {ago}', {ago: ago(doc._updatedAt, locale)})
+    ) : (
+      t('No unpublished changes')
+    ),
   )
   // J28: Sanity's Delete shortcut (Ctrl+Alt+D) asks here.
   useEffect(() => {
@@ -693,29 +729,32 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
     was.current = state
     if (state !== 'saved' || before === 'saved') return
     setJustSaved(true)
-    const t = setTimeout(() => setJustSaved(false), 3000)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setJustSaved(false), 3000)
+    return () => clearTimeout(timer)
   }, [state])
   useEffect(() => {
-    const t = setInterval(() => tick((n) => n + 1), 30_000)
-    return () => clearInterval(t)
+    const timer = setInterval(() => tick((n) => n + 1), 30_000)
+    return () => clearInterval(timer)
   }, [])
+  const saved = state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !!doc._draft && (justSaved || !doc._updatedAt)
   const label =
-    {
-      saving: 'Saving…',
-      stalled: 'Saving is taking longer than usual…',
-      offline: 'Offline — not saving. Your edits are kept here.',
-      recovering: 'Back online — saving your edits…',
-      error: 'Not saved — retrying',
-      signedOut: "You've been logged out — not saving. Sign in to save your edits.",
-      refused: `Not saved: ${error ?? 'Barkpark refused the change'}`,
-    }[state as string] ?? (isPristine(doc, state) ? '' : !doc._draft ? `Last published ${ago(doc._updatedAt)}` : justSaved || !doc._updatedAt ? 'Saved' : `Edited ${ago(doc._updatedAt)}`)
+    state === 'refused'
+      ? t('Not saved: {reason}', {reason: error ?? t('Barkpark refused the change')})
+      : state in STATE_LABELS
+        ? t(STATE_LABELS[state]!)
+        : isPristine(doc, state)
+          ? ''
+          : !doc._draft
+            ? t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})
+            : saved
+              ? t('Saved')
+              : t('Edited {ago}', {ago: ago(doc._updatedAt, locale)})
   return (
     <footer className="doc-footer">
       {/* "N sec. ago" differs between the server render and hydration: not an error. */}
       <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
         {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
-        {label === 'Saved' ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : null}
+        {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : null}
         {label}
       </span>
       {state === 'signedOut' && (
@@ -734,19 +773,19 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
             await publishAndTell(qc, doc)
           } catch (e) {
             // D12: a refusal (a paper's publish wall, say) says why, never silently.
-            toast({tone: 'critical', title: 'Could not publish', description: reasonOf((e as Error).message) ?? (e as Error).message})
+            toast({tone: 'critical', title: tt('Could not publish'), description: reasonOf((e as Error).message) ?? (e as Error).message})
           } finally {
             setPublishing(false)
           }
         }}
       >
         <PublishIcon />
-        {publishing ? 'Publishing…' : 'Publish'}
+        {publishing ? t('Publishing…') : t('Publish')}
       </button>
       {publishTip.tip}
       </span>
       {(!single || canDiscard) && <div className="menu-wrap">
-        <button type="button" className="icon-btn" aria-label="Document actions" data-tip="Document actions" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+        <button type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
         {menu && (
@@ -754,7 +793,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
             {!single && (
               <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
                 <span className="menu-icon-text">
-                  <Copy /> Duplicate
+                  <Copy /> {t('Duplicate')}
                 </span>
               </button>
             )}
@@ -762,14 +801,14 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
             {canDiscard && (
               <button type="button" role="menuitem" className="menu-item danger" autoFocus={single} disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
                 <span className="menu-icon-text">
-                  <Undo /> Discard changes
+                  <Undo /> {t('Discard changes')}
                 </span>
               </button>
             )}
             {!single && (
               <button type="button" role="menuitem" className="menu-item danger" aria-keyshortcuts="Control+Alt+D" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
                 <span className="menu-icon-text">
-                  <Trash /> Delete
+                  <Trash /> {t('Delete')}
                 </span>
                 <Keys keys={['Ctrl', alt, 'D']} />
               </button>
@@ -780,10 +819,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       {deleting && <DeleteDialog doc={doc} closeHref={closeHref} onClose={() => setDeleting(false)} />}
       {discarding && (
         <ConfirmDialog
-          title="Discard changes?"
-          body="Are you sure you want to discard all changes since last published?"
-          action="Discard changes"
-          run={() => discardDraft(qc, doc).then(() => toast({title: 'All changes has now been discarded. The discarded draft can still be recovered from history'}))}
+          title={t('Discard changes?')}
+          body={t('Are you sure you want to discard all changes since last published?')}
+          action={t('Discard changes')}
+          run={() => discardDraft(qc, doc).then(() => toast({title: tt('All changes has now been discarded. The discarded draft can still be recovered from history')}))}
           onClose={() => setDiscarding(false)}
         />
       )}
@@ -800,26 +839,28 @@ const named = (qc: QueryClient, doc: Doc, rest: string) => (
 /** Publish, then say so (the footer button and Ctrl+Alt+P). */
 async function publishAndTell(qc: QueryClient, doc: Doc) {
   await publish(qc, doc)
-  toast({tone: 'positive', title: named(qc, qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc, 'was published')})
+  toast({tone: 'positive', title: named(qc, qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc, tt('was published'))})
 }
 
 /** The Published perspective: read-only, and the way to take a document down. */
 function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
+  const t = useT()
+  const locale = useLocale()
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const {canWrite, publishReason} = useCanWrite()
   const run = () =>
-    unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, 'was unpublished. A draft has been created from the latest published revision.')}))
+    unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, tt('was unpublished. A draft has been created from the latest published revision.'))}))
   return (
     <footer className="doc-footer">
       <span className="save-state" role="status" suppressHydrationWarning>
-        Last published {ago(doc._updatedAt)}
+        {t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}
       </span>
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
       {!single && (
         <button className="publish danger" disabled={!canWrite} title={publishReason} onClick={() => setConfirm(true)}>
           <UnpublishIcon />
-          Unpublish
+          {t('Unpublish')}
         </button>
       )}
       {/* B07: who refers to it is listed before it goes. */}
@@ -830,6 +871,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
 
 /** A Sanity-style confirm over the pane: Cancel (focused) or the red action. Failures show inline. */
 export function ConfirmDialog({title, body, action, run, onClose}: {title: string; body: string; action: string; run: () => Promise<unknown>; onClose: () => void}) {
+  const t = useT()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   return (
@@ -848,7 +890,7 @@ export function ConfirmDialog({title, body, action, run, onClose}: {title: strin
         </div>
         <footer>
           <button type="button" className="btn" autoFocus onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="button"
@@ -900,8 +942,18 @@ function useOpenObjects(docId: string) {
 /** A new doc that is still only in this tab: created on its first edit (J18). */
 const isPristine = (doc: Doc | null | undefined, state: string) => !!doc && doc._rev === '' && doc._hasPublished === false && state === 'saved'
 
-/** "Oct 8, 2026, 12:16 PM", as Sanity's header chips date a version. */
-const longDate = (iso: string) => new Date(iso).toLocaleString('en-US', {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'})
+/** "Oct 8, 2026, 12:16 PM", as Sanity's header chips date a version (in Norwegian "8. okt. 2026, 12:16"). */
+const longDate = (iso: string, locale: Locale) => new Date(iso).toLocaleString(intlTag(locale), {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'})
+
+/** The footer's save states that are only words. */
+const STATE_LABELS: Record<string, string> = {
+  saving: 'Saving…',
+  stalled: 'Saving is taking longer than usual…',
+  offline: 'Offline — not saving. Your edits are kept here.',
+  recovering: 'Back online — saving your edits…',
+  error: 'Not saved — retrying',
+  signedOut: "You've been logged out — not saving. Sign in to save your edits.",
+}
 
 /** A header chip (Published / Draft) with Sanity's dated tooltip (J56). */
 function TipChip({tip: content, children, ...rest}: {tip: () => string} & React.ButtonHTMLAttributes<HTMLButtonElement> & Record<`data-${string}`, string | undefined>) {

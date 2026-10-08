@@ -10,18 +10,24 @@ export type Outcome = {kind: 'done'} | {kind: 'skipped'} | {kind: 'walled'; reas
 /** The wall's refusals (label spine, unknown tag, near-duplicate) are not plain failures. */
 export const isWall = (message: string) => /"code":"(label_spine|unknown_tag|duplicate_of)"/.test(message)
 
-/** "Published 3 of 4. 1 blocked by the publish wall — …" (LiveView's words), plus what was left alone. */
-export function bulkSummary(action: 'publish' | 'unpublish', outcomes: Outcome[]): {tone: 'positive' | 'critical'; title: string; description?: string} {
+type Translate = (en: string, vars?: Record<string, string | number>) => string
+/** English, filled in: the default when no translation is passed (unit tests). */
+const english: Translate = (en, vars) => (vars ? en.replace(/\{(\w+)\}/g, (all, k: string) => (k in vars ? String(vars[k]) : all)) : en)
+
+/**
+ * "Published 3 of 4. 1 blocked by the publish wall — …" (LiveView's words), plus what
+ * was left alone. `t`: the Studio's translate (B01); this file stays importable by node's tests.
+ */
+export function bulkSummary(action: 'publish' | 'unpublish', outcomes: Outcome[], t: Translate = english): {tone: 'positive' | 'critical'; title: string; description?: string} {
   const n = (k: Outcome['kind']) => outcomes.filter((o) => o.kind === k).length
-  const verb = action === 'publish' ? 'Published' : 'Unpublished'
   const [done, skipped, walled, failed] = [n('done'), n('skipped'), n('walled'), n('failed')]
-  const title = `${verb} ${done} of ${outcomes.length}`
+  const title = action === 'publish' ? t('Published {done} of {total}', {done, total: outcomes.length}) : t('Unpublished {done} of {total}', {done, total: outcomes.length})
   const wall = outcomes.find((o): o is Extract<Outcome, {kind: 'walled'}> => o.kind === 'walled')
   const fail = outcomes.find((o): o is Extract<Outcome, {kind: 'failed'}> => o.kind === 'failed')
   const parts = [
-    skipped ? `${skipped} ${action === 'publish' ? 'had no changes to publish' : skipped === 1 ? 'was not published' : 'were not published'}.` : '',
-    walled ? `${walled} blocked by the publish wall — ${wall!.reason}` : '',
-    failed ? `${failed} failed: ${fail!.reason}` : '',
+    skipped ? (action === 'publish' ? t('{n} had no changes to publish.', {n: skipped}) : skipped === 1 ? t('{n} was not published.', {n: skipped}) : t('{n} were not published.', {n: skipped})) : '',
+    walled ? t('{n} blocked by the publish wall — {reason}', {n: walled, reason: wall!.reason}) : '',
+    failed ? t('{n} failed: {reason}', {n: failed, reason: fail!.reason}) : '',
   ].filter(Boolean)
   return {tone: walled || failed ? 'critical' : 'positive', title, description: parts.join(' ') || undefined}
 }

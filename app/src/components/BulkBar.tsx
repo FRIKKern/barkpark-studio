@@ -6,12 +6,14 @@ import {bulkSummary, isWall, type Outcome} from '../lib/bulk'
 import {useCanWrite} from '../lib/session'
 import {UnpublishDialog} from './UnpublishDialog'
 import {toast} from './Toasts'
+import {t as tBrowser, useT} from '../lib/i18n'
 
 // B03: the list pane's bulk bar, after LiveView's floating bulk action bar: "N selected",
 // Publish selected, Unpublish selected, Clear. Each doc goes on its own (one refusal
 // never stops the rest); one summary says what happened.
 
 export function BulkBar({picked, onClear}: {picked: Doc[]; onClear: () => void}) {
+  const t = useT()
   const qc = useQueryClient()
   const {canWrite, publishReason} = useCanWrite()
   const [running, setRunning] = useState<{action: 'publish' | 'unpublish'; at: number} | null>(null)
@@ -34,25 +36,29 @@ export function BulkBar({picked, onClear}: {picked: Doc[]; onClear: () => void})
       }
     }
     setRunning(null)
-    toast(bulkSummary(action, outcomes), 8000)
+    toast(bulkSummary(action, outcomes, tBrowser), 8000)
     onClear()
   }
   const n = picked.length
-  const reason = publishReason ?? (!canWrite ? 'You cannot change documents here' : undefined)
+  const reason = publishReason ?? (!canWrite ? t('You cannot change documents here') : undefined)
   return (
-    <div className="bulk-bar" role="region" aria-label="Bulk actions">
+    <div className="bulk-bar" role="region" aria-label={t('Bulk actions')}>
       <span className="bulk-count" role="status">
-        {running ? `${running.action === 'publish' ? 'Publishing' : 'Unpublishing'} ${running.at} of ${n}…` : `${n} selected`}
+        {running
+          ? running.action === 'publish'
+            ? t('Publishing {at} of {n}…', {at: running.at, n})
+            : t('Unpublishing {at} of {n}…', {at: running.at, n})
+          : t('{n} selected', {n})}
       </span>
       <button type="button" className="btn-text" disabled={!!running} onClick={onClear}>
-        Clear
+        {t('Clear')}
       </button>
       <div className="bulk-actions">
         <button type="button" className="publish" disabled={!!running || !!reason} title={reason} onClick={() => void run('publish')}>
-          Publish selected
+          {t('Publish selected')}
         </button>
         <button type="button" className="btn" disabled={!!running || !!reason} title={reason} onClick={() => setConfirming(true)}>
-          Unpublish selected
+          {t('Unpublish selected')}
         </button>
       </div>
       {confirming && (

@@ -3,10 +3,12 @@ import {useQueryClient} from '@tanstack/react-query'
 import {devSignIn} from '../lib/session'
 import {resumeSaving} from '../lib/edits'
 import {DialogBox, PaneOverlay} from './FocusScopes'
+import {useT} from '../lib/i18n'
 
 // J48: the session is gone mid-edit. Sign in again right here — no navigation, so
 // the edits typed meanwhile (held in this page) go out as you once you're back.
 export function SignInAgain() {
+  const t = useT()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
@@ -33,7 +35,7 @@ export function SignInAgain() {
   return (
     <>
       <button type="button" className="btn" onClick={() => setOpen(true)}>
-        Sign in
+        {t('Sign in')}
       </button>
       {open && (
         <PaneOverlay>
@@ -46,17 +48,17 @@ export function SignInAgain() {
                   void submit()
                 }}
               >
-                <h2 id="sign-in-again-title">You've been logged out</h2>
-                <p>Sign in again to save your edits. They are kept in this page until you do.</p>
-                <label htmlFor="sign-in-again-email">Your email</label>
+                <h2 id="sign-in-again-title">{t("You've been logged out")}</h2>
+                <p>{t('Sign in again to save your edits. They are kept in this page until you do.')}</p>
+                <label htmlFor="sign-in-again-email">{t('Your email')}</label>
                 <input id="sign-in-again-email" className="input" type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
-                {error && <p className="field-error" role="alert">{error}</p>}
+                {error && <p className="field-error" role="alert">{t(error)}</p>}
                 <div className="dialog-actions">
                   <button type="button" className="btn" onClick={() => setOpen(false)}>
-                    Cancel
+                    {t('Cancel')}
                   </button>
                   <button className="publish" disabled={busy}>
-                    {busy ? 'Signing in…' : 'Sign in'}
+                    {busy ? t('Signing in…') : t('Sign in')}
                   </button>
                 </div>
               </form>

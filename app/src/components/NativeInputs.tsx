@@ -1,5 +1,6 @@
 import {useContext, useRef, useState, type KeyboardEvent} from 'react'
 import {EditPathContext} from './Fields'
+import {useT} from '../lib/i18n'
 
 // Barkpark field types Sanity doesn't have (B04), after Barkpark's LiveView Studio
 // (api components/field_inputs.ex): a colour picker that can be unset, read-only
@@ -8,14 +9,15 @@ import {EditPathContext} from './Fields'
 
 /** Colour: native picker + hex + Clear; unset shows "No color" and a dimmed swatch (never a phantom #000000). */
 export function ColorInput({id, value, onChange, readOnly}: {id: string; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean}) {
+  const t = useT()
   const hex = typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : undefined
   return (
     <div className="color-field">
       <input id={id} type="color" className="swatch" data-unset={!hex || undefined} value={hex ?? '#000000'} disabled={readOnly} onChange={(e) => onChange(e.target.value)} />
-      <span className="mono">{hex ?? 'No color'}</span>
+      <span className="mono">{hex ?? t('No color')}</span>
       {hex && !readOnly && (
         <button type="button" className="btn btn-sm" onClick={() => onChange(undefined)}>
-          Clear
+          {t('Clear')}
         </button>
       )}
     </div>
@@ -25,21 +27,23 @@ export function ColorInput({id, value, onChange, readOnly}: {id: string; value: 
 const pretty = (v: unknown) => (v == null || v === '' ? '—' : typeof v === 'string' ? v : JSON.stringify(v, null, 2))
 
 /** Structured values with no editor here (json, unknown shapes): pretty JSON, read-only, as LiveView shows them. */
-export function ReadOnlyJson({id, value, note = 'read-only — managed via the API'}: {id: string; value: unknown; note?: string}) {
+export function ReadOnlyJson({id, value, note}: {id: string; value: unknown; note?: string}) {
+  const t = useT()
   return (
     <div className="readonly-view" id={id} data-readonly-field>
       <pre>{pretty(value)}</pre>
-      <span className="muted">{note}</span>
+      <span className="muted">{note ?? t('read-only — managed via the API')}</span>
     </div>
   )
 }
 
 /** Source: the raw text, verbatim and read-only (its source of truth lives elsewhere). */
 export function SourceView({id, value}: {id: string; value: unknown}) {
+  const t = useT()
   return (
     <div className="readonly-view source" id={id} data-readonly-field>
       <pre>{value == null || value === '' ? '—' : String(value)}</pre>
-      <span className="muted">read-only — edited at its source, not in the Studio</span>
+      <span className="muted">{t('read-only — edited at its source, not in the Studio')}</span>
     </div>
   )
 }
@@ -54,6 +58,7 @@ export function SourceView({id, value}: {id: string; value: unknown}) {
  * Home/End jump, and only the selected tab is in the Tab order.
  */
 export function LocalizedTextInput({id, languages, fallbackChain = [], value, onChange, readOnly}: {id: string; languages: string[]; fallbackChain?: string[]; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean}) {
+  const t = useT()
   const map = value && typeof value === 'object' ? (value as Record<string, string>) : {}
   const langs = languages.length ? languages : Object.keys(map)
   const primary = fallbackChain.find((l) => langs.includes(l)) ?? langs[0]
@@ -90,11 +95,11 @@ export function LocalizedTextInput({id, languages, fallbackChain = [], value, on
             aria-selected={l === lang}
             aria-controls={`${id}-panel`}
             tabIndex={l === lang ? 0 : -1}
-            title={l === primary ? `${l} (primary)` : l}
+            title={l === primary ? t('{lang} (primary)', {lang: l}) : l}
             onClick={() => setChosen(l)}
           >
             {l}
-            {map[l] ? <span className="filled" aria-label=", has text" /> : null}
+            {map[l] ? <span className="filled" aria-label={t(', has text')} /> : null}
           </button>
         ))}
       </div>
@@ -102,7 +107,7 @@ export function LocalizedTextInput({id, languages, fallbackChain = [], value, on
         <LocalText
           key={lang}
           id={`${id}.${lang}`}
-          label={`${lang}${lang === primary ? ' (primary)' : ''}`}
+          label={lang === primary ? t('{lang} (primary)', {lang}) : lang}
           value={map[lang] ?? ''}
           readOnly={readOnly}
           onChange={(text) => {
@@ -116,7 +121,7 @@ export function LocalizedTextInput({id, languages, fallbackChain = [], value, on
       </div>
       {fallback && (
         <p className="localized-warning" role="status">
-          No {primary} text: readers get the {fallback} text instead.
+          {t('No {primary} text: readers get the {fallback} text instead.', {primary: primary ?? '', fallback})}
         </p>
       )}
     </div>

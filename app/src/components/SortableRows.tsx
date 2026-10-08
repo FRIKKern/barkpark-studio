@@ -4,6 +4,7 @@ import {useRevealed} from '../lib/reveal'
 import {Add, DragHandle, Ellipsis} from './icons'
 import {DocIdContext, fieldClipboard} from './Fields'
 import {FieldPresence} from './Presence'
+import {useT} from '../lib/i18n'
 
 // Sanity's array rows (J34 strings, J33 objects, J09 references): a drag handle
 // (pointer drag; or Space to pick up, arrows, Space to drop, Escape to cancel),
@@ -34,6 +35,7 @@ type Props<T> = {
 }
 
 export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, duplicate = (x) => x, onCopy, keyOf = (_, i) => i, onAdded, addLabel = 'Add item', extraActions, itemId}: Props<T>) {
+  const t = useT()
   // While a row is being moved: which row (original index), and where it is now.
   const [moving, setMoving] = useState<{from: number; to: number} | null>(null)
   const rows = useRef<HTMLDivElement>(null)
@@ -111,7 +113,7 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
   return (
     <div className="array-field" id={id}>
       <div ref={rows} className="array-box" role={items.length ? 'list' : undefined} aria-describedby={`${id}-dnd-help`}>
-        {items.length === 0 && <div className="array-empty">No items</div>}
+        {items.length === 0 && <div className="array-empty">{t('No items')}</div>}
         {order.slice(0, revealed).map((orig, i) => (
           <Row
             key={keyOf(items[orig]!, orig)}
@@ -127,14 +129,14 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
         ))}
       </div>
       <p id={`${id}-dnd-help`} hidden>
-        To pick up an item, press Space or Enter on its handle. Use the arrow keys to move it, Space or Enter to drop, Escape to cancel.
+        {t('To pick up an item, press Space or Enter on its handle. Use the arrow keys to move it, Space or Enter to drop, Escape to cancel.')}
       </p>
       <div className="menu-wrap add-item-wrap">
         <button type="button" className="add-item" disabled={readOnly} aria-haspopup={types ? 'menu' : undefined} aria-expanded={types ? adding : undefined} onClick={() => (types ? setAdding((a) => !a) : insert(items.length))}>
-          <Add /> {addLabel}
+          <Add /> {t(addLabel)}
         </button>
         {adding && types && (
-          <MenuPopover className="popover menu" onClose={() => setAdding(false)} aria-label={addLabel}>
+          <MenuPopover className="popover menu" onClose={() => setAdding(false)} aria-label={t(addLabel)}>
             <TypeItems types={types} pick={(type) => (setAdding(false), insert(items.length, type))} />
           </MenuPopover>
         )}
@@ -160,6 +162,7 @@ type RowProps<T> = {item: T; orig: number; at: number; moving: boolean; readOnly
 // One row. Re-renders when its item, place or state changes, or when the caller's
 // renderItem does (callers keep it steady with useCallback where it matters).
 const Row = memo(function Row<T>({item, orig, at, moving, readOnly, path, renderItem, act}: RowProps<T>) {
+  const t = useT()
   return (
     // J07: the item's own path, so focus in it shows as presence on this row (Sanity's).
     <div
@@ -174,7 +177,7 @@ const Row = memo(function Row<T>({item, orig, at, moving, readOnly, path, render
         type="button"
         className="icon-btn drag-handle"
         aria-roledescription="sortable"
-        aria-label={`Move item ${at + 1}`}
+        aria-label={t('Move item {n}', {n: at + 1})}
         aria-pressed={moving}
         disabled={readOnly}
         onKeyDown={act.key(at)}
@@ -206,6 +209,7 @@ export const reorder = <T,>(xs: T[], from: number, to: number) => {
 }
 
 function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string; run: () => void; last?: boolean}[]; onRemove: () => void; onCopy?: () => void; onDuplicate: () => void; types?: {value: string; title: string}[]; onAdd: (after: boolean, type?: string) => void}) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   // With several item types, "Add item before…" turns the menu into the type list (Sanity's).
   const [choosing, setChoosing] = useState<'before' | 'after' | null>(null)
@@ -215,7 +219,7 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
   const dots = props.types ? '...' : ''
   return (
     <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button id={props.id} type="button" className="icon-btn" aria-label="Item actions" aria-haspopup="menu" aria-expanded={open} disabled={props.disabled} onClick={() => (open ? close() : setOpen(true))}>
+      <button id={props.id} type="button" className="icon-btn" aria-label={t('Item actions')} aria-haspopup="menu" aria-expanded={open} disabled={props.disabled} onClick={() => (open ? close() : setOpen(true))}>
         <Ellipsis />
       </button>
       {open && choosing && props.types && (
@@ -226,7 +230,7 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
       {open && !choosing && (
         <MenuPopover onClose={close} aria-labelledby={props.id}>
           <button type="button" role="menuitem" className="menu-item danger" autoFocus onClick={pick(props.onRemove)}>
-            Remove
+            {t('Remove')}
           </button>
           {props.extra.filter((a) => !a.last).map((a) => (
             <button key={a.label} type="button" role="menuitem" className="menu-item" onClick={pick(a.run)}>
@@ -235,17 +239,19 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
           ))}
           {props.onCopy && (
             <button type="button" role="menuitem" className="menu-item" onClick={pick(props.onCopy)}>
-              Copy
+              {t('Copy')}
             </button>
           )}
           <button type="button" role="menuitem" className="menu-item" onClick={pick(props.onDuplicate)}>
-            Duplicate
+            {t('Duplicate')}
           </button>
           <button type="button" role="menuitem" className="menu-item" onClick={add(false)}>
-            Add item before{dots}
+            {t('Add item before')}
+            {dots}
           </button>
           <button type="button" role="menuitem" className="menu-item" onClick={add(true)}>
-            Add item after{dots}
+            {t('Add item after')}
+            {dots}
           </button>
           {props.extra.filter((a) => a.last).map((a) => (
             <button key={a.label} type="button" role="menuitem" className="menu-item" onClick={pick(a.run)}>

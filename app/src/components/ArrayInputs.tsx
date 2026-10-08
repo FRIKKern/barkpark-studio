@@ -2,6 +2,7 @@ import {useState} from 'react'
 import {copy} from '../lib/clipboard'
 import {Close as CloseIcon} from './icons'
 import {SortableRows} from './SortableRows'
+import {useT} from '../lib/i18n'
 
 // Arrays of plain strings (J34), after Sanity's two layouts. `options.layout:
 // "tags"` is a box of chips with an input (Enter adds; × removes). Otherwise a list
@@ -13,14 +14,15 @@ type Props = {id: string; value: unknown; onChange: (v: unknown) => void; readOn
 const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : [])
 
 export function TagsInput({id, value, onChange, readOnly}: Props) {
+  const t = useT()
   const tags = list(value)
   const [text, setText] = useState('')
   return (
     <div className="tags-box" onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.focus()}>
-      {tags.map((t, i) => (
+      {tags.map((tag, i) => (
         <span key={i} className="tag">
-          {t}
-          <button type="button" aria-label={`Remove ${t}`} disabled={readOnly} onClick={() => onChange(tags.filter((_, j) => j !== i))}>
+          {tag}
+          <button type="button" aria-label={t('Remove {tag}', {tag})} disabled={readOnly} onClick={() => onChange(tags.filter((_, j) => j !== i))}>
             <CloseIcon />
           </button>
         </span>
@@ -30,7 +32,7 @@ export function TagsInput({id, value, onChange, readOnly}: Props) {
         className="tags-input"
         value={text}
         readOnly={readOnly}
-        placeholder={tags.length ? undefined : 'Enter tag and press ENTER…'}
+        placeholder={tags.length ? undefined : t('Enter tag and press ENTER…')}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key !== 'Enter' || !text.trim()) return
@@ -44,6 +46,7 @@ export function TagsInput({id, value, onChange, readOnly}: Props) {
 }
 
 export function StringArrayInput({id, value, onChange, readOnly}: Props) {
+  const t = useT()
   const items = list(value)
   return (
     <SortableRows
@@ -53,7 +56,7 @@ export function StringArrayInput({id, value, onChange, readOnly}: Props) {
       readOnly={readOnly}
       blank={() => ''}
       onCopy={(v, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'string', value: v}})}
-      renderItem={(v, i) => <input id={`${id}[${i}]`} className="input" aria-label={`Item ${i + 1}`} value={v} readOnly={readOnly} onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))} />}
+      renderItem={(v, i) => <input id={`${id}[${i}]`} className="input" aria-label={t('Item {n}', {n: i + 1})} value={v} readOnly={readOnly} onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))} />}
     />
   )
 }

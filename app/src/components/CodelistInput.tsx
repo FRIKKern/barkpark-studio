@@ -2,6 +2,7 @@ import {useEffect, useMemo, useRef, useState, type KeyboardEvent} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {codelistQuery, flatten, search, type Code, type Codelist} from '../lib/codelists'
 import {CodeInput} from './NativeInputs'
+import {useT} from '../lib/i18n'
 
 // B05: a codelist field picks one code, as Barkpark's LiveView Studio does
 // (components/fields/codelist_field.ex, tree_codelist_field.ex): a select for a short
@@ -13,12 +14,13 @@ const SHORT = 100
 type Props = {id: string; codelistId?: string; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean}
 
 export function CodelistInput(props: Props) {
+  const t = useT()
   const {id, codelistId} = props
   const q = useQuery({...codelistQuery(codelistId ?? ''), enabled: !!codelistId})
   if (!codelistId || q.data === null)
     return (
       <select id={id} className="input" disabled>
-        <option>(no codelist registered: {codelistId ?? 'none'})</option>
+        <option>{t('(no codelist registered: {id})', {id: codelistId ?? 'none'})}</option>
       </select>
     )
   // Unreadable for now: the code as text, still editable.
@@ -26,13 +28,14 @@ export function CodelistInput(props: Props) {
   if (!q.data)
     return (
       <select id={id} className="input" disabled aria-busy="true">
-        <option>{typeof props.value === 'string' ? `${props.value} (loading the list…)` : 'Loading the list…'}</option>
+        <option>{typeof props.value === 'string' ? t('{code} (loading the list…)', {code: props.value}) : t('Loading the list…')}</option>
       </select>
     )
   return <Picker {...props} list={q.data} />
 }
 
 function Picker({id, value, onChange, readOnly, list}: Props & {list: Codelist}) {
+  const t = useT()
   const all = useMemo(() => flatten(list.values), [list])
   const tree = list.values.some((v) => v.children.length > 0)
   const code = typeof value === 'string' ? value : ''
@@ -41,8 +44,8 @@ function Picker({id, value, onChange, readOnly, list}: Props & {list: Codelist})
     const options = tree ? all.filter((c) => c.code.children.length === 0) : all
     return (
       <select id={id} className="input" value={code} disabled={readOnly} onChange={(e) => onChange(e.target.value || undefined)}>
-        <option value="">— Select —</option>
-        {code && !current && <option value={code}>{code} (not in the list)</option>}
+        <option value="">{t('— Select —')}</option>
+        {code && !current && <option value={code}>{t('{code} (not in the list)', {code})}</option>}
         {options.map(({code: c, path}) => (
           <option key={c.value} value={c.value}>
             {c.value} — {[...path.map((p) => p.label), c.label].join(' › ')}
@@ -57,6 +60,7 @@ function Picker({id, value, onChange, readOnly, list}: Props & {list: Codelist})
 
 /** A long flat list: type a code or a label, the browser offers matches (LiveView's datalist). */
 function FlatSearch({id, code, label, list, onChange, readOnly}: {id: string; code: string; label?: string; list: Codelist; onChange: (v: unknown) => void; readOnly?: boolean}) {
+  const t = useT()
   const [text, setText] = useState(code)
   const [seen, setSeen] = useState(code)
   if (code !== seen) (setSeen(code), setText(code))
@@ -69,7 +73,7 @@ function FlatSearch({id, code, label, list, onChange, readOnly}: {id: string; co
         value={text}
         readOnly={readOnly}
         spellCheck={false}
-        placeholder={`Search ${list.codelistId}…`}
+        placeholder={t('Search {list}…', {list: list.codelistId})}
         onChange={(e) => {
           const v = e.target.value.replace(/\s/g, '')
           setText(v)
@@ -81,7 +85,7 @@ function FlatSearch({id, code, label, list, onChange, readOnly}: {id: string; co
           <option key={c.value} value={c.value} label={c.label} />
         ))}
       </datalist>
-      {code && <span className={label ? 'codelist-label' : 'codelist-label invalid'}>{label ?? 'Not in the list'}</span>}
+      {code && <span className={label ? 'codelist-label' : 'codelist-label invalid'}>{label ?? t('Not in the list')}</span>}
     </div>
   )
 }
@@ -90,6 +94,7 @@ type Row = {code: Code; path: Code[]; level: number; open: boolean}
 
 /** A long tree (Thema): search codes or labels, or open branches; any code can be chosen. */
 function TreePicker({id, code, current, all, list, onChange, readOnly}: {id: string; code: string; current?: {code: Code; path: Code[]}; all: {code: Code; path: Code[]}[]; list: Codelist; onChange: (v: unknown) => void; readOnly?: boolean}) {
+  const t = useT()
   const [query, setQuery] = useState('')
   const [debounced, setDebounced] = useState('')
   useEffect(() => {
@@ -159,9 +164,9 @@ function TreePicker({id, code, current, all, list, onChange, readOnly}: {id: str
       {code && (
         <div className="codelist-current">
           <span className="mono">{code}</span>
-          <span className={label ? 'codelist-label' : 'codelist-label invalid'}>{label ?? 'Not in the list'}</span>
+          <span className={label ? 'codelist-label' : 'codelist-label invalid'}>{label ?? t('Not in the list')}</span>
           {!readOnly && (
-            <button type="button" className="icon-btn" aria-label="Remove code" onClick={() => onChange(undefined)}>
+            <button type="button" className="icon-btn" aria-label={t('Remove code')} onClick={() => onChange(undefined)}>
               ×
             </button>
           )}
@@ -172,7 +177,7 @@ function TreePicker({id, code, current, all, list, onChange, readOnly}: {id: str
           id={id}
           className="input"
           type="search"
-          placeholder="Search codes or labels…"
+          placeholder={t('Search codes or labels…')}
           aria-controls={`${id}-tree`} value={query}
           onChange={(e) => (setQuery(e.target.value), setActive(0))}
           // Down arrow goes into the list, as from a combobox.
@@ -180,12 +185,12 @@ function TreePicker({id, code, current, all, list, onChange, readOnly}: {id: str
         />
         {query && (
           <button type="button" className="btn" onClick={() => (setQuery(''), setDebounced(''))}>
-            Clear
+            {t('Clear')}
           </button>
         )}
       </div>
       {rows.length === 0 ? (
-        <p className="muted codelist-empty">{debounced.trim() ? `No matches for "${debounced.trim()}".` : 'No entries.'}</p>
+        <p className="muted codelist-empty">{debounced.trim() ? t('No matches for "{query}".', {query: debounced.trim()}) : t('No entries.')}</p>
       ) : (
         <ul id={`${id}-tree`} className="codelist-tree" role="tree" aria-label={list.name}>
           {rows.map((r, i) => {
@@ -221,7 +226,7 @@ function TreePicker({id, code, current, all, list, onChange, readOnly}: {id: str
           })}
         </ul>
       )}
-      {debounced.trim() && hits.length === 200 && <p className="muted codelist-empty">The first 200 matches. Type more to narrow them.</p>}
+      {debounced.trim() && hits.length === 200 && <p className="muted codelist-empty">{t('The first 200 matches. Type more to narrow them.')}</p>}
     </div>
   )
 }

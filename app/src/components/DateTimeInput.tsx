@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useFocusScope} from '../lib/focus-scope'
 import {Calendar, ChevronLeft, ChevronRight, ChevronDown} from './icons'
+import {intlTag, useLocale, useT, type Locale} from '../lib/i18n'
 
 // Sanity's date-time input (J31): a text field in local time ("2026-09-06 11:00")
 // that commits on blur or Enter when it parses (half-typed dates never land), plus a calendar popover — month select, year
@@ -22,10 +23,18 @@ export function parseLocal(text: string): Date | undefined {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// In Norwegian, the names come from Intl (2023-01: a January that starts on a Sunday).
+const monthNames = (locale: Locale) =>
+  locale === 'en' ? MONTHS : MONTHS.map((_, i) => new Date(2023, i, 1).toLocaleString(intlTag(locale), {month: 'long'}))
+const dayNames = (locale: Locale) =>
+  locale === 'en' ? DAYS : DAYS.map((_, i) => new Date(2023, 0, 1 + i).toLocaleString(intlTag(locale), {weekday: 'short'}))
+const dayLabel = (d: Date, locale: Locale) =>
+  locale === 'en' ? d.toDateString() : d.toLocaleDateString(intlTag(locale), {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, d.getHours(), d.getMinutes())
 
 export function DateTimeInput({id, value, onChange, readOnly}: {id: string; value: string | undefined; onChange: (v: unknown) => void; readOnly?: boolean}) {
+  const t = useT()
   const stored = value ? new Date(value) : undefined
   const shown = stored ? formatLocal(stored) : ''
   // Like TextInput: the box owns what is typed; a new value from outside wins.
@@ -57,7 +66,7 @@ export function DateTimeInput({id, value, onChange, readOnly}: {id: string; valu
           id={id}
           className="input"
           autoComplete="off"
-          placeholder={`e.g. ${formatLocal(new Date())}`}
+          placeholder={t('e.g. {example}', {example: formatLocal(new Date())})}
           value={text}
           readOnly={readOnly}
           aria-invalid={invalid || undefined}
@@ -65,13 +74,13 @@ export function DateTimeInput({id, value, onChange, readOnly}: {id: string; valu
           onBlur={() => typed()}
           onKeyDown={(e) => e.key === 'Enter' && typed()}
         />
-        <button ref={button} type="button" className="icon-btn" aria-label="Select date" title="Select date" disabled={readOnly} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <button ref={button} type="button" className="icon-btn" aria-label={t('Select date')} title={t('Select date')} disabled={readOnly} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           <Calendar />
         </button>
       </div>
       {invalid && (
         <p className="field-error" role="alert">
-          Not a valid date. Use the format {formatLocal(new Date(2026, 8, 6, 11, 0))}.
+          {t('Not a valid date. Use the format {format}.', {format: formatLocal(new Date(2026, 8, 6, 11, 0))})}
         </p>
       )}
       {open && (
@@ -86,6 +95,8 @@ export function DateTimeInput({id, value, onChange, readOnly}: {id: string; valu
 }
 
 function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) => void; onClose: () => void}) {
+  const t = useT()
+  const locale = useLocale()
   const [focused, setFocused] = useState(() => value ?? new Date())
   const [year, setYear] = useState(String(focused.getFullYear()))
   const [time, setTime] = useState(value ? `${pad(value.getHours())}:${pad(value.getMinutes())}` : '00:00')
@@ -129,26 +140,26 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
       ref={(el) => ((root.current = el), scope(el))}
       className="popover datepicker"
       role="dialog"
-      aria-label="Select date"
+      aria-label={t('Select date')}
     >
       <div className="dp-head">
         <span className="dp-month">
-          <select aria-label="Month" value={focused.getMonth()} onChange={(e) => setFocused(new Date(focused.getFullYear(), Number(e.target.value), Math.min(focused.getDate(), 28)))}>
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i}>
+          <select aria-label={t('Month')} value={focused.getMonth()} onChange={(e) => setFocused(new Date(focused.getFullYear(), Number(e.target.value), Math.min(focused.getDate(), 28)))}>
+            {monthNames(locale).map((m, i) => (
+              <option key={i} value={i}>
                 {m}
               </option>
             ))}
           </select>
           <ChevronDown />
         </span>
-        <button type="button" className="icon-btn" aria-label="Go to previous year" onClick={() => moveMonth(-12)}>
+        <button type="button" className="icon-btn" aria-label={t('Go to previous year')} onClick={() => moveMonth(-12)}>
           <ChevronLeft />
         </button>
         <input
           className="dp-year"
           inputMode="numeric"
-          aria-label="Year"
+          aria-label={t('Year')}
           value={year}
           onChange={(e) => {
             setYear(e.target.value)
@@ -156,13 +167,13 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
             if (/^\d{4}$/.test(e.target.value)) setFocused(new Date(y, focused.getMonth(), Math.min(focused.getDate(), 28)))
           }}
         />
-        <button type="button" className="icon-btn" aria-label="Go to next year" onClick={() => moveMonth(12)}>
+        <button type="button" className="icon-btn" aria-label={t('Go to next year')} onClick={() => moveMonth(12)}>
           <ChevronRight />
         </button>
       </div>
       <div className="dp-grid" ref={grid} onKeyDown={onGridKey}>
-        {DAYS.map((d) => (
-          <span key={d} className="dp-weekday">
+        {dayNames(locale).map((d, i) => (
+          <span key={i} className="dp-weekday">
             {d}
           </span>
         ))}
@@ -173,7 +184,7 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
             <button
               key={d.toDateString()}
               type="button"
-              aria-label={d.toDateString()}
+              aria-label={dayLabel(d, locale)}
               aria-pressed={selected}
               data-testid={`calendar-day-${d.toDateString().replaceAll(' ', '-')}`}
               data-outside={d.getMonth() !== focused.getMonth() || undefined}
@@ -192,7 +203,7 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
         <span className="dp-time">
           <input
             type="time"
-            aria-label="Select time"
+            aria-label={t('Select time')}
             value={time}
             onChange={(e) => {
               setTime(e.target.value)
@@ -212,7 +223,7 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
             onPick(now)
           }}
         >
-          Set to current time
+          {t('Set to current time')}
         </button>
       </div>
     </div>

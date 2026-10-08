@@ -3,6 +3,7 @@ import {useQueryClient} from '@tanstack/react-query'
 import {createFileRoute, useNavigate} from '@tanstack/react-router'
 import {devSignIn, meQuery} from '../lib/session'
 import {useHydratedMark} from '../lib/hydrated'
+import {useT} from '../lib/i18n'
 
 // Dev-only sign-in (server/auth.ts): names who you are; no password yet.
 // The seated test editors are studio-editor-{a..d}@example.com.
@@ -13,6 +14,7 @@ export const Route = createFileRoute('/login')({
 
 function Login() {
   useHydratedMark()
+  const t = useT()
   const {redirect} = Route.useSearch()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -39,8 +41,8 @@ function Login() {
         }}
       >
         <h1>Barkpark Studio</h1>
-        <p className="dev-badge">Dev sign-in — no password. Never enabled in a production build.</p>
-        <label htmlFor="email">Your email</label>
+        <p className="dev-badge">{t('Dev sign-in — no password. Never enabled in a production build.')}</p>
+        <label htmlFor="email">{t('Your email')}</label>
         <input id="email" className="input" type="email" list="editors" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} />
         <datalist id="editors">
           {['a', 'b', 'c', 'd'].map((x) => (
@@ -53,7 +55,7 @@ function Login() {
           </p>
         )}
         <button className="publish" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? t('Signing in…') : t('Sign in')}
         </button>
       </form>
     </main>

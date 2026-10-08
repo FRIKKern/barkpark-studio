@@ -6,6 +6,7 @@ import {formatPreview, previewRefs} from '../lib/preview'
 import {DocumentIcon} from './icons'
 import {PaneLink} from './PaneLink'
 import {ago} from './HistoryPanel'
+import {useLocale, useT} from '../lib/i18n'
 import {useTip} from './Tip'
 
 /**
@@ -94,6 +95,8 @@ export function RefPreview({type, id, href, selected, active}: {type: string; id
  * published", then "Edited just now" or "No unpublished edits".
  */
 function Status({doc}: {doc: Doc}) {
+  const t = useT()
+  const locale = useLocale()
   const published = doc._hasPublished !== false
   const line = (label: string, when: string, dot: string) => (
     <span className="tip-status">
@@ -106,8 +109,8 @@ function Status({doc}: {doc: Doc}) {
   )
   const {anchor, tip} = useTip(() => (
     <>
-      {line('Published', published ? (doc._publishedAt ? `Published ${ago(doc._publishedAt)}` : 'Published') : 'Not published', published ? 'dot published' : 'dot off')}
-      {line('Draft', doc._draft ? `Edited ${ago(doc._updatedAt)}` : 'No unpublished edits', doc._draft ? 'dot draft' : 'dot off')}
+      {line(t('Published'), published ? (doc._publishedAt ? t('Published {ago}', {ago: ago(doc._publishedAt, locale)}) : t('Published')) : t('Not published'), published ? 'dot published' : 'dot off')}
+      {line(t('Draft'), doc._draft ? t('Edited {ago}', {ago: ago(doc._updatedAt, locale)}) : t('No unpublished edits'), doc._draft ? 'dot draft' : 'dot off')}
     </>
   ))
   return (

@@ -7,6 +7,7 @@ import type {Doc, Schema} from '../lib/data'
 import {Braces, ClipboardIcon, Clock, Copy, Ellipsis, Share} from './icons'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
+import {t as tt, useT} from '../lib/i18n'
 
 /** Sanity names the Alt key "Option" on a Mac in its shortcut chips; known only in the browser. */
 export function useAltName() {
@@ -29,14 +30,18 @@ export function Keys({keys}: {keys: string[]}) {
 /** Copy the document's URL or ID, confirmed with Sanity's toast. */
 function useCopyRef(doc: Doc, after: () => void) {
   const scoped = useScopedHref()
-  const put = (text: string, what: string) => {
+  // Runs on a click (browser only): the global translate.
+  const put = (text: string, done: string, failed: string) => {
     void navigator.clipboard
       ?.writeText(text)
-      .then(() => toast({title: `${what} copied to clipboard`}))
-      .catch(() => toast({tone: 'critical', title: `Could not copy ${what.toLowerCase()}`}))
+      .then(() => toast({title: tt(done)}))
+      .catch(() => toast({tone: 'critical', title: tt(failed)}))
     after()
   }
-  return {url: () => put(`${location.origin}${scoped(`/structure/${doc._type};${doc._publishedId}`)}`, 'Document URL'), id: () => put(doc._id, 'Document ID')}
+  return {
+    url: () => put(`${location.origin}${scoped(`/structure/${doc._type};${doc._publishedId}`)}`, 'Document URL copied to clipboard', 'Could not copy document url'),
+    id: () => put(doc._id, 'Document ID copied to clipboard', 'Could not copy document id'),
+  }
 }
 
 /**
@@ -47,25 +52,26 @@ function useCopyRef(doc: Doc, after: () => void) {
  * moves only what fits.
  */
 export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void; onHistory: () => void}) {
+  const t = useT()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const alt = useAltName()
   return (
     <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label="Show document actions" data-tip="Show more" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={t('Show document actions')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
         <MenuPopover onClose={close}>
           <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (close(), onHistory())}>
             <span className="menu-icon-text">
-              <Clock /> History
+              <Clock /> {t('History')}
             </span>
           </button>
           <button type="button" role="menuitem" className="menu-item" aria-keyshortcuts="Control+Alt+I" onClick={() => (close(), onInspect())}>
             <span className="menu-icon-text">
-              <Braces /> Inspect
+              <Braces /> {t('Inspect')}
             </span>
             <Keys keys={['Ctrl', alt, 'I']} />
           </button>
@@ -80,7 +86,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
             }}
           >
             <span className="menu-icon-text">
-              <Copy /> Copy document
+              <Copy /> {t('Copy document')}
             </span>
           </button>
           <button
@@ -91,17 +97,17 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
             onClick={() => {
               close()
               const clip = read()
-              if (clip?.kind !== 'document') return toast({tone: 'critical', title: 'Nothing to paste', description: 'Copy a document first'})
+              if (clip?.kind !== 'document') return toast({tone: 'critical', title: tt('Nothing to paste'), description: tt('Copy a document first')})
               const matching = schema.fields.flatMap((f) => {
                 const from = clip.fields.find((c) => c.name === f.name)
                 return from && from.value !== undefined && fits(from.sig, from.value, f) ? [[f.name, from.value] as const] : []
               })
-              if (!matching.length) return toast({tone: 'critical', title: 'Invalid clipboard item', description: 'Source and target schema types are not compatible'})
+              if (!matching.length) return toast({tone: 'critical', title: tt('Invalid clipboard item'), description: tt('Source and target schema types are not compatible')})
               for (const [name, value] of matching) edit(qc, doc, name, value)
             }}
           >
             <span className="menu-icon-text">
-              <ClipboardIcon /> Paste document
+              <ClipboardIcon /> {t('Paste document')}
             </span>
           </button>
         </MenuPopover>
@@ -116,21 +122,22 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
  * deep link to the document.
  */
 export function DocShareMenu({doc}: {doc: Doc}) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const copyRef = useCopyRef(doc, close)
   return (
     <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label="Share document" data-tip="Share" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={t('Share document')} data-tip={t('Share')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Share />
       </button>
       {open && (
         <MenuPopover onClose={close}>
           <button type="button" role="menuitem" className="menu-item" autoFocus onClick={copyRef.url}>
-            Copy document URL
+            {t('Copy document URL')}
           </button>
           <button type="button" role="menuitem" className="menu-item" onClick={copyRef.id}>
-            Copy document ID
+            {t('Copy document ID')}
           </button>
         </MenuPopover>
       )}

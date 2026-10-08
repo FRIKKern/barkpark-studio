@@ -24,6 +24,7 @@ import {AvatarStack} from './Presence'
 import {usePresences, type Presence} from '../lib/presence'
 import {PaneLink} from './PaneLink'
 import {PaneBoundary, ReadErrorCard} from './PaneError'
+import {t as tBrowser, useT} from '../lib/i18n'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -58,7 +59,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     const save = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 's') return
       e.preventDefault()
-      toast({key: 'auto-save-message', title: 'Your work is automatically saved!'})
+      toast({key: 'auto-save-message', title: tBrowser('Your work is automatically saved!')})
     }
     addEventListener('keydown', save)
     return () => removeEventListener('keydown', save)
@@ -135,11 +136,12 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
 /** J42: in a narrow window, the way back: the URL without this pane's group (Sanity's BackLink). */
 function BackLink({panes, index}: {panes: Pane[]; index: number}) {
   const narrow = useContext(NarrowContext)
+  const t = useT()
   if (!narrow || index === 0) return null
   let start = index
   while (start > 1 && (panes[start] as {sibling?: boolean}).sibling) start--
   return (
-    <PaneLink href={panesPath(panes.slice(0, start))} className="icon-btn back-link" aria-label="Back" data-testid="pane-back">
+    <PaneLink href={panesPath(panes.slice(0, start))} className="icon-btn back-link" aria-label={t('Back')} data-testid="pane-back">
       <ArrowLeft />
     </PaneLink>
   )
@@ -153,6 +155,7 @@ function useDeskNode(id: string | undefined): DeskNode | undefined {
 }
 
 function usePaneTitle(pane: Pane) {
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: desk} = useQuery(deskQuery)
   const node = useDeskNode(pane.kind === 'types' ? undefined : pane.node)
@@ -164,16 +167,16 @@ function usePaneTitle(pane: Pane) {
   const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && known && !published})
   const {data: live} = useQuery({...publishedQuery(type, id), enabled: pane.kind === 'doc' && known && published})
   const doc = published ? live : draft
-  if (pane.kind === 'types') return desk?.title ?? 'Content'
+  if (pane.kind === 'types') return desk?.title ?? t('Content')
   if (pane.kind === 'menu') return node?.title ?? pane.node
   if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type))
-  if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? 'Unknown pane type'
+  if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? t('Unknown pane type')
   const schema = schemaOf(schemas, pane.type)
-  if (!schema) return 'Unknown document type'
-  if (doc === null) return 'The document was not found'
+  if (!schema) return t('Unknown document type')
+  if (doc === null) return t('The document was not found')
   // A desk singleton is named by its desk row (Sanity's S.document().title()).
   if (pane.node && node?.title) return node.title
-  return doc && schema ? docTitle(doc, schema) : previewTitle(doc, schema)
+  return doc && schema ? docTitle(doc, schema, t) : previewTitle(doc, schema)
 }
 
 /** The last pane owns the tab title, including cached edits and browser history. */
@@ -187,13 +190,14 @@ function TabTitle({pane}: {pane: Pane}) {
 }
 
 function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => void}) {
+  const t = useT()
   const title = usePaneTitle(pane)
   return (
     <div
       className="pane strip"
       role="button"
       tabIndex={0}
-      aria-label={`Expand ${title}`}
+      aria-label={t('Expand {title}', {title})}
       data-testid="pane-strip"
       data-pane-index={index}
       data-pane-collapsed=""
@@ -207,6 +211,7 @@ function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => 
 
 function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   // e2e probe (J50): this pane throws while rendering, as a bug would.
   if ((globalThis as {__crashPane?: string}).__crashPane === paneKey(pane)) throw new Error(`e2e probe: ${paneKey(pane)} crashed`)
@@ -215,20 +220,25 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   // J02: Sanity's words. A document of a type the schema lacks, or a list pane of one.
   if (!schemaOf(schemas, pane.type)) return (
     <section className="pane" data-pane-index={index}>
-      <header className="pane-header"><BackLink panes={panes} index={index} /><span className="title">{pane.kind === 'doc' ? 'Unknown document type' : 'Unknown pane type'}</span></header>
+      <header className="pane-header"><BackLink panes={panes} index={index} /><span className="title">{pane.kind === 'doc' ? t('Unknown document type') : t('Unknown pane type')}</span></header>
       <div className="pane-body pane-not-found">
         {pane.kind === 'doc' ? (
           <>
-            <h2>Unknown document type: <code>{pane.type}</code></h2>
-            <p>This document has the schema type <code>{pane.type}</code>, which is not defined as a type in the local content studio schema.</p>
+            <h2>{t('Unknown document type:')} <code>{pane.type}</code></h2>
+            <p>
+              {t('This document has the schema type')} <code>{pane.type}</code>
+              {t(', which is not defined as a type in the local content studio schema.')}
+            </p>
           </>
         ) : (
           <>
-            <h2>Unknown pane type</h2>
-            <p>Structure item of type <code>{pane.type}</code> is not a known entity.</p>
+            <h2>{t('Unknown pane type')}</h2>
+            <p>
+              {t('Structure item of type')} <code>{pane.type}</code> {t('is not a known entity.')}
+            </p>
           </>
         )}
-        <PaneLink className="btn" href={closeFrom(panes, index)}>Go back</PaneLink>
+        <PaneLink className="btn" href={closeFrom(panes, index)}>{t('Go back')}</PaneLink>
       </div>
     </section>
   )
@@ -277,14 +287,15 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
   const next = panes[index + 1]
   const selected = next && (next.kind === 'menu' || next.kind === 'list' || next.kind === 'doc') ? next.node : undefined
   const isRoot = panes[index].kind === 'types'
+  const t = useT()
   return (
-    <section className="pane types" aria-label={node?.title ?? (isRoot ? 'Content' : 'List')} data-testid="pane" data-pane={isRoot ? 'types' : `menu:${node?.id ?? ''}`} data-pane-index={index}>
+    <section className="pane types" aria-label={node?.title ?? (isRoot ? t('Content') : t('List'))} data-testid="pane" data-pane={isRoot ? 'types' : `menu:${node?.id ?? ''}`} data-pane-index={index}>
       <header className="pane-header">
         <BackLink panes={panes} index={index} />
-        <span className="title">{node?.title ?? (isRoot ? 'Content' : '')}</span>
+        <span className="title">{node?.title ?? (isRoot ? t('Content') : '')}</span>
       </header>
       <div className="pane-body">
-        {!node && <p className="list-empty">This list is not in the desk</p>}
+        {!node && <p className="list-empty">{t('This list is not in the desk')}</p>}
         {node?.items?.map((item, i) => {
           if (item.type === 'divider') return item.title ? <div key={item.id ?? i} className="desk-divider">{item.title}</div> : <hr key={item.id ?? i} className="desk-divider" />
           const target = opens(item)
@@ -306,6 +317,7 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
 }
 
 function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; selected?: string}) {
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   // Sanity's default structure: one row per document type, in schema order.
   const order = ['post', 'author', 'category']
@@ -316,9 +328,9 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   // each opening its one document (id = the type's name).
   const singletons = schemas.filter((s) => s.singleton)
   return (
-    <section className="pane types" aria-label="Content" data-testid="pane" data-pane="types" data-pane-index={index}>
+    <section className="pane types" aria-label={t('Content')} data-testid="pane" data-pane="types" data-pane-index={index}>
       <header className="pane-header">
-        <span className="title">Content</span>
+        <span className="title">{t('Content')}</span>
       </header>
       <div className="pane-body">
         {types.map((s) => (
@@ -329,7 +341,7 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
             </span>
           </PaneLink>
         ))}
-        {singletons.length > 0 && <div className="desk-divider">Settings</div>}
+        {singletons.length > 0 && <div className="desk-divider">{t('Settings')}</div>}
         {singletons.map((s) => (
           <PaneLink key={s.name} className="type-row" href={openAfter(panes, index, {kind: 'doc', id: s.name, type: s.name, node: s.name})} aria-current={selected === s.name && index === panes.length - 2} data-selected={selected === s.name ? '' : undefined}>
             {s.title}
@@ -350,6 +362,7 @@ function listSearchText(value: unknown): string {
 }
 
 function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {panes: Pane[]; index: number; type: string; node?: string; treeParent?: string; selected?: string}) {
+  const t = useT()
   const {canWrite, createReason} = useCanWrite()
   const {data: schemas = []} = useQuery(schemasQuery)
   const qc = useQueryClient()
@@ -432,7 +445,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
   const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())
   const pick = (d: Doc) => {
-    if (!picked.has(d._publishedId) && picked.size >= MAX_SELECTED) return toast({tone: 'caution', title: `Selection limit reached (${MAX_SELECTED})`})
+    if (!picked.has(d._publishedId) && picked.size >= MAX_SELECTED) return toast({tone: 'caution', title: t('Selection limit reached ({max})', {max: MAX_SELECTED})})
     setPicked((m) => {
       const next = new Map(m)
       if (!next.delete(d._publishedId)) next.set(d._publishedId, d)
@@ -450,8 +463,16 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     if (!isLastPane || !docs || !searchComplete) return
     const q = query.trim()
     const text = q
-      ? shown.length ? `${shown.length} ${shown.length === 1 ? 'result' : 'results'} for ${q}` : 'No results found'
-      : `${listTitle}, ${docs.length}${page?.hasMore ? ' or more' : ''} ${docs.length === 1 ? 'document' : 'documents'}`
+      ? shown.length
+        ? shown.length === 1
+          ? t('1 result for {q}', {q})
+          : t('{n} results for {q}', {n: shown.length, q})
+        : t('No results found')
+      : page?.hasMore
+        ? t('{title}, {n} or more documents', {title: listTitle, n: docs.length})
+        : docs.length === 1
+          ? t('{title}, 1 document', {title: listTitle})
+          : t('{title}, {n} documents', {title: listTitle, n: docs.length})
     if (text !== heard.current) (heard.current = text, announce(text))
   }, [isLastPane, docs, shown.length, searchComplete, query, listTitle, page?.hasMore])
   return (
@@ -463,9 +484,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {!isSingleton(schemas, type) && <button
           type="button"
           className="icon-btn"
-          aria-label={`Create new ${schemaOf(schemas, type)?.title ?? type}`}
+          aria-label={t('Create new {type}', {type: schemaOf(schemas, type)?.title ?? type})}
           disabled={!canWrite}
-          data-tip="Create new document"
+          data-tip={t('Create new document')}
           title={canWrite ? undefined : createReason}
           onClick={() => {
             // J18: a new doc opens in the next pane with the type's initial values;
@@ -474,7 +495,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             // block list from the layout and fills it from the prefill (neither reaches us).
             const id = crypto.randomUUID()
             if (editorMode(type, schemaOf(schemas, type)) !== 'none')
-              void createDoc(qc, type, id, {}).catch((err) => toast({tone: 'critical', title: 'Could not create the document', description: (err as Error).message}))
+              void createDoc(qc, type, id, {}).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
             else draftNew(qc, type, id, schemaOf(schemas, type)?.initialValues ?? {})
             void navigate({href: openAfter(panes, index, {kind: 'doc', id, type})})
             focusFirstField(id)
@@ -491,41 +512,45 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         <input
           ref={searchInput}
           type="search"
-          aria-label="Search list"
-          placeholder="Search list"
+          aria-label={t('Search list')}
+          placeholder={t('Search list')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
         />
         {query && (
-          <button type="button" className="icon-btn search-clear" aria-label="Clear search" onClick={() => { searchInput.current?.focus(); setQuery('') }}>
+          <button type="button" className="icon-btn search-clear" aria-label={t('Clear search')} onClick={() => { searchInput.current?.focus(); setQuery('') }}>
             <Close />
           </button>
         )}
       </div>
-      {query && <div className="sorted-by">Sorted by relevance</div>}
-      {query.trim() && filter && page?.hasMore && <p className="list-empty" role="status">Search covers the {page.docs.length} loaded documents in this list. Clear search and scroll to load more.</p>}
+      {query && <div className="sorted-by">{t('Sorted by relevance')}</div>}
+      {query.trim() && filter && page?.hasMore && (
+        <p className="list-empty" role="status">
+          {t('Search covers the {n} loaded documents in this list. Clear search and scroll to load more.', {n: page.docs.length})}
+        </p>
+      )}
       <div className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}>
-        {!readable && <p className="list-empty">This list filters with {missingOps.join(', ')}, which Barkpark's query API does not offer yet</p>}
+        {!readable && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: missingOps.join(', ')})}</p>}
         {treeParent && parentDoc && (
           <>
             <DocPreview doc={parentDoc} href={openAfter(panes, index, {kind: 'doc', id: treeParent, type})} selected={selected === treeParent} active={index === panes.length - 2} testId="pane-item" />
-            <div className="desk-divider">{docs ? `${docs.length} under ${previewTitle(parentDoc, schemaOf(schemas, type))}` : ''}</div>
+            <div className="desk-divider">{docs ? t('{n} under {title}', {n: docs.length, title: previewTitle(parentDoc, schemaOf(schemas, type))}) : ''}</div>
           </>
         )}
-        {searchOffline ? <p className="list-empty" role="status">You're offline. Reconnect to search all documents.</p> : searchFailed ? (
+        {searchOffline ? <p className="list-empty" role="status">{t("You're offline. Reconnect to search all documents.")}</p> : searchFailed ? (
           <div className="list-search-error" role="alert">
-            <p>Could not search all documents. Retry to see all matches.</p>
-            <button type="button" className="btn" onClick={() => { searchInput.current?.focus(); void searchQ.refetch() }}>Retry search</button>
+            <p>{t('Could not search all documents. Retry to see all matches.')}</p>
+            <button type="button" className="btn" onClick={() => { searchInput.current?.focus(); void searchQ.refetch() }}>{t('Retry search')}</button>
           </div>
-        ) : searchPending && <p className="list-empty" role="status">Searching all documents…</p>}
+        ) : searchPending && <p className="list-empty" role="status">{t('Searching all documents…')}</p>}
         {readable && !page &&
           (listQ.failureCount > 0 ? (
-            <ReadErrorCard title="Could not fetch list items" error={listQ.failureReason ?? listQ.error} failures={listQ.failureCount} retrying={listQ.fetchStatus !== 'idle'} onRetry={() => void listQ.refetch()} />
+            <ReadErrorCard title={t('Could not fetch list items')} error={listQ.failureReason ?? listQ.error} failures={listQ.failureCount} retrying={listQ.fetchStatus !== 'idle'} onRetry={() => void listQ.refetch()} />
           ) : (
             <ListSkeleton />
           ))}
-        {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty">{query.trim() ? 'No results found' : 'No documents of this type'}</p>}
+        {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty">{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" aria-label={listTitle} className="rows-list">
         {shown.map((d) => {
@@ -544,7 +569,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           return (
             <div key={d._publishedId} role="listitem" className="bulk-row" data-picked={picked.has(d._publishedId) || undefined}>
               <label className="bulk-check">
-                <input type="checkbox" aria-label={`Select ${previewTitle(d, schemaOf(schemas, type))}`} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
+                <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type))})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
               </label>
               {row}
             </div>
@@ -554,8 +579,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
         {!query && page?.hasMore && limit >= LIST_MAX && (
           listQ.isPlaceholderData
-            ? <p className="list-max" role="status" aria-busy="true">Loading more documents…</p>
-            : <p className="list-max">Displaying a maximum of {LIST_MAX} documents</p>
+            ? <p className="list-max" role="status" aria-busy="true">{t('Loading more documents…')}</p>
+            : <p className="list-max">{t('Displaying a maximum of {max} documents', {max: LIST_MAX})}</p>
         )}
       </div>
       {picked.size > 0 && <BulkBar picked={pickedDocs} onClear={() => setPicked(new Map())} />}
@@ -565,8 +590,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
 
 /** Sanity's loading list: placeholder rows in the shape of the real ones. */
 function ListSkeleton() {
+  const t = useT()
   return (
-    <div className="list-loading" aria-busy="true" aria-label="Loading documents" data-testid="list-loading">
+    <div className="list-loading" aria-busy="true" aria-label={t('Loading documents')} data-testid="list-loading">
       {Array.from({length: 30}, (_, i) => (
         <div key={i} className="preview skeleton">
           <span className="media" />
@@ -581,9 +607,9 @@ function ListSkeleton() {
 }
 
 /** Sanity's default "Sort by …" names the field the row's title comes from ("Name" for authors). */
-const titleFieldTitle = (schema: Schema | undefined) => {
+const titleFieldTitle = (schema: Schema | undefined, t: (en: string) => string) => {
   const name = schema?.listPreview?.title ?? 'title'
-  return schema?.fields.find((f) => f.name === name)?.title ?? 'Title'
+  return schema?.fields.find((f) => f.name === name)?.title ?? t('Title')
 }
 
 /** J55: compare by an order expression ("publishedAt:desc,title:asc"), the way the server sorts; empty values last. */
@@ -610,6 +636,7 @@ function byOrder(sort: string) {
  * declares any, else "Sort by <title field>"; then last edited, created; layout.
  */
 function ListMenu({schema, sort, view, set}: {schema: Schema | undefined; sort: Sort; view: View; set: (p: {sort?: Sort; view?: View}) => void}) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -639,23 +666,23 @@ function ListMenu({schema, sort, view, set}: {schema: Schema | undefined; sort: 
         if (e.key === 'ArrowUp' && open) (e.preventDefault(), items[(i - 1 + items.length) % items.length]?.focus())
       }}
     >
-      <button type="button" className="icon-btn" aria-label="List options" data-tip="Show more" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={t('List options')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
         <MenuPopover onClose={() => setOpen(false)}>
-          <div className="menu-label">Actions</div>
+          <div className="menu-label">{t('Actions')}</div>
           {schema?.orderings?.length
-            ? schema.orderings.map((o) => <Fragment key={o.name}>{item(`Sort by ${o.title}`, sort === orderingSort(o), () => set({sort: orderingSort(o)}), false, <SortIcon />)}</Fragment>)
-            : item(`Sort by ${titleFieldTitle(schema)}`, sort === 'title', () => set({sort: 'title'}), false, <SortIcon />)}
-          {item('Sort by Last Edited', sort === 'updated', () => set({sort: 'updated'}), false, <SortIcon />)}
-          {item('Sort by Created', sort === 'created', () => set({sort: 'created'}), false, <SortIcon />)}
-          {item('Default sort', false, () => set({sort: DEFAULT_SORT}), sort === DEFAULT_SORT)}
+            ? schema.orderings.map((o) => <Fragment key={o.name}>{item(t('Sort by {field}', {field: o.title}), sort === orderingSort(o), () => set({sort: orderingSort(o)}), false, <SortIcon />)}</Fragment>)
+            : item(t('Sort by {field}', {field: titleFieldTitle(schema, t)}), sort === 'title', () => set({sort: 'title'}), false, <SortIcon />)}
+          {item(t('Sort by Last Edited'), sort === 'updated', () => set({sort: 'updated'}), false, <SortIcon />)}
+          {item(t('Sort by Created'), sort === 'created', () => set({sort: 'created'}), false, <SortIcon />)}
+          {item(t('Default sort'), false, () => set({sort: DEFAULT_SORT}), sort === DEFAULT_SORT)}
           <hr />
-          <div className="menu-label">Layout</div>
-          {item('Compact view', view === 'compact', () => set({view: 'compact'}), false, <StackCompact />)}
-          {item('Detailed view', view === 'detailed', () => set({view: 'detailed'}), false, <Stack />)}
-          {item('Default view', false, () => set({view: DEFAULT_VIEW}), view === DEFAULT_VIEW)}
+          <div className="menu-label">{t('Layout')}</div>
+          {item(t('Compact view'), view === 'compact', () => set({view: 'compact'}), false, <StackCompact />)}
+          {item(t('Detailed view'), view === 'detailed', () => set({view: 'detailed'}), false, <Stack />)}
+          {item(t('Default view'), false, () => set({view: DEFAULT_VIEW}), view === DEFAULT_VIEW)}
         </MenuPopover>
       )}
     </div>

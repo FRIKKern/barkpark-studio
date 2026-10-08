@@ -26,7 +26,11 @@ export type OpName = 'contains' | 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | '
 export type Unit = 'days' | 'months' | 'years'
 export type SearchFilter = {id: string; field: string; op: OpName; value?: string; to?: string; unit?: Unit; label?: string}
 
-/** The operator menu ("name") and the chip ("description") wording, Sanity's. */
+/** The Studio's translate function (lib/i18n), passed in by the render; English by default. */
+export type Translate = (en: string, vars?: Record<string, string | number>) => string
+export const english: Translate = (en, vars) => (vars ? en.replace(/\{(\w+)\}/g, (all, k: string) => (k in vars ? String(vars[k]) : all)) : en)
+
+/** The operator menu ("name") and the chip ("description") wording, Sanity's (English; translated where shown). */
 export const OPS: Record<OpName, {name: string; desc: string; symbol?: string}> = {
   contains: {name: 'contains', desc: 'contains'},
   eq: {name: 'is', desc: 'is'},
@@ -98,6 +102,9 @@ export function schemaFields(s: Schema): FilterField[] {
   return out
 }
 
+/** A field's title as shown: the document dates are ours to translate, schema titles are the author's. */
+export const fieldTitle = (f: FilterField, t: Translate = english) => (f.builtin ? t(f.title) : f.title)
+
 const byTitle = (a: FilterField, b: FilterField) => a.title.localeCompare(b.title) || (a.parent ?? '').localeCompare(b.parent ?? '') || a.path.localeCompare(b.path)
 
 /** Every field of these schemas once, the types that have it merged (the "All fields" list). */
@@ -118,14 +125,14 @@ export type Section = {title?: string; fields: FilterField[]}
  * with types picked, "Shared fields" (in two or more of them) and one list per type.
  * A typed filter keeps only titles that match.
  */
-export function filterMenu(schemas: Schema[], types: string[], find: string): Section[] {
+export function filterMenu(schemas: Schema[], types: string[], find: string, t: Translate = english): Section[] {
   const q = find.trim().toLowerCase()
-  const keep = (fs: FilterField[]) => (q ? fs.filter((f) => f.title.toLowerCase().includes(q)) : fs)
+  const keep = (fs: FilterField[]) => (q ? fs.filter((f) => fieldTitle(f, t).toLowerCase().includes(q)) : fs)
   const picked = schemas.filter((s) => types.includes(s.name)).sort((a, b) => a.title.localeCompare(b.title))
   const sections: Section[] = [{fields: BUILTINS}]
-  if (!picked.length || q) sections.push({title: 'All fields', fields: allFields(picked.length ? picked : schemas)})
+  if (!picked.length || q) sections.push({title: t('All fields'), fields: allFields(picked.length ? picked : schemas)})
   else {
-    if (picked.length > 1) sections.push({title: 'Shared fields', fields: allFields(picked).filter((f) => f.types.length > 1)})
+    if (picked.length > 1) sections.push({title: t('Shared fields'), fields: allFields(picked).filter((f) => f.types.length > 1)})
     for (const s of picked) sections.push({title: s.title, fields: schemaFields(s).sort(byTitle)})
   }
   return sections.map((s) => ({...s, fields: keep(s.fields)})).filter((s) => s.fields.length)
@@ -140,31 +147,37 @@ export const newFilter = (field: FilterField, id: string): SearchFilter => {
 export const isComplete = (f: SearchFilter) =>
   f.op === 'defined' || f.op === 'notDefined' || (f.op === 'range' ? !!f.value && !!f.to : !!f.value)
 
-const fmtDate = (v: string, kind: Kind) => {
+const fmtDate = (v: string, kind: Kind, tag: string) => {
   const d = new Date(kind === 'date' ? `${v}T00:00` : v)
   if (Number.isNaN(d.getTime())) return v
   return kind === 'date'
-    ? d.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
-    : d.toLocaleString('en-US', {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'})
+    ? d.toLocaleDateString(tag, {month: 'short', day: 'numeric', year: 'numeric'})
+    : d.toLocaleString(tag, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'})
 }
 
-/** The chip: "Field" until it can apply, then "Field operator value". */
-export function filterLabel(f: SearchFilter, field: FilterField | undefined): {field: string; op?: string; value?: string} {
-  const name = field?.title ?? f.field.split(':')[0]!
+// "7 days", "1 month": the unit word with its count, one message each so it can be translated.
+const UNIT: Record<Unit, [string, string]> = {days: ['{n} day', '{n} days'], months: ['{n} month', '{n} months'], years: ['{n} year', '{n} years']}
+
+/**
+ * The chip: "Field" until it can apply, then "Field operator value". `t` and `tag`
+ * (an Intl locale for dates) come from the render; English by default.
+ */
+export function filterLabel(f: SearchFilter, field: FilterField | undefined, t: Translate = english, tag = 'en-US'): {field: string; op?: string; value?: string} {
+  const name = field ? fieldTitle(field, t) : f.field.split(':')[0]!
   if (!field || !isComplete(f)) return {field: name}
   const v = (s: string) =>
-    field.kind === 'date' || field.kind === 'datetime' ? fmtDate(s, f.op === 'eq' ? 'date' : field.kind)
+    field.kind === 'date' || field.kind === 'datetime' ? fmtDate(s, f.op === 'eq' ? 'date' : field.kind, tag)
       : field.kind === 'select' ? field.options?.find((o) => o.value === s)?.title ?? s
-        : field.kind === 'boolean' ? (s === 'true' ? 'True' : 'False')
+        : field.kind === 'boolean' ? (s === 'true' ? t('True') : t('False'))
           : field.kind === 'reference' ? f.label ?? s
             : s
   const value =
-    f.op === 'defined' ? 'not empty'
-      : f.op === 'notDefined' ? 'empty'
-        : f.op === 'last' ? `${f.value} ${Number(f.value) === 1 ? f.unit!.slice(0, -1) : f.unit}`
+    f.op === 'defined' ? t('not empty')
+      : f.op === 'notDefined' ? t('empty')
+        : f.op === 'last' ? t(UNIT[f.unit ?? 'days'][Number(f.value) === 1 ? 0 : 1], {n: f.value!})
           : f.op === 'range' ? `${v(f.value!)} → ${v(f.to!)}`
             : v(f.value!)
-  return {field: name, op: OPS[f.op].desc, value}
+  return {field: name, op: t(OPS[f.op].desc), value}
 }
 export const labelText = (l: ReturnType<typeof filterLabel>) => [l.field, l.op, l.value].filter(Boolean).join(' ')
 

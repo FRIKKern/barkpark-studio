@@ -7,6 +7,7 @@ import {PaneLink} from './PaneLink'
 import {Close as CloseIcon, Copy, DocumentIcon, Download, InfoOutline, Ellipsis, ErrorOutline, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
 import type {Field} from '../lib/data'
 import {assetUrl} from '../lib/image'
+import {useLocale, useT} from '../lib/i18n'
 import {accepts, ago, formatBytes, humanBytes, mayAccept, mimeTitle, type FileAsset} from '../lib/files'
 
 // J54, after Sanity's file input: an empty box ("Drag or paste file here",
@@ -38,6 +39,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   const ref = file.asset?._ref
   const accept = (field.options as {accept?: string} | undefined)?.accept
   const info = useFileInfo(ref)
+  const t = useT()
   const [uploading, setUploading] = useState<string | null>(null)
   const [failed, setFailed] = useState<File | null>(null)
   const [over, setOver] = useState<'ok' | 'rejected' | null>(null)
@@ -54,11 +56,11 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
       const body = new FormData()
       body.append('file', f)
       const res = await fetch('/api/media/upload', {method: 'POST', body})
-      if (!res.ok) throw new Error(`The server answered ${res.status}.`)
+      if (!res.ok) throw new Error(t('The server answered {status}.', {status: res.status}))
       use(((await res.json()) as {ref: string}).ref)
     } catch (err) {
       setFailed(f)
-      toast({tone: 'critical', title: 'Upload failed', description: err instanceof TypeError ? 'The network is unreachable.' : 'The upload could not be completed at this time.'})
+      toast({tone: 'critical', title: t('Upload failed'), description: err instanceof TypeError ? t('The network is unreachable.') : t('The upload could not be completed at this time.')})
     } finally {
       setUploading(null)
     }
@@ -66,7 +68,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   const take = (list: File[]) => {
     const ok = list.find((f) => accepts(accept, f))
     if (ok) void upload(ok)
-    else if (list.length) toast({tone: 'critical', title: "Can't upload this file here"})
+    else if (list.length) toast({tone: 'critical', title: t("Can't upload this file here")})
     return !!ok
   }
   const target = readOnly
@@ -86,11 +88,11 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
     <div className="drop-overlay" aria-live="polite" data-rejected={over === 'rejected' || undefined}>
       {over === 'rejected' ? (
         <>
-          <ErrorOutline /> Can't upload this file here
+          <ErrorOutline /> {t("Can't upload this file here")}
         </>
       ) : (
         <>
-          <Upload /> Drop to upload file
+          <Upload /> {t('Drop to upload file')}
         </>
       )}
     </div>
@@ -104,46 +106,46 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
       <input ref={setChooser} type="file" accept={accept} hidden onChange={(e) => (e.target.files?.[0] && upload(e.target.files[0]), (e.target.value = ''))} />
       {!ref || uploading ? (
         // Focusable so a paste has somewhere to land.
-        <div className="file-box empty" tabIndex={readOnly ? undefined : 0} aria-label={`${title}: drop, paste or upload a file`} data-uploading={uploading ? '' : undefined} {...target}>
+        <div className="file-box empty" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop, paste or upload a file', {title})} data-uploading={uploading ? '' : undefined} {...target}>
           {overlay}
           {uploading ? (
             <span className="hint" role="status">
-              <DocumentIcon /> Uploading {uploading}…
+              <DocumentIcon /> {t('Uploading {name}…', {name: uploading})}
             </span>
           ) : failed ? (
             <span className="hint failed" role="alert">
-              <ErrorOutline /> Upload failed
+              <ErrorOutline /> {t('Upload failed')}
             </span>
           ) : (
             <span className="hint">
-              <DocumentIcon /> {readOnly ? 'Read only' : 'Drag or paste file here'}
+              <DocumentIcon /> {readOnly ? t('Read only') : t('Drag or paste file here')}
             </span>
           )}
           {!uploading && (
             <span className="file-actions">
               {failed && (
                 <button type="button" className="btn ghost" onClick={() => upload(failed)}>
-                  <Undo /> Retry
+                  <Undo /> {t('Retry')}
                 </button>
               )}
               <button type="button" className="btn ghost" disabled={readOnly} onClick={pick}>
-                <Upload /> Upload
+                <Upload /> {t('Upload')}
               </button>
               <button type="button" className="btn ghost" disabled={readOnly} onClick={() => setBrowsing(true)}>
-                <SearchIcon /> Select
+                <SearchIcon /> {t('Select')}
               </button>
             </span>
           )}
         </div>
       ) : (
-        <div className="file-box" tabIndex={readOnly ? undefined : 0} aria-label={`${title}: drop or paste a file to replace it`} {...target}>
+        <div className="file-box" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste a file to replace it', {title})} {...target}>
           {overlay}
           <span className="file-icon">
             <DocumentIcon />
           </span>
           <span className="file-text">
             {info.isError ? (
-              <span className="file-name">File unavailable</span>
+              <span className="file-name">{t('File unavailable')}</span>
             ) : (
               <>
                 <span className="file-name">{name ?? '…'}</span>
@@ -152,32 +154,32 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
             )}
           </span>
           <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}>
-            <button id={`${id}-menuButton`} type="button" className="icon-btn" aria-label="Open file options menu" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+            <button id={`${id}-menuButton`} type="button" className="icon-btn" aria-label={t('Open file options menu')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
               <Ellipsis />
             </button>
             {menu && (
               <MenuPopover className="popover menu image-menu file-menu" onClose={() => setMenu(false)} aria-labelledby={`${id}-menuButton`}>
                 <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), pick())}>
-                  <Upload /> Upload
+                  <Upload /> {t('Upload')}
                 </button>
                 <hr />
                 <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), setBrowsing(true))}>
-                  <SearchIcon /> Select
+                  <SearchIcon /> {t('Select')}
                 </button>
                 <a role="menuitem" className="menu-item" href={url} download={name ?? true} onClick={() => setMenu(false)}>
-                  <Download /> Download
+                  <Download /> {t('Download')}
                 </a>
                 <button
                   type="button"
                   role="menuitem"
                   className="menu-item"
-                  onClick={() => (setMenu(false), navigator.clipboard.writeText(new URL(url!, location.href).href).then(() => toast({title: 'The URL is copied to the clipboard'})))}
+                  onClick={() => (setMenu(false), navigator.clipboard.writeText(new URL(url!, location.href).href).then(() => toast({title: t('The URL is copied to the clipboard')})))}
                 >
-                  <Copy /> Copy URL
+                  <Copy /> {t('Copy URL')}
                 </button>
                 <hr />
                 <button type="button" role="menuitem" className="menu-item danger" disabled={readOnly} onClick={() => (setMenu(false), onChange(undefined))}>
-                  <Reset /> Clear field
+                  <Reset /> {t('Clear field')}
                 </button>
               </MenuPopover>
             )}
@@ -195,6 +197,8 @@ function FilePicker({title, path, accept, openRef, onPick, onClose}: {title: str
     queryKey: ['media-files', accept ?? ''],
     queryFn: () => fetch(`/api/media/files${accept ? `?accept=${encodeURIComponent(accept)}` : ''}`).then((r) => (r.ok ? (r.json() as Promise<FileAsset[]>) : Promise.reject(new Error(`files → ${r.status}`)))),
   })
+  const t = useT()
+  const locale = useLocale()
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [usageOf, setUsageOf] = useState<FileAsset | null>(null)
   return (
@@ -202,28 +206,28 @@ function FilePicker({title, path, accept, openRef, onPick, onClose}: {title: str
       <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
         <DialogBox className="dialog asset-dialog file-dialog" aria-modal="true" aria-labelledby={`${path}-files-title`} onClose={onClose}>
           <header>
-            <h2 id={`${path}-files-title`}>Select file for "{title}"</h2>
-            <button type="button" className="icon-btn" aria-label="Close dialog" onClick={onClose}>
+            <h2 id={`${path}-files-title`}>{t('Select file for "{title}"', {title})}</h2>
+            <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
               <CloseIcon />
             </button>
           </header>
           <div className="dialog-body">
             {accept && (
               <p className="accept-note">
-                <InfoOutline /> Only showing assets of accepted types: <strong>{accept}</strong>
+                <InfoOutline /> {t('Only showing assets of accepted types:')} <strong>{accept}</strong>
               </p>
             )}
-            {isPending && <p className="muted">Loading files…</p>}
-            {error && <p role="alert">Could not load the files: {(error as Error).message}</p>}
+            {isPending && <p className="muted">{t('Loading files…')}</p>}
+            {error && <p role="alert">{t('Could not load the files: {message}', {message: (error as Error).message})}</p>}
             {files && (
               <table className="file-table">
                 <thead>
                   <tr>
-                    <th>Filename</th>
-                    <th>Size</th>
-                    <th>Type</th>
-                    <th>Date added</th>
-                    <th aria-label="Actions" />
+                    <th>{t('Filename')}</th>
+                    <th>{t('Size')}</th>
+                    <th>{t('Type')}</th>
+                    <th>{t('Date added')}</th>
+                    <th aria-label={t('Actions')} />
                   </tr>
                 </thead>
                 <tbody>
@@ -235,18 +239,18 @@ function FilePicker({title, path, accept, openRef, onPick, onClose}: {title: str
                             <DocumentIcon /> {f.name}
                           </button>
                         </td>
-                        <td>{humanBytes(f.size)}</td>
-                        <td>{mimeTitle(f.mimeType)}</td>
-                        <td>{f.createdAt && ago(f.createdAt)}</td>
+                        <td>{humanBytes(f.size, locale)}</td>
+                        <td>{t(mimeTitle(f.mimeType))}</td>
+                        <td>{f.createdAt && ago(f.createdAt, Date.now(), locale)}</td>
                         <td>
                           <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenuFor(null)}>
-                            <button id={`file-${f.id}-menuButton`} type="button" className="icon-btn" aria-label={`${f.name}: more`} aria-haspopup="menu" aria-expanded={menuFor === f.id} onClick={() => setMenuFor(menuFor === f.id ? null : f.id)}>
+                            <button id={`file-${f.id}-menuButton`} type="button" className="icon-btn" aria-label={t('{name}: more', {name: f.name})} aria-haspopup="menu" aria-expanded={menuFor === f.id} onClick={() => setMenuFor(menuFor === f.id ? null : f.id)}>
                               <Ellipsis />
                             </button>
                             {menuFor === f.id && (
                               <MenuPopover className="popover menu image-menu" onClose={() => setMenuFor(null)} aria-labelledby={`file-${f.id}-menuButton`}>
                                 <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenuFor(null), setUsageOf(f))}>
-                                  <LinkIcon /> Show usage
+                                  <LinkIcon /> {t('Show usage')}
                                 </button>
                               </MenuPopover>
                             )}
@@ -267,21 +271,22 @@ function FilePicker({title, path, accept, openRef, onPick, onClose}: {title: str
 }
 
 function FileUsage({file, path, openRef, onClose, onOpen}: {file: FileAsset; path: string; openRef: OpenRef; onClose: () => void; onOpen: () => void}) {
+  const t = useT()
   const {data: uses, isPending} = useQuery({queryKey: ['media-usage', file.id], queryFn: () => fetch(`/api/media/${encodeURIComponent(file.id)}/usage`).then((r) => r.json() as Promise<{_id: string; _type: string; title?: string}[]>)})
   return (
     <div className="dialog-backdrop nested" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <DialogBox className="dialog usage-dialog" aria-modal="true" aria-label="Documents using file" onClose={onClose}>
+      <DialogBox className="dialog usage-dialog" aria-modal="true" aria-label={t('Documents using file')} onClose={onClose}>
         <header>
-          <h2>Documents using file</h2>
-          <button type="button" className="icon-btn" aria-label="Close dialog" onClick={onClose}>
+          <h2>{t('Documents using file')}</h2>
+          <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
             <CloseIcon />
           </button>
         </header>
         <div className="dialog-body">
-          {isPending && <p className="muted">Looking…</p>}
+          {isPending && <p className="muted">{t('Looking…')}</p>}
           {uses?.length === 0 && (
             <h3 className="usage-none">
-              No documents are using file <code>{file.name}</code>
+              {t('No documents are using file')} <code>{file.name}</code>
             </h3>
           )}
           {!!uses?.length && (
@@ -289,7 +294,7 @@ function FileUsage({file, path, openRef, onClose, onOpen}: {file: FileAsset; pat
               {uses.map((u) => (
                 <li key={u._id} onClick={onOpen}>
                   <PaneLink href={openRef(u._type, u._id, path).href}>
-                    <DocumentIcon /> {u.title || 'Untitled'} <span className="muted">{u._type}</span>
+                    <DocumentIcon /> {u.title || t('Untitled')} <span className="muted">{u._type}</span>
                   </PaneLink>
                 </li>
               ))}

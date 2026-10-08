@@ -23,6 +23,7 @@ import {invalidValue, keyProblem, richTextProblem} from '../lib/broken'
 import {PortableDocEditor} from './PortableDocEditor'
 import {PortableDocView} from './PortableDocView'
 import {modKey, useTip} from './Tip'
+import {t as tBrowser, useT} from '../lib/i18n'
 
 // Field rendering for the document form: one component per Barkpark field type.
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
@@ -56,9 +57,10 @@ const LEVEL_WORD: Record<Level, string> = {error: 'Validation error', warning: '
 
 /** Sanity's mark for an error, warning or info: one icon per level, the message on hover. */
 export function LevelIcon({level, label}: {level: Level; label?: string}) {
+  const t = useT()
   const Icon = LEVEL_ICON[level]
   return (
-    <span className="error-icon" data-level={level} role="img" aria-label={label ?? LEVEL_WORD[level]} title={label}>
+    <span className="error-icon" data-level={level} role="img" aria-label={label ?? t(LEVEL_WORD[level])} title={label}>
       <Icon />
     </span>
   )
@@ -66,11 +68,12 @@ export function LevelIcon({level, label}: {level: Level; label?: string}) {
 
 /** The mark beside a field label; `within`: also what a collapsed object hides. */
 export function ProblemMark({path, within}: {path: string; within?: boolean}) {
+  const t = useT()
   const all = useContext(ProblemsContext).filter((p) => p.path === path || (within && p.path.startsWith(`${path}.`)))
   const level = worst(all)
   if (!level) return null
   const problem = all.find((p) => p.level === level)!
-  return <LevelIcon level={level} label={`${LEVEL_WORD[level]}: ${problem.message}`} />
+  return <LevelIcon level={level} label={`${t(LEVEL_WORD[level])}: ${problem.message}`} />
 }
 
 /**
@@ -169,7 +172,8 @@ function FieldBody(props: FieldProps) {
 
 /** Sanity's change bar (J15): a thin line beside a field the draft changed; it opens Review changes. */
 function ChangeBar({onClick}: {onClick: () => void}) {
-  return <button type="button" className="change-bar" aria-label="Review changes" title="Review changes" onClick={onClick} />
+  const t = useT()
+  return <button type="button" className="change-bar" aria-label={t('Review changes')} title={t('Review changes')} onClick={onClick} />
 }
 
 /**
@@ -186,15 +190,16 @@ function ChangeBar({onClick}: {onClick: () => void}) {
 export const fieldClipboard = new WeakMap<Element, {copy: () => void; paste?: () => void}>()
 
 function FieldActions({field, value, onChange, readOnly}: FieldProps) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const doCopy = () => copy({kind: 'field', field: {name: field.name, sig: signature(field), value}})
   const doPaste = () => {
     const clip = read()
     const item = clip?.kind === 'field' ? clip.field : undefined
-    if (!item) return toast({tone: 'critical', title: 'Nothing to paste', description: 'Copy a field first'})
+    if (!item) return toast({tone: 'critical', title: tBrowser('Nothing to paste'), description: tBrowser('Copy a field first')})
     if (!fits(item.sig, item.value, field))
-      return toast({tone: 'critical', title: 'Invalid clipboard item', description: 'Source and target schema types are not compatible'})
+      return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: tBrowser('Source and target schema types are not compatible')})
     onChange(item.value)
   }
   const latest = useRef({doCopy, doPaste, readOnly})
@@ -205,11 +210,11 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
   }
   return (
     <div ref={register} className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label="Field actions" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
-        <MenuPopover onClose={close} aria-label="Field actions">
+        <MenuPopover onClose={close} aria-label={t('Field actions')}>
           <button
             type="button"
             role="menuitem"
@@ -221,7 +226,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
             }}
           >
             <span className="menu-icon-text">
-              <Copy /> Copy field
+              <Copy /> {t('Copy field')}
             </span>
           </button>
           <button
@@ -235,7 +240,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
             }}
           >
             <span className="menu-icon-text">
-              <ClipboardIcon /> Paste field
+              <ClipboardIcon /> {t('Paste field')}
             </span>
           </button>
         </MenuPopover>
@@ -248,6 +253,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
 // the same way. Editable now: string, slug, text, number, datetime, boolean,
 // object subfields, references (search + pick). Arrays and rich text: J09/J10.
 function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProps) {
+  const t = useT()
   const editPath = useContext(EditPathContext)
   const invalid = useContext(ProblemsContext).some((p) => p.path === path && p.level === 'error')
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
@@ -368,7 +374,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       return <FileInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
     default:
       // A type this Studio has no editor for: never "[object Object]".
-      return value !== null && typeof value === 'object' ? <ReadOnlyJson id={path} value={value} note="read-only — no editor for this field type yet" /> : <input id={path} className="input" readOnly value={str} />
+      return value !== null && typeof value === 'object' ? <ReadOnlyJson id={path} value={value} note={t('read-only — no editor for this field type yet')} /> : <input id={path} className="input" readOnly value={str} />
   }
 }
 
@@ -422,6 +428,7 @@ const slugify = (s: string) =>
 
 /** A slug: a text input plus Sanity's Generate, from the field named in options.source. */
 function SlugInput({id, value, onChange, source, readOnly}: {id: string; value: string; onChange: (v: unknown) => void; source?: string; readOnly?: boolean}) {
+  const t = useT()
   const doc = useContext(DocContext)
   const from = source && doc ? doc[source] : undefined
   const [, force] = useState(0)
@@ -436,7 +443,7 @@ function SlugInput({id, value, onChange, source, readOnly}: {id: string; value: 
           disabled={readOnly}
           onClick={() => typeof from === 'string' && from && (onChange(slugify(from)), force((n) => n + 1))}
         >
-          Generate
+          {t('Generate')}
         </button>
       )}
     </div>
@@ -460,6 +467,7 @@ function optionsOf(field: Field): Option[] {
  * clear button; otherwise a dropdown whose blank first option means "no value".
  */
 function SelectInput({id, field, value, onChange}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void}) {
+  const t = useT()
   const options = optionsOf(field)
   if (field.layout === 'radio')
     return (
@@ -473,7 +481,7 @@ function SelectInput({id, field, value, onChange}: {id: string; field: Field; va
           ))}
         </div>
         {value !== undefined && (
-          <button type="button" className="icon-btn" aria-label="Clear" title="Clear" onClick={() => onChange(undefined)}>
+          <button type="button" className="icon-btn" aria-label={t('Clear')} title={t('Clear')} onClick={() => onChange(undefined)}>
             <ClearCircle />
           </button>
         )}
@@ -548,6 +556,7 @@ export function RichText({id, value}: {id: string; value: unknown}) {
  * edit to the body just redraws.
  */
 function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value: unknown; vocabulary?: unknown; readOnly?: boolean}) {
+  const t = useT()
   const id = useContext(DocIdContext)
   const type = useContext(DocTypeContext)
   const [active, setActive] = useState(false)
@@ -561,10 +570,10 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
   const at = useRef<{block: string; offset: number} | null>(null)
   useEffect(() => {
     if (!active) return
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       const pm = box.current?.querySelector<HTMLElement>('.ProseMirror')
       if (!pm) return
-      clearInterval(t)
+      clearInterval(timer)
       if (pm.contains(document.activeElement)) return // the author got there first
       pm.focus()
       const sel = getSelection()
@@ -573,7 +582,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       if (target) sel.collapse(target.node, target.offset)
       else (sel.selectAllChildren(pm), sel.collapseToEnd())
     }, 30)
-    return () => clearInterval(t)
+    return () => clearInterval(timer)
   }, [active])
   if (!id || !type) return null
   const blocks = ((value as {blocks?: unknown[]} | undefined)?.blocks ?? []) as Parameters<typeof PortableDocView>[0]['blocks']
@@ -599,7 +608,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         {!readOnly && (
           <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />
         )}
-        <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">Empty</p>}</div>
+        <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">{t('Empty')}</p>}</div>
         {id && <BlockPresence docId={id} field={field} />}
       </div>
     )
@@ -639,7 +648,8 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
 
 /** The body's expand button; its tooltip names the hotkey (J35, Sanity's "Expand editor ⌘ Enter"). */
 function ExpandButton({expanded, ...rest}: {expanded: boolean} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const label = expanded ? 'Collapse editor' : 'Expand editor'
+  const t = useT()
+  const label = expanded ? t('Collapse editor') : t('Expand editor')
   const {anchor, tip} = useTip(() => (
     <span className="tip-line">
       {label}
