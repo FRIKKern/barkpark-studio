@@ -102,11 +102,13 @@ export const post = defineType({
         defineArrayMember({
           name: 'externalLink',
           type: 'object',
+          initialValue: {title: 'Read more'}, // J18: initial values on new array items
           fields: [defineField({name: 'title', type: 'string'}), defineField({name: 'url', type: 'url'})],
         }),
         defineArrayMember({
           name: 'docLink',
           type: 'object',
+          initialValue: {title: 'Read more'},
           fields: [
             defineField({name: 'title', type: 'string'}),
             defineField({name: 'target', type: 'reference', to: [{type: 'post'}]}),

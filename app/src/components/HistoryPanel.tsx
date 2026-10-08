@@ -64,7 +64,9 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
       <div role="tabpanel" aria-label={tab === 'review' ? 'Review changes' : 'History'}>
       {tab === 'review' ? review : <>
       {error && <p role="alert">Could not load the history: {String(error)}</p>}
-      <ul className="history-list" role="listbox" aria-label="Document revisions">
+      {/* A list of buttons, the shown revision aria-current: a listbox of options holding
+          buttons is axe's nested-interactive (F13); Sanity's has that. */}
+      <ul className="history-list" aria-label="Document revisions">
         {entries.flatMap((e, i) => {
           const open = expanded.has(e.revision.id)
           return [
@@ -93,13 +95,11 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
   )
 }
 
-/** One timeline entry: avatar with what-happened badge, the label and when. */
-export function Row({e, selected, child, plain, onPick, children}: {e: HistoryEntry; selected: boolean; child?: boolean; plain?: boolean; onPick: () => void; children?: ReactNode}) {
-  const name = `${e.revision.author} ${e.label} ${ago(e.revision.timestamp)}`
+/** One timeline entry: avatar with what-happened badge, the label and when; the shown one aria-current. */
+export function Row({e, selected, child, onPick, children}: {e: HistoryEntry; selected: boolean; child?: boolean; onPick: () => void; children?: ReactNode}) {
   return (
-    // `plain`: a list of buttons (the Review changes pickers), the picked one aria-current.
-    <li role={plain ? undefined : 'option'} aria-selected={plain ? undefined : selected} aria-label={plain ? undefined : name} data-current={plain && selected ? '' : undefined} data-child={child || undefined}>
-      <button type="button" onClick={onPick} aria-label={plain ? name : undefined} aria-current={plain && selected ? 'true' : undefined}>
+    <li data-current={selected ? '' : undefined} data-child={child || undefined}>
+      <button type="button" onClick={onPick} aria-label={`${e.revision.author} ${e.label} ${ago(e.revision.timestamp)}`} aria-current={selected ? 'true' : undefined}>
         <span className="avatar" title={e.revision.author}>
           {initials(e.revision.author)}
           <span className="badge" data-kind={BADGE[e.label] ?? 'edited'} />

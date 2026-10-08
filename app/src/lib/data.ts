@@ -38,6 +38,8 @@ export type Field = {
   group?: string
   /** A rule map or a list of them; `level` warning/info never blocks publish (J13). */
   validation?: Rule | Rule[]
+  /** J18: an array member's starting values (Sanity's initialValue on `of`). */
+  initialValue?: Record<string, unknown>
   /** localizedText (B04/B06): the languages it holds. */
   languages?: string[]
   /** localizedText: the order readers fall back through; its first is the primary language. */
