@@ -1215,3 +1215,9 @@ fieldset.object-field > .field-comments { top: -38px; }
 }
 /* J35: the body's expand button at phone width (F12). */
 @media (max-width: 768px) { .body-expand { width: 44px; height: 44px; top: 0; right: 0; } }
+/* J11: the canvas's slash menu (Barkpark's shell CSS). Its faint text (group labels,
+   hints) is 3.7:1 in both themes: re-bound to >= 4.5:1 on the active row too (axe
+   color-contrast). Items are 44 px tall at phone width (F12). */
+html[data-theme='light'] body .bp-slash-menu { --paper-ink-faint: #665e55; }
+html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
+@media (max-width: 768px) { body .bp-slash-item { min-height: 44px; } }
