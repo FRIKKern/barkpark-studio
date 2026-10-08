@@ -132,13 +132,13 @@
 <text x="912" y="642" font-size="19" font-weight="600">Plugins + Presentation</text>
 <path d="M912 662H1140" class="rule"/>
 <text x="912" y="694" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J37 Navbar shell</tspan></text>
-<text x="912" y="724" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">J38 Global search filters</tspan></text>
+<text x="912" y="724" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J38 Global search filters</tspan></text>
 <text x="912" y="754" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J39 Broken values</tspan></text>
 <text x="912" y="784" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J40 Comments and release…</tspan></text>
 <text x="912" y="814" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J45 Dark mode</tspan></text>
 <text x="912" y="844" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J46 Phone width</tspan></text>
-<text x="912" y="874" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J47 Screen reader pass J…</tspan></text>
-<text x="912" y="904" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J53 New Studio version w…</tspan></text>
+<text x="912" y="874" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">J47 Screen reader pass J…</tspan></text>
+<text x="912" y="904" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">J53 New Studio version w…</tspan></text>
 </g>
 <g data-track="freeform">
 <rect x="40" y="956" width="1120" height="244" rx="12" class="card"/>

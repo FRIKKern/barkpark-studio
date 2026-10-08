@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 21 changes, 7 tasks closed
+- **Today** · 22 changes, 7 tasks closed
+  - B11: closing the tab with unsaved or failed edits asks first ([#138](https://github.com/FRIKKern/barkpark-studio/pull/138))
+  - Done: [J53 [after] New Studio version while tabs are open: "ready to update" prompt, reload, nothing lost](https://github.com/FRIKKern/barkpark/issues/21926)
   - Done: [Barkpark canvas: after a remount in the same page, typing replaces the first block (a bound field block is lost)](https://github.com/FRIKKern/barkpark/issues/21916)
-  - J53: a new Studio version shows on Help — dot, "Reload to update", edits saved first ([#137](https://github.com/FRIKKern/barkpark-studio/pull/137))
-  - J54: a file field — upload with an accept filter, name and size, replace, select, download, clear ([#136](https://github.com/FRIKKern/barkpark-studio/pull/136))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
