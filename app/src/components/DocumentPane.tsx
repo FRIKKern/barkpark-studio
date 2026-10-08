@@ -334,6 +334,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {/* A doc still being created has no block list yet (D04): the canvas waits for it. */}
         {freeform && !!doc?._rev && (view === 'freeform' || canvasSeen === pane.id) && (
           <div hidden={view !== 'freeform'}>
+            {/* D11: the canvas is not live co-editing (decision 0004, Known limit): say so
+                when someone else has this doc open. */}
+            {here.length > 0 && (
+              <p className="pd-hint" role="note" data-testid="coediting-hint">
+                {here.length === 1 ? `${here[0]!.name} has` : `${here.length} others have`} this document open. Freeform has no shared carets. Their saved changes
+                appear when this canvas is idle. Avoid editing the same block at the same time.
+              </p>
+            )}
             <PortableDocEditor type={pane.type} id={pane.id} labels={fieldLabels} openDoc={(docId, docType) => navigate({href: openAfter(panes, index, {kind: 'doc', id: docId, type: docType})})} />
           </div>
         )}

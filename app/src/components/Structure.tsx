@@ -139,6 +139,7 @@ function useDeskNode(id: string | undefined): DeskNode | undefined {
 
 function usePaneTitle(pane: Pane) {
   const {data: schemas = []} = useQuery(schemasQuery)
+  const {data: desk} = useQuery(deskQuery)
   const node = useDeskNode(pane.kind === 'types' ? undefined : pane.node)
   const {data: treeParent} = useQuery({...docQuery(pane.kind === 'list' ? pane.type : '', pane.kind === 'list' ? pane.treeParent ?? '' : ''), enabled: pane.kind === 'list' && !!pane.treeParent})
   const published = usePublishedPerspective()
@@ -148,7 +149,7 @@ function usePaneTitle(pane: Pane) {
   const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && known && !published})
   const {data: live} = useQuery({...publishedQuery(type, id), enabled: pane.kind === 'doc' && known && published})
   const doc = published ? live : draft
-  if (pane.kind === 'types') return 'Content'
+  if (pane.kind === 'types') return desk?.title ?? 'Content'
   if (pane.kind === 'menu') return node?.title ?? pane.node
   if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type))
   if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? 'Type not found'
@@ -255,7 +256,7 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
     <section className="pane types" data-testid="pane" data-pane={isRoot ? 'types' : `menu:${node?.id ?? ''}`} data-pane-index={index}>
       <header className="pane-header">
         <BackLink panes={panes} index={index} />
-        <span className="title">{isRoot ? 'Content' : node?.title}</span>
+        <span className="title">{node?.title ?? (isRoot ? 'Content' : '')}</span>
       </header>
       <div className="pane-body">
         {!node && <p className="list-empty">This list is not in the desk</p>}
