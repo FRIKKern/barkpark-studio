@@ -4,7 +4,7 @@ import {useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
 import {historyQuery, revisionQuery, type Revision} from '../lib/history'
 import type {Doc, Schema} from '../lib/data'
-import {revisionDate} from './HistoryPanel'
+import {rangeDate} from './HistoryPanel'
 import {Undo} from './icons'
 import {assetUrl, type ImageValue} from '../lib/image'
 
@@ -27,17 +27,17 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
       <dl className="review-range">
         <div>
           <dt>From</dt>
-          <dd>{isPending ? '…' : drafts.at(-1) ? `Draft created: ${revisionDate(drafts.at(-1)!.timestamp)}` : published ? 'Published' : 'Not published'}</dd>
+          <dd>{isPending ? '…' : drafts.at(-1) ? `Draft created: ${rangeDate(drafts.at(-1)!.timestamp)}` : published ? 'Published' : 'Not published'}</dd>
         </div>
         <div>
           <dt>To</dt>
-          <dd>{isPending ? '…' : drafts[0] ? `Edited: ${revisionDate(drafts[0].timestamp)}` : 'Current draft'}</dd>
+          <dd>{isPending ? '…' : drafts[0] ? `Edited: ${rangeDate(drafts[0].timestamp)}` : 'Current draft'}</dd>
         </div>
       </dl>
       {changes.length === 0 ? (
         <div className="review-empty">
           <h3>There are no changes</h3>
-          <p className="muted">Edit the document to see a list of changes appear in this panel.</p>
+          <p className="muted">Edit the document or select an older version in the timeline to see a list of changes appear in this panel.</p>
         </div>
       ) : (
         <>

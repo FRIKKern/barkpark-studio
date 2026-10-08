@@ -9,15 +9,9 @@ import type {Doc} from './data'
 // Barkpark names who acted only by token id (task-d0c6a847e2a4658e); the studio
 // server turns the per-editor dev tokens' ids into their emails.
 
-export type Revision = {
-  id: string
-  action: string
-  status: 'draft' | 'published'
-  timestamp: string
-  title?: string
-  actorId?: string
-  author: string
-}
+export type {Revision} from './timeline'
+export {actionLabel, timeline, type HistoryEntry} from './timeline'
+import type {Revision} from './timeline'
 type RawRevision = {id: string; action: string; status: 'draft' | 'published'; timestamp: string; title?: string; actor_id?: string; actor_label?: string | null}
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -81,40 +75,5 @@ export const historyQuery = (type: string, id: string) =>
 export type RevisionDoc = {id: string; timestamp: string; action: string; content: Record<string, unknown>}
 export const revisionQuery = (id: string) =>
   queryOptions({queryKey: ['revision', id], staleTime: Infinity, queryFn: async () => (await fetchRevision({data: {id}})) as unknown as RevisionDoc | null})
-
-/** Sanity's words for what happened. A draft created on a published doc is the start of an edit. */
-export function actionLabel(r: Revision, older: Revision | undefined): string {
-  switch (r.action) {
-    case 'publish':
-      return 'Published'
-    case 'unpublish':
-      return 'Unpublished'
-    case 'delete':
-      return r.status === 'draft' ? 'Discarded draft' : 'Deleted'
-    case 'create':
-      return older ? 'Edited' : 'Draft created'
-    case 'restore':
-      return 'Restored'
-    default:
-      return 'Edited'
-  }
-}
-
-export type HistoryEntry = {revision: Revision; label: string; count: number}
-/**
- * The timeline, newest first, with a run of edits by one author folded into one
- * "Edited" entry (Sanity groups an editing session the same way). Each entry
- * points at its newest revision.
- */
-export function timeline(revisions: Revision[]): HistoryEntry[] {
-  const out: HistoryEntry[] = []
-  revisions.forEach((r, i) => {
-    const label = actionLabel(r, revisions[i + 1])
-    const last = out.at(-1)
-    if (last && label === 'Edited' && last.label === 'Edited' && last.revision.actorId === r.actorId) last.count++
-    else out.push({revision: r, label, count: 1})
-  })
-  return out
-}
 
 export type {Doc}

@@ -1,7 +1,9 @@
-import {memo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode} from 'react'
+import {memo, useContext, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {useRevealed} from '../lib/reveal'
 import {Add, DragHandle, Ellipsis} from './icons'
+import {DocIdContext} from './Fields'
+import {FieldPresence} from './Presence'
 
 // Sanity's array rows (J34 strings, J33 objects, J09 references): a drag handle
 // (pointer drag; or Space to pick up, arrows, Space to drop, Escape to cancel),
@@ -114,7 +116,7 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
             at={i}
             moving={moving?.from === orig}
             readOnly={readOnly}
-            menuId={`${itemId ? itemId(items[orig]!, orig) : `${id}[${i}]`}-menuButton`}
+            path={itemId ? itemId(items[orig]!, orig) : `${id}[${i}]`}
             renderItem={renderItem}
             act={act}
           />
@@ -141,13 +143,14 @@ type RowActions<T> = {
   extra: (item: T, orig: number) => {label: string; run: () => void; last?: boolean}[]
 }
 
-type RowProps<T> = {item: T; orig: number; at: number; moving: boolean; readOnly?: boolean; menuId: string; renderItem: (item: T, index: number) => ReactNode; act: RowActions<T>}
+type RowProps<T> = {item: T; orig: number; at: number; moving: boolean; readOnly?: boolean; path: string; renderItem: (item: T, index: number) => ReactNode; act: RowActions<T>}
 
 // One row. Re-renders when its item, place or state changes, or when the caller's
 // renderItem does (callers keep it steady with useCallback where it matters).
-const Row = memo(function Row<T>({item, orig, at, moving, readOnly, menuId, renderItem, act}: RowProps<T>) {
+const Row = memo(function Row<T>({item, orig, at, moving, readOnly, path, renderItem, act}: RowProps<T>) {
   return (
-    <div role="listitem" className="array-row" data-moving={moving || undefined}>
+    // J07: the item's own path, so focus in it shows as presence on this row (Sanity's).
+    <div role="listitem" className="array-row" data-moving={moving || undefined} data-presence-path={path}>
       <button
         type="button"
         className="icon-btn drag-handle"
@@ -161,8 +164,9 @@ const Row = memo(function Row<T>({item, orig, at, moving, readOnly, menuId, rend
         <DragHandle />
       </button>
       {renderItem(item, orig)}
+      <ItemPresence path={path} />
       <ItemMenu
-        id={menuId}
+        id={`${path}-menuButton`}
         disabled={readOnly}
         onRemove={() => act.remove(orig)}
         extra={act.extra(item, orig)}
@@ -223,4 +227,10 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
       )}
     </div>
   )
+}
+
+/** Who else is in this item (J07). */
+function ItemPresence({path}: {path: string}) {
+  const docId = useContext(DocIdContext)
+  return docId ? <FieldPresence docId={docId} path={path} /> : null
 }

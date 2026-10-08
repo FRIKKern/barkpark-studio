@@ -3,7 +3,7 @@
 // journeys (J16, J15). Fixture imports rewrite history, so `post-history` is not in
 // the seed: this script edits it through each backend's API, the way editors would.
 //
-//   node --env-file=.env scripts/reference-history.mjs
+//   SANITY_STUDIO_DATASET=e2e-local node --env-file=.env scripts/reference-history.mjs [--barkpark-only]
 //
 // Two authors on each side. Barkpark: BARKPARK_TOKEN, and a token the script mints
 // for studio-editor-b@example.com (BARKPARK_ADMIN_TOKEN, else BARKPARK_TOKEN, must be
@@ -44,8 +44,11 @@ const STEPS = [
 // writes: raw mutations leave a history the Studio can't rebuild ("Since: unknown
 // version", empty revisions, failing restore).
 const SANITY = 'https://ecu57yeh.api.sanity.io/v2025-02-19/data'
+// The reference's test dataset, never its production one (the e2e rig's rule too).
+const SANITY_DATASET = process.env.SANITY_STUDIO_DATASET || 'production'
+const BARKPARK_ONLY = process.argv.includes('--barkpark-only')
 async function act(token, actions, okStatuses = []) {
-  const res = await fetch(`${SANITY}/actions/production`, {method: 'POST', headers: {authorization: `Bearer ${token}`, 'content-type': 'application/json'}, body: JSON.stringify({actions})})
+  const res = await fetch(`${SANITY}/actions/${SANITY_DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${token}`, 'content-type': 'application/json'}, body: JSON.stringify({actions})})
   if (!res.ok && !okStatuses.includes(res.status)) fail(`sanity actions ${res.status} ${await res.text()}`)
 }
 async function sanityHistory() {
@@ -103,4 +106,5 @@ async function barkparkHistory() {
   console.log(`barkpark (${DATASET}): ${ID} has ${STEPS.length + 1} steps of history by two authors`)
 }
 
-await Promise.all([sanityHistory(), barkparkHistory()])
+if (!BARKPARK_ONLY && SANITY_DATASET === 'production') fail('Sanity writes need SANITY_STUDIO_DATASET=e2e-local (the reference test dataset); or pass --barkpark-only')
+await Promise.all([BARKPARK_ONLY ? undefined : sanityHistory(), barkparkHistory()])

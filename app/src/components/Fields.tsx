@@ -8,7 +8,7 @@ import {RefInput} from './RefInput'
 import {ChevronDown, ClearCircle, Ellipsis, ErrorOutline, Collapse, Expand} from './icons'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {toast} from './Toasts'
-import {FieldPresence} from './Presence'
+import {BlockPresence, FieldPresence} from './Presence'
 import {DateTimeInput} from './DateTimeInput'
 import {StringArrayInput, TagsInput} from './ArrayInputs'
 import {ObjectArrayInput} from './ObjectArrayInput'
@@ -535,6 +535,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
           </button>
         )}
         <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">Empty</p>}</div>
+        {id && <BlockPresence docId={id} field={field} />}
       </div>
     )
   // J35: expand over the document pane and back. The same canvas stays mounted (only
@@ -565,6 +566,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         {expanded ? <Collapse /> : <Expand />}
       </button>
       <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} />
+      {id && <BlockPresence docId={id} field={field} />}
     </div>
   )
 }

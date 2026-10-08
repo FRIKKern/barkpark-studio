@@ -123,6 +123,20 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     }
     requestAnimationFrame(tryFocus)
   }, [pane.path, pane.id, doc, schemaHere, group])
+  // J07: in the body canvas the caret moves between blocks without a focus event;
+  // the block it is in is this editor's presence (`body[_key=="p5"]`, Sanity's path).
+  useEffect(() => {
+    const on = () => {
+      const node = getSelection()?.focusNode
+      const el = node && (node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element))
+      if (!el || !paneRoot.current?.contains(el)) return
+      const block = el.closest('[data-bp-id]')
+      const canvas = el.closest('.body-canvas')
+      if (block && canvas?.id) reportFocus(pane.id, `${canvas.id}[_key=="${block.getAttribute('data-bp-id')}"]`)
+    }
+    document.addEventListener('selectionchange', on)
+    return () => document.removeEventListener('selectionchange', on)
+  }, [pane.id])
   const pathTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   // Only focus the author moved (a click or a key in the form), not the studio's own
   // focusing of a field on open.
@@ -241,8 +255,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       data-pane={`doc:${pane.id}`}
       data-pane-index={index}
       onFocus={(e) => {
-        const field = (e.target as HTMLElement).closest('.form-fields [id]')?.id
-        reportFocus(pane.id, field ?? null)
+        // J07: the most specific path: an array item (data-presence-path) unless a
+        // field inside it has its own, longer one.
+        const target = e.target as HTMLElement
+        const field = target.closest('.form-fields [id]')?.id
+        const item = target.closest<HTMLElement>('[data-presence-path]')?.dataset.presencePath
+        reportFocus(pane.id, (item && !(field?.startsWith(`${item}.`) || field?.startsWith(`${item}[`)) ? item : field) ?? null)
       }}
       onKeyDown={(e) => {
         // Sanity's publish shortcut, also mid-edit (publish flushes first). Like its
@@ -356,6 +374,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </>
         )}
       </header>
+      {/* Sanity's document panel: a column (banners, title bar, form, footer) with the inspector beside it, under the pane header. */}
+      <div className="doc-split">
+      <div className="doc-column">
       {/* Sanity's banners sit right under the pane header, above the title bar and the scrolling form: always in view. */}
       <div className="pane-banners">
         <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
@@ -467,7 +488,6 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </div>
         )}
       </div>
-      {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => setInspecting(false)} />}
       {pane.inspect === 'meta' && doc && PAPER_TYPES.has(pane.type) && !viewingPublished && (
         <PaperSidebar
           key={pane.id}
@@ -477,6 +497,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           onClose={() => void navigate({href: withParams(panes, index, {inspect: undefined})}).then(() => metaButton.current?.focus())}
         />
       )}
+      </div>
+      {pane.rev
+        ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
+        : viewingPublished
+        ? doc && <PublishedFooter doc={doc} single={single} />
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
+      </div>
+      {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => setInspecting(false)} />}
       {pane.inspect === 'comments' && (
         <CommentsPanel
           docId={pane.id}
@@ -509,11 +537,6 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         />
       )}
       </div>
-      {pane.rev
-        ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
-        : viewingPublished
-        ? doc && <PublishedFooter doc={doc} single={single} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={problems.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
       {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema)} onClose={() => setInspectOpen(false)} />}
     </section>
   )
