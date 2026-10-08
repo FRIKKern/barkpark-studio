@@ -1,5 +1,7 @@
 # Our-side journey specs against Barkpark workspace studio-parity. The Sanity
-# side of each spec stays local (needs a Sanity login). Budget: whole run < 60 s.
+# side of each spec stays local (needs a Sanity login). Budget: each shard < 60 s.
+# Two shards on two runners, each with its own dataset (ci, ci-2), so the suite can
+# grow without one 2-vCPU runner and one dataset becoming the bottleneck.
 name: e2e
 on:
   pull_request:
@@ -7,11 +9,17 @@ on:
     branches: [main]
 permissions:
   contents: read
-concurrency:
-  group: e2e-dataset-ci # one `ci` dataset: never two runs at once
-  cancel-in-progress: false
 jobs:
   studio:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { shard: 1, dataset: ci }
+          - { shard: 2, dataset: ci-2 }
+    concurrency:
+      group: e2e-dataset-${{ matrix.dataset }} # one run per dataset at a time
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
@@ -19,7 +27,7 @@ jobs:
       BARKPARK_URL: https://guerrilla.barkpark.cloud
       BARKPARK_WORKSPACE: studio-parity
       BARKPARK_PROJECT: default
-      BARKPARK_DATASET: ci # GitHub's own dataset; local runs use e2e-local, people use production
+      BARKPARK_DATASET: ${{ matrix.dataset }} # GitHub's own datasets; local runs use e2e-*, people use production
       BARKPARK_TOKEN: ${{ secrets.BARKPARK_TOKEN }} # read/write, studio-parity only
       BUDGET_NETWORK_SCALE: '4' # runner is far from guerrilla; see e2e/rig/feel.ts
       BARKPARK_SCHEMA_SOURCE: fixtures # member tokens can't read schemas yet (task-23c4ac86976c46a9)
@@ -54,11 +62,11 @@ jobs:
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
-        run: node --env-file=../.env node_modules/@playwright/test/cli.js test --project studio
+        run: node --env-file=../.env node_modules/@playwright/test/cli.js test --project studio --shard=${{ matrix.shard }}/2
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-results
+          name: e2e-results-${{ matrix.shard }}
           path: |
             e2e/test-results/
             e2e/journeys/*-snapshots/
