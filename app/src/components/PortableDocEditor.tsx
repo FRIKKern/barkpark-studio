@@ -4,6 +4,7 @@ import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schem
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult} from '../lib/blocks'
 import {toast} from './Toasts'
 import {unsavedElsewhere} from '../lib/edits'
+import {insertMaster, mastersQuery, saveMaster, type MasterResult} from '../lib/paper-masters'
 import {t as translate, useT} from '../lib/i18n'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
@@ -85,6 +86,9 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
 }) {
   const host = useRef<HTMLDivElement>(null)
   const t = useT()
+  // D13: a Bulldocs paper's own canvas offers its masters (never a field canvas).
+  const mastersOn = type === 'paper' && !field && editable
+  const {data: masters} = useQuery({...mastersQuery(id), enabled: mastersOn})
   const qc = useQueryClient()
   const openDocRef = useRef(openDoc)
   openDocRef.current = openDoc
@@ -188,6 +192,43 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           console.error('[canvas] node failed', d)
           toast({tone: 'critical', title: t('A {type} could not be shown', {type: d.type ?? t('block')}), description: d.message ?? d.error})
         })
+        // D13: paper masters. The canvas asks, we write, then hand it the blocks back.
+        if (mastersOn) {
+          // A write here is outside the save loop (no rev fence): it waits for the loop
+          // to settle, and the loop's next batch picks up the new rev from the read.
+          const idle = async () => {
+            for (let i = 0; i < 50 && (l.saving || canvas.current?.hasPendingChanges()); i++) await new Promise((r) => setTimeout(r, 100))
+          }
+          const refresh = async () => {
+            const fresh = await read()
+            if (gone) return
+            l.rev = fresh.rev
+            if (!el.applyServerBlocksIfIdle(fresh.blocks)) el.applyServerBlocks(fresh.blocks)
+          }
+          const refused = (r: MasterResult, title: string) => !r.ok && (toast({tone: 'critical', title, description: r.message}), true)
+          el.addEventListener('bp-save-master', (e) => {
+            const {block_id} = (e as CustomEvent<{block_id: string}>).detail
+            void (async () => {
+              await idle()
+              const r = (await saveMaster({data: {slug: id, blockId: block_id}})) as MasterResult
+              if (gone || refused(r, t('Could not save the block as a master'))) return
+              void qc.invalidateQueries({queryKey: ['paper-masters', id]})
+              toast({tone: 'positive', title: t('Saved as master'), description: r.ok ? r.master?.title : undefined})
+            })()
+          })
+          el.addEventListener('bp-master-insert', (e) => {
+            const {master_id, after_id, mode} = (e as CustomEvent<{master_id: string; after_id: string | null; mode?: 'linked'}>).detail
+            void (async () => {
+              await idle()
+              setSave({state: 'saving'})
+              const r = (await insertMaster({data: {slug: id, masterId: master_id, afterId: after_id, mode: mode ?? 'detached', requestId: crypto.randomUUID()}})) as MasterResult
+              if (gone) return
+              if (refused(r, t('Could not insert the master'))) return setSave({state: 'saved'})
+              await refresh()
+              if (!gone) setSave({state: 'saved'})
+            })()
+          })
+        }
         // D06: a wikilink opens its doc in the next pane; a plain link a new tab.
         el.addEventListener('bp-canvas-open-link', (e) => {
           const {kind, docId} = (e as CustomEvent<LinkTarget>).detail
@@ -306,7 +347,16 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         </div>
       )}
       {failed && <p role="alert">{t('The editor could not load: {reason}', {reason: failed})}</p>}
-      <div className="pd-canvas" ref={host} />
+      {mastersOn ? (
+        // The canvas finds its masters on this carrier inside a `.bp-paper-editor`, as
+        // Barkpark's LiveView renders it (paper_editor.ex).
+        <div className="bp-paper-editor pd-masters">
+          <div hidden data-paper-masters={JSON.stringify((masters ?? []).map((m) => ({id: m.docId, title: m.title, tier: m.tier, block_type: m.blockType})))} />
+          <div className="pd-canvas" ref={host} />
+        </div>
+      ) : (
+        <div className="pd-canvas" ref={host} />
+      )}
     </div>
   )
 }

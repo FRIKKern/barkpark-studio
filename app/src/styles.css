@@ -1382,3 +1382,5 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
   .codelist-toggle { width: 44px; height: 44px; }
   .codelist-current .icon-btn, .codelist-search .btn { min-width: 44px; min-height: 44px; }
 }
+/* D13: the masters carrier's wrapper takes no space (Barkpark's shell pads .bp-paper-editor on a phone). */
+.pd-masters.bp-paper-editor { padding: 0; }
