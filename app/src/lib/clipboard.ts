@@ -40,7 +40,7 @@ export function fits(sig: string, value: unknown, f: Field): boolean {
 }
 
 const asText = (v: unknown): string =>
-  v == null ? '' : typeof v === 'object' ? (Array.isArray(v) ? v.map(asText).filter(Boolean).join(', ') : Object.values(v).map(asText).filter(Boolean).join(', ')) : String(v)
+  v == null ? '' : typeof v === 'object' ? (Array.isArray(v) ? v.map(asText).filter(Boolean).join(', ') : Object.entries(v).filter(([k]) => !k.startsWith('_')).map(([, x]) => asText(x)).filter(Boolean).join(', ')) : String(v)
 
 export function copy(clip: Clip) {
   try {

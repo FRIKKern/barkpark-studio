@@ -19,7 +19,7 @@ import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
-import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext} from './Fields'
+import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
@@ -482,7 +482,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             onBlur={() => flush(qc, pane.id)}
             onFocus={(e) => keepPathInUrl((e.target as HTMLElement).id)}
             onPointerDown={() => (userMoved.current = Date.now())}
-            onKeyDown={() => (userMoved.current = Date.now())}
+            onKeyDown={(e) => {
+              userMoved.current = Date.now()
+              copyPasteKey(e)
+            }}
           >
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema)}</h1>
@@ -894,4 +897,24 @@ function TipChip({tip: content, children, ...rest}: {tip: () => string} & React.
       {tip}
     </button>
   )
+}
+
+/**
+ * J29, Sanity's form hotkeys: Cmd/Ctrl+C or V on focus that isn't a native control (an
+ * array row, an object or image's buttons) copies or pastes that field or item. Inputs,
+ * switches and selects keep the browser's own behaviour, and so does a text selection.
+ */
+function copyPasteKey(e: React.KeyboardEvent) {
+  const key = e.key.toLowerCase()
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (key !== 'c' && key !== 'v')) return
+  const target = e.target as HTMLElement
+  if (target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return
+  if (key === 'c' && getSelection()?.toString()) return
+  for (let el: HTMLElement | null = target; el; el = el.parentElement) {
+    const entry = fieldClipboard.get(el)
+    if (!entry || (key === 'v' && !entry.paste)) continue
+    e.preventDefault()
+    e.stopPropagation()
+    return key === 'c' ? entry.copy() : entry.paste!()
+  }
 }
