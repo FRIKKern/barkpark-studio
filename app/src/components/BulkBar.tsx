@@ -4,7 +4,7 @@ import type {Doc} from '../lib/data'
 import {publish, reasonOf, unpublish} from '../lib/edits'
 import {bulkSummary, isWall, type Outcome} from '../lib/bulk'
 import {useCanWrite} from '../lib/session'
-import {ConfirmDialog} from './DocumentPane'
+import {UnpublishDialog} from './UnpublishDialog'
 import {toast} from './Toasts'
 
 // B03: the list pane's bulk bar, after LiveView's floating bulk action bar: "N selected",
@@ -56,13 +56,7 @@ export function BulkBar({picked, onClear}: {picked: Doc[]; onClear: () => void})
         </button>
       </div>
       {confirming && (
-        <ConfirmDialog
-          title={`Unpublish ${n} ${n === 1 ? 'document' : 'documents'}?`}
-          body="Each one stays on as a draft. Readers stop seeing them until they are published again."
-          action="Unpublish now"
-          run={async () => void run('unpublish')}
-          onClose={() => setConfirming(false)}
-        />
+        <UnpublishDialog docs={picked.filter((d) => d._hasPublished !== false)} run={async () => void run('unpublish')} onClose={() => setConfirming(false)} />
       )}
     </div>
   )
