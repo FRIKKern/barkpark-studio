@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 13 changes, 1 task closed
+- **Today** · 14 changes, 2 tasks closed
+  - J38: global search filters match Sanity side by side ([#130](https://github.com/FRIKKern/barkpark-studio/pull/130))
+  - Done: [Barkpark canvas: the / menu's Image in a field canvas inserts nothing](https://github.com/FRIKKern/barkpark/issues/21914)
   - D12: paper metadata sidebar — slug, description, weighted tags; publish refusals say why ([#129](https://github.com/FRIKKern/barkpark-studio/pull/129))
-  - CI: two e2e shards on two runners (datasets ci, ci-2), each under the 60 s budget ([#128](https://github.com/FRIKKern/barkpark-studio/pull/128))
-  - D09: give the canvas's block gutter room in the pane; slash, moves, drag and paste checked ([#127](https://github.com/FRIKKern/barkpark-studio/pull/127))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
