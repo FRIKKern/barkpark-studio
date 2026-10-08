@@ -13,10 +13,11 @@ import {toast} from './Toasts'
 
 const BADGE: Record<string, string> = {Published: 'published', Unpublished: 'unpublished', 'Discarded draft': 'discarded', Deleted: 'discarded', Restored: 'edited', Edited: 'edited', 'Draft created': 'created'}
 
-/** "just now", "12 min. ago", "3 hr. ago", "2 days ago" — Sanity's short relative times. */
+/** "just now", "29 sec. ago", "12 min. ago", "3 hr. ago", "2 days ago" — Sanity's short relative times. */
 export function ago(iso: string, now = Date.now()): string {
   const s = Math.max(0, (now - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'just now'
+  if (s < 10) return 'just now'
+  if (s < 60) return `${Math.floor(s)} sec. ago`
   if (s < 3600) return `${Math.floor(s / 60)} min. ago`
   if (s < 86_400) return `${Math.floor(s / 3600)} hr. ago`
   const d = Math.floor(s / 86_400)

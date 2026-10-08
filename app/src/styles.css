@@ -26,6 +26,8 @@
   --warn-bg: #fdf3c8;
   --warn-fg: #6b5300;
   --danger-bg: #fde5e3;
+  --ok-bg: #e5f8ee;
+  --ok-fg: #0d5c34;
   --danger-line: #f5c4bf;
   --danger-fg: #a12a22;
   --danger-text: #c4362a;
@@ -71,6 +73,8 @@
   --warn-bg: #3b3216;
   --warn-fg: #f2d36b;
   --danger-bg: #3a1d1d;
+  --ok-bg: #16301f;
+  --ok-fg: #8ee2b0;
   --danger-line: #6b2a28;
   --danger-fg: #ffb4ab;
   --danger-text: #ff7b72;
@@ -601,6 +605,10 @@ fieldset.object-field > .field-actions { top: -38px; }
 .toast { width: 380px; display: flex; flex-direction: column; gap: 6px; padding: 12px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 17px; color: var(--fg-strong); }
 .toast strong { font-weight: 500; }
 .toast span { color: var(--muted); }
+.toast .toast-title { color: var(--fg-strong); font-weight: 400; }
+.toast .toast-title strong { font-weight: 600; }
+.toast[data-tone=positive] { background: var(--ok-bg); box-shadow: inset 0 0 0 1px var(--ring); }
+.toast[data-tone=positive] .toast-title { color: var(--ok-fg); }
 .toast[data-tone=critical] { background: var(--danger-bg); box-shadow: inset 0 0 0 1px var(--danger-line); }
 .toast[data-tone=critical] strong, .toast[data-tone=critical] span { color: var(--danger-fg); }
 .toast[data-tone=caution] { background: var(--warn-bg); box-shadow: inset 0 0 0 1px var(--ring); }
