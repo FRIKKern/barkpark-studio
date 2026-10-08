@@ -452,8 +452,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {deleted && !doc && <DeletedBanner type={pane.type} id={pane.id} />}
         {doc === null && !error && !viewingPublished && !deleted && (
           <div className="pane-not-found">
-            <h2>Document not found</h2>
-            <p>This document does not exist or is no longer available.</p>
+            {/* J02: Sanity's title, its text with our known type. */}
+            <h2>The document was not found</h2>
+            <p>A document with the <code>{pane.id}</code> identifier could not be found.</p>
             <PaneLink className="btn" href={closeHref}>Go back</PaneLink>
           </div>
         )}
