@@ -35,6 +35,6 @@ apart (D-journeys) so the Sanity 1:1 number stays honest.
 
 ## Known limit (D11)
 
-No live co-editing in the canvas: no remote carets; a remote edit lands when the
-author pauses or leaves the block. Edits to different blocks merge (id-keyed ops);
-one block typed in two places at once keeps the later save. Gaps: task-3d324bcfec068fee.
+The canvas has no shared carets. Saved remote changes apply when idle; updates
+wait while a local edit is pending. Id-keyed operations preserve edits to separate
+blocks. Avoid concurrent edits to the same block. Gaps: task-3d324bcfec068fee.
