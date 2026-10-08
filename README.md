@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 18 changes, 5 tasks closed
+- **Today** · 19 changes, 6 tasks closed
+  - B13: singleton types open as their one doc; no create, duplicate, delete or unpublish ([#134](https://github.com/FRIKKern/barkpark-studio/pull/134))
+  - Done: [Barkpark canvas: a failed image upload still saves an image block with no src](https://github.com/FRIKKern/barkpark/issues/21968)
   - J56: previews from select and prepare — referenced title, formatted date, fallback ([#135](https://github.com/FRIKKern/barkpark-studio/pull/135))
-  - Done: [Barkpark canvas: a field vocabulary with the blockquote style gives no way to make a quote](https://github.com/FRIKKern/barkpark/issues/21913)
-  - J55: the list menu offers the type's own orderings; a desk list opens in its declared one ([#133](https://github.com/FRIKKern/barkpark-studio/pull/133))
 - **Yesterday** · 10 changes, 13 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
