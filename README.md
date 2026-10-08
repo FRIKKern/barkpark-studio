@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 108 changes, 73 tasks closed
+- **Today** · 109 changes, 73 tasks closed
+  - P0: Presentation in the reference Studio, over a tiny preview site ([#227](https://github.com/FRIKKern/barkpark-studio/pull/227))
   - Drop the draft-fork 422 retries: Barkpark fixed the race (task-324b4d00706a6cfb) ([#226](https://github.com/FRIKKern/barkpark-studio/pull/226))
   - Done: [Paper canvas bundle renders English strings in an nb-NO workspace: no strings hook](https://github.com/FRIKKern/barkpark/issues/22165)
-  - Spec: after-phase journeys J58–J65 (Presentation tool + plugin surface) ([#225](https://github.com/FRIKKern/barkpark-studio/pull/225))
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
