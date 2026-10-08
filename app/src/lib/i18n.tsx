@@ -45,10 +45,13 @@ export function LocaleProvider({locale, children}: {locale: Locale; children: Re
 
 export const useLocale = () => useContext(LocaleContext)
 
-/** The translate function for this render. */
+// One translate function per locale, the same object every render: a fresh one each
+// time broke every memo and hook dependency it reached (F2 pane open +15 ms).
+const translators: Record<Locale, T> = {en: (en, vars) => translate('en', en, vars), 'nb-NO': (en, vars) => translate('nb-NO', en, vars)}
+
+/** The translate function for this render (stable for a locale). */
 export function useT(): T {
-  const locale = useContext(LocaleContext)
-  return (en, vars) => translate(locale, en, vars)
+  return translators[useContext(LocaleContext)]
 }
 
 // Code outside a render (toasts, confirm texts built in handlers) runs in the browser
