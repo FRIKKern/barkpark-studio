@@ -29,7 +29,7 @@ const TYPES = ['longform', 'author', 'category', 'post'] // refs point left: pos
 // layout + prefill, seeded through its body (create builds its blocks from the layout).
 // paper is Bulldocs' paper (D12): its weighted tags must name published `tag` docs, so
 // tags are written first and deleted last.
-const NATIVE_TYPES = ['volume', 'story', 'note', 'paper', 'tag', 'siteSettings', 'task'] // not 'book': Barkpark's onixedit plugin owns that type; siteSettings is B13's singleton (its one doc's id is its type)
+const NATIVE_TYPES = ['volume', 'story', 'note', 'paper', 'tag', 'siteSettings', 'paper_master', 'task'] // not 'book': Barkpark's onixedit plugin owns that type; siteSettings is B13's singleton (its one doc's id is its type); paper_master: none seeded, a run's masters (D13) are pruned; task: D14's fixture tasks
 
 function fail(msg) {
   console.error(`seed-barkpark: ${msg}`)

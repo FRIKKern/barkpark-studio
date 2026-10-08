@@ -210,4 +210,10 @@ export default {
   'The editor could not load: {reason}': 'Redigeringsverktøyet kunne ikke lastes: {reason}',
   // D14: a task block with nothing to show (Barkpark's own words)
   'Nothing to show yet.': 'Ingenting å vise ennå.',
+  // D13 paper masters ("mal", as Barkpark's own Studio says it)
+  'Saved as master': 'Lagret som mal',
+  'Could not save the block as a master': 'Kunne ikke lagre blokken som mal',
+  'Could not insert the master': 'Kunne ikke sette inn malen',
+  'Linked masters': 'Koblede maler',
+  'Could not change the linked master': 'Kunne ikke endre den koblede malen',
 } satisfies Record<string, string>

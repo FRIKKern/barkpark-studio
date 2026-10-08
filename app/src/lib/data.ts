@@ -60,7 +60,12 @@ export type Group = {name: string; title?: string; default?: boolean}
 export type Ordering = {name: string; title: string; by: {field: string; direction: 'asc' | 'desc'}[]}
 /** A row's preview: title and media name fields; the subtitle may be prepared (J56, lib/preview.ts). */
 export type ListPreview = {title?: string; subtitle?: PreviewText; media?: string}
-export type Schema = {name: string; title: string; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean}
+export type Schema = {name: string; title: string; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]}
+/**
+ * B09: a related-documents view the schema declares (`desk.views`, Barkpark's LiveView
+ * "view bar"): docs of `type` whose `by` field references the open doc.
+ */
+export type DeskView = {id: string; title: string; type: string; by: string; orderings?: {field: string; direction: 'asc' | 'desc'}[]}
 
 type RawOrdering = {name?: string; title?: string; field?: string; direction?: 'asc' | 'desc'; by?: Ordering['by']}
 const startCase = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase())
@@ -87,6 +92,7 @@ const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
       name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? [], initialValues: initialValues ?? initial_values ?? {},
       singleton: singleton === true,
       orderings: ((desk as {orderings?: RawOrdering[]} | undefined)?.orderings ?? []).filter((o) => o.field || o.by?.length).map(ordering),
+      views: ((desk as {views?: Json[]} | undefined)?.views ?? []) as Json[],
     })) as unknown as Json
 })
 
@@ -126,6 +132,22 @@ const fetchList = createServerFn({method: 'GET'})
     const out = data.published ? docs.map((d) => ({...d, _hasPublished: true, _publishedAt: d._updatedAt})) : await withHasPublished(data.type, docs)
     return {docs: out, hasMore} as unknown as Json
   })
+
+// B09: a desk view's rows, as Barkpark's LiveView reads them (handlers/views.ex):
+// drafts perspective, at most 200, `by` equal to the open doc's published id.
+const fetchRelated = createServerFn({method: 'GET'})
+  .validator((d: {view: DeskView; id: string}) => d)
+  .handler(async ({data}) => {
+    const {type, by, orderings = []} = data.view
+    const order = orderings.length ? `&order=${orderings.map((o) => `${o.field}:${o.direction}`).join(',')}` : ''
+    const r = await bpJson<{result: {documents: Doc[]}}>(
+      `/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200&filter[${encodeURIComponent(by)}][eq]=${encodeURIComponent(data.id)}${order}`,
+    )
+    return (await withHasPublished(type, r.result.documents)) as unknown as Json
+  })
+
+export const relatedQuery = (view: DeskView, id: string) =>
+  queryOptions({queryKey: ['related', view.type, view.by, id], staleTime: 5_000, queryFn: async () => (await fetchRelated({data: {view, id}})) as unknown as Doc[]})
 
 /** List search over the whole type, not just the rows loaded (J41): Barkpark's full-text search. */
 const fetchListSearch = createServerFn({method: 'GET'})

@@ -200,4 +200,7 @@ export default {
   '{n} validation errors': '{n} valideringsfeil',
   '“{title}” is referenced by 1 document. Unpublishing it will leave those references pointing at nothing live:': '«{title}» er referert til av 1 dokument. Avpublisering vil la disse referansene peke på noe som ikke er publisert:',
   '“{title}” is referenced by {n} documents. Unpublishing it will leave those references pointing at nothing live:': '«{title}» er referert til av {n} dokumenter. Avpublisering vil la disse referansene peke på noe som ikke er publisert:',
+  'Loading documents…': 'Laster dokumenter…',
+  'Could not load the documents': 'Kunne ikke laste dokumentene',
+  'No documents yet': 'Ingen dokumenter ennå',
 } satisfies Record<string, string>

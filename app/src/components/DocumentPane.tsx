@@ -6,7 +6,8 @@ import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/
 import {useNavigate} from '@tanstack/react-router'
 import {usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
-import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
+import {DocPreview} from './Preview'
 import {createDoc, discardDraft, draftNew, edit, flush, publish, reasonOf, undo, unpublish, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
@@ -184,6 +185,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     {id: 'classic', title: freeform ? t('Classic') : t('Editor')},
     ...(freeform ? [{id: 'freeform' as View, title: t('Freeform')}] : []),
     {id: 'json', title: 'JSON'},
+    // B09: the schema's related-document views (desk.views), after the doc's own.
+    ...(schema?.views ?? []).map((v) => ({id: `desk:${v.id}` as View, title: v.title})),
   ]
   const next = panes[index + 1]
   const qc = useQueryClient()
@@ -471,6 +474,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         )}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">{t('Not published.')}</p>}
         {doc && view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
+        {doc && view.startsWith('desk:') && (() => {
+          const v = schema?.views?.find((x) => `desk:${x.id}` === view)
+          return v ? <RelatedView view={v} id={pane.id} hrefOf={(d) => openAfter(panes, index, {kind: 'doc', id: d._publishedId, type: d._type})} selected={next?.kind === 'doc' ? next.id : undefined} /> : null
+        })()}
         {/* Mounted once per doc and then only hidden: the canvas mis-places typing
             after it is mounted again in a page (task-f24549dea0618da2), and a remount costs a load. */}
         {/* A doc still being created has no block list yet (D04): the canvas waits for it. */}
@@ -989,4 +996,22 @@ function copyPasteKey(e: React.KeyboardEvent) {
     e.stopPropagation()
     return key === 'c' ? entry.copy() : entry.paste!()
   }
+}
+
+/** B09: the docs a desk view relates to this one (Barkpark's view bar), each opening to the right. */
+function RelatedView({view, id, hrefOf, selected}: {view: DeskView; id: string; hrefOf: (d: Doc) => string; selected?: string}) {
+  const t = useT()
+  const {data: docs, isPending, error, refetch} = useQuery(relatedQuery(view, id))
+  if (isPending) return <div className="pane-loading" aria-busy="true">{t('Loading documents…')}</div>
+  if (error) return <ReadErrorCard title={t('Could not load the documents')} error={error} failures={1} retrying={false} onRetry={() => void refetch()} />
+  if (!docs?.length) return <p className="muted related-empty">{t('No documents yet')}</p>
+  return (
+    <div className="related-list" role="list" aria-label={view.title}>
+      {docs.map((d) => (
+        <div role="listitem" key={d._publishedId}>
+          <DocPreview doc={d} href={hrefOf(d)} selected={selected === d._publishedId} testId="related-item" />
+        </div>
+      ))}
+    </div>
+  )
 }

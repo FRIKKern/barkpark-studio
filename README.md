@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 98 changes, 69 tasks closed
-  - fix(F2): pane open back to the last green speed (B01 made relative times costly) ([#220](https://github.com/FRIKKern/barkpark-studio/pull/220))
-  - Done: [Paper editor: lead and featured-image slots, undo/redo and block controls read English to Norwegian authors](https://github.com/FRIKKern/barkpark/issues/22166)
-  - Done: [Media library (bp-asset-explorer) renders English in an nb-NO workspace: no strings hook](https://github.com/FRIKKern/barkpark/issues/22148)
+- **Today** · 103 changes, 70 tasks closed
+  - B09: a schema's desk views as tabs beside the doc's own (related documents) ([#216](https://github.com/FRIKKern/barkpark-studio/pull/216))
+  - Done: [D13 [Freeform main] Paper masters: insert, save, pin, detach; bound values write back](https://github.com/FRIKKern/barkpark/issues/21846)
+  - D13: paper masters — save, insert detached or linked, pin, unpin, detach ([#212](https://github.com/FRIKKern/barkpark-studio/pull/212))
 - **Yesterday** · 10 changes, 12 tasks closed
   - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
   - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
