@@ -52,6 +52,17 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     addEventListener('pagehide', flushOnUnload)
     return () => removeEventListener('pagehide', flushOnUnload)
   }, [])
+  // Sanity's structure tool: Ctrl/Cmd+S says edits save themselves (one toast, however
+  // often it is pressed) instead of the browser's Save page dialog.
+  useEffect(() => {
+    const save = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 's') return
+      e.preventDefault()
+      toast({key: 'auto-save-message', title: 'Your work is automatically saved!'})
+    }
+    addEventListener('keydown', save)
+    return () => removeEventListener('keydown', save)
+  }, [])
   const {data: schemas = []} = useQuery(schemasQuery)
   // Lists render reference subtitles too: keep those targets live even after
   // the document pane closes (J23).
