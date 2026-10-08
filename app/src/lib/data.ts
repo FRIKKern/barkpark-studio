@@ -186,7 +186,7 @@ export async function ensureDocs(client: QueryClient, types: string[], ids: stri
 export type RefFilter = Record<string, Record<string, string>>
 
 const fetchSearch = createServerFn({method: 'GET'})
-  .validator((d: {type: string; q: string; filter?: RefFilter; order?: string}) => d)
+  .validator((d: {type: string; q: string; filter?: RefFilter; order?: string; limit?: number}) => d)
   .handler(async ({data}) => {
     // `contains` is case-insensitive; `title` is the row's preview title for every type.
     // `order` (J38): `_updatedAt:desc` (default) or `_createdAt:desc`.
@@ -194,7 +194,7 @@ const fetchSearch = createServerFn({method: 'GET'})
     for (const [field, ops] of Object.entries(data.filter ?? {}))
       for (const [op, v] of Object.entries(ops)) filter += `&filter[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
     const r = await bpJson<{result: {documents: Doc[]}}>(
-      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&order=${encodeURIComponent(data.order ?? '_updatedAt:desc')}&limit=20${filter}`,
+      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&order=${encodeURIComponent(data.order ?? '_updatedAt:desc')}&limit=${Math.min(data.limit ?? 20, 100)}${filter}`,
     )
     return r.result.documents as unknown as Json
   })
@@ -275,13 +275,13 @@ export const listSearchQuery = (type: string, q: string) =>
 export const docQuery = (type: string | string[], id: string) =>
   queryOptions({queryKey: ['doc', id], staleTime: 30_000, ...paneRetry, queryFn: async () => (await fetchDoc({data: {type, id}})) as unknown as Doc | null})
 
-export const searchQuery = (type: string | string[], q: string, filter?: RefFilter, order?: string) =>
+export const searchQuery = (type: string | string[], q: string, filter?: RefFilter, order?: string, limit?: number) =>
   queryOptions({
-    queryKey: ['search', [type].flat().join(','), q, filter, order],
+    queryKey: ['search', [type].flat().join(','), q, filter, order, limit],
     staleTime: 10_000,
     queryFn: async ({client}) => {
       const types = [type].flat()
-      const found = (await Promise.all(types.map((t) => fetchSearch({data: {type: t, q, filter, order}})))).flat() as unknown as Doc[]
+      const found = (await Promise.all(types.map((t) => fetchSearch({data: {type: t, q, filter, order, limit}})))).flat() as unknown as Doc[]
       const docs = types.length > 1 ? found.sort((a, b) => b._updatedAt.localeCompare(a._updatedAt)).slice(0, 20) : found
       for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
       return docs
