@@ -845,3 +845,5 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 .vision-url { font-size: 12px; word-break: break-all; }
 /* D07: figures and images pull wider than the reading column; in a pane they keep to it. */
 .pd-editor { --bp-evidence-pull: 0px; --bp-evidence-width: 100%; }
+/* D11: the honest co-editing note above the canvas. */
+.pd-hint { margin: 12px 20px 0; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); color: var(--fg); font-size: 13px; line-height: 19px; }
