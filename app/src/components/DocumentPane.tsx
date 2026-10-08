@@ -625,7 +625,7 @@ function PublishedFooter({doc}: {doc: Doc}) {
 }
 
 /** A Sanity-style confirm over the pane: Cancel (focused) or the red action. Failures show inline. */
-function ConfirmDialog({title, body, action, run, onClose}: {title: string; body: string; action: string; run: () => Promise<unknown>; onClose: () => void}) {
+export function ConfirmDialog({title, body, action, run, onClose}: {title: string; body: string; action: string; run: () => Promise<unknown>; onClose: () => void}) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   return (

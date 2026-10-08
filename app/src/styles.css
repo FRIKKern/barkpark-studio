@@ -198,6 +198,22 @@ a.preview:hover { background: var(--hover); }
 .preview[aria-current='true'] .dot { box-shadow: 0 0 0 1px #fff; }
 .preview[aria-current='true'] .media { background: transparent; color: var(--on-selected); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
 .list-rows { padding: 0 12px 12px; }
+/* B03: a row's tick sits where its icon is, shown on hover / focus, on every row once one
+   is ticked, and always on touch (no hover): lists keep Sanity's look until you select. */
+.bulk-row { position: relative; }
+/* The label is the 44 px tap target over the row's icon; the box inside is 18 px. */
+.bulk-check { position: absolute; z-index: 1; left: 3px; top: calc(50% - 24px); width: 44px; height: 44px; display: grid; place-items: center; opacity: 0; cursor: pointer; }
+.bulk-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--studio-primary); cursor: pointer; }
+.bulk-row:is(:hover, :has(:focus-visible)) .bulk-check, .bulk-row[data-picked] .bulk-check, .list-rows:has(.bulk-row[data-picked]) .bulk-check { opacity: 1; }
+.bulk-row:is(:hover, :has(:focus-visible), [data-picked]) .media, .list-rows:has(.bulk-row[data-picked]) .bulk-row .media { visibility: hidden; }
+@media (hover: none) {
+  .bulk-check { opacity: 1; }
+  .bulk-row .media { visibility: hidden; }
+}
+.bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg); font-size: 13px; }
+.bulk-count { flex: 1; color: var(--fg); font-weight: 500; }
+.bulk-actions { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+@media (max-width: 768px) { .bulk-bar button { min-height: 44px; } }
 .search { margin: -4px 12px 4px; position: relative; }
 .search .search-icon { position: absolute; left: 2px; top: 3px; color: var(--muted); pointer-events: none; }
 .search input { width: 100%; border: 0; outline: none; background: none; font: inherit; font-size: 13px; line-height: 19px; padding: 6px 8px 6px 30px; color: var(--fg); border-radius: 3px; }

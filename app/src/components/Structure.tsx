@@ -17,6 +17,8 @@ import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane
 import {DocumentPane, docTitle} from './DocumentPane'
 import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search} from './icons'
 import {DocPreview} from './Preview'
+import {BulkBar} from './BulkBar'
+import {MAX_SELECTED} from '../lib/bulk'
 import {AvatarStack} from './Presence'
 import {usePresences, type Presence} from '../lib/presence'
 import {PaneLink} from './PaneLink'
@@ -395,6 +397,19 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     }[sort]
     return [...hits].sort(by)
   }, [indexed, query, sort, schemas, type])
+  // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
+  const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())
+  const pick = (d: Doc) => {
+    if (!picked.has(d._publishedId) && picked.size >= MAX_SELECTED) return toast({tone: 'caution', title: `Selection limit reached (${MAX_SELECTED})`})
+    setPicked((m) => {
+      const next = new Map(m)
+      if (!next.delete(d._publishedId)) next.set(d._publishedId, d)
+      return next
+    })
+  }
+  // Ticked docs as the list has them now (a live edit since the tick is taken into account).
+  const pickedDocs = useMemo(() => [...picked.values()].map((d) => docs?.find((x) => x._publishedId === d._publishedId) ?? d), [picked, docs])
+  const selectable = !tree && !published
   return (
     <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
       <header className="pane-header">
@@ -465,17 +480,28 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             <ListSkeleton />
           ))}
         {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty" role="status">{query.trim() ? 'No results found' : 'No documents of this type'}</p>}
-        {shown.map((d) => (
-          <DocPreview
-            key={d._publishedId}
-            doc={d}
-            href={openAfter(panes, index, tree ? {kind: 'list', type, node: nodeId, treeParent: d._publishedId} : {kind: 'doc', id: d._publishedId, type})}
-            selected={selected === d._publishedId}
-            active={index === panes.length - 2}
-            testId="pane-item"
-            extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} /> : undefined}
-          />
-        ))}
+        {shown.map((d) => {
+          const row = (
+            <DocPreview
+              key={d._publishedId}
+              doc={d}
+              href={openAfter(panes, index, tree ? {kind: 'list', type, node: nodeId, treeParent: d._publishedId} : {kind: 'doc', id: d._publishedId, type})}
+              selected={selected === d._publishedId}
+              active={index === panes.length - 2}
+              testId="pane-item"
+              extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} /> : undefined}
+            />
+          )
+          if (!selectable) return row
+          return (
+            <div key={d._publishedId} className="bulk-row" data-picked={picked.has(d._publishedId) || undefined}>
+              <label className="bulk-check">
+                <input type="checkbox" aria-label={`Select ${previewTitle(d, schemaOf(schemas, type))}`} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
+              </label>
+              {row}
+            </div>
+          )
+        })}
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
         {!query && page?.hasMore && limit >= LIST_MAX && (
           listQ.isPlaceholderData
@@ -483,6 +509,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             : <p className="list-max">Displaying a maximum of {LIST_MAX} documents</p>
         )}
       </div>
+      {picked.size > 0 && <BulkBar picked={pickedDocs} onClear={() => setPicked(new Map())} />}
     </section>
   )
 }
