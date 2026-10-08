@@ -1,10 +1,10 @@
 import {expect, test, type Page} from '@playwright/test'
-import {target, type Target} from '../rig/targets'
+import {closeAndSettle, target, type Target} from '../rig/targets'
 
 // J34 evidence, both studios: tags (Enter adds, × removes) and a plain string
 // array (reorder by keyboard and by mouse, item "…" menu). Stills + clips go to
 // e2e/evidence/ (gitignored). Not a CI gate (`pnpm evidence` runs it).
-// The tags and highlights go back to what they were after the run, on both sides.
+// The post goes back to the seed after the run, on both sides.
 const ID = 'post-20'
 const HL = ['Point one of post 20', 'Point two of post 20', 'Point three of post 20']
 const shot = (name: string, step: string) => `evidence/J34-${name}-${step}.png`
@@ -15,12 +15,11 @@ const handles = (t: Target, page: Page) =>
   (t.name === 'sanity' ? page.locator('[data-testid="field-highlights"]') : page.locator('#highlights')).locator('button[aria-roledescription="sortable"]')
 const field = (t: Target, page: Page, name: string) => (t.name === 'sanity' ? page.locator(`[data-testid="field-${name}"]`) : page.locator('.field').filter({has: page.locator(`[id="${name}"]`)}).last())
 
-let original: Record<string, unknown> = {}
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: 'Fixture post 20', ...original}))
+// The seed's post back after every run, on both sides (a failed run must not leave the next one dirty).
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'post')))
 
 test('@evidence J34: tags and a reorderable string array', async ({page}, info) => {
   const t = target(info)
-  original = {tags: await t.docValue(ID, 'tags'), highlights: await t.docValue(ID, 'highlights')}
   await t.prepare(page.context())
   await page.goto(t.docPath('post', ID))
   await t.settle(page)

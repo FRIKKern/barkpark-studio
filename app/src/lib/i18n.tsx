@@ -45,10 +45,13 @@ export function LocaleProvider({locale, children}: {locale: Locale; children: Re
 
 export const useLocale = () => useContext(LocaleContext)
 
-/** The translate function for this render. */
+// One translate function per locale, the same object every render: a fresh one each
+// time broke every memo and hook dependency it reached (F2 pane open +15 ms).
+const translators: Record<Locale, T> = {en: (en, vars) => translate('en', en, vars), 'nb-NO': (en, vars) => translate('nb-NO', en, vars)}
+
+/** The translate function for this render (stable for a locale). */
 export function useT(): T {
-  const locale = useContext(LocaleContext)
-  return (en, vars) => translate(locale, en, vars)
+  return translators[useContext(LocaleContext)]
 }
 
 // Code outside a render (toasts, confirm texts built in handlers) runs in the browser
@@ -63,10 +66,22 @@ export const intlTag = (locale: Locale) => (locale === 'nb-NO' ? 'nb-NO' : 'en-U
  * "just now", "29 sec. ago", "12 min. ago", "3 hr. ago", "2 days ago" (Sanity's short
  * relative times, which are Intl's) and in Norwegian "akkurat nå", "for 12 min siden".
  */
+// One formatter per locale: building one per call cost every list row (F2).
+const shortRtf: Partial<Record<Locale, Intl.RelativeTimeFormat>> = {}
+
 export function ago(iso: string, locale: Locale = browserLocale, now = Date.now()): string {
   const s = Math.max(0, (now - new Date(iso).getTime()) / 1000)
   if (s < 10) return translate(locale, 'just now')
-  const rtf = new Intl.RelativeTimeFormat(intlTag(locale), {style: 'short', numeric: 'always'})
+  // English by plain arithmetic, as before i18n (the same strings as Intl's, cheaper on
+  // every list row); other locales through Intl.
+  if (locale === 'en') {
+    if (s < 60) return `${Math.floor(s)} sec. ago`
+    if (s < 3600) return `${Math.floor(s / 60)} min. ago`
+    if (s < 86_400) return `${Math.floor(s / 3600)} hr. ago`
+    const d = Math.floor(s / 86_400)
+    return `${d} ${d === 1 ? 'day' : 'days'} ago`
+  }
+  const rtf = (shortRtf[locale] ??= new Intl.RelativeTimeFormat(intlTag(locale), {style: 'short', numeric: 'always'}))
   if (s < 60) return rtf.format(-Math.floor(s), 'second')
   if (s < 3600) return rtf.format(-Math.floor(s / 60), 'minute')
   if (s < 86_400) return rtf.format(-Math.floor(s / 3600), 'hour')
