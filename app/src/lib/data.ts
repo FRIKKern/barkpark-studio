@@ -260,7 +260,17 @@ export const publishedListQuery = (type: string, order: ListOrder = 'updated', l
   })
 
 export const listSearchQuery = (type: string, q: string) =>
-  queryOptions({queryKey: ['list-search', type, q], staleTime: 10_000, queryFn: async () => (await fetchListSearch({data: {type, q}})) as unknown as Doc[]})
+  queryOptions({
+    queryKey: ['list-search', type, q],
+    staleTime: 10_000,
+    queryFn: async ({client}) => {
+      const docs = (await fetchListSearch({data: {type, q}})) as unknown as Doc[]
+      // Results beyond the loaded list also hold complete documents. Opening
+      // one should reuse it, without overwriting a newer local cached edit.
+      for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
+      return docs
+    },
+  })
 
 export const docQuery = (type: string | string[], id: string) =>
   queryOptions({queryKey: ['doc', id], staleTime: 30_000, ...paneRetry, queryFn: async () => (await fetchDoc({data: {type, id}})) as unknown as Doc | null})

@@ -23,17 +23,17 @@ export async function readSchemas(): Promise<RawSchema[]> {
 // B12: the declared desk, when the workspace has one. Barkpark resolves a
 // `deskStructure` document into its structure tree; without that document the
 // tree is the LiveView Studio's default, not Sanity's type list, so this studio
-// keeps its own type list then (null). Any failure reads as "no desk": the
-// type list is always a working fallback. Fixtures mode (CI) has no desk.
+// keeps its own type list then (null). Other failures use the route's visible
+// error and Retry; an unavailable desk must not silently change navigation.
+// Fixtures mode (CI) has no desk.
 export async function readDesk(): Promise<unknown | null> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return null
-  try {
-    const declared = await bpFetch(`/v1/data/doc/${dataset()}/deskStructure/deskStructure?perspective=published`, {}, serviceToken())
-    if (!declared.ok) return null
-    const res = await bpFetch(`/v1/structure/${dataset()}`, {}, serviceToken())
-    if (!res.ok) return null
-    return ((await res.json()) as {structure?: unknown}).structure ?? null
-  } catch {
-    return null
-  }
+  const declared = await bpFetch(`/v1/data/doc/${dataset()}/deskStructure/deskStructure?perspective=published`, {}, serviceToken())
+  if (declared.status === 404) return null
+  if (!declared.ok) throw new Error(`Could not read the desk configuration (${declared.status})`)
+  const res = await bpFetch(`/v1/structure/${dataset()}`, {}, serviceToken())
+  if (!res.ok) throw new Error(`Could not read the desk navigation (${res.status})`)
+  const tree = ((await res.json()) as {structure?: unknown}).structure
+  if (!tree) throw new Error('The desk navigation response was empty')
+  return tree
 }

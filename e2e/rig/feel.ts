@@ -64,30 +64,42 @@ export async function typeAndMeasure(page: Page, field: Locator, text: string) {
  * moves because the user clicked is not a layout shift (hadRecentInput), and a
  * synthetic el.click() would make it look like one. Returns ms and CLS after it.
  */
-export async function timeToReady(page: Page, item: Locator, ready: string, arg: unknown) {
-  await page.evaluate(() => {
-    const w = window as {__clickAt?: number}
-    delete w.__clickAt
-    addEventListener('click', (e) => (w.__clickAt = e.timeStamp), {capture: true, once: true})
-  })
-  await item.click()
-  return page.evaluate(
-    async ({ready, arg}) => {
+export async function timeToReady(page: Page, item: Locator, ready: string, arg: unknown, settleMs = 300) {
+  // Capture readiness in the browser, not after Playwright's click/navigation
+  // acknowledgement: that round trip can finish long after the pane painted.
+  await page.evaluate(
+    ({ready, arg, settleMs}) => {
       const done = new Function('arg', `return (${ready})(arg)`) as (a: unknown) => boolean
-      const w = window as {__clickAt?: number}
-      const start = performance.now()
-      while (!done(arg)) {
-        await new Promise(requestAnimationFrame)
-        if (performance.now() - start > 10_000) throw new Error('timeToReady: never ready')
-      }
-      const t0 = w.__clickAt ?? start
-      const ms = performance.now() - t0
-      await new Promise((r) => setTimeout(r, 300)) // let late shifts land
-      const shifts = window.__feel.shifts.filter((s) => s.t >= t0)
-      return {ms, cls: shifts.reduce((a, s) => a + s.v, 0), shifted: shifts.map((s) => s.src).join(' | ')}
+      const w = window as {__paneTiming?: {result?: {ms: number; cls: number; shifted: string}; error?: string}}
+      w.__paneTiming = {}
+      addEventListener('click', (e) => {
+        const t0 = e.timeStamp
+        const check = () => {
+          if (!done(arg)) {
+            if (performance.now() - t0 > 10_000) w.__paneTiming = {error: 'timeToReady: never ready'}
+            else requestAnimationFrame(check)
+            return
+          }
+          const ms = performance.now() - t0
+          setTimeout(() => {
+            const shifts = window.__feel.shifts.filter((s) => s.t >= t0)
+            w.__paneTiming = {result: {ms, cls: shifts.reduce((a, s) => a + s.v, 0), shifted: shifts.map((s) => s.src).join(' | ')}}
+          }, settleMs) // let late shifts land
+        }
+        requestAnimationFrame(check)
+      }, {capture: true, once: true})
     },
-    {ready, arg},
+    {ready, arg, settleMs},
   )
+  await item.click()
+  const measured = await page.waitForFunction(() => {
+    const timing = (window as {__paneTiming?: {result?: {ms: number; cls: number; shifted: string}; error?: string}}).__paneTiming
+    if (timing?.error) throw new Error(timing.error)
+    return timing?.result
+  })
+  const result = await measured.jsonValue()
+  await measured.dispose()
+  return result!
 }
 
 /**

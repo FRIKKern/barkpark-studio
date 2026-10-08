@@ -50,15 +50,17 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     return () => removeEventListener('pagehide', flushOnUnload)
   }, [])
   const {data: schemas = []} = useQuery(schemasQuery)
-  // Live: open docs, open lists, and every type an open doc references, so a
-  // reference preview follows edits made anywhere (J23).
+  // Lists render reference subtitles too: keep those targets live even after
+  // the document pane closes (J23).
   const refTypes = (type: string) =>
     (schemaOf(schemas, type)?.fields ?? []).flatMap((f) => [...refTypesOf(f), ...refTypesOf(f.of)])
   useLive(
     panes.flatMap((p) => (p.kind === 'doc' ? [p.id] : [])),
-    panes.flatMap((p) => (p.kind === 'list' ? [p.type] : p.kind === 'doc' ? [p.type, ...refTypes(p.type)] : [])),
+    panes.flatMap((p) => (!('type' in p) || !schemaOf(schemas, p.type) ? [] : [p.type, ...refTypes(p.type)])),
   )
-  const path = panesPath(panes)
+  // Remembering a field in the URL is not pane navigation. Keep an expanded
+  // earlier split open while its field path updates, or typing loses its input.
+  const path = panesPath(panes.map((p) => p.kind === 'doc' ? {...p, path: undefined} : p))
   // A clicked strip takes focus until the path changes.
   const [focus, setFocus] = useState<{path: string; index: number} | null>(null)
   const focusIndex = focus?.path === path ? focus.index : panes.length - 1
@@ -67,12 +69,33 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     width,
     focusIndex,
   )
+  const previousPath = useRef(path)
+  useIsoLayoutEffect(() => {
+    const moved = previousPath.current !== path
+    previousPath.current = path
+    const area = ref.current
+    const pane = area?.querySelector<HTMLElement>(`[data-pane-index="${focusIndex}"]`)
+    if (!area || !pane) return
+    // Expanding replaces the strip; following/closing a pane can remove the
+    // focused link too. Keep keyboard navigation in the pane that replaces it.
+    if ((moved || focus?.path === path) && document.activeElement === document.body) {
+      pane.tabIndex = -1
+      pane.focus({preventScroll: true})
+    }
+    // An arbitrarily long chain cannot fit all its strips beside the editor.
+    // Scroll the pane area, not the page, and reveal the whole active pane.
+    const bounds = area.getBoundingClientRect()
+    const target = pane.getBoundingClientRect()
+    if (target.right > bounds.right) area.scrollLeft += target.right - bounds.right
+    else if (target.left < bounds.left) area.scrollLeft += target.left - bounds.left
+  }, [path, focusIndex, focus, width, ref])
 
   // J42: a narrow window shows only the last pane; its back link walks the URL back.
   const narrow = width < NARROW
   return (
     <NarrowContext.Provider value={narrow}>
       <div className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined}>
+        <TabTitle pane={panes[panes.length - 1]} />
         {panes.map((pane, i) =>
           narrow ? (
             i === panes.length - 1 && (
@@ -121,17 +144,30 @@ function usePaneTitle(pane: Pane) {
   const published = usePublishedPerspective()
   const id = pane.kind === 'doc' ? pane.id : ''
   const type = pane.kind === 'doc' ? pane.type : ''
-  const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && !published})
-  const {data: live} = useQuery({...publishedQuery(type, id), enabled: pane.kind === 'doc' && published})
+  const known = !!schemaOf(schemas, type)
+  const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && known && !published})
+  const {data: live} = useQuery({...publishedQuery(type, id), enabled: pane.kind === 'doc' && known && published})
   const doc = published ? live : draft
   if (pane.kind === 'types') return 'Content'
   if (pane.kind === 'menu') return node?.title ?? pane.node
   if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type))
-  if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? pane.type
+  if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? 'Type not found'
   const schema = schemaOf(schemas, pane.type)
+  if (!schema) return 'Type not found'
+  if (doc === null) return 'Document not found'
   // A desk singleton is named by its desk row (Sanity's S.document().title()).
   if (pane.node && node?.title) return node.title
   return doc && schema ? docTitle(doc, schema) : previewTitle(doc, schema)
+}
+
+/** The last pane owns the tab title, including cached edits and browser history. */
+function TabTitle({pane}: {pane: Pane}) {
+  const title = usePaneTitle(pane)
+  useEffect(() => {
+    document.title = `${title} | Barkpark Studio`
+    return () => { document.title = 'Barkpark Studio' }
+  }, [title])
+  return null
 }
 
 function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => void}) {
@@ -155,10 +191,21 @@ function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => 
 
 function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
+  const {data: schemas = []} = useQuery(schemasQuery)
   // e2e probe (J50): this pane throws while rendering, as a bug would.
   if ((globalThis as {__crashPane?: string}).__crashPane === paneKey(pane)) throw new Error(`e2e probe: ${paneKey(pane)} crashed`)
   const next = panes[index + 1]
   if (pane.kind === 'types' || pane.kind === 'menu') return <RootPane panes={panes} index={index} />
+  if (!schemaOf(schemas, pane.type)) return (
+    <section className="pane" data-pane-index={index}>
+      <header className="pane-header"><BackLink panes={panes} index={index} /><span className="title">Type not found</span></header>
+      <div className="pane-body pane-not-found">
+        <h2>Type not found</h2>
+        <p>The type “{pane.type}” is not in this Studio’s schema.</p>
+        <PaneLink className="btn" href={closeFrom(panes, index)}>Go back</PaneLink>
+      </div>
+    </section>
+  )
   if (pane.kind === 'list')
     return <ListPane panes={panes} index={index} type={pane.type} node={pane.node} treeParent={pane.treeParent} selected={next?.kind === 'doc' ? next.id : next?.kind === 'list' ? next.treeParent : undefined} />
   return (
@@ -258,6 +305,15 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   )
 }
 
+// Search text in nested fields and rich-text blocks as well as scalar fields.
+// System metadata (ids, revisions and block keys) is not editor content.
+function listSearchText(value: unknown): string {
+  if (typeof value === 'string') return value.toLowerCase()
+  if (Array.isArray(value)) return value.map(listSearchText).join(' ')
+  if (value && typeof value === 'object') return Object.entries(value).filter(([key]) => !key.startsWith('_')).map(([, item]) => listSearchText(item)).join(' ')
+  return ''
+}
+
 function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {panes: Pane[]; index: number; type: string; node?: string; treeParent?: string; selected?: string}) {
   const {canWrite, createReason} = useCanWrite()
   const {data: schemas = []} = useQuery(schemasQuery)
@@ -281,13 +337,20 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const listQ = published ? publishedList : draftList
   const page = listQ.data
   const [query, setQuery] = useState('')
+  const searchInput = useRef<HTMLInputElement>(null)
   // A list with more on the server is searched there too, so search reaches every doc.
   const [q, setQ] = useState('')
   useEffect(() => {
     const t = setTimeout(() => setQ(query.trim()), 150)
     return () => clearTimeout(t)
   }, [query])
-  const {data: found} = useQuery({...listSearchQuery(type, q), enabled: !!q && !published && !filter && !!page?.hasMore, placeholderData: keepPreviousData})
+  const needsRemote = !!query.trim() && !published && !filter && !!page?.hasMore
+  const searchQ = useQuery({...listSearchQuery(type, q), enabled: !!q && needsRemote, placeholderData: keepPreviousData, retry: false})
+  const found = searchQ.data
+  const searchOffline = needsRemote && searchQ.fetchStatus === 'paused'
+  const searchFailed = needsRemote && searchQ.isError && !searchQ.isFetching
+  const searchPending = needsRemote && (q !== query.trim() || searchQ.isPending || searchQ.isFetching || searchQ.isPlaceholderData)
+  const searchComplete = !needsRemote || (!searchOffline && !searchFailed && !searchPending)
   const docs = useMemo(() => {
     if (!q || !found || !page?.hasMore) return page?.docs
     const seen = new Set(page.docs.map((d) => d._publishedId))
@@ -311,10 +374,10 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   }, [people])
   // J24: filter as you type, on the list already here (no request per key). Every
   // word must appear in one of the doc's text values, Sanity-style.
+  const indexed = useMemo(() => (docs ?? []).map((doc) => ({doc, text: listSearchText(doc)})), [docs])
   const shown = useMemo(() => {
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
-    const text = (d: Doc) => Object.entries(d).filter(([k, v]) => !k.startsWith('_') && typeof v === 'string').map(([, v]) => (v as string).toLowerCase()).join(' ')
-    const hits = (docs ?? []).filter((d) => terms.every((w) => text(d).includes(w)))
+    const hits = indexed.filter(({text}) => terms.every((w) => text.includes(w))).map(({doc}) => doc)
     if (terms.length) {
       // Sorted by relevance, like Sanity: words of the title that start with a
       // search term count most, then the list's own order.
@@ -330,7 +393,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
       created: (a: Doc, b: Doc) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')),
     }[sort]
     return [...hits].sort(by)
-  }, [docs, query, sort, schemas, type])
+  }, [indexed, query, sort, schemas, type])
   return (
     <section className="pane list" data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
       <header className="pane-header">
@@ -364,6 +427,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           <Search />
         </span>
         <input
+          ref={searchInput}
           type="search"
           aria-label="Search list"
           placeholder="Search list"
@@ -372,12 +436,13 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
         />
         {query && (
-          <button type="button" className="icon-btn search-clear" aria-label="Clear search" onClick={() => setQuery('')}>
+          <button type="button" className="icon-btn search-clear" aria-label="Clear search" onClick={() => { searchInput.current?.focus(); setQuery('') }}>
             <Close />
           </button>
         )}
       </div>
       {query && <div className="sorted-by">Sorted by relevance</div>}
+      {query.trim() && filter && page?.hasMore && <p className="list-empty" role="status">Search covers the {page.docs.length} loaded documents in this list. Clear search and scroll to load more.</p>}
       <div className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}>
         {!readable && <p className="list-empty">This list filters with {missingOps.join(', ')}, which Barkpark's query API does not offer yet</p>}
         {treeParent && parentDoc && (
@@ -386,14 +451,19 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             <div className="desk-divider">{docs ? `${docs.length} under ${previewTitle(parentDoc, schemaOf(schemas, type))}` : ''}</div>
           </>
         )}
+        {searchOffline ? <p className="list-empty" role="status">You're offline. Reconnect to search all documents.</p> : searchFailed ? (
+          <div className="list-search-error" role="alert">
+            <p>Could not search all documents. Retry to see all matches.</p>
+            <button type="button" className="btn" onClick={() => { searchInput.current?.focus(); void searchQ.refetch() }}>Retry search</button>
+          </div>
+        ) : searchPending && <p className="list-empty" role="status">Searching all documents…</p>}
         {readable && !page &&
           (listQ.failureCount > 0 ? (
             <ReadErrorCard title="Could not fetch list items" error={listQ.failureReason ?? listQ.error} failures={listQ.failureCount} retrying={listQ.fetchStatus !== 'idle'} onRetry={() => void listQ.refetch()} />
           ) : (
             <ListSkeleton />
           ))}
-        {docs && docs.length === 0 && !treeParent && <p className="list-empty">No documents of this type</p>}
-        {docs && docs.length > 0 && shown.length === 0 && <p className="list-empty">No results found</p>}
+        {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty" role="status">{query.trim() ? 'No results found' : 'No documents of this type'}</p>}
         {shown.map((d) => (
           <DocPreview
             key={d._publishedId}
@@ -406,7 +476,11 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           />
         ))}
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
-        {!query && page?.hasMore && limit >= LIST_MAX && <p className="list-max">Displaying a maximum of {LIST_MAX} documents</p>}
+        {!query && page?.hasMore && limit >= LIST_MAX && (
+          listQ.isPlaceholderData
+            ? <p className="list-max" role="status" aria-busy="true">Loading more documents…</p>
+            : <p className="list-max">Displaying a maximum of {LIST_MAX} documents</p>
+        )}
       </div>
     </section>
   )

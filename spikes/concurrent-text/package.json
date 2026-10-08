@@ -1,0 +1,7 @@
+{
+  "name": "studio-concurrent-text-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {"measure": "node measure.mjs"},
+  "dependencies": {"@playwright/test": "1.63.0", "esbuild": "0.25.12", "yjs": "13.6.27"}
+}

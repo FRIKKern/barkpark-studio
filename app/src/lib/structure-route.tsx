@@ -44,7 +44,7 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   const data = Promise.all([
     Promise.all(
       panes.flatMap((p) => {
-        if (p.kind !== 'list') return []
+        if (p.kind !== 'list' || !schemaOf(schemas, p.type)) return []
         const node = p.node ? nodes?.get(p.node) : undefined
         const filter = listFilter(node, p.treeParent)
         if (unsupportedOps(filter).length) return []
@@ -52,7 +52,7 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
       }),
     ),
     // A tree level shows its parent category on top (B12): that doc too.
-    Promise.all(panes.flatMap((p) => (p.kind === 'doc' ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : p.kind === 'list' && p.treeParent ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.treeParent)))] : []))),
+    Promise.all(panes.flatMap((p) => (!('type' in p) || !schemaOf(schemas, p.type) ? [] : p.kind === 'doc' ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : p.kind === 'list' && p.treeParent ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.treeParent)))] : []))),
   ])
   if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, 0, false))]))) {
     void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))

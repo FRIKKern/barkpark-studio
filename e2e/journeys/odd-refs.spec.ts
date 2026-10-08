@@ -14,8 +14,9 @@ const seed = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url)
   .map((l) => JSON.parse(l))
   .find((d) => d._id === ID)
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
   const t = target(info)
+  await page.close()
   await t.restore(ID, {author: t.ref(seed.author._ref)}, 'post', ['reviewer'])
   await t.deleteDoc(DRAFT, 'author')
 })
@@ -34,6 +35,8 @@ test('@local J27: missing doc + Clear, draft-only target, filtered search, creat
   await expect(unavailable).toBeVisible()
   await unavailable.locator('xpath=following::*[name()="svg"][1]').hover()
   await expect(page.getByText(/referenced document does not exist \(ID: author-missing\)/)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByText(/referenced document does not exist \(ID: author-missing\)/)).toBeHidden()
 
   // Both odd references fail validation, with Sanity's wording.
   await page.getByRole('button', {name: 'Validation'}).click()

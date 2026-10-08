@@ -1,5 +1,3 @@
-# Barkpark Studio
-
 [![Barkpark Studio roadmap: phases 0 to 6 and after with journeys passing out of total, plus the Freeform side track counted apart](docs/images/roadmap.svg)](docs/ROADMAP.md)
 
 ## Vision
@@ -20,13 +18,16 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 69 changes, 18 tasks closed
+- **Today** · 6 changes, 1 task closed
+  - fix(j41): isolate bulk fixtures from production datasets ([#125](https://github.com/FRIKKern/barkpark-studio/pull/125))
+  - fix(j27): keep missing-reference help visible and dismissible ([#123](https://github.com/FRIKKern/barkpark-studio/pull/123))
+  - fix(j26): keep split editing and field focus in the active pane ([#121](https://github.com/FRIKKern/barkpark-studio/pull/121))
+- **Yesterday** · 10 changes, 13 tasks closed
+  - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
+  - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
+- **This week** · 97 changes, 25 tasks closed
   - D10: Norwegian letters, dead keys and IME type correctly in the canvas; a 500-block doc keeps F1 ([#98](https://github.com/FRIKKern/barkpark-studio/pull/98))
   - D07: paste or drop a picture into the canvas — uploaded to Barkpark media, uploading badge, failure on the block ([#97](https://github.com/FRIKKern/barkpark-studio/pull/97))
-  - D08: undo/redo in the canvas, a paste included, each step saved; the leading field block no longer replaced by typing ([#96](https://github.com/FRIKKern/barkpark-studio/pull/96))
-- **Yesterday** · 28 changes, 7 tasks closed
-  - Roadmap counts every journey; Freeform track shown apart ([#28](https://github.com/FRIKKern/barkpark-studio/pull/28))
-  - Freeform track: PortableDoc documents in Barkpark's shared canvas (decision 0004) ([#26](https://github.com/FRIKKern/barkpark-studio/pull/26))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
@@ -51,18 +52,28 @@ reference/sanity/    real Sanity Studio, the bar (project 0ozn679s, dataset prod
 fixtures/            seed data + Barkpark schema, same content on both sides
 e2e/                 Playwright: few, fast specs for what can break silently
 scripts/             seed Barkpark, README timeline, roadmap picture, doc checks
+spikes/concurrent-text/  reproducible two-browser concurrency comparison (decision 0002)
 docs/                roadmap, decisions (one page each)
 ```
 
 ## Run it
 
 ```sh
-cd reference/sanity && pnpm dev                 # the bar, http://localhost:3333
-npx sanity dataset import ../../fixtures/seed.ndjson production --replace   # reset its data
+cd reference/sanity && SANITY_STUDIO_DATASET=e2e-local pnpm dev # reference, :3333; use this env for e2e too
+pnpm exec sanity dataset import ../../fixtures/seed.ndjson --dataset e2e-local # seed isolated reference; never reset production
 cp .env.example .env                            # BARKPARK_TOKEN (+ SANITY_TOKEN to verify the reference)
 node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify Barkpark studio-parity (--verify: check only)
+node --env-file=.env scripts/seed-bulk.mjs      # optional J41: e2e-local datasets only; see script for overrides
 cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
 pnpm check                                      # typecheck + build; fails if client code imports src/server
 cd ../e2e && pnpm install && pnpm test          # journeys on both studios; ours on :3100 against dataset e2e-local
+pnpm reference                                # P0 crown clips, Sanity only; uses the Sanity CLI login
 STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (dev only; app/src/server/auth.ts)
 ```
+
+`pnpm reference` records Sanity; `pnpm recording` records our built app against
+`e2e-local` (requires Barkpark environment variables). Both reuse J01/J02/J08/J17/
+J19/J21/J22/J23 with two-second holds after content is ready. Reports and WebM clips
+live under `e2e/evidence/{reference,studio}/<run>/`. Install dependencies and `pnpm --dir e2e exec playwright install ffmpeg`. Reference auth uses
+`pnpm --dir reference/sanity exec sanity login` or `SANITY_TOKEN`; credentials stay in memory.
+Link reviewed clips to tasks; recording alone is not sign-off.
