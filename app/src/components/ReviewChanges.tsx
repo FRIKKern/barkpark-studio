@@ -6,6 +6,7 @@ import {historyQuery, revisionQuery, type Revision} from '../lib/history'
 import type {Doc, Schema} from '../lib/data'
 import {rangeDate} from './HistoryPanel'
 import {Undo} from './icons'
+import {assetUrl, type ImageValue} from '../lib/image'
 
 // Sanity's "Review changes" (J15): every field the draft changed since it was last
 // published, with who changed it, the change itself (text as a word diff), a
@@ -45,7 +46,7 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
               <li key={c.field.name} data-field={c.field.name}>
                 <div className="review-head">
                   <span className="review-field">{c.field.title ?? c.field.name}</span>
-                  <span className="review-authors" aria-label={`Changed by ${c.authors.join(', ') || 'unknown'}`}>
+                  <span className="review-authors" role="img" aria-label={`Changed by ${c.authors.join(', ') || 'unknown'}`}>
                     {c.authors.map((a) => (
                       <span key={a} className="avatar small" title={a}>
                         {a === 'API token' ? '·' : a[0]?.toUpperCase()}
@@ -71,7 +72,22 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
   )
 }
 
+/** An image value's asset id, if `v` is one. */
+const imageRef = (v: unknown) => (v as ImageValue | undefined)?.asset?._ref
+
 function ChangeView({change}: {change: FieldChange}) {
+  // An image: before → after thumbnails, as Sanity's image diff.
+  if (imageRef(change.before) || imageRef(change.after)) {
+    const thumb = (v: unknown, what: string) =>
+      imageRef(v) ? <img src={`${assetUrl(imageRef(v)!)}?size=thumb`} alt={what} /> : <span className="review-img-none">{what === 'Before' ? 'No image' : 'Removed'}</span>
+    return (
+      <p className="review-diff review-img">
+        {thumb(change.before, 'Before')}
+        <span aria-hidden="true">→</span>
+        {thumb(change.after, 'After')}
+      </p>
+    )
+  }
   const before = asText(change.before)
   const after = asText(change.after)
   if (before === undefined || after === undefined)
