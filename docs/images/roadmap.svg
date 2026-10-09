@@ -19,7 +19,7 @@
 <rect x="40" y="124" width="1120" height="8" rx="4" class="track"/>
 <rect x="40" y="124" width="844.3076923076923" height="8" rx="4" class="bar"/>
 <text x="40" y="168" font-size="16"><tspan class="done">✓ passed</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>
-<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 25 / 38</text>
+<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 26 / 38</text>
 <g data-phase="0">
 <rect x="40" y="196" width="268" height="364" rx="12" class="card"/>
 <text x="60" y="228" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">PHASE 0</text>
@@ -187,7 +187,7 @@
 <text x="330" y="1322" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B07 Unpublish a doc othe…</tspan></text>
 <text x="330" y="1352" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B08 Media library</tspan></text>
 <text x="600" y="1262" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">B09 Related-doc views fr…</tspan></text>
-<text x="600" y="1292" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B10 Schema-declared docu…</tspan></text>
+<text x="600" y="1292" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">B10 Schema-declared docu…</tspan></text>
 <text x="600" y="1322" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B11 Closing the tab with…</tspan></text>
 <text x="600" y="1352" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B12 A workspace's declar…</tspan></text>
 <text x="870" y="1262" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B13 Singleton types</tspan></text>
