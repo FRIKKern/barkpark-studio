@@ -49,16 +49,19 @@ const blocks = (body: unknown) =>
     .map((b) => ({_key: b.id, _type: 'block', children: [{_key: `${b.id}-0`, text: (b.content ?? []).map((c) => c.value ?? '').join('')}]}))
 
 // A source map's value at `prefix` + `["field"]` (`$` a document's; `$[row]` a query
-// row; `$[row]["author"]` a reference expanded in it) → that field of the document it
-// came from, as data attributes. The field is the value's own name (these pages read
-// fields as they are): a query map's `paths` don't line up yet (sent to Barkpark).
+// row; `$[row]["author"]` a reference expanded in it) → where it came from: its
+// document, and the path in that document (`paths[source.path]`, Barkpark #22380), as
+// data attributes. A path is Sanity's dotted form: `$["seo"]["title"]` → `seo.title`.
 function editOf(map: SourceMap | null | undefined, label: unknown, prefix = '$'): Edit {
   return (field) => {
     const hit = map?.mappings[`${prefix}["${field}"]`]
     const doc = hit && map!.documents[hit.source.document]
-    return doc ? {'data-bp-edit': `${doc._type}:${doc._id.replace(/^drafts\./, '')}:${field}`, 'data-bp-label': String(label ?? '')} : undefined
+    const path = hit && dotted(map!.paths[hit.source.path])
+    return doc && path ? {'data-bp-edit': `${doc._type}:${doc._id.replace(/^drafts\./, '')}:${path}`, 'data-bp-label': String(label ?? '')} : undefined
   }
 }
+const dotted = (jsonPath: string | undefined) =>
+  jsonPath?.startsWith('$') ? jsonPath.slice(1).replace(/\["((?:[^"\\]|\\.)*)"\]/g, '.$1').replace(/^\./, '') || undefined : undefined
 
 export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]} {
   if (kind === 'home') {
