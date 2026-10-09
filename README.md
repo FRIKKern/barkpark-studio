@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 81 changes, 19 tasks closed
+- **Today** · 82 changes, 19 tasks closed
+  - J66: Tasks — doc menu Create new task, navbar Tasks sidebar, studioTask docs ([#320](https://github.com/FRIKKern/barkpark-studio/pull/320))
   - Initial value templates in every Create new, as Sanity's (J18 widen) ([#321](https://github.com/FRIKKern/barkpark-studio/pull/321))
   - Incoming references from the document menu, as Sanity's (J17 widen) ([#319](https://github.com/FRIKKern/barkpark-studio/pull/319))
-  - JOURNEYS: completeness audit — merge J52→J02, J62→J59, J43→J47; widen J17 J18 J26; add J66 Tasks, J67 production sign-in ([#318](https://github.com/FRIKKern/barkpark-studio/pull/318))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
