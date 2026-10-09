@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 30 changes, 19 tasks closed
+- **Today** · 31 changes, 19 tasks closed
+  - Preview site: the studio's token reads Published too; one read per page ([#263](https://github.com/FRIKKern/barkpark-studio/pull/263))
   - J59 home list click-to-edit; preview site reads drafts with a studio-minted token ([#262](https://github.com/FRIKKern/barkpark-studio/pull/262))
   - J06 spec: line start is Cmd+Left on macOS ([#261](https://github.com/FRIKKern/barkpark-studio/pull/261))
-  - e2e: the three preview fails on a lane were rig, not studio ([#260](https://github.com/FRIKKern/barkpark-studio/pull/260))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
