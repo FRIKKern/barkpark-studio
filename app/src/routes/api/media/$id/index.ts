@@ -1,5 +1,6 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, bpFile, bpRaw, dataset} from '../../../../server/barkpark'
+import {assetUsage} from '../../../../server/asset-usage'
 
 // GET /api/media/<asset id> → the image bytes (?size=thumb: Barkpark's thumbnail
 // rendition, one request and small — the library's tiles). Barkpark serves media files to a
@@ -22,6 +23,14 @@ export const Route = createFileRoute('/api/media/$id/')({
           status: file.status,
           headers: {'content-type': file.headers.get('content-type') ?? result.mimeType ?? 'application/octet-stream', ...immutable},
         })
+      },
+      // J36: Sanity's asset Delete. An asset in use is never deleted (409 with its uses):
+      // Barkpark's media delete doesn't check references, so the studio does.
+      DELETE: async ({params}) => {
+        const uses = await assetUsage(params.id)
+        if (uses.length) return Response.json({error: 'in use', uses}, {status: 409})
+        const res = await bpFetch(`/v1/media/${dataset()}/${encodeURIComponent(params.id)}`, {method: 'DELETE'})
+        return new Response(null, {status: res.ok ? 204 : res.status})
       },
     },
   },

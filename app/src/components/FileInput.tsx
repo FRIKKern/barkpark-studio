@@ -4,7 +4,8 @@ import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import type {OpenRef} from './Fields'
 import {toast} from './Toasts'
 import {PaneLink} from './PaneLink'
-import {BinaryDocumentIcon, Close as CloseIcon, Copy, DocumentIcon, Download, InfoOutline, Ellipsis, ErrorOutline, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
+import {BinaryDocumentIcon, Close as CloseIcon, Copy, DocumentIcon, Download, InfoOutline, Ellipsis, ErrorOutline, LinkIcon, Reset, Search as SearchIcon, Trash, Undo, Upload} from './icons'
+import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {assetUrl} from '../lib/image'
 import {useLocale, useT} from '../lib/i18n'
@@ -184,13 +185,13 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
           </div>
         </div>
       )}
-      {browsing && <FilePicker title={title} path={id} accept={accept} openRef={openRef} onPick={(next) => (setBrowsing(false), use(next))} onClose={() => setBrowsing(false)} />}
+      {browsing && <FilePicker title={title} path={id} accept={accept} current={ref} openRef={openRef} onPick={(next) => (setBrowsing(false), use(next))} onClose={() => setBrowsing(false)} />}
     </div>
   )
 }
 
 /** Sanity's "Select file for <field>": the accepted files as a table; each row's "…" shows where it is used. */
-function FilePicker({title, path, accept, openRef, onPick, onClose}: {title: string; path: string; accept?: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
+function FilePicker({title, path, accept, current, openRef, onPick, onClose}: {title: string; path: string; accept?: string; current?: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
   const {data: files, isPending, error} = useQuery({
     queryKey: ['media-files', accept ?? ''],
     queryFn: () => fetch(`/api/media/files${accept ? `?accept=${encodeURIComponent(accept)}` : ''}`).then((r) => (r.ok ? (r.json() as Promise<FileAsset[]>) : Promise.reject(new Error(`files → ${r.status}`)))),
@@ -199,6 +200,7 @@ function FilePicker({title, path, accept, openRef, onPick, onClose}: {title: str
   const locale = useLocale()
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [usageOf, setUsageOf] = useState<FileAsset | null>(null)
+  const [deleting, setDeleting] = useState<FileAsset | null>(null)
   return (
     <PaneOverlay>
       <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -250,6 +252,17 @@ function FilePicker({title, path, accept, openRef, onPick, onClose}: {title: str
                                 <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenuFor(null), setUsageOf(f))}>
                                   <LinkIcon /> {t('Show usage')}
                                 </button>
+                                {/* Sanity's: the file the field holds can't be deleted from here. */}
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="menu-item danger"
+                                  aria-disabled={current === `asset-${f.id}` || undefined}
+                                  title={current === `asset-${f.id}` ? t('Cannot delete currently selected file') : t('Delete file')}
+                                  onClick={() => current !== `asset-${f.id}` && (setMenuFor(null), setDeleting(f))}
+                                >
+                                  <Trash /> {t('Delete')}
+                                </button>
                               </MenuPopover>
                             )}
                           </div>
@@ -263,6 +276,7 @@ function FilePicker({title, path, accept, openRef, onPick, onClose}: {title: str
           </div>
         </DialogBox>
         {usageOf && <FileUsage file={usageOf} path={path} openRef={openRef} onClose={() => setUsageOf(null)} onOpen={onClose} />}
+        {deleting && <AssetDeleteDialog kind="file" asset={deleting} path={path} openRef={openRef} onClose={() => setDeleting(null)} onOpen={onClose} />}
       </div>
     </PaneOverlay>
   )

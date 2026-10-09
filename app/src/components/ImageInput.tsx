@@ -4,7 +4,8 @@ import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {EditPathContext, FieldView, type OpenRef} from './Fields'
 import {toast} from './Toasts'
 import {RefPreview} from './Preview'
-import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
+import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Trash, Undo, Upload} from './icons'
+import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
 import {assetUrl, dragCrop, frame, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
@@ -194,6 +195,7 @@ function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; pa
   const {data: assets, isPending, error} = useQuery({queryKey: ['media'], queryFn: () => fetch('/api/media/').then((r) => (r.ok ? (r.json() as Promise<Asset[]>) : Promise.reject(new Error(`media list → ${r.status}`))))})
   const t = useT()
   const [usageOf, setUsageOf] = useState<Asset | null>(null)
+  const [deleting, setDeleting] = useState<Asset | null>(null)
   const [menuFor, setMenuFor] = useState<string | null>(null)
   return (
     <PaneOverlay>
@@ -224,6 +226,9 @@ function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; pa
                         <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenuFor(null), setUsageOf(a))}>
                           <LinkIcon /> {t('Show usage')}
                         </button>
+                        <button type="button" role="menuitem" className="menu-item danger" onClick={() => (setMenuFor(null), setDeleting(a))}>
+                          <Trash /> {t('Delete')}
+                        </button>
                       </MenuPopover>
                     )}
                   </div>
@@ -233,6 +238,7 @@ function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; pa
           </div>
         </DialogBox>
         {usageOf && <UsageDialog asset={usageOf} path={path} openRef={openRef} onClose={() => setUsageOf(null)} onOpen={onClose} />}
+        {deleting && <AssetDeleteDialog kind="image" asset={deleting} path={path} openRef={openRef} onClose={() => setDeleting(null)} onOpen={onClose} />}
       </div>
     </PaneOverlay>
   )
