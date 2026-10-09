@@ -157,6 +157,14 @@ export function StudioError({error, reset}: ErrorComponentProps) {
   const t = useT()
   const router = useRouter()
   const message = error instanceof Error ? error.message : String(error)
+  // The content model itself read with a dead studio token (401, Barkpark #22517): say that,
+  // as a pane would (#312), not a bare "error occurred".
+  if (/\b401\b/.test(message))
+    return (
+      <main className="studio-error" data-testid="studio-error">
+        <RefusedTokenCard />
+      </main>
+    )
   return (
     <main className="studio-error" data-testid="studio-error">
       <div className="pane-error" role="alert">

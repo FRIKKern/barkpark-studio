@@ -163,6 +163,8 @@ async function connect(hub: Hub) {
       const headers: Record<string, string> = {accept: 'text/event-stream'}
       if (hub.lastEventId) headers['last-event-id'] = hub.lastEventId
       const res = await bpFetch(`/v1/data/listen/${hub.scope.dataset}`, {headers, signal: attempt.signal}, hub.token, {at: hub.scope})
+      // A dead token (401, Barkpark #22517) won't come back by itself: ask again once a minute, not every 10 s.
+      if (res.status === 401) delay = 60_000
       if (!res.ok || !res.body) throw new Error(`listen ${res.status}`)
       hub.lastByte = Date.now()
       hub.liveSince ||= Date.now()
@@ -177,7 +179,7 @@ async function connect(hub: Hub) {
     // A refresh reconnects at once; a failure backs off.
     if (!attempt.signal.aborted) {
       await new Promise((r) => setTimeout(r, delay))
-      delay = Math.min(delay * 2, 10_000)
+      delay = delay >= 60_000 ? delay : Math.min(delay * 2, 10_000)
     }
   }
 }

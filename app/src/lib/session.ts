@@ -13,10 +13,14 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
   // J49: may this editor write? The token they work with says (dev sign-in: theirs; else
   // the studio's own). Signed out of dev sign-in: the sign-in screen takes over.
   const self = devLoginEnabled() && !editor ? undefined : await describeToken(editor?.token ?? requestToken())
+  // The signed-in editor's own token is dead (revoked or expired, 401): their session
+  // ends here, and signing in again mints a new one (J48), not a refused-studio card.
+  const ended = !!editor && !!self?.refused
+  if (ended) signOut()
   return {
     devLogin: devLoginEnabled(),
-    email: editor?.email ?? null,
-    canWrite: self ? self.permissions.includes('write') : true,
+    email: ended ? null : editor?.email ?? null,
+    canWrite: self && !ended ? self.permissions.includes('write') : true,
     /** A token held to one dataset (Barkpark #22393): the only one it can open. */
     boundDataset: self?.boundDataset ?? null,
     /** The studio's own token is refused (revoked, or out of the workspace): nothing will load. */

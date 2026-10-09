@@ -73,9 +73,8 @@ async function editorToken(email: string): Promise<string> {
     const probe = await fetch(`${url}/w/${workspace}/p/${project}/v1/schemas/${dataset}`, {
       headers: {authorization: `Bearer ${tokens[email]}`},
     })
-    // 403: a token minted (before #274) bound to the dataset it signed in to, now used in
-    // another (Barkpark holds bound tokens to theirs): replaced like a dead one.
-    if (probe.status !== 401 && probe.status !== 403) return tokens[email]
+    // Dead (revoked or expired) is 401 everywhere since Barkpark #22517: then a new one.
+    if (probe.status !== 401) return tokens[email]
   }
   await revokeEditorTokens(email, file.workspaceId)
   const res = await fetch(`${url}/v1/auth/app-tokens`, {
@@ -102,8 +101,9 @@ export function describeToken(token: string): Promise<TokenSelf> {
   if (held && Date.now() - held.at < 60_000) return held.self
   const self = (async (): Promise<TokenSelf> => {
     const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}}).catch(() => undefined)
-    // Barkpark won't describe it: revoked, expired or no longer in the workspace.
-    if (res?.status === 401 || res?.status === 403) return {permissions: [], boundDataset: null, refused: true}
+    // 401: dead (revoked or expired). 403: alive but not allowed here: nothing to write with.
+    if (res?.status === 401) return {permissions: [], boundDataset: null, refused: true}
+    if (res?.status === 403) return {permissions: [], boundDataset: null}
     if (!res?.ok) return {permissions: ['read', 'write'], boundDataset: null}
     const me = (await res.json()) as {permissions?: string[]; seat?: {can?: Record<string, boolean>}; dataset?: string; dataset_bound?: boolean}
     return {permissions: (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false), boundDataset: me.dataset_bound && me.dataset ? me.dataset : null}
