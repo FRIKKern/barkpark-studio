@@ -4,7 +4,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {expectEcho, mutatedIds} from '../server/listen'
 import {docQuery, schemasQuery, type Doc, type Field, type ListPage} from './data'
-import {findingsOf, findingsReason} from './findings'
+import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
 import {t} from './i18n'
 import {merge3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
@@ -59,6 +59,8 @@ export type SaveState = 'saved' | 'saving' | 'stalled' | 'offline' | 'recovering
 type Snap = {state: SaveState; error?: string; creating?: boolean}
 type DocEdits = {
   type: string
+  /** What Barkpark's schema check said of the last save (advisory: never blocks, #22406). */
+  advisories?: Finding[]
   dirty: Map<string, unknown>
   inflight: Map<string, unknown> | null
   snap: Snap
@@ -338,8 +340,9 @@ async function send(qc: QueryClient, id: string) {
     const mutation: Json = creating
       ? {create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}
       : {patch: {id, type: e.type, set, unset, ...(e.rev ? {ifRevisionID: e.rev} : {})}}
-    const r = (await mutate({data: {mutations: [mutation]}})) as {results: {document: Doc}[]}
+    const r = (await mutate({data: {mutations: [mutation]}})) as {results: {document: Doc}[]; warnings?: unknown}
     const saved = r.results[0].document
+    e.advisories = advisoryFindings(r)
     if (creating) { e.pendingCreate = undefined; e.createRequested = false }
     // What we sent is now the server's: a field still being typed builds on it.
     for (const f of e.inflight.keys()) {
@@ -488,6 +491,16 @@ export async function publish(qc: QueryClient, doc: Doc) {
   qc.setQueryData(['doc-published', id], r.results[0].document)
 }
 
+const NO_FINDINGS: Finding[] = []
+/** Barkpark's advisory findings on this doc's last save (lib/findings.ts says them). */
+export function useAdvisories(id: string): Finding[] {
+  return useSyncExternalStore(
+    (l) => (listeners.add(l), () => listeners.delete(l)),
+    () => docs.get(id)?.advisories ?? NO_FINDINGS,
+    () => NO_FINDINGS,
+  )
+}
+
 export function useSaveState(id: string): Snap {
   return useSyncExternalStore(
     (l) => (listeners.add(l), () => listeners.delete(l)),
@@ -522,6 +535,7 @@ export async function discardDraft(qc: QueryClient, doc: Doc) {
   if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear())
   await whenSaved(id)
   await mutate({data: {mutations: [{discardDraft: {id, type: doc._type}}]}})
+  if (e) e.advisories = undefined // what Barkpark said of the draft went with it
   const published = qc.getQueryData<Doc | null>(['doc-published', id])
   if (published) writeCache(qc, id, doc._type, {...published, _hasPublished: true} as Doc)
   await qc.invalidateQueries({queryKey: ['doc', id]})

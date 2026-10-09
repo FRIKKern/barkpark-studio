@@ -73,7 +73,9 @@ async function editorToken(email: string): Promise<string> {
     const probe = await fetch(`${url}/w/${workspace}/p/${project}/v1/schemas/${dataset}`, {
       headers: {authorization: `Bearer ${tokens[email]}`},
     })
-    if (probe.status !== 401) return tokens[email]
+    // 403: a token minted (before #274) bound to the dataset it signed in to, now used in
+    // another (Barkpark holds bound tokens to theirs): replaced like a dead one.
+    if (probe.status !== 401 && probe.status !== 403) return tokens[email]
   }
   await revokeEditorTokens(email, file.workspaceId)
   const res = await fetch(`${url}/v1/auth/app-tokens`, {

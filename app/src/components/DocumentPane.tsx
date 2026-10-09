@@ -6,9 +6,10 @@ import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
+import {advisoryProblems} from '../lib/findings'
 import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
-import {createDoc, discardDraft, draftNew, edit, flush, publish, reasonOf, undo, unpublish, useSaveState} from '../lib/edits'
+import {createDoc, discardDraft, draftNew, edit, flush, publish, reasonOf, undo, unpublish, useAdvisories, useSaveState} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
@@ -90,7 +91,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const byId = new Map(refFields.map((f, i) => [doc![f.name] as string, targets[i].data]))
   // J18: a new doc nobody has typed in yet exists only here; Sanity checks nothing until the first edit.
   const pristine = isPristine(doc, useSaveState(pane.id).state)
-  const problems = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
+  const own = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
+  // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
+  const advisories = useAdvisories(pane.id)
+  const problems = own.length || advisories.length ? [...own, ...(schemaForPane && !viewingPublished ? advisoryProblems(advisories, schemaForPane, own, t) : [])] : own
   // J13: only errors block publishing; warnings and infos are shown, never in the way.
   const errors = errorsOf(problems)
   const openObjects = useOpenObjects(pane.id)
