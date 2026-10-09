@@ -20,7 +20,7 @@
     {"name": "body", "title": "Body", "type": "richText", "editor": "blocks", "group": "content",
      "blocks": {"styles": ["normal", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"], "lists": ["bullet", "number"],
                 "marks": ["strong", "em", "code", "underline", "strikethrough"], "annotations": [{"name": "link"}, {"name": "wikilink"}],
-                "of": ["image", "callout"]}},
+                "of": ["image", {"name": "callout", "title": "Callout", "fields": [{"name": "tone", "title": "Tone", "type": "select", "options": {"list": ["info", "warning", "danger"]}}, {"name": "text", "title": "Text", "type": "text"}]}]}},
     {"name": "stage", "title": "Stage", "type": "select", "group": "meta", "layout": "radio",
      "options": ["idea", "writing", "review", "done"]},
     {"name": "format", "title": "Format", "type": "select", "group": "meta",

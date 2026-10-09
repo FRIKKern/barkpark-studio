@@ -96,15 +96,31 @@ export function advisoryProblems(findings: Finding[], schema: Schema, known: Pro
     const parents: string[] = []
     let fields: Field[] | undefined = schema.fields
     let field: Field | undefined
+    // A field inside a rich-text block (body.1.tone): the block types the field declares
+    // (blocks.of {name, fields}) name it, "Body / Callout / Tone", and it shows on the body.
+    let at = path
     for (const name of path.split('.').filter((p) => p && !/^\d+$|^\[/.test(p))) {
       field = fields?.find((x) => x.name === name)
       if (!field) break
+      if (field.type === 'richText') {
+        const blocks = ((field as {blocks?: {of?: unknown[]}}).blocks?.of ?? []).filter((o): o is {name: string; title?: string; fields?: Field[]} => !!o && typeof o === 'object' && Array.isArray((o as {fields?: unknown}).fields))
+        const rest = path.split('.').slice(path.split('.').indexOf(name) + 1).filter((p) => p && !/^\d+$/.test(p))
+        const block = blocks.find((b) => b.fields!.some((x) => x.name === rest[0]))
+        const inner = block?.fields!.find((x) => x.name === rest[0])
+        if (block && inner) {
+          parents.push(field.title ?? field.name, block.title ?? block.name)
+          at = path.split('.').slice(0, path.split('.').indexOf(name) + 1).join('.')
+          const level = levelOfField(inner)
+          return [{path: at, title: inner.title ?? inner.name, message: findingSentence(f, t), level, parents, group: field.group}]
+        }
+        break
+      }
       fields = field.fields ?? field.of?.fields
       if (fields && field.type === 'composite') parents.push(field.title ?? field.name)
     }
     if (field?.type === 'composite') parents.pop()
     const level = field ? levelOfField(field) : 'error'
-    return [{path, title: field?.title ?? field?.name ?? path, message: findingSentence(f, t), level, ...(parents.length ? {parents} : {}), group: field?.group}]
+    return [{path: at, title: field?.title ?? field?.name ?? path, message: findingSentence(f, t), level, ...(parents.length ? {parents} : {}), group: field?.group}]
   })
 }
 

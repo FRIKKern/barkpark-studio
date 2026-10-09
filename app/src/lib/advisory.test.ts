@@ -25,3 +25,10 @@ test('a finding the studio already flags is left to it; the others join, at thei
     {path: 'seo.metaTitle', title: 'Meta title', message: 'Does not match the required format', level: 'error', parents: ['SEO'], group: undefined},
   ])
 })
+
+test('a field inside a rich-text block is named by its block and shown on the body (nb too)', () => {
+  const withBody = {...post, fields: [...post.fields, {name: 'body', title: 'Body', type: 'richText', group: 'content', blocks: {of: ['image', {name: 'callout', title: 'Callout', fields: [{name: 'tone', title: 'Tone', type: 'select'}]}]}}]} as unknown as Schema
+  const nb = (s: string, vars?: Record<string, string | number>) => ({'Must be one of {allowed}': 'Må være en av {allowed}'} as Record<string, string>)[s]?.replace(/\{(\w+)\}/g, (all, k: string) => String(vars?.[k] ?? all)) ?? s
+  const got = advisoryProblems([f('/body/1/tone', 'not_in_list', {allowed: ['info', 'warning', 'danger']})], withBody, [], nb)
+  assert.deepEqual(got, [{path: 'body', title: 'Tone', message: 'Må være en av info, warning, danger', level: 'error', parents: ['Body', 'Callout'], group: 'content'}])
+})
