@@ -92,7 +92,6 @@ export function MediaLibrary() {
             <button type="button" className="btn" onClick={() => void assets.refetch()}>{t('Retry')}</button>
           </div>
         )}
-        {visibility && assets.data?.more && <p className="list-empty" role="status">{t('Filtering the newest 200 by visibility.')}</p>}
         {assets.data?.assets.length === 0 && <p className="list-empty" role="status">{query || visibility ? t('No matching media') : folder ? t('This folder is empty') : t('No media yet')}</p>}
         <ul className="media-grid">
           {assets.data?.assets.map((a) => (
@@ -186,7 +185,7 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
         aria-label={t('Details')}
         onSubmit={(e) => {
           e.preventDefault()
-          void act(t('Could not save the details'), () => saveAssetMeta({data: {docId: a.docId, set: meta}}))()
+          void act(t('Could not save the details'), () => saveAssetMeta({data: {id, set: meta}}))()
         }}
       >
         <h3>{t('Details')}</h3>

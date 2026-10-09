@@ -72,10 +72,10 @@ const fetchAssets = createServerFn({method: 'GET'})
       const r = await read<{assets?: RawAsset[]; hits?: RawAsset[]; hasMore?: boolean}>(`${base()}/collections/${encodeURIComponent(data.collection)}/assets?${params}`)
       return {assets: (r.assets ?? r.hits ?? []).map(toAsset).filter((a) => !data.visibility || a.visibility === data.visibility), more: !!r.hasMore} as unknown as Json
     }
-    // The search index has no visibility facet yet (task-f6f3e95109f87705): each hit carries its own, so
-    // filter on that, over the newest 200.
+    // The search's visibility facet (#22127: an asset with none stored is public).
+    if (data.visibility) params.set('facet.visibility', data.visibility)
     const r = await read<{hits: RawAsset[]; hasMore?: boolean}>(`${base()}/search?${params}`)
-    return {assets: r.hits.map(toAsset).filter((a) => !data.visibility || a.visibility === data.visibility), more: !!r.hasMore} as unknown as Json
+    return {assets: r.hits.map(toAsset), more: !!r.hasMore} as unknown as Json
   })
 export const assetsQuery = (f: {collection?: string; q?: string; visibility?: Visibility}) =>
   queryOptions({queryKey: ['media', 'assets', f], queryFn: async () => (await fetchAssets({data: f})) as unknown as {assets: LibraryAsset[]; more: boolean}})
@@ -103,17 +103,13 @@ export const setCheckout = createServerFn({method: 'POST'})
   .validator((d: {id: string; out: boolean}) => d)
   .handler(async ({data}) => send(`${base()}/${encodeURIComponent(data.id)}/${data.out ? 'checkout' : 'undo-checkout'}`, {method: 'POST'}))
 
-/** A folder (LiveView: a published mediaCollection of kind folder). */
+/** A folder (LiveView: a mediaCollection of kind folder), through the media API. */
 export const createFolder = createServerFn({method: 'POST'})
   .validator((d: {title: string}) => d)
   .handler(async ({data}) => {
-    const id = `col-${Date.now().toString(36)}`
-    await send(`/v1/data/mutate/${dataset()}`, {
-      method: 'POST',
-      headers: {'content-type': 'application/json'},
-      body: JSON.stringify({mutations: [{create: {_type: 'mediaCollection', _id: id, title: data.title, kind: 'folder', slug: id}}, {publish: {id, type: 'mediaCollection'}}]}),
-    })
-    return id
+    const res = await bpFetch(`${base()}/collections`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({title: data.title, kind: 'folder'})})
+    if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 300)}`)
+    return ((await res.json()) as {result: {id: string}}).result.id
   })
 
 /** Put an asset in a folder, or take it out. */
@@ -125,13 +121,9 @@ export const setMember = createServerFn({method: 'POST'})
     else await send(`${path}/${encodeURIComponent(data.asset)}`, {method: 'DELETE'})
   })
 
-/** Title and alt text live on the asset's mediaAsset document (LiveView: Structure → Media). */
+/** Title and alt text: Barkpark's PATCH on the asset (#22049), which honours its checkout lock. */
 export const saveAssetMeta = createServerFn({method: 'POST'})
-  .validator((d: {docId: string; set: {title?: string; altText?: string}}) => d)
+  .validator((d: {id: string; set: {title?: string; altText?: string}}) => d)
   .handler(async ({data}) =>
-    send(`/v1/data/mutate/${dataset()}`, {
-      method: 'POST',
-      headers: {'content-type': 'application/json'},
-      body: JSON.stringify({mutations: [{patch: {id: data.docId, type: 'mediaAsset', set: data.set}}]}),
-    }),
+    send(`${base()}/${encodeURIComponent(data.id)}`, {method: 'PATCH', headers: {'content-type': 'application/json'}, body: JSON.stringify(data.set)}),
   )

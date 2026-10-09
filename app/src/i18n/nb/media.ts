@@ -103,7 +103,6 @@ export default {
   'Private': 'Privat',
   'Loading media…': 'Laster medier…',
   'Could not load the media library.': 'Kunne ikke laste mediebiblioteket.',
-  'Filtering the newest 200 by visibility.': 'Filtrerer de 200 nyeste etter synlighet.',
   'No matching media': 'Ingen medier passer',
   'This folder is empty': 'Denne mappen er tom',
   'No media yet': 'Ingen medier ennå',
