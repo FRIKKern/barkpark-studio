@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target} from '../rig/targets'
+import {signInIfAsked, target, reveal} from '../rig/targets'
 
 // J50 evidence, both studios: the backend goes away mid-session. A list that can't
 // load says so in its pane ("Could not fetch list items", Retry, retry count), a doc
@@ -41,7 +41,7 @@ test('@evidence J50: backend down — list error card + Retry, doc pane waits, "
 
   // 3. A doc opened while down: the pane waits in its loading state, the toast says why.
   up = await backendDown(page, t.name)
-  await t.listItem(page, 'post-02').click()
+  await (await reveal(t.listItem(page, 'post-02'))).click()
   await expect(page.getByText('Trying to connect…')).toBeVisible({timeout: 10_000})
   await page.screenshot({path: shot(t.name, '3-doc-down')})
   await up()

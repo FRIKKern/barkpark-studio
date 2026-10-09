@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target} from '../rig/targets'
+import {signInIfAsked, target, reveal} from '../rig/targets'
 
 // J42, both studios, 500 px wide (under Sanity's 600 px collapse): one pane
 // at a time with a back link; post → doc → author and back, back/forward, and a
@@ -26,7 +26,7 @@ test('@local J42: narrow window — one pane with a back link; URL and panes rig
   await expect.poll(() => shown(page)).toEqual([1])
   await page.screenshot({path: shot(t.name, '1-list')})
 
-  await t.listItem(page, 'post-02').click()
+  await (await reveal(t.listItem(page, 'post-02'))).click()
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 02')
   await expect.poll(() => shown(page)).toEqual([2])
   await page.screenshot({path: shot(t.name, '2-doc')})

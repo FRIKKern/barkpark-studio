@@ -1,6 +1,6 @@
 import {expect, test} from '@playwright/test'
 import {installProbes, networkBudget, recordFeel, timeToReady} from '../rig/feel'
-import {target} from '../rig/targets'
+import {target, closeAndSettle, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
 // Crown references, same steps on both studios: J08 (pick by search, open in the
@@ -14,8 +14,11 @@ test.beforeEach(async ({context}, info) => {
 const created: string[] = []
 let alanEdited = false
 let post02Moved = false
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
   const t = target(info)
+  // A save the page still has on its way (a replaced author, a new author's name) would
+  // land after the restore and leave a draft behind for the next run.
+  await closeAndSettle(page)
   await t.restore(ID, {author: t.ref('author-alan')})
   if (alanEdited) await t.restore('author-alan', {bio: 'Alan Turing writes fixture posts.'}, 'author')
   if (post02Moved) await t.restore('post-02', {author: t.ref('author-grace')})
@@ -214,7 +217,7 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
       await b.route('**/api/listen?**', async (route) => (await held, route.continue()))
     }
     await b.goto(t.listPath('post'))
-    const row = t.listItem(b, 'post-08')
+    const row = await reveal(t.listItem(b, 'post-08'))
     await expect(row).toContainText('Grace Hopper X')
     // A's edit has forked a draft; Sanity's direct helper names versions explicitly.
     await t.patch(t.name === 'sanity' ? 'drafts.author-grace' : 'author-grace', {name: 'Grace Hopper live'}, 'author')

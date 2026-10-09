@@ -72,8 +72,11 @@ test('@local B07: Disconnect references and unpublish', async ({page}, info) => 
     await dialog.getByRole('button', {name: 'Disconnect references and unpublish'}).click()
     await expect(dialog).toBeHidden()
     await expect.poll(() => live(AUTHOR)).toBe(false)
-    await expect.poll(async () => (await read('post', POST, 'drafts'))?.author ?? null).toBeNull()
-    expect(await read('post', POST, 'drafts'), 'the referrer itself stays').not.toBeNull()
+    // The referrer stays, without its reference (a failed read is not "no reference").
+    await expect.poll(async () => {
+      const post = await read('post', POST, 'drafts')
+      return post ? (post.author ?? null) : 'unreadable'
+    }).toBeNull()
   } finally {
     await bpMutate([{delete: {id: POST, type: 'post', force: true}}, {delete: {id: AUTHOR, type: 'author', force: true}}]).catch(() => {})
   }
