@@ -5,7 +5,9 @@ import {execSync} from 'node:child_process'
 import fs from 'node:fs'
 const primary = process.env.CI_LOCAL_ENV ?? '/Volumes/SATECHI/github/barkpark-studio/.env'
 const base = Object.fromEntries(fs.readFileSync(primary, 'utf8').split('\n').filter((l) => /^BARKPARK_(URL|WORKSPACE|PROJECT|TOKEN)=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]))
-const env = {...process.env, ...base, CI: 'true', BUDGET_NETWORK_SCALE: '4', BARKPARK_SCHEMA_SOURCE: 'fixtures'}
+// As the workflow: schemas from Barkpark, or from the checkout when this branch changes them.
+const fixtureSchemas = execSync('git fetch -q origin main && git diff --name-only origin/main...HEAD -- fixtures/barkpark-schema').toString().trim() !== ''
+const env = {...process.env, ...base, CI: 'true', BUDGET_NETWORK_SCALE: '4', ...(fixtureSchemas && {BARKPARK_SCHEMA_SOURCE: 'fixtures'})}
 const sh = (cmd, extra = {}, cwd) => execSync(cmd, {stdio: 'inherit', env: {...env, ...extra}, cwd})
 // One run per machine: every run reseeds and edits the shared ci / ci-2 datasets.
 const LOCK = '/tmp/barkpark-studio-ci-local.lock'

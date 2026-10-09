@@ -1,6 +1,6 @@
-// Where the studio gets its content model. Default: the Barkpark API. CI only:
-// BARKPARK_SCHEMA_SOURCE=fixtures reads the checked-in fixtures/barkpark-schema/,
-// because a member token can't read schemas yet (task-23c4ac86976c46a9).
+// Where the studio gets its content model. Default: the Barkpark API (a member token
+// may read it, barkpark #22080). BARKPARK_SCHEMA_SOURCE=fixtures reads the checked-in
+// fixtures/barkpark-schema/ instead: CI does that for a PR that changes them.
 import '@tanstack/react-start/server-only'
 import {readdir, readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
@@ -14,7 +14,6 @@ export async function readSchemas(): Promise<RawSchema[]> {
     const files = (await readdir(dir)).filter((f) => f.endsWith('.json'))
     return Promise.all(files.map(async (f) => JSON.parse(await readFile(join(dir, f), 'utf8')) as RawSchema))
   }
-  // The studio's token: editors' member tokens can't read schemas yet (same task).
   const res = await bpFetch(`/v1/schemas/${dataset()}`, {}, serviceToken())
   if (!res.ok) throw new Error(`Barkpark /v1/schemas/${dataset()} → ${res.status}`)
   return ((await res.json()) as {schemas: RawSchema[]}).schemas

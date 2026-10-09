@@ -30,7 +30,6 @@ jobs:
       BARKPARK_DATASET: ${{ matrix.dataset }} # GitHub's own datasets; local runs use e2e-*, people use production
       BARKPARK_TOKEN: ${{ secrets.BARKPARK_TOKEN }} # read/write, studio-parity only
       BUDGET_NETWORK_SCALE: '4' # runner is far from guerrilla; see e2e/rig/feel.ts
-      BARKPARK_SCHEMA_SOURCE: fixtures # member tokens can't read schemas yet (task-23c4ac86976c46a9)
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -43,6 +42,14 @@ jobs:
             app/pnpm-lock.yaml
             e2e/pnpm-lock.yaml
       - run: pnpm --dir app install --frozen-lockfile && pnpm --dir e2e install --frozen-lockfile
+      # The studio reads the schemas from Barkpark, as in production (a member token may,
+      # barkpark #22080). A PR that changes the fixture schemas tests them from the
+      # checkout instead: ci / ci-2 only get them when someone reseeds (--schemas).
+      - name: Schemas from the fixtures when this PR changes them
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin ${{ github.base_ref }}
+          if [ -n "$(git diff --name-only FETCH_HEAD HEAD -- fixtures/barkpark-schema)" ]; then echo 'BARKPARK_SCHEMA_SOURCE=fixtures' >> "$GITHUB_ENV"; echo 'fixture schemas changed: reading them from the checkout'; fi
       - name: .env from secrets
         run: env | grep '^BARKPARK_' > .env
       - name: Reset studio-parity to the fixture
