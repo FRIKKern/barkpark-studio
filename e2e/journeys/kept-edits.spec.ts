@@ -5,7 +5,8 @@ import {signInIfAsked, target, type Target} from '../rig/targets'
 // tab dying. Saves are cut off (every mutate fails as a network error; a crash sends no
 // unload beacon, so there is none), the excerpt is typed into, the tab is closed without
 // asking; a new tab on the doc then sends them again (rev unchanged), or, when someone saved meanwhile, offers them
-// (Restore merges the text). Ours only: Sanity keeps nothing in the browser.
+// (Restore merges the text). Ours only: Sanity keeps nothing in the browser. The
+// replay and Discard run @local (CI's 60 s budget); the rules are unit-tested too.
 const ID = 'post-29'
 const EXCERPT = 'Short excerpt for post 29.'
 test.setTimeout(90_000)
@@ -36,17 +37,6 @@ async function reopen(context: BrowserContext, t: Target): Promise<Page> {
   return page
 }
 
-test('kept form edits are sent again after a crash', async ({context}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', 'ours only: Sanity keeps nothing in the browser')
-  await t.prepare(context)
-  await typeThenCrash(context, t, ' kept')
-  expect(await t.docValue(ID, 'excerpt')).toBe(EXCERPT)
-  const page = await reopen(context, t)
-  await expect(page.getByText(/Unsaved changes from .* were put back/)).toBeVisible()
-  await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`${EXCERPT} kept`)
-})
-
 test('kept form edits over a newer save are offered: Restore merges', async ({context}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours only: Sanity keeps nothing in the browser')
@@ -60,6 +50,18 @@ test('kept form edits over a newer save are offered: Restore merges', async ({co
   await card.getByRole('button', {name: 'Restore'}).click()
   await expect(card).toBeHidden()
   await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`Theirs. ${EXCERPT} mine`)
+})
+
+test('@local kept form edits are sent again after a crash; Discard sticks', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours only: Sanity keeps nothing in the browser')
+  await t.prepare(context)
+  await typeThenCrash(context, t, ' kept')
+  expect(await t.docValue(ID, 'excerpt')).toBe(EXCERPT)
+  const page = await reopen(context, t)
+  await expect(page.getByText(/Unsaved changes from .* were put back/)).toBeVisible()
+  await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`${EXCERPT} kept`)
+  await page.close()
   // Discard leaves the server copy alone and the offer does not come back.
   await typeThenCrash(context, t, ' gone')
   await t.patch(ID, {excerpt: EXCERPT}, 'post')
