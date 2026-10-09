@@ -38,3 +38,26 @@ test('@local D06: a wikilink opens its doc in the next pane; hover shows a previ
   await expect(page).toHaveURL(/\/structure\/note;note-01$/)
 
 })
+
+// Barkdown's EDITOR-PARITY row 2: Cmd/Ctrl+K on a selection in the canvas opens its link
+// row, and the Studio's own Cmd/Ctrl+K search stays shut (J19 holds the search key elsewhere).
+test('@local D18: Cmd/Ctrl+K on a selection is the canvas link row, not search', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'Barkpark-only: Sanity has no Freeform')
+  const MOD = process.platform === 'darwin' ? 'Meta' : 'Control'
+  await page.goto(t.docPath('note', 'note-02'))
+  await t.settle(page)
+  await page.locator('bp-paper-canvas').getByText('Second note.').waitFor({timeout: 20_000})
+  await expect(page.locator('.pd-status')).toHaveText('Saved')
+  await page.waitForTimeout(500) // the canvas parks its caret once ready; select after that
+  await page.evaluate(() => {
+    const ed = (document.querySelector('bp-paper-canvas') as unknown as {_editor: {state: {doc: {forEach(f: (n: {textContent: string; nodeSize: number}, o: number) => void): void}}; chain(): {focus(): {setTextSelection(r: {from: number; to: number}): {run(): void}}}}})._editor
+    let at = 0
+    ed.state.doc.forEach((n, o) => void (n.textContent === 'Second note.' && (at = o + 1)))
+    ed.chain().focus().setTextSelection({from: at, to: at + 6}).run()
+  })
+  const search = page.getByRole('dialog').filter({has: page.getByRole('combobox')})
+  await page.keyboard.press(`${MOD}+k`)
+  await expect(page.locator('body .bp-paper-format__link-row')).toBeVisible()
+  await expect(search).toHaveCount(0)
+})
