@@ -314,7 +314,8 @@ test('J17: Incoming references from the document menu, any time: opens the refer
   // comes), and post-07 is pointed elsewhere (its row goes).
   post02Moved = true
   await t.patch('post-02', {author: t.ref('author-alan')})
-  await expect(row('post-02', 'Fixture post 02')).toBeVisible({timeout: 15_000})
+  // Ours: one read after the frame, and Barkpark's edges are right by then (#22591).
+  await expect(row('post-02', 'Fixture post 02')).toBeVisible({timeout: t.name === 'studio' ? 2_000 : 15_000})
   await t.patch(ID, {author: t.ref('author-grace')})
   // At once, from the doc the frame brings: not when Barkpark's backlinks catch up.
   await expect(row('post-07', 'Fixture post 07')).toHaveCount(0, {timeout: 3_000})
@@ -322,6 +323,29 @@ test('J17: Incoming references from the document menu, any time: opens the refer
   // A row opens the referring doc in the next pane, at the field that refers.
   await row('post-01', 'Fixture post 01').click()
   await expect.poll(() => decodeURIComponent(page.url())).toMatch(/author-alan.*incoming-references.*;post-01.*path=author/)
+})
+
+test('J17: a doc that refers only from its body (an internal link) is used in, and listed', async ({page}, info) => {
+  const t = target(info)
+  // post-11 and post-13 name Ada only in a body paragraph's internal link (Sanity counts
+  // the annotation's reference; Barkpark the wikilink since #22593), never in a field.
+  await page.goto(t.docPath('author', 'author-ada'))
+  await t.settle(page)
+  await expect(t.field(page, 'name')).toHaveValue('Ada Lovelace', {timeout: 15_000})
+  const menu = t.name === 'sanity' ? page.locator('[data-testid="document-pane"] [data-testid="pane-context-menu-button"]').first() : page.getByRole('button', {name: 'Show document actions'})
+  await menu.click()
+  await page.getByRole('menuitem', {name: 'Incoming references'}).click()
+  const row = (id: string, title: string) => page.locator(`a[href*="${id}"]`).filter({hasText: title, visible: true}).first()
+  await expect(row('post-03', 'Fixture post 03')).toBeVisible({timeout: 15_000})
+  await expect(row('post-11', 'Fixture post 11')).toBeVisible()
+  await expect(row('post-13', 'Fixture post 13')).toBeVisible()
+  await page.screenshot({path: `evidence/J17-${t.name}-incoming-body-link.png`})
+  // Delete names them too: Ada is used in 12 docs, two of them only through a link.
+  await t.docMenu(page).click()
+  await page.getByRole('menuitem', {name: 'Delete'}).click()
+  const dialog = page.getByRole('dialog').last()
+  await expect(dialog).toContainText('12 documents refer to “Ada Lovelace”', {timeout: 15_000})
+  await dialog.getByRole('button', {name: 'Cancel'}).click()
 })
 
 test('@local J17: a draft that points away keeps the row while its published version still refers', async ({page}, info) => {
