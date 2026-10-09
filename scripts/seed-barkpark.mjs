@@ -16,6 +16,7 @@ import {spawnSync} from 'node:child_process'
 import {readFileSync, readdirSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
 import {isDeepStrictEqual} from 'node:util'
+import {batches} from './lib/batches.mjs'
 import {seedAssets} from './lib/seed-assets.mjs'
 import {toBarkpark} from './lib/seed-map.mjs'
 
@@ -53,7 +54,10 @@ async function bp(method, path, body, tries = 3) {
   return json
 }
 
-const mutate = (mutations) => bp('POST', `/v1/data/mutate/${DATASET}`, {mutations})
+// At most 50 deletes per request (Barkpark #22499).
+const mutate = async (mutations) => {
+  for (const part of batches(mutations)) await bp('POST', `/v1/data/mutate/${DATASET}`, {mutations: part})
+}
 
 async function listAll(type, perspective) {
   const r = await bp('GET', `/v1/data/query/${DATASET}/${type}?perspective=${perspective}&limit=1000`)

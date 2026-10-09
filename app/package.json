@@ -9,7 +9,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "check": "tsc --noEmit && pnpm -s test && vite build",
-    "test": "node --test --experimental-strip-types src/lib/*.test.ts ../scripts/seed-bulk.test.mjs",
+    "test": "node --test --experimental-strip-types src/lib/*.test.ts ../scripts/seed-bulk.test.mjs ../scripts/lib/batches.test.mjs",
     "serve": "vite build && vite preview --port 3000 --strictPort"
   },
   "dependencies": {
