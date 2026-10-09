@@ -23,14 +23,17 @@ export type LocaleData = {locale: Locale; strings?: Record<string, string>; canv
 // map its LiveView stamps), read on the server and kept a while per locale; a failed
 // read keeps the last one, or none (the canvas then speaks English).
 const CANVAS_TTL_MS = 10 * 60_000
+const PROBE = 'Add a block below' // a canvas string every non-English map translates
 const canvasCache: Partial<Record<Locale, {at: number; json?: string}>> = {}
 async function canvasStrings(locale: Locale): Promise<string | undefined> {
   const held = canvasCache[locale]
   if (held && Date.now() - held.at < CANVAS_TTL_MS) return held.json
   try {
     const res = await fetch(`${process.env.BARKPARK_URL}/v1/i18n/paper_canvas?locale=${locale}`, {signal: AbortSignal.timeout(3000)})
-    const body = res.ok ? ((await res.json()) as {strings?: Record<string, string>}) : undefined
-    const json = body?.strings ? JSON.stringify(body.strings) : held?.json
+    const body = res.ok ? ((await res.json()) as {locale?: string; strings?: Record<string, string>}) : undefined
+    // An unknown locale falls back to English with a 200: only a map in this locale counts.
+    const ours = body?.locale === locale && body.strings && body.strings[PROBE] !== PROBE ? body.strings : undefined
+    const json = ours ? JSON.stringify(ours) : held?.json
     canvasCache[locale] = {at: Date.now(), json}
     return json
   } catch {
