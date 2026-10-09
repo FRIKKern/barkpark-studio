@@ -71,7 +71,16 @@ export function textScore(doc: Record<string, unknown>, q: TextQuery, schema?: S
   const title = words(String(doc.title ?? ''))
   const {text, refs} = docText(doc, schema)
   text.push(title)
-  if (q.not.some((p) => text.some((t) => hit(t, p)))) return 0
+  if (excludes(text, q)) return 0
   const score = q.any.reduce((s, p) => s + (hit(title, p) ? 10 : 0) + (text.some((t) => hit(t, p)) ? 1 : 0), 0)
   return score || (refs.includes(q.raw) ? 1 : 0)
+}
+
+const excludes = (text: string[][], q: TextQuery) => q.not.some((p) => text.some((t) => hit(t, p)))
+
+/** A `-term` in the query rules this doc out. */
+export function excluded(doc: Record<string, unknown>, q: TextQuery, schema?: Schema): boolean {
+  const {text} = docText(doc, schema)
+  text.push(words(String(doc.title ?? '')))
+  return excludes(text, q)
 }
