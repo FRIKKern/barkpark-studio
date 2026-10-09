@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes, 5 tasks closed
+- **Today** · 8 changes, 6 tasks closed
+  - J38: search follows a preview's reference, as Sanity's does ([#240](https://github.com/FRIKKern/barkpark-studio/pull/240))
+  - Done: [Barkpark: schema read omits initial values](https://github.com/FRIKKern/barkpark/issues/21794)
   - J60 + J63: live preview from the editor's cache, and drafts vs published ([#239](https://github.com/FRIKKern/barkpark-studio/pull/239))
-  - J62: the locations banner — 'Used on N pages', each page opening Presentation ([#237](https://github.com/FRIKKern/barkpark-studio/pull/237))
-  - CI reads the schemas from Barkpark; fixtures only when a PR changes them ([#238](https://github.com/FRIKKern/barkpark-studio/pull/238))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
