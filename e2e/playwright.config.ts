@@ -16,7 +16,9 @@ export default defineConfig({
   testMatch: ['*.spec.ts', 'journeys/*.spec.ts'],
   globalSetup: './rig/warmup.ts',
   globalTeardown: './rig/feel-summary.ts',
-  fullyParallel: false,
+  // CI shards by test, not by file, so the two shards share the work evenly (each
+  // must stay under 60 s). One worker either way: tests still run one at a time.
+  fullyParallel: !!process.env.CI,
   workers: 1,
   timeout: process.env.CI ? 15_000 : 30_000,
   // Fail fast: a run that can't start or hydrate stops instead of timing out test by test.
