@@ -8,7 +8,8 @@ import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
 import {detachMaster, insertMaster, mastersQuery, pinMaster, saveMaster, type Master, type MasterResult} from '../lib/paper-masters'
 import {t as translate, useT, useLocale} from '../lib/i18n'
-import {forget, keep, keptKey, putBackOps, readKept, type Kept} from '../lib/kept-words'
+import {forget, keep, keptKey, putBackOps, readKept, restoreOps, type Kept} from '../lib/kept-words'
+import {editedBy} from '../lib/history'
 import {useRouter} from '@tanstack/react-router'
 import {FindBar, findKey, type FindCanvas} from './FindBar'
 
@@ -149,6 +150,11 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   const loop = useRef<{rev: Rev; saving: number; requests: number; merge?: boolean}>({rev: '', saving: 0, requests: 0})
   const [save, setSave] = useState<Save>({state: 'idle'})
   const [problem, setProblem] = useState<Problem | null>(null)
+  // D22: the server's blocks as this canvas last read them, and the other writer's
+  // edit those became (Barkdown's agent-edit row): Undo puts `before` back.
+  const base = useRef<{rev: Rev; blocks: Block[]} | null>(null)
+  const readBase = () => readBlocks(type, id, field).then((r) => ((base.current = r), r))
+  const [otherEdit, setOtherEdit] = useState<{before: Block[]; afterRev: Rev; who: string | null} | null>(null)
   // B11: closing the tab asks first while this canvas holds a batch not yet saved or refused.
   const refused = useRef(false)
   refused.current = !!problem
@@ -176,7 +182,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   useEffect(() => {
     let gone = false
     const l = loop.current
-    const read = () => readBlocks(type, id, field).then((r) => (track(r.blocks), {...r, blocks: decorate.current(r.blocks)}))
+    const read = () => readBase().then((r) => (track(r.blocks), {...r, blocks: decorate.current(r.blocks)}))
     // Barkpark's EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7):
     // one batch in flight; a 412 resends the same batch fenced on the other writer's rev
     // (ops are id-keyed, so both writers' blocks are kept); after a save, read the doc
@@ -219,6 +225,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           l.merge = false
         }
         el.acknowledgeOps(seq, true)
+        setOtherEdit(null) // the author wrote after it: Undo would take their words too
         if (type === 'paper' && !field) void qc.invalidateQueries({queryKey: ['fleet', id]})
         setProblem(null)
         if (!el.hasPendingChanges()) (setSave({state: 'saved'}), forget(keyRef.current))
@@ -239,6 +246,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         canvas.current?.resolveConflictWithServerBlocks(blocks)
         l.rev = rev
         l.merge = false
+        setOtherEdit(null)
         setProblem(null)
         forget(keyRef.current)
         setSave({state: 'saved'})
@@ -419,7 +427,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       busy = true
       try {
         const mine = el.recoverySnapshot?.()?.blocks
-        const server = await readBlocks(type, id, field)
+        const server = await readBase()
         if (mine && sameContent(mine, decorate.current(server.blocks))) {
           loop.current.rev = server.rev
           forget(keyRef.current)
@@ -448,16 +456,20 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     if (!offer) return
     if (!armed) return setArmed(true)
     const l = loop.current
+    let held = false
     try {
       if (l.saving || canvas.current?.hasPendingChanges()) throw new Error(t('Finish saving your edit first.'))
-      const fresh = await readBlocks(type, id, field)
+      l.saving++ // our own write's frame is not another writer's edit (D22)
+      held = true
+      const fresh = await readBase()
       const ops = putBackOps(fresh.blocks, offer.blocks)
       if (ops.length) {
         const r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: fresh.rev}})) as unknown as OpsResult
         if (!r.ok) throw new Error(r.message)
       }
-      const now = await readBlocks(type, id, field)
+      const now = await readBase()
       l.rev = now.rev
+      setOtherEdit(null)
       canvas.current?.resolveConflictWithServerBlocks(decorate.current(now.blocks))
       forget(keyRef.current)
       setOffer(null)
@@ -466,6 +478,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     } catch (e) {
       setArmed(false)
       toast({tone: 'critical', title: t('Could not put the words back'), description: (e as Error).message})
+    } finally {
+      if (held) l.saving--
     }
   }
 
@@ -480,9 +494,16 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     const el = canvas.current
     if (!el || !seenRev || seenRev === l.rev || l.saving || el.hasPendingChanges()) return
     let gone = false
-    void readBlocks(type, id, field).then((fresh) => {
+    const before = base.current
+    void readBase().then((fresh) => {
       track(fresh.blocks)
       if (gone || fresh.rev === l.rev || l.saving) return
+      // D22: from the blocks this canvas held, so Undo can put them back.
+      if (before?.rev === l.rev) {
+        setOtherEdit({before: before.blocks, afterRev: fresh.rev, who: null})
+        if (typeof fresh.rev === 'string')
+          void editedBy({data: {type, id, rev: fresh.rev}}).then((who) => !gone && setOtherEdit((e) => (e?.afterRev === fresh.rev ? {...e, who} : e)))
+      } else setOtherEdit(null)
       // Idle: taken now. Focused (the author is in a field block, say): the canvas defers
       // it until they leave (EMBED-CONTRACT applyServerBlocks) instead of dropping it (D05).
       if (!el.applyServerBlocksIfIdle(decorate.current(fresh.blocks))) el.applyServerBlocks(decorate.current(fresh.blocks))
@@ -514,12 +535,51 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     }
   }
 
+  // D22: Undo the other writer's edit in one click, fenced on the rev it made: if
+  // anyone wrote since, nothing is changed and it says so (Barkdown's undoAgentEdit).
+  const [undoing, setUndoing] = useState(false)
+  const undoOther = async () => {
+    if (!otherEdit) return
+    const l = loop.current
+    setUndoing(true)
+    let held = false
+    try {
+      if (l.saving || canvas.current?.hasPendingChanges()) throw new Error(t('Finish saving your edit before Undo.'))
+      l.saving++ // our own write's frame is not another writer's edit
+      held = true
+      const fresh = await readBase()
+      if (fresh.rev !== otherEdit.afterRev) throw new Error(t('The document changed again. Undo was not applied.'))
+      const ops = restoreOps(fresh.blocks, otherEdit.before)
+      if (ops.length) {
+        const r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: fresh.rev}})) as unknown as OpsResult
+        if (!r.ok) throw new Error(r.status === 412 ? t('The document changed again. Undo was not applied.') : r.message)
+      }
+      const now = await readBase()
+      l.rev = now.rev
+      canvas.current?.resolveConflictWithServerBlocks(decorate.current(now.blocks))
+      setOtherEdit(null)
+    } catch (e) {
+      toast({tone: 'critical', title: t('Could not undo the edit'), description: (e as Error).message})
+    } finally {
+      if (held) l.saving--
+      setUndoing(false)
+    }
+  }
+
   return (
     <div className="pd-editor" onKeyDownCapture={onKeyDownCapture}>
       {finding && <FindBar canvas={findCanvas} opened={finding} onClose={closeFind} editable={editable} />}
       <div className="pd-status" role="status">
         {save.state === 'saving' ? t('Saving…') : save.state === 'saved' ? t('Saved') : save.state === 'error' ? (problem?.conflict ? t('Conflict') : t('Not saved')) : ''}
       </div>
+      {otherEdit && !problem && (
+        <div className="pd-other-edit" role="status" data-other-edit>
+          <span>{otherEdit.who ? t('Edited by {who}', {who: otherEdit.who}) : t('Edited elsewhere')}</span>
+          <button type="button" className="btn-text" disabled={undoing} onClick={() => void undoOther()}>
+            {t('Undo')}
+          </button>
+        </div>
+      )}
       {problem?.conflict && (
         <div className="pd-conflict" role="alert" data-conflict>
           <strong>{t('Someone else changed this document')}</strong> {t('(Barkpark is at rev {theirs}, you were editing rev {mine}).', {theirs: shortRev(problem.conflict.theirs), mine: shortRev(problem.conflict.mine)})} {t('Your unsaved edits are still on screen.')}

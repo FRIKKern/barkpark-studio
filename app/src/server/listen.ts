@@ -16,7 +16,7 @@
 // upstream has been quiet, when one of our own writes gets no echo, and after 45 s
 // with no byte at all (Barkpark sends a keepalive every 30 s).
 import '@tanstack/react-start/server-only'
-import {bpFetch, forgetReads, READ_DEDUPE_MS, scope} from './barkpark'
+import {bpFetch, forgetReads, forgetReadsOf, READ_DEDUPE_MS, scope} from './barkpark'
 import type {Scope} from '../lib/scope'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
@@ -213,6 +213,9 @@ function dispatch(hub: Hub, frame: string) {
   const n = Number(id)
   if (buffer.length && n <= buffer[buffer.length - 1].id) return // replayed by upstream after a reconnect
   const docId = publishedId(payload.documentId)
+  // Another client's write too: a page reads the doc again on this frame, and a
+  // shared read from just before it would hide the change (D22).
+  forgetReadsOf(docId)
   hub.lastFrameFor.set(docId, Date.now())
   if (hub.lastFrameFor.size > 5000) hub.lastFrameFor.clear()
   const out = `id: ${id}\nevent: mutation\ndata: ${data.join('\n')}\n\n`
