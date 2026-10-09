@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 20 changes, 12 tasks closed
+- **Today** · 21 changes, 13 tasks closed
+  - D16: multi-block edits round trip, Barkdown's row 11 — and a refused batch clears once the words are back ([#253](https://github.com/FRIKKern/barkpark-studio/pull/253))
+  - Done: [D20 [Freeform both] When retries run out on a conflict: a card offering "load theirs" or "re-apply mine", nothing lost](https://github.com/FRIKKern/barkpark/issues/22320)
   - D20: when the 412 resends run out, the canvas asks — load theirs or re-apply mine ([#252](https://github.com/FRIKKern/barkpark-studio/pull/252))
-  - Done: [D21 [Freeform both] A failed save followed by a closed tab or crash keeps a local draft that is offered back on reopen](https://github.com/FRIKKern/barkpark/issues/22321)
-  - D21: a failed canvas save keeps the words on this computer; reopening offers them back ([#251](https://github.com/FRIKKern/barkpark-studio/pull/251))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
