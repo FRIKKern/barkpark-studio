@@ -3,8 +3,9 @@ import {expect, test} from '@playwright/test'
 import {bpMutate, target} from '../rig/targets'
 
 // J36, Sanity's asset Delete: an image a document uses can't be deleted. The dialog
-// says so and lists the document (found through Barkpark's backlinks, #22042), and the
-// studio's DELETE refuses it too. Once nothing uses it, Delete asks and deletes it.
+// says so and lists the document (found through Barkpark's backlinks, #22042), and
+// Barkpark refuses the delete itself (409 with where it is used, #22427/#22452). A use
+// made after the dialog opened shows from that refusal. Unused, Delete asks and deletes.
 // The test uploads its own image, gives post-07's draft to it, and cleans up after.
 const ID = 'post-07'
 const media = () => `${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}/v1/media/${process.env.BARKPARK_DATASET}`
@@ -63,6 +64,21 @@ test('@local J36: an image in use cannot be deleted; unused, Delete asks and del
   await library.getByRole('button', {name: `${NAME}: more`}).click()
   await page.getByRole('menuitem', {name: 'Delete'}).click()
   await expect(dialog).toContainText(`You are about to delete the image ${NAME} and its metadata. Are you sure?`)
+  // Used again while the dialog was open: Barkpark refuses, and its list shows.
+  await bpMutate([{patch: {id: ID, type: 'post', set: {mainImage: {_type: 'image', asset: {_type: 'reference', _ref: `asset-${asset}`}}}}}])
+  await dialog.getByRole('button', {name: 'Delete'}).click()
+  await expect(dialog.getByRole('alert')).toContainText(`${NAME} cannot be deleted because it's being used`)
+  await expect(dialog.locator('.usage-list')).toContainText('Fixture post 07')
+  await expect(dialog.getByRole('button', {name: 'Delete'})).toHaveCount(0)
+  expect((await fetch(`${media()}/${asset}`, {headers: auth()})).status, 'still there').toBe(200)
+  await dialog.getByRole('button', {name: 'Cancel'}).click()
+  await bpMutate([{discardDraft: {id: ID, type: 'post'}}])
+  await expect(async () => {
+    if (await dialog.isVisible()) await dialog.getByRole('button', {name: 'Cancel'}).click()
+    await page.getByRole('dialog', {name: /^Select image for/}).getByRole('button', {name: `${NAME}: more`}).click()
+    await page.getByRole('menuitem', {name: 'Delete'}).click()
+    await expect(page.getByRole('dialog', {name: 'Delete image'})).toContainText('You are about to delete', {timeout: 3_000})
+  }).toPass({timeout: 20_000})
   await dialog.getByRole('button', {name: 'Delete'}).click()
   await expect(page.getByText('Image was deleted')).toBeVisible()
   await expect.poll(async () => (await fetch(`${media()}/${asset}`, {headers: auth()})).status, {timeout: 10_000}).toBe(404)
