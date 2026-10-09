@@ -11,7 +11,7 @@ quality first, never a shrinking finish line.
 | ID | Phase | Journey | Feel rows that matter most |
 |---|---|---|---|
 | J01 | 1 | Cold open → type list → post list (30 docs, previews) | F3 F2 F10 |
-| J02 | 1 | Open post → reload deep URL → same panes restored; tab title follows the doc; unknown id/type shows "not found", not an alert | F2 F10 |
+| J02 | 1 | Open post → reload deep URL → same panes restored, the focused field too (was J52: a copied link returns to it); tab title follows the doc; unknown id/type shows "not found", not an alert | F2 F10 |
 | J03 | 2 | Edit title: instant, no save button, "edited" state | F1 F7 |
 | J04 | 2 | Draft lifecycle: edit → draft, publish, unpublish, discard; toast per action, "last published" time, action shortcuts | F9 F10 |
 | J05 | 3 | Two browsers, different fields of one post, both see each other | F4 F6 |
@@ -26,8 +26,8 @@ quality first, never a shrinking finish line.
 | J14 | 2 | Field groups (tabs, with validation badge) and nested objects that collapse and keep that state | F2 F5 |
 | J15 | 6 | Review changes: change bars, per-field diff by author, revert one field or all, image/rich-text diffs | F10 |
 | J16 | 6 | Browse history: timeline with authors, open an old revision read-only (deep URL), restore it | F9 |
-| J17 | 1 ★ | Delete author with incoming refs → blocked, "used in" shown | F9 |
-| J18 | 2 | New post from the list header "+": quiet until the first edit, initial values (also on new array items), slug Generate (a no-op while its source is empty) | F2 F5 |
+| J17 | 1 ★ | Delete author with incoming refs → blocked, "used in" shown; any time, the doc menu's "Incoming references" panel lists them by type, each opens in a pane | F9 |
+| J18 | 2 | New post from the list header "+": quiet until the first edit, initial values (also on new array items), slug Generate (a no-op while its source is empty); initial value templates (several per type, with parameters) in every Create new | F2 F5 |
 | J19 | 1 | Keyboard only: Cmd+K search (arrows, Enter, Esc, recent searches) → open → edit → publish | F5 F6 |
 | J20 | 3 | 10 s offline while typing → "not saving" / stalled / recovering states → reconnect, nothing lost | F8 F9 |
 | J21 | 1 ★ | Endless pane chain: post → author → category → post…, 8+ panes; narrow panes collapse to strips, any pane closes, URL round-trips the whole chain, back/forward work | F2 F5 F10 |
@@ -35,7 +35,7 @@ quality first, never a shrinking finish line.
 | J23 | 1 ★ | Edit a referenced doc in its pane while the parent stays open and live; parent's ref preview updates | F4 F6 |
 | J24 | 1 | List search filters as you type; "no matching" and "no documents" empty states | F1 F2 |
 | J25 | 1 | List "…" menu: sort by created / last edited, compact / detailed view; sticks per type | F2 F10 |
-| J26 | 1 | Split pane right on a doc, edit both sides, close the split | F2 F6 |
+| J26 | 1 | Split pane right on a doc, edit both sides, close the split; focus mode hides the navigation and back | F2 F6 |
 | J27 | 1 | Odd reference states: missing doc (+ Clear), draft-only target badge, search respects the field filter, "Create new" asks which type | F9 |
 | J28 | 2 | Doc actions menu: Duplicate (opens in place), copy ID / URL; Inspect (Ctrl+Alt+I) raw JSON | F2 F5 |
 | J29 | 2 | Field "…" menu: copy / paste a field or whole doc; clear error when types don't match | F9 |
@@ -52,29 +52,28 @@ quality first, never a shrinking finish line.
 | J40 | after | Field comments: add, reply, mention, resolve; the Comments panel (open / resolved). Scheduled publish of a draft ("Schedule draft for publishing"). Releases are not on the reference plan ("Upgrade to unlock", checked 2026-10-08) | F4 F10 |
 | J41 | 1 | Big list: 5,000 docs scroll smoothly, more load near the bottom (growing to 2,000 never stalls a frame), "max items" note at 2,000, list search finds docs beyond the first page | F2 F11 |
 | J42 | 1 | Narrow window: below the minimum width one pane shows with a Back button; panes and URL stay right both ways | F2 F12 |
-| J43 | 2 | Dialogs and popovers trap focus; on close, focus returns to the button that opened them | F5 F13 |
 | J44 | 4 | Very long doc: 200 fields + a 300-item array, or a 400-paragraph body, still meet F1 and F2 | F1 F2 F11 |
 | J45 | after | Dark mode: follows the system, user menu System / Light / Dark, survives reload, no white flash, everything readable | F10 |
 | J46 | after | Phone width: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px | F12 |
-| J47 | after | Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced; axe clean on the search dialog, menus, image library, Presentation, media and canvas too | F13 |
+| J47 | after | Dialogs and popovers trap focus and return it to their opener (was J43). Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced; axe clean on the search dialog, menus, image library, Presentation, media and canvas too | F5 F13 |
 | J48 | 3 | Session lost mid-edit: "You've been logged out" banner, writes stop (never saved as anyone else), sign in again, pending edits survive | F9 F15 |
 | J49 | 2 | Read-only role or denied doc (the signed-in editor's token or the studio's own): banner, locked form, actions disabled with the reason, list "+", comments and media writes greyed; a dataset-bound token offers only its dataset | F9 F15 |
 | J50 | 1 | Backend down: list "Could not fetch list items" + Retry, bounded auto-retries; "Trying to connect…" toast; a pane that crashes shows an error card + Retry (Sanity: whole tool) | F9 |
 | J51 | 1 | Slow network (Fast 3G): shell paints, every pane shows a loading state, never a blank or dead click | F3 F14 |
-| J52 | 2 | Focused field lives in the URL: reload or a copied link returns to that field | F2 |
 | J53 | after | New Studio version, or a changed content model, while tabs are open: a dot on Help and "Reload to update" (Sanity v6), "The content model changed" + Reload; waiting edits save first, nothing lost | F9 |
 | J54 | 2 | File field: upload with an accept filter (PDF), file name and size shown, replace, remove, open the file | F5 F9 |
 | J55 | 1 | Schema orderings: the list menu offers the type's own orderings by title, and a desk list opens in its declared one | F2 |
 | J57 | 1 | Hover every icon button: a tooltip with its shortcut where one exists; toasts can be closed and repeats replace each other | F5 F10 |
 | J56 | 1 | Previews from select and prepare: a referenced title as subtitle, a formatted date, a fallback when empty, in lists and reference values; status tooltips with dates on list rows (Published {ago} / Edited {ago} / No unpublished edits) and the header chips (Published {date} / Edited {date}) | F2 F10 |
 | J58 | after | Presentation: the site page loads in an iframe beside "Documents on this page"; "Loading." / "Connecting." states, refresh, "Unable to connect" + Continue anyway, "Could not connect to the preview" + Retry (Sanity's navigator panel is opt-in, not in the default tool) | F3 F9 F14 |
-| J59 | after | Click to edit: Edit overlay outlines; clicking a heading opens its document with that field focused | F2 F5 F6 |
+| J59 | after | Click to edit: Edit overlay outlines; clicking a heading opens its document with that field focused. Locations banner (was J62): "Used on N pages" / "Not used on any pages", a click opens Presentation | F2 F5 F6 |
 | J60 | after | Live preview: typing in the form updates the iframe without reload; focus and caret never lost | F1 F4 F6 |
 | J61 | after | Page navigation in the preview: links / URL bar; "Documents on this page" and "Main document" follow the page | F2 F9 |
-| J62 | after | Locations banner: "Used on N pages" / "Not used on any pages"; clicking opens Presentation | F2 |
 | J63 | after | Drafts vs published in the preview; after Publish the published view updates | F4 F9 |
 | J64 | after | Preview viewport full ↔ phone width; share menu: copy link, QR, sharing on/off by permission | F12 F15 |
 | J65 | after | Plugin surface: a custom tool in the navbar, a custom field input, a custom document action + badge, "Open preview" in the document menu | F5 F9 F10 |
+| J66 | after | Tasks, as Sanity's, on Barkpark's own task store: create from the doc menu (title, description, target, assignee, deadline), navbar Tasks panel (assigned / subscribed / done), open the target, mark done | F5 F9 |
+| J67 | after | Production sign-in as yourself: a sign-in screen (Barkpark account), edits, presence and history name the person, sign out; never a shared token for a signed-in editor. Server: task-287b009456a8591a split into 0f1fd3d17e5f4edb, f583460d431d195c, 27006bc488ad1570 | F9 F15 |
 
 ★ = crown journeys (endless panes + references), built first, judged hardest.
 
