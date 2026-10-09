@@ -67,6 +67,21 @@ function loadCanvas(): Promise<void> {
   return bundle
 }
 
+/**
+ * Two block lists say the same thing: block ids and labels aside (a paste mints new
+ * ids), keys in any order, and a block's plain `text` the same as one text run.
+ */
+const sameContent = (a: Block[], b: Block[]) => {
+  const strip = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(strip)
+    if (!v || typeof v !== 'object') return v
+    const o = {...(v as Record<string, unknown>)}
+    if (typeof o.text === 'string' && !('content' in o) && 'type' in o && o.type !== 'text') (o.content = [{type: 'text', value: o.text}]), delete o.text
+    return Object.fromEntries(Object.keys(o).filter((k) => k !== 'id' && k !== 'label').sort().map((k) => [k, strip(o[k])]))
+  }
+  return JSON.stringify(strip(a)) === JSON.stringify(strip(b))
+}
+
 /** A rev as the card shows it: a paper's number, or a document rev's first characters. */
 const shortRev = (rev: Rev) => (typeof rev === 'number' ? String(rev) : String(rev).slice(0, 7))
 
@@ -389,6 +404,34 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       canvas.current = null
     }
   }, [type, id, field, editable, vocabularyKey])
+
+  // D16: after a refused batch the author may put the words back by hand (a vetoed
+  // cut, then paste): the canvas then has no diff to send, and Barkdown's tab keeps
+  // saying "Not saved". Here, once nothing is pending and the canvas says what the
+  // server holds, the card goes and the state is Saved.
+  useEffect(() => {
+    if (!problem || problem.conflict) return
+    let busy = false
+    const timer = setInterval(async () => {
+      const el = canvas.current
+      if (busy || !el || loop.current.saving || el.hasPendingChanges()) return
+      busy = true
+      try {
+        const mine = el.recoverySnapshot?.()?.blocks
+        const server = await readBlocks(type, id, field)
+        if (mine && sameContent(mine, decorate.current(server.blocks))) {
+          loop.current.rev = server.rev
+          forget(keyRef.current)
+          setProblem(null)
+          setSave({state: 'saved'})
+        }
+      } catch {
+      } finally {
+        busy = false
+      }
+    }, 700)
+    return () => clearInterval(timer)
+  }, [problem, type, id, field])
 
   // D21: leaving with a refused or unsent batch keeps the words as they are now.
   useEffect(() => {
