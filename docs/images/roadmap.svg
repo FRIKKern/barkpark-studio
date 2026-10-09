@@ -19,7 +19,7 @@
 <rect x="40" y="124" width="1120" height="8" rx="4" class="track"/>
 <rect x="40" y="124" width="857.5" height="8" rx="4" class="bar"/>
 <text x="40" y="168" font-size="16"><tspan class="done">✓ passed</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>
-<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 30 / 40</text>
+<text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 32 / 40</text>
 <g data-phase="0">
 <rect x="40" y="196" width="268" height="364" rx="12" class="card"/>
 <text x="60" y="228" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">PHASE 0</text>
@@ -165,7 +165,7 @@
 <text x="330" y="1032" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D08 Undo/redo incl. undo…</tspan></text>
 <text x="330" y="1062" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D09 Slash menu</tspan></text>
 <text x="330" y="1092" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D10 Norwegian dead keys…</tspan></text>
-<text x="330" y="1122" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D11 Known limit</tspan></text>
+<text x="330" y="1122" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D11 Shared carets</tspan></text>
 <text x="330" y="1152" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D12 Paper sidebar</tspan></text>
 <text x="600" y="1002" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">D13 Paper masters</tspan></text>
 <text x="600" y="1032" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">D14 Task blocks inside a…</tspan></text>
