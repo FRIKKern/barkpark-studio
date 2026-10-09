@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 65 changes, 19 tasks closed
+- **Today** · 66 changes, 19 tasks closed
+  - F13: the search results listbox is the scroll region ([#306](https://github.com/FRIKKern/barkpark-studio/pull/306))
   - Presentation: the editor's own single-use preview tokens, one per read ([#304](https://github.com/FRIKKern/barkpark-studio/pull/304))
   - Scout: nb-NO walk and a11y beyond J01–J04; three nb gaps fixed ([#303](https://github.com/FRIKKern/barkpark-studio/pull/303))
-  - J38: a date-time "is not" (not on that day), and Sanity's closed pickers ([#302](https://github.com/FRIKKern/barkpark-studio/pull/302))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
