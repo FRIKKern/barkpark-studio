@@ -1611,3 +1611,6 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 .task-activity h3 { margin: 16px 0 8px; font-size: 13px; font-weight: 600; color: var(--fg-strong); }
 .task-activity p { margin: 0; }
 .task-label { margin-top: 20px; font-size: 13px; font-weight: 500; color: var(--fg-strong); }
+
+/* D11: a remote caret's name tag in the Studio's face, as the presence avatars (the canvas's text is serif). */
+bp-paper-canvas .bp-remote-caret__label { font-family: 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; font-size: 11px; font-weight: 500; line-height: 16px; border-radius: 3px; }

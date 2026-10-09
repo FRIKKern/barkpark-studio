@@ -94,7 +94,7 @@ Side track, counted apart. Editor bar: Barkdown's `docs/EDITOR-PARITY.md`.
 | D08 | both | Undo/redo incl. undo of a paste; the server holds the undone state | F7 F9 |
 | D09 | both | Slash menu, drag blocks, keyboard block moves; paste markdown/HTML/URL over selection | F1 F5 |
 | D10 | both | Norwegian dead keys and IME type correctly; a 500-block doc still meets F1 | F1 |
-| D11 | both | Known limit, written down: no live co-editing in the canvas yet (remote edits apply when idle) | F4 |
+| D11 | both | Shared carets: another editor's caret and range show in the canvas with their name and presence color, live; remote edits still apply when idle | F4 |
 | D12 | main | Paper sidebar: weighted tags (strength + rationale), labels, description, slug | F5 F9 |
 | D13 | main | Paper masters: insert, save, pin, detach; bound values write back | F9 |
 | D14 | main | Task blocks inside a paper show live previews | F4 |

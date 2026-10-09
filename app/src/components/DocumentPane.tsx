@@ -562,8 +562,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             {here.length > 0 && (
               <p className="pd-hint" role="note" data-testid="coediting-hint">
                 {here.length === 1
-                  ? t('{name} has this document open. Freeform has no shared carets. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {name: here[0]!.name})
-                  : t('{n} others have this document open. Freeform has no shared carets. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {n: here.length})}
+                  ? t('{name} has this document open. You see where the others are typing. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {name: here[0]!.name})
+                  : t('{n} others have this document open. You see where the others are typing. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {n: here.length})}
               </p>
             )}
             <PortableDocEditor
