@@ -24,9 +24,9 @@ function sendFocus() {
 let timer: ReturnType<typeof setTimeout> | undefined
 let sent = ''
 /**
- * Where this tab is now. Sent once the caret settles (FOCUS_SETTLE_MS, latest wins):
- * Barkpark counts a focus move against the token's write budget (task-2c31de0cf6597d32),
- * so opening a doc and landing in its first field is one write, not two.
+ * Where this tab is now. Sent once the caret settles (FOCUS_SETTLE_MS, latest wins), so
+ * opening a doc and landing in its first field is one move, not two. Others see it in
+ * about 0.6 s (Sanity: about 1.4 s).
  */
 export function reportFocus(documentId: string, field: string | null) {
   focus = {documentId, field}

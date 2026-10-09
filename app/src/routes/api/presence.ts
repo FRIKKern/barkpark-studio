@@ -41,10 +41,10 @@ export const Route = createFileRoute('/api/presence')({
   },
 })
 
-// Barkpark bills a focus move as a write, from the same per-token budget as content
-// (task-2c31de0cf6597d32). So focus moves are coalesced per token: the latest per tab,
-// sent at most once every FOCUS_FLUSH_MS. Presence is best effort; content comes first.
-const FOCUS_FLUSH_MS = 4000
+// Focus moves have a budget of their own on Barkpark, 600/min per token (barkpark#22283),
+// apart from content writes. Coalesced per token to that pace: the latest per tab, sent
+// at most once every FOCUS_FLUSH_MS, so a burst of Tab presses can't run it dry.
+const FOCUS_FLUSH_MS = 100
 const queues = new Map<string, {pending: Map<string, string>; last: number; timer?: ReturnType<typeof setTimeout>}>()
 
 function queueFocus(token: string, sessionId: string, body: string) {
@@ -58,7 +58,7 @@ function queueFocus(token: string, sessionId: string, body: string) {
     const out = [...q.pending.values()]
     q.pending.clear()
     for (const b of out)
-      // No retry on 429: a late focus is worth less than the content write it would delay.
+      // No retry on 429: presence is best effort, and the next move sends where the caret is.
       void bpFetch(`/v1/data/presence/${dataset()}/focus`, {method: 'POST', headers: {'content-type': 'application/json'}, body: b}, token, {retry: false}).catch(() => {})
   }
   const wait = q.last + FOCUS_FLUSH_MS - Date.now()
