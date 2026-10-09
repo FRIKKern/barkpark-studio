@@ -66,6 +66,29 @@ export async function closeAndSettle(page: Page) {
   await new Promise((r) => setTimeout(r, 1500))
 }
 
+/**
+ * A list row, rendered. Sanity's list is virtual (about 25 rows drawn) and sorted by
+ * last edit, so after a few runs a fixture post can sit below the drawn rows: scroll
+ * the list until the row exists. Ours renders every row, so this returns at once.
+ */
+export async function reveal(item: Locator) {
+  const page = item.page()
+  // Step its virtual list's scroller down (what a wheel does) until the row is drawn.
+  for (let i = 0; i < 30 && !(await item.count()); i++) {
+    // From the top first (an earlier reveal may have left it scrolled past the row).
+    await page.evaluate((step) => {
+      // The last list row on the page: a link one pane deep (`/structure/post;post-02`),
+      // not a document pane's own links further down the chain.
+      let box = [...document.querySelectorAll<HTMLElement>('a[href^="/structure/"]')].filter((a) => a.getAttribute('href')!.split(';').length === 2).at(-1)?.parentElement ?? null
+      while (box && !(box.scrollHeight > box.clientHeight + 5 && getComputedStyle(box).overflowY !== 'visible')) box = box.parentElement
+      if (box) box.scrollTop = step ? box.scrollTop + box.clientHeight * 0.8 : 0
+    }, i)
+    await page.waitForTimeout(250)
+  }
+  await item.scrollIntoViewIfNeeded()
+  return item
+}
+
 /** One document of fixtures/seed.ndjson, as Sanity holds it. */
 function seedDoc(id: string) {
   const doc = readFileSync(new URL('../../fixtures/seed.ndjson', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((d) => d._id === id)
@@ -293,7 +316,8 @@ const studio: Target = {
     }).then(ok)
     return ((await r.json()) as {result?: {title?: string}}).result?.title
   },
-  deleteDoc: (id, type) => bpMutate([{delete: {id, type}}]).then(() => {}, () => {}), // gone already is fine
+  // force: a never-published draft goes too (a plain delete leaves it). Gone already is fine.
+  deleteDoc: (id, type) => bpMutate([{delete: {id, type, force: true}}]).then(() => {}, () => {}),
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
   patch: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),
   restore: (id, set, type = 'post', unset = []) => bpMutate([{patch: {id, type, set, unset}}, {publish: {id, type}}]).then(() => {}),
