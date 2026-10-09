@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 17 changes, 11 tasks closed
+- **Today** · 18 changes, 11 tasks closed
+  - Spec: Freeform D15–D22 from the Barkdown EDITOR-PARITY scout ([#250](https://github.com/FRIKKern/barkpark-studio/pull/250))
   - Upload progress bar with Cancel (file and image fields) ([#249](https://github.com/FRIKKern/barkpark-studio/pull/249))
   - Done: [J07 [3 Live] Presence everywhere: avatars on doc, field, list rows, array items/blocks; navbar "who's online" jumps to them; above/below hints](https://github.com/FRIKKern/barkpark/issues/21686)
-  - J07: field avatars follow in ~0.6 s; presence flush cut from 4 s to 100 ms ([#248](https://github.com/FRIKKern/barkpark-studio/pull/248))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
