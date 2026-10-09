@@ -192,6 +192,8 @@ test('@local J59: the Barkpark page outlines its values; a click edits that fiel
   await expect(excerpt).toHaveAttribute('data-bp-edit', 'post:post-01:excerpt')
   await excerpt.hover()
   await expect(site.getByText('Fixture post 01', {exact: true}).last()).toBeVisible()
+  // The label leads with the type's icon, as Sanity's (the post's: the document icon).
+  await expect(site.getByText('Fixture post 01', {exact: true}).last().locator('svg')).toHaveCount(1)
   await excerpt.click()
   await expect(page.locator('.presentation-panel [id="excerpt"]')).toBeFocused()
   // A referenced document on the page (the author) opens itself, from its own source map.

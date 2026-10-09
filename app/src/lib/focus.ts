@@ -7,7 +7,8 @@ export function focusFirstField(id: string, ms = 5000) {
   const until = performance.now() + ms
   const tick = () => {
     const pane = document.querySelector(`[data-pane="doc:${id}"]`)
-    const input = pane?.querySelector<HTMLElement>('.doc-form .input')
+    // The first field's, not the field-group select (J14) above the fields.
+    const input = pane?.querySelector<HTMLElement>('.doc-form .input:not(.group-select .input)')
     if (input) return input.focus()
     const canvas = pane?.querySelector<HTMLElement & {focusFirstBodyBlock?: () => boolean}>('bp-paper-canvas')
     const first = canvas?.querySelector('.ProseMirror')?.firstElementChild

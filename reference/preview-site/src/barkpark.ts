@@ -22,6 +22,8 @@ export const studio = {
    * until the studio says (inside its preview the page waits), null when it has none.
    */
   token: (window.parent !== window ? undefined : null) as string | null | undefined,
+  /** J59: each type's icon (an SVG body, 25×25), for the overlay label; `fallback` for any other. */
+  icons: {byType: {} as Record<string, string>, fallback: ''},
   listeners: new Set<() => void>(),
 }
 const changed = () => studio.listeners.forEach((l) => l())
@@ -67,6 +69,10 @@ export function connectBarkpark() {
     }
     if (e.data.type === 'token' && (typeof e.data.token === 'string' || e.data.token === null) && e.data.token !== studio.token) {
       studio.token = e.data.token
+      changed()
+    }
+    if (e.data.type === 'icons' && e.data.icons && typeof e.data.fallback === 'string') {
+      studio.icons = {byType: e.data.icons, fallback: e.data.fallback}
       changed()
     }
     const doc = e.data.doc as Doc | undefined

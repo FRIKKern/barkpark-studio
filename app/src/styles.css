@@ -472,6 +472,14 @@ button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 
 /* Field groups + objects + booleans (J14), after Sanity's */
 .group-tabs { display: flex; gap: 4px; margin: -7px 0 78px; }
+/* J14: under 360 px of pane the groups are a select, as Sanity's (gaps measured side by side). */
+.group-tabs-root { container-type: inline-size; }
+.group-tabs-root .group-select { display: none; margin: 22px 0 71px; }
+.group-select select { height: 35px; }
+@container (max-width: 359px) {
+  .group-tabs-root .group-tabs { display: none; }
+  .group-tabs-root .group-select { display: block; }
+}
 .group-tabs [role=tab] { font: inherit; font-size: 13px; padding: 5px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
 .group-tabs [role=tab]:hover { background: var(--hover); }
 .group-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
@@ -1457,9 +1465,13 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .presentation-panel { width: 360px; flex: none; display: flex; flex-direction: column; min-height: 0; }
 .presentation-panel h2 { flex: none; font-size: 13px; font-weight: 600; margin: 0; padding: 0 20px; height: 51px; display: flex; align-items: center; }
 .presentation-empty { margin: auto; color: var(--muted); font-size: 15px; }
-@media (max-width: 900px) { .presentation-panel { display: none; } }
 /* J61: the panel docks the same panes as /structure (narrow: the last one), or lists the page's documents. */
 .presentation-panel.docked .panes { height: 100%; }
+/* J46: under 900 px, Sanity's narrow tab bar: one panel at a time, full width. */
+.presentation-narrow-tabs { display: none; flex: none; justify-content: center; gap: 4px; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.presentation-narrow-tabs [role=tab] { font: inherit; font-size: 13px; padding: 5px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
+.presentation-narrow-tabs [role=tab]:hover { background: var(--hover); }
+.presentation-narrow-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
 .presentation-docs { flex: 1; min-height: 0; padding: 0 8px; overflow: auto; }
 .presentation-missing { flex: none; display: flex; align-items: center; gap: 6px; margin: 0; padding: 0 20px; height: 51px; white-space: nowrap; overflow: hidden; background: var(--warn-bg); color: var(--warn-fg); font-size: 13px; }
 .presentation-missing svg { flex: none; }
@@ -1474,6 +1486,14 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .share-qr { margin: 12px 0 0; aspect-ratio: 1; display: grid; place-items: center; padding: 0 48px; text-align: center; background: var(--hover); color: var(--muted); }
 .share-note { margin: 12px 0; color: var(--muted); }
 .share-qr img { width: 100%; height: 100%; display: block; }
+@media (max-width: 899px) {
+  .presentation { flex-direction: column; }
+  .presentation-narrow-tabs { display: flex; }
+  .presentation-preview { border-right: 0; min-height: 0; }
+  .presentation-panel { width: auto; flex: 1; }
+  .presentation[data-narrow-tab='preview'] .presentation-panel { display: none; }
+  .presentation[data-narrow-tab='content'] .presentation-preview { display: none; }
+}
 .share-qr:has(img) { padding: 0; background: #fff; }
 .share-why { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 .share-why[role=alert] { color: var(--danger-text); }
