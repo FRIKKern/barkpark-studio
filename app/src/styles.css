@@ -468,6 +468,7 @@ button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .group-tabs [role=tab] { font: inherit; font-size: 13px; padding: 5px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
 .group-tabs [role=tab]:hover { background: var(--hover); }
 .group-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
+.group-tabs .group-icon { margin: -3px 4px -4px -2px; vertical-align: middle; }
 .group-tabs [role=tab]:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--selected); }
 .bool-box { display: flex !important; align-items: center; gap: 10px; padding: 14px 8px; margin: 0 !important; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-weight: 400 !important; cursor: pointer; }
 fieldset.object-field { border: 0; padding: 0; margin: 0 0 59px; min-width: 0; }
