@@ -16,7 +16,7 @@ import {spawnSync} from 'node:child_process'
 import {readFileSync, readdirSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
 import {isDeepStrictEqual} from 'node:util'
-import {batches} from './lib/batches.mjs'
+import {sendBatches} from './lib/batches.mjs'
 import {seedAssets} from './lib/seed-assets.mjs'
 import {toBarkpark} from './lib/seed-map.mjs'
 
@@ -54,9 +54,16 @@ async function bp(method, path, body, tries = 3) {
   return json
 }
 
-// At most 50 deletes per request (Barkpark #22499).
+// Deletes go in batches under Barkpark's cap (lib/batches.mjs); a 429 waits as told.
 const mutate = async (mutations) => {
-  for (const part of batches(mutations)) await bp('POST', `/v1/data/mutate/${DATASET}`, {mutations: part})
+  const send = async (part, tries = 3) => {
+    const res = await fetch(`${BASE}/v1/data/mutate/${DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations: part})})
+    if (res.status !== 429 || tries <= 1) return res
+    await new Promise((r) => setTimeout(r, 1000 * (Number(res.headers.get('retry-after')) || 1)))
+    return send(part, tries - 1)
+  }
+  const res = await sendBatches(mutations, send)
+  if (res && !res.ok) fail(`POST /v1/data/mutate/${DATASET} → ${res.status} ${(await res.text()).slice(0, 500)}`)
 }
 
 async function listAll(type, perspective) {

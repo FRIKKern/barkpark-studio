@@ -331,7 +331,7 @@ export function reasonOf(msg: string): string | undefined {
     // Too many of one kind in one request (Barkpark #22499): the studio splits deletes, but say it plainly if it ever shows.
     if (body.error?.code === 'batch_too_large') {
       const {kind, max} = body.error.details ?? {}
-      return kind === 'delete' ? t('Too many deletions at once (at most {limit}). Try fewer.', {limit: max ?? 50}) : t('Too many changes at once. Try fewer.')
+      return kind === 'delete' ? t('Too many deletions at once (at most {limit}). Try fewer.', {limit: max ?? 500}) : t('Too many changes at once. Try fewer.')
     }
     // A publish wall says which rule broke and how to fix it (D12).
     const {rule, fix} = body.error?.details ?? {}

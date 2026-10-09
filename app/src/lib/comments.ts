@@ -1,7 +1,7 @@
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, serviceToken} from '../server/barkpark'
-import {batches} from '../../../scripts/lib/batches.mjs'
+import {sendBatches} from '../../../scripts/lib/batches.mjs'
 import {currentEditor} from '../server/auth'
 import {COMMENT_TYPE, mentionsIn, type Comment, type CommentStatus} from './comment-threads'
 
@@ -17,11 +17,9 @@ export {COMMENT_TYPE, threadsOf, type Comment, type CommentStatus, type Thread} 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 
 async function write(mutations: Json[]) {
-  // A long thread's delete goes at most 50 deletes a request (Barkpark #22499).
-  for (const part of batches(mutations)) {
-    const res = await bpFetch(`/v1/data/mutate/${dataset()}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({mutations: part})})
-    if (!res.ok) throw new Error(`Could not save the comment (${res.status})`)
-  }
+  // A long thread's delete goes in batches under Barkpark's cap (scripts/lib/batches.mjs).
+  const res = await sendBatches(mutations, (part) => bpFetch(`/v1/data/mutate/${dataset()}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({mutations: part})}))
+  if (res && !res.ok) throw new Error(`Could not save the comment (${res.status})`)
 }
 
 const fetchComments = createServerFn({method: 'GET'})
