@@ -77,13 +77,13 @@ export function useLive(ids: string[], types: string[]) {
         void qc.invalidateQueries({queryKey: ['list-published', f.type]})
       }
       // J17: who refers to what may have changed: open Incoming references panels read again
-      // (debounced), and twice more: Barkpark adds a new edge at once but drops a removed one
-      // only some seconds after the write (measured 2–5 s, 2026-10-09).
+      // (debounced), and once more in case the edge index trails the frame. A doc pointing away
+      // leaves the panel from the frame's doc itself (IncomingReferences), not from this read.
       clearTimeout(backlinksTimer)
       const reread = (left: number[]) => {
         backlinksTimer = setTimeout(() => (void qc.invalidateQueries({queryKey: ['backlinks']}), left.length > 1 && reread(left.slice(1))), left[0])
       }
-      reread([400, 2000, 4000])
+      reread([400, 2000])
       // A delete or a discard carries the document it removed: read again, never apply it
       // (a replayed discardDraft put a dead draft back on screen, J36 flake 2026-10-09).
       if (!f.result || f.mutation === 'delete' || f.mutation === 'discardDraft') {
