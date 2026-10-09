@@ -1,0 +1,67 @@
+// Barkpark mode: a page from the documents the server read (references expanded),
+// with the studio's unsaved edits laid over them first (J60), so typing shows at once.
+
+export type Doc = {_id: string; _type: string; _publishedId?: string; [k: string]: unknown}
+export type Raw = {posts?: Doc[]; post?: Doc | null; author?: Doc | null}
+type Ref = {_id: string; _type: string}
+
+const id = (d: Doc) => d._publishedId ?? d._id.replace(/^drafts\./, '')
+const isDoc = (v: unknown): v is Doc => !!v && typeof v === 'object' && '_id' in v
+
+/** Lay each edited document over its copy, wherever it is (a reference expanded too). */
+export function overlay<T>(value: T, edits: Map<string, Doc>): T {
+  if (!edits.size) return value
+  if (Array.isArray(value)) return value.map((v) => overlay(v, edits)) as T
+  if (!value || typeof value !== 'object') return value
+  if (!isDoc(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, overlay(v, edits)])) as T
+  const edit = edits.get(id(value))
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(value)) out[k] = overlay(v, edits)
+  if (!edit) return out as T
+  for (const [k, v] of Object.entries(edit)) {
+    if (k.startsWith('_')) continue
+    // The edit holds a reference as its id; keep the expanded copy we already have.
+    const held = out[k]
+    if (isDoc(held) && (v === id(held) || (v as {_ref?: string})?._ref === id(held))) continue
+    out[k] = v
+  }
+  return out as T
+}
+
+const ref = (d: unknown): Ref | undefined => (isDoc(d) ? {_id: id(d), _type: d._type} : undefined)
+const seen = (refs: (Ref | undefined)[]) => [...new Map(refs.filter((r): r is Ref => !!r).map((r) => [r._id, r])).values()]
+const row = (p: Doc) => ({_id: id(p), title: p.title, slug: p.slug, excerpt: p.excerpt, author: isDoc(p.author) ? {_id: id(p.author), name: p.author.name} : undefined})
+// A PortableDoc's text blocks, in the shape the page renders (Sanity's blocks).
+const blocks = (body: unknown) =>
+  ((body as {blocks?: {id: string; type: string; content?: {value?: string}[]}[]})?.blocks ?? [])
+    .filter((b) => b.type === 'paragraph' || b.type === 'heading')
+    .map((b) => ({_key: b.id, _type: 'block', children: [{_key: `${b.id}-0`, text: (b.content ?? []).map((c) => c.value ?? '').join('')}]}))
+
+export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]} {
+  if (kind === 'home') {
+    const posts = (raw.posts ?? []).filter((p) => p.slug)
+    return {data: posts.map(row), documents: seen(posts.flatMap((p) => [ref(p), ref(p.author)]))}
+  }
+  if (kind === 'post') {
+    const p = raw.post
+    if (!p) return {data: null, documents: []}
+    const related = isDoc(p.related) ? p.related : undefined
+    const categories = ((p.categories as unknown[]) ?? []).filter(isDoc)
+    return {
+      data: {
+        ...row(p),
+        categories: categories.map((c) => ({_id: id(c), title: c.title})),
+        body: blocks(p.body),
+        related: related && {_type: related._type, _id: id(related), title: related.title, name: related.name, slug: related.slug},
+      },
+      documents: seen([ref(p), ref(p.author), ...categories.map(ref), ref(related)]),
+    }
+  }
+  if (kind === 'author') {
+    const a = raw.author
+    if (!a) return {data: null, documents: []}
+    const posts = raw.posts ?? []
+    return {data: {_id: id(a), name: a.name, bio: a.bio, posts: posts.map((p) => ({...row(p), author: {_id: id(a), name: a.name}}))}, documents: seen([ref(a), ...posts.map(ref)])}
+  }
+  return {data: null, documents: []}
+}

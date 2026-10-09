@@ -1,5 +1,6 @@
 import {expect, test} from '@playwright/test'
-import {signInIfAsked, target} from '../rig/targets'
+import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
+import {median, recordFeel} from '../rig/feel'
 
 // J58, Presentation: the site in an iframe beside "Documents on this page", and
 // Sanity's connection states over it. The site is reference/preview-site: from
@@ -241,4 +242,85 @@ test('@evidence J62: the locations banner, side by side', async ({page, context}
     await page.waitForTimeout(800)
     await page.screenshot({path: `evidence/J62-${t.name}-${type}.png`})
   }
+})
+
+// J60 + J63 on a stand-in that renders what the studio sends: the title of the
+// document it is told about, and the perspective it is asked to show.
+const echoSite = `<!doctype html><h1 id="t">Fixture post 01</h1><p id="p">drafts</p>
+<script>
+  const post = (m) => parent.postMessage({bp: 'preview', ...m}, '*')
+  post({type: 'hello'})
+  post({type: 'location', url: location.pathname})
+  post({type: 'documents', documents: [{_id: 'post-01', _type: 'post'}]})
+  addEventListener('message', (e) => {
+    if (e.data?.bp !== 'studio') return
+    if (e.data.type === 'doc' && e.data.doc?._id?.endsWith('post-01')) document.getElementById('t').textContent = e.data.doc.title
+    if (e.data.type === 'perspective') document.getElementById('p').textContent = e.data.perspective
+  })
+</script>`
+
+test('J60 + J63: typing reaches the page at once, focus stays; the page shows the perspective the panel does', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await context.route(`${SITE}/**`, (route) => route.fulfill({contentType: 'text/html', body: echoSite}))
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  const site = page.frameLocator('iframe')
+  const title = page.locator('.presentation-panel [id="title"]')
+  await expect(title).toHaveValue('Fixture post 01')
+  await expect(site.locator('#p')).toHaveText('drafts')
+
+  // J60: each key is on the page before the save goes out (the editor's cache, not the
+  // server); the caret never leaves the field.
+  await title.click()
+  await title.press('End')
+  const times: number[] = []
+  for (const [i, ch] of [...' live'].entries()) {
+    const t0 = Date.now()
+    await page.keyboard.type(ch)
+    await expect(site.locator('#t')).toHaveText(`Fixture post 01${' live'.slice(0, i + 1)}`, {useInnerText: true})
+    times.push(Date.now() - t0)
+  }
+  recordFeel('F4', median(times), 'J60 typed → preview page')
+  expect(median(times), 'typed edit reaches the preview (median)').toBeLessThan(300)
+  await expect(title).toBeFocused()
+
+  // J63: the panel's Published chip shows the published page; Draft brings drafts back.
+  await page.locator('.presentation-panel').getByRole('button', {name: /^Published/}).first().click()
+  await expect(page).toHaveURL(/perspective=published/)
+  await expect(site.locator('#p')).toHaveText('published')
+  await page.locator('.presentation-panel').getByRole('button', {name: /^Draft/}).first().click()
+  await expect(site.locator('#p')).toHaveText('drafts')
+  await closeAndSettle(page)
+  await t.resetDoc('post-01', 'post')
+})
+
+test('@local J60 + J63: the Barkpark site follows typing live, and Published / Draft', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  const site = page.frameLocator('iframe')
+  const h1 = site.getByRole('heading', {level: 1})
+  await expect(h1).toHaveText('Fixture post 01')
+  const title = page.locator('.presentation-panel [id="title"]')
+  await title.click()
+  await title.press('End')
+  await page.keyboard.type(' live')
+  await expect(h1).toHaveText('Fixture post 01 live', {timeout: 1000})
+  await expect(title).toBeFocused()
+  // Saved, then the published page still has the old title, the draft the new.
+  await expect(page.locator('.doc-footer .save-state')).toHaveText(/Saved|Edited/, {timeout: 10_000})
+  await page.locator('.presentation-panel').getByRole('button', {name: /^Published/}).first().click()
+  await expect(h1).toHaveText('Fixture post 01')
+  await page.locator('.presentation-panel').getByRole('button', {name: /^Draft/}).first().click()
+  await expect(h1).toHaveText('Fixture post 01 live')
+  // Published: the published page catches up (Barkpark's listen stream).
+  await page.locator('.presentation-panel .doc-footer').getByRole('button', {name: 'Publish'}).click()
+  await page.locator('.presentation-panel').getByRole('button', {name: /^Published/}).first().click()
+  await expect(h1).toHaveText('Fixture post 01 live')
+  await closeAndSettle(page)
+  await t.resetDoc('post-01', 'post')
 })

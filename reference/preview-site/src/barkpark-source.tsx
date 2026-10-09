@@ -1,12 +1,10 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useState, useSyncExternalStore} from 'react'
 import type {PageKey} from './App'
-import {reportDocuments} from './barkpark'
+import {reportDocuments, studio} from './barkpark'
+import {overlay, toPage, type Raw} from './bp-pages'
 
 declare const __SOURCE__: 'sanity' | 'barkpark'
 export const SOURCE = __SOURCE__
-
-// Inside a studio's preview the page shows drafts; on its own, what is published.
-const perspective = () => (window.parent !== window ? 'drafts' : 'published')
 
 // One stream for the tab: any change in the dataset refetches the page on screen.
 const changed = new Set<() => void>()
@@ -22,26 +20,36 @@ function onChange(fn: () => void) {
   return () => void changed.delete(fn)
 }
 
+// The studio's picks (perspective, unsaved edits) as one value that changes when they do.
+let version = 0
+studio.listeners.add(() => version++)
+const useStudio = () => useSyncExternalStore((l) => (studio.listeners.add(l), () => studio.listeners.delete(l)), () => version)
+
 export function BarkparkPage<T>({page, render}: {page: PageKey; render: (data: T) => React.ReactNode}) {
   const key = page.kind === 'post' ? page.slug : page.kind === 'author' ? page.id : ''
   const at = `${page.kind}:${key}`
-  const [state, setState] = useState<{at: string; data: T} | null>(null)
+  useStudio()
+  const perspective = studio.perspective
+  const [state, setState] = useState<{at: string; raw: Raw} | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [version, setVersion] = useState(0)
-  useEffect(() => onChange(() => setVersion((v) => v + 1)), [])
+  const [tick, setTick] = useState(0)
+  useEffect(() => onChange(() => setTick((v) => v + 1)), [])
   useEffect(() => {
     let live = true
-    fetch(`/api/bp/page?${new URLSearchParams({kind: page.kind, key, perspective: perspective()})}`)
+    fetch(`/api/bp/page?${new URLSearchParams({kind: page.kind, key, perspective})}`)
       .then((r) => r.json())
-      .then((out: {data: T; documents: {_id: string; _type: string}[]; error?: string}) => {
+      .then((out: {raw: Raw; error?: string}) => {
         if (!live) return
         if (out.error) return setError(out.error)
-        setState({at, data: out.data})
-        reportDocuments(out.documents)
+        setState({at: `${at}|${perspective}`, raw: out.raw})
       })
     return () => void (live = false)
-  }, [at, version])
+  }, [at, perspective, tick])
+  // A perspective switch keeps the page on screen until the other one arrives.
+  const shown = state?.at.startsWith(`${at}|`) ? toPage(page.kind, overlay(state.raw, studio.edits)) : null
+  const ids = shown?.documents.map((d) => d._id).join(',')
+  useEffect(() => void (shown && reportDocuments(shown.documents)), [ids, at])
   if (error) return <p role="alert">Could not load: {error}</p>
-  if (state?.at !== at) return <p className="meta">Loading…</p>
-  return <>{render(state.data)}</>
+  if (!shown) return <p className="meta">Loading…</p>
+  return <>{render(shown.data as T)}</>
 }
