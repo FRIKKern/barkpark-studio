@@ -3,6 +3,8 @@ import {VisualEditing} from '@sanity/visual-editing/react'
 import {Link, historyAdapter, usePathname} from './router'
 import {draftMode, liveClient, useLiveData, useLoad} from './sanity'
 import {BarkparkPage, SharedBanner, SOURCE} from './barkpark-source'
+import type {Edit} from './bp-pages'
+import {EditOverlays} from './overlays'
 
 // The reference preview site for J58–J64: three routes. From Sanity every text is a
 // stega string; from Barkpark (PREVIEW_SOURCE=barkpark) the same pages, same markup.
@@ -11,8 +13,10 @@ type Post = PostRow & {
   categories?: {_id: string; title?: string}[]
   body?: {_key: string; _type: string; children?: {_key: string; text?: string}[]}[]
   related?: {_type: string; _id: string; title?: string; name?: string; slug?: string}
+  /** Barkpark mode (J59): a value's click-to-edit attributes; Sanity mode uses stega instead. */
+  $edit?: Edit
 }
-type Author = {_id: string; name?: string; bio?: string; posts: PostRow[]}
+type Author = {_id: string; name?: string; bio?: string; posts: PostRow[]; $edit?: Edit}
 
 const ROW = `_id, title, "slug": slug.current, excerpt, author->{_id, name}`
 const HOME = `*[_type == "post" && defined(slug.current)] | order(title asc) {${ROW}}`
@@ -70,11 +74,11 @@ function Page() {
         render={(p) =>
           !p ? <h1>Not found</h1> : (
             <article>
-              <h1>{p.title}</h1>
+              <h1 {...p.$edit?.('title')}>{p.title}</h1>
               {p.author && <p className="meta">by <Link to={`/authors/${p.author._id}`}>{p.author.name}</Link></p>}
-              {p.excerpt && <p><em>{p.excerpt}</em></p>}
+              {p.excerpt && <p><em {...p.$edit?.('excerpt')}>{p.excerpt}</em></p>}
               <p>{p.categories?.map((c) => <span className="chip" key={c._id}>{c.title}</span>)}</p>
-              {p.body?.filter((b) => b._type === 'block').map((b) => <p key={b._key}>{b.children?.map((c) => c.text).join('')}</p>)}
+              {p.body?.filter((b) => b._type === 'block').map((b) => <p key={b._key} {...p.$edit?.('body')}>{b.children?.map((c) => c.text).join('')}</p>)}
               {p.related && (
                 <p className="meta">
                   Related:{' '}
@@ -90,7 +94,7 @@ function Page() {
     return (
       <Loaded<Author | null>
         page={{kind: 'author', id: decodeURIComponent(author[1])}}
-        render={(a) => (!a ? <h1>Not found</h1> : (<><h1>{a.name}</h1>{a.bio && <p>{a.bio}</p>}<h2>Posts</h2><PostList posts={a.posts} /></>))}
+        render={(a) => (!a ? <h1>Not found</h1> : (<><h1 {...a.$edit?.('name')}>{a.name}</h1>{a.bio && <p {...a.$edit?.('bio')}>{a.bio}</p>}<h2>Posts</h2><PostList posts={a.posts} /></>))}
       />
     )
   return <h1>Not found</h1>
@@ -117,6 +121,7 @@ export function App() {
         <Page />
       </main>
       {SOURCE === 'sanity' && draftMode && <LiveMode />}
+      {SOURCE === 'barkpark' && window.parent !== window && <EditOverlays />}
     </>
   )
 }

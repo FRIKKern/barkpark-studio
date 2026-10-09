@@ -146,6 +146,9 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
       if (e.origin !== origin || e.source !== frame.current?.contentWindow || e.data?.bp !== 'preview') return
       if (e.data.type === 'hello') send({type: 'hello'})
       if (e.data.type === 'location' && typeof e.data.url === 'string') onPage(e.data.url)
+      // J59: a click on an outlined value opens its field in the panel.
+      if (e.data.type === 'edit' && typeof e.data.doc?.type === 'string' && typeof e.data.doc?.id === 'string' && typeof e.data.path === 'string')
+        void navigate({to: '/presentation', search: (prev: Record<string, unknown>) => ({...prev, pane: `${e.data.doc.type};${e.data.doc.id},path=${e.data.path}`})})
       if (e.data.type === 'documents' && Array.isArray(e.data.documents)) setDocs(e.data.documents.filter((d: PageDoc) => typeof d?._id === 'string' && typeof d?._type === 'string'))
     }
     window.addEventListener('message', onMessage)
@@ -199,6 +202,20 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     setTyped(null)
   }
 
+  // J59: Sanity's Edit switch (and Alt, held, flips it): the outlines and click-to-edit.
+  const [overlays, setOverlays] = useState(true)
+  const [altHeld, setAltHeld] = useState(false)
+  const overlaysOn = overlays !== altHeld
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => e.key === 'Alt' && !e.repeat && setAltHeld(true)
+    const up = (e: KeyboardEvent) => e.key === 'Alt' && setAltHeld(false)
+    const reset = () => setAltHeld(false)
+    addEventListener('keydown', down)
+    addEventListener('keyup', up)
+    addEventListener('blur', reset)
+    return () => (removeEventListener('keydown', down), removeEventListener('keyup', up), removeEventListener('blur', reset))
+  }, [])
+
   // J63: the site shows the perspective the document panel shows (its Published /
   // Draft chips set ?perspective=), told again on every hello.
   const shownPerspective = perspective === 'published' ? 'published' : 'drafts'
@@ -206,6 +223,9 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   useEffect(() => {
     if (s.connected) tell({type: 'perspective', perspective: shownPerspective})
   }, [s.connected, shownPerspective, tell])
+  useEffect(() => {
+    if (s.connected) tell({type: 'overlays', enabled: overlaysOn && shownPerspective === 'drafts'})
+  }, [s.connected, overlaysOn, shownPerspective, tell])
 
   // J60: an edit to a document on the page reaches the site as it is typed (the
   // editor's cache changes before the save), not after the save comes back round.
@@ -264,6 +284,13 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     <div className="presentation">
       <section className="presentation-preview" aria-label={t('Presentation')}>
         <div className="presentation-toolbar">
+          <label className="presentation-edit" data-tip={overlaysOn ? t('Disable edit overlay') : t('Enable edit overlay')}>
+            <span className="switch">
+              <input type="checkbox" role="switch" checked={overlaysOn} onChange={(e) => setOverlays(e.target.checked !== altHeld)} />
+              <span />
+            </span>
+            {t('Edit')}
+          </label>
           <button type="button" className="icon-btn" aria-label={t('Refresh preview')} data-tip={status ?? t('Refresh preview')} aria-busy={s.refreshing || s.load === 'loading'} onClick={refresh}>
             <SyncIcon />
           </button>

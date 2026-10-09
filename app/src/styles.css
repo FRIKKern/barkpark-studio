@@ -1470,3 +1470,5 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .locations-chevron[data-open] { transform: rotate(90deg); }
 .locations-banner .location > span > span { display: block; }
 .locations-banner .location small { display: block; color: var(--muted); font-size: 13px; }
+/* J59: Sanity's Edit switch in the preview toolbar. */
+.presentation-edit { display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; height: 33px; border-radius: 999px; font-size: 13px; color: var(--fg); background: var(--hover); cursor: pointer; flex: none; }

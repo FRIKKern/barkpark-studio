@@ -15,6 +15,8 @@ type Perspective = 'drafts' | 'published'
 export const studio = {
   perspective: (window.parent !== window ? 'drafts' : 'published') as Perspective,
   edits: new Map<string, Doc>(),
+  /** J59: the Edit overlay, on unless the studio's Edit switch is off. */
+  overlays: window.parent !== window,
   listeners: new Set<() => void>(),
 }
 const changed = () => studio.listeners.forEach((l) => l())
@@ -34,6 +36,7 @@ export function openShared() {
     })
 }
 
+export const tellStudio = (msg: Record<string, unknown>) => post(msg)
 const post = (msg: Record<string, unknown>) => window.parent !== window && window.parent.postMessage({bp: 'preview', ...msg}, '*')
 
 /** The documents the page shows (after its location: the studio clears its list on a move). */
@@ -51,6 +54,10 @@ export function connectBarkpark() {
     if (e.data.type === 'perspective' && (e.data.perspective === 'drafts' || e.data.perspective === 'published') && e.data.perspective !== studio.perspective) {
       studio.perspective = e.data.perspective
       studio.edits.clear()
+      changed()
+    }
+    if (e.data.type === 'overlays' && typeof e.data.enabled === 'boolean' && e.data.enabled !== studio.overlays) {
+      studio.overlays = e.data.enabled
       changed()
     }
     const doc = e.data.doc as Doc | undefined

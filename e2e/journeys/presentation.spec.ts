@@ -364,3 +364,71 @@ test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the
   await closeAndSettle(page)
   await t.resetDoc('post-01', 'post')
 })
+
+// J59 on a stand-in: a click on a marked value asks the studio to edit it; the
+// Edit switch (and Alt, held) turns the overlay off.
+const clickSite = `<!doctype html><h1>Fixture post 01</h1><p id="x">Short excerpt</p><p id="o">on</p>
+<script>
+  const post = (m) => parent.postMessage({bp: 'preview', ...m}, '*')
+  post({type: 'hello'})
+  post({type: 'location', url: location.pathname})
+  document.getElementById('x').onclick = () => post({type: 'edit', doc: {type: 'post', id: 'post-01'}, path: 'excerpt'})
+  addEventListener('message', (e) => e.data?.bp === 'studio' && e.data.type === 'overlays' && (document.getElementById('o').textContent = e.data.enabled ? 'on' : 'off'))
+</script>`
+
+test('J59: clicking a value opens its field in the panel; Edit turns the overlay off', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await context.route(`${SITE}/**`, (route) => route.fulfill({contentType: 'text/html', body: clickSite}))
+  await page.goto('/presentation?preview=/')
+  await signInIfAsked(page)
+  const site = page.frameLocator('iframe')
+  await expect(site.locator('#o')).toHaveText('on')
+  await site.locator('#x').click()
+  await expect(page).toHaveURL(/pane=post%3Bpost-01%2Cpath%3Dexcerpt/)
+  await expect(page.locator('.presentation-panel [id="excerpt"]')).toBeFocused()
+
+  const edit = page.getByRole('switch', {name: 'Edit'})
+  await edit.click()
+  await expect(site.locator('#o')).toHaveText('off')
+  await page.keyboard.down('Alt')
+  await expect(site.locator('#o')).toHaveText('on')
+  await page.keyboard.up('Alt')
+  await expect(site.locator('#o')).toHaveText('off')
+})
+
+test('@local J59: the Barkpark page outlines its values; a click edits that field', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  const site = page.frameLocator('iframe')
+  const excerpt = site.getByText('Short excerpt for post 1.')
+  await expect(excerpt).toHaveAttribute('data-bp-edit', 'post:post-01:excerpt')
+  await excerpt.hover()
+  await expect(site.getByText('Fixture post 01', {exact: true}).last()).toBeVisible()
+  await excerpt.click()
+  await expect(page.locator('.presentation-panel [id="excerpt"]')).toBeFocused()
+  // Edit off: the page is a page again.
+  await page.getByRole('switch', {name: 'Edit'}).click()
+  await site.getByRole('link', {name: 'Alan Turing'}).click()
+  await expect(page.getByLabel('URL')).toHaveValue(`${SITE}/authors/author-alan`)
+})
+
+test('@evidence J59: hover outline and click-to-edit, side by side', async ({page, context}, info) => {
+  const t = target(info)
+  await t.prepare(context)
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  const site = page.frameLocator('iframe')
+  await site.getByRole('heading', {name: /Fixture post 01/, level: 1}).waitFor({timeout: 30_000})
+  await page.waitForTimeout(2000)
+  await site.getByText('Short excerpt for post 1.').hover()
+  await page.waitForTimeout(700)
+  await page.screenshot({path: `evidence/J59-${t.name}-1-hover.png`})
+  await site.getByText('Short excerpt for post 1.').click()
+  await page.waitForTimeout(2000)
+  await page.screenshot({path: `evidence/J59-${t.name}-2-click.png`})
+})

@@ -19,16 +19,28 @@ export function barkparkApi(env: Env): Plugin {
     if (!res.ok) throw new Error(`Barkpark ${type} → ${res.status}`)
     return ((await res.json()) as {result: {documents: Doc[]}}).result.documents
   }
+  // J59: which document and field each value came from (Barkpark's resultSourceMap,
+  // flat fields of one document, drafts only: a published page has nothing to edit).
+  async function sourceMap(type: string, id: string, perspective: string) {
+    if (perspective !== 'drafts') return null
+    const got = await fetch(`${base}/v1/data/doc/${dataset}/${type}/${encodeURIComponent(id)}?perspective=drafts&sourceMap=true`, {headers: auth})
+    return got.ok ? (((await got.json()) as {sourceMap?: unknown}).sourceMap ?? null) : null
+  }
+
   // The documents as Barkpark returns them (references expanded); src/bp-pages.ts
   // turns them into the page, in the browser, so the studio's unsaved edits apply live.
   async function page(kind: string, key: string, perspective: string) {
     if (kind === 'home') return {posts: (await query('post', {order: 'title:asc', expand: 'author'}, perspective)).filter((p) => p.slug)}
-    if (kind === 'post') return {post: (await query('post', {'filter[slug][eq]': key, expand: 'author,categories,related', limit: '1'}, perspective))[0] ?? null}
+    if (kind === 'post') {
+      const post = (await query('post', {'filter[slug][eq]': key, expand: 'author,categories,related', limit: '1'}, perspective))[0] ?? null
+      return {post, maps: post ? [await sourceMap('post', (post._publishedId as string) ?? post._id, perspective)] : []}
+    }
     if (kind === 'author') {
-      const got = await fetch(`${base}/v1/data/doc/${dataset}/author/${encodeURIComponent(key)}?perspective=${perspective}`, {headers: auth})
-      const author = got.ok ? ((await got.json()) as {result: Doc | null}).result : null
+      const got = await fetch(`${base}/v1/data/doc/${dataset}/author/${encodeURIComponent(key)}?perspective=${perspective}&sourceMap=true`, {headers: auth})
+      const body = got.ok ? ((await got.json()) as {result: Doc | null; sourceMap?: unknown}) : null
+      const author = body?.result ?? null
       if (!author) return {author: null, posts: []}
-      return {author, posts: (await query('post', {'filter[author][eq]': key, order: 'title:asc'}, perspective)).filter((p) => p.slug)}
+      return {author, maps: [body?.sourceMap ?? null], posts: (await query('post', {'filter[author][eq]': key, order: 'title:asc'}, perspective)).filter((p) => p.slug)}
     }
     return {}
   }
