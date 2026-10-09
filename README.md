@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes, 1 task closed
+- **Today** · 8 changes, 1 task closed
+  - A save's 404 turns the pane to the deleted banner, live frame or not ([#358](https://github.com/FRIKKern/barkpark-studio/pull/358))
   - Freeform specs: type only once the editor has focus; D19's caret by its click ([#360](https://github.com/FRIKKern/barkpark-studio/pull/360))
   - J07 spec: wait for an empty room before A arrives ([#359](https://github.com/FRIKKern/barkpark-studio/pull/359))
-  - Done: [Barkpark: presence entry lingers 20-40 s after its stream closes](https://github.com/FRIKKern/barkpark/issues/21830)
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
