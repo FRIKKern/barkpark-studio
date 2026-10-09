@@ -306,6 +306,7 @@ textarea.input { resize: vertical; }
 .menu-item { font: inherit; font-size: 13px; font-weight: 400; text-align: left; padding: 8px 12px; border: 0; background: none; border-radius: 3px; cursor: pointer; color: var(--fg); }
 .menu-item:hover, .menu-item:focus { background: var(--hover); outline: none; }
 .menu-item.danger { color: var(--danger-text); }
+.menu-item[aria-disabled] { opacity: 0.5; cursor: default; }
 .btn-create { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 4px; height: 35px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); font: inherit; font-size: 13px; font-weight: 500; color: var(--fg); cursor: pointer; }
 .btn-create:hover, .btn-square:hover { background: var(--hover); }
 .ref-search { flex-wrap: wrap; }
