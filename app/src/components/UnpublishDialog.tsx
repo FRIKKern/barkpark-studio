@@ -23,7 +23,8 @@ export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => P
   const [busy, setBusy] = useState(false)
   const cancel = useRef<HTMLButtonElement>(null)
   useEffect(() => cancel.current?.focus(), [])
-  const checking = lookups.some((q) => q.isPending || q.isFetching || q.fetchStatus === 'paused')
+  // A background re-read (live frames) keeps what was found and the buttons as they are (J17).
+  const checking = lookups.some((q) => q.isPending || (q.isFetching && !q.data) || q.fetchStatus === 'paused')
   const offline = lookups.some((q) => q.fetchStatus === 'paused')
   const failed = lookups.some((q) => q.isError && !q.isFetching)
   const used = docs.map((d, i) => ({doc: d, refs: lookups[i]?.data ?? []})).filter((u) => u.refs.length > 0)

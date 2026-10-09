@@ -12,9 +12,12 @@ test.beforeEach(async ({context}, info) => {
   await Promise.all([target(info).prepare(context), installProbes(context)])
 })
 const created: string[] = []
+let alanEdited = false
 test.afterEach(async ({}, info) => {
   const t = target(info)
   await t.restore(ID, {author: t.ref('author-alan')})
+  if (alanEdited) await t.restore('author-alan', {bio: 'Alan Turing writes fixture posts.'}, 'author')
+  alanEdited = false
   for (const id of created.splice(0)) await t.deleteDoc(id, 'author')
 })
 
@@ -254,17 +257,30 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
   await expect(dialog).toContainText('Fixture post 01')
   await referenceHold(page, dialog)
   if (t.name === 'studio') {
-    // Refuse the write before it reaches the API; a failed delete must keep focus.
-    await page.route('**/_serverFn/**', (route) => route.request().method() === 'POST' ? route.abort('failed') : route.continue())
-    // The button must hold focus when Enter goes (on a slow runner it can still be settling).
+    // Refuse the write before it reaches the API; a failed delete must keep focus. Reads
+    // are slowed, and a live frame (someone saves a referring post) makes the dialog read
+    // "used in" again meanwhile: the buttons must hold still through that re-read (it
+    // disabled Delete under the caret, and Enter went to Close: CI, 2026-10-09).
+    let reading!: () => void
+    const reread = new Promise<void>((r) => (reading = r))
+    await page.route('**/_serverFn/**', async (route) => {
+      if (route.request().method() === 'POST') return route.abort('failed')
+      if (!decodeURIComponent(route.request().url()).includes('author-alan')) return route.continue().catch(() => {})
+      reading() // the "used in" read for Alan
+      await new Promise((r) => setTimeout(r, 1500))
+      await route.continue().catch(() => {})
+    })
+    alanEdited = true
+    await t.patch('author-alan', {bio: `Edited meanwhile ${Date.now()}`}, 'author') // someone saves Alan (afterEach puts it back)
+    await reread // the dialog is reading "used in" again right now
     const anyway = dialog.getByRole('button', {name: 'Delete anyway'})
-    await expect(anyway).toBeEnabled()
+    await expect(anyway).toBeEnabled({timeout: 100})
     await anyway.focus()
     await expect(anyway).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(dialog.getByRole('alert')).toContainText('Could not delete')
     await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
-    await page.unrouteAll({behavior: 'wait'})
+    await page.unrouteAll({behavior: 'ignoreErrors'})
   }
   await dialog.getByRole('button', {name: 'Cancel'}).click()
   await expect(dialog).toBeHidden()
