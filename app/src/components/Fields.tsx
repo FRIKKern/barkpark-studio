@@ -575,21 +575,38 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
   // the end of the text. Mapped by block, not by pixel: the canvas lays out a
   // little differently from the read-only view.
   const at = useRef<{block: string; offset: number} | null>(null)
+  // F8: what is typed between the activating click (or key) and the canvas taking the
+  // caret (its bundle and the blocks are still loading) is kept here and typed in once
+  // it can take it — never dropped (it was, on a fresh page load: task-1dd00fd2a0dc1c60).
+  const typed = useRef('')
   useEffect(() => {
     if (!active) return
+    const ready = () => !!box.current?.querySelector('.ProseMirror')?.contains(document.activeElement)
+    const keep = (e: KeyboardEvent) => {
+      if (ready() || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return
+      if (e.key.length === 1) typed.current += e.key
+      else if (e.key === 'Backspace') typed.current = typed.current.slice(0, -1)
+      else return
+      e.preventDefault()
+    }
+    addEventListener('keydown', keep, true)
     const timer = setInterval(() => {
       const pm = box.current?.querySelector<HTMLElement>('.ProseMirror')
       if (!pm) return
       clearInterval(timer)
-      if (pm.contains(document.activeElement)) return // the author got there first
-      pm.focus()
-      const sel = getSelection()
-      if (!sel) return
-      const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
-      if (target) sel.collapse(target.node, target.offset)
-      else (sel.selectAllChildren(pm), sel.collapseToEnd())
+      removeEventListener('keydown', keep, true)
+      if (!pm.contains(document.activeElement)) {
+        pm.focus()
+        const sel = getSelection()
+        const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
+        if (sel && target) sel.collapse(target.node, target.offset)
+        else if (sel) (sel.selectAllChildren(pm), sel.collapseToEnd())
+      }
+      // The canvas reads it as typed input (beforeinput), so it saves and undoes as typing does.
+      if (typed.current) document.execCommand('insertText', false, typed.current)
+      typed.current = ''
     }, 30)
-    return () => clearInterval(timer)
+    return () => (clearInterval(timer), removeEventListener('keydown', keep, true))
   }, [active])
   if (!id || !type) return null
   const blocks = ((value as {blocks?: unknown[]} | undefined)?.blocks ?? []) as Parameters<typeof PortableDocView>[0]['blocks']
@@ -609,7 +626,11 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
           if (readOnly || e.target !== e.currentTarget) return
           // J35: Cmd/Ctrl+Enter opens it expanded, as Sanity's hotkey.
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) return e.preventDefault(), setActive(true), setExpanded(true)
-          if ((e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey) e.preventDefault(), setActive(true)
+          if ((e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey) {
+            e.preventDefault()
+            if (e.key.length === 1) typed.current += e.key // the key that wakes it is typed too
+            setActive(true)
+          }
         }}
       >
         {!readOnly && (
