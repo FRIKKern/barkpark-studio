@@ -3,12 +3,14 @@ import {installProbes, stats} from '../rig/feel'
 import {signInIfAsked, target, type Target} from '../rig/targets'
 
 // J10 evidence, both studios, in post-10's body: markdown shortcuts (## heading,
-// - and 1. lists, > quote; ours: a pullquote block), marks by keyboard (Ctrl+B / Ctrl+I), a style from the
+// - and 1. lists, > quote; ours: a pullquote block), marks by keyboard (Ctrl+B / Ctrl+I), heading 3 and 6 from the
 // style control (Sanity's dropdown; ours: the canvas's / menu, decision 0004), a
 // link from the link control (Sanity's toolbar button; ours: the selection
 // bubble), and F1 while typing. What each side ends up with goes to the
 // annotations; stills + clips go to e2e/evidence/. Not a CI gate (rule 5).
 const ID = 'post-10'
+// To the end of the line: End does nothing in a macOS contenteditable (Sanity's), Cmd+→ does.
+const END = process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End'
 const shot = (name: string, step: string) => `evidence/J10-${name}-${step}.png`
 test.use({video: 'on'})
 test.setTimeout(120_000)
@@ -24,7 +26,7 @@ async function newLine(t: Target, page: Page, body: Locator) {
     await page.waitForTimeout(300)
     await body.getByText(/Body paragraph for post 10/).click()
   } else await expect(body.locator('.ProseMirror')).toBeFocused({timeout: 15_000})
-  await page.keyboard.press('End')
+  await page.keyboard.press(END)
   await page.keyboard.press('Enter')
 }
 
@@ -79,19 +81,24 @@ test('@evidence J10: body — shortcuts, marks, styles, link, lists', async ({pa
   note('F1 frame ms', stats(await page.evaluate(() => window.__feel.keys)))
   await page.screenshot({path: shot(t.name, '1-shortcuts-marks')})
 
-  // A style from the style control: a level-3 heading.
-  await page.keyboard.press('Enter')
-  if (t.name === 'sanity') {
-    await page.keyboard.type('Styled heading')
-    const style = page.locator('[data-testid="field-body"]').getByRole('button', {name: /No style|Normal|Quote|Heading/}).first()
-    await style.click()
-    await page.getByRole('menuitem', {name: /Heading 3/}).click()
-  } else {
-    await page.keyboard.type('/')
-    await page.locator('.bp-slash-item').filter({hasText: 'Heading 3'}).click()
-    await page.keyboard.type('Styled heading')
+  // Styles from the style control: a level-3 heading, then a level-6 one (H1–H6 both sides).
+  for (const [level, text] of [[3, 'Styled heading'], [6, 'Smallest heading']] as const) {
+    await page.keyboard.press('Enter')
+    if (t.name === 'sanity') {
+      await page.keyboard.type(text)
+      const style = page.locator('[data-testid="field-body"]').getByRole('button', {name: /No style|Normal|Quote|Heading/}).first()
+      await style.click()
+      await page.getByRole('menuitem', {name: new RegExp(`Heading ${level}`)}).click()
+      // The menu leaves the caret where it likes: back to the end of this line.
+      await body.getByText(text, {exact: true}).click()
+      await page.keyboard.press(END)
+    } else {
+      await page.keyboard.type('/')
+      await page.locator('.bp-slash-item').filter({hasText: `Heading ${level}`}).click()
+      await page.keyboard.type(text)
+    }
+    await page.waitForTimeout(500)
   }
-  await page.waitForTimeout(500)
 
   // A link from the link control, on the word "Linked".
   await page.keyboard.press('Enter')
@@ -123,6 +130,7 @@ test('@evidence J10: body — shortcuts, marks, styles, link, lists', async ({pa
   const got = await body.evaluate((el) => ({
     h2: [...el.querySelectorAll('h2')].map((h) => h.textContent),
     h3: [...el.querySelectorAll('h3')].map((h) => h.textContent),
+    h6: [...el.querySelectorAll('h6')].map((h) => h.textContent),
     bullets: [...el.querySelectorAll('ul li')].map((li) => li.textContent),
     numbered: [...el.querySelectorAll('ol li')].map((li) => li.textContent),
     quote: [...el.querySelectorAll('blockquote, .bp-role-pullquote')].map((q) => q.textContent),
@@ -131,6 +139,7 @@ test('@evidence J10: body — shortcuts, marks, styles, link, lists', async ({pa
     links: [...el.querySelectorAll('a[href]')].map((a) => `${a.textContent} → ${a.getAttribute('href')}`),
   }))
   note('landed', got)
+  expect(got.h6, 'a level-6 heading from the style control').toEqual(['Smallest heading'])
   // Ours: and it is saved — the body field's own block list on the server.
   if (t.name === 'studio')
     await expect
