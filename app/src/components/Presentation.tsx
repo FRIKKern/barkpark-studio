@@ -424,7 +424,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
  * J64, Sanity's share menu: sharing on/off, a QR code of the shared link, Copy
  * preview link. Barkpark links one document, draft included, for 24 hours; the
  * shared page shows the panel's document as it is now. An editor who may write may
- * share (Barkpark #22488); a read-only seat sees why not. Stopping a link is an admin's.
+ * share (Barkpark #22488) and stop what they shared (#22556); a read-only seat sees why not.
  */
 function ShareMenu({doc, pageUrl}: {doc: {type: string; id: string} | null; pageUrl: string}) {
   const t = useT()

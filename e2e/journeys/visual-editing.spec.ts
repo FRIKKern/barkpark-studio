@@ -111,7 +111,7 @@ test('@local J60 + J63: the Barkpark site follows typing live, and Published / D
 test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the draft; off ends it', async ({page, context, browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "the check runs on ours; the reference robot token can't share in Sanity either")
-  test.skip(!(await studioIsAdmin()), "the studio's Barkpark token is not a workspace admin (a lane's member token); sharing needs one")
+  // Any member who may write shares and stops their own links (Barkpark #22488, #22556).
   await t.prepare(context)
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/presentation?preview=/posts/fixture-post-01')

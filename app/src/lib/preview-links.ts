@@ -6,8 +6,9 @@ import {describeToken} from '../server/auth'
 // (`POST /v1/shares/preview-links`, 24 h; any write member since Barkpark #22488); the
 // site takes its token (`?bp-share=`) and shows that document's draft on the page.
 // Barkpark keeps only the token's hash, so the link is shown once: this browser
-// remembers it (localStorage) while it is live. Listing and revoking links stay
-// admin-only: a member sees the link this browser made, and it runs out by itself.
+// remembers it (localStorage) while it is live. A member lists and revokes the links
+// they made (Barkpark #22556); someone else's, or one made before links had a maker,
+// is an admin's to stop (404), and runs out by itself.
 
 type Link = {id: string; doc_id: string; expires_at: string; revoked_at: string | null}
 /** `listed: false`: Barkpark lists links only to an admin; the page knows what it made. */
@@ -49,13 +50,13 @@ export const mintShare = createServerFn({method: 'POST'})
     return {token: body.token, id: body.link.id, expiresAt: body.link.expires_at}
   })
 
-/** False when Barkpark refuses (only an admin may revoke a link). */
+/** False when Barkpark refuses: not this editor's link (404), or not theirs to stop. */
 export const revokeShares = createServerFn({method: 'POST'})
   .validator((ids: string[]) => ids)
   .handler(async ({data}) => {
     const answers = await Promise.all(data.map((id) => bpRoot(`/v1/shares/preview-links/${encodeURIComponent(id)}`, {method: 'DELETE'})))
-    if (answers.some((r) => r.status === 401 || r.status === 403)) return false
-    const bad = answers.find((r) => !r.ok && r.status !== 404)
+    if (answers.some((r) => r.status === 401 || r.status === 403 || r.status === 404)) return false
+    const bad = answers.find((r) => !r.ok)
     if (bad) throw new Error(`Barkpark preview links → ${bad.status}`)
     return true
   })
