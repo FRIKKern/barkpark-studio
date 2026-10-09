@@ -51,18 +51,21 @@ export const revokeShares = createServerFn({method: 'POST'})
   })
 
 /**
- * The preview token the site reads drafts with (Barkpark's scoped mint, admin only):
- * multi-use, for the dataset, an hour at most, so the site server holds no editor's
- * credential. Null for an editor who may not mint (the site then shows published).
+ * Preview tokens for the site's reads, minted with the signed-in editor's own token on
+ * the scoped route (Barkpark #22468: any write-capable member may; held to the editor's
+ * workspace, project and dataset). Each is single-use (one /v1/preview read, or one
+ * listen stream), so the site asks for as many as it is about to read. Null when this
+ * editor may not mint (the site then shows what is published).
  */
-export const mintPreviewToken = createServerFn({method: 'POST'}).handler(async () => {
-  const res = await bpFetch('/v1/preview-tokens', {
-    method: 'POST',
-    headers: {'content-type': 'application/json'},
-    body: JSON.stringify({dataset: dataset(), multi_use: true, ttl_seconds: 3600}),
+export const mintPreviewTokens = createServerFn({method: 'POST'})
+  .validator((n: number) => Math.min(Math.max(1, Math.floor(n) || 1), 4))
+  .handler(async ({data: n}) => {
+    const one = async () => {
+      const res = await bpFetch('/v1/preview-tokens', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({dataset: dataset()})})
+      if (res.status === 401 || res.status === 403) return null
+      if (!res.ok) throw new Error(`Barkpark preview token → ${res.status}`)
+      return ((await res.json()) as {token: string}).token
+    }
+    const tokens = await Promise.all(Array.from({length: n}, one))
+    return tokens.every((x): x is string => !!x) ? tokens : null
   })
-  if (res.status === 401 || res.status === 403) return null
-  if (!res.ok) throw new Error(`Barkpark preview token → ${res.status}`)
-  const {token, expires_at} = (await res.json()) as {token: string; expires_at: string}
-  return {token, expiresAt: Date.parse(expires_at)}
-})
