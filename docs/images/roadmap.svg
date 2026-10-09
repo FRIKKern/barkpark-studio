@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1456" viewBox="0 0 1200 1456" role="img" aria-labelledby="t d">
 <title id="t">Barkpark Studio roadmap</title>
-<desc id="d">50 of 65 journeys pass side by side. Phase 0 Foundation: done. Phase 1 Panes + Refs ★: now. Phase 2 Forms: next. Phase 3 Live: later. Phase 4 Arrays: done. Phase 5 Rich text + media: later. Phase 6 History: done. Phase after Plugins + Presentation: later. Freeform track: 2 of 14. Barkpark-native track: 3 of 13.</desc>
+<desc id="d">51 of 65 journeys pass side by side. Phase 0 Foundation: done. Phase 1 Panes + Refs ★: now. Phase 2 Forms: next. Phase 3 Live: done. Phase 4 Arrays: done. Phase 5 Rich text + media: later. Phase 6 History: done. Phase after Plugins + Presentation: later. Freeform track: 2 of 14. Barkpark-native track: 3 of 13.</desc>
 <style>
   svg { --bg:#fbfaf7; --card:#ffffff; --line:#e3e0d6; --ink:#1f1e1b; --muted:#6c6a63; --done:#2c7a4b; --now:#b26b00; --todo:#a3a097; --nowbg:#fff6e5; }
   @media (prefers-color-scheme: dark) {
@@ -14,10 +14,10 @@
 <rect class="bg" width="1200" height="1456" rx="16"/>
 <text x="40" y="70" font-size="36" font-weight="700" letter-spacing="-0.8">Barkpark Studio</text>
 <text x="40" y="102" font-size="19" class="muted">Sanity-quality editing on Barkpark, one journey at a time.</text>
-<text x="1160" y="70" font-size="40" font-weight="700" text-anchor="end">50<tspan class="muted" font-weight="400"> / 65</tspan></text>
+<text x="1160" y="70" font-size="40" font-weight="700" text-anchor="end">51<tspan class="muted" font-weight="400"> / 65</tspan></text>
 <text x="1160" y="102" font-size="16" text-anchor="end" class="muted">journeys pass side by side</text>
 <rect x="40" y="124" width="1120" height="8" rx="4" class="track"/>
-<rect x="40" y="124" width="861.5384615384615" height="8" rx="4" class="bar"/>
+<rect x="40" y="124" width="878.7692307692307" height="8" rx="4" class="bar"/>
 <text x="40" y="168" font-size="16"><tspan class="done">✓ passed</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>
 <text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 30 / 40</text>
 <g data-phase="0">
@@ -84,12 +84,12 @@
 <g data-phase="3">
 <rect x="892" y="196" width="268" height="364" rx="12" class="card"/>
 <text x="912" y="228" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">PHASE 3</text>
-<text x="1140" y="228" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="todo">LATER</text>
+<text x="1140" y="228" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="done">DONE</text>
 <text x="912" y="262" font-size="23" font-weight="600">Live</text>
 <path d="M912 282H1140" class="rule"/>
 <text x="912" y="314" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">J05 Two browsers</tspan></text>
 <text x="912" y="344" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">J06 Two browsers type in…</tspan></text>
-<text x="912" y="374" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">J07 Presence everywhere</tspan></text>
+<text x="912" y="374" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">J07 Presence everywhere</tspan></text>
 <text x="912" y="404" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">J20 10 s offline while t…</tspan></text>
 <text x="912" y="434" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">J32 Someone deletes or c…</tspan></text>
 <text x="912" y="464" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">J48 Session lost mid-edit</tspan></text>

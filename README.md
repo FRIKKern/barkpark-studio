@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 16 changes, 10 tasks closed
+- **Today** · 17 changes, 11 tasks closed
+  - Upload progress bar with Cancel (file and image fields) ([#249](https://github.com/FRIKKern/barkpark-studio/pull/249))
+  - Done: [J07 [3 Live] Presence everywhere: avatars on doc, field, list rows, array items/blocks; navbar "who's online" jumps to them; above/below hints](https://github.com/FRIKKern/barkpark/issues/21686)
   - J07: field avatars follow in ~0.6 s; presence flush cut from 4 s to 100 ms ([#248](https://github.com/FRIKKern/barkpark-studio/pull/248))
-  - Done: [Barkpark: file field for non-image assets (upload, picker, stored shape)](https://github.com/FRIKKern/barkpark/issues/21796)
-  - Done: [Barkpark: seed-barkpark.mjs needs post.attachment mapped to the new file field](https://github.com/FRIKKern/barkpark/issues/22293)
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
