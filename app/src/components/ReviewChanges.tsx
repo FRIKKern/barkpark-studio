@@ -9,7 +9,7 @@ import type {Doc, Schema} from '../lib/data'
 import {rangeDate, Row} from './HistoryPanel'
 import {ChevronDown, Undo} from './icons'
 import {userColorVars} from '../lib/user-colors'
-import {assetUrl, type ImageValue} from '../lib/image'
+import {assetUrl, imageRef, type ImageValue} from '../lib/image'
 import {useLocale, useT, type T} from '../lib/i18n'
 
 // Sanity's "Review changes" (J15): every field the draft changed since it was last
@@ -90,15 +90,15 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
 }
 
 /** An image value's asset id, if `v` is one. */
-const imageRef = (v: unknown) => (v as ImageValue | undefined)?.asset?._ref
+const imageRefOf = (v: unknown) => imageRef(v)
 
 /** One field's change; text is tinted with its author's colour, as Sanity's. */
 function ChangeView({change, author}: {change: FieldChange; author?: string}) {
   const t = useT()
   // An image: before → after thumbnails, as Sanity's image diff.
-  if (imageRef(change.before) || imageRef(change.after)) {
+  if (imageRefOf(change.before) || imageRefOf(change.after)) {
     const thumb = (v: unknown, what: 'Before' | 'After') =>
-      imageRef(v) ? <img src={`${assetUrl(imageRef(v)!)}?size=thumb`} alt={t(what)} /> : <span className="review-img-none">{what === 'Before' ? t('No image') : t('Removed')}</span>
+      imageRefOf(v) ? <img src={`${assetUrl(imageRefOf(v)!)}?size=thumb`} alt={t(what)} /> : <span className="review-img-none">{what === 'Before' ? t('No image') : t('Removed')}</span>
     return (
       <p className="review-diff review-img">
         {thumb(change.before, 'Before')}

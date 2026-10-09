@@ -2,7 +2,7 @@
 // moves (measured 2026-10-06 on reference/sanity, e2e/journeys/image.spec.ts).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {dragCrop, frame, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
+import {dragCrop, frame, imageRef, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≉ ${b}`)
 
@@ -30,4 +30,11 @@ test('a preview frame keeps the hotspot centred inside the crop', () => {
   near(f.width, 400 / 640)
   near(f.height, 1)
   near(f.left + f.width, 1) // pushed against the right edge, not past it
+})
+
+test('an image ref reads the canonical value and the legacy {assetId} one', () => {
+  assert.equal(imageRef({asset: {_ref: 'asset-a1'}}), 'asset-a1')
+  assert.equal(imageRef({assetId: 'b2', url: '/media/files/b2.jpg', alt: 'x'}), 'asset-b2')
+  assert.equal(imageRef({alt: 'only alt'}), undefined)
+  assert.equal(imageRef(null), undefined)
 })
