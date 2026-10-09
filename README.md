@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 61 changes, 19 tasks closed
+- **Today** · 62 changes, 19 tasks closed
+  - J38: the pinned "Contains document, image or file" filter ([#301](https://github.com/FRIKKern/barkpark-studio/pull/301))
   - J19: the caret lands in an opened doc however slow its read is ([#300](https://github.com/FRIKKern/barkpark-studio/pull/300))
   - J36: file uses from backlinks too; the per-type file scan goes ([#299](https://github.com/FRIKKern/barkpark-studio/pull/299))
-  - J36: Barkpark refuses an asset in use itself; its where-used list reaches the dialog ([#298](https://github.com/FRIKKern/barkpark-studio/pull/298))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
