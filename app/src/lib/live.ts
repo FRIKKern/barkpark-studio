@@ -15,6 +15,7 @@ type Frame = {documentId: string; type: string; mutation: string; result: Doc | 
 // asks the server for everything since, so nothing falls between two streams.
 let lastSeen: string | null = null
 let fleetTimer: ReturnType<typeof setTimeout> | undefined
+let backlinksTimer: ReturnType<typeof setTimeout> | undefined
 
 // A page rendered on the server read its data before its stream opened. The
 // server says where to resume from (its listen position as of that read); when it
@@ -73,6 +74,9 @@ export function useLive(ids: string[], types: string[]) {
         void qc.invalidateQueries({queryKey: ['doc-published', id]})
         void qc.invalidateQueries({queryKey: ['list-published', f.type]})
       }
+      // J17: who refers to what may have changed: open Incoming references panels read again (debounced).
+      clearTimeout(backlinksTimer)
+      backlinksTimer = setTimeout(() => void qc.invalidateQueries({queryKey: ['backlinks']}), 400)
       if (!f.result || f.mutation === 'delete') {
         void qc.invalidateQueries({queryKey: ['doc', id]})
         void qc.invalidateQueries({queryKey: ['list', f.type]})

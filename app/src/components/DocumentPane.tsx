@@ -43,6 +43,10 @@ import {ChevronDown, CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Clos
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
 import {LocationsBanner} from './LocationsBanner'
+import {IncomingReferences} from './IncomingReferences'
+
+/** Sanity's inspector name for it, so a copied Sanity-style link opens the same panel. */
+const INCOMING = 'sanity/structure/incoming-references'
 import {EditIcon, EyeOpenIcon, PreviewView} from './PreviewView'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
@@ -432,7 +436,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </button>
         )}
         {doc && schema && (
-          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} />
+          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} />
         )}
         {/* J42: a narrow window has no splits and no close: the back link goes back. */}
         {!narrow && (
@@ -626,6 +630,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => void toggleValidation()} />}
+      {pane.inspect === INCOMING && <IncomingReferences id={pane.id} panes={panes} index={index} onClose={() => navigate({href: withParams(panes, index, {inspect: undefined})})} />}
       {pane.inspect === 'comments' && (
         <CommentsPanel
           docId={pane.id}
