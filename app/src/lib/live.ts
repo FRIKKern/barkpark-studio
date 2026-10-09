@@ -76,9 +76,14 @@ export function useLive(ids: string[], types: string[]) {
         void qc.invalidateQueries({queryKey: ['doc-published', id]})
         void qc.invalidateQueries({queryKey: ['list-published', f.type]})
       }
-      // J17: who refers to what may have changed: open Incoming references panels read again (debounced).
+      // J17: who refers to what may have changed: open Incoming references panels read again
+      // (debounced), and twice more: Barkpark adds a new edge at once but drops a removed one
+      // only some seconds after the write (measured 2–5 s, 2026-10-09).
       clearTimeout(backlinksTimer)
-      backlinksTimer = setTimeout(() => void qc.invalidateQueries({queryKey: ['backlinks']}), 400)
+      const reread = (left: number[]) => {
+        backlinksTimer = setTimeout(() => (void qc.invalidateQueries({queryKey: ['backlinks']}), left.length > 1 && reread(left.slice(1))), left[0])
+      }
+      reread([400, 2000, 4000])
       if (!f.result || f.mutation === 'delete') {
         void qc.invalidateQueries({queryKey: ['doc', id]})
         void qc.invalidateQueries({queryKey: ['list', f.type]})
