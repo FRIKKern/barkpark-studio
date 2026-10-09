@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 5 changes, 1 task closed
+- **Today** · 6 changes, 1 task closed
+  - J07 spec: wait for an empty room before A arrives ([#359](https://github.com/FRIKKern/barkpark-studio/pull/359))
   - Done: [Barkpark: presence entry lingers 20-40 s after its stream closes](https://github.com/FRIKKern/barkpark/issues/21830)
   - Presence: a closed tab leaves the room at once (Barkpark #22563) ([#357](https://github.com/FRIKKern/barkpark-studio/pull/357))
-  - J64: a member stops what they shared (Barkpark #22556) ([#356](https://github.com/FRIKKern/barkpark-studio/pull/356))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
