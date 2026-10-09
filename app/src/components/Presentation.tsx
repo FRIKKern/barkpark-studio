@@ -42,6 +42,13 @@ type State = {
   load: 'loading' | 'timedOut' | 'dismissed' | 'loaded'
   /** The site said hello since the iframe last (re)loaded, or since a refresh it asked for. */
   connected: boolean
+  /**
+   * Hellos so far. A page that loads again (a full navigation, a reload) says hello with
+   * the frame already connected: what it is told (perspective, overlays, icons) follows
+   * this, not `connected`, or the new page shows its own default (J63: drafts while the
+   * panel showed Published).
+   */
+  hellos: number
   /** It has connected before on this page: a refresh reconnects without the overlays. */
   hadConnection: boolean
   wait: 'pending' | 'slow' | 'timedOut'
@@ -60,7 +67,7 @@ type Action =
   | {type: 'slow'}
   | {type: 'wait timeout'}
 
-const initial: State = {load: 'loading', connected: false, hadConnection: false, wait: 'pending', dismissed: false, refreshing: false}
+const initial: State = {load: 'loading', connected: false, hellos: 0, hadConnection: false, wait: 'pending', dismissed: false, refreshing: false}
 
 function reduce(s: State, a: Action): State {
   switch (a.type) {
@@ -75,7 +82,7 @@ function reduce(s: State, a: Action): State {
     case 'loaded':
       return {...s, load: 'loaded', wait: 'pending'}
     case 'hello':
-      return {...s, connected: true, hadConnection: true, dismissed: false, refreshing: false}
+      return {...s, connected: true, hellos: s.hellos + 1, hadConnection: true, dismissed: false, refreshing: false}
     case 'slow':
       return s.wait === 'pending' ? {...s, wait: 'slow'} : s
     case 'wait timeout':
@@ -229,10 +236,10 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   const tell = useCallback((msg: Record<string, unknown>) => frame.current?.contentWindow?.postMessage({bp: 'studio', ...msg}, origin), [origin])
   useEffect(() => {
     if (s.connected) tell({type: 'perspective', perspective: shownPerspective})
-  }, [s.connected, shownPerspective, tell])
+  }, [s.connected, s.hellos, shownPerspective, tell])
   useEffect(() => {
     if (s.connected) tell({type: 'overlays', enabled: overlaysOn && shownPerspective === 'drafts'})
-  }, [s.connected, overlaysOn, shownPerspective, tell])
+  }, [s.connected, s.hellos, overlaysOn, shownPerspective, tell])
 
   // J59: the overlay label's icon is the document type's, as Sanity's (the desk's icon
   // for the type; Sanity's DocumentIcon when it has none): told once connected.
@@ -243,7 +250,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     const walk = (n: DeskNode) => (n.typeName && n.icon && !icons[n.typeName] && (icons[n.typeName] = iconBody(n.icon)), n.items?.forEach(walk))
     if (desk) walk(desk)
     tell({type: 'icons', icons, fallback: iconBody()})
-  }, [s.connected, desk, tell])
+  }, [s.connected, s.hellos, desk, tell])
 
   // J60: an edit to a document on the page reaches the site as it is typed (the
   // editor's cache changes before the save), not after the save comes back round.
