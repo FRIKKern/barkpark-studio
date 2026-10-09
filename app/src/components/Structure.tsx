@@ -443,7 +443,13 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   }, [indexed, query, sort, schemas, type])
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
   const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())
+  // Ticks show only while selecting: after "Select documents" in the list menu, a Cmd/Ctrl- or
+  // Shift-click, or once a row is ticked. A plain hover keeps Sanity's row (and its image).
+  const [selecting, setSelecting] = useState(false)
+  const lastPick = useRef<string | null>(null)
+  const stopSelecting = () => (setPicked(new Map()), setSelecting(false), (lastPick.current = null))
   const pick = (d: Doc) => {
+    lastPick.current = d._publishedId
     if (!picked.has(d._publishedId) && picked.size >= MAX_SELECTED) return toast({tone: 'caution', title: t('Selection limit reached ({max})', {max: MAX_SELECTED})})
     setPicked((m) => {
       const next = new Map(m)
@@ -502,7 +508,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         >
           <Add />
         </button>}
-        <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} />
+        <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} selecting={selectable ? selecting || picked.size > 0 : undefined} onSelecting={(on) => (on ? setSelecting(true) : stopSelecting())} />
       </header>
       <div className="search">
         <span className="search-icon">
@@ -529,7 +535,11 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           {t('Search covers the {n} loaded documents in this list. Clear search and scroll to load more.', {n: page.docs.length})}
         </p>
       )}
-      <div className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}>
+      <div
+        className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}
+        data-selecting={selectable && (selecting || picked.size > 0) ? '' : undefined}
+        onKeyDown={(e) => e.key === 'Escape' && (selecting || picked.size > 0) && stopSelecting()}
+      >
         {!readable && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: missingOps.join(', ')})}</p>}
         {treeParent && parentDoc && (
           <>
@@ -566,7 +576,28 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           )
           if (!selectable) return <div key={d._publishedId} role="listitem" className="rows-item">{row}</div>
           return (
-            <div key={d._publishedId} role="listitem" className="bulk-row" data-picked={picked.has(d._publishedId) || undefined}>
+            <div
+              key={d._publishedId}
+              role="listitem"
+              className="bulk-row"
+              data-picked={picked.has(d._publishedId) || undefined}
+              onClickCapture={(e) => {
+                // Cmd/Ctrl-click ticks one row; Shift-click ticks the run from the last tick (Finder's way).
+                if (!(e.metaKey || e.ctrlKey || e.shiftKey) || (e.target as HTMLElement).closest('.bulk-check')) return
+                e.preventDefault()
+                e.stopPropagation()
+                const from = e.shiftKey && lastPick.current ? shown.findIndex((x) => x._publishedId === lastPick.current) : -1
+                const to = shown.findIndex((x) => x._publishedId === d._publishedId)
+                if (from < 0 || to < 0) return pick(d)
+                const run = shown.slice(Math.min(from, to), Math.max(from, to) + 1)
+                setPicked((m) => {
+                  const next = new Map(m)
+                  for (const x of run) if (next.size < MAX_SELECTED) next.set(x._publishedId, x)
+                  return next
+                })
+                lastPick.current = d._publishedId
+              }}
+            >
               <label className="bulk-check">
                 <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type))})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
               </label>
@@ -582,7 +613,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             : <p className="list-max">{t('Displaying a maximum of {max} documents', {max: LIST_MAX})}</p>
         )}
       </div>
-      {picked.size > 0 && <BulkBar picked={pickedDocs} onClear={() => setPicked(new Map())} />}
+      {picked.size > 0 && <BulkBar picked={pickedDocs} onClear={stopSelecting} />}
     </section>
   )
 }
@@ -634,7 +665,7 @@ function byOrder(sort: string) {
  * J25 + J55: the list's "…" menu, Sanity's: the type's own orderings when it
  * declares any, else "Sort by <title field>"; then last edited, created; layout.
  */
-function ListMenu({schema, sort, view, set}: {schema: Schema | undefined; sort: Sort; view: View; set: (p: {sort?: Sort; view?: View}) => void}) {
+function ListMenu({schema, sort, view, set, selecting, onSelecting}: {schema: Schema | undefined; sort: Sort; view: View; set: (p: {sort?: Sort; view?: View}) => void; selecting?: boolean; onSelecting?: (on: boolean) => void}) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -682,6 +713,12 @@ function ListMenu({schema, sort, view, set}: {schema: Schema | undefined; sort: 
           {item(t('Compact view'), view === 'compact', () => set({view: 'compact'}), false, <StackCompact />)}
           {item(t('Detailed view'), view === 'detailed', () => set({view: 'detailed'}), false, <Stack />)}
           {item(t('Default view'), false, () => set({view: DEFAULT_VIEW}), view === DEFAULT_VIEW)}
+          {selecting !== undefined && onSelecting && (
+            <>
+              <hr />
+              {item(selecting ? t('Stop selecting') : t('Select documents'), selecting, () => onSelecting(!selecting))}
+            </>
+          )}
         </MenuPopover>
       )}
     </div>
