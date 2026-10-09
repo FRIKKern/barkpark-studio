@@ -8,6 +8,8 @@ import {target} from '../rig/targets'
 // and undo takes back only your own typing, others' kept (F7; Sanity does nothing).
 const ID = 'post-14'
 const SEED = {title: 'Fixture post 14', excerpt: 'Short excerpt for post 14.'}
+// macOS Chrome scrolls the pane on Home in an input (the caret stays); Cmd+Left is line start there.
+const LINE_START = process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Home'
 
 const caret = (p: Page) => p.evaluate(() => ({id: document.activeElement?.id, at: (document.activeElement as HTMLInputElement | null)?.selectionStart}))
 const value = (p: Page, id: string) => p.locator(`[id="${id}"]`).inputValue()
@@ -41,7 +43,7 @@ test('J05 J06: two browsers, different fields then the same field', async ({brow
 
     // J06: both in the title, typing at the same moment at different ends.
     await t.field(b, 'title').click()
-    await b.keyboard.press('Home')
+    await b.keyboard.press(LINE_START)
     await Promise.all([a.keyboard.type(' aaa'), b.keyboard.type('bbb ')])
     const both = `bbb ${SEED.title} A aaa`
     await expect(t.field(a, 'title')).toHaveValue(both, {timeout: 10_000})
