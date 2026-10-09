@@ -4,12 +4,12 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {currentEditor, signOut} from '../server/auth'
 import {expectEcho, mutatedIds} from '../server/listen'
-import {docQuery, schemasQuery, type Doc, type Field, type ListPage} from './data'
+import {docQuery, schemasQuery, type Doc, type Field, type ListPage, type Schema} from './data'
 import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
 import {t} from './i18n'
 import {merge3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
-import {dropPending, judge, ownedElsewhere, putPending, readPending, restoreValue, TAB, type Pending} from './pending-edits'
+import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
 // title, list row all repaint with no network wait); the write goes to Barkpark
@@ -154,7 +154,20 @@ let keepScope: string | null = null
 export function setKeepScope(scope: string | null) {
   keepScope = scope
 }
-export const keepKeyOf = (id: string) => keepScope && `${keepScope}|${id}`
+/** Where edits to `id` are kept for any page; this page's own entry is `keepKeyOf`. */
+const docKeyOf = (id: string) => keepScope && `${keepScope}|${id}`
+export const keepKeyOf = (id: string) => keepScope && pendingKey(`${keepScope}|${id}`)
+/** The entries for `id` left by pages that are gone (one still open keeps its own). */
+async function orphaned(id: string): Promise<{keys: string[]; pending: Pending} | null> {
+  const key = docKeyOf(id)
+  if (!key) return null
+  const mine = pendingKey(key)
+  const all = await readDocPending(key)
+  const dead: [string, Pending][] = []
+  for (const [k, p] of all) if (k !== mine && !(await ownedElsewhere(p))) dead.push([k, p])
+  const pending = combine(dead.map(([, p]) => p))
+  return pending && {keys: dead.map(([k]) => k), pending}
+}
 const KEEP_GAP_MS = 150
 
 /** Keep what Barkpark has not acknowledged for `id` in this browser, or forget it once there is nothing. */
@@ -610,8 +623,8 @@ export async function deleteDoc(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   await mutate({data: {mutations: [{delete: {id, type: doc._type}}]}})
   docs.delete(id)
-  const key = keepKeyOf(id)
-  if (key) void dropPending(key)
+  const key = docKeyOf(id)
+  if (key) void readDocPending(key).then((all) => all.forEach(([k]) => void dropPending(k)))
   qc.setQueriesData<ListPage>({queryKey: ['list', doc._type]}, (page) => page && {...page, docs: page.docs.filter((d) => d._publishedId !== id)})
   qc.removeQueries({queryKey: ['doc', id]})
 }
@@ -641,37 +654,39 @@ export async function discardDraft(qc: QueryClient, doc: Doc) {
   await qc.invalidateQueries({queryKey: ['doc', id]})
 }
 
-export type Recovered = {pending: Pending; fields: [string, unknown][]}
+export type Recovered = {pending: Pending; fields: [string, unknown][]; gone?: string[]; keys: string[]}
 /**
  * B11 widen: on open, edits this browser kept for `doc` that never reached Barkpark (a
  * reload or crash). Same server rev → sent again now, quietly (`replayed`); a newer rev →
  * returned for the pane to offer (`ask`). Nothing when the page that wrote them is still open.
  */
-export async function recoverPending(qc: QueryClient, doc: Doc): Promise<{replayed: number} | {ask: Recovered} | null> {
+export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema): Promise<{replayed: number} | {ask: Recovered} | null> {
   const id = doc._publishedId
-  const key = keepKeyOf(id)
   const e = docs.get(id)
-  if (!key || doc._rev === '' || (e && (e.dirty.size || e.inflight || e.pendingCreate))) return null
-  const pending = await readPending(key)
-  if (!pending || (await ownedElsewhere(pending))) return null
-  const verdict = judge(pending, doc)
-  if (verdict.kind === 'drop') return (void dropPending(key), null)
-  if (verdict.kind === 'ask') return {ask: {pending, fields: verdict.fields}}
+  if (!docKeyOf(id) || doc._rev === '' || (e && (e.dirty.size || e.inflight || e.pendingCreate))) return null
+  const kept = await orphaned(id)
+  if (!kept) return null
+  const {keys, pending} = kept
+  const verdict = judge(pending, doc, schema)
+  if (verdict.kind === 'drop') return (keys.forEach((k) => void dropPending(k)), null)
+  if (verdict.kind === 'ask') return {ask: {pending, fields: verdict.fields, gone: verdict.gone, keys}}
   for (const [f, v] of verdict.fields) edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? doc, f, v)
+  // Now this page's own edits (kept under its own entry): the dead pages' entries go.
+  keys.forEach((k) => void dropPending(k))
   return {replayed: pending.at}
 }
 
 /** Restore kept edits over the document as it is now (text merges with what changed since). */
-export function restorePending(qc: QueryClient, doc: Doc, {pending, fields}: Recovered) {
+export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys}: Recovered) {
   for (const [f, v] of fields) {
     const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
     edit(qc, now, f, restoreValue(pending, f, v, now))
   }
+  keys.forEach((k) => void dropPending(k))
 }
 
-export function discardPending(id: string) {
-  const key = keepKeyOf(id)
-  if (key) void dropPending(key)
+export function discardPending({keys}: Recovered) {
+  keys.forEach((k) => void dropPending(k))
 }
 
 /**
@@ -681,9 +696,8 @@ export function discardPending(id: string) {
 export async function unsavedFor(id: string): Promise<{at: number; fields: [string, unknown][]} | null> {
   const e = docs.get(id)
   if (e && (e.dirty.size || e.inflight)) return {at: Date.now(), fields: [...(e.inflight ?? []), ...e.dirty]}
-  const key = keepKeyOf(id)
-  const p = key ? await readPending(key) : null
-  return p && p.fields.length && !(await ownedElsewhere(p)) ? {at: p.at, fields: p.fields} : null
+  const p = (await orphaned(id))?.pending
+  return p && p.fields.length ? {at: p.at, fields: p.fields} : null
 }
 
 /** J32 widen: after a deleted doc is restored, put the edits it lost back on top and send them. */
