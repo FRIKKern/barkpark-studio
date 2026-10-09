@@ -453,6 +453,10 @@ async function send(qc: QueryClient, id: string) {
       e.dirty = new Map([...e.inflight!, ...e.dirty])
       e.inflight = null
       keepUnsaved(id, e)
+      // The 404 is proof enough: read the doc again, so the pane turns to the deleted
+      // banner (and the list drops it) whether or not the live frame of the delete arrives.
+      void qc.invalidateQueries({queryKey: ['doc', id]})
+      void qc.invalidateQueries({queryKey: ['list', e.type]})
       return setState(e, 'refused', t('This document has been deleted.'))
     }
     // A validation refusal (a dataset that enforces its schema): say which fields and why,

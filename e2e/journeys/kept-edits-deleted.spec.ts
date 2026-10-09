@@ -13,9 +13,13 @@ test.afterEach(async ({page}, info) => {
   if (target(info).name === 'studio') await bpMutate([{delete: {id: ID, type: 'author', force: true}}]).catch(() => {})
 })
 
-test('keystrokes typed as the doc is deleted come back with Restore', async ({page}, info) => {
+for (const frames of ['live', 'no live frame'] as const)
+test(`keystrokes typed as the doc is deleted come back with Restore (${frames})`, async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours only: Sanity loses them')
+  // CI once missed the delete's live frame and the pane never turned (de6987a, ci-4): the
+  // save's 404 alone must show the deleted banner.
+  if (frames !== 'live') await page.route('**/api/listen**', (route) => route.abort('failed'))
   await t.prepare(page.context())
   await bpMutate([{createOrReplace: {_id: ID, _type: 'author', title: 'Kept Author', name: 'Kept Author'}}, {publish: {id: ID, type: 'author'}}])
   await page.goto(t.docPath('author', ID))
