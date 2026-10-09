@@ -47,6 +47,9 @@ function usePaneWidth(hint: number) {
   return [ref, width] as const
 }
 
+/** F11: how many list rows mount per task while a big page arrives. */
+const MOUNT_STEP = 60
+
 export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}) {
   const [ref, width] = usePaneWidth(widthHint)
   useEffect(() => {
@@ -441,6 +444,16 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     }
     return [...hits].sort(builtIn[sort] ?? byOrder(sort))
   }, [indexed, query, sort, schemas, type])
+  // F11: growing to LIST_MAX mounts ~1,900 rows; done at once it stalled a frame for
+  // ~350 ms mid-scroll. They mount MOUNT_STEP at a time instead, a task apart, so the
+  // list keeps scrolling at 60 fps while the rest arrives.
+  const [mounted, setMounted] = useState(LIST_PAGE)
+  useEffect(() => {
+    if (shown.length <= mounted) return
+    const id = setTimeout(() => setMounted((m) => m + MOUNT_STEP), 0)
+    return () => clearTimeout(id)
+  }, [shown.length, mounted])
+  const rows = shown.length > mounted ? shown.slice(0, mounted) : shown
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
   const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())
   const pick = (d: Doc) => {
@@ -552,7 +565,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty">{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" aria-label={listTitle} className="rows-list">
-        {shown.map((d) => {
+        {rows.map((d) => {
           const row = (
             <DocPreview
               key={d._publishedId}
