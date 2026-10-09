@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 58 changes, 19 tasks closed
+- **Today** · 59 changes, 19 tasks closed
+  - J36: Barkpark refuses an asset in use itself; its where-used list reaches the dialog ([#298](https://github.com/FRIKKern/barkpark-studio/pull/298))
   - Canvas strings: only a map in the asked locale counts ([#297](https://github.com/FRIKKern/barkpark-studio/pull/297))
   - The canvas's Norwegian comes from Barkpark's route, not a copy ([#296](https://github.com/FRIKKern/barkpark-studio/pull/296))
-  - J13: an array's length warning, from Barkpark's advisory, as Sanity's ([#295](https://github.com/FRIKKern/barkpark-studio/pull/295))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
