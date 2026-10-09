@@ -99,6 +99,14 @@ Side track, counted apart. Editor bar: Barkdown's `docs/EDITOR-PARITY.md`.
 | D12 | main | Paper sidebar: weighted tags (strength + rationale), labels, description, slug | F5 F9 |
 | D13 | main | Paper masters: insert, save, pin, detach; bound values write back | F9 |
 | D14 | main | Task blocks inside a paper show live previews | F4 |
+| D15 | both | Tables in the canvas: type, Tab across cells, add/remove rows and columns, paste a markdown table; server matches | F1 F9 |
+| D16 | both | Multi-block edits: select-all and type, delete across blocks, cut-all hits the publish wall with a clear message; canvas and server agree | F7 F9 |
+| D17 | both | Every block the slash menu offers inserts as an editable block and saves (code, divider, expandable, steps, tabs, equation, video…) | F9 |
+| D18 | both | Full marks (strike, code, underline, highlight, sub/sup), headings 4–6, nested checklists and alignment survive a reload | F9 |
+| D19 | both | Find and replace in the canvas (Ctrl+F / Ctrl+H) with one-step undo | F5 F7 |
+| D20 | both | When retries run out on a conflict: a card offering "load theirs" or "re-apply mine", nothing lost | F8 F9 |
+| D21 | both | A failed save followed by a closed tab or crash keeps a local draft that is offered back on reopen | F8 F9 |
+| D22 | both | An agent's edit to an open doc is shown and can be undone in one click | F4 F7 |
 
 ## Barkpark-native track
 
