@@ -44,6 +44,8 @@ export const ChangesContext = createContext<{changed: Set<string>; review: () =>
 /** The doc being edited, for inputs that read a sibling field (slug's source,
  *  conditional fields). It changes on every keystroke, so only those read it. */
 export const DocContext = createContext<Doc | null>(null)
+/** The object or array item the fields inside it belong to (a condition's `scope: "parent"`). */
+export const ParentContext = createContext<Record<string, unknown> | undefined>(undefined)
 /** The doc's id: steady while typing, for what only needs to know which doc. */
 export const DocIdContext = createContext<string | null>(null)
 /** The doc's type, steady too (a richText field's canvas saves to its own doc). */
@@ -88,8 +90,9 @@ export const FieldView = memo(function FieldView(props: FieldProps) {
 
 function ConditionalField(props: FieldProps) {
   const doc = useContext(DocContext)
-  if (doc && isHidden(props.field, doc)) return null
-  return <FieldBody {...props} readOnly={props.readOnly || (doc ? isReadOnly(props.field, doc) : false)} />
+  const parent = useContext(ParentContext)
+  if (doc && isHidden(props.field, doc, parent)) return null
+  return <FieldBody {...props} readOnly={props.readOnly || (doc ? isReadOnly(props.field, doc, parent) : false)} />
 }
 
 /** An object (or an image): a fieldset, its title the legend. Collapsible ones fold, like Sanity's. */
@@ -355,6 +358,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'composite':
       return (
         <div className="fieldset" id={path}>
+          <ParentContext.Provider value={(value as Record<string, unknown> | undefined) ?? {}}>
           {field.fields?.map((f) => (
             <FieldView
               key={f.name}
@@ -367,6 +371,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
               onChange={(v) => (editPath ? editPath(`${path}.${f.name}`, v) : onChange({...(value as Record<string, unknown>), [f.name]: v}))}
             />
           ))}
+          </ParentContext.Provider>
         </div>
       )
     case 'richText': {

@@ -138,6 +138,18 @@ export const post = defineType({
     defineField({name: 'tags', type: 'array', group: 'meta', of: [{type: 'string'}], options: {layout: 'tags'}, validation: (r) => r.max(3).warning()}),
     // A plain string array: reorderable rows (J34).
     defineField({name: 'highlights', type: 'array', group: 'meta', of: [{type: 'string'}]}),
+    // J30 + barkpark#22554: a field shown by a sibling in the same object (Sanity's `parent`).
+    defineField({
+      name: 'cta',
+      title: 'Call to action',
+      type: 'object',
+      group: 'meta',
+      fields: [
+        defineField({name: 'kind', type: 'string', options: {list: [{title: 'Link', value: 'url'}, {title: 'Page', value: 'internal'}]}}),
+        defineField({name: 'url', title: 'URL', type: 'url', hidden: ({parent}) => parent?.kind !== 'url'}),
+        defineField({name: 'page', type: 'reference', to: [{type: 'post'}], hidden: ({parent}) => parent?.kind !== 'internal'}),
+      ],
+    }),
     defineField({
       name: 'seo',
       title: 'SEO',
