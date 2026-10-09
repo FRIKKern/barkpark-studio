@@ -68,7 +68,9 @@ test('J19: keyboard only — search, open, edit, publish', async ({page}, info) 
     for (let i = 0; i < 12 && !(await t.field(page, 'title').evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab')
   }
   await expect(t.field(page, 'title')).toBeFocused()
-  await page.keyboard.press('End')
+  // Tab into an input selects its text, and macOS's End doesn't move the caret in an
+  // input: typing then replaced the title (" kb" on Sanity's side). Cmd+→ goes to the end.
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
   await page.keyboard.type(' kb')
   await referenceHold(page, t.field(page, 'title'), `${TITLE} kb`)
   if (t.name === 'sanity') {
