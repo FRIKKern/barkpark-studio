@@ -9,7 +9,10 @@ import {target} from '../rig/targets'
 const shot = (name: string, step: string) => `evidence/J30-${name}-${step}.png`
 test.use({video: 'on'})
 
-test.afterEach(async ({}, info) => target(info).resetDoc('post-05', 'post'))
+test.afterEach(async ({}, info) => {
+  await target(info).resetDoc('post-05', 'post')
+  await target(info).resetDoc('post-06', 'post')
+})
 
 test('@evidence J30: conditional fields', async ({page}, info) => {
   const t = target(info)
@@ -41,4 +44,25 @@ test('@evidence J30: conditional fields', async ({page}, info) => {
   await page.getByRole('tab', {name: 'Meta'}).click()
   await expect(t.field(page, 'reviewNote')).not.toHaveAttribute('readonly')
   await t.pane(page, 2).screenshot({path: shot(t.name, '4-review-review-note-editable')})
+})
+
+// barkpark#22554, Sanity's `hidden: ({parent}) => …`: in post-06's "Call to action", URL
+// shows only while its own kind is "Link", Page only while it is "Page". @local: J30
+// is not a rule-5 journey; both studios run the same steps.
+test('@local J30: a field shown by a sibling in the same object (scope parent)', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', 'post-06'))
+  await t.settle(page)
+  await page.getByRole('tab', {name: 'Meta'}).click()
+  const kind = t.field(page, 'cta.kind')
+  await kind.scrollIntoViewIfNeeded()
+  await expect(t.field(page, 'cta.url')).toHaveCount(0)
+  await kind.selectOption({label: 'Link'})
+  await expect(t.field(page, 'cta.url')).toBeVisible()
+  await expect(page.getByText('Page', {exact: true}).filter({visible: true})).toHaveCount(0)
+  await t.pane(page, 2).screenshot({path: shot(t.name, '5-cta-link-url-shown')})
+  await kind.selectOption({label: 'Page'})
+  await expect(t.field(page, 'cta.url')).toHaveCount(0)
+  await expect(page.getByText('Page', {exact: true}).filter({visible: true}).first()).toBeVisible()
 })

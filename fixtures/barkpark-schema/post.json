@@ -46,6 +46,11 @@
     {"name": "tags", "title": "Tags", "type": "arrayOf", "ordered": true, "group": "meta", "options": {"layout": "tags"}, "validation": {"max": 3, "level": "warning"},
      "of": {"type": "string"}},
     {"name": "highlights", "title": "Highlights", "type": "arrayOf", "ordered": true, "group": "meta", "of": {"type": "string"}},
+    {"name": "cta", "title": "Call to action", "type": "composite", "group": "meta", "fields": [
+      {"name": "kind", "title": "Kind", "type": "select", "options": [{"value": "url", "title": "Link"}, {"value": "internal", "title": "Page"}]},
+      {"name": "url", "title": "URL", "type": "url", "visibleWhen": {"field": "kind", "operator": "eq", "value": "url", "scope": "parent"}},
+      {"name": "page", "title": "Page", "type": "reference", "refType": "post", "visibleWhen": {"field": "kind", "operator": "eq", "value": "internal", "scope": "parent"}}
+    ]},
     {"name": "seo", "title": "SEO", "type": "composite", "group": "meta", "options": {"collapsible": true, "collapsed": true}, "fields": [
       {"name": "metaTitle", "title": "Meta title", "type": "string", "validation": {"max": 60}},
       {"name": "metaDescription", "title": "Meta description", "type": "text", "rows": 2, "validation": {"min": 50, "level": "info", "message": "Search results show about 150 characters"}}

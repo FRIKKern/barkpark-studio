@@ -1,7 +1,7 @@
 import {useCallback, useContext, useEffect, useId, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
-import {EditPathContext, FieldView, type OpenRef} from './Fields'
+import {EditPathContext, FieldView, ParentContext, type OpenRef} from './Fields'
 import {toast} from './Toasts'
 import {RefPreview} from './Preview'
 import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Trash, Undo, Upload} from './icons'
@@ -170,9 +170,11 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
           </div>
         </div>
       )}
-      {field.fields?.map((f) => (
-        <FieldView key={f.name} field={readOnly ? {...f, readOnly: true} : f} path={`${id}.${f.name}`} value={image[f.name]} openRef={openRef} onChange={(v) => setPart(f.name, v)} />
-      ))}
+      <ParentContext.Provider value={image}>
+        {field.fields?.map((f) => (
+          <FieldView key={f.name} field={readOnly ? {...f, readOnly: true} : f} path={`${id}.${f.name}`} value={image[f.name]} openRef={openRef} onChange={(v) => setPart(f.name, v)} />
+        ))}
+      </ParentContext.Provider>
       {editing && url && (
         <HotspotDialog
           title={title}
