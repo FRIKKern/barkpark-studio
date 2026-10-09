@@ -26,6 +26,12 @@ export default defineStudio({
       {route: '/posts/:slug', type: 'post', field: 'slug'},
       {route: '/authors/:id', type: 'author'},
     ],
+    // Its own pages; Barkpark adds the pages of the documents that reference it.
+    locations: (doc) => {
+      const slug = typeof doc.slug === 'string' ? doc.slug : (doc.slug as {current?: string} | undefined)?.current
+      if (doc._type === 'post') return slug ? [{title: String(doc.title ?? 'Untitled'), href: `/posts/${slug}`}, {title: 'All posts', href: '/'}] : []
+      if (doc._type === 'author') return [{title: String(doc.name ?? 'Untitled'), href: `/authors/${doc._publishedId}`}]
+    },
   },
   form: {inputs: {'post.excerpt': CountedInput}},
   document: {

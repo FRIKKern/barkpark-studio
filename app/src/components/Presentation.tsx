@@ -108,6 +108,10 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   const [missing, setMissing] = useState<string | null>(null)
   const previewRef = useRef(preview)
   previewRef.current = preview
+  // A page opened together with a document (a location link, a URL naming both)
+  // keeps that document in the panel, as Sanity's does; moving on in the site
+  // brings the main document back.
+  const keepPane = useRef<string | null>(panes?.some((p) => p.kind === 'doc') ? preview : null)
   const [s, send] = useReducer(reduce, initial)
   // The frame mounts after hydration: one rendered on the server can fire its load
   // event before React listens, and the overlay would wait forever.
@@ -153,6 +157,12 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     setUrl(new URL(path, origin).toString())
     setTyped(null)
     setDocs([])
+    if (keepPane.current === path) {
+      keepPane.current = null
+      setMissing(null)
+      return void navigate({to: '/presentation', search: (prev: Record<string, unknown>) => ({...prev, preview: path}), replace: true})
+    }
+    keepPane.current = null
     const hit = matchRoute(mainDocuments, path.split('?')[0]!)
     let pane: string | undefined
     if (hit) {
@@ -186,6 +196,13 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     }
     setTyped(null)
   }
+
+  // J62: a location link (or Back) changes ?preview=: the site goes there.
+  useEffect(() => {
+    if (preview === new URL(url).pathname + new URL(url).search) return
+    if (panes?.some((p) => p.kind === 'doc')) keepPane.current = preview
+    go(preview)
+  }, [preview])
 
   // Pane hrefs (`/structure/…`) stay in Presentation: the chain goes in `?pane=`.
   const paneHref = useCallback((href: string) => {

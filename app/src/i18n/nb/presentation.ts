@@ -21,4 +21,8 @@ export default {
   'Scan the QR Code to open the preview on your phone.': 'Skann QR-koden for å åpne forhåndsvisningen på telefonen din.',
   'Copy preview link': 'Kopier forhåndsvisningslenke',
   'Barkpark cannot share previews yet': 'Barkpark kan ikke dele forhåndsvisninger ennå',
+  'Used on one page': 'Brukt på én side',
+  'Used on {count} pages': 'Brukt på {count} sider',
+  'Not used on any pages': 'Ikke brukt på noen sider',
+  'Resolving locations...': 'Løser opp plasseringer...',
 }

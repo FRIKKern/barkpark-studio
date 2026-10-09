@@ -192,3 +192,53 @@ test('@evidence J64: phone viewport and share menu, side by side', async ({page,
   await page.waitForTimeout(1000)
   await page.screenshot({path: `evidence/J64-${t.name}-2-share.png`})
 })
+
+// J62: the locations banner. A post's own pages (the studio config); an author's own
+// page plus the pages of the posts that reference it (Barkpark's locations, from the
+// post schema's desk.preview). A location opens Presentation there, the document kept.
+test('J62: "Used on N pages", and a location opens Presentation with the document', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await context.route(`${SITE}/**`, (route) => route.fulfill({contentType: 'text/html', body: standIn(new URL(route.request().url()).pathname)}))
+  await page.goto(t.docPath('post', 'post-01'))
+  await signInIfAsked(page)
+  await t.settle(page)
+  const banner = page.locator('.locations-banner')
+  await expect(banner.getByRole('button')).toHaveText('Used on 2 pages')
+  await banner.getByRole('button').click()
+  await expect(banner.getByRole('link')).toHaveText([/Fixture post 01\s*\/posts\/fixture-post-01/, /All posts\s*\//])
+
+  await page.goto(t.docPath('author', 'author-alan'))
+  await expect(banner.getByRole('button')).toHaveText(/^Used on \d+ pages$/)
+  const count = Number((await banner.getByRole('button').textContent())!.match(/\d+/)![0])
+  expect(count).toBeGreaterThan(1)
+  await banner.getByRole('button').click()
+  await expect(banner.getByRole('link')).toHaveCount(count)
+  await expect(banner.getByRole('link').first()).toContainText('/authors/author-alan')
+  await banner.getByRole('link', {name: /\/posts\/fixture-post-01$/}).click()
+  await expect(page).toHaveURL(/\/presentation\?preview=%2Fposts%2Ffixture-post-01&pane=author%3Bauthor-alan/)
+  await expect(page.getByLabel('URL')).toHaveValue(`${SITE}/posts/fixture-post-01`)
+  await expect(page.locator('.presentation-panel [id="name"]')).toHaveValue('Alan Turing')
+
+  // A type without pages has no banner (Sanity's resolver answers null for it).
+  await page.goto(t.docPath('category', 'category-guide'))
+  await t.settle(page)
+  await expect(page.locator('[id="title"]')).toBeVisible()
+  await expect(banner).toHaveCount(0)
+})
+
+test('@evidence J62: the locations banner, side by side', async ({page, context}, info) => {
+  const t = target(info)
+  await t.prepare(context)
+  for (const [type, id] of [['post', 'post-01'], ['author', 'author-alan']]) {
+    await page.goto(t.docPath(type, id))
+    await signInIfAsked(page)
+    const banner = page.getByText(/^(Used on|Not used on)/).first()
+    await banner.waitFor({timeout: 30_000})
+    await page.waitForTimeout(1500)
+    await banner.click()
+    await page.waitForTimeout(800)
+    await page.screenshot({path: `evidence/J62-${t.name}-${type}.png`})
+  }
+})

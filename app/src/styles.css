@@ -1452,3 +1452,17 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .schema-action { max-width: 640px; }
 .action-preview { margin: 12px 0 0; border: 1px solid var(--line); border-radius: 4px; max-height: 320px; overflow: auto; }
 .action-preview pre { margin: 0; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+/* J62: Sanity's locations banner — a bordered card over the form that unfolds to the pages. */
+.locations-banner { margin: 24px 0 8px; border: 1px solid var(--line); border-radius: 3px; padding: 4px; font-size: 13px; }
+.locations-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
+.locations-banner[data-open] .locations-toggle { background: var(--hover); }
+.locations-toggle:disabled { cursor: default; }
+.locations-banner ul { list-style: none; margin: 0; padding: 4px 0 0; }
+.locations-banner .location { display: flex; gap: 8px; padding: 8px; border-radius: 3px; color: var(--fg); text-decoration: none; }
+.locations-banner .location:hover { background: var(--hover); }
+.locations-banner .location svg { flex: none; width: 19px; height: 19px; margin-top: -2px; }
+.locations-chevron { display: inline-flex; color: var(--muted); transition: transform 0.1s; }
+.locations-chevron svg { width: 17px; height: 17px; }
+.locations-chevron[data-open] { transform: rotate(90deg); }
+.locations-banner .location > span > span { display: block; }
+.locations-banner .location small { display: block; color: var(--muted); font-size: 13px; }
