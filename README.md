@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 97 changes, 23 tasks closed
+- **Today** · 99 changes, 23 tasks closed
+  - e2e: specs leave no data behind, and a diff that proves it ([#339](https://github.com/FRIKKern/barkpark-studio/pull/339))
+  - J19 spec: go to the end of the title with Cmd+→ on macOS (End doesn't, and Tab selected it) ([#337](https://github.com/FRIKKern/barkpark-studio/pull/337))
   - Conditions read the enclosing object with scope "parent" (barkpark#22554) ([#336](https://github.com/FRIKKern/barkpark-studio/pull/336))
-  - Incoming references follow live for real: any doc that can refer here ([#335](https://github.com/FRIKKern/barkpark-studio/pull/335))
-  - e2e: a fourth CI shard (ci-4), every shard well under 45 s ([#334](https://github.com/FRIKKern/barkpark-studio/pull/334))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
