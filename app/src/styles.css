@@ -741,6 +741,11 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* History (J16), after Sanity's: timeline of revisions with author, action badge and time */
 .inspector.history header { padding-left: 0; }
+.inspector .incoming-card { margin: 0; padding: 4px; border: 1px solid var(--border); border-radius: 4px; }
+.inspector p.incoming-card { padding: 12px; }
+.inspector .incoming-group + .incoming-group { margin-top: 16px; }
+.inspector .incoming-group h3 { margin: 8px 8px 8px; font-size: 13px; font-weight: 500; }
+.inspector .incoming-card { gap: 0; }
 .inspector .history-list { gap: 2px; }
 .history-list li { display: flex; gap: 4px; }
 .history-list li > button:first-child { flex: 1; min-width: 0; }

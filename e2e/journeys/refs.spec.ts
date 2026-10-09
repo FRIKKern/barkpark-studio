@@ -267,3 +267,24 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
   await expect(t.field(page, 'name')).toHaveValue('Alan Turing')
   await referenceHold(page, t.field(page, 'name'), 'Alan Turing')
 })
+
+test('J17: Incoming references from the document menu, any time: opens the referring doc, follows live', async ({page}, info) => {
+  const t = target(info)
+  await page.goto(t.docPath('author', 'author-alan'))
+  await t.settle(page)
+  await expect(t.field(page, 'name')).toHaveValue('Alan Turing', {timeout: 15_000})
+  const menu = t.name === 'sanity' ? page.locator('[data-testid="document-pane"] [data-testid="pane-context-menu-button"]').first() : page.getByRole('button', {name: 'Show document actions'})
+  await menu.click()
+  await page.getByRole('menuitem', {name: 'Incoming references'}).click()
+  await expect(page.getByText('Incoming references', {exact: true}).first()).toBeVisible()
+  const row = (id: string, title: string) => page.locator(`a[href*="${id}"]`).filter({hasText: title, visible: true}).first()
+  await expect(row('post-07', 'Fixture post 07')).toBeVisible({timeout: 15_000})
+  await expect(row('post-01', 'Fixture post 01')).toBeVisible()
+  await page.screenshot({path: `evidence/J17-${t.name}-incoming.png`})
+  // A row opens the referring doc in the next pane, at the field that refers.
+  await row('post-07', 'Fixture post 07').click()
+  await expect.poll(() => decodeURIComponent(page.url())).toMatch(/author-alan.*incoming-references.*;post-07.*path=author/)
+  // Someone points post-07 elsewhere: its row leaves the panel.
+  await t.patch(ID, {author: t.ref('author-grace')})
+  await expect(row('post-07', 'Fixture post 07')).toHaveCount(0, {timeout: 15_000})
+})
