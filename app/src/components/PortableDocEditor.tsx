@@ -45,13 +45,15 @@ type Canvas = HTMLElement & {
 type LinkTarget = {kind: 'link' | 'wikilink'; href: string | null; target: string | null; docId: string | null; alias: string | null}
 
 let bundle: Promise<void> | null = null
-/** Load the canvas once per page: script + both stylesheets, from the connected Barkpark. */
+/** Load the canvas once per page: script + its stylesheets, from the connected Barkpark. */
 function loadCanvas(): Promise<void> {
   bundle ??= (async () => {
     const origin = await canvasOrigin()
     // Its own CSS inject is origin-relative (wrong origin here): link them ourselves.
     ;(window as {BP_PAPER_EDITOR_NO_INJECT?: boolean}).BP_PAPER_EDITOR_NO_INJECT = true
-    for (const css of ['bp-paper-editor.css', 'bp-paper-editor-shell.css']) {
+    // bp-paper-surface.css (Barkpark #22541): the paper surface's own rules, the task and
+    // fleet blocks among them (D14).
+    for (const css of ['bp-paper-editor.css', 'bp-paper-editor-shell.css', 'bp-paper-surface.css']) {
       const link = document.createElement('link')
       link.rel = 'stylesheet'
       link.href = `${origin}/assets/${css}`
