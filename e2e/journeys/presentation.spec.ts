@@ -218,10 +218,14 @@ test('J62: "Used on N pages", and a location opens Presentation with the documen
   await banner.getByRole('button').click()
   await expect(banner.getByRole('link')).toHaveCount(count)
   await expect(banner.getByRole('link').first()).toContainText('/authors/author-alan')
-  await banner.getByRole('link', {name: /\/posts\/fixture-post-01$/}).click()
-  await expect(page).toHaveURL(/\/presentation\?preview=%2Fposts%2Ffixture-post-01&pane=author%3Bauthor-alan/)
-  await expect(page.getByLabel('URL')).toHaveValue(`${SITE}/posts/fixture-post-01`)
-  await expect(page.locator('.presentation-panel [id="name"]')).toHaveValue('Alan Turing')
+  // The referrers' pages are on the post schema's desk.preview origin, :3537
+  // (fixtures/barkpark-schema/post.json): a lane on other preview ports can't open them.
+  if (SITE === 'http://localhost:3537') {
+    await banner.getByRole('link', {name: /\/posts\/fixture-post-01$/}).click()
+    await expect(page).toHaveURL(/\/presentation\?preview=%2Fposts%2Ffixture-post-01&pane=author%3Bauthor-alan/)
+    await expect(page.getByLabel('URL')).toHaveValue(`${SITE}/posts/fixture-post-01`)
+    await expect(page.locator('.presentation-panel [id="name"]')).toHaveValue('Alan Turing')
+  }
 
   // A type without pages has no banner (Sanity's resolver answers null for it).
   await page.goto(t.docPath('category', 'category-guide'))
