@@ -1090,7 +1090,9 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 .pd-editor { --bp-evidence-pull: 0px; --bp-evidence-width: 100%; }
 
 /* B12: a declared desk's dividers, titled (Sanity's S.divider().title()) or plain. */
-.desk-divider { margin: 8px 20px 4px; font-size: 11px; line-height: 15px; font-weight: 600; color: var(--muted); text-transform: none; }
+.desk-divider { margin: 8px 12px 4px; padding: 7px 8px 8px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 19px; font-weight: 500; color: var(--muted); }
+/* A desk row's icon, Sanity's 25 px glyph left of the title. */
+.type-row .desk-icon { flex: none; margin: -3px 10px -3px -4px; color: var(--fg); }
 hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--border); }
 /* D11: the honest co-editing note above the canvas. */
 .pd-hint { margin: 12px 20px 0; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); color: var(--fg); font-size: 13px; line-height: 19px; }
