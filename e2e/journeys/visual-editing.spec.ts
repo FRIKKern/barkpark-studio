@@ -138,7 +138,8 @@ test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the
   expect(link).toMatch(new RegExp(`^${SITE}/posts/fixture-post-01\\?bp-share=`))
 
   // Anyone with the link: the page, with the draft.
-  const outside = await (await browser.newContext()).newPage()
+  const outsider = await browser.newContext()
+  const outside = await outsider.newPage()
   await outside.goto(link)
   await expect(outside.getByRole('heading', {level: 1})).toHaveText('Fixture post 01 (draft)')
   await expect(outside.getByText('Preview of unpublished changes')).toBeVisible()
@@ -149,6 +150,7 @@ test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the
   await outside.reload()
   await expect(outside.getByText('This preview link has expired or was turned off.')).toBeVisible()
   await expect(outside.getByRole('heading', {level: 1})).toHaveText('Fixture post 01')
+  await outsider.close()
 })
 
 // J59 on a stand-in: a click on a marked value asks the studio to edit it; the

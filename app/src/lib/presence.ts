@@ -74,6 +74,7 @@ export function usePresenceStream() {
       es.addEventListener('presence', (e) => {
         const all = (JSON.parse((e as MessageEvent).data) as {presences: Presence[]}).presences
         others = all.filter((p) => p.sessionId !== self)
+        ;(window as {__presenceFrames?: number}).__presenceFrames = ((window as {__presenceFrames?: number}).__presenceFrames ?? 0) + 1 // e2e probe
         emit()
       })
       es.onerror = () => {
