@@ -81,10 +81,12 @@ export function usePresenceStream() {
         retry = setTimeout(open, 2000)
       }
     }
-    // Leaving: clear our focus at once. Barkpark takes 20-40 s to notice a closed
-    // stream (task-936472b77285df5b), and avatars on someone's field should not outlive the tab.
+    // Leaving (the tab goes, or the room's last view unmounts): out of the room at once
+    // (Barkpark #22563's leave), not when its stream's next keepalive fails. keepalive:
+    // the request outlives a closing page. One stream per tab, so a document switch is a
+    // focus move, not a leave.
     const leave = () => {
-      if (self) navigator.sendBeacon('/api/presence', new Blob([JSON.stringify({sessionId: self, documentId: null, field: null, selection: null})], {type: 'application/json'}))
+      if (self) void fetch(`/api/presence?sessionId=${encodeURIComponent(self)}`, {method: 'DELETE', keepalive: true}).catch(() => {})
     }
     addEventListener('pagehide', leave)
     open()
@@ -92,6 +94,7 @@ export function usePresenceStream() {
       stopped = true
       clearTimeout(retry)
       removeEventListener('pagehide', leave)
+      leave()
       es?.close()
     }
   }, [])

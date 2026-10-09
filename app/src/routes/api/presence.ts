@@ -4,8 +4,9 @@ import {currentEditor} from '../../server/auth'
 
 // Editor presence (J07): Barkpark's room for this workspace + project + dataset, the
 // same room its LiveView Studio joins. GET streams who is where (SSE, tracked while
-// open); POST {sessionId, documentId, field} moves this tab's focus. Both go out with
-// the editor's own token, so the room names the editor and focus is theirs to move.
+// open); POST {sessionId, documentId, field} moves this tab's focus; DELETE ?sessionId=
+// takes it out of the room at once (Barkpark #22563). All go out with the editor's own
+// token, so the room names the editor and only they move or end their session.
 export const Route = createFileRoute('/api/presence')({
   server: {
     handlers: {
@@ -30,6 +31,13 @@ export const Route = createFileRoute('/api/presence')({
           cancel: () => upstream.abort(),
         })
         return new Response(stream, {headers: {'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive'}})
+      },
+      DELETE: async ({request}) => {
+        const sessionId = new URL(request.url).searchParams.get('sessionId')
+        if (!sessionId) return new Response('sessionId required', {status: 400})
+        // 404: already gone (left, or its stream closed): the same outcome.
+        const res = await bpFetch(`/v1/data/presence/${dataset()}/leave?sessionId=${encodeURIComponent(sessionId)}`, {method: 'DELETE'}, requestToken(), {retry: false}).catch(() => null)
+        return new Response(null, {status: res?.ok || res?.status === 404 ? 204 : (res?.status ?? 502)})
       },
       POST: async ({request}) => {
         const body = (await request.json()) as {sessionId?: string}
