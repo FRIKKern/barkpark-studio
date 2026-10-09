@@ -1,7 +1,8 @@
 import {expect, test, type Page} from '@playwright/test'
 import {target, type Target, BACKEND_POLL} from '../rig/targets'
 
-// J03 + J04 + J13, both studios, one doc, one page load. J03: typing is local-first —
+// J03 + J04 + J13, both studios, three tests on three docs (QUALITY.md rule 5: each
+// under 5 s, and three tests spread over the CI shards). J03: typing is local-first —
 // fast typing never drops a keystroke (a controlled input re-rendered from a stale
 // cache does exactly that, silently), undo/redo work, the edit survives a reload.
 // J04: edit → draft, publish, discard, unpublish, each checked against the
@@ -11,6 +12,8 @@ import {target, type Target, BACKEND_POLL} from '../rig/targets'
 const ID = 'post-15'
 const TITLE = 'Fixture post 15'
 const TYPED = `${TITLE} the quick brown fox`
+const CHECKED = 'post-28' // J13 + discard
+const UNPUBLISHED = 'post-30' // unpublish
 
 // The confirm button inside the dialog (both studios also have a same-named footer button).
 const confirm = (page: Page, name: RegExp) => page.getByRole('dialog').filter({has: page.getByRole('button', {name})}).getByRole('button', {name}).last()
@@ -19,11 +22,12 @@ async function docMenuItem(t: Target, page: Page, name: RegExp) {
   await page.getByRole('menuitem', {name}).click()
 }
 
-test.afterEach(async ({}, info) => target(info).resetDoc(ID, 'post'))
+test.afterEach(async ({}, info) => {
+  for (const id of [ID, CHECKED, UNPUBLISHED]) await target(info).resetDoc(id, 'post')
+})
 
-test('J03 J04 J13: type without drops, undo, draft, publish, validation, discard, unpublish', async ({page}, info) => {
+test('J03 J04: type without drops, undo, a draft beside the published version, reload, publish', async ({page}, info) => {
   const t = target(info)
-  test.setTimeout(45_000)
   await t.prepare(page.context())
   await page.goto(t.docPath('post', ID))
   await t.settle(page)
@@ -50,10 +54,20 @@ test('J03 J04 J13: type without drops, undo, draft, publish, validation, discard
   // Publish → one version again, the new one.
   await page.getByRole('button', {name: /^Publish$/}).last().click()
   await expect.poll(versions, BACKEND_POLL).toEqual({draft: undefined, published: TYPED})
+})
 
+test('J13 J04: validation as you type blocks publish (errors only); discard', async ({page}, info) => {
+  const t = target(info)
+  const C_TITLE = 'Fixture post 28'
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', CHECKED))
+  await t.settle(page)
+  const title = t.field(page, 'title')
+  const versions = () => t.versions(CHECKED)
+  const publish = page.getByRole('button', {name: /^Publish$/}).last()
+  await expect(title).toHaveValue(C_TITLE)
   // J13: the required title emptied, a rating over its max (Meta) → publish blocked,
   // both listed; fixed → publish comes back. J04 then discards the edit.
-  const publish = page.getByRole('button', {name: /^Publish$/}).last()
   await title.click()
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.press('Backspace')
@@ -67,7 +81,7 @@ test('J03 J04 J13: type without drops, undo, draft, publish, validation, discard
   await expect(page.getByText('Required', {exact: true}).filter({visible: true}).first()).toBeVisible()
   await t.field(page, 'rating').fill('3')
   await page.getByRole('tab', {name: 'Content'}).click()
-  await title.fill(`${TYPED} oops`)
+  await title.fill(`${C_TITLE} oops`)
   await expect(publish).toBeEnabled({timeout: 10_000})
   // A warning is listed but never blocks publishing (J13 levels).
   await t.field(page, 'excerpt').fill('x'.repeat(170))
@@ -78,7 +92,7 @@ test('J03 J04 J13: type without drops, undo, draft, publish, validation, discard
   await page.getByText(/^(SEO|Seo)$/).first().click() // collapsed by default
   await t.field(page, 'seo.metaDescription').fill('Too short')
   await expect(page.getByText('Search results show about 150 characters').filter({visible: true}).first()).toBeVisible()
-  await expect.poll(async () => ((await t.docValue(ID, 'seo')) as {metaDescription?: string} | undefined)?.metaDescription, BACKEND_POLL).toBe('Too short')
+  await expect.poll(async () => ((await t.docValue(CHECKED, 'seo')) as {metaDescription?: string} | undefined)?.metaDescription, BACKEND_POLL).toBe('Too short')
   await expect(publish).toBeEnabled({timeout: 10_000})
   // An array's length (tags: max 3, a warning): Sanity checks it as you type; ours shows
   // Barkpark's advisory from the save (#22406, #22425), in the same words. Never blocks.
@@ -90,16 +104,22 @@ test('J03 J04 J13: type without drops, undo, draft, publish, validation, discard
   await page.getByRole('tab', {name: 'Content'}).click()
 
   // Edit, then discard → back to what is published.
-  await expect.poll(versions, BACKEND_POLL).toEqual({draft: `${TYPED} oops`, published: TYPED})
+  await expect.poll(versions, BACKEND_POLL).toEqual({draft: `${C_TITLE} oops`, published: C_TITLE})
   await docMenuItem(t, page, /Discard changes/)
   await confirm(page, /^Discard changes$/).click()
-  await expect.poll(versions, BACKEND_POLL).toEqual({draft: undefined, published: TYPED})
-  await expect(title).toHaveValue(TYPED)
+  await expect.poll(versions, BACKEND_POLL).toEqual({draft: undefined, published: C_TITLE})
+  await expect(title).toHaveValue(C_TITLE)
 
+})
+
+test('J04: unpublish from the published perspective leaves only a draft', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  const versions = () => t.versions(UNPUBLISHED)
   // Unpublish (from the Published perspective) → only a draft is left.
-  await page.goto(`${t.docPath('post', ID)}?perspective=published`)
+  await page.goto(`${t.docPath('post', UNPUBLISHED)}?perspective=published`)
   await t.settle(page)
   await page.getByRole('button', {name: /^Unpublish$/}).last().click()
   await confirm(page, /^Unpublish( now)?$/).click()
-  await expect.poll(versions, BACKEND_POLL).toEqual({draft: TYPED, published: undefined})
+  await expect.poll(versions, BACKEND_POLL).toEqual({draft: 'Fixture post 30', published: undefined})
 })
