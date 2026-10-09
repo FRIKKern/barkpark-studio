@@ -91,10 +91,14 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
 export const READ_DEDUPE_MS = 500
 /** Drop the shared reads: none may answer for a point after this one. */
 export const forgetReads = () => recent.clear()
-/** Someone (anyone) wrote this doc: no read of it may answer from before that. */
+/**
+ * Someone (anyone) wrote this doc: no read of it may answer from before that. Nor may any
+ * "used in" read: the write can add or drop an edge to any doc (J17; Barkpark's edges are
+ * right as the write returns since #22591, so a shared read is the only thing in the way).
+ */
 export const forgetReadsOf = (docId: string) => {
   const needle = `/${encodeURIComponent(docId)}`
-  for (const key of recent.keys()) if (key.includes(needle)) recent.delete(key)
+  for (const key of recent.keys()) if (key.includes(needle) || key.includes('/v1/data/backlinks/')) recent.delete(key)
 }
 const recent = new Map<string, {expires: number; res: Promise<{status: number; type: string | null; body: string}>}>()
 
