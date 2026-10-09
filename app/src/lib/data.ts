@@ -28,6 +28,8 @@ export type Rule = {required?: boolean; min?: number; max?: number; level?: stri
 export type Field = {
   name: string
   title?: string
+  /** Sanity's field description: muted help text under the label. */
+  description?: string
   type: string
   refType?: string
   /** A reference's target types; Barkpark keeps `to` as given, `refType` is its first. */
