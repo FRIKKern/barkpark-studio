@@ -20,7 +20,12 @@ export type DocumentBadge = (doc: Doc) => {label: string; color?: 'primary' | 's
 export type StudioConfig = {
   tools?: Tool[]
   /** J58: the Presentation tool, over the site at `previewUrl`; J61: its routes' main documents. */
-  presentation?: {previewUrl: string; mainDocuments?: MainDocument[]}
+  presentation?: {
+    previewUrl: string
+    mainDocuments?: MainDocument[]
+    /** J62: a document's own pages (paths on the site). `undefined`: the type has no pages, no banner. */
+    locations?: (doc: Doc) => {title: string; href: string}[] | undefined
+  }
   form?: {
     /** Keyed `type.path` (`post.excerpt`). */
     inputs?: Record<string, ComponentType<InputProps>>

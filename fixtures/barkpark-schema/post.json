@@ -5,7 +5,7 @@
   "groups": [{"name": "content", "title": "Content", "default": true}, {"name": "meta", "title": "Meta"}],
   "initial_values": {"featured": false},
   "list_preview": {"title": "title", "subtitle": "author.name", "media": "mainImage"},
-  "desk": {"orderings": [
+  "desk": {"preview": "http://localhost:3537/posts/:slug", "orderings": [
     {"name": "publishedAtDesc", "title": "Publish date, newest", "field": "publishedAt", "direction": "desc"},
     {"name": "ratingDesc", "title": "Rating, highest", "field": "rating", "direction": "desc"}
   ]},

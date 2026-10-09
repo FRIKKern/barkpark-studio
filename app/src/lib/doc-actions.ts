@@ -24,7 +24,8 @@ const fetchDocActions = createServerFn({method: 'GET'})
     const {actions = []} = (await res.json()) as {actions?: {name: string; label: string; kind: string; href?: string | null; modal?: DocAction['modal'] | null}[]}
     return actions.flatMap((a): DocAction[] => {
       if (a.kind === 'modal') return [{name: a.name, label: a.label, kind: 'modal', modal: a.modal ?? undefined}]
-      if (a.kind !== 'link' || !a.href) return []
+      // Barkpark's own Preview link (the schema's desk.preview) is this studio's "Open preview".
+      if (a.kind !== 'link' || !a.href || a.name === 'preview') return []
       // LiveView's placeholders; a template naming :slug on a doc without one is left out.
       if (a.href.includes(':slug') && !data.slug) return []
       const href = a.href.replace(/:dataset\b/g, dataset()).replace(/:id\b/g, encodeURIComponent(data.id)).replace(/:slug\b/g, encodeURIComponent(data.slug ?? ''))

@@ -40,6 +40,7 @@ import {ReadErrorCard} from './PaneError'
 import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
+import {LocationsBanner} from './LocationsBanner'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -519,6 +520,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           >
             <div className="kind">{schema.title}</div>
             <h1>{docTitle(doc, schema, t)}</h1>
+            {!revision && <LocationsBanner doc={doc} />}
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
             <CommentsContext.Provider value={commentsApi}>
