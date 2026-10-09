@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 109 changes, 23 tasks closed
-  - A rich-text block's finding names its block; post.body declares the callout ([#347](https://github.com/FRIKKern/barkpark-studio/pull/347))
-  - e2e: cleanup waits for the page's saves; reveal() for two more rows; B10 needs an admin studio ([#348](https://github.com/FRIKKern/barkpark-studio/pull/348))
-  - Editor's day 3: Review changes follows publishes; field actions on focus ([#346](https://github.com/FRIKKern/barkpark-studio/pull/346))
+- **Today** · 111 changes, 24 tasks closed
+  - Dev sign-in tokens: one per editor, reused everywhere, leftovers swept ([#351](https://github.com/FRIKKern/barkpark-studio/pull/351))
+  - Done: [Barkpark: schema-declared custom object blocks in richText](https://github.com/FRIKKern/barkpark/issues/21703)
+  - Collaboration hour: one paragraph, two editors — never lost silently ([#349](https://github.com/FRIKKern/barkpark-studio/pull/349))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
