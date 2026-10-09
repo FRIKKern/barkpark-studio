@@ -10,7 +10,8 @@ import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, t
 import {collapsed, NARROW, NarrowContext} from '../lib/layout'
 import {useLive} from '../lib/live'
 import {flushOnUnload} from '../lib/edits'
-import {choicesFor, startNew, type Choice} from '../lib/templates'
+import {choicesFor, startNew, templateChoice, type Choice} from '../lib/templates'
+import {studioDesk} from '../lib/structure-config'
 import {toast} from './Toasts'
 import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
@@ -168,7 +169,10 @@ function BackLink({panes, index}: {panes: Pane[]; index: number}) {
 /** B12: a desk node by id, when the workspace has a declared desk. */
 function useDeskNode(id: string | undefined): DeskNode | undefined {
   const {data: desk} = useQuery(deskQuery)
-  const index = useMemo(() => (desk ? deskIndex(desk) : undefined), [desk])
+  const index = useMemo(() => {
+    const root = desk ?? studioDesk()
+    return root ? deskIndex(root) : undefined
+  }, [desk])
   return id ? index?.get(id) : undefined
 }
 
@@ -177,7 +181,7 @@ function usePaneTitle(pane: Pane) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: desk} = useQuery(deskQuery)
   const node = useDeskNode(pane.kind === 'types' ? undefined : pane.node)
-  const {data: treeParent} = useQuery({...docQuery(pane.kind === 'list' ? pane.type : '', pane.kind === 'list' ? pane.treeParent ?? '' : ''), enabled: pane.kind === 'list' && !!pane.treeParent})
+  const {data: treeParent} = useQuery({...docQuery(pane.kind === 'list' ? pane.type : '', pane.kind === 'list' ? pane.treeParent ?? '' : ''), enabled: pane.kind === 'list' && !!pane.treeParent && !node?.child})
   const published = usePublishedPerspective()
   const id = pane.kind === 'doc' ? pane.id : ''
   const type = pane.kind === 'doc' ? pane.type : ''
@@ -187,7 +191,10 @@ function usePaneTitle(pane: Pane) {
   const doc = published ? live : draft
   if (pane.kind === 'types') return desk?.title ?? t('Content')
   if (pane.kind === 'menu') return node?.title ?? pane.node
+  // J18: a child list is titled by its declaration ("Posts"), its parent list by its own ("Authors").
+  if (pane.kind === 'list' && pane.treeParent && node?.child) return node.child.title ?? schemaOf(schemas, pane.type)?.title ?? pane.type
   if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type), t)
+  if (pane.kind === 'list' && node?.child) return node.listTitle ?? node.title ?? pane.type
   if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? t('Unknown pane type')
   const schema = schemaOf(schemas, pane.type)
   if (!schema) return t('Unknown document type')
@@ -314,7 +321,7 @@ function RootPane({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
   const menu = useDeskNode(pane.kind === 'menu' ? pane.node : undefined)
   const next = panes[index + 1]
-  if (!desk) return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.type : next?.kind === 'doc' ? next.id : undefined} />
+  if (!desk) return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.node ?? next.type : next?.kind === 'doc' ? next.id : undefined} />
   return <DeskPane panes={panes} index={index} node={pane.kind === 'menu' ? menu : desk} />
 }
 
@@ -369,6 +376,7 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   // B13: singletons are not lists. Like Barkpark's default desk they sit under Settings,
   // each opening its one document (id = the type's name).
   const singletons = schemas.filter((s) => s.singleton)
+  const own = studioDesk()?.items ?? []
   return (
     <section className="pane types" aria-label={t('Content')} data-testid="pane" data-pane="types" data-pane-index={index}>
       <header className="pane-header">
@@ -389,6 +397,19 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
             {s.title}
           </PaneLink>
         ))}
+        {/* J18: the studio config's own structure items, after a divider (Sanity's S.divider()). */}
+        {own.length > 0 && <hr className="desk-divider" />}
+        {own.map((item) => {
+          const to = opens(item)
+          return to ? (
+            <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, to)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined}>
+              {item.title}
+              <span className="chev">
+                <ChevronRight />
+              </span>
+            </PaneLink>
+          ) : null
+        })}
       </div>
     </section>
   )
@@ -418,7 +439,10 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const {sort: prefSort, view, set} = useListPrefs(type)
   const sort = prefs[type]?.sort ?? deskSort(node) ?? prefSort
   const tree = !!node?.tree
-  const {data: parentDoc} = useQuery({...docQuery(type, treeParent ?? ''), enabled: !!treeParent})
+  const {data: parentDoc} = useQuery({...docQuery(type, treeParent ?? ''), enabled: tree && !!treeParent})
+  // J18: a list whose rows open their own child list (Sanity's .child((id) => …)).
+  const child = treeParent ? undefined : node?.child
+  const childTemplate = treeParent && node?.child?.template ? templateChoice(node.child.template.id, {[node.child.template.param]: treeParent}) : undefined
   // J41: the first LIST_PAGE rows; near the end, up to LIST_MAX (Sanity's numbers).
   const [limit, setLimit] = useState(LIST_PAGE)
   const readable = !missingOps.length
@@ -535,8 +559,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {/* B13: a singleton type has its one document, never a new one. */}
         {!isSingleton(schemas, type) && (
           <NewInList
-            choices={choicesFor(schemas, type)}
-            label={t('Create new {type}', {type: schemaOf(schemas, type)?.title ?? type})}
+            choices={childTemplate ? [childTemplate] : choicesFor(schemas, type)}
+            label={childTemplate ? childTemplate.title : t('Create new {type}', {type: schemaOf(schemas, type)?.title ?? type})}
             disabledReason={canWrite ? undefined : createReason}
             onPick={(choice) => {
               // J18: a new doc opens in the next pane with the chosen template's values;
@@ -545,7 +569,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               // block list from the schema's layout and fills it from its prefill.
               const id = crypto.randomUUID()
               startNew(qc, schemas, choice, id).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
-              void navigate({href: openAfter(panes, index, {kind: 'doc', id, type})})
+              // A child list's template opens the new doc under its type's own list, as Sanity's create intent does.
+              void navigate({href: childTemplate ? panesPath([{kind: 'types'}, {kind: 'list', type}, {kind: 'doc', id, type}]) : openAfter(panes, index, {kind: 'doc', id, type})})
               focusFirstField(id)
             }}
           />
@@ -579,7 +604,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
       )}
       <div className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}>
         {!readable && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: missingOps.join(', ')})}</p>}
-        {treeParent && parentDoc && (
+        {tree && treeParent && parentDoc && (
           <>
             <DocPreview doc={parentDoc} href={openAfter(panes, index, {kind: 'doc', id: treeParent, type})} selected={selected === treeParent} active={index === panes.length - 2} testId="pane-item" />
             <div className="desk-divider">{docs ? t('{n} under {title}', {n: docs.length, title: previewTitle(parentDoc, schemaOf(schemas, type), t)}) : ''}</div>
@@ -605,7 +630,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             <DocPreview
               key={d._publishedId}
               doc={d}
-              href={openAfter(panes, index, tree ? {kind: 'list', type, node: nodeId, treeParent: d._publishedId} : {kind: 'doc', id: d._publishedId, type})}
+              href={openAfter(panes, index, tree ? {kind: 'list', type, node: nodeId, treeParent: d._publishedId} : child ? {kind: 'list', type: child.typeName, node: nodeId, treeParent: d._publishedId} : {kind: 'doc', id: d._publishedId, type})}
               selected={selected === d._publishedId}
               active={index === panes.length - 2}
               testId="pane-item"

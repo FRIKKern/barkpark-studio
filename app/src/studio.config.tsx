@@ -41,7 +41,25 @@ export default defineStudio({
   },
   form: {inputs: {'post.excerpt': CountedInput}},
   // J18: the reference Studio's template (reference/sanity/sanity.config.ts).
-  templates: [{id: 'post-by-alan', title: 'Post by Alan Turing', schemaType: 'post', value: {author: 'author-alan'}}],
+  templates: [
+    {id: 'post-by-alan', title: 'Post by Alan Turing', schemaType: 'post', value: {author: 'author-alan'}},
+    // Parameterised: offered only by the "Posts by author" structure item below.
+    {id: 'post-by-author', title: 'Post by author', schemaType: 'post', parameters: ['authorId'], value: ({authorId}) => ({author: authorId})},
+  ],
+  // J18: the reference's custom structure item (reference/sanity/structure.ts): the authors;
+  // an author opens their posts, whose "+" starts `post-by-author` with that author.
+  structure: {
+    items: [
+      {
+        id: 'posts-by-author',
+        type: 'document_type_list',
+        title: 'Posts by author',
+        listTitle: 'Authors',
+        typeName: 'author',
+        child: {typeName: 'post', title: 'Posts', field: 'author', template: {id: 'post-by-author', param: 'authorId'}},
+      },
+    ],
+  },
   document: {
     actions: (type) =>
       type === 'post'

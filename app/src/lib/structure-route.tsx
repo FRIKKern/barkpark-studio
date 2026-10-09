@@ -5,6 +5,7 @@ import {Structure} from '../components/Structure'
 import {deskQuery, docQuery, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {deskIndex, deskSort, listFilter, parseDeskPanes, unsupportedOps} from './desk'
 import {parseSingletonPanes, type Pane} from './panes'
+import {startsAtStudioItem, studioDesk} from './structure-config'
 import {previewRefs} from './preview'
 import {meQuery} from './session'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
@@ -34,8 +35,10 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   // B12: a declared desk decides what the URL's segments name.
   // B13: without a desk, a singleton type's segment is its one doc, so schemas come first too.
   const [desk, schemas] = await Promise.all([queryClient.ensureQueryData(deskQuery), queryClient.ensureQueryData(schemasQuery)])
-  const panes = desk ? parseDeskPanes(splat, desk) : parseSingletonPanes(splat, new Set(schemas.filter((s) => s.singleton).map((s) => s.name)))
-  const nodes = desk ? deskIndex(desk) : undefined
+  // J18: without one, the studio's own structure items still name their segments.
+  const own = desk ? null : studioDesk()
+  const panes = desk ? parseDeskPanes(splat, desk) : own && startsAtStudioItem(splat) ? parseDeskPanes(splat, own) : parseSingletonPanes(splat, new Set(schemas.filter((s) => s.singleton).map((s) => s.name)))
+  const nodes = desk ?? own ? deskIndex((desk ?? own)!) : undefined
   const [widthHint, listPrefs] = await Promise.all([
     onServer ? fetchViewportHint() : document.querySelector('[data-testid=panes]')?.clientWidth ?? window.innerWidth,
     onServer ? (fetchListPrefs() as Promise<ListPrefs>) : readListPrefsCookie(),
@@ -56,7 +59,7 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
       }),
     ),
     // A tree level shows its parent category on top (B12): that doc too.
-    Promise.all(panes.flatMap((p) => (!('type' in p) || !schemaOf(schemas, p.type) ? [] : p.kind === 'doc' ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : p.kind === 'list' && p.treeParent ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.treeParent)))] : []))),
+    Promise.all(panes.flatMap((p) => (!('type' in p) || !schemaOf(schemas, p.type) ? [] : p.kind === 'doc' ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : p.kind === 'list' && p.treeParent && !(p.node && nodes?.get(p.node)?.child) ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.treeParent)))] : []))),
   ])
   if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, 0, false))]))) {
     void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))

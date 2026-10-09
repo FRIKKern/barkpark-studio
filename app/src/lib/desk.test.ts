@@ -1,7 +1,7 @@
 // B12: desk URLs read against a declared desk, Sanity-style, and print back unchanged.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {deskSort, listFilter, normalizeDesk, parseDeskPanes, unsupportedOps} from './desk.ts'
+import {deskSort, listFilter, normalizeDesk, parseDeskPanes, unsupportedOps, type DeskNode} from './desk.ts'
 import {panesPath} from './panes.ts'
 
 // The shape GET /v1/structure returns for the Agency twin, cut down.
@@ -86,4 +86,12 @@ test('filters, tree levels, ops the query API lacks, and orderings', () => {
   assert.equal(deskSort(tree), undefined)
   // J55: a declared order the menu has no name for still opens as declared.
   assert.equal(deskSort({...tree, orderings: [{field: 'year', direction: 'desc'}, {field: 'title', direction: 'asc'}]}), 'year:desc,title:asc')
+})
+
+test('J18: a child list opens the docs that point at the row, then a doc of its type', () => {
+  const own: DeskNode = {id: '__studio', type: 'list', items: [{id: 'posts-by-author', type: 'document_type_list', typeName: 'author', child: {typeName: 'post', field: 'author'}}]}
+  const panes = parseDeskPanes('posts-by-author;author-alan;post-07', own)
+  assert.deepEqual(panes.slice(1).map((p) => p.kind + ':' + ('type' in p ? p.type : '') + ':' + ('treeParent' in p ? p.treeParent ?? '' : '')), ['list:author:', 'list:post:author-alan', 'doc:post:'])
+  assert.equal(panesPath(panes), '/structure/posts-by-author;author-alan;post-07')
+  assert.deepEqual(listFilter(own.items![0], 'author-alan'), {author: {eq: 'author-alan'}})
 })

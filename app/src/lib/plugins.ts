@@ -1,3 +1,4 @@
+import type {DeskNode} from './desk'
 import type {ComponentType, ReactNode} from 'react'
 import type {Doc, Field} from './data'
 
@@ -36,6 +37,8 @@ export type StudioConfig = {
   }
   /** J18: Sanity's initial value templates: more ways to start a type, offered in every Create new. */
   templates?: Template[]
+  /** J18: Sanity's custom structure items, after the type list (or the declared desk) and a divider. */
+  structure?: {items: DeskNode[]}
   document?: {
     actions?: (type: string) => DocumentAction[]
     badges?: (type: string) => DocumentBadge[]
@@ -44,8 +47,15 @@ export type StudioConfig = {
   }
 }
 
-/** A second way to start `schemaType` (Sanity's template): its title in Create new, its starting values. */
-export type Template = {id: string; title: string; schemaType: string; value: Record<string, unknown>}
+/**
+ * A second way to start `schemaType` (Sanity's template): its title in Create new, its
+ * starting values. With `parameters` it is offered only where a structure item passes
+ * them (a desk node's `child.template`), and `value` is a function of them.
+ */
+export type Template = {id: string; title: string; schemaType: string} & (
+  | {parameters?: undefined; value: Record<string, unknown>}
+  | {parameters: string[]; value: (params: Record<string, string>) => Record<string, unknown>}
+)
 
 /** A site route's main document: `/posts/:slug` with `field: 'slug'`, or `/authors/:id` (the id). */
 export type MainDocument = {route: string; type: string; field?: string}
