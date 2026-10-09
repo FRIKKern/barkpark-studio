@@ -120,6 +120,7 @@ function ObjectField(props: FieldProps & {label: string; changed: boolean; revie
         <ProblemMark path={field.path} within={!open} />
         <FieldPresenceHere path={field.path} />
       </legend>
+      {field.field.description && <p className="field-desc">{field.field.description}</p>}
       {open && <FieldInput {...field} />}
     </fieldset>
   )
@@ -166,6 +167,7 @@ function FieldBody(props: FieldProps) {
         <ProblemMark path={props.path} />
         <FieldPresenceHere path={props.path} />
       </label>
+      {props.field.description && <p className="field-desc" id={`${props.path}-desc`}>{props.field.description}</p>}
       <CustomOrDefault {...props} />
     </div>
   )
@@ -472,30 +474,37 @@ function optionsOf(field: Field): Option[] {
 }
 
 /**
- * Sanity's string list (J31): `layout: "radio"` is a row of radios in a box with a
- * clear button; otherwise a dropdown whose blank first option means "no value".
+ * Sanity's string list (J31): `layout: "radio"` is a stacked list of radios in a box
+ * with a reset button on the chosen row; otherwise a dropdown whose blank first option means "no value".
  */
 function SelectInput({id, field, value, onChange}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void}) {
   const t = useT()
   const options = optionsOf(field)
-  if (field.layout === 'radio')
+  if (field.layout === 'radio') {
+    // Sanity stacks the options unless `options.direction` is "horizontal"; its reset button sits on the chosen row.
+    const horizontal = !Array.isArray(field.options) && field.options?.direction === 'horizontal'
+    const clear = value !== undefined && (
+      <button type="button" className="icon-btn" aria-label={t('Clear')} title={t('Clear')} onClick={() => onChange(undefined)}>
+        <ClearCircle />
+      </button>
+    )
     return (
-      <div className="radio-box">
+      <div className="radio-box" data-direction={horizontal ? 'horizontal' : 'vertical'}>
         <div role="group" aria-labelledby={`${id}-label`} id={id}>
           {options.map((o) => (
-            <label key={String(o.value)} className="radio">
-              <input type="radio" name={id} checked={value === o.value} onChange={() => onChange(o.value)} />
-              <span>{o.title}</span>
-            </label>
+            <div key={String(o.value)} className="radio-row">
+              <label className="radio">
+                <input type="radio" name={id} checked={value === o.value} onChange={() => onChange(o.value)} />
+                <span>{o.title}</span>
+              </label>
+              {!horizontal && value === o.value && clear}
+            </div>
           ))}
         </div>
-        {value !== undefined && (
-          <button type="button" className="icon-btn" aria-label={t('Clear')} title={t('Clear')} onClick={() => onChange(undefined)}>
-            <ClearCircle />
-          </button>
-        )}
+        {horizontal && clear}
       </div>
     )
+  }
   const index = options.findIndex((o) => o.value === value)
   return (
     <span className="select-box">
