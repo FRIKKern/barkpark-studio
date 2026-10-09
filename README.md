@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 101 changes, 23 tasks closed
+- **Today** · 102 changes, 23 tasks closed
+  - D11 spec: make the range by a double-click, not Shift+End ([#341](https://github.com/FRIKKern/barkpark-studio/pull/341))
   - e2e: CI shards by recorded spec time, not test count ([#338](https://github.com/FRIKKern/barkpark-studio/pull/338))
   - ci: a new e2e shard must join main's required checks (note by the matrix; 0003) ([#340](https://github.com/FRIKKern/barkpark-studio/pull/340))
-  - e2e: specs leave no data behind, and a diff that proves it ([#339](https://github.com/FRIKKern/barkpark-studio/pull/339))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
