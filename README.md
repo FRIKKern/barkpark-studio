@@ -18,16 +18,14 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 113 changes, 24 tasks closed
+- **Today** · 1 change
+  - Kept edits: per-page entries, and never replayed into a changed schema ([#353](https://github.com/FRIKKern/barkpark-studio/pull/353))
+- **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
-  - Dev sign-in tokens: one per editor, reused everywhere, leftovers swept ([#351](https://github.com/FRIKKern/barkpark-studio/pull/351))
-- **Yesterday** · 114 changes, 77 tasks closed
+- **This week** · 221 changes, 114 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
-- **This week** · 107 changes, 37 tasks closed
-  - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
-  - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
