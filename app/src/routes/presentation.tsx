@@ -34,7 +34,7 @@ function PresentationRoute() {
   return (
     <>
       <Navbar />
-      <Presentation previewUrl={studio.presentation!.previewUrl} mainDocuments={studio.presentation!.mainDocuments} preview={search.preview} viewport={search.viewport} panes={data?.panes ?? null} />
+      <Presentation previewUrl={studio.presentation!.previewUrl} mainDocuments={studio.presentation!.mainDocuments} preview={search.preview} viewport={search.viewport} perspective={search.perspective} panes={data?.panes ?? null} />
     </>
   )
 }

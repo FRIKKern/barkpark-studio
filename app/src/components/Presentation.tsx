@@ -95,7 +95,7 @@ export function matchRoute(routes: MainDocument[], path: string): {route: MainDo
  * `?pane=` the document panel's pane chain (a structure path), so the panel is the
  * same panes as /structure, hosted here (PaneHrefContext maps their hrefs).
  */
-export function Presentation({previewUrl, preview = '/', panes, mainDocuments = [], viewport}: {previewUrl: string; preview?: string; panes: Pane[] | null; mainDocuments?: MainDocument[]; viewport?: 'mobile'}) {
+export function Presentation({previewUrl, preview = '/', panes, mainDocuments = [], viewport, perspective}: {previewUrl: string; preview?: string; panes: Pane[] | null; mainDocuments?: MainDocument[]; viewport?: 'mobile'; perspective?: string}) {
   const t = useT()
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -196,6 +196,28 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     }
     setTyped(null)
   }
+
+  // J63: the site shows the perspective the document panel shows (its Published /
+  // Draft chips set ?perspective=), told again on every hello.
+  const shownPerspective = perspective === 'published' ? 'published' : 'drafts'
+  const tell = useCallback((msg: Record<string, unknown>) => frame.current?.contentWindow?.postMessage({bp: 'studio', ...msg}, origin), [origin])
+  useEffect(() => {
+    if (s.connected) tell({type: 'perspective', perspective: shownPerspective})
+  }, [s.connected, shownPerspective, tell])
+
+  // J60: an edit to a document on the page reaches the site as it is typed (the
+  // editor's cache changes before the save), not after the save comes back round.
+  const pageIds = useRef(new Set<string>())
+  pageIds.current = new Set(docs.map((d) => d._id))
+  useEffect(() => {
+    if (!s.connected || shownPerspective !== 'drafts') return
+    return qc.getQueryCache().subscribe((event) => {
+      if (event.type !== 'updated' || event.action.type !== 'success') return
+      const [kind, id] = event.query.queryKey as [string, string]
+      const doc = event.query.state.data as {_id?: string} | null | undefined
+      if (kind === 'doc' && pageIds.current.has(id) && doc?._id) tell({type: 'doc', doc})
+    })
+  }, [s.connected, shownPerspective, qc, tell])
 
   // J62: a location link (or Back) changes ?preview=: the site goes there.
   useEffect(() => {
