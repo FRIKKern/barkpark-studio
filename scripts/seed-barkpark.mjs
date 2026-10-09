@@ -158,6 +158,14 @@ async function verify() {
   compare('sanity', sanityDocs, mirrored)
 }
 
+// The editor prefs this token's owner keeps on Barkpark (list sort / view, recent
+// searches): a reset dataset starts from the defaults. Best effort (a token with no
+// owner has none).
+async function resetPrefs() {
+  for (const key of ['studio.lists', 'studio.search.recent'])
+    await fetch(`${BASE}/v1/prefs/${DATASET}/${key}`, {method: 'DELETE', headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`}}).catch(() => {})
+}
+
 // J15/J16's post-history is made through each backend's API (an import rewrites
 // history), so a reset deletes it. Make it again right after: Barkpark always, the
 // reference Sanity too when SANITY_TOKEN is set and its dataset is a test one. Not in
@@ -175,6 +183,7 @@ else {
   if (!process.argv.includes('--verify')) {
     if (!process.argv.includes('--data')) await applySchemas()
     await reset()
+    await resetPrefs()
     history()
   }
   await verify()
