@@ -17,8 +17,10 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
+      # main requires its checks (ruleset "main: required checks"); this push alone goes
+      # past them, with the repo's housekeeping deploy key (the ruleset's only bypass).
       - uses: actions/checkout@v5
-        with: { fetch-depth: 0 }
+        with: { fetch-depth: 0, ssh-key: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }
       - uses: actions/setup-node@v5
         with: { node-version: 22 }
       - name: Regenerate timeline and roadmap
