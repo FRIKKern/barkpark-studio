@@ -68,3 +68,53 @@ test('@local D05: two tabs, same doc — a 412 resends on the other\'s rev, both
     await Promise.all([ctxA.close(), ctxB.close()])
   }
 })
+
+// D20: when the 412 resends run out (here every save is sent on a stale rev), the
+// canvas asks, as Barkdown does: "Load the server version" drops the edit and shows
+// Barkpark's blocks; "Re-apply my edit on top" saves it on the current rev.
+// The ops request's last string is its ifRev (seroval): the rev is swapped for a stale one.
+const staleRev = (body: string) => {
+  const revs = [...body.matchAll(/\{"t":1,"s":"([0-9a-f]{16,})"\}/g)]
+  const last = revs.at(-1)
+  return last ? body.slice(0, last.index) + '{"t":1,"s":"0000000000000000000000000000000a"}' + body.slice(last.index! + last[0].length) : body
+}
+
+for (const answer of ['theirs', 'mine'] as const) {
+  test(`@local D20: retries run out — the conflict card, then ${answer === 'theirs' ? '"Load the server version"' : '"Re-apply my edit on top"'}`, async ({page, context}, info) => {
+    const t = target(info)
+    test.skip(t.name === 'sanity', 'Barkpark-only: Sanity has no Freeform')
+    before = (await t.docValue(ID, 'blocks', 'note')) as Block[]
+    await t.prepare(context)
+    await page.goto(t.docPath('note', ID))
+    await t.settle(page)
+    const label = fieldBlock(page, 'Label')
+    await expect(label).toHaveValue(SEED.label, {timeout: 20_000})
+
+    let stale = true
+    await page.route('**/_serverFn/**', (route) => {
+      const body = route.request().postData()
+      return stale && isOps(body) ? route.continue({postData: staleRev(body!)}) : route.continue()
+    })
+    await label.fill('Mine')
+    const card = page.locator('[data-conflict]')
+    await expect(card).toContainText('Someone else changed this document', {timeout: 15_000})
+    await expect(card).toContainText('Your unsaved edits are still on screen.')
+    await expect(page.locator('.pd-status')).toHaveText('Conflict')
+    await page.screenshot({path: `evidence/D20-1-card.png`})
+    stale = false
+
+    if (answer === 'theirs') {
+      await card.getByRole('button', {name: 'Load the server version'}).click()
+      await expect(card).toHaveCount(0)
+      await expect(label).toHaveValue(SEED.label)
+      await expect(page.locator('.pd-status')).toHaveText('Saved')
+      expect(await t.docValue(ID, 'label', 'note')).toBe(SEED.label)
+    } else {
+      await card.getByRole('button', {name: 'Re-apply my edit on top'}).click()
+      await expect(card).toHaveCount(0)
+      await expect.poll(() => t.docValue(ID, 'label', 'note'), {timeout: 15_000}).toBe('Mine')
+      await expect(page.locator('.pd-status')).toHaveText('Saved', {timeout: 10_000})
+      await expect(label).toHaveValue('Mine')
+    }
+  })
+}

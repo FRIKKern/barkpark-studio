@@ -67,8 +67,11 @@ function loadCanvas(): Promise<void> {
   return bundle
 }
 
+/** A rev as the card shows it: a paper's number, or a document rev's first characters. */
+const shortRev = (rev: Rev) => (typeof rev === 'number' ? String(rev) : String(rev).slice(0, 7))
+
 type Save = {state: 'saved' | 'saving' | 'error' | 'idle'; message?: string}
-type Problem = {message: string; kept?: boolean}
+type Problem = {message: string; kept?: boolean; conflict?: {mine: Rev; theirs: Rev; blocks: Block[]}}
 
 /**
  * `field`: edit that richText field's own block list (J10) instead of the document's;
@@ -127,7 +130,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   openDocRef.current = openDoc
   const vocabularyKey = vocabulary ? JSON.stringify(vocabulary) : ''
   const canvas = useRef<Canvas | null>(null)
-  const loop = useRef<{rev: Rev; saving: number; requests: number}>({rev: '', saving: 0, requests: 0})
+  const loop = useRef<{rev: Rev; saving: number; requests: number; merge?: boolean}>({rev: '', saving: 0, requests: 0})
   const [save, setSave] = useState<Save>({state: 'idle'})
   const [problem, setProblem] = useState<Problem | null>(null)
   // B11: closing the tab asks first while this canvas holds a batch not yet saved or refused.
@@ -149,7 +152,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     return Array.isArray(blocks) && keep(keyRef.current, {at: Date.now(), rev: loop.current.rev, blocks})
   }
   // The failure card's buttons, bound to the save loop below.
-  const resolveRef = useRef<{retry: () => void; discard: () => Promise<void>} | null>(null)
+  const resolveRef = useRef<{retry: () => void; discard: () => Promise<void>; theirs: (blocks: Block[], rev: Rev) => void; mine: (rev: Rev) => void} | null>(null)
   // D01: a bound field block shows its field's title (the server's projection carries none).
   const decorate = useRef((blocks: Block[]) => blocks)
   decorate.current = (blocks) => (labels ? blocks.map((b) => (typeof b.fieldName === 'string' && !b.label && labels[b.fieldName] ? {...b, label: labels[b.fieldName]} : b)) : blocks)
@@ -176,13 +179,28 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
         }
         if (gone) return
+        // D20: the resends ran out (another writer kept saving): ask, as Barkdown does.
+        if (!r.ok && r.status === 412) {
+          const mine = l.rev
+          const server = await read().catch(() => null)
+          if (gone) return
+          el.discardInflightOps(seq)
+          setSave({state: 'error', message: r.message})
+          if (!server) throw new Error(t('Conflict, and the server copy could not be fetched'))
+          setProblem({message: r.message, kept: keepNow(), conflict: {mine, theirs: server.rev, blocks: server.blocks}})
+          return
+        }
         if (!r.ok) throw new Error(r.message)
         l.rev = r.rev
         const echo = await read().catch(() => null) // if it fails, the save still stands: r.rev fences the next
         if (gone) return
         if (echo) {
           l.rev = echo.rev
-          el.applyServerBlocks(echo.blocks, {mode: 'own', requestId})
+          // After "Re-apply my edit on top" the server also holds the other writer's
+          // blocks: with nothing pending here, take the server's truth.
+          if (l.merge && !el.hasPendingChanges()) el.resolveConflictWithServerBlocks(echo.blocks)
+          else el.applyServerBlocks(echo.blocks, {mode: 'own', requestId})
+          l.merge = false
         }
         el.acknowledgeOps(seq, true)
         if (type === 'paper' && !field) void qc.invalidateQueries({queryKey: ['fleet', id]})
@@ -200,6 +218,22 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       }
     }
     resolveRef.current = {
+      // D20, Barkdown's two answers to a conflict.
+      theirs: (blocks: Block[], rev: Rev) => {
+        canvas.current?.resolveConflictWithServerBlocks(blocks)
+        l.rev = rev
+        l.merge = false
+        setProblem(null)
+        forget(keyRef.current)
+        setSave({state: 'saved'})
+      },
+      mine: (rev: Rev) => {
+        l.rev = rev
+        l.merge = true
+        setProblem(null)
+        setSave({state: 'saving'})
+        if (!canvas.current?.resendPendingOps()) (setSave({state: 'saved'}), (l.merge = false))
+      },
       retry: () => {
         setProblem(null)
         setSave({state: 'saving'})
@@ -418,9 +452,23 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   return (
     <div className="pd-editor">
       <div className="pd-status" role="status">
-        {save.state === 'saving' ? t('Saving…') : save.state === 'saved' ? t('Saved') : save.state === 'error' ? t('Not saved') : ''}
+        {save.state === 'saving' ? t('Saving…') : save.state === 'saved' ? t('Saved') : save.state === 'error' ? (problem?.conflict ? t('Conflict') : t('Not saved')) : ''}
       </div>
-      {problem && (
+      {problem?.conflict && (
+        <div className="pd-conflict" role="alert" data-conflict>
+          <strong>{t('Someone else changed this document')}</strong> {t('(Barkpark is at rev {theirs}, you were editing rev {mine}).', {theirs: shortRev(problem.conflict.theirs), mine: shortRev(problem.conflict.mine)})} {t('Your unsaved edits are still on screen.')}
+          {problem.kept && <> {t('Your words are kept on this computer.')}</>}
+          <div>
+            <button type="button" className="btn-text" onClick={() => resolveRef.current?.theirs(problem.conflict!.blocks, problem.conflict!.theirs)}>
+              {t('Load the server version')}
+            </button>
+            <button type="button" className="btn-text" onClick={() => resolveRef.current?.mine(problem.conflict!.theirs)}>
+              {t('Re-apply my edit on top')}
+            </button>
+          </div>
+        </div>
+      )}
+      {problem && !problem.conflict && (
         <div className="pd-conflict" role="alert">
           <strong>{t('Could not save:')}</strong> {problem.message}. {t('Your edit is still on screen.')}
           {problem.kept && <> {t('Your words are kept on this computer.')}</>}
