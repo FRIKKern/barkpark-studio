@@ -5,8 +5,9 @@ import type {Plugin} from 'vite'
 // PREVIEW_SOURCE=barkpark: the same three pages, read from Barkpark; the browser asks
 // /api/bp/page and listens on /api/bp/listen. No editor's token here. Inside a
 // studio's preview, the studio mints a preview token (Barkpark's scoped, multi-use,
-// at most an hour) and the page sends it along: drafts, through /v1/preview/*. Else
-// (and for Published) BARKPARK_SITE_TOKEN, a read-only site token: published only.
+// at most an hour) and the page sends it along: drafts or published, as the studio
+// picks, through /v1/preview/*. Outside a studio, BARKPARK_SITE_TOKEN, a read-only
+// site token: published only.
 
 type Env = Record<string, string | undefined>
 type Doc = {_id: string; _type: string; _publishedId?: string; [k: string]: unknown}
@@ -23,11 +24,10 @@ export function barkparkApi(env: Env): Plugin {
   const base = `${env.BARKPARK_URL}/w/${env.BARKPARK_WORKSPACE}/p/${env.BARKPARK_PROJECT || 'default'}`
   const dataset = env.PREVIEW_DATASET || env.BARKPARK_DATASET || 'production'
   const reader = (preview: string | null, perspective: string): Reader => {
-    if (preview && perspective === 'drafts') return {route: 'preview', headers: {authorization: `Preview ${preview}`}, perspective}
+    if (preview) return {route: 'preview', headers: {authorization: `Preview ${preview}`}, perspective: perspective === 'drafts' ? 'drafts' : 'published'}
     if (env.BARKPARK_SITE_TOKEN) return {route: 'data', headers: {authorization: `Bearer ${env.BARKPARK_SITE_TOKEN}`}, perspective: 'published'}
-    throw new NoReader(preview ? 'Published pages need BARKPARK_SITE_TOKEN (a read-only site token).' : 'Open this site from the studio, or set BARKPARK_SITE_TOKEN for published pages.')
+    throw new NoReader('Open this site from the studio, or set BARKPARK_SITE_TOKEN for published pages.')
   }
-  const query = async (r: Reader, type: string, params: Record<string, string>) => (await rows(r, type, params)).documents
   // J59: with `map`, Barkpark's sourceMap for the rows too (drafts only: a published
   // page has nothing to edit), each row's fields mapped to its own document.
   async function rows(r: Reader, type: string, params: Record<string, string>, map = false) {
@@ -37,35 +37,20 @@ export function barkparkApi(env: Env): Plugin {
     const body = (await res.json()) as {result: {documents: Doc[]}; sourceMap?: unknown}
     return {documents: body.result.documents, map: body.sourceMap ?? null}
   }
-  // A list's authors are documents of their own: their names map from an author query.
-  const authorsOf = (r: Reader, posts: Doc[]) => {
-    const ids = [...new Set(posts.map((p) => (p.author as Doc | undefined)?._publishedId ?? (p.author as Doc | undefined)?._id).filter(Boolean))] as string[]
-    return ids.length ? rows(r, 'author', {'filter[_id][in]': ids.join(',')}, true) : {documents: [], map: null}
-  }
   const doc = (r: Reader, type: string, id: string) =>
     fetch(`${base}/v1/${r.route}/doc/${dataset}/${type}/${encodeURIComponent(id)}?perspective=${r.perspective}${r.perspective === 'drafts' ? '&sourceMap=true' : ''}`, {headers: r.headers})
-  // J59: which document and field each value came from (Barkpark's resultSourceMap,
-  // flat fields of one document, drafts only: a published page has nothing to edit).
-  async function sourceMap(r: Reader, type: string, id: string) {
-    if (r.perspective !== 'drafts') return null
-    const got = await doc(r, type, id)
-    return got.ok ? (((await got.json()) as {sourceMap?: unknown}).sourceMap ?? null) : null
-  }
 
-  // The documents as Barkpark returns them (references expanded); src/bp-pages.ts
-  // turns them into the page, in the browser, so the studio's unsaved edits apply live.
+  // The documents as Barkpark returns them (references expanded, each one's values
+  // mapped to its own document, #22335); src/bp-pages.ts turns them into the page, in
+  // the browser, so the studio's unsaved edits apply live.
   async function page(r: Reader, kind: string, key: string) {
     if (kind === 'home') {
       const posts = await rows(r, 'post', {order: 'title:asc', expand: 'author'}, true)
-      return {posts: posts.documents, maps: [posts.map, (await authorsOf(r, posts.documents)).map]}
+      return {posts: posts.documents, maps: [posts.map]}
     }
     if (kind === 'post') {
-      const post = (await query(r, 'post', {'filter[slug][eq]': key, expand: 'author,categories,related', limit: '1'}))[0] ?? null
-      // The author shown on the page is its own document: its own source map (a reference
-      // expanded into the post is not mapped yet, task-0e0cb2167c6fcdea).
-      const author = post?.author && typeof post.author === 'object' ? (post.author as Doc) : null
-      const [own, by] = post ? await Promise.all([sourceMap(r, 'post', (post._publishedId as string) ?? post._id), author ? sourceMap(r, 'author', (author._publishedId as string) ?? author._id) : null]) : [null, null]
-      return {post, maps: [own, by]}
+      const got = await rows(r, 'post', {'filter[slug][eq]': key, expand: 'author,categories,related', limit: '1'}, true)
+      return {post: got.documents[0] ?? null, maps: [got.map]}
     }
     if (kind === 'author') {
       const got = await doc(r, 'author', key)

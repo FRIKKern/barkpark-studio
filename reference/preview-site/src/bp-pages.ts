@@ -39,13 +39,8 @@ const ref = (d: unknown): Ref | undefined => (isDoc(d) ? {_id: id(d), _type: d._
 const seen = (refs: (Ref | undefined)[]) => [...new Map(refs.filter((r): r is Ref => !!r).map((r) => [r._id, r])).values()]
 const row = (p: Doc) => ({_id: id(p), title: p.title, slug: p.slug, excerpt: p.excerpt, author: isDoc(p.author) ? {_id: id(p.author), name: p.author.name} : undefined})
 /** A list's rows, each with its own click-to-edit attributes (row i of a query's source map), and its author's. */
-function rows(posts: Doc[], map: SourceMap | null | undefined, authors?: SourceMap | null) {
-  return posts.flatMap((p, i) => {
-    if (!p.slug) return []
-    const a = isDoc(p.author) ? p.author : undefined
-    const at = a && authors ? authors.documents.findIndex((d) => d._id.replace(/^drafts\./, '') === id(a)) : -1
-    return [{...row(p), $edit: editOf(map, p.title, i), $editAuthor: at < 0 ? undefined : editOf(authors, a!.name, at)}]
-  })
+function rows(posts: Doc[], map: SourceMap | null | undefined) {
+  return posts.flatMap((p, i) => (p.slug ? [{...row(p), $edit: editOf(map, p.title, `$[${i}]`), $editAuthor: editOf(map, isDoc(p.author) ? p.author.name : '', `$[${i}]["author"]`)}] : []))
 }
 // A PortableDoc's text blocks, in the shape the page renders (Sanity's blocks).
 const blocks = (body: unknown) =>
@@ -53,22 +48,22 @@ const blocks = (body: unknown) =>
     .filter((b) => b.type === 'paragraph' || b.type === 'heading')
     .map((b) => ({_key: b.id, _type: 'block', children: [{_key: `${b.id}-0`, text: (b.content ?? []).map((c) => c.value ?? '').join('')}]}))
 
-// A source map's `$["field"]` (a document's), or `$[row]["field"]` (a query's), → that
-// field of its document, as data attributes.
-function editOf(map: SourceMap | null | undefined, label: unknown, at?: number): Edit {
-  const prefix = at === undefined ? '$' : `$[${at}]`
+// A source map's value at `prefix` + `["field"]` (`$` a document's; `$[row]` a query
+// row; `$[row]["author"]` a reference expanded in it) → that field of the document it
+// came from, as data attributes. The field is the value's own name (these pages read
+// fields as they are): a query map's `paths` don't line up yet (sent to Barkpark).
+function editOf(map: SourceMap | null | undefined, label: unknown, prefix = '$'): Edit {
   return (field) => {
     const hit = map?.mappings[`${prefix}["${field}"]`]
     const doc = hit && map!.documents[hit.source.document]
-    const path = hit && map!.paths[hit.source.path]?.match(/^\$(?:\[\d+\])?\["(.+)"\]$/)?.[1]
-    return doc && path ? {'data-bp-edit': `${doc._type}:${doc._id.replace(/^drafts\./, '')}:${path}`, 'data-bp-label': String(label ?? '')} : undefined
+    return doc ? {'data-bp-edit': `${doc._type}:${doc._id.replace(/^drafts\./, '')}:${field}`, 'data-bp-label': String(label ?? '')} : undefined
   }
 }
 
 export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]} {
   if (kind === 'home') {
     const posts = (raw.posts ?? []).filter((p) => p.slug)
-    return {data: rows(raw.posts ?? [], raw.maps?.[0], raw.maps?.[1]), documents: seen(posts.flatMap((p) => [ref(p), ref(p.author)]))}
+    return {data: rows(raw.posts ?? [], raw.maps?.[0]), documents: seen(posts.flatMap((p) => [ref(p), ref(p.author)]))}
   }
   if (kind === 'post') {
     const p = raw.post
@@ -78,8 +73,8 @@ export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]
     return {
       data: {
         ...row(p),
-        $edit: editOf(raw.maps?.[0], p.title),
-        $editAuthor: editOf(raw.maps?.[1], isDoc(p.author) ? p.author.name : ''),
+        $edit: editOf(raw.maps?.[0], p.title, '$[0]'),
+        $editAuthor: editOf(raw.maps?.[0], isDoc(p.author) ? p.author.name : '', '$[0]["author"]'),
         categories: categories.map((c) => ({_id: id(c), title: c.title})),
         body: blocks(p.body),
         related: related && {_type: related._type, _id: id(related), title: related.title, name: related.name, slug: related.slug},
