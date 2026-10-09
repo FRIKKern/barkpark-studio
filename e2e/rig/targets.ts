@@ -1,5 +1,6 @@
 import {readFileSync} from 'node:fs'
 import type {BrowserContext, Locator, Page, TestInfo} from '@playwright/test'
+import {sanityAsset, seedAssets} from '../../scripts/lib/seed-assets.mjs'
 import {toBarkpark} from '../../scripts/lib/seed-map.mjs'
 
 // One adapter per backend. Specs talk to the adapter, never to a backend directly,
@@ -189,7 +190,8 @@ const sanity: Target = {
     return ((await r.json()) as {result: unknown}).result
   },
   resetDoc: async (id) => {
-    const seed = seedDoc(id)
+    // A file the seed carries (`_sanityAsset`) is only resolved by an import: point at the imported asset.
+    const seed = Object.fromEntries(Object.entries(seedDoc(id)).map(([k, v]) => [k, v?._sanityAsset ? sanityAsset(v) : v]))
     await sanityMutate([{delete: {id: `drafts.${id}`}}, {createOrReplace: seed}])
     // Then a real publish, so Sanity's history knows this version (see restore).
     const draftId = `drafts.${id}`
@@ -278,7 +280,9 @@ const studio: Target = {
   resetDoc: async (id, type) => {
     // A draft the run left would otherwise survive the replace and be what gets published.
     await bpMutate([{discardDraft: {id, type}}]).catch(() => {}) // none: nothing to discard
-    await bpMutate([{createOrReplace: {_id: id, _type: type, ...toBarkpark(seedDoc(id))}}, {publish: {id, type}}])
+    const doc = seedDoc(id)
+    const asset = await seedAssets([doc], {base: bpBase(), dataset: bpDataset(), token: need('BARKPARK_TOKEN')})
+    await bpMutate([{createOrReplace: {_id: id, _type: type, ...toBarkpark(doc, asset)}}, {publish: {id, type}}])
   },
   publishedTitle: async (id) => {
     const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=published`, {

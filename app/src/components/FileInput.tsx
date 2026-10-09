@@ -4,7 +4,7 @@ import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import type {OpenRef} from './Fields'
 import {toast} from './Toasts'
 import {PaneLink} from './PaneLink'
-import {Close as CloseIcon, Copy, DocumentIcon, Download, InfoOutline, Ellipsis, ErrorOutline, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
+import {BinaryDocumentIcon, Close as CloseIcon, Copy, DocumentIcon, Download, InfoOutline, Ellipsis, ErrorOutline, LinkIcon, Reset, Search as SearchIcon, Undo, Upload} from './icons'
 import type {Field} from '../lib/data'
 import {assetUrl} from '../lib/image'
 import {useLocale, useT} from '../lib/i18n'
@@ -14,10 +14,11 @@ import {accepts, ago, formatBytes, humanBytes, mayAccept, mimeTitle, type FileAs
 // Upload, Select); a file shows its name and size with an options menu (Upload,
 // Select, Download, Copy URL, Clear field). `options.accept` limits what the
 // file chooser, a drop, a paste and Select offer. A failed upload says so and
-// offers Retry (as the image input). The value is Sanity's: {_type: 'file', asset: {_ref}}.
+// offers Retry (as the image input). The value is Sanity's and Barkpark's canonical one
+// (barkpark#22289): {_type: 'file', asset: {_type: 'reference', _ref: 'asset-<id>'}}.
 
 type Props = {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}
-type FileValue = {_type?: string; asset?: {_ref?: string}}
+type FileValue = {_type?: string; asset?: {_type?: string; _ref?: string}}
 
 const filesOf = (list: FileList | DataTransferItemList | undefined | null): File[] =>
   Array.from((list ?? []) as ArrayLike<File | DataTransferItem>).flatMap((item) => {
@@ -47,7 +48,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   const [browsing, setBrowsing] = useState(false)
   const [chooser, setChooser] = useState<HTMLInputElement | null>(null)
   const title = field.title ?? field.name
-  const use = (next: string) => onChange({...file, _type: 'file', asset: {_ref: next}})
+  const use = (next: string) => onChange({...file, _type: 'file', asset: {_type: 'reference', _ref: next}})
 
   const upload = async (f: File) => {
     setUploading(f.name)
@@ -110,7 +111,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
           {overlay}
           {uploading ? (
             <span className="hint" role="status">
-              <DocumentIcon /> {t('Uploading {name}…', {name: uploading})}
+              <BinaryDocumentIcon /> {t('Uploading {name}…', {name: uploading})}
             </span>
           ) : failed ? (
             <span className="hint failed" role="alert">
@@ -118,7 +119,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
             </span>
           ) : (
             <span className="hint">
-              <DocumentIcon /> {readOnly ? t('Read only') : t('Drag or paste file here')}
+              <BinaryDocumentIcon /> {readOnly ? t('Read only') : t('Drag or paste file here')}
             </span>
           )}
           {!uploading && (
@@ -141,7 +142,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
         <div className="file-box" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste a file to replace it', {title})} {...target}>
           {overlay}
           <span className="file-icon">
-            <DocumentIcon />
+            <BinaryDocumentIcon />
           </span>
           <span className="file-text">
             {info.isError ? (

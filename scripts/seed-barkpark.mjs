@@ -16,6 +16,7 @@ import {spawnSync} from 'node:child_process'
 import {readFileSync, readdirSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
 import {isDeepStrictEqual} from 'node:util'
+import {seedAssets} from './lib/seed-assets.mjs'
 import {toBarkpark} from './lib/seed-map.mjs'
 
 const root = new URL('..', import.meta.url)
@@ -91,7 +92,9 @@ const native = readFileSync(new URL('fixtures/barkpark-only.ndjson', root), 'utf
 // A block doc also holds its bound blocks' values as fields (projection).
 const nativeContent = ({_id, _type, ...content}) =>
   Array.isArray(content.blocks) ? {...Object.fromEntries(content.blocks.filter((b) => b.fieldName && b.fieldName !== 'title').map((b) => [b.fieldName, b.value])), ...content} : content
-const mirrored = new Map(seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d)}]))
+// The seed's files (post.attachment, J54) as this dataset's media; uploaded on first use.
+const asset = await seedAssets(seed, {base: BASE, dataset: DATASET, token: env('BARKPARK_TOKEN')})
+const mirrored = new Map(seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d, asset)}]))
 const expected = new Map([...mirrored, ...native.map((d) => [d._id, {type: d._type, content: nativeContent(d)}])])
 
 async function applySchemas() {
@@ -111,7 +114,7 @@ async function reset() {
     for (const d of await listAll(type, 'raw')) existing.push({type, id: d._publishedId ?? d._id, draft: d._id.startsWith('drafts.')})
   }
   const ordered = TYPES.flatMap((t) => seed.filter((d) => d._type === t))
-  const docs = [...ordered.map((d) => ({_id: d._id, _type: d._type, ...toBarkpark(d)})), ...native]
+  const docs = [...ordered.map((d) => ({_id: d._id, _type: d._type, ...toBarkpark(d, asset)})), ...native]
   const seeded = new Set(docs.map((d) => d._id))
 
   const drafts = [...new Map(existing.filter((e) => e.draft && seeded.has(e.id)).map((e) => [e.id, e])).values()]
@@ -154,8 +157,10 @@ async function verify() {
     headers: {authorization: `Bearer ${process.env.SANITY_TOKEN}`},
   })
   if (!res.ok) fail(`sanity query → ${res.status}`)
-  const sanityDocs = (await res.json()).result.map((d) => ({_id: d._id, ...toBarkpark(d)}))
-  compare('sanity', sanityDocs, mirrored)
+  // An asset's id is each backend's own: compare the value around it (a `_sanityAsset`
+  // left as is was written, not imported: no file behind it).
+  const sanityDocs = (await res.json()).result.map((d) => ({_id: d._id, ...toBarkpark(d, (v) => (v._sanityAsset ? 'not uploaded' : 'asset'))}))
+  compare('sanity', sanityDocs, new Map(seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d, () => 'asset')}])))
 }
 
 // The editor prefs this token's owner keeps on Barkpark (list sort / view, recent

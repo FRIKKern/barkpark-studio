@@ -16,6 +16,13 @@ export const DocumentIcon = () => (
     <path d="M11.5 4.5h7v16h-12v-11l5-5zM11.5 4.5v5h-5" />
   </svg>
 )
+/** Sanity's BinaryDocumentIcon: a file field's file. */
+export const BinaryDocumentIcon = () => (
+  <svg {...s} strokeLinejoin="round">
+    <path d="M11.5 4.5V9.5H6.5" />
+    <path strokeLinecap="square" d="M9.5 12.5V17.5M11.5 4.5H18.5V20.5H6.5V9.5L11.5 4.5ZM12.5 12.5V17.5H15.5V12.5H12.5Z" />
+  </svg>
+)
 export const Search = () => (
   <svg {...s}>
     <circle cx="11.5" cy="11.5" r="5" />
