@@ -501,8 +501,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       // D22: from the blocks this canvas held, so Undo can put them back.
       if (before?.rev === l.rev) {
         setOtherEdit({before: before.blocks, afterRev: fresh.rev, who: null})
-        if (typeof fresh.rev === 'string')
-          void editedBy({data: {type, id, rev: fresh.rev}}).then((who) => !gone && setOtherEdit((e) => (e?.afterRev === fresh.rev ? {...e, who} : e)))
+        if (fresh.docRev) void editedBy({data: {type, id, rev: fresh.docRev}}).then((who) => !gone && setOtherEdit((e) => (e?.afterRev === fresh.rev ? {...e, who} : e)))
       } else setOtherEdit(null)
       // Idle: taken now. Focused (the author is in a field block, say): the canvas defers
       // it until they leave (EMBED-CONTRACT applyServerBlocks) instead of dropping it (D05).
