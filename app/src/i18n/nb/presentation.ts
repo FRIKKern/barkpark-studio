@@ -31,4 +31,7 @@ export default {
   'Used on {count} pages': 'Brukt på {count} sider',
   'Not used on any pages': 'Ikke brukt på noen sider',
   'Resolving locations...': 'Løser opp plasseringer...',
+  'Edit': 'Rediger',
+  'Enable edit overlay': 'Aktiver redigeringsoverlay',
+  'Disable edit overlay': 'Deaktiver redigeringsoverlay',
 }

@@ -2,7 +2,10 @@
 // with the studio's unsaved edits laid over them first (J60), so typing shows at once.
 
 export type Doc = {_id: string; _type: string; _publishedId?: string; [k: string]: unknown}
-export type Raw = {posts?: Doc[]; post?: Doc | null; author?: Doc | null}
+export type SourceMap = {documents: Ref[]; paths: string[]; mappings: Record<string, {source: {document: number; path: number}}>}
+export type Raw = {posts?: Doc[]; post?: Doc | null; author?: Doc | null; maps?: (SourceMap | null)[]}
+/** J59: the attributes that make a value click-to-edit: `data-bp-edit="type:id:field"`, and its document's title for the label. */
+export type Edit = (field: string) => Record<string, string> | undefined
 type Ref = {_id: string; _type: string}
 
 const id = (d: Doc) => d._publishedId ?? d._id.replace(/^drafts\./, '')
@@ -37,6 +40,16 @@ const blocks = (body: unknown) =>
     .filter((b) => b.type === 'paragraph' || b.type === 'heading')
     .map((b) => ({_key: b.id, _type: 'block', children: [{_key: `${b.id}-0`, text: (b.content ?? []).map((c) => c.value ?? '').join('')}]}))
 
+// A source map's `$["field"]` → that field of its document, as data attributes.
+function editOf(map: SourceMap | null | undefined, label: unknown): Edit {
+  return (field) => {
+    const hit = map?.mappings[`$["${field}"]`]
+    const doc = hit && map!.documents[hit.source.document]
+    const path = hit && map!.paths[hit.source.path]?.match(/^\$\["(.+)"\]$/)?.[1]
+    return doc && path ? {'data-bp-edit': `${doc._type}:${doc._id.replace(/^drafts\./, '')}:${path}`, 'data-bp-label': String(label ?? '')} : undefined
+  }
+}
+
 export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]} {
   if (kind === 'home') {
     const posts = (raw.posts ?? []).filter((p) => p.slug)
@@ -50,6 +63,7 @@ export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]
     return {
       data: {
         ...row(p),
+        $edit: editOf(raw.maps?.[0], p.title),
         categories: categories.map((c) => ({_id: id(c), title: c.title})),
         body: blocks(p.body),
         related: related && {_type: related._type, _id: id(related), title: related.title, name: related.name, slug: related.slug},
@@ -61,7 +75,7 @@ export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]
     const a = raw.author
     if (!a) return {data: null, documents: []}
     const posts = raw.posts ?? []
-    return {data: {_id: id(a), name: a.name, bio: a.bio, posts: posts.map((p) => ({...row(p), author: {_id: id(a), name: a.name}}))}, documents: seen([ref(a), ...posts.map(ref)])}
+    return {data: {_id: id(a), name: a.name, bio: a.bio, $edit: editOf(raw.maps?.[0], a.name), posts: posts.map((p) => ({...row(p), author: {_id: id(a), name: a.name}}))}, documents: seen([ref(a), ...posts.map(ref)])}
   }
   return {data: null, documents: []}
 }
