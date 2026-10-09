@@ -1,6 +1,6 @@
 import {Fragment, useEffect, useId, useRef, useState, type ReactNode} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {searchQuery, type Schema} from '../lib/data'
+import {schemasQuery, searchQuery, type Schema} from '../lib/data'
 import {intlTag, useLocale, useT, type T} from '../lib/i18n'
 import {useFocusScope} from '../lib/focus-scope'
 import {
@@ -56,6 +56,7 @@ const ICON: Record<Kind, () => ReactNode> = {
   reference: () => <LinkIcon />,
   array: () => <ListIcon />,
   arrayRef: () => <ListIcon />,
+  refs: () => <LinkIcon />,
   presence: () => <DocumentIcon />,
 }
 const fieldIcon = (f: FilterField) => (f.path === 'image' || f.path === 'mainImage' ? <ImageIcon /> : ICON[f.kind]())
@@ -367,7 +368,8 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
         </select>
       </div>
     )
-  if (kind === 'reference' || op === 'includes' || op === 'notIncludes') return <ReferenceValue filter={filter} field={field} set={set} />
+  if (op === 'refImage' || op === 'refFile') return <AssetValue filter={filter} images={op === 'refImage'} set={set} />
+  if (kind === 'reference' || op === 'includes' || op === 'notIncludes' || op === 'refDocument') return <ReferenceValue filter={filter} field={field} set={set} />
   if (op === 'countRange')
     return (
       <div className="filter-pair">
@@ -422,7 +424,10 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
 function ReferenceValue({filter, field, set}: {filter: SearchFilter; field: FilterField; set: (p: Partial<SearchFilter>) => void}) {
   const t = useT()
   const [q, setQ] = useState('')
-  const found = useQuery({...searchQuery(field.refTypes ?? [], q.trim()), enabled: !filter.value})
+  // "Contains document": any type's.
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const types = field.kind === 'refs' ? schemas.map((x) => x.name) : (field.refTypes ?? [])
+  const found = useQuery({...searchQuery(types, q.trim()), enabled: !filter.value})
   if (filter.value)
     return (
       <div className="filter-pair">
@@ -477,6 +482,39 @@ function SortMenu({sort, onPick, onClose}: {sort: SearchSort; onPick: (s: Search
           ))}
         </Fragment>
       ))}
+    </div>
+  )
+}
+
+/** "Contains … image / file": the dataset's images or files by name; the value is its media id (`asset-<id>`, what an image or file field holds). */
+function AssetValue({filter, images, set}: {filter: SearchFilter; images: boolean; set: (p: Partial<SearchFilter>) => void}) {
+  const t = useT()
+  const [q, setQ] = useState('')
+  const {data: assets = []} = useQuery({
+    queryKey: [images ? 'media' : 'media-files', ''],
+    queryFn: () => fetch(images ? '/api/media/' : '/api/media/files').then((r) => (r.ok ? (r.json() as Promise<{id: string; name: string}[]>) : Promise.reject(new Error(`media → ${r.status}`)))),
+    enabled: !filter.value,
+  })
+  if (filter.value)
+    return (
+      <div className="filter-pair">
+        <span className="filter-ref">{filter.label ?? filter.value}</span>
+        <button type="button" className="btn" onClick={() => set({value: undefined, label: undefined})}>
+          {t('Clear')}
+        </button>
+      </div>
+    )
+  const shown = assets.filter((a) => a.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8)
+  return (
+    <div className="filter-ref-search">
+      <input className="input" autoFocus aria-label={t('Value')} placeholder={t('Search')} value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="filter-ref-results">
+        {shown.map((a) => (
+          <button key={a.id} type="button" className="menu-item" onClick={() => set({value: `asset-${a.id}`, label: a.name})}>
+            {a.name}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

@@ -39,6 +39,7 @@ test('@evidence J38: search filters side by side', async ({page, context}, info)
   for (const [name, first, want] of [
     ['Categories', 'includes', ['includes', 'does not include', 'not empty', 'empty', 'quantity is', 'quantity is not', 'quantity greater than', 'quantity greater than or equal to', 'quantity less than', 'quantity less than or equal to', 'quantity is between']],
     ['Title', 'contains', ['contains', 'does not contain', 'is', 'is not', 'not empty', 'empty']],
+    ['Contains document', 'document', ['document', 'image', 'file']],
   ] as const) {
     await page.getByRole('button', {name: 'Add filter'}).click()
     await page.waitForTimeout(300)
@@ -129,6 +130,18 @@ test('@local J38: field filter, type filter, order, recent searches', async ({pa
   await page.getByRole('dialog', {name: 'Categories'}).getByRole('button', {name: 'Guide', exact: true}).click()
   await page.keyboard.press('Escape')
   await expect(dialog(page).getByRole('button', {name: 'Categories includes Guide'})).toBeVisible()
+  await expect(results.getByText('Fixture post 01', {exact: true})).toBeVisible()
+  await expect(results.getByText('Fixture post 02', {exact: true})).toHaveCount(0)
+  await dialog(page).getByRole('button', {name: 'Clear filters'}).click()
+
+  // The pinned "Contains document, image or file": the posts that reference Alan Turing.
+  await dialog(page).getByRole('button', {name: 'Add filter'}).click()
+  await page.keyboard.type('Contains document')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('alan')
+  await page.getByRole('dialog', {name: 'Contains document, image or file'}).getByRole('button', {name: 'Alan Turing', exact: true}).click()
+  await page.keyboard.press('Escape')
+  await expect(dialog(page).getByRole('button', {name: 'Contains document, image or file → Alan Turing'})).toBeVisible()
   await expect(results.getByText('Fixture post 01', {exact: true})).toBeVisible()
   await expect(results.getByText('Fixture post 02', {exact: true})).toHaveCount(0)
   await dialog(page).getByRole('button', {name: 'Clear filters'}).click()

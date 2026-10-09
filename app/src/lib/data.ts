@@ -242,17 +242,19 @@ export async function ensureDocs(client: QueryClient, types: string[], ids: stri
   for (const id of missing) if (client.getQueryData(['doc', id]) === undefined) client.setQueryData(['doc', id], null)
 }
 
-/** A reference field's filter, in Barkpark's query terms: {field: {op: value}}. */
+/** A reference field's filter, in Barkpark's query terms: {field: {op: value}}; op '' is `filter[field]=value` (`_references`). */
 export type RefFilter = Record<string, Record<string, string>>
+const refFilterParams = (filter: RefFilter | undefined) =>
+  Object.entries(filter ?? {})
+    .flatMap(([field, ops]) => Object.entries(ops).map(([op, v]) => `&filter[${encodeURIComponent(field)}]${op ? `[${encodeURIComponent(op)}]` : ''}=${encodeURIComponent(v)}`))
+    .join('')
 
 const fetchSearch = createServerFn({method: 'GET'})
   .validator((d: {type: string; q: string; filter?: RefFilter; order?: string; limit?: number}) => d)
   .handler(async ({data}) => {
     // `contains` is case-insensitive; `title` is the row's preview title for every type.
     // `order` (J38): `_updatedAt:desc` (default) or `_createdAt:desc`.
-    let filter = data.q ? `&filter[title][contains]=${encodeURIComponent(data.q)}` : ''
-    for (const [field, ops] of Object.entries(data.filter ?? {}))
-      for (const [op, v] of Object.entries(ops)) filter += `&filter[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
+    const filter = (data.q ? `&filter[title][contains]=${encodeURIComponent(data.q)}` : '') + refFilterParams(data.filter)
     const r = await bpJson<{result: {documents: Doc[]}}>(
       `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&order=${encodeURIComponent(data.order ?? '_updatedAt:desc')}&limit=${Math.min(data.limit ?? 20, 100)}${filter}`,
     )
@@ -282,9 +284,7 @@ const fetchTextSearch = createServerFn({method: 'GET'})
       data.asked.map(async ({type, filter}) => {
         const ids = hits.filter((d) => d._type === type).flatMap((d) => [d._id, d._publishedId])
         if (!ids.length || !Object.keys(filter).length) return ids
-        let f = `&filter[_id][in]=${[...new Set(ids)].map(encodeURIComponent).join(',')}`
-        for (const [field, ops] of Object.entries(filter))
-          for (const [op, v] of Object.entries(ops)) f += `&filter[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
+        const f = `&filter[_id][in]=${[...new Set(ids)].map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
         const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${f}`)
         return r.result.documents.flatMap((d) => [d._id, d._publishedId])
       }),
@@ -323,8 +323,7 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
         // The referenced doc must match on the previewed field itself.
         const ids = found.documents.filter((d) => textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId)
         if (!ids.length) continue
-        let fq = `&filter[${encodeURIComponent(field!)}][in]=${ids.map(encodeURIComponent).join(',')}`
-        for (const [k, ops] of Object.entries(filter)) for (const [op, v] of Object.entries(ops)) fq += `&filter[${encodeURIComponent(k)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
+        const fq = `&filter[${encodeURIComponent(field!)}][in]=${ids.map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
         const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${fq}`)
         out.push(...r.result.documents.filter((d) => !excluded(d, q, schema)))
       }

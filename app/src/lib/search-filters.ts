@@ -4,11 +4,11 @@ import type {Field, RefFilter, Schema} from './data'
 // every filterable field of the types in play, each with Sanity's operators and
 // its chip wording ("Rating ≥ 3", "Edited at is in the last 7 days"). Filters run
 // in Barkpark's query (filter[field][op]=value; barkpark#22106 added does not contain,
-// array includes and counts). Still left out: a date-time "is not" (a day is a range,
-// and "outside it" needs an OR the query has not got) and the pinned "Contains
-// document, image or file" (Barkpark's _references misses a plain reference field).
+// array includes and counts; `_references` for the pinned "Contains document, image or
+// file"). Still left out: a date-time "is not" (a day is a range, and "outside it"
+// needs an OR the query has not got).
 
-export type Kind = 'string' | 'select' | 'number' | 'boolean' | 'date' | 'datetime' | 'reference' | 'array' | 'arrayRef' | 'presence'
+export type Kind = 'string' | 'select' | 'number' | 'boolean' | 'date' | 'datetime' | 'reference' | 'array' | 'arrayRef' | 'refs' | 'presence'
 export type FilterField = {
   /** path + kind: one entry for a field that several types share. */
   key: string
@@ -25,6 +25,7 @@ export type FilterField = {
 }
 export type OpName =
   | 'contains' | 'notContains' | 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'range' | 'last' | 'after' | 'before' | 'defined' | 'notDefined'
+  | 'refDocument' | 'refImage' | 'refFile'
   | 'includes' | 'notIncludes' | 'countEq' | 'countNeq' | 'countGt' | 'countGte' | 'countLt' | 'countLte' | 'countRange'
 export type Unit = 'days' | 'months' | 'years'
 export type SearchFilter = {id: string; field: string; op: OpName; value?: string; to?: string; unit?: Unit; label?: string}
@@ -49,6 +50,9 @@ export const OPS: Record<OpName, {name: string; desc: string; symbol?: string}> 
   before: {name: 'before', desc: 'is before'},
   defined: {name: 'not empty', desc: 'is'},
   notDefined: {name: 'empty', desc: 'is'},
+  refDocument: {name: 'document', desc: '→'},
+  refImage: {name: 'image', desc: '→'},
+  refFile: {name: 'file', desc: '→'},
   includes: {name: 'includes', desc: 'includes'},
   notIncludes: {name: 'does not include', desc: 'does not include'},
   countEq: {name: 'quantity is', desc: 'has'},
@@ -76,9 +80,11 @@ const OPERATORS: Record<Kind, OpName[][]> = {
   // Sanity's "array" and "arrayReferences" filters.
   array: [['defined', 'notDefined'], ...COUNTS],
   arrayRef: [['includes', 'notIncludes'], ['defined', 'notDefined'], ...COUNTS],
+  // Sanity's pinned "references" filter.
+  refs: [['refDocument', 'refImage', 'refFile']],
   presence: [['defined', 'notDefined']],
 }
-export const operatorsFor = (f: FilterField): OpName[][] => (f.builtin ? DATE : OPERATORS[f.kind])
+export const operatorsFor = (f: FilterField): OpName[][] => (f.builtin && f.kind === 'datetime' ? DATE : OPERATORS[f.kind])
 
 const KIND: Record<string, Kind> = {
   string: 'string', text: 'string', slug: 'string', email: 'string', url: 'string', markdown: 'string', color: 'string', codelist: 'string',
@@ -91,6 +97,7 @@ const titleOf = (f: Field) => f.title ?? startCase(f.name)
 export const BUILTINS: FilterField[] = [
   {key: '_updatedAt', path: '_updatedAt', title: 'Edited at', kind: 'datetime', types: [], builtin: true},
   {key: '_createdAt', path: '_createdAt', title: 'Created at', kind: 'datetime', types: [], builtin: true},
+  {key: '_references', path: '_references', title: 'Contains document, image or file', kind: 'refs', types: [], builtin: true},
 ]
 
 function selectOptions(f: Field) {
@@ -191,7 +198,7 @@ export function filterLabel(f: SearchFilter, field: FilterField | undefined, t: 
     field.kind === 'date' || field.kind === 'datetime' ? fmtDate(s, f.op === 'eq' ? 'date' : field.kind, tag)
       : field.kind === 'select' ? field.options?.find((o) => o.value === s)?.title ?? s
         : field.kind === 'boolean' ? (s === 'true' ? t('True') : t('False'))
-          : field.kind === 'reference' || field.kind === 'arrayRef' ? f.label ?? s
+          : field.kind === 'reference' || field.kind === 'arrayRef' || field.kind === 'refs' ? f.label ?? s
             : s
   const value =
     f.op === 'defined' ? t('not empty')
@@ -245,6 +252,7 @@ export function toRefFilter(schema: Schema, filters: SearchFilter[], fields: Map
       case 'before': set('lt', at(f.value!)); break
       case 'range': set('gte', field.kind === 'number' ? f.value! : at(f.value!)); set('lte', field.kind === 'number' ? f.to! : at(f.to!)); break
       case 'countRange': set('countGte', f.value!); set('countLte', f.to!); break
+      case 'refDocument': case 'refImage': case 'refFile': set('', f.value!); break
       case 'includes': set('has', f.value!); break
       case 'notIncludes': set('nhas', f.value!); break
       case 'eq':
