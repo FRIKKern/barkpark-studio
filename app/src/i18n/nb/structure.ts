@@ -2,7 +2,8 @@
 // Panes, lists, navbar, presence, scope switcher, bulk bar, sign-in.
 export default {
   // Navbar and tools
-  Structure: 'Struktur',
+  // Sanity's nb-NO keeps the tool names in English (the Agency Studio's navbar reads "Structure").
+  Structure: 'Structure',
   Perspective: 'Perspektiv',
   Drafts: 'Utkast',
   Vision: 'Vision',
