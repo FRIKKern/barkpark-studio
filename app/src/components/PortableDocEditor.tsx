@@ -412,10 +412,6 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           const schemas = qc.getQueryData<Schema[]>(['schemas']) ?? []
           return (await searchAllDocs(query)).map((d) => ({title: previewTitle(d, schemaOf(schemas, d._type), t), id: d._publishedId, type: d._type}))
         }
-        // A fresh canvas starts with a node selection on its first block. When that is a
-        // bound field and a click into text doesn't reach the editor's state, the next
-        // keystroke replaces the field (canvas bug task-f24549dea0618da2). Until it is
-        // fixed there, park the caret in the last text block instead, without keeping focus.
         // The canvas's ProseMirror area carries no name of its own (axe aria-input-field-name).
         el.addEventListener(
           'bp-ready',
@@ -423,19 +419,6 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
             const pm = el.querySelector('.ProseMirror')
             if (labelledBy) pm?.setAttribute('aria-labelledby', labelledBy)
             else pm?.setAttribute('aria-label', label ?? t('Document body'))
-          },
-          {once: true},
-        )
-        el.addEventListener(
-          'bp-ready',
-          () => {
-            const text = [...first.blocks].reverse().find((b) => b.type === 'paragraph' || b.type === 'heading')
-            if (!text || !first.blocks[0]?.type.startsWith('field-')) return
-            const had = document.activeElement
-            if (!el.focusBlock(text.id) || document.activeElement === had) return
-            // Focus elsewhere (another field, a sidebar) gets it back; nothing focused stays so.
-            if (had instanceof HTMLElement && had !== document.body) had.focus({preventScroll: true})
-            else (document.activeElement as HTMLElement | null)?.blur()
           },
           {once: true},
         )
