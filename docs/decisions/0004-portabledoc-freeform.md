@@ -35,8 +35,6 @@ apart (D-journeys) so the Sanity 1:1 number stays honest.
 
 ## Known limit (D11)
 
-Carets are shared: each editor's caret and range ride on their presence focus
-(Barkpark #22510, #22512) and draw in the others' canvases. Text is not merged
-live: saved remote changes apply when idle, and wait while a local edit is
-pending. Id-keyed operations preserve edits to separate blocks. Avoid concurrent
-edits to the same block.
+Carets are shared over presence (Barkpark #22510, #22512); text is not merged
+live. Remote saves apply when idle, after any pending local edit. Id-keyed ops
+keep edits to separate blocks; avoid editing the same block at once.
