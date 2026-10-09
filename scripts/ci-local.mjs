@@ -30,7 +30,7 @@ for (const [shard, dataset] of [[1, 'ci'], [2, 'ci-2'], [3, 'ci-3'], [4, 'ci-4']
   try {
     execSync(`for i in $(seq 1 60); do curl -sf http://localhost:${port}/health >/dev/null && exit 0; sleep 1; done; exit 1`, {shell: '/bin/bash'})
     const t = Date.now()
-    sh(`node node_modules/@playwright/test/cli.js test --project studio $(node ../scripts/shard-files.mjs ${shard} 4)`, {BARKPARK_DATASET: dataset, E2E_PORT: String(port), }, 'e2e')
+    sh(`node node_modules/@playwright/test/cli.js test $(node ../scripts/shard-files.mjs ${shard} 4) --project=studio`, {BARKPARK_DATASET: dataset, E2E_PORT: String(port), }, 'e2e')
     out.push(`shard ${shard} (${dataset}): pass in ${((Date.now() - t) / 1000).toFixed(1)} s`)
   } finally { try { process.kill(Number(srv)) } catch {} }
 }
