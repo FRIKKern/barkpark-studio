@@ -256,7 +256,11 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
   if (t.name === 'studio') {
     // Refuse the write before it reaches the API; a failed delete must keep focus.
     await page.route('**/_serverFn/**', (route) => route.request().method() === 'POST' ? route.abort('failed') : route.continue())
-    await dialog.getByRole('button', {name: 'Delete anyway'}).focus()
+    // The button must hold focus when Enter goes (on a slow runner it can still be settling).
+    const anyway = dialog.getByRole('button', {name: 'Delete anyway'})
+    await expect(anyway).toBeEnabled()
+    await anyway.focus()
+    await expect(anyway).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(dialog.getByRole('alert')).toContainText('Could not delete')
     await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
