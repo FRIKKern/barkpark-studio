@@ -152,7 +152,8 @@ test('@evidence J61: the panel follows the page, side by side', async ({page, co
 })
 
 // J64: the phone viewport (Sanity's 375×650, kept in the URL), Open preview, and the
-// share menu, whose switch waits for Barkpark's share links (task-6812c3100d7aedbc).
+// share menu (nothing shared yet: no QR code, nothing to copy). Sharing itself needs
+// a workspace admin's token, which CI's is not: '@local J64 sharing' below.
 test('J64: viewport toggle, Open preview, share menu', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
@@ -174,7 +175,8 @@ test('J64: viewport toggle, Open preview, share menu', async ({page, context}, i
   await expect(page.getByRole('link', {name: 'Open preview'})).toHaveAttribute('href', `${SITE}/posts/fixture-post-01`)
   await page.getByRole('button', {name: 'Share this preview'}).click()
   const share = page.getByRole('dialog', {name: 'Share this preview'})
-  await expect(share.getByRole('switch')).toBeDisabled()
+  await expect(share.getByRole('switch')).not.toBeChecked()
+  await expect(share).toContainText('QR code will appear here')
   await expect(share.getByRole('button', {name: 'Copy preview link'})).toBeDisabled()
   await page.keyboard.press('Escape')
   await expect(share).toBeHidden()
@@ -321,6 +323,44 @@ test('@local J60 + J63: the Barkpark site follows typing live, and Published / D
   await page.locator('.presentation-panel .doc-footer').getByRole('button', {name: 'Publish'}).click()
   await page.locator('.presentation-panel').getByRole('button', {name: /^Published/}).first().click()
   await expect(h1).toHaveText('Fixture post 01 live')
+  await closeAndSettle(page)
+  await t.resetDoc('post-01', 'post')
+})
+
+test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the draft; off ends it', async ({page, context, browser}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "the check runs on ours; the reference robot token can't share in Sanity either")
+  await t.prepare(context)
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  const title = page.locator('.presentation-panel [id="title"]')
+  await title.click()
+  await title.press('End')
+  await page.keyboard.type(' (draft)')
+  await expect(page.locator('.doc-footer .save-state')).toHaveText(/Saved/, {timeout: 10_000})
+
+  await page.getByRole('button', {name: 'Share this preview'}).click()
+  const share = page.getByRole('dialog', {name: 'Share this preview'})
+  await share.getByRole('switch').click()
+  await expect(share.getByRole('switch')).toBeChecked()
+  await expect(share.getByRole('img', {name: /^A QR Code which encodes the URL: /})).toBeVisible()
+  await share.getByRole('button', {name: 'Copy preview link'}).click()
+  const link = await page.evaluate(() => navigator.clipboard.readText())
+  expect(link).toMatch(new RegExp(`^${SITE}/posts/fixture-post-01\\?bp-share=`))
+
+  // Anyone with the link: the page, with the draft.
+  const outside = await (await browser.newContext()).newPage()
+  await outside.goto(link)
+  await expect(outside.getByRole('heading', {level: 1})).toHaveText('Fixture post 01 (draft)')
+  await expect(outside.getByText('Preview of unpublished changes')).toBeVisible()
+
+  // Off: the link stops working.
+  await share.getByRole('switch').click()
+  await expect(share.getByRole('switch')).not.toBeChecked()
+  await outside.reload()
+  await expect(outside.getByText('This preview link has expired or was turned off.')).toBeVisible()
+  await expect(outside.getByRole('heading', {level: 1})).toHaveText('Fixture post 01')
   await closeAndSettle(page)
   await t.resetDoc('post-01', 'post')
 })

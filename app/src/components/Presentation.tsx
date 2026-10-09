@@ -1,6 +1,8 @@
 import {useCallback, useEffect, useReducer, useRef, useState} from 'react'
 import {useNavigate} from '@tanstack/react-router'
-import {useQueryClient} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {mintShare, revokeShares, shareState} from '../lib/preview-links'
+import {toast} from './Toasts'
 import {useT} from '../lib/i18n'
 import {docQuery, listQuery} from '../lib/data'
 import type {Pane} from '../lib/panes'
@@ -237,6 +239,8 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     return `/presentation?${q}`
   }, [])
   const docPane = panes && panes[panes.length - 1]?.kind === 'doc'
+  const last = panes?.[panes.length - 1]
+  const shareDoc = last?.kind === 'doc' ? {type: last.type, id: last.id} : null
 
   // A new frame each reload: assigning the same src to one still loading is ignored.
   const [generation, setGeneration] = useState(0)
@@ -288,7 +292,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
           >
             {viewport === 'mobile' ? <Desktop /> : <Mobile />}
           </button>
-          <ShareMenu />
+          <ShareMenu doc={shareDoc} pageUrl={url} />
         </div>
         <div className="presentation-frame" data-viewport={viewport ?? 'desktop'} style={{cursor: busy ? 'wait' : undefined}}>
           {mounted && <iframe key={generation} ref={frame} src={src} title={t('Presentation')} style={{pointerEvents: blocked ? 'none' : undefined}} onLoad={() => send({type: 'loaded'})} />}
@@ -357,24 +361,71 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
 
 /**
  * J64, Sanity's share menu: sharing on/off, a QR code of the shared link, Copy
- * preview link. Sharing mints a secret preview link on the server, which Barkpark
- * cannot do yet (task-6812c3100d7aedbc): the switch stays off and says why.
+ * preview link. Barkpark links one document, draft included, for 24 hours; the
+ * shared page shows the panel's document as it is now. Only a workspace admin may
+ * share (Barkpark answers 403 otherwise), as Sanity's needs the grant.
  */
-function ShareMenu() {
+function ShareMenu({doc, pageUrl}: {doc: {type: string; id: string} | null; pageUrl: string}) {
   const t = useT()
+  const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
+  const key = doc && `bp-share:${doc.type}:${doc.id}`
+  const {data: state, refetch} = useQuery({queryKey: ['share', doc?.type, doc?.id], queryFn: () => shareState({data: doc!}), enabled: open && !!doc, staleTime: 0})
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [qr, setQr] = useState<string | null>(null)
+  const remembered = (): {token: string; id: string} | null => {
+    try {
+      return key ? JSON.parse(localStorage.getItem(key) ?? 'null') : null
+    } catch {
+      return null
+    }
+  }
+  const active = state?.allowed ? state.active : []
+  const mine = remembered()
+  const token = mine && active.some((l) => l.id === mine.id) ? mine.token : null
+  const on = active.length > 0
+  const url = token ? `${pageUrl}${pageUrl.includes('?') ? '&' : '?'}bp-share=${token}` : null
+  useEffect(() => {
+    if (!url) return setQr(null)
+    let live = true
+    void import('qrcode').then((QR) => QR.toDataURL(url, {margin: 1, width: 216}).then((d) => live && setQr(d)))
+    return () => void (live = false)
+  }, [url])
+  const toggle = async () => {
+    if (!doc) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (on) {
+        await revokeShares({data: active.map((l) => l.id)})
+        if (key) localStorage.removeItem(key)
+      } else {
+        // The draft when there is one: the link shows what the editor sees.
+        const draft = qc.getQueryData<{_draft?: boolean}>(['doc', doc.id])?._draft
+        const link = await mintShare({data: {type: doc.type, id: draft ? `drafts.${doc.id}` : doc.id}})
+        if (key) localStorage.setItem(key, JSON.stringify({token: link.token, id: link.id}))
+      }
+      await refetch()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const why = !doc ? t('Open a document to share its page') : state && !state.allowed ? t("You don't have permission to share previews.") : undefined
   return (
-    // Nothing inside can take focus while sharing is unavailable, so Escape is caught here too.
     <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()} onKeyDown={(e) => open && e.key === 'Escape' && (e.stopPropagation(), close())}>
       <button type="button" className="icon-btn" aria-label={t('Share this preview')} data-tip={t('Share this preview')} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Share />
       </button>
       {open && (
         <DialogBox className="popover share-preview" aria-label={t('Share this preview')} onClose={close}>
-          <label className="share-toggle" title={t('Barkpark cannot share previews yet')}>
+          <label className="share-toggle" title={why ?? (on ? t('Disable sharing') : t('Enable sharing'))}>
             <span className="switch">
-              <input type="checkbox" role="switch" checked={false} disabled readOnly />
+              {/* Busy is aria-disabled, not disabled: a control turning disabled drops focus, and the popover closes on blur. */}
+              <input type="checkbox" role="switch" checked={on} disabled={!!why || !state} aria-disabled={busy || undefined} onChange={() => !busy && void toggle()} />
               <span />
             </span>
             <span>
@@ -382,12 +433,25 @@ function ShareMenu() {
               <small>{t('with anyone who has the link')}</small>
             </span>
           </label>
-          <div className="share-qr" aria-hidden="true">
-            {t('QR code will appear here')}
-          </div>
+          {(why || error) && (
+            <p className="share-why" role={error ? 'alert' : undefined}>
+              {error ?? why}
+            </p>
+          )}
+          <div className="share-qr">{qr ? <img src={qr} alt={t('A QR Code which encodes the URL: {url}', {url: url!})} /> : <span aria-hidden="true">{t('QR code will appear here')}</span>}</div>
           <p className="share-note">{t('Scan the QR Code to open the preview on your phone.')}</p>
           <hr />
-          <button type="button" className="menu-item" disabled>
+          <button
+            type="button"
+            className="menu-item"
+            disabled={!url}
+            onClick={() =>
+              void navigator.clipboard
+                ?.writeText(url!)
+                .then(() => toast({title: t('The URL is copied to the clipboard')}))
+                .catch(() => toast({tone: 'critical', title: t('Copy failed')}))
+            }
+          >
             {t('Copy preview link')}
           </button>
         </DialogBox>

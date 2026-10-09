@@ -1447,6 +1447,10 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .share-toggle:has(input:disabled) .switch span { opacity: 0.5; }
 .share-qr { margin: 12px 0 0; aspect-ratio: 1; display: grid; place-items: center; padding: 0 48px; text-align: center; background: var(--hover); color: var(--muted); }
 .share-note { margin: 12px 0; color: var(--muted); }
+.share-qr img { width: 100%; height: 100%; display: block; }
+.share-qr:has(img) { padding: 0; background: #fff; }
+.share-why { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+.share-why[role=alert] { color: var(--danger-text); }
 .share-preview .menu-item:disabled { color: var(--muted); }
 /* B10: a schema action's dry-run preview. */
 .schema-action { max-width: 640px; }

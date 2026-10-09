@@ -45,6 +45,12 @@ export function barkparkApi(env: Env): Plugin {
             res.writeHead(200, {'content-type': 'application/json'}).end(JSON.stringify({raw, perspective}))
             return
           }
+          // J64: a shared link's document, draft included (Barkpark's public /sp/:token).
+          if (url.pathname === '/api/bp/share') {
+            const got = await fetch(`${env.BARKPARK_URL}/sp/${encodeURIComponent(url.searchParams.get('token') ?? '')}`)
+            res.writeHead(got.ok ? 200 : 404, {'content-type': 'application/json'}).end(got.ok ? await got.text() : '{"error":"This preview link has expired or was turned off."}')
+            return
+          }
           if (url.pathname === '/api/bp/listen') {
             const ctrl = new AbortController()
             req.on('close', () => ctrl.abort())

@@ -1,6 +1,6 @@
 import {useEffect, useState, useSyncExternalStore} from 'react'
 import type {PageKey} from './App'
-import {reportDocuments, studio} from './barkpark'
+import {reportDocuments, shared, studio} from './barkpark'
 import {overlay, toPage, type Raw} from './bp-pages'
 
 declare const __SOURCE__: 'sanity' | 'barkpark'
@@ -52,4 +52,12 @@ export function BarkparkPage<T>({page, render}: {page: PageKey; render: (data: T
   if (error) return <p role="alert">Could not load: {error}</p>
   if (!shown) return <p className="meta">Loading…</p>
   return <>{render(shown.data as T)}</>
+}
+
+/** A shared link says what it shows, or that it no longer works. */
+export function SharedBanner() {
+  useStudio()
+  if (shared.state === 'on') return <div className="banner">Preview of unpublished changes</div>
+  if (shared.state === 'gone') return <div className="banner">This preview link has expired or was turned off.</div>
+  return null
 }
