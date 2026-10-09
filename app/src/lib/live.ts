@@ -65,6 +65,8 @@ export function useLive(ids: string[], types: string[]) {
       ;(window as {__liveFrames?: string[]}).__liveFrames?.push(`${lastSeen}|${f.documentId}`) // e2e probe
       // J40: a comment changed somewhere: the comment threads read again.
       if (f.type === 'studioComment') return void qc.invalidateQueries({queryKey: ['comments']})
+      // J66: a task changed: the Tasks sidebar reads again.
+      if (f.type === 'studioTask') return void qc.invalidateQueries({queryKey: ['tasks']})
       // D14: a task changed: papers' task previews read again (debounced: a bulk
       // edit is one read).
       if (f.type === 'task') return void (clearTimeout(fleetTimer), (fleetTimer = setTimeout(() => void qc.invalidateQueries({queryKey: ['fleet']}), 400)))

@@ -1554,3 +1554,60 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .nav-drawer .menu-wrap.help.in-drawer .drawer-item { width: 100%; }
 .nav-drawer .menu-wrap.help.in-drawer .help-menu { position: static; margin: 4px 0; box-shadow: none; }
 .nav-drawer .update-dot { position: static; display: inline-block; margin-left: 6px; }
+
+/* J66, Sanity's Tasks sidebar: docked at the right under the navbar; the tools make room. */
+.tasks-panel { position: fixed; top: var(--nav-h); right: 0; bottom: 0; width: 360px; max-width: 100vw; display: flex; flex-direction: column; background: var(--bg); border-left: 1px solid var(--border); z-index: 30; color: var(--fg); font-size: 13px; }
+body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-open] .presentation { margin-right: 360px; }
+@media (max-width: 900px) { body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-open] .presentation { margin-right: 0; } }
+.tasks-head { display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 20px; min-height: 49px; }
+.tasks-crumbs, .task-form { border-top: 0; }
+.tasks-panel > .tasks-head:has(.tasks-crumbs) { border-bottom: 1px solid var(--border); }
+.tasks-head h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 600; color: var(--fg-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tasks-head .tasks-new { display: inline-flex; align-items: center; gap: 2px; }
+.tasks-crumbs { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; }
+.tasks-crumbs { font-size: 13px; }
+.tasks-crumbs h2 { font-size: 13px; }
+.tasks-crumbs .btn-text { padding: 4px; color: var(--muted); font-weight: 500; }
+.tasks-tabs { display: flex; justify-content: space-between; gap: 4px; padding: 4px 16px 8px; border-bottom: 1px solid var(--border); }
+.tasks-tabs button { font: inherit; font-size: 13px; font-weight: 500; padding: 6px 8px; border: 0; border-radius: 3px; background: none; color: var(--muted); cursor: pointer; }
+.tasks-tabs button:hover { background: var(--hover); }
+.tasks-tabs button { color: var(--fg-strong); }
+.tasks-tabs button[aria-selected='true'] { background: var(--hover); }
+.tasks-body { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
+.tasks-empty { text-align: center; padding: 120px 16px; }
+.tasks-empty h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--fg-strong); }
+.tasks-empty p { margin: 0 0 56px; color: var(--fg); }
+.tasks-empty .btn { display: inline-flex; align-items: center; gap: 2px; background: var(--fg-strong); color: var(--bg); }
+.tasks-list { list-style: none; margin: 0; padding: 0; }
+.task-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.task-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.task-title { font: inherit; font-weight: 500; text-align: left; padding: 0; border: 0; background: none; color: var(--fg-strong); cursor: pointer; }
+.task-row[data-done] .task-title { color: var(--muted); text-decoration: line-through; }
+.task-meta { display: flex; gap: 8px; font-size: 12px; }
+.task-status { flex: none; display: grid; place-items: center; width: 25px; height: 25px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 50%; }
+.task-status:hover { color: var(--fg-strong); }
+.task-status[data-done] { color: var(--positive, #2b8a3e); }
+.task-circle { width: 13px; height: 13px; border: 1.2px solid currentColor; border-radius: 50%; }
+.task-assignee { flex: none; display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: var(--hover); font-size: 10px; font-weight: 600; color: var(--fg-strong); }
+.task-assignee.none { background: none; border: 1px dashed var(--border); }
+.tasks-done { margin-top: 16px; }
+.tasks-done summary { cursor: pointer; font-weight: 500; padding: 4px 0; }
+.task-form { display: flex; flex-direction: column; gap: 8px; padding: 24px 20px; }
+.task-form .input { font-size: 13px; }
+.task-title-input { font: inherit; font-size: 19px; font-weight: 600; border: 0; background: none; color: var(--fg-strong); resize: none; padding: 4px 0; field-sizing: content; }
+.task-title-input:focus { outline: none; }
+.task-description { resize: vertical; }
+.task-view-title { display: flex; align-items: flex-start; gap: 4px; }
+.task-target { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 8px; border: 1px solid var(--border); border-radius: 3px; }
+.task-target > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-target-search { position: relative; }
+.task-target-hits { position: absolute; left: 0; right: 0; top: 100%; z-index: 2; list-style: none; margin: 4px 0 0; padding: 4px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; box-shadow: 0 4px 12px rgb(0 0 0 / 0.08); }
+.task-target-hits button { font: inherit; width: 100%; text-align: left; padding: 6px 8px; border: 0; background: none; color: var(--fg); border-radius: 3px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; }
+.task-target-hits button:hover { background: var(--hover); }
+.task-form-foot { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 24px; }
+.task-form-foot .btn-primary { background: var(--fg-strong); color: var(--bg); }
+.task-more { display: inline-flex; align-items: center; gap: 6px; }
+.task-delete { color: var(--danger-text); display: inline-flex; align-items: center; gap: 4px; }
+.task-activity h3 { margin: 16px 0 8px; font-size: 13px; font-weight: 600; color: var(--fg-strong); }
+.task-activity p { margin: 0; }
+.task-label { margin-top: 20px; font-size: 13px; font-weight: 500; color: var(--fg-strong); }
