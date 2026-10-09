@@ -1,7 +1,10 @@
 import {useCallback, useContext, useEffect, useRef, useState} from 'react'
 import {DialogBox, PaneOverlay} from './FocusScopes'
-import {useQuery} from '@tanstack/react-query'
-import {docQuery, previewTitle, schemaOf, schemasQuery, type Field} from '../lib/data'
+import {useQueries, useQuery} from '@tanstack/react-query'
+import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Field} from '../lib/data'
+import {formatPreview, previewMedia, previewRefs, type PreviewText} from '../lib/preview'
+import {imageRef, type ImageValue} from '../lib/image'
+import {Thumb} from './Preview'
 import {copy} from '../lib/clipboard'
 import {FieldView, UrlPathContext, type OpenRef} from './Fields'
 import {SortableRows} from './SortableRows'
@@ -20,7 +23,6 @@ type Item = {_key?: string} & Record<string, unknown>
 const newKey = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 
 export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}) {
-  const locale = useLocale()
   const items = (Array.isArray(value) ? value : []) as Item[]
   const of = field.of!
   const typing = memberTypes(of)
@@ -42,20 +44,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   }, [wantKey])
   const set = (next: Item[]) => onChange(next)
   // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
-  const renderItem = useCallback(
-    (it: Item) => (
-      <button type="button" className="array-item-preview" onClick={() => setEditing(it._key ?? null)}>
-        <span className="media">
-          <DocumentIcon />
-        </span>
-        <span className="text">
-          <span className="title">{previewText(it, of, 'title') || translate(locale, 'Untitled')}</span>
-          <Subtitle item={it} of={of} />
-        </span>
-      </button>
-    ),
-    [of, locale],
-  )
+  const renderItem = useCallback((it: Item) => <ItemRow item={it} of={of} onOpen={() => setEditing(it._key ?? null)} />, [of])
   return (
     <>
       <SortableRows
@@ -113,22 +102,49 @@ function fieldsOf(of: Field, item: Item): Field[] {
   return names ? names.map((n) => of.fields?.find((f) => f.name === n)).filter((f): f is Field => !!f) : of.fields ?? []
 }
 
-/** The item's preview text: its schema's preview path, else its first string field. */
-function previewText(item: Item, of: Field, slot: 'title' | 'subtitle'): string {
-  const path = of.preview?.[slot] ?? (slot === 'title' ? of.fields?.find((f) => f.type === 'string')?.name : undefined)
-  const v = path ? item[path] : undefined
-  return typeof v === 'string' ? v : ''
+/**
+ * An item's preview (J33, J56): title, subtitle and media per the member's
+ * `preview`, read like a list preview (lib/preview.ts). A path may go through one
+ * reference ("linkedDocument.title"); a bare reference field reads as the
+ * referenced doc's preview title, as Sanity's does.
+ */
+export function useItemPreview(item: Item, of: Field) {
+  const locale = useLocale()
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const p = of.preview ?? {}
+  const titleSpec: PreviewText | undefined = p.title ?? of.fields?.find((f) => f.type === 'string')?.name
+  const specs = [titleSpec, p.subtitle, p.media]
+  const fieldOf = (name: string) => of.fields?.find((f) => f.name === name)
+  const bare = specs.flatMap((s) => (typeof s === 'string' ? [s] : [])).filter((s) => !s.includes('.') && fieldOf(s)?.type === 'reference')
+  const refs = [...new Set([...previewRefs(...specs), ...bare])].map((name) => ({name, id: refId(item[name]), types: refTypesOf(fieldOf(name))}))
+  const targets = useQueries({queries: refs.map((r) => ({...docQuery(r.types, r.id ?? ''), enabled: !!r.id && r.types.length > 0}))})
+  const read = (path: string) => {
+    const [head, ...rest] = path.split('.')
+    const r = refs.findIndex((x) => x.name === head)
+    if (r < 0) return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], item[head!])
+    const target = targets[r]?.data
+    if (!rest.length) return target ? previewTitle(target, schemaOf(schemas, target._type)) : undefined
+    return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], target)
+  }
+  const typeTitle = (type: string) => schemaOf(schemas, type)?.title
+  return {
+    title: formatPreview(titleSpec, read, {typeTitle}) || translate(locale, 'Untitled'),
+    subtitle: formatPreview(p.subtitle, read, {typeTitle}),
+    media: previewMedia(p.media, read, (v) => !!imageRef(v)) as ImageValue | undefined,
+  }
 }
 
-/** A subtitle that is a reference shows the referenced doc's title, as Sanity's preview does. */
-function Subtitle({item, of}: {item: Item; of: Field}) {
-  const name = of.preview?.subtitle
-  const f = of.fields?.find((x) => x.name === name)
-  const refId = f?.type === 'reference' && typeof item[name!] === 'string' ? (item[name!] as string) : undefined
-  const {data: schemas = []} = useQuery(schemasQuery)
-  const {data: target} = useQuery({...docQuery(f?.refType ?? '', refId ?? ''), enabled: !!refId})
-  const text = refId ? (target ? previewTitle(target, schemaOf(schemas, target._type)!) : '') : previewText(item, of, 'subtitle')
-  return text ? <span className="subtitle">{text}</span> : null
+function ItemRow({item, of, onOpen}: {item: Item; of: Field; onOpen: () => void}) {
+  const {title, subtitle, media} = useItemPreview(item, of)
+  return (
+    <button type="button" className="array-item-preview" onClick={onOpen}>
+      <span className={media ? 'media has-image' : 'media'}>{media ? <Thumb value={media} /> : <DocumentIcon />}</span>
+      <span className="text">
+        <span className="title">{title}</span>
+        {subtitle && <span className="subtitle">{subtitle}</span>}
+      </span>
+    </button>
+  )
 }
 
 function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, onChange, onClose}: {
@@ -143,7 +159,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
   onClose: () => void
 }) {
   const t = useT()
-  const title = previewText(item, of, 'title') || t('Untitled')
+  const {title} = useItemPreview(item, of)
   // Over the whole document pane, as the other dialogs (not over the field's box).
   return (
     <PaneOverlay>
