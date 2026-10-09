@@ -18,7 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 2 changes
+- **Today** · 3 changes
+  - Freeform: drop the caret-parking workaround (canvas bug fixed); it stole early focus ([#355](https://github.com/FRIKKern/barkpark-studio/pull/355))
   - Kept edits: real probes for offline-then-reload and delete-during-replay ([#354](https://github.com/FRIKKern/barkpark-studio/pull/354))
   - Kept edits: per-page entries, and never replayed into a changed schema ([#353](https://github.com/FRIKKern/barkpark-studio/pull/353))
 - **Yesterday** · 113 changes, 24 tasks closed
