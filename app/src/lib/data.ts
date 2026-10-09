@@ -60,7 +60,9 @@ export type Group = {name: string; title?: string; default?: boolean}
 export type Ordering = {name: string; title: string; by: {field: string; direction: 'asc' | 'desc'}[]}
 /** A row's preview: title and media name fields; the subtitle may be prepared (J56, lib/preview.ts). */
 export type ListPreview = {title?: string; subtitle?: PreviewText; media?: string}
-export type Schema = {name: string; title: string; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]}
+/** One entry of a type's Expectation (Barkpark's `layout`): a bound field block, or the free region. */
+export type LayoutItem = {kind: 'field' | 'region' | string; name: string; max?: number; enforce?: boolean}
+export type Schema = {name: string; title: string; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; layout?: LayoutItem[]; prefill?: Record<string, unknown>}
 /**
  * B09: a related-documents view the schema declares (`desk.views`, Barkpark's LiveView
  * "view bar"): docs of `type` whose `by` field references the open doc.
@@ -88,8 +90,9 @@ async function bpJson<T>(path: string): Promise<T> {
 const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
   const schemas = await readSchemas()
   return schemas
-    .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values, desk, singleton}) => ({
+    .map(({name, title, fields, listPreview, list_preview, groups, initialValues, initial_values, desk, singleton, layout, prefill}) => ({
       name, title, fields, listPreview: listPreview ?? list_preview, groups: groups ?? [], initialValues: initialValues ?? initial_values ?? {},
+      layout: Array.isArray(layout) ? layout : [], prefill: prefill ?? {},
       singleton: singleton === true,
       orderings: ((desk as {orderings?: RawOrdering[]} | undefined)?.orderings ?? []).filter((o) => o.field || o.by?.length).map(ordering),
       views: ((desk as {views?: Json[]} | undefined)?.views ?? []) as Json[],
