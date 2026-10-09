@@ -1,12 +1,13 @@
 import {expect, test} from '@playwright/test'
 import {installProbes, timeToReady} from '../rig/feel'
-import {target} from '../rig/targets'
+import {target, reveal, closeAndSettle} from '../rig/targets'
 
 // J18, both studios: new post from the list, initial values, slug Generate; and the
 // "Post by Alan Turing" template (reference/sanity/sanity.config.ts, app studio.config.tsx)
 // in the navbar "+", the list "+" (a menu once a type has templates) and a reference's Create.
 let created: string | undefined
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (created) await target(info).deleteDoc(created, 'post')
   created = undefined
 })
@@ -21,7 +22,7 @@ test('@local J18: new post from the list — initial values, slug generate', asy
   await t.newDocButton(t.pane(page, 1)).click()
   await page.getByRole('menuitem', {name: 'Post', exact: true}).click()
   await expect(t.field(page, 'title')).toBeVisible()
-  await t.listItem(page, 'post-01').click()
+  await (await reveal(t.listItem(page, 'post-01'))).click()
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 01')
 
   await t.newDocButton(t.pane(page, 1)).click()

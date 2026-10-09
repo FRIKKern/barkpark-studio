@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
-import {bpMutate, target} from '../rig/targets'
+import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // B08 (Barkpark-native, ours only), after LiveView's media library: the Media tool
 // lists the dataset's assets; search and the visibility filter narrow them; an asset's
@@ -13,7 +13,8 @@ const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
 const NAME = `b08-${Date.now().toString(36)}.png`
 let asset: {id: string; docId: string} | undefined
 let folder: string | undefined
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name !== 'studio') return
   if (asset) {
     await fetch(`${media()}/${asset.id}/undo-checkout`, {method: 'POST', headers: auth()})

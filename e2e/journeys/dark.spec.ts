@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target} from '../rig/targets'
+import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J45 evidence: dark mode. Both studios with the OS in dark (stills side by side);
 // then ours only: the first painted frame is already dark (no white flash), the
@@ -12,7 +12,7 @@ const shot = (name: string, step: string) => `evidence/J45-${name}-${step}.png`
 const DARK_BG = 'rgb(19, 20, 27)'
 test.use({colorScheme: 'dark'})
 test.setTimeout(90_000)
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: 'Fixture post 03'}))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {title: 'Fixture post 03'})))
 
 const contrast = async (page: Page) =>
   (await new AxeBuilder({page}).withRules(['color-contrast']).analyze()).violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary?.split('\n')[1]?.trim()}`))

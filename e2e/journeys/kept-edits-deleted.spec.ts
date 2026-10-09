@@ -1,5 +1,5 @@
 import {expect, test, type Route} from '@playwright/test'
-import {bpMutate, signInIfAsked, target} from '../rig/targets'
+import {bpMutate, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J32 widen (task-6612fd882f8b8b63): someone deletes the doc while you type. The save
 // that was on its way meets the delete (404); every keystroke is kept, the deleted
@@ -8,7 +8,8 @@ import {bpMutate, signInIfAsked, target} from '../rig/targets'
 const ID = 'author-kept-at-delete'
 test.setTimeout(60_000)
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await bpMutate([{delete: {id: ID, type: 'author', force: true}}]).catch(() => {})
 })
 

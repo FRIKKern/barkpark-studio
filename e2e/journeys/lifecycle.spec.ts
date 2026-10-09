@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {target, type Target, BACKEND_POLL} from '../rig/targets'
+import {target, type Target, BACKEND_POLL, closeAndSettle} from '../rig/targets'
 
 // J03 + J04 + J13, both studios, three tests on three docs (QUALITY.md rule 5: each
 // under 5 s, and three tests spread over the CI shards). J03: typing is local-first —
@@ -22,7 +22,8 @@ async function docMenuItem(t: Target, page: Page, name: RegExp) {
   await page.getByRole('menuitem', {name}).click()
 }
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   for (const id of [ID, CHECKED, UNPUBLISHED]) await target(info).resetDoc(id, 'post')
 })
 

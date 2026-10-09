@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target} from '../rig/targets'
+import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J20 evidence, both studios, on post-17's excerpt: 10 s offline while typing, then
 // back; and (ours) a write that hangs. What the footer says at each step goes to the
@@ -12,8 +12,9 @@ const shot = (name: string, step: string) => `evidence/J20-${name}-${step}.png`
 test.use({video: 'on'})
 test.setTimeout(120_000)
 
-test.afterEach(async ({context}, info) => {
+test.afterEach(async ({context, page}, info) => {
   await context.setOffline(false)
+  await closeAndSettle(page)
   await target(info).restore(ID, {excerpt: EXCERPT})
 })
 

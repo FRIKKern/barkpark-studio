@@ -58,12 +58,18 @@ export type Target = {
 }
 
 /**
- * Before an afterEach puts fixture docs back: close the page and give a save it already
- * sent time to land, or that save lands after the reset and leaves a draft behind.
+ * Before an afterEach puts fixture docs back: let the page's saves land, then close it,
+ * or a save (or a write the reset itself sets off) lands after the reset and leaves a
+ * draft behind. Ours says when no save is on its way (lib/edits.ts); Sanity, which
+ * batches its saves, gets 3 s.
  */
 export async function closeAndSettle(page: Page) {
+  if (page.isClosed()) return
+  if (page.url() === 'about:blank') return void (await page.close())
+  const ours = await page.evaluate(() => typeof (window as {__savesPending?: unknown}).__savesPending === 'function').catch(() => false)
+  if (ours) await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending(), null, {timeout: 5_000}).catch(() => {})
   await page.close()
-  await new Promise((r) => setTimeout(r, 1500))
+  if (!ours) await new Promise((r) => setTimeout(r, 3000))
 }
 
 /**

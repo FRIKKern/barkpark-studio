@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {resetNative, target, type Target} from '../rig/targets'
+import {resetNative, target, type Target, closeAndSettle} from '../rig/targets'
 
 // D15, Barkdown's EDITOR-PARITY row 10 (app/tests/editor-tables.live.mjs) on our
 // canvas: /table inserts a table with a header row; type in cells, Tab / Shift+Tab
@@ -9,7 +9,8 @@ import {resetNative, target, type Target} from '../rig/targets'
 // agree after each step that saves.
 const ID = 'paper-03'
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control'
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await resetNative(ID, 'paper')
 })
 

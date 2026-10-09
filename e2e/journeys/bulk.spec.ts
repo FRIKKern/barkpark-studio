@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // B03 (Barkpark-native, ours only), after LiveView's bulk bar: tick note rows (keyboard:
 // Tab + Space), Publish selected → each doc on its own, one summary ("Published 2 of 3"
@@ -12,7 +12,8 @@ const versions = async (t: ReturnType<typeof target>, id: string) => {
   const [d, p] = await Promise.all([get('drafts'), get('published')])
   return `${d?.result?._draft ? 'draft' : 'no draft'}, ${p?.result ? 'published' : 'not published'}`
 }
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   if (t.name === 'studio') for (const id of IDS) await t.restore(id, {label: SEED_LABEL[id]}, 'note')
 })

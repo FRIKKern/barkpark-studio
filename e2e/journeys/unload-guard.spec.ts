@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type BrowserContext, type Page} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // B11 (Barkpark-native, ours only): closing the tab asks first while anything typed has
 // not reached Barkpark: a field edit still batching, a Freeform canvas edit not yet
@@ -9,7 +9,8 @@ const POST = 'post-05'
 const NOTE = 'note-03'
 const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjson', import.meta.url), 'utf8').split('\n').find((l) => l.includes(`"${NOTE}"`))!) as {title: string; label: string; body: unknown}
 let blocks: unknown
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   if (t.name !== 'studio') return
   await t.resetDoc(POST, 'post')

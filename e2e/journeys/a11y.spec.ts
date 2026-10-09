@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import {expect, test, type Page} from '@playwright/test'
-import {seededCount, signInIfAsked, target} from '../rig/targets'
+import {seededCount, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // F13, axe (WCAG 2.1 A + AA) on the J01–J04 screens, both studios: the list,
 // an open post, the post with a draft, and the Discard changes confirm. Ours must
@@ -15,7 +15,7 @@ const scan = async (page: Page) => {
   return violations.map((v) => ({id: v.id, impact: v.impact, nodes: v.nodes.length, where: v.nodes.slice(0, 3).map((n) => n.target.join(' '))}))
 }
 
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: TITLE}))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {title: TITLE})))
 
 test('@evidence F13: axe on the J01–J04 screens', async ({page}, info) => {
   const t = target(info)

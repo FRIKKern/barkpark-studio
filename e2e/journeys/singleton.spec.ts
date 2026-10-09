@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
-import {bpMutate, target} from '../rig/targets'
+import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // B13 (Barkpark-native, ours only; the Agency Studio's frontpage / siteSettings): a
 // `singleton: true` type is no list. With no desk it sits under Settings and opens its
@@ -18,7 +18,7 @@ const reset = async (info: Parameters<Parameters<typeof test.afterEach>[0]>[1]) 
   await mutate([{createOrReplace: SEED}, {publish: {id: ID, type: ID}}])
 }
 test.beforeEach(async ({}, info) => reset(info))
-test.afterEach(async ({}, info) => reset(info))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), reset(info)))
 
 test('@local B13: a singleton opens from Settings as its one doc; only publish, discard, restore', async ({page}, info) => {
   const t = target(info)

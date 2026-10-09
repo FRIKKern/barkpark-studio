@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J15 evidence, both studios: change two fields; the change bar beside a field
 // opens Review changes (what changed since publish, word diff, who); revert one
@@ -25,7 +25,8 @@ async function revert(t: Target, page: Page, field: 'Title' | 'all') {
   await page.getByRole('button', {name: field === 'all' ? 'Revert all' : 'Revert change', exact: true}).filter({visible: true}).last().click()
 }
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   await t.restore(ID, {title: TITLE, excerpt: EXCERPT, slug: t.name === 'sanity' ? {_type: 'slug', current: 'fixture-post-24'} : 'fixture-post-24'})
 })

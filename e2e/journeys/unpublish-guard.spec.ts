@@ -1,12 +1,13 @@
 import {expect, test} from '@playwright/test'
-import {bpMutate, target} from '../rig/targets'
+import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // B07 (Barkpark-native, ours only), after LiveView's unpublish guard: unpublishing an
 // author the posts refer to lists those posts (title, type / field) first; Cancel leaves
 // it live, "Unpublish anyway" unpublishes. B03's bulk unpublish shows the same, per doc.
 const base = () => `${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}/v1/data/doc/${process.env.BARKPARK_DATASET}/author`
 const live = (id: string) => fetch(`${base()}/${id}?perspective=published`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}}).then((r) => r.ok)
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   if (t.name === 'studio') await t.restore('author-ada', {name: 'Ada Lovelace'}, 'author')
 })
