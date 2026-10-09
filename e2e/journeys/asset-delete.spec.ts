@@ -12,22 +12,29 @@ const media = () => `${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSP
 const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
 const NAME = `j36-delete-${Date.now().toString(36)}.png`
 let asset: string | undefined
+let file: string | undefined
 test.afterEach(async ({}, info) => {
   if (target(info).name !== 'studio') return
   await bpMutate([{discardDraft: {id: ID, type: 'post'}}]).catch(() => {})
-  if (asset) await fetch(`${media()}/${asset}`, {method: 'DELETE', headers: auth()})
+  for (const id of [asset, file]) if (id) await fetch(`${media()}/${id}`, {method: 'DELETE', headers: auth()})
 })
 
 test('@local J36: an image in use cannot be deleted; unused, Delete asks and deletes it', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the reference by hand')
+  test.setTimeout(60_000)
   const png = readFileSync(new URL('../../fixtures/assets/fixture-image.png', import.meta.url))
   const body = new FormData()
   body.append('file', new Blob([png, new TextEncoder().encode(NAME)], {type: 'image/png'}), NAME)
   const up = await fetch(`${media()}/upload`, {method: 'POST', headers: auth(), body})
   expect(up.ok, `upload ${up.status}`).toBe(true)
   asset = ((await up.json()) as {result: {id: string}}).result.id
-  await bpMutate([{patch: {id: ID, type: 'post', set: {mainImage: {_type: 'image', asset: {_type: 'reference', _ref: `asset-${asset}`}}}}}])
+  // A file's uses come from backlinks too (#22418).
+  const pdf = new FormData()
+  pdf.append('file', new Blob([new TextEncoder().encode(`%PDF-1.4\n%%EOF\n${NAME}`)], {type: 'application/pdf'}), `${NAME}.pdf`)
+  file = ((await (await fetch(`${media()}/upload`, {method: 'POST', headers: auth(), body: pdf})).json()) as {result: {id: string}}).result.id
+  await bpMutate([{patch: {id: ID, type: 'post', set: {mainImage: {_type: 'image', asset: {_type: 'reference', _ref: `asset-${asset}`}}, attachment: {_type: 'file', asset: {_type: 'reference', _ref: `asset-${file}`}}}}}])
+  await expect.poll(async () => ((await (await page.request.get(`/api/media/${file}/usage`)).json()) as {_id: string}[]).map((u) => u._id), {timeout: 10_000}).toEqual([ID])
 
   await page.goto(t.docPath('post', ID))
   await t.settle(page)
