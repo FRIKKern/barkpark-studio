@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 88 changes, 21 tasks closed
+- **Today** · 89 changes, 19 tasks closed
+  - J64: a write member shares a preview (Barkpark #22488) ([#329](https://github.com/FRIKKern/barkpark-studio/pull/329))
   - ci: housekeeping pushes the README with its deploy key (the required-checks ruleset's only bypass) ([#328](https://github.com/FRIKKern/barkpark-studio/pull/328))
   - ci: unit job (typecheck + unit tests), to be a required check on main ([#327](https://github.com/FRIKKern/barkpark-studio/pull/327))
-  - Done: [Barkpark: login session token rejected right after login (/v1/auth/me, /v1/auth/tokens)](https://github.com/FRIKKern/barkpark/issues/21751)
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
