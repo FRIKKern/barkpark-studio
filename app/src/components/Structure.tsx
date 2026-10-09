@@ -15,6 +15,7 @@ import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
 import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
+import {DeskIcon} from './DeskIcon'
 import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search, Sort as SortIcon, Stack, StackCompact} from './icons'
 import {DocPreview} from './Preview'
 import {BulkBar} from './BulkBar'
@@ -301,12 +302,11 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
           if (!target) return null
           return (
             <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, target)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined} data-desk-node={item.id}>
+              <DeskIcon name={item.icon} />
               {item.title ?? item.id}
-              {item.type !== 'document' && (
-                <span className="chev">
-                  <ChevronRight />
-                </span>
-              )}
+              <span className="chev">
+                <ChevronRight />
+              </span>
             </PaneLink>
           )
         })}
