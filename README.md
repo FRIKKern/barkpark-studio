@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 91 changes, 20 tasks closed
+- **Today** · 92 changes, 21 tasks closed
+  - Keys typed while the body wakes up are kept, never dropped (J10, F8) ([#332](https://github.com/FRIKKern/barkpark-studio/pull/332))
+  - Done: [Barkpark: login session token rejected right after login (/v1/auth/me, /v1/auth/tokens)](https://github.com/FRIKKern/barkpark/issues/21751)
   - A parameterised template from a structure item, as Sanity's (J18 widen) ([#326](https://github.com/FRIKKern/barkpark-studio/pull/326))
-  - Done: [Studio: confirm Feels off / Server gap report route end to end](https://github.com/FRIKKern/barkpark/issues/21706)
-  - docs: 0003 says main requires its checks now, and how housekeeping pushes ([#330](https://github.com/FRIKKern/barkpark-studio/pull/330))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
