@@ -3,7 +3,9 @@ import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {expectEcho, mutatedIds} from '../server/listen'
-import {docQuery, type Doc, type ListPage} from './data'
+import {docQuery, schemasQuery, type Doc, type Field, type ListPage} from './data'
+import {findingsOf, findingsReason} from './findings'
+import {t} from './i18n'
 import {merge3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 
@@ -34,8 +36,10 @@ export const mutate = createServerFn({method: 'POST'})
     const body = (await res.json().catch(() => ({}))) as Json
     if (!res.ok) {
       // The long `hint` is dropped so a publish wall's `details` (rule + fix) survive the cut.
+      // A validation refusal keeps its coded findings whole (barkpark#22375), not the English map.
       const {error} = body as {error?: {[k: string]: Json}}
       const {hint: _, ...short} = error ?? {}
+      if (Array.isArray(short.findings)) throw new Error(`mutate ${res.status}: ${JSON.stringify({error: {code: short.code, message: short.message, findings: short.findings}}).slice(0, 8000)}`)
       throw new Error(`mutate ${res.status}: ${JSON.stringify(error ? {error: short} : body).slice(0, 600)}`)
     }
     expectEcho(requestToken(), mutatedIds(data.mutations))
@@ -277,6 +281,19 @@ function toPatch(fields: Map<string, unknown>) {
   return {set, unset}
 }
 
+/** A finding's path ("seo/metaDescription", "seo.metaDescription") as its field titles, "SEO › Meta description". */
+function fieldTitle(fields: Field[], path: string): string | undefined {
+  const titles: string[] = []
+  let here: Field[] | undefined = fields
+  for (const name of path.split(/[./]/).filter((p) => p && !/^\d+$|^\[/.test(p))) {
+    const f: Field | undefined = here?.find((x) => x.name === name)
+    if (!f) break
+    titles.push(f.title ?? f.name)
+    here = f.fields ?? f.of?.fields
+  }
+  return titles.length ? titles.join(' › ') : undefined
+}
+
 /** Barkpark's own reason, from a thrown "mutate 403: {error: {message}}" (cut at 600 characters). */
 export function reasonOf(msg: string): string | undefined {
   try {
@@ -347,6 +364,15 @@ async function send(qc: QueryClient, id: string) {
       e.dirty = new Map([...e.inflight!, ...e.dirty])
       e.inflight = null
       return setState(e, 'refused', reasonOf(msg) ?? 'Barkpark refused the change')
+    }
+    // A validation refusal (a dataset that enforces its schema): say which fields and why,
+    // in the editor's words; sending it again would only be refused again.
+    const findings = findingsOf(msg)
+    if (findings) {
+      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      e.inflight = null
+      const fields = qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === e.type)?.fields ?? []
+      return setState(e, 'refused', findingsReason(findings, (path) => fieldTitle(fields, path), t))
     }
     // No network: keep every value and wait for it, no error, no retry storm.
     if (isNetworkError(err)) {

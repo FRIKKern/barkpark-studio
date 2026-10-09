@@ -41,6 +41,9 @@ type Sel = {selected: boolean; active?: boolean}
 export const DocPreview = memo(function DocPreview({doc, href, selected, active, testId, badge, extra}: {doc: Doc | null | undefined; href?: string; testId?: string; badge?: string; extra?: ReactNode} & Sel) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const subtitle = useSubtitle(doc)
+  const t = useT()
+  // previewTitle's 'Untitled' is a placeholder, said in the editor's language; a real title never is.
+  const title = doc ? previewTitle(doc, schemaOf(schemas, doc._type)) : '…'
   // The schema's list_preview.media: an image field shows as the row's thumbnail, like Sanity.
   const mediaKey = doc ? schemaOf(schemas, doc._type)?.listPreview?.media : undefined
   const media = mediaKey ? (doc?.[mediaKey] as ImageValue | undefined) : undefined
@@ -48,7 +51,7 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
     <>
       <span className="media">{media ? <Thumb value={media} /> : <DocumentIcon />}</span>
       <span className="text">
-        <div className="t">{doc ? previewTitle(doc, schemaOf(schemas, doc._type)) : '…'}</div>
+        <div className="t">{title === 'Untitled' ? t('Untitled') : title}</div>
         {subtitle && <div className="s">{subtitle}</div>}
       </span>
       {badge && <span className="badge">{badge}</span>}
