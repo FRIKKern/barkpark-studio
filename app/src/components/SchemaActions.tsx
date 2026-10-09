@@ -1,5 +1,5 @@
 import {useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {docActionsQuery, runDocAction, type ActionPreview, type DocAction} from '../lib/doc-actions'
 import type {Doc} from '../lib/data'
 import {useT} from '../lib/i18n'
@@ -12,9 +12,14 @@ import {toast} from './Toasts'
  * Barkpark's two-step confirm: Confirm runs a dry-run and shows its preview, then
  * "Confirm for real" runs it.
  */
-export function useSchemaActions(doc: Doc, closeMenu: () => void) {
+export function useSchemaActions(doc: Doc, closeMenu: () => void, menuOpen: boolean) {
   const slug = typeof doc.slug === 'string' ? doc.slug : (doc.slug as {current?: string} | undefined)?.current
-  const {data: actions = []} = useQuery(docActionsQuery(doc._type, doc._publishedId, slug))
+  const query = docActionsQuery(doc._type, doc._publishedId, slug)
+  const qc = useQueryClient()
+  // Asked for when the menu is about to open (pointer or focus on its button), never
+  // on a pane open: opening a document stays one read (F2).
+  const {data: actions = []} = useQuery({...query, enabled: menuOpen})
+  const prefetch = () => void qc.prefetchQuery(query)
   const [open, setOpen] = useState<DocAction | null>(null)
   const items = actions.map((a) =>
     a.kind === 'link' ? (
@@ -28,7 +33,7 @@ export function useSchemaActions(doc: Doc, closeMenu: () => void) {
     ),
   )
   const dialog = open && <ActionDialog action={open} doc={doc} onClose={() => setOpen(null)} />
-  return {items, dialog}
+  return {items, dialog, prefetch}
 }
 
 function ActionDialog({action, doc, onClose}: {action: DocAction; doc: Doc; onClose: () => void}) {

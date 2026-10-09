@@ -723,7 +723,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   const canDiscard = !!doc._draft && doc._hasPublished !== false
   const set = (field: string, value: unknown) => edit(qc, doc, field, value)
   const actions = (studio.document?.actions?.(doc._type) ?? []).flatMap((action) => action({doc, set}) ?? [])
-  const schemaActions = useSchemaActions(doc, () => setMenu(false))
+  const schemaActions = useSchemaActions(doc, () => setMenu(false), menu)
   const alt = useAltName()
   const reason = publishReason ?? (blocked ? t('There are validation errors that need to be fixed before this document can be published') : undefined)
   const publishTip = useTip(() =>
@@ -805,8 +805,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       </button>
       {publishTip.tip}
       </span>
-      {(!single || canDiscard || actions.length > 0 || schemaActions.items.length > 0) && <div className="menu-wrap">
-        <button type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+      {(!single || canDiscard || actions.length > 0) && <div className="menu-wrap">
+        <button type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
         {menu && (
