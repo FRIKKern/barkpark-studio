@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 40 changes, 19 tasks closed
+- **Today** · 41 changes, 19 tasks closed
+  - J59: read the edited field from the source map's paths ([#273](https://github.com/FRIKKern/barkpark-studio/pull/273))
   - Barkpark's validation refusal in the editor's words (barkpark#22375) ([#272](https://github.com/FRIKKern/barkpark-studio/pull/272))
   - B08: metadata through Barkpark's PATCH, folders through the media API, visibility as a search facet ([#271](https://github.com/FRIKKern/barkpark-studio/pull/271))
-  - B07: Disconnect references and unpublish, as LiveView's guard ([#270](https://github.com/FRIKKern/barkpark-studio/pull/270))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
