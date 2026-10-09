@@ -19,6 +19,8 @@ function CountedInput(props: InputProps) {
 }
 
 export default defineStudio({
+  // Sanity's `title`. VITE_STUDIO_TITLE names one deployment ("Gyldendal Agency Studio").
+  title: import.meta.env.VITE_STUDIO_TITLE || 'Barkpark Studio',
   tools: [{name: 'stats', title: 'Stats', component: StatsTool}],
   presentation: {
     previewUrl: PREVIEW_ORIGIN,

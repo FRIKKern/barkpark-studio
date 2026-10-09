@@ -18,6 +18,8 @@ export type DocumentAction = (ctx: {doc: Doc; set: (field: string, value: unknow
 export type DocumentBadge = (doc: Doc) => {label: string; color?: 'primary' | 'success' | 'warning' | 'danger'; title?: string} | null
 
 export type StudioConfig = {
+  /** The studio's name in the navbar, Sanity's `title` ("Gyldendal Agency Studio"); its initials are the logo. */
+  title?: string
   tools?: Tool[]
   /** J58: the Presentation tool, over the site at `previewUrl`; J61: its routes' main documents. */
   presentation?: {
@@ -42,3 +44,10 @@ export type StudioConfig = {
 export type MainDocument = {route: string; type: string; field?: string}
 
 export const defineStudio = (config: StudioConfig) => config
+
+/** The navbar's name and logo initials ("GA" for "Gyldendal Agency Studio"), as Sanity derives them. */
+export function studioBrand(title: string | undefined) {
+  const name = title?.trim() || 'Barkpark Studio'
+  const initials = name.split(/\s+/).filter((w) => !/^studio$/i.test(w)).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || 'B'
+  return {name, initials: name === 'Barkpark Studio' ? 'B' : initials}
+}
