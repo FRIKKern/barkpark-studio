@@ -448,14 +448,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       </div>
       <div className="doc-title-bar">
         {header}
-        <div className="view-tabs" role="tablist" aria-label={t('Views')}>
+        {/* Sanity shows the view tabs only when a document has more than one view. */}
+        {views.length > 1 && <div className="view-tabs" role="tablist" aria-label={t('Views')}>
           {views.map((v) => (
             <button key={v.id} type="button" role="tab" aria-selected={view === v.id} onClick={() => navigate({href: withView(panes, index, viewParam(v.id, mode))})}>
               {v.icon}
               {v.title}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
       <div className="doc-main">
       <PresenceHints docId={pane.id} scroller={body} />
@@ -530,7 +531,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               copyPasteKey(e)
             }}
           >
-            <div className="kind">{schema.title}</div>
+            {/* The type's name above the title, unless it is the title (a singleton named by its type). */}
+            {docTitle(doc, schema, t) !== schema.title && <div className="kind">{schema.title}</div>}
             <h1>{docTitle(doc, schema, t)}</h1>
             {!revision && <LocationsBanner doc={doc} />}
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />

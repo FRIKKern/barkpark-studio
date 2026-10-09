@@ -6,7 +6,8 @@ export default {
   'Add item': 'Legg til element',
   'Add item after': 'Legg til etter',
   'Add item before': 'Legg til før',
-  'Add item...': 'Legg til...',
+  // Sanity nb-NO's array button reads "Legg til" (no ellipsis) beside its insert menu.
+  'Add item...': 'Legg til',
   'Add missing block ids': 'Legg til manglende blokk-id-er',
   'Add missing keys': 'Legg til manglende nøkler',
   'Block {n}: {reason}': 'Blokk {n}: {reason}',
