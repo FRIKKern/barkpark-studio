@@ -9,8 +9,8 @@ import {announce} from '../lib/announce'
 import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
 import {collapsed, NARROW, NarrowContext} from '../lib/layout'
 import {useLive} from '../lib/live'
-import {createDoc, draftNew, flushOnUnload} from '../lib/edits'
-import {editorMode} from '../lib/editor-mode'
+import {flushOnUnload} from '../lib/edits'
+import {choicesFor, startNew, type Choice} from '../lib/templates'
 import {toast} from './Toasts'
 import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
@@ -495,28 +495,23 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         <BackLink panes={panes} index={index} />
         <PaneTitle pane={panes[index]} />
         {/* B13: a singleton type has its one document, never a new one. */}
-        {!isSingleton(schemas, type) && <button
-          type="button"
-          className="icon-btn"
-          aria-label={t('Create new {type}', {type: schemaOf(schemas, type)?.title ?? type})}
-          disabled={!canWrite}
-          data-tip={t('Create new document')}
-          title={canWrite ? undefined : createReason}
-          onClick={() => {
-            // J18: a new doc opens in the next pane with the type's initial values;
-            // it is created on its first edit (Sanity's way: leaving it costs nothing).
-            // D04: a type with an Expectation is created at once: Barkpark builds its
-            // block list from the schema's layout and fills it from its prefill.
-            const id = crypto.randomUUID()
-            if (editorMode(type, schemaOf(schemas, type)) !== 'none')
-              void createDoc(qc, type, id, {}).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
-            else draftNew(qc, type, id, schemaOf(schemas, type)?.initialValues ?? {})
-            void navigate({href: openAfter(panes, index, {kind: 'doc', id, type})})
-            focusFirstField(id)
-          }}
-        >
-          <Add />
-        </button>}
+        {!isSingleton(schemas, type) && (
+          <NewInList
+            choices={choicesFor(schemas, type)}
+            label={t('Create new {type}', {type: schemaOf(schemas, type)?.title ?? type})}
+            disabledReason={canWrite ? undefined : createReason}
+            onPick={(choice) => {
+              // J18: a new doc opens in the next pane with the chosen template's values;
+              // it is created on its first edit (Sanity's way: leaving it costs nothing).
+              // D04: a type with an Expectation is created at once: Barkpark builds its
+              // block list from the schema's layout and fills it from its prefill.
+              const id = crypto.randomUUID()
+              startNew(qc, schemas, choice, id).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
+              void navigate({href: openAfter(panes, index, {kind: 'doc', id, type})})
+              focusFirstField(id)
+            }}
+          />
+        )}
         <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} />
       </header>
       <div className="search">
@@ -697,6 +692,37 @@ function ListMenu({schema, sort, view, set}: {schema: Schema | undefined; sort: 
           {item(t('Compact view'), view === 'compact', () => set({view: 'compact'}), false, <StackCompact />)}
           {item(t('Detailed view'), view === 'detailed', () => set({view: 'detailed'}), false, <Stack />)}
           {item(t('Default view'), false, () => set({view: DEFAULT_VIEW}), view === DEFAULT_VIEW)}
+        </MenuPopover>
+      )}
+    </div>
+  )
+}
+
+/**
+ * A list's "+" (J18): one way to start the type, one button; several (templates), a menu
+ * of them, Sanity's multi-action "+".
+ */
+function NewInList({choices, label, disabledReason, onPick}: {choices: Choice[]; label: string; disabledReason?: string; onPick: (choice: Choice) => void}) {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  if (choices.length === 1)
+    return (
+      <button type="button" className="icon-btn" aria-label={label} disabled={!!disabledReason} data-tip={t('Create new document')} title={disabledReason} onClick={() => onPick(choices[0]!)}>
+        <Add />
+      </button>
+    )
+  return (
+    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <button type="button" className="icon-btn" aria-label={label} disabled={!!disabledReason} data-tip={t('Create new document')} title={disabledReason} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Add />
+      </button>
+      {open && (
+        <MenuPopover onClose={() => setOpen(false)}>
+          {choices.map((c, i) => (
+            <button key={c.id} type="button" role="menuitem" className="menu-item" autoFocus={i === 0} onClick={() => (setOpen(false), onPick(c))}>
+              {c.title}
+            </button>
+          ))}
         </MenuPopover>
       )}
     </div>

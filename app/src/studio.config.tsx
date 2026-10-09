@@ -40,6 +40,8 @@ export default defineStudio({
     },
   },
   form: {inputs: {'post.excerpt': CountedInput}},
+  // J18: the reference Studio's template (reference/sanity/sanity.config.ts).
+  templates: [{id: 'post-by-alan', title: 'Post by Alan Turing', schemaType: 'post', value: {author: 'author-alan'}}],
   document: {
     actions: (type) =>
       type === 'post'
