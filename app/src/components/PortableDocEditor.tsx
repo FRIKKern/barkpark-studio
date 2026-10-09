@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult, type Rev} from '../lib/blocks'
@@ -10,6 +10,7 @@ import {detachMaster, insertMaster, mastersQuery, pinMaster, saveMaster, type Ma
 import {t as translate, useT, useLocale} from '../lib/i18n'
 import {forget, keep, keptKey, putBackOps, readKept, type Kept} from '../lib/kept-words'
 import {useRouter} from '@tanstack/react-router'
+import {FindBar, findKey, type FindCanvas} from './FindBar'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
 // EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
@@ -492,8 +493,30 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     }
   }, [seenRev, type, id, field])
 
+  // D19: find and replace, from inside the editor (Barkdown: inside the paper pane).
+  const [finding, setFinding] = useState<{focus: 'find' | 'replace'; at: number} | null>(null)
+  const findCanvas = () => canvas.current as unknown as FindCanvas | null
+  const closeFind = () => {
+    findCanvas()?.findClear()
+    setFinding(null)
+    host.current?.querySelector<HTMLElement>('.ProseMirror')?.focus()
+  }
+  const onKeyDownCapture = (e: KeyboardEvent<HTMLDivElement>) => {
+    const want = findKey(e)
+    if (want && canvas.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      setFinding({focus: want, at: Date.now()})
+    } else if (e.key === 'Escape' && finding && host.current?.contains(e.target as Node)) {
+      e.preventDefault()
+      e.stopPropagation()
+      closeFind()
+    }
+  }
+
   return (
-    <div className="pd-editor">
+    <div className="pd-editor" onKeyDownCapture={onKeyDownCapture}>
+      {finding && <FindBar canvas={findCanvas} opened={finding} onClose={closeFind} editable={editable} />}
       <div className="pd-status" role="status">
         {save.state === 'saving' ? t('Saving…') : save.state === 'saved' ? t('Saved') : save.state === 'error' ? (problem?.conflict ? t('Conflict') : t('Not saved')) : ''}
       </div>

@@ -230,4 +230,16 @@ export default {
   'Loading documents…': 'Laster dokumenter…',
   'Could not load the documents': 'Kunne ikke laste dokumentene',
   'No documents yet': 'Ingen dokumenter ennå',
+  // D19: find and replace in the canvas
+  'Find in document': 'Søk i dokumentet',
+  'Find': 'Søk',
+  '{n} of {count}': '{n} av {count}',
+  'No matches': 'Ingen treff',
+  'Previous match': 'Forrige treff',
+  'Next match': 'Neste treff',
+  'Replace with': 'Erstatt med',
+  'Replace': 'Erstatt',
+  'Replace all': 'Erstatt alle',
+  'Close find': 'Lukk søk',
+  'Replaced {count}': 'Erstattet {count}',
 } satisfies Record<string, string>

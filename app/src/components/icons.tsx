@@ -34,6 +34,11 @@ export const ChevronDown = () => (
     <path d="M7.5 10.5l5 5 5-5" />
   </svg>
 )
+export const ChevronUp = () => (
+  <svg {...s}>
+    <path d="M17.5 14.5l-5-5-5 5" />
+  </svg>
+)
 export const Ellipsis = () => (
   <svg {...s} fill="currentColor" stroke="none">
     <circle cx="6.5" cy="12.5" r="1.25" />
