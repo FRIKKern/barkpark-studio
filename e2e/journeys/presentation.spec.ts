@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
+import {bpMutate, closeAndSettle, signInIfAsked, target} from '../rig/targets'
 import {median, recordFeel} from '../rig/feel'
 
 // J58, Presentation: the site in an iframe beside "Documents on this page", and
@@ -342,6 +342,12 @@ test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the
 
   await page.getByRole('button', {name: 'Share this preview'}).click()
   const share = page.getByRole('dialog', {name: 'Share this preview'})
+  await expect(share.getByRole('switch')).toBeEnabled()
+  // A link left live by an earlier run (its token is in another browser): off first.
+  if (await share.getByRole('switch').isChecked()) {
+    await share.getByRole('switch').click()
+    await expect(share.getByRole('switch')).not.toBeChecked()
+  }
   await share.getByRole('switch').click()
   await expect(share.getByRole('switch')).toBeChecked()
   await expect(share.getByRole('img', {name: /^A QR Code which encodes the URL: /})).toBeVisible()
@@ -431,4 +437,35 @@ test('@evidence J59: hover outline and click-to-edit, side by side', async ({pag
   await site.getByText('Short excerpt for post 1.').click()
   await page.waitForTimeout(2000)
   await page.screenshot({path: `evidence/J59-${t.name}-2-click.png`})
+})
+
+// J60 (F4): someone else's edit to a document on the page is on the preview as soon
+// as Barkpark's listen frame arrives; the page patches itself from the frame (and
+// from the studio's own copy when the panel holds the document), never waiting on a
+// second read.
+test('@local J60 F4: a remote edit reaches the preview page within F4', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await page.goto('/presentation?preview=/posts/fixture-post-02')
+  await signInIfAsked(page)
+  await page.frameLocator('iframe').getByRole('heading', {name: 'Fixture post 02', level: 1}).waitFor()
+  const site = page.frames().find((f) => f.url().startsWith(SITE))!
+  const times: number[] = []
+  for (let i = 0; i < 5; i++) {
+    const text = `Remote ${i} ${Date.now()}`
+    await site.evaluate((want) => {
+      ;(window as unknown as {seen: Promise<number>}).seen = new Promise((done) => {
+        const o = new MutationObserver(() => document.body.innerText.includes(want) && (o.disconnect(), done(performance.timeOrigin + performance.now())))
+        o.observe(document.body, {subtree: true, childList: true, characterData: true})
+      })
+    }, text)
+    const sent = Date.now()
+    await bpMutate([{patch: {id: 'post-02', type: 'post', set: {excerpt: text}}}])
+    times.push((await site.evaluate(() => (window as unknown as {seen: Promise<number>}).seen)) - sent)
+  }
+  recordFeel('F4', median(times), 'J60 remote write → preview page')
+  expect(median(times), 'remote write → preview page (median, write round trip included)').toBeLessThan(300)
+  await closeAndSettle(page)
+  await t.resetDoc('post-02', 'post')
 })
