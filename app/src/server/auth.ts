@@ -40,7 +40,7 @@ export async function signIn(email: string) {
   if (!devLoginEnabled()) throw new Error('dev login is off')
   const token = await editorToken(email.trim().toLowerCase())
   const sid = randomBytes(24).toString('base64url')
-  sessions.set(sid, {email, token, permissions: await tokenPermissions(email.trim().toLowerCase())})
+  sessions.set(sid, {email, token, permissions: await tokenPermissions(token)})
   setCookie(COOKIE, sid, {httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 12})
 }
 
@@ -88,16 +88,14 @@ async function editorToken(email: string): Promise<string> {
 
 /**
  * What the editor's token may do (J49: a read-only editor sees a locked form, not
- * refused writes). Barkpark has no "who am I" for an app token, so the admin list of
- * the tokens this studio minted is read for the live one labelled with their email
- * (no token "who am I" yet: task-bc2541aca8541ff1).
+ * refused writes): the token describes itself (GET /v1/auth/token, barkpark#22130), its
+ * permissions as far as its seat in the workspace allows. Unknown: Barkpark judges each write.
  */
-async function tokenPermissions(email: string): Promise<string[]> {
-  const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/app-tokens?email=${encodeURIComponent(email)}`, {headers: {authorization: `Bearer ${admin()}`}}).catch(() => undefined)
-  if (!res?.ok) return ['read', 'write'] // unknown: Barkpark judges each write
-  const {tokens} = (await res.json()) as {tokens: {label: string; permissions: string[]; revoked_at: string | null; inserted_at: string}[]}
-  const live = tokens.filter((t) => t.label === `app:${email}` && !t.revoked_at).sort((a, b) => b.inserted_at.localeCompare(a.inserted_at))
-  return live[0]?.permissions ?? ['read', 'write']
+async function tokenPermissions(token: string): Promise<string[]> {
+  const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}}).catch(() => undefined)
+  if (!res?.ok) return ['read', 'write']
+  const me = (await res.json()) as {permissions?: string[]; seat?: {can?: Record<string, boolean>}}
+  return (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false)
 }
 
 /**

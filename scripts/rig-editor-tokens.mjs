@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Read-only editors for the dev sign-in evidence specs (J48 session.spec, J49 read-only.spec):
+// A read-only editor for the dev sign-in evidence specs (J48 session.spec, J49 read-only.spec):
 //   node --env-file=.env scripts/rig-editor-tokens.mjs e2e-<lane>   # the lane is its dataset
-// studio-editor-c gets a read-only token labelled rig:… (the studio can't see it is read-only,
-// so its write is refused: J48's 403). studio-editor-d gets a read-only app:… token (the
-// studio reads its permissions and locks the form: J49). Both go into the gitignored
+// studio-editor-d gets a read-only app:… token (the studio reads its permissions,
+// GET /v1/auth/token, and locks the form: J49; J48 borrows its session for a 403).
+// Earlier runs' editor-c (rig:) tokens are revoked too. It goes into the gitignored
 // .studio-dev-tokens.json, where dev sign-in reuses them. Minted with the .env token (it
 // must administer the workspace). --revoke revokes them and forgets them.
 import {readFileSync, writeFileSync} from 'node:fs'
@@ -15,6 +15,7 @@ const saved = (() => { try { return JSON.parse(readFileSync(file, 'utf8')) } cat
 const url = process.env.BARKPARK_URL
 const admin = {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`, 'content-type': 'application/json'}
 const editors = {'studio-editor-c@example.com': 'rig', 'studio-editor-d@example.com': 'app'}
+const minted = new Set(['studio-editor-d@example.com'])
 
 const list = await fetch(`${url}/v1/auth/app-tokens`, {headers: admin})
 if (!list.ok) throw new Error(`listing app tokens: ${list.status} (the .env token must administer ${process.env.BARKPARK_WORKSPACE})`)
@@ -24,7 +25,7 @@ for (const [email, kind] of Object.entries(editors)) {
   for (const t of live.filter((t) => t.label === `${kind}:${email}` && (kind === 'app' || t.permissions.join() === 'read')))
     await fetch(`${url}/v1/auth/app-tokens/${t.id}`, {method: 'DELETE', headers: admin})
   delete saved.tokens[email]
-  if (process.argv.includes('--revoke')) continue
+  if (process.argv.includes('--revoke') || !minted.has(email)) continue
   const res = await fetch(`${url}/v1/auth/app-tokens`, {
     method: 'POST',
     headers: admin,
@@ -36,4 +37,4 @@ for (const [email, kind] of Object.entries(editors)) {
   saved.workspaceId ??= workspace_id
 }
 writeFileSync(file, JSON.stringify(saved, null, 2))
-console.log(process.argv.includes('--revoke') ? `${lane}: editor c and d tokens revoked` : `${lane}: editors c (rig:, read-only) and d (app:, read-only) ready for dev sign-in`)
+console.log(process.argv.includes('--revoke') ? `${lane}: editor d's tokens revoked` : `${lane}: editor d (app:, read-only) ready for dev sign-in`)
