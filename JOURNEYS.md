@@ -54,7 +54,7 @@ quality first, never a shrinking finish line.
 | J42 | 1 | Narrow window: below the minimum width one pane shows with a Back button; panes and URL stay right both ways | F2 F12 |
 | J44 | 4 | Very long doc: 200 fields + a 300-item array, or a 400-paragraph body, still meet F1 and F2 | F1 F2 F11 |
 | J45 | after | Dark mode: follows the system, user menu System / Light / Dark, survives reload, no white flash, everything readable | F10 |
-| J46 | after | Phone width: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px | F12 |
+| J46 | after | Phone and tablet, by touch: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px; what hover reveals (field "…", Add comment) always shown; the doc header one row; the footer never under the browser's toolbars; drag rows, pick references, swipe lists, type in the body by finger | F12 |
 | J47 | after | Dialogs and popovers trap focus and return it to their opener (was J43). Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced; axe clean on the search dialog, menus, image library, Presentation, media and canvas too | F5 F13 |
 | J48 | 3 | Session lost mid-edit: "You've been logged out" banner, writes stop (never saved as anyone else), sign in again, pending edits survive | F9 F15 |
 | J49 | 2 | Read-only role or denied doc (the signed-in editor's token or the studio's own): banner, locked form, actions disabled with the reason, list "+", comments and media writes greyed; a dataset-bound token offers only its dataset | F9 F15 |

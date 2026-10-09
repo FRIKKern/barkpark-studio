@@ -94,3 +94,25 @@ test('@local J46: phone width — tools in a drawer, search an icon, 44 px targe
   await expect(page).toHaveURL(/\/vision$/)
   await expect(drawer).toBeHidden()
 })
+
+test('@local J46: on a touch phone, what hover reveals is there, and the document header is one row', async ({browser}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the touch scout compared both; this guards ours')
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true})
+  await t.prepare(context)
+  const page = await context.newPage()
+  await page.goto(t.docPath('post', 'post-03'))
+  await signInIfAsked(page)
+  await t.settle(page)
+  // Field "…" and Add comment: hover-only on a desktop, always shown without hover (as Sanity's).
+  const fieldActions = page.getByRole('button', {name: 'Field actions'}).first()
+  await expect(fieldActions).toBeVisible()
+  expect(await fieldActions.evaluate((el) => Number(getComputedStyle(el.closest('.field-actions')!).opacity))).toBe(1)
+  await fieldActions.tap()
+  await expect(page.getByRole('menuitem').first()).toBeVisible()
+  await page.keyboard.press('Escape')
+  // The document header keeps one row (it wrapped its last button onto a second).
+  const tops = await page.locator('[data-testid="document-pane"] .pane-header').first().locator(':scope > button, :scope > .menu-wrap > button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)))
+  expect(new Set(tops).size, `header button rows (tops ${tops})`).toBe(1)
+  await context.close()
+})
