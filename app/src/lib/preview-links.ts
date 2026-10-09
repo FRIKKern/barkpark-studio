@@ -1,14 +1,17 @@
 import {createServerFn} from '@tanstack/react-start'
-import {bpFetch, bpRoot, dataset, scope} from '../server/barkpark'
+import {bpFetch, bpRoot, dataset, requestToken, scope} from '../server/barkpark'
+import {describeToken} from '../server/auth'
 
 // J64: sharing a preview. Barkpark mints a link to one document, draft included
-// (`POST /v1/shares/preview-links`, admin only, 24 h; task-6812c3100d7aedbc); the
+// (`POST /v1/shares/preview-links`, 24 h; any write member since Barkpark #22488); the
 // site takes its token (`?bp-share=`) and shows that document's draft on the page.
 // Barkpark keeps only the token's hash, so the link is shown once: this browser
-// remembers it (localStorage) while it is live.
+// remembers it (localStorage) while it is live. Listing and revoking links stay
+// admin-only: a member sees the link this browser made, and it runs out by itself.
 
 type Link = {id: string; doc_id: string; expires_at: string; revoked_at: string | null}
-export type ShareState = {allowed: false} | {allowed: true; active: {id: string; expiresAt: string}[]}
+/** `listed: false`: Barkpark lists links only to an admin; the page knows what it made. */
+export type ShareState = {allowed: false} | {allowed: true; listed: boolean; active: {id: string; expiresAt: string}[]}
 
 const where = () => {
   const at = scope()
@@ -19,15 +22,18 @@ const where = () => {
 export const shareState = createServerFn({method: 'GET'})
   .validator((d: {type: string; id: string}) => d)
   .handler(async ({data}): Promise<ShareState> => {
+    // Minting needs write (a read-only seat is refused): the token says what it may do.
+    const self = await describeToken(requestToken())
+    if (self.refused || !self.permissions.includes('write')) return {allowed: false}
     // A link names the id it was made for: the draft's, or the published one.
     const read = (id: string) => bpRoot(`/v1/shares/preview-links?${new URLSearchParams({scope: where(), ref_type: data.type, doc_id: id})}`)
     const answers = await Promise.all([read(data.id), read(`drafts.${data.id}`)])
-    if (answers.some((r) => r.status === 401 || r.status === 403)) return {allowed: false}
+    if (answers.some((r) => r.status === 401 || r.status === 403)) return {allowed: true, listed: false, active: []}
     const bad = answers.find((r) => !r.ok)
     if (bad) throw new Error(`Barkpark preview links → ${bad.status}`)
     const links = (await Promise.all(answers.map((r) => r.json() as Promise<{links?: Link[]}>))).flatMap((b) => b.links ?? [])
     const now = Date.now()
-    return {allowed: true, active: links.filter((l) => !l.revoked_at && Date.parse(l.expires_at) > now).map((l) => ({id: l.id, expiresAt: l.expires_at}))}
+    return {allowed: true, listed: true, active: links.filter((l) => !l.revoked_at && Date.parse(l.expires_at) > now).map((l) => ({id: l.id, expiresAt: l.expires_at}))}
   })
 
 export const mintShare = createServerFn({method: 'POST'})
@@ -43,10 +49,14 @@ export const mintShare = createServerFn({method: 'POST'})
     return {token: body.token, id: body.link.id, expiresAt: body.link.expires_at}
   })
 
+/** False when Barkpark refuses (only an admin may revoke a link). */
 export const revokeShares = createServerFn({method: 'POST'})
   .validator((ids: string[]) => ids)
   .handler(async ({data}) => {
-    await Promise.all(data.map((id) => bpRoot(`/v1/shares/preview-links/${encodeURIComponent(id)}`, {method: 'DELETE'})))
+    const answers = await Promise.all(data.map((id) => bpRoot(`/v1/shares/preview-links/${encodeURIComponent(id)}`, {method: 'DELETE'})))
+    if (answers.some((r) => r.status === 401 || r.status === 403)) return false
+    const bad = answers.find((r) => !r.ok && r.status !== 404)
+    if (bad) throw new Error(`Barkpark preview links → ${bad.status}`)
     return true
   })
 

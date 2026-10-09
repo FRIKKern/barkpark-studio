@@ -416,8 +416,8 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
 /**
  * J64, Sanity's share menu: sharing on/off, a QR code of the shared link, Copy
  * preview link. Barkpark links one document, draft included, for 24 hours; the
- * shared page shows the panel's document as it is now. Only a workspace admin may
- * share (Barkpark answers 403 otherwise), as Sanity's needs the grant.
+ * shared page shows the panel's document as it is now. An editor who may write may
+ * share (Barkpark #22488); a read-only seat sees why not. Stopping a link is an admin's.
  */
 function ShareMenu({doc, pageUrl}: {doc: {type: string; id: string} | null; pageUrl: string}) {
   const t = useT()
@@ -429,15 +429,16 @@ function ShareMenu({doc, pageUrl}: {doc: {type: string; id: string} | null; page
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [qr, setQr] = useState<string | null>(null)
-  const remembered = (): {token: string; id: string} | null => {
+  const remembered = (): {token: string; id: string; expiresAt?: string} | null => {
     try {
       return key ? JSON.parse(localStorage.getItem(key) ?? 'null') : null
     } catch {
       return null
     }
   }
-  const active = state?.allowed ? state.active : []
   const mine = remembered()
+  // Barkpark lists links only to an admin: otherwise the one this browser made, while live.
+  const active = !state?.allowed ? [] : state.listed ? state.active : mine?.expiresAt && Date.parse(mine.expiresAt) > Date.now() ? [{id: mine.id, expiresAt: mine.expiresAt}] : []
   const token = mine && active.some((l) => l.id === mine.id) ? mine.token : null
   const on = active.length > 0
   const url = token ? `${pageUrl}${pageUrl.includes('?') ? '&' : '?'}bp-share=${token}` : null
@@ -453,13 +454,14 @@ function ShareMenu({doc, pageUrl}: {doc: {type: string; id: string} | null; page
     setError(null)
     try {
       if (on) {
-        await revokeShares({data: active.map((l) => l.id)})
+        if (!(await revokeShares({data: active.map((l) => l.id)})))
+          throw new Error(t('Only an admin can stop a shared link. It stops working by itself {when}.', {when: new Date(active[0]!.expiresAt).toLocaleString()}))
         if (key) localStorage.removeItem(key)
       } else {
         // The draft when there is one: the link shows what the editor sees.
         const draft = qc.getQueryData<{_draft?: boolean}>(['doc', doc.id])?._draft
         const link = await mintShare({data: {type: doc.type, id: draft ? `drafts.${doc.id}` : doc.id}})
-        if (key) localStorage.setItem(key, JSON.stringify({token: link.token, id: link.id}))
+        if (key) localStorage.setItem(key, JSON.stringify({token: link.token, id: link.id, expiresAt: link.expiresAt}))
       }
       await refetch()
     } catch (e) {

@@ -180,8 +180,9 @@ test('@evidence J61: the panel follows the page, side by side', async ({page, co
 })
 
 // J64: the phone viewport (Sanity's 375×650, kept in the URL), Open preview, and the
-// share menu (nothing shared yet: no QR code, nothing to copy). Sharing itself needs
-// a workspace admin's token, which CI's is not: '@local J64 sharing' below.
+// share menu: nothing shared yet (no QR code, nothing to copy), then shared (any write
+// member may, Barkpark #22488), then off. Stopping a link is an admin's: CI's token is
+// a member's, so there Barkpark refuses and the menu says the link runs out by itself.
 test('J64: viewport toggle, Open preview, share menu', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
@@ -206,6 +207,13 @@ test('J64: viewport toggle, Open preview, share menu', async ({page, context}, i
   await expect(share.getByRole('switch')).not.toBeChecked()
   await expect(share).toContainText('QR code will appear here')
   await expect(share.getByRole('button', {name: 'Copy preview link'})).toBeDisabled()
+  await share.getByRole('switch').click()
+  await expect(share.getByRole('switch')).toBeChecked()
+  await expect(share.getByRole('img', {name: /QR Code which encodes the URL: .*bp-share=/})).toBeVisible()
+  await expect(share.getByRole('button', {name: 'Copy preview link'})).toBeEnabled()
+  await share.getByRole('switch').click()
+  // An admin's token stops it; a member's is refused, and the menu says why.
+  await expect(async () => expect(!(await share.getByRole('switch').isChecked()) || (await share.getByRole('alert').filter({hasText: 'Only an admin can stop a shared link'}).isVisible())).toBe(true)).toPass({timeout: 5_000})
   await page.keyboard.press('Escape')
   await expect(share).toBeHidden()
 })
