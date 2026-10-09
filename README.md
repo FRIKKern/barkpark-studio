@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 72 changes, 19 tasks closed
+- **Today** · 73 changes, 19 tasks closed
+  - A refused studio token says so, not "Could not fetch list items" ([#312](https://github.com/FRIKKern/barkpark-studio/pull/312))
   - Cold-load scout: hashed assets cached for a year on the prod server ([#311](https://github.com/FRIKKern/barkpark-studio/pull/311))
   - Bad day: a content model changed under an open tab says so, with Reload ([#310](https://github.com/FRIKKern/barkpark-studio/pull/310))
-  - A deep link into a dataset a bound token can't open says why ([#309](https://github.com/FRIKKern/barkpark-studio/pull/309))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
