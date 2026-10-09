@@ -3,6 +3,8 @@
 // (Barkpark meters each token: 60 writes, 300 reads a minute):
 //   node --env-file=.env scripts/lane-token.mjs e2e-freeform   # the lane is its dataset
 // Two per lane: `app` for the studio server, `rig` for the specs' own reads and writes.
+// A token minted with a `dataset` is bound to it (Barkpark, 2026-10-09): `rig` is (the
+// specs touch only the lane), `app` is not (the studio switches datasets, B02).
 // Reused while they work, else the lane's old ones (label lane:<dataset>[:rig]) are
 // revoked and new ones minted with the .env token (it must administer the workspace).
 // Kept in the gitignored .e2e-lane-tokens.json; e2e/run.mjs picks them up by dataset.
@@ -32,7 +34,7 @@ if (!process.argv.includes('--revoke')) {
     const res = await fetch(`${url}/v1/auth/app-tokens`, {
       method: 'POST',
       headers: admin,
-      body: JSON.stringify({email: `${lane}@lanes.example.com`, workspace: ws, permissions: ['read', 'write'], label, dataset: lane}),
+      body: JSON.stringify({email: `${lane}@lanes.example.com`, workspace: ws, permissions: ['read', 'write'], label, ...(use === 'rig' && {dataset: lane})}),
     })
     if (!res.ok) throw new Error(`minting ${label}: ${res.status} ${await res.text()}`)
     tokens[lane][use] = (await res.json()).token
