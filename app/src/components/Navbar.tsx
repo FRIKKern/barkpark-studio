@@ -250,13 +250,17 @@ function Editor() {
 }
 
 // J58: Presentation after Structure, as Sanity's. J65: the config's tools follow the built-in ones.
-const TOOLS: (readonly [string, string])[] = [
+// `navbarTools` (names, in order) picks and orders them for one deployment; hidden tools' routes still work.
+const ALL_TOOLS: (readonly [string, string])[] = [
   ['/structure', 'Structure'],
   ...(studio.presentation ? [['/presentation', 'Presentation'] as const] : []),
   ['/vision', 'Vision'],
   ['/media', 'Media'],
   ...(studio.tools ?? []).map((tool) => [`/${tool.name}`, tool.title] as const),
 ]
+const TOOLS = studio.navbarTools
+  ? studio.navbarTools.flatMap((name) => ALL_TOOLS.filter(([to]) => to === `/${name}`))
+  : ALL_TOOLS
 
 // Sanity's wording: the item reads "System", its name is "Use system appearance".
 const APPEARANCES: [Appearance, string, () => React.JSX.Element][] = [

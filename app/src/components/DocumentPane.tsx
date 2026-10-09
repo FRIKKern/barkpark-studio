@@ -1,4 +1,5 @@
 import {announce} from '../lib/announce'
+import {GroupIcon} from './GroupIcon'
 import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {NarrowContext} from '../lib/layout'
 import {DialogBox, MenuPopover} from './FocusScopes'
@@ -675,6 +676,8 @@ function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: 
           tabIndex={value === g.name ? 0 : -1}
           onClick={() => onChange(g.name)}
         >
+          {/* A group's `icon` (a Sanity icon name) before its title, as Sanity's tabs. */}
+          <GroupIcon name={(g as {icon?: unknown}).icon} />
           {g.title ?? g.name}
           {/* The most serious level in the group, like Sanity's tab icons. */}
           {(() => {
