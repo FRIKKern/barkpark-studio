@@ -33,7 +33,11 @@ export function barkparkApi(env: Env): Plugin {
     if (kind === 'home') return {posts: (await query('post', {order: 'title:asc', expand: 'author'}, perspective)).filter((p) => p.slug)}
     if (kind === 'post') {
       const post = (await query('post', {'filter[slug][eq]': key, expand: 'author,categories,related', limit: '1'}, perspective))[0] ?? null
-      return {post, maps: post ? [await sourceMap('post', (post._publishedId as string) ?? post._id, perspective)] : []}
+      // The author shown on the page is its own document: its own source map (a reference
+      // expanded into the post is not mapped yet, task-0e0cb2167c6fcdea).
+      const author = post?.author && typeof post.author === 'object' ? (post.author as Doc) : null
+      const [own, by] = post ? await Promise.all([sourceMap('post', (post._publishedId as string) ?? post._id, perspective), author ? sourceMap('author', (author._publishedId as string) ?? author._id, perspective) : null]) : [null, null]
+      return {post, maps: [own, by]}
     }
     if (kind === 'author') {
       const got = await fetch(`${base}/v1/data/doc/${dataset}/author/${encodeURIComponent(key)}?perspective=${perspective}&sourceMap=true`, {headers: auth})
