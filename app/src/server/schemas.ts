@@ -40,3 +40,16 @@ export async function readDesk(): Promise<unknown | null> {
   // so the tree answers "Structure" (task-b40b41f8d21992ae); the declared title wins here.
   return typeof title === 'string' && title.trim() ? {...tree, title: title.trim()} : tree
 }
+
+/**
+ * The content model as one short string (each type's name and Barkpark's schemaHash):
+ * when it differs from what a tab loaded, a schema was changed under it (lib/version.ts).
+ */
+export async function schemaFingerprint(): Promise<string> {
+  if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return 'fixtures'
+  const schemas = (await readSchemas()) as (RawSchema & {schemaHash?: string})[]
+  return schemas
+    .map((s) => `${s.name}:${s.schemaHash ?? JSON.stringify(s.fields).length}`)
+    .sort()
+    .join(',')
+}

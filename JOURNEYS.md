@@ -62,7 +62,7 @@ quality first, never a shrinking finish line.
 | J50 | 1 | Backend down: list "Could not fetch list items" + Retry, bounded auto-retries; "Trying to connect…" toast; a pane that crashes shows an error card + Retry (Sanity: whole tool) | F9 |
 | J51 | 1 | Slow network (Fast 3G): shell paints, every pane shows a loading state, never a blank or dead click | F3 F14 |
 | J52 | 2 | Focused field lives in the URL: reload or a copied link returns to that field | F2 |
-| J53 | after | New Studio version while tabs are open: a dot on Help and "Reload to update" in its menu (Sanity v6; its "ready to update" toast is deprecated); waiting edits save first, nothing lost | F9 |
+| J53 | after | New Studio version, or a changed content model, while tabs are open: a dot on Help and "Reload to update" (Sanity v6), "The content model changed" + Reload; waiting edits save first, nothing lost | F9 |
 | J54 | 2 | File field: upload with an accept filter (PDF), file name and size shown, replace, remove, open the file | F5 F9 |
 | J55 | 1 | Schema orderings: the list menu offers the type's own orderings by title, and a desk list opens in its declared one | F2 |
 | J57 | 1 | Hover every icon button: a tooltip with its shortcut where one exists; toasts can be closed and repeats replace each other | F5 F10 |
