@@ -176,7 +176,7 @@
 <text x="600" y="1152" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D18 Full marks</tspan></text>
 <text x="870" y="1002" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D19 Find and replace in…</tspan></text>
 <text x="870" y="1032" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D20 When retries run out…</tspan></text>
-<text x="870" y="1062" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D21 A failed save follow…</tspan></text>
+<text x="870" y="1062" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">D21 A failed save follow…</tspan></text>
 <text x="870" y="1092" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">D22 An agent's edit to a…</tspan></text>
 </g>
 <g data-track="native">
