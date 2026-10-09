@@ -115,9 +115,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   )
   const schema = schemaOf(schemas, pane.type)
   const fieldLabels = useMemo(() => Object.fromEntries((schema?.fields ?? []).map((f) => [f.name, f.title ?? f.name])), [schema])
-  // Decision 0004: a doc that carries a PortableDoc block list (its type has a layout)
-  // also opens in Barkpark's block canvas. The doc says so; the schema read omits
-  // `layout` (task-28082a4cf187403d). FF3 makes it the default per type.
+  // Decision 0004: a type with a layout also opens in Barkpark's block canvas (FF3,
+  // lib/editor-mode.ts, from the schema's layout); an Expectation doc once it carries its block list.
   const {canWrite, editReason, signedOut} = useCanWrite()
 
   // J52: the focused field lives in the URL (Sanity's `path=`): a reload or a copied

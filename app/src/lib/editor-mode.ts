@@ -6,18 +6,22 @@ import type {Schema} from './data'
 //    with a Classic ⇄ Freeform toggle over the same block list;
 //  - none: Classic only (the Sanity-parity path).
 // (`field`, a richText field's own canvas, is per field: J10/J11.)
-// Source: the schema's `layout` once Barkpark's schema read carries it
-// (task-28082a4cf187403d); until then this map, which wins over it.
+// Source: the schema's `layout` (Barkpark's schema read carries it, #22280). A layout
+// whose region is one of the type's own richText fields makes a PortableDoc type (the
+// document is its block list: main); any other layout is an Expectation over a form
+// (alternative). EDITOR_MODES overrides it for a type.
 export type EditorMode = 'main' | 'alternative' | 'none'
 
 export const EDITOR_MODES: Record<string, EditorMode> = {
-  paper: 'main', // Bulldocs' PortableDoc type
-  story: 'alternative', // the Expectation fixture (fixtures/barkpark-schema/story.json)
-  note: 'main', // the Freeform-main fixture (fixtures/barkpark-schema/note.json)
+  paper: 'main', // Bulldocs' PortableDoc type, with or without a layout in this workspace
 }
 
-export function editorMode(type: string, schema?: Schema & {layout?: unknown}): EditorMode {
-  return EDITOR_MODES[type] ?? (schema?.layout ? 'alternative' : 'none')
+export function editorMode(type: string, schema?: Schema): EditorMode {
+  if (EDITOR_MODES[type]) return EDITOR_MODES[type]
+  const layout = schema?.layout ?? []
+  if (!layout.length) return 'none'
+  const regions = new Set(layout.filter((l) => l.kind === 'region').map((l) => l.name))
+  return schema!.fields.some((f) => f.type === 'richText' && regions.has(f.name)) ? 'main' : 'alternative'
 }
 
 /** A document view: the form, the canvas, the doc as JSON, or one of the schema's desk views (B09). */

@@ -491,7 +491,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             // J18: a new doc opens in the next pane with the type's initial values;
             // it is created on its first edit (Sanity's way: leaving it costs nothing).
             // D04: a type with an Expectation is created at once: Barkpark builds its
-            // block list from the layout and fills it from the prefill (neither reaches us).
+            // block list from the schema's layout and fills it from its prefill.
             const id = crypto.randomUUID()
             if (editorMode(type, schemaOf(schemas, type)) !== 'none')
               void createDoc(qc, type, id, {}).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
