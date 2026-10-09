@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 78 changes, 19 tasks closed
+- **Today** · 79 changes, 19 tasks closed
+  - JOURNEYS: completeness audit — merge J52→J02, J62→J59, J43→J47; widen J17 J18 J26; add J66 Tasks, J67 production sign-in ([#318](https://github.com/FRIKKern/barkpark-studio/pull/318))
   - Deletes go up to 500 per request; a lower cap named by Barkpark is followed ([#317](https://github.com/FRIKKern/barkpark-studio/pull/317))
   - Keystrokes typed as the doc is deleted come back with Restore (J32 widen) ([#316](https://github.com/FRIKKern/barkpark-studio/pull/316))
-  - Unsaved form edits survive a reload or crash (B11 widen) ([#315](https://github.com/FRIKKern/barkpark-studio/pull/315))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
