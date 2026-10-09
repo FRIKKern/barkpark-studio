@@ -53,6 +53,9 @@ export const requestToken = () => config().token
 
 export const dataset = () => config().dataset
 
+/** This request's workspace/project API root (`…/w/<ws>/p/<project>`), for links into Barkpark. */
+export const apiBase = () => config().base
+
 /**
  * Fetch a Barkpark API path (`/v1/...`, dataset already substituted) with the token
  * attached (`token` overrides the request's). A 429

@@ -1448,3 +1448,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .share-qr { margin: 12px 0 0; aspect-ratio: 1; display: grid; place-items: center; padding: 0 48px; text-align: center; background: var(--hover); color: var(--muted); }
 .share-note { margin: 12px 0; color: var(--muted); }
 .share-preview .menu-item:disabled { color: var(--muted); }
+/* B10: a schema action's dry-run preview. */
+.schema-action { max-width: 640px; }
+.action-preview { margin: 12px 0 0; border: 1px solid var(--line); border-radius: 4px; max-height: 320px; overflow: auto; }
+.action-preview pre { margin: 0; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }

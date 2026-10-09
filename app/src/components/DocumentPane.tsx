@@ -39,6 +39,7 @@ import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from 
 import {ReadErrorCard} from './PaneError'
 import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 import studio from '../studio.config'
+import {useSchemaActions} from './SchemaActions'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -722,6 +723,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   const canDiscard = !!doc._draft && doc._hasPublished !== false
   const set = (field: string, value: unknown) => edit(qc, doc, field, value)
   const actions = (studio.document?.actions?.(doc._type) ?? []).flatMap((action) => action({doc, set}) ?? [])
+  const schemaActions = useSchemaActions(doc, () => setMenu(false), menu)
   const alt = useAltName()
   const reason = publishReason ?? (blocked ? t('There are validation errors that need to be fixed before this document can be published') : undefined)
   const publishTip = useTip(() =>
@@ -804,7 +806,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       {publishTip.tip}
       </span>
       {(!single || canDiscard || actions.length > 0) && <div className="menu-wrap">
-        <button type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+        <button type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
         {menu && (
@@ -830,6 +832,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
                 {action.label}
               </button>
             ))}
+            {/* B10: the schema's own actions (a plugin's), as LiveView lists them last. */}
+            {schemaActions.items}
             {!single && (
               <button type="button" role="menuitem" className="menu-item danger" aria-keyshortcuts="Control+Alt+D" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
                 <span className="menu-icon-text">
@@ -842,6 +846,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
         )}
       </div>}
       {deleting && <DeleteDialog doc={doc} closeHref={closeHref} onClose={() => setDeleting(false)} />}
+      {schemaActions.dialog}
       {discarding && (
         <ConfirmDialog
           title={t('Discard changes?')}
