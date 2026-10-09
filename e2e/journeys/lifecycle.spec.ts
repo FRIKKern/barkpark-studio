@@ -80,6 +80,13 @@ test('J03 J04 J13: type without drops, undo, draft, publish, validation, discard
   await expect(page.getByText('Search results show about 150 characters').filter({visible: true}).first()).toBeVisible()
   await expect.poll(async () => ((await t.docValue(ID, 'seo')) as {metaDescription?: string} | undefined)?.metaDescription, BACKEND_POLL).toBe('Too short')
   await expect(publish).toBeEnabled({timeout: 10_000})
+  // An array's length (tags: max 3, a warning): Sanity checks it as you type; ours shows
+  // Barkpark's advisory from the save (#22406, #22425), in the same words. Never blocks.
+  await t.field(page, 'tags').click()
+  for (const tag of ['three', 'four']) (await page.keyboard.type(tag), await page.keyboard.press('Enter'))
+  await expect(page.getByText('Must have at most 3 items').filter({visible: true}).first()).toBeVisible({timeout: 10_000})
+  if (process.env.EVIDENCE) await page.screenshot({path: `evidence/J13-${t.name}-tags-warning.png`})
+  await expect(publish).toBeEnabled({timeout: 10_000})
   await page.getByRole('tab', {name: 'Content'}).click()
 
   // Edit, then discard → back to what is published.

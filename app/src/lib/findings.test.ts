@@ -17,6 +17,7 @@ test('each code in the studio’s words, in English and Norwegian; an unknown co
   assert.equal(findingSentence(f('stage', 'not_in_list', {allowed: ['idea', 'done']}), no), 'Må være en av idea, done')
   assert.equal(findingSentence(f('x', 'something_new'), no), 'English from Barkpark')
   assert.equal(findingSentence(f('x', 'custom', {}, 'Written by the schema author'), no), 'Written by the schema author')
+  assert.equal(findingSentence(f('/seo/x', 'custom', {}, '/seo/x: Written by the schema author'), no), 'Written by the schema author')
 })
 
 test('a refusal names each field by its title', () => {

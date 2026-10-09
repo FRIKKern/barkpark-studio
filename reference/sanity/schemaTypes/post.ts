@@ -134,7 +134,8 @@ export const post = defineType({
     defineField({name: 'publishedAt', title: 'Published at', type: 'datetime', group: 'meta'}),
     defineField({name: 'featured', type: 'boolean', group: 'meta', initialValue: false}),
     defineField({name: 'rating', type: 'number', group: 'meta', validation: (r) => r.min(0).max(5)}),
-    defineField({name: 'tags', type: 'array', group: 'meta', of: [{type: 'string'}], options: {layout: 'tags'}}),
+    // J13: a rule only Barkpark's check runs for us (an array's length), shown from its advisory.
+    defineField({name: 'tags', type: 'array', group: 'meta', of: [{type: 'string'}], options: {layout: 'tags'}, validation: (r) => r.max(3).warning()}),
     // A plain string array: reorderable rows (J34).
     defineField({name: 'highlights', type: 'array', group: 'meta', of: [{type: 'string'}]}),
     defineField({
