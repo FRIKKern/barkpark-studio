@@ -1,3 +1,4 @@
+import {getPref, putPref} from '../lib/prefs'
 import {modKey} from './Tip'
 import {useEffect, useId, useRef, useState} from 'react'
 import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
@@ -60,10 +61,12 @@ export function GlobalSearch() {
 }
 
 // Recent searches, Sanity's: the last five opened searches (query, types and
-// filters), newest first. Sanity keeps them per user on its server; Barkpark has
-// no per-user store yet (task-7d2a48dbf7e4bf34), so they live in this browser.
+// filters), newest first, kept per editor on Barkpark (lib/prefs) so they follow
+// them to another browser; this browser's copy shows at once and stands in when
+// Barkpark can't keep them.
 type Recent = {query: string; types: string[]; filters: Omit<SearchFilter, 'id'>[]}
 const RECENT = 'bp-recent-searches'
+const RECENT_PREF = 'studio.search.recent'
 const readRecent = (): Recent[] => {
   try {
     const raw = JSON.parse(localStorage.getItem(RECENT) ?? '[]') as (Recent | string)[]
@@ -76,6 +79,11 @@ const writeRecent = (list: Recent[]) => {
   try {
     localStorage.setItem(RECENT, JSON.stringify(list))
   } catch {}
+}
+// Barkpark keeps a JSON object per key: the list rides as {searches: [...]}.
+const fromPref = (v: unknown): Recent[] | null => {
+  const list = (v as {searches?: unknown} | null)?.searches
+  return Array.isArray(list) ? (list as Recent[]).filter((r) => r && typeof r.query === 'string').slice(0, 5) : null
 }
 const same = (a: Recent, b: Recent) => JSON.stringify(a) === JSON.stringify(b)
 const addRecent = (list: Recent[], r: Recent) => [r, ...list.filter((x) => !same(x, r))].slice(0, 5)
@@ -109,6 +117,17 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
   const [sort, setSort] = useState(kept.current.sort)
   kept.current = {q, types, filters, sort}
   const [recent, setRecent] = useState(readRecent)
+  // The editor's own list from Barkpark, once it arrives (another device's searches too),
+  // unless this dialog already changed it.
+  const touched = useRef(false)
+  useEffect(() => {
+    let live = true
+    void getPref({data: RECENT_PREF}).then((v) => {
+      const list = fromPref(v)
+      if (live && list && !touched.current) (setRecent(list), writeRecent(list))
+    }).catch(() => {})
+    return () => void (live = false)
+  }, [])
   // Phone width: search is full screen with a back arrow, and the filters fold behind a toggle (Sanity's).
   const [filtersShown, setFiltersShown] = useState(true)
   const [active, setActive] = useState(0)
@@ -173,10 +192,15 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
     else if (pendingEnter && settled) (setPendingEnter(false), openDoc(results[0]))
   })
 
-  const remember = (list: Recent[]) => (setRecent(list), writeRecent(list))
+  const remember = (list: Recent[]) => {
+    touched.current = true
+    setRecent(list)
+    writeRecent(list)
+    void putPref({data: {key: RECENT_PREF, value: {searches: list}}}).catch(() => {})
+  }
   const openDoc = (d: Doc | undefined) => {
     if (!d || !settled) return
-    remember(addRecent(readRecent(), {query, types, filters: strip(filters)}))
+    remember(addRecent(recent, {query, types, filters: strip(filters)}))
     onClose(false)
     void navigate({href: `/structure/${d._type};${encodeURIComponent(d._publishedId)}`})
     focusFirstField(d._publishedId)
