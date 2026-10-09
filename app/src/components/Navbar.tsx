@@ -91,6 +91,9 @@ function NavDrawer() {
               ))}
             </nav>
             <div className="drawer-foot">
+              {/* A phone's navbar has no room for Help (Sanity's has none there either): it is here. */}
+              <Help inDrawer />
+              <hr />
               {APPEARANCES.map(([a, label, Icon]) => (
                 <button key={a} type="button" aria-pressed={appearance === a} aria-label={t(`Use ${a} appearance`)} className="drawer-item check" onClick={() => setAppearance(a)}>
                   <span className="menu-icon-text">
@@ -131,7 +134,7 @@ function NavDrawer() {
  * runs a newer one, reads "Reload to update to …" and reloads once every waiting
  * edit is saved. Sanity's other entries become ours: report a problem, the docs.
  */
-function Help() {
+function Help({inDrawer = false}: {inDrawer?: boolean}) {
   const t = useT()
   const next = useNewVersion()
   const qc = useQueryClient()
@@ -143,22 +146,31 @@ function Help() {
     location.reload()
   }
   return (
-    <div className="menu-wrap help" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+    <div className={inDrawer ? 'menu-wrap help in-drawer' : 'menu-wrap help'} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
       <button
-        id="help-menu"
+        id={inDrawer ? 'help-menu-drawer' : 'help-menu'}
         type="button"
-        className="icon-btn"
+        className={inDrawer ? 'drawer-item' : 'icon-btn'}
         aria-label={t('Help and resources')}
-        data-tip={next ? t('New version available') : t('Help and resources')}
+        data-tip={inDrawer ? undefined : next ? t('New version available') : t('Help and resources')}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        <HelpCircle />
-        {next && <span className="update-dot" aria-hidden="true" />}
+        {inDrawer ? (
+          <span className="menu-icon-text">
+            <HelpCircle /> {t('Help and resources')}
+            {next && <span className="update-dot" aria-hidden="true" />}
+          </span>
+        ) : (
+          <>
+            <HelpCircle />
+            {next && <span className="update-dot" aria-hidden="true" />}
+          </>
+        )}
       </button>
       {open && (
-        <MenuPopover className="popover menu help-menu" onClose={() => setOpen(false)} aria-labelledby="help-menu">
+        <MenuPopover className="popover menu help-menu" onClose={() => setOpen(false)} aria-labelledby={inDrawer ? 'help-menu-drawer' : 'help-menu'}>
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio/issues/new/choose" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
             {t('Report a problem')}
           </a>

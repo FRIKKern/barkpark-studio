@@ -30,6 +30,12 @@ export function overlay<T>(value: T, edits: Map<string, Doc>, replace = false): 
     // The edit holds a reference as its id; keep the expanded copy we already have.
     const held = out[k]
     if (isDoc(held) && (v === id(held) || (v as {_ref?: string})?._ref === id(held))) continue
+    // So does a list of them (categories): each reference to a document we hold expanded.
+    if (Array.isArray(held) && Array.isArray(v)) {
+      const byId = new Map(held.filter(isDoc).map((d) => [id(d), d]))
+      out[k] = v.map((r) => byId.get(typeof r === 'string' ? r : (r as {_ref?: string})?._ref ?? '') ?? r)
+      continue
+    }
     out[k] = v
   }
   return out as T

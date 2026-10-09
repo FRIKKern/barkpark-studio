@@ -7,6 +7,16 @@ import {median, recordFeel} from '../rig/feel'
 // Ours previews reference/preview-site from Barkpark (PREVIEW_SITE_PORT_BARKPARK, default 3537).
 const SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT_BARKPARK}` // playwright.config sets it
 
+// Drafts on the Barkpark site (a preview token) and sharing are a workspace admin's
+// (Barkpark answers 403 otherwise). A lane's studio token (scripts/lane-token.mjs) is a
+// member's: those checks skip there, which is the rig, not the studio.
+async function studioIsAdmin() {
+  const me = (await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${process.env.BARKPARK_APP_TOKEN || process.env.BARKPARK_TOKEN}`}})
+    .then((r) => r.json())
+    .catch(() => ({}))) as {permissions?: string[]; seat?: {can?: {admin?: boolean}}}
+  return !!me.seat?.can?.admin || !!me.permissions?.includes('admin')
+}
+
 // The tests that edit post-01 put it back after, passed or failed: a draft one left
 // behind ("Fixture post 01 (draft)") failed the J59 and J61 tests after it.
 const EDITS_POST_01 = /J60 \+ J63|J64 sharing/
@@ -69,6 +79,7 @@ test('J60 + J63: typing reaches the page at once, focus stays; the page shows th
 test('@local J60 + J63: the Barkpark site follows typing live, and Published / Draft', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  test.skip(!(await studioIsAdmin()), "the studio's Barkpark token is not a workspace admin (a lane's member token): it can't mint the preview token the site reads drafts with")
   await t.prepare(context)
   await page.goto('/presentation?preview=/posts/fixture-post-01')
   await signInIfAsked(page)
@@ -96,13 +107,7 @@ test('@local J60 + J63: the Barkpark site follows typing live, and Published / D
 test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the draft; off ends it', async ({page, context, browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "the check runs on ours; the reference robot token can't share in Sanity either")
-  // Sharing is a workspace admin's (Barkpark answers 403 otherwise). The studio server's
-  // token in a lane (scripts/lane-token.mjs) is a member's: that is the rig, not the studio.
-  const scope = `${process.env.BARKPARK_WORKSPACE}/${process.env.BARKPARK_PROJECT || 'default'}/${process.env.BARKPARK_DATASET}`
-  const probe = await fetch(`${process.env.BARKPARK_URL}/v1/shares/preview-links?${new URLSearchParams({scope, ref_type: 'post', doc_id: 'post-01'})}`, {
-    headers: {authorization: `Bearer ${process.env.BARKPARK_APP_TOKEN || process.env.BARKPARK_TOKEN}`},
-  })
-  test.skip(probe.status === 401 || probe.status === 403, "the studio's Barkpark token is not a workspace admin (a lane's member token); sharing needs one")
+  test.skip(!(await studioIsAdmin()), "the studio's Barkpark token is not a workspace admin (a lane's member token); sharing needs one")
   await t.prepare(context)
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/presentation?preview=/posts/fixture-post-01')
@@ -178,6 +183,7 @@ test('J59: clicking a value opens its field in the panel; Edit turns the overlay
 test('@local J59: the Barkpark page outlines its values; a click edits that field', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  test.skip(!(await studioIsAdmin()), "the studio's Barkpark token is not a workspace admin (a lane's member token): it can't mint the preview token the site reads drafts with")
   await t.prepare(context)
   await page.goto('/presentation?preview=/posts/fixture-post-01')
   await signInIfAsked(page)
