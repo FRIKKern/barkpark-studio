@@ -7,6 +7,15 @@ import {median, recordFeel} from '../rig/feel'
 // Ours previews reference/preview-site from Barkpark (PREVIEW_SITE_PORT_BARKPARK, default 3537).
 const SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT_BARKPARK}` // playwright.config sets it
 
+// The tests that edit post-01 put it back after, passed or failed: a draft one left
+// behind ("Fixture post 01 (draft)") failed the J59 and J61 tests after it.
+const EDITS_POST_01 = /J60 \+ J63|J64 sharing/
+test.afterEach(async ({page}, info) => {
+  if (info.project.name !== 'studio' || !EDITS_POST_01.test(info.title) || info.status === 'skipped') return
+  await closeAndSettle(page)
+  await target(info).resetDoc('post-01', 'post')
+})
+
 // J60 + J63 on a stand-in that renders what the studio sends: the title of the
 // document it is told about, and the perspective it is asked to show.
 const echoSite = `<!doctype html><h1 id="t">Fixture post 01</h1><p id="p">drafts</p>
@@ -55,8 +64,6 @@ test('J60 + J63: typing reaches the page at once, focus stays; the page shows th
   await expect(site.locator('#p')).toHaveText('published')
   await page.locator('.presentation-panel').getByRole('button', {name: /^Draft/}).first().click()
   await expect(site.locator('#p')).toHaveText('drafts')
-  await closeAndSettle(page)
-  await t.resetDoc('post-01', 'post')
 })
 
 test('@local J60 + J63: the Barkpark site follows typing live, and Published / Draft', async ({page, context}, info) => {
@@ -84,13 +91,18 @@ test('@local J60 + J63: the Barkpark site follows typing live, and Published / D
   await page.locator('.presentation-panel .doc-footer').getByRole('button', {name: 'Publish'}).click()
   await page.locator('.presentation-panel').getByRole('button', {name: /^Published/}).first().click()
   await expect(h1).toHaveText('Fixture post 01 live')
-  await closeAndSettle(page)
-  await t.resetDoc('post-01', 'post')
 })
 
 test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the draft; off ends it', async ({page, context, browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "the check runs on ours; the reference robot token can't share in Sanity either")
+  // Sharing is a workspace admin's (Barkpark answers 403 otherwise). The studio server's
+  // token in a lane (scripts/lane-token.mjs) is a member's: that is the rig, not the studio.
+  const scope = `${process.env.BARKPARK_WORKSPACE}/${process.env.BARKPARK_PROJECT || 'default'}/${process.env.BARKPARK_DATASET}`
+  const probe = await fetch(`${process.env.BARKPARK_URL}/v1/shares/preview-links?${new URLSearchParams({scope, ref_type: 'post', doc_id: 'post-01'})}`, {
+    headers: {authorization: `Bearer ${process.env.BARKPARK_APP_TOKEN || process.env.BARKPARK_TOKEN}`},
+  })
+  test.skip(probe.status === 401 || probe.status === 403, "the studio's Barkpark token is not a workspace admin (a lane's member token); sharing needs one")
   await t.prepare(context)
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/presentation?preview=/posts/fixture-post-01')
@@ -128,8 +140,6 @@ test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the
   await outside.reload()
   await expect(outside.getByText('This preview link has expired or was turned off.')).toBeVisible()
   await expect(outside.getByRole('heading', {level: 1})).toHaveText('Fixture post 01')
-  await closeAndSettle(page)
-  await t.resetDoc('post-01', 'post')
 })
 
 // J59 on a stand-in: a click on a marked value asks the studio to edit it; the

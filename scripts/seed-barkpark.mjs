@@ -147,7 +147,24 @@ function compare(label, docs, expected) {
   console.log(`verify ${label}: ${expected.size}/${expected.size} docs field-by-field equal`)
 }
 
+// A --data run keeps the dataset's schemas: say so when they differ from the fixtures
+// (a lane seeded before a desk.preview landed showed J62 one page, not ten). A warning,
+// not a failure: CI's dataset is ahead of a branch made before a schema change.
+async function verifySchemas() {
+  const dir = new URL('fixtures/barkpark-schema/', root)
+  const stale = []
+  for (const f of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+    const want = JSON.parse(readFileSync(new URL(f, dir), 'utf8'))
+    const got = (await bp('GET', `/v1/schemas/${DATASET}/${want.name}`)).schema ?? {}
+    const names = (s) => (s.fields ?? []).map((x) => x.name).join()
+    if (names(want) !== names(got) || !isDeepStrictEqual(want.desk ?? {}, got.desk ?? {})) stale.push(want.name)
+  }
+  if (stale.length) console.warn(`verify schemas: WARNING ${stale.join(', ')} differ from fixtures/barkpark-schema (run without --data, or with --schemas)`)
+  else console.log('verify schemas: as the fixtures')
+}
+
 async function verify() {
+  await verifySchemas()
   const docs = (await Promise.all([...TYPES, ...NATIVE_TYPES].map((t) => listAll(t, 'raw')))).flat()
   compare('barkpark', docs, expected)
 
