@@ -402,6 +402,14 @@ async function send(qc: QueryClient, id: string) {
       e.inflight = null
       return setState(e, 'refused', reasonOf(msg) ?? 'Barkpark refused the change')
     }
+    // J32 widen: the doc was deleted (by someone else) under these edits. Keep every value,
+    // here and in this browser's store, and stop: the deleted banner's Restore puts them back.
+    if (/^mutate 404\b/.test(msg)) {
+      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      e.inflight = null
+      keepUnsaved(id, e)
+      return setState(e, 'refused', t('This document has been deleted.'))
+    }
     // A validation refusal (a dataset that enforces its schema): say which fields and why,
     // in the editor's words; sending it again would only be refused again.
     const findings = findingsOf(msg)
@@ -608,4 +616,25 @@ export function restorePending(qc: QueryClient, doc: Doc, {pending, fields}: Rec
 export function discardPending(id: string) {
   const key = keepKeyOf(id)
   if (key) void dropPending(key)
+}
+
+/**
+ * J32 widen: edits to `id` that never reached Barkpark, from this page or kept in this
+ * browser from an earlier one, with when they were made; null when there are none.
+ */
+export async function unsavedFor(id: string): Promise<{at: number; fields: [string, unknown][]} | null> {
+  const e = docs.get(id)
+  if (e && (e.dirty.size || e.inflight)) return {at: Date.now(), fields: [...(e.inflight ?? []), ...e.dirty]}
+  const key = keepKeyOf(id)
+  const p = key ? await readPending(key) : null
+  return p && p.fields.length && !(await ownedElsewhere(p)) ? {at: p.at, fields: p.fields} : null
+}
+
+/** J32 widen: after a deleted doc is restored, put the edits it lost back on top and send them. */
+export function reapply(qc: QueryClient, restored: Doc, fields: [string, unknown][]) {
+  const id = restored._publishedId
+  const e = docs.get(id)
+  if (e) (clearTimeout(e.timer), (e.timer = undefined), (e.dirty = new Map()), (e.inflight = null), e.base.clear(), setState(e, 'saved'))
+  for (const [f, v] of fields) edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? restored, f, v)
+  flush(qc, id)
 }

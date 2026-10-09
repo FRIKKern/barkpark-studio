@@ -247,6 +247,7 @@ export default {
   'Open {dataset}': 'Åpne {dataset}',
   'The content model changed.': 'Innholdsmodellen er endret.',
   'Restore': 'Gjenopprett',
+  'Your unsaved edits from {date} are kept in this browser and come back with it.': 'Dine ulagrede endringer fra {date} er tatt vare på i denne nettleseren og kommer tilbake med det.',
   'Unsaved changes from {date} were put back.': 'Ulagrede endringer fra {date} er lagt tilbake.',
   'Unsaved changes from {date}, kept in this browser. The document has changed since.': 'Ulagrede endringer fra {date}, tatt vare på i denne nettleseren. Dokumentet er endret siden.',
   'Too many deletions at once (at most {limit}). Try fewer.': 'For mange slettinger på én gang (høyst {limit}). Prøv færre.',
