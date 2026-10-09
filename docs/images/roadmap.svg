@@ -133,7 +133,7 @@
 <text x="912" y="642" font-size="19" font-weight="600">Plugins + Presentation</text>
 <path d="M912 662H1140" class="rule"/>
 <text x="912" y="694" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J37</tspan></text>
-<text x="986" y="694" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J38</tspan></text>
+<text x="986" y="694" font-size="15"><tspan class="now">◐</tspan><tspan dx="5">J38</tspan></text>
 <text x="1060" y="694" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J39</tspan></text>
 <text x="912" y="722" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J40</tspan></text>
 <text x="986" y="722" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J45</tspan></text>

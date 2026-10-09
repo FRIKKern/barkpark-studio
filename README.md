@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 5 changes, 5 tasks closed
+- **Today** · 6 changes, 5 tasks closed
+  - J62: the locations banner — 'Used on N pages', each page opening Presentation ([#237](https://github.com/FRIKKern/barkpark-studio/pull/237))
   - CI reads the schemas from Barkpark; fixtures only when a PR changes them ([#238](https://github.com/FRIKKern/barkpark-studio/pull/238))
   - Preview site: a Barkpark mode, so our Presentation shows Barkpark content ([#236](https://github.com/FRIKKern/barkpark-studio/pull/236))
-  - B10: schema-declared document actions with a dry-run confirm ([#235](https://github.com/FRIKKern/barkpark-studio/pull/235))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
