@@ -95,13 +95,15 @@ async function editorToken(email: string): Promise<string> {
  * its permissions as far as its seat in the workspace allows, and the dataset it is held
  * to when bound (#22393). Kept a minute per token. Unknown: Barkpark judges each write.
  */
-export type TokenSelf = {permissions: string[]; boundDataset: string | null}
+export type TokenSelf = {permissions: string[]; boundDataset: string | null; refused?: boolean}
 const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
 export function describeToken(token: string): Promise<TokenSelf> {
   const held = described.get(token)
   if (held && Date.now() - held.at < 60_000) return held.self
   const self = (async (): Promise<TokenSelf> => {
     const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}}).catch(() => undefined)
+    // Barkpark won't describe it: revoked, expired or no longer in the workspace.
+    if (res?.status === 401 || res?.status === 403) return {permissions: [], boundDataset: null, refused: true}
     if (!res?.ok) return {permissions: ['read', 'write'], boundDataset: null}
     const me = (await res.json()) as {permissions?: string[]; seat?: {can?: Record<string, boolean>}; dataset?: string; dataset_bound?: boolean}
     return {permissions: (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false), boundDataset: me.dataset_bound && me.dataset ? me.dataset : null}

@@ -1,6 +1,6 @@
 import {Component, useLayoutEffect, useRef, type ReactNode} from 'react'
 import {useRouter, useRouterState, type ErrorComponentProps} from '@tanstack/react-router'
-import {useBoundElsewhere} from '../lib/session'
+import {useBoundElsewhere, useStudioTokenRefused} from '../lib/session'
 import {scopedPath} from '../lib/scope'
 import {AUTO_RETRIES} from '../lib/connection'
 import {toast} from './Toasts'
@@ -40,10 +40,24 @@ function ErrorActions({error, onRetry}: {error: unknown; onRetry?: () => void}) 
  * on its way by itself, after AUTO_RETRIES it waits for Retry. Offline, Retry waits too.
  */
 export function ReadErrorCard(props: {title: string; error: unknown; failures: number; retrying: boolean; onRetry: () => void}) {
-  // A dataset-bound token (Barkpark #22393) opened at another dataset: that is why it failed.
+  // The studio's own token refused, or a dataset-bound token (Barkpark #22393) opened at
+  // another dataset: that is why it failed, and Retry won't help.
+  const refused = useStudioTokenRefused()
   const elsewhere = useBoundElsewhere()
   if (elsewhere) return <BoundDatasetCard {...elsewhere} />
+  if (refused) return <RefusedTokenCard />
   return <FailedReadCard {...props} />
+}
+
+/** The studio's own token is refused: no read will work until someone renews it. */
+export function RefusedTokenCard() {
+  const t = useT()
+  return (
+    <div className="pane-error" role="alert">
+      <h3>{t("Barkpark refused this studio's token.")}</h3>
+      <p>{t('It was revoked or no longer belongs to this workspace. Ask whoever runs this studio to renew its Barkpark token.')}</p>
+    </div>
+  )
 }
 
 /** The switcher's own words (B02), with the way to the dataset this token can open: the same place there. */

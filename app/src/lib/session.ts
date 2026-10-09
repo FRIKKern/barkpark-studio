@@ -19,6 +19,8 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     canWrite: self ? self.permissions.includes('write') : true,
     /** A token held to one dataset (Barkpark #22393): the only one it can open. */
     boundDataset: self?.boundDataset ?? null,
+    /** The studio's own token is refused (revoked, or out of the workspace): nothing will load. */
+    studioTokenRefused: !editor && !!self?.refused,
   }
 })
 
@@ -66,3 +68,6 @@ export function useBoundElsewhere(): {bound: string; here: {workspace: string; p
   const here = useQuery(currentScopeQuery).data
   return bound && here && here.dataset !== bound ? {bound, here} : null
 }
+
+/** The studio's own Barkpark token is refused: the reason every read and save fails. */
+export const useStudioTokenRefused = () => !!useQuery(meQuery).data?.studioTokenRefused

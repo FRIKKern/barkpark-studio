@@ -2,7 +2,7 @@ import {useEffect, useState, useSyncExternalStore} from 'react'
 import {useQueryClient, type Query} from '@tanstack/react-query'
 import {stickyToast} from '../components/Toasts'
 import {t as translate} from './i18n'
-import {useBoundElsewhere} from './session'
+import {useBoundElsewhere, useStudioTokenRefused} from './session'
 
 // J50: what the studio does when Barkpark (or this server) can't be reached, by
 // Sanity's numbers (structure/panes/documentList/useDocumentList.ts): a failed read
@@ -53,7 +53,8 @@ export function useReconnectingToast() {
   }, [qc])
   // A bound token in another dataset: nothing will connect, and the pane says why.
   const elsewhere = useBoundElsewhere()
-  const down = (live || reads) && !elsewhere
+  const refused = useStudioTokenRefused()
+  const down = (live || reads) && !elsewhere && !refused
   useEffect(() => {
     if (!down) return
     const t = setTimeout(() => stickyToast('reconnecting', {tone: 'caution', title: translate('Trying to connect…')}), 2000)
