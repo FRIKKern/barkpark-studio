@@ -2,6 +2,7 @@ import {useSyncExternalStore} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
+import {currentEditor, signOut} from '../server/auth'
 import {expectEcho, mutatedIds} from '../server/listen'
 import {docQuery, schemasQuery, type Doc, type Field, type ListPage} from './data'
 import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
@@ -26,6 +27,10 @@ import {dropPending, judge, ownedElsewhere, putPending, readPending, restoreValu
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 
+const throwLost = (): never => {
+  throw new Error(`mutate 401: ${JSON.stringify({error: {code: 'session_lost', message: "You've been logged out"}})}`)
+}
+
 export const mutate = createServerFn({method: 'POST'})
   .validator((d: {mutations: Json[]}) => d)
   .handler(async ({data}) => {
@@ -39,6 +44,13 @@ export const mutate = createServerFn({method: 'POST'})
       // The long `hint` is dropped so a publish wall's `details` (rule + fix) survive the cut.
       // A validation refusal keeps its coded findings whole (barkpark#22375), not the English map.
       const {error} = body as {error?: {[k: string]: Json}}
+      // A dead token (revoked or expired: 401 since Barkpark #22517). The signed-in editor's
+      // own: their session ends, they sign in again and get a new one (J48). The studio's
+      // own: nobody here can fix that, so say so (#312) instead of "logged out".
+      if (res.status === 401) {
+        if (currentEditor()) (signOut(), throwLost())
+        throw new Error(`mutate 401: ${JSON.stringify({error: {code: 'token_refused', message: "Barkpark refused this studio's token."}})}`)
+      }
       const {hint: _, ...short} = error ?? {}
       if (Array.isArray(short.findings)) throw new Error(`mutate ${res.status}: ${JSON.stringify({error: {code: short.code, message: short.message, findings: short.findings}}).slice(0, 8000)}`)
       throw new Error(`mutate ${res.status}: ${JSON.stringify(error ? {error: short} : body).slice(0, 600)}`)
@@ -392,6 +404,11 @@ async function send(qc: QueryClient, id: string) {
     clearTimeout(stall)
     const msg = (err as Error).message ?? ''
     // Signed out, or not allowed: keep every value, say why, stop writing.
+    if (/token_refused/.test(msg)) {
+      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      e.inflight = null
+      return setState(e, 'refused', reasonOf(msg) ?? "Barkpark refused this studio's token.")
+    }
     if (/^mutate 401\b/.test(msg) || /session_lost/.test(msg)) {
       e.dirty = new Map([...e.inflight!, ...e.dirty])
       e.inflight = null
