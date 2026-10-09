@@ -14,8 +14,12 @@ import {BUILD, buildName, useNewVersion} from '../lib/version'
 import {saveAll} from '../lib/edits'
 import {useT} from '../lib/i18n'
 import studio from '../studio.config'
+import {studioBrand} from '../lib/plugins'
 import {usePublishedPerspective, withPerspective} from '../lib/perspective'
 import {useRouterState} from '@tanstack/react-router'
+
+/** Sanity's navbar name and initials, from the studio config's title. */
+const brand = studioBrand(studio.title)
 
 export function Navbar() {
   useHydratedMark()
@@ -25,8 +29,8 @@ export function Navbar() {
     <nav className="navbar" data-perspective={published ? 'published' : undefined}>
       <div className="brand">
         <NavDrawer />
-        <span className="logo">B</span>
-        <span className="brand-name">Barkpark Studio</span>
+        <span className="logo">{brand.initials}</span>
+        <span className="brand-name">{brand.name}</span>
         <ScopeSwitcher />
         <NewDocMenu />
         <GlobalSearch />
