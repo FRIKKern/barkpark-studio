@@ -255,6 +255,7 @@ export default {
   'Your unsaved edits from {date} are kept in this browser and come back with it.': 'Dine ulagrede endringer fra {date} er tatt vare på i denne nettleseren og kommer tilbake med det.',
   'Unsaved changes from {date} were put back.': 'Ulagrede endringer fra {date} er lagt tilbake.',
   'Unsaved changes from {date}, kept in this browser. The document has changed since.': 'Ulagrede endringer fra {date}, tatt vare på i denne nettleseren. Dokumentet er endret siden.',
+  'Unsaved changes to {fields} from {date} cannot be put back: the schema has changed since.': 'Ulagrede endringer i {fields} fra {date} kan ikke settes tilbake: skjemaet er endret siden.',
   'Too many deletions at once (at most {limit}). Try fewer.': 'For mange slettinger på én gang (høyst {limit}). Prøv færre.',
   'Too many changes at once. Try fewer.': 'For mange endringer på én gang. Prøv færre.',
   "Barkpark refused this studio's token.": 'Barkpark avviste tokenet til dette studioet.',

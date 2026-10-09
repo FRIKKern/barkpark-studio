@@ -249,15 +249,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const editable = !!draftQ.data && !viewingPublished
   useEffect(() => {
     setRecovered(null)
-    if (!keepScope || !editable || !draftQ.data) return
+    // Judged against the schema as it is now (a field it dropped or retyped is not sent).
+    if (!keepScope || !editable || !draftQ.data || !schema) return
     let live = true
-    void recoverPending(qc, draftQ.data).then((r) => {
+    void recoverPending(qc, draftQ.data, schema).then((r) => {
       if (!live || !r) return
       if ('ask' in r) setRecovered(r.ask)
       else toast({title: tt('Unsaved changes from {date} were put back.', {date: longDate(new Date(r.replayed).toISOString(), locale)})})
     })
     return () => void (live = false)
-  }, [keepScope, pane.id, editable])
+  }, [keepScope, pane.id, editable, !!schema])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   const [inspectOpen, setInspectOpen] = useState(false)
   const [askDelete, setAskDelete] = useState(0)
@@ -482,12 +483,19 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         )}
         {recovered && doc && (
           <div className="pane-banner" role="alert" data-testid="kept-edits">
-            <span>{t('Unsaved changes from {date}, kept in this browser. The document has changed since.', {date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}</span>
+            <span>
+              {recovered.fields.length > 0 && t('Unsaved changes from {date}, kept in this browser. The document has changed since.', {date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}
+              {recovered.gone?.length
+                ? `${recovered.fields.length ? ' ' : ''}${t('Unsaved changes to {fields} from {date} cannot be put back: the schema has changed since.', {fields: recovered.gone.map((f) => fieldLabels[f.split(/[.[]/)[0]!] ?? f).join(', '), date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}`
+                : null}
+            </span>
             <span className="pane-banner-actions">
-              <button type="button" className="btn-text" onClick={() => (restorePending(qc, doc, recovered), setRecovered(null))}>
-                {t('Restore')}
-              </button>
-              <button type="button" className="btn-text" onClick={() => (discardPending(pane.id), setRecovered(null))}>
+              {recovered.fields.length > 0 && (
+                <button type="button" className="btn-text" onClick={() => (restorePending(qc, doc, recovered), setRecovered(null))}>
+                  {t('Restore')}
+                </button>
+              )}
+              <button type="button" className="btn-text" onClick={() => (discardPending(recovered), setRecovered(null))}>
                 {t('Discard')}
               </button>
             </span>
