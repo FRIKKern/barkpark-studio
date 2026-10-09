@@ -187,7 +187,7 @@
 <text x="330" y="1322" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B07 Unpublish a doc othe…</tspan></text>
 <text x="330" y="1352" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B08 Media library</tspan></text>
 <text x="600" y="1262" font-size="16"><tspan class="done">✓</tspan><tspan dx="8">B09 Related-doc views fr…</tspan></text>
-<text x="600" y="1292" font-size="16"><tspan class="now">◐</tspan><tspan dx="8">B10 Schema-declared docu…</tspan></text>
+<text x="600" y="1292" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B10 Schema-declared docu…</tspan></text>
 <text x="600" y="1322" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B11 Closing the tab with…</tspan></text>
 <text x="600" y="1352" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B12 A workspace's declar…</tspan></text>
 <text x="870" y="1262" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B13 Singleton types</tspan></text>
