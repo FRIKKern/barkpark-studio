@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 52 changes, 19 tasks closed
+- **Today** · 53 changes, 19 tasks closed
+  - The Freeform canvas speaks Norwegian in an nb studio ([#290](https://github.com/FRIKKern/barkpark-studio/pull/290))
   - Editor's day 2: small fixes from the scout walkthrough ([#289](https://github.com/FRIKKern/barkpark-studio/pull/289))
   - B01: the Structure tool keeps its English name in nb-NO, as Sanity's does ([#281](https://github.com/FRIKKern/barkpark-studio/pull/281))
-  - B13: a singleton without a title field is named by its type ([#283](https://github.com/FRIKKern/barkpark-studio/pull/283))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
