@@ -38,7 +38,7 @@ import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {ReadErrorCard} from './PaneError'
-import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
+import {ChevronDown, CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
 import {LocationsBanner} from './LocationsBanner'
@@ -659,45 +659,59 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
 
 /**
  * Sanity's field-group tabs: "All fields" + one per group. Arrow keys move between
- * tabs (roving tabindex), Enter/Space or a click selects. No groups, no tabs.
+ * tabs (roving tabindex), Enter/Space or a click selects. No groups, no tabs. In a
+ * pane under 360 px (Presentation's panel) they are a select instead, as Sanity's
+ * (its ElementQuery: `data-eq-max~='0'` shows the Select); CSS picks which.
  */
 function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: string; onChange: (g: string) => void; problems: Problem[]}) {
   const t = useT()
   if (!schema.groups?.length) return null
   const tabs = [{name: '', title: t('All fields')}, ...schema.groups]
   return (
-    <div
-      className="group-tabs"
-      role="tablist"
-      aria-label={t('Field groups')}
-      onKeyDown={(e) => {
-        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
-        const btns = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')]
-        const i = btns.indexOf(document.activeElement as HTMLButtonElement)
-        btns[(i + (e.key === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length]?.focus()
-        e.preventDefault()
-      }}
-    >
-      {tabs.map((g) => (
-        <button
-          key={g.name}
-          type="button"
-          role="tab"
-          id={`group-tab-${g.name || 'all-fields'}`}
-          aria-selected={value === g.name}
-          tabIndex={value === g.name ? 0 : -1}
-          onClick={() => onChange(g.name)}
-        >
-          {/* A group's `icon` (a Sanity icon name) before its title, as Sanity's tabs. */}
-          <GroupIcon name={(g as {icon?: unknown}).icon} />
-          {g.title ?? g.name}
-          {/* The most serious level in the group, like Sanity's tab icons. */}
-          {(() => {
-            const level = worst(problems.filter((p) => !g.name || p.group === g.name))
-            return level && <LevelIcon level={level} label={level === 'error' ? t('has validation errors') : level === 'warning' ? t('has validation warnings') : t('has validation info')} />
-          })()}
-        </button>
-      ))}
+    <div className="group-tabs-root">
+      <span className="select-box group-select">
+        <select className="input" aria-label={t('Field groups')} value={value} onChange={(e) => onChange(e.target.value)}>
+          {tabs.map((g) => (
+            <option key={g.name} value={g.name}>
+              {g.title ?? g.name}
+            </option>
+          ))}
+        </select>
+        <ChevronDown />
+      </span>
+      <div
+        className="group-tabs"
+        role="tablist"
+        aria-label={t('Field groups')}
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+          const btns = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')]
+          const i = btns.indexOf(document.activeElement as HTMLButtonElement)
+          btns[(i + (e.key === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length]?.focus()
+          e.preventDefault()
+        }}
+      >
+        {tabs.map((g) => (
+          <button
+            key={g.name}
+            type="button"
+            role="tab"
+            id={`group-tab-${g.name || 'all-fields'}`}
+            aria-selected={value === g.name}
+            tabIndex={value === g.name ? 0 : -1}
+            onClick={() => onChange(g.name)}
+          >
+            {/* A group's `icon` (a Sanity icon name) before its title, as Sanity's tabs. */}
+            <GroupIcon name={(g as {icon?: unknown}).icon} />
+            {g.title ?? g.name}
+            {/* The most serious level in the group, like Sanity's tab icons. */}
+            {(() => {
+              const level = worst(problems.filter((p) => !g.name || p.group === g.name))
+              return level && <LevelIcon level={level} label={level === 'error' ? t('has validation errors') : level === 'warning' ? t('has validation warnings') : t('has validation info')} />
+            })()}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

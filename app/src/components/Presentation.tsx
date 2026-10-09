@@ -4,13 +4,15 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {mintPreviewToken, mintShare, revokeShares, shareState} from '../lib/preview-links'
 import {toast} from './Toasts'
 import {useT} from '../lib/i18n'
-import {docQuery, listQuery} from '../lib/data'
+import {deskQuery, docQuery, listQuery} from '../lib/data'
 import type {Pane} from '../lib/panes'
 import type {MainDocument} from '../lib/plugins'
 import {Desktop, LaunchIcon, Mobile, Share, SyncIcon, WarningOutline} from './icons'
 import {DialogBox} from './FocusScopes'
 import {PaneHrefContext} from './PaneLink'
 import {RefPreview} from './Preview'
+import {iconBody} from './DeskIcon'
+import type {DeskNode} from '../lib/desk'
 import {Structure} from './Structure'
 
 /**
@@ -246,6 +248,16 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     void mint()
     return () => ((gone = true), clearTimeout(timer))
   }, [])
+  // J59: the overlay label's icon is the document type's, as Sanity's (the desk's icon
+  // for the type; Sanity's DocumentIcon when it has none): told once connected.
+  const {data: desk} = useQuery(deskQuery)
+  useEffect(() => {
+    if (!s.connected) return
+    const icons: Record<string, string> = {}
+    const walk = (n: DeskNode) => (n.typeName && n.icon && !icons[n.typeName] && (icons[n.typeName] = iconBody(n.icon)), n.items?.forEach(walk))
+    if (desk) walk(desk)
+    tell({type: 'icons', icons, fallback: iconBody()})
+  }, [s.connected, desk, tell])
   const tokenRef = useRef(token)
   tokenRef.current = token
   useEffect(() => {
@@ -302,12 +314,21 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'refresh'}, origin)
   }
 
+  const [narrowTab, setNarrowTab] = useState<'preview' | 'content'>('preview')
   const busy = s.load === 'loading' || s.refreshing || connecting
   const status = s.load === 'loading' ? t('Loading.') : s.refreshing ? t('Refreshing.') : undefined
   const blocked = s.load === 'loading' || s.load === 'timedOut' || connecting
   return (
-    <div className="presentation">
-      <section className="presentation-preview" aria-label={t('Presentation')}>
+    <div className="presentation" data-narrow-tab={narrowTab}>
+      {/* J46: Sanity's narrow tab bar (under 900 px): one panel at a time, the page or the document. */}
+      <div className="presentation-narrow-tabs" role="tablist" aria-label={t('Presentation')}>
+        {(['preview', 'content'] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" id={`presentation-narrow-tab-${tab}`} aria-controls={`presentation-narrow-panel-${tab}`} aria-selected={narrowTab === tab} onClick={() => setNarrowTab(tab)}>
+            {tab === 'preview' ? t('Presentation') : t('Structure')}
+          </button>
+        ))}
+      </div>
+      <section className="presentation-preview" id="presentation-narrow-panel-preview" aria-label={t('Presentation')}>
         <div className="presentation-toolbar">
           <label className="presentation-edit" data-tip={overlaysOn ? t('Disable edit overlay') : t('Enable edit overlay')}>
             <span className="switch">
@@ -384,11 +405,11 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
       </section>
       <PaneHrefContext.Provider value={paneHref}>
         {docPane ? (
-          <aside className="presentation-panel docked" aria-label={t('Document')}>
+          <aside className="presentation-panel docked" id="presentation-narrow-panel-content" aria-label={t('Document')}>
             <Structure panes={panes} widthHint={350} />
           </aside>
         ) : (
-          <aside className="presentation-panel" aria-label={t('Documents on this page')}>
+          <aside className="presentation-panel" id="presentation-narrow-panel-content" aria-label={t('Documents on this page')}>
             {missing && (
               <p className="presentation-missing" role="status">
                 <WarningOutline /> <span>{t('Missing a main document for')} <code>{missing}</code></span>

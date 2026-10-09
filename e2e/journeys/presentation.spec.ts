@@ -80,6 +80,35 @@ test('@local J58: the real site connects, follows its links, refreshes', async (
   await expect(page.locator('.presentation-frame').getByRole('status')).toBeHidden()
 })
 
+// J14 + J46 in Presentation, as Sanity's: the panel (under 360 px) shows the field groups
+// as a select; under 900 px a tab bar shows one panel at a time, the page or the document.
+test('@local J14 J46: the panel\'s groups are a select; at phone width a tab bar switches page and document', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page)
+  const panel = page.locator('.presentation-panel')
+  const groups = panel.getByRole('combobox', {name: 'Field groups'})
+  await expect(groups).toHaveValue('content')
+  await expect(panel.getByRole('tablist', {name: 'Field groups'})).toBeHidden()
+  await groups.selectOption({label: 'Meta'})
+  await expect(panel.getByText('Published at', {exact: true})).toBeVisible()
+  await expect(panel.locator('[id="title"]')).toHaveCount(0)
+  await groups.selectOption({label: 'Content'})
+
+  await page.setViewportSize({width: 390, height: 844})
+  const bar = page.getByRole('tablist', {name: 'Presentation'})
+  await expect(bar.getByRole('tab', {name: 'Presentation'})).toHaveAttribute('aria-selected', 'true')
+  await expect(page.frameLocator('iframe').getByRole('heading', {name: 'Fixture post 01', level: 1})).toBeVisible()
+  await expect(panel).toBeHidden()
+  await bar.getByRole('tab', {name: 'Structure'}).click()
+  await expect(panel.locator('[id="title"]')).toBeVisible()
+  await expect(page.locator('.presentation-preview')).toBeHidden()
+  await bar.getByRole('tab', {name: 'Presentation'}).click()
+  await expect(page.locator('.presentation-preview')).toBeVisible()
+})
+
 // J61 on a stand-in site that speaks the preview protocol: links and the URL bar move
 // it; the panel shows the page's main document (by slug, by id), the documents on a
 // page without one, and says when a route's document is missing.
