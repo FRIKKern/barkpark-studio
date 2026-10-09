@@ -22,6 +22,10 @@ export default defineStudio({
   // Sanity's `title`. VITE_STUDIO_TITLE names one deployment ("Gyldendal Agency Studio").
   title: import.meta.env.VITE_STUDIO_TITLE || 'Barkpark Studio',
   tools: [{name: 'stats', title: 'Stats', component: StatsTool}],
+  // VITE_STUDIO_TOOLS="structure,vision" shows only those tools, in that order (Agency's navbar).
+  navbarTools: import.meta.env.VITE_STUDIO_TOOLS
+    ? String(import.meta.env.VITE_STUDIO_TOOLS).split(',').map((s: string) => s.trim()).filter(Boolean)
+    : undefined,
   presentation: {
     previewUrl: PREVIEW_ORIGIN,
     mainDocuments: [

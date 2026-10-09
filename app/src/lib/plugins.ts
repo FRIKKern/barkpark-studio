@@ -21,6 +21,8 @@ export type StudioConfig = {
   /** The studio's name in the navbar, Sanity's `title` ("Gyldendal Agency Studio"); its initials are the logo. */
   title?: string
   tools?: Tool[]
+  /** The navbar's and drawer's tools by name (`structure`, `vision`, a plugin tool's name), in order. Unset: all of them. */
+  navbarTools?: string[]
   /** J58: the Presentation tool, over the site at `previewUrl`; J61: its routes' main documents. */
   presentation?: {
     previewUrl: string
