@@ -2,8 +2,10 @@ import {expect, test} from '@playwright/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // J58, Presentation: the site in an iframe beside "Documents on this page", and
-// Sanity's connection states over it. The site is reference/preview-site (:3536).
-const SITE = 'http://localhost:3536'
+// Sanity's connection states over it. The site is reference/preview-site: from
+// Barkpark on :3537 for ours, from Sanity on :3536 for the reference.
+const SITE = 'http://localhost:3537'
+const SANITY_SITE = 'http://localhost:3536'
 const shot = (name: string, step: string) => `evidence/J58-${name}-${step}.png`
 
 test('@evidence J58: the site in Presentation, side by side', async ({page, context}, info) => {
@@ -135,12 +137,12 @@ test('@evidence J61: the panel follows the page, side by side', async ({page, co
   await page.goto('/presentation?preview=/posts/fixture-post-01')
   await signInIfAsked(page)
   const site = page.frameLocator('iframe')
-  const bar = t.name === 'sanity' ? page.locator('input[value^="http://localhost:3536"]').first() : page.getByLabel('URL')
+  const bar = t.name === 'sanity' ? page.locator(`input[value^="${SANITY_SITE}"]`).first() : page.getByLabel('URL')
   await site.getByRole('heading', {name: 'Fixture post 01', level: 1}).waitFor({timeout: 30_000})
   await page.waitForTimeout(2500)
   await page.screenshot({path: `evidence/J61-${t.name}-1-post.png`})
   for (const [step, path, ready] of [['2-author', '/authors/author-alan', 'Alan Turing'], ['3-home', '/', 'Posts'], ['4-missing', '/authors/nobody', 'Not found']] as const) {
-    await bar.fill(`${SITE}${path}`)
+    await bar.fill(`${t.name === 'sanity' ? SANITY_SITE : SITE}${path}`)
     await bar.press('Enter')
     await site.getByRole('heading', {name: ready, level: 1}).waitFor()
     await page.waitForTimeout(2500)

@@ -61,7 +61,7 @@ test('@local J65: the studio config adds a tool, an input, an action, a badge an
   await page.keyboard.press('Escape')
 
   // "Open preview": the menu item and Ctrl+Alt+O open the post's page in a new tab.
-  await context.route('http://localhost:3536/**', (route) => route.fulfill({body: 'preview'}))
+  await context.route('http://localhost:3537/**', (route) => route.fulfill({body: 'preview'}))
   await page.getByRole('button', {name: 'Show document actions'}).last().click()
   const [byMenu] = await Promise.all([context.waitForEvent('page'), page.getByRole('menuitem', {name: /Open preview/}).click()])
   await expect(byMenu).toHaveURL(/\/posts\/fixture-post-25$/)
