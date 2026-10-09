@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 3 changes
+- **Today** · 4 changes
+  - J64: a member stops what they shared (Barkpark #22556) ([#356](https://github.com/FRIKKern/barkpark-studio/pull/356))
   - Freeform: drop the caret-parking workaround (canvas bug fixed); it stole early focus ([#355](https://github.com/FRIKKern/barkpark-studio/pull/355))
   - Kept edits: real probes for offline-then-reload and delete-during-replay ([#354](https://github.com/FRIKKern/barkpark-studio/pull/354))
-  - Kept edits: per-page entries, and never replayed into a changed schema ([#353](https://github.com/FRIKKern/barkpark-studio/pull/353))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
