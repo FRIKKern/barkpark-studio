@@ -246,6 +246,8 @@ export default {
   'This page is in {dataset}.': 'Denne siden er i {dataset}.',
   'Open {dataset}': 'Åpne {dataset}',
   'The content model changed.': 'Innholdsmodellen er endret.',
+  "Barkpark refused this studio's token.": 'Barkpark avviste tokenet til dette studioet.',
+  'It was revoked or no longer belongs to this workspace. Ask whoever runs this studio to renew its Barkpark token.': 'Det er trukket tilbake eller hører ikke lenger til dette arbeidsområdet. Be den som drifter studioet om å fornye Barkpark-tokenet.',
   Reload: 'Last inn på nytt',
   'Reload to see the fields as they are now. What you typed is saved first.': 'Last inn på nytt for å se feltene slik de er nå. Det du har skrevet, lagres først.',
   'Find in document': 'Søk i dokumentet',
