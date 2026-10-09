@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 70 changes, 19 tasks closed
+- **Today** · 71 changes, 19 tasks closed
+  - Bad day: a content model changed under an open tab says so, with Reload ([#310](https://github.com/FRIKKern/barkpark-studio/pull/310))
   - A deep link into a dataset a bound token can't open says why ([#309](https://github.com/FRIKKern/barkpark-studio/pull/309))
   - J49: every studio reads its token's own permissions, not only dev sign-in ([#308](https://github.com/FRIKKern/barkpark-studio/pull/308))
-  - Freeform parity with Barkdown: Cmd/Ctrl+K on a selection is the canvas's link row ([#307](https://github.com/FRIKKern/barkpark-studio/pull/307))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
