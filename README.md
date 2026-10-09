@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes, 1 task closed
+- **Today** · 10 changes, 1 task closed
+  - e2e: close the browser contexts specs open; J07 judged against the room it finds ([#362](https://github.com/FRIKKern/barkpark-studio/pull/362))
   - Incoming references after Barkpark #22591/#22593: one read, body links count ([#361](https://github.com/FRIKKern/barkpark-studio/pull/361))
   - A save's 404 turns the pane to the deleted banner, live frame or not ([#358](https://github.com/FRIKKern/barkpark-studio/pull/358))
-  - Freeform specs: type only once the editor has focus; D19's caret by its click ([#360](https://github.com/FRIKKern/barkpark-studio/pull/360))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
