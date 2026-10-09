@@ -45,7 +45,8 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   const [editing, setEditing] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const title = field.title ?? field.name
-  const hotspot = !!(field.options as {hotspot?: boolean} | undefined)?.hotspot
+  // Sanity's options.hotspot; Barkpark's schemas also say it on the field itself ({hotspot: true}).
+  const hotspot = !!((field.options as {hotspot?: boolean} | undefined)?.hotspot || (field as {hotspot?: boolean}).hotspot)
   // One path per part, so an editor on the alt text and one on the crop both keep theirs.
   const setPart = (part: string, v: unknown) => (editPath ? editPath(`${id}.${part}`, v) : onChange({...image, [part]: v}))
   // A new image: its own fields (alt) stay, the old hotspot and crop go.
