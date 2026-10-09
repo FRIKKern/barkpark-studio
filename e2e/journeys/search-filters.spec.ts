@@ -43,6 +43,9 @@ test('@local J38: field filter, type filter, order, recent searches', async ({pa
   await signInIfAsked(page)
   await t.settle(page)
   await openSearch(page)
+  // Recent searches follow the editor on Barkpark: start from none.
+  const clearRecent = dialog(page).getByRole('button', {name: 'Clear recent searches'})
+  await clearRecent.waitFor({timeout: 2_000}).then(() => clearRecent.click(), () => {})
   const results = dialog(page).getByRole('listbox', {name: 'Search results'})
 
   // A field filter alone narrows the search (no query typed): picked from the
