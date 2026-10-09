@@ -90,16 +90,26 @@ async function editorToken(email: string): Promise<string> {
 }
 
 /**
- * What the editor's token may do (J49: a read-only editor sees a locked form, not
- * refused writes): the token describes itself (GET /v1/auth/token, barkpark#22130), its
- * permissions as far as its seat in the workspace allows. Unknown: Barkpark judges each write.
+ * What a token may do (J49 and the roles scout: a read-only role sees a locked form,
+ * not refused writes): the token describes itself (GET /v1/auth/token, barkpark#22130),
+ * its permissions as far as its seat in the workspace allows, and the dataset it is held
+ * to when bound (#22393). Kept a minute per token. Unknown: Barkpark judges each write.
  */
-async function tokenPermissions(token: string): Promise<string[]> {
-  const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}}).catch(() => undefined)
-  if (!res?.ok) return ['read', 'write']
-  const me = (await res.json()) as {permissions?: string[]; seat?: {can?: Record<string, boolean>}}
-  return (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false)
+export type TokenSelf = {permissions: string[]; boundDataset: string | null}
+const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
+export function describeToken(token: string): Promise<TokenSelf> {
+  const held = described.get(token)
+  if (held && Date.now() - held.at < 60_000) return held.self
+  const self = (async (): Promise<TokenSelf> => {
+    const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}}).catch(() => undefined)
+    if (!res?.ok) return {permissions: ['read', 'write'], boundDataset: null}
+    const me = (await res.json()) as {permissions?: string[]; seat?: {can?: Record<string, boolean>}; dataset?: string; dataset_bound?: boolean}
+    return {permissions: (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false), boundDataset: me.dataset_bound && me.dataset ? me.dataset : null}
+  })()
+  described.set(token, {at: Date.now(), self})
+  return self
 }
+const tokenPermissions = async (token: string) => (await describeToken(token)).permissions
 
 /**
  * Revoke this studio's tokens for `email`: label app:<email>, in this workspace,
