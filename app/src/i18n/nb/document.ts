@@ -34,6 +34,17 @@ export default {
   'Collapse': 'Skjul',
   'Comments': 'Kommentarer',
   'Confirm': 'Bekreft',
+  // D21: words a failed save kept (after Barkdown's "Put the words back")
+  'Your words are kept on this computer.': 'Ordene dine er tatt vare på på denne maskinen.',
+  'Words were not saved:': 'Ordene ble ikke lagret:',
+  'the last time this document was open, a save did not reach Barkpark. What you had written is kept on this computer from {date}.': 'sist dokumentet var åpent, kom ikke en lagring fram til Barkpark. Det du hadde skrevet er tatt vare på på denne maskinen fra {date}.',
+  'Put the words back': 'Legg ordene tilbake',
+  'Dismiss': 'Avvis',
+  'Confirm: replace this text with the kept words': 'Bekreft: erstatt teksten med ordene som ble tatt vare på',
+  'The kept words are back in the document.': 'Ordene er tilbake i dokumentet.',
+  'The text they replaced is in its history.': 'Teksten de erstattet ligger i historikken.',
+  'Could not put the words back': 'Kunne ikke legge ordene tilbake',
+  'Finish saving your edit first.': 'Fullfør lagringen av endringen først.',
   // B10: schema-declared actions (ours; LiveView's modal is English-only)
   'Confirm for real': 'Bekreft og kjør',
   'Run dry-run again': 'Prøvekjør igjen',

@@ -7,7 +7,9 @@ import {unsavedElsewhere} from '../lib/edits'
 import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
 import {detachMaster, insertMaster, mastersQuery, pinMaster, saveMaster, type Master, type MasterResult} from '../lib/paper-masters'
-import {t as translate, useT} from '../lib/i18n'
+import {t as translate, useT, useLocale} from '../lib/i18n'
+import {forget, keep, keptKey, putBackOps, readKept, type Kept} from '../lib/kept-words'
+import {useRouter} from '@tanstack/react-router'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
 // EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
@@ -31,6 +33,8 @@ type Canvas = HTMLElement & {
   mediaUploader: ((file: File) => Promise<{src?: string; url?: string; alt?: string}>) | null
   hasPendingChanges(): boolean
   focusBlock(id: string): boolean
+  /** What the author has now, saved or not (D21). */
+  recoverySnapshot?(): {blocks?: Block[]} | null
 }
 
 type LinkTarget = {kind: 'link' | 'wikilink'; href: string | null; target: string | null; docId: string | null; alias: string | null}
@@ -64,7 +68,7 @@ function loadCanvas(): Promise<void> {
 }
 
 type Save = {state: 'saved' | 'saving' | 'error' | 'idle'; message?: string}
-type Problem = {message: string}
+type Problem = {message: string; kept?: boolean}
 
 /**
  * `field`: edit that richText field's own block list (J10) instead of the document's;
@@ -88,6 +92,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
 }) {
   const host = useRef<HTMLDivElement>(null)
   const t = useT()
+  const locale = useLocale()
   // D14: a paper's task blocks show Barkpark's live previews (lib/fleet.ts).
   const fleetOn = type === 'paper' && !field
   const {data: fleet} = useQuery({...fleetQuery(id), enabled: fleetOn})
@@ -134,6 +139,15 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     return () => void unsavedElsewhere.delete(check)
   }, [])
   const [failed, setFailed] = useState<string>()
+  // D21: a failed save's words, kept on this computer (lib/kept-words.ts).
+  const scope = (useRouter().options.context as {scope?: {current?: unknown}}).scope?.current
+  const keyRef = useRef('')
+  keyRef.current = keptKey(scope ? JSON.stringify(scope) : '-', type, id, field)
+  const [offer, setOffer] = useState<Kept | null>(null)
+  const keepNow = () => {
+    const blocks = canvas.current?.recoverySnapshot?.()?.blocks
+    return Array.isArray(blocks) && keep(keyRef.current, {at: Date.now(), rev: loop.current.rev, blocks})
+  }
   // The failure card's buttons, bound to the save loop below.
   const resolveRef = useRef<{retry: () => void; discard: () => Promise<void>} | null>(null)
   // D01: a bound field block shows its field's title (the server's projection carries none).
@@ -173,13 +187,14 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         el.acknowledgeOps(seq, true)
         if (type === 'paper' && !field) void qc.invalidateQueries({queryKey: ['fleet', id]})
         setProblem(null)
-        if (!el.hasPendingChanges()) setSave({state: 'saved'})
+        if (!el.hasPendingChanges()) (setSave({state: 'saved'}), forget(keyRef.current))
       } catch (e) {
         if (gone) return
-        // Refused: the edit stays on screen and goes out with the next batch.
+        // Refused: the edit stays on screen and goes out with the next batch, and the
+        // words are kept on this computer now, so closing the tab loses nothing (D21).
         el.discardInflightOps(seq)
         setSave({state: 'error', message: (e as Error).message})
-        setProblem({message: (e as Error).message})
+        setProblem({message: (e as Error).message, kept: keepNow()})
       } finally {
         l.saving--
       }
@@ -196,6 +211,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         canvas.current?.resolveConflictWithServerBlocks(fresh.blocks)
         l.rev = fresh.rev
         setProblem(null)
+        forget(keyRef.current)
         setSave({state: 'saved'})
       },
     }
@@ -324,6 +340,11 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         host.current.replaceChildren(el)
         canvas.current = el
         setSave({state: 'saved'})
+        // D21: words a failed save kept the last time, offered back unless the
+        // document already says them.
+        const kept = readKept(keyRef.current)
+        if (kept && putBackOps(first.blocks, kept.blocks).length) setOffer(kept)
+        else if (kept) forget(keyRef.current)
       } catch (e) {
         if (!gone) setFailed((e as Error).message)
       }
@@ -334,6 +355,41 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       canvas.current = null
     }
   }, [type, id, field, editable, vocabularyKey])
+
+  // D21: leaving with a refused or unsent batch keeps the words as they are now.
+  useEffect(() => {
+    const leaving = () => void ((refused.current || canvas.current?.hasPendingChanges()) && keepNow())
+    addEventListener('pagehide', leaving)
+    return () => (removeEventListener('pagehide', leaving), leaving())
+  }, [])
+
+  // D21: "Put the words back": one write, fenced on the document's rev, then the
+  // canvas shows the result; the text it replaced stays in the document's history.
+  const [armed, setArmed] = useState(false)
+  const putBack = async () => {
+    if (!offer) return
+    if (!armed) return setArmed(true)
+    const l = loop.current
+    try {
+      if (l.saving || canvas.current?.hasPendingChanges()) throw new Error(t('Finish saving your edit first.'))
+      const fresh = await readBlocks(type, id, field)
+      const ops = putBackOps(fresh.blocks, offer.blocks)
+      if (ops.length) {
+        const r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: fresh.rev}})) as unknown as OpsResult
+        if (!r.ok) throw new Error(r.message)
+      }
+      const now = await readBlocks(type, id, field)
+      l.rev = now.rev
+      canvas.current?.resolveConflictWithServerBlocks(decorate.current(now.blocks))
+      forget(keyRef.current)
+      setOffer(null)
+      setArmed(false)
+      toast({tone: 'positive', title: t('The kept words are back in the document.'), description: t('The text they replaced is in its history.')})
+    } catch (e) {
+      setArmed(false)
+      toast({tone: 'critical', title: t('Could not put the words back'), description: (e as Error).message})
+    }
+  }
 
   // Someone else saved (the live stream refreshed the doc): take their blocks, now or
   // when the author leaves the block they are in. Saving, the next save's rev decides.
@@ -367,12 +423,26 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       {problem && (
         <div className="pd-conflict" role="alert">
           <strong>{t('Could not save:')}</strong> {problem.message}. {t('Your edit is still on screen.')}
+          {problem.kept && <> {t('Your words are kept on this computer.')}</>}
           <div>
             <button type="button" className="btn-text" onClick={() => resolveRef.current?.retry()}>
               {t('Retry')}
             </button>
             <button type="button" className="btn-text" onClick={() => void resolveRef.current?.discard()}>
               {t('Discard unsaved edits')}
+            </button>
+          </div>
+        </div>
+      )}
+      {offer && !problem && (
+        <div className="pd-conflict" role="alert" data-kept-words>
+          <strong>{t('Words were not saved:')}</strong> {t('the last time this document was open, a save did not reach Barkpark. What you had written is kept on this computer from {date}.', {date: new Date(offer.at).toLocaleString(locale)})}
+          <div>
+            <button type="button" className="btn-text" onClick={() => void putBack()}>
+              {armed ? t('Confirm: replace this text with the kept words') : t('Put the words back')}
+            </button>
+            <button type="button" className="btn-text" onClick={() => (forget(keyRef.current), setOffer(null), setArmed(false))}>
+              {t('Dismiss')}
             </button>
           </div>
         </div>
