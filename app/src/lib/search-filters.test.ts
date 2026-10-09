@@ -82,3 +82,12 @@ test('the pinned "Contains document, image or file" (barkpark _references)', () 
   assert.deepEqual(toRefFilter(author, [{...f('_references', 'refDocument', 'post-01'), label: 'Fixture post 01'}], fields, now), {_references: {'': 'post-01'}})
   assert.equal(labelText(filterLabel({...f('_references', 'refImage', 'asset-x'), label: 'cat.png'}, refs)), 'Contains document, image or file → cat.png')
 })
+
+test('a date-time "is not" is "not on that day" (barkpark nbetween)', () => {
+  const now = new Date('2026-10-08T12:00:00Z')
+  assert.deepEqual(operatorsFor(fields.get('_updatedAt')!).at(-1), ['eq', 'neq'])
+  const got = toRefFilter(post, [f('publishedAt:datetime', 'neq', '2026-10-01')], fields, now)!
+  const [from, to] = got.publishedAt!.nbetween!.split(',')
+  assert.equal(new Date(to!).getTime() - new Date(from!).getTime(), 24 * 3600_000 - 1)
+  assert.equal(new Date(from!).getTime(), new Date('2026-10-01T00:00').getTime())
+})

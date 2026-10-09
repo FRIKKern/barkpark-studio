@@ -5,8 +5,7 @@ import type {Field, RefFilter, Schema} from './data'
 // its chip wording ("Rating ≥ 3", "Edited at is in the last 7 days"). Filters run
 // in Barkpark's query (filter[field][op]=value; barkpark#22106 added does not contain,
 // array includes and counts; `_references` for the pinned "Contains document, image or
-// file"). Still left out: a date-time "is not" (a day is a range, and "outside it"
-// needs an OR the query has not got).
+// file"; `nbetween` for a date-time "is not", which is "not on that day").
 
 export type Kind = 'string' | 'select' | 'number' | 'boolean' | 'date' | 'datetime' | 'reference' | 'array' | 'arrayRef' | 'refs' | 'presence'
 export type FilterField = {
@@ -67,7 +66,7 @@ const COUNT = new Set<OpName>(['countEq', 'countNeq', 'countGt', 'countGte', 'co
 export const isCount = (op: OpName) => COUNT.has(op)
 
 // Groups split by a divider in the operator menu, in Sanity's order.
-const DATE: OpName[][] = [['last'], ['range', 'after', 'before'], ['eq']]
+const DATE: OpName[][] = [['last'], ['range', 'after', 'before'], ['eq', 'neq']]
 const COUNTS: OpName[][] = [['countEq', 'countNeq'], ['countGt', 'countGte', 'countLt', 'countLte'], ['countRange']]
 const OPERATORS: Record<Kind, OpName[][]> = {
   string: [['contains', 'notContains'], ['eq', 'neq'], ['defined', 'notDefined']],
@@ -195,7 +194,7 @@ export function filterLabel(f: SearchFilter, field: FilterField | undefined, t: 
   const name = field ? fieldTitle(field, t) : f.field.split(':')[0]!
   if (!field || !isComplete(f)) return {field: name}
   const v = (s: string) =>
-    field.kind === 'date' || field.kind === 'datetime' ? fmtDate(s, f.op === 'eq' ? 'date' : field.kind, tag)
+    field.kind === 'date' || field.kind === 'datetime' ? fmtDate(s, f.op === 'eq' || f.op === 'neq' ? 'date' : field.kind, tag)
       : field.kind === 'select' ? field.options?.find((o) => o.value === s)?.title ?? s
         : field.kind === 'boolean' ? (s === 'true' ? t('True') : t('False'))
           : field.kind === 'reference' || field.kind === 'arrayRef' || field.kind === 'refs' ? f.label ?? s
@@ -256,12 +255,14 @@ export function toRefFilter(schema: Schema, filters: SearchFilter[], fields: Map
       case 'includes': set('has', f.value!); break
       case 'notIncludes': set('nhas', f.value!); break
       case 'eq':
+      case 'neq':
         if (field.kind === 'datetime') {
-          // A date-time "is" a day: from its midnight to the next.
+          // A date-time "is" a day: from its midnight to the next; "is not", outside it.
           const day = new Date(`${f.value!.slice(0, 10)}T00:00`)
-          set('gte', iso(day))
-          set('lt', iso(new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)))
-        } else set('eq', f.value!)
+          const next = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
+          if (f.op === 'eq') (set('gte', iso(day)), set('lt', iso(next)))
+          else set('nbetween', `${iso(day)},${new Date(next.getTime() - 1).toISOString()}`)
+        } else set(f.op, f.value!)
         break
       default: set(f.op, f.value!)
     }
