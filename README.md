@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 104 changes, 23 tasks closed
+- **Today** · 105 changes, 23 tasks closed
+  - Touch: what hover reveals is shown, a one-row doc header on a phone, dvh ([#343](https://github.com/FRIKKern/barkpark-studio/pull/343))
   - Paper surface CSS from Barkpark (#22541); drop our vendored fleet copy ([#344](https://github.com/FRIKKern/barkpark-studio/pull/344))
   - Live: a discarded draft leaves the open document (the J36 flake) ([#342](https://github.com/FRIKKern/barkpark-studio/pull/342))
-  - D11 spec: make the range by a double-click, not Shift+End ([#341](https://github.com/FRIKKern/barkpark-studio/pull/341))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
