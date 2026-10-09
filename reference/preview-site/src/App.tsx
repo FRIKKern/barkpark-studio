@@ -8,14 +8,20 @@ import {EditOverlays} from './overlays'
 
 // The reference preview site for J58–J64: three routes. From Sanity every text is a
 // stega string; from Barkpark (PREVIEW_SOURCE=barkpark) the same pages, same markup.
-type PostRow = {_id: string; title?: string; slug?: string; excerpt?: string; author?: {_id: string; name?: string}}
+type PostRow = {
+  _id: string
+  title?: string
+  slug?: string
+  excerpt?: string
+  author?: {_id: string; name?: string}
+  /** Barkpark mode (J59): a value's click-to-edit attributes; Sanity mode uses stega instead. */
+  $edit?: Edit
+  $editAuthor?: Edit
+}
 type Post = PostRow & {
   categories?: {_id: string; title?: string}[]
   body?: {_key: string; _type: string; children?: {_key: string; text?: string}[]}[]
   related?: {_type: string; _id: string; title?: string; name?: string; slug?: string}
-  /** Barkpark mode (J59): a value's click-to-edit attributes; Sanity mode uses stega instead. */
-  $edit?: Edit
-  $editAuthor?: Edit
 }
 type Author = {_id: string; name?: string; bio?: string; posts: PostRow[]; $edit?: Edit}
 
@@ -54,8 +60,8 @@ function PostList({posts}: {posts: PostRow[]}) {
     <ul className="posts">
       {posts.map((p) => (
         <li key={p._id}>
-          <Link to={`/posts/${p.slug}`}>{p.title}</Link>
-          {p.author && <div className="meta">by {p.author.name}</div>}
+          <Link to={`/posts/${p.slug}`}><span {...p.$edit?.('title')}>{p.title}</span></Link>
+          {p.author && <div className="meta">by <span {...p.$editAuthor?.('name')}>{p.author.name}</span></div>}
         </li>
       ))}
     </ul>

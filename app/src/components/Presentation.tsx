@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useReducer, useRef, useState} from 'react'
 import {useNavigate} from '@tanstack/react-router'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {mintShare, revokeShares, shareState} from '../lib/preview-links'
+import {mintPreviewToken, mintShare, revokeShares, shareState} from '../lib/preview-links'
 import {toast} from './Toasts'
 import {useT} from '../lib/i18n'
 import {docQuery, listQuery} from '../lib/data'
@@ -144,7 +144,11 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== origin || e.source !== frame.current?.contentWindow || e.data?.bp !== 'preview') return
-      if (e.data.type === 'hello') send({type: 'hello'})
+      if (e.data.type === 'hello') {
+        send({type: 'hello'})
+        // A page that loaded again (its own reload) waits for the token: say it again.
+        if (tokenRef.current !== undefined) frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'token', token: tokenRef.current?.token ?? null}, origin)
+      }
       if (e.data.type === 'location' && typeof e.data.url === 'string') onPage(e.data.url)
       // J59: a click on an outlined value opens its field in the panel.
       if (e.data.type === 'edit' && typeof e.data.doc?.type === 'string' && typeof e.data.doc?.id === 'string' && typeof e.data.path === 'string')
@@ -226,6 +230,27 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   useEffect(() => {
     if (s.connected) tell({type: 'overlays', enabled: overlaysOn && shownPerspective === 'drafts'})
   }, [s.connected, overlaysOn, shownPerspective, tell])
+
+  // The site reads drafts with a preview token minted here (lib/preview-links.ts), told
+  // on every hello and again, a new one, five minutes before it runs out.
+  const [token, setToken] = useState<{token: string; expiresAt: number} | null | undefined>(undefined)
+  useEffect(() => {
+    let gone = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const mint = async () => {
+      const got = await mintPreviewToken().catch((e: Error) => (console.error(`Could not mint a preview token: ${e.message}`), null))
+      if (gone) return
+      setToken(got)
+      if (got) timer = setTimeout(mint, Math.max(60_000, got.expiresAt - Date.now() - 5 * 60_000))
+    }
+    void mint()
+    return () => ((gone = true), clearTimeout(timer))
+  }, [])
+  const tokenRef = useRef(token)
+  tokenRef.current = token
+  useEffect(() => {
+    if (s.connected && token !== undefined) tell({type: 'token', token: token?.token ?? null})
+  }, [s.connected, token, tell])
 
   // J60: an edit to a document on the page reaches the site as it is typed (the
   // editor's cache changes before the save), not after the save comes back round.

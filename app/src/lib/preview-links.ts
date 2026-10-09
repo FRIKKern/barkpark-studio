@@ -1,5 +1,5 @@
 import {createServerFn} from '@tanstack/react-start'
-import {bpRoot, scope} from '../server/barkpark'
+import {bpFetch, bpRoot, dataset, scope} from '../server/barkpark'
 
 // J64: sharing a preview. Barkpark mints a link to one document, draft included
 // (`POST /v1/shares/preview-links`, admin only, 24 h; task-6812c3100d7aedbc); the
@@ -49,3 +49,20 @@ export const revokeShares = createServerFn({method: 'POST'})
     await Promise.all(data.map((id) => bpRoot(`/v1/shares/preview-links/${encodeURIComponent(id)}`, {method: 'DELETE'})))
     return true
   })
+
+/**
+ * The preview token the site reads drafts with (Barkpark's scoped mint, admin only):
+ * multi-use, for the dataset, an hour at most, so the site server holds no editor's
+ * credential. Null for an editor who may not mint (the site then shows published).
+ */
+export const mintPreviewToken = createServerFn({method: 'POST'}).handler(async () => {
+  const res = await bpFetch('/v1/preview-tokens', {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({dataset: dataset(), multi_use: true, ttl_seconds: 3600}),
+  })
+  if (res.status === 401 || res.status === 403) return null
+  if (!res.ok) throw new Error(`Barkpark preview token → ${res.status}`)
+  const {token, expires_at} = (await res.json()) as {token: string; expires_at: string}
+  return {token, expiresAt: Date.parse(expires_at)}
+})

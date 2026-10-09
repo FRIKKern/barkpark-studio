@@ -12,22 +12,31 @@ export const SOURCE = __SOURCE__
 export type Frame = {mutation?: string; documentId?: string; result?: Doc}
 const changed = new Set<(f: Frame) => void>()
 let stream: EventSource | null = null
+let streamToken: string | null | undefined
 function onChange(fn: (f: Frame) => void) {
   changed.add(fn)
-  if (!stream) {
-    stream = new EventSource('/api/bp/listen')
-    const ping = (e: MessageEvent) => {
-      let frame: Frame = {}
-      try {
-        frame = JSON.parse(e.data)
-      } catch {}
-      changed.forEach((f) => f(frame))
-    }
-    stream.addEventListener('mutation', ping)
-    stream.onmessage = ping
-  }
+  listen()
   return () => void changed.delete(fn)
 }
+// Opened again when the studio's token changes (a new one before the old runs out).
+function listen() {
+  if (stream && streamToken === studio.token) return
+  stream?.close()
+  stream = null
+  streamToken = studio.token
+  if (studio.token === undefined || !changed.size) return
+  stream = new EventSource(`/api/bp/listen${studio.token ? `?${new URLSearchParams({pt: studio.token})}` : ''}`)
+  const ping = (e: MessageEvent) => {
+    let frame: Frame = {}
+    try {
+      frame = JSON.parse(e.data)
+    } catch {}
+    changed.forEach((f) => f(frame))
+  }
+  stream.addEventListener('mutation', ping)
+  stream.onmessage = ping
+}
+studio.listeners.add(listen)
 
 // The studio's picks (perspective, unsaved edits) as one value that changes when they do.
 let version = 0
@@ -60,9 +69,11 @@ export function BarkparkPage<T>({page, render}: {page: PageKey; render: (data: T
       }),
     [],
   )
+  const token = studio.token
   useEffect(() => {
+    if (token === undefined) return // inside a studio: its token first
     let live = true
-    fetch(`/api/bp/page?${new URLSearchParams({kind: page.kind, key, perspective})}`)
+    fetch(`/api/bp/page?${new URLSearchParams({kind: page.kind, key, perspective})}`, {headers: token ? {'x-bp-preview': token} : {}})
       .then((r) => r.json())
       .then((out: {raw: Raw; error?: string}) => {
         if (!live) return
@@ -70,7 +81,7 @@ export function BarkparkPage<T>({page, render}: {page: PageKey; render: (data: T
         setState({at: `${at}|${perspective}`, raw: out.raw})
       })
     return () => void (live = false)
-  }, [at, perspective, tick])
+  }, [at, perspective, tick, token])
   // A perspective switch keeps the page on screen until the other one arrives.
   const shown = state?.at.startsWith(`${at}|`) ? toPage(page.kind, overlay(state.raw, studio.edits)) : null
   const ids = shown?.documents.map((d) => d._id).join(',')

@@ -38,18 +38,29 @@ export function overlay<T>(value: T, edits: Map<string, Doc>, replace = false): 
 const ref = (d: unknown): Ref | undefined => (isDoc(d) ? {_id: id(d), _type: d._type} : undefined)
 const seen = (refs: (Ref | undefined)[]) => [...new Map(refs.filter((r): r is Ref => !!r).map((r) => [r._id, r])).values()]
 const row = (p: Doc) => ({_id: id(p), title: p.title, slug: p.slug, excerpt: p.excerpt, author: isDoc(p.author) ? {_id: id(p.author), name: p.author.name} : undefined})
+/** A list's rows, each with its own click-to-edit attributes (row i of a query's source map), and its author's. */
+function rows(posts: Doc[], map: SourceMap | null | undefined, authors?: SourceMap | null) {
+  return posts.flatMap((p, i) => {
+    if (!p.slug) return []
+    const a = isDoc(p.author) ? p.author : undefined
+    const at = a && authors ? authors.documents.findIndex((d) => d._id.replace(/^drafts\./, '') === id(a)) : -1
+    return [{...row(p), $edit: editOf(map, p.title, i), $editAuthor: at < 0 ? undefined : editOf(authors, a!.name, at)}]
+  })
+}
 // A PortableDoc's text blocks, in the shape the page renders (Sanity's blocks).
 const blocks = (body: unknown) =>
   ((body as {blocks?: {id: string; type: string; content?: {value?: string}[]}[]})?.blocks ?? [])
     .filter((b) => b.type === 'paragraph' || b.type === 'heading')
     .map((b) => ({_key: b.id, _type: 'block', children: [{_key: `${b.id}-0`, text: (b.content ?? []).map((c) => c.value ?? '').join('')}]}))
 
-// A source map's `$["field"]` → that field of its document, as data attributes.
-function editOf(map: SourceMap | null | undefined, label: unknown): Edit {
+// A source map's `$["field"]` (a document's), or `$[row]["field"]` (a query's), → that
+// field of its document, as data attributes.
+function editOf(map: SourceMap | null | undefined, label: unknown, at?: number): Edit {
+  const prefix = at === undefined ? '$' : `$[${at}]`
   return (field) => {
-    const hit = map?.mappings[`$["${field}"]`]
+    const hit = map?.mappings[`${prefix}["${field}"]`]
     const doc = hit && map!.documents[hit.source.document]
-    const path = hit && map!.paths[hit.source.path]?.match(/^\$\["(.+)"\]$/)?.[1]
+    const path = hit && map!.paths[hit.source.path]?.match(/^\$(?:\[\d+\])?\["(.+)"\]$/)?.[1]
     return doc && path ? {'data-bp-edit': `${doc._type}:${doc._id.replace(/^drafts\./, '')}:${path}`, 'data-bp-label': String(label ?? '')} : undefined
   }
 }
@@ -57,7 +68,7 @@ function editOf(map: SourceMap | null | undefined, label: unknown): Edit {
 export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]} {
   if (kind === 'home') {
     const posts = (raw.posts ?? []).filter((p) => p.slug)
-    return {data: posts.map(row), documents: seen(posts.flatMap((p) => [ref(p), ref(p.author)]))}
+    return {data: rows(raw.posts ?? [], raw.maps?.[0], raw.maps?.[1]), documents: seen(posts.flatMap((p) => [ref(p), ref(p.author)]))}
   }
   if (kind === 'post') {
     const p = raw.post
@@ -79,8 +90,9 @@ export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]
   if (kind === 'author') {
     const a = raw.author
     if (!a) return {data: null, documents: []}
-    const posts = raw.posts ?? []
-    return {data: {_id: id(a), name: a.name, bio: a.bio, $edit: editOf(raw.maps?.[0], a.name), posts: posts.map((p) => ({...row(p), author: {_id: id(a), name: a.name}}))}, documents: seen([ref(a), ...posts.map(ref)])}
+    const posts = (raw.posts ?? []).filter((p) => p.slug)
+    const $edit = editOf(raw.maps?.[0], a.name)
+    return {data: {_id: id(a), name: a.name, bio: a.bio, $edit, posts: rows(raw.posts ?? [], raw.maps?.[1]).map((p) => ({...p, author: {_id: id(a), name: a.name}, $editAuthor: $edit}))}, documents: seen([ref(a), ...posts.map(ref)])}
   }
   return {data: null, documents: []}
 }
