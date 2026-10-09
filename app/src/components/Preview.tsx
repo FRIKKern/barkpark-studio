@@ -1,5 +1,5 @@
 import {memo, useState, type ReactNode} from 'react'
-import {assetUrl, frame, NO_CROP, NO_HOTSPOT, type ImageValue} from '../lib/image'
+import {assetUrl, frame, imageRef, NO_CROP, NO_HOTSPOT, type ImageValue} from '../lib/image'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {formatPreview, previewRefs} from '../lib/preview'
@@ -70,7 +70,7 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
 /** An image value as a square thumbnail: its crop, cut to the square around the hotspot (Sanity's image URL rules). */
 function Thumb({value}: {value: ImageValue}) {
   const [natural, setNatural] = useState<{width: number; height: number}>()
-  const ref = value.asset?._ref
+  const ref = imageRef(value)
   if (!ref) return <DocumentIcon />
   const f = natural && frame(value.crop ?? NO_CROP, value.hotspot ?? NO_HOTSPOT, natural, 1)
   const measure = (img: HTMLImageElement) => setNatural({width: img.naturalWidth, height: img.naturalHeight})

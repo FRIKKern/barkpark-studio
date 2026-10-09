@@ -8,7 +8,7 @@ import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, 
 import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
-import {assetUrl, dragCrop, frame, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
+import {assetUrl, dragCrop, frame, imageRef, LEGACY_IMAGE_KEYS, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 import {uploadFile, UploadError} from '../lib/upload'
 import {UploadProgress} from './UploadProgress'
 
@@ -34,7 +34,7 @@ const carriesFiles = (e: DragEvent<HTMLElement>) => [...e.dataTransfer.types].in
 
 export function ImageInput({id, field, value, onChange, readOnly, openRef}: Props) {
   const image = (value && typeof value === 'object' ? value : {}) as ImageValue
-  const ref = image.asset?._ref
+  const ref = imageRef(image)
   const editPath = useContext(EditPathContext)
   const t = useT()
   const file = useRef<HTMLInputElement>(null)
@@ -51,6 +51,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   // A new image: its own fields (alt) stay, the old hotspot and crop go.
   const use = (next: string) => {
     const {hotspot: _h, crop: _c, ...keep} = image
+    for (const k of LEGACY_IMAGE_KEYS) delete keep[k]
     onChange({...keep, asset: {_ref: next}})
   }
 

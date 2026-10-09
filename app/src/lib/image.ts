@@ -11,6 +11,18 @@ export const NO_HOTSPOT: Hotspot = {x: 0.5, y: 0.5, width: 1, height: 1}
 export const NO_CROP: Crop = {top: 0, bottom: 0, left: 0, right: 0}
 
 /** Where the studio serves an asset's bytes (routes/api/media/$id.ts). */
+/**
+ * The image's asset ref. Barkpark's canonical value is {asset: {_ref}}; it still
+ * reads the legacy {assetId, url} shape (docs/contracts/schema-v2.md), which
+ * migrated content such as the Agency twin's 955 images carries. So does this.
+ */
+export const imageRef = (v: unknown): string | undefined => {
+  const o = (v && typeof v === 'object' ? v : {}) as {asset?: {_ref?: string}; assetId?: unknown}
+  return o.asset?._ref ?? (typeof o.assetId === 'string' && o.assetId ? `asset-${o.assetId}` : undefined)
+}
+/** Keys of the legacy shape a new asset replaces (they would point at the old one). */
+export const LEGACY_IMAGE_KEYS = ['assetId', 'url', 'lqip', 'width', 'height', 'focalX', 'focalY'] as const
+
 export const assetUrl = (ref: string) => `/api/media/${encodeURIComponent(ref.replace(/^asset-/, ''))}`
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
