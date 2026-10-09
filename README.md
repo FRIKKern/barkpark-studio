@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 95 changes, 23 tasks closed
+- **Today** · 96 changes, 23 tasks closed
+  - Incoming references follow live for real: any doc that can refer here ([#335](https://github.com/FRIKKern/barkpark-studio/pull/335))
   - e2e: a fourth CI shard (ci-4), every shard well under 45 s ([#334](https://github.com/FRIKKern/barkpark-studio/pull/334))
   - A dead token is 401 now (Barkpark #22517): say which one died ([#333](https://github.com/FRIKKern/barkpark-studio/pull/333))
-  - Done: [Barkpark: schema reads for workspace members (editors), not admin-only](https://github.com/FRIKKern/barkpark/issues/21707)
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
