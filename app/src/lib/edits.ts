@@ -8,6 +8,7 @@ import {advisoryFindings, findingsOf, findingsReason, type Finding} from './find
 import {t} from './i18n'
 import {merge3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
+import {dropPending, judge, ownedElsewhere, putPending, readPending, restoreValue, TAB, type Pending} from './pending-edits'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
 // title, list row all repaint with no network wait); the write goes to Barkpark
@@ -79,6 +80,8 @@ type DocEdits = {
   /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
   undo: Change[]
   redo: Change[]
+  /** Writes this doc's unacknowledged edits to IndexedDB a moment after the last change. */
+  keepTimer?: ReturnType<typeof setTimeout>
 }
 
 /**
@@ -123,6 +126,30 @@ export function hasUnsaved() {
   for (const d of docs.values()) if (d.dirty.size || d.inflight || d.createRequested || UNSAVED_STATES.includes(d.snap.state)) return true
   for (const check of unsavedElsewhere) if (check()) return true
   return false
+}
+
+/**
+ * B11 widen (lib/pending-edits.ts): where unacknowledged edits are kept: workspace,
+ * project, dataset and editor, set by the studio once it knows them. Unset: nothing is kept.
+ */
+let keepScope: string | null = null
+export function setKeepScope(scope: string | null) {
+  keepScope = scope
+}
+export const keepKeyOf = (id: string) => keepScope && `${keepScope}|${id}`
+const KEEP_GAP_MS = 150
+
+/** Keep what Barkpark has not acknowledged for `id` in this browser, or forget it once there is nothing. */
+function keepUnsaved(id: string, e: DocEdits) {
+  const key = keepKeyOf(id)
+  if (!key) return
+  clearTimeout(e.keepTimer)
+  // A doc that exists only here has no server version to replay onto: not kept.
+  if (e.pendingCreate || (!e.dirty.size && !e.inflight)) return void dropPending(key)
+  e.keepTimer = setTimeout(() => {
+    const fields = [...(e.inflight ?? []), ...e.dirty]
+    if (fields.length) void putPending(key, {at: Date.now(), type: e.type, rev: e.rev, fields, base: [...e.base], tab: TAB})
+  }, KEEP_GAP_MS)
 }
 
 const SAVED: Snap = {state: 'saved'}
@@ -209,6 +236,7 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
     for (const k of [...e.dirty.keys()]) if (k !== field && within(k, field)) e.dirty.delete(k)
     e.dirty.set(field, value)
   }
+  keepUnsaved(id, e)
   // An edit makes (or updates) the draft: show it as one now.
   writeCache(qc, id, doc._type, setPath({...held, _draft: true} as Doc, field, value))
   if (e.snap.state === 'saved') setState(e, 'saving')
@@ -357,6 +385,7 @@ async function send(qc: QueryClient, id: string) {
     e.inflight = null
     e.conflicts = 0
     clearTimeout(stall)
+    keepUnsaved(id, e)
     applyServer(qc, saved)
     setState(e, e.dirty.size ? 'saving' : 'saved')
   } catch (err) {
@@ -519,6 +548,8 @@ export async function deleteDoc(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   await mutate({data: {mutations: [{delete: {id, type: doc._type}}]}})
   docs.delete(id)
+  const key = keepKeyOf(id)
+  if (key) void dropPending(key)
   qc.setQueriesData<ListPage>({queryKey: ['list', doc._type]}, (page) => page && {...page, docs: page.docs.filter((d) => d._publishedId !== id)})
   qc.removeQueries({queryKey: ['doc', id]})
 }
@@ -537,11 +568,44 @@ export async function unpublish(qc: QueryClient, doc: Doc) {
 export async function discardDraft(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   const e = docs.get(id)
-  if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear())
+  if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear(), keepUnsaved(id, e))
   await whenSaved(id)
   await mutate({data: {mutations: [{discardDraft: {id, type: doc._type}}]}})
   if (e) e.advisories = undefined // what Barkpark said of the draft went with it
   const published = qc.getQueryData<Doc | null>(['doc-published', id])
   if (published) writeCache(qc, id, doc._type, {...published, _hasPublished: true} as Doc)
   await qc.invalidateQueries({queryKey: ['doc', id]})
+}
+
+export type Recovered = {pending: Pending; fields: [string, unknown][]}
+/**
+ * B11 widen: on open, edits this browser kept for `doc` that never reached Barkpark (a
+ * reload or crash). Same server rev → sent again now, quietly (`replayed`); a newer rev →
+ * returned for the pane to offer (`ask`). Nothing when the page that wrote them is still open.
+ */
+export async function recoverPending(qc: QueryClient, doc: Doc): Promise<{replayed: number} | {ask: Recovered} | null> {
+  const id = doc._publishedId
+  const key = keepKeyOf(id)
+  const e = docs.get(id)
+  if (!key || doc._rev === '' || (e && (e.dirty.size || e.inflight || e.pendingCreate))) return null
+  const pending = await readPending(key)
+  if (!pending || (await ownedElsewhere(pending))) return null
+  const verdict = judge(pending, doc)
+  if (verdict.kind === 'drop') return (void dropPending(key), null)
+  if (verdict.kind === 'ask') return {ask: {pending, fields: verdict.fields}}
+  for (const [f, v] of verdict.fields) edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? doc, f, v)
+  return {replayed: pending.at}
+}
+
+/** Restore kept edits over the document as it is now (text merges with what changed since). */
+export function restorePending(qc: QueryClient, doc: Doc, {pending, fields}: Recovered) {
+  for (const [f, v] of fields) {
+    const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
+    edit(qc, now, f, restoreValue(pending, f, v, now))
+  }
+}
+
+export function discardPending(id: string) {
+  const key = keepKeyOf(id)
+  if (key) void dropPending(key)
 }
