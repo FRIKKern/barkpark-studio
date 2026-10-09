@@ -94,7 +94,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const own = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
   // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
   const advisories = useAdvisories(pane.id)
-  const problems = own.length || advisories.length ? [...own, ...(schemaForPane && !viewingPublished ? advisoryProblems(advisories, schemaForPane, own, t) : [])] : own
+  const extra = advisories.length && schemaForPane && !viewingPublished ? advisoryProblems(advisories, schemaForPane, own, t) : []
+  // In the form's order, as Sanity lists them (a field's own problems stay in theirs).
+  const order = (p: Problem) => (schemaForPane?.fields ?? []).findIndex((f) => f.name === p.path.split(/[.[]/)[0])
+  const problems = extra.length ? [...own, ...extra].map((p, i) => [p, i] as const).sort(([a, i], [b, j]) => order(a) - order(b) || i - j).map(([p]) => p) : own
   // J13: only errors block publishing; warnings and infos are shown, never in the way.
   const errors = errorsOf(problems)
   const openObjects = useOpenObjects(pane.id)

@@ -46,7 +46,8 @@ const param = (v: unknown) => (Array.isArray(v) ? v.join(', ') : typeof v === 'n
 /** One finding as a sentence in the editor's language. */
 export function findingSentence(f: Finding, t: Translate): string {
   const en = SENTENCES[f.code]
-  if (!en) return f.message
+  // An advisory's own message may lead with its path ("/seo/x: …"): the field names itself here.
+  if (!en) return f.message.startsWith(`${f.path}: `) ? f.message.slice(f.path.length + 2) : f.message
   return t(en, Object.fromEntries(Object.entries(f.params ?? {}).map(([k, v]) => [k, param(v)])))
 }
 

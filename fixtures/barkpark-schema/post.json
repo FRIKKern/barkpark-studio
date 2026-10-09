@@ -43,7 +43,7 @@
     {"name": "publishedAt", "title": "Published at", "type": "datetime", "group": "meta"},
     {"name": "featured", "title": "Featured", "type": "boolean", "group": "meta"},
     {"name": "rating", "title": "Rating", "type": "number", "group": "meta", "validation": {"min": 0, "max": 5}},
-    {"name": "tags", "title": "Tags", "type": "arrayOf", "ordered": true, "group": "meta", "options": {"layout": "tags"},
+    {"name": "tags", "title": "Tags", "type": "arrayOf", "ordered": true, "group": "meta", "options": {"layout": "tags"}, "validation": {"max": 3, "level": "warning"},
      "of": {"type": "string"}},
     {"name": "highlights", "title": "Highlights", "type": "arrayOf", "ordered": true, "group": "meta", "of": {"type": "string"}},
     {"name": "seo", "title": "SEO", "type": "composite", "group": "meta", "options": {"collapsible": true, "collapsed": true}, "fields": [
