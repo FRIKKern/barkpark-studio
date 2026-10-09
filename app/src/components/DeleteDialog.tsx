@@ -25,7 +25,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
   const [busy, setBusy] = useState(false)
   const cancel = useRef<HTMLButtonElement>(null)
   useEffect(() => cancel.current?.focus(), [])
-  const title = previewTitle(doc, schemaOf(schemas, doc._type))
+  const title = previewTitle(doc, schemaOf(schemas, doc._type), t)
   const used = refs?.length ?? 0
 
   return (

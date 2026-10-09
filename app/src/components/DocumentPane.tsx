@@ -903,7 +903,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
 // J04: Sanity's toast after each lifecycle action, the document's name in bold.
 const named = (qc: QueryClient, doc: Doc, rest: string) => (
   <>
-    <strong>{previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type))}</strong> {rest}
+    <strong>{previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type), tt)}</strong> {rest}
   </>
 )
 /** Publish, then say so (the footer button and Ctrl+Alt+P). */

@@ -56,7 +56,7 @@ quality first, never a shrinking finish line.
 | J44 | 4 | Very long doc: 200 fields + a 300-item array still meet F1 and F2 | F1 F2 F11 |
 | J45 | after | Dark mode: follows the system, user menu System / Light / Dark, survives reload, no white flash, everything readable | F10 |
 | J46 | after | Phone width: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px | F12 |
-| J47 | after | Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced | F13 |
+| J47 | after | Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced; axe clean on the search dialog, menus, image library, Presentation, media and canvas too | F13 |
 | J48 | 3 | Session lost mid-edit: "You've been logged out" banner, writes stop (never saved as anyone else), sign in again, pending edits survive | F9 F15 |
 | J49 | 2 | Read-only role or denied doc: banner, locked form, actions disabled with the reason, list "+" greyed | F9 F15 |
 | J50 | 1 | Backend down: list "Could not fetch list items" + Retry, bounded auto-retries; "Trying to connect…" toast; a pane that crashes shows an error card + Retry (Sanity: whole tool) | F9 |
@@ -115,7 +115,7 @@ track, counted apart. Out of scope (link out to LiveView): sheets, admin console
 
 | ID | Phase | Journey | Feel rows that matter most |
 |---|---|---|---|
-| B01 | 1 | Norwegian (nb-NO) Studio UI, chosen per workspace | F10 |
+| B01 | 1 | Norwegian (nb-NO) Studio UI, chosen per workspace: every word an editor sees or hears, relative times, the untitled placeholder and Barkpark's own copy included | F10 |
 | B02 | 1 | Switch workspace / project / dataset; the URL carries it | F2 |
 | B03 | 1 | Select several list rows → bulk publish / unpublish | F5 F9 |
 | B04 | 2 | Every Barkpark field type renders sanely: color picker, read-only JSON/source, numeric keyboard; never "[object Object]" | F9 F10 |

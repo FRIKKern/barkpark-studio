@@ -6,6 +6,7 @@ import {resumeMark} from '../server/listen'
 import {readDesk, readSchemas} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
+import type {T} from './i18n'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
 import type {PreviewText} from './preview'
@@ -490,12 +491,17 @@ export const itemPath = (path: string, item: unknown, i: number) => {
 }
 export const refTypesOf = (field: Field | undefined): string[] => field?.to?.map((t) => t.type) ?? (field?.refType ? [field.refType] : [])
 
-/** Preview title per Sanity's rules: list_preview.title, else title/name. */
-export function previewTitle(doc: Doc | null | undefined, schema?: Schema): string {
-  if (!doc) return 'Untitled'
+/**
+ * Preview title per Sanity's rules: list_preview.title, else title/name. Without one,
+ * the placeholder: 'Untitled', or with `t` in the editor's language (anything shown
+ * or announced passes it; sorting and matching don't).
+ */
+export function previewTitle(doc: Doc | null | undefined, schema?: Schema, t?: T): string {
+  const none = t ? t('Untitled') : 'Untitled'
+  if (!doc) return none
   const key = schema?.listPreview?.title
   const v = (key && doc[key]) ?? doc.title ?? doc.name
-  return typeof v === 'string' && v ? v : 'Untitled'
+  return typeof v === 'string' && v ? v : none
 }
 
 export type {QueryClient}

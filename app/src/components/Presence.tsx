@@ -187,7 +187,7 @@ function OnlineRow({p, onDone}: {p: Presence; onDone: () => void}) {
     >
       <Avatar p={p} />
       <span className="who-name">{p.name}</span>
-      <span className="who-doc">{p.documentId ? (doc ? previewTitle(doc, schemaOf(schemas, doc._type)) : '…') : t('Not in a document')}</span>
+      <span className="who-doc">{p.documentId ? (doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : '…') : t('Not in a document')}</span>
     </button>
   )
 }
