@@ -62,7 +62,7 @@ export type Ordering = {name: string; title: string; by: {field: string; directi
 export type ListPreview = {title?: string; subtitle?: PreviewText; media?: string}
 /** One entry of a type's Expectation (Barkpark's `layout`): a bound field block, or the free region. */
 export type LayoutItem = {kind: 'field' | 'region' | string; name: string; max?: number; enforce?: boolean}
-export type Schema = {name: string; title: string; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; layout?: LayoutItem[]; prefill?: Record<string, unknown>}
+export type Schema = {name: string; title: string; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>}
 /**
  * B09: a related-documents view the schema declares (`desk.views`, Barkpark's LiveView
  * "view bar"): docs of `type` whose `by` field references the open doc.
@@ -96,6 +96,8 @@ const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
       singleton: singleton === true,
       orderings: ((desk as {orderings?: RawOrdering[]} | undefined)?.orderings ?? []).filter((o) => o.field || o.by?.length).map(ordering),
       views: ((desk as {views?: Json[]} | undefined)?.views ?? []) as Json[],
+      // The type's preview URL template (desk.preview), for the Preview view; absent → no view.
+      ...(typeof (desk as {preview?: unknown} | undefined)?.preview === 'string' ? {preview: (desk as {preview: string}).preview} : {}),
     })) as unknown as Json
 })
 
