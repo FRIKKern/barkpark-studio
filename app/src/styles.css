@@ -439,6 +439,8 @@ textarea.input { resize: vertical; }
 .dialog footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px; }
 .btn { font: inherit; font-size: 13px; font-weight: 500; padding: 6px 12px; border: 0; border-radius: 3px; background: none; color: var(--fg); cursor: pointer; }
 .btn:hover { background: var(--hover); }
+.btn:disabled { color: var(--disabled); cursor: default; }
+.btn:not(.danger):disabled:hover { background: none; }
 .btn.danger { background: #d83d35; color: #fff; }
 .btn.danger:disabled { background: #f0b3ae; cursor: default; }
 .warning { padding: 8px 12px; border-radius: 3px; background: var(--warn-bg); }
@@ -1213,6 +1215,7 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 }
 @media (max-width: 768px) {
   .navbar .icon-btn { width: 44px; height: 44px; }
+  .navbar .perspective-picker { min-height: 44px; }
   .navbar .brand { gap: 4px; }
   .nav-right { gap: 0; }
 }
@@ -1223,6 +1226,12 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
   .navbar .brand-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nav-right { margin-left: auto; order: 2; }
   .nav-search { order: 3; margin-left: 0; }
+  /* The dataset name gives way first, so the bar fits a phone with no sideways scroll. */
+  .navbar .scope-switcher { flex: 0 1 auto; min-width: 0; }
+  .navbar .icon-btn, .navbar .nav-right > .menu-wrap { flex: none; }
+  .navbar .nav-right > .menu-wrap.help { display: none; }
+  .navbar .scope-button { max-width: 100%; min-width: 44px; }
+  .navbar .scope-ds { min-width: 0; }
 }
 /* J40: field comments (Sanity's) — the button at a field's top right (after "…"),
    the composer under it, and the Comments inspector. */
@@ -1468,7 +1477,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .share-qr:has(img) { padding: 0; background: #fff; }
 .share-why { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 .share-why[role=alert] { color: var(--danger-text); }
-.share-preview .menu-item:disabled { color: var(--muted); }
+.share-preview .menu-item:disabled { color: var(--disabled); cursor: default; }
 /* B10: a schema action's dry-run preview. */
 .schema-action { max-width: 640px; }
 .action-preview { margin: 12px 0 0; border: 1px solid var(--line); border-radius: 4px; max-height: 320px; overflow: auto; }
@@ -1507,3 +1516,9 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .upload-progress-bar { width: 100%; height: 9px; border-radius: 999px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
 .upload-progress-bar span { display: block; height: 100%; border-radius: 999px; background: #2276fc; transition: width 0.15s; }
 .upload-progress .upload-cancel { margin-left: auto; background: color-mix(in srgb, #e5533d 10%, var(--bg)); color: var(--danger-text); }
+
+/* Help in the phone drawer: a drawer item, its menu opening in place. */
+.nav-drawer .menu-wrap.help.in-drawer { display: block; }
+.nav-drawer .menu-wrap.help.in-drawer .drawer-item { width: 100%; }
+.nav-drawer .menu-wrap.help.in-drawer .help-menu { position: static; margin: 4px 0; box-shadow: none; }
+.nav-drawer .update-dot { position: static; display: inline-block; margin-left: 6px; }

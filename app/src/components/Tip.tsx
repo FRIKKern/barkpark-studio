@@ -12,8 +12,10 @@ export function useTip(content: () => ReactNode) {
   const id = useId()
   const [at, setAt] = useState<DOMRect | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const show = (e: {currentTarget: Element}) => {
+  const show = (e: {currentTarget: Element; type: string}) => {
     const el = e.currentTarget
+    // Focus from a click is not keyboard focus: the click already hid it (Sanity's).
+    if (e.type === 'focus' && !el.matches(':focus-visible')) return
     clearTimeout(timer.current)
     timer.current = setTimeout(() => setAt(el.getBoundingClientRect()), 300)
   }
@@ -61,6 +63,8 @@ export function IconTips() {
     const show = (e: Event) => {
       const el = (e.target as Element | null)?.closest?.('[data-tip]')
       if (!el || el === current) return
+      // The focus a click gives is not keyboard focus: the click hid the tip, it stays hidden.
+      if (e.type === 'focusin' && !el.matches(':focus-visible')) return
       hide()
       current = el
       timer = setTimeout(() => {
