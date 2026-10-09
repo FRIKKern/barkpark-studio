@@ -84,7 +84,9 @@ export function useLive(ids: string[], types: string[]) {
         backlinksTimer = setTimeout(() => (void qc.invalidateQueries({queryKey: ['backlinks']}), left.length > 1 && reread(left.slice(1))), left[0])
       }
       reread([400, 2000, 4000])
-      if (!f.result || f.mutation === 'delete') {
+      // A delete or a discard carries the document it removed: read again, never apply it
+      // (a replayed discardDraft put a dead draft back on screen, J36 flake 2026-10-09).
+      if (!f.result || f.mutation === 'delete' || f.mutation === 'discardDraft') {
         void qc.invalidateQueries({queryKey: ['doc', id]})
         void qc.invalidateQueries({queryKey: ['list', f.type]})
         return
