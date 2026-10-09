@@ -5,7 +5,9 @@ import {signInIfAsked, target} from '../rig/targets'
 // OnixEdit's publish_to_bokbasen as "Send to Bokbasen") sits in the footer's "…"
 // menu and opens Barkpark's two-step confirm. A volume is not a book, so the
 // plugin's dry-run refuses it: the refusal shows, and "for real" is never offered.
-test('B10: a schema action asks, runs a dry-run, shows its answer', async ({page, context}, info) => {
+// @local: the route is admin tier (as in LiveView) and CI's studio-parity token is not
+// an admin, so CI sees no schema actions.
+test('@local B10: a schema action asks, runs a dry-run, shows its answer', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-native: Sanity has no schema-declared actions')
   await t.prepare(context)
