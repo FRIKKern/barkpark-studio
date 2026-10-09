@@ -17,6 +17,11 @@ export const studio = {
   edits: new Map<string, Doc>(),
   /** J59: the Edit overlay, on unless the studio's Edit switch is off. */
   overlays: window.parent !== window,
+  /**
+   * The preview token the studio minted for this page (its drafts reads): undefined
+   * until the studio says (inside its preview the page waits), null when it has none.
+   */
+  token: (window.parent !== window ? undefined : null) as string | null | undefined,
   listeners: new Set<() => void>(),
 }
 const changed = () => studio.listeners.forEach((l) => l())
@@ -58,6 +63,10 @@ export function connectBarkpark() {
     }
     if (e.data.type === 'overlays' && typeof e.data.enabled === 'boolean' && e.data.enabled !== studio.overlays) {
       studio.overlays = e.data.enabled
+      changed()
+    }
+    if (e.data.type === 'token' && (typeof e.data.token === 'string' || e.data.token === null) && e.data.token !== studio.token) {
+      studio.token = e.data.token
       changed()
     }
     const doc = e.data.doc as Doc | undefined

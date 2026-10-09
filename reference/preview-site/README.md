@@ -11,9 +11,12 @@ PREVIEW_SOURCE=barkpark PREVIEW_DATASET=e2e-local PREVIEW_PORT=3537 pnpm dev   #
 ```
 
 - **Two sources, one site.** Sanity's Presentation shows the Sanity copy (:3536); ours
-  shows the Barkpark copy (:3537, `barkpark-server.ts`: drafts inside a studio's
-  preview, published otherwise, refetched on every change from Barkpark's listen
-  stream). `BARKPARK_*` come from the repo's `.env`; the token stays in the dev server.
+  shows the Barkpark copy (:3537, `barkpark-server.ts`). No editor's token: drafts
+  only with the preview token the studio mints for its Presentation (scoped, multi-use,
+  an hour); published with `BARKPARK_SITE_TOKEN` in the repo's `.env`, a public-read
+  token (`bp --workspace studio-parity token create "preview-site (barkpark-studio
+  reference)" --permissions public-read`; revoke: `bp --workspace studio-parity token
+  revoke <id>`, id in `bp token ls`).
 
 - Reads `SANITY_TOKEN` from the repo's `.env`. The dataset is private, so the token
   stays in the dev server (`/api/query`); the browser never sees it.

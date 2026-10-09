@@ -198,6 +198,17 @@ test('@local J59: the Barkpark page outlines its values; a click edits that fiel
   await page.getByRole('switch', {name: 'Edit'}).click()
   await site.getByRole('link', {name: 'Reference site'}).click()
   await expect(page.getByLabel('URL')).toHaveValue(`${SITE}/`)
+  // The home list: each row's title and author map to their own documents (a query's
+  // source map, row by row), so a list is click-to-edit too.
+  await page.getByRole('switch', {name: 'Edit'}).click()
+  const row = site.locator('[data-bp-edit="post:post-02:title"]')
+  await expect(row).toHaveText('Fixture post 02')
+  await expect(site.locator('[data-bp-edit="author:author-alan:name"]').first()).toHaveText('Alan Turing')
+  await row.hover()
+  await page.screenshot({path: 'evidence/J59-home-studio.png'})
+  await row.click()
+  await expect(page).toHaveURL(/pane=post%3Bpost-02%2Cpath%3Dtitle/)
+  await expect(page.locator('.presentation-panel [id="title"]')).toBeFocused()
 })
 
 test('@evidence J59: hover outline and click-to-edit, side by side', async ({page, context}, info) => {
