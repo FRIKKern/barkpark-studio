@@ -6,10 +6,11 @@ import {signInIfAsked, target} from '../rig/targets'
 // as after a studio restart or expiry) → writes stop (nothing lands as the shared
 // studio token), the footer says "You've been logged out" with Sign in; signing in
 // again sends the edits typed meanwhile, as that editor. (2) A write Barkpark
-// refuses (403) says why and does not retry on its own. Studio editor c holds a
-// read-only token the studio can't see is read-only (labelled outside its app:
-// tokens), so the form stays open and the write is refused — the case J49's lock
-// can't catch. Not a CI gate.
+// refuses (403) says why and does not retry on its own. The studio reads a token's
+// permissions at sign-in (GET /v1/auth/token), so a read-only editor is locked up
+// front (J49); what is left is access cut back after sign-in. Played here by sending
+// editor A's writes with read-only editor D's session: a real Barkpark 403 through the
+// real studio server. Not a CI gate.
 const ID = 'post-19'
 const EXCERPT = 'Short excerpt for post 19.'
 const shot = (step: string) => `evidence/J48-studio-${step}.png`
@@ -25,7 +26,7 @@ const lastAuthor = async () => {
   return revisions[0]?.actor_id
 }
 
-test('@evidence J48: session lost mid-edit fails closed; signing in again saves as you; a 403 says why', async ({page, context}, info) => {
+test('@evidence J48: session lost mid-edit fails closed; signing in again saves as you; a 403 says why', async ({page, context, browser, request}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity' || process.env.STUDIO_DEV_LOGIN !== '1', 'ours, with dev sign-in')
   const note = (what: string, v: unknown) => info.annotations.push({type: what, description: JSON.stringify(v)})
@@ -65,11 +66,20 @@ test('@evidence J48: session lost mid-edit fails closed; signing in again saves 
   expect(await lastAuthor(), 'saved as editor A, not the studio').toBe(editorA)
   await page.screenshot({path: shot('2-signed-in-again')})
 
-  // A write Barkpark refuses (the studio didn't know): a reason, and no retry.
-  await context.clearCookies()
-  await page.goto(t.docPath('post', ID)) // no session: the studio asks who you are
-  await signInIfAsked(page, 'studio-editor-c@example.com')
-  await t.settle(page)
+  // A write Barkpark refuses (access cut back since sign-in): a reason, and no retry.
+  const other = await browser.newContext()
+  const asD = await other.newPage()
+  await asD.goto(page.url())
+  await signInIfAsked(asD, 'studio-editor-d@example.com')
+  const readOnlySid = (await other.cookies()).find((c) => c.name === 'bp_sid')!.value
+  await other.close()
+  await page.route('**/_serverFn/**', async (route) => {
+    const req = route.request()
+    if (!(req.postData() ?? '').includes('mutations')) return route.continue()
+    const cookie = (req.headers().cookie ?? '').replace(/bp_sid=[^;]+/, `bp_sid=${readOnlySid}`)
+    const res = await request.post(req.url(), {headers: {...req.headers(), cookie}, data: req.postDataBuffer() ?? undefined})
+    await route.fulfill({status: res.status(), headers: res.headers(), body: await res.body()})
+  })
   const writes: string[] = []
   page.on('request', (r) => r.method() === 'POST' && (r.postData() ?? '').includes('mutations') && writes.push(r.url()))
   await t.field(page, 'excerpt').click()
