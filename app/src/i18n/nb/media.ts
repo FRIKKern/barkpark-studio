@@ -46,6 +46,8 @@ export default {
   'Drop to upload file': 'Slipp for å laste opp fil',
   '{title}: drop, paste or upload a file': '{title}: slipp, lim inn eller last opp en fil',
   'Uploading {name}…': 'Laster opp {name}…',
+  'Uploading {name}': 'Laster opp {name}',
+  'Uploading': 'Laster opp',
   'Read only': 'Skrivebeskyttet',
   'Drag or paste file here': 'Dra eller lim inn fil her',
   '{title}: drop or paste a file to replace it': '{title}: slipp eller lim inn en fil for å erstatte den',

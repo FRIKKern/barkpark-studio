@@ -1483,3 +1483,10 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .navbar[data-perspective=published] .perspective-picker { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--published) 45%, var(--bg)); background: color-mix(in srgb, var(--published) 10%, var(--bg)); }
 .perspective-menu [aria-checked=true] { background: var(--selected); color: var(--on-selected); }
 .perspective-menu [aria-checked=true] .dot.draft-ring { box-shadow: inset 0 0 0 1.5px currentColor; }
+/* Sanity's upload card (file and image fields): name over a progress bar, Cancel. */
+.upload-progress { display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 12px 20px; border: 1px solid color-mix(in srgb, #2276fc 25%, var(--bg)); border-radius: 3px; background: color-mix(in srgb, #2276fc 6%, var(--bg)); }
+.upload-progress-body { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 336px; }
+.upload-progress code { font-size: 13px; color: #2276fc; background: color-mix(in srgb, #2276fc 10%, var(--bg)); padding: 0 4px; border-radius: 2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-progress-bar { width: 100%; height: 9px; border-radius: 999px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.upload-progress-bar span { display: block; height: 100%; border-radius: 999px; background: #2276fc; transition: width 0.15s; }
+.upload-progress .upload-cancel { margin-left: auto; background: color-mix(in srgb, #e5533d 10%, var(--bg)); color: var(--danger-text); }

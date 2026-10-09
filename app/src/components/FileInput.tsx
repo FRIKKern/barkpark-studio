@@ -9,6 +9,8 @@ import type {Field} from '../lib/data'
 import {assetUrl} from '../lib/image'
 import {useLocale, useT} from '../lib/i18n'
 import {accepts, ago, formatBytes, humanBytes, mayAccept, mimeTitle, type FileAsset} from '../lib/files'
+import {uploadFile, UploadError} from '../lib/upload'
+import {UploadProgress} from './UploadProgress'
 
 // J54, after Sanity's file input: an empty box ("Drag or paste file here",
 // Upload, Select); a file shows its name and size with an options menu (Upload,
@@ -41,7 +43,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   const accept = (field.options as {accept?: string} | undefined)?.accept
   const info = useFileInfo(ref)
   const t = useT()
-  const [uploading, setUploading] = useState<string | null>(null)
+  const [uploading, setUploading] = useState<{name: string; progress: number; stop: AbortController} | null>(null)
   const [failed, setFailed] = useState<File | null>(null)
   const [over, setOver] = useState<'ok' | 'rejected' | null>(null)
   const [menu, setMenu] = useState(false)
@@ -50,20 +52,19 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   const title = field.title ?? field.name
   const use = (next: string) => onChange({...file, _type: 'file', asset: {_type: 'reference', _ref: next}})
 
+  // Progress as it goes; Cancel aborts it and the field keeps its value.
   const upload = async (f: File) => {
-    setUploading(f.name)
+    const stop = new AbortController()
+    setUploading({name: f.name, progress: 0, stop})
     setFailed(null)
     try {
-      const body = new FormData()
-      body.append('file', f)
-      const res = await fetch('/api/media/upload', {method: 'POST', body})
-      if (!res.ok) throw new Error(t('The server answered {status}.', {status: res.status}))
-      use(((await res.json()) as {ref: string}).ref)
+      use(await uploadFile(f, (progress) => setUploading((u) => u && u.stop === stop ? {...u, progress} : u), stop.signal))
     } catch (err) {
+      if ((err as Error).name === 'AbortError') return
       setFailed(f)
-      toast({tone: 'critical', title: t('Upload failed'), description: err instanceof TypeError ? t('The network is unreachable.') : t('The upload could not be completed at this time.')})
+      toast({tone: 'critical', title: t('Upload failed'), description: err instanceof UploadError && err.network ? t('The network is unreachable.') : t('The upload could not be completed at this time.')})
     } finally {
-      setUploading(null)
+      setUploading((u) => (u?.stop === stop ? null : u))
     }
   }
   const take = (list: File[]) => {
@@ -105,15 +106,13 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   return (
     <div className="file-input" id={id}>
       <input ref={setChooser} type="file" accept={accept} hidden onChange={(e) => (e.target.files?.[0] && upload(e.target.files[0]), (e.target.value = ''))} />
-      {!ref || uploading ? (
+      {uploading ? (
+        <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />
+      ) : !ref ? (
         // Focusable so a paste has somewhere to land.
-        <div className="file-box empty" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop, paste or upload a file', {title})} data-uploading={uploading ? '' : undefined} {...target}>
+        <div className="file-box empty" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop, paste or upload a file', {title})} {...target}>
           {overlay}
-          {uploading ? (
-            <span className="hint" role="status">
-              <BinaryDocumentIcon /> {t('Uploading {name}…', {name: uploading})}
-            </span>
-          ) : failed ? (
+          {failed ? (
             <span className="hint failed" role="alert">
               <ErrorOutline /> {t('Upload failed')}
             </span>
@@ -122,21 +121,19 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
               <BinaryDocumentIcon /> {readOnly ? t('Read only') : t('Drag or paste file here')}
             </span>
           )}
-          {!uploading && (
-            <span className="file-actions">
-              {failed && (
-                <button type="button" className="btn ghost" onClick={() => upload(failed)}>
-                  <Undo /> {t('Retry')}
-                </button>
-              )}
-              <button type="button" className="btn ghost" disabled={readOnly} onClick={pick}>
-                <Upload /> {t('Upload')}
+          <span className="file-actions">
+            {failed && (
+              <button type="button" className="btn ghost" onClick={() => upload(failed)}>
+                <Undo /> {t('Retry')}
               </button>
-              <button type="button" className="btn ghost" disabled={readOnly} onClick={() => setBrowsing(true)}>
-                <SearchIcon /> {t('Select')}
-              </button>
-            </span>
-          )}
+            )}
+            <button type="button" className="btn ghost" disabled={readOnly} onClick={pick}>
+              <Upload /> {t('Upload')}
+            </button>
+            <button type="button" className="btn ghost" disabled={readOnly} onClick={() => setBrowsing(true)}>
+              <SearchIcon /> {t('Select')}
+            </button>
+          </span>
         </div>
       ) : (
         <div className="file-box" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste a file to replace it', {title})} {...target}>

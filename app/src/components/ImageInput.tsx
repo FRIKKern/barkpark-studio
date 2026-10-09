@@ -8,6 +8,8 @@ import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, 
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
 import {assetUrl, dragCrop, frame, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
+import {uploadFile, UploadError} from '../lib/upload'
+import {UploadProgress} from './UploadProgress'
 
 // J12, after Sanity's image input: upload; the image with an "Edit hotspot and
 // crop" button (when the schema asks for options.hotspot) and an options menu;
@@ -35,7 +37,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   const editPath = useContext(EditPathContext)
   const t = useT()
   const file = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
+  const [uploading, setUploading] = useState<{name: string; progress: number; stop: AbortController} | null>(null)
   const [failed, setFailed] = useState<File | null>(null)
   const [over, setOver] = useState(false)
   const [menu, setMenu] = useState(false)
@@ -51,20 +53,19 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
     onChange({...keep, asset: {_ref: next}})
   }
 
+  // Progress as it goes; Cancel aborts it and the field keeps its value.
   const upload = async (f: File) => {
-    setUploading(true)
+    const stop = new AbortController()
+    setUploading({name: f.name, progress: 0, stop})
     setFailed(null)
     try {
-      const body = new FormData()
-      body.append('file', f)
-      const res = await fetch('/api/media/upload', {method: 'POST', body})
-      if (!res.ok) throw new Error(t('The server answered {status}.', {status: res.status}))
-      use(((await res.json()) as {ref: string}).ref)
+      use(await uploadFile(f, (progress) => setUploading((u) => (u && u.stop === stop ? {...u, progress} : u)), stop.signal))
     } catch (err) {
+      if ((err as Error).name === 'AbortError') return
       setFailed(f)
-      toast({tone: 'critical', title: t('Upload failed'), description: err instanceof TypeError ? t('The network is unreachable.') : (err as Error).message})
+      toast({tone: 'critical', title: t('Upload failed'), description: err instanceof UploadError && err.network ? t('The network is unreachable.') : (err as Error).message})
     } finally {
-      setUploading(false)
+      setUploading((u) => (u?.stop === stop ? null : u))
     }
   }
   const pick = () => file.current?.click()
@@ -96,29 +97,31 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   return (
     <div className="image-input" id={id}>
       <input ref={file} type="file" accept="image/*" hidden onChange={(e) => (e.target.files?.[0] && upload(e.target.files[0]), (e.target.value = ''))} />
-      {!ref ? (
+      {uploading ? (
+        <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />
+      ) : !ref ? (
         // Focusable so a paste has somewhere to land.
-        <div className="image-empty-box" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop, paste or upload an image', {title})} data-uploading={uploading || undefined} data-over={over || undefined} {...target}>
+        <div className="image-empty-box" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop, paste or upload an image', {title})} data-over={over || undefined} {...target}>
           {overlay}
-          {failed && !uploading ? (
+          {failed ? (
             <span className="hint failed" role="alert">
               <ErrorOutline /> {t('Upload failed')}
             </span>
           ) : (
             <span className="hint">
-              <ImageIcon /> {uploading ? t('Uploading…') : t('Drag or paste image here')}
+              <ImageIcon /> {t('Drag or paste image here')}
             </span>
           )}
           <span className="image-empty-actions">
-            {failed && !uploading && (
+            {failed && (
               <button type="button" className="btn" onClick={() => upload(failed)}>
                 <Undo /> {t('Retry')}
               </button>
             )}
-            <button type="button" className="btn" disabled={readOnly || uploading} onClick={pick}>
+            <button type="button" className="btn" disabled={readOnly} onClick={pick}>
               <Upload /> {t('Upload')}
             </button>
-            <button type="button" className="btn" disabled={readOnly || uploading} onClick={() => setBrowsing(true)}>
+            <button type="button" className="btn" disabled={readOnly} onClick={() => setBrowsing(true)}>
               <SearchIcon /> {t('Select')}
             </button>
           </span>
@@ -127,7 +130,6 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
         <div className="image-preview" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste an image to replace it', {title})} data-over={over || undefined} {...target}>
           {overlay}
           <img src={url} alt={t('Preview of uploaded image')} />
-          {uploading && <span className="uploading">{t('Uploading…')}</span>}
           <div className="image-actions">
             {hotspot && (
               <button type="button" className="icon-btn" aria-label={t('Open image edit dialog')} title={t('Edit hotspot and crop')} disabled={readOnly} onClick={() => setEditing(true)}>
