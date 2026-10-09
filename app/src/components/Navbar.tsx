@@ -6,7 +6,7 @@ import {NewDocMenu} from './NewDocMenu'
 import {ScopeSwitcher} from './ScopeSwitcher'
 import {WhoIsOnline} from './Presence'
 import {DialogBox, MenuPopover} from './FocusScopes'
-import {Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
+import {ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
 import {useState} from 'react'
 import {useHydratedMark} from '../lib/hydrated'
@@ -14,12 +14,15 @@ import {BUILD, buildName, useNewVersion} from '../lib/version'
 import {saveAll} from '../lib/edits'
 import {useT} from '../lib/i18n'
 import studio from '../studio.config'
+import {usePublishedPerspective, withPerspective} from '../lib/perspective'
+import {useRouterState} from '@tanstack/react-router'
 
 export function Navbar() {
   useHydratedMark()
   const t = useT()
+  const published = usePublishedPerspective()
   return (
-    <nav className="navbar">
+    <nav className="navbar" data-perspective={published ? 'published' : undefined}>
       <div className="brand">
         <NavDrawer />
         <span className="logo">B</span>
@@ -31,12 +34,13 @@ export function Navbar() {
       {/* J37: Sanity's tool switcher. The active tool is the highlighted tab. */}
       <div className="tools">
         {TOOLS.map(([to, label]) => (
-          <Link key={to} to={to} className="tool" activeProps={{className: 'tool tab', 'aria-current': 'page'}}>
+          <Link key={to} to={to} search={(published ? {perspective: 'published'} : {}) as never} className="tool" activeProps={{className: 'tool tab', 'aria-current': 'page'}}>
             {t(label)}
           </Link>
         ))}
       </div>
       <div className="nav-right">
+        <PerspectivePicker />
         <WhoIsOnline />
         <Help />
         <Editor />
@@ -256,3 +260,49 @@ const APPEARANCES: [Appearance, string, () => React.JSX.Element][] = [
   ['dark', 'Dark', Moon],
   ['light', 'Light', Sun],
 ]
+
+/**
+ * J63, Sanity's perspective picker: Drafts (what editors work on) or Published,
+ * for the whole studio — lists, documents (read-only) and Presentation's preview
+ * follow ?perspective=, and links keep it. Releases are plan-gated on the reference,
+ * so they are left out.
+ */
+function PerspectivePicker() {
+  const t = useT()
+  const navigate = useNavigate()
+  const published = usePublishedPerspective()
+  const here = useRouterState({select: (s) => s.location.href})
+  const [open, setOpen] = useState(false)
+  const close = () => setOpen(false)
+  const pick = (next: 'published' | 'drafts') => {
+    close()
+    if ((next === 'published') === published) return
+    const [path, query = ''] = here.split(/\?(.*)/s)
+    const q = new URLSearchParams(query)
+    q.set('perspective', next)
+    void navigate({href: withPerspective(`${path}?${q}`, false)})
+  }
+  return (
+    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+      <button type="button" className="perspective-picker" aria-label={t('Perspective')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span className={`dot ${published ? 'published' : 'draft-ring'}`} aria-hidden="true" />
+        {published ? t('Published') : t('Drafts')}
+        <ChevronDown />
+      </button>
+      {open && (
+        <MenuPopover className="popover menu perspective-menu" onClose={close}>
+          <button type="button" role="menuitemradio" aria-checked={published} className="menu-item" autoFocus={published} onClick={() => pick('published')}>
+            <span className="menu-icon-text">
+              <span className="dot published" aria-hidden="true" /> {t('Published')}
+            </span>
+          </button>
+          <button type="button" role="menuitemradio" aria-checked={!published} className="menu-item" autoFocus={!published} onClick={() => pick('drafts')}>
+            <span className="menu-icon-text">
+              <span className="dot draft-ring" aria-hidden="true" /> {t('Drafts')}
+            </span>
+          </button>
+        </MenuPopover>
+      )}
+    </div>
+  )
+}

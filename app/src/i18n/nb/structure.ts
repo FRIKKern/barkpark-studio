@@ -3,6 +3,8 @@
 export default {
   // Navbar and tools
   Structure: 'Struktur',
+  Perspective: 'Perspektiv',
+  Drafts: 'Utkast',
   Vision: 'Vision',
   Media: 'Medier',
   Tools: 'Verktøy',

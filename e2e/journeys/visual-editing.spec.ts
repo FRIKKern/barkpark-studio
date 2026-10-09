@@ -230,3 +230,39 @@ test('@local J60 F4: a remote edit reaches the preview page within F4', async ({
   await closeAndSettle(page)
   await t.resetDoc('post-02', 'post')
 })
+
+// J63, the navbar's perspective picker: Published for the whole studio (list,
+// document read-only, Presentation's preview), kept across links; Drafts clears it.
+test('J63: the navbar picker switches the studio to Published and back', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await context.route(`${SITE}/**`, (route) =>
+    route.fulfill({contentType: 'text/html', body: `<p id="p">drafts</p><script>parent.postMessage({bp: 'preview', type: 'hello'}, '*'); addEventListener('message', (e) => e.data?.type === 'perspective' && (document.getElementById('p').textContent = e.data.perspective))</script>`}),
+  )
+  await page.goto(t.listPath('post'))
+  await signInIfAsked(page)
+  await t.settle(page)
+  const picker = page.getByRole('button', {name: 'Perspective'})
+  await expect(picker).toHaveText('Drafts')
+  await picker.click()
+  await page.getByRole('menuitemradio', {name: 'Published'}).click()
+  await expect(page).toHaveURL(/\/structure\/post\?perspective=published$/)
+  await expect(picker).toHaveText('Published')
+  await expect(page.locator('nav.navbar')).toHaveAttribute('data-perspective', 'published')
+
+  // A link keeps it: the document opens published, read-only.
+  await page.locator('a[href*=";post-01?perspective=published"]').click()
+  await expect(page).toHaveURL(/post-01\?perspective=published$/)
+  await expect(t.field(page, 'title')).not.toBeEditable()
+  // And so does a tool: Presentation's preview shows the published page.
+  await page.getByRole('navigation').getByRole('link', {name: 'Presentation'}).click()
+  await expect(page).toHaveURL(/\/presentation\?perspective=published/)
+  await expect(page.frameLocator('iframe').locator('#p')).toHaveText('published')
+
+  await picker.click()
+  await page.getByRole('menuitemradio', {name: 'Drafts'}).click()
+  await expect(page).not.toHaveURL(/perspective=/)
+  await expect(page.frameLocator('iframe').locator('#p')).toHaveText('drafts')
+  await expect(picker).toHaveText('Drafts')
+})
