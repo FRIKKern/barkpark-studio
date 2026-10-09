@@ -64,7 +64,8 @@ async function readTokens(): Promise<TokenFile> {
 /** Reuse the editor's token if it still works; otherwise revoke what is left and mint one. */
 async function editorToken(email: string): Promise<string> {
   const url = process.env.BARKPARK_URL
-  // B02: the token is minted for the workspace and dataset the sign-in happened in.
+  // B02: the token is minted for the workspace the sign-in happened in, and no dataset:
+  // a token minted with one is bound to it (Barkpark, 2026-10-09), and an editor switches.
   const {workspace, project, dataset} = scope()
   const file = await readTokens()
   const tokens = file.tokens
@@ -78,7 +79,7 @@ async function editorToken(email: string): Promise<string> {
   const res = await fetch(`${url}/v1/auth/app-tokens`, {
     method: 'POST',
     headers: {authorization: `Bearer ${admin()}`, 'content-type': 'application/json'},
-    body: JSON.stringify({email, workspace, permissions: ['read', 'write'], label: `app:${email}`, dataset}),
+    body: JSON.stringify({email, workspace, permissions: ['read', 'write'], label: `app:${email}`}),
   })
   if (!res.ok) throw new Error(`minting an editor token for ${email}: ${res.status} ${await res.text()}`)
   const {token, workspace_id} = (await res.json()) as {token: string; workspace_id: string}
