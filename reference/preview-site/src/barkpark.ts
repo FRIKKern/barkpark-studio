@@ -17,11 +17,6 @@ export const studio = {
   edits: new Map<string, Doc>(),
   /** J59: the Edit overlay, on unless the studio's Edit switch is off. */
   overlays: window.parent !== window,
-  /**
-   * The preview token the studio minted for this page (its drafts reads): undefined
-   * until the studio says (inside its preview the page waits), null when it has none.
-   */
-  token: (window.parent !== window ? undefined : null) as string | null | undefined,
   /** J59: each type's icon (an SVG body, 25×25), for the overlay label; `fallback` for any other. */
   icons: {byType: {} as Record<string, string>, fallback: ''},
   listeners: new Set<() => void>(),
@@ -44,6 +39,22 @@ export function openShared() {
 }
 
 export const tellStudio = (msg: Record<string, unknown>) => post(msg)
+
+/**
+ * `n` single-use preview tokens from the editor's studio, one per Barkpark read the
+ * page is about to make (or one per listen stream). Null outside a studio, or when the
+ * editor may not mint: the server then reads what is published with its site token.
+ */
+const waiting = new Map<string, (tokens: string[] | null) => void>()
+export function previewTokens(n: number): Promise<string[] | null> {
+  if (window.parent === window) return Promise.resolve(null)
+  const id = Math.random().toString(36).slice(2)
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => (waiting.delete(id), resolve(null)), 8000)
+    waiting.set(id, (tokens) => (clearTimeout(timer), waiting.delete(id), resolve(tokens)))
+    post({type: 'tokens', n, id})
+  })
+}
 const post = (msg: Record<string, unknown>) => window.parent !== window && window.parent.postMessage({bp: 'preview', ...msg}, '*')
 
 /** The documents the page shows (after its location: the studio clears its list on a move). */
@@ -67,10 +78,7 @@ export function connectBarkpark() {
       studio.overlays = e.data.enabled
       changed()
     }
-    if (e.data.type === 'token' && (typeof e.data.token === 'string' || e.data.token === null) && e.data.token !== studio.token) {
-      studio.token = e.data.token
-      changed()
-    }
+    if (e.data.type === 'tokens' && typeof e.data.id === 'string') waiting.get(e.data.id)?.(Array.isArray(e.data.tokens) ? e.data.tokens : null)
     if (e.data.type === 'icons' && e.data.icons && typeof e.data.fallback === 'string') {
       studio.icons = {byType: e.data.icons, fallback: e.data.fallback}
       changed()

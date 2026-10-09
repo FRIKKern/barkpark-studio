@@ -19,7 +19,7 @@ async function studioIsAdmin() {
 
 // The tests that edit post-01 put it back after, passed or failed: a draft one left
 // behind ("Fixture post 01 (draft)") failed the J59 and J61 tests after it.
-const EDITS_POST_01 = /J60 \+ J63|J64 sharing/
+const EDITS_POST_01 = /J60 \+ J63|J64 sharing|editor's own preview tokens/
 test.afterEach(async ({page}, info) => {
   if (info.project.name !== 'studio' || !EDITS_POST_01.test(info.title) || info.status === 'skipped') return
   await closeAndSettle(page)
@@ -300,4 +300,23 @@ test('J63: the navbar picker switches the studio to Published and back', async (
   await expect(page).not.toHaveURL(/perspective=/)
   await expect(page.frameLocator('iframe').locator('#p')).toHaveText('drafts')
   await expect(picker).toHaveText('Drafts')
+})
+
+// Barkpark #22468: the draft preview is read with single-use preview tokens the signed-in
+// editor's own token mints (no admin token on that path). A write member sees the draft;
+// a read-only editor may not mint, so the page shows what is published. With dev sign-in
+// (STUDIO_DEV_LOGIN=1 + BARKPARK_ADMIN_TOKEN, editor d from scripts/rig-editor-tokens.mjs).
+test("@local J63: the draft preview reads with the editor's own preview tokens", async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity' || process.env.STUDIO_DEV_LOGIN !== '1', 'ours, with dev sign-in')
+  await bpMutate([{patch: {id: 'post-01', type: 'post', set: {title: 'Fixture post 01 (member draft)'}}}])
+  const h1 = page.frameLocator('iframe').getByRole('heading', {level: 1})
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page, 'studio-editor-a@example.com')
+  await expect(h1).toHaveText('Fixture post 01 (member draft)', {timeout: 20_000})
+
+  await context.clearCookies()
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page, 'studio-editor-d@example.com')
+  await expect(h1).toHaveText('Fixture post 01', {timeout: 20_000})
 })
