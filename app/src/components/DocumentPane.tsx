@@ -42,6 +42,7 @@ import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIco
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
 import {LocationsBanner} from './LocationsBanner'
+import {EditIcon, EyeOpenIcon, PreviewView} from './PreviewView'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -183,10 +184,19 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const view: View = viewOf(pane.view, mode) === 'freeform' && !freeform ? 'classic' : viewOf(pane.view, mode)
   const [canvasSeen, setCanvasSeen] = useState<string | null>(null)
   if (freeform && view === 'freeform' && canvasSeen !== pane.id) setCanvasSeen(pane.id)
-  const views: {id: View; title: string}[] = [
-    {id: 'classic', title: freeform ? t('Classic') : t('Editor')},
+  // Agency parity (demo): VITE_FORM_VIEW_TITLE names the form tab with Sanity's edit icon
+  // ("Felt", as the Agency's default-document-node.ts does); VITE_HIDE_JSON_VIEW=1 drops
+  // the JSON tab (Sanity has it as Inspect in the menu). Unset, both stay as before.
+  const formTitle = import.meta.env.VITE_FORM_VIEW_TITLE as string | undefined
+  const hideJson = import.meta.env.VITE_HIDE_JSON_VIEW === '1'
+  // Opt-in: the reference post declares desk.preview too, and its tabs stay as Sanity's.
+  const previewTemplate = import.meta.env.VITE_PREVIEW_VIEW === '1' ? schema?.preview : undefined
+  const views: {id: View; title: string; icon?: ReactNode}[] = [
+    formTitle && !freeform ? {id: 'classic', title: formTitle, icon: <EditIcon />} : {id: 'classic', title: freeform ? t('Classic') : t('Editor')},
     ...(freeform ? [{id: 'freeform' as View, title: t('Freeform')}] : []),
-    {id: 'json', title: 'JSON'},
+    ...(hideJson ? [] : [{id: 'json' as View, title: 'JSON'}]),
+    // The schema's desk.preview as a view: the site in an iframe (Agency's "Forhåndsvisning").
+    ...(previewTemplate ? [{id: 'preview' as View, title: 'Forhåndsvisning', icon: <EyeOpenIcon />}] : []),
     // B09: the schema's related-document views (desk.views), after the doc's own.
     ...(schema?.views ?? []).map((v) => ({id: `desk:${v.id}` as View, title: v.title})),
   ]
@@ -441,6 +451,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         <div className="view-tabs" role="tablist" aria-label={t('Views')}>
           {views.map((v) => (
             <button key={v.id} type="button" role="tab" aria-selected={view === v.id} onClick={() => navigate({href: withView(panes, index, viewParam(v.id, mode))})}>
+              {v.icon}
               {v.title}
             </button>
           ))}
@@ -480,6 +491,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         )}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">{t('Not published.')}</p>}
         {doc && view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
+        {doc && view === 'preview' && previewTemplate && <PreviewView template={previewTemplate} doc={doc} id={pane.id} />}
         {doc && view.startsWith('desk:') && (() => {
           const v = schema?.views?.find((x) => `desk:${x.id}` === view)
           return v ? <RelatedView view={v} id={pane.id} hrefOf={(d) => openAfter(panes, index, {kind: 'doc', id: d._publishedId, type: d._type})} selected={next?.kind === 'doc' ? next.id : undefined} /> : null

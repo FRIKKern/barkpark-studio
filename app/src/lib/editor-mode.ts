@@ -25,11 +25,11 @@ export function editorMode(type: string, schema?: Schema): EditorMode {
 }
 
 /** A document view: the form, the canvas, the doc as JSON, or one of the schema's desk views (B09). */
-export type View = 'classic' | 'freeform' | 'json' | `desk:${string}`
+export type View = 'classic' | 'freeform' | 'json' | 'preview' | `desk:${string}`
 /** The view a type opens in when the URL names none. */
 export const defaultView = (mode: EditorMode): View => (mode === 'main' ? 'freeform' : 'classic')
 /** The URL's `view` param for a view: none for the type's default. */
 export const viewParam = (view: View, mode: EditorMode) => (view === defaultView(mode) ? '' : view)
 /** The view a URL `view` param means for this type ('' and unknown → the default). */
 export const viewOf = (param: string | undefined, mode: EditorMode): View =>
-  param === 'json' || param === 'freeform' || param === 'classic' || param?.startsWith('desk:') ? (param as View) : defaultView(mode)
+  param === 'json' || param === 'preview' || param === 'freeform' || param === 'classic' || param?.startsWith('desk:') ? (param as View) : defaultView(mode)
