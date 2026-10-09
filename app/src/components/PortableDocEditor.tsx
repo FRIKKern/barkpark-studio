@@ -12,6 +12,7 @@ import {forget, keep, keptKey, putBackOps, readKept, restoreOps, type Kept} from
 import {editedBy} from '../lib/history'
 import {useRouter} from '@tanstack/react-router'
 import {FindBar, findKey, type FindCanvas} from './FindBar'
+import canvasNb from '../i18n/canvas-nb.json'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
 // EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
@@ -40,6 +41,8 @@ type Canvas = HTMLElement & {
 }
 
 type LinkTarget = {kind: 'link' | 'wikilink'; href: string | null; target: string | null; docId: string | null; alias: string | null}
+
+const CANVAS_NB = JSON.stringify(canvasNb)
 
 let bundle: Promise<void> | null = null
 /** Load the canvas once per page: script + both stylesheets, from the connected Barkpark. */
@@ -113,6 +116,10 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   const host = useRef<HTMLDivElement>(null)
   const t = useT()
   const locale = useLocale()
+  // The canvas's own words (its chrome: block handle, slash menu, bubble), in the editor's
+  // language: Barkpark's map, read from the nearest data-strings when it mounts
+  // (scripts/canvas-strings.mjs copies it out of Barkpark).
+  const canvasStrings = locale === 'nb-NO' ? CANVAS_NB : undefined
   // D14: a paper's task blocks show Barkpark's live previews (lib/fleet.ts).
   const fleetOn = type === 'paper' && !field
   const {data: fleet} = useQuery({...fleetQuery(id), enabled: fleetOn})
@@ -626,11 +633,11 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // Barkpark's LiveView renders it (paper_editor.ex).
         <div className="bp-paper-editor pd-masters">
           <div hidden data-paper-masters={JSON.stringify((masters ?? []).map((m) => ({id: m.docId, title: m.title, tier: m.tier, block_type: m.blockType})))} />
-          <div className="pd-canvas" ref={host} />
+          <div className="pd-canvas" ref={host} data-strings={canvasStrings} />
           {linked.length > 0 && <LinkedMasters slug={id} linked={linked} masters={masters ?? []} actions={masterActions} />}
         </div>
       ) : (
-        <div className="pd-canvas" ref={host} />
+        <div className="pd-canvas" ref={host} data-strings={canvasStrings} />
       )}
     </div>
   )
