@@ -76,6 +76,8 @@ const caretInCell = async (page: Page, i: number) => {
     ed.commands.setTextSelection(cell.pos + cell.size - 1)
     ed.commands.focus()
   }, k)
+  // tiptap's focus() lands a frame later: keys before it go to the page body.
+  await expect(page.locator('bp-paper-canvas .ProseMirror')).toBeFocused()
 }
 
 /** The table chrome lives in a "Configure table" disclosure: open it, then the button. */
