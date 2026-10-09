@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from 'react'
 import {useQueries, useQuery} from '@tanstack/react-query'
-import {backlinksQuery, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {backlinksQuery, disconnectReferences, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {reasonOf} from '../lib/edits'
 import {DialogBox} from './FocusScopes'
 import {UsedInList} from './DeleteDialog'
@@ -12,8 +12,8 @@ import {useT} from '../lib/i18n'
  * refer to each one are listed (title, type / field), because their references will
  * point at nothing live. Unpublish anyway, or Cancel. A lookup still running, offline or
  * failed never reads as "nobody refers to it". One doc (the footer) or several (B03's
- * bulk bar). (LiveView also offers "Disconnect references and unpublish"; Barkpark has
- * no HTTP route for that yet: task-0bc05ce5cdefd8dc.)
+ * bulk bar). As LiveView, "Disconnect references and unpublish" first takes the
+ * references out of those documents (Barkpark's disconnect, #22139).
  */
 export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => Promise<unknown>; onClose: () => void}) {
   const t = useT()
@@ -29,6 +29,21 @@ export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => P
   const used = docs.map((d, i) => ({doc: d, refs: lookups[i]?.data ?? []})).filter((u) => u.refs.length > 0)
   const many = docs.length > 1
   const title = (d: Doc) => previewTitle(d, schemaOf(schemas, d._type))
+  const go = async (disconnect: boolean) => {
+    cancel.current?.focus() // a disabled focused button would drop focus onto the page
+    setBusy(true)
+    setError(undefined)
+    try {
+      // The references go first: an unpublish that fails after leaves them out, as LiveView's.
+      if (disconnect) for (const {doc} of used) await disconnectReferences({data: {id: doc._publishedId}})
+      await run()
+      onClose()
+    } catch (err) {
+      setError(reasonOf((err as Error).message) ?? (err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog delete-dialog" aria-modal="true" aria-labelledby="unpublish-title" onClose={onClose}>
@@ -78,24 +93,12 @@ export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => P
           <button type="button" className="btn" ref={cancel} onClick={onClose}>
             {t('Cancel')}
           </button>
-          <button
-            type="button"
-            className="btn danger"
-            disabled={busy || checking || failed}
-            onClick={async () => {
-              cancel.current?.focus() // a disabled focused button would drop focus onto the page
-              setBusy(true)
-              setError(undefined)
-              try {
-                await run()
-                onClose()
-              } catch (err) {
-                setError(reasonOf((err as Error).message) ?? (err as Error).message)
-              } finally {
-                setBusy(false)
-              }
-            }}
-          >
+          {used.length > 0 && (
+            <button type="button" className="btn" disabled={busy || checking || failed} onClick={() => void go(true)}>
+              {t('Disconnect references and unpublish')}
+            </button>
+          )}
+          <button type="button" className="btn danger" disabled={busy || checking || failed} onClick={() => void go(false)}>
             {used.length > 0 ? t('Unpublish anyway') : t('Unpublish now')}
           </button>
         </footer>
