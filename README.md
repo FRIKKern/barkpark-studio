@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 36 changes, 19 tasks closed
+- **Today** · 37 changes, 19 tasks closed
+  - FF3/D04: the editor mode from the schema's layout (barkpark#22280) ([#269](https://github.com/FRIKKern/barkpark-studio/pull/269))
   - J36: used-in through Barkpark's backlinks; Sanity's asset Delete, refused while in use ([#268](https://github.com/FRIKKern/barkpark-studio/pull/268))
   - Seed: drop the block-list patch after create ([#265](https://github.com/FRIKKern/barkpark-studio/pull/265))
-  - J38: the filter operators barkpark#22106 made expressible ([#264](https://github.com/FRIKKern/barkpark-studio/pull/264))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
