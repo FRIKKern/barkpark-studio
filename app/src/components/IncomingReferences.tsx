@@ -1,6 +1,7 @@
-import {useQuery} from '@tanstack/react-query'
+import {useQueries, useQuery} from '@tanstack/react-query'
 import {backlinksQuery, docQuery, referringTypes, schemasQuery, type Backlink, type Doc} from '../lib/data'
 import {useLive} from '../lib/live'
+import {refersTo} from '../lib/refers-to'
 import {useT} from '../lib/i18n'
 import {openAfter, type Pane} from '../lib/panes'
 import {Close as CloseIcon} from './icons'
@@ -11,7 +12,9 @@ import {DocPreview} from './Preview'
 // deleting). A row opens the referring doc in the next pane, at the field that refers.
 // Kept current by live frames (lib/live.ts reads the backlinks again): the panel listens to
 // every type that can refer to this one, so a doc that starts pointing here shows up too,
-// not only docs already on screen.
+// not only docs already on screen. A row goes as soon as its doc, as the frames bring it,
+// no longer points here: Barkpark's backlinks can keep a removed edge some seconds
+// (task-3fd3c0c53d08a6bd), and the doc itself is the truth.
 
 export function IncomingReferences({id, panes, index, onClose}: {id: string; panes: Pane[]; index: number; onClose: () => void}) {
   const t = useT()
@@ -22,7 +25,12 @@ export function IncomingReferences({id, panes, index, onClose}: {id: string; pan
   // One row per referring doc (a draft and its published version are one doc; several fields one row).
   const seen = new Set<string>()
   const rows = (links ?? []).map((l) => ({...l, from_doc_id: l.from_doc_id.replace(/^drafts\./, '')})).filter((l) => l.from_doc_id !== id && !seen.has(l.from_doc_id) && seen.add(l.from_doc_id))
-  const types = [...new Set(rows.map((r) => r.type))]
+  const docs = useQueries({queries: rows.map((r) => docQuery(r.type, r.from_doc_id))})
+  const pointing = rows.filter((r, i) => {
+    const doc = docs[i]?.data
+    return doc === undefined || refersTo(doc, id)
+  })
+  const types = [...new Set(pointing.map((r) => r.type))]
   const next = panes[index + 1]
   const title = (type: string) => schemas.find((s) => s.name === type)?.title ?? type
   return (
@@ -42,14 +50,14 @@ export function IncomingReferences({id, panes, index, onClose}: {id: string; pan
             {t('Retry')}
           </button>
         </p>
-      ) : rows.length === 0 ? (
+      ) : pointing.length === 0 ? (
         <p className="incoming-card">{t('No incoming references found.')}</p>
       ) : (
         types.map((type) => (
           <section key={type} className="incoming-group" aria-label={title(type)}>
             <h3>{title(type)}</h3>
             <ul className="incoming-card">
-              {rows
+              {pointing
                 .filter((r) => r.type === type)
                 .map((r) => (
                   <li key={r.from_doc_id}>
@@ -70,3 +78,4 @@ function Row({link, href, selected, active}: {link: Backlink; href: string; sele
   const fallback = {_id: link.from_doc_id, _publishedId: link.from_doc_id, _type: link.type, title: link.title} as unknown as Doc
   return <DocPreview doc={data ?? fallback} href={href} selected={selected} active={active} />
 }
+

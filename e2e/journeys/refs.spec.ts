@@ -296,6 +296,9 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
 
 test('J17: Incoming references from the document menu, any time: opens the referring doc, follows live', async ({page}, info) => {
   const t = target(info)
+  // post-07 as the seed writes it (createOrReplace): Barkpark then keeps its edge to Alan
+  // some seconds after it points away (task-3fd3c0c53d08a6bd), the case that flaked.
+  await t.resetDoc(ID, 'post')
   await page.goto(t.docPath('author', 'author-alan'))
   await t.settle(page)
   await expect(t.field(page, 'name')).toHaveValue('Alan Turing', {timeout: 15_000})
@@ -313,7 +316,8 @@ test('J17: Incoming references from the document menu, any time: opens the refer
   await t.patch('post-02', {author: t.ref('author-alan')})
   await expect(row('post-02', 'Fixture post 02')).toBeVisible({timeout: 15_000})
   await t.patch(ID, {author: t.ref('author-grace')})
-  await expect(row('post-07', 'Fixture post 07')).toHaveCount(0, {timeout: 15_000})
+  // At once, from the doc the frame brings: not when Barkpark's backlinks catch up.
+  await expect(row('post-07', 'Fixture post 07')).toHaveCount(0, {timeout: 3_000})
   await expect(page.getByText('Incoming references', {exact: true}).first()).toBeVisible() // still the panel, not a strip
   // A row opens the referring doc in the next pane, at the field that refers.
   await row('post-01', 'Fixture post 01').click()
