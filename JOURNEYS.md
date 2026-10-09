@@ -50,10 +50,10 @@ quality first, never a shrinking finish line.
 | J38 | after | Global search filters: type picker, field filters with Sanity's operators, ordering; the search survives a reopen; recent searches (filters included) reapply, remove one, clear all; full screen at phone width | F2 F5 |
 | J39 | after | Broken values: wrong-type or unknown field shows Convert / Remove, bad array keys alert, invalid rich text gets a fix-it card | F9 |
 | J40 | after | Field comments: add, reply, mention, resolve; the Comments panel (open / resolved). Scheduled publish of a draft ("Schedule draft for publishing"). Releases are not on the reference plan ("Upgrade to unlock", checked 2026-10-08) | F4 F10 |
-| J41 | 1 | Big list: 5,000 docs scroll smoothly, more load near the bottom, "max items" note at 2,000, list search finds docs beyond the first page | F2 F11 |
+| J41 | 1 | Big list: 5,000 docs scroll smoothly, more load near the bottom (growing to 2,000 never stalls a frame), "max items" note at 2,000, list search finds docs beyond the first page | F2 F11 |
 | J42 | 1 | Narrow window: below the minimum width one pane shows with a Back button; panes and URL stay right both ways | F2 F12 |
 | J43 | 2 | Dialogs and popovers trap focus; on close, focus returns to the button that opened them | F5 F13 |
-| J44 | 4 | Very long doc: 200 fields + a 300-item array still meet F1 and F2 | F1 F2 F11 |
+| J44 | 4 | Very long doc: 200 fields + a 300-item array, or a 400-paragraph body, still meet F1 and F2 | F1 F2 F11 |
 | J45 | after | Dark mode: follows the system, user menu System / Light / Dark, survives reload, no white flash, everything readable | F10 |
 | J46 | after | Phone width: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px | F12 |
 | J47 | after | Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced; axe clean on the search dialog, menus, image library, Presentation, media and canvas too | F13 |
