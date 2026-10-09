@@ -1,6 +1,5 @@
-import {readFileSync} from 'node:fs'
 import {expect, test, type Page} from '@playwright/test'
-import {target, type Target} from '../rig/targets'
+import {resetNative, target, type Target} from '../rig/targets'
 
 // D16, Barkdown's EDITOR-PARITY row 11 (app/tests/editor-multiblock.live.mjs) on our
 // canvas: multi-block edits across the ops round trip. After every step the canvas's
@@ -8,10 +7,9 @@ import {target, type Target} from '../rig/targets'
 // Barkpark's wall (a paper cannot be hollowed out): the card says why, the author's
 // state stays, and the next edit (pasting back) saves.
 const ID = 'paper-02'
-const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjson', import.meta.url), 'utf8').split('\n').find((l) => l.includes(`"${ID}"`))!) as {body: {blocks: unknown[]}}
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control'
 test.afterEach(async ({}, info) => {
-  if (target(info).name === 'studio') await target(info).restore(ID, {body: SEED.body}, 'paper')
+  if (target(info).name === 'studio') await resetNative(ID, 'paper')
 })
 
 type Inline = {type?: string; text?: string; value?: string; content?: Inline[]}
