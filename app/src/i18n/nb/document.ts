@@ -205,6 +205,7 @@ export default {
   'Trying to connect…': 'Prøver å koble til…',
   'Unpublish': 'Avpubliser',
   'Unpublish anyway': 'Avpubliser uansett',
+  'Disconnect references and unpublish': 'Koble fra referanser og avpubliser',
   'Unpublish document?': 'Avpubliser dokument?',
   'Unpublish now': 'Avpubliser nå',
   'Unpublish {n} documents?': 'Avpubliser {n} dokumenter?',

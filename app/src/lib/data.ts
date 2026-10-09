@@ -352,6 +352,21 @@ const fetchBacklinks = createServerFn({method: 'GET'})
     return r.result.backlinks.map(({from_doc_id, type, title, via_field}) => ({from_doc_id, type, title, via_field})) as unknown as Json
   })
 
+/**
+ * B07: take every reference to `id` out of the documents that hold one (Barkpark's
+ * POST /v1/data/disconnect, LiveView's "Disconnect references and unpublish").
+ */
+export const disconnectReferences = createServerFn({method: 'POST'})
+  .validator((d: {id: string}) => d)
+  .handler(async ({data}) => {
+    const res = await bpFetch(`/v1/data/disconnect/${dataset()}/${encodeURIComponent(data.id)}`, {method: 'POST'})
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as {error?: {message?: string}}
+      throw new Error(body.error?.message ?? `Barkpark ${res.status}`)
+    }
+    return null
+  })
+
 /** Documents that reference `id` ("used in"). Barkpark indexes edges a moment after a write. */
 export const backlinksQuery = (id: string) =>
   queryOptions({queryKey: ['backlinks', id], staleTime: 5_000, queryFn: async () => (await fetchBacklinks({data: {id}})) as unknown as Backlink[]})
