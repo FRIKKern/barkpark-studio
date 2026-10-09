@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 22 changes, 14 tasks closed
+- **Today** · 23 changes, 15 tasks closed
+  - D18: full marks, headings 4-6, nested checklists and alignment survive a reload ([#255](https://github.com/FRIKKern/barkpark-studio/pull/255))
+  - Done: [D15 [Freeform both] Tables in the canvas: type, Tab across cells, add/remove rows and columns, paste a markdown table; server matches](https://github.com/FRIKKern/barkpark/issues/22316)
   - D15: tables in the canvas, Barkdown's row 10 — and Barkpark-only fixtures reset whole ([#254](https://github.com/FRIKKern/barkpark-studio/pull/254))
-  - Done: [D16 [Freeform both] Multi-block edits: select-all and type, delete across blocks, cut-all hits the publish wall with a clear message; canvas and server agree](https://github.com/FRIKKern/barkpark/issues/22315)
-  - D16: multi-block edits round trip, Barkdown's row 11 — and a refused batch clears once the words are back ([#253](https://github.com/FRIKKern/barkpark-studio/pull/253))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
