@@ -26,6 +26,10 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
   const cancel = useRef<HTMLButtonElement>(null)
   useEffect(() => cancel.current?.focus(), [])
   const title = previewTitle(doc, schemaOf(schemas, doc._type), t)
+  // A background re-read (a live frame changed who refers to it) keeps what was found on
+  // screen and the buttons as they are: a Delete that turned disabled under the caret
+  // dropped focus, and the dialog's focus trap handed Enter to Close.
+  const checking = isPending || (isFetching && !refs)
   const used = refs?.length ?? 0
 
   return (
@@ -42,7 +46,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
           <div className="ref-box">
             <DocPreview doc={doc} selected={false} />
           </div>
-          {(isPending || isFetching || fetchStatus === 'paused') && <p className="muted" role="status">
+          {(checking || fetchStatus === 'paused') && <p className="muted" role="status">
             {fetchStatus === 'paused' ? t("You're offline. Reconnect to check where this document is used.") : t('Looking for documents that refer to it…')}
           </p>}
           {isError && !isFetching && (
@@ -73,7 +77,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
           <button
             type="button"
             className="btn danger"
-            disabled={busy || isPending || isFetching || isError || fetchStatus === 'paused'}
+            disabled={busy || checking || isError || fetchStatus === 'paused'}
             onClick={async () => {
               // Disabling the focused Delete button would drop focus onto the page.
               cancel.current?.focus()
