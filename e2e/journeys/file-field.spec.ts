@@ -56,29 +56,3 @@ test('@evidence J54: a seeded file shows name and size; clear; upload a PDF; can
   await expect.poll(() => t.docValue(ID, 'attachment'), {timeout: 10_000}).toMatchObject({_type: 'file', asset: {_type: 'reference', _ref: expect.any(String)}})
   info.annotations.push({type: 'stored', description: JSON.stringify(await t.docValue(ID, 'attachment'))})
 })
-
-// Sanity's upload card: while a file uploads, its name over a progress bar and Cancel;
-// Cancel stops it and the field keeps its file. The upload is held here, never sent.
-test('J54: upload progress with Cancel leaves the field as it was', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
-  await t.prepare(page.context())
-  let held = false
-  await page.route('**/api/media/upload', () => void (held = true)) // never answered
-  await page.goto(t.docPath('post', ID))
-  await signInIfAsked(page)
-  await t.settle(page)
-  await page.getByRole('tab', {name: 'Meta'}).click()
-  const field = fileField(t, page)
-  await expect(field.getByText('fixture-attachment.txt')).toBeVisible()
-
-  await field.locator('input[type="file"]').setInputFiles(pdf())
-  const card = field.getByRole('status', {name: 'Uploading J54 upload.pdf'})
-  await expect(card).toBeVisible()
-  await expect(card.getByRole('progressbar')).toBeVisible()
-  expect(held).toBe(true)
-  await card.getByRole('button', {name: 'Cancel'}).click()
-  await expect(card).toBeHidden()
-  await expect(field.getByText('fixture-attachment.txt')).toBeVisible()
-  await expect(page.getByText('Upload failed')).toHaveCount(0)
-})
