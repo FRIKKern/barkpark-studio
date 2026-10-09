@@ -26,8 +26,8 @@ export default defineConfig({
   testMatch: ['*.spec.ts', 'journeys/*.spec.ts'],
   globalSetup: './rig/warmup.ts',
   globalTeardown: './rig/feel-summary.ts',
-  // CI shards by test, not by file, so the two shards share the work evenly (each
-  // must stay under 60 s). One worker either way: tests still run one at a time.
+  // CI hands each shard its spec files by recorded time (scripts/shard-files.mjs), each
+  // shard under 60 s. One worker either way: tests still run one at a time.
   fullyParallel: !!process.env.CI,
   workers: 1,
   timeout: process.env.CI ? 15_000 : 30_000,

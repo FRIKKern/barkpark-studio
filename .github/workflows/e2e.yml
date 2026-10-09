@@ -2,7 +2,8 @@
 # side of each spec stays local (needs a Sanity login). Budget: each shard < 60 s
 # (aim for 45 s). Four shards on four runners, each with its own dataset (ci, ci-2,
 # ci-3, ci-4), so the suite can grow without one 2-vCPU runner and one dataset becoming
-# the bottleneck.
+# the bottleneck. Spec files go to shards by recorded CI time (scripts/shard-files.mjs,
+# e2e/durations.json), so the heavy ones spread; re-record after a big change.
 name: e2e
 on:
   pull_request:
@@ -74,7 +75,7 @@ jobs:
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
-        run: node --env-file=../.env node_modules/@playwright/test/cli.js test --project studio --shard=${{ matrix.shard }}/4
+        run: node --env-file=../.env node_modules/@playwright/test/cli.js test $(node ../scripts/shard-files.mjs ${{ matrix.shard }} 4) --project=studio
       - if: always()
         uses: actions/upload-artifact@v4
         with:
