@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 75 changes, 19 tasks closed
+- **Today** · 76 changes, 19 tasks closed
+  - Unsaved form edits survive a reload or crash (B11 widen) ([#315](https://github.com/FRIKKern/barkpark-studio/pull/315))
   - Cold load: the doc-pane-only editors are their own chunk, fetched when the desk is idle ([#314](https://github.com/FRIKKern/barkpark-studio/pull/314))
   - At most 50 deletes per Barkpark request, through one helper ([#313](https://github.com/FRIKKern/barkpark-studio/pull/313))
-  - A refused studio token says so, not "Could not fetch list items" ([#312](https://github.com/FRIKKern/barkpark-studio/pull/312))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
