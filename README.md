@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 24 changes, 16 tasks closed
+- **Today** · 25 changes, 17 tasks closed
+  - D17: slash-menu blocks insert editable and save (@local sweep on paper-04) ([#257](https://github.com/FRIKKern/barkpark-studio/pull/257))
+  - Done: [D19 [Freeform both] Find and replace in the canvas (Ctrl+F / Ctrl+H) with one-step undo](https://github.com/FRIKKern/barkpark/issues/22319)
   - D19: find and replace in the canvas (Ctrl/Cmd+F, Ctrl+H), one-step undo ([#256](https://github.com/FRIKKern/barkpark-studio/pull/256))
-  - Done: [D18 [Freeform both] Full marks (strike, code, underline, highlight, sub/sup), headings 4–6, nested checklists and alignment survive a reload](https://github.com/FRIKKern/barkpark/issues/22318)
-  - D18: full marks, headings 4-6, nested checklists and alignment survive a reload ([#255](https://github.com/FRIKKern/barkpark-studio/pull/255))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
