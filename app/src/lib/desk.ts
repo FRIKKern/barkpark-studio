@@ -40,6 +40,8 @@ export function normalizeDesk(raw: unknown): DeskNode {
     .map((i) => i as DeskNode)
     .filter((i) => i.type === 'list' || i.type === 'divider' || i.type === 'document' || i.type === 'document_type_list')
     .map((i) => (i.type === 'list' ? normalizeDesk(i) : i))
+    // A list left empty (Barkpark's Plugins tier, once its plugin rows go) is dropped too.
+    .filter((i) => i.type !== 'list' || (i.items?.length ?? 0) > 0)
   const items: DeskNode[] = []
   for (const i of kept) {
     if (i.type === 'divider' && (items.length === 0 || items[items.length - 1].type === 'divider')) continue

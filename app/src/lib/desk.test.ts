@@ -30,6 +30,7 @@ const desk = normalizeDesk({
     },
     {id: 'desk-9', type: 'divider'},
     {id: 'plugin-link-1', type: 'plugin_link', title: 'Fleet', filter: '/admin/fleet'},
+    {id: 'plugins', type: 'list', title: 'Plugins', items: [{id: 'plugin-grp-quiz', type: 'list', items: [{id: 'q', type: 'plugin_document_list'}]}]},
   ],
 })
 

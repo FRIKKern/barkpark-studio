@@ -30,9 +30,13 @@ export async function readDesk(): Promise<unknown | null> {
   const declared = await bpFetch(`/v1/data/doc/${dataset()}/deskStructure/deskStructure?perspective=published`, {}, serviceToken())
   if (declared.status === 404) return null
   if (!declared.ok) throw new Error(`Could not read the desk configuration (${declared.status})`)
+  const title = ((await declared.json()) as {result?: {title?: unknown}}).result?.title
   const res = await bpFetch(`/v1/structure/${dataset()}`, {}, serviceToken())
   if (!res.ok) throw new Error(`Could not read the desk navigation (${res.status})`)
-  const tree = ((await res.json()) as {structure?: unknown}).structure
+  const tree = ((await res.json()) as {structure?: {title?: string}}).structure
   if (!tree) throw new Error('The desk navigation response was empty')
-  return tree
+  // The deskStructure document's title names the root (Sanity's S.list().title('Innhold')).
+  // Barkpark keeps a doc's title in a row column while its resolver reads content.title,
+  // so the tree answers "Structure" (task-b40b41f8d21992ae); the declared title wins here.
+  return typeof title === 'string' && title.trim() ? {...tree, title: title.trim()} : tree
 }
