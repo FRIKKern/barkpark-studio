@@ -247,6 +247,7 @@ export default {
   'Open {dataset}': 'Åpne {dataset}',
   'The content model changed.': 'Innholdsmodellen er endret.',
   'Restore': 'Gjenopprett',
+  'Someone else changed the same block': 'Noen andre endret den samme blokken',
   'Incoming references': 'Innkommende referanser',
   'Close incoming references': 'Lukk innkommende referanser',
   'Could not load the incoming references.': 'Kunne ikke laste de innkommende referansene.',

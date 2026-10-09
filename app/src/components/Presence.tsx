@@ -10,13 +10,12 @@ import {useT} from '../lib/i18n'
 // J07: other editors, where Sanity shows them — on the field they are in, on the
 // list row and pane of the doc they have open, and in the navbar's "who's online".
 
-const initials = (name: string) =>
-  name
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join('')
+// First and last word, as Sanity's avatars: "studio-editor-a" and "studio-editor-b" read
+// SA and SB, not SE twice (collaboration hour).
+const initials = (name: string) => {
+  const words = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean)
+  return [words[0], words.length > 1 ? words.at(-1) : undefined].filter((w): w is string => !!w).map((w) => w[0]!.toUpperCase()).join('')
+}
 
 export function Avatar({p}: {p: Presence}) {
   return (

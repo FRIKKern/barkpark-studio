@@ -3,7 +3,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult, type Rev} from '../lib/blocks'
 import {toast} from './Toasts'
-import {unsavedElsewhere} from '../lib/edits'
+import {setCanvasProblem, unsavedElsewhere} from '../lib/edits'
 import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
 import {reportSelection, usePresences, type CaretSelection} from '../lib/presence'
@@ -176,6 +176,11 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // B11: closing the tab asks first while this canvas holds a batch not yet saved or refused.
   const refused = useRef(false)
   refused.current = !!problem
+  // The document's footer says it too (lib/edits.ts setCanvasProblem).
+  useEffect(() => {
+    setCanvasProblem(id, field ?? '', problem ? problem.message : null)
+    return () => setCanvasProblem(id, field ?? '', null)
+  }, [id, field, problem?.message])
   useEffect(() => {
     const check = () => refused.current || !!canvas.current?.hasPendingChanges()
     unsavedElsewhere.add(check)
@@ -215,6 +220,21 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       setSave({state: 'saving'})
       try {
         let r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+        // Collaboration hour: the other writer changed a block this batch rewrites (both typed
+        // in one paragraph). Resending on their rev would silently put ours over theirs, so ask
+        // instead (D20), with both versions kept. Separate blocks still resend (D05).
+        if (!r.ok && r.status === 412 && base.current) {
+          const was = new Map(base.current.blocks.map((b) => [b.id, JSON.stringify(b)]))
+          const touched = new Set(ops.flatMap((o) => [o.id, (o.block as Block | undefined)?.id].filter((x): x is string => typeof x === 'string')))
+          const server = await readBase().catch(() => null)
+          if (gone) return
+          if (server && server.blocks.some((b) => touched.has(b.id) && was.has(b.id) && was.get(b.id) !== JSON.stringify(b))) {
+            el.discardInflightOps(seq)
+            setSave({state: 'error', message: t('Someone else changed the same block')})
+            setProblem({message: t('Someone else changed the same block'), kept: keepNow(), conflict: {mine: l.rev, theirs: server.rev, blocks: decorate.current(server.blocks)}})
+            return
+          }
+        }
         for (let tries = 0; !r.ok && r.status === 412 && r.actual !== undefined && r.actual !== null && tries < 3; tries++) {
           l.rev = r.actual
           r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
@@ -521,7 +541,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     if (!el || !seenRev || seenRev === l.rev || l.saving || el.hasPendingChanges()) return
     let gone = false
     const before = base.current
-    void readBase().then((fresh) => {
+    void readBlocks(type, id, field).then((fresh) => {
       track(fresh.blocks)
       if (gone || fresh.rev === l.rev || l.saving) return
       // D22: from the blocks this canvas held, so Undo can put them back.
@@ -531,8 +551,15 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       } else setOtherEdit(null)
       // Idle: taken now. Focused (the author is in a field block, say): the canvas defers
       // it until they leave (EMBED-CONTRACT applyServerBlocks) instead of dropping it (D05).
-      if (!el.applyServerBlocksIfIdle(decorate.current(fresh.blocks))) el.applyServerBlocks(decorate.current(fresh.blocks))
-      l.rev = fresh.rev
+      if (el.applyServerBlocksIfIdle(decorate.current(fresh.blocks))) {
+        base.current = fresh
+        l.rev = fresh.rev
+      } else {
+        // Deferred (the author is in a block): the canvas still holds the old blocks, so the
+        // base and rev stay theirs: a batch made meanwhile 412s and is checked for a clash in
+        // the same block (applyOps) instead of silently landing over the other writer's words.
+        el.applyServerBlocks(decorate.current(fresh.blocks))
+      }
     })
     return () => {
       gone = true

@@ -575,10 +575,32 @@ export function useAdvisories(id: string): Finding[] {
   )
 }
 
+/**
+ * A Freeform canvas in a field (the body) saves on its own; when it can't (refused, a
+ * conflict), the document's footer says so too, as for any field (collaboration hour:
+ * the footer said "Last published …" while the body's edit was not saved).
+ */
+const canvasSnaps = new Map<string, Snap>()
+const canvasProblems = new Map<string, Map<string, string>>()
+export function setCanvasProblem(docId: string, key: string, message: string | null) {
+  const held = canvasProblems.get(docId) ?? new Map<string, string>()
+  if (message) held.set(key, message)
+  else held.delete(key)
+  canvasProblems.set(docId, held)
+  const first = [...held.values()][0]
+  if (first) canvasSnaps.set(docId, {state: 'refused', error: first})
+  else canvasSnaps.delete(docId)
+  listeners.forEach((l) => l())
+}
+
 export function useSaveState(id: string): Snap {
   return useSyncExternalStore(
     (l) => (listeners.add(l), () => listeners.delete(l)),
-    () => docs.get(id)?.snap ?? SAVED,
+    () => {
+      const own = docs.get(id)?.snap ?? SAVED
+      const canvas = canvasSnaps.get(id)
+      return canvas && (own.state === 'saved' || own.state === 'saving') ? canvas : own
+    },
     () => SAVED,
   )
 }
