@@ -120,11 +120,6 @@ async function reset() {
   const drafts = [...new Map(existing.filter((e) => e.draft && seeded.has(e.id)).map((e) => [e.id, e])).values()]
   if (drafts.length) await mutate(drafts.map(({id, type}) => ({discardDraft: {id, type}})))
   await mutate(docs.map((d) => ({createOrReplace: d})))
-  // A create doesn't project a block list into its fields (task-b43256e0d9d90733), and on a
-  // type with a layout it builds the blocks from the layout + prefill instead of taking
-  // ours. A patch of the block list does both right (BoundFieldSync + projection).
-  const blockDocs = docs.filter((d) => Array.isArray(d.blocks))
-  if (blockDocs.length) await mutate(blockDocs.map((d) => ({patch: {id: d._id, type: d._type, set: {blocks: d.blocks}}})))
   await mutate(docs.map((d) => ({publish: {id: d._id, type: d._type}})))
 
   // Then everything the seed doesn't hold goes, references included.
