@@ -1,8 +1,8 @@
 # Our-side journey specs against Barkpark workspace studio-parity. The Sanity
 # side of each spec stays local (needs a Sanity login). Budget: each shard < 60 s
-# (aim for 45 s). Three shards on three runners, each with its own dataset (ci, ci-2,
-# ci-3), so the suite can grow without one 2-vCPU runner and one dataset becoming the
-# bottleneck.
+# (aim for 45 s). Four shards on four runners, each with its own dataset (ci, ci-2,
+# ci-3, ci-4), so the suite can grow without one 2-vCPU runner and one dataset becoming
+# the bottleneck.
 name: e2e
 on:
   pull_request:
@@ -19,6 +19,7 @@ jobs:
           - { shard: 1, dataset: ci }
           - { shard: 2, dataset: ci-2 }
           - { shard: 3, dataset: ci-3 }
+          - { shard: 4, dataset: ci-4 }
     concurrency:
       group: e2e-dataset-${{ matrix.dataset }} # one run per dataset at a time
       cancel-in-progress: false
@@ -46,7 +47,7 @@ jobs:
       - run: pnpm --dir app install --frozen-lockfile && pnpm --dir e2e install --frozen-lockfile
       # The studio reads the schemas from Barkpark, as in production (a member token may,
       # barkpark #22080). A PR that changes the fixture schemas tests them from the
-      # checkout instead: ci / ci-2 / ci-3 only get them when someone reseeds (--schemas).
+      # checkout instead: ci / ci-2 / ci-3 / ci-4 only get them when someone reseeds (--schemas).
       - name: Schemas from the fixtures when this PR changes them
         if: github.event_name == 'pull_request'
         run: |
@@ -71,7 +72,7 @@ jobs:
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
-        run: node --env-file=../.env node_modules/@playwright/test/cli.js test --project studio --shard=${{ matrix.shard }}/3
+        run: node --env-file=../.env node_modules/@playwright/test/cli.js test --project studio --shard=${{ matrix.shard }}/4
       - if: always()
         uses: actions/upload-artifact@v4
         with:
