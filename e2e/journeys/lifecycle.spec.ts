@@ -73,6 +73,14 @@ test('J03 J04 J13: type without drops, undo, draft, publish, validation, discard
   await t.field(page, 'excerpt').fill('x'.repeat(170))
   await expect(page.getByText('Long excerpts get cut off in previews').filter({visible: true}).first()).toBeVisible()
   await expect(publish).toBeEnabled({timeout: 10_000})
+  // So is info, and the backend holds it (Barkpark refused it like an error before #22125).
+  await page.getByRole('tab', {name: 'Meta'}).click()
+  await page.getByText(/^(SEO|Seo)$/).first().click() // collapsed by default
+  await t.field(page, 'seo.metaDescription').fill('Too short')
+  await expect(page.getByText('Search results show about 150 characters').filter({visible: true}).first()).toBeVisible()
+  await expect.poll(async () => ((await t.docValue(ID, 'seo')) as {metaDescription?: string} | undefined)?.metaDescription, BACKEND_POLL).toBe('Too short')
+  await expect(publish).toBeEnabled({timeout: 10_000})
+  await page.getByRole('tab', {name: 'Content'}).click()
 
   // Edit, then discard → back to what is published.
   await expect.poll(versions, BACKEND_POLL).toEqual({draft: `${TYPED} oops`, published: TYPED})
