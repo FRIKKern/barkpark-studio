@@ -68,6 +68,7 @@ export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]
       data: {
         ...row(p),
         $edit: editOf(raw.maps?.[0], p.title),
+        $editAuthor: editOf(raw.maps?.[1], isDoc(p.author) ? p.author.name : ''),
         categories: categories.map((c) => ({_id: id(c), title: c.title})),
         body: blocks(p.body),
         related: related && {_type: related._type, _id: id(related), title: related.title, name: related.name, slug: related.slug},

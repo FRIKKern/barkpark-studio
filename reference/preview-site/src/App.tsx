@@ -15,6 +15,7 @@ type Post = PostRow & {
   related?: {_type: string; _id: string; title?: string; name?: string; slug?: string}
   /** Barkpark mode (J59): a value's click-to-edit attributes; Sanity mode uses stega instead. */
   $edit?: Edit
+  $editAuthor?: Edit
 }
 type Author = {_id: string; name?: string; bio?: string; posts: PostRow[]; $edit?: Edit}
 
@@ -75,7 +76,7 @@ function Page() {
           !p ? <h1>Not found</h1> : (
             <article>
               <h1 {...p.$edit?.('title')}>{p.title}</h1>
-              {p.author && <p className="meta">by <Link to={`/authors/${p.author._id}`}>{p.author.name}</Link></p>}
+              {p.author && <p className="meta">by <Link to={`/authors/${p.author._id}`}><span {...p.$editAuthor?.('name')}>{p.author.name}</span></Link></p>}
               {p.excerpt && <p><em {...p.$edit?.('excerpt')}>{p.excerpt}</em></p>}
               <p>{p.categories?.map((c) => <span className="chip" key={c._id}>{c.title}</span>)}</p>
               {p.body?.filter((b) => b._type === 'block').map((b) => <p key={b._key} {...p.$edit?.('body')}>{b.children?.map((c) => c.text).join('')}</p>)}

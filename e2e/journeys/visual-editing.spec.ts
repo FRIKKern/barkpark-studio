@@ -178,10 +178,16 @@ test('@local J59: the Barkpark page outlines its values; a click edits that fiel
   await expect(site.getByText('Fixture post 01', {exact: true}).last()).toBeVisible()
   await excerpt.click()
   await expect(page.locator('.presentation-panel [id="excerpt"]')).toBeFocused()
+  // A referenced document on the page (the author) opens itself, from its own source map.
+  const author = site.getByText('Alan Turing', {exact: true})
+  await expect(author).toHaveAttribute('data-bp-edit', 'author:author-alan:name')
+  await author.click()
+  await expect(page).toHaveURL(/pane=author%3Bauthor-alan%2Cpath%3Dname/)
+  await expect(page.locator('.presentation-panel [id="name"]')).toBeFocused()
   // Edit off: the page is a page again.
   await page.getByRole('switch', {name: 'Edit'}).click()
-  await site.getByRole('link', {name: 'Alan Turing'}).click()
-  await expect(page.getByLabel('URL')).toHaveValue(`${SITE}/authors/author-alan`)
+  await site.getByRole('link', {name: 'Reference site'}).click()
+  await expect(page.getByLabel('URL')).toHaveValue(`${SITE}/`)
 })
 
 test('@evidence J59: hover outline and click-to-edit, side by side', async ({page, context}, info) => {
