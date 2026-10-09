@@ -78,7 +78,8 @@ test('filters, tree levels, ops the query API lacks, and orderings', () => {
   const [tree, unref] = kat.items ?? []
   assert.deepEqual(listFilter(tree), {'content.parent': {is: 'null'}})
   assert.deepEqual(listFilter(tree, 'cat-1'), {'content.parent': {eq: 'cat-1'}})
-  assert.deepEqual(unsupportedOps(unref.filter), ['notReferencedBy'])
+  assert.deepEqual(unsupportedOps(unref.filter), [])
+  assert.deepEqual(unsupportedOps({_id: {madeUpOp: 'x'}}), ['madeUpOp'])
   assert.deepEqual(unsupportedOps(tree.filter), [])
   assert.equal(deskSort(desk.items?.[2].items?.[0]), 'title')
   assert.equal(deskSort(tree), undefined)

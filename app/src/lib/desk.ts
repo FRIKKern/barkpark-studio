@@ -25,7 +25,8 @@ export type DeskNode = {
 }
 
 /** The query API's filter operators (Barkpark's 400 lists them). A desk filter using another can't be listed yet. */
-const QUERY_OPS = new Set(['eq', 'neq', 'in', 'nin', 'has', 'hasStrong', 'contains', 'startsWith', 'endsWith', 'gt', 'gte', 'lt', 'lte', 'is'])
+// referencedBy / notReferencedBy: barkpark#22134; notContains / nhas: barkpark#22106.
+const QUERY_OPS = new Set(['eq', 'neq', 'in', 'nin', 'has', 'nhas', 'hasStrong', 'contains', 'notContains', 'startsWith', 'endsWith', 'gt', 'gte', 'lt', 'lte', 'is', 'referencedBy', 'notReferencedBy'])
 
 /**
  * The tree as this studio shows it. Plugin links and plugin lists are LiveView
