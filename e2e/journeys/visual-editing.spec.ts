@@ -72,6 +72,10 @@ test('J60 + J63: typing reaches the page at once, focus stays; the page shows th
   await page.locator('.presentation-panel').getByRole('button', {name: /^Published/}).first().click()
   await expect(page).toHaveURL(/perspective=published/)
   await expect(site.locator('#p')).toHaveText('published')
+  // The page loads again (a full navigation, a reload): it is told again, never left on
+  // its own default (drafts) while the panel shows Published.
+  await page.frames().find((f) => f !== page.mainFrame())!.evaluate(() => location.reload())
+  await expect(site.locator('#p')).toHaveText('published')
   await page.locator('.presentation-panel').getByRole('button', {name: /^Draft/}).first().click()
   await expect(site.locator('#p')).toHaveText('drafts')
 })

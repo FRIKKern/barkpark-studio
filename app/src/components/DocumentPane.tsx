@@ -182,10 +182,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     // path, it read as a link into the item and opened its dialog (J33).
     if (id.endsWith('-menuButton')) return
     clearTimeout(pathTimer.current)
-    const at = location.pathname
+    // The whole URL: in Presentation the panes and the perspective are its query (J63: a
+    // Published click within these 300 ms was undone by a write built from the old URL).
+    const at = location.pathname + location.search
     pathTimer.current = setTimeout(() => {
-      // The panes moved meanwhile (a reference opened, a pane closed): that URL wins.
-      if (location.pathname !== at) return
+      // The URL moved meanwhile (a reference opened, a pane closed, Published): it wins.
+      if (location.pathname + location.search !== at) return
       opened.current = `${pane.id}|${id}` // ours, not a link to follow
       void navigate({href: withParams(panes, index, {path: id}), replace: true})
     }, 300)
