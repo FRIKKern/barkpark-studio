@@ -8,6 +8,7 @@ import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import type {T} from './i18n'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
+import {withStudioItems} from './structure-config'
 import type {Sort} from './list-prefs'
 import type {PreviewText} from './preview'
 import {excluded, parseTextQuery, textScore} from './text-search'
@@ -392,7 +393,7 @@ export const deskQuery = queryOptions({
   staleTime: Infinity,
   queryFn: async (): Promise<DeskNode | null> => {
     const raw = await fetchDesk()
-    return raw ? normalizeDesk(raw) : null
+    return withStudioItems(raw ? normalizeDesk(raw) : null)
   },
 })
 

@@ -63,3 +63,22 @@ test('@local J18: templates — "Post by Alan Turing" in every Create new, start
   await expect.poll(() => t.docValue(created!, 'author').then((a) => (a && typeof a === 'object' ? (a as {_ref: string})._ref : a)), {timeout: 10_000}).toBe('author-alan')
   await page.screenshot({path: `evidence/J18-${t.name}-template.png`})
 })
+
+test('@local J18: a parameterised template from a structure item — Posts by author → Alan → "+"', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto('/structure')
+  await t.settle(page)
+  await page.getByText('Posts by author', {exact: true}).click()
+  await page.getByText('Alan Turing', {exact: true}).first().click()
+  await expect.poll(() => decodeURIComponent(page.url())).toContain('/structure/posts-by-author;author-alan')
+  await expect(page.getByText('Fixture post 07', {exact: true}).first()).toBeVisible()
+  await page.getByRole('link', {name: 'Post by author'}).or(page.getByRole('button', {name: 'Post by author'})).first().click()
+  await expect(t.field(page, 'title')).toBeVisible()
+  await expect(page.locator('[data-testid="document-pane"]').last().getByText('Alan Turing').first()).toBeVisible()
+  created = decodeURIComponent(page.url()).match(/;([0-9a-f-]{36})/)?.[1]
+  await t.field(page, 'title').click()
+  await page.keyboard.type('Post by an author')
+  await expect.poll(() => t.docValue(created!, 'author').then((a) => (a && typeof a === 'object' ? (a as {_ref: string})._ref : a)), {timeout: 10_000}).toBe('author-alan')
+  await page.screenshot({path: `evidence/J18-${t.name}-param-template.png`})
+})

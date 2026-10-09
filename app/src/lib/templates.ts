@@ -15,7 +15,16 @@ export type Choice = {id: string; title: string; type: string; value: Record<str
 export function choicesFor(schemas: Schema[], type: string): Choice[] {
   const schema = schemaOf(schemas, type)
   const own: Choice = {id: type, title: schema?.title ?? type, type, value: schema?.initialValues ?? {}}
-  return [own, ...(studio.templates ?? []).filter((t) => t.schemaType === type).map((t) => ({id: t.id, title: t.title, type, value: t.value}))]
+  // A template with parameters waits for a structure item that passes them (templateChoice).
+  const plain = (studio.templates ?? []).flatMap((t) => (t.schemaType === type && !t.parameters ? [{id: t.id, title: t.title, type, value: t.value}] : []))
+  return [own, ...plain]
+}
+
+/** A parameterised template with its parameters (a child list's "+", Sanity's S.initialValueTemplateItem). */
+export function templateChoice(id: string, params: Record<string, string>): Choice | undefined {
+  const t = studio.templates?.find((x) => x.id === id)
+  if (!t) return undefined
+  return {id: t.id, title: t.title, type: t.schemaType, value: typeof t.value === 'function' ? t.value(params) : t.value}
 }
 
 /**
