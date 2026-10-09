@@ -7,7 +7,13 @@ side to record against. Vite + React, three routes: `/` (posts), `/posts/:slug`,
 ```sh
 pnpm install
 SANITY_STUDIO_DATASET=e2e-local pnpm dev   # http://localhost:3536 (PREVIEW_PORT to change)
+PREVIEW_SOURCE=barkpark PREVIEW_DATASET=e2e-local PREVIEW_PORT=3537 pnpm dev   # the same pages from Barkpark
 ```
+
+- **Two sources, one site.** Sanity's Presentation shows the Sanity copy (:3536); ours
+  shows the Barkpark copy (:3537, `barkpark-server.ts`: drafts inside a studio's
+  preview, published otherwise, refetched on every change from Barkpark's listen
+  stream). `BARKPARK_*` come from the repo's `.env`; the token stays in the dev server.
 
 - Reads `SANITY_TOKEN` from the repo's `.env`. The dataset is private, so the token
   stays in the dev server (`/api/query`); the browser never sees it.

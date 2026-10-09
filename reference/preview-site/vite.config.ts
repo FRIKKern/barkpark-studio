@@ -4,6 +4,7 @@ import {defineConfig, loadEnv, type Plugin} from 'vite'
 import react from '@vitejs/plugin-react'
 import {createClient, type ClientPerspective} from '@sanity/client'
 import {validatePreviewUrl} from '@sanity/preview-url-secret'
+import {barkparkApi} from './barkpark-server'
 
 // The reference project's dataset is private, so the token stays here, server side.
 // The browser asks /api/query; draft mode (Presentation's enable URL) picks drafts.
@@ -78,7 +79,10 @@ function api(): Plugin {
   }
 }
 
+// PREVIEW_SOURCE=barkpark reads the same pages from Barkpark (barkpark-server.ts).
+const SOURCE = process.env.PREVIEW_SOURCE === 'barkpark' ? 'barkpark' : 'sanity'
+
 export default defineConfig({
-  plugins: [react(), api()],
-  define: {__STUDIO_URL__: JSON.stringify(STUDIO_URL), __DATASET__: JSON.stringify(env.SANITY_STUDIO_DATASET || 'production')},
+  plugins: [react(), SOURCE === 'barkpark' ? barkparkApi({...loadEnv('development', resolve(__dirname, '../..'), 'BARKPARK_'), ...process.env}) : api()],
+  define: {__SOURCE__: JSON.stringify(SOURCE), __STUDIO_URL__: JSON.stringify(STUDIO_URL), __DATASET__: JSON.stringify(env.SANITY_STUDIO_DATASET || 'production')},
 })

@@ -2,8 +2,10 @@ import {useLiveMode, type QueryResponseInitial} from '@sanity/react-loader'
 import {VisualEditing} from '@sanity/visual-editing/react'
 import {Link, historyAdapter, usePathname} from './router'
 import {draftMode, liveClient, useLiveData, useLoad} from './sanity'
+import {BarkparkPage, SOURCE} from './barkpark-source'
 
-// The reference preview site for J58–J64: three routes, every text a stega string.
+// The reference preview site for J58–J64: three routes. From Sanity every text is a
+// stega string; from Barkpark (PREVIEW_SOURCE=barkpark) the same pages, same markup.
 type PostRow = {_id: string; title?: string; slug?: string; excerpt?: string; author?: {_id: string; name?: string}}
 type Post = PostRow & {
   categories?: {_id: string; title?: string}[]
@@ -21,7 +23,17 @@ const AUTHOR = `*[_type == "author" && _id == $id][0] {
   _id, name, bio, "posts": *[_type == "post" && references(^._id) && defined(slug.current)] | order(title asc) {${ROW}}
 }`
 
-function Loaded<T>({query, params = {}, render}: {query: string; params?: Record<string, string>; render: (data: T) => React.ReactNode}) {
+export type PageKey = {kind: 'home'} | {kind: 'post'; slug: string} | {kind: 'author'; id: string}
+const QUERIES = {home: HOME, post: POST, author: AUTHOR}
+
+/** A page's data from Sanity (GROQ, live in Sanity's Presentation) or Barkpark (PREVIEW_SOURCE=barkpark). */
+function Loaded<T>({page, render}: {page: PageKey; render: (data: T) => React.ReactNode}) {
+  if (SOURCE === 'barkpark') return <BarkparkPage<T> page={page} render={render} />
+  const params: Record<string, string> = page.kind === 'post' ? {slug: page.slug} : page.kind === 'author' ? {id: page.id} : {}
+  return <SanityLoaded<T> query={QUERIES[page.kind]} params={params} render={render} />
+}
+
+function SanityLoaded<T>({query, params = {}, render}: {query: string; params?: Record<string, string>; render: (data: T) => React.ReactNode}) {
   const {initial, error} = useLoad<T>(query, params)
   if (error) return <p role="alert">Could not load: {error}</p>
   if (!initial) return <p className="meta">Loading…</p>
@@ -50,12 +62,11 @@ function Page() {
   const post = /^\/posts\/([^/]+)$/.exec(path)
   const author = /^\/authors\/([^/]+)$/.exec(path)
   if (path === '/')
-    return <Loaded<PostRow[]> query={HOME} render={(posts) => (<><h1>Posts</h1><PostList posts={posts} /></>)} />
+    return <Loaded<PostRow[]> page={{kind: 'home'}} render={(posts) => (<><h1>Posts</h1><PostList posts={posts} /></>)} />
   if (post)
     return (
       <Loaded<Post | null>
-        query={POST}
-        params={{slug: decodeURIComponent(post[1])}}
+        page={{kind: 'post', slug: decodeURIComponent(post[1])}}
         render={(p) =>
           !p ? <h1>Not found</h1> : (
             <article>
@@ -78,8 +89,7 @@ function Page() {
   if (author)
     return (
       <Loaded<Author | null>
-        query={AUTHOR}
-        params={{id: decodeURIComponent(author[1])}}
+        page={{kind: 'author', id: decodeURIComponent(author[1])}}
         render={(a) => (!a ? <h1>Not found</h1> : (<><h1>{a.name}</h1>{a.bio && <p>{a.bio}</p>}<h2>Posts</h2><PostList posts={a.posts} /></>))}
       />
     )
@@ -94,7 +104,7 @@ function LiveMode() {
 export function App() {
   return (
     <>
-      {draftMode && (
+      {SOURCE === 'sanity' && draftMode && (
         <div className="banner">
           Draft mode · <a href="/api/draft-mode/disable">Leave</a>
         </div>
@@ -105,7 +115,7 @@ export function App() {
       <main>
         <Page />
       </main>
-      {draftMode && <LiveMode />}
+      {SOURCE === 'sanity' && draftMode && <LiveMode />}
     </>
   )
 }
