@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 55 changes, 19 tasks closed
+- **Today** · 56 changes, 19 tasks closed
+  - J13: an array's length warning, from Barkpark's advisory, as Sanity's ([#295](https://github.com/FRIKKern/barkpark-studio/pull/295))
   - Field groups select in narrow panes, Presentation's narrow tab bar, overlay label icon ([#294](https://github.com/FRIKKern/barkpark-studio/pull/294))
   - J13: Barkpark's advisory findings join the studio's checks, in its words ([#291](https://github.com/FRIKKern/barkpark-studio/pull/291))
-  - The Freeform canvas speaks Norwegian in an nb studio ([#290](https://github.com/FRIKKern/barkpark-studio/pull/290))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
