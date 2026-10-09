@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 86 changes, 21 tasks closed
+- **Today** · 87 changes, 21 tasks closed
+  - ci: unit job (typecheck + unit tests), to be a required check on main ([#327](https://github.com/FRIKKern/barkpark-studio/pull/327))
   - Done: [Barkpark: login session token rejected right after login (/v1/auth/me, /v1/auth/tokens)](https://github.com/FRIKKern/barkpark/issues/21751)
   - Done: [Barkpark: workspace member-add breaks password login of an existing user](https://github.com/FRIKKern/barkpark/issues/21752)
-  - J26: focus mode (hide navigation) ([#325](https://github.com/FRIKKern/barkpark-studio/pull/325))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
