@@ -11,15 +11,19 @@ type Ref = {_id: string; _type: string}
 const id = (d: Doc) => d._publishedId ?? d._id.replace(/^drafts\./, '')
 const isDoc = (v: unknown): v is Doc => !!v && typeof v === 'object' && '_id' in v
 
-/** Lay each edited document over its copy, wherever it is (a reference expanded too). */
-export function overlay<T>(value: T, edits: Map<string, Doc>): T {
+/**
+ * Lay each edited document over its copy, wherever it is (a reference expanded too).
+ * `replace`: the edit is the whole document (a listen frame's), so a field it no
+ * longer has goes too.
+ */
+export function overlay<T>(value: T, edits: Map<string, Doc>, replace = false): T {
   if (!edits.size) return value
-  if (Array.isArray(value)) return value.map((v) => overlay(v, edits)) as T
+  if (Array.isArray(value)) return value.map((v) => overlay(v, edits, replace)) as T
   if (!value || typeof value !== 'object') return value
-  if (!isDoc(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, overlay(v, edits)])) as T
+  if (!isDoc(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, overlay(v, edits, replace)])) as T
   const edit = edits.get(id(value))
   const out: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(value)) out[k] = overlay(v, edits)
+  for (const [k, v] of Object.entries(value)) if (!replace || !edit || k.startsWith('_') || k in edit) out[k] = overlay(v, edits, replace)
   if (!edit) return out as T
   for (const [k, v] of Object.entries(edit)) {
     if (k.startsWith('_')) continue
