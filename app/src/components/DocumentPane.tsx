@@ -40,7 +40,8 @@ import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
-import {ChevronDown, CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
+import {ChevronDown, CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse} from './icons'
+import {useFocusMode} from './FocusMode'
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
 import {LocationsBanner} from './LocationsBanner'
@@ -446,11 +447,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} />
         )}
         {/* J42: a narrow window has no splits and no close: the back link goes back. */}
+        {narrow && <FocusButton index={index} />}
         {!narrow && (
           <>
             <button type="button" className="icon-btn" aria-label={t('Split pane right')} data-tip={t('Split pane right')} onClick={() => navigate({href: splitRight(panes, index)})}>
               <SplitVertical />
             </button>
+            <FocusButton index={index} />
             {split ? (
               // Like Sanity: closing one side of a split is a button, closing a pane a link.
               <button type="button" className="icon-btn" aria-label={t('Close split pane')} data-tip={t('Close pane')} data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
@@ -1137,5 +1140,17 @@ function RelatedView({view, id, hrefOf, selected}: {view: DeskView; id: string; 
         </div>
       ))}
     </div>
+  )
+}
+
+/** J26: Sanity's "Enter focus mode (hide navigation)", and the way out. */
+function FocusButton({index}: {index: number}) {
+  const t = useT()
+  const {focused, toggle} = useFocusMode()
+  const on = focused === index
+  return (
+    <button type="button" className="icon-btn" data-testid="focus-pane-button" aria-label={t(on ? 'Exit focus mode (show navigation)' : 'Enter focus mode (hide navigation)')} data-tip={t(on ? 'Exit focus mode' : 'Enter focus mode')} aria-pressed={on} onClick={() => toggle(index)}>
+      {on ? <Collapse /> : <Expand />}
+    </button>
   )
 }

@@ -16,6 +16,7 @@ import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
 import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
+import {FocusModeContext, useFocusMode} from './FocusMode'
 import {DeskIcon} from './DeskIcon'
 import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search, Sort as SortIcon, Stack, StackCompact} from './icons'
 import {DocPreview} from './Preview'
@@ -113,12 +114,23 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
 
   // J42: a narrow window shows only the last pane; its back link walks the URL back.
   const narrow = width < NARROW
+  // J26: focus mode shows one document pane alone, until the panes change.
+  const [focusMode, setFocusMode] = useState<{path: string; index: number} | null>(null)
+  const focused = focusMode?.path === path && panes[focusMode.index]?.kind === 'doc' ? focusMode.index : null
+  const focusCtx = useMemo(() => ({focused, toggle: (i: number) => setFocusMode(focused === i ? null : {path, index: i})}), [focused, path])
   return (
     <NarrowContext.Provider value={narrow}>
-      <div className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined}>
+      <FocusModeContext.Provider value={focusCtx}>
+      <div className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined} data-focus-mode={focused !== null ? '' : undefined}>
         <TabTitle pane={panes[panes.length - 1]} />
         {panes.map((pane, i) =>
-          narrow ? (
+          focused !== null ? (
+            i === focused && (
+              <PaneBoundary key={paneKey(pane) + i} kind={pane.kind}>
+                <PaneView panes={panes} index={i} />
+              </PaneBoundary>
+            )
+          ) : narrow ? (
             i === panes.length - 1 && (
               <PaneBoundary key={paneKey(pane) + i} kind={pane.kind}>
                 <PaneView panes={panes} index={i} />
@@ -132,8 +144,9 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
             </PaneBoundary>
           ),
         )}
-        {!narrow && panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
+        {!narrow && focused === null && panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
       </div>
+      </FocusModeContext.Provider>
     </NarrowContext.Provider>
   )
 }
@@ -217,6 +230,7 @@ function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => 
 function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
   const t = useT()
+  const {focused} = useFocusMode()
   const {data: schemas = []} = useQuery(schemasQuery)
   // e2e probe (J50): this pane throws while rendering, as a bug would.
   if ((globalThis as {__crashPane?: string}).__crashPane === paneKey(pane)) throw new Error(`e2e probe: ${paneKey(pane)} crashed`)
@@ -258,11 +272,35 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
       header={
         <span className="title-row">
           <BackLink panes={panes} index={index} />
-          <PaneTitle pane={pane} />
+          {focused === index ? <FocusCrumbs panes={panes} index={index} /> : <PaneTitle pane={pane} />}
         </span>
       }
       closeIcon={<Close />}
     />
+  )
+}
+
+/**
+ * J26: in focus mode the title line is Sanity's breadcrumb: the panes it hides, each a
+ * way back to there (which ends focus mode), then this document.
+ */
+function FocusCrumbs({panes, index}: {panes: Pane[]; index: number}) {
+  const t = useT()
+  const navigate = usePaneNavigate()
+  return (
+    <nav className="focus-crumbs" aria-label={t('Breadcrumb')}>
+      {panes.slice(0, index).map((p, i) => (
+        <Fragment key={paneKey(p) + i}>
+          <button type="button" className="crumb" onClick={() => navigate({href: panesPath(panes.slice(0, i + 1))})}>
+            <PaneTitle pane={p} />
+          </button>
+          <span aria-hidden="true">/</span>
+        </Fragment>
+      ))}
+      <span className="crumb current" aria-current="page">
+        <PaneTitle pane={panes[index]!} />
+      </span>
+    </nav>
   )
 }
 

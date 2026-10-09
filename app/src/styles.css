@@ -1614,3 +1614,12 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 
 /* D11: a remote caret's name tag in the Studio's face, as the presence avatars (the canvas's text is serif). */
 bp-paper-canvas .bp-remote-caret__label { font-family: 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; font-size: 11px; font-weight: 500; line-height: 16px; border-radius: 3px; }
+
+/* J26: focus mode's breadcrumb, in the title line (Sanity: "Content / Post / Fixture post 05"). */
+.focus-crumbs { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; font-size: 13px; color: var(--fg-strong); }
+.focus-crumbs .crumb { display: flex; min-width: 0; font: inherit; font-weight: 400; padding: 4px 4px; border: 0; border-radius: 3px; background: none; color: inherit; cursor: pointer; }
+.focus-crumbs .crumb:hover { background: var(--hover); }
+.focus-crumbs .crumb.current { cursor: default; flex: 0 1 auto; }
+.focus-crumbs .crumb.current:hover { background: none; }
+.focus-crumbs .crumb .title { flex: none; }
+.focus-crumbs .crumb.current .title { flex: 0 1 auto; }

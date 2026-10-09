@@ -271,4 +271,9 @@ export default {
   'Replace all': 'Erstatt alle',
   'Close find': 'Lukk søk',
   'Replaced {count}': 'Erstattet {count}',
+  // J26, focus mode.
+  'Enter focus mode (hide navigation)': 'Gå til fokusmodus (skjul navigasjonen)',
+  'Exit focus mode (show navigation)': 'Gå ut av fokusmodus (vis navigasjonen)',
+  'Enter focus mode': 'Gå til fokusmodus',
+  'Exit focus mode': 'Gå ut av fokusmodus',
 } satisfies Record<string, string>
