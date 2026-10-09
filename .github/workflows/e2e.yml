@@ -15,6 +15,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # A new shard is a new required check: add "studio (N, ci-N)" to the ruleset
+        # "main: required checks" (docs/decisions/0003), or main won't wait for it.
         include:
           - { shard: 1, dataset: ci }
           - { shard: 2, dataset: ci-2 }
