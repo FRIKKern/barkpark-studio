@@ -652,7 +652,7 @@ fieldset.object-field[data-open=false] > legend { margin-bottom: 0; }
 .field-actions { position: absolute; top: -4px; right: 29px; z-index: 2; opacity: 0; }
 /* A fieldset's box starts below its legend: lift its actions back up beside the legend. */
 fieldset.object-field > .field-actions { top: -38px; }
-.field:hover > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
+.field:is(:hover, :focus-within) > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
 .field-actions .icon-btn { width: 25px; height: 25px; }
 .field-actions .popover.menu { top: 29px; right: 0; min-width: 160px; }
 
@@ -1264,7 +1264,7 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .field-comments { position: absolute; top: -4px; right: 0; z-index: 2; }
 fieldset.object-field > .field-comments { top: -38px; }
 .field-comments .comment-add { width: 25px; height: 25px; opacity: 0; }
-.field:hover > .field-comments .comment-add, .field-comments:focus-within .comment-add, .comment-add[aria-expanded='true'] { opacity: 1; }
+.field:is(:hover, :focus-within) > .field-comments .comment-add, .field-comments:focus-within .comment-add, .comment-add[aria-expanded='true'] { opacity: 1; }
 .field-comments[data-has] ~ .field-actions, .field-comments[data-has] + .field-actions { right: 52px; }
 .comment-count { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 6px 0 2px; border: 0; border-radius: 3px; background: var(--hover); font: inherit; font-size: 12px; font-weight: 500; color: var(--fg); cursor: pointer; }
 .comment-count svg, .field-comments svg { width: 21px; height: 21px; }

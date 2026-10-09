@@ -52,10 +52,8 @@ test('@evidence J15: change bars, review changes, revert one field and all', asy
   await bar.click()
   await expect(panel(page)).toContainText('Post 24 reviewed', {timeout: 15_000})
   await expect(panel(page)).toContainText('Changed for review.')
-  // Ours: the draft's own history has loaded. (Sanity's panel no longer names "Draft
-  // created", checked 2026-10-08; its From/To line is the same signal.)
-  if (t.name === 'studio') await expect(panel(page)).toContainText('Draft created', {timeout: 15_000})
-  else await expect(panel(page)).toContainText('Published:')
+  // The range starts at the last publish, named as Sanity names it ("Published: …").
+  await expect(panel(page)).toContainText('Published:', {timeout: 15_000})
   await page.screenshot({path: shot(t.name, '1-review')})
 
   // Revert one field: Title goes back, Excerpt stays changed.
@@ -69,4 +67,32 @@ test('@evidence J15: change bars, review changes, revert one field and all', asy
   await expect(t.field(page, 'excerpt')).toHaveValue(EXCERPT, {timeout: 10_000})
   await expect(t.field(page, 'slug')).toHaveValue('fixture-post-24')
   await page.screenshot({path: shot(t.name, '3-all-reverted')})
+})
+
+// Editor's day 3: right after a publish there is no draft, and Review changes shows what
+// that publish changed (From the publish before it, To this one), as Sanity's does, and
+// follows the doc while it is open. The field's "…" shows while the field has focus.
+test('@local J15: after a publish, Review changes shows what it changed; field actions on focus', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await t.field(page, 'title').click()
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
+  await page.keyboard.type(' (day three)')
+  if (t.name === 'studio') {
+    const actions = page.getByRole('button', {name: 'Field actions'}).first()
+    expect(await actions.evaluate((el) => Number(getComputedStyle(el.closest('.field-actions')!).opacity))).toBe(1)
+  }
+  await page.waitForTimeout(t.name === 'sanity' ? 1500 : 500)
+  await page.getByRole('button', {name: /^Publish$/}).last().click()
+  await expect.poll(() => t.publishedTitle(ID), {timeout: 20_000}).toBe(`${TITLE} (day three)`)
+  const menu = t.name === 'sanity' ? page.locator('[data-testid="document-pane"] [data-testid="pane-context-menu-button"]').first() : page.getByRole('button', {name: 'Show document actions'})
+  await menu.click()
+  await page.getByRole('menuitem', {name: 'History'}).click()
+  await page.getByRole('tab', {name: 'Review changes'}).click()
+  const review = page.getByRole('tabpanel').filter({hasText: 'Title'}).last()
+  await expect(review).toContainText('(day three)', {timeout: 15_000})
+  await expect(review).not.toContainText('There are no changes')
 })

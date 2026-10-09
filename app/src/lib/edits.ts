@@ -212,6 +212,14 @@ function rebase(e: DocEdits, d: Doc) {
   }
 }
 
+// J16: an open History / Review changes panel follows the doc as Sanity's does: its
+// revisions are read again a moment after any write lands (only while a panel shows them).
+const historyTimers = new Map<string, ReturnType<typeof setTimeout>>()
+export function historyChanged(qc: QueryClient, id: string) {
+  clearTimeout(historyTimers.get(id))
+  historyTimers.set(id, setTimeout(() => (historyTimers.delete(id), void qc.invalidateQueries({queryKey: ['history', id]})), 600))
+}
+
 /** Fold server truth into the cache: skip it when older than what we hold, keep unsent edits on top. */
 export function applyServer(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
@@ -221,6 +229,7 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   if (e) rebase(e, doc)
   // A published row (or a publish) proves a published version; a draft keeps what we knew.
   const _hasPublished = !doc._draft || (doc._hasPublished ?? held?._hasPublished ?? false)
+  historyChanged(qc, id)
   writeCache(qc, id, doc._type, overlay(id, {...doc, _hasPublished} as Doc))
 }
 
@@ -587,6 +596,7 @@ export async function unpublish(qc: QueryClient, doc: Doc) {
   const r = (await mutate({data: {mutations: [{unpublish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
   writeCache(qc, id, doc._type, overlay(id, {...r.results[0].document, _hasPublished: false} as Doc))
   qc.setQueryData(['doc-published', id], null)
+  historyChanged(qc, id)
 }
 
 /** Discard the draft: back to the published version; anything unsent is dropped too. */
@@ -599,6 +609,7 @@ export async function discardDraft(qc: QueryClient, doc: Doc) {
   if (e) e.advisories = undefined // what Barkpark said of the draft went with it
   const published = qc.getQueryData<Doc | null>(['doc-published', id])
   if (published) writeCache(qc, id, doc._type, {...published, _hasPublished: true} as Doc)
+  historyChanged(qc, id)
   await qc.invalidateQueries({queryKey: ['doc', id]})
 }
 
