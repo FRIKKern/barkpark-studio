@@ -11,31 +11,37 @@ import {useT} from '../lib/i18n'
 // goes into the URL (/w/<ws>/p/<project>/d/<dataset>/…) and opens as a fresh page, so
 // nothing read in the old dataset can show in the new one. The tool you are in stays.
 
-export function ScopeSwitcher() {
+/** The studio's name and logo initials (the config's title, Sanity's workspace title). */
+type Brand = {name: string; initials: string}
+
+// The studio's name is the switcher's button, as Sanity's workspace menu: the name with
+// a chevron opens a card headed by the logo, "workspace / dataset" and the name, with the
+// workspace, project and dataset to switch to below.
+export function ScopeSwitcher({brand}: {brand: Brand}) {
   const t = useT()
   const {data: current} = useQuery(currentScopeQuery)
   const [open, setOpen] = useState(false)
-  if (!current) return null
+  if (!current) return <span className="brand-name">{brand.name}</span>
   return (
     <div className="menu-wrap scope-switcher">
       <button
         type="button"
-        className="scope-button"
+        className="scope-button brand-button"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={t('Workspace {workspace}, project {project}, dataset {dataset}. Switch', {workspace: current.workspace, project: current.project, dataset: current.dataset})}
+        title={`${current.workspace} / ${current.dataset}`}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="scope-ws">{current.workspace} /</span>
-        <span className="scope-ds">{current.dataset}</span>
+        <span className="brand-name">{brand.name}</span>
         <ChevronDown />
       </button>
-      {open && <ScopeDialog current={current} onClose={() => setOpen(false)} />}
+      {open && <ScopeDialog brand={brand} current={current} onClose={() => setOpen(false)} />}
     </div>
   )
 }
 
-function ScopeDialog({current, onClose}: {current: Scope; onClose: () => void}) {
+function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; onClose: () => void}) {
   const t = useT()
   const [pick, setPick] = useState(current)
   const options = useQuery(scopeOptionsQuery(pick))
@@ -63,6 +69,13 @@ function ScopeDialog({current, onClose}: {current: Scope; onClose: () => void}) 
   )
   return (
     <DialogBox className="popover scope-popover" aria-label={t('Switch workspace, project or dataset')} onClose={onClose}>
+      <div className="scope-card">
+        <span className="logo scope-card-logo" aria-hidden="true">{brand.initials}</span>
+        <span className="scope-card-text">
+          <span className="scope-card-where">{current.workspace} / {current.dataset}</span>
+          <span className="scope-card-name">{brand.name}</span>
+        </span>
+      </div>
       <form
         onSubmit={(e) => {
           e.preventDefault()
