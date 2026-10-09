@@ -30,8 +30,7 @@ export function Navbar() {
       <div className="brand">
         <NavDrawer />
         <span className="logo">{brand.initials}</span>
-        <span className="brand-name">{brand.name}</span>
-        <ScopeSwitcher />
+        <ScopeSwitcher brand={brand} />
         <NewDocMenu />
         <GlobalSearch />
       </div>
