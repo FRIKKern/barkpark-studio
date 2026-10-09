@@ -16,7 +16,7 @@ import {useRevealed} from '../lib/reveal'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
-import {useCanWrite} from '../lib/session'
+import {useBoundElsewhere, useCanWrite} from '../lib/session'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink, usePaneNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
@@ -38,7 +38,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
-import {ReadErrorCard} from './PaneError'
+import {BoundDatasetCard, ReadErrorCard} from './PaneError'
 import {ChevronDown, CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
@@ -127,6 +127,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Decision 0004: a type with a layout also opens in Barkpark's block canvas (FF3,
   // lib/editor-mode.ts, from the schema's layout); an Expectation doc once it carries its block list.
   const {canWrite, editReason, signedOut} = useCanWrite()
+  const boundElsewhere = useBoundElsewhere()
 
   // J52: the focused field lives in the URL (Sanity's `path=`): a reload or a copied
   // link opens on it. Opening: focus the named field (showing all groups if it sits
@@ -475,7 +476,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         )}
         {error &&
           !doc &&
-          (/→ 403\b/.test(String(error)) ? (
+          (boundElsewhere ? (
+            <BoundDatasetCard {...boundElsewhere} />
+          ) : /→ 403\b/.test(String(error)) ? (
             // J49: a doc this editor may not read.
             <div className="pane-banner" role="alert">
               <span>{t("You don't have access to this document.")}</span>

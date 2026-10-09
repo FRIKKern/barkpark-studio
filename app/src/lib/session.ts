@@ -3,6 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {currentEditor, describeToken, devLoginEnabled, signIn, signOut} from '../server/auth'
 import {requestToken} from '../server/barkpark'
 import {useT} from './i18n'
+import {currentScopeQuery} from './scope-switch'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
 // httpOnly and the token never leaves the server.
@@ -53,4 +54,15 @@ export function useCanWrite() {
     createReason: canWrite ? undefined : t('Your role Viewer does not have permission to create documents.'),
     commentReason: canWrite ? undefined : t('Your role Viewer does not have permission to comment on this document.'),
   }
+}
+
+/**
+ * The dataset this page's token is bound to (Barkpark #22393) when the page is in another
+ * one: every read here fails, and that is the reason to show (not "Could not fetch", not
+ * "Trying to connect…"). Null otherwise.
+ */
+export function useBoundElsewhere(): {bound: string; here: {workspace: string; project: string; dataset: string}} | null {
+  const bound = useQuery(meQuery).data?.boundDataset
+  const here = useQuery(currentScopeQuery).data
+  return bound && here && here.dataset !== bound ? {bound, here} : null
 }

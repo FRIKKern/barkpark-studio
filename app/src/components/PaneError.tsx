@@ -1,5 +1,7 @@
 import {Component, useLayoutEffect, useRef, type ReactNode} from 'react'
-import {useRouter, type ErrorComponentProps} from '@tanstack/react-router'
+import {useRouter, useRouterState, type ErrorComponentProps} from '@tanstack/react-router'
+import {useBoundElsewhere} from '../lib/session'
+import {scopedPath} from '../lib/scope'
 import {AUTO_RETRIES} from '../lib/connection'
 import {toast} from './Toasts'
 import {Copy, Sync} from './icons'
@@ -37,7 +39,32 @@ function ErrorActions({error, onRetry}: {error: unknown; onRetry?: () => void}) 
  * A pane's read failed. `failures` counts attempts; while `retrying` the next try is
  * on its way by itself, after AUTO_RETRIES it waits for Retry. Offline, Retry waits too.
  */
-export function ReadErrorCard({title, error, failures, retrying, onRetry}: {title: string; error: unknown; failures: number; retrying: boolean; onRetry: () => void}) {
+export function ReadErrorCard(props: {title: string; error: unknown; failures: number; retrying: boolean; onRetry: () => void}) {
+  // A dataset-bound token (Barkpark #22393) opened at another dataset: that is why it failed.
+  const elsewhere = useBoundElsewhere()
+  if (elsewhere) return <BoundDatasetCard {...elsewhere} />
+  return <FailedReadCard {...props} />
+}
+
+/** The switcher's own words (B02), with the way to the dataset this token can open: the same place there. */
+export function BoundDatasetCard({bound, here}: {bound: string; here: {workspace: string; project: string; dataset: string}}) {
+  const t = useT()
+  const path = useRouterState({select: (s) => s.location.pathname})
+  const rest = path.replace(/^\/w\/[^/]+\/p\/[^/]+\/d\/[^/]+/, '') || '/structure'
+  return (
+    <div className="pane-error" role="alert">
+      <h3>{t('This token can only open the dataset {dataset}.', {dataset: bound})}</h3>
+      <p>{t('This page is in {dataset}.', {dataset: here.dataset})}</p>
+      <div className="error-actions">
+        <a className="btn btn-primary" href={scopedPath({...here, dataset: bound}, rest)}>
+          {t('Open {dataset}', {dataset: bound})}
+        </a>
+      </div>
+    </div>
+  )
+}
+
+function FailedReadCard({title, error, failures, retrying, onRetry}: {title: string; error: unknown; failures: number; retrying: boolean; onRetry: () => void}) {
   const t = useT()
   const online = typeof navigator === 'undefined' || navigator.onLine
   const message = error instanceof Error ? error.message : String(error)
