@@ -9,6 +9,7 @@ import {
   filterLabel,
   filterMenu,
   isComplete,
+  isCount,
   newFilter,
   operatorsFor,
   OPS,
@@ -18,7 +19,7 @@ import {
   type SearchFilter,
   type Unit,
 } from '../lib/search-filters'
-import {Add, Calendar, Check, ChevronDown, Close, DocumentIcon, ImageIcon, LinkIcon, Search as SearchIcon, Sort, Trash} from './icons'
+import {Add, Calendar, ListIcon, Check, ChevronDown, Close, DocumentIcon, ImageIcon, LinkIcon, Search as SearchIcon, Sort, Trash} from './icons'
 
 // J38, Sanity's search filters, side by side with sanity 6.17: the type picker
 // ("All types", or the picked types as "Author, Post"), one chip per field filter
@@ -53,6 +54,8 @@ const ICON: Record<Kind, () => ReactNode> = {
   date: () => <Calendar />,
   datetime: () => <Calendar />,
   reference: () => <LinkIcon />,
+  array: () => <ListIcon />,
+  arrayRef: () => <ListIcon />,
   presence: () => <DocumentIcon />,
 }
 const fieldIcon = (f: FilterField) => (f.path === 'image' || f.path === 'mainImage' ? <ImageIcon /> : ICON[f.kind]())
@@ -364,7 +367,16 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
         </select>
       </div>
     )
-  if (kind === 'reference') return <ReferenceValue filter={filter} field={field} set={set} />
+  if (kind === 'reference' || op === 'includes' || op === 'notIncludes') return <ReferenceValue filter={filter} field={field} set={set} />
+  if (op === 'countRange')
+    return (
+      <div className="filter-pair">
+        <input className="input" type="number" min={0} autoFocus aria-label={t('Min value')} placeholder={t('Min value')} value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})} />
+        <input className="input" type="number" min={0} aria-label={t('Max value')} placeholder={t('Max value')} value={filter.to ?? ''} onChange={(e) => set({to: e.target.value})} />
+      </div>
+    )
+  if (isCount(op))
+    return <input className="input" type="number" min={0} autoFocus aria-label={t('Value')} placeholder={t('Value')} value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})} />
   if (kind === 'boolean')
     return (
       <select className="input" aria-label={t('Value')} autoFocus value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})}>
