@@ -13,9 +13,14 @@ test('J07: a closed tab is gone from the other browser within 2 s', async ({brow
   await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
   const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
   try {
-    await Promise.all([a.goto(t.docPath('post', 'post-03')), b.goto(t.docPath('post', 'post-03'))])
-    await Promise.all([t.settle(a), t.settle(b)])
+    // B alone first: an earlier spec's page closed with its context (no pagehide, so no
+    // leave) is in the room until its stream's keepalive fails (5 s). Then A comes.
+    await b.goto(t.docPath('post', 'post-03'))
+    await t.settle(b)
     const others = b.getByRole('button', {name: "Who's online"}).locator('.count')
+    await expect(others).toHaveCount(0, {timeout: 10_000})
+    await a.goto(t.docPath('post', 'post-03'))
+    await t.settle(a)
     await expect(others).toHaveText('1', {timeout: 10_000})
     const closed = Date.now()
     await a.close({runBeforeUnload: true})
