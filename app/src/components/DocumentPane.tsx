@@ -9,14 +9,15 @@ import {errorsOf, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
 import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
-import {createDoc, discardDraft, draftNew, edit, flush, publish, reasonOf, undo, unpublish, useAdvisories, useSaveState} from '../lib/edits'
+import {createDoc, discardDraft, discardPending, draftNew, edit, flush, publish, reasonOf, recoverPending, restorePending, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
-import {useBoundElsewhere, useCanWrite, useStudioTokenRefused} from '../lib/session'
+import {meQuery, useBoundElsewhere, useCanWrite, useStudioTokenRefused} from '../lib/session'
+import {currentScopeQuery} from '../lib/scope-switch'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink, usePaneNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
@@ -232,6 +233,25 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   }, [onEdit])
   // Closing the pane (or navigating it away) sends what is still waiting.
   useEffect(() => () => flush(qc, pane.id), [qc, pane.id])
+  // B11 widen: edits this browser kept from a reload or crash (lib/pending-edits.ts), per
+  // workspace, project, dataset and editor. Unchanged underneath: sent again; else asked.
+  const scopeNow = useQuery(currentScopeQuery).data
+  const me = useQuery(meQuery).data
+  const keepScope = scopeNow && me ? [scopeNow.workspace, scopeNow.project, scopeNow.dataset, me.email ?? '-'].join('|') : null
+  useEffect(() => setKeepScope(keepScope), [keepScope])
+  const [recovered, setRecovered] = useState<Recovered | null>(null)
+  const editable = !!draftQ.data && !viewingPublished
+  useEffect(() => {
+    setRecovered(null)
+    if (!keepScope || !editable || !draftQ.data) return
+    let live = true
+    void recoverPending(qc, draftQ.data).then((r) => {
+      if (!live || !r) return
+      if ('ask' in r) setRecovered(r.ask)
+      else toast({title: tt('Unsaved changes from {date} were put back.', {date: longDate(new Date(r.replayed).toISOString(), locale)})})
+    })
+    return () => void (live = false)
+  }, [keepScope, pane.id, editable])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   const [inspectOpen, setInspectOpen] = useState(false)
   const [askDelete, setAskDelete] = useState(0)
@@ -444,6 +464,19 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           <div className="pane-banner" role="alert">
             <span>{t("You've been logged out. Your edits are kept here and saved once you sign in again.")}</span>
             <SignInAgain />
+          </div>
+        )}
+        {recovered && doc && (
+          <div className="pane-banner" role="alert" data-testid="kept-edits">
+            <span>{t('Unsaved changes from {date}, kept in this browser. The document has changed since.', {date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}</span>
+            <span className="pane-banner-actions">
+              <button type="button" className="btn-text" onClick={() => (restorePending(qc, doc, recovered), setRecovered(null))}>
+                {t('Restore')}
+              </button>
+              <button type="button" className="btn-text" onClick={() => (discardPending(pane.id), setRecovered(null))}>
+                {t('Discard')}
+              </button>
+            </span>
           </div>
         )}
         {/* J49: Sanity's permission banner: no tint, the read-only icon, medium text. */}
