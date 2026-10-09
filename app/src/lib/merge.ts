@@ -8,6 +8,11 @@ import {applyPatches, makePatches} from '@sanity/diff-match-patch'
 export function merge3(base: string, mine: string, theirs: string): string {
   if (mine === base || theirs === mine) return theirs
   if (theirs === base) return mine
+  // Mine already landed and they wrote on top (a save whose answer was lost, a kept edit
+  // the unload beacon delivered): taking mine back out of theirs works, so it is in there,
+  // and applying it again would type it twice (adversarial review, 2026-10-09).
+  const [without, undone] = applyPatches(makePatches(mine, base), theirs)
+  if (without !== theirs && undone.every(Boolean) && applyPatches(makePatches(base, mine), without)[0] === theirs) return theirs
   return applyPatches(makePatches(base, mine), theirs)[0]
 }
 

@@ -1,5 +1,5 @@
 import {useQueries, useQuery} from '@tanstack/react-query'
-import {backlinksQuery, docQuery, referringTypes, schemasQuery, type Backlink, type Doc} from '../lib/data'
+import {backlinksQuery, docQuery, publishedQuery, referringTypes, schemasQuery, type Backlink, type Doc} from '../lib/data'
 import {useLive} from '../lib/live'
 import {refersTo} from '../lib/refers-to'
 import {useT} from '../lib/i18n'
@@ -26,9 +26,19 @@ export function IncomingReferences({id, panes, index, onClose}: {id: string; pan
   const seen = new Set<string>()
   const rows = (links ?? []).map((l) => ({...l, from_doc_id: l.from_doc_id.replace(/^drafts\./, '')})).filter((l) => l.from_doc_id !== id && !seen.has(l.from_doc_id) && seen.add(l.from_doc_id))
   const docs = useQueries({queries: rows.map((r) => docQuery(r.type, r.from_doc_id))})
+  // A draft that points away while its published version still points here still refers
+  // (deleting this doc is still blocked by it): then the published version decides.
+  const draftAway = rows.map((_, i) => {
+    const doc = docs[i]?.data
+    return !!doc && !!doc._draft && doc._hasPublished !== false && !refersTo(doc, id)
+  })
+  const published = useQueries({queries: rows.map((r, i) => ({...publishedQuery(r.type, r.from_doc_id), enabled: draftAway[i]}))})
   const pointing = rows.filter((r, i) => {
     const doc = docs[i]?.data
-    return doc === undefined || refersTo(doc, id)
+    if (doc === undefined || refersTo(doc, id)) return true
+    if (!draftAway[i]) return false
+    const pub = published[i]?.data
+    return pub === undefined || refersTo(pub, id)
   })
   const types = [...new Set(pointing.map((r) => r.type))]
   const next = panes[index + 1]

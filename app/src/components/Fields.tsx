@@ -583,14 +583,20 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
   // F8: what is typed between the activating click (or key) and the canvas taking the
   // caret (its bundle and the blocks are still loading) is kept here and typed in once
   // it can take it — never dropped (it was, on a fresh page load: task-1dd00fd2a0dc1c60).
-  const typed = useRef('')
+  // Text, and Enter as a paragraph break, in the order typed.
+  const typed = useRef<string[]>([])
   useEffect(() => {
     if (!active) return
     const ready = () => !!box.current?.querySelector('.ProseMirror')?.contains(document.activeElement)
     const keep = (e: KeyboardEvent) => {
       if (ready() || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return
-      if (e.key.length === 1) typed.current += e.key
-      else if (e.key === 'Backspace') typed.current = typed.current.slice(0, -1)
+      // Keys for another field the author went to meanwhile are that field's, not the body's.
+      const at = document.activeElement
+      if (at && at !== document.body && !box.current?.contains(at)) return
+      const last = typed.current.length - 1
+      if (e.key.length === 1) typed.current[last] !== undefined && typed.current[last] !== '\n' ? (typed.current[last] += e.key) : typed.current.push(e.key)
+      else if (e.key === 'Enter') typed.current.push('\n')
+      else if (e.key === 'Backspace') typed.current[last] === '\n' || typed.current[last]?.length === 1 ? typed.current.pop() : last >= 0 && (typed.current[last] = typed.current[last]!.slice(0, -1))
       else return
       e.preventDefault()
     }
@@ -608,8 +614,8 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         else if (sel) (sel.selectAllChildren(pm), sel.collapseToEnd())
       }
       // The canvas reads it as typed input (beforeinput), so it saves and undoes as typing does.
-      if (typed.current) document.execCommand('insertText', false, typed.current)
-      typed.current = ''
+      for (const run of typed.current) document.execCommand(run === '\n' ? 'insertParagraph' : 'insertText', false, run === '\n' ? undefined : run)
+      typed.current = []
     }, 30)
     return () => (clearInterval(timer), removeEventListener('keydown', keep, true))
   }, [active])
@@ -633,7 +639,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) return e.preventDefault(), setActive(true), setExpanded(true)
           if ((e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey) {
             e.preventDefault()
-            if (e.key.length === 1) typed.current += e.key // the key that wakes it is typed too
+            if (e.key.length === 1) typed.current = [e.key] // the key that wakes it is typed too
             setActive(true)
           }
         }}
