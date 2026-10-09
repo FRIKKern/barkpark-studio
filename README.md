@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 34 changes, 19 tasks closed
+- **Today** · 35 changes, 19 tasks closed
+  - Seed: drop the block-list patch after create ([#265](https://github.com/FRIKKern/barkpark-studio/pull/265))
   - J38: the filter operators barkpark#22106 made expressible ([#264](https://github.com/FRIKKern/barkpark-studio/pull/264))
   - J49: a token's permissions from the token itself (barkpark#22130) ([#267](https://github.com/FRIKKern/barkpark-studio/pull/267))
-  - J13: info stays info end-to-end (barkpark#22125) ([#266](https://github.com/FRIKKern/barkpark-studio/pull/266))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
