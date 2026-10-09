@@ -1,17 +1,25 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {currentEditor, devLoginEnabled, signIn, signOut} from '../server/auth'
+import {currentEditor, describeToken, devLoginEnabled, signIn, signOut} from '../server/auth'
+import {requestToken} from '../server/barkpark'
 import {useT} from './i18n'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
 // httpOnly and the token never leaves the server.
 
-export const whoAmI = createServerFn({method: 'GET'}).handler(async () => ({
-  devLogin: devLoginEnabled(),
-  email: currentEditor()?.email ?? null,
-  // J49: may this editor write? (Without dev sign-in the studio token writes: yes.)
-  canWrite: devLoginEnabled() && currentEditor() ? currentEditor()!.permissions.includes('write') : true,
-}))
+export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
+  const editor = currentEditor()
+  // J49: may this editor write? The token they work with says (dev sign-in: theirs; else
+  // the studio's own). Signed out of dev sign-in: the sign-in screen takes over.
+  const self = devLoginEnabled() && !editor ? undefined : await describeToken(editor?.token ?? requestToken())
+  return {
+    devLogin: devLoginEnabled(),
+    email: editor?.email ?? null,
+    canWrite: self ? self.permissions.includes('write') : true,
+    /** A token held to one dataset (Barkpark #22393): the only one it can open. */
+    boundDataset: self?.boundDataset ?? null,
+  }
+})
 
 export const devSignIn = createServerFn({method: 'POST'})
   .validator((d: {email: string}) => d)
@@ -43,5 +51,6 @@ export function useCanWrite() {
     editReason: canWrite ? undefined : t('Your role Viewer does not have permission to edit this document.'),
     publishReason: canWrite ? undefined : t('Your role Viewer does not have permission to publish this document.'),
     createReason: canWrite ? undefined : t('Your role Viewer does not have permission to create documents.'),
+    commentReason: canWrite ? undefined : t('Your role Viewer does not have permission to comment on this document.'),
   }
 }

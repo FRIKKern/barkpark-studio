@@ -6,6 +6,7 @@ import {scopedPath, type Scope} from '../lib/scope'
 import {DialogBox} from './FocusScopes'
 import {ChevronDown} from './icons'
 import {useT} from '../lib/i18n'
+import {meQuery} from '../lib/session'
 
 // B02: switch workspace / project / dataset, like Barkpark's LiveView Studio. The choice
 // goes into the URL (/w/<ws>/p/<project>/d/<dataset>/…) and opens as a fresh page, so
@@ -38,6 +39,8 @@ export function ScopeSwitcher() {
 function ScopeDialog({current, onClose}: {current: Scope; onClose: () => void}) {
   const t = useT()
   const [pick, setPick] = useState(current)
+  // A dataset-bound token (Barkpark #22393) opens only its own dataset: the others show, greyed.
+  const bound = useQuery(meQuery).data?.boundDataset ?? null
   const options = useQuery(scopeOptionsQuery(pick))
   const tool = useRouterState({select: (s) => '/' + (s.location.pathname.split('/')[1] || 'structure')})
   // A new workspace or project: its first project / dataset until one is picked.
@@ -53,7 +56,7 @@ function ScopeDialog({current, onClose}: {current: Scope; onClose: () => void}) 
       <span>{label}</span>
       <select className="input" value={pick[key]} disabled={!list} onChange={(e) => setPick((s) => ({...s, [key]: e.target.value}))}>
         {(list ?? [{slug: pick[key], name: pick[key]}]).map((o) => (
-          <option key={o.slug} value={o.slug}>
+          <option key={o.slug} value={o.slug} disabled={key === 'dataset' && !!bound && o.slug !== bound}>
             {o.name === o.slug ? o.slug : `${o.name} (${o.slug})`}
           </option>
         ))}
@@ -72,6 +75,7 @@ function ScopeDialog({current, onClose}: {current: Scope; onClose: () => void}) 
         {field(t('Workspace'), 'workspace', options.data?.workspaces)}
         {field(t('Project'), 'project', options.data?.projects)}
         {field(t('Dataset'), 'dataset', options.data?.datasets)}
+        {bound && <p className="scope-note">{t('This token can only open the dataset {dataset}.', {dataset: bound})}</p>}
         {options.isError && (
           <p className="field-error" role="alert">
             {t('Could not list where you can go.')}{' '}

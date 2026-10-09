@@ -2,7 +2,7 @@ import {createContext, useContext, useEffect, useId, useRef, useState, type Keyb
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {commentsQuery, deleteComment, editComment, mentionableQuery, postComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
 import {insertMention, mentionAt, messageParts, personName} from '../lib/comment-threads'
-import {meQuery} from '../lib/session'
+import {meQuery, useCanWrite} from '../lib/session'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {ago} from './HistoryPanel'
 import {intlTag, useLocale, useT, type T} from '../lib/i18n'
@@ -30,6 +30,7 @@ const newId = () => `comment-${crypto.randomUUID()}`
 
 /** The field's comment button and its composer (Sanity's CommentsField). */
 export function FieldComments({path, title}: {path: string; title: string}) {
+  const {commentReason} = useCanWrite()
   const api = useContext(CommentsContext)
   const t = useT()
   const [composing, setComposing] = useState(false)
@@ -45,7 +46,7 @@ export function FieldComments({path, title}: {path: string; title: string}) {
           <CommentIcon /> {open.length}
         </button>
       ) : (
-        <button ref={opener} type="button" className="icon-btn comment-add" aria-label={t('Add comment')} title={t('Add comment')} aria-expanded={composing} onClick={() => setComposing(true)}>
+        <button ref={opener} type="button" className="icon-btn comment-add" aria-label={t('Add comment')} title={commentReason ?? t('Add comment')} disabled={!!commentReason} aria-expanded={composing} onClick={() => setComposing(true)}>
           <AddComment />
         </button>
       )}

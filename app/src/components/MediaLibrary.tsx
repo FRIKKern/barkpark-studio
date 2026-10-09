@@ -5,6 +5,7 @@ import {reasonOf} from '../lib/edits'
 import {Close, DocumentIcon, Search} from './icons'
 import {toast} from './Toasts'
 import {useT, type T} from '../lib/i18n'
+import {useCanWrite} from '../lib/session'
 
 // B08: the Media tool, after Barkpark's LiveView media library: folders, a visibility
 // filter, and the checkout lock on an asset's edits. Laid out like Sanity's media
@@ -29,6 +30,7 @@ export function MediaLibrary() {
   const filter = {collection: folder, q: query || undefined, visibility: visibility || undefined}
   const assets = useQuery(assetsQuery(filter))
   const [naming, setNaming] = useState<string | null>(null)
+  const {canWrite, createReason} = useCanWrite()
   const newFolder = async (e: FormEvent) => {
     e.preventDefault()
     const title = naming?.trim()
@@ -63,7 +65,7 @@ export function MediaLibrary() {
           </button>
         ))}
         {naming === null ? (
-          <button type="button" className="btn-text media-new-folder" onClick={() => setNaming('')}>
+          <button type="button" className="btn-text media-new-folder" disabled={!canWrite} title={createReason} onClick={() => setNaming('')}>
             + {t('New folder')}
           </button>
         ) : (
