@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import type {BrowserContext, Locator, Page, TestInfo} from '@playwright/test'
-import {batches} from '../../scripts/lib/batches.mjs'
+import {sendBatches} from '../../scripts/lib/batches.mjs'
 import {sanityAsset, seedAssets} from '../../scripts/lib/seed-assets.mjs'
 import {toBarkpark} from '../../scripts/lib/seed-map.mjs'
 
@@ -223,11 +223,9 @@ const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/
 const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
 // A 429 waits out Retry-After, as the studio's own server does: here one token is
 // shared by both browsers, the rig and presence (task-2c31de0cf6597d32).
-export const bpMutate = async (mutations: unknown[], waits = 3): Promise<Response> => {
-  // At most 50 deletes per request (Barkpark #22499): all but the last part go first.
-  const parts = batches(mutations)
-  for (const part of parts.slice(0, -1)) await bpMutate(part, waits)
-  if (parts.length > 1) mutations = parts.at(-1)!
+// Deletes go in batches under Barkpark's cap (scripts/lib/batches.mjs).
+export const bpMutate = async (mutations: unknown[]): Promise<Response> => ok((await sendBatches(mutations, (part) => bpSend(part)))!)
+const bpSend = async (mutations: unknown[], waits = 3): Promise<Response> => {
   const res = await fetch(`${bpBase()}/v1/data/mutate/${bpDataset()}`, {
     method: 'POST',
     headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`, 'content-type': 'application/json'},
@@ -235,9 +233,9 @@ export const bpMutate = async (mutations: unknown[], waits = 3): Promise<Respons
   })
   if (res.status === 429 && waits > 0) {
     const s = Math.min(Number(res.headers.get('retry-after')) || 1, 5)
-    return new Promise((r) => setTimeout(() => r(bpMutate(mutations, waits - 1)), s * 1000 + 100))
+    return new Promise((r) => setTimeout(() => r(bpSend(mutations, waits - 1)), s * 1000 + 100))
   }
-  return ok(res)
+  return res
 }
 
 const studio: Target = {
