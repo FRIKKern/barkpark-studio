@@ -81,3 +81,25 @@ test('J19: keyboard only — search, open, edit, publish', async ({page}, info) 
   await expect(t.field(page, 'title'), 'F6: focus stays in the field').toBeFocused()
   await referenceHold(page, t.field(page, 'title'), `${TITLE} kb`)
 })
+
+// The caret lands in the opened doc's first field however long its read takes: it
+// used to give up after 5 s and leave it on the page body (CI's slow reads, J19).
+test('@local J19: a slow doc read still puts the caret in its first field', async ({page}, info) => {
+  const t = target(info)
+  test.setTimeout(60_000)
+  test.skip(t.name !== 'studio', 'ours: the read is slowed in the studio')
+  await t.prepare(page.context())
+  await page.goto('/structure')
+  await t.settle(page)
+  await page.keyboard.press('ControlOrMeta+k')
+  await page.keyboard.type('post 12')
+  await expect(page.getByText('Fixture post 12', {exact: true}).first()).toBeVisible()
+  // Every request from here takes 6 s (CI's slow Barkpark reads, and the code the pane needs).
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Network.enable')
+  await cdp.send('Network.emulateNetworkConditions', {offline: false, latency: 6000, downloadThroughput: -1, uploadThroughput: -1})
+  await page.keyboard.press('Enter')
+  await expect(t.field(page, 'title')).toBeVisible({timeout: 30_000})
+  await expect(t.field(page, 'title')).toBeFocused()
+  await cdp.send('Network.emulateNetworkConditions', {offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1})
+})
