@@ -32,6 +32,30 @@ test('@evidence J38: search filters side by side', async ({page, context}, info)
   await page.getByRole('button', {name: 'Add filter'}).click()
   await page.waitForTimeout(300)
   await page.screenshot({path: shot(t.name, '3-add-filter')})
+  await page.keyboard.press('Escape')
+
+  // An array of references (Categories) and a string (Title): their operator menus,
+  // Sanity's arrayReferences and string filters (barkpark#22106 made them all expressible).
+  for (const [name, first, want] of [
+    ['Categories', 'includes', ['includes', 'does not include', 'not empty', 'empty', 'quantity is', 'quantity is not', 'quantity greater than', 'quantity greater than or equal to', 'quantity less than', 'quantity less than or equal to', 'quantity is between']],
+    ['Title', 'contains', ['contains', 'does not contain', 'is', 'is not', 'not empty', 'empty']],
+  ] as const) {
+    await page.getByRole('button', {name: 'Add filter'}).click()
+    await page.waitForTimeout(300)
+    await page.keyboard.press('ControlOrMeta+a') // Sanity's box keeps the last search
+    await page.keyboard.type(name)
+    await page.waitForTimeout(400)
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(400)
+    await page.getByRole('button', {name: new RegExp(`^${first}`)}).last().click()
+    await page.waitForTimeout(400)
+    const items = (await page.getByRole('menuitemradio').or(page.getByRole('menuitem')).allInnerTexts()).map((x) => x.replace(/\s+[<>≤≥]$/, '').trim())
+    info.annotations.push({type: `${name} operators`, description: JSON.stringify(items)})
+    await page.screenshot({path: shot(t.name, `4-${name.toLowerCase()}-operators`)})
+    expect(items, `${name}: Sanity's operators, in Sanity's order`).toEqual([...want])
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+  }
 })
 
 test('@local J38: field filter, type filter, order, recent searches', async ({page, context}, info) => {
@@ -92,6 +116,22 @@ test('@local J38: field filter, type filter, order, recent searches', async ({pa
   await dialog(page).getByRole('button', {name: 'Clear', exact: true}).click()
   await dialog(page).getByRole('button', {name: 'Clear recent searches'}).click()
   await expect(recent).toHaveCount(0)
+
+  // barkpark#22106's operators narrow too: posts whose Categories include Guide, then
+  // the ones whose Title does not contain "1".
+  await dialog(page).getByRole('combobox').fill('')
+  await dialog(page).getByRole('button', {name: 'Post'}).or(dialog(page).getByRole('button', {name: 'All types'})).first().click()
+  await page.keyboard.press('Escape')
+  await dialog(page).getByRole('button', {name: 'Add filter'}).click()
+  await page.keyboard.type('categories')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('guide')
+  await page.getByRole('dialog', {name: 'Categories'}).getByRole('button', {name: 'Guide', exact: true}).click()
+  await page.keyboard.press('Escape')
+  await expect(dialog(page).getByRole('button', {name: 'Categories includes Guide'})).toBeVisible()
+  await expect(results.getByText('Fixture post 01', {exact: true})).toBeVisible()
+  await expect(results.getByText('Fixture post 02', {exact: true})).toHaveCount(0)
+  await dialog(page).getByRole('button', {name: 'Clear filters'}).click()
 
   // Every text field is searched, not only titles (Sanity's): "newsletter" is in the posts' featured note.
   await dialog(page).getByRole('combobox').fill('newsletter')

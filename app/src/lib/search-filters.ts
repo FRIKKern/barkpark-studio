@@ -3,11 +3,12 @@ import type {Field, RefFilter, Schema} from './data'
 // J38, Sanity's search filters (sanity 6.17 `defineSearchFilter` + operators):
 // every filterable field of the types in play, each with Sanity's operators and
 // its chip wording ("Rating ≥ 3", "Edited at is in the last 7 days"). Filters run
-// in Barkpark's query (filter[field][op]=value). Operators Barkpark's query cannot
-// express yet are left out: "does not contain", array counts and "includes",
-// "references document", a date "is not" (task-aaf4d51bf8a51aec).
+// in Barkpark's query (filter[field][op]=value; barkpark#22106 added does not contain,
+// array includes and counts). Still left out: a date-time "is not" (a day is a range,
+// and "outside it" needs an OR the query has not got) and the pinned "Contains
+// document, image or file" (Barkpark's _references misses a plain reference field).
 
-export type Kind = 'string' | 'select' | 'number' | 'boolean' | 'date' | 'datetime' | 'reference' | 'presence'
+export type Kind = 'string' | 'select' | 'number' | 'boolean' | 'date' | 'datetime' | 'reference' | 'array' | 'arrayRef' | 'presence'
 export type FilterField = {
   /** path + kind: one entry for a field that several types share. */
   key: string
@@ -22,7 +23,9 @@ export type FilterField = {
   refTypes?: string[]
   builtin?: boolean
 }
-export type OpName = 'contains' | 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'range' | 'last' | 'after' | 'before' | 'defined' | 'notDefined'
+export type OpName =
+  | 'contains' | 'notContains' | 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'range' | 'last' | 'after' | 'before' | 'defined' | 'notDefined'
+  | 'includes' | 'notIncludes' | 'countEq' | 'countNeq' | 'countGt' | 'countGte' | 'countLt' | 'countLte' | 'countRange'
 export type Unit = 'days' | 'months' | 'years'
 export type SearchFilter = {id: string; field: string; op: OpName; value?: string; to?: string; unit?: Unit; label?: string}
 
@@ -33,6 +36,7 @@ export const english: Translate = (en, vars) => (vars ? en.replace(/\{(\w+)\}/g,
 /** The operator menu ("name") and the chip ("description") wording, Sanity's (English; translated where shown). */
 export const OPS: Record<OpName, {name: string; desc: string; symbol?: string}> = {
   contains: {name: 'contains', desc: 'contains'},
+  notContains: {name: 'does not contain', desc: 'does not contain'},
   eq: {name: 'is', desc: 'is'},
   neq: {name: 'is not', desc: 'is not'},
   gt: {name: 'greater than', desc: '>', symbol: '>'},
@@ -45,18 +49,33 @@ export const OPS: Record<OpName, {name: string; desc: string; symbol?: string}> 
   before: {name: 'before', desc: 'is before'},
   defined: {name: 'not empty', desc: 'is'},
   notDefined: {name: 'empty', desc: 'is'},
+  includes: {name: 'includes', desc: 'includes'},
+  notIncludes: {name: 'does not include', desc: 'does not include'},
+  countEq: {name: 'quantity is', desc: 'has'},
+  countNeq: {name: 'quantity is not', desc: 'does not have'},
+  countGt: {name: 'quantity greater than', desc: 'has >', symbol: '>'},
+  countGte: {name: 'quantity greater than or equal to', desc: 'has ≥', symbol: '≥'},
+  countLt: {name: 'quantity less than', desc: 'has <', symbol: '<'},
+  countLte: {name: 'quantity less than or equal to', desc: 'has ≤', symbol: '≤'},
+  countRange: {name: 'quantity is between', desc: 'has between'},
 }
+const COUNT = new Set<OpName>(['countEq', 'countNeq', 'countGt', 'countGte', 'countLt', 'countLte', 'countRange'])
+export const isCount = (op: OpName) => COUNT.has(op)
 
 // Groups split by a divider in the operator menu, in Sanity's order.
 const DATE: OpName[][] = [['last'], ['range', 'after', 'before'], ['eq']]
+const COUNTS: OpName[][] = [['countEq', 'countNeq'], ['countGt', 'countGte', 'countLt', 'countLte'], ['countRange']]
 const OPERATORS: Record<Kind, OpName[][]> = {
-  string: [['contains'], ['eq', 'neq'], ['defined', 'notDefined']],
-  select: [['eq', 'neq'], ['contains'], ['defined', 'notDefined']],
+  string: [['contains', 'notContains'], ['eq', 'neq'], ['defined', 'notDefined']],
+  select: [['eq', 'neq'], ['contains', 'notContains'], ['defined', 'notDefined']],
   number: [['eq', 'neq'], ['gt', 'gte', 'lt', 'lte'], ['range'], ['defined', 'notDefined']],
   boolean: [['eq'], ['notDefined']],
-  date: [...DATE, ['defined', 'notDefined']],
+  date: [['last'], ['range', 'after', 'before'], ['eq', 'neq'], ['defined', 'notDefined']],
   datetime: [...DATE, ['defined', 'notDefined']],
   reference: [['eq', 'neq'], ['defined', 'notDefined']],
+  // Sanity's "array" and "arrayReferences" filters.
+  array: [['defined', 'notDefined'], ...COUNTS],
+  arrayRef: [['includes', 'notIncludes'], ['defined', 'notDefined'], ...COUNTS],
   presence: [['defined', 'notDefined']],
 }
 export const operatorsFor = (f: FilterField): OpName[][] => (f.builtin ? DATE : OPERATORS[f.kind])
@@ -64,7 +83,7 @@ export const operatorsFor = (f: FilterField): OpName[][] => (f.builtin ? DATE : 
 const KIND: Record<string, Kind> = {
   string: 'string', text: 'string', slug: 'string', email: 'string', url: 'string', markdown: 'string', color: 'string', codelist: 'string',
   select: 'select', number: 'number', integer: 'number', float: 'number', boolean: 'boolean', date: 'date', datetime: 'datetime', reference: 'reference',
-  image: 'presence', file: 'presence', arrayOf: 'presence', array: 'presence', tags: 'presence', richText: 'presence', localizedText: 'presence',
+  image: 'presence', file: 'presence', arrayOf: 'array', array: 'array', tags: 'array', richText: 'presence', localizedText: 'presence',
 }
 const startCase = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase())
 const titleOf = (f: Field) => f.title ?? startCase(f.name)
@@ -88,13 +107,16 @@ export function schemaFields(s: Schema): FilterField[] {
         walk(f.fields, `${prefix}${f.name}.`, titleOf(f))
         continue
       }
-      const kind = KIND[f.type]
-      if (!kind) continue
+      const base = KIND[f.type]
+      if (!base) continue
+      const of = f.of
+      const kind: Kind = base === 'array' && of?.type === 'reference' ? 'arrayRef' : base
       const path = prefix + f.name
       out.push({
         key: `${path}:${kind}`, path, title: titleOf(f), parent, kind, types: [s.name],
         ...(kind === 'select' && {options: selectOptions(f)}),
         ...(kind === 'reference' && {refTypes: f.to?.map((t) => t.type) ?? (f.refType ? [f.refType] : [])}),
+        ...(kind === 'arrayRef' && {refTypes: of?.to?.map((t) => t.type) ?? (of?.refType ? [of.refType] : [])}),
       })
     }
   }
@@ -145,7 +167,7 @@ export const newFilter = (field: FilterField, id: string): SearchFilter => {
 }
 
 export const isComplete = (f: SearchFilter) =>
-  f.op === 'defined' || f.op === 'notDefined' || (f.op === 'range' ? !!f.value && !!f.to : !!f.value)
+  f.op === 'defined' || f.op === 'notDefined' || (f.op === 'range' || f.op === 'countRange' ? !!f.value && !!f.to : !!f.value)
 
 const fmtDate = (v: string, kind: Kind, tag: string) => {
   const d = new Date(kind === 'date' ? `${v}T00:00` : v)
@@ -169,14 +191,16 @@ export function filterLabel(f: SearchFilter, field: FilterField | undefined, t: 
     field.kind === 'date' || field.kind === 'datetime' ? fmtDate(s, f.op === 'eq' ? 'date' : field.kind, tag)
       : field.kind === 'select' ? field.options?.find((o) => o.value === s)?.title ?? s
         : field.kind === 'boolean' ? (s === 'true' ? t('True') : t('False'))
-          : field.kind === 'reference' ? f.label ?? s
+          : field.kind === 'reference' || field.kind === 'arrayRef' ? f.label ?? s
             : s
   const value =
     f.op === 'defined' ? t('not empty')
       : f.op === 'notDefined' ? t('empty')
         : f.op === 'last' ? t(UNIT[f.unit ?? 'days'][Number(f.value) === 1 ? 0 : 1], {n: f.value!})
-          : f.op === 'range' ? `${v(f.value!)} → ${v(f.to!)}`
-            : v(f.value!)
+          : f.op === 'countRange' ? t('{from} → {to} items', {from: f.value!, to: f.to!})
+            : isCount(f.op) ? t(Number(f.value) === 1 ? '{n} item' : '{n} items', {n: f.value!})
+              : f.op === 'range' ? `${v(f.value!)} → ${v(f.to!)}`
+                : v(f.value!)
   return {field: name, op: t(OPS[f.op].desc), value}
 }
 export const labelText = (l: ReturnType<typeof filterLabel>) => [l.field, l.op, l.value].filter(Boolean).join(' ')
@@ -220,6 +244,9 @@ export function toRefFilter(schema: Schema, filters: SearchFilter[], fields: Map
       case 'after': set('gt', at(f.value!)); break
       case 'before': set('lt', at(f.value!)); break
       case 'range': set('gte', field.kind === 'number' ? f.value! : at(f.value!)); set('lte', field.kind === 'number' ? f.to! : at(f.to!)); break
+      case 'countRange': set('countGte', f.value!); set('countLte', f.to!); break
+      case 'includes': set('has', f.value!); break
+      case 'notIncludes': set('nhas', f.value!); break
       case 'eq':
         if (field.kind === 'datetime') {
           // A date-time "is" a day: from its midnight to the next.

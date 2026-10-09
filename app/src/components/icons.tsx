@@ -238,6 +238,15 @@ export const Trash = () => (
   </svg>
 )
 /** Sanity's StackCompactIcon (list layout: compact). */
+/** Sanity's UlistIcon: an array field. */
+export const ListIcon = () => (
+  <svg {...s}>
+    <path d="M10 7.5H19M10 17.5H19M10 12.5H19" />
+    <circle cx="6.5" cy="7.5" r="0.6" fill="currentColor" />
+    <circle cx="6.5" cy="12.5" r="0.6" fill="currentColor" />
+    <circle cx="6.5" cy="17.5" r="0.6" fill="currentColor" />
+  </svg>
+)
 export const StackCompact = () => (
   <svg {...s}>
     <path d="M5.5 7.5h14v10h-14zM5.5 10.5h14M5.5 14.5h14" />
