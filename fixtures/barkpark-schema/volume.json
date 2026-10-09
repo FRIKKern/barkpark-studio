@@ -26,5 +26,9 @@
     {"name": "notes", "title": "Notes", "type": "markdown", "group": "metadata"},
     {"name": "metadata", "title": "Metadata (JSON)", "type": "json", "group": "metadata"},
     {"name": "onixSource", "title": "ONIX source", "type": "source", "group": "metadata"}
+  ],
+  "actions": [
+    {"name": "publish_to_bokbasen", "label": "Send to Bokbasen", "kind": "modal", "icon": "cloud-upload",
+     "modal": {"title": "Send to Bokbasen?", "body": "We'll run a dry-run first, then ask again before sending for real.", "steps": ["dryrun", "real"]}}
   ]
 }
