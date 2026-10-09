@@ -4,8 +4,8 @@ import {median, recordFeel} from '../rig/feel'
 
 // Presentation's visual editing (J59 click to edit, J60 live preview, J63 drafts vs
 // published, J64 sharing a draft), apart from presentation.spec.ts so CI's two shards stay under budget.
-// Ours previews reference/preview-site from Barkpark on :3537.
-const SITE = 'http://localhost:3537'
+// Ours previews reference/preview-site from Barkpark (PREVIEW_SITE_PORT_BARKPARK, default 3537).
+const SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT_BARKPARK}` // playwright.config sets it
 
 // J60 + J63 on a stand-in that renders what the studio sends: the title of the
 // document it is told about, and the perspective it is asked to show.

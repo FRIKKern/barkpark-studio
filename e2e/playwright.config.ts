@@ -9,6 +9,16 @@ const STUDIO = `http://localhost:${PORT}`
 // SANITY_PORT: the reference on another port when a worktree changes its schema
 // (the project's CORS list has 3333 and 3334).
 const SANITY = `http://localhost:${process.env.SANITY_PORT || 3333}`
+// PREVIEW_SITE_PORT / PREVIEW_SITE_PORT_BARKPARK: reference/preview-site's Sanity and
+// Barkpark copies, one pair per lane (default 3536 / 3537). Set here, the specs, both
+// studios' preview origins and the dev server read them (a prod build bakes
+// VITE_PREVIEW_ORIGIN in: build with it set).
+process.env.PREVIEW_SITE_PORT ||= '3536'
+process.env.PREVIEW_SITE_PORT_BARKPARK ||= '3537'
+const SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT}`
+const SITE_BARKPARK = `http://localhost:${process.env.PREVIEW_SITE_PORT_BARKPARK}`
+process.env.SANITY_STUDIO_PREVIEW_ORIGIN ||= SITE
+process.env.VITE_PREVIEW_ORIGIN ||= SITE_BARKPARK
 // Secrets come from the repo-root .env: run as `node --env-file=../.env node_modules/.bin/playwright test`
 // (or `pnpm test`, which does that).
 export default defineConfig({
@@ -39,10 +49,10 @@ export default defineConfig({
   webServer: [
     ...(process.env.CI ? [] : [{command: `pnpm --dir ../reference/sanity dev --port ${process.env.SANITY_PORT || 3333}`, url: SANITY, reuseExistingServer: true, timeout: 60_000}]),
     // J58–J64: the site Presentation shows, on both sides (reference/preview-site).
-    // Sanity's on :3536, ours from Barkpark on :3537 (same pages, this run's dataset).
+    // Sanity's on SITE, ours from Barkpark on SITE_BARKPARK (same pages, this run's dataset).
     ...(process.env.CI ? [] : [
-      {command: 'pnpm --dir ../reference/preview-site dev', url: 'http://localhost:3536', reuseExistingServer: true, timeout: 60_000, env: {...process.env, SANITY_STUDIO_URL: SANITY} as Record<string, string>},
-      {command: 'pnpm --dir ../reference/preview-site dev', url: 'http://localhost:3537', reuseExistingServer: false, timeout: 60_000, env: {...process.env, PREVIEW_SOURCE: 'barkpark', PREVIEW_PORT: '3537', PREVIEW_DATASET: process.env.BARKPARK_DATASET ?? 'e2e-local'} as Record<string, string>},
+      {command: 'pnpm --dir ../reference/preview-site dev', url: SITE, reuseExistingServer: true, timeout: 60_000, env: {...process.env, SANITY_STUDIO_URL: SANITY, PREVIEW_PORT: process.env.PREVIEW_SITE_PORT} as Record<string, string>},
+      {command: 'pnpm --dir ../reference/preview-site dev', url: SITE_BARKPARK, reuseExistingServer: false, timeout: 60_000, env: {...process.env, PREVIEW_SOURCE: 'barkpark', PREVIEW_PORT: process.env.PREVIEW_SITE_PORT_BARKPARK, PREVIEW_DATASET: process.env.BARKPARK_DATASET ?? 'e2e-local'} as Record<string, string>},
     ]),
     // CI times a production build (what users get; built in an earlier step); locally the
     // dev server, or the build with E2E_PROD=1 (perf evidence: dev React is far slower).

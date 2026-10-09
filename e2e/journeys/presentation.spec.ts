@@ -3,9 +3,9 @@ import {signInIfAsked, target} from '../rig/targets'
 
 // J58, Presentation: the site in an iframe beside "Documents on this page", and
 // Sanity's connection states over it. The site is reference/preview-site: from
-// Barkpark on :3537 for ours, from Sanity on :3536 for the reference.
-const SITE = 'http://localhost:3537'
-const SANITY_SITE = 'http://localhost:3536'
+// Barkpark for ours, from Sanity for the reference (PREVIEW_SITE_PORT_BARKPARK / PREVIEW_SITE_PORT).
+const SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT_BARKPARK}` // playwright.config sets both
+const SANITY_SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT}`
 const shot = (name: string, step: string) => `evidence/J58-${name}-${step}.png`
 
 test('@evidence J58: the site in Presentation, side by side', async ({page, context}, info) => {
