@@ -42,3 +42,38 @@ test('@local D11: two editors in one paragraph — nothing is lost silently', as
     await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 15_000}).toContain(loser === b ? 'BBB' : 'AAA')
   }
 })
+
+test('@local D11: an edit that already holds the other writer\'s words is not called a conflict', async ({browser}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours: the canvas host')
+  const open = async () => {
+    const ctx = await browser.newContext()
+    await t.prepare(ctx)
+    const page = await ctx.newPage()
+    await page.goto(t.docPath('post', ID))
+    await signInIfAsked(page)
+    await t.settle(page)
+    const body = page.locator('[id="body"]')
+    await body.scrollIntoViewIfNeeded()
+    await body.getByText('Body paragraph for post 26.').click()
+    await expect(body.locator('.ProseMirror')).toBeFocused({timeout: 15_000})
+    return page
+  }
+  const [a, b] = [await open(), await open()]
+  // A writes in the paragraph B is sitting in (B idle: the canvas defers A's block).
+  await a.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
+  await a.keyboard.type(' AAA')
+  await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 15_000}).toContain('AAA')
+  await b.waitForTimeout(1000)
+  // B leaves the paragraph (the canvas takes A's words), comes back, types.
+  await t.field(b, 'title').click()
+  await expect(b.locator('[id="body"]')).toContainText('AAA', {timeout: 15_000})
+  await b.locator('[id="body"]').getByText(/AAA/).click()
+  await b.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
+  await b.keyboard.type(' BBB')
+  await b.waitForTimeout(3000)
+  expect(await b.locator('.pd-conflict').count(), 'no conflict card').toBe(0)
+  const server = JSON.stringify(await t.docValue(ID, 'body'))
+  expect(server).toContain('AAA')
+  expect(server).toContain('BBB')
+})

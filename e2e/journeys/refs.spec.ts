@@ -1,6 +1,6 @@
 import {expect, test} from '@playwright/test'
 import {installProbes, networkBudget, recordFeel, timeToReady} from '../rig/feel'
-import {target, closeAndSettle, reveal} from '../rig/targets'
+import {bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
 // Crown references, same steps on both studios: J08 (pick by search, open in the
@@ -322,4 +322,20 @@ test('J17: Incoming references from the document menu, any time: opens the refer
   // A row opens the referring doc in the next pane, at the field that refers.
   await row('post-01', 'Fixture post 01').click()
   await expect.poll(() => decodeURIComponent(page.url())).toMatch(/author-alan.*incoming-references.*;post-01.*path=author/)
+})
+
+test('@local J17: a draft that points away keeps the row while its published version still refers', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours: the panel reads the docs from the frames')
+  await page.goto(t.docPath('author', 'author-alan'))
+  await t.settle(page)
+  await page.getByRole('button', {name: 'Show document actions'}).click()
+  await page.getByRole('menuitem', {name: 'Incoming references'}).click()
+  const row = page.locator('a[href*="post-10"]').filter({hasText: 'Fixture post 10', visible: true}).first()
+  await expect(row).toBeVisible({timeout: 15_000})
+  // Only a draft of post-10 points at Grace; the published post-10 still names Alan.
+  await bpMutate([{patch: {id: 'post-10', type: 'post', set: {author: 'author-grace'}}}])
+  await page.waitForTimeout(3000)
+  await expect(row).toBeVisible()
+  await t.resetDoc('post-10', 'post')
 })
