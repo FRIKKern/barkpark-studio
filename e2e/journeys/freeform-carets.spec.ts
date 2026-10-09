@@ -21,8 +21,10 @@ test('D11: a caret in Freeform shows in a 2nd browser, with its range, and goes 
     const caret = b.locator('bp-paper-canvas .bp-remote-caret')
     await expect(caret).toHaveCount(1, {timeout: 5_000})
     expect(await b.evaluate(() => !!document.activeElement?.closest('bp-paper-canvas')), "B's own focus stays out of the canvas").toBe(false)
-    // A range: the paragraph's text, shown translucent on B.
-    await a.keyboard.press('Shift+End')
+    // A range, shown translucent on B: the first word, by a double-click at the line's
+    // start. Not keys: a click in the box's middle can land past short text (Shift+End then
+    // selects nothing), and Home/End don't move the caret on macOS.
+    await paraA.dblclick({position: {x: 4, y: 8}})
     await expect(b.locator('bp-paper-canvas .bp-remote-selection').first()).toBeVisible({timeout: 5_000})
     // A leaves the canvas: B's copy goes.
     await a.getByRole('button', {name: 'Show document actions'}).focus()
