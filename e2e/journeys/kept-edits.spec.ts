@@ -1,6 +1,7 @@
 import {expect, test, type BrowserContext, type Page} from '@playwright/test'
 import {readFileSync} from 'node:fs'
-import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import type {Route} from '@playwright/test'
+import {bpMutate, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // B11 widen (task-89fecb4915b2f30d): form edits Barkpark never acknowledged survive the
 // tab dying. Saves are cut off (every mutate fails as a network error; a crash sends no
@@ -146,5 +147,67 @@ test('@local a kept edit on a field the schema then drops or retypes is neither 
     }
   } finally {
     await putSchema(post)
+  }
+})
+
+test('@local offline, then reload: the edits typed offline are replayed once back', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours only: Sanity keeps nothing in the browser')
+  await t.prepare(context)
+  const page = await context.newPage()
+  // Offline, the unload beacon does not get out; Playwright's offline still lets it.
+  await page.addInitScript(() => (navigator.sendBeacon = () => true))
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  page.on('dialog', (d) => void d.accept()) // "leave with unsaved changes?" yes
+  // Playwright's offline leaks around a navigation (a save got out 1 run in 3): saves are cut too.
+  const cut = (route: Route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('mutations') ? route.abort('internetdisconnected') : route.continue())
+  await page.route('**/_serverFn/**', cut)
+  await context.setOffline(true)
+  await t.field(page, 'excerpt').click()
+  await page.keyboard.press('End')
+  await page.keyboard.type(' offline')
+  await expect(page.locator('.doc-footer').first()).toContainText(/Offline|not saving/i)
+  await page.waitForTimeout(500)
+  // The page goes, offline (the unload handlers run). Not page.reload(): Playwright's failed
+  // offline reload keeps the old document alive, and it saves once back online.
+  await page.goto('about:blank')
+  expect(await t.docValue(ID, 'excerpt'), 'nothing got out while offline').toBe(EXCERPT)
+  // Back online, the same tab opens the doc again: same rev, sent again quietly, and said so.
+  await context.setOffline(false)
+  await page.unroute('**/_serverFn/**', cut)
+  await page.goto(t.docPath('post', ID))
+  await t.settle(page)
+  await expect(page.getByText(/Unsaved changes from .* were put back/)).toBeVisible({timeout: 10_000})
+  await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`${EXCERPT} offline`)
+  await expect(page.getByTestId('kept-edits')).toHaveCount(0)
+})
+
+test('@local the doc deleted while kept edits are replayed: they come back with Restore', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours only: Sanity keeps nothing in the browser')
+  await t.prepare(context)
+  try {
+    await typeThenCrash(context, t, ' kept')
+    // Reopened: the replay's save is held on its way while someone deletes the doc.
+    const page = await context.newPage()
+    const held: Route[] = []
+    await page.route('**/_serverFn/**', (route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('mutations') ? void held.push(route) : route.continue()))
+    await page.goto(t.docPath('post', ID))
+    await t.settle(page)
+    await expect.poll(() => held.length, {timeout: 10_000}).toBeGreaterThan(0)
+    await bpMutate([{delete: {id: ID, type: 'post', force: true}}])
+    for (const r of held.splice(0)) await r.continue()
+    await page.unroute('**/_serverFn/**')
+    const banner = page.getByRole('alert').filter({hasText: 'This document has been deleted.'})
+    await expect(banner).toContainText('Your unsaved edits from', {timeout: 15_000})
+    // Still kept after a reload of the deleted doc.
+    await page.reload()
+    await expect(banner).toContainText('Your unsaved edits from', {timeout: 15_000})
+    await banner.getByRole('button', {name: 'Restore most recent revision'}).click()
+    await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`${EXCERPT} kept`)
+  } finally {
+    if ((await t.versions(ID)).published === undefined) await t.resetDoc(ID, 'post')
   }
 })
