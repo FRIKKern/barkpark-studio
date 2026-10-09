@@ -102,7 +102,7 @@ Side track, counted apart. Editor bar: Barkdown's `docs/EDITOR-PARITY.md`.
 | D15 | both | Tables in the canvas: type, Tab across cells, add/remove rows and columns, paste a markdown table; server matches | F1 F9 |
 | D16 | both | Multi-block edits: select-all and type, delete across blocks, cut-all hits the publish wall with a clear message; canvas and server agree | F7 F9 |
 | D17 | both | Every block the slash menu offers inserts as an editable block and saves (code, divider, expandable, steps, tabs, equation, video…) | F9 |
-| D18 | both | Full marks (strike, code, underline, highlight, sub/sup), headings 4–6, nested checklists and alignment survive a reload | F9 |
+| D18 | both | Full marks (strike, code, underline, highlight, sub/sup), headings 4–6, nested checklists and alignment survive a reload; Cmd/Ctrl+K on a selection is the link row, not search | F9 |
 | D19 | both | Find and replace in the canvas (Ctrl+F / Ctrl+H) with one-step undo | F5 F7 |
 | D20 | both | When retries run out on a conflict: a card offering "load theirs" or "re-apply mine", nothing lost | F8 F9 |
 | D21 | both | A failed save followed by a closed tab or crash keeps a local draft that is offered back on reopen | F8 F9 |
