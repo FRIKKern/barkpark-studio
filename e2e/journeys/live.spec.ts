@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {bpMutate, target} from '../rig/targets'
 
 // Live stream survives a network blip (task-c1b6d7ed2e05b73a, F8): offline while
 // another client writes; on reconnect every frame arrives, in order, once. The CI
@@ -41,3 +41,23 @@ test('live: offline, then every missed frame in order, no duplicates', async ({p
     await t.restore(ID, {title: TITLE})
   }
 })
+
+// A draft discarded elsewhere goes here too. Barkpark's discardDraft frame carries the
+// draft it removed; applied as the new state, it put the dead draft back on screen (the
+// J36 flake, 2026-10-09). Ours only: the frame shape is Barkpark's.
+test('live: a draft discarded elsewhere leaves the open document', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'Barkpark frames')
+  await page.goto(t.docPath('post', ID))
+  await t.settle(page)
+  await expect(t.field(page, 'title')).toHaveValue(TITLE)
+  try {
+    await bpMutate([{patch: {id: ID, type: 'post', set: {title: `${TITLE} elsewhere`}}}])
+    await expect(t.field(page, 'title')).toHaveValue(`${TITLE} elsewhere`)
+    await bpMutate([{discardDraft: {id: ID, type: 'post'}}])
+    await expect(t.field(page, 'title')).toHaveValue(TITLE)
+  } finally {
+    await bpMutate([{discardDraft: {id: ID, type: 'post'}}]).catch(() => {})
+  }
+})
+
