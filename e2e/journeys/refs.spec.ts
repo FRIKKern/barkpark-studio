@@ -13,10 +13,13 @@ test.beforeEach(async ({context}, info) => {
 })
 const created: string[] = []
 let alanEdited = false
+let post02Moved = false
 test.afterEach(async ({}, info) => {
   const t = target(info)
   await t.restore(ID, {author: t.ref('author-alan')})
   if (alanEdited) await t.restore('author-alan', {bio: 'Alan Turing writes fixture posts.'}, 'author')
+  if (post02Moved) await t.restore('post-02', {author: t.ref('author-grace')})
+  post02Moved = false
   alanEdited = false
   for (const id of created.splice(0)) await t.deleteDoc(id, 'author')
 })
@@ -301,10 +304,15 @@ test('J17: Incoming references from the document menu, any time: opens the refer
   await expect(row('post-07', 'Fixture post 07')).toBeVisible({timeout: 15_000})
   await expect(row('post-01', 'Fixture post 01')).toBeVisible()
   await page.screenshot({path: `evidence/J17-${t.name}-incoming.png`})
-  // A row opens the referring doc in the next pane, at the field that refers.
-  await row('post-07', 'Fixture post 07').click()
-  await expect.poll(() => decodeURIComponent(page.url())).toMatch(/author-alan.*incoming-references.*;post-07.*path=author/)
-  // Someone points post-07 elsewhere: its row leaves the panel.
+  // Live, with the panel in view: a post nowhere on screen starts pointing here (its row
+  // comes), and post-07 is pointed elsewhere (its row goes).
+  post02Moved = true
+  await t.patch('post-02', {author: t.ref('author-alan')})
+  await expect(row('post-02', 'Fixture post 02')).toBeVisible({timeout: 15_000})
   await t.patch(ID, {author: t.ref('author-grace')})
   await expect(row('post-07', 'Fixture post 07')).toHaveCount(0, {timeout: 15_000})
+  await expect(page.getByText('Incoming references', {exact: true}).first()).toBeVisible() // still the panel, not a strip
+  // A row opens the referring doc in the next pane, at the field that refers.
+  await row('post-01', 'Fixture post 01').click()
+  await expect.poll(() => decodeURIComponent(page.url())).toMatch(/author-alan.*incoming-references.*;post-01.*path=author/)
 })

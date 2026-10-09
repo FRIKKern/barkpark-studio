@@ -492,6 +492,13 @@ export const itemPath = (path: string, item: unknown, i: number) => {
 }
 export const refTypesOf = (field: Field | undefined): string[] => field?.to?.map((t) => t.type) ?? (field?.refType ? [field.refType] : [])
 
+/** The types with a reference field (at any depth, in arrays too) that can point at `type`: who can refer to it. */
+export function referringTypes(schemas: Schema[], type: string): string[] {
+  const points = (fields: Field[] | undefined): boolean =>
+    (fields ?? []).some((f) => refTypesOf(f).includes(type) || refTypesOf(f.of).includes(type) || points(f.fields) || points(f.of?.fields))
+  return schemas.filter((s) => points(s.fields)).map((s) => s.name)
+}
+
 /**
  * Preview title per Sanity's rules: list_preview.title, else title/name. Without one,
  * the placeholder: 'Untitled', or with `t` in the editor's language (anything shown
