@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 69 changes, 19 tasks closed
+- **Today** · 70 changes, 19 tasks closed
+  - A deep link into a dataset a bound token can't open says why ([#309](https://github.com/FRIKKern/barkpark-studio/pull/309))
   - J49: every studio reads its token's own permissions, not only dev sign-in ([#308](https://github.com/FRIKKern/barkpark-studio/pull/308))
   - Freeform parity with Barkdown: Cmd/Ctrl+K on a selection is the canvas's link row ([#307](https://github.com/FRIKKern/barkpark-studio/pull/307))
-  - F11: a big list grows to 2,000 rows without stalling a frame ([#305](https://github.com/FRIKKern/barkpark-studio/pull/305))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
