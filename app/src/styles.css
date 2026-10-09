@@ -1472,3 +1472,14 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .locations-banner .location small { display: block; color: var(--muted); font-size: 13px; }
 /* J59: Sanity's Edit switch in the preview toolbar. */
 .presentation-edit { display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; height: 33px; border-radius: 999px; font-size: 13px; color: var(--fg); background: var(--hover); cursor: pointer; flex: none; }
+/* J63: Sanity's perspective picker; in Published the navbar turns green. */
+.perspective-picker { display: inline-flex; align-items: center; gap: 8px; height: 33px; padding: 0 6px 0 12px; border: 0; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg); font: inherit; font-size: 13px; font-weight: 500; color: var(--fg); cursor: pointer; }
+.perspective-picker svg { width: 19px; height: 19px; color: var(--muted); }
+.perspective-picker .dot, .perspective-menu .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.dot.draft-ring { background: none; box-shadow: inset 0 0 0 1.5px #f5a623; }
+.perspective-menu { right: 0; top: 40px; min-width: 200px; }
+.navbar[data-perspective=published] { background: color-mix(in srgb, var(--published) 10%, var(--bg)); }
+.navbar[data-perspective=published] .tab { background: color-mix(in srgb, var(--published) 22%, var(--bg)); }
+.navbar[data-perspective=published] .perspective-picker { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--published) 45%, var(--bg)); background: color-mix(in srgb, var(--published) 10%, var(--bg)); }
+.perspective-menu [aria-checked=true] { background: var(--selected); color: var(--on-selected); }
+.perspective-menu [aria-checked=true] .dot.draft-ring { box-shadow: inset 0 0 0 1.5px currentColor; }

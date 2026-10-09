@@ -344,7 +344,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             data-active={!viewingPublished && draftQ.data?._draft && !pristine ? '' : undefined}
             data-selected={!viewingPublished ? '' : undefined}
             aria-pressed={!viewingPublished}
-            onClick={() => navigate({href: base})}
+            onClick={() => navigate({href: `${base}?perspective=drafts`})}
           >
             <span className="dot draft" />
             {t('Draft')}
