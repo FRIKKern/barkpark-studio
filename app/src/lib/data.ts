@@ -9,7 +9,7 @@ import {paneRetry} from './connection'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
 import type {PreviewText} from './preview'
-import {parseTextQuery, textScore} from './text-search'
+import {excluded, parseTextQuery, textScore} from './text-search'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -284,6 +284,16 @@ const fetchTextSearch = createServerFn({method: 'GET'})
         return r.result.documents.flatMap((d) => [d._id, d._publishedId])
       }),
     )
+    // Sanity searches each type's preview too (title weight 10, subtitle 5), following
+    // references: a post whose author is "Ada Lovelace" is a hit for "Lovelace".
+    const viaRefs = await previewRefHits(data.q, q, data.asked, schemas as unknown as Schema[])
+    for (const d of viaRefs) {
+      const had = hits.find((h) => h._id === d._id)
+      if (had) had._score = (had._score as number) + 5
+      else hits.push({...d, _score: 5})
+    }
+    const extra = viaRefs.filter((d) => !kept.flat().includes(d._id))
+    if (extra.length) kept.push(extra.flatMap((d) => [d._id, d._publishedId]))
     const keep = new Set(kept.flat())
     const [key, dir] = data.order.split(':') as [string, string]
     hits = hits
@@ -292,6 +302,31 @@ const fetchTextSearch = createServerFn({method: 'GET'})
       .sort((a, b) => (dir === 'desc' ? -1 : 1) * cmp(a[key], b[key]) || cmp(a._createdAt, b._createdAt) || cmp(a._id, b._id))
     return hits.slice(0, data.limit) as unknown as Json
   })
+/** The docs that match through a reference in their preview (`subtitle: 'author.name'`). */
+async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>, asked: {type: string; filter: RefFilter}[], schemas: Schema[]): Promise<Doc[]> {
+  const out: Doc[] = []
+  for (const {type, filter} of asked) {
+    const schema = schemas.find((s) => s.name === type)
+    const sub = schema?.listPreview?.subtitle
+    const paths = [schema?.listPreview?.title, ...(typeof sub === 'string' ? [sub] : (sub as {parts?: string[]} | undefined)?.parts ?? [])]
+    for (const path of paths) {
+      const [field, ...rest] = (path ?? '').split('|')[0]!.split('.')
+      const f = schema?.fields.find((x) => x.name === field)
+      if (!rest.length || f?.type !== 'reference') continue
+      for (const target of refTypesOf(f)) {
+        const found = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&limit=50&q=${encodeURIComponent(raw)}&types=${encodeURIComponent(target)}`)
+        // The referenced doc must match on the previewed field itself.
+        const ids = found.documents.filter((d) => textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId)
+        if (!ids.length) continue
+        let fq = `&filter[${encodeURIComponent(field!)}][in]=${ids.map(encodeURIComponent).join(',')}`
+        for (const [k, ops] of Object.entries(filter)) for (const [op, v] of Object.entries(ops)) fq += `&filter[${encodeURIComponent(k)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
+        const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${fq}`)
+        out.push(...r.result.documents.filter((d) => !excluded(d, q, schema)))
+      }
+    }
+  }
+  return out
+}
 const cmp = (a: unknown, b: unknown) => (typeof a === 'number' && typeof b === 'number' ? a - b : String(a ?? '').localeCompare(String(b ?? '')))
 
 export const textSearchQuery = (q: string, asked: {type: string; filter: RefFilter}[], order: string, limit: number) =>
