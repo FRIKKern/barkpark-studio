@@ -68,7 +68,7 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
 })
 
 /** An image value as a square thumbnail: its crop, cut to the square around the hotspot (Sanity's image URL rules). */
-function Thumb({value}: {value: ImageValue}) {
+export function Thumb({value}: {value: ImageValue}) {
   const [natural, setNatural] = useState<{width: number; height: number}>()
   const ref = imageRef(value)
   if (!ref) return <DocumentIcon />

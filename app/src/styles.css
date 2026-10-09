@@ -846,6 +846,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .array-item-preview .text { display: flex; flex-direction: column; min-width: 0; }
 .array-item-preview .title { font-size: 14px; font-weight: 500; line-height: 19px; }
 .array-item-preview .subtitle { font-size: 13px; line-height: 17px; color: var(--muted); }
+.array-item-preview .media.has-image { position: relative; overflow: hidden; }
+.array-item-preview .media.has-image img { position: absolute; max-width: none; }
+.array-item-preview .title, .array-item-preview .subtitle { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .dialog.item-dialog { width: min(640px, calc(100% - 64px)); min-height: 60%; }
 .item-dialog header { padding: 16px 16px 8px 20px; }
 .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; }

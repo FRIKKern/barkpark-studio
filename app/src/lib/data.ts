@@ -8,7 +8,7 @@ import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
-import type {PreviewText} from './preview'
+import type {PreviewMedia, PreviewText} from './preview'
 import {excluded, parseTextQuery, textScore} from './text-search'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
@@ -50,8 +50,8 @@ export type Field = {
   editor?: string
   /** codelist (B04/B05): `<plugin>:<name>`. */
   codelistId?: string
-  /** Array item preview: which subfields title and subtitle a row (J33). */
-  preview?: {title?: string; subtitle?: string}
+  /** Array item preview (J33): title, subtitle and media, read like a list preview (lib/preview.ts). */
+  preview?: {title?: PreviewText; subtitle?: PreviewText; media?: PreviewMedia}
   visibleWhen?: Condition
   readOnly?: boolean | Condition
 }

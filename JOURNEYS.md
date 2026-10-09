@@ -66,7 +66,7 @@ quality first, never a shrinking finish line.
 | J54 | 2 | File field: upload with an accept filter (PDF), file name and size shown, replace, remove, open the file | F5 F9 |
 | J55 | 1 | Schema orderings: the list menu offers the type's own orderings by title, and a desk list opens in its declared one | F2 |
 | J57 | 1 | Hover every icon button: a tooltip with its shortcut where one exists; toasts can be closed and repeats replace each other | F5 F10 |
-| J56 | 1 | Previews from select and prepare: a referenced title as subtitle, a formatted date, a fallback when empty, in lists and reference values; status tooltips with dates on list rows (Published {ago} / Edited {ago} / No unpublished edits) and the header chips (Published {date} / Edited {date}) | F2 F10 |
+| J56 | 1 | Previews from select and prepare: a referenced title as subtitle, a formatted date, a fallback when empty, in lists, reference values and array item rows (alternatives, templates, image media through one reference); status tooltips with dates on list rows (Published {ago} / Edited {ago} / No unpublished edits) and the header chips (Published {date} / Edited {date}) | F2 F10 |
 | J58 | after | Presentation: the site page loads in an iframe beside "Documents on this page"; "Loading." / "Connecting." states, refresh, "Unable to connect" + Continue anyway, "Could not connect to the preview" + Retry (Sanity's navigator panel is opt-in, not in the default tool) | F3 F9 F14 |
 | J59 | after | Click to edit: Edit overlay outlines; clicking a heading opens its document with that field focused | F2 F5 F6 |
 | J60 | after | Live preview: typing in the form updates the iframe without reload; focus and caret never lost | F1 F4 F6 |
