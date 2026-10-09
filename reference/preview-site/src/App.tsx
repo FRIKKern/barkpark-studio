@@ -2,7 +2,7 @@ import {useLiveMode, type QueryResponseInitial} from '@sanity/react-loader'
 import {VisualEditing} from '@sanity/visual-editing/react'
 import {Link, historyAdapter, usePathname} from './router'
 import {draftMode, liveClient, useLiveData, useLoad} from './sanity'
-import {BarkparkPage, SOURCE} from './barkpark-source'
+import {BarkparkPage, SharedBanner, SOURCE} from './barkpark-source'
 
 // The reference preview site for J58–J64: three routes. From Sanity every text is a
 // stega string; from Barkpark (PREVIEW_SOURCE=barkpark) the same pages, same markup.
@@ -109,6 +109,7 @@ export function App() {
           Draft mode · <a href="/api/draft-mode/disable">Leave</a>
         </div>
       )}
+      {SOURCE === 'barkpark' && <SharedBanner />}
       <header>
         <Link to="/">Reference site</Link>
       </header>

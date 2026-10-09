@@ -19,6 +19,21 @@ export const studio = {
 }
 const changed = () => studio.listeners.forEach((l) => l())
 
+/** J64: opened from a shared link (`?bp-share=`): that document's draft, laid over the page. */
+export const shared = {state: 'none' as 'none' | 'loading' | 'on' | 'gone'}
+export function openShared() {
+  const token = new URLSearchParams(location.search).get('bp-share')
+  if (!token || window.parent !== window) return
+  shared.state = 'loading'
+  fetch(`/api/bp/share?token=${encodeURIComponent(token)}`)
+    .then((r) => (r.ok ? (r.json() as Promise<Doc>) : null))
+    .then((doc) => {
+      shared.state = doc ? 'on' : 'gone'
+      if (doc) studio.edits.set(doc._id.replace(/^drafts\./, ''), doc)
+      changed()
+    })
+}
+
 const post = (msg: Record<string, unknown>) => window.parent !== window && window.parent.postMessage({bp: 'preview', ...msg}, '*')
 
 /** The documents the page shows (after its location: the studio clears its list on a move). */
