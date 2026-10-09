@@ -7,12 +7,11 @@ import {unsavedElsewhere} from '../lib/edits'
 import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
 import {detachMaster, insertMaster, mastersQuery, pinMaster, saveMaster, type Master, type MasterResult} from '../lib/paper-masters'
-import {t as translate, useT, useLocale} from '../lib/i18n'
+import {t as translate, useCanvasStrings, useT, useLocale} from '../lib/i18n'
 import {forget, keep, keptKey, putBackOps, readKept, restoreOps, type Kept} from '../lib/kept-words'
 import {editedBy} from '../lib/history'
 import {useRouter} from '@tanstack/react-router'
 import {FindBar, findKey, type FindCanvas} from './FindBar'
-import canvasNb from '../i18n/canvas-nb.json'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
 // EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
@@ -41,8 +40,6 @@ type Canvas = HTMLElement & {
 }
 
 type LinkTarget = {kind: 'link' | 'wikilink'; href: string | null; target: string | null; docId: string | null; alias: string | null}
-
-const CANVAS_NB = JSON.stringify(canvasNb)
 
 let bundle: Promise<void> | null = null
 /** Load the canvas once per page: script + both stylesheets, from the connected Barkpark. */
@@ -117,9 +114,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   const t = useT()
   const locale = useLocale()
   // The canvas's own words (its chrome: block handle, slash menu, bubble), in the editor's
-  // language: Barkpark's map, read from the nearest data-strings when it mounts
-  // (scripts/canvas-strings.mjs copies it out of Barkpark).
-  const canvasStrings = locale === 'nb-NO' ? CANVAS_NB : undefined
+  // language: Barkpark's map (lib/i18n), read from the nearest data-strings when it mounts.
+  const canvasStrings = useCanvasStrings()
   // D14: a paper's task blocks show Barkpark's live previews (lib/fleet.ts).
   const fleetOn = type === 'paper' && !field
   const {data: fleet} = useQuery({...fleetQuery(id), enabled: fleetOn})
