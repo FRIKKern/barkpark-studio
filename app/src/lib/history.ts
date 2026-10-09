@@ -52,10 +52,7 @@ export const restoreRevision = createServerFn({method: 'POST'})
     return ((await res.json()) as {document: Json}).document
   })
 
-/**
- * D22: who wrote the revision `rev` of a document, from its history (null when
- * Barkpark has no row for it: a Bulldocs paper's ops write none, task-1ecebe46ef50e427).
- */
+/** D22: who wrote the revision `rev` (a `_rev`) of a document, from its history (null when Barkpark has no row for it). */
 export const editedBy = createServerFn({method: 'GET'})
   .validator((d: {type: string; id: string; rev: string}) => d)
   .handler(async ({data}) => {
