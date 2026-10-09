@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 10 changes, 7 tasks closed
+- **Today** · 11 changes, 7 tasks closed
+  - J59: click to edit — Barkpark's source map marks the page's values; a click opens the field ([#243](https://github.com/FRIKKern/barkpark-studio/pull/243))
   - Recent searches and list sort/view follow the editor (Barkpark per-user prefs) ([#242](https://github.com/FRIKKern/barkpark-studio/pull/242))
   - J64: sharing a preview — on mints a Barkpark preview link (QR, copy), off revokes it ([#241](https://github.com/FRIKKern/barkpark-studio/pull/241))
-  - Done: [J38 [after] Global search filters: type chips, field filters, ordering](https://github.com/FRIKKern/barkpark/issues/21783)
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
