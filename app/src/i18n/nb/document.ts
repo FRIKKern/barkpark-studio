@@ -53,6 +53,13 @@ export default {
   'The text they replaced is in its history.': 'Teksten de erstattet ligger i historikken.',
   'Could not put the words back': 'Kunne ikke legge ordene tilbake',
   'Finish saving your edit first.': 'Fullfør lagringen av endringen først.',
+  // D22: another writer's edit, with Undo (after Barkdown's agent-edit row)
+  'Edited by {who}': 'Endret av {who}',
+  'Edited elsewhere': 'Endret et annet sted',
+  'Undo': 'Angre',
+  'Finish saving your edit before Undo.': 'Fullfør lagringen av endringen før du angrer.',
+  'The document changed again. Undo was not applied.': 'Dokumentet er endret igjen. Angre ble ikke utført.',
+  'Could not undo the edit': 'Kunne ikke angre endringen',
   // B10: schema-declared actions (ours; LiveView's modal is English-only)
   'Confirm for real': 'Bekreft og kjør',
   'Run dry-run again': 'Prøvekjør igjen',

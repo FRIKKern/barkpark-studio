@@ -91,6 +91,11 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
 export const READ_DEDUPE_MS = 500
 /** Drop the shared reads: none may answer for a point after this one. */
 export const forgetReads = () => recent.clear()
+/** Someone (anyone) wrote this doc: no read of it may answer from before that. */
+export const forgetReadsOf = (docId: string) => {
+  const needle = `/${encodeURIComponent(docId)}`
+  for (const key of recent.keys()) if (key.includes(needle)) recent.delete(key)
+}
 const recent = new Map<string, {expires: number; res: Promise<{status: number; type: string | null; body: string}>}>()
 
 async function send(base: string, path: string, init: RequestInit, token: string, retry = true): Promise<Response> {

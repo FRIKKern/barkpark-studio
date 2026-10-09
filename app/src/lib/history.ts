@@ -52,6 +52,20 @@ export const restoreRevision = createServerFn({method: 'POST'})
     return ((await res.json()) as {document: Json}).document
   })
 
+/**
+ * D22: who wrote the revision `rev` of a document, from its history (null when
+ * Barkpark has no row for it: a Bulldocs paper's ops write none, task-<gap>).
+ */
+export const editedBy = createServerFn({method: 'GET'})
+  .validator((d: {type: string; id: string; rev: string}) => d)
+  .handler(async ({data}) => {
+    const res = await bpFetch(`/v1/data/history/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?limit=10`)
+    if (!res.ok) return null
+    const {revisions} = (await res.json()) as {revisions: (RawRevision & {rev?: string})[]}
+    const row = revisions.find((r) => r.rev === data.rev)
+    return row ? row.actor_label || 'API token' : null
+  })
+
 export const historyQuery = (type: string, id: string) =>
   queryOptions({queryKey: ['history', id], staleTime: 5_000, queryFn: async () => (await fetchHistory({data: {type, id}})) as unknown as Revision[]})
 

@@ -56,3 +56,12 @@ export function putBackOps(server: Block[], kept: Block[]): BlockOp[] {
     ...keptFree.map((b, i) => ({op: 'append-block', block: {...b, id: `kept-${stamp}-${i}`}})),
   ]
 }
+
+/**
+ * D22: the ops that take a document back to `before` (Barkdown's restoreBlocks): an
+ * append is undone by removing what was added; anything else as putBackOps.
+ */
+export function restoreOps(current: Block[], before: Block[]): BlockOp[] {
+  if (before.length <= current.length && before.every((b, i) => same(b, current[i]!))) return current.slice(before.length).reverse().map((b) => ({op: 'remove-block', id: b.id}))
+  return putBackOps(current, before)
+}

@@ -704,6 +704,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .pd-find input { flex: 1 1 140px; min-width: 0; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: inherit; font: inherit; }
 .pd-find-count { min-width: 70px; color: var(--muted); text-align: center; white-space: nowrap; }
 .pd-find-count[data-empty] { color: var(--danger-text); }
+/* D22: another writer's edit, with Undo (Barkdown's .bw-agent-edit row) */
+.pd-other-edit { display: flex; gap: 12px; align-items: center; margin: 0 0 16px; font-size: 12px; color: var(--muted); }
+.pd-other-edit span { flex: 1; }
 /* D09: the canvas draws its block gutter (+ and drag grip) 52 px left of each block,
    inside <bp-paper-canvas>; give it that room so the pane edge never clips it. On a
    phone the canvas drops the gutter itself (slash menu and keys still work). */
