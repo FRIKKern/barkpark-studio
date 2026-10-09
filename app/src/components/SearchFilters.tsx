@@ -398,7 +398,7 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
         ))}
       </select>
     )
-  const type = kind === 'number' ? 'number' : kind === 'date' ? 'date' : kind === 'datetime' ? (op === 'eq' ? 'date' : 'datetime-local') : 'text'
+  const type = kind === 'number' ? 'number' : kind === 'date' ? 'date' : kind === 'datetime' ? (op === 'eq' || op === 'neq' ? 'date' : 'datetime-local') : 'text'
   if (op === 'range') {
     const dates = kind === 'date' || kind === 'datetime'
     return (
@@ -421,35 +421,98 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
   )
 }
 
+/**
+ * A document to filter on, Sanity's way: a closed search box ("Search for Author",
+ * "Search all documents"); typing lists the matches under it, ArrowDown walks them.
+ */
 function ReferenceValue({filter, field, set}: {filter: SearchFilter; field: FilterField; set: (p: Partial<SearchFilter>) => void}) {
   const t = useT()
   const [q, setQ] = useState('')
   // "Contains document": any type's.
   const {data: schemas = []} = useQuery(schemasQuery)
   const types = field.kind === 'refs' ? schemas.map((x) => x.name) : (field.refTypes ?? [])
-  const found = useQuery({...searchQuery(types, q.trim()), enabled: !filter.value})
-  if (filter.value)
+  const found = useQuery({...searchQuery(types, q.trim()), enabled: !filter.value && !!q.trim()})
+  if (filter.value) return <Picked filter={filter} set={set} />
+  const placeholder = field.kind === 'refs' ? t('Search all documents') : t('Search for {title}', {title: fieldTitle(field, t)})
+  return <Choices q={q} setQ={setQ} placeholder={placeholder} items={(found.data ?? []).map((d) => ({id: d._publishedId, label: String(d.title ?? d._publishedId)}))} pick={(it) => set({value: it.id, label: it.label})} />
+}
+
+/** "Contains … image / file", Sanity's "Select image" / "Select file": then the dataset's images or files by name; the value is its media id (`asset-<id>`, what an image or file field holds). */
+function AssetValue({filter, images, set}: {filter: SearchFilter; images: boolean; set: (p: Partial<SearchFilter>) => void}) {
+  const t = useT()
+  const [q, setQ] = useState('')
+  const [browsing, setBrowsing] = useState(false)
+  const {data: assets = []} = useQuery({
+    queryKey: [images ? 'media' : 'media-files', ''],
+    queryFn: () => fetch(images ? '/api/media/' : '/api/media/files').then((r) => (r.ok ? (r.json() as Promise<{id: string; name: string}[]>) : Promise.reject(new Error(`media → ${r.status}`)))),
+    enabled: browsing && !filter.value,
+  })
+  if (filter.value) return <Picked filter={filter} set={set} />
+  if (!browsing)
     return (
-      <div className="filter-pair">
-        <span className="filter-ref">{filter.label ?? filter.value}</span>
-        <button type="button" className="btn" onClick={() => set({value: undefined, label: undefined})}>
-          {t('Clear')}
-        </button>
-      </div>
+      <button type="button" className="btn filter-select-asset" onClick={() => setBrowsing(true)}>
+        {images ? t('Select image') : t('Select file')}
+      </button>
     )
+  const shown = assets.filter((a) => a.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8)
+  return <Choices q={q} setQ={setQ} placeholder={t('Search')} open items={shown.map((a) => ({id: `asset-${a.id}`, label: a.name}))} pick={(it) => set({value: it.id, label: it.label})} />
+}
+
+function Picked({filter, set}: {filter: SearchFilter; set: (p: Partial<SearchFilter>) => void}) {
+  const t = useT()
   return (
-    <div className="filter-ref-search">
-      <input className="input" autoFocus aria-label={t('Value')} placeholder={t('Search')} value={q} onChange={(e) => setQ(e.target.value)} />
-      <div className="filter-ref-results">
-        {(found.data ?? []).slice(0, 8).map((d) => (
-          <button key={d._id} type="button" className="menu-item" onClick={() => set({value: d._publishedId, label: String(d.title ?? d._publishedId)})}>
-            {String(d.title ?? d._publishedId)}
-          </button>
-        ))}
-      </div>
+    <div className="filter-pair">
+      <span className="filter-ref">{filter.label ?? filter.value}</span>
+      <button type="button" className="btn" onClick={() => set({value: undefined, label: undefined})}>
+        {t('Clear')}
+      </button>
     </div>
   )
 }
+
+/** A search box over a list of choices: closed until there is something typed (or `open`). */
+function Choices({q, setQ, placeholder, items, pick, open = false}: {q: string; setQ: (q: string) => void; placeholder: string; items: {id: string; label: string}[]; pick: (it: {id: string; label: string}) => void; open?: boolean}) {
+  const t = useT()
+  const list = useId()
+  const shown = (open || !!q.trim()) && items.length > 0
+  return (
+    <div className="filter-ref-search">
+      <input
+        className="input"
+        role="combobox"
+        aria-expanded={shown}
+        aria-controls={list}
+        autoFocus
+        aria-label={t('Value')}
+        placeholder={placeholder}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => e.key === 'ArrowDown' && shown && (e.preventDefault(), (e.currentTarget.parentElement?.querySelector('.filter-ref-results button') as HTMLElement | null)?.focus())}
+      />
+      {shown && (
+        <div className="filter-ref-results" id={list} role="listbox" aria-label={placeholder}>
+          {items.slice(0, 8).map((it) => (
+            <button
+              key={it.id}
+              type="button"
+              role="option"
+              aria-selected={false}
+              className="menu-item"
+              onClick={() => pick(it)}
+              onKeyDown={(e) => {
+                const step = e.key === 'ArrowDown' ? 'nextElementSibling' : e.key === 'ArrowUp' ? 'previousElementSibling' : null
+                if (step) (e.preventDefault(), (e.currentTarget[step] as HTMLElement | null)?.focus())
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 
 export function SearchOrdering({sort, onSort}: {sort: SearchSort; onSort: (s: SearchSort) => void}) {
   const t = useT()
@@ -482,39 +545,6 @@ function SortMenu({sort, onPick, onClose}: {sort: SearchSort; onPick: (s: Search
           ))}
         </Fragment>
       ))}
-    </div>
-  )
-}
-
-/** "Contains … image / file": the dataset's images or files by name; the value is its media id (`asset-<id>`, what an image or file field holds). */
-function AssetValue({filter, images, set}: {filter: SearchFilter; images: boolean; set: (p: Partial<SearchFilter>) => void}) {
-  const t = useT()
-  const [q, setQ] = useState('')
-  const {data: assets = []} = useQuery({
-    queryKey: [images ? 'media' : 'media-files', ''],
-    queryFn: () => fetch(images ? '/api/media/' : '/api/media/files').then((r) => (r.ok ? (r.json() as Promise<{id: string; name: string}[]>) : Promise.reject(new Error(`media → ${r.status}`)))),
-    enabled: !filter.value,
-  })
-  if (filter.value)
-    return (
-      <div className="filter-pair">
-        <span className="filter-ref">{filter.label ?? filter.value}</span>
-        <button type="button" className="btn" onClick={() => set({value: undefined, label: undefined})}>
-          {t('Clear')}
-        </button>
-      </div>
-    )
-  const shown = assets.filter((a) => a.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8)
-  return (
-    <div className="filter-ref-search">
-      <input className="input" autoFocus aria-label={t('Value')} placeholder={t('Search')} value={q} onChange={(e) => setQ(e.target.value)} />
-      <div className="filter-ref-results">
-        {shown.map((a) => (
-          <button key={a.id} type="button" className="menu-item" onClick={() => set({value: `asset-${a.id}`, label: a.name})}>
-            {a.name}
-          </button>
-        ))}
-      </div>
     </div>
   )
 }

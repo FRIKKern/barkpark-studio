@@ -40,6 +40,7 @@ test('@evidence J38: search filters side by side', async ({page, context}, info)
     ['Categories', 'includes', ['includes', 'does not include', 'not empty', 'empty', 'quantity is', 'quantity is not', 'quantity greater than', 'quantity greater than or equal to', 'quantity less than', 'quantity less than or equal to', 'quantity is between']],
     ['Title', 'contains', ['contains', 'does not contain', 'is', 'is not', 'not empty', 'empty']],
     ['Contains document', 'document', ['document', 'image', 'file']],
+    ['Published at', 'last', ['last', 'is between', 'after', 'before', 'is', 'is not', 'not empty', 'empty']],
   ] as const) {
     await page.getByRole('button', {name: 'Add filter'}).click()
     await page.waitForTimeout(300)
@@ -127,7 +128,7 @@ test('@local J38: field filter, type filter, order, recent searches', async ({pa
   await page.keyboard.type('categories')
   await page.keyboard.press('Enter')
   await page.keyboard.type('guide')
-  await page.getByRole('dialog', {name: 'Categories'}).getByRole('button', {name: 'Guide', exact: true}).click()
+  await page.getByRole('dialog', {name: 'Categories'}).getByRole('option', {name: 'Guide', exact: true}).click()
   await page.keyboard.press('Escape')
   await expect(dialog(page).getByRole('button', {name: 'Categories includes Guide'})).toBeVisible()
   await expect(results.getByText('Fixture post 01', {exact: true})).toBeVisible()
@@ -139,11 +140,25 @@ test('@local J38: field filter, type filter, order, recent searches', async ({pa
   await page.keyboard.type('Contains document')
   await page.keyboard.press('Enter')
   await page.keyboard.type('alan')
-  await page.getByRole('dialog', {name: 'Contains document, image or file'}).getByRole('button', {name: 'Alan Turing', exact: true}).click()
+  await page.getByRole('dialog', {name: 'Contains document, image or file'}).getByRole('option', {name: 'Alan Turing', exact: true}).click()
   await page.keyboard.press('Escape')
   await expect(dialog(page).getByRole('button', {name: 'Contains document, image or file → Alan Turing'})).toBeVisible()
   await expect(results.getByText('Fixture post 01', {exact: true})).toBeVisible()
   await expect(results.getByText('Fixture post 02', {exact: true})).toHaveCount(0)
+  await dialog(page).getByRole('button', {name: 'Clear filters'}).click()
+
+  // A date-time "is not" is "not on that day" (barkpark nbetween): post 01 was published on 2 September.
+  await dialog(page).getByRole('combobox').first().fill('post 0')
+  await dialog(page).getByRole('button', {name: 'Add filter'}).click()
+  await page.keyboard.type('Published at')
+  await page.keyboard.press('Enter')
+  const published = page.getByRole('dialog', {name: 'Published at'})
+  await published.getByRole('button', {name: /^last/}).click()
+  await page.getByRole('menuitemradio', {name: 'is not'}).click()
+  await published.getByLabel('Date').fill('2026-09-02')
+  await page.keyboard.press('Escape')
+  await expect(results.getByText('Fixture post 02', {exact: true})).toBeVisible()
+  await expect(results.getByText('Fixture post 01', {exact: true})).toHaveCount(0)
   await dialog(page).getByRole('button', {name: 'Clear filters'}).click()
 
   // Every text field is searched, not only titles (Sanity's): "newsletter" is in the posts' featured note.
