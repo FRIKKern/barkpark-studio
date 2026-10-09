@@ -169,14 +169,14 @@ function usePaneTitle(pane: Pane) {
   const doc = published ? live : draft
   if (pane.kind === 'types') return desk?.title ?? t('Content')
   if (pane.kind === 'menu') return node?.title ?? pane.node
-  if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type))
+  if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type), t)
   if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? t('Unknown pane type')
   const schema = schemaOf(schemas, pane.type)
   if (!schema) return t('Unknown document type')
   if (doc === null) return t('The document was not found')
   // A desk singleton is named by its desk row (Sanity's S.document().title()).
   if (pane.node && node?.title) return node.title
-  return doc && schema ? docTitle(doc, schema, t) : previewTitle(doc, schema)
+  return doc && schema ? docTitle(doc, schema, t) : previewTitle(doc, schema, t)
 }
 
 /** The last pane owns the tab title, including cached edits and browser history. */
@@ -534,7 +534,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {treeParent && parentDoc && (
           <>
             <DocPreview doc={parentDoc} href={openAfter(panes, index, {kind: 'doc', id: treeParent, type})} selected={selected === treeParent} active={index === panes.length - 2} testId="pane-item" />
-            <div className="desk-divider">{docs ? t('{n} under {title}', {n: docs.length, title: previewTitle(parentDoc, schemaOf(schemas, type))}) : ''}</div>
+            <div className="desk-divider">{docs ? t('{n} under {title}', {n: docs.length, title: previewTitle(parentDoc, schemaOf(schemas, type), t)}) : ''}</div>
           </>
         )}
         {searchOffline ? <p className="list-empty" role="status">{t("You're offline. Reconnect to search all documents.")}</p> : searchFailed ? (
@@ -568,7 +568,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           return (
             <div key={d._publishedId} role="listitem" className="bulk-row" data-picked={picked.has(d._publishedId) || undefined}>
               <label className="bulk-check">
-                <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type))})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
+                <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type), t)})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
               </label>
               {row}
             </div>

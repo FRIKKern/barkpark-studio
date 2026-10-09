@@ -125,9 +125,10 @@ function Subtitle({item, of}: {item: Item; of: Field}) {
   const name = of.preview?.subtitle
   const f = of.fields?.find((x) => x.name === name)
   const refId = f?.type === 'reference' && typeof item[name!] === 'string' ? (item[name!] as string) : undefined
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: target} = useQuery({...docQuery(f?.refType ?? '', refId ?? ''), enabled: !!refId})
-  const text = refId ? (target ? previewTitle(target, schemaOf(schemas, target._type)!) : '') : previewText(item, of, 'subtitle')
+  const text = refId ? (target ? previewTitle(target, schemaOf(schemas, target._type)!, t) : '') : previewText(item, of, 'subtitle')
   return text ? <span className="subtitle">{text}</span> : null
 }
 

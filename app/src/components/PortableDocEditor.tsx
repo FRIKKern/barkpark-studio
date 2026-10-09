@@ -352,7 +352,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           const doc = await qc.fetchQuery(anyDocQuery(docId))
           if (!doc) return {title: t('Document not found'), excerpt: docId}
           const schema = schemaOf(qc.getQueryData<Schema[]>(['schemas']) ?? [], doc._type)
-          return {title: previewTitle(doc, schema), excerpt: doc.preview?.description ?? schema?.title}
+          return {title: previewTitle(doc, schema, t), excerpt: doc.preview?.description ?? schema?.title}
         }
         // D07: a dropped or pasted picture uploads to Barkpark's media; the block stores the
         // file's Barkpark path. The canvas shows "uploading" and any failure on the block.
@@ -368,7 +368,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // The `[[` menu: documents of any type.
         el.wikilinkSource = async (query) => {
           const schemas = qc.getQueryData<Schema[]>(['schemas']) ?? []
-          return (await searchAllDocs(query)).map((d) => ({title: previewTitle(d, schemaOf(schemas, d._type)), id: d._publishedId, type: d._type}))
+          return (await searchAllDocs(query)).map((d) => ({title: previewTitle(d, schemaOf(schemas, d._type), t), id: d._publishedId, type: d._type}))
         }
         // A fresh canvas starts with a node selection on its first block. When that is a
         // bound field and a click into text doesn't reach the editor's state, the next

@@ -168,9 +168,10 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
         <dt>{t('Size')}</dt>
         <dd>{size(a.size)}</dd>
         <dt>{t('Visibility')}</dt>
-        <dd>{a.visibilityNotice?.label ?? a.visibility ?? t('unknown')}</dd>
+        {/* Barkpark sends its visibility copy in English; the Studio says it in the editor's language. */}
+        <dd>{a.visibilityNotice ? t(a.visibilityNotice.label) : a.visibility ? t(a.visibility === 'private' ? 'Private' : 'Public') : t('unknown')}</dd>
       </dl>
-      {a.visibilityNotice && <p className="muted media-note">{a.visibilityNotice.copy}</p>}
+      {a.visibilityNotice && <p className="muted media-note">{t(a.visibilityNotice.copy)}</p>}
       <section className="media-section" aria-label={t('Checkout')}>
         <h3>{t('Checkout')}</h3>
         <p role="status">{a.checkoutLabel ? checkedOutBy(t, a.checkoutLabel) : t('Not checked out. Check it out to keep others from editing it while you do.')}</p>

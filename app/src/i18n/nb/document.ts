@@ -109,6 +109,8 @@ export default {
   'Edit the document or select an older version in the timeline to see a list of changes appear in this panel.': 'Rediger dokumentet eller velg en eldre versjon i tidslinjen for å se en liste over endringer i dette panelet.',
   'Edited': 'Redigert',
   'Edited {ago}': 'Redigert {ago}',
+  // Sanity's nb for its relative times under 10 s (lib/i18n.tsx ago()).
+  'just now': 'akkurat nå',
   'Edited {date}': 'Redigert {date}',
   'Editor': 'Redigering',
   'Encountered an error while fetching documents.': 'Det oppstod en feil under henting av dokumenter.',
