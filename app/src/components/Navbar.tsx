@@ -8,10 +8,11 @@ import {WhoIsOnline} from './Presence'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useHydratedMark} from '../lib/hydrated'
-import {BUILD, buildName, useNewVersion} from '../lib/version'
+import {BUILD, buildName, useNewVersion, useSchemaChanged} from '../lib/version'
 import {saveAll} from '../lib/edits'
+import {stickyToast} from './Toasts'
 import {useT} from '../lib/i18n'
 import studio from '../studio.config'
 import {studioBrand} from '../lib/plugins'
@@ -27,6 +28,7 @@ export function Navbar() {
   const published = usePublishedPerspective()
   return (
     <nav className="navbar" data-perspective={published ? 'published' : undefined}>
+      <SchemaWatch />
       <div className="brand">
         <NavDrawer />
         <span className="logo">{brand.initials}</span>
@@ -126,6 +128,35 @@ function NavDrawer() {
       )}
     </>
   )
+}
+
+/**
+ * Bad day: Barkpark's content model changed while this tab is open (a field removed, a
+ * type changed). Say so, sticky, with Reload: what is typed is saved first, then the
+ * page reads the new model. Until then the open form keeps the model it loaded.
+ */
+function SchemaWatch() {
+  const t = useT()
+  const qc = useQueryClient()
+  const changed = useSchemaChanged()
+  useEffect(() => {
+    if (!changed) return
+    const reload = async () => (await saveAll(qc), location.reload())
+    stickyToast('schema-changed', {
+      tone: 'caution',
+      title: (
+        <span>
+          {t('The content model changed.')}{' '}
+          <button type="button" className="btn-text" onClick={() => void reload()}>
+            {t('Reload')}
+          </button>
+        </span>
+      ),
+      description: t('Reload to see the fields as they are now. What you typed is saved first.'),
+    })
+    return () => stickyToast('schema-changed', null)
+  }, [changed, qc, t])
+  return null
 }
 
 /**
