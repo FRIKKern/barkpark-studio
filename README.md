@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 13 changes, 7 tasks closed
+- **Today** · 14 changes, 8 tasks closed
+  - J59: the author on a post page is click-to-edit, from the author's own source map ([#246](https://github.com/FRIKKern/barkpark-studio/pull/246))
+  - Done: [Barkpark: presence/focus pings count against the content-write rate budget](https://github.com/FRIKKern/barkpark/issues/22278)
   - J63: Sanity's perspective picker in the navbar (Drafts / Published) ([#245](https://github.com/FRIKKern/barkpark-studio/pull/245))
-  - J60: patch the preview from listen frames; CI shards by test (budget) ([#244](https://github.com/FRIKKern/barkpark-studio/pull/244))
-  - J59: click to edit — Barkpark's source map marks the page's values; a click opens the field ([#243](https://github.com/FRIKKern/barkpark-studio/pull/243))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
