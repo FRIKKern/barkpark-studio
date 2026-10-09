@@ -1,5 +1,5 @@
 import {expect, test, type BrowserContext, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // B11 widen (task-89fecb4915b2f30d): form edits Barkpark never acknowledged survive the
 // tab dying. Saves are cut off (every mutate fails as a network error; a crash sends no
@@ -11,7 +11,8 @@ const ID = 'post-29'
 const EXCERPT = 'Short excerpt for post 29.'
 test.setTimeout(90_000)
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await target(info).restore(ID, {excerpt: EXCERPT})
 })
 

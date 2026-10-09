@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {BACKEND_POLL, signInIfAsked, target} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J39, broken values: a draft written by another client with values the schema
 // doesn't allow — a number and a boolean stored as strings, a field the schema
@@ -17,7 +17,7 @@ const BROKEN = {
 const shot = (name: string, step: string) => `evidence/J39-${name}-${step}.png`
 test.setTimeout(60_000)
 test.beforeEach(async ({}, info) => target(info).draftOnly(ID, 'post', BROKEN))
-test.afterEach(async ({}, info) => target(info).deleteDoc(ID, 'post'))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).deleteDoc(ID, 'post')))
 
 test('@evidence J39: broken values side by side', async ({page, context}, info) => {
   const t = target(info)

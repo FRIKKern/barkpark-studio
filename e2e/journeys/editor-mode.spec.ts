@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // FF3 evidence (Freeform side track, ours only): story is an Expectation type
 // (lib/editor-mode.ts: alternative), so story-01 opens in Classic with a Classic ⇄
@@ -24,7 +24,8 @@ const bp = async (path: string) => {
 const stored = () => bp(`/v1/data/doc/${process.env.BARKPARK_DATASET}/story/${ID}?perspective=raw`)
 const draftOrPublished = async () => (await bp(`/v1/data/doc/${process.env.BARKPARK_DATASET}/story/${ID}?perspective=drafts`))
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   // Back to the seed: the whole block list (the canvas edit) and the bound fields.
   if (target(info).name === 'studio') await target(info).restore(ID, {summary: SUMMARY, kicker: 'Freeform fixture', blocks: SEED_BLOCKS}, 'story')
 })

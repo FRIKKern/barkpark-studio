@@ -52,7 +52,7 @@ test('@evidence J50: backend down — list error card + Retry, doc pane waits, "
   // 4. Ours: a pane that crashes keeps to itself.
   if (t.name === 'studio') {
     await page.evaluate(() => ((window as {__crashPane?: string}).__crashPane = 'doc:post-03'))
-    await t.listItem(page, 'post-03').click()
+    await (await reveal(t.listItem(page, 'post-03'))).click()
     const card = page.locator('[data-pane-crashed]')
     await expect(card).toContainText('Could not render the document editor')
     await expect(t.listItem(page, 'post-04')).toBeVisible()

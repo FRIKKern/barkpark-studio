@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {target, type Target} from '../rig/targets'
+import {target, type Target, closeAndSettle} from '../rig/targets'
 
 // J31 evidence, both studios: radio and dropdown select lists, then the date-time
 // picker by mouse and by keyboard. Stills + clips go to e2e/evidence/ (gitignored)
@@ -14,7 +14,7 @@ const calendarButton = (t: Target, page: Page) =>
     ? page.locator('[data-testid="field-publishedAt"] button:has([data-sanity-icon="calendar"])')
     : page.getByRole('button', {name: 'Select date'})
 
-test.afterEach(async ({}, info) => target(info).restore(ID, SEED))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, SEED)))
 
 test('@evidence J31: select lists and the date-time picker', async ({page}, info) => {
   const t = target(info)

@@ -1,12 +1,12 @@
 import {expect, test} from '@playwright/test'
-import {target, BACKEND_POLL} from '../rig/targets'
+import {target, BACKEND_POLL, closeAndSettle} from '../rig/targets'
 
 // J14, both studios, one doc, one page load: field-group tabs (keyboard too) and the
 // nested seo object, edited by two browsers at once (each subfield keeps its own
 // value: no last-write-wins on the object). J13 runs inside lifecycle.spec.ts.
 const ID = 'post-18'  // author Ada: J17 counts Alan's posts, and Sanity's last write can land after the reset
 
-test.afterEach(async ({}, info) => target(info).resetDoc(ID, 'post'))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'post')))
 
 test('J14: field groups, the seo object by two editors', async ({page, browser}, info) => {
   const t = target(info)

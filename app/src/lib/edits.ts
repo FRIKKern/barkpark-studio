@@ -139,6 +139,12 @@ export function hasUnsaved() {
   for (const check of unsavedElsewhere) if (check()) return true
   return false
 }
+// e2e probe: a spec's cleanup waits for this page's saves on their way (not a refused or
+// offline state, which no wait ends) before it resets the data.
+if (typeof window !== 'undefined')
+  (window as {__savesPending?: () => boolean}).__savesPending = () =>
+    [...docs.values()].some((d) => d.dirty.size || d.inflight || d.createRequested) ||
+    [...document.querySelectorAll('bp-paper-canvas')].some((c) => !!(c as {hasPendingChanges?: () => boolean}).hasPendingChanges?.())
 
 /**
  * B11 widen (lib/pending-edits.ts): where unacknowledged edits are kept: workspace,

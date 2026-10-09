@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {bpMutate, target} from '../rig/targets'
+import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // D19 (Freeform side track, ours only), after Barkdown's find and replace (#17,
 // editor-find.live.mjs): in a fresh note, Ctrl/Cmd+F opens the find bar with the matches
@@ -12,7 +12,8 @@ type Block = {type: string; content?: {type: string; value?: string}[]}
 const para = (id: string, value: string) => ({id, type: 'paragraph', content: [{type: 'text', value}]})
 
 const mutate = (mutations: unknown[]) => bpMutate(mutations).then(() => {})
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await mutate([{delete: {id: ID, type: 'note', force: true}}]).catch(() => {})
 })
 

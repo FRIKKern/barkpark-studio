@@ -1,12 +1,13 @@
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // J10, F8 (nothing lost): the body is read-only until a click wakes Barkpark's canvas,
 // which takes a moment on a fresh page (its bundle, the blocks). Keys typed in that
 // moment used to vanish; now they are kept and typed in once the canvas has the caret.
 const ID = 'post-29'
 let before: unknown
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (before !== undefined) await target(info).restore(ID, {body: before})
   before = undefined
 })

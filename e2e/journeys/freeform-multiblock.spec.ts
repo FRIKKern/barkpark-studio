@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {resetNative, target, type Target} from '../rig/targets'
+import {resetNative, target, type Target, closeAndSettle} from '../rig/targets'
 
 // D16, Barkdown's EDITOR-PARITY row 11 (app/tests/editor-multiblock.live.mjs) on our
 // canvas: multi-block edits across the ops round trip. After every step the canvas's
@@ -8,7 +8,8 @@ import {resetNative, target, type Target} from '../rig/targets'
 // state stays, and the next edit (pasting back) saves.
 const ID = 'paper-02'
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control'
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await resetNative(ID, 'paper')
 })
 

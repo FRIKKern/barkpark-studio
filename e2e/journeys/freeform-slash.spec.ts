@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {resetNative, target} from '../rig/targets'
+import {resetNative, target, closeAndSettle} from '../rig/targets'
 
 // D17, Barkdown's EDITOR-PARITY row 12 (its slash sweep, editor-opaque.live.mjs) on our
 // canvas: the blocks the slash menu offers insert as editable blocks (never a read-only
@@ -19,7 +19,8 @@ const TYPES = [
   ['blockquote', 'blockquote'],
   ['callout', 'callout'],
 ] as const
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await resetNative(ID, 'paper')
 })
 

@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // J30 evidence, both studios: the same steps, one screenshot per step plus a clip,
 // saved under e2e/evidence/ (local, gitignored) for the side-by-side sign-off.
@@ -9,7 +9,8 @@ import {target} from '../rig/targets'
 const shot = (name: string, step: string) => `evidence/J30-${name}-${step}.png`
 test.use({video: 'on'})
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   await target(info).resetDoc('post-05', 'post')
   await target(info).resetDoc('post-06', 'post')
 })

@@ -1,5 +1,5 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {bpMutate, target} from '../rig/targets'
+import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // D09 (Freeform side track, ours only), in a fresh note's canvas: the block gutter is
 // whole and clickable inside the pane (+ and grip were clipped by the pane edge);
@@ -17,7 +17,8 @@ const line = (b: Block) => `${b.type} ${b.text ?? (b.items ? b.items.map(flat).j
 
 // The rig's writer: it waits out a 429 (the suite shares one token's budget).
 const mutate = (mutations: unknown[]) => bpMutate(mutations).then(() => {})
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await mutate([{delete: {id: ID, type: 'note', force: true}}]).catch(() => {})
 })
 

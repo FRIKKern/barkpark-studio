@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target, BACKEND_POLL} from '../rig/targets'
+import {target, BACKEND_POLL, closeAndSettle} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
 // J19, keyboard only on both studios: global search → open → edit → publish.
@@ -7,7 +7,7 @@ import {referenceHold} from '../rig/reference'
 const ID = 'post-12'
 const TITLE = 'Fixture post 12'
 
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: TITLE}))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {title: TITLE})))
 
 test('J19: search recovery and visible keyboard selection', async ({page}, info) => {
   const t = target(info)

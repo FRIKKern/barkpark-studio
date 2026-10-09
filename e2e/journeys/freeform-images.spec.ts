@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type Page} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // D07 (Freeform side track, ours only): a picture pasted into note-01's canvas becomes
 // an image block at once (uploading), goes to Barkpark's media, and the block stores
@@ -11,7 +11,8 @@ const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjso
 const PNG = readFileSync(new URL('../../fixtures/assets/fixture-image.png', import.meta.url)).toString('base64')
 type Block = {id: string; type: string; src?: string; alt?: string}
 let before: Block[] | undefined
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio' && before) await target(info).restore(ID, {title: SEED.title, label: SEED.label, body: SEED.body, blocks: before}, 'note')
 })
 

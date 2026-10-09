@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // D12 (Freeform side track, ours only): paper-01's metadata sidebar, after Barkpark's
 // LiveView Studio. Open it from the pane header (URL keeps it, focus moves in); slug
@@ -11,7 +11,8 @@ import {target} from '../rig/targets'
 const ID = 'paper-01'
 const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjson', import.meta.url), 'utf8').split('\n').find((l) => l.includes(`"${ID}"`))!) as Record<string, unknown>
 type Tag = {tag: string; strength: number; rationale: string}
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   if (t.name === 'studio') await t.restore(ID, {description: SEED.description, tags: SEED.tags, main_tag: SEED.main_tag}, 'paper')
 })

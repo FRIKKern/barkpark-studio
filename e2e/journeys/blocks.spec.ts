@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J11 evidence, both studios, in post-11's body: insert a callout and edit it
 // (Sanity: in a dialog; ours: inline in the canvas), the block "…" menu (Sanity:
@@ -13,7 +13,8 @@ test.use({video: 'on'})
 test.setTimeout(180_000)
 
 let original: unknown
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (original !== undefined) await target(info).restore(ID, {body: original})
 })
 

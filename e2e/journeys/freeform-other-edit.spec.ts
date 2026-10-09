@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {resetNative, target} from '../rig/targets'
+import {resetNative, target, closeAndSettle} from '../rig/targets'
 
 // D22 (Freeform, ours only), after Barkdown's agent-edit row: an agent (another API
 // client) adds a paragraph to a note that is open. The canvas shows it with who made
@@ -15,7 +15,8 @@ const agentAppends = async (text: string) => {
   const res = await fetch(`${docUrl}/ops`, {method: 'POST', headers: {...auth, 'content-type': 'application/json'}, body: JSON.stringify({ops: [{op: 'append-block', block}], ifRev: _rev})})
   expect(res.ok, await res.text()).toBe(true)
 }
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await Promise.all([resetNative(ID, 'note'), resetNative(PAPER, 'paper')])
 })
 
