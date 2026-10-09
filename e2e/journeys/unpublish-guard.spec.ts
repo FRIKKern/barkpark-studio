@@ -37,6 +37,9 @@ test('@local B07: unpublish lists who refers to it first; Cancel or Unpublish an
   // Bulk: one section per referenced doc.
   await page.goto(t.listPath('author'))
   await t.settle(page)
+  // Ticks show once selecting starts (list menu, or a Cmd/Ctrl-click), never on a plain hover.
+  await page.getByRole('button', {name: 'List options'}).first().click()
+  await page.getByRole('menuitemradio', {name: 'Select documents'}).click()
   for (const name of ['Alan Turing', 'Grace Hopper']) await page.getByRole('checkbox', {name: `Select ${name}`}).check()
   await page.getByRole('button', {name: 'Unpublish selected'}).click()
   const bulk = page.getByRole('dialog', {name: 'Unpublish 2 documents?'})
