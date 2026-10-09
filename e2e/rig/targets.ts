@@ -296,6 +296,18 @@ const studio: Target = {
   restore: (id, set, type = 'post', unset = []) => bpMutate([{patch: {id, type, set, unset}}, {publish: {id, type}}]).then(() => {}),
 }
 
+/**
+ * A Barkpark-only fixture doc (fixtures/barkpark-only.ndjson) back as seeded: the draft
+ * dropped, the doc replaced and published. A paper's block list follows its body (a
+ * patch of `body` alone leaves the blocks the canvas wrote).
+ */
+export async function resetNative(id: string, type: string) {
+  const line = readFileSync(new URL('../../fixtures/barkpark-only.ndjson', import.meta.url), 'utf8').split('\n').find((l) => l.includes(`"_id": "${id}"`))
+  if (!line) throw new Error(`${id} is not in fixtures/barkpark-only.ndjson`)
+  await bpMutate([{discardDraft: {id, type}}]).catch(() => {})
+  await bpMutate([{createOrReplace: JSON.parse(line)}, {publish: {id, type}}])
+}
+
 export const target = (info: TestInfo): Target => (info.project.name === 'sanity' ? sanity : studio)
 
 /** With dev sign-in on (STUDIO_DEV_LOGIN=1), ours asks who you are first: answer as editor A. */
