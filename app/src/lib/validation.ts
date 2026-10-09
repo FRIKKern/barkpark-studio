@@ -15,7 +15,7 @@ export type RefTarget = (id: string) => Doc | null | undefined
 const english: T = (en, vars) => (vars ? en.replace(/\{(\w+)\}/g, (all, k: string) => (k in vars ? String(vars[k]) : all)) : en)
 
 const blank = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)
-// Barkpark's server knows warning; info is ours until it does (task-b183e15684138399).
+// Barkpark's levels too: warning and info never block a save or a publish (barkpark#22125).
 const levelOf = (r: Rule): Level => (r.level === 'warning' || r.level === 'warn' ? 'warning' : r.level === 'info' ? 'info' : 'error')
 const rulesOf = (field: Field): Rule[] => (Array.isArray(field.validation) ? field.validation : field.validation ? [field.validation] : [])
 
