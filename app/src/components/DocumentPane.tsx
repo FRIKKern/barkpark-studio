@@ -709,6 +709,9 @@ function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: 
 export const docTitle = (doc: Doc, schema: Schema, t: T = (en, vars) => translate('en', en, vars)) => {
   const title = previewTitle(doc, schema)
   if (title !== 'Untitled') return title
+  // A singleton without a title field is named by its type, as Sanity's fixed
+  // preview titles do ("Forside", "Nettstedsinnstillinger").
+  if (schema.singleton) return schema.title
   return doc._hasPublished === false ? t('New {type}', {type: schema.title}) : t('Untitled')
 }
 
