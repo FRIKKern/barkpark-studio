@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type BrowserContext, type Page} from '@playwright/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // Collaboration hour (D11 widen): two editors type in the same body paragraph at once.
@@ -6,13 +6,20 @@ import {signInIfAsked, target} from '../rig/targets'
 // never land silently over the first one's words: either both survive, or the later
 // writer gets the conflict card (D20) and the document's footer says "Not saved".
 const ID = 'post-26'
-test.afterEach(async ({}, info) => target(info).resetDoc(ID, 'post'))
+// Contexts made from `browser` are not closed with the test: closed here, or their pages
+// stay open (and in the presence room, and on post-26) for the rest of the run.
+const contexts: BrowserContext[] = []
+test.afterEach(async ({}, info) => {
+  await Promise.all(contexts.splice(0).map((c) => c.close()))
+  await target(info).resetDoc(ID, 'post')
+})
 
 test('@local D11: two editors in one paragraph — nothing is lost silently', async ({browser}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the canvas host')
   const open = async () => {
     const ctx = await browser.newContext()
+    contexts.push(ctx)
     await t.prepare(ctx)
     const page = await ctx.newPage()
     await page.goto(t.docPath('post', ID))
@@ -48,6 +55,7 @@ test('@local D11: an edit that already holds the other writer\'s words is not ca
   test.skip(t.name !== 'studio', 'ours: the canvas host')
   const open = async () => {
     const ctx = await browser.newContext()
+    contexts.push(ctx)
     await t.prepare(ctx)
     const page = await ctx.newPage()
     await page.goto(t.docPath('post', ID))
