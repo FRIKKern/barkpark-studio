@@ -34,6 +34,8 @@ export type StudioConfig = {
     /** Keyed `type.path` (`post.excerpt`). */
     inputs?: Record<string, ComponentType<InputProps>>
   }
+  /** J18: Sanity's initial value templates: more ways to start a type, offered in every Create new. */
+  templates?: Template[]
   document?: {
     actions?: (type: string) => DocumentAction[]
     badges?: (type: string) => DocumentBadge[]
@@ -41,6 +43,9 @@ export type StudioConfig = {
     productionUrl?: (doc: Doc) => string | undefined
   }
 }
+
+/** A second way to start `schemaType` (Sanity's template): its title in Create new, its starting values. */
+export type Template = {id: string; title: string; schemaType: string; value: Record<string, unknown>}
 
 /** A site route's main document: `/posts/:slug` with `field: 'slug'`, or `/authors/:id` (the id). */
 export type MainDocument = {route: string; type: string; field?: string}
