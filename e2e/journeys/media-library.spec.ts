@@ -5,8 +5,8 @@ import {bpMutate, target} from '../rig/targets'
 // B08 (Barkpark-native, ours only), after LiveView's media library: the Media tool
 // lists the dataset's assets; search and the visibility filter narrow them; an asset's
 // checkout lock is taken and released ("Checked out by you"); its title saves to its
-// mediaAsset document; a folder is created. The test uploads its own image and removes
-// it, the folder and the lock after. (Filing into a folder: task-8ddfc18c98283581.)
+// mediaAsset document (Barkpark's PATCH); a folder is created, the asset filed into it
+// and taken out. The test uploads its own image and removes it, the folder and the lock after.
 const scope = () => `${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}`
 const media = () => `${scope()}/v1/media/${process.env.BARKPARK_DATASET}`
 const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
@@ -74,4 +74,18 @@ test('@local B08: media library — search, visibility, checkout lock, title, fo
   await page.getByLabel('Visibility').selectOption('')
   await expect(page.getByText('This folder is empty')).toBeVisible()
   await page.screenshot({path: 'evidence/B08-2-folder-studio.png'})
+
+  // Filing: the asset goes into the folder, shows there, and comes out again.
+  await page.getByRole('navigation', {name: 'Folders'}).getByRole('button', {name: 'All media'}).click()
+  await page.getByRole('searchbox', {name: 'Search media'}).fill(NAME)
+  await tile.click()
+  await inspector.getByLabel('Add to folder').selectOption({label: 'B08 folder'})
+  await expect(page.getByText('Added to the folder')).toBeVisible()
+  await page.getByRole('searchbox', {name: 'Search media'}).fill('')
+  await row.click()
+  await expect(tile).toHaveCount(1)
+  await page.screenshot({path: 'evidence/B08-3-filed-studio.png'})
+  await tile.click()
+  await inspector.getByRole('button', {name: 'Remove from this folder'}).click()
+  await expect(page.getByText('This folder is empty')).toBeVisible()
 })
