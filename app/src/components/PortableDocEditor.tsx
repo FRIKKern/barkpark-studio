@@ -6,6 +6,7 @@ import {toast} from './Toasts'
 import {unsavedElsewhere} from '../lib/edits'
 import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
+import {reportSelection, usePresences, type CaretSelection} from '../lib/presence'
 import {detachMaster, insertMaster, mastersQuery, pinMaster, saveMaster, type Master, type MasterResult} from '../lib/paper-masters'
 import {t as translate, useCanvasStrings, useT, useLocale} from '../lib/i18n'
 import {forget, keep, keptKey, putBackOps, readKept, restoreOps, type Kept} from '../lib/kept-words'
@@ -35,6 +36,8 @@ type Canvas = HTMLElement & {
   mediaUploader: ((file: File) => Promise<{src?: string; url?: string; alt?: string}>) | null
   hasPendingChanges(): boolean
   focusBlock(id: string): boolean
+  /** D11: the other editors' carets (decorations only). */
+  setRemoteSelections(list: ({id: string; name: string; color: string} & CaretSelection)[]): void
   /** What the author has now, saved or not (D21). */
   recoverySnapshot?(): {blocks?: Block[]} | null
 }
@@ -150,6 +153,16 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   openDocRef.current = openDoc
   const vocabularyKey = vocabulary ? JSON.stringify(vocabulary) : ''
   const canvas = useRef<Canvas | null>(null)
+  // D11, shared carets: everyone else's caret in this document, in their presence color.
+  // A caret in another canvas of the same document names blocks this one hasn't, and
+  // the canvas drops it.
+  const remote = usePresences()
+    .filter((p) => p.documentId === id && p.selection)
+    .map((p) => ({id: p.sessionId, name: p.name, color: p.color, ...p.selection!}))
+  const remoteRef = useRef(remote)
+  remoteRef.current = remote
+  const remoteKey = JSON.stringify(remote)
+  useEffect(() => canvas.current?.setRemoteSelections(remoteRef.current), [remoteKey])
   const loop = useRef<{rev: Rev; saving: number; requests: number; merge?: boolean}>({rev: '', saving: 0, requests: 0})
   const [save, setSave] = useState<Save>({state: 'idle'})
   const [problem, setProblem] = useState<Problem | null>(null)
@@ -184,6 +197,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
 
   useEffect(() => {
     let gone = false
+    let caret: CaretSelection | null = null
     const l = loop.current
     const read = () => readBase().then((r) => (track(r.blocks), {...r, blocks: decorate.current(r.blocks)}))
     // Barkpark's EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7):
@@ -288,6 +302,12 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         el.blocks = first.blocks
         el.setAttribute('editable', String(editable))
         if (vocabulary) el.setAttribute('data-vocabulary', JSON.stringify(vocabulary))
+        el.setRemoteSelections(remoteRef.current)
+        // D11: our caret goes out with our presence focus (lib/presence.ts).
+        el.addEventListener('bp-canvas-selection', (e) => {
+          caret = (e as CustomEvent<CaretSelection | null>).detail
+          reportSelection(id, caret)
+        })
         el.addEventListener('bp-canvas-ops', (e) => {
           const {ops, seq} = (e as CustomEvent<{ops: BlockOp[]; seq: number}>).detail
           void applyOps(ops, seq)
@@ -412,6 +432,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     })()
     return () => {
       gone = true
+      if (caret) reportSelection(id, null)
       canvas.current?.remove()
       canvas.current = null
     }
