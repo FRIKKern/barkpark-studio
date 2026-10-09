@@ -31,9 +31,13 @@ const serverShape = async (t: Target) =>
     // A block may carry its words as plain `text` (a heading the canvas wrote) or as runs.
     .map((b) => (b.type === 'list' ? `list:${(b.items ?? []).map((i) => (Array.isArray(i) ? text(i) : text(i.content))).join('|')}` : `${b.type}:${b.text ?? text(b.content)}`))
 
+// tiptap's focus() lands a frame later: typing before it goes to the page body, and the
+// edit is lost (a warm prod page typed 'joined' 9 ms before the editor had focus).
+const focused = (page: Page) => expect(page.locator('bp-paper-canvas .ProseMirror')).toBeFocused()
+
 /** Select from inside one text to inside another through ProseMirror, as Barkdown's probe does. */
-const selectBetween = (page: Page, a: string, ao: number, b: string, bo: number) =>
-  page.evaluate(
+const selectBetween = async (page: Page, a: string, ao: number, b: string, bo: number) => {
+  await page.evaluate(
     ([a, ao, b, bo]) => {
       const ed = (document.querySelector('bp-paper-canvas') as HTMLElement & {_editor: {state: {doc: {descendants(f: (n: {isText: boolean; text?: string}, pos: number) => void): void}}; commands: {setTextSelection(r: {from: number; to: number}): void; focus(): void}}})._editor
       let from: number | null = null
@@ -48,10 +52,12 @@ const selectBetween = (page: Page, a: string, ao: number, b: string, bo: number)
     },
     [a, ao, b, bo] as const,
   )
+  await focused(page)
+}
 
 /** Put the caret at the end of the block holding `text` (a click does not always leave a live selection). */
-const caretAtEnd = (page: Page, text: string) =>
-  page.evaluate((txt) => {
+const caretAtEnd = async (page: Page, text: string) => {
+  await page.evaluate((txt) => {
     type Node = {isTextblock: boolean; textContent: string; nodeSize: number}
     const ed = (document.querySelector('bp-paper-canvas') as HTMLElement & {_editor: {state: {doc: {descendants(f: (n: Node, pos: number) => void): void}}; commands: {setTextSelection(p: number): void; focus(): void}}})._editor
     let at: number | null = null
@@ -59,6 +65,8 @@ const caretAtEnd = (page: Page, text: string) =>
     ed.commands.setTextSelection(at!)
     ed.commands.focus()
   }, text)
+  await focused(page)
+}
 
 /** Paste what the last copy put on the clipboard, replayed from the copy event when the OS clipboard is not there. */
 const paste = async (page: Page) => {
