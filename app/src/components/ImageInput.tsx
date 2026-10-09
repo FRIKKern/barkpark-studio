@@ -8,7 +8,7 @@ import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, 
 import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
-import {assetUrl, dragCrop, frame, imageRef, LEGACY_IMAGE_KEYS, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
+import {assetUrl, dragCrop, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 import {uploadFile, UploadError} from '../lib/upload'
 import {UploadProgress} from './UploadProgress'
 
@@ -51,9 +51,13 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   const setPart = (part: string, v: unknown) => (editPath ? editPath(`${id}.${part}`, v) : onChange({...image, [part]: v}))
   // A new image: its own fields (alt) stay, the old hotspot and crop go.
   const use = (next: string) => {
-    const {hotspot: _h, crop: _c, ...keep} = image
-    for (const k of LEGACY_IMAGE_KEYS) delete keep[k]
-    onChange({...keep, asset: {_ref: next}})
+    onChange(pickedImage(image, next))
+    // Legacy-shaped content (the Agency twin) also gets the new file's url, which its site reads.
+    if (typeof image.assetId === 'string' || typeof image.url === 'string')
+      void fetch(`/api/media/${encodeURIComponent(next.replace(/^asset-/, ''))}/info`)
+        .then((r) => (r.ok ? (r.json() as Promise<{url?: string}>) : null))
+        .then((info) => info?.url && onChange(pickedImage(image, next, info.url)))
+        .catch(() => {})
   }
 
   // Progress as it goes; Cancel aborts it and the field keeps its value.
