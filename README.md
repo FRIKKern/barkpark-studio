@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 19 changes, 11 tasks closed
+- **Today** · 20 changes, 12 tasks closed
+  - D20: when the 412 resends run out, the canvas asks — load theirs or re-apply mine ([#252](https://github.com/FRIKKern/barkpark-studio/pull/252))
+  - Done: [D21 [Freeform both] A failed save followed by a closed tab or crash keeps a local draft that is offered back on reopen](https://github.com/FRIKKern/barkpark/issues/22321)
   - D21: a failed canvas save keeps the words on this computer; reopening offers them back ([#251](https://github.com/FRIKKern/barkpark-studio/pull/251))
-  - Spec: Freeform D15–D22 from the Barkdown EDITOR-PARITY scout ([#250](https://github.com/FRIKKern/barkpark-studio/pull/250))
-  - Upload progress bar with Cancel (file and image fields) ([#249](https://github.com/FRIKKern/barkpark-studio/pull/249))
 - **Yesterday** · 114 changes, 77 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
