@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 41 changes, 1 task closed
+- **Today** · 42 changes, 1 task closed
+  - Seed/reset: transient failures from a Barkpark redeploy are asked again, about a minute ([#394](https://github.com/FRIKKern/barkpark-studio/pull/394))
   - Publish by keyboard keeps focus in the footer ([#395](https://github.com/FRIKKern/barkpark-studio/pull/395))
   - Search quality scout: æ folds to "ae" as on Sanity; evidence spec for ranking and speed ([#393](https://github.com/FRIKKern/barkpark-studio/pull/393))
-  - Upload cancel: never delete an asset Barkpark already had ([#392](https://github.com/FRIKKern/barkpark-studio/pull/392))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
