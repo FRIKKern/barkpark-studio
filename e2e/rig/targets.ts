@@ -248,8 +248,8 @@ const sanity: Target = {
   },
 }
 
-const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
-const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
+export const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
+export const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
 // A 429 waits out Retry-After, as the studio's own server does: here one token is
 // shared by both browsers, the rig and presence (task-2c31de0cf6597d32).
 // Deletes go in batches under Barkpark's cap (scripts/lib/batches.mjs).
