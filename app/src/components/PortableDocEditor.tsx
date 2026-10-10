@@ -231,6 +231,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           if (server && server.blocks.some((b) => touched.has(b.id) && was.has(b.id) && was.get(b.id) !== JSON.stringify(b))) {
             el.discardInflightOps(seq)
             setSave({state: 'error', message: t('Someone else changed the same block')})
+            refused.current = true // now, not at the next render: a read on its way checks it
+
             setProblem({message: t('Someone else changed the same block'), kept: keepNow(), conflict: {mine: l.rev, theirs: server.rev, blocks: decorate.current(server.blocks)}})
             return
           }
@@ -248,6 +250,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           el.discardInflightOps(seq)
           setSave({state: 'error', message: r.message})
           if (!server) throw new Error(t('Conflict, and the server copy could not be fetched'))
+          refused.current = true
+
           setProblem({message: r.message, kept: keepNow(), conflict: {mine, theirs: server.rev, blocks: server.blocks}})
           return
         }
@@ -274,6 +278,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // words are kept on this computer now, so closing the tab loses nothing (D21).
         el.discardInflightOps(seq)
         setSave({state: 'error', message: (e as Error).message})
+        refused.current = true
+
         setProblem({message: (e as Error).message, kept: keepNow()})
       } finally {
         l.saving--
@@ -521,12 +527,15 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   useEffect(() => {
     const l = loop.current
     const el = canvas.current
-    if (!el || !seenRev || seenRev === l.rev || l.saving || el.hasPendingChanges()) return
+    // A refused batch leaves the author's words on screen with nothing pending in the
+    // canvas (discardInflightOps): taking the server's blocks now would type over them, and
+    // the D16 check would then call it Saved. They wait for Retry or the conflict card.
+    if (!el || !seenRev || seenRev === l.rev || l.saving || refused.current || el.hasPendingChanges()) return
     let gone = false
     const before = base.current
     void readBlocks(type, id, field).then((fresh) => {
       track(fresh.blocks)
-      if (gone || fresh.rev === l.rev || l.saving) return
+      if (gone || fresh.rev === l.rev || l.saving || refused.current) return
       // D22: from the blocks this canvas held, so Undo can put them back.
       if (before?.rev === l.rev) {
         setOtherEdit({before: before.blocks, afterRev: fresh.rev, who: null})
