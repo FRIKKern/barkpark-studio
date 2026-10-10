@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 81 changes, 5 tasks closed
-  - post body chip: Tone options titled Neutral / Positive / Caution, as Sanity shows them ([#434](https://github.com/FRIKKern/barkpark-studio/pull/434))
-  - J11: the post body declares a chip inline object; our host saves, refuses and shows it ([#433](https://github.com/FRIKKern/barkpark-studio/pull/433))
-  - e2e: durations re-recorded from a clean main run ([#432](https://github.com/FRIKKern/barkpark-studio/pull/432))
+- **Today** · 82 changes, 8 tasks closed
+  - e2e: fix two test races found by the health run ([#435](https://github.com/FRIKKern/barkpark-studio/pull/435))
+  - Done: [The paper canvas field dialog flips above its anchor near the viewport bottom and stays on screen](https://github.com/FRIKKern/barkpark/issues/22834)
+  - Done: [Studio Classic rich text flattens a Portable Text inline object into plain text on edit](https://github.com/FRIKKern/barkpark/issues/22816)
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
