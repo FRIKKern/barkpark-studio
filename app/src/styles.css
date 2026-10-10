@@ -1648,3 +1648,4 @@ bp-paper-canvas .bp-remote-caret__label { font-family: 'Inter Variable', Inter, 
   .login { height: 100dvh; }
   .studio-error { min-height: 100dvh; }
 }
+.preview .media-broken { display: grid; place-items: center; width: 100%; height: 100%; color: var(--muted); }

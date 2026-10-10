@@ -102,6 +102,8 @@ test('unsupported asset values: shown as they are, kept byte-identical by a save
     const image = page.getByRole('alert').filter({hasText: SANITY_IMAGE.asset._ref})
     const file = page.getByRole('alert').filter({hasText: SANITY_FILE._sanityAsset})
     for (const card of [image, file]) await expect(card).toContainText('Unsupported asset value')
+    // Its list row: a broken-image icon that says why, not an empty thumbnail.
+    await expect(page.locator(`a[href$=";${FOREIGN}"] .media-broken`)).toHaveAttribute('title', `Unsupported asset value: ${SANITY_IMAGE.asset._ref}`)
     // A save elsewhere sends that field only: the raw values stay exactly as stored
     // (as Barkpark stores them: compared to its own copy from before the save).
     const stored = async () => JSON.stringify([await t.docValue(FOREIGN, 'mainImage'), await t.docValue(FOREIGN, 'attachment')])
