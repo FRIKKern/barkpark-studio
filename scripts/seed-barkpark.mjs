@@ -7,6 +7,7 @@
 //   node --env-file=.env scripts/seed-barkpark.mjs --schemas # schemas only, data untouched (other lanes' datasets)
 //   … --no-history                                          # skip rebuilding post-history after a reset
 //   … --production                                          # required to write the production dataset
+//   … --remove-type <name> [--with-docs] [--yes]            # drop a type whose fixture file is gone (dry run unless --yes)
 //
 // With SANITY_TOKEN set, verify also reads the reference Sanity dataset live and
 // checks it maps to the same documents.
@@ -21,6 +22,7 @@ import {sendBatches} from './lib/batches.mjs'
 import {seedAssets} from './lib/seed-assets.mjs'
 import {toBarkpark} from './lib/seed-map.mjs'
 import {checkJsonSchema} from './lib/json-schema-check.mjs'
+import {planRemoveType} from './lib/remove-type.mjs'
 
 const root = new URL('..', import.meta.url)
 const env = (k, d) => process.env[k] ?? d ?? fail(`missing env ${k} (see .env.example)`)
@@ -87,6 +89,46 @@ const stripSystem = (doc, want) =>
       .filter(([k]) => !k.startsWith('_') && (k !== 'title' || 'title' in want) && !(DERIVED.has(k) && !(k in want)))
       .map(([k, v]) => (k === 'body' && v && typeof v === 'object' && want.body && !('html' in want.body) ? [k, withoutHtml(v)] : [k, v])),
   )
+
+// --remove-type: the other half of --schemas (lib/remove-type.mjs). Its documents (drafts
+// too, by published id) are read in pages; nothing is written without --yes.
+async function removeType(type) {
+  const get = (path) => fetch(`${BASE}${path}`, {headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`}})
+  const ids = new Set()
+  for (let offset = 0; type && !type.startsWith('-'); ) {
+    const res = await get(`/v1/data/query/${DATASET}/${encodeURIComponent(type)}?perspective=raw&limit=1000&offset=${offset}`)
+    if (res.status === 404) break
+    if (!res.ok) fail(`GET query ${type} → ${res.status} ${(await res.text()).slice(0, 300)}`)
+    const {result} = await res.json()
+    for (const d of result.documents) ids.add(d._publishedId ?? d._id.replace(/^drafts\./, ''))
+    if (!result.hasMore) break
+    offset = result.nextOffset
+  }
+  const dir = new URL('fixtures/barkpark-schema/', root)
+  const inFixtures = readdirSync(dir).some((f) => f.endsWith('.json') && JSON.parse(readFileSync(new URL(f, dir), 'utf8')).name === type)
+  const registered = !!type && (await get(`/v1/schemas/${DATASET}/${encodeURIComponent(type)}`)).ok
+  const plan = planRemoveType({
+    type,
+    dataset: DATASET,
+    docs: [...ids].map((id) => ({id})),
+    inFixtures,
+    seeded: [...TYPES, ...NATIVE_TYPES].includes(type),
+    registered,
+    production: process.argv.includes('--production'),
+    withDocs: process.argv.includes('--with-docs'),
+  })
+  if (plan.refuse) fail(`--remove-type: ${plan.refuse}`)
+  const what = `${plan.deletes.length} ${type} document(s)${plan.dropSchema ? `, then the ${type} schema` : ''}, from ${DATASET}`
+  if (!process.argv.includes('--yes')) return console.log(`remove-type (dry run): would delete ${what}. Run again with --yes.`)
+  if (plan.deletes.length) await mutate(plan.deletes)
+  if (plan.dropSchema) await bp('DELETE', `/v1/schemas/${DATASET}/${encodeURIComponent(type)}`)
+  console.log(`remove-type: deleted ${what}`)
+}
+const removeAt = process.argv.indexOf('--remove-type')
+if (removeAt !== -1) {
+  await removeType(process.argv[removeAt + 1])
+  process.exit(0)
+}
 
 // ── steps ───────────────────────────────────────────────────────────────────
 
