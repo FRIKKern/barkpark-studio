@@ -14,8 +14,9 @@
  * task-b6e57c37f6928344): that one stays.
  */
 export const madeAsset = (answer: unknown): string | undefined => {
-  const r = (answer as {result?: {id?: string; existing?: boolean}} | null)?.result
-  return r?.existing ? undefined : r?.id
+  // Barkpark puts the flag beside `result` (#22700), not in it; either counts.
+  const a = answer as {existing?: boolean; result?: {id?: string; existing?: boolean}} | null
+  return a?.existing || a?.result?.existing ? undefined : a?.result?.id
 }
 
 export type Sent = {res: Response; cancelled: false} | {res: null; cancelled: true}

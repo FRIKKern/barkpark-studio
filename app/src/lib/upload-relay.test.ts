@@ -66,5 +66,6 @@ test('upload relay: no cancel answers as Barkpark did; a 429 goes again with a f
 test('upload relay: a cancelled upload deletes only an asset it made, never one Barkpark already had', () => {
   assert.equal(madeAsset({result: {id: 'a1'}}), 'a1')
   assert.equal(madeAsset({result: {id: 'a1', existing: true}}), undefined)
+  assert.equal(madeAsset({existing: true, result: {id: 'a1'}}), undefined, 'the flag as Barkpark sends it (#22700)')
   assert.equal(madeAsset({}), undefined)
 })

@@ -4,6 +4,7 @@ import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schem
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult, type Rev} from '../lib/blocks'
 import {toast} from './Toasts'
 import {setCanvasProblem, unsavedElsewhere} from '../lib/edits'
+import {existingAsset} from '../lib/upload'
 import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
 import {reportSelection, usePresences, type CaretSelection} from '../lib/presence'
@@ -405,6 +406,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // D07: a dropped or pasted picture uploads to Barkpark's media; the block stores the
         // file's Barkpark path. The canvas shows "uploading" and any failure on the block.
         el.mediaUploader = async (file) => {
+          const known = await existingAsset(file)
+          if (known?.url) return {src: known.url}
           const body = new FormData()
           body.append('file', file)
           const res = await fetch('/api/media/upload', {method: 'POST', body})
