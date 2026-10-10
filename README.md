@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 59 changes, 1 task closed
+- **Today** · 60 changes, 1 task closed
+  - e2e: B journeys side by side with Barkpark's LiveView Studio (@evidence) ([#413](https://github.com/FRIKKern/barkpark-studio/pull/413))
   - Decision 0006: five owner calls (scheduling, inline objects, roles, comments, sharing) ([#412](https://github.com/FRIKKern/barkpark-studio/pull/412))
   - e2e: a fifth CI shard (ci-5); durations re-recorded from a clean run ([#410](https://github.com/FRIKKern/barkpark-studio/pull/410))
-  - J57: field actions, Add comment and the drag handle get Sanity's tooltips ([#411](https://github.com/FRIKKern/barkpark-studio/pull/411))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
