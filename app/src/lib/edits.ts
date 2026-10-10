@@ -95,6 +95,12 @@ type DocEdits = {
   held?: boolean
   /** The clashed fields: what the other writer left there, and the version it came with. */
   clashes?: Map<string, FieldClash>
+  /**
+   * A server version that changed a field of ours while it was in flight. It is merged
+   * when that write comes back refused or failed; until then `rev` stays where the write
+   * was made, so a retry is refused (412) rather than saved over theirs.
+   */
+  missed?: Doc
   /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
   undo: Change[]
   redo: Change[]
@@ -225,7 +231,7 @@ const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.s
  */
 function rebase(e: DocEdits, d: Doc): string[] {
   const clashed: string[] = []
-  e.rev = d._rev
+  let missed = false
   for (const [f, base] of e.base) {
     const theirs = getPath(d, f)
     if (same(theirs, base)) continue
@@ -234,8 +240,13 @@ function rebase(e: DocEdits, d: Doc): string[] {
       e.base.set(f, theirs)
       continue
     }
-    // An inflight-only field waits for its 412; a dirty one merges now.
-    if (!e.dirty.has(f)) continue
+    // An inflight-only field merges when its write comes back (afterInflight); a dirty one
+    // merges now. Advancing `rev` past theirs here let a retry of that write save over
+    // theirs, unseen (the form-refused clash flake, task-41ba9f3dc3fd81e2).
+    if (!e.dirty.has(f)) {
+      missed = true
+      continue
+    }
     const mine = e.dirty.get(f)
     if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') {
       const merged = merge3(base, mine, theirs)
@@ -244,7 +255,24 @@ function rebase(e: DocEdits, d: Doc): string[] {
     }
     e.base.set(f, theirs)
   }
+  if (missed) e.missed = d
+  else e.rev = d._rev
   return clashed
+}
+
+/**
+ * A write came back without saving (refused, failed): its values wait in `dirty` again,
+ * merged with any server version that changed them meanwhile. A clash is said at once.
+ * True when it clashed (the edits are held, nothing to retry).
+ */
+function afterInflight(qc: QueryClient, id: string, e: DocEdits): boolean {
+  e.dirty = new Map([...e.inflight!, ...e.dirty])
+  e.inflight = null
+  const d = e.missed
+  e.missed = undefined
+  const clashed = d ? rebase(e, d) : []
+  if (d && clashed.length) clash(qc, id, e, clashed, d)
+  return clashed.length > 0
 }
 
 /**
@@ -460,6 +488,7 @@ async function send(qc: QueryClient, id: string) {
       else e.base.delete(f)
     }
     e.inflight = null
+    e.missed = undefined // the save went through: what it answered is newer
     e.conflicts = 0
     clearTimeout(stall)
     keepUnsaved(id, e)
@@ -538,6 +567,7 @@ async function send(qc: QueryClient, id: string) {
         const latest = await qc.fetchQuery({...docQuery(e.type, id), staleTime: 0})
         e.dirty = new Map([...e.inflight!, ...e.dirty])
         e.inflight = null
+        e.missed = undefined // the latest read supersedes it
         const clashed = latest ? rebase(e, latest) : []
         if (latest) writeCache(qc, id, e.type, overlay(id, latest))
         if (clashed.length && latest) return clash(qc, id, e, clashed, latest)
@@ -548,8 +578,7 @@ async function send(qc: QueryClient, id: string) {
       }
     }
     // Keep every value: put the failed batch back under anything typed since, retry.
-    e.dirty = new Map([...e.inflight!, ...e.dirty])
-    e.inflight = null
+    if (afterInflight(qc, id, e)) return
     setState(e, 'error', (err as Error).message)
     setTimeout(() => void send(qc, id), 2000)
     return
