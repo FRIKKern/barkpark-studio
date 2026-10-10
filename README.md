@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 85 changes, 8 tasks closed
+- **Today** · 86 changes, 8 tasks closed
+  - J11 spec: the declared callout inserts and edits in its field dialog (Barkpark #22846) ([#439](https://github.com/FRIKKern/barkpark-studio/pull/439))
   - Vision: saved queries (per editor, on the server) and a dataset switch, as Sanity's ([#438](https://github.com/FRIKKern/barkpark-studio/pull/438))
   - Vision: a folding JSON tree, the query URL to copy, Save result as JSON ([#437](https://github.com/FRIKKern/barkpark-studio/pull/437))
-  - J11 spec: the chip dialog stays on screen near the bottom (Barkpark #22833) ([#436](https://github.com/FRIKKern/barkpark-studio/pull/436))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
