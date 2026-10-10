@@ -211,3 +211,44 @@ test('@local the doc deleted while kept edits are replayed: they come back with 
     if ((await t.versions(ID)).published === undefined) await t.resetDoc(ID, 'post')
   }
 })
+
+// A read of the doc while typing is unsent (a reconnect that lost its place reads
+// everything again) keeps the typing on screen and in the save: it put the server's
+// older value back, the caret jumped, and the next key saved over the lost text (the J60
+// flake on main d7ed007, "Fixture post 01i l").
+test('a re-read while typing is unsent keeps the typing', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours: our save loop')
+  await page.goto(t.docPath('post', 'post-05'))
+  await signInIfAsked(page)
+  await t.settle(page)
+  const title = t.field(page, 'title')
+  let release!: () => void
+  const held = new Promise<void>((r) => (release = r))
+  // The first save is held in flight; what is typed after it waits unsent.
+  await page.route('**/_serverFn/**', async (route) => {
+    if (!(route.request().postData() ?? '').includes('mutations')) return route.continue()
+    await held
+    await route.continue()
+  })
+  try {
+    await title.click()
+    await title.press('End')
+    await page.keyboard.type(' xy')
+    await page.waitForTimeout(1000)
+    await page.keyboard.type('z')
+    await page.evaluate(() => (window as unknown as {__readAll: () => void}).__readAll())
+    await expect(title).toHaveValue('Fixture post 05 xyz')
+    await page.waitForTimeout(500) // the re-read has landed
+    await expect(title).toHaveValue('Fixture post 05 xyz')
+    await page.keyboard.type('Q')
+    await expect(title).toHaveValue('Fixture post 05 xyzQ')
+    release()
+    await page.unrouteAll({behavior: 'wait'})
+    await expect.poll(() => t.docValue('post-05', 'title'), {timeout: 10_000}).toBe('Fixture post 05 xyzQ')
+  } finally {
+    release()
+    await closeAndSettle(page)
+    await t.restore('post-05', {title: 'Fixture post 05'})
+  }
+})

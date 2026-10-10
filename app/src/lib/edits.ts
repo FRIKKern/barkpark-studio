@@ -4,7 +4,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {currentEditor, signOut} from '../server/auth'
 import {expectEcho, mutatedIds} from '../server/listen'
-import {docQuery, schemasQuery, type Doc, type Field, type ListPage, type Schema} from './data'
+import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type Field, type ListPage, type Schema} from './data'
 import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
 import {t} from './i18n'
 import {merge3, unapply} from './merge'
@@ -214,6 +214,8 @@ function overlay(id: string, doc: Doc): Doc {
   const e = docs.get(id)
   return e ? applyPaths(applyPaths(doc, e.inflight ?? []), e.dirty) : doc
 }
+// Every read of a doc keeps the values still on their way (see data.ts withUnsaved).
+setUnsavedOverlay((doc) => overlay(doc._publishedId, doc))
 
 function writeCache(qc: QueryClient, id: string, type: string, doc: Doc) {
   // J56: when the published version last changed; a draft keeps what the row knew.
@@ -544,7 +546,7 @@ async function send(qc: QueryClient, id: string) {
     // same generated id; keep later typing queued instead of creating a duplicate.
     if (creating && /^mutate 409\b|already been taken/.test(msg)) {
       try {
-        const saved = await qc.fetchQuery({...docQuery(e.type, id), staleTime: 0})
+        const saved = await readServerDoc(e.type, id)
         if (saved) {
           e.pendingCreate = undefined
           e.createRequested = false
@@ -564,7 +566,7 @@ async function send(qc: QueryClient, id: string) {
     // task-324b4d00706a6cfb.)
     if (!creating && /^mutate (409|412)\b/.test((err as Error).message) && e.conflicts++ < 5) {
       try {
-        const latest = await qc.fetchQuery({...docQuery(e.type, id), staleTime: 0})
+        const latest = await readServerDoc(e.type, id)
         e.dirty = new Map([...e.inflight!, ...e.dirty])
         e.inflight = null
         e.missed = undefined // the latest read supersedes it

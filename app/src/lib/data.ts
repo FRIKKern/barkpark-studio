@@ -447,8 +447,26 @@ export const listSearchQuery = (type: string, q: string) =>
     },
   })
 
+/**
+ * The editor's unsaved values over a doc read from the server (lib/edits.ts sets it). A
+ * read while they wait (a reconnect's re-read, a refetch) put the server's older value
+ * on screen: the caret jumped and the next key saved over the lost text (J60 flake).
+ */
+let withUnsaved = (doc: Doc) => doc
+/** The server's doc as it is, without the unsaved values: what a rebase must compare with. */
+export const readServerDoc = async (type: string | string[], id: string) => (await fetchDoc({data: {type, id}})) as unknown as Doc | null
+export const setUnsavedOverlay = (f: (doc: Doc) => Doc) => void (withUnsaved = f)
+
 export const docQuery = (type: string | string[], id: string) =>
-  queryOptions({queryKey: ['doc', id], staleTime: 30_000, ...paneRetry, queryFn: async () => (await fetchDoc({data: {type, id}})) as unknown as Doc | null})
+  queryOptions({
+    queryKey: ['doc', id],
+    staleTime: 30_000,
+    ...paneRetry,
+    queryFn: async () => {
+      const doc = (await fetchDoc({data: {type, id}})) as unknown as Doc | null
+      return doc && withUnsaved(doc)
+    },
+  })
 
 export const searchQuery = (type: string | string[], q: string, filter?: RefFilter, order?: string, limit?: number) =>
   queryOptions({
