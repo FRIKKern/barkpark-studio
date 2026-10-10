@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 45 changes, 1 task closed
+- **Today** · 46 changes, 1 task closed
+  - Uploads: the same bytes are one asset, and the second time nothing is sent ([#396](https://github.com/FRIKKern/barkpark-studio/pull/396))
   - JOURNEYS: J38 says what search does now (never fewer hits than Sanity, folded titles after the exact spelling) ([#400](https://github.com/FRIKKern/barkpark-studio/pull/400))
   - Search: titles fold æøå and keep those hits, the exact spelling first ([#398](https://github.com/FRIKKern/barkpark-studio/pull/398))
-  - Search: æ folds in titles only, as on Sanity; the candidate workaround goes (Barkpark #22703) ([#397](https://github.com/FRIKKern/barkpark-studio/pull/397))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
