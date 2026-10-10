@@ -237,4 +237,10 @@ export default {
   'Showing {shown} of {total} assets': 'Viser {shown} av {total} filer',
   '{total} assets': '{total} filer',
   '1 asset': '1 fil',
+  // The library's kinds (KIND_TITLES in MediaLibrary.tsx)
+  Images: 'Bilder',
+  Video: 'Video',
+  Audio: 'Lyd',
+  Documents: 'Dokumenter',
+  Other: 'Annet',
 } satisfies Record<string, string>

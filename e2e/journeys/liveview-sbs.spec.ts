@@ -168,6 +168,13 @@ test('@evidence B08: media library', async ({page, browser}, info) => {
   await page.screenshot({path: still('B08', '1-library', 'studio')})
   await lvGo(lv, '/media')
   await lv.screenshot({path: still('B08', '1-library', 'liveview')})
+  // The kind filter: Images on both.
+  await page.getByRole('navigation', {name: 'Folders'}).getByRole('button', {name: /^Images/}).click()
+  await page.waitForTimeout(800)
+  await page.screenshot({path: still('B08', '2-images', 'studio')})
+  await lv.getByText('Images', {exact: true}).first().click()
+  await lv.waitForTimeout(800)
+  await lv.screenshot({path: still('B08', '2-images', 'liveview')})
 })
 
 test('@evidence B09: an author\'s Posts view', async ({page, browser}, info) => {

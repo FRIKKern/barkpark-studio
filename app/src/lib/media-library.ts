@@ -8,7 +8,10 @@ import {bpFetch, dataset} from '../server/barkpark'
 // lock's holder is "you" for the one who checked it out.
 
 export type Visibility = 'public' | 'private'
-export type LibraryAsset = {id: string; name: string; mimeType: string; size: number; visibility?: Visibility; createdAt: string; checkedOutBy?: string | null}
+/** Barkpark's asset kinds (mediaAsset bp_asset_kind), LiveView's library filter. */
+export const KINDS = ['image', 'video', 'audio', 'document', 'other'] as const
+export type Kind = (typeof KINDS)[number]
+export type LibraryAsset = {id: string; name: string; mimeType: string; size: number; visibility?: Visibility; createdAt: string; checkedOutBy?: string | null; kind?: string}
 export type Collection = {id: string; title: string; kind: string}
 export type AssetDetail = LibraryAsset & {
   /** The mediaAsset document holding the editable metadata (title, alt text). */
@@ -35,7 +38,7 @@ type RawAsset = {
   permissions?: string[]
   checkoutLabel?: string | null
   visibilityNotice?: {label: string; copy: string}
-  asset?: {_id?: string; title?: string; altText?: string; checkedOutBy?: string | null; checkedOutAt?: string; fileInfo?: {mimeType?: string; originalName?: string}}
+  asset?: {_id?: string; title?: string; altText?: string; checkedOutBy?: string | null; checkedOutAt?: string; bp_asset_kind?: string; fileInfo?: {mimeType?: string; originalName?: string}}
 }
 const toAsset = (a: RawAsset): LibraryAsset => ({
   id: a.id,
@@ -45,6 +48,7 @@ const toAsset = (a: RawAsset): LibraryAsset => ({
   visibility: a.visibility,
   createdAt: a.createdAt ?? '',
   checkedOutBy: a.asset?.checkedOutBy ?? null,
+  kind: a.asset?.bp_asset_kind,
 })
 const base = () => `/v1/media/${dataset()}`
 async function read<T>(path: string): Promise<T> {
@@ -63,22 +67,37 @@ const fetchCollections = createServerFn({method: 'GET'}).handler(async () => {
 })
 export const collectionsQuery = queryOptions({queryKey: ['media', 'collections'], queryFn: async () => (await fetchCollections()) as unknown as Collection[]})
 
+type Filter = {collection?: string; q?: string; visibility?: Visibility; kind?: Kind}
 const fetchAssets = createServerFn({method: 'GET'})
-  .validator((d: {collection?: string; q?: string; visibility?: Visibility}) => d)
+  .validator((d: Filter) => d)
   .handler(async ({data}) => {
     const params = new URLSearchParams({limit: '200', sort: 'created-desc'})
     if (data.q) params.set('q', data.q)
     if (data.collection) {
       const r = await read<{assets?: RawAsset[]; hits?: RawAsset[]; hasMore?: boolean}>(`${base()}/collections/${encodeURIComponent(data.collection)}/assets?${params}`)
-      const assets = (r.assets ?? r.hits ?? []).map(toAsset).filter((a) => !data.visibility || a.visibility === data.visibility)
+      const assets = (r.assets ?? r.hits ?? []).map(toAsset).filter((a) => (!data.visibility || a.visibility === data.visibility) && (!data.kind || a.kind === data.kind))
       return {assets, more: !!r.hasMore, total: r.hasMore ? null : assets.length} as unknown as Json
     }
     // The search's visibility facet (#22127: an asset with none stored is public).
     if (data.visibility) params.set('facet.visibility', data.visibility)
+    if (data.kind) params.set('kind', data.kind)
     const r = await read<{hits: RawAsset[]; hasMore?: boolean; total?: number}>(`${base()}/search?${params}`)
     return {assets: r.hits.map(toAsset), more: !!r.hasMore, total: r.total ?? null} as unknown as Json
   })
-export const assetsQuery = (f: {collection?: string; q?: string; visibility?: Visibility}) =>
+/** How many assets of each kind the library holds under this search and visibility (Barkpark's kind facet). */
+const fetchKindCounts = createServerFn({method: 'GET'})
+  .validator((d: Omit<Filter, 'kind' | 'collection'>) => d)
+  .handler(async ({data}) => {
+    const params = new URLSearchParams({limit: '1', facets: 'kind'})
+    if (data.q) params.set('q', data.q)
+    if (data.visibility) params.set('facet.visibility', data.visibility)
+    const r = await read<{total?: number; facets?: {kind?: {value: string; count: number}[]}}>(`${base()}/search?${params}`)
+    return {total: r.total ?? 0, kinds: Object.fromEntries((r.facets?.kind ?? []).map((k) => [k.value, k.count]))} as unknown as Json
+  })
+export const kindCountsQuery = (f: Omit<Filter, 'kind' | 'collection'>) =>
+  queryOptions({queryKey: ['media', 'assets', 'kinds', f], queryFn: async () => (await fetchKindCounts({data: f})) as unknown as {total: number; kinds: Record<string, number>}})
+
+export const assetsQuery = (f: Filter) =>
   queryOptions({queryKey: ['media', 'assets', f], queryFn: async () => (await fetchAssets({data: f})) as unknown as {assets: LibraryAsset[]; more: boolean; total: number | null}})
 
 const fetchAsset = createServerFn({method: 'GET'})
