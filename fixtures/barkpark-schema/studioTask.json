@@ -1,0 +1,17 @@
+{
+  "name": "studioTask",
+  "title": "Studio task",
+  "visibility": "private",
+  "fields": [
+    {"name": "title", "title": "Title", "type": "string"},
+    {"name": "description", "title": "Description", "type": "text"},
+    {"name": "target", "title": "Target", "type": "json"},
+    {"name": "targetType", "title": "Target type", "type": "string"},
+    {"name": "assignee", "title": "Assignee", "type": "string"},
+    {"name": "dueAt", "title": "Deadline", "type": "string"},
+    {"name": "subscribers", "title": "Subscribers", "type": "tags"},
+    {"name": "state", "title": "State", "type": "select", "options": [{"value": "open", "title": "Open"}, {"value": "done", "title": "Done"}]},
+    {"name": "createdBy", "title": "Created by", "type": "string"},
+    {"name": "createdAt", "title": "Created", "type": "string"}
+  ]
+}

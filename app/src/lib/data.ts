@@ -3,7 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {resumeMark} from '../server/listen'
-import {readDesk, readSchemas} from '../server/schemas'
+import {readDesk, readSchemas, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import type {T} from './i18n'
@@ -474,7 +474,7 @@ const fetchSearchAll = createServerFn({method: 'GET'})
   .validator((d: {q: string}) => d)
   .handler(async ({data}) => {
     const r = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?q=${encodeURIComponent(data.q)}&limit=10&perspective=drafts`)
-    return r.documents as unknown as Json
+    return r.documents.filter((d) => !STUDIO_TYPES.includes(d._type)) as unknown as Json
   })
 export const searchAllDocs = async (q: string) => (await fetchSearchAll({data: {q}})) as unknown as Doc[]
 
