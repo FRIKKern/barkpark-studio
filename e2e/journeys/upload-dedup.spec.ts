@@ -28,10 +28,13 @@ test('@local J54: the same file twice is one asset, and the second time nothing 
   const field = page.locator('.field').filter({has: page.locator('.file-input')}).last()
   const ref = () => t.docValue(ID, 'attachment').then((v) => (v as {asset?: {_ref?: string}} | undefined)?.asset?._ref)
   try {
+    // post-03 already holds the fixture attachment: wait for the new asset, not any asset.
+    const start = await ref()
     await field.locator('input[type="file"]').setInputFiles(file)
     await expect(field.getByText(name)).toBeVisible({timeout: 20_000})
-    await expect.poll(ref, {timeout: 10_000}).toMatch(/^asset-/)
+    await expect.poll(ref, {timeout: 10_000}).not.toBe(start)
     const first = await ref()
+    expect(first).toMatch(/^asset-/)
     expect(sends, 'the first time it is sent').toHaveLength(1)
 
     await field.getByRole('button', {name: 'Open file options menu'}).click()
@@ -43,6 +46,9 @@ test('@local J54: the same file twice is one asset, and the second time nothing 
     expect(sends, 'the second time nothing is sent').toHaveLength(1)
     expect(await named(name), 'one asset on Barkpark').toHaveLength(1)
   } finally {
+    // The page's last save first, so it can't land after the restore (it did: post-03 kept
+    // a deleted asset, health run 2026-10-10).
+    await closeAndSettle(page)
     await t.restore(ID, {title: 'Fixture post 03', attachment: before})
     for (const a of await named(name)) await fetch(`${base()}/v1/media/${process.env.BARKPARK_DATASET}/${a.id}`, {method: 'DELETE', headers: auth()})
   }
