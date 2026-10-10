@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 25 changes, 1 task closed
+- **Today** · 26 changes, 1 task closed
+  - Deploy flips: a blind listen re-open tells pages to read again; the presence guard proves the re-open ([#379](https://github.com/FRIKKern/barkpark-studio/pull/379))
   - Deploy flips: reads are asked again, presence follows the new instance ([#378](https://github.com/FRIKKern/barkpark-studio/pull/378))
   - Form clash card: both versions on the field, Keep mine / Take theirs / Copy mine ([#376](https://github.com/FRIKKern/barkpark-studio/pull/376))
-  - Form: text of ours someone rewrote meanwhile is never dropped silently ([#375](https://github.com/FRIKKern/barkpark-studio/pull/375))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
