@@ -29,5 +29,7 @@ that fails it.
 
 ## Removing a type
 
-Delete its fixture, its documents, then `DELETE /w/<ws>/p/<project>/v1/schemas/<dataset>/<type>`
-(`--schemas` only adds or updates).
+Delete its file in `fixtures/barkpark-schema/`, then
+`BARKPARK_DATASET=e2e-<you> node --env-file=.env scripts/seed-barkpark.mjs --remove-type <type>`.
+It's a dry run until you pass `--yes`. It refuses when documents of the type remain, unless
+you pass `--with-docs`, which deletes them first. Production needs `--production`.
