@@ -57,7 +57,8 @@ test('J03 J04: type without drops, undo, a draft beside the published version, r
   await expect.poll(versions, BACKEND_POLL).toEqual({draft: undefined, published: TYPED})
 })
 
-test('J13 J04: validation as you type blocks publish (errors only); discard', async ({page}, info) => {
+// @local: about 7 s in CI, over rule 5's 5 s, with the shards near 60 s (2026-10-10).
+test('@local J13 J04: validation as you type blocks publish (errors only); discard', async ({page}, info) => {
   const t = target(info)
   const C_TITLE = 'Fixture post 28'
   await t.prepare(page.context())
