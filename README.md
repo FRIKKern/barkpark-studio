@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 28 changes, 1 task closed
+- **Today** · 29 changes, 1 task closed
+  - Paste fidelity scout: evidence spec for five sources, J10 widened ([#382](https://github.com/FRIKKern/barkpark-studio/pull/382))
   - seed-barkpark --remove-type: already gone exits 0 ([#381](https://github.com/FRIKKern/barkpark-studio/pull/381))
   - seed-barkpark --remove-type: drop a type whose fixture file is gone ([#380](https://github.com/FRIKKern/barkpark-studio/pull/380))
-  - Deploy flips: a blind listen re-open tells pages to read again; the presence guard proves the re-open ([#379](https://github.com/FRIKKern/barkpark-studio/pull/379))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
