@@ -814,6 +814,7 @@ function WithCode({text, code}: {text: string; code: string}) {
 
 /** `single` (B13): a singleton keeps Publish, Discard changes and (in History) Restore only. */
 function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void; askDelete: number}) {
+  const actionsButton = useRef<HTMLButtonElement>(null)
   const t = useT()
   const locale = useLocale()
   const qc = useQueryClient()
@@ -892,7 +893,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
         disabled={!canWrite || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
         title={reason}
         aria-keyshortcuts="Control+Alt+P"
-        onClick={async () => {
+        onClick={async (e) => {
+          // The button disables itself now, which drops keyboard focus on the page; it
+          // goes to "…" beside it instead, in the same footer.
+          if (document.activeElement === e.currentTarget) actionsButton.current?.focus()
           setPublishing(true)
           try {
             await publishAndTell(qc, doc)
@@ -910,7 +914,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       {publishTip.tip}
       </span>
       {(!single || canDiscard || actions.length > 0) && <div className="menu-wrap">
-        <button type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
+        <button ref={actionsButton} type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
         {menu && (
