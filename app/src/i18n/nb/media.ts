@@ -181,6 +181,8 @@ export default {
   'Close document metadata': 'Lukk dokumentmetadata',
   'Status': 'Status',
   'Published, with unpublished changes': 'Publisert, med upubliserte endringer',
+  'Members only': 'Bare medlemmer',
+  'This workspace has no public page for papers, so only members and share-link holders can read it.': 'Dette arbeidsområdet har ingen offentlig side for artikler, så bare medlemmer og de som har en delingslenke kan lese den.',
   'Published': 'Publisert',
   'Draft': 'Utkast',
   'Slug': 'Slug',

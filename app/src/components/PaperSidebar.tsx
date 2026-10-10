@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState, type FormEvent, type ReactNode} from 'react'
+import {useQuery} from '@tanstack/react-query'
 import type {Doc} from '../lib/data'
 import {checkLabel, labelEntries, slugFeedback, type WeightedTag} from '../lib/paper'
 import {TextInput} from './Fields'
@@ -19,6 +20,8 @@ export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; publi
   const labels = labelEntries(tags, doc.main_tag)
   const [add, setAdd] = useState({tag: '', strength: '', rationale: ''})
   const [addError, setAddError] = useState<string>()
+  // Public only when an anonymous reader gets it (LiveView's rule); else members only.
+  const reader = useQuery({queryKey: ['paper-reader', doc._publishedId], enabled: published, queryFn: () => fetch(`/api/papers/reader?slug=${encodeURIComponent(doc._publishedId)}`).then((r) => (r.ok ? (r.json() as Promise<{public: boolean}>) : {public: false}))})
   // Opened: focus moves into it (LiveView does the same); closing hands it back to the opener.
   const root = useRef<HTMLElement>(null)
   useEffect(() => root.current?.focus({preventScroll: true}), [])
@@ -43,8 +46,9 @@ export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; publi
           <dt>{t('Status')}</dt>
           <dd>{published ? (doc._draft ? t('Published, with unpublished changes') : t('Published')) : t('Draft')}</dd>
           <dt>{t('Visibility')}</dt>
-          <dd>{published ? t('Public') : t('Draft')}</dd>
+          <dd>{!published ? t('Draft') : reader.data?.public ? t('Public') : reader.data ? t('Members only') : '…'}</dd>
         </dl>
+        {published && reader.data && !reader.data.public && <p className="muted paper-note">{t('This workspace has no public page for papers, so only members and share-link holders can read it.')}</p>}
       </Section>
       <Section title={t('Slug')}>
         <input className="input" aria-label={t('Slug')} aria-describedby="paper-slug-fb" value={slug} onChange={(e) => setSlug(e.target.value)} />

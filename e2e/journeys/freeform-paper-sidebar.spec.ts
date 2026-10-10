@@ -29,7 +29,9 @@ test('@local D12: paper sidebar — slug, description, weighted tags; the wall s
   const side = page.getByRole('complementary', {name: 'Document metadata'})
   await expect(side).toBeFocused()
   expect(page.url()).toContain(`;${ID},inspect=meta`)
-  await expect(side.locator('.paper-facts')).toContainText('Public')
+  // studio-parity has no public paper reader (anonymous: 403), so not "Public" (LiveView's rule).
+  await expect(side.locator('.paper-facts')).toContainText('Members only')
+  await expect(side).toContainText('only members and share-link holders can read it')
 
   // Slug: checked as typed, not saved.
   const slug = side.getByLabel('Slug')

@@ -31,6 +31,7 @@ import { Route as ApiMediaIndexRouteImport } from './routes/api/media/index'
 import { Route as ApiMediaBySha1RouteImport } from './routes/api/media/by-sha1'
 import { Route as ApiMediaFilesRouteImport } from './routes/api/media/files'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
+import { Route as ApiPapersReaderRouteImport } from './routes/api/papers/reader'
 import { Route as ApiQueryTypeRouteImport } from './routes/api/query/$type'
 import { Route as ApiDocTypeIdRouteImport } from './routes/api/doc/$type/$id'
 import { Route as ApiHistoryTypeIdRouteImport } from './routes/api/history/$type/$id'
@@ -148,6 +149,11 @@ const ApiMediaUploadRoute = ApiMediaUploadRouteImport.update({
   path: '/api/media/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPapersReaderRoute = ApiPapersReaderRouteImport.update({
+  id: '/api/papers/reader',
+  path: '/api/papers/reader',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiQueryTypeRoute = ApiQueryTypeRouteImport.update({
   id: '/api/query/$type',
   path: '/api/query/$type',
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/api/media/by-sha1': typeof ApiMediaBySha1Route
   '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
+  '/api/papers/reader': typeof ApiPapersReaderRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/media/': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByTo {
   '/api/media/by-sha1': typeof ApiMediaBySha1Route
   '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
+  '/api/papers/reader': typeof ApiPapersReaderRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/media': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/api/media/by-sha1': typeof ApiMediaBySha1Route
   '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
+  '/api/papers/reader': typeof ApiPapersReaderRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/media/': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
@@ -294,6 +303,7 @@ export interface FileRouteTypes {
     | '/api/media/by-sha1'
     | '/api/media/files'
     | '/api/media/upload'
+    | '/api/papers/reader'
     | '/api/query/$type'
     | '/api/media/'
     | '/api/doc/$type/$id'
@@ -324,6 +334,7 @@ export interface FileRouteTypes {
     | '/api/media/by-sha1'
     | '/api/media/files'
     | '/api/media/upload'
+    | '/api/papers/reader'
     | '/api/query/$type'
     | '/api/media'
     | '/api/doc/$type/$id'
@@ -354,6 +365,7 @@ export interface FileRouteTypes {
     | '/api/media/by-sha1'
     | '/api/media/files'
     | '/api/media/upload'
+    | '/api/papers/reader'
     | '/api/query/$type'
     | '/api/media/'
     | '/api/doc/$type/$id'
@@ -385,6 +397,7 @@ export interface RootRouteChildren {
   ApiMediaBySha1Route: typeof ApiMediaBySha1Route
   ApiMediaFilesRoute: typeof ApiMediaFilesRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
+  ApiPapersReaderRoute: typeof ApiPapersReaderRoute
   ApiQueryTypeRoute: typeof ApiQueryTypeRoute
   ApiMediaIndexRoute: typeof ApiMediaIndexRoute
   ApiDocTypeIdRoute: typeof ApiDocTypeIdRoute
@@ -550,6 +563,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/papers/reader': {
+      id: '/api/papers/reader'
+      path: '/api/papers/reader'
+      fullPath: '/api/papers/reader'
+      preLoaderRoute: typeof ApiPapersReaderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/query/$type': {
       id: '/api/query/$type'
       path: '/api/query/$type'
@@ -617,6 +637,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMediaBySha1Route: ApiMediaBySha1Route,
   ApiMediaFilesRoute: ApiMediaFilesRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
+  ApiPapersReaderRoute: ApiPapersReaderRoute,
   ApiQueryTypeRoute: ApiQueryTypeRoute,
   ApiMediaIndexRoute: ApiMediaIndexRoute,
   ApiDocTypeIdRoute: ApiDocTypeIdRoute,
