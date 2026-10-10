@@ -102,11 +102,27 @@ export const forgetReadsOf = (docId: string) => {
 }
 const recent = new Map<string, {expires: number; res: Promise<{status: number; type: string | null; body: string}>}>()
 
+/** e2e (STUDIO_E2E_HOOKS=1): reads fail as a deploy's reset would, until this time. */
+let readBlipUntil = 0
+export const e2eReadBlip = (ms: number) => void (readBlipUntil = Date.now() + ms)
+
 async function send(base: string, path: string, init: RequestInit, token: string, retry = true): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set('authorization', `Bearer ${token}`)
-  for (let attempt = 0; ; attempt++) {
-    const res = await fetch(`${base}${path}`, {...init, headers})
+  // A read that meets a Barkpark deploy (the old instance stopping under it: a reset or a
+  // 502 from Caddy) is asked again: reads are safe to repeat (J19 flake, 02:07 UTC 2026-10-10).
+  const read = (init.method ?? 'GET').toUpperCase() === 'GET' && headers.get('accept') !== 'text/event-stream'
+  for (let attempt = 0, blips = 0; ; attempt++) {
+    const blip = read && Date.now() < readBlipUntil ? Promise.reject(new TypeError('fetch failed (e2e blip)')) : null
+    const res = await (blip ?? fetch(`${base}${path}`, {...init, headers})).catch((err: unknown) => {
+      if (!read || blips >= 2 || init.signal?.aborted) throw err
+      return null
+    })
+    if (!res || (read && blips < 2 && [502, 503, 504].includes(res.status))) {
+      blips++
+      await new Promise((r) => setTimeout(r, 300))
+      continue
+    }
     if (res.status !== 429 || !retry || attempt === 3 || headers.get('accept') === 'text/event-stream') return res
     const wait = Math.min(Number(res.headers.get('retry-after')) || 1, 5)
     console.warn(`[barkpark] 429 on ${path}, retrying in ${wait}s`)

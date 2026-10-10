@@ -1,6 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, dataset, requestToken} from '../../server/barkpark'
 import {currentEditor} from '../../server/auth'
+import {onNewBoot, presenceDeaf} from '../../server/listen'
 
 // Editor presence (J07): Barkpark's room for this workspace + project + dataset, the
 // same room its LiveView Studio joins. GET streams who is where (SSE, tracked while
@@ -22,13 +23,27 @@ export const Route = createFileRoute('/api/presence')({
         // The tab going away must close Barkpark's stream at once: that is what takes
         // this editor out of the room (else it lingers until a keepalive write fails).
         const reader = res.body.getReader()
+        let off = () => {}
         const stream = new ReadableStream<Uint8Array>({
+          start(c) {
+            c.enqueue(new TextEncoder().encode('retry: 500\n\n')) // back within half a second
+            // A Barkpark deploy: this stream stays on the instance being retired, alive and
+            // deaf, while the room moves to the new one (the D11 caret flake, 02:07 UTC
+            // 2026-10-10). A new boot ends it here; the tab's EventSource comes straight back.
+            off = onNewBoot(() => {
+              off()
+              upstream.abort()
+              try {
+                c.close()
+              } catch {}
+            })
+          },
           async pull(c) {
             const r = await reader.read().catch(() => null)
-            if (!r || r.done) c.close()
-            else c.enqueue(r.value)
+            if (!r || r.done) (off(), c.close())
+            else if (!presenceDeaf) c.enqueue(r.value)
           },
-          cancel: () => upstream.abort(),
+          cancel: () => (off(), upstream.abort()),
         })
         return new Response(stream, {headers: {'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive'}})
       },

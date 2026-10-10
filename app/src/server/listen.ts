@@ -162,16 +162,29 @@ const BOOT_CHECK_MS = 5000
 let booted: number | null = null
 let bootShift = 0
 let bootTimer: ReturnType<typeof setInterval> | undefined
+const onBoot = new Set<() => void>()
+/** e2e: presence streams hear nothing until a new boot is seen (as a hub's `deaf`). */
+export let presenceDeaf = false
+/** Run `cb` when Barkpark answers from a newly booted instance (presence re-opens its stream then). */
+export function onNewBoot(cb: () => void): () => void {
+  onBoot.add(cb)
+  watchBoot()
+  return () => void onBoot.delete(cb)
+}
 function watchBoot() {
   if (bootTimer) return
   // From the first stream on, while any is open: the boot it started on is the baseline.
   const check = async () => {
-    if (![...hubs.values()].some((h) => h.upstream)) return
+    if (![...hubs.values()].some((h) => h.upstream) && !onBoot.size) return
     try {
       const s = (await (await fetch(`${process.env.BARKPARK_URL}/status.json`)).json()) as {checked_at?: string; uptime_seconds?: number}
       if (!s.checked_at || typeof s.uptime_seconds !== 'number') return
       const boot = Date.parse(s.checked_at) - s.uptime_seconds * 1000 + bootShift
-      if (booted !== null && Math.abs(boot - booted) > 5000) for (const h of hubs.values()) if (h.upstream) (h.deaf = false), refresh(h)
+      if (booted !== null && Math.abs(boot - booted) > 5000) {
+        for (const h of hubs.values()) if (h.upstream) (h.deaf = false), refresh(h)
+        presenceDeaf = false
+        for (const cb of [...onBoot]) cb()
+      }
       booted = boot
     } catch {
       // Unreachable for a moment: the other checks still stand.
@@ -182,9 +195,10 @@ function watchBoot() {
   setTimeout(check, 0)
 }
 
-/** e2e (STUDIO_E2E_HOOKS=1): make every hub's stream deaf, cut it for `ms`, or fake a newly booted instance. */
+/** e2e (STUDIO_E2E_HOOKS=1): make every hub's (and presence) stream deaf, cut it for `ms`, or fake a newly booted instance. */
 export function e2eListen(action: 'deaf' | 'cut' | 'flip', ms = 0) {
   if (action === 'flip') return void (bootShift += 60_000)
+  if (action === 'deaf') presenceDeaf = true
   for (const h of hubs.values()) {
     if (action === 'deaf') h.deaf = true
     else (h.holdUntil = Date.now() + ms), refresh(h)
