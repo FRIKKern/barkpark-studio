@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 57 changes, 1 task closed
+- **Today** · 58 changes, 1 task closed
+  - e2e: a fifth CI shard (ci-5); durations re-recorded from a clean run ([#410](https://github.com/FRIKKern/barkpark-studio/pull/410))
   - J57: field actions, Add comment and the drag handle get Sanity's tooltips ([#411](https://github.com/FRIKKern/barkpark-studio/pull/411))
   - Guards for D13 (paper masters) and D14 (task blocks) ([#409](https://github.com/FRIKKern/barkpark-studio/pull/409))
-  - Guards for J56, J57, B05, B09 and B01 ([#408](https://github.com/FRIKKern/barkpark-studio/pull/408))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
