@@ -26,3 +26,10 @@ test('mine already in theirs (an answer lost, a beacon delivered) is not typed t
   // A real concurrent edit still merges.
   assert.equal(merge3('Hello', 'Hello world', 'Oh Hello'), 'Oh Hello world')
 })
+
+test('mine with nowhere to go (they rewrote the text it was in) is no merge, not a silent drop', () => {
+  assert.equal(merge3('Short excerpt here.', 'Short mine excerpt here.', 'Completely rewritten elsewhere.'), null)
+  assert.equal(merge3('Hello world', 'Hello brave world', 'Goodbye'), null)
+  // An insertion at the end still finds its place.
+  assert.equal(merge3('Short excerpt here.', 'Short excerpt here. mine', 'Completely rewritten elsewhere.'), 'Completely rewritten elsewhere. mine')
+})

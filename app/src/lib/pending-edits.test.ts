@@ -31,3 +31,8 @@ test('two dead pages for one doc combine: the later edit of a field wins, the re
   assert.deepEqual(combine([a, b]), {at: 2, type: 'post', rev: undefined, fields: [['title', 'B'], ['excerpt', 'x']], base: [['title', 'A'], ['excerpt', 'e']], tab: 'b'})
   assert.equal(combine([a, {...b, rev: 'r1'}])?.rev, 'r1')
 })
+
+test('restore over a rewrite that cannot merge puts mine back whole', () => {
+  const kept: Pending = {at: 1, type: 'post', rev: 'r1', fields: [['title', 'Hello brave world']], base: [['title', 'Hello world']], tab: 'x'}
+  assert.equal(restoreValue(kept, 'title', 'Hello brave world', doc('r2', 'Goodbye', 3)), 'Hello brave world')
+})

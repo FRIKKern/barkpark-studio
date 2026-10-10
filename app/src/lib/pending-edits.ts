@@ -147,5 +147,6 @@ export function judge(p: Pending, doc: Doc, schema?: Schema): {kind: 'replay' | 
 export function restoreValue(p: Pending, field: string, mine: unknown, doc: Doc): unknown {
   const base = new Map(p.base).get(field)
   const theirs = getPath(doc, field)
-  return typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string' ? merge3(base, mine, theirs) : mine
+  // Restore asked for mine: when it cannot merge, mine stands whole.
+  return typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string' ? (merge3(base, mine, theirs) ?? mine) : mine
 }
