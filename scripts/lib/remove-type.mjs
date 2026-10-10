@@ -16,7 +16,8 @@ export function planRemoveType({type, dataset, docs, inFixtures, seeded, registe
   if (inFixtures) return refuse(`fixtures/barkpark-schema still declares ${type}: take its file out first, or the next --schemas adds it back.`)
   if (seeded) return refuse(`the seed writes ${type} documents: take it out of seed-barkpark's TYPES / NATIVE_TYPES and the seed files first.`)
   if (docs.length && !withDocs) return refuse(`${dataset} has ${docs.length} ${type} document(s). Pass --with-docs to delete them first.`)
-  if (!registered && !docs.length) return refuse(`${dataset} has no ${type} schema and no ${type} documents: nothing to do.`)
+  // Already gone: the same outcome as removing it, so a chained run doesn't fail.
+  if (!registered && !docs.length) return {done: `${dataset} has no ${type} schema and no ${type} documents: nothing to do.`, deletes: [], dropSchema: false}
   // Documents first (references to them go too, as a reset deletes), then the schema.
   return {deletes: docs.map(({id}) => ({delete: {id, type, force: true}})), dropSchema: registered}
 }
