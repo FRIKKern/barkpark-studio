@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 76 changes, 3 tasks closed
-  - J67: the login session is the editor's token (Barkpark #22764, #22783) ([#430](https://github.com/FRIKKern/barkpark-studio/pull/430))
-  - seed-barkpark: --schemas writes schemas only; --verify never uploads ([#429](https://github.com/FRIKKern/barkpark-studio/pull/429))
-  - First run: a dataset with no schema shows Sanity's "No document types" card ([#427](https://github.com/FRIKKern/barkpark-studio/pull/427))
+- **Today** · 77 changes, 5 tasks closed
+  - studioTask and studioComment: desk.hidden, off Barkpark's desk ([#428](https://github.com/FRIKKern/barkpark-studio/pull/428))
+  - Done: [Barkpark: PortableDoc has no inline objects (Sanity's inline blocks, e.g. a chip inside a paragraph)](https://github.com/FRIKKern/barkpark/issues/21915)
+  - Done: [Inline objects slice 3: insert and edit a declared inline object in the paper canvas](https://github.com/FRIKKern/barkpark/issues/22777)
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
