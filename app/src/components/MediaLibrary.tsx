@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type FormEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {assetQuery, assetsQuery, collectionsQuery, createFolder, saveAssetMeta, setCheckout, setMember, type LibraryAsset, type Visibility} from '../lib/media-library'
+import {assetQuery, assetsQuery, collectionsQuery, createFolder, KINDS, kindCountsQuery, saveAssetMeta, setCheckout, setMember, type Kind, type LibraryAsset, type Visibility} from '../lib/media-library'
 import {reasonOf} from '../lib/edits'
 import {Close, DocumentIcon, Search} from './icons'
 import {toast} from './Toasts'
@@ -12,13 +12,18 @@ import {uploadFile} from '../lib/upload'
 // filter, and the checkout lock on an asset's edits. Laid out like Sanity's media
 // browser: folders left, tiles in the middle, the picked asset's inspector right.
 
+const KIND_TITLES: Record<Kind, string> = {image: 'Images', video: 'Video', audio: 'Audio', document: 'Documents', other: 'Other'}
 const size = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} kB`)
 const fail = (title: string) => (e: unknown) => toast({tone: 'critical', title, description: reasonOf((e as Error).message) ?? (e as Error).message})
 
 export function MediaLibrary() {
   const t = useT()
   const qc = useQueryClient()
-  const [folder, setFolder] = useState<string>()
+  // One place picked on the left, as LiveView's: the whole library, a kind, or a folder.
+  const [folder, setFolderOnly] = useState<string>()
+  const [kind, setKindOnly] = useState<Kind>()
+  const setFolder = (f: string | undefined) => (setFolderOnly(f), setKindOnly(undefined))
+  const setKind = (k: Kind | undefined) => (setKindOnly(k), setFolderOnly(undefined))
   const [q, setQ] = useState('')
   const [query, setQuery] = useState('')
   const [visibility, setVisibility] = useState<Visibility | ''>('')
@@ -28,8 +33,9 @@ export function MediaLibrary() {
     return () => clearTimeout(timer)
   }, [q])
   const folders = useQuery(collectionsQuery)
-  const filter = {collection: folder, q: query || undefined, visibility: visibility || undefined}
+  const filter = {collection: folder, kind, q: query || undefined, visibility: visibility || undefined}
   const assets = useQuery(assetsQuery(filter))
+  const counts = useQuery(kindCountsQuery({q: filter.q, visibility: filter.visibility})).data
   const [naming, setNaming] = useState<string | null>(null)
   const {canWrite, createReason} = useCanWrite()
   const newFolder = async (e: FormEvent) => {
@@ -70,9 +76,16 @@ export function MediaLibrary() {
     <main className="media-tool">
       <nav className="media-folders" aria-label={t('Folders')}>
         <h1>{t('Media')}</h1>
-        <button type="button" className="type-row" aria-current={!folder} onClick={() => setFolder(undefined)}>
+        <button type="button" className="type-row" aria-current={!folder && !kind} onClick={() => setFolder(undefined)}>
           {t('All media')}
+          {counts && <span className="media-kind-count">{counts.total}</span>}
         </button>
+        {KINDS.map((k) => (
+          <button key={k} type="button" className="type-row media-kind" aria-current={kind === k} onClick={() => setKind(k)}>
+            {t(KIND_TITLES[k])}
+            {counts && <span className="media-kind-count">{counts.kinds[k] ?? 0}</span>}
+          </button>
+        ))}
         <div className="desk-divider">{t('Folders')}</div>
         {folders.isError && (
           <p className="muted" role="alert">
@@ -96,7 +109,7 @@ export function MediaLibrary() {
           </form>
         )}
       </nav>
-      <section className="media-browse" aria-label={folderTitle ?? t('All media')}>
+      <section className="media-browse" aria-label={folderTitle ?? (kind ? t(KIND_TITLES[kind]) : t('All media'))}>
         <header className="media-bar">
           <div className="search">
             <span className="search-icon"><Search /></span>
@@ -124,7 +137,7 @@ export function MediaLibrary() {
             <button type="button" className="btn" onClick={() => void assets.refetch()}>{t('Retry')}</button>
           </div>
         )}
-        {assets.data?.assets.length === 0 && <p className="list-empty" role="status">{query || visibility ? t('No matching media') : folder ? t('This folder is empty') : t('No media yet')}</p>}
+        {assets.data?.assets.length === 0 && <p className="list-empty" role="status">{query || visibility || kind ? t('No matching media') : folder ? t('This folder is empty') : t('No media yet')}</p>}
         <ul className="media-grid">
           {assets.data?.assets.map((a) => (
             <li key={a.id}>

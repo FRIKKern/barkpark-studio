@@ -53,6 +53,16 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   await expect(tile).toHaveCount(0) // uploads are public
   await page.getByLabel('Visibility').selectOption('public')
   await expect(tile).toHaveCount(1)
+  // The kind filter (LiveView's library list): a png is an image, never a document; each
+  // kind's count is Barkpark's.
+  const kinds = page.getByRole('navigation', {name: 'Folders'})
+  await kinds.getByRole('button', {name: /^Documents/}).click()
+  await expect(tile).toHaveCount(0)
+  await kinds.getByRole('button', {name: /^Images/}).click()
+  await expect(tile).toHaveCount(1)
+  const facet = (await (await fetch(`${media()}/search?limit=1&facets=kind&q=${NAME}&facet.visibility=public`, {headers: auth()})).json()) as {result: {facets: {kind: {value: string; count: number}[]}}}
+  await expect(kinds.getByRole('button', {name: /^Images/})).toHaveText(`Images${facet.result.facets.kind.find((k) => k.value === 'image')!.count}`)
+  await kinds.getByRole('button', {name: /^All media/}).click()
 
   await tile.click()
   const inspector = page.getByRole('complementary', {name: 'Asset'})
