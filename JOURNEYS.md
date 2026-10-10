@@ -19,7 +19,7 @@ quality first, never a shrinking finish line.
 | J07 | 3 | Presence everywhere: avatars on doc, field, list rows, array items/blocks; navbar "who's online" jumps to them; above/below hints | F4 |
 | J08 | 1 ★ | Pick author by search; open it in the next pane | F2 F5 |
 | J09 | 4 | Arrays of refs and objects: add, drag by handle and keyboard, item "…" menu (remove, copy, duplicate, add before/after) | F1 F5 F7 |
-| J10 | 5 | Type in body (shared canvas, [0004](docs/decisions/0004-portabledoc-freeform.md)): styles H1–H6, quote, marks, link popover, lists, markdown shortcuts | F1 F5 F7 |
+| J10 | 5 | Type in body (shared canvas, [0004](docs/decisions/0004-portabledoc-freeform.md)): styles H1–H6, quote, marks, link popover, lists, markdown shortcuts; paste from Google Docs, Word, a web page, Markdown and plain text keeps structure, marks and links, never drops text silently (paste.spec) | F1 F5 F7 F9 |
 | J11 | 5 | Insert callout + image block, edit in dialog; block "…" menu, drag blocks, inline objects | F2 F10 |
 | J12 | 5 | Image: upload, hotspot/crop (mouse + keyboard), alt text | F9 F10 |
 | J13 | 2 | Validation: error/warning/info inline, publish blocked, validation panel; click an error → focus the field, even in another tab or a collapsed object | F9 F10 |
