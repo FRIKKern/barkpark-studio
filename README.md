@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 88 changes, 8 tasks closed
+- **Today** · 89 changes, 8 tasks closed
+  - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
   - J11 spec: the callout's on-screen label, and the palette's Insert Callout (Barkpark #22861, #22862) ([#440](https://github.com/FRIKKern/barkpark-studio/pull/440))
-  - J11 spec: the declared callout inserts and edits in its field dialog (Barkpark #22846) ([#439](https://github.com/FRIKKern/barkpark-studio/pull/439))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
