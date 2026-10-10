@@ -6,7 +6,7 @@
 // Earlier runs' editor-c (rig:) tokens are revoked too. It goes into the shared dev-token
 // store (scripts/lib/dev-tokens.mjs), where dev sign-in reuses it. Minted with the .env token (it
 // must administer the workspace). --revoke revokes them and forgets them.
-import {keepDevToken} from './lib/dev-tokens.mjs'
+import {editorPermissions, keepDevToken} from './lib/dev-tokens.mjs'
 
 const lane = process.argv[2]
 if (!lane || !/^(?:e2e-[a-z0-9-]+|ci(?:-2)?)$/.test(lane)) throw new Error('usage: rig-editor-tokens.mjs <e2e-… dataset> [--revoke]')
@@ -29,7 +29,7 @@ for (const [email, kind] of Object.entries(editors)) {
   const res = await fetch(`${url}/v1/auth/app-tokens`, {
     method: 'POST',
     headers: admin,
-    body: JSON.stringify({email, workspace: process.env.BARKPARK_WORKSPACE, permissions: ['read'], label: `${kind}:${email}`, dataset: lane}),
+    body: JSON.stringify({email, workspace: process.env.BARKPARK_WORKSPACE, permissions: editorPermissions(email), label: `${kind}:${email}`, dataset: lane}),
   })
   if (!res.ok) throw new Error(`minting for ${email}: ${res.status} ${await res.text()}`)
   const {token} = await res.json()

@@ -41,6 +41,12 @@ async function revoke(url, admin, id) {
  * their editor; `everything` revokes the kept ones too. Returns how many were revoked and
  * how many could not be.
  */
+// What each dev editor may do: dev sign-in mints exactly this (task-c9877a98acaaf8e4: a
+// full token for read-only editor d made J63 "see another editor's draft"), and
+// scripts/rig-editor-tokens.mjs mints editor d from it too. Not listed: read and write.
+export const EDITOR_PERMISSIONS = {'studio-editor-d@example.com': ['read']}
+export const editorPermissions = (email) => EDITOR_PERMISSIONS[email.toLowerCase()] ?? ['read', 'write']
+
 // Only the dev sign-in's own editors (a, b): never a studio's, a lane's or a person's token,
 // nor the rig's editors c and d (scripts/rig-editor-tokens.mjs mints and revokes those).
 export const DEV_EDITOR = /^studio-editor-[ab]@example\.com$/
