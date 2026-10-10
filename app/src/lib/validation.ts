@@ -1,9 +1,10 @@
-import {itemPath, refId, type Doc, type Field, type Rule, type Schema} from './data'
+import type {Doc, Field, Rule, Schema} from './data'
+import {itemPath, refId} from './refs.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
 // Barkpark keeps rules as data on each field: a map or a list of maps
-// (`{required, min, max, level, message}`). J13: only errors block publishing;
+// (`{required, min, max, pattern, level, message}`). J13: only errors block publishing;
 // a warning or an info is shown the same ways in its own colour.
 export type Level = 'error' | 'warning' | 'info'
 /** `parents`: the titles of the objects the field sits in (Sanity's "Seo / Meta Title"). */
@@ -17,6 +18,13 @@ const english: T = (en, vars) => (vars ? en.replace(/\{(\w+)\}/g, (all, k: strin
 const blank = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)
 // Barkpark's levels too: warning and info never block a save or a publish (barkpark#22125).
 const levelOf = (r: Rule): Level => (r.level === 'warning' || r.level === 'warn' ? 'warning' : r.level === 'info' ? 'info' : 'error')
+const regexOf = (pattern: string) => {
+  try {
+    return new RegExp(pattern)
+  } catch {
+    return null
+  }
+}
 const rulesOf = (field: Field): Rule[] => (Array.isArray(field.validation) ? field.validation : field.validation ? [field.validation] : [])
 
 function check(field: Field, value: unknown, path: string, parents: string[], group: string | undefined, out: Problem[], target: RefTarget | undefined, t: T) {
@@ -26,7 +34,14 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   const required = rules.find((r) => r.required)
   if (required && blank(value)) return push(required, t('Required'))
   if (blank(value)) return
+  // A slug's text is its `current` when Sanity-shaped.
+  const text = typeof value === 'string' ? value : field.type === 'slug' && typeof (value as {current?: unknown})?.current === 'string' ? (value as {current: string}).current : undefined
   for (const r of rules) {
+    // Sanity's Rule.regex (Barkpark enforces `pattern` on write); a pattern that isn't a valid regex is skipped.
+    if (r.pattern !== undefined && text !== undefined && text !== '') {
+      const re = regexOf(r.pattern)
+      if (re && !re.test(text)) push(r, t('Does not match "{pattern}"-pattern', {pattern: `/${r.pattern}/`}))
+    }
     if (field.type === 'number' && typeof value === 'number') {
       if (r.max !== undefined && value > r.max) push(r, t('Must be lower than or equal to {max}', {max: r.max}))
       if (r.min !== undefined && value < r.min) push(r, t('Must be greater than or equal to {min}', {min: r.min}))

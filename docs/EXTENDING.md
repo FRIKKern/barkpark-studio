@@ -25,9 +25,11 @@ Copy a field from `fixtures/barkpark-schema/post.json`, which uses most of them.
 checks these files against `fixtures/barkpark-schema.schema.json` (autocomplete, unknown keys):
 generated from `app/src/lib/schema-vocab.ts` by `scripts/fixture-schema.mjs`; a unit test keeps them in step.
 
-Validation is data, not code: `validation: {required, min, max, level, message}` (or a
-list of those). `level` is `error` (blocks publish, the default), `warning` or `info`.
-`min`/`max` count characters, items or the number. No custom functions or patterns yet.
+Validation is data, not code: `validation: {required, min, max, pattern, level, message}` (or
+a list of those). `level` is `error` (blocks publish, the default), `warning` or `info`.
+`min`/`max` count characters, items or the number; `pattern` is a regex the text (or a
+slug's current) must match, Sanity's `Rule.regex` (example: `post.json`'s slug). No custom
+functions yet. `seed-barkpark` refuses a fixture with a key the schema file doesn't know.
 
 ## Removing a type
 

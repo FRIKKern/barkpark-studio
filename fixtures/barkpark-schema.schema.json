@@ -80,6 +80,11 @@
           "description": "At most this many characters, items, or this number.",
           "type": "number"
         },
+        "pattern": {
+          "description": "A regular expression the text (or a slug's current) must match; Barkpark enforces it on write.",
+          "type": "string",
+          "format": "regex"
+        },
         "level": {
           "description": "\"error\" (blocks publishing, the default), \"warning\" or \"info\".",
           "enum": [

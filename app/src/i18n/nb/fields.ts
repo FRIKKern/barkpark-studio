@@ -44,6 +44,7 @@ export default {
   'Must be a reference to a document': 'Må være en referanse til et dokument',
   'Must be at least {min} characters long': 'Må være minst {min} tegn lang',
   'Must be at most {max} characters long': 'Må være maksimalt {max} tegn lang',
+  'Does not match "{pattern}"-pattern': 'Samsvarer ikke med mønsteret "{pattern}"',
   'Must be greater than or equal to {min}': 'Må være større enn eller lik {min}',
   'Must be lower than or equal to {max}': 'Må være mindre enn eller lik {max}',
   'No color': 'Ingen farge',

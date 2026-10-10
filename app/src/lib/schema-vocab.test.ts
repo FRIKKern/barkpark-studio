@@ -2,6 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync, readdirSync} from 'node:fs'
 import {FIELD_TYPES, fixtureJsonSchema} from './schema-vocab.ts'
+import {checkJsonSchema} from '../../../scripts/lib/json-schema-check.mjs'
 
 // task-5012fe19eb89a5c6: the JSON Schema for fixtures/barkpark-schema can't drift from
 // the studio. It is regenerated identically, every fixture passes it, a typo fails it,
@@ -9,28 +10,7 @@ import {FIELD_TYPES, fixtureJsonSchema} from './schema-vocab.ts'
 const root = new URL('../../../', import.meta.url)
 const generated = fixtureJsonSchema()
 
-type S = Record<string, unknown>
-/** The JSON Schema subset fixtureJsonSchema() uses; returns the problems. */
-function check(schema: S, value: unknown, at = '$', defs = generated.definitions as Record<string, S>): string[] {
-  if (schema.$ref) return check(defs[String(schema.$ref).split('/').pop()!]!, value, at, defs)
-  if (schema.anyOf) return (schema.anyOf as S[]).some((s) => !check(s, value, at, defs).length) ? [] : [`${at}: matches none of anyOf`]
-  if (schema.enum && !(schema.enum as unknown[]).includes(value)) return [`${at}: ${JSON.stringify(value)} is not one of the allowed values`]
-  const type = schema.type as string | undefined
-  const actual = Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value
-  if (type && actual !== type) return [`${at}: expected ${type}, got ${actual}`]
-  const out: string[] = []
-  if (type === 'array' && schema.items) (value as unknown[]).forEach((v, i) => out.push(...check(schema.items as S, v, `${at}[${i}]`, defs)))
-  if (type === 'object') {
-    const v = value as S
-    const props = (schema.properties ?? {}) as Record<string, S>
-    for (const k of (schema.required ?? []) as string[]) if (!(k in v)) out.push(`${at}: missing ${k}`)
-    for (const [k, val] of Object.entries(v)) {
-      if (props[k]) out.push(...check(props[k]!, val, `${at}.${k}`, defs))
-      else if (schema.additionalProperties === false) out.push(`${at}: unknown key ${k}`)
-    }
-  }
-  return out
-}
+const check = (schema: Record<string, unknown>, value: unknown) => checkJsonSchema(schema, value)
 
 test('the committed JSON Schema is what schema-vocab generates (run scripts/fixture-schema.mjs)', () => {
   assert.deepEqual(JSON.parse(readFileSync(new URL('fixtures/barkpark-schema.schema.json', root), 'utf8')), generated)
@@ -42,11 +22,12 @@ test('every fixture schema passes it', () => {
 })
 
 test('it flags a typo: an unknown key, an unknown type, a bad rule', () => {
-  const bad = {name: 'x', fields: [{name: 'a', type: 'strng'}, {name: 'b', type: 'string', requird: true}, {name: 'c', type: 'number', validation: {min: '1', level: 'fatal'}}]}
+  const bad = {name: 'x', fields: [{name: 'a', type: 'strng'}, {name: 'b', type: 'string', requird: true}, {name: 'c', type: 'number', validation: {min: '1', level: 'fatal'}}, {name: 'd', type: 'string', validation: [{pattern: '('}]}]}
   assert.deepEqual(check(generated, bad), [
     '$.fields[0].type: "strng" is not one of the allowed values',
     '$.fields[1]: unknown key requird',
     '$.fields[2].validation: matches none of anyOf',
+    '$.fields[3].validation: matches none of anyOf',
   ])
 })
 

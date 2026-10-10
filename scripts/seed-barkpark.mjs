@@ -20,6 +20,7 @@ import {isDeepStrictEqual} from 'node:util'
 import {sendBatches} from './lib/batches.mjs'
 import {seedAssets} from './lib/seed-assets.mjs'
 import {toBarkpark} from './lib/seed-map.mjs'
+import {checkJsonSchema} from './lib/json-schema-check.mjs'
 
 const root = new URL('..', import.meta.url)
 const env = (k, d) => process.env[k] ?? d ?? fail(`missing env ${k} (see .env.example)`)
@@ -111,9 +112,13 @@ const expected = new Map([...mirrored, ...native.map((d) => [d._id, {type: d._ty
 
 async function applySchemas() {
   const dir = new URL('fixtures/barkpark-schema/', root)
-  for (const f of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
-    await bp('POST', `/v1/schemas/${DATASET}`, JSON.parse(readFileSync(new URL(f, dir), 'utf8')))
-  }
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => [f, JSON.parse(readFileSync(new URL(f, dir), 'utf8'))])
+  // Barkpark ignores a key it doesn't know (task-415c5c02fad8a3c7): a misspelled rule would
+  // be applied as no rule. The fixtures must pass fixtures/barkpark-schema.schema.json first.
+  const contract = JSON.parse(readFileSync(new URL('fixtures/barkpark-schema.schema.json', root), 'utf8'))
+  const problems = files.flatMap(([f, schema]) => checkJsonSchema(contract, schema).map((p) => `${f} ${p}`))
+  if (problems.length) fail(`fixture schemas don't pass fixtures/barkpark-schema.schema.json (nothing written):\n  ${problems.join('\n  ')}`)
+  for (const [, schema] of files) await bp('POST', `/v1/schemas/${DATASET}`, schema)
 }
 
 // Upsert, then prune: the seed is written BEFORE anything is deleted, so a refused write

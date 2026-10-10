@@ -25,7 +25,7 @@ export type Doc = {_id: string; _publishedId: string; _type: string; _draft: boo
   unknown
 >
 /** Barkpark's field rule: Sanity's checks, `level` (default error) and a `message` that replaces the generated one. */
-export type Rule = {required?: boolean; min?: number; max?: number; level?: string; message?: string}
+export type Rule = {required?: boolean; min?: number; max?: number; pattern?: string; level?: string; message?: string}
 
 export type Field = {
   name: string
@@ -483,13 +483,7 @@ export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) =>
 export const isSingleton = (schemas: Schema[], type: string) => schemaOf(schemas, type)?.singleton === true
 
 /** The types a reference field (or a reference array's member) may point to. */
-/** A reference value: a bare id, or a keyed array item {_key, _type: 'reference', _ref} (task-fb4c4703cc92b32e). */
-export const refId = (v: unknown): string | undefined => (typeof v === 'string' ? v : typeof (v as {_ref?: unknown})?._ref === 'string' ? (v as {_ref: string})._ref : undefined)
-/** An array item's path: by _key when it has one (Sanity's `categories[_key=="c2"]`), else by index. */
-export const itemPath = (path: string, item: unknown, i: number) => {
-  const key = (item as {_key?: unknown})?._key
-  return typeof key === 'string' ? `${path}[_key=="${key}"]` : `${path}[${i}]`
-}
+export {itemPath, refId} from './refs'
 export const refTypesOf = (field: Field | undefined): string[] => field?.to?.map((t) => t.type) ?? (field?.refType ? [field.refType] : [])
 
 /** The types with a reference field (at any depth, in arrays too) that can point at `type`: who can refer to it. */
