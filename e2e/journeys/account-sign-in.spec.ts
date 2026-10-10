@@ -32,6 +32,8 @@ test('@local J67: sign in with a Barkpark account, work as yourself, sign out', 
   await page.waitForURL(/\/structure\/post;post-01/)
   await t.settle(page)
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 01')
+  // The test account is read-only here: no bulk ticks on its lists (B03).
+  await expect(page.getByRole('checkbox', {name: /^Select Fixture post/})).toHaveCount(0)
   await page.getByRole('button', {name: 'Open user menu'}).click()
   await expect(page.locator('.user-head')).toHaveText(EMAIL!.toLowerCase())
   await page.screenshot({path: 'evidence/J67-1-signed-in-studio.png'})
