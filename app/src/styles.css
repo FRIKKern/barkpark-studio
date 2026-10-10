@@ -45,6 +45,8 @@
   --focus-ring: #556bfc; /* keyboard focus, as Sanity's: a 1 px inset ring */
   --publish-disabled-bg: #bbbdc9;
   --publish-disabled-fg: #ecedf3;
+  --btn-secondary-fg: #4e556d; /* Generate, Create: measured on reference/sanity; the fill is --bg-soft */
+  --btn-secondary-ring: #e6e6ea;
   --nav-h: 51px;
   --strip: 51px;
   font-family: 'Inter Variable', Inter, -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -95,6 +97,8 @@
   --focus-ring: #596ffc;
   --publish-disabled-bg: #555c75;
   --publish-disabled-fg: #212639;
+  --btn-secondary-fg: #999eb3;
+  --btn-secondary-ring: #262837;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -331,7 +335,7 @@ textarea.input { resize: vertical; }
 .menu-item:hover, .menu-item:focus { background: var(--hover); outline: none; }
 .menu-item.danger { color: var(--danger-text); }
 .menu-item[aria-disabled] { opacity: 0.5; cursor: default; }
-.btn-create { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 4px; height: 35px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); font: inherit; font-size: 13px; font-weight: 500; color: var(--fg); cursor: pointer; }
+.btn-create { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 4px; height: 35px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); font: inherit; font-size: 13px; font-weight: 400; cursor: pointer; }
 .btn-create:hover, .btn-square:hover { background: var(--hover); }
 .ref-search { flex-wrap: wrap; }
 @media (max-width: 768px) {
