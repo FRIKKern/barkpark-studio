@@ -17,7 +17,7 @@
 // sessions and lanes use the same one.
 import '@tanstack/react-start/server-only'
 import {randomBytes} from 'node:crypto'
-import {devToken, keepDevToken, sweepDevTokens} from '../../../scripts/lib/dev-tokens.mjs'
+import {devToken, editorPermissions, keepDevToken, sweepDevTokens} from '../../../scripts/lib/dev-tokens.mjs'
 import {getCookie, setCookie, deleteCookie} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
 
@@ -64,10 +64,13 @@ async function editorToken(email: string): Promise<string> {
   // a token minted with one is bound to it (Barkpark, 2026-10-09), and an editor switches.
   const {workspace, project, dataset} = scope()
   const held = devToken(workspace, email)
+  // The editor's configured permissions (a read-only editor stays read-only).
+  const permissions = editorPermissions(email)
   if (held) {
     const probe = await fetch(`${url}/w/${workspace}/p/${project}/v1/schemas/${dataset}`, {headers: {authorization: `Bearer ${held}`}})
     // Dead (revoked or expired) is 401 everywhere since Barkpark #22517: then a new one.
-    if (probe.status !== 401) return held
+    // One that may do more or less than this editor is configured for: a new one too.
+    if (probe.status !== 401 && (await describeToken(held)).permissions.join() === permissions.join()) return held
     keepDevToken(workspace, email, undefined)
   }
   // Whatever this editor still has live is a leftover now (rate-limit aware, never silent).
@@ -75,7 +78,7 @@ async function editorToken(email: string): Promise<string> {
   const res = await fetch(`${url}/v1/auth/app-tokens`, {
     method: 'POST',
     headers: {authorization: `Bearer ${admin()}`, 'content-type': 'application/json'},
-    body: JSON.stringify({email, workspace, permissions: ['read', 'write'], label: `app:${email}`}),
+    body: JSON.stringify({email, workspace, permissions, label: `app:${email}`}),
   })
   if (!res.ok) throw new Error(`minting an editor token for ${email}: ${res.status} ${await res.text()}`)
   const {token} = (await res.json()) as {token: string}
