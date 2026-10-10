@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 22 changes, 1 task closed
+- **Today** · 23 changes, 1 task closed
+  - Form: text of ours someone rewrote meanwhile is never dropped silently ([#375](https://github.com/FRIKKern/barkpark-studio/pull/375))
   - Preview rows: an unsupported asset shows a broken-image icon, not an empty box ([#374](https://github.com/FRIKKern/barkpark-studio/pull/374))
   - Canvas: a refused batch's words are never typed over by the other writer's save ([#373](https://github.com/FRIKKern/barkpark-studio/pull/373))
-  - Align with Barkpark's schema reference (#22640): its keys, the unique rule, EXTENDING links it ([#372](https://github.com/FRIKKern/barkpark-studio/pull/372))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
