@@ -43,3 +43,18 @@ test("@local J24 J25 J55: list search, empty state, the type's own sort that sti
     await page.getByText('Default sort').click()
   }
 })
+
+// First run: a dataset with no schema says so (Sanity's "No document types" card) instead of
+// an empty desk, and lists none of the studio's own items (their types are not there).
+// A dataset nobody writes to; read only.
+test('first run: a dataset with no document types shows Sanity\'s card', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours (Sanity: the same card, in the evidence stills)')
+  await t.prepare(page.context())
+  await page.goto(`/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}/d/e2e-no-schema-ever/structure`)
+  await t.settle(page)
+  const pane = page.locator('[data-pane="types"]')
+  await expect(pane.getByRole('status')).toContainText('No document types')
+  await expect(pane.getByRole('link', {name: 'Learn how to add a document type →'})).toHaveAttribute('href', /schema-reference/)
+  await expect(pane.locator('.type-row')).toHaveCount(0)
+})
