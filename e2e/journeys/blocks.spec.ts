@@ -28,6 +28,9 @@ const chips = async (t: Target) => {
     : (((v as {blocks?: {content?: {type: string; text?: string; tone?: string}[]}[]})?.blocks ?? []).flatMap((b) => b.content ?? [])).map((c) => ({...c, _type: c.type}))
   return all.filter((c) => c._type === 'chip').map((c) => `${c.text}/${c.tone}`)
 }
+// Ours: the declared callout is a block named by its first field, "Callout: <tone>"
+// (Barkpark #22846); the fixture's is info, the one J11 adds warning, then danger.
+const ourCallout = (page: Page, tone: string) => page.locator(`bp-paper-canvas [role="group"][aria-label="Callout: ${tone}"]`)
 const blockKinds = async (t: Target) => {
   const v = await t.docValue(ID, 'body')
   return t.name === 'sanity'
@@ -62,22 +65,38 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     await body.getByRole('button', {name: 'Insert Callout (block)'}).first().click()
     const dialog = page.getByRole('dialog').last()
     await dialog.getByRole('textbox', {name: 'Text'}).fill('Callout from J11')
+    note('callout tones', await dialog.locator('select').first().locator('option').allInnerTexts().catch(() => []))
     await page.screenshot({path: shot(t.name, '1-callout')})
     await page.keyboard.press('Escape')
   } else {
     await page.keyboard.press('Enter')
     await page.keyboard.type('/')
-    // PortableDoc's own callout (the declared `callout` is that block): its text is
-    // typed in place, and it has no tone control (sent to barkpark-15).
+    // The declared callout (tone + text) wins over the canvas's own (Barkpark #22846):
+    // the pick opens its field dialog, Tone only the declared options, titled.
     await page.locator('.bp-slash-item').filter({hasText: 'Callout'}).click()
-    await page.keyboard.type('Callout from J11')
+    const dialog = page.locator('.bp-inline-object-dialog').filter({visible: true})
+    note('callout tones', await dialog.getByRole('combobox', {name: 'Tone'}).locator('option').allInnerTexts())
+    await dialog.getByRole('combobox', {name: 'Tone'}).selectOption('warning')
+    await dialog.getByRole('textbox', {name: 'Text'}).fill('Callout from J11')
     await page.screenshot({path: shot(t.name, '1-callout')})
+    await dialog.locator('.bp-inline-object-dialog__save').click()
   }
   // Sanity's block preview shows the type, not the text: count callouts on the server.
   await expect.poll(async () => (await blockKinds(t)).filter((k) => k === 'callout').length, {timeout: 10_000}).toBe(2)
+  // Ours: its tone changes in the same dialog (double-click the block).
+  if (t.name === 'studio') {
+    const tones = async () => (((await t.docValue(ID, 'body')) as {blocks?: {type: string; text?: string; tone?: string}[]})?.blocks ?? []).filter((b) => b.text === 'Callout from J11').map((b) => b.tone)
+    await expect.poll(tones, {timeout: 10_000}).toEqual(['warning'])
+    await ourCallout(page, 'warning').dblclick()
+    const dialog = page.locator('.bp-inline-object-dialog').filter({visible: true})
+    await dialog.getByRole('combobox', {name: 'Tone'}).selectOption({label: 'Danger'})
+    await dialog.locator('.bp-inline-object-dialog__save').click()
+    await expect.poll(tones, {timeout: 10_000}).toEqual(['danger'])
+    note('callout tone edit', await tones())
+  }
 
   // 2. The block "…" menu on it.
-  const callout = t.name === 'sanity' ? body.locator('[data-testid="pte-block-object"]').last() : body.getByText('Callout from J11')
+  const callout = t.name === 'sanity' ? body.locator('[data-testid="pte-block-object"]').last() : ourCallout(page, 'danger')
   await callout.hover()
   await page.waitForTimeout(400)
   if (t.name === 'sanity') {
@@ -94,11 +113,11 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
   // Ours: Duplicate (then Delete the copy); Sanity has no duplicate here: close.
   if (t.name === 'studio') {
     await page.locator('.bp-block-menu__item').filter({hasText: 'Duplicate'}).click()
-    await expect(body.getByText('Callout from J11')).toHaveCount(2)
-    await body.getByText('Callout from J11').last().hover()
+    await expect(ourCallout(page, 'danger')).toHaveCount(2)
+    await ourCallout(page, 'danger').last().hover()
     await page.getByRole('button', {name: 'Block options'}).first().click()
     await page.locator('.bp-block-menu__item').filter({hasText: 'Delete'}).click()
-    await expect(body.getByText('Callout from J11')).toHaveCount(1)
+    await expect(ourCallout(page, 'danger')).toHaveCount(1)
   } else await page.keyboard.press('Escape')
 
   // 3. Move the callout up one block (ours: the menu's Move up; Sanity: drag its handle).
