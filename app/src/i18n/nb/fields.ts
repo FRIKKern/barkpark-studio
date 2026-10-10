@@ -129,4 +129,8 @@ export default {
   'Must have at least {min} items': 'Må ha minst {min} elementer',
   'Must have at most {max} items': 'Kan ha høyst {max} elementer',
   'Items must be unique': 'Elementene må være unike',
+  // task-ec9b4c0c78185fa4: an asset from elsewhere, kept as it is.
+  'Unsupported asset value': 'Ressursverdi som ikke støttes',
+  'This field points to a file from an export that has not been uploaded to Barkpark. It is kept as it is.': 'Dette feltet viser til en fil fra en eksport som ikke er lastet opp til Barkpark. Den beholdes som den er.',
+  'This field points to an asset Barkpark does not know. It is kept as it is.': 'Dette feltet viser til en ressurs Barkpark ikke kjenner. Den beholdes som den er.',
 } satisfies Record<string, string>

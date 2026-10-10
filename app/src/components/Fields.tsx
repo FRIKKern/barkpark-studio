@@ -16,8 +16,8 @@ import {RefArrayInput} from './RefArrayInput'
 import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {CodelistInput} from './CodelistInput'
 import {FieldComments} from './Comments'
-import {InvalidValueCard, KeysAlert, RichTextCard} from './BrokenValues'
-import {invalidValue, keyProblem, richTextProblem} from '../lib/broken'
+import {InvalidValueCard, KeysAlert, RichTextCard, UnsupportedAssetCard} from './BrokenValues'
+import {invalidValue, keyProblem, richTextProblem, unsupportedAsset} from '../lib/broken'
 import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
 import {PortableDocView} from './PortableDocView'
 import {modKey, useTip} from './Tip'
@@ -269,6 +269,9 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
   if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />
+  // An asset from elsewhere (a Sanity export, a Sanity asset id): kept as it is, never read as empty.
+  const foreign = unsupportedAsset(field, value)
+  if (foreign) return <UnsupportedAssetCard asset={foreign} value={value} onChange={onChange} />
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
   if (readOnly && !['string', 'url', 'email', 'text', 'slug', 'composite', 'datetime', 'arrayOf', 'markdown', 'date', 'time', 'tags', 'color', 'source', 'json', 'localizedText', 'codelist'].includes(field.type))
