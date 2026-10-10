@@ -67,6 +67,8 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
   } else {
     await page.keyboard.press('Enter')
     await page.keyboard.type('/')
+    // PortableDoc's own callout (the declared `callout` is that block): its text is
+    // typed in place, and it has no tone control (sent to barkpark-15).
     await page.locator('.bp-slash-item').filter({hasText: 'Callout'}).click()
     await page.keyboard.type('Callout from J11')
     await page.screenshot({path: shot(t.name, '1-callout')})
@@ -164,19 +166,33 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     const saved = await expect.poll(async () => (await blockKinds(t)).includes('image'), {timeout: 10_000}).toBe(true).then(() => true, () => false)
     note('image block', saved ? 'inserted' : 'not inserted (no / menu: see caret after Enter)')
     await page.screenshot({path: shot(t.name, '4-image')})
-    // 5. A chip, from the slash menu, on a fresh line in view: the dialog opens
-    // below the caret (off-screen near the bottom: sent to barkpark-15).
+    // 5. A chip, from the slash menu, on a fresh line at the bottom of the window:
+    // the dialog flips above the caret (Barkpark #22833), so Save stays on screen.
     await page.locator('bp-paper-canvas').getByText(/Body paragraph for post 11/).click()
     await page.keyboard.press('End')
     await page.keyboard.press('Enter')
-    await page.evaluate(() => (getSelection()?.focusNode as Element | null)?.parentElement?.scrollIntoView({block: 'center'}))
+    // The caret's line (an empty line's selection has no box: measure its element).
+    const lineBottom = () => page.evaluate(() => {
+      const n = getSelection()!.focusNode!
+      return (n instanceof Element ? n : n.parentElement!).getBoundingClientRect().bottom
+    })
+    await page.evaluate(() => { const n = getSelection()!.focusNode!; (n instanceof Element ? n : n.parentElement!).scrollIntoView({block: 'end'}) })
+    // The page may not scroll that far: a shorter window puts the line ~60 px from its bottom.
+    const size = page.viewportSize()!
+    const lineY = await lineBottom()
+    await page.setViewportSize({width: size.width, height: Math.round(lineY) + 60})
     await page.keyboard.type('/chip')
+    const caretY = await lineBottom()
     await page.locator('.bp-slash-menu').filter({visible: true}).getByText('Chip').click({timeout: 5_000}).catch(() => page.keyboard.press('Enter'))
     const dlg = page.locator('.bp-inline-object-dialog').filter({visible: true})
     await dlg.getByRole('textbox').first().fill('Draft')
     await dlg.locator('select').first().selectOption('caution')
     await page.screenshot({path: shot(t.name, '4-inline')})
+    const save = (await dlg.locator('.bp-inline-object-dialog__save').boundingBox())!
+    note('chip dialog', {caretY: Math.round(caretY), dialogTop: Math.round((await dlg.boundingBox())!.y), saveBottom: Math.round(save.y + save.height), viewport: page.viewportSize()!.height})
+    expect(save.y + save.height).toBeLessThanOrEqual(page.viewportSize()!.height)
     await dlg.locator('.bp-inline-object-dialog__save').click()
+    await page.setViewportSize(size)
     await expect.poll(() => chips(t), {timeout: 10_000}).toContain('Draft/caution')
     await expect(page.locator('bp-paper-canvas [aria-label="Chip: Draft"]')).toBeVisible()
     note('inline object', await chips(t))
