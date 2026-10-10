@@ -24,6 +24,7 @@ import {seedAssets} from './lib/seed-assets.mjs'
 import {toBarkpark} from './lib/seed-map.mjs'
 import {checkJsonSchema} from './lib/json-schema-check.mjs'
 import {planRemoveType} from './lib/remove-type.mjs'
+import {seedPlan} from './lib/seed-plan.mjs'
 
 const root = new URL('..', import.meta.url)
 const env = (k, d) => process.env[k] ?? d ?? fail(`missing env ${k} (see .env.example)`)
@@ -154,9 +155,11 @@ const native = readFileSync(new URL('fixtures/barkpark-only.ndjson', root), 'utf
 const nativeContent = ({_id, _type, ...content}) =>
   Array.isArray(content.blocks) ? {...Object.fromEntries(content.blocks.filter((b) => b.fieldName && b.fieldName !== 'title').map((b) => [b.fieldName, b.value])), ...content} : content
 // The seed's files (post.attachment, J54) as this dataset's media; uploaded on first use.
-const asset = await seedAssets(seed, {base: BASE, dataset: DATASET, token: env('BARKPARK_TOKEN')})
-const mirrored = new Map(seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d, asset)}]))
-const expected = new Map([...mirrored, ...native.map((d) => [d._id, {type: d._type, content: nativeContent(d)}])])
+// The plan says whether the seed's files are wanted at all, looked up, or uploaded (lib/seed-plan.mjs).
+const plan = seedPlan(process.argv, DATASET)
+if (plan.refuse) fail(plan.refuse)
+const asset = plan.assets === 'none' ? null : await seedAssets(seed, {base: BASE, dataset: DATASET, token: env('BARKPARK_TOKEN'), upload: plan.assets === 'upload'})
+const expectedDocs = () => new Map([...seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d, asset)}]), ...native.map((d) => [d._id, {type: d._type, content: nativeContent(d)}])])
 
 async function applySchemas() {
   const dir = new URL('fixtures/barkpark-schema/', root)
@@ -226,7 +229,7 @@ async function verifySchemas() {
 async function verify() {
   await verifySchemas()
   const docs = (await Promise.all([...TYPES, ...NATIVE_TYPES].map((t) => listAll(t, 'raw')))).flat()
-  compare('barkpark', docs, expected)
+  compare('barkpark', docs, expectedDocs())
 
   if (!process.env.SANITY_TOKEN) return console.log('verify sanity: skipped (no SANITY_TOKEN)')
   const q = encodeURIComponent(`*[_type in ${JSON.stringify(TYPES)}]`)
@@ -260,17 +263,10 @@ function history() {
   if (run.status !== 0) console.warn('seed-barkpark: post-history not rebuilt (J15/J16 need it): run scripts/reference-history.mjs by hand')
 }
 
-// production is where people edit: a reset there replaces and prunes their documents.
-// Refused unless asked by name (`.env.example`'s default dataset is production).
-if (DATASET === 'production' && !process.argv.includes('--verify') && !process.argv.includes('--production'))
-  fail('BARKPARK_DATASET is production, where people edit: this would overwrite it. Set your own lane (BARKPARK_DATASET=e2e-<you>), or pass --production if that is really meant.')
-if (process.argv.includes('--schemas')) await applySchemas()
-else {
-  if (!process.argv.includes('--verify')) {
-    if (!process.argv.includes('--data')) await applySchemas()
-    await reset()
-    await resetPrefs()
-    history()
-  }
-  await verify()
+if (plan.schemas) await applySchemas()
+if (plan.reset) {
+  await reset()
+  await resetPrefs()
+  history()
 }
+if (plan.verify) await verify()
