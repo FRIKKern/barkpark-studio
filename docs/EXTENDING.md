@@ -17,19 +17,15 @@ Shapes for every extension point: `app/src/lib/plugins.ts`; the working example 
 
 ## Field types and validation
 
-The form draws `string text number integer float boolean date datetime time url email
-slug select tags color reference image file arrayOf composite codelist localizedText
-richText markdown json source` (`app/src/components/Fields.tsx`). The four nested ones
-are Barkpark's [schema v2](https://github.com/FRIKKern/barkpark/blob/main/docs/contracts/schema-v2.md).
-Copy a field from `fixtures/barkpark-schema/post.json`, which uses most of them. VS Code
-checks these files against `fixtures/barkpark-schema.schema.json` (autocomplete, unknown keys):
-generated from `app/src/lib/schema-vocab.ts` by `scripts/fixture-schema.mjs`; a unit test keeps them in step.
-
-Validation is data, not code: `validation: {required, min, max, pattern, level, message}` (or
-a list of those). `level` is `error` (blocks publish, the default), `warning` or `info`.
-`min`/`max` count characters, items or the number; `pattern` is a regex the text (or a
-slug's current) must match, Sanity's `Rule.regex` (example: `post.json`'s slug). No custom
-functions yet. `seed-barkpark` refuses a fixture with a key the schema file doesn't know.
+Every field type, its options, the validation keys (`required min max pattern unique
+level message`) and what Barkpark ignores: Barkpark's
+[schema reference](https://github.com/FRIKKern/barkpark/blob/main/docs/contracts/schema-reference.md).
+The form draws the types in `app/src/lib/schema-vocab.ts`; copy a field from
+`fixtures/barkpark-schema/post.json` (its slug has a `pattern`). Barkpark stores a
+misspelled key and never reads it: VS Code checks these files against
+`fixtures/barkpark-schema.schema.json` (generated from `schema-vocab.ts` by
+`scripts/fixture-schema.mjs`, kept in step by a unit test), and `seed-barkpark` refuses one
+that fails it.
 
 ## Removing a type
 

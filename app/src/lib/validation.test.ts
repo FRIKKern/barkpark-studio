@@ -14,6 +14,7 @@ const schema: Schema = {
     {name: 'code', type: 'string', validation: {pattern: '^[A-Z]{3}$'}},
     {name: 'note', type: 'string', validation: {pattern: '^ok', level: 'warning'}},
     {name: 'broken', type: 'string', validation: {pattern: '('}},
+    {name: 'tags', type: 'arrayOf', of: {name: 'tag', type: 'reference', refType: 'tag'}, validation: {unique: true}},
   ],
 }
 const doc = (fields: Record<string, unknown>) => ({_id: 'p', _publishedId: 'p', _type: 'post', _draft: true, _rev: 'r', _updatedAt: '', ...fields}) as Doc
@@ -28,3 +29,9 @@ test('pattern: its message, or Sanity\'s; on a slug\'s current; a warning level'
   assert.deepEqual(messages({slug: 'good-slug-2', code: 'ABC', note: 'ok then'}), [])
   assert.deepEqual(messages({}), ['slug error: Required'])
 })
+
+test('unique: an arrayOf with the same reference or value twice', () => {
+  assert.deepEqual(messages({slug: 'a', tags: [{_key: 'a', _ref: 't1'}, {_key: 'b', _ref: 't1'}]}), ["tags error: Can't be a duplicate"])
+  assert.deepEqual(messages({slug: 'a', tags: [{_key: 'a', _ref: 't1'}, {_key: 'b', _ref: 't2'}]}), [])
+})
+

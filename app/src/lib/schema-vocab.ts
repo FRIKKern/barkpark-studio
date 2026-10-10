@@ -1,7 +1,8 @@
 import type {Field, Rule} from './data'
 import type {RawSchema} from '../server/schemas'
 
-// What a schema file in fixtures/barkpark-schema may say, from what the studio reads
+// What a schema file in fixtures/barkpark-schema may say, from what the studio reads and
+// Barkpark's docs/contracts/schema-reference.md (barkpark#22640) names
 // (task-5012fe19eb89a5c6): the JSON Schema editors check those files against is made
 // from this (scripts/fixture-schema.mjs), and schema-vocab.test.ts keeps all three
 // in step: these types, the form's field registry and the generated file. The key
@@ -41,10 +42,22 @@ export const FIELD_KEYS = {
 
 /** Keys Barkpark reads on a field that the studio passes through as they are. */
 export const BARKPARK_FIELD_KEYS = {
-  ordered: 'arrayOf: whether order matters (Barkpark schema v2).',
+  ordered: 'arrayOf: adds reordering.',
   blocks: 'richText: the block vocabulary for Barkpark\'s editor.',
-  format: 'Barkpark\'s display format for the value.',
-  refTypeTolerant: 'reference: accept a target of another type.',
+  format: 'localizedText: "plain" or "rich".',
+  refTypeTolerant: 'reference: resolve the target as any type.',
+  refTypes: 'reference: the types it may point to (another spelling of `to`).',
+  description: 'Help text in Studio.',
+  surface: '"body" or "sidebar" (metadata only).',
+  encrypted: 'Encrypted at rest.',
+  private: 'Per-field read visibility.',
+  visibility: 'Per-field read visibility.',
+  readable_by: 'Per-field read visibility.',
+  onix: 'Passed through for ONIX export.',
+  source: 'slug: the field it derives from (also options.source).',
+  hotspot: 'image: the focal point (also options.hotspot).',
+  alt: 'image: true shows an alt input.',
+  version: 'codelist: the pinned version.',
 }
 
 /** A validation rule's keys (lib/validation.ts). */
@@ -53,6 +66,7 @@ export const RULE_KEYS = {
   min: 'At least this many characters, items, or this number.',
   max: 'At most this many characters, items, or this number.',
   pattern: 'A regular expression the text (or a slug\'s current) must match; Barkpark enforces it on write.',
+  unique: 'arrayOf: no two items with the same reference or value.',
   level: '"error" (blocks publishing, the default), "warning" or "info".',
   message: 'What to say instead of the default text.',
 } satisfies Record<keyof Rule, string>
@@ -76,6 +90,12 @@ export const SCHEMA_KEYS = {
 export const BARKPARK_SCHEMA_KEYS = {
   visibility: '"public" or "private": who may read its documents.',
   actions: 'Barkpark document actions the type declares.',
+  icon: 'Its icon.',
+  kind: '"document" or "object" (a named type other schemas use as a field type).',
+  owner_scoped: 'Documents scoped to their owner.',
+  desk_groups: 'Desk groups.',
+  cross_validations: 'Cross-field rules: [{name, title, rule, level, fields}].',
+  cors_origins: 'Origins allowed to read it from a browser.',
 }
 
 type JsonSchema = Record<string, unknown>
@@ -84,7 +104,7 @@ const described = (keys: Record<string, string>, extra: Record<string, JsonSchem
 
 /** The JSON Schema for one file in fixtures/barkpark-schema. */
 export function fixtureJsonSchema(): JsonSchema {
-  const rule = {type: 'object', additionalProperties: false, properties: described(RULE_KEYS, {required: {type: 'boolean'}, min: {type: 'number'}, max: {type: 'number'}, pattern: {type: 'string', format: 'regex'}, level: {enum: RULE_LEVELS}, message: {type: 'string'}})}
+  const rule = {type: 'object', additionalProperties: false, properties: described(RULE_KEYS, {required: {type: 'boolean'}, min: {type: 'number'}, max: {type: 'number'}, pattern: {type: 'string', format: 'regex'}, unique: {type: 'boolean'}, level: {enum: RULE_LEVELS}, message: {type: 'string'}})}
   const field = {
     type: 'object',
     required: ['name', 'type'],
@@ -113,7 +133,7 @@ export function fixtureJsonSchema(): JsonSchema {
     additionalProperties: false,
     properties: {
       ...described(SCHEMA_KEYS, {name: {type: 'string'}, title: {type: 'string'}, fields: {type: 'array', items: {$ref: '#/definitions/field'}}, singleton: {type: 'boolean'}}),
-      ...described(BARKPARK_SCHEMA_KEYS, {visibility: {enum: ['public', 'private']}}),
+      ...described(BARKPARK_SCHEMA_KEYS, {visibility: {enum: ['public', 'private']}, kind: {enum: ['document', 'object']}}),
     },
     definitions: {
       rule,
