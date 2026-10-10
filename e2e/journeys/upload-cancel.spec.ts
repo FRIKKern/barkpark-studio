@@ -5,6 +5,8 @@ import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 // A cancelled upload leaves no asset on Barkpark. The browser hands the studio server the
 // whole file in a moment; Cancel comes while the server sends it on (progress at 100%),
 // and Barkpark must end up without it (lib/upload-relay.ts). Cancels once left one each.
+// In CI, on the production build: there the client's leaving was never heard
+// (server/client-gone.ts), while the dev server passed.
 const base = () => `${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}`
 const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
 const named = async (name: string) =>
@@ -12,7 +14,7 @@ const named = async (name: string) =>
 
 test.afterEach(async ({page}) => closeAndSettle(page))
 
-test('@local J54: a cancelled upload leaves no asset on Barkpark', async ({page}, info) => {
+test('J54: a cancelled upload leaves no asset on Barkpark', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'our upload relay')
   test.setTimeout(60_000)
@@ -30,8 +32,8 @@ test('@local J54: a cancelled upload leaves no asset on Barkpark', async ({page}
   await card.getByRole('button', {name: 'Cancel'}).click()
   await expect(card).toBeHidden()
   try {
-    // Long enough for Barkpark to have taken it, had it gone on.
-    await page.waitForTimeout(8000)
+    // Long enough for Barkpark to have taken it, had it gone on (it answers in 0.6-1.4 s).
+    await page.waitForTimeout(4000)
     expect(await named(name), 'no asset left on Barkpark').toEqual([])
   } finally {
     for (const a of await named(name)) await fetch(`${base()}/v1/media/${process.env.BARKPARK_DATASET}/${a.id}`, {method: 'DELETE', headers: auth()})
