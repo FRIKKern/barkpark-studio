@@ -19,7 +19,7 @@ import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane
 import {DocumentPane, docTitle} from './DocumentPane'
 import {FocusModeContext, useFocusMode} from './FocusMode'
 import {DeskIcon} from './DeskIcon'
-import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search, Sort as SortIcon, Stack, StackCompact} from './icons'
+import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search, Sort as SortIcon, Stack, StackCompact, WarningOutline} from './icons'
 import {DocPreview} from './Preview'
 import {BulkBar} from './BulkBar'
 import {MAX_SELECTED} from '../lib/bulk'
@@ -367,7 +367,7 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
 
 function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; selected?: string}) {
   const t = useT()
-  const {data: schemas = []} = useQuery(schemasQuery)
+  const {data: schemas = [], isSuccess} = useQuery(schemasQuery)
   // Sanity's default structure: one row per document type, in schema order.
   const order = ['post', 'author', 'category']
   // Types not named here keep the schema's order, after these (they used to sort first).
@@ -377,6 +377,28 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   // each opening its one document (id = the type's name).
   const singletons = schemas.filter((s) => s.singleton)
   const own = studioDesk()?.items ?? []
+  // A dataset with no schema yet: Sanity's "No document types" card, not an empty pane (and
+  // not the studio's own items, which list types that are not there).
+  if (isSuccess && schemas.length === 0)
+    return (
+      <section className="pane types" aria-label={t('Content')} data-testid="pane" data-pane="types" data-pane-index={index}>
+        <header className="pane-header">
+          <span className="title">{t('Content')}</span>
+        </header>
+        <div className="pane-body">
+          <div className="no-types" role="status">
+            <WarningOutline />
+            <div>
+              <p className="no-types-title">{t('No document types')}</p>
+              <p>{t('Please define at least one document type in your schema.')}</p>
+              <a href="https://github.com/FRIKKern/barkpark/blob/main/docs/contracts/schema-reference.md" target="_blank" rel="noreferrer">
+                {t('Learn how to add a document type →')}
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
   return (
     <section className="pane types" aria-label={t('Content')} data-testid="pane" data-pane="types" data-pane-index={index}>
       <header className="pane-header">

@@ -90,6 +90,10 @@ export default {
   'Could not fetch list items': 'Kunne ikke hente listeobjekter',
   'No results found': 'Ingen resultater funnet',
   'No documents of this type': 'Ingen dokumenter av denne typen',
+  // Sanity's own nb (@sanity/locale-nb-no, no-document-types-screen.*).
+  'No document types': 'Ingen dokumenttyper',
+  'Please define at least one document type in your schema.': 'Vennligst definer minst én dokumenttype i ditt skjema.',
+  'Learn how to add a document type →': 'Lær hvordan du legger til en dokumenttype →',
   'Select {title}': 'Velg {title}',
   'Selection limit reached ({max})': 'Grensen for utvalg er nådd ({max})',
   'Loading more documents…': 'Laster flere dokumenter…',
