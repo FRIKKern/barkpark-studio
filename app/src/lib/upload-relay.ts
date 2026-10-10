@@ -8,6 +8,16 @@
 // A cancelled upload once went on to Barkpark regardless and left the asset behind
 // (8 copies of one file after a scout's cancels).
 
+/**
+ * The asset a Barkpark upload answer made, to delete when the upload was cancelled. Not
+ * one it answered with because it had the same bytes already (`existing`,
+ * task-b6e57c37f6928344): that one stays.
+ */
+export const madeAsset = (answer: unknown): string | undefined => {
+  const r = (answer as {result?: {id?: string; existing?: boolean}} | null)?.result
+  return r?.existing ? undefined : r?.id
+}
+
 export type Sent = {res: Response; cancelled: false} | {res: null; cancelled: true}
 
 const CHUNK = 64 * 1024
