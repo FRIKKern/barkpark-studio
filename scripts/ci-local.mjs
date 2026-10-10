@@ -26,7 +26,7 @@ sh('pnpm --dir app install --frozen-lockfile --silent && pnpm --dir e2e install 
 for (const [shard, dataset] of [[1, 'ci'], [2, 'ci-2'], [3, 'ci-3'], [4, 'ci-4'], [5, 'ci-5']]) {
   sh('node scripts/seed-barkpark.mjs --data', {BARKPARK_DATASET: dataset})
   const port = 3100 + shard
-  const srv = execSync(`(BARKPARK_DATASET=${dataset} nohup pnpm --dir app exec vite preview --port ${port} --strictPort > /tmp/ci-local-${shard}.log 2>&1 & echo $!)`, {env: {...env, BARKPARK_DATASET: dataset}}).toString().trim()
+  const srv = execSync(`(BARKPARK_DATASET=${dataset} STUDIO_SIGN_IN=shared nohup pnpm --dir app exec vite preview --port ${port} --strictPort > /tmp/ci-local-${shard}.log 2>&1 & echo $!)`, {env: {...env, BARKPARK_DATASET: dataset}}).toString().trim()
   try {
     execSync(`for i in $(seq 1 60); do curl -sf http://localhost:${port}/health >/dev/null && exit 0; sleep 1; done; exit 1`, {shell: '/bin/bash'})
     const t = Date.now()

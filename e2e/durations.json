@@ -1,5 +1,6 @@
 {
   "a11y.spec.ts": 0,
+  "account-sign-in.spec.ts": 0,
   "asset-delete.spec.ts": 0,
   "asset-picker.spec.ts": 3.4,
   "big-list.spec.ts": 0,
