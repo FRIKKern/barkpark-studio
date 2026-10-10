@@ -385,6 +385,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
                 return at ? t('Published {date}', {date: longDate(at, locale)}) : t('Published')
               }}
               data-selected={viewingPublished ? '' : undefined}
+              data-tone="positive"
               aria-pressed={viewingPublished}
               onClick={() => navigate({href: `${base}?perspective=published`})}
             >
