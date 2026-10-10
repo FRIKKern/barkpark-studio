@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MediaRouteImport } from './routes/media'
 import { Route as PresentationRouteImport } from './routes/presentation'
 import { Route as VisionRouteImport } from './routes/vision'
+import { Route as ApiE2eListenRouteImport } from './routes/api/e2e-listen'
 import { Route as ApiListenRouteImport } from './routes/api/listen'
 import { Route as ApiMutateRouteImport } from './routes/api/mutate'
 import { Route as ApiPresenceRouteImport } from './routes/api/presence'
@@ -69,6 +70,11 @@ const PresentationRoute = PresentationRouteImport.update({
 const VisionRoute = VisionRouteImport.update({
   id: '/vision',
   path: '/vision',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiE2eListenRoute = ApiE2eListenRouteImport.update({
+  id: '/api/e2e-listen',
+  path: '/api/e2e-listen',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiListenRoute = ApiListenRouteImport.update({
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/media': typeof MediaRoute
   '/presentation': typeof PresentationRoute
   '/vision': typeof VisionRoute
+  '/api/e2e-listen': typeof ApiE2eListenRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
   '/api/presence': typeof ApiPresenceRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/media': typeof MediaRoute
   '/presentation': typeof PresentationRoute
   '/vision': typeof VisionRoute
+  '/api/e2e-listen': typeof ApiE2eListenRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
   '/api/presence': typeof ApiPresenceRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/media': typeof MediaRoute
   '/presentation': typeof PresentationRoute
   '/vision': typeof VisionRoute
+  '/api/e2e-listen': typeof ApiE2eListenRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
   '/api/presence': typeof ApiPresenceRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/media'
     | '/presentation'
     | '/vision'
+    | '/api/e2e-listen'
     | '/api/listen'
     | '/api/mutate'
     | '/api/presence'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/media'
     | '/presentation'
     | '/vision'
+    | '/api/e2e-listen'
     | '/api/listen'
     | '/api/mutate'
     | '/api/presence'
@@ -318,6 +329,7 @@ export interface FileRouteTypes {
     | '/media'
     | '/presentation'
     | '/vision'
+    | '/api/e2e-listen'
     | '/api/listen'
     | '/api/mutate'
     | '/api/presence'
@@ -347,6 +359,7 @@ export interface RootRouteChildren {
   MediaRoute: typeof MediaRoute
   PresentationRoute: typeof PresentationRoute
   VisionRoute: typeof VisionRoute
+  ApiE2eListenRoute: typeof ApiE2eListenRoute
   ApiListenRoute: typeof ApiListenRoute
   ApiMutateRoute: typeof ApiMutateRoute
   ApiPresenceRoute: typeof ApiPresenceRoute
@@ -417,6 +430,13 @@ declare module '@tanstack/react-router' {
       path: '/vision'
       fullPath: '/vision'
       preLoaderRoute: typeof VisionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/e2e-listen': {
+      id: '/api/e2e-listen'
+      path: '/api/e2e-listen'
+      fullPath: '/api/e2e-listen'
+      preLoaderRoute: typeof ApiE2eListenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/listen': {
@@ -563,6 +583,7 @@ const rootRouteChildren: RootRouteChildren = {
   MediaRoute: MediaRoute,
   PresentationRoute: PresentationRoute,
   VisionRoute: VisionRoute,
+  ApiE2eListenRoute: ApiE2eListenRoute,
   ApiListenRoute: ApiListenRoute,
   ApiMutateRoute: ApiMutateRoute,
   ApiPresenceRoute: ApiPresenceRoute,

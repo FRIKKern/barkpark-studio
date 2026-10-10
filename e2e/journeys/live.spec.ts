@@ -61,3 +61,47 @@ test('live: a draft discarded elsewhere leaves the open document', async ({page}
   }
 })
 
+
+// The hub's own upstream (server/listen.ts), cut or gone deaf while another client writes.
+// Levers: POST /api/e2e-listen (the studio server runs with STUDIO_E2E_HOOKS=1).
+const lever = (page: import('@playwright/test').Page, action: 'deaf' | 'cut' | 'flip', ms?: number) =>
+  page.request.post('/api/e2e-listen', {data: {action, ms}}).then((r) => expect(r.ok(), `lever ${action}`).toBe(true))
+
+test('live: the upstream cut mid-write; the hub resumes at its last frame and nothing is lost', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'our listen hub')
+  await page.goto(t.docPath('post', ID))
+  await t.settle(page)
+  await expect(t.field(page, 'title')).toHaveValue(TITLE)
+  try {
+    await lever(page, 'cut', 1500)
+    await t.patch(ID, {title: `${TITLE} in the gap`})
+    await expect(t.field(page, 'title'), 'replayed from Last-Event-ID').toHaveValue(`${TITLE} in the gap`, {timeout: 6_000})
+  } finally {
+    await t.restore(ID, {title: TITLE})
+  }
+})
+
+// A Barkpark deploy flips Caddy to a new instance; a stream opened before stays on the old
+// one, alive and deaf, until it closes (de6987a, 2026-10-09: ~25 s without frames).
+test('@local live: a deploy leaves the stream deaf; a new instance re-opens it and the missed frames come', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'our listen hub')
+  await context.addInitScript(() => ((window as {__liveFrames?: string[]}).__liveFrames = []))
+  const framesFor = () => page.evaluate((id) => (window as {__liveFrames?: string[]}).__liveFrames!.filter((f) => f.endsWith(`.${id}`) || f.endsWith(`|${id}`)).length, ID)
+  await page.goto(t.docPath('post', ID))
+  await t.settle(page)
+  await expect(t.field(page, 'title')).toHaveValue(TITLE)
+  try {
+    await lever(page, 'deaf')
+    const before = await framesFor()
+    await t.patch(ID, {title: `${TITLE} after the flip`})
+    await page.waitForTimeout(1500)
+    expect(await framesFor(), 'deaf: no frame arrives').toBe(before)
+    await lever(page, 'flip')
+    await expect.poll(framesFor, {timeout: 8_000}).toBeGreaterThan(before)
+    await expect(t.field(page, 'title')).toHaveValue(`${TITLE} after the flip`)
+  } finally {
+    await t.restore(ID, {title: TITLE})
+  }
+})
