@@ -257,4 +257,12 @@ export default {
   video: 'video',
   audio: 'lyd',
   other: 'annet',
+  // The inspector (LiveView's words); a processing state is Barkpark's
+  ready: 'klar',
+  processing: 'behandles',
+  failed: 'feilet',
+  MIME: 'MIME',
+  Updated: 'Oppdatert',
+  'Copy link': 'Kopier lenke',
+  'Open file': 'Åpne filen',
 } satisfies Record<string, string>

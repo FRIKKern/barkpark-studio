@@ -4,7 +4,7 @@ import {assetQuery, assetsQuery, collectionsQuery, createFolder, KINDS, kindCoun
 import {reasonOf} from '../lib/edits'
 import {Close, DocumentIcon, Search} from './icons'
 import {toast} from './Toasts'
-import {useT, type T} from '../lib/i18n'
+import {intlTag, useLocale, useT, type T} from '../lib/i18n'
 import {useCanWrite} from '../lib/session'
 import {uploadFile} from '../lib/upload'
 
@@ -16,7 +16,8 @@ const SORT_TITLES: Record<Sort, string> = {'created-desc': 'Newest first', 'crea
 const KIND_TITLES: Record<Kind, string> = {image: 'Images', video: 'Video', audio: 'Audio', document: 'Documents', other: 'Other'}
 /** One asset's kind, as LiveView's list and inspector name it. */
 const KIND_NAMES: Record<Kind, string> = {image: 'image', video: 'video', audio: 'audio', document: 'document', other: 'other'}
-const size = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} kB`)
+// LiveView's sizes: binary units, one decimal ("9.4 KB").
+const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${(n / 1024).toFixed(1)} KB`)
 const fail = (title: string) => (e: unknown) => toast({tone: 'critical', title, description: reasonOf((e as Error).message) ?? (e as Error).message})
 
 export function MediaLibrary() {
@@ -213,6 +214,7 @@ function Tile({asset, picked, onPick}: {asset: LibraryAsset; picked: boolean; on
 
 function Inspector({id, folder, folders, onClose}: {id: string; folder?: string; folders: {id: string; title: string}[]; onClose: () => void}) {
   const t = useT()
+  const locale = useLocale()
   const qc = useQueryClient()
   const {data: a, isError, refetch} = useQuery(assetQuery(id))
   const [meta, setMeta] = useState({title: '', altText: ''})
@@ -253,15 +255,38 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
         </button>
       </header>
       {a.mimeType.startsWith('image/') && <img className="media-preview" src={`/api/media/${encodeURIComponent(a.id)}`} alt={a.altText ?? ''} />}
+      {/* LiveView's chips: processing state, then visibility. */}
+      <p className="media-chips">
+        {a.processing && <span className="badge" data-tone={a.processing === 'ready' ? 'positive' : a.processing === 'failed' ? 'critical' : undefined}>{t(a.processing)}</span>}
+        {a.visibility && <span className="badge">{t(a.visibility === 'private' ? 'Private' : 'Public')}</span>}
+      </p>
       <dl className="paper-facts">
-        <dt>{t('Type')}</dt>
-        <dd>{a.mimeType || t('unknown')}</dd>
+        <dt>{t('Kind')}</dt>
+        <dd>{a.kind ? t(KIND_NAMES[a.kind as Kind] ?? a.kind) : t('unknown')}</dd>
+        <dt>{t('MIME')}</dt>
+        <dd className="mono">{a.mimeType || t('unknown')}</dd>
         <dt>{t('Size')}</dt>
         <dd>{size(a.size)}</dd>
+        {a.updatedAt && (
+          <>
+            <dt>{t('Updated')}</dt>
+            <dd>{new Date(a.updatedAt).toLocaleString(intlTag(locale), {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit'})}</dd>
+          </>
+        )}
         <dt>{t('Visibility')}</dt>
         {/* Barkpark sends its visibility copy in English; the Studio says it in the editor's language. */}
         <dd>{a.visibilityNotice ? t(a.visibilityNotice.label) : a.visibility ? t(a.visibility === 'private' ? 'Private' : 'Public') : t('unknown')}</dd>
       </dl>
+      <p className="media-file-actions">
+        {a.link && (
+          <button type="button" className="btn" onClick={() => navigator.clipboard.writeText(a.link!).then(() => toast({title: t('The URL is copied to the clipboard')}))}>
+            {t('Copy link')}
+          </button>
+        )}
+        <a className="btn" href={`/api/media/${encodeURIComponent(a.id)}`} target="_blank" rel="noreferrer">
+          {t('Open file')}
+        </a>
+      </p>
       {a.visibilityNotice && <p className="muted media-note">{t(a.visibilityNotice.copy)}</p>}
       <section className="media-section" aria-label={t('Checkout')}>
         <h3>{t('Checkout')}</h3>

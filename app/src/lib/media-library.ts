@@ -23,6 +23,11 @@ export type AssetDetail = LibraryAsset & {
   checkedOutAt?: string
   canEdit: boolean
   visibilityNotice?: {label: string; copy: string}
+  /** Barkpark's processing state ("ready", "processing", "failed"), LiveView's status chip. */
+  processing?: string
+  updatedAt?: string
+  /** The file's address at Barkpark (LiveView's Copy link). */
+  link?: string
 }
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -38,7 +43,9 @@ type RawAsset = {
   permissions?: string[]
   checkoutLabel?: string | null
   visibilityNotice?: {label: string; copy: string}
-  asset?: {_id?: string; title?: string; altText?: string; checkedOutBy?: string | null; checkedOutAt?: string; bp_asset_kind?: string; fileInfo?: {mimeType?: string; originalName?: string}}
+  updatedAt?: string
+  absoluteUrl?: string
+  asset?: {_id?: string; _updatedAt?: string; bp_processing_status?: string; title?: string; altText?: string; checkedOutBy?: string | null; checkedOutAt?: string; bp_asset_kind?: string; fileInfo?: {mimeType?: string; originalName?: string}}
 }
 const toAsset = (a: RawAsset): LibraryAsset => ({
   id: a.id,
@@ -114,6 +121,9 @@ const fetchAsset = createServerFn({method: 'GET'})
       checkedOutAt: a.asset?.checkedOutAt,
       canEdit: (a.permissions ?? []).includes('edit_metadata'),
       visibilityNotice: a.visibilityNotice && {label: a.visibilityNotice.label, copy: a.visibilityNotice.copy},
+      processing: a.asset?.bp_processing_status,
+      updatedAt: a.asset?._updatedAt ?? a.updatedAt,
+      link: a.absoluteUrl,
     }
     return detail as unknown as Json
   })
