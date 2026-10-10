@@ -6,6 +6,7 @@
 //   node --env-file=.env scripts/seed-barkpark.mjs --data    # reset data, leave schemas (CI token can't write schemas)
 //   node --env-file=.env scripts/seed-barkpark.mjs --schemas # schemas only, data untouched (other lanes' datasets)
 //   … --no-history                                          # skip rebuilding post-history after a reset
+//   … --production                                          # required to write the production dataset
 //
 // With SANITY_TOKEN set, verify also reads the reference Sanity dataset live and
 // checks it maps to the same documents.
@@ -206,6 +207,10 @@ function history() {
   if (run.status !== 0) console.warn('seed-barkpark: post-history not rebuilt (J15/J16 need it): run scripts/reference-history.mjs by hand')
 }
 
+// production is where people edit: a reset there replaces and prunes their documents.
+// Refused unless asked by name (`.env.example`'s default dataset is production).
+if (DATASET === 'production' && !process.argv.includes('--verify') && !process.argv.includes('--production'))
+  fail('BARKPARK_DATASET is production, where people edit: this would overwrite it. Set your own lane (BARKPARK_DATASET=e2e-<you>), or pass --production if that is really meant.')
 if (process.argv.includes('--schemas')) await applySchemas()
 else {
   if (!process.argv.includes('--verify')) {

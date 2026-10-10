@@ -8,7 +8,7 @@
 - Never switch branches in the main checkout. Use a worktree:
   `git worktree add ../barkpark-studio-<name> -b feat/<name>`, remove it after merge.
 - PRs are squash-merged. The branch is deleted on merge (repo setting).
-- Merge only when `gh pr checks` is green. By convention, not a required check ([0003](docs/decisions/0003-tracking-and-hygiene.md)).
+- Merge only when `gh pr checks` is green: main requires every check ([0003](docs/decisions/0003-tracking-and-hygiene.md)).
 - Fill in the PR template: journey id, side-by-side done, docs in the same PR, test budget.
 
 ## Tests

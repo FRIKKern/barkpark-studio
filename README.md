@@ -38,7 +38,7 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 | Phases | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
 | The quality bar + test budget | [`QUALITY.md`](QUALITY.md) |
 | The journeys (the spec) | [`JOURNEYS.md`](JOURNEYS.md) |
-| How we work | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| How we work; extending it (types, desk, inputs, actions, build) | [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/EXTENDING.md`](docs/EXTENDING.md) |
 | Ported code + licenses | [`THIRD-PARTY.md`](THIRD-PARTY.md) |
 | Decisions | [`docs/decisions/`](docs/decisions/), one page each |
 | Status, who does what | Barkpark tasks under goal `task-130be6b834d485ae`, mirrored to [FRIKKern/barkpark#21665](https://github.com/FRIKKern/barkpark/issues/21665). Never in docs |
@@ -63,7 +63,7 @@ docs/                roadmap, decisions (one page each)
 cd reference/sanity && SANITY_STUDIO_DATASET=e2e-local pnpm dev # reference, :3333; use this env for e2e too
 pnpm exec sanity dataset import ../../fixtures/seed.ndjson --dataset e2e-local # seed isolated reference; never reset production
 cp .env.example .env                            # BARKPARK_TOKEN (+ SANITY_TOKEN to verify the reference)
-node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify Barkpark studio-parity (--verify: check only)
+node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify BARKPARK_DATASET (your e2e-<you>; production refused)
 node --env-file=.env scripts/seed-bulk.mjs      # optional J41: e2e-local datasets only; see script for overrides
 cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
 pnpm check                                      # typecheck + build; fails if client code imports src/server
