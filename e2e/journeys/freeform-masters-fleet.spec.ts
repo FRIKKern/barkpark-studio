@@ -3,7 +3,8 @@ import {bpBase, bpDataset, closeAndSettle, resetNative, target} from '../rig/tar
 
 // D13 and D14, ours (Barkpark-only: Sanity has no Freeform). What can break silently: a
 // paper's task blocks stop painting or stop following a task change; a block can no
-// longer be saved as a master, inserted linked, pinned or detached.
+// longer be saved as a master, inserted linked, pinned or detached. D13 is @local: five
+// server round trips take about 9 s on a CI runner, over rule 5's 5 s.
 const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
 const canvas = (page: Page) => page.locator('bp-paper-canvas')
 
@@ -34,7 +35,7 @@ test.describe('D13', () => {
     await resetNative(ID, 'paper')
   })
 
-  test('D13: save a block as a master, insert it linked, pin, unpin, detach', async ({page}, info) => {
+  test('@local D13: save a block as a master, insert it linked, pin, unpin, detach', async ({page}, info) => {
     const t = target(info)
     test.skip(t.name === 'sanity', 'Barkpark-only: Sanity has no Freeform')
     await page.goto(t.docPath('paper', ID))
