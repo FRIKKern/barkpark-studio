@@ -74,7 +74,8 @@ export function usePresenceStream() {
       es.addEventListener('presence', (e) => {
         const all = (JSON.parse((e as MessageEvent).data) as {presences: Presence[]}).presences
         others = all.filter((p) => p.sessionId !== self)
-        ;(window as {__presenceFrames?: number}).__presenceFrames = ((window as {__presenceFrames?: number}).__presenceFrames ?? 0) + 1 // e2e probe
+        // e2e probe: this tab's session and the ones it sees (a spec tells one tab from another).
+        Object.assign(window, {__presence: {self, others: others.map((p) => p.sessionId)}})
         emit()
       })
       es.onerror = () => {
