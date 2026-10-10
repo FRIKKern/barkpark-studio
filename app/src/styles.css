@@ -40,7 +40,7 @@
   --code-key: #2f3f9e;
   --code-summary: #8d3fc2;
   color-scheme: light;
-  --published: #3ab667;
+  --published: #0db770; /* reference/sanity's positive dot, measured (its theme's badge dot #0db66e) */
   --positive-fg: #0d5133; /* the Published chip's text, measured on reference/sanity */
   --focus-ring: #556bfc; /* keyboard focus, as Sanity's: a 1 px inset ring */
   --publish-disabled-bg: #bbbdc9;
@@ -122,6 +122,7 @@
   --code-key: #9fb0ff;
   --code-summary: #c99bf0;
   --positive-fg: #5df3bd;
+  --published: #13c184;
   --focus-ring: #596ffc;
   --publish-disabled-bg: #555c75;
   --publish-disabled-fg: #212639;
@@ -841,11 +842,11 @@ fieldset.object-field > .field-actions { top: -38px; }
 .history-list [data-current] > button:first-child { background: var(--hover-strong); }
 .history-list .avatar { position: relative; flex: none; display: grid; place-items: center; width: 33px; height: 33px; border-radius: 50%; background: var(--avatar-blue); color: var(--avatar-fg); font-size: 12px; font-weight: 600; }
 .history-list .badge { position: absolute; right: -3px; bottom: -3px; width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--bg); background: var(--muted); }
-.history-list .badge[data-kind=published] { background: var(--published); }
+.history-list .badge[data-kind=published] { background: var(--avatar-green); }
 .history-list .badge[data-kind=unpublished] { background: var(--avatar-orange); }
 .history-list .badge[data-kind=discarded] { background: var(--avatar-orange); }
 .history-list .badge[data-kind=edited] { background: var(--avatar-yellow); }
-.history-list .badge[data-kind=created] { background: var(--published); }
+.history-list .badge[data-kind=created] { background: var(--avatar-green); }
 .history-text { display: flex; flex-direction: column; font-size: 13px; line-height: 17px; font-weight: 500; }
 .history-text time { font-weight: 400; color: var(--muted); }
 .revision-footer { background: var(--warn-bg); }
