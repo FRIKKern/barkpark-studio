@@ -52,6 +52,7 @@ export const RULE_KEYS = {
   required: 'The field must have a value.',
   min: 'At least this many characters, items, or this number.',
   max: 'At most this many characters, items, or this number.',
+  pattern: 'A regular expression the text (or a slug\'s current) must match; Barkpark enforces it on write.',
   level: '"error" (blocks publishing, the default), "warning" or "info".',
   message: 'What to say instead of the default text.',
 } satisfies Record<keyof Rule, string>
@@ -83,7 +84,7 @@ const described = (keys: Record<string, string>, extra: Record<string, JsonSchem
 
 /** The JSON Schema for one file in fixtures/barkpark-schema. */
 export function fixtureJsonSchema(): JsonSchema {
-  const rule = {type: 'object', additionalProperties: false, properties: described(RULE_KEYS, {required: {type: 'boolean'}, min: {type: 'number'}, max: {type: 'number'}, level: {enum: RULE_LEVELS}, message: {type: 'string'}})}
+  const rule = {type: 'object', additionalProperties: false, properties: described(RULE_KEYS, {required: {type: 'boolean'}, min: {type: 'number'}, max: {type: 'number'}, pattern: {type: 'string', format: 'regex'}, level: {enum: RULE_LEVELS}, message: {type: 'string'}})}
   const field = {
     type: 'object',
     required: ['name', 'type'],

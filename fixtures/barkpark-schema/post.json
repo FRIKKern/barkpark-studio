@@ -11,7 +11,7 @@
   ]},
   "fields": [
     {"name": "title", "title": "Title", "type": "string", "group": "content", "validation": {"required": true, "max": 120}},
-    {"name": "slug", "title": "Slug", "type": "slug", "group": "content", "options": {"source": "title"}, "validation": {"required": true}},
+    {"name": "slug", "title": "Slug", "type": "slug", "group": "content", "options": {"source": "title"}, "validation": [{"required": true}, {"pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "message": "Lowercase letters and digits, words joined by dashes"}]},
     {"name": "excerpt", "title": "Excerpt", "type": "text", "rows": 3, "group": "content", "validation": {"max": 160, "level": "warning", "message": "Long excerpts get cut off in previews"}},
     {"name": "author", "title": "Author", "type": "reference", "refType": "author", "group": "content"},
     {"name": "categories", "title": "Categories", "type": "arrayOf", "ordered": true, "group": "content",

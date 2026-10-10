@@ -13,7 +13,18 @@ export const post = defineType({
   ],
   fields: [
     defineField({name: 'title', type: 'string', group: 'content', validation: (r) => r.required().max(120)}),
-    defineField({name: 'slug', type: 'slug', group: 'content', options: {source: 'title'}, validation: (r) => r.required()}),
+    // A slug pattern, as fixtures/barkpark-schema/post.json declares it (Barkpark's `pattern`);
+    // Sanity's slug rule has no regex(), so a custom rule with the same message.
+    defineField({
+      name: 'slug',
+      type: 'slug',
+      group: 'content',
+      options: {source: 'title'},
+      validation: (r) => [
+        r.required(),
+        r.custom((v: {current?: string} | undefined) => !v?.current || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v.current) || 'Lowercase letters and digits, words joined by dashes'),
+      ],
+    }),
     // J13: a warning (never blocks publish).
     defineField({name: 'excerpt', type: 'text', rows: 3, group: 'content', components: {input: CountedInput}, validation: (r) => r.max(160).warning('Long excerpts get cut off in previews')}),
     defineField({name: 'author', type: 'reference', to: [{type: 'author'}], group: 'content'}),
