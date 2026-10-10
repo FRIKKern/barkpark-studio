@@ -43,7 +43,7 @@ export const FIELD_KEYS = {
 /** Keys Barkpark reads on a field that the studio passes through as they are. */
 export const BARKPARK_FIELD_KEYS = {
   ordered: 'arrayOf: adds reordering.',
-  blocks: 'richText: the block vocabulary for Barkpark\'s editor.',
+  blocks: 'richText: the block vocabulary for Barkpark\'s editor (styles, lists, marks, annotations, of, inline: inline objects [{name, fields}]).',
   format: 'localizedText: "plain" or "rich".',
   refTypeTolerant: 'reference: resolve the target as any type.',
   refTypes: 'reference: the types it may point to (another spelling of `to`).',

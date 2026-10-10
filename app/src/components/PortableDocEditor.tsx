@@ -27,7 +27,8 @@ type Canvas = HTMLElement & {
   acknowledgedSaves: boolean
   acknowledgeOps(seq: number, saved: boolean): boolean
   identifyOpsRequest(seq: number, requestId: string, previousRequestId?: string | null): boolean
-  discardInflightOps(seq: number): boolean
+  /** `refusal.reason`: the server's "path: why"; a refused inline-object save reopens its dialog on that field. */
+  discardInflightOps(seq: number, refusal?: {reason: string}): boolean
   resendPendingOps(): boolean
   applyServerBlocks(blocks: Block[], echo?: {mode?: 'own' | 'own-stale'; requestId?: string}): void
   applyServerBlocksIfIdle(blocks: Block[]): boolean
@@ -277,7 +278,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         if (gone) return
         // Refused: the edit stays on screen and goes out with the next batch, and the
         // words are kept on this computer now, so closing the tab loses nothing (D21).
-        el.discardInflightOps(seq)
+        // Barkpark's vocabulary refusal reads "not allowed in this field: <path>: <why>".
+        el.discardInflightOps(seq, {reason: (e as Error).message.replace(/^not allowed in this field: /, '')})
         setSave({state: 'error', message: (e as Error).message})
         refused.current = true
 
