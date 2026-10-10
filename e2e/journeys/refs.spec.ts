@@ -243,9 +243,12 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
   await page.goto(t.docPath('author', 'author-alan'))
   await t.settle(page)
   await referenceHold(page, t.field(page, 'name'), 'Alan Turing')
+  // Reads fail until let go: let go only as Retry is pressed, so no other read (a live
+  // frame's "used in" refresh, CI ef7d9e8) can answer first and take the Retry button away.
+  let failReads = true
   if (t.name === 'studio') {
     await expect(t.field(page, 'name')).toHaveValue('Alan Turing')
-    await page.route('**/_serverFn/**', (route) => route.request().method() === 'GET' ? route.abort('failed') : route.continue())
+    await page.route('**/_serverFn/**', (route) => (failReads && route.request().method() === 'GET' ? route.abort('failed') : route.continue()))
   }
   await t.docMenu(page).click()
   await referenceHold(page, page.getByRole('menuitem', {name: 'Delete'}))
@@ -254,9 +257,10 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
   if (t.name === 'studio') {
     await expect(dialog.getByRole('alert')).toContainText('Could not check where this document is used')
     await expect(dialog.getByRole('button', {name: 'Delete now'})).toBeDisabled()
-    await page.unrouteAll({behavior: 'wait'})
     await dialog.getByRole('button', {name: 'Retry', exact: true}).focus()
+    failReads = false
     await page.keyboard.press('Enter')
+    await page.unrouteAll({behavior: 'wait'})
     await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
   }
   await expect(dialog).toContainText('10 documents refer to “Alan Turing”')
