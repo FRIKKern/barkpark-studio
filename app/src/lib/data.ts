@@ -25,7 +25,7 @@ export type Doc = {_id: string; _publishedId: string; _type: string; _draft: boo
   unknown
 >
 /** Barkpark's field rule: Sanity's checks, `level` (default error) and a `message` that replaces the generated one. */
-export type Rule = {required?: boolean; min?: number; max?: number; pattern?: string; level?: string; message?: string}
+export type Rule = {required?: boolean; min?: number; max?: number; pattern?: string; unique?: boolean; level?: string; message?: string}
 
 export type Field = {
   name: string

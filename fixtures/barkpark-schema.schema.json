@@ -61,6 +61,28 @@
     },
     "actions": {
       "description": "Barkpark document actions the type declares."
+    },
+    "icon": {
+      "description": "Its icon."
+    },
+    "kind": {
+      "description": "\"document\" or \"object\" (a named type other schemas use as a field type).",
+      "enum": [
+        "document",
+        "object"
+      ]
+    },
+    "owner_scoped": {
+      "description": "Documents scoped to their owner."
+    },
+    "desk_groups": {
+      "description": "Desk groups."
+    },
+    "cross_validations": {
+      "description": "Cross-field rules: [{name, title, rule, level, fields}]."
+    },
+    "cors_origins": {
+      "description": "Origins allowed to read it from a browser."
     }
   },
   "definitions": {
@@ -84,6 +106,10 @@
           "description": "A regular expression the text (or a slug's current) must match; Barkpark enforces it on write.",
           "type": "string",
           "format": "regex"
+        },
+        "unique": {
+          "description": "arrayOf: no two items with the same reference or value.",
+          "type": "boolean"
         },
         "level": {
           "description": "\"error\" (blocks publishing, the default), \"warning\" or \"info\".",
@@ -218,18 +244,54 @@
           "description": "true, or a condition like visibleWhen."
         },
         "ordered": {
-          "description": "arrayOf: whether order matters (Barkpark schema v2).",
+          "description": "arrayOf: adds reordering.",
           "type": "boolean"
         },
         "blocks": {
           "description": "richText: the block vocabulary for Barkpark's editor."
         },
         "format": {
-          "description": "Barkpark's display format for the value."
+          "description": "localizedText: \"plain\" or \"rich\"."
         },
         "refTypeTolerant": {
-          "description": "reference: accept a target of another type.",
+          "description": "reference: resolve the target as any type.",
           "type": "boolean"
+        },
+        "refTypes": {
+          "description": "reference: the types it may point to (another spelling of `to`)."
+        },
+        "description": {
+          "description": "Help text in Studio."
+        },
+        "surface": {
+          "description": "\"body\" or \"sidebar\" (metadata only)."
+        },
+        "encrypted": {
+          "description": "Encrypted at rest."
+        },
+        "private": {
+          "description": "Per-field read visibility."
+        },
+        "visibility": {
+          "description": "Per-field read visibility."
+        },
+        "readable_by": {
+          "description": "Per-field read visibility."
+        },
+        "onix": {
+          "description": "Passed through for ONIX export."
+        },
+        "source": {
+          "description": "slug: the field it derives from (also options.source)."
+        },
+        "hotspot": {
+          "description": "image: the focal point (also options.hotspot)."
+        },
+        "alt": {
+          "description": "image: true shows an alt input."
+        },
+        "version": {
+          "description": "codelist: the pinned version."
         }
       }
     },
@@ -350,18 +412,54 @@
           "description": "true, or a condition like visibleWhen."
         },
         "ordered": {
-          "description": "arrayOf: whether order matters (Barkpark schema v2).",
+          "description": "arrayOf: adds reordering.",
           "type": "boolean"
         },
         "blocks": {
           "description": "richText: the block vocabulary for Barkpark's editor."
         },
         "format": {
-          "description": "Barkpark's display format for the value."
+          "description": "localizedText: \"plain\" or \"rich\"."
         },
         "refTypeTolerant": {
-          "description": "reference: accept a target of another type.",
+          "description": "reference: resolve the target as any type.",
           "type": "boolean"
+        },
+        "refTypes": {
+          "description": "reference: the types it may point to (another spelling of `to`)."
+        },
+        "description": {
+          "description": "Help text in Studio."
+        },
+        "surface": {
+          "description": "\"body\" or \"sidebar\" (metadata only)."
+        },
+        "encrypted": {
+          "description": "Encrypted at rest."
+        },
+        "private": {
+          "description": "Per-field read visibility."
+        },
+        "visibility": {
+          "description": "Per-field read visibility."
+        },
+        "readable_by": {
+          "description": "Per-field read visibility."
+        },
+        "onix": {
+          "description": "Passed through for ONIX export."
+        },
+        "source": {
+          "description": "slug: the field it derives from (also options.source)."
+        },
+        "hotspot": {
+          "description": "image: the focal point (also options.hotspot)."
+        },
+        "alt": {
+          "description": "image: true shows an alt input."
+        },
+        "version": {
+          "description": "codelist: the pinned version."
         }
       }
     }

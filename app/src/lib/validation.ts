@@ -4,7 +4,8 @@ import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
 // Barkpark keeps rules as data on each field: a map or a list of maps
-// (`{required, min, max, pattern, level, message}`). J13: only errors block publishing;
+// (`{required, min, max, pattern, unique, level, message}`, Barkpark's
+// docs/contracts/schema-reference.md). J13: only errors block publishing;
 // a warning or an info is shown the same ways in its own colour.
 export type Level = 'error' | 'warning' | 'info'
 /** `parents`: the titles of the objects the field sits in (Sanity's "Seo / Meta Title"). */
@@ -41,6 +42,11 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
     if (r.pattern !== undefined && text !== undefined && text !== '') {
       const re = regexOf(r.pattern)
       if (re && !re.test(text)) push(r, t('Does not match "{pattern}"-pattern', {pattern: `/${r.pattern}/`}))
+    }
+    // An arrayOf with no two items alike (Sanity's Rule.unique()): the same reference or value.
+    if (r.unique && Array.isArray(value)) {
+      const seen = value.map((it) => refId(it) ?? JSON.stringify(it && typeof it === 'object' ? {...(it as object), _key: undefined} : it))
+      if (new Set(seen).size !== seen.length) push(r, t("Can't be a duplicate"))
     }
     if (field.type === 'number' && typeof value === 'number') {
       if (r.max !== undefined && value > r.max) push(r, t('Must be lower than or equal to {max}', {max: r.max}))
