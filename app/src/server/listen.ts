@@ -12,10 +12,11 @@
 // The upstream can die without a word: the connection goes silent and stays open
 // until undici notices (10+ s), while writes happen. The hub then has nothing to
 // replay. So it re-opens the upstream (resuming at Last-Event-ID, which makes
-// Barkpark replay what was missed) when a browser comes back after a gap and the
-// upstream has been quiet, when one of our own writes gets no echo, after 45 s
-// with no byte at all (Barkpark sends a keepalive every 30 s), and when Barkpark
-// answers from a newly booted instance (watchBoot below).
+// Barkpark replay what was missed; with no id yet, the pages are told to read
+// again) when a browser comes back after a gap and the upstream has been quiet,
+// when one of our own writes gets no echo, after 45 s with no byte at all
+// (Barkpark sends a keepalive every 30 s), and when Barkpark answers from a newly
+// booted instance (watchBoot below).
 import '@tanstack/react-start/server-only'
 import {bpFetch, forgetReads, forgetReadsOf, READ_DEDUPE_MS, scope} from './barkpark'
 import type {Scope} from '../lib/scope'
@@ -163,8 +164,8 @@ let booted: number | null = null
 let bootShift = 0
 let bootTimer: ReturnType<typeof setInterval> | undefined
 const onBoot = new Set<() => void>()
-/** e2e: presence streams hear nothing until a new boot is seen (as a hub's `deaf`). */
-export let presenceDeaf = false
+/** e2e: presence streams opened before this hear nothing (on an instance being retired); one re-opened after hears. */
+export let presenceDeafSince = 0
 /** Run `cb` when Barkpark answers from a newly booted instance (presence re-opens its stream then). */
 export function onNewBoot(cb: () => void): () => void {
   onBoot.add(cb)
@@ -182,7 +183,6 @@ function watchBoot() {
       const boot = Date.parse(s.checked_at) - s.uptime_seconds * 1000 + bootShift
       if (booted !== null && Math.abs(boot - booted) > 5000) {
         for (const h of hubs.values()) if (h.upstream) (h.deaf = false), refresh(h)
-        presenceDeaf = false
         for (const cb of [...onBoot]) cb()
       }
       booted = boot
@@ -198,7 +198,7 @@ function watchBoot() {
 /** e2e (STUDIO_E2E_HOOKS=1): make every hub's (and presence) stream deaf, cut it for `ms`, or fake a newly booted instance. */
 export function e2eListen(action: 'deaf' | 'cut' | 'flip', ms = 0) {
   if (action === 'flip') return void (bootShift += 60_000)
-  if (action === 'deaf') presenceDeaf = true
+  if (action === 'deaf') presenceDeafSince = Date.now()
   for (const h of hubs.values()) {
     if (action === 'deaf') h.deaf = true
     else (h.holdUntil = Date.now() + ms), refresh(h)
@@ -222,6 +222,10 @@ async function connect(hub: Hub) {
       while (hub.holdUntil && Date.now() < hub.holdUntil && !attempt.signal.aborted) await new Promise((r) => setTimeout(r, 50))
       const headers: Record<string, string> = {accept: 'text/event-stream'}
       if (hub.lastEventId) headers['last-event-id'] = hub.lastEventId
+      // A re-open with no id to resume at (no frame since the hub connected, and the
+      // welcome carries none): Barkpark replays nothing, so the gap is unknown and every
+      // page reads again once the new stream answers.
+      const blind = !hub.lastEventId && !!hub.liveSince
       const res = await bpFetch(`/v1/data/listen/${hub.scope.dataset}`, {headers, signal: attempt.signal}, hub.token, {at: hub.scope})
       // A dead token (401, Barkpark #22517) won't come back by itself: ask again once a minute, not every 10 s.
       if (res.status === 401) delay = 60_000
@@ -229,6 +233,7 @@ async function connect(hub: Hub) {
       hub.lastByte = Date.now()
       hub.liveSince ||= Date.now()
       delay = 500
+      if (blind) for (const sub of hub.subscribers) sub.send('event: reset\ndata: {}\n\n')
       await pump(hub, res.body)
     } catch (err) {
       if (ctrl.signal.aborted) return

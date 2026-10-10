@@ -1,7 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, dataset, requestToken} from '../../server/barkpark'
 import {currentEditor} from '../../server/auth'
-import {onNewBoot, presenceDeaf} from '../../server/listen'
+import {onNewBoot, presenceDeafSince} from '../../server/listen'
 
 // Editor presence (J07): Barkpark's room for this workspace + project + dataset, the
 // same room its LiveView Studio joins. GET streams who is where (SSE, tracked while
@@ -24,6 +24,7 @@ export const Route = createFileRoute('/api/presence')({
         // this editor out of the room (else it lingers until a keepalive write fails).
         const reader = res.body.getReader()
         let off = () => {}
+        const opened = Date.now() // e2e: a stream opened before the deaf lever stays deaf
         const stream = new ReadableStream<Uint8Array>({
           start(c) {
             c.enqueue(new TextEncoder().encode('retry: 500\n\n')) // back within half a second
@@ -41,7 +42,7 @@ export const Route = createFileRoute('/api/presence')({
           async pull(c) {
             const r = await reader.read().catch(() => null)
             if (!r || r.done) (off(), c.close())
-            else if (!presenceDeaf) c.enqueue(r.value)
+            else if (opened > presenceDeafSince) c.enqueue(r.value)
           },
           cancel: () => (off(), upstream.abort()),
         })

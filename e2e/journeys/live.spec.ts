@@ -83,8 +83,10 @@ test('live: the upstream cut mid-write; the hub resumes at its last frame and no
 })
 
 // A Barkpark deploy flips Caddy to a new instance; a stream opened before stays on the old
-// one, alive and deaf, until it closes (de6987a, 2026-10-09: ~25 s without frames).
-test('@local live: a deploy leaves the stream deaf; a new instance re-opens it and the missed frames come', async ({page, context}, info) => {
+// one, alive and deaf, until it closes (de6987a, 2026-10-09: ~25 s without frames). The
+// re-open resumes at the hub's last event id (Barkpark replays the gap) or, with none yet
+// (no frame since it connected, as on a fresh server here), tells the page to read again.
+test('@local live: a deploy leaves the stream deaf; a new instance re-opens it and the missed change comes', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'our listen hub')
   await context.addInitScript(() => ((window as {__liveFrames?: string[]}).__liveFrames = []))
@@ -99,8 +101,7 @@ test('@local live: a deploy leaves the stream deaf; a new instance re-opens it a
     await page.waitForTimeout(1500)
     expect(await framesFor(), 'deaf: no frame arrives').toBe(before)
     await lever(page, 'flip')
-    await expect.poll(framesFor, {timeout: 8_000}).toBeGreaterThan(before)
-    await expect(t.field(page, 'title')).toHaveValue(`${TITLE} after the flip`)
+    await expect(t.field(page, 'title')).toHaveValue(`${TITLE} after the flip`, {timeout: 8_000})
   } finally {
     await t.restore(ID, {title: TITLE})
   }
