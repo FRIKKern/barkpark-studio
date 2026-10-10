@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 61 changes, 1 task closed
+- **Today** · 62 changes, 1 task closed
+  - B03: bulk ticks only for a token that may write; README run line for sign-in ([#415](https://github.com/FRIKKern/barkpark-studio/pull/415))
   - J67: sign in with a Barkpark account in a production build ([#414](https://github.com/FRIKKern/barkpark-studio/pull/414))
   - e2e: B journeys side by side with Barkpark's LiveView Studio (@evidence) ([#413](https://github.com/FRIKKern/barkpark-studio/pull/413))
-  - Decision 0006: five owner calls (scheduling, inline objects, roles, comments, sharing) ([#412](https://github.com/FRIKKern/barkpark-studio/pull/412))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
