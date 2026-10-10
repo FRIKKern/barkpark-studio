@@ -182,6 +182,13 @@ test('@evidence B08: media library', async ({page, browser}, info) => {
   await lv.locator('select').filter({hasText: 'Newest first'}).first().selectOption({label: 'Oldest first'})
   await lv.waitForTimeout(1500)
   await lv.screenshot({path: still('B08', '3-oldest', 'liveview')})
+  // List view on both.
+  await page.getByRole('button', {name: 'List', exact: true}).click()
+  await page.waitForTimeout(800)
+  await page.screenshot({path: still('B08', '4-list', 'studio')})
+  await lv.getByText('List', {exact: true}).first().click()
+  await lv.waitForTimeout(1200)
+  await lv.screenshot({path: still('B08', '4-list', 'liveview')})
 })
 
 test('@evidence B09: an author\'s Posts view', async ({page, browser}, info) => {

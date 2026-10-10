@@ -14,6 +14,8 @@ import {uploadFile} from '../lib/upload'
 
 const SORT_TITLES: Record<Sort, string> = {'created-desc': 'Newest first', 'created-asc': 'Oldest first', 'updated-desc': 'Recently updated'}
 const KIND_TITLES: Record<Kind, string> = {image: 'Images', video: 'Video', audio: 'Audio', document: 'Documents', other: 'Other'}
+/** One asset's kind, as LiveView's list and inspector name it. */
+const KIND_NAMES: Record<Kind, string> = {image: 'image', video: 'video', audio: 'audio', document: 'document', other: 'other'}
 const size = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} kB`)
 const fail = (title: string) => (e: unknown) => toast({tone: 'critical', title, description: reasonOf((e as Error).message) ?? (e as Error).message})
 
@@ -29,6 +31,7 @@ export function MediaLibrary() {
   const [query, setQuery] = useState('')
   const [visibility, setVisibility] = useState<Visibility | ''>('')
   const [sort, setSort] = useState<Sort>('created-desc')
+  const [view, setView] = useState<'grid' | 'list'>('grid')
   const [picked, setPicked] = useState<string>()
   useEffect(() => {
     const timer = setTimeout(() => setQuery(q.trim()), 200)
@@ -122,6 +125,10 @@ export function MediaLibrary() {
             <option value="public">{t('Public')}</option>
             <option value="private">{t('Private')}</option>
           </select>
+          <div className="media-views" role="group" aria-label={t('Result view')}>
+            <button type="button" className="btn" aria-pressed={view === 'grid'} onClick={() => setView('grid')}>{t('Grid')}</button>
+            <button type="button" className="btn" aria-pressed={view === 'list'} onClick={() => setView('list')}>{t('List')}</button>
+          </div>
           <select className="input media-sort" aria-label={t('Sort')} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
             {SORTS.map((o) => (
               <option key={o} value={o}>{t(SORT_TITLES[o])}</option>
@@ -145,13 +152,44 @@ export function MediaLibrary() {
           </div>
         )}
         {assets.data?.assets.length === 0 && <p className="list-empty" role="status">{query || visibility || kind ? t('No matching media') : folder ? t('This folder is empty') : t('No media yet')}</p>}
-        <ul className="media-grid">
-          {assets.data?.assets.map((a) => (
-            <li key={a.id}>
-              <Tile asset={a} picked={picked === a.id} onPick={() => setPicked(a.id)} />
-            </li>
-          ))}
-        </ul>
+        {view === 'grid' ? (
+          <ul className="media-grid">
+            {assets.data?.assets.map((a) => (
+              <li key={a.id}>
+                <Tile asset={a} picked={picked === a.id} onPick={() => setPicked(a.id)} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          // LiveView's list: name (with its thumbnail), kind, format, size.
+          !!assets.data?.assets.length && (
+            <table className="media-list">
+              <thead>
+                <tr>
+                  <th scope="col">{t('Name')}</th>
+                  <th scope="col">{t('Kind')}</th>
+                  <th scope="col">{t('Format')}</th>
+                  <th scope="col" className="num">{t('Size')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assets.data.assets.map((a) => (
+                  <tr key={a.id} aria-selected={picked === a.id}>
+                    <td>
+                      <button type="button" className="media-row" aria-pressed={picked === a.id} onClick={() => setPicked(a.id)}>
+                        <span className="media-thumb">{a.mimeType.startsWith('image/') ? <img src={`/api/media/${encodeURIComponent(a.id)}?size=thumb`} alt="" loading="lazy" /> : <DocumentIcon />}</span>
+                        <span className="media-name">{a.name}</span>
+                      </button>
+                    </td>
+                    <td>{a.kind ? t(KIND_NAMES[a.kind as Kind] ?? a.kind) : ''}</td>
+                    <td className="mono">{a.mimeType}</td>
+                    <td className="num">{size(a.size)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        )}
       </section>
       {picked && <Inspector id={picked} folder={folder} folders={folders.data ?? []} onClose={() => setPicked(undefined)} />}
     </main>
@@ -164,6 +202,7 @@ function Tile({asset, picked, onPick}: {asset: LibraryAsset; picked: boolean; on
     <button type="button" className="media-tile" aria-pressed={picked} onClick={onPick} title={asset.name}>
       <span className="media-thumb">{asset.mimeType.startsWith('image/') ? <img src={`/api/media/${encodeURIComponent(asset.id)}?size=thumb`} alt="" loading="lazy" /> : <DocumentIcon />}</span>
       <span className="media-name">{asset.name}</span>
+      <span className="media-size muted">{size(asset.size)}</span>
       <span className="media-badges">
         {asset.checkedOutBy && <span className="badge" title={checkedOutBy(t, asset.checkedOutBy)}>{t('Locked')}</span>}
         {asset.visibility === 'private' && <span className="badge">{t('Private')}</span>}
