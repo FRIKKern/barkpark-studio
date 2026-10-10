@@ -274,12 +274,22 @@ const fetchTextSearch = createServerFn({method: 'GET'})
   .validator((d: {q: string; asked: {type: string; filter: RefFilter}[]; order: string; limit: number}) => d)
   .handler(async ({data}) => {
     const types = data.asked.map((a) => a.type)
-    const found = await bpJson<{documents: Doc[]}>(
-      `/v1/data/search/${dataset()}?perspective=drafts&limit=200&q=${encodeURIComponent(data.q)}&types=${types.map(encodeURIComponent).join(',')}`,
-    )
+    const search = (q: string) => bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&limit=200&q=${encodeURIComponent(q)}&types=${types.map(encodeURIComponent).join(',')}`)
+    const found = await search(data.q)
+    // An id with a dot ("drafts.sq-fox"): Barkpark's search misses some of its docs, so its
+    // words are asked too; textScore then matches the id as Sanity does.
+    if (data.q.includes('.')) {
+      const more = (await search(data.q.replace(/\./g, ' '))).documents.filter((d) => !found.documents.some((f) => f._id === d._id))
+      found.documents.push(...more)
+    }
     const schemas = await readSchemas()
     const q = parseTextQuery(data.q)
+    // Which drafts also have a published version (their published id is searchable too,
+    // a draft-only doc's is not: Sanity's id matching). One query per type with drafts.
+    const draftTypes = [...new Set(found.documents.filter((d) => d._draft).map((d) => d._type))]
+    const marked = new Map((await Promise.all(draftTypes.map((type) => withHasPublished(type, found.documents.filter((d) => d._type === type))))).flat().map((d) => [d._id, d]))
     let hits = found.documents
+      .map((d) => marked.get(d._id) ?? d)
       .map((d): Doc => ({...d, _score: textScore(d, q, schemas.find((s) => s.name === d._type) as Schema | undefined)}))
       .filter((d) => (d._score as number) > 0 && types.includes(d._type))
     const kept = await Promise.all(
