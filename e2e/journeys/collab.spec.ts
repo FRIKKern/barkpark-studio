@@ -6,6 +6,7 @@ import {signInIfAsked, target} from '../rig/targets'
 // never land silently over the first one's words: either both survive, or the later
 // writer gets the conflict card (D20) and the document's footer says "Not saved".
 const ID = 'post-26'
+test.setTimeout(60_000) // two browsers and two canvases to open; a cold first run is slow
 // Contexts made from `browser` are not closed with the test: closed here, or their pages
 // stay open (and in the presence room, and on post-26) for the rest of the run.
 const contexts: BrowserContext[] = []
@@ -29,6 +30,8 @@ test('@local D11: two editors in one paragraph — nothing is lost silently', as
     await body.scrollIntoViewIfNeeded()
     await body.getByText('Body paragraph for post 26.').click()
     await expect(body.locator('.ProseMirror')).toBeFocused({timeout: 15_000})
+    // COLLAB_SLOW_MS: each request that much slower (a slow network, or a busy Barkpark).
+    if (process.env.COLLAB_SLOW_MS) await page.route('**/_serverFn/**', async (r) => (await new Promise((s) => setTimeout(s, Number(process.env.COLLAB_SLOW_MS))), r.continue()))
     return page
   }
   const [a, b] = [await open(), await open()]
@@ -36,17 +39,35 @@ test('@local D11: two editors in one paragraph — nothing is lost silently', as
   await b.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Home')
   await a.keyboard.type(' AAA')
   await b.keyboard.type('BBB ')
-  await a.waitForTimeout(3000)
-  const server = JSON.stringify(await t.docValue(ID, 'body'))
+  // Wait on the real signal, not a fixed time (a save can take seconds when Barkpark is
+  // busy): both words on the server, or a card on a page. Then, after a moment for any
+  // late write, it must still hold: a card on screen, or both words kept.
+  const p26 = async () => ((await t.docValue(ID, 'body')) as {blocks: {id: string; content?: {value?: string}[]}[]}).blocks.find((x) => x.id === 'p26')?.content?.map((c) => c.value).join('') ?? ''
   const card = async (p: Page) => (await p.locator('.pd-conflict').count()) > 0
-  const bothKept = server.includes('AAA') && server.includes('BBB')
-  const asked = (await card(a)) || (await card(b))
-  expect(bothKept || asked, `server ${server.slice(0, 200)}`).toBe(true)
-  if (asked) {
+  const state = async () => {
+    const text = await p26()
+    if (text.includes('AAA') && text.includes('BBB')) return 'both kept'
+    return (await card(a)) || (await card(b)) ? 'asked' : `server "${text}"`
+  }
+  await expect.poll(state, {timeout: 15_000}).not.toMatch(/^server/)
+  await a.waitForTimeout(1500)
+  const settled = await state()
+  expect(settled, 'nothing lost silently').not.toMatch(/^server/)
+  if (settled === 'asked') {
+    // The later writer was asked: a clash ("Re-apply my edit on top"), or a batch Barkpark
+    // refused (Retry, which then meets the clash). Re-applying puts their words back.
     const loser = (await card(b)) ? b : a
+    const mine = loser === b ? 'BBB' : 'AAA'
     await expect(loser.locator('.doc-footer')).toContainText('Not saved')
-    await loser.getByRole('button', {name: 'Re-apply my edit on top'}).click()
-    await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 15_000}).toContain(loser === b ? 'BBB' : 'AAA')
+    const reapply = loser.getByRole('button', {name: 'Re-apply my edit on top'})
+    const retry = loser.getByRole('button', {name: 'Retry', exact: true})
+    await expect(reapply.or(retry)).toBeVisible()
+    if (await retry.isVisible()) {
+      await retry.click()
+      await expect.poll(async () => (await reapply.isVisible()) || (await p26()).includes(mine), {timeout: 15_000}).toBe(true)
+    }
+    if (await reapply.isVisible()) await reapply.click()
+    await expect.poll(p26, {timeout: 15_000}).toContain(mine)
   }
 })
 
