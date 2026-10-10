@@ -146,4 +146,15 @@ export default {
   'Save result as': 'Lagre resultatet som',
   '{count} items': '{count} elementer',
   '{count} properties': '{count} egenskaper',
+  // Vision's saved queries (Sanity's nb-NO words; ours where Sanity has none)
+  'Saved queries': 'Lagrede spørringer',
+  'Save query': 'Lagre spørring',
+  'Search queries': 'Søk i spørringer',
+  Personal: 'Personlig',
+  'Query saved': 'Spørringen er lagret',
+  'Query already saved': 'Spørringen er allerede lagret',
+  'Error saving query': 'Feil ved lagring av spørring',
+  'Query actions': 'Spørringshandlinger',
+  'Load query {title}': 'Last spørring {title}',
+  Rename: 'Gi nytt navn',
 } satisfies Record<string, string>
