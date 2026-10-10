@@ -75,9 +75,11 @@ export class SignInRefused extends Error {
 }
 
 /**
- * J67: sign in with a Barkpark account. The password is used for this one request
- * (Barkpark's login, then its re-check when minting) and never kept. `code` is the
- * account's TOTP code, asked for when Barkpark answers mfa_required.
+ * J67: sign in with a Barkpark account. The password goes to Barkpark's login and is
+ * never kept. `code` is the account's TOTP code, asked for when Barkpark answers
+ * mfa_required. The login session is the editor's token: Barkpark accepts it on the
+ * scoped data API for a seated member (#22764), in every workspace they sit in, and
+ * describes its seats at /v1/auth/token (#22783).
  */
 export async function accountSignIn(email: string, password: string, code?: string) {
   if (signInMode() !== 'account') throw new Error('account sign-in is off')
@@ -92,43 +94,16 @@ export async function accountSignIn(email: string, password: string, code?: stri
   if (!res.ok || !body.token) throw new SignInRefused(body.error?.code ?? `http_${res.status}`, body.error?.message ?? `Barkpark answered ${res.status}`)
   const session = body.token
   try {
-    await startSession({email: body.user?.email ?? email.trim().toLowerCase(), token: await dataToken(session, password), session})
+    await startSession({email: body.user?.email ?? email.trim().toLowerCase(), token: session, session})
   } catch (e) {
     void endBarkparkSession(session)
     throw e
   }
 }
 
-/**
- * The token an account editor reads and writes with. Barkpark's login session is not
- * accepted on the scoped data API yet (task-ce99fd602a697010), so the session mints a
- * personal token for this workspace, bound to the person, expiring with our cookie
- * (POST /v1/auth/tokens re-checks the password). When the session works there, this
- * returns the session and the exchange goes.
- *
- * Known gap: Barkpark caps a self-minted token at a member's minting policy, [read], though
- * a member seat writes. So a member who signs in here gets the Viewer banner and can't
- * edit until the session itself is the token (task-a89ef18ee88ba6a0; branch
- * feat/j67-session-token is ready for it).
- */
-async function dataToken(session: string, password: string): Promise<string> {
-  const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/tokens`, {
-    method: 'POST',
-    headers: {authorization: `Bearer ${session}`, 'content-type': 'application/json'},
-    body: JSON.stringify({workspace: scope().workspace, ttl_seconds: SESSION_SECONDS, name: 'Barkpark Studio sign-in', current_password: password}),
-    signal: AbortSignal.timeout(10_000),
-  })
-  const body = (await res.json().catch(() => ({}))) as {token?: string; error?: {code?: string; message?: string}}
-  if (!res.ok || !body.token) throw new SignInRefused(body.error?.code ?? `http_${res.status}`, body.error?.message ?? `Barkpark answered ${res.status}`)
-  return body.token
-}
-
-/** Sign out at Barkpark too (best effort): the personal token, then the login session. */
-async function endBarkparkSession(session: string, token?: string) {
-  const url = process.env.BARKPARK_URL!
-  const end = (path: string, bearer: string) => fetch(`${url}${path}`, {method: 'DELETE', headers: {authorization: `Bearer ${bearer}`}, signal: AbortSignal.timeout(5000)}).catch(() => undefined)
-  if (token && token !== session) await end('/v1/auth/app-tokens/current', token)
-  await end('/v1/auth/logout', session)
+/** Sign out at Barkpark too (best effort): the login session ends there. */
+async function endBarkparkSession(session: string) {
+  await fetch(`${process.env.BARKPARK_URL}/v1/auth/logout`, {method: 'DELETE', headers: {authorization: `Bearer ${session}`}, signal: AbortSignal.timeout(5000)}).catch(() => undefined)
 }
 
 export async function signOut() {
@@ -137,7 +112,7 @@ export async function signOut() {
   if (sid) sessions.delete(sid)
   deleteCookie(COOKIE, {path: '/'})
   // Dev sign-in keeps its token (other sessions and lanes share it); an account's ends.
-  if (editor?.session) await endBarkparkSession(editor.session, editor.token)
+  if (editor?.session) await endBarkparkSession(editor.session)
 }
 
 const admin = () => {
@@ -184,18 +159,27 @@ async function editorToken(email: string): Promise<string> {
 export type TokenSelf = {permissions: string[]; boundDataset: string | null; refused?: boolean}
 const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
 export function describeToken(token: string): Promise<TokenSelf> {
-  const held = described.get(token)
+  // A login session holds a seat per workspace: what it may do depends on where it is.
+  const key = `${token} ${scope().workspace}`
+  const held = described.get(key)
   if (held && Date.now() - held.at < 60_000) return held.self
+  const workspace = scope().workspace
   const self = (async (): Promise<TokenSelf> => {
     const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}}).catch(() => undefined)
     // 401: dead (revoked or expired). 403: alive but not allowed here: nothing to write with.
     if (res?.status === 401) return {permissions: [], boundDataset: null, refused: true}
     if (res?.status === 403) return {permissions: [], boundDataset: null}
     if (!res?.ok) return {permissions: ['read', 'write'], boundDataset: null}
-    const me = (await res.json()) as {permissions?: string[]; seat?: {can?: Record<string, boolean>}; dataset?: string; dataset_bound?: boolean}
+    type Can = Record<string, boolean>
+    const me = (await res.json()) as {kind?: string; permissions?: string[]; seat?: {can?: Can}; seats?: {workspace?: {slug?: string}; can?: Can}[]; dataset?: string; dataset_bound?: boolean}
+    // A login session (#22783): its seat in this workspace says what it may do; none, nothing.
+    if (me.kind === 'session') {
+      const can = me.seats?.find((s) => s.workspace?.slug === workspace)?.can ?? {}
+      return {permissions: ['read', 'write', 'admin'].filter((p) => can[p]), boundDataset: null}
+    }
     return {permissions: (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false), boundDataset: me.dataset_bound && me.dataset ? me.dataset : null}
   })()
-  described.set(token, {at: Date.now(), self})
+  described.set(key, {at: Date.now(), self})
   return self
 }
 const tokenPermissions = async (token: string) => (await describeToken(token)).permissions
