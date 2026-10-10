@@ -18,16 +18,14 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 89 changes, 8 tasks closed
+- **Today** · 1 change
+  - J11 spec: the palette's callout dialog by keyboard alone (Barkpark #22892) ([#443](https://github.com/FRIKKern/barkpark-studio/pull/443))
+- **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
-  - J11 spec: the callout's on-screen label, and the palette's Insert Callout (Barkpark #22861, #22862) ([#440](https://github.com/FRIKKern/barkpark-studio/pull/440))
-- **Yesterday** · 113 changes, 14 tasks closed
+- **This week** · 334 changes, 74 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
-- **This week** · 221 changes, 60 tasks closed
-  - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
-  - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
