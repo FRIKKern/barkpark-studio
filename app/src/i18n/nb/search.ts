@@ -140,4 +140,10 @@ export default {
   'Execution: {time}': 'Utførelsestid: {time}',
   'End-to-end: {time}': 'Ende-til-ende: {time}',
   'n/a': '-',
+  // Vision's query URL, result tree and save (Sanity's nb-NO words)
+  'Query URL': 'Spørrings-URL',
+  'Copy to clipboard': 'Kopier til utklippstavlen',
+  'Save result as': 'Lagre resultatet som',
+  '{count} items': '{count} elementer',
+  '{count} properties': '{count} egenskaper',
 } satisfies Record<string, string>
