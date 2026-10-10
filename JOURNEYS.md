@@ -127,3 +127,4 @@ track, counted apart. Out of scope (link out to LiveView): sheets, admin console
 | B11 | 3 | Closing the tab with unsaved or failed edits warns first (we batch writes, so this matters more than in Sanity) | F8 F9 |
 | B12 | 1 | A workspace's declared desk drives the panes: nested lists, titled dividers, filtered lists, singletons, a parent-child tree | F2 F10 |
 | B13 | 1 | Singleton types: opened from the desk only; no create, duplicate or delete; publish, discard and restore only; never in Create new | F9 F10 |
+| B14 | after | A Sanity team moving over: its dataset export and schema brought in, opened here: references, slugs, drafts, Portable Text bodies and assets read sanely, never a crashed pane | F9 F10 |

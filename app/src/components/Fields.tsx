@@ -1,6 +1,6 @@
 import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
+import {refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
 import {worst, type Level, type Problem} from '../lib/validation'
@@ -283,7 +283,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'email':
       return <TextInput id={path} value={str} onChange={onChange} readOnly={readOnly} />
     case 'slug':
-      return <SlugInput id={path} value={str} onChange={onChange} source={(field.options as {source?: string})?.source} readOnly={readOnly} />
+      // Sanity-shaped data (an import) holds {current}; Barkpark a string.
+      return <SlugInput id={path} value={value && typeof value === 'object' ? String((value as {current?: unknown}).current ?? '') : str} onChange={onChange} source={(field.options as {source?: string})?.source} readOnly={readOnly} />
     case 'text':
       return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 3} readOnly={readOnly} />
     case 'number':
@@ -327,7 +328,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
           id={path}
           types={refTypesOf(field)}
           filter={field.options?.filter as RefFilter | undefined}
-          value={value as string | undefined}
+          // A Sanity-shaped reference ({_ref}, as an import from Sanity holds it) reads as its id.
+          value={refId(value)}
           invalid={invalid}
           onChange={onChange}
           linkFor={(id, type) => openRef(type, id, path)}

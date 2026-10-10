@@ -63,3 +63,20 @@ test('@local J39: convert, reset, add keys, remove unknown, fix rich text', asyn
   await expect.poll(async () => ((await t.docValue(ID, 'body')) as {blocks: {id?: string}[]}).blocks[0]?.id, BACKEND_POLL).toMatch(/\w{12}/)
   await expect(page.getByText('Kept text')).toBeVisible()
 })
+
+// A team moving over from Sanity: its data keeps Sanity's shapes (a reference as {_ref},
+// a slug as {current}). The editor opens and reads them as their values; it crashed on
+// the reference (scout 2026-10-10: every imported post and author).
+test('Sanity-shaped values open in the editor: a {_ref} reference, a {current} slug', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the shapes are Sanity\'s own there')
+  await t.prepare(context)
+  await t.patch(ID, {author: {_type: 'reference', _ref: 'author-ada'}, slug: {_type: 'slug', current: 'broken-post'}})
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.getByRole('tab', {name: 'All fields'}).click()
+  await expect(page.getByText('Could not render the document editor')).toHaveCount(0)
+  await expect(t.field(page, 'slug')).toHaveValue('broken-post')
+  await expect(t.refLink(page.locator('body'), 'author')).toContainText('Ada Lovelace')
+})
