@@ -1,5 +1,5 @@
 import {createServerFn} from '@tanstack/react-start'
-import {bpFetch, dataset} from '../server/barkpark'
+import {bpFetch, dataset, scope} from '../server/barkpark'
 
 // J37, Vision: Sanity's query tool, for Barkpark's query API. A query is the part
 // of the URL after the dataset — `post?filter[title][contains]=post&limit=5` —
@@ -10,7 +10,8 @@ export const PERSPECTIVES = ['drafts', 'published', 'raw'] as const
 export type Perspective = (typeof PERSPECTIVES)[number]
 const QUERY = /^[A-Za-z0-9_-]+(\?[^#\n]*)?$/
 
-export type VisionResult = {ok: boolean; status: number; url: string; ms: number; body: string; error?: string}
+/** `url`: the query as Barkpark's path; `href`: the whole address, to copy and run elsewhere (with a token). */
+export type VisionResult = {ok: boolean; status: number; url: string; href?: string; ms: number; body: string; error?: string}
 
 export const runVisionQuery = createServerFn({method: 'GET'})
   .validator((d: {query: string; perspective: Perspective}) => d)
@@ -29,7 +30,7 @@ export const runVisionQuery = createServerFn({method: 'GET'})
     try {
       body = JSON.stringify(JSON.parse(text), null, 2)
     } catch {}
-    return {ok: res.ok, status: res.status, url, ms, body}
+    return {ok: res.ok, status: res.status, url, href: `${process.env.BARKPARK_URL}/w/${scope().workspace}/p/${scope().project}${url}`, ms, body}
   })
 
 export const visionDataset = createServerFn({method: 'GET'}).handler(async () => dataset())

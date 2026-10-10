@@ -1,10 +1,13 @@
 import {useEffect, useState} from 'react'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {useT} from '../lib/i18n'
+import {JsonTree} from './JsonTree'
+import {toast} from './Toasts'
 
-// J37, Vision: Sanity's layout (dataset and perspective on top, the query on the
-// left, the result on the right, timings below), for Barkpark's query API.
-// Ctrl/Cmd+Enter fetches. The last query and perspective stay in this browser.
+// J37, Vision: Sanity's layout (dataset, perspective and the query URL with Copy on top,
+// the query on the left, the result as a folding JSON tree on the right, timings and
+// Save result as JSON below), for Barkpark's query API. Ctrl/Cmd+Enter fetches. The last
+// query and perspective stay in this browser.
 
 const KEY = 'bp-vision'
 const EXAMPLE = 'post?order=_updatedAt:desc&limit=5'
@@ -27,6 +30,14 @@ export function Vision({dataset}: {dataset: string}) {
     setQuery(saved.query)
     setPerspective(saved.perspective)
   }, [])
+  const parsed = (() => {
+    if (!result?.body || result.error) return undefined
+    try {
+      return JSON.parse(result.body) as unknown
+    } catch {
+      return undefined
+    }
+  })()
   const fetchIt = async () => {
     setBusy(true)
     try {
@@ -54,6 +65,21 @@ export function Vision({dataset}: {dataset: string}) {
             ))}
           </select>
         </label>
+        {result?.url && (
+          <label className="vision-url-field">
+            <span className="menu-label">{t('Query URL')}</span>
+            <span className="vision-url-row">
+              <input className="input vision-code" readOnly value={result.href ?? result.url} onFocus={(e) => e.currentTarget.select()} />
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void navigator.clipboard.writeText(result.href ?? result.url).then(() => toast({title: t('The URL is copied to the clipboard')}))}
+              >
+                {t('Copy to clipboard')}
+              </button>
+            </span>
+          </label>
+        )}
       </div>
       <div className="vision-body">
         <section className="vision-query">
@@ -86,7 +112,8 @@ export function Vision({dataset}: {dataset: string}) {
             result && (
               <>
                 {!result.ok && <p role="alert" className="field-error">{t('Barkpark answered {status}', {status: result.status})}</p>}
-                <pre className="vision-code vision-out">{result.body}</pre>
+                {/* Open five deep: Barkpark wraps the documents in {result: {documents: […]}}, two levels Sanity's result doesn't have. */}
+                {parsed !== undefined ? <div className="vision-code vision-out"><JsonTree value={parsed} open={5} /></div> : <pre className="vision-code vision-out">{result.body}</pre>}
               </>
             )
           )}
@@ -94,7 +121,14 @@ export function Vision({dataset}: {dataset: string}) {
           <footer className="vision-foot">
             <span>{t('Execution: {time}', {time: result && !result.error ? `${result.ms} ms` : t('n/a')})}</span>
             <span>{t('End-to-end: {time}', {time: result?.total !== undefined && !result.error ? `${result.total} ms` : t('n/a')})}</span>
-            {result?.url && <code className="vision-url">{result.url}</code>}
+            {parsed !== undefined && (
+              <span className="vision-save">
+                {t('Save result as')}{' '}
+                <a className="btn" download={`vision-${dataset}.json`} href={`data:application/json;charset=utf-8,${encodeURIComponent(result!.body)}`}>
+                  JSON
+                </a>
+              </span>
+            )}
           </footer>
         </section>
       </div>
