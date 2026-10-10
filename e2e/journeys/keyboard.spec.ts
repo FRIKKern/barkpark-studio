@@ -105,3 +105,22 @@ test('@local J19: a slow doc read still puts the caret in its first field', asyn
   await expect(t.field(page, 'title')).toBeFocused()
   await cdp.send('Network.emulateNetworkConditions', {offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1})
 })
+
+// Publish by keyboard on the button: the button disables itself while it publishes,
+// which dropped focus on the page (Sanity's too). It goes to "…" beside it.
+test('J19: Publish by Enter keeps the keyboard in the footer', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours (Sanity's drops focus on the page)")
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', ID))
+  await t.settle(page)
+  await t.field(page, 'title').click()
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
+  await page.keyboard.type(' kb')
+  const publish = page.getByRole('button', {name: 'Publish', exact: true})
+  await expect(publish).toBeEnabled({timeout: 10_000})
+  await publish.focus()
+  await page.keyboard.press('Enter')
+  await expect.poll(() => t.publishedTitle(ID), BACKEND_POLL).toBe(`${TITLE} kb`)
+  await expect(page.getByRole('button', {name: 'Document actions'}).last()).toBeFocused()
+})
