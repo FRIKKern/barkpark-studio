@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 53 changes, 1 task closed
+- **Today** · 54 changes, 1 task closed
+  - client-gone: point at the upstream-report task ([#407](https://github.com/FRIKKern/barkpark-studio/pull/407))
   - housekeeping: regenerate from origin/main and retry when main moves ([#403](https://github.com/FRIKKern/barkpark-studio/pull/403))
   - keyboard.spec: Cmd+Shift+8 makes a bullet list in the canvas ([#402](https://github.com/FRIKKern/barkpark-studio/pull/402))
-  - Production server: hear the browser leave (upload Cancel leaked an asset) ([#401](https://github.com/FRIKKern/barkpark-studio/pull/401))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
