@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 48 changes, 1 task closed
+- **Today** · 49 changes, 1 task closed
+  - e2e setup: editor d is read-only before any dev sign-in run (the J63 "draft leak" was the fixture) ([#405](https://github.com/FRIKKern/barkpark-studio/pull/405))
   - Roadmap: "signed off" counts only the quality owner's sign-off; "built, awaiting sign-off" apart ([#404](https://github.com/FRIKKern/barkpark-studio/pull/404))
   - File picker: Barkpark leaves out images and filters by mime (#22705) ([#399](https://github.com/FRIKKern/barkpark-studio/pull/399))
-  - Uploads: the same bytes are one asset, and the second time nothing is sent ([#396](https://github.com/FRIKKern/barkpark-studio/pull/396))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
