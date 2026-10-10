@@ -74,3 +74,16 @@ test('titles fold æøå (never fewer hits than Sanity), the exact spelling firs
   assert.ok(excluded(doc, parseTextQuery('talt -aerlig')))
   assert.ok(excluded(doc, parseTextQuery('talt -okonomi')))
 })
+
+test("ids match as Sanity tokenizes them: a dot stays in the word, a draft-only doc has only its drafts. id", () => {
+  const draftOnly = {_id: 'drafts.sq-fox', _publishedId: 'sq-fox', _type: 'post', _draft: true, _hasPublished: false, title: 'The quick brown fox'}
+  const draftOfPublished = {...draftOnly, _id: 'drafts.post-09', _publishedId: 'post-09', _hasPublished: true, title: 'Nine'}
+  // Sanity 6.17 on the reference, 2026-10-10: "sq-fox" finds nothing, "drafts.sq-fox" and "fox-rev" find the drafts.
+  assert.equal(s('sq-fox', {...draftOnly, title: 'Other'}), 0)
+  assert.equal(s('drafts.sq-fox', {...draftOnly, title: 'Other'}), 1)
+  assert.equal(s('fox-rev', {...draftOnly, _id: 'drafts.sq-fox-rev', _publishedId: 'sq-fox-rev', title: 'Other'}), 1)
+  // A published doc's id, and a draft's of a published doc, match by their words ("post-01" finds post 01).
+  assert.equal(s('post-30'), 11)
+  assert.equal(s('post-09', draftOfPublished), 1)
+  assert.equal(s('drafts.post-09', draftOfPublished), 1)
+})

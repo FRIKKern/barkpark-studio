@@ -19,6 +19,12 @@ const DOCS: Record<string, {title: string; excerpt: string; author?: string}> = 
 }
 const QUERIES = process.env.SQ_QUERIES ? JSON.parse(process.env.SQ_QUERIES) as string[] : ['kaffe', 'kaff', 'kafe', 'Ærlig', 'ærlig', 'aerlig', 'økonomi', 'okonomi', '2026', 'rapport 20', 'quick brown', '"quick brown"', 'Lovelace', 'sq-fox']
 
+// Where ours still differs from Sanity, on purpose (task-9ec63e76, 2026-10-10 side by side):
+// - Numbers: both prefix-match ("20" finds "2000…" and "Fixture post 20"). The lists differ
+//   because the reference's dataset holds the 2,000 bulk items and ours does not.
+// - Ties: equal-score docs come oldest first. Sanity's own order among them follows no
+//   rule we could see: "fox" puts the older doc first, while "brown fox quick" and "quick dog" put
+//   the newer one first, and "quick dog" ranks it over a doc that also matches "dog".
 const dialog = (page: Page) => page.getByRole('dialog', {name: 'Search'})
 const STRUCTURE = new Set(['Post', 'Author', 'Category', 'Longform', 'Bulk', 'Posts by author', 'Content'])
 const resultTitles = async (t: Target, page: Page) =>
@@ -79,8 +85,14 @@ const FOLDS: [string, string[], string][] = [
   ['okonomi', ['Okonomi og kurs', 'Ærlig talt om økonomi'], ''],
   ['aarsrapport', ['Årsrapport for selskapet'], ''],
 ]
-for (const [q, want, none] of FOLDS)
-  test(`a search for "${q}" folds titles, the exact spelling first`, async ({page, context}, info) => {
+// Ids, as Sanity's search reads them (2026-10-10 side by side): a dot stays in the word,
+// so a draft-only doc is found by "drafts.sq-fox" and not by "sq-fox".
+const IDS: [string, string[], string][] = [
+  ['drafts.sq-fox', ['The quick brown fox', 'Fox brown quick'], ''],
+  ['sq-fox', [], ''],
+]
+for (const [q, want, none, what] of [...FOLDS.map((c) => [...c, 'folds titles, the exact spelling first'] as const), ...IDS.map((c) => [...c, 'matches ids as Sanity does'] as const)])
+  test(`a search for "${q}" ${what}`, async ({page, context}, info) => {
     const t = target(info)
     test.skip(t.name !== 'studio', 'the check runs on ours; Sanity is the evidence above')
     await t.prepare(context)
