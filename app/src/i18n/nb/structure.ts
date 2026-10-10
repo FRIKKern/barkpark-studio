@@ -141,6 +141,10 @@ export default {
   // Dev sign-in
   'Dev sign-in — no password. Never enabled in a production build.': 'Utviklerinnlogging — uten passord. Aldri slått på i en produksjonsversjon.',
   'Your email': 'E-postadressen din',
+  Password: 'Passord',
+  'Code from your authenticator app': 'Koden fra autentiseringsappen din',
+  'The email or password is incorrect.': 'E-postadressen eller passordet er feil.',
+  'That code is not right. Try the current one.': 'Koden stemmer ikke. Prøv den gjeldende.',
   'Signing in…': 'Logger inn…',
   'Sign in': 'Logg inn',
 } satisfies Record<string, string>

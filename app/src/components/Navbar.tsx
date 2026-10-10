@@ -1,6 +1,6 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Link, useNavigate} from '@tanstack/react-router'
-import {devSignOut, meQuery} from '../lib/session'
+import {endSession, meQuery} from '../lib/session'
 import {GlobalSearch} from './Search'
 import {NewDocMenu} from './NewDocMenu'
 import {ScopeSwitcher} from './ScopeSwitcher'
@@ -72,7 +72,7 @@ function NavDrawer() {
   const navigate = useNavigate()
   const appearance = useAppearance()
   const [open, setOpen] = useState(false)
-  const signedIn = !!(me?.devLogin && me.email)
+  const signedIn = !!(me && me.signIn !== 'shared' && me.email)
   const close = () => setOpen(false)
   return (
     <>
@@ -115,7 +115,7 @@ function NavDrawer() {
                     className="drawer-item"
                     onClick={async () => {
                       close()
-                      await devSignOut()
+                      await endSession()
                       qc.clear()
                       await navigate({to: '/login', search: {redirect: '/structure'}})
                     }}
@@ -257,11 +257,11 @@ function Editor() {
   const navigate = useNavigate()
   const appearance = useAppearance()
   const [open, setOpen] = useState(false)
-  const signedIn = !!(me?.devLogin && me.email)
+  const signedIn = !!(me && me.signIn !== 'shared' && me.email)
   const choose = (a: Appearance) => () => (setAppearance(a), setOpen(false))
   return (
     <div className="editor">
-      {signedIn && (
+      {signedIn && me!.devLogin && (
         <span className="dev-badge" title={t('Dev sign-in: identity is asserted, not proven')}>
           DEV
         </span>
@@ -290,7 +290,7 @@ function Editor() {
                   className="menu-item spread"
                   onClick={async () => {
                     setOpen(false)
-                    await devSignOut()
+                    await endSession()
                     qc.clear()
                     await navigate({to: '/login', search: {redirect: '/structure'}})
                   }}

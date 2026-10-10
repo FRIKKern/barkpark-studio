@@ -3,7 +3,7 @@
 // (server/auth.ts), else the studio's BARKPARK_TOKEN.
 import '@tanstack/react-start/server-only'
 import {getRequestHeader, getRequestUrl} from '@tanstack/react-start/server'
-import {currentEditor, devLoginEnabled} from './auth'
+import {currentEditor, signInMode, signInRequired} from './auth'
 import {parseScope, type Scope} from '../lib/scope'
 
 function env(key: string): string {
@@ -40,7 +40,9 @@ export function scope(): Scope {
 const config = (at: Scope = scope()) => ({
   base: `${env('BARKPARK_URL')}/w/${at.workspace}/p/${at.project}`,
   dataset: at.dataset,
-  token: currentEditor()?.token ?? env('BARKPARK_TOKEN'),
+  // J67: with account sign-in nobody reads as the studio. Signed out, a request carries
+  // no token and Barkpark refuses it (the routes send the person to sign in first).
+  token: currentEditor()?.token ?? (signInMode() === 'account' ? '' : env('BARKPARK_TOKEN')),
 })
 
 /** The studio's own token, for what isn't any one editor's business (the content model).
@@ -69,7 +71,7 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
   // session was lost to a studio restart or an expired cookie — never goes out under
   // the shared studio token (history would name the wrong author). The editor is
   // told to sign in again; their unsent edits wait.
-  if (method !== 'GET' && !stream && devLoginEnabled() && !currentEditor())
+  if (method !== 'GET' && !stream && signInRequired() && !currentEditor())
     return Response.json({error: {code: 'session_lost', message: "You've been logged out"}}, {status: 401})
   if (method !== 'GET') recent.clear() // a write: no read may answer from before it
   const base = config(at ?? scope()).base

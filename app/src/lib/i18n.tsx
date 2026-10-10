@@ -1,7 +1,7 @@
 import {createContext, useContext, type ReactNode} from 'react'
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {bpFetch} from '../server/barkpark'
+import {bpFetch, serviceToken} from '../server/barkpark'
 
 // B01: the Studio speaks the workspace's language, chosen in Barkpark (workspace
 // settings `locale`, read at GET /v1/workspace/locale: "en" or "nb-NO"). English
@@ -50,7 +50,8 @@ const fetchLocale = createServerFn({method: 'GET'}).handler(async (): Promise<Lo
   const forced = process.env.STUDIO_LOCALE
   if (forced === 'en' || forced === 'nb-NO') return pick(forced)
   try {
-    const res = await bpFetch('/v1/workspace/locale', {}, undefined, {retry: false})
+    // The studio's own token: the sign-in screen is in the workspace's language too.
+    const res = await bpFetch('/v1/workspace/locale', {}, serviceToken(), {retry: false})
     const locale = res.ok ? ((await res.json()) as {locale?: string}).locale : undefined
     return pick(locale === 'nb-NO' ? 'nb-NO' : 'en')
   } catch {

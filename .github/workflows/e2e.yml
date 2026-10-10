@@ -70,7 +70,7 @@ jobs:
       - name: Start the studio (server boot is outside the budget too)
         run: |
           set -a; . ./.env; set +a
-          STUDIO_E2E_HOOKS=1 nohup pnpm --dir app exec vite preview --port 3100 --strictPort > preview.log 2>&1 &
+          STUDIO_E2E_HOOKS=1 STUDIO_SIGN_IN=shared nohup pnpm --dir app exec vite preview --port 3100 --strictPort > preview.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:3100/health > /dev/null && exit 0; sleep 1; done
           cat preview.log; exit 1
       - name: Journeys (ours)

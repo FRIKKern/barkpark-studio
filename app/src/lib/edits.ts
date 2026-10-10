@@ -48,7 +48,9 @@ export const mutate = createServerFn({method: 'POST'})
       // own: their session ends, they sign in again and get a new one (J48). The studio's
       // own: nobody here can fix that, so say so (#312) instead of "logged out".
       if (res.status === 401) {
-        if (currentEditor()) (signOut(), throwLost())
+        // No editor any more (bpFetch refused to write as the studio): logged out, not refused.
+        if (error?.code === 'session_lost') throwLost()
+        if (currentEditor()) (void signOut(), throwLost())
         throw new Error(`mutate 401: ${JSON.stringify({error: {code: 'token_refused', message: "Barkpark refused this studio's token."}})}`)
       }
       const {hint: _, ...short} = error ?? {}

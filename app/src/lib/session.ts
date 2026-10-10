@@ -1,6 +1,6 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {currentEditor, describeToken, devLoginEnabled, signIn, signOut} from '../server/auth'
+import {accountSignIn, currentEditor, describeToken, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {requestToken} from '../server/barkpark'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
@@ -12,13 +12,16 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
   const editor = currentEditor()
   // J49: may this editor write? The token they work with says (dev sign-in: theirs; else
   // the studio's own). Signed out of dev sign-in: the sign-in screen takes over.
-  const self = devLoginEnabled() && !editor ? undefined : await describeToken(editor?.token ?? requestToken())
+  const self = signInRequired() && !editor ? undefined : await describeToken(editor?.token ?? requestToken())
   // The signed-in editor's own token is dead (revoked or expired, 401): their session
   // ends here, and signing in again mints a new one (J48), not a refused-studio card.
   const ended = !!editor && !!self?.refused
-  if (ended) signOut()
+  if (ended) void signOut()
+  const mode = signInMode()
   return {
-    devLogin: devLoginEnabled(),
+    /** How editors sign in: their Barkpark account, dev (an email), or nobody (shared). */
+    signIn: mode,
+    devLogin: mode === 'dev',
     email: ended ? null : editor?.email ?? null,
     canWrite: self && !ended ? self.permissions.includes('write') : true,
     /** A token held to one dataset (Barkpark #22393): the only one it can open. */
@@ -36,7 +39,23 @@ export const devSignIn = createServerFn({method: 'POST'})
     return {ok: true}
   })
 
-export const devSignOut = createServerFn({method: 'POST'}).handler(async () => (signOut(), {ok: true}))
+/**
+ * J67: sign in with a Barkpark account. Refusals come back as data (the words to show
+ * and whether to ask for the TOTP code), not as a thrown server error.
+ */
+export const signInWithAccount = createServerFn({method: 'POST'})
+  .validator((d: {email: string; password: string; code?: string}) => d)
+  .handler(async ({data}): Promise<{ok: true} | {ok: false; code: string; message: string}> => {
+    try {
+      await accountSignIn(data.email, data.password, data.code || undefined)
+      return {ok: true}
+    } catch (e) {
+      if (e instanceof SignInRefused) return {ok: false, code: e.code, message: e.message}
+      return {ok: false, code: 'unreachable', message: 'Barkpark could not be reached. Try again.'}
+    }
+  })
+
+export const endSession = createServerFn({method: 'POST'}).handler(async () => (await signOut(), {ok: true}))
 
 // Re-asked when the window regains focus (J48): a session lost to a studio restart or
 // an expired cookie shows up before the next edit, not only after it.
@@ -53,8 +72,8 @@ export function useCanWrite() {
   const canWrite = me?.canWrite !== false
   return {
     canWrite,
-    /** Dev sign-in is on and nobody is signed in any more. */
-    signedOut: !!me?.devLogin && !me.email,
+    /** Sign-in is on and nobody is signed in any more. */
+    signedOut: !!me && me.signIn !== 'shared' && !me.email,
     editReason: canWrite ? undefined : t('Your role Viewer does not have permission to edit this document.'),
     publishReason: canWrite ? undefined : t('Your role Viewer does not have permission to publish this document.'),
     createReason: canWrite ? undefined : t('Your role Viewer does not have permission to create documents.'),

@@ -22,10 +22,10 @@ import {redirect} from '@tanstack/react-router'
 // In the browser, a pane opens as soon as its own doc is there; references load
 // behind it (their previews fill in), so opening never waits on the network for
 // data the pane can paint without.
-/** With dev sign-in on, the structure needs an editor: send others to /login. */
+/** With sign-in on, the structure needs an editor: send others to /login. */
 export async function requireEditor(queryClient: QueryClient, href: string) {
   const me = await queryClient.ensureQueryData(meQuery)
-  if (me.devLogin && !me.email) throw redirect({to: '/login', search: {redirect: href}})
+  if (me.signIn !== 'shared' && !me.email) throw redirect({to: '/login', search: {redirect: href}})
 }
 
 export async function loadPanes(queryClient: QueryClient, splat: string | undefined) {
