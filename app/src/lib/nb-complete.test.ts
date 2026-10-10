@@ -18,7 +18,7 @@ const walk = (d: string) => {
 walk(src)
 const said = /\b(?:t\(|translate\(\s*[\w.]+\s*,)\s*(['"])((?:\\.|(?!\1).)*)\1/g
 
-test('every t() and translate() literal has Norwegian', async () => {
+test('B01: every t() and translate() literal has Norwegian (an nb-NO workspace sees no English)', async () => {
   const NB: Record<string, string> = {}
   for (const f of readdirSync(join(src, 'i18n/nb'))) Object.assign(NB, (await import(join(src, 'i18n/nb', f))).default)
   const missing = new Set<string>()
