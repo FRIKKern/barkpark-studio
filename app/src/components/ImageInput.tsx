@@ -1,5 +1,5 @@
 import {useCallback, useContext, useEffect, useId, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent} from 'react'
-import {useQuery} from '@tanstack/react-query'
+import {useInfiniteQuery, useQuery} from '@tanstack/react-query'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {EditPathContext, FieldView, ParentContext, type OpenRef} from './Fields'
 import {toast} from './Toasts'
@@ -195,7 +195,18 @@ type Use = {_id: string; _type: string; title?: string}
 
 /** Sanity's "Select image for <field>": the library as tiles; each tile's "…" shows where it is used. */
 function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; path: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
-  const {data: assets, isPending, error} = useQuery({queryKey: ['media'], queryFn: () => fetch('/api/media/').then((r) => (r.ok ? (r.json() as Promise<Asset[]>) : Promise.reject(new Error(`media list → ${r.status}`))))})
+  // A page at a time, newest first; "Load more" reads the next, as Sanity's picker does.
+  // Each open starts again at the first page (gcTime 0): a cached list would show first
+  // and then refetch every page it had loaded, one after another, with a fresh upload
+  // missing and the tiles moving under the pointer for seconds.
+  const {data, isPending, error, fetchNextPage, hasNextPage, isFetchingNextPage} = useInfiniteQuery({
+    queryKey: ['media'],
+    gcTime: 0,
+    initialPageParam: 0,
+    queryFn: ({pageParam}) => fetch(`/api/media/?offset=${pageParam}`).then((r) => (r.ok ? (r.json() as Promise<{images: Asset[]; nextOffset: number | null}>) : Promise.reject(new Error(`media list → ${r.status}`)))),
+    getNextPageParam: (last) => last.nextOffset ?? undefined,
+  })
+  const assets = data?.pages.flatMap((p) => p.images)
   const t = useT()
   const [usageOf, setUsageOf] = useState<Asset | null>(null)
   const [deleting, setDeleting] = useState<Asset | null>(null)
@@ -238,6 +249,11 @@ function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; pa
                 </div>
               ))}
             </div>
+            {hasNextPage && (
+              <button type="button" className="btn load-more" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+                {isFetchingNextPage ? t('Loading images…') : t('Load more')}
+              </button>
+            )}
           </div>
         </DialogBox>
         {usageOf && <UsageDialog asset={usageOf} path={path} openRef={openRef} onClose={() => setUsageOf(null)} onOpen={onClose} />}

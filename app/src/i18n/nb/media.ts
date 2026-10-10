@@ -23,6 +23,7 @@ export default {
   'Select image for "{title}"': 'Velg bilde for «{title}»',
   'Close dialog': 'Lukk dialog',
   'Loading images…': 'Laster bilder…',
+  'Load more': 'Last inn flere',
   'Could not load the images: {message}': 'Kunne ikke laste bildene: {message}',
   'No images yet. Upload one first.': 'Ingen bilder ennå. Last opp ett først.',
   '{name}: more': '{name}: mer',
