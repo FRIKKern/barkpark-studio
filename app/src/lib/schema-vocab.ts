@@ -82,7 +82,7 @@ export const SCHEMA_KEYS = {
   groups: 'Field groups (tabs): [{name, title, default?}].',
   initialValues: 'A new document\'s starting values.',
   initial_values: 'initialValues, as Barkpark spells it.',
-  desk: 'Desk settings: orderings, views.',
+  desk: 'Desk settings: orderings, views; hidden: true keeps the type off Barkpark\'s desk while its URLs still open (barkpark#22789).',
   singleton: 'One document, whose id is the type\'s name.',
   layout: 'The Expectation for PortableDoc types (decision 0004).',
   prefill: 'A new PortableDoc document\'s starting blocks.',
@@ -132,7 +132,7 @@ export function fixtureJsonSchema(): JsonSchema {
     required: ['name', 'fields'],
     additionalProperties: false,
     properties: {
-      ...described(SCHEMA_KEYS, {name: {type: 'string'}, title: {type: 'string'}, fields: {type: 'array', items: {$ref: '#/definitions/field'}}, singleton: {type: 'boolean'}}),
+      ...described(SCHEMA_KEYS, {name: {type: 'string'}, title: {type: 'string'}, fields: {type: 'array', items: {$ref: '#/definitions/field'}}, singleton: {type: 'boolean'}, desk: {type: 'object', properties: {hidden: {type: 'boolean', description: 'Off the desk; the type still opens from a direct URL.'}}}}),
       ...described(BARKPARK_SCHEMA_KEYS, {visibility: {enum: ['public', 'private']}, kind: {enum: ['document', 'object']}}),
     },
     definitions: {

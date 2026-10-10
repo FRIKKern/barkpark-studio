@@ -50,6 +50,9 @@ test("@local J24 J25 J55: list search, empty state, the type's own sort that sti
 test('first run: a dataset with no document types shows Sanity\'s card', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours (Sanity: the same card, in the evidence stills)')
+  // A PR that changes fixture schemas runs with them read from the checkout (e2e.yml), so
+  // every dataset shows the fixture types there.
+  test.skip(process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures', 'schemas come from the checkout, not the dataset')
   await t.prepare(page.context())
   await page.goto(`/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}/d/e2e-no-schema-ever/structure`)
   await t.settle(page)
