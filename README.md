@@ -18,14 +18,14 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 46 changes, 1 task closed
+- **Today** · 48 changes, 1 task closed
+  - Roadmap: "signed off" counts only the quality owner's sign-off; "built, awaiting sign-off" apart ([#404](https://github.com/FRIKKern/barkpark-studio/pull/404))
+  - File picker: Barkpark leaves out images and filters by mime (#22705) ([#399](https://github.com/FRIKKern/barkpark-studio/pull/399))
   - Uploads: the same bytes are one asset, and the second time nothing is sent ([#396](https://github.com/FRIKKern/barkpark-studio/pull/396))
-  - JOURNEYS: J38 says what search does now (never fewer hits than Sanity, folded titles after the exact spelling) ([#400](https://github.com/FRIKKern/barkpark-studio/pull/400))
-  - Search: titles fold æøå and keep those hits, the exact spelling first ([#398](https://github.com/FRIKKern/barkpark-studio/pull/398))
-- **Yesterday** · 113 changes, 24 tasks closed
+- **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
-- **This week** · 221 changes, 114 tasks closed
+- **This week** · 221 changes, 60 tasks closed
   - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
   - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
 <!-- timeline:end -->
