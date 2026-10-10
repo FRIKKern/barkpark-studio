@@ -105,6 +105,11 @@ export async function accountSignIn(email: string, password: string, code?: stri
  * personal token for this workspace, bound to the person, expiring with our cookie
  * (POST /v1/auth/tokens re-checks the password). When the session works there, this
  * returns the session and the exchange goes.
+ *
+ * Known gap: Barkpark caps a self-minted token at a member's minting policy, [read], though
+ * a member seat writes. So a member who signs in here gets the Viewer banner and can't
+ * edit until the session itself is the token (task-a89ef18ee88ba6a0; branch
+ * feat/j67-session-token is ready for it).
  */
 async function dataToken(session: string, password: string): Promise<string> {
   const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/tokens`, {
