@@ -11,7 +11,8 @@ const fixtures = new URL('../../fixtures/', import.meta.url)
 const MIME = {txt: 'text/plain', png: 'image/png', pdf: 'application/pdf'}
 const fileOf = (sanityAsset) => new URL(sanityAsset.replace(/^\w+@file:\/\/\.\//, ''), fixtures)
 
-export async function seedAssets(docs, {base, dataset, token}) {
+/** `upload: false` only looks: a file the dataset lacks resolves to `asset-missing:<name>`. */
+export async function seedAssets(docs, {base, dataset, token, upload = true}) {
   const auth = {authorization: `Bearer ${token}`}
   const wanted = [...new Set(docs.flatMap((d) => Object.values(d).flatMap((v) => (v?._sanityAsset ? [v._sanityAsset] : []))))]
   const have = []
@@ -27,6 +28,10 @@ export async function seedAssets(docs, {base, dataset, token}) {
     const bytes = readFileSync(fileOf(path))
     const name = basename(fileOf(path).pathname)
     let id = have.find((a) => a.asset?.fileInfo?.originalName === name && a.size === bytes.length)?.id
+    if (!id && !upload) {
+      refs.set(path, `asset-missing:${name}`)
+      continue
+    }
     if (!id) {
       const body = new FormData()
       body.append('file', new Blob([bytes], {type: MIME[name.split('.').pop()] ?? 'application/octet-stream'}), name)
