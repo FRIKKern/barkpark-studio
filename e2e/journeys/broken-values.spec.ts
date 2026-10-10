@@ -67,7 +67,8 @@ test('@local J39: convert, reset, add keys, remove unknown, fix rich text', asyn
 // A team moving over from Sanity: its data keeps Sanity's shapes (a reference as {_ref},
 // a slug as {current}). The editor opens and reads them as their values; it crashed on
 // the reference (scout 2026-10-10: every imported post and author).
-test('Sanity-shaped values open in the editor: a {_ref} reference, a {current} slug', async ({page, context}, info) => {
+// @local: about 9 s in CI, over rule 5's 5 s, with the shards near 60 s (2026-10-10).
+test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {current} slug', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the shapes are Sanity\'s own there')
   await t.prepare(context)
