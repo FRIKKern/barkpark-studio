@@ -16,6 +16,8 @@ test.afterEach(async ({page}, info) => (await page.unrouteAll({behavior: 'ignore
  * the save goes out naming a type that does not exist (a real 404 comes back, nothing is
  * written), and the reply is relabelled with the status under test.
  */
+// Saves flow again with page.unrouteAll({behavior: 'wait'}): a refusal still being written
+// finishes first (a plain unroute raced it: "Route is already handled", health run 2026-10-10).
 const refuse = (page: Page, status: number) =>
   page.route('**/_serverFn/**', async (route) => {
     const req = route.request()
@@ -109,7 +111,7 @@ for (const status of [403, 500, 409])
       expect(await c.shows(page), 'the editor\'s value is still on screen').toMatch(c.mine as RegExp)
       await expect(footer, 'never "Saved" over an unsaved value').not.toContainText(/Saved|Edited just now/)
       // Barkpark takes writes again: the value lands (a refused 403 waits for the next edit).
-      await page.unroute('**/_serverFn/**')
+      await page.unrouteAll({behavior: 'wait'})
       if (c.clash) {
         await expect(footer).toContainText('Someone else rewrote Excerpt meanwhile')
         await page.waitForTimeout(2500) // no retry sends it over theirs
@@ -157,7 +159,7 @@ test('@local refused 500, a remote write meanwhile: an image hotspot keeps the e
   await bpMutate([{patch: {id: ID, type: 'post', set: {mainImage: {...image, alt: 'Theirs alt'}}}}])
   await page.waitForTimeout(2500)
   await expect(footer, 'never "Saved" over an unsaved value').not.toContainText(/Saved|Edited just now/)
-  await page.unroute('**/_serverFn/**')
+  await page.unrouteAll({behavior: 'wait'})
   await expect.poll(async () => ((await bpDoc(ID))?.mainImage as {hotspot?: {width: number}})?.hotspot?.width ?? 1, {timeout: 20_000}).toBeLessThan(0.9)
   const landed = (await bpDoc(ID))!.mainImage as {alt?: string}
   expect(landed.alt, "theirs (the alt) kept beside mine (the hotspot)").toBe('Theirs alt')
@@ -188,7 +190,7 @@ test('a clash shows both versions on the field: Take theirs, then Keep mine', as
     await expect(card.locator('[data-version="theirs"]')).toHaveText(rewrite)
     await expect(card.locator('[data-version="mine"]')).toHaveText(mine)
     await expect(footer).toContainText('Someone else rewrote Excerpt meanwhile')
-    await page.unroute('**/_serverFn/**')
+    await page.unrouteAll({behavior: 'wait'})
     return mine
   }
   // Take theirs: mine goes, the field shows theirs, nothing is sent over it.
@@ -250,7 +252,7 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
   await expect(card).toBeVisible({timeout: 10_000})
   await expect(card.locator('[data-version="theirs"]')).toHaveText(theirs)
   // Saves flow again: theirs stands until the editor chooses.
-  await page.unroute('**/_serverFn/**')
+  await page.unrouteAll({behavior: 'wait'})
   await page.waitForTimeout(2200) // past the 2 s retry a failed save waits
   expect((await bpDoc(ID))?.excerpt, 'never saved over theirs unseen').toBe(theirs)
   await card.getByRole('button', {name: 'Take theirs'}).click()
