@@ -66,19 +66,20 @@ export const collectionsQuery = queryOptions({queryKey: ['media', 'collections']
 const fetchAssets = createServerFn({method: 'GET'})
   .validator((d: {collection?: string; q?: string; visibility?: Visibility}) => d)
   .handler(async ({data}) => {
-    const params = new URLSearchParams({limit: '200', sort: 'createdAt:desc'})
+    const params = new URLSearchParams({limit: '200', sort: 'created-desc'})
     if (data.q) params.set('q', data.q)
     if (data.collection) {
       const r = await read<{assets?: RawAsset[]; hits?: RawAsset[]; hasMore?: boolean}>(`${base()}/collections/${encodeURIComponent(data.collection)}/assets?${params}`)
-      return {assets: (r.assets ?? r.hits ?? []).map(toAsset).filter((a) => !data.visibility || a.visibility === data.visibility), more: !!r.hasMore} as unknown as Json
+      const assets = (r.assets ?? r.hits ?? []).map(toAsset).filter((a) => !data.visibility || a.visibility === data.visibility)
+      return {assets, more: !!r.hasMore, total: r.hasMore ? null : assets.length} as unknown as Json
     }
     // The search's visibility facet (#22127: an asset with none stored is public).
     if (data.visibility) params.set('facet.visibility', data.visibility)
-    const r = await read<{hits: RawAsset[]; hasMore?: boolean}>(`${base()}/search?${params}`)
-    return {assets: r.hits.map(toAsset), more: !!r.hasMore} as unknown as Json
+    const r = await read<{hits: RawAsset[]; hasMore?: boolean; total?: number}>(`${base()}/search?${params}`)
+    return {assets: r.hits.map(toAsset), more: !!r.hasMore, total: r.total ?? null} as unknown as Json
   })
 export const assetsQuery = (f: {collection?: string; q?: string; visibility?: Visibility}) =>
-  queryOptions({queryKey: ['media', 'assets', f], queryFn: async () => (await fetchAssets({data: f})) as unknown as {assets: LibraryAsset[]; more: boolean}})
+  queryOptions({queryKey: ['media', 'assets', f], queryFn: async () => (await fetchAssets({data: f})) as unknown as {assets: LibraryAsset[]; more: boolean; total: number | null}})
 
 const fetchAsset = createServerFn({method: 'GET'})
   .validator((d: {id: string}) => d)
