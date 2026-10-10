@@ -1,5 +1,6 @@
 import {createFileRoute} from '@tanstack/react-router'
-import {bpFetch, dataset, requestToken} from '../../server/barkpark'
+import {bpFetch, dataset, requestToken, scope} from '../../server/barkpark'
+import {presenceStream} from '../../server/presence'
 import {currentEditor} from '../../server/auth'
 
 // Editor presence (J07): Barkpark's room for this workspace + project + dataset, the
@@ -15,21 +16,18 @@ export const Route = createFileRoute('/api/presence')({
         const params = new URLSearchParams({name: currentEditor()?.email.split('@')[0] ?? 'Studio'})
         const sessionId = q.get('sessionId')
         if (sessionId) params.set('sessionId', sessionId)
+        // Pinned now, inside the request: a re-open on a new instance runs outside it.
+        const path = `/v1/data/presence/${dataset()}?${params}`
+        const token = requestToken()
+        const at = scope()
+        const open = (signal: AbortSignal) => bpFetch(path, {headers: {accept: 'text/event-stream'}, signal}, token, {at})
         const upstream = new AbortController()
-        request.signal.addEventListener('abort', () => upstream.abort())
-        const res = await bpFetch(`/v1/data/presence/${dataset()}?${params}`, {headers: {accept: 'text/event-stream'}, signal: upstream.signal})
-        if (!res.ok || !res.body) return new Response(await res.text(), {status: res.status})
         // The tab going away must close Barkpark's stream at once: that is what takes
         // this editor out of the room (else it lingers until a keepalive write fails).
-        const reader = res.body.getReader()
-        const stream = new ReadableStream<Uint8Array>({
-          async pull(c) {
-            const r = await reader.read().catch(() => null)
-            if (!r || r.done) c.close()
-            else c.enqueue(r.value)
-          },
-          cancel: () => upstream.abort(),
-        })
+        request.signal.addEventListener('abort', () => upstream.abort())
+        const res = await open(upstream.signal)
+        if (!res.ok || !res.body) return new Response(await res.text(), {status: res.status})
+        const stream = presenceStream(open, res, upstream, request.signal)
         return new Response(stream, {headers: {'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive'}})
       },
       DELETE: async ({request}) => {

@@ -65,7 +65,7 @@ export default defineConfig({
       timeout: 60_000,
       stdout: 'pipe',
       // A local lane's studio server writes on its own token (scripts/lane-token.mjs).
-      // STUDIO_E2E_HOOKS: the listen hub's levers (live.spec, /api/e2e-listen).
+      // STUDIO_E2E_HOOKS: the listen hub's and presence's levers (/api/e2e-listen).
       env: {...process.env, STUDIO_E2E_HOOKS: '1', ...(process.env.BARKPARK_APP_TOKEN && {BARKPARK_TOKEN: process.env.BARKPARK_APP_TOKEN})} as Record<string, string>,
     },
   ],

@@ -15,9 +15,10 @@
 // Barkpark replay what was missed) when a browser comes back after a gap and the
 // upstream has been quiet, when one of our own writes gets no echo, after 45 s
 // with no byte at all (Barkpark sends a keepalive every 30 s), and when Barkpark
-// answers from a newly booted instance (watchBoot below).
+// answers from a newly booted instance (server/boot.ts).
 import '@tanstack/react-start/server-only'
 import {bpFetch, forgetReads, forgetReadsOf, READ_DEDUPE_MS, scope} from './barkpark'
+import {e2eFlip, onNewBoot} from './boot'
 import type {Scope} from '../lib/scope'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
@@ -152,39 +153,23 @@ export function expectEcho(token: string, docIds: string[]) {
   }, ECHO_MS).unref?.()
 }
 
-// Barkpark deploys blue/green: once Caddy flips to the new instance the old one drains
-// for some seconds, and a stream opened before the flip stays on it, keepalives and all,
-// while every write lands on the new one. The hub then hears nothing (de6987a, 2026-10-09:
-// ~25 s; the frames came late, replayed once the old instance closed the stream).
-// status.json says when the instance answering it booted: a new boot re-opens every hub
-// now, at its last event id, and Barkpark replays what the old stream missed.
-const BOOT_CHECK_MS = 5000
-let booted: number | null = null
-let bootShift = 0
-let bootTimer: ReturnType<typeof setInterval> | undefined
+// A new Barkpark instance (server/boot.ts) re-opens every hub now, at its last event id,
+// and Barkpark replays what the old stream missed.
+let watching = false
 function watchBoot() {
-  if (bootTimer) return
-  // From the first stream on, while any is open: the boot it started on is the baseline.
-  const check = async () => {
-    if (![...hubs.values()].some((h) => h.upstream)) return
-    try {
-      const s = (await (await fetch(`${process.env.BARKPARK_URL}/status.json`)).json()) as {checked_at?: string; uptime_seconds?: number}
-      if (!s.checked_at || typeof s.uptime_seconds !== 'number') return
-      const boot = Date.parse(s.checked_at) - s.uptime_seconds * 1000 + bootShift
-      if (booted !== null && Math.abs(boot - booted) > 5000) for (const h of hubs.values()) if (h.upstream) (h.deaf = false), refresh(h)
-      booted = boot
-    } catch {
-      // Unreachable for a moment: the other checks still stand.
-    }
-  }
-  bootTimer = setInterval(check, BOOT_CHECK_MS)
-  bootTimer.unref?.()
-  setTimeout(check, 0)
+  if (watching) return
+  watching = true
+  onNewBoot(
+    () => {
+      for (const h of hubs.values()) if (h.upstream) (h.deaf = false), refresh(h)
+    },
+    () => [...hubs.values()].some((h) => h.upstream),
+  )
 }
 
 /** e2e (STUDIO_E2E_HOOKS=1): make every hub's stream deaf, cut it for `ms`, or fake a newly booted instance. */
 export function e2eListen(action: 'deaf' | 'cut' | 'flip', ms = 0) {
-  if (action === 'flip') return void (bootShift += 60_000)
+  if (action === 'flip') return e2eFlip()
   for (const h of hubs.values()) {
     if (action === 'deaf') h.deaf = true
     else (h.holdUntil = Date.now() + ms), refresh(h)
