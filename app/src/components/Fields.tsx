@@ -222,7 +222,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
   }
   return (
     <div ref={register} className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={t('Field actions')} data-tip={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (

@@ -38,11 +38,14 @@ test('J57: every icon button has a tooltip, shortcuts show; a repeated toast rep
   await page.goto(t.docPath('post', 'post-01'))
   await signInIfAsked(page)
   await t.settle(page)
-  // The navbar's and the document header's icon buttons; not the avatar, which opens the
-  // user menu (left to the owner's side-by-side check, with the field-level buttons).
-  const buttons = page.locator('.navbar .icon-btn:visible:not(.user-btn), .pane-header .icon-btn:visible')
+  // The navbar's and the document header's icon buttons, and each field's "…", Add comment
+  // and drag handle (Sanity's "Field actions", "Add comment", "Drag to re-order"); those
+  // show on hover, so they count shown or not. Not the avatar: Sanity's has no tooltip.
+  await page.getByRole('tab', {name: 'All fields'}).click().catch(() => {})
+  const buttons = page.locator('.navbar .icon-btn:visible:not(.user-btn), .pane-header .icon-btn:visible, .field .icon-btn[aria-label="Field actions"], .field .comment-add, .field .drag-handle')
   const total = await buttons.count()
   expect(total).toBeGreaterThan(3)
+  expect(await page.locator('.field .drag-handle').count(), 'an array with a drag handle is in view').toBeGreaterThan(0)
   const untipped = await buttons.evaluateAll((els) => els.filter((e) => !e.getAttribute('data-tip') && !e.closest('[data-tip]')).map((e) => e.getAttribute('aria-label') ?? e.outerHTML.slice(0, 80)))
   expect(untipped, 'icon buttons without a tooltip').toEqual([])
   // One shown on hover, with the search's shortcut.

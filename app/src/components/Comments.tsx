@@ -46,7 +46,7 @@ export function FieldComments({path, title}: {path: string; title: string}) {
           <CommentIcon /> {open.length}
         </button>
       ) : (
-        <button ref={opener} type="button" className="icon-btn comment-add" aria-label={t('Add comment')} title={commentReason ?? t('Add comment')} disabled={!!commentReason} aria-expanded={composing} onClick={() => setComposing(true)}>
+        <button ref={opener} type="button" className="icon-btn comment-add" aria-label={t('Add comment')} data-tip={t('Add comment')} title={commentReason} disabled={!!commentReason} aria-expanded={composing} onClick={() => setComposing(true)}>
           <AddComment />
         </button>
       )}
