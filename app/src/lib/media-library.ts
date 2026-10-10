@@ -1,5 +1,5 @@
 import {createServerFn} from '@tanstack/react-start'
-import {queryOptions} from '@tanstack/react-query'
+import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query'
 import {bpFetch, dataset} from '../server/barkpark'
 
 // B08: the Media tool, after Barkpark's LiveView media library (its bp-asset-explorer
@@ -78,10 +78,17 @@ export const collectionsQuery = queryOptions({queryKey: ['media', 'collections']
 export const SORTS = ['created-desc', 'created-asc', 'updated-desc'] as const
 export type Sort = (typeof SORTS)[number]
 type Filter = {collection?: string; q?: string; visibility?: Visibility; kind?: Kind; sort?: Sort}
+/** A page: LiveView's 50 (Barkpark's search time grows with the page: 200 took 3-4 s). */
+const PAGE = 50
+/** Where the next page starts: Barkpark's cursor where the sort has one, else an offset. */
+type From = {cursor?: string; offset?: number}
+type Page = {assets: LibraryAsset[]; more: boolean; total: number | null; next: From | null}
 const fetchAssets = createServerFn({method: 'GET'})
-  .validator((d: Filter) => d)
+  .validator((d: Filter & {from?: From}) => d)
   .handler(async ({data}) => {
-    const params = new URLSearchParams({limit: '200', sort: data.sort ?? 'created-desc'})
+    const params = new URLSearchParams({limit: String(PAGE), sort: data.sort ?? 'created-desc'})
+    if (data.from?.cursor) params.set('cursor', data.from.cursor)
+    else if (data.from?.offset) params.set('offset', String(data.from.offset))
     if (data.q) params.set('q', data.q)
     // A folder is one more filter on the same search (Barkpark's collection=), so it sorts,
     // filters by kind and counts as the whole library does.
@@ -89,8 +96,10 @@ const fetchAssets = createServerFn({method: 'GET'})
     // The search's visibility facet (#22127: an asset with none stored is public).
     if (data.visibility) params.set('facet.visibility', data.visibility)
     if (data.kind) params.set('kind', data.kind)
-    const r = await read<{hits: RawAsset[]; hasMore?: boolean; total?: number}>(`${base()}/search?${params}`)
-    return {assets: r.hits.map(toAsset), more: !!r.hasMore, total: r.total ?? null} as unknown as Json
+    const r = await read<{hits: RawAsset[]; hasMore?: boolean; total?: number; nextCursor?: string | null}>(`${base()}/search?${params}`)
+    const next = !r.hasMore ? null : r.nextCursor ? {cursor: r.nextCursor} : {offset: (data.from?.offset ?? 0) + r.hits.length}
+    const page: Page = {assets: r.hits.map(toAsset), more: !!r.hasMore, total: r.total ?? null, next}
+    return page as unknown as Json
   })
 /** How many assets of each kind the library holds under this search and visibility (Barkpark's kind facet). */
 const fetchKindCounts = createServerFn({method: 'GET'})
@@ -106,7 +115,12 @@ export const kindCountsQuery = (f: Omit<Filter, 'kind' | 'collection'>) =>
   queryOptions({queryKey: ['media', 'assets', 'kinds', f], queryFn: async () => (await fetchKindCounts({data: f})) as unknown as {total: number; kinds: Record<string, number>}})
 
 export const assetsQuery = (f: Filter) =>
-  queryOptions({queryKey: ['media', 'assets', f], queryFn: async () => (await fetchAssets({data: f})) as unknown as {assets: LibraryAsset[]; more: boolean; total: number | null}})
+  infiniteQueryOptions({
+    queryKey: ['media', 'assets', f],
+    initialPageParam: {} as From,
+    queryFn: async ({pageParam}) => (await fetchAssets({data: {...f, from: pageParam}})) as unknown as Page,
+    getNextPageParam: (last: Page) => last.next ?? undefined,
+  })
 
 const fetchAsset = createServerFn({method: 'GET'})
   .validator((d: {id: string}) => d)
