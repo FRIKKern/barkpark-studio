@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, searchQueries, type SavedQuery} from '../lib/vision-queries'
-import {getPref, putPref} from '../lib/prefs'
+import {deletePref, getPref, putPref} from '../lib/prefs'
 import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
 import {meQuery} from '../lib/session'
 import {intlTag, useLocale, useT} from '../lib/i18n'
@@ -182,7 +182,8 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
   const store = async (next: SavedQuery[], done?: string) => {
     const before = list
     setList(next)
-    const ok = await putPref({data: {key: QUERIES_PREF, value: {queries: next}}}).catch(() => false)
+    // The last one gone: no pref left behind, not an empty list.
+    const ok = await (next.length ? putPref({data: {key: QUERIES_PREF, value: {queries: next}}}) : deletePref({data: QUERIES_PREF})).catch(() => false)
     if (!ok) (setList(before), toast({title: t('Error saving query'), tone: 'critical'}))
     else if (done) toast({title: done, tone: 'positive'})
   }
