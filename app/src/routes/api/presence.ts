@@ -1,6 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, dataset, requestToken} from '../../server/barkpark'
 import {currentEditor} from '../../server/auth'
+import {clientGone} from '../../server/client-gone'
 import {onNewBoot, presenceDeafSince} from '../../server/listen'
 
 // Editor presence (J07): Barkpark's room for this workspace + project + dataset, the
@@ -17,7 +18,7 @@ export const Route = createFileRoute('/api/presence')({
         const sessionId = q.get('sessionId')
         if (sessionId) params.set('sessionId', sessionId)
         const upstream = new AbortController()
-        request.signal.addEventListener('abort', () => upstream.abort())
+        clientGone(request).addEventListener('abort', () => upstream.abort())
         const res = await bpFetch(`/v1/data/presence/${dataset()}?${params}`, {headers: {accept: 'text/event-stream'}, signal: upstream.signal})
         if (!res.ok || !res.body) return new Response(await res.text(), {status: res.status})
         // The tab going away must close Barkpark's stream at once: that is what takes
