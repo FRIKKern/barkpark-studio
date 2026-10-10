@@ -1286,6 +1286,10 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .media-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-badges { display: flex; gap: 4px; min-height: 18px; }
 .media-size { font-size: 11px; }
+.media-chips, .media-file-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.media-chips .badge { padding: 2px 8px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--border); font-size: 12px; }
+.media-chips .badge[data-tone='positive'] { color: var(--positive-fg); box-shadow: inset 0 0 0 1px currentColor; }
+.media-chips .badge[data-tone='critical'] { color: var(--critical-icon); box-shadow: inset 0 0 0 1px currentColor; }
 .media-views { display: flex; flex: none; }
 .media-views .btn[aria-pressed='true'] { background: var(--hover); font-weight: 500; }
 .media-list { width: calc(100% - 24px); margin: 12px; border-collapse: collapse; font-size: 13px; }

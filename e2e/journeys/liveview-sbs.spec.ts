@@ -189,6 +189,13 @@ test('@evidence B08: media library', async ({page, browser}, info) => {
   await lv.getByText('List', {exact: true}).first().click()
   await lv.waitForTimeout(1200)
   await lv.screenshot({path: still('B08', '4-list', 'liveview')})
+  // The inspector: the first (oldest) image on both.
+  await page.locator('.media-list tbody tr').first().getByRole('button').click()
+  await page.waitForTimeout(1200)
+  await page.screenshot({path: still('B08', '5-inspector', 'studio')})
+  await lv.getByText(/\.png$/).first().click()
+  await lv.waitForTimeout(1500)
+  await lv.screenshot({path: still('B08', '5-inspector', 'liveview')})
 })
 
 test('@evidence B09: an author\'s Posts view', async ({page, browser}, info) => {
