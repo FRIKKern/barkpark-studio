@@ -79,6 +79,8 @@
   "tasks.spec.ts": 1.9,
   "unload-guard.spec.ts": 0,
   "unpublish-guard.spec.ts": 0,
+  "upload-cancel.spec.ts": 0,
+  "upload-dedup.spec.ts": 0,
   "upload-progress.spec.ts": 1.1,
   "visual-editing.spec.ts": 5.4
 }
