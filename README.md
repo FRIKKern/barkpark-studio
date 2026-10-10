@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 34 changes, 1 task closed
+- **Today** · 35 changes, 1 task closed
+  - --published as Sanity's positive dot, per mode ([#388](https://github.com/FRIKKern/barkpark-studio/pull/388))
   - Hard-coded colours to tokens, from Sanity's theme, in both modes ([#387](https://github.com/FRIKKern/barkpark-studio/pull/387))
   - Secondary buttons (Generate, Create) as Sanity's, in tokens ([#386](https://github.com/FRIKKern/barkpark-studio/pull/386))
-  - Tasks create: the error line no longer squeezes the Task title ([#385](https://github.com/FRIKKern/barkpark-studio/pull/385))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
