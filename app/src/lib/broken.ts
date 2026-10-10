@@ -96,3 +96,21 @@ export function unknownFields(schema: Schema, doc: Record<string, unknown>): str
   const known = new Set(schema.fields.map((f) => f.name))
   return Object.keys(doc).filter((k) => !k.startsWith('_') && !known.has(k) && !SERVER_KEYS.has(k) && doc[k] !== undefined && doc[k] !== null)
 }
+
+export type UnsupportedAsset = {reason: 'sanityAsset' | 'foreignRef'; source: string}
+
+/**
+ * An image or file value holding an asset this studio can't show: Sanity's export form
+ * ({_sanityAsset: 'image@file://…'}) or a ref that is not a Barkpark media id
+ * (Sanity's 'image-<sha>-640x400-png'). Read as empty, one save would drop it: the field
+ * shows it as it is, read-only, with Reset (task-ec9b4c0c78185fa4).
+ */
+export function unsupportedAsset(field: Field, value: unknown): UnsupportedAsset | null {
+  if (field.type !== 'image' && field.type !== 'file') return null
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const v = value as {_sanityAsset?: unknown; asset?: {_ref?: unknown}}
+  if (typeof v._sanityAsset === 'string') return {reason: 'sanityAsset', source: v._sanityAsset}
+  const ref = v.asset?._ref
+  if (typeof ref === 'string' && !ref.startsWith('asset-')) return {reason: 'foreignRef', source: ref}
+  return null
+}

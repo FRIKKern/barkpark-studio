@@ -80,3 +80,43 @@ test('Sanity-shaped values open in the editor: a {_ref} reference, a {current} s
   await expect(t.field(page, 'slug')).toHaveValue('broken-post')
   await expect(t.refLink(page.locator('body'), 'author')).toContainText('Ada Lovelace')
 })
+
+// task-ec9b4c0c78185fa4: a team moving over from Sanity brings asset values Barkpark has
+// no media for: the export form ({_sanityAsset}) and Sanity asset ids. The field shows
+// them as they are (never an empty picker, which one save would turn into a drop), a
+// save elsewhere leaves them byte-identical, and Reset is the one change offered.
+const FOREIGN = 'post-foreign-asset'
+const SANITY_IMAGE = {_type: 'image', asset: {_type: 'reference', _ref: 'image-0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6-640x400-png'}}
+const SANITY_FILE = {_type: 'file', _sanityAsset: 'file@file://./files/0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6.pdf'}
+test('unsupported asset values: shown as they are, kept byte-identical by a save elsewhere, Reset clears one', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: Sanity shows its own assets')
+  await t.draftOnly(FOREIGN, 'post', {title: 'Foreign assets', mainImage: SANITY_IMAGE, attachment: SANITY_FILE})
+  try {
+    await t.prepare(context)
+    await page.goto(t.docPath('post', FOREIGN))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await page.getByRole('tab', {name: 'All fields'}).click()
+    // Each field's card names the asset it holds.
+    const image = page.getByRole('alert').filter({hasText: SANITY_IMAGE.asset._ref})
+    const file = page.getByRole('alert').filter({hasText: SANITY_FILE._sanityAsset})
+    for (const card of [image, file]) await expect(card).toContainText('Unsupported asset value')
+    // A save elsewhere sends that field only: the raw values stay exactly as stored
+    // (as Barkpark stores them: compared to its own copy from before the save).
+    const stored = async () => JSON.stringify([await t.docValue(FOREIGN, 'mainImage'), await t.docValue(FOREIGN, 'attachment')])
+    const before = await stored()
+    expect(JSON.parse(before)).toEqual([SANITY_IMAGE, SANITY_FILE])
+    await t.field(page, 'title').fill('Foreign assets, edited')
+    await expect.poll(() => t.docValue(FOREIGN, 'title'), BACKEND_POLL).toBe('Foreign assets, edited')
+    expect(await stored()).toBe(before)
+    // Reset: the file field is empty, the image untouched.
+    await file.getByRole('button', {name: 'Reset value'}).click()
+    await expect.poll(async () => (await t.docValue(FOREIGN, 'attachment')) ?? null, BACKEND_POLL).toBeNull()
+    await expect(file).toHaveCount(0)
+    expect(JSON.stringify(await t.docValue(FOREIGN, 'mainImage'))).toBe(JSON.stringify(JSON.parse(before)[0]))
+  } finally {
+    await closeAndSettle(page)
+    await t.deleteDoc(FOREIGN, 'post')
+  }
+})

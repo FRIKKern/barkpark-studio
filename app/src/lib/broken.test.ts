@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {invalidValue, keyProblem, richTextProblem, unknownFields} from './broken.ts'
+import {invalidValue, keyProblem, richTextProblem, unknownFields, unsupportedAsset} from './broken.ts'
 import type {Field, Schema} from './data.ts'
 
 const f = (type: string): Field => ({name: 'x', type})
@@ -43,3 +43,13 @@ test('unknown fields skip system and server keys', () => {
   const s = {name: 'post', title: 'Post', fields: [{name: 'title', type: 'string'}]} as Schema
   assert.deepEqual(unknownFields(s, {_id: 'p', title: 't', oldField: 1, blocks: [], gone: null}), ['oldField'])
 })
+
+test('an asset this studio cannot show: Sanity export form, a foreign ref', () => {
+  assert.deepEqual(unsupportedAsset(f('file'), {_type: 'file', _sanityAsset: 'file@file://./files/a.txt'}), {reason: 'sanityAsset', source: 'file@file://./files/a.txt'})
+  assert.deepEqual(unsupportedAsset(f('image'), {asset: {_ref: 'image-abc-640x400-png'}}), {reason: 'foreignRef', source: 'image-abc-640x400-png'})
+  assert.equal(unsupportedAsset(f('image'), {asset: {_ref: 'asset-123'}}), null)
+  assert.equal(unsupportedAsset(f('image'), {assetId: '123', url: '/x'}), null) // the legacy shape it reads
+  assert.equal(unsupportedAsset(f('image'), null), null)
+  assert.equal(unsupportedAsset(f('string'), {_sanityAsset: 'x'}), null)
+})
+
