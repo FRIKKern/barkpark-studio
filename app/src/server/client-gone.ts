@@ -9,6 +9,8 @@ import type {IncomingMessage, ServerResponse} from 'node:http'
  * working before its first byte (an upload going on to Barkpark) was never told. With
  * `Accept-Encoding: gzip` only, so every browser and not curl; the dev server has no such
  * middleware. The client's socket closing says it too, and is heard directly.
+ * Not reported upstream yet (Vite / TanStack srvx): the owner's call, with the repro in
+ * task-d87a15eb71d9ca6d. Drop this once request.signal aborts on its own in preview.
  */
 export function clientGone(request: Request): AbortSignal {
   const node = (request as {runtime?: {node?: {req?: IncomingMessage; res?: ServerResponse}}}).runtime?.node
