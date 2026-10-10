@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 15 changes, 1 task closed
+- **Today** · 16 changes, 1 task closed
+  - Image/file fields keep an asset from elsewhere, never read it as empty ([#368](https://github.com/FRIKKern/barkpark-studio/pull/368))
   - Declare the studio's own record types (tasks, comments), hidden from content ([#367](https://github.com/FRIKKern/barkpark-studio/pull/367))
   - e2e: a run that includes the Sanity side takes a lock; our own project stays parallel ([#366](https://github.com/FRIKKern/barkpark-studio/pull/366))
-  - Sanity-shaped values open in the editor; B14: a Sanity team moving over ([#365](https://github.com/FRIKKern/barkpark-studio/pull/365))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
