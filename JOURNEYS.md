@@ -20,7 +20,7 @@ quality first, never a shrinking finish line.
 | J08 | 1 ★ | Pick author by search; open it in the next pane | F2 F5 |
 | J09 | 4 | Arrays of refs and objects: add, drag by handle and keyboard, item "…" menu (remove, copy, duplicate, add before/after) | F1 F5 F7 |
 | J10 | 5 | Type in body (shared canvas, [0004](docs/decisions/0004-portabledoc-freeform.md)): styles H1–H6, quote, marks, link popover, lists, markdown shortcuts; paste from Google Docs, Word, a web page, Markdown and plain text keeps structure, marks and links, never drops text silently (paste.spec) | F1 F5 F7 F9 |
-| J11 | 5 | Insert callout + image block, edit in dialog; block "…" menu, drag blocks, inline objects | F2 F10 |
+| J11 | 5 | Insert callout + image block, edit in dialog; block "…" menu, drag blocks, inline objects (yes, [0006](docs/decisions/0006-owner-calls-roles-comments-scheduling.md)) | F2 F10 |
 | J12 | 5 | Image: upload, hotspot/crop (mouse + keyboard), alt text | F9 F10 |
 | J13 | 2 | Validation: error/warning/info inline, publish blocked, validation panel; click an error → focus the field, even in another tab or a collapsed object | F9 F10 |
 | J14 | 2 | Field groups (tabs, with validation badge) and nested objects that collapse and keep that state | F2 F5 |
@@ -49,7 +49,7 @@ quality first, never a shrinking finish line.
 | J37 | after | Navbar shell: tool switcher (Vision), "+" create new document by type, user menu | F10 |
 | J38 | after | Global search filters: type picker, field filters with Sanity's operators, ordering; the search survives a reopen; recent searches (filters included) reapply, remove one, clear all; full screen at phone width; never fewer hits than Sanity for title vs body, prefixes, phrases, -exclusions and references by name; titles also match æ/ø/å typed as ae/o/a, the exact spelling first (search-quality.spec) | F2 F5 |
 | J39 | after | Broken values: wrong-type or unknown field shows Convert / Remove, bad array keys alert, invalid rich text gets a fix-it card | F9 |
-| J40 | after | Field comments: add, reply, mention, resolve; the Comments panel (open / resolved). Scheduled publish of a draft ("Schedule draft for publishing"). Releases are not on the reference plan ("Upgrade to unlock", checked 2026-10-08) | F4 F10 |
+| J40 | after | Field comments: add, reply, mention, resolve; the Comments panel (open / resolved). Scheduled publish of a draft ("Schedule draft for publishing"), run as the person who scheduled it ([0006](docs/decisions/0006-owner-calls-roles-comments-scheduling.md)). Releases are not on the reference plan ("Upgrade to unlock", checked 2026-10-08) | F4 F10 |
 | J41 | 1 | Big list: 5,000 docs scroll smoothly, more load near the bottom (growing to 2,000 never stalls a frame), "max items" note at 2,000, list search finds docs beyond the first page | F2 F11 |
 | J42 | 1 | Narrow window: below the minimum width one pane shows with a Back button; panes and URL stay right both ways | F2 F12 |
 | J44 | 4 | Very long doc: 200 fields + a 300-item array, or a 400-paragraph body, still meet F1 and F2 | F1 F2 F11 |
@@ -57,7 +57,7 @@ quality first, never a shrinking finish line.
 | J46 | after | Phone and tablet, by touch: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px; what hover reveals (field "…", Add comment) always shown; the doc header one row; the footer never under the browser's toolbars; drag rows, pick references, swipe lists, type in the body by finger | F12 |
 | J47 | after | Dialogs and popovers trap focus and return it to their opener (was J43). Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced; axe clean on the search dialog, menus, image library, Presentation, media and canvas too | F5 F13 |
 | J48 | 3 | Session lost mid-edit: "You've been logged out" banner, writes stop (never saved as anyone else), sign in again, pending edits survive | F9 F15 |
-| J49 | 2 | Read-only role or denied doc (the signed-in editor's token or the studio's own): banner, locked form, actions disabled with the reason, list "+", comments and media writes greyed; a dataset-bound token offers only its dataset | F9 F15 |
+| J49 | 2 | Read-only role or denied doc (the signed-in editor's token or the studio's own): banner, locked form, actions disabled with the reason, list "+", comments and media writes greyed; a dataset-bound token offers only its dataset; a Contributor writes drafts but cannot publish, a viewer can comment ([0006](docs/decisions/0006-owner-calls-roles-comments-scheduling.md)) | F9 F15 |
 | J50 | 1 | Backend down: list "Could not fetch list items" + Retry, bounded auto-retries; "Trying to connect…" toast; a pane that crashes shows an error card + Retry (Sanity: whole tool) | F9 |
 | J51 | 1 | Slow network (Fast 3G): shell paints, every pane shows a loading state, never a blank or dead click | F3 F14 |
 | J53 | after | New Studio version, or a changed content model, while tabs are open: a dot on Help and "Reload to update" (Sanity v6), "The content model changed" + Reload; waiting edits save first, nothing lost | F9 |
@@ -70,7 +70,7 @@ quality first, never a shrinking finish line.
 | J60 | after | Live preview: typing in the form updates the iframe without reload; focus and caret never lost | F1 F4 F6 |
 | J61 | after | Page navigation in the preview: links / URL bar; "Documents on this page" and "Main document" follow the page | F2 F9 |
 | J63 | after | Drafts vs published in the preview; after Publish the published view updates | F4 F9 |
-| J64 | after | Preview viewport full ↔ phone width; share menu: copy link, QR, sharing on/off by permission | F12 F15 |
+| J64 | after | Preview viewport full ↔ phone width; share menu: copy link, QR, sharing on/off by permission, for preview links only, no member share links ([0006](docs/decisions/0006-owner-calls-roles-comments-scheduling.md)) | F12 F15 |
 | J65 | after | Plugin surface: a custom tool in the navbar, a custom field input, a custom document action + badge, "Open preview" in the document menu | F5 F9 F10 |
 | J66 | after | Tasks, as Sanity's, on Barkpark's own task store: create from the doc menu (title, description, target, assignee, deadline), navbar Tasks panel (assigned / subscribed / done), open the target, mark done | F5 F9 |
 | J67 | after | Production sign-in as yourself: a sign-in screen (Barkpark account), edits, presence and history name the person, sign out; never a shared token for a signed-in editor. Server: task-287b009456a8591a split into 0f1fd3d17e5f4edb, f583460d431d195c, 27006bc488ad1570 | F9 F15 |
