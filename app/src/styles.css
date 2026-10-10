@@ -1285,6 +1285,17 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .media-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .media-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-badges { display: flex; gap: 4px; min-height: 18px; }
+.media-size { font-size: 11px; }
+.media-views { display: flex; flex: none; }
+.media-views .btn[aria-pressed='true'] { background: var(--hover); font-weight: 500; }
+.media-list { width: calc(100% - 24px); margin: 12px; border-collapse: collapse; font-size: 13px; }
+.media-list th { padding: 6px 8px; text-align: left; font-size: 11px; font-weight: 500; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+.media-list td { padding: 4px 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
+.media-list td:first-child { width: 55%; color: var(--fg); }
+.media-list .num { text-align: right; font-variant-numeric: tabular-nums; }
+.media-list tr[aria-selected='true'] td { background: var(--hover); }
+.media-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 4px 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.media-row .media-thumb { width: 40px; flex: none; }
 .media-inspector { width: 320px; display: flex; flex-direction: column; gap: 12px; }
 .media-inspector header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-preview { max-width: 100%; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }

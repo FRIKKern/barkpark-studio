@@ -51,6 +51,14 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   await page.getByLabel('Sort').selectOption('created-asc')
   await expect(page.locator('.media-tile').first()).toContainText(oldest.result.hits[0]!.originalName ?? oldest.result.hits[0]!.filename!)
   await page.getByLabel('Sort').selectOption('created-desc')
+  // List (LiveView's): name, kind, format, size; a row opens the asset as a tile does.
+  await page.getByRole('button', {name: 'List', exact: true}).click()
+  const listRow = page.locator('.media-list tbody tr', {hasText: NAME})
+  await expect(listRow.locator('td')).toHaveText([NAME, 'image', 'image/png', /\d+ kB/])
+  await listRow.getByRole('button').click()
+  await expect(page.getByRole('complementary', {name: 'Asset'}).getByRole('heading', {name: NAME})).toBeVisible()
+  await page.getByRole('button', {name: 'Close asset'}).click()
+  await page.getByRole('button', {name: 'Grid', exact: true}).click()
 
   await page.getByRole('searchbox', {name: 'Search media'}).fill(NAME)
   const tile = page.locator('.media-tile', {hasText: NAME})

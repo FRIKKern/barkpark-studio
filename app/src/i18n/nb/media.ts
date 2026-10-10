@@ -248,4 +248,13 @@ export default {
   'Newest first': 'Nyeste først',
   'Oldest first': 'Eldste først',
   'Recently updated': 'Nylig oppdatert',
+  // Grid / List (LiveView's words)
+  'Result view': 'Visning av resultater',
+  Grid: 'Rutenett',
+  Name: 'Navn',
+  Kind: 'Type',
+  Format: 'Format',
+  video: 'video',
+  audio: 'lyd',
+  other: 'annet',
 } satisfies Record<string, string>
