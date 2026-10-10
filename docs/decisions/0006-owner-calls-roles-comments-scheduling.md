@@ -18,7 +18,8 @@
   builds each one when its Barkpark task lands. Until then it shows what Barkpark
   allows today (a viewer's Add comment stays disabled, Publish is not gated on a
   role Barkpark cannot report).
-- J64's share menu offers the preview link (copy, QR) only. No member share link.
+- J64's share menu stays as built: it shares preview links (on/off, copy, QR), never
+  a member share link.
 
 ## Why
 

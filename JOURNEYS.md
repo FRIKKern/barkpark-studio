@@ -70,7 +70,7 @@ quality first, never a shrinking finish line.
 | J60 | after | Live preview: typing in the form updates the iframe without reload; focus and caret never lost | F1 F4 F6 |
 | J61 | after | Page navigation in the preview: links / URL bar; "Documents on this page" and "Main document" follow the page | F2 F9 |
 | J63 | after | Drafts vs published in the preview; after Publish the published view updates | F4 F9 |
-| J64 | after | Preview viewport full ↔ phone width; share menu: copy the preview link, QR; no member share links ([0006](docs/decisions/0006-owner-calls-roles-comments-scheduling.md)) | F12 F15 |
+| J64 | after | Preview viewport full ↔ phone width; share menu: copy link, QR, sharing on/off by permission, for preview links only, no member share links ([0006](docs/decisions/0006-owner-calls-roles-comments-scheduling.md)) | F12 F15 |
 | J65 | after | Plugin surface: a custom tool in the navbar, a custom field input, a custom document action + badge, "Open preview" in the document menu | F5 F9 F10 |
 | J66 | after | Tasks, as Sanity's, on Barkpark's own task store: create from the doc menu (title, description, target, assignee, deadline), navbar Tasks panel (assigned / subscribed / done), open the target, mark done | F5 F9 |
 | J67 | after | Production sign-in as yourself: a sign-in screen (Barkpark account), edits, presence and history name the person, sign out; never a shared token for a signed-in editor. Server: task-287b009456a8591a split into 0f1fd3d17e5f4edb, f583460d431d195c, 27006bc488ad1570 | F9 F15 |
