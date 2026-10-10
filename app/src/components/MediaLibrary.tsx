@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type FormEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {assetQuery, assetsQuery, collectionsQuery, createFolder, KINDS, kindCountsQuery, saveAssetMeta, setCheckout, setMember, type Kind, type LibraryAsset, type Visibility} from '../lib/media-library'
+import {assetQuery, assetsQuery, collectionsQuery, createFolder, KINDS, kindCountsQuery, saveAssetMeta, SORTS, type Sort, setCheckout, setMember, type Kind, type LibraryAsset, type Visibility} from '../lib/media-library'
 import {reasonOf} from '../lib/edits'
 import {Close, DocumentIcon, Search} from './icons'
 import {toast} from './Toasts'
@@ -12,6 +12,7 @@ import {uploadFile} from '../lib/upload'
 // filter, and the checkout lock on an asset's edits. Laid out like Sanity's media
 // browser: folders left, tiles in the middle, the picked asset's inspector right.
 
+const SORT_TITLES: Record<Sort, string> = {'created-desc': 'Newest first', 'created-asc': 'Oldest first', 'updated-desc': 'Recently updated'}
 const KIND_TITLES: Record<Kind, string> = {image: 'Images', video: 'Video', audio: 'Audio', document: 'Documents', other: 'Other'}
 const size = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} kB`)
 const fail = (title: string) => (e: unknown) => toast({tone: 'critical', title, description: reasonOf((e as Error).message) ?? (e as Error).message})
@@ -27,13 +28,14 @@ export function MediaLibrary() {
   const [q, setQ] = useState('')
   const [query, setQuery] = useState('')
   const [visibility, setVisibility] = useState<Visibility | ''>('')
+  const [sort, setSort] = useState<Sort>('created-desc')
   const [picked, setPicked] = useState<string>()
   useEffect(() => {
     const timer = setTimeout(() => setQuery(q.trim()), 200)
     return () => clearTimeout(timer)
   }, [q])
   const folders = useQuery(collectionsQuery)
-  const filter = {collection: folder, kind, q: query || undefined, visibility: visibility || undefined}
+  const filter = {collection: folder, kind, q: query || undefined, visibility: visibility || undefined, sort}
   const assets = useQuery(assetsQuery(filter))
   const counts = useQuery(kindCountsQuery({q: filter.q, visibility: filter.visibility})).data
   const [naming, setNaming] = useState<string | null>(null)
@@ -119,6 +121,11 @@ export function MediaLibrary() {
             <option value="">{t('Any visibility')}</option>
             <option value="public">{t('Public')}</option>
             <option value="private">{t('Private')}</option>
+          </select>
+          <select className="input media-sort" aria-label={t('Sort')} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            {SORTS.map((o) => (
+              <option key={o} value={o}>{t(SORT_TITLES[o])}</option>
+            ))}
           </select>
           <input ref={picker} type="file" multiple hidden onChange={(e) => (void upload([...(e.target.files ?? [])]), (e.target.value = ''))} />
           <button type="button" className="publish media-upload" disabled={!canWrite || !!uploading} title={createReason} onClick={() => picker.current?.click()}>

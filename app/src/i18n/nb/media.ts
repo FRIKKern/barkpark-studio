@@ -243,4 +243,9 @@ export default {
   Audio: 'Lyd',
   Documents: 'Dokumenter',
   Other: 'Annet',
+  // Orderings (SORT_TITLES), LiveView's words
+  Sort: 'Sorter',
+  'Newest first': 'Nyeste først',
+  'Oldest first': 'Eldste først',
+  'Recently updated': 'Nylig oppdatert',
 } satisfies Record<string, string>
