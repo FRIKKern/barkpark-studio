@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 12 changes, 1 task closed
+- **Today** · 13 changes, 1 task closed
+  - Sanity-shaped values open in the editor; B14: a Sanity team moving over ([#365](https://github.com/FRIKKern/barkpark-studio/pull/365))
   - J07: tell A from the rest of the room by its session ([#364](https://github.com/FRIKKern/barkpark-studio/pull/364))
   - Listen hub: re-open the upstream when Barkpark answers from a new instance ([#363](https://github.com/FRIKKern/barkpark-studio/pull/363))
-  - e2e: close the browser contexts specs open; J07 judged against the room it finds ([#362](https://github.com/FRIKKern/barkpark-studio/pull/362))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
