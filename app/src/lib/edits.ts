@@ -91,6 +91,8 @@ type DocEdits = {
   conflicts: number
   /** Text of ours someone rewrote meanwhile (clash): held, unsent, until the editor types on. */
   held?: boolean
+  /** The clashed fields: what the other writer left there, and the version it came with. */
+  clashes?: Map<string, FieldClash>
   /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
   undo: Change[]
   redo: Change[]
@@ -248,8 +250,11 @@ function rebase(e: DocEdits, d: Doc): string[] {
  * stays on screen, not sent: said in the footer (refused), until the editor types on (then
  * it goes, over theirs, their choice) or discards.
  */
-function clash(qc: QueryClient, id: string, e: DocEdits, fields: string[]) {
+export type FieldClash = {theirs: unknown; rev: string; at: string}
+function clash(qc: QueryClient, id: string, e: DocEdits, fields: string[], doc: Doc) {
   e.held = true
+  e.clashes = new Map(e.clashes)
+  for (const f of fields) e.clashes.set(f, {theirs: getPath(doc, f), rev: doc._rev, at: doc._updatedAt})
   clearTimeout(e.timer)
   e.timer = undefined
   const all = qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === e.type)?.fields ?? []
@@ -276,7 +281,7 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   const _hasPublished = !doc._draft || (doc._hasPublished ?? held?._hasPublished ?? false)
   historyChanged(qc, id)
   writeCache(qc, id, doc._type, overlay(id, {...doc, _hasPublished} as Doc))
-  if (e && clashed.length) clash(qc, id, e, clashed)
+  if (e && clashed.length) clash(qc, id, e, clashed, doc)
 }
 
 /** `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. */
@@ -303,7 +308,7 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
     for (const k of [...e.dirty.keys()]) if (k !== field && within(k, field)) e.dirty.delete(k)
     e.dirty.set(field, value)
   }
-  e.held = false // typing on after a clash: theirs is overruled, by the editor
+  if (e.held) (e.held = false), (e.clashes = undefined) // typing on after a clash: theirs is overruled, by the editor
   keepUnsaved(id, e)
   // An edit makes (or updates) the draft: show it as one now.
   writeCache(qc, id, doc._type, setPath({...held, _draft: true} as Doc, field, value))
@@ -533,7 +538,7 @@ async function send(qc: QueryClient, id: string) {
         e.inflight = null
         const clashed = latest ? rebase(e, latest) : []
         if (latest) writeCache(qc, id, e.type, overlay(id, latest))
-        if (clashed.length) return clash(qc, id, e, clashed)
+        if (clashed.length && latest) return clash(qc, id, e, clashed, latest)
         void send(qc, id)
         return
       } catch {
@@ -609,6 +614,38 @@ export async function publish(qc: QueryClient, doc: Doc) {
   const r = (await mutate({data: {mutations: [{publish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
   applyServer(qc, r.results[0].document)
   qc.setQueryData(['doc-published', id], r.results[0].document)
+}
+
+/** A field's clash, if one holds (the inline card), and the editor's own unsent value there. */
+export function useFieldClash(id: string | null, field: string): (FieldClash & {mine: unknown}) | null {
+  const c = useSyncExternalStore(
+    (l) => (listeners.add(l), () => listeners.delete(l)),
+    () => (id ? docs.get(id)?.clashes?.get(field) : undefined),
+    () => undefined,
+  )
+  return c && id ? {...c, mine: docs.get(id)?.dirty.get(field)} : null
+}
+
+/** The card's answer for one clashed field: "Keep mine" sends mine over theirs; "Take theirs" drops mine. */
+export function settleClash(qc: QueryClient, id: string, field: string, keep: 'mine' | 'theirs') {
+  const e = docs.get(id)
+  const c = e?.clashes?.get(field)
+  if (!e || !c) return
+  e.clashes = new Map(e.clashes)
+  e.clashes.delete(field)
+  if (keep === 'theirs') {
+    e.dirty.delete(field)
+    e.base.delete(field)
+    const held = qc.getQueryData<Doc>(['doc', id])
+    if (held) writeCache(qc, id, e.type, setPath({...held}, field, c.theirs))
+  }
+  if (e.clashes.size) return listeners.forEach((l) => l())
+  e.clashes = undefined
+  e.held = false
+  keepUnsaved(id, e)
+  if (!e.dirty.size && !e.inflight) return setState(e, 'saved')
+  setState(e, 'saving')
+  schedule(qc, id)
 }
 
 const NO_FINDINGS: Finding[] = []
