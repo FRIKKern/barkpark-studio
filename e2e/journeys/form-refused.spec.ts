@@ -91,8 +91,7 @@ const cases: Case[] = [
 
 for (const status of [403, 500, 409])
   for (const c of cases)
-    // The clash at 500 runs in CI too: it guards the silent drop merge3 used to make.
-    test(`${c.clash && status === 500 ? '' : '@local '}refused ${status}, a remote write meanwhile: ${c.name} keeps the editor's value`, async ({page}, info) => {
+    test(`@local refused ${status}, a remote write meanwhile: ${c.name} keeps the editor's value`, async ({page}, info) => {
       const t = target(info)
       test.skip(t.name !== 'studio', 'ours: our save loop')
       await t.prepare(page.context())
@@ -162,4 +161,50 @@ test('@local refused 500, a remote write meanwhile: an image hotspot keeps the e
   await expect.poll(async () => ((await bpDoc(ID))?.mainImage as {hotspot?: {width: number}})?.hotspot?.width ?? 1, {timeout: 20_000}).toBeLessThan(0.9)
   const landed = (await bpDoc(ID))!.mainImage as {alt?: string}
   expect(landed.alt, "theirs (the alt) kept beside mine (the hotspot)").toBe('Theirs alt')
+})
+
+// The clash card (CI: it guards the silent drop merge3 used to make). Both versions on the
+// field, who and when; "Take theirs" drops mine, "Keep mine" saves mine over theirs.
+test('a clash shows both versions on the field: Take theirs, then Keep mine', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours: our save loop')
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  const excerpt = t.field(page, 'excerpt')
+  const card = page.getByTestId('field-clash')
+  const footer = page.locator('.doc-footer').first()
+  const clashOn = async (rewrite: string) => {
+    await refuse(page, 500)
+    await excerpt.click()
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowUp' : 'Control+Home')
+    for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight')
+    await page.keyboard.type('mine ')
+    const mine = await excerpt.inputValue()
+    await expect(footer).toContainText(/Not saved|Couldn|error/i, {timeout: 15_000})
+    await bpMutate([{patch: {id: ID, type: 'post', set: {excerpt: rewrite}}}])
+    await expect(card).toBeVisible({timeout: 10_000})
+    await expect(card.locator('[data-version="theirs"]')).toHaveText(rewrite)
+    await expect(card.locator('[data-version="mine"]')).toHaveText(mine)
+    await expect(footer).toContainText('Someone else rewrote Excerpt meanwhile')
+    await page.unroute('**/_serverFn/**')
+    return mine
+  }
+  // Take theirs: mine goes, the field shows theirs, nothing is sent over it.
+  await clashOn('Completely rewritten elsewhere.')
+  await expect(card.locator('.field-clash-who')).not.toBeEmpty()
+  await card.locator('..').screenshot({path: 'evidence/field-clash.png'})
+  await card.getByRole('button', {name: 'Take theirs'}).click()
+  await expect(card).toHaveCount(0)
+  await expect(excerpt).toHaveValue('Completely rewritten elsewhere.')
+  await expect(footer).not.toContainText('Not saved')
+  await page.waitForTimeout(1500)
+  expect((await bpDoc(ID))?.excerpt).toBe('Completely rewritten elsewhere.')
+  // Keep mine: mine is saved over theirs.
+  const mine = await clashOn('Another rewrite, again.')
+  await card.getByRole('button', {name: 'Keep mine'}).click()
+  await expect(card).toHaveCount(0)
+  await expect.poll(async () => (await bpDoc(ID))?.excerpt, {timeout: 15_000}).toBe(mine)
+  await expect(footer).not.toContainText('Not saved')
 })

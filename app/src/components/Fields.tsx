@@ -3,6 +3,7 @@ import {MenuPopover} from './FocusScopes'
 import {refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
+import {FieldClashCard} from './FieldClash'
 import {worst, type Level, type Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
 import {ChevronDown, ClearCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
@@ -167,6 +168,7 @@ function FieldBody(props: FieldProps) {
         <ProblemMark path={props.path} />
         <FieldPresenceHere path={props.path} />
       </label>
+      <FieldClashCard path={props.path} />
       <CustomOrDefault {...props} />
     </div>
   )
