@@ -41,6 +41,7 @@ export default {
   'Missing keys': 'Manglende nøkler',
   Month: 'Måned',
   'Move item {n}': 'Flytt element {n}',
+  'Drag to re-order': 'Dra for å endre rekkefølge',
   'Must be a reference to a document': 'Må være en referanse til et dokument',
   'Must be at least {min} characters long': 'Må være minst {min} tegn lang',
   'Must be at most {max} characters long': 'Må være maksimalt {max} tegn lang',

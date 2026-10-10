@@ -178,6 +178,7 @@ const Row = memo(function Row<T>({item, orig, at, moving, readOnly, path, render
         className="icon-btn drag-handle"
         aria-roledescription="sortable"
         aria-label={t('Move item {n}', {n: at + 1})}
+        data-tip={t('Drag to re-order')}
         aria-pressed={moving}
         disabled={readOnly}
         onKeyDown={act.key(at)}
