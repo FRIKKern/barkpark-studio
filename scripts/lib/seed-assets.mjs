@@ -5,6 +5,7 @@
 import {createHash} from 'node:crypto'
 import {readFileSync} from 'node:fs'
 import {basename} from 'node:path'
+import {withRetry} from './retry.mjs'
 
 const fixtures = new URL('../../fixtures/', import.meta.url)
 const MIME = {txt: 'text/plain', png: 'image/png', pdf: 'application/pdf'}
@@ -15,7 +16,7 @@ export async function seedAssets(docs, {base, dataset, token}) {
   const wanted = [...new Set(docs.flatMap((d) => Object.values(d).flatMap((v) => (v?._sanityAsset ? [v._sanityAsset] : []))))]
   const have = []
   for (let offset = 0; wanted.length; offset += 200) {
-    const res = await fetch(`${base}/v1/media/${dataset}?limit=200&offset=${offset}`, {headers: auth})
+    const res = await withRetry(() => fetch(`${base}/v1/media/${dataset}?limit=200&offset=${offset}`, {headers: auth}), {label: `GET media ${dataset}`})
     if (!res.ok) throw new Error(`media list → ${res.status}`)
     const page = (await res.json()).result
     have.push(...page.assets)

@@ -19,6 +19,7 @@ import {readFileSync, readdirSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
 import {isDeepStrictEqual} from 'node:util'
 import {sendBatches} from './lib/batches.mjs'
+import {idempotent, withRetry} from './lib/retry.mjs'
 import {seedAssets} from './lib/seed-assets.mjs'
 import {toBarkpark} from './lib/seed-map.mjs'
 import {checkJsonSchema} from './lib/json-schema-check.mjs'
@@ -43,11 +44,12 @@ function fail(msg) {
 }
 
 async function bp(method, path, body, tries = 3) {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'},
-    body: body && JSON.stringify(body),
-  })
+  // Reads, schema upserts and deletes land the same if sent twice: asked again through a
+  // Barkpark redeploy (lib/retry.mjs).
+  const res = await withRetry(
+    () => fetch(`${BASE}${path}`, {method, headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'}, body: body && JSON.stringify(body)}),
+    {label: `${method} ${path}`},
+  )
   const json = await res.json().catch(() => ({}))
   // Rate limited (other lanes share the workspace): wait as told, then retry.
   if (res.status === 429 && tries > 1) {
@@ -61,7 +63,10 @@ async function bp(method, path, body, tries = 3) {
 // Deletes go in batches under Barkpark's cap (lib/batches.mjs); a 429 waits as told.
 const mutate = async (mutations) => {
   const send = async (part, tries = 3) => {
-    const res = await fetch(`${BASE}/v1/data/mutate/${DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations: part})})
+    const res = await withRetry(
+      () => fetch(`${BASE}/v1/data/mutate/${DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations: part})}),
+      {label: `POST /v1/data/mutate/${DATASET} (${part.length})`, safe: idempotent(part)},
+    )
     if (res.status !== 429 || tries <= 1) return res
     await new Promise((r) => setTimeout(r, 1000 * (Number(res.headers.get('retry-after')) || 1)))
     return send(part, tries - 1)
