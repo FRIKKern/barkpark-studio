@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 67 changes, 1 task closed
+- **Today** · 68 changes, 1 task closed
+  - B08: media inspector parity with LiveView ([#421](https://github.com/FRIKKern/barkpark-studio/pull/421))
   - B08: media library Grid / List ([#420](https://github.com/FRIKKern/barkpark-studio/pull/420))
   - B08: media library sort; folders on the same search ([#419](https://github.com/FRIKKern/barkpark-studio/pull/419))
-  - B08: media library type filter with counts ([#418](https://github.com/FRIKKern/barkpark-studio/pull/418))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
