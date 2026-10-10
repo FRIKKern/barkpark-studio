@@ -2,8 +2,8 @@ import {memo, useState, type ReactNode} from 'react'
 import {assetUrl, frame, imageRef, NO_CROP, NO_HOTSPOT, type ImageValue} from '../lib/image'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
-import {formatPreview, previewRefs} from '../lib/preview'
-import {DocumentIcon} from './icons'
+import {formatPreview, previewRefs, previewMedia} from '../lib/preview'
+import {DocumentIcon, BrokenImageIcon} from './icons'
 import {PaneLink} from './PaneLink'
 import {ago} from './HistoryPanel'
 import {useLocale, useT} from '../lib/i18n'
@@ -45,10 +45,20 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
   const title = doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : '…'
   // The schema's list_preview.media: an image field shows as the row's thumbnail, like Sanity.
   const mediaKey = doc ? schemaOf(schemas, doc._type)?.listPreview?.media : undefined
-  const media = mediaKey ? (doc?.[mediaKey] as ImageValue | undefined) : undefined
+  const media = previewMedia(mediaKey ? doc?.[mediaKey] : undefined)
   const body = (
     <>
-      <span className="media">{media ? <Thumb value={media} /> : <DocumentIcon />}</span>
+      <span className="media">
+        {media.kind === 'image' ? (
+          <Thumb value={doc![mediaKey!] as ImageValue} />
+        ) : media.kind === 'unsupported' ? (
+          <span className="media-broken" role="img" aria-label={t('Unsupported asset value')} title={`${t('Unsupported asset value')}: ${media.source}`}>
+            <BrokenImageIcon />
+          </span>
+        ) : (
+          <DocumentIcon />
+        )}
+      </span>
       <span className="text">
         <div className="t">{title}</div>
         {subtitle && <div className="s">{subtitle}</div>}

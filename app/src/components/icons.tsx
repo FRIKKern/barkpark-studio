@@ -123,6 +123,12 @@ export const ImageIcon = () => (
     <circle cx="15.5" cy="10" r="1.5" />
   </svg>
 )
+/** An image that can't be shown (an asset value from elsewhere): the image icon, struck through. */
+export const BrokenImageIcon = () => (
+  <svg {...s}>
+    <path d="M5.5 6.5h14v12h-14zM5.5 15.5l4-4 3 3 2-2 5 5M4.5 20.5l16-16" />
+  </svg>
+)
 export const Crop = () => (
   <svg {...s}>
     <path d="M8.5 4.5v12h12M4.5 8.5h12v12" />
