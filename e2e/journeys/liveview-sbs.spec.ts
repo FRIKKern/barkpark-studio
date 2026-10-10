@@ -175,6 +175,13 @@ test('@evidence B08: media library', async ({page, browser}, info) => {
   await lv.getByText('Images', {exact: true}).first().click()
   await lv.waitForTimeout(800)
   await lv.screenshot({path: still('B08', '2-images', 'liveview')})
+  // Sort: oldest first on both.
+  await page.getByLabel('Sort').selectOption('created-asc')
+  await page.waitForTimeout(800)
+  await page.screenshot({path: still('B08', '3-oldest', 'studio')})
+  await lv.locator('select').filter({hasText: 'Newest first'}).first().selectOption({label: 'Oldest first'})
+  await lv.waitForTimeout(1500)
+  await lv.screenshot({path: still('B08', '3-oldest', 'liveview')})
 })
 
 test('@evidence B09: an author\'s Posts view', async ({page, browser}, info) => {

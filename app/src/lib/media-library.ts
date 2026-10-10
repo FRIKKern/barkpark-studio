@@ -67,17 +67,18 @@ const fetchCollections = createServerFn({method: 'GET'}).handler(async () => {
 })
 export const collectionsQuery = queryOptions({queryKey: ['media', 'collections'], queryFn: async () => (await fetchCollections()) as unknown as Collection[]})
 
-type Filter = {collection?: string; q?: string; visibility?: Visibility; kind?: Kind}
+/** LiveView's orderings (Barkpark's search sort keys). */
+export const SORTS = ['created-desc', 'created-asc', 'updated-desc'] as const
+export type Sort = (typeof SORTS)[number]
+type Filter = {collection?: string; q?: string; visibility?: Visibility; kind?: Kind; sort?: Sort}
 const fetchAssets = createServerFn({method: 'GET'})
   .validator((d: Filter) => d)
   .handler(async ({data}) => {
-    const params = new URLSearchParams({limit: '200', sort: 'created-desc'})
+    const params = new URLSearchParams({limit: '200', sort: data.sort ?? 'created-desc'})
     if (data.q) params.set('q', data.q)
-    if (data.collection) {
-      const r = await read<{assets?: RawAsset[]; hits?: RawAsset[]; hasMore?: boolean}>(`${base()}/collections/${encodeURIComponent(data.collection)}/assets?${params}`)
-      const assets = (r.assets ?? r.hits ?? []).map(toAsset).filter((a) => (!data.visibility || a.visibility === data.visibility) && (!data.kind || a.kind === data.kind))
-      return {assets, more: !!r.hasMore, total: r.hasMore ? null : assets.length} as unknown as Json
-    }
+    // A folder is one more filter on the same search (Barkpark's collection=), so it sorts,
+    // filters by kind and counts as the whole library does.
+    if (data.collection) params.set('collection', data.collection)
     // The search's visibility facet (#22127: an asset with none stored is public).
     if (data.visibility) params.set('facet.visibility', data.visibility)
     if (data.kind) params.set('kind', data.kind)

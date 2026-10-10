@@ -45,6 +45,12 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   const hit = found.result.hits.find((h) => h.originalName === NAME)!
   expect(hit, 'the upload is in the library').toBeTruthy()
   asset = {id: hit.id, docId: (hit.assetDocId ?? `asset-${hit.id}`).replace(/^drafts\./, '')}
+  // Sort (LiveView's orderings): newest first puts the upload first; oldest first, Barkpark's oldest.
+  await expect(page.locator('.media-tile').first()).toContainText(NAME)
+  const oldest = (await (await fetch(`${media()}/search?limit=1&sort=created-asc`, {headers: auth()})).json()) as {result: {hits: {originalName?: string; filename?: string}[]}}
+  await page.getByLabel('Sort').selectOption('created-asc')
+  await expect(page.locator('.media-tile').first()).toContainText(oldest.result.hits[0]!.originalName ?? oldest.result.hits[0]!.filename!)
+  await page.getByLabel('Sort').selectOption('created-desc')
 
   await page.getByRole('searchbox', {name: 'Search media'}).fill(NAME)
   const tile = page.locator('.media-tile', {hasText: NAME})

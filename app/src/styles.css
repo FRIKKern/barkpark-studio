@@ -1271,7 +1271,7 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .media-browse { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: auto; }
 .media-bar { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; align-items: center; padding: 12px; background: var(--bg); border-bottom: 1px solid var(--border); }
 .media-bar .search { flex: 1; margin: 0; }
-.media-visibility { width: auto; }
+.media-visibility, .media-sort { width: auto; }
 .media-upload { flex: none; }
 .media-folders .type-row { display: flex; justify-content: space-between; align-items: center; }
 .media-kind-count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
