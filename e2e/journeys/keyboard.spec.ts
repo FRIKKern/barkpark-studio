@@ -124,3 +124,29 @@ test('J19: Publish by Enter keeps the keyboard in the footer', async ({page}, in
   await expect.poll(() => t.publishedTitle(ID), BACKEND_POLL).toBe(`${TITLE} kb`)
   await expect(page.getByRole('button', {name: 'Document actions'}).last()).toBeFocused()
 })
+
+// The canvas's list chords, as Google Docs and Notion have them: Cmd+Shift+8 a bullet
+// list, Cmd+Shift+7 a numbered one (Barkpark #22707; 8 used to do nothing). Ours only:
+// Sanity's text editor has neither. The body is put back after.
+test('D: Cmd+Shift+8 makes a bullet list, Cmd+Shift+7 a numbered one, in the canvas', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the canvas (Sanity has no list chords)')
+  const body = await t.docValue(ID, 'body')
+  await t.prepare(page.context())
+  try {
+    await page.goto(t.docPath('post', ID))
+    await t.settle(page)
+    const para = page.locator('[id="body"]').getByText(/Body paragraph for post 12/)
+    await para.click()
+    await expect(page.locator('[id="body"] .ProseMirror')).toBeFocused({timeout: 15_000})
+    const list = () => para.evaluate((p) => (p.closest('ul') ? 'ul' : p.closest('ol') ? 'ol' : 'none'))
+    await page.keyboard.press('ControlOrMeta+Shift+8')
+    await expect.poll(list).toBe('ul')
+    await page.keyboard.press('ControlOrMeta+Shift+7')
+    await expect.poll(list).toBe('ol')
+  } finally {
+    // The canvas's last change lands first: a restore before it was overwritten by it.
+    await closeAndSettle(page)
+    await t.restore(ID, {title: TITLE, body})
+  }
+})
