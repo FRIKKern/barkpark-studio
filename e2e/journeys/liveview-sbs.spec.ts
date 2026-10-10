@@ -47,6 +47,35 @@ const lvGo = async (page: Page, path: string) => {
   await page.waitForTimeout(800)
 }
 
+// B01 needs a workspace whose Studio language is nb-NO (studio-parity-nb, seeded like the
+// lanes): BARKPARK_WORKSPACE=studio-parity-nb BARKPARK_DATASET=e2e-nb … -g B01.
+test('@evidence B01: Norwegian (nb-NO) Studio UI, both studios in one nb-NO workspace', async ({page, browser}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'Barkpark-native')
+  const res = await fetch(`${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}/v1/workspace/locale`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
+  test.skip(((await res.json()) as {locale?: string}).locale !== 'nb-NO', "the workspace's Studio language is not nb-NO")
+  const lv = await liveView(browser)
+  for (const [step, ours, theirs] of [
+    ['1-list', t.listPath('post'), '/post'],
+    ['2-post', t.docPath('post', 'post-01'), '/post/post-01'],
+    ['3-volume', t.docPath('volume', 'volume-03'), '/volume/volume-03'],
+    ['4-media', '/media', '/media'],
+  ] as const) {
+    await page.goto(ours)
+    await t.settle(page)
+    await page.waitForTimeout(800)
+    await page.screenshot({path: still('B01', step, 'studio')})
+    await lvGo(lv, theirs)
+    await lv.screenshot({path: still('B01', step, 'liveview')})
+  }
+  // Relative times: a list row's status tooltip (ours); LiveView prints them in the row.
+  await page.goto(t.listPath('post'))
+  await t.settle(page)
+  await page.getByTestId('row-status').first().hover()
+  await expect(page.getByRole('tooltip')).toBeVisible()
+  await page.screenshot({path: still('B01', '5-ago', 'studio')})
+})
+
 test('@evidence B02: switch workspace / project / dataset', async ({page, browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-native')
