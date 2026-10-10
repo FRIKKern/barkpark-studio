@@ -26,10 +26,13 @@ side with `reference/sanity`, before its task can close.
 The rig is [`e2e/baseline.spec.ts`](e2e/baseline.spec.ts): `cd e2e && pnpm baseline --project sanity`
 (or `--project studio` for ours). Baseline = mean of two runs, 2026-10-05: production
 build (`sanity build && sanity preview`), headless Chrome 1440×900 on an M-series Mac,
-Sanity cloud dataset. Ours, same rig, 2026-10-05: F4 push p50 53 / p95 115 ms, typed
-p50 495 / p95 512 ms (typing is coalesced to one write per 750 ms per doc while all
-editors share one write budget). F4 "push" is another client patching over the API;
-"typed in A" includes Sanity's own mutation batching.
+Sanity cloud dataset. Ours, same rig, production build, median of 3 runs, 2026-10-10: F1
+p50 10 / p95 17 ms (17 is one frame: the probe waits for the next paint), F2 p50 14 ms,
+CLS 0, F4 push p50 71 / p95 145 ms, typed p50 496 / p95 529 ms (typing is coalesced to one
+write per 750 ms per doc while all editors share one write budget). Push was 53 / 115 on
+2026-10-05; Barkpark's own patch-to-listen time is now p50 55 / p95 98 ms of it. F4
+"push" is another client patching over the API; "typed in A" includes Sanity's own
+mutation batching.
 
 ## Rules
 
