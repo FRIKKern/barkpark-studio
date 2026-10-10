@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 37 changes, 1 task closed
+- **Today** · 38 changes, 1 task closed
+  - A cancelled upload leaves no asset on Barkpark ([#391](https://github.com/FRIKKern/barkpark-studio/pull/391))
   - File picker reaches every accepted file, a page at a time ([#390](https://github.com/FRIKKern/barkpark-studio/pull/390))
   - Image picker at scale: every image reachable, a page at a time; fresh on each open ([#389](https://github.com/FRIKKern/barkpark-studio/pull/389))
-  - --published as Sanity's positive dot, per mode ([#388](https://github.com/FRIKKern/barkpark-studio/pull/388))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
