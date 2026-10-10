@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 83 changes, 8 tasks closed
+- **Today** · 84 changes, 8 tasks closed
+  - Vision: a folding JSON tree, the query URL to copy, Save result as JSON ([#437](https://github.com/FRIKKern/barkpark-studio/pull/437))
   - J11 spec: the chip dialog stays on screen near the bottom (Barkpark #22833) ([#436](https://github.com/FRIKKern/barkpark-studio/pull/436))
   - e2e: fix two test races found by the health run ([#435](https://github.com/FRIKKern/barkpark-studio/pull/435))
-  - Done: [The paper canvas field dialog flips above its anchor near the viewport bottom and stays on screen](https://github.com/FRIKKern/barkpark/issues/22834)
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
