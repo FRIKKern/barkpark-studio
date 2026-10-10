@@ -255,7 +255,7 @@
           "type": "boolean"
         },
         "blocks": {
-          "description": "richText: the block vocabulary for Barkpark's editor."
+          "description": "richText: the block vocabulary for Barkpark's editor (styles, lists, marks, annotations, of, inline: inline objects [{name, fields}])."
         },
         "format": {
           "description": "localizedText: \"plain\" or \"rich\"."
@@ -423,7 +423,7 @@
           "type": "boolean"
         },
         "blocks": {
-          "description": "richText: the block vocabulary for Barkpark's editor."
+          "description": "richText: the block vocabulary for Barkpark's editor (styles, lists, marks, annotations, of, inline: inline objects [{name, fields}])."
         },
         "format": {
           "description": "localizedText: \"plain\" or \"rich\"."

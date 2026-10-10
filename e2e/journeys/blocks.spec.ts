@@ -6,7 +6,8 @@ import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets
 // Edit / Remove; ours: Duplicate / Move up / Move down / Delete), move a block,
 // insert an image block, an inline object. What each side ends up with goes to
 // the annotations; stills + clips go to e2e/evidence/. Not a CI gate (rule 5).
-// Ours can't yet: inline objects (task-85fee859cf3bfef6).
+// The inline object is a `chip` (text, tone) on both sides: Sanity's block `of`,
+// Barkpark's `blocks.inline` (#22760/#22785); the canvas draws its dialog.
 const ID = 'post-11'
 const shot = (name: string, step: string) => `evidence/J11-${name}-${step}.png`
 test.use({video: 'on'})
@@ -19,6 +20,14 @@ test.afterEach(async ({page}, info) => {
 })
 
 const bodyOf = (t: Target, page: Page) => (t.name === 'sanity' ? page.locator('[data-testid="field-body"]') : page.locator('[id="body"]'))
+// Every chip in the body, as stored: Sanity's in block children, ours in paragraph content.
+const chips = async (t: Target) => {
+  const v = await t.docValue(ID, 'body')
+  const all = t.name === 'sanity'
+    ? ((v as {children?: {_type: string; text?: string; tone?: string}[]}[]) ?? []).flatMap((b) => b.children ?? [])
+    : (((v as {blocks?: {content?: {type: string; text?: string; tone?: string}[]}[]})?.blocks ?? []).flatMap((b) => b.content ?? [])).map((c) => ({...c, _type: c.type}))
+  return all.filter((c) => c._type === 'chip').map((c) => `${c.text}/${c.tone}`)
+}
 const blockKinds = async (t: Target) => {
   const v = await t.docValue(ID, 'body')
   return t.name === 'sanity'
@@ -110,14 +119,26 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
   note('after move', await blockKinds(t))
   await page.screenshot({path: shot(t.name, '3-moved')})
 
-  // 4. An image block, 5. an inline object: recorded, not judged (gaps on ours).
+  // 4. An image block, 5. an inline object (a chip: text + tone, in its own dialog).
   if (t.name === 'sanity') {
     note('image block', 'Insert Image (block) → a dialog to upload/select (see the clip)')
-    note('inline object', 'Insert Chip (inline) → a chip with its own dialog')
-    await body.getByRole('button', {name: 'Insert Chip (inline)'}).first().click({timeout: 5_000}).catch(() => {})
-    await page.waitForTimeout(800)
+    // The caret at the end of a paragraph; Chip is on the toolbar, or in its "…" when narrow.
+    await body.getByText(/written with/).click({timeout: 5_000}).catch(() => {})
+    await page.keyboard.press('End')
+    const chipButton = body.getByRole('button', {name: 'Insert Chip (inline)'}).first()
+    if (await chipButton.isVisible()) await chipButton.click()
+    else {
+      await body.locator('[data-testid="insert-menu-button"]').first().click({timeout: 5_000}).catch(() => {})
+      await page.getByRole('menuitem', {name: 'Chip'}).click({timeout: 5_000}).catch(() => note('inline insert', 'no Chip in the toolbar or its menu'))
+    }
+    // "Edit Chip": a popover with Text and Tone.
+    const dlg = page.locator('div').filter({has: page.getByText('Edit Chip', {exact: true})}).filter({has: page.locator('select')}).last()
+    await dlg.getByRole('textbox').first().fill('Draft', {timeout: 5_000}).catch(() => note('inline text', 'no Text input'))
+    await dlg.locator('select').first().selectOption({label: 'Caution'}, {timeout: 3_000}).catch(() => note('inline tone', 'no Tone control'))
     await page.screenshot({path: shot(t.name, '4-inline')})
     await page.keyboard.press('Escape')
+    await expect.poll(() => chips(t), {timeout: 10_000}).toContain('Draft/caution').catch(() => {})
+    note('inline object', await chips(t))
   } else {
     // The caret must be in that paragraph, not left in the callout typed above
     // (a "/" typed there is text, and no menu opens).
@@ -142,8 +163,23 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     // Saved with the next batch, a moment after the pick.
     const saved = await expect.poll(async () => (await blockKinds(t)).includes('image'), {timeout: 10_000}).toBe(true).then(() => true, () => false)
     note('image block', saved ? 'inserted' : 'not inserted (no / menu: see caret after Enter)')
-    note('inline object', 'none in the vocabulary (PortableDoc has no inline objects)')
     await page.screenshot({path: shot(t.name, '4-image')})
+    // 5. A chip, from the slash menu, on a fresh line in view: the dialog opens
+    // below the caret (off-screen near the bottom: sent to barkpark-15).
+    await page.locator('bp-paper-canvas').getByText(/Body paragraph for post 11/).click()
+    await page.keyboard.press('End')
+    await page.keyboard.press('Enter')
+    await page.evaluate(() => (getSelection()?.focusNode as Element | null)?.parentElement?.scrollIntoView({block: 'center'}))
+    await page.keyboard.type('/chip')
+    await page.locator('.bp-slash-menu').filter({visible: true}).getByText('Chip').click({timeout: 5_000}).catch(() => page.keyboard.press('Enter'))
+    const dlg = page.locator('.bp-inline-object-dialog').filter({visible: true})
+    await dlg.getByRole('textbox').first().fill('Draft')
+    await dlg.locator('select').first().selectOption('caution')
+    await page.screenshot({path: shot(t.name, '4-inline')})
+    await dlg.locator('.bp-inline-object-dialog__save').click()
+    await expect.poll(() => chips(t), {timeout: 10_000}).toContain('Draft/caution')
+    await expect(page.locator('bp-paper-canvas [aria-label="Chip: Draft"]')).toBeVisible()
+    note('inline object', await chips(t))
   }
   note('after', await blockKinds(t))
 })

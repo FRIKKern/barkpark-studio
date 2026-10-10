@@ -543,9 +543,10 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
   )
 }
 
-type Inline = {type: string; value?: string; children?: Inline[]}
+// An inline object (J11, post-11's chip) carries its words in `text`.
+type Inline = {type: string; value?: string; text?: string; children?: Inline[]}
 type Block = {id: string; type: string; level?: number; tone?: string; content?: Inline[]}
-const text = (nodes: Inline[] = []): string => nodes.map((n) => n.value ?? text(n.children)).join('')
+const text = (nodes: Inline[] = []): string => nodes.map((n) => n.value ?? n.text ?? text(n.children)).join('')
 
 export function RichText({id, value}: {id: string; value: unknown}) {
   const blocks = ((value as {blocks?: Block[]})?.blocks ?? []) as Block[]

@@ -351,6 +351,8 @@ textarea.input { resize: vertical; }
 .chip { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 500; box-shadow: inset 0 0 0 1px var(--border); color: var(--fg-header); }
 .chip[data-active] { background: var(--warn-bg); box-shadow: none; }
 .chip[data-selected] { color: var(--fg); }
+/* An inline object in a read-only body (J11): the canvas's chip, at rest. */
+.inline-object { padding: 0 6px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--border); }
 .chip[data-tone=positive] { color: var(--positive-fg); box-shadow: none; }
 .chip .dot { width: 5px; height: 5px; border-radius: 50%; }
 .dot.published { background: var(--published); }
