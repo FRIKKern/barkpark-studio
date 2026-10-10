@@ -59,6 +59,8 @@ export function useLive(ids: string[], types: string[]) {
     }
     // e2e probe: cut the stream for `ms`, as a dead network would.
     ;(window as {__dropLive?: (ms: number) => void}).__dropLive = (ms) => (es.close(), (retry = setTimeout(open, ms)))
+    // e2e probe: read everything again, as a reconnect that lost its place does.
+    ;(window as {__readAll?: () => void}).__readAll = () => void qc.invalidateQueries()
     const onFrame = (e: Event) => {
       if ((e as MessageEvent).lastEventId) lastSeen = (e as MessageEvent).lastEventId
       const f = JSON.parse((e as MessageEvent).data) as Frame
