@@ -6,7 +6,7 @@ import {readdir, readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
 import {bpFetch, dataset, serviceToken} from './barkpark'
 
-type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown}
+export type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown}
 
 /**
  * The studio's own record types (lib/tasks.ts, lib/comments.ts): declared in each
