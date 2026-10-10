@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 73 changes, 2 tasks closed
+- **Today** · 74 changes, 3 tasks closed
+  - First run: a dataset with no schema shows Sanity's "No document types" card ([#427](https://github.com/FRIKKern/barkpark-studio/pull/427))
+  - Done: [Inline objects slice 2: renderers show an inline object through a registered renderer, or as a span carrying its text](https://github.com/FRIKKern/barkpark/issues/22761)
   - QUALITY: ours re-measured 2026-10-10 (F1, F2, F4; median of 3 on a production build) ([#426](https://github.com/FRIKKern/barkpark-studio/pull/426))
-  - J67: note the member read-only gap of the token exchange (task-a89ef18ee88ba6a0) ([#425](https://github.com/FRIKKern/barkpark-studio/pull/425))
-  - J38: id searches as Sanity reads them; ties and numbers recorded ([#424](https://github.com/FRIKKern/barkpark-studio/pull/424))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
