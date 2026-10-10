@@ -89,6 +89,8 @@ type DocEdits = {
   base: Map<string, unknown>
   /** Rebases in a row (a guard against a write that never gets through). */
   conflicts: number
+  /** Text of ours someone rewrote meanwhile (clash): held, unsent, until the editor types on. */
+  held?: boolean
   /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
   undo: Change[]
   redo: Change[]
@@ -212,8 +214,13 @@ function writeCache(qc: QueryClient, id: string, type: string, doc: Doc) {
 
 const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
 
-/** Move our unsent edits onto server doc `d`: fields someone else changed meanwhile merge. */
-function rebase(e: DocEdits, d: Doc) {
+/**
+ * Move our unsent edits onto server doc `d`: fields someone else changed meanwhile merge.
+ * Returns the fields that could not: text of ours they rewrote. Ours stays (on screen and
+ * pending), unsent, until the editor says so.
+ */
+function rebase(e: DocEdits, d: Doc): string[] {
+  const clashed: string[] = []
   e.rev = d._rev
   for (const [f, base] of e.base) {
     const theirs = getPath(d, f)
@@ -226,9 +233,28 @@ function rebase(e: DocEdits, d: Doc) {
     // An inflight-only field waits for its 412; a dirty one merges now.
     if (!e.dirty.has(f)) continue
     const mine = e.dirty.get(f)
-    if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') e.dirty.set(f, merge3(base, mine, theirs))
+    if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') {
+      const merged = merge3(base, mine, theirs)
+      if (merged === null) clashed.push(f)
+      else e.dirty.set(f, merged)
+    }
     e.base.set(f, theirs)
   }
+  return clashed
+}
+
+/**
+ * Someone rewrote text the editor had changed: theirs and ours cannot both stand. Ours
+ * stays on screen, not sent: said in the footer (refused), until the editor types on (then
+ * it goes, over theirs, their choice) or discards.
+ */
+function clash(qc: QueryClient, id: string, e: DocEdits, fields: string[]) {
+  e.held = true
+  clearTimeout(e.timer)
+  e.timer = undefined
+  const all = qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === e.type)?.fields ?? []
+  const names = fields.map((f) => fieldTitle(all, f) ?? f).join(', ')
+  setState(e, 'refused', t('Someone else rewrote {fields} meanwhile. Your text is kept here, not saved: type on to save yours over theirs.', {fields: names}))
 }
 
 // J16: an open History / Review changes panel follows the doc as Sanity's does: its
@@ -245,11 +271,12 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   const held = qc.getQueryData<Doc | null>(['doc', id])
   if (held && held._updatedAt > doc._updatedAt) return
   const e = docs.get(id)
-  if (e) rebase(e, doc)
+  const clashed = e ? rebase(e, doc) : []
   // A published row (or a publish) proves a published version; a draft keeps what we knew.
   const _hasPublished = !doc._draft || (doc._hasPublished ?? held?._hasPublished ?? false)
   historyChanged(qc, id)
   writeCache(qc, id, doc._type, overlay(id, {...doc, _hasPublished} as Doc))
+  if (e && clashed.length) clash(qc, id, e, clashed)
 }
 
 /** `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. */
@@ -276,6 +303,7 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
     for (const k of [...e.dirty.keys()]) if (k !== field && within(k, field)) e.dirty.delete(k)
     e.dirty.set(field, value)
   }
+  e.held = false // typing on after a clash: theirs is overruled, by the editor
   keepUnsaved(id, e)
   // An edit makes (or updates) the draft: show it as one now.
   writeCache(qc, id, doc._type, setPath({...held, _draft: true} as Doc, field, value))
@@ -399,6 +427,8 @@ async function send(qc: QueryClient, id: string) {
   if (!e || e.inflight || (e.dirty.size === 0 && !e.createRequested)) return
   // Signed out: nothing goes until the editor is back (resumeSaving) — not even a flush on blur.
   if (e.snap.state === 'signedOut') return
+  // A clash waits for the editor (no retry, no blur flush sends it over theirs).
+  if (e.held) return
   if (e.pendingCreate) e.createRequested = true
   if (!online()) return waitForNetwork(qc, id, e)
   e.inflight = e.dirty
@@ -501,10 +531,9 @@ async function send(qc: QueryClient, id: string) {
         const latest = await qc.fetchQuery({...docQuery(e.type, id), staleTime: 0})
         e.dirty = new Map([...e.inflight!, ...e.dirty])
         e.inflight = null
-        if (latest) {
-          rebase(e, latest)
-          writeCache(qc, id, e.type, overlay(id, latest))
-        }
+        const clashed = latest ? rebase(e, latest) : []
+        if (latest) writeCache(qc, id, e.type, overlay(id, latest))
+        if (clashed.length) return clash(qc, id, e, clashed)
         void send(qc, id)
         return
       } catch {
