@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 72 changes, 2 tasks closed
+- **Today** · 73 changes, 2 tasks closed
+  - QUALITY: ours re-measured 2026-10-10 (F1, F2, F4; median of 3 on a production build) ([#426](https://github.com/FRIKKern/barkpark-studio/pull/426))
   - J67: note the member read-only gap of the token exchange (task-a89ef18ee88ba6a0) ([#425](https://github.com/FRIKKern/barkpark-studio/pull/425))
   - J38: id searches as Sanity reads them; ties and numbers recorded ([#424](https://github.com/FRIKKern/barkpark-studio/pull/424))
-  - D12: a paper's Visibility says Public only when an anonymous reader gets it ([#422](https://github.com/FRIKKern/barkpark-studio/pull/422))
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
