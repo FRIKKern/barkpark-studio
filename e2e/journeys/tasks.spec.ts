@@ -22,6 +22,8 @@ test('J66: create a task on a document, see it under Active Document, mark it do
   const panel = page.getByRole('complementary', {name: 'Tasks'})
   await panel.getByRole('button', {name: 'Create Task'}).click()
   await expect(panel.getByRole('alert')).toHaveText('Title is required')
+  // The error line must not squeeze the title box (it took the form's whole height once).
+  expect(await panel.getByRole('textbox', {name: 'Task title'}).first().evaluate((e) => e.clientHeight >= e.scrollHeight), 'Task title shown whole').toBe(true)
   const title = `J66 ${Date.now().toString(36)}`
   await panel.getByRole('textbox', {name: 'Task title'}).fill(title)
   await panel.getByRole('button', {name: 'Create Task'}).click()
