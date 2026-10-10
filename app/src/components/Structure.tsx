@@ -530,7 +530,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   }
   // Ticked docs as the list has them now (a live edit since the tick is taken into account).
   const pickedDocs = useMemo(() => [...picked.values()].map((d) => docs?.find((x) => x._publishedId === d._publishedId) ?? d), [picked, docs])
-  const selectable = !tree && !published && !isSingleton(schemas, type)
+  // B03: ticks only for a token that may publish (read-only: none, as in Sanity and LiveView).
+  const selectable = canWrite && !tree && !published && !isSingleton(schemas, type)
   // J47: a list says what it holds when it opens, and what a search found (the last pane only).
   const listTitle = node?.title ?? schemaOf(schemas, type)?.title ?? type
   const isLastPane = index === panes.length - 1
