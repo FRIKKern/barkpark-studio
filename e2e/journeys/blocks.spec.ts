@@ -28,9 +28,9 @@ const chips = async (t: Target) => {
     : (((v as {blocks?: {content?: {type: string; text?: string; tone?: string}[]}[]})?.blocks ?? []).flatMap((b) => b.content ?? [])).map((c) => ({...c, _type: c.type}))
   return all.filter((c) => c._type === 'chip').map((c) => `${c.text}/${c.tone}`)
 }
-// Ours: the declared callout is a block named by its first field, "Callout: <tone>"
-// (Barkpark #22846); the fixture's is info, the one J11 adds warning, then danger.
-const ourCallout = (page: Page, tone: string) => page.locator(`bp-paper-canvas [role="group"][aria-label="Callout: ${tone}"]`)
+// Ours: the declared callout is a block named, and labelled on screen, "Callout · <its
+// text>" (Barkpark #22846, #22862).
+const ourCallout = (page: Page) => page.locator('bp-paper-canvas [role="group"][aria-label="Callout · Callout from J11"]')
 const blockKinds = async (t: Target) => {
   const v = await t.docValue(ID, 'body')
   return t.name === 'sanity'
@@ -87,16 +87,31 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
   if (t.name === 'studio') {
     const tones = async () => (((await t.docValue(ID, 'body')) as {blocks?: {type: string; text?: string; tone?: string}[]})?.blocks ?? []).filter((b) => b.text === 'Callout from J11').map((b) => b.tone)
     await expect.poll(tones, {timeout: 10_000}).toEqual(['warning'])
-    await ourCallout(page, 'warning').dblclick()
+    await ourCallout(page).dblclick()
     const dialog = page.locator('.bp-inline-object-dialog').filter({visible: true})
     await dialog.getByRole('combobox', {name: 'Tone'}).selectOption({label: 'Danger'})
     await dialog.locator('.bp-inline-object-dialog__save').click()
     await expect.poll(tones, {timeout: 10_000}).toEqual(['danger'])
     note('callout tone edit', await tones())
+    await expect(ourCallout(page)).toHaveText('Callout · Callout from J11')
+    // The command palette's Insert Callout opens the same dialog (#22861); closing it inserts
+    // nothing. Focus stays in the editor there, so Esc doesn't reach it (sent to barkpark-15).
+    await ourCallout(page).click()
+    await page.keyboard.press('ControlOrMeta+p')
+    await page.keyboard.type('Insert Callout')
+    await page.keyboard.press('Enter')
+    await expect(dialog.getByRole('combobox', {name: 'Tone'})).toBeVisible()
+    note('palette callout dialog', await dialog.locator('select option').allInnerTexts())
+    note('palette dialog focus', await page.evaluate(() => { const a = document.activeElement; return `${a?.tagName}.${String(a?.className).slice(0, 40)} in dialog=${!!a?.closest('.bp-inline-object-dialog')}` }))
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0, {timeout: 2_000}).catch(() => note('palette dialog Esc', 'still open'))
+    if (await dialog.count()) await dialog.locator('.bp-inline-object-dialog__cancel').click()
+    await expect(dialog).toHaveCount(0)
+    expect((await blockKinds(t)).filter((k) => k === 'callout')).toHaveLength(2)
   }
 
   // 2. The block "…" menu on it.
-  const callout = t.name === 'sanity' ? body.locator('[data-testid="pte-block-object"]').last() : ourCallout(page, 'danger')
+  const callout = t.name === 'sanity' ? body.locator('[data-testid="pte-block-object"]').last() : ourCallout(page)
   await callout.hover()
   await page.waitForTimeout(400)
   if (t.name === 'sanity') {
@@ -113,11 +128,11 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
   // Ours: Duplicate (then Delete the copy); Sanity has no duplicate here: close.
   if (t.name === 'studio') {
     await page.locator('.bp-block-menu__item').filter({hasText: 'Duplicate'}).click()
-    await expect(ourCallout(page, 'danger')).toHaveCount(2)
-    await ourCallout(page, 'danger').last().hover()
+    await expect(ourCallout(page)).toHaveCount(2)
+    await ourCallout(page).last().hover()
     await page.getByRole('button', {name: 'Block options'}).first().click()
     await page.locator('.bp-block-menu__item').filter({hasText: 'Delete'}).click()
-    await expect(ourCallout(page, 'danger')).toHaveCount(1)
+    await expect(ourCallout(page)).toHaveCount(1)
   } else await page.keyboard.press('Escape')
 
   // 3. Move the callout up one block (ours: the menu's Move up; Sanity: drag its handle).
