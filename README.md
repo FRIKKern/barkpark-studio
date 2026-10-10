@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 18 changes, 1 task closed
+- **Today** · 19 changes, 1 task closed
+  - Validation: pattern (Sanity's Rule.regex), a slug example both sides; seed refuses fixtures the schema file rejects ([#371](https://github.com/FRIKKern/barkpark-studio/pull/371))
   - A JSON Schema for the schema fixtures, generated from what the studio reads ([#370](https://github.com/FRIKKern/barkpark-studio/pull/370))
   - docs: EXTENDING (types, desk, inputs, actions, build) for a Sanity developer; seed refuses production ([#369](https://github.com/FRIKKern/barkpark-studio/pull/369))
-  - Image/file fields keep an asset from elsewhere, never read it as empty ([#368](https://github.com/FRIKKern/barkpark-studio/pull/368))
 - **Yesterday** · 113 changes, 24 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
