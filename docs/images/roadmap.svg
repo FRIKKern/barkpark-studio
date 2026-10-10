@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1516" viewBox="0 0 1200 1516" role="img" aria-labelledby="t d">
 <title id="t">Barkpark Studio roadmap</title>
-<desc id="d">1 of 64 journeys signed off side by side by the quality owner; 48 more built, awaiting sign-off. Phase 0 Foundation: done. Phase 1 Panes + Refs ★: now. Phase 2 Forms: next. Phase 3 Live: later. Phase 4 Arrays: later. Phase 5 Rich text + media: later. Phase 6 History: later. Phase after Plugins + Presentation: later. Freeform track: 0 of 22 signed off, 10 built. Barkpark-native track: 0 of 14 signed off, 1 built.</desc>
+<desc id="d">1 of 64 journeys signed off side by side by the quality owner; 48 more built, awaiting sign-off. Phase 0 Foundation: done. Phase 1 Panes + Refs ★: now. Phase 2 Forms: next. Phase 3 Live: later. Phase 4 Arrays: later. Phase 5 Rich text + media: later. Phase 6 History: later. Phase after Plugins + Presentation: later. Freeform track: 0 of 22 signed off, 10 built. Barkpark-native track: 0 of 14 signed off, 0 built.</desc>
 <style>
   svg { --bg:#fbfaf7; --card:#ffffff; --line:#e3e0d6; --ink:#1f1e1b; --muted:#6c6a63; --done:#2c7a4b; --now:#b26b00; --todo:#a3a097; --nowbg:#fff6e5; --built:#3f6fb5; }
   @media (prefers-color-scheme: dark) {
@@ -182,11 +182,11 @@
 <g data-track="native">
 <rect x="40" y="1204" width="1120" height="244" rx="12" class="card"/>
 <text x="60" y="1236" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">SIDE TRACK · COUNTED APART</text>
-<text x="1140" y="1236" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="muted">B-JOURNEYS SIGNED OFF · <tspan class="built">1 BUILT</tspan></text>
+<text x="1140" y="1236" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="muted">B-JOURNEYS SIGNED OFF · <tspan class="built">0 BUILT</tspan></text>
 <text x="60" y="1270" font-size="23" font-weight="600">Barkpark-native<tspan class="muted" font-weight="400" font-size="17" dx="12">What editors use in the LiveView Studio today</tspan></text>
 <text x="1140" y="1270" font-size="26" font-weight="700" text-anchor="end">0<tspan class="muted" font-weight="400"> / 14</tspan></text>
 <path d="M60 1290H1140" class="rule"/>
-<text x="60" y="1322" font-size="16"><tspan class="built">◆</tspan><tspan dx="8">B01 Norwegian</tspan></text>
+<text x="60" y="1322" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B01 Norwegian</tspan></text>
 <text x="60" y="1352" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B02 Switch workspace / p…</tspan></text>
 <text x="60" y="1382" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B03 Select several list…</tspan></text>
 <text x="60" y="1412" font-size="16"><tspan class="todo">○</tspan><tspan dx="8">B04 Every Barkpark field…</tspan></text>
