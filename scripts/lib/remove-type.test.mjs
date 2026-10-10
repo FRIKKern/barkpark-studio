@@ -11,8 +11,13 @@ test('remove-type: refuses production, a type still in the fixtures or the seed,
   assert.match(planRemoveType({...base, inFixtures: true}).refuse, /fixtures\/barkpark-schema/)
   assert.match(planRemoveType({...base, seeded: true}).refuse, /TYPES/)
   assert.match(planRemoveType({...base, docs}).refuse, /2 scoutThing document\(s\).*--with-docs/)
-  assert.match(planRemoveType({...base, registered: false}).refuse, /nothing to do/)
   assert.match(planRemoveType({...base, type: '--yes'}).refuse, /needs a type name/)
+})
+
+test('remove-type: already gone is done, not refused', () => {
+  const plan = planRemoveType({...base, registered: false})
+  assert.equal(plan.refuse, undefined)
+  assert.match(plan.done, /nothing to do/)
 })
 
 test('remove-type: the docs go first (forced, as a reset deletes), then the schema', () => {

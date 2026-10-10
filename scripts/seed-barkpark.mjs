@@ -118,6 +118,7 @@ async function removeType(type) {
     withDocs: process.argv.includes('--with-docs'),
   })
   if (plan.refuse) fail(`--remove-type: ${plan.refuse}`)
+  if (plan.done) return console.log(`remove-type: ${plan.done}`)
   const what = `${plan.deletes.length} ${type} document(s)${plan.dropSchema ? `, then the ${type} schema` : ''}, from ${DATASET}`
   if (!process.argv.includes('--yes')) return console.log(`remove-type (dry run): would delete ${what}. Run again with --yes.`)
   if (plan.deletes.length) await mutate(plan.deletes)
