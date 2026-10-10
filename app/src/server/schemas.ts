@@ -8,7 +8,18 @@ import {bpFetch, dataset, serviceToken} from './barkpark'
 
 type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown}
 
+/**
+ * The studio's own record types (lib/tasks.ts, lib/comments.ts): declared in each
+ * dataset so Barkpark knows them, never content. Kept out of the desk, lists, new
+ * documents and search, as Sanity keeps its own task and comment types.
+ */
+export const STUDIO_TYPES = ['studioTask', 'studioComment']
+
 export async function readSchemas(): Promise<RawSchema[]> {
+  return (await readAllSchemas()).filter((s) => !STUDIO_TYPES.includes(s.name))
+}
+
+async function readAllSchemas(): Promise<RawSchema[]> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') {
     const dir = resolve(process.cwd(), '../fixtures/barkpark-schema')
     const files = (await readdir(dir)).filter((f) => f.endsWith('.json'))

@@ -1,0 +1,18 @@
+{
+  "name": "studioComment",
+  "title": "Studio comment",
+  "visibility": "private",
+  "fields": [
+    {"name": "documentId", "title": "Document", "type": "string"},
+    {"name": "documentType", "title": "Document type", "type": "string"},
+    {"name": "fieldPath", "title": "Field path", "type": "string"},
+    {"name": "threadId", "title": "Thread", "type": "string"},
+    {"name": "parentCommentId", "title": "Reply to", "type": "string"},
+    {"name": "state", "title": "State", "type": "select", "options": [{"value": "open", "title": "Open"}, {"value": "resolved", "title": "Resolved"}]},
+    {"name": "message", "title": "Message", "type": "text"},
+    {"name": "mentions", "title": "Mentions", "type": "tags"},
+    {"name": "authorEmail", "title": "Author", "type": "string"},
+    {"name": "createdAt", "title": "Created", "type": "string"},
+    {"name": "editedAt", "title": "Edited", "type": "string"}
+  ]
+}
