@@ -2,6 +2,7 @@
   "name": "studioComment",
   "title": "Studio comment",
   "visibility": "private",
+  "desk": {"hidden": true},
   "fields": [
     {"name": "documentId", "title": "Document", "type": "string"},
     {"name": "documentType", "title": "Document type", "type": "string"},

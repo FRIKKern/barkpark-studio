@@ -2,6 +2,7 @@
   "name": "studioTask",
   "title": "Studio task",
   "visibility": "private",
+  "desk": {"hidden": true},
   "fields": [
     {"name": "title", "title": "Title", "type": "string"},
     {"name": "description", "title": "Description", "type": "text"},

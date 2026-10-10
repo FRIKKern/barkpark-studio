@@ -40,7 +40,14 @@
       "description": "initialValues, as Barkpark spells it."
     },
     "desk": {
-      "description": "Desk settings: orderings, views."
+      "description": "Desk settings: orderings, views; hidden: true keeps the type off Barkpark's desk while its URLs still open (barkpark#22789).",
+      "type": "object",
+      "properties": {
+        "hidden": {
+          "type": "boolean",
+          "description": "Off the desk; the type still opens from a direct URL."
+        }
+      }
     },
     "singleton": {
       "description": "One document, whose id is the type's name.",
