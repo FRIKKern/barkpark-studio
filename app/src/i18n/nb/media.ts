@@ -232,4 +232,9 @@ export default {
   'Could not insert the master': 'Kunne ikke sette inn malen',
   'Linked masters': 'Koblede maler',
   'Could not change the linked master': 'Kunne ikke endre den koblede malen',
+  'Could not upload {name}': 'Kunne ikke laste opp {name}',
+  'Uploading {done} of {of}…': 'Laster opp {done} av {of}…',
+  'Showing {shown} of {total} assets': 'Viser {shown} av {total} filer',
+  '{total} assets': '{total} filer',
+  '1 asset': '1 fil',
 } satisfies Record<string, string>

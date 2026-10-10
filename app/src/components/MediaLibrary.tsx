@@ -1,4 +1,4 @@
-import {useEffect, useState, type FormEvent} from 'react'
+import {useEffect, useRef, useState, type FormEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {assetQuery, assetsQuery, collectionsQuery, createFolder, saveAssetMeta, setCheckout, setMember, type LibraryAsset, type Visibility} from '../lib/media-library'
 import {reasonOf} from '../lib/edits'
@@ -6,6 +6,7 @@ import {Close, DocumentIcon, Search} from './icons'
 import {toast} from './Toasts'
 import {useT, type T} from '../lib/i18n'
 import {useCanWrite} from '../lib/session'
+import {uploadFile} from '../lib/upload'
 
 // B08: the Media tool, after Barkpark's LiveView media library: folders, a visibility
 // filter, and the checkout lock on an asset's edits. Laid out like Sanity's media
@@ -44,7 +45,27 @@ export function MediaLibrary() {
       fail(t('Could not create the folder'))(err)
     }
   }
+  // Upload (LiveView's Upload button): each file in turn, into the library.
+  const picker = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState<{done: number; of: number} | null>(null)
+  const upload = async (files: File[]) => {
+    if (!files.length) return
+    let done = 0
+    setUploading({done, of: files.length})
+    for (const file of files) {
+      try {
+        await uploadFile(file, () => {}, new AbortController().signal)
+      } catch (err) {
+        fail(t('Could not upload {name}', {name: file.name}))(err)
+      }
+      setUploading({done: ++done, of: files.length})
+    }
+    setUploading(null)
+    await qc.invalidateQueries({queryKey: ['media', 'assets']})
+  }
   const folderTitle = folders.data?.find((f) => f.id === folder)?.title
+  const shown = assets.data?.assets.length ?? 0
+  const total = assets.data?.total ?? null
   return (
     <main className="media-tool">
       <nav className="media-folders" aria-label={t('Folders')}>
@@ -86,7 +107,16 @@ export function MediaLibrary() {
             <option value="public">{t('Public')}</option>
             <option value="private">{t('Private')}</option>
           </select>
+          <input ref={picker} type="file" multiple hidden onChange={(e) => (void upload([...(e.target.files ?? [])]), (e.target.value = ''))} />
+          <button type="button" className="publish media-upload" disabled={!canWrite || !!uploading} title={createReason} onClick={() => picker.current?.click()}>
+            {uploading ? t('Uploading {done} of {of}…', uploading) : t('Upload')}
+          </button>
         </header>
+        {assets.data && shown > 0 && (
+          <p className="media-count muted" role="status">
+            {total !== null && total > shown ? t('Showing {shown} of {total} assets', {shown, total}) : (total ?? shown) === 1 ? t('1 asset') : t('{total} assets', {total: total ?? shown})}
+          </p>
+        )}
         {assets.isPending && <p className="list-empty" role="status">{t('Loading media…')}</p>}
         {assets.isError && (
           <div className="list-search-error" role="alert">

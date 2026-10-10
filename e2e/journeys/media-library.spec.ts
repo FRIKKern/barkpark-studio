@@ -6,7 +6,8 @@ import {bpMutate, target, closeAndSettle} from '../rig/targets'
 // lists the dataset's assets; search and the visibility filter narrow them; an asset's
 // checkout lock is taken and released ("Checked out by you"); its title saves to its
 // mediaAsset document (Barkpark's PATCH); a folder is created, the asset filed into it
-// and taken out. The test uploads its own image and removes it, the folder and the lock after.
+// and taken out. The test uploads its own image with the Upload button (the count goes
+// up by one) and removes it, the folder and the lock after.
 const scope = () => `${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}`
 const media = () => `${scope()}/v1/media/${process.env.BARKPARK_DATASET}`
 const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
@@ -23,22 +24,28 @@ test.afterEach(async ({page}, info) => {
   if (folder) await bpMutate([{delete: {id: folder, type: 'mediaCollection', force: true}}]).catch(() => {})
 })
 
-test('@local B08: media library — search, visibility, checkout lock, title, folders', async ({page}, info) => {
+test('@local B08: media library — upload, count, search, visibility, checkout lock, title, folders', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-native: the reference is LiveView')
   test.setTimeout(45_000)
-  // A fresh asset of our own (byte-different, so it is a new one).
-  const png = readFileSync(new URL('../../fixtures/assets/fixture-image.png', import.meta.url))
-  const body = new FormData()
-  body.append('file', new Blob([png, new TextEncoder().encode(NAME)], {type: 'image/png'}), NAME)
-  const up = await fetch(`${media()}/upload`, {method: 'POST', headers: auth(), body})
-  expect(up.ok, `upload ${up.status}`).toBe(true)
-  const {result} = (await up.json()) as {result: {id: string; assetDocId?: string}}
-  asset = {id: result.id, docId: (result.assetDocId ?? `asset-${result.id}`).replace(/^drafts\./, '')}
-
   await page.goto('/media')
   await t.settle(page)
   await expect(page.locator('.media-tile').first()).toBeVisible()
+  // The count, as LiveView's "Showing 50 of 124 assets".
+  const count = page.locator('.media-count')
+  await expect(count).toHaveText(/^(Showing \d+ of \d+|\d+) assets$/)
+  const before = Number((await count.innerText()).match(/(\d+) assets$/)![1])
+
+  // Upload through the tool's button: a fresh asset of our own (byte-different, so a new one).
+  const png = readFileSync(new URL('../../fixtures/assets/fixture-image.png', import.meta.url))
+  await page.locator('input[type=file]').setInputFiles({name: NAME, mimeType: 'image/png', buffer: Buffer.concat([png, Buffer.from(NAME)])})
+  await expect(count).toHaveText(new RegExp(`${before + 1} assets$`), {timeout: 15_000})
+  await expect(page.getByRole('button', {name: 'Upload', exact: true})).toBeEnabled()
+  const found = (await (await fetch(`${media()}/search?q=${NAME}&limit=5`, {headers: auth()})).json()) as {result: {hits: {id: string; assetDocId?: string; originalName?: string}[]}}
+  const hit = found.result.hits.find((h) => h.originalName === NAME)!
+  expect(hit, 'the upload is in the library').toBeTruthy()
+  asset = {id: hit.id, docId: (hit.assetDocId ?? `asset-${hit.id}`).replace(/^drafts\./, '')}
+
   await page.getByRole('searchbox', {name: 'Search media'}).fill(NAME)
   const tile = page.locator('.media-tile', {hasText: NAME})
   await expect(tile).toHaveCount(1)
