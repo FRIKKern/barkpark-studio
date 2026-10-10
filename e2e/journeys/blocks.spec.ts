@@ -94,19 +94,21 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     await expect.poll(tones, {timeout: 10_000}).toEqual(['danger'])
     note('callout tone edit', await tones())
     await expect(ourCallout(page)).toHaveText('Callout · Callout from J11')
-    // The command palette's Insert Callout opens the same dialog (#22861); closing it inserts
-    // nothing. Focus stays in the editor there, so Esc doesn't reach it (sent to barkpark-15).
+    // The command palette's Insert Callout opens the same dialog (#22861), by keyboard
+    // alone: focus lands on its first field, Tab reaches the next, Escape closes it and
+    // gives focus back to the canvas (#22892). Closed, it inserts nothing.
     await ourCallout(page).click()
     await page.keyboard.press('ControlOrMeta+p')
     await page.keyboard.type('Insert Callout')
     await page.keyboard.press('Enter')
-    await expect(dialog.getByRole('combobox', {name: 'Tone'})).toBeVisible()
-    note('palette callout dialog', await dialog.locator('select option').allInnerTexts())
-    note('palette dialog focus', await page.evaluate(() => { const a = document.activeElement; return `${a?.tagName}.${String(a?.className).slice(0, 40)} in dialog=${!!a?.closest('.bp-inline-object-dialog')}` }))
+    const tone = dialog.getByRole('combobox', {name: 'Tone'})
+    await expect(tone).toBeFocused()
+    note('palette callout dialog', await tone.locator('option').allInnerTexts())
+    await page.keyboard.press('Tab')
+    await expect(dialog.getByRole('textbox', {name: 'Text'})).toBeFocused()
     await page.keyboard.press('Escape')
-    await expect(dialog).toHaveCount(0, {timeout: 2_000}).catch(() => note('palette dialog Esc', 'still open'))
-    if (await dialog.count()) await dialog.locator('.bp-inline-object-dialog__cancel').click()
     await expect(dialog).toHaveCount(0)
+    expect(await page.evaluate(() => !!document.activeElement?.closest('bp-paper-canvas')), 'focus back in the canvas').toBe(true)
     expect((await blockKinds(t)).filter((k) => k === 'callout')).toHaveLength(2)
   }
 
