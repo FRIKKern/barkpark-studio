@@ -21,7 +21,9 @@ The form draws `string text number integer float boolean date datetime time url 
 slug select tags color reference image file arrayOf composite codelist localizedText
 richText markdown json source` (`app/src/components/Fields.tsx`). The four nested ones
 are Barkpark's [schema v2](https://github.com/FRIKKern/barkpark/blob/main/docs/contracts/schema-v2.md).
-Copy a field from `fixtures/barkpark-schema/post.json`, which uses most of them.
+Copy a field from `fixtures/barkpark-schema/post.json`, which uses most of them. VS Code
+checks these files against `fixtures/barkpark-schema.schema.json` (autocomplete, unknown keys):
+generated from `app/src/lib/schema-vocab.ts` by `scripts/fixture-schema.mjs`; a unit test keeps them in step.
 
 Validation is data, not code: `validation: {required, min, max, level, message}` (or a
 list of those). `level` is `error` (blocks publish, the default), `warning` or `info`.
