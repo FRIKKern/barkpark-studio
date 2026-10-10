@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {relayUpload} from './upload-relay.ts'
+import {madeAsset, relayUpload} from './upload-relay.ts'
 
 const bytes = new Uint8Array(300 * 1024) // five chunks
 const ok = () => new Response(JSON.stringify({result: {id: 'a1'}}), {status: 200})
@@ -61,4 +61,10 @@ test('upload relay: no cancel answers as Barkpark did; a 429 goes again with a f
   assert.equal(tries, 2)
   assert.equal(sent.cancelled, false)
   assert.equal(sent.res?.status, 200)
+})
+
+test('upload relay: a cancelled upload deletes only an asset it made, never one Barkpark already had', () => {
+  assert.equal(madeAsset({result: {id: 'a1'}}), 'a1')
+  assert.equal(madeAsset({result: {id: 'a1', existing: true}}), undefined)
+  assert.equal(madeAsset({}), undefined)
 })

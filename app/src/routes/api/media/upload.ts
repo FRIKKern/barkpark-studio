@@ -1,6 +1,6 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, dataset, requestToken, scope} from '../../../server/barkpark'
-import {relayUpload} from '../../../lib/upload-relay'
+import {madeAsset, relayUpload} from '../../../lib/upload-relay'
 
 // POST /api/media/upload (multipart, one `file`) → Barkpark's media upload.
 // Answers what an image field stores and draws: {ref: "asset-<id>", width, height}, and
@@ -23,7 +23,7 @@ export const Route = createFileRoute('/api/media/upload')({
           request.signal,
           (body, signal) => bpFetch(path, {method: 'POST', headers, body, signal, duplex: 'half'} as RequestInit, token, {retry: false, at}),
           async (res) => {
-            const id = ((await res.clone().json().catch(() => ({}))) as {result?: {id?: string}}).result?.id
+            const id = madeAsset(await res.clone().json().catch(() => ({})))
             if (id) await bpFetch(`/v1/media/${at.dataset}/${encodeURIComponent(id)}`, {method: 'DELETE'}, token, {retry: false, at}).catch(() => {})
           },
         )
