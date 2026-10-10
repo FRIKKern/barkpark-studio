@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Schema} from './data.ts'
-import {parseTextQuery, textScore} from './text-search.ts'
+import {candidateQuery, parseTextQuery, textScore} from './text-search.ts'
 
 const post: Schema = {
   name: 'post',
@@ -58,4 +58,15 @@ test('title hits rank first; words are OR-ed; -word excludes; "a b" and a-b are 
   assert.equal(s('"30 post"'), 0)
   assert.equal(s('post-3'), 11) // phrase "post 3*", like Sanity's post-3 → post-30
   assert.equal(s('fixture-p'), 11)
+})
+
+test('æ folds to "ae" as on Sanity; ø and å do not', () => {
+  const doc = {_id: 'x', title: 'Ærlig talt om økonomi', excerpt: 'Årsrapport'}
+  assert.ok(textScore(doc, parseTextQuery('aerlig')) > 0)
+  assert.ok(textScore(doc, parseTextQuery('Ærlig')) > 0)
+  assert.equal(textScore(doc, parseTextQuery('okonomi')), 0)
+  assert.equal(textScore(doc, parseTextQuery('arsrapport')), 0)
+  // Barkpark's index does not fold: the æ form is asked for too.
+  assert.equal(candidateQuery('aerlig talt'), 'aerlig talt ærlig')
+  assert.equal(candidateQuery('kaffe'), 'kaffe')
 })

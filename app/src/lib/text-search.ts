@@ -7,7 +7,19 @@ import type {Field, Schema} from './data.ts'
 type Part = {words: string[]; prefix: boolean}
 export type TextQuery = {any: Part[]; not: Part[]; raw: string}
 
-const words = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+// Sanity's analyzer folds æ to "ae" (on the reference: "aerlig" finds "Ærlig"); ø and å
+// stay as they are ("okonomi" finds nothing there), so only æ folds here too.
+const words = (s: string) => s.toLowerCase().replace(/æ/g, 'ae').match(/[\p{L}\p{N}]+/gu) ?? []
+
+/**
+ * What to ask Barkpark's search for candidates: the query, plus each term with "ae" written
+ * as "æ" (Barkpark's index does not fold æ, and its terms are OR-ed, so the extra term only
+ * widens the candidates; textScore still decides the hits).
+ */
+export function candidateQuery(raw: string): string {
+  const extra = (raw.match(/[^\s"]+/g) ?? []).filter((t) => /ae/i.test(t) && !t.startsWith('-')).map((t) => t.replace(/ae/g, 'æ').replace(/AE|Ae/g, 'Æ'))
+  return extra.length ? `${raw} ${extra.join(' ')}` : raw
+}
 
 /**
  * Sanity's query syntax: terms are OR-ed, `-term` excludes, `"a b"` and `a-b`

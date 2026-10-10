@@ -47,7 +47,7 @@ quality first, never a shrinking finish line.
 | J35 | 5 | Body editor expand to full screen and back (button or Cmd/Ctrl+Enter, the hotkey in its tooltip), caret and scroll kept; paste from Docs/Word/HTML keeps structure | F1 F7 |
 | J36 | 5 | Image actions: drop overlay, paste an image, upload error + retry, replace/remove, pick existing from library + "used in" | F9 F10 |
 | J37 | after | Navbar shell: tool switcher (Vision), "+" create new document by type, user menu | F10 |
-| J38 | after | Global search filters: type picker, field filters with Sanity's operators, ordering; the search survives a reopen; recent searches (filters included) reapply, remove one, clear all; full screen at phone width | F2 F5 |
+| J38 | after | Global search filters: type picker, field filters with Sanity's operators, ordering; the search survives a reopen; recent searches (filters included) reapply, remove one, clear all; full screen at phone width; the same hits and order as Sanity for title vs body, prefixes, phrases, -exclusions, references by name and Norwegian letters (search-quality.spec) | F2 F5 |
 | J39 | after | Broken values: wrong-type or unknown field shows Convert / Remove, bad array keys alert, invalid rich text gets a fix-it card | F9 |
 | J40 | after | Field comments: add, reply, mention, resolve; the Comments panel (open / resolved). Scheduled publish of a draft ("Schedule draft for publishing"). Releases are not on the reference plan ("Upgrade to unlock", checked 2026-10-08) | F4 F10 |
 | J41 | 1 | Big list: 5,000 docs scroll smoothly, more load near the bottom (growing to 2,000 never stalls a frame), "max items" note at 2,000, list search finds docs beyond the first page | F2 F11 |
