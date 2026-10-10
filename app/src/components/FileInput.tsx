@@ -1,5 +1,5 @@
 import {Fragment, useState, type ClipboardEvent, type DragEvent} from 'react'
-import {useQuery} from '@tanstack/react-query'
+import {useInfiniteQuery, useQuery} from '@tanstack/react-query'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import type {OpenRef} from './Fields'
 import {toast} from './Toasts'
@@ -192,10 +192,18 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
 
 /** Sanity's "Select file for <field>": the accepted files as a table; each row's "…" shows where it is used. */
 function FilePicker({title, path, accept, current, openRef, onPick, onClose}: {title: string; path: string; accept?: string; current?: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
-  const {data: files, isPending, error} = useQuery({
+  // A page at a time with "Load more", fresh on each open: as the image picker (#389).
+  const {data, isPending, error, fetchNextPage, hasNextPage, isFetchingNextPage} = useInfiniteQuery({
     queryKey: ['media-files', accept ?? ''],
-    queryFn: () => fetch(`/api/media/files${accept ? `?accept=${encodeURIComponent(accept)}` : ''}`).then((r) => (r.ok ? (r.json() as Promise<FileAsset[]>) : Promise.reject(new Error(`files → ${r.status}`)))),
+    gcTime: 0,
+    initialPageParam: 0,
+    queryFn: ({pageParam}) =>
+      fetch(`/api/media/files?offset=${pageParam}${accept ? `&accept=${encodeURIComponent(accept)}` : ''}`).then((r) =>
+        r.ok ? (r.json() as Promise<{files: FileAsset[]; nextOffset: number | null}>) : Promise.reject(new Error(`files → ${r.status}`)),
+      ),
+    getNextPageParam: (last) => last.nextOffset ?? undefined,
   })
+  const files = data?.pages.flatMap((p) => p.files)
   const t = useT()
   const locale = useLocale()
   const [menuFor, setMenuFor] = useState<string | null>(null)
@@ -272,6 +280,11 @@ function FilePicker({title, path, accept, current, openRef, onPick, onClose}: {t
                   ))}
                 </tbody>
               </table>
+            )}
+            {hasNextPage && (
+              <button type="button" className="btn load-more" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+                {isFetchingNextPage ? t('Loading files…') : t('Load more')}
+              </button>
             )}
           </div>
         </DialogBox>
