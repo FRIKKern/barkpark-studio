@@ -7,19 +7,12 @@ import type {Field, Schema} from './data.ts'
 type Part = {words: string[]; prefix: boolean}
 export type TextQuery = {any: Part[]; not: Part[]; raw: string}
 
-// Sanity's analyzer folds æ to "ae" (on the reference: "aerlig" finds "Ærlig"); ø and å
-// stay as they are ("okonomi" finds nothing there), so only æ folds here too.
-const words = (s: string) => s.toLowerCase().replace(/æ/g, 'ae').match(/[\p{L}\p{N}]+/gu) ?? []
-
-/**
- * What to ask Barkpark's search for candidates: the query, plus each term with "ae" written
- * as "æ" (Barkpark's index does not fold æ, and its terms are OR-ed, so the extra term only
- * widens the candidates; textScore still decides the hits).
- */
-export function candidateQuery(raw: string): string {
-  const extra = (raw.match(/[^\s"]+/g) ?? []).filter((t) => /ae/i.test(t) && !t.startsWith('-')).map((t) => t.replace(/ae/g, 'æ').replace(/AE|Ae/g, 'Æ'))
-  return extra.length ? `${raw} ${extra.join(' ')}` : raw
-}
+const words = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+// Sanity folds æ to "ae" in titles only: on the reference "aerlig" finds the title "Ærlig",
+// but "aerlighet" does not find a body's "Ærlighet", and ø and å never fold ("okonomi"
+// finds nothing). Barkpark folds titles the same way for its candidates (#22703).
+const fold = (w: string) => w.replace(/æ/g, 'ae')
+const folded = (p: Part): Part => ({...p, words: p.words.map(fold)})
 
 /**
  * Sanity's query syntax: terms are OR-ed, `-term` excludes, `"a b"` and `a-b`
@@ -82,17 +75,17 @@ const LINK_KEYS = new Set(['target', 'docId'])
 export function textScore(doc: Record<string, unknown>, q: TextQuery, schema?: Schema): number {
   const title = words(String(doc.title ?? ''))
   const {text, refs} = docText(doc, schema)
+  if (excludes(text, title, q)) return 0
   text.push(title)
-  if (excludes(text, q)) return 0
-  const score = q.any.reduce((s, p) => s + (hit(title, p) ? 10 : 0) + (text.some((t) => hit(t, p)) ? 1 : 0), 0)
+  const inTitle = (p: Part) => hit(title.map(fold), folded(p))
+  const score = q.any.reduce((s, p) => s + (inTitle(p) ? 10 : 0) + (inTitle(p) || text.some((t) => hit(t, p)) ? 1 : 0), 0)
   return score || (refs.includes(q.raw) ? 1 : 0)
 }
 
-const excludes = (text: string[][], q: TextQuery) => q.not.some((p) => text.some((t) => hit(t, p)))
+const excludes = (text: string[][], title: string[], q: TextQuery) => q.not.some((p) => hit(title.map(fold), folded(p)) || text.some((t) => hit(t, p)))
 
 /** A `-term` in the query rules this doc out. */
 export function excluded(doc: Record<string, unknown>, q: TextQuery, schema?: Schema): boolean {
   const {text} = docText(doc, schema)
-  text.push(words(String(doc.title ?? '')))
-  return excludes(text, q)
+  return excludes(text, words(String(doc.title ?? '')), q)
 }

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Schema} from './data.ts'
-import {candidateQuery, parseTextQuery, textScore} from './text-search.ts'
+import {excluded, parseTextQuery, textScore} from './text-search.ts'
 
 const post: Schema = {
   name: 'post',
@@ -60,13 +60,14 @@ test('title hits rank first; words are OR-ed; -word excludes; "a b" and a-b are 
   assert.equal(s('fixture-p'), 11)
 })
 
-test('æ folds to "ae" as on Sanity; ø and å do not', () => {
-  const doc = {_id: 'x', title: 'Ærlig talt om økonomi', excerpt: 'Årsrapport'}
+test('æ folds to "ae" in titles, as on Sanity; not in body text, and ø and å never', () => {
+  const doc = {_id: 'x', title: 'Ærlig talt om økonomi', excerpt: 'Ærlighet varer. Årsrapport'}
   assert.ok(textScore(doc, parseTextQuery('aerlig')) > 0)
   assert.ok(textScore(doc, parseTextQuery('Ærlig')) > 0)
+  assert.equal(textScore({_id: 'y', title: 'Ordtak', excerpt: 'Ærlighet varer.'}, parseTextQuery('aerlighet')), 0)
+  assert.ok(textScore({_id: 'y', title: 'Ordtak', excerpt: 'Ærlighet varer.'}, parseTextQuery('ærlighet')) > 0)
   assert.equal(textScore(doc, parseTextQuery('okonomi')), 0)
   assert.equal(textScore(doc, parseTextQuery('arsrapport')), 0)
-  // Barkpark's index does not fold: the æ form is asked for too.
-  assert.equal(candidateQuery('aerlig talt'), 'aerlig talt ærlig')
-  assert.equal(candidateQuery('kaffe'), 'kaffe')
+  // An exclusion folds in the title too.
+  assert.ok(excluded(doc, parseTextQuery('talt -aerlig')))
 })

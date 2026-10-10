@@ -11,7 +11,7 @@ import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import {withStudioItems} from './structure-config'
 import type {Sort} from './list-prefs'
 import type {PreviewText} from './preview'
-import {candidateQuery, excluded, parseTextQuery, textScore} from './text-search'
+import {excluded, parseTextQuery, textScore} from './text-search'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -275,7 +275,7 @@ const fetchTextSearch = createServerFn({method: 'GET'})
   .handler(async ({data}) => {
     const types = data.asked.map((a) => a.type)
     const found = await bpJson<{documents: Doc[]}>(
-      `/v1/data/search/${dataset()}?perspective=drafts&limit=200&q=${encodeURIComponent(candidateQuery(data.q))}&types=${types.map(encodeURIComponent).join(',')}`,
+      `/v1/data/search/${dataset()}?perspective=drafts&limit=200&q=${encodeURIComponent(data.q)}&types=${types.map(encodeURIComponent).join(',')}`,
     )
     const schemas = await readSchemas()
     const q = parseTextQuery(data.q)
