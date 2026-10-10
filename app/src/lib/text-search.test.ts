@@ -60,14 +60,17 @@ test('title hits rank first; words are OR-ed; -word excludes; "a b" and a-b are 
   assert.equal(s('fixture-p'), 11)
 })
 
-test('æ folds to "ae" in titles, as on Sanity; not in body text, and ø and å never', () => {
-  const doc = {_id: 'x', title: 'Ærlig talt om økonomi', excerpt: 'Ærlighet varer. Årsrapport'}
-  assert.ok(textScore(doc, parseTextQuery('aerlig')) > 0)
-  assert.ok(textScore(doc, parseTextQuery('Ærlig')) > 0)
+test('titles fold æøå (never fewer hits than Sanity), the exact spelling first; body text as written', () => {
+  const doc = {_id: 'x', title: 'Ærlig talt om økonomi', excerpt: 'Ærlighet varer.'}
+  const report = {_id: 'r', title: 'Årsrapport 2026', excerpt: 'x'}
+  for (const q of ['aerlig', 'Ærlig', 'okonomi', 'oekonomi', 'økonomi']) assert.ok(textScore(doc, parseTextQuery(q)) > 0, q)
+  for (const q of ['arsrapport', 'aarsrapport', 'årsrap']) assert.ok(textScore(report, parseTextQuery(q)) > 0, q)
+  // As typed ranks over folded.
+  assert.ok(textScore({_id: 'e', title: 'Okonomi og kurs'}, parseTextQuery('okonomi')) > textScore(doc, parseTextQuery('okonomi')))
+  // Body text does not fold (as Sanity): "aerlighet" finds no body "Ærlighet".
   assert.equal(textScore({_id: 'y', title: 'Ordtak', excerpt: 'Ærlighet varer.'}, parseTextQuery('aerlighet')), 0)
   assert.ok(textScore({_id: 'y', title: 'Ordtak', excerpt: 'Ærlighet varer.'}, parseTextQuery('ærlighet')) > 0)
-  assert.equal(textScore(doc, parseTextQuery('okonomi')), 0)
-  assert.equal(textScore(doc, parseTextQuery('arsrapport')), 0)
   // An exclusion folds in the title too.
   assert.ok(excluded(doc, parseTextQuery('talt -aerlig')))
+  assert.ok(excluded(doc, parseTextQuery('talt -okonomi')))
 })

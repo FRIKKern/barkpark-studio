@@ -14,6 +14,8 @@ const DOCS: Record<string, {title: string; excerpt: string; author?: string}> = 
   'sq-fox': {title: 'The quick brown fox', excerpt: 'It jumps over the dog.'},
   'sq-fox-rev': {title: 'Fox brown quick', excerpt: 'Words in another order.', author: 'author-ada'},
   'sq-ordtak': {title: 'Ordtak', excerpt: 'Ærlighet varer lengst.'},
+  'sq-arsrapport': {title: 'Årsrapport for selskapet', excerpt: 'Tall og tekst.'},
+  'sq-okonomi-exact': {title: 'Okonomi og kurs', excerpt: 'Skrevet uten ø.'},
 }
 const QUERIES = process.env.SQ_QUERIES ? JSON.parse(process.env.SQ_QUERIES) as string[] : ['kaffe', 'kaff', 'kafe', 'Ærlig', 'ærlig', 'aerlig', 'økonomi', 'okonomi', '2026', 'rapport 20', 'quick brown', '"quick brown"', 'Lovelace', 'sq-fox']
 
@@ -68,11 +70,17 @@ test('@evidence search quality side by side', async ({page, context}, info) => {
   }
 })
 
-// Sanity folds æ to "ae" in titles only: "aerlig" finds the title "Ærlig", "aerlighet"
-// does not find a body's "Ærlighet", and ø never folds ("okonomi" finds nothing). Barkpark
-// folds titles for its candidates (#22703); lib/text-search.ts keeps Sanity's rule.
-for (const [q, want, none] of [['aerlig', 'Ærlig talt om økonomi', 'Ordtak'], ['aerlighet', '', 'Ordtak'], ['okonomi', '', 'Ærlig talt om økonomi']] as const)
-  test(`a search for "${q}" folds like Sanity's`, async ({page, context}, info) => {
+// Titles fold æøå (Barkpark #22703): "aerlig" finds "Ærlig" as on Sanity, and "okonomi" and
+// "aarsrapport" find "Økonomi" and "Årsrapport" where Sanity finds nothing (more, never
+// fewer); the title as typed ranks first. Body text matches as written, as on Sanity.
+const FOLDS: [string, string[], string][] = [
+  ['aerlig', ['Ærlig talt om økonomi'], 'Ordtak'],
+  ['aerlighet', [], 'Ordtak'],
+  ['okonomi', ['Okonomi og kurs', 'Ærlig talt om økonomi'], ''],
+  ['aarsrapport', ['Årsrapport for selskapet'], ''],
+]
+for (const [q, want, none] of FOLDS)
+  test(`a search for "${q}" folds titles, the exact spelling first`, async ({page, context}, info) => {
     const t = target(info)
     test.skip(t.name !== 'studio', 'the check runs on ours; Sanity is the evidence above')
     await t.prepare(context)
@@ -84,7 +92,7 @@ for (const [q, want, none] of [['aerlig', 'Ærlig talt om økonomi', 'Ordtak'], 
       await expect(page.getByRole('combobox').first()).toBeFocused({timeout: 1000})
     }).toPass()
     await page.keyboard.type(q)
-    if (want) await expect(dialog(page).getByRole('option').filter({hasText: want})).toBeVisible({timeout: 10_000})
-    else await expect(dialog(page).getByText('No results found')).toBeVisible({timeout: 10_000})
-    await expect(dialog(page).getByRole('option').filter({hasText: none})).toHaveCount(0)
+    if (!want.length) await expect(dialog(page).getByText('No results found')).toBeVisible({timeout: 10_000})
+    else await expect.poll(async () => (await dialog(page).getByRole('option').allInnerTexts()).map((s) => s.split('\n')[0].trim()).filter((s) => want.includes(s)), {timeout: 10_000}).toEqual(want)
+    if (none) await expect(dialog(page).getByRole('option').filter({hasText: none})).toHaveCount(0)
   })
