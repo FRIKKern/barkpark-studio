@@ -21,7 +21,7 @@ test('J54: upload progress with Cancel leaves the field as it was', async ({page
   const card = field.getByRole('status', {name: 'Uploading J54 upload.pdf'})
   await expect(card).toBeVisible()
   await expect(card.getByRole('progressbar')).toBeVisible()
-  expect(held).toBe(true)
+  await expect.poll(() => held, {message: 'the upload is sent (after the library is asked for its bytes)'}).toBe(true)
   await card.getByRole('button', {name: 'Cancel'}).click()
   await expect(card).toBeHidden()
   await expect(field.getByText('fixture-attachment.txt')).toBeVisible()

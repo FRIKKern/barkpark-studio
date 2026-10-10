@@ -59,6 +59,8 @@ test('@local D07: paste or drop a picture into the canvas — uploaded to Barkpa
   await expect.poll(async () => (await images()).map((x) => `${x.alt}:${!!x.src}`).sort(), {timeout: 20_000}).toEqual(['dropped-sun:true', 'pasted-sun:true'])
 
   // A failed upload stays on its block, with the reason; nothing half-stored.
+  // The same picture as above: the library knows its bytes, so the lookup must miss too.
+  await page.route('**/api/media/by-sha1?*', (r) => r.fulfill({status: 404}))
   await page.route('**/api/media/upload', (r) => r.fulfill({status: 500, body: 'down'}))
   await canvas.getByText('A note opens in the canvas').click()
   await givePicture(page, 'paste', 'failing.png')

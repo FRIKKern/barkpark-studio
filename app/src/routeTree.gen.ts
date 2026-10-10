@@ -28,6 +28,7 @@ import { Route as StructureSplatRouteImport } from './routes/structure/$'
 import { Route as WSplatRouteImport } from './routes/w/$'
 import { Route as ApiBacklinksIdRouteImport } from './routes/api/backlinks/$id'
 import { Route as ApiMediaIndexRouteImport } from './routes/api/media/index'
+import { Route as ApiMediaBySha1RouteImport } from './routes/api/media/by-sha1'
 import { Route as ApiMediaFilesRouteImport } from './routes/api/media/files'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
 import { Route as ApiQueryTypeRouteImport } from './routes/api/query/$type'
@@ -132,6 +133,11 @@ const ApiMediaIndexRoute = ApiMediaIndexRouteImport.update({
   path: '/api/media/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaBySha1Route = ApiMediaBySha1RouteImport.update({
+  id: '/api/media/by-sha1',
+  path: '/api/media/by-sha1',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMediaFilesRoute = ApiMediaFilesRouteImport.update({
   id: '/api/media/files',
   path: '/api/media/files',
@@ -192,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/w/$': typeof WSplatRoute
   '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
+  '/api/media/by-sha1': typeof ApiMediaBySha1Route
   '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/w/$': typeof WSplatRoute
   '/structure': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
+  '/api/media/by-sha1': typeof ApiMediaBySha1Route
   '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
@@ -251,6 +259,7 @@ export interface FileRoutesById {
   '/w/$': typeof WSplatRoute
   '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
+  '/api/media/by-sha1': typeof ApiMediaBySha1Route
   '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
@@ -282,6 +291,7 @@ export interface FileRouteTypes {
     | '/w/$'
     | '/structure/'
     | '/api/backlinks/$id'
+    | '/api/media/by-sha1'
     | '/api/media/files'
     | '/api/media/upload'
     | '/api/query/$type'
@@ -311,6 +321,7 @@ export interface FileRouteTypes {
     | '/w/$'
     | '/structure'
     | '/api/backlinks/$id'
+    | '/api/media/by-sha1'
     | '/api/media/files'
     | '/api/media/upload'
     | '/api/query/$type'
@@ -340,6 +351,7 @@ export interface FileRouteTypes {
     | '/w/$'
     | '/structure/'
     | '/api/backlinks/$id'
+    | '/api/media/by-sha1'
     | '/api/media/files'
     | '/api/media/upload'
     | '/api/query/$type'
@@ -370,6 +382,7 @@ export interface RootRouteChildren {
   WSplatRoute: typeof WSplatRoute
   StructureIndexRoute: typeof StructureIndexRoute
   ApiBacklinksIdRoute: typeof ApiBacklinksIdRoute
+  ApiMediaBySha1Route: typeof ApiMediaBySha1Route
   ApiMediaFilesRoute: typeof ApiMediaFilesRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiQueryTypeRoute: typeof ApiQueryTypeRoute
@@ -516,6 +529,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/by-sha1': {
+      id: '/api/media/by-sha1'
+      path: '/api/media/by-sha1'
+      fullPath: '/api/media/by-sha1'
+      preLoaderRoute: typeof ApiMediaBySha1RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/media/files': {
       id: '/api/media/files'
       path: '/api/media/files'
@@ -594,6 +614,7 @@ const rootRouteChildren: RootRouteChildren = {
   WSplatRoute: WSplatRoute,
   StructureIndexRoute: StructureIndexRoute,
   ApiBacklinksIdRoute: ApiBacklinksIdRoute,
+  ApiMediaBySha1Route: ApiMediaBySha1Route,
   ApiMediaFilesRoute: ApiMediaFilesRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiQueryTypeRoute: ApiQueryTypeRoute,
