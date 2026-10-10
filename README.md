@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 77 changes, 5 tasks closed
+- **Today** · 78 changes, 5 tasks closed
+  - Fix a silent overwrite: a rewrite that lands while our write is in flight ([#431](https://github.com/FRIKKern/barkpark-studio/pull/431))
   - studioTask and studioComment: desk.hidden, off Barkpark's desk ([#428](https://github.com/FRIKKern/barkpark-studio/pull/428))
   - Done: [Barkpark: PortableDoc has no inline objects (Sanity's inline blocks, e.g. a chip inside a paragraph)](https://github.com/FRIKKern/barkpark/issues/21915)
-  - Done: [Inline objects slice 3: insert and edit a declared inline object in the paper canvas](https://github.com/FRIKKern/barkpark/issues/22777)
 - **Yesterday** · 113 changes, 14 tasks closed
   - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
   - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
