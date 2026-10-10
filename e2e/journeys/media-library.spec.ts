@@ -35,6 +35,13 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   const count = page.locator('.media-count')
   await expect(count).toHaveText(/^(Showing \d+ of \d+|\d+) assets$/)
   const before = Number((await count.innerText()).match(/(\d+) assets$/)![1])
+  // Pages of 50, as LiveView's: Load more brings the next ones.
+  if (before > 50) {
+    await expect(count).toHaveText(`Showing 50 of ${before} assets`)
+    await expect(page.locator('.media-tile')).toHaveCount(50)
+    await page.getByRole('button', {name: /^Load more/}).click()
+    await expect(page.locator('.media-tile')).toHaveCount(Math.min(100, before))
+  }
 
   // Upload through the tool's button: a fresh asset of our own (byte-different, so a new one).
   const png = readFileSync(new URL('../../fixtures/assets/fixture-image.png', import.meta.url))
@@ -59,6 +66,12 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   await expect(page.getByRole('complementary', {name: 'Asset'}).getByRole('heading', {name: NAME})).toBeVisible()
   await page.getByRole('button', {name: 'Close asset'}).click()
   await page.getByRole('button', {name: 'Grid', exact: true}).click()
+  // Size (LiveView's slider): bigger tiles, fewer to a row.
+  const tileWidth = () => page.locator('.media-tile').first().evaluate((el) => el.getBoundingClientRect().width)
+  const narrow = await tileWidth()
+  await page.getByLabel('Size').fill('300')
+  await expect.poll(tileWidth).toBeGreaterThan(narrow * 1.5)
+  await page.getByLabel('Size').fill('150')
 
   await page.getByRole('searchbox', {name: 'Search media'}).fill(NAME)
   const tile = page.locator('.media-tile', {hasText: NAME})
@@ -69,7 +82,7 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   await expect(tile).toHaveCount(1)
   // The kind filter (LiveView's library list): a png is an image, never a document; each
   // kind's count is Barkpark's.
-  const kinds = page.getByRole('navigation', {name: 'Folders'})
+  const kinds = page.getByRole('navigation', {name: 'Library'})
   await kinds.getByRole('button', {name: /^Documents/}).click()
   await expect(tile).toHaveCount(0)
   await kinds.getByRole('button', {name: /^Images/}).click()
@@ -103,30 +116,30 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   await inspector.getByRole('button', {name: 'Release'}).click()
   await expect(inspector.getByRole('status')).toContainText('Not checked out')
 
-  await page.getByRole('button', {name: '+ New folder'}).click()
-  await page.getByLabel('Folder name').fill('B08 folder')
+  await page.getByRole('button', {name: 'New collection'}).click()
+  await page.getByLabel('Collection name').fill('B08 folder')
   await page.getByRole('button', {name: 'Create', exact: true}).click()
-  const row = page.getByRole('navigation', {name: 'Folders'}).getByRole('button', {name: 'B08 folder'})
+  const row = page.getByRole('navigation', {name: 'Library'}).getByRole('button', {name: 'B08 folder'})
   await expect(row).toHaveAttribute('aria-current', 'true')
   const list = (await (await fetch(`${media()}/collections?limit=100`, {headers: auth()})).json()) as {result: {collections: {id: string; title: string}[]}}
   folder = list.result.collections.find((c) => c.title === 'B08 folder')?.id
   expect(folder).toBeTruthy()
   await page.getByRole('searchbox', {name: 'Search media'}).fill('')
   await page.getByLabel('Visibility').selectOption('')
-  await expect(page.getByText('This folder is empty')).toBeVisible()
+  await expect(page.getByText('This collection is empty')).toBeVisible()
   await page.screenshot({path: 'evidence/B08-2-folder-studio.png'})
 
   // Filing: the asset goes into the folder, shows there, and comes out again.
-  await page.getByRole('navigation', {name: 'Folders'}).getByRole('button', {name: 'All media'}).click()
+  await page.getByRole('navigation', {name: 'Library'}).getByRole('button', {name: 'All media'}).click()
   await page.getByRole('searchbox', {name: 'Search media'}).fill(NAME)
   await tile.click()
-  await inspector.getByLabel('Add to folder').selectOption({label: 'B08 folder'})
-  await expect(page.getByText('Added to the folder')).toBeVisible()
+  await inspector.getByLabel('Add to collection').selectOption({label: 'B08 folder'})
+  await expect(page.getByText('Added to collection')).toBeVisible()
   await page.getByRole('searchbox', {name: 'Search media'}).fill('')
   await row.click()
   await expect(tile).toHaveCount(1)
   await page.screenshot({path: 'evidence/B08-3-filed-studio.png'})
   await tile.click()
-  await inspector.getByRole('button', {name: 'Remove from this folder'}).click()
-  await expect(page.getByText('This folder is empty')).toBeVisible()
+  await inspector.getByRole('button', {name: 'Remove from collection'}).click()
+  await expect(page.getByText('This collection is empty')).toBeVisible()
 })

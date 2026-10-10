@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState, type FormEvent} from 'react'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useInfiniteQuery, useQuery, useQueryClient} from '@tanstack/react-query'
 import {assetQuery, assetsQuery, collectionsQuery, createFolder, KINDS, kindCountsQuery, saveAssetMeta, SORTS, type Sort, setCheckout, setMember, type Kind, type LibraryAsset, type Visibility} from '../lib/media-library'
 import {reasonOf} from '../lib/edits'
 import {Close, DocumentIcon, Search} from './icons'
@@ -33,6 +33,8 @@ export function MediaLibrary() {
   const [visibility, setVisibility] = useState<Visibility | ''>('')
   const [sort, setSort] = useState<Sort>('created-desc')
   const [view, setView] = useState<'grid' | 'list'>('grid')
+  // LiveView's Size slider: how wide a grid tile is.
+  const [tile, setTile] = useState(150)
   const [picked, setPicked] = useState<string>()
   useEffect(() => {
     const timer = setTimeout(() => setQuery(q.trim()), 200)
@@ -40,7 +42,8 @@ export function MediaLibrary() {
   }, [q])
   const folders = useQuery(collectionsQuery)
   const filter = {collection: folder, kind, q: query || undefined, visibility: visibility || undefined, sort}
-  const assets = useQuery(assetsQuery(filter))
+  const pages = useInfiniteQuery(assetsQuery(filter))
+  const list = pages.data?.pages.flatMap((p) => p.assets)
   const counts = useQuery(kindCountsQuery({q: filter.q, visibility: filter.visibility})).data
   const [naming, setNaming] = useState<string | null>(null)
   const {canWrite, createReason} = useCanWrite()
@@ -54,7 +57,7 @@ export function MediaLibrary() {
       await qc.invalidateQueries({queryKey: ['media', 'collections']})
       setFolder(id)
     } catch (err) {
-      fail(t('Could not create the folder'))(err)
+      fail(t('Could not create collection'))(err)
     }
   }
   // Upload (LiveView's Upload button): each file in turn, into the library.
@@ -76,11 +79,11 @@ export function MediaLibrary() {
     await qc.invalidateQueries({queryKey: ['media', 'assets']})
   }
   const folderTitle = folders.data?.find((f) => f.id === folder)?.title
-  const shown = assets.data?.assets.length ?? 0
-  const total = assets.data?.total ?? null
+  const shown = list?.length ?? 0
+  const total = pages.data?.pages[0]?.total ?? null
   return (
     <main className="media-tool">
-      <nav className="media-folders" aria-label={t('Folders')}>
+      <nav className="media-folders" aria-label={t('Library')}>
         <h1>{t('Media')}</h1>
         <button type="button" className="type-row" aria-current={!folder && !kind} onClick={() => setFolder(undefined)}>
           {t('All media')}
@@ -92,25 +95,26 @@ export function MediaLibrary() {
             {counts && <span className="media-kind-count">{counts.kinds[k] ?? 0}</span>}
           </button>
         ))}
-        <div className="desk-divider">{t('Folders')}</div>
+        <div className="desk-divider media-collections-head">
+          {t('Collections')}
+          <button type="button" className="icon-btn" aria-label={t('New collection')} data-tip={t('New collection')} disabled={!canWrite || naming !== null} title={createReason} onClick={() => setNaming('')}>
+            +
+          </button>
+        </div>
         {folders.isError && (
           <p className="muted" role="alert">
-            {t('Could not load folders.')} <button type="button" className="btn-text" onClick={() => void folders.refetch()}>{t('Retry')}</button>
+            {t('Could not load collections.')} <button type="button" className="btn-text" onClick={() => void folders.refetch()}>{t('Retry')}</button>
           </p>
         )}
-        {folders.data?.length === 0 && <p className="muted media-empty-note">{t('No folders yet.')}</p>}
+        {folders.data?.length === 0 && naming === null && <p className="muted media-empty-note">{t('No folders yet — click + to create one.')}</p>}
         {folders.data?.map((f) => (
           <button key={f.id} type="button" className="type-row" aria-current={folder === f.id} onClick={() => setFolder(f.id)}>
             {f.title}
           </button>
         ))}
-        {naming === null ? (
-          <button type="button" className="btn-text media-new-folder" disabled={!canWrite} title={createReason} onClick={() => setNaming('')}>
-            + {t('New folder')}
-          </button>
-        ) : (
+        {naming !== null && (
           <form onSubmit={newFolder} className="media-new-folder">
-            <input className="input" aria-label={t('Folder name')} autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setNaming(null)} />
+            <input className="input" aria-label={t('Collection name')} placeholder={t('Enter a collection name')} autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setNaming(null)} />
             <button type="submit" className="btn">{t('Create')}</button>
           </form>
         )}
@@ -140,22 +144,28 @@ export function MediaLibrary() {
             {uploading ? t('Uploading {done} of {of}…', uploading) : t('Upload')}
           </button>
         </header>
-        {assets.data && shown > 0 && (
+        {view === 'grid' && (
+          <label className="media-size-slider">
+            {t('Size')}
+            <input type="range" min={100} max={300} step={25} value={tile} onChange={(e) => setTile(Number(e.target.value))} />
+          </label>
+        )}
+        {list && shown > 0 && (
           <p className="media-count muted" role="status">
             {total !== null && total > shown ? t('Showing {shown} of {total} assets', {shown, total}) : (total ?? shown) === 1 ? t('1 asset') : t('{total} assets', {total: total ?? shown})}
           </p>
         )}
-        {assets.isPending && <p className="list-empty" role="status">{t('Loading media…')}</p>}
-        {assets.isError && (
+        {pages.isPending && <p className="list-empty" role="status">{t('Loading media…')}</p>}
+        {pages.isError && (
           <div className="list-search-error" role="alert">
             <p>{t('Could not load the media library.')}</p>
-            <button type="button" className="btn" onClick={() => void assets.refetch()}>{t('Retry')}</button>
+            <button type="button" className="btn" onClick={() => void pages.refetch()}>{t('Retry')}</button>
           </div>
         )}
-        {assets.data?.assets.length === 0 && <p className="list-empty" role="status">{query || visibility || kind ? t('No matching media') : folder ? t('This folder is empty') : t('No media yet')}</p>}
+        {list?.length === 0 && <p className="list-empty" role="status">{query || visibility || kind ? t('No matching media') : folder ? t('This collection is empty') : t('No media yet')}</p>}
         {view === 'grid' ? (
-          <ul className="media-grid">
-            {assets.data?.assets.map((a) => (
+          <ul className="media-grid" style={{gridTemplateColumns: `repeat(auto-fill, minmax(${tile}px, 1fr))`}}>
+            {list?.map((a) => (
               <li key={a.id}>
                 <Tile asset={a} picked={picked === a.id} onPick={() => setPicked(a.id)} />
               </li>
@@ -163,7 +173,7 @@ export function MediaLibrary() {
           </ul>
         ) : (
           // LiveView's list: name (with its thumbnail), kind, format, size.
-          !!assets.data?.assets.length && (
+          !!list?.length && (
             <table className="media-list">
               <thead>
                 <tr>
@@ -174,7 +184,7 @@ export function MediaLibrary() {
                 </tr>
               </thead>
               <tbody>
-                {assets.data.assets.map((a) => (
+                {list.map((a) => (
                   <tr key={a.id} aria-selected={picked === a.id}>
                     <td>
                       <button type="button" className="media-row" aria-pressed={picked === a.id} onClick={() => setPicked(a.id)}>
@@ -190,6 +200,13 @@ export function MediaLibrary() {
               </tbody>
             </table>
           )
+        )}
+        {pages.hasNextPage && (
+          <p className="media-more">
+            <button type="button" className="btn" disabled={pages.isFetchingNextPage} onClick={() => void pages.fetchNextPage()}>
+              {pages.isFetchingNextPage ? t('Loading media…') : total !== null ? t('Load more · {count} remaining', {count: total - shown}) : t('Load more')}
+            </button>
+          </p>
         )}
       </section>
       {picked && <Inspector id={picked} folder={folder} folders={folders.data ?? []} onClose={() => setPicked(undefined)} />}
@@ -313,27 +330,27 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
         {editReason && <p className="paper-fb" data-tone="warn">{editReason}</p>}
         <button type="submit" className="btn" disabled={busy || !!editReason || !dirty}>{t('Save')}</button>
       </form>
-      <section className="media-section" aria-label={t('Folders')}>
-        <h3>{t('Folders')}</h3>
+      <section className="media-section" aria-label={t('Collections')}>
+        <h3>{t('Collections')}</h3>
         {folder ? (
-          <button type="button" className="btn" disabled={busy} onClick={act(t('Could not remove it from the folder'), () => setMember({data: {collection: folder, asset: id, member: false}}))}>
-            {t('Remove from this folder')}
+          <button type="button" className="btn" disabled={busy} onClick={act(t('Could not remove it from the collection'), () => setMember({data: {collection: folder, asset: id, member: false}}))}>
+            {t('Remove from collection')}
           </button>
         ) : folders.length ? (
           <select
             className="input"
-            aria-label={t('Add to folder')}
+            aria-label={t('Add to collection')}
             value=""
             disabled={busy}
-            onChange={(e) => e.target.value && void act(t('Could not add it to the folder'), () => setMember({data: {collection: e.target.value, asset: id, member: true}}))().then((ok) => ok && toast({title: t('Added to the folder')}))}
+            onChange={(e) => e.target.value && void act(t('Could not add to collection'), () => setMember({data: {collection: e.target.value, asset: id, member: true}}))().then((ok) => ok && toast({title: t('Added to collection')}))}
           >
-            <option value="">{t('Add to folder…')}</option>
+            <option value="">{t('Add to collection…')}</option>
             {folders.map((f) => (
               <option key={f.id} value={f.id}>{f.title}</option>
             ))}
           </select>
         ) : (
-          <p className="muted">{t('Create a folder to file it.')}</p>
+          <p className="muted">{t('Folder collections hold curated sets of assets.')}</p>
         )}
       </section>
     </aside>
