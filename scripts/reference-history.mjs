@@ -5,12 +5,15 @@
 //
 //   SANITY_STUDIO_DATASET=e2e-local node --env-file=.env scripts/reference-history.mjs [--barkpark-only]
 //
-// Two authors on each side. Barkpark: BARKPARK_TOKEN, and a token the script mints
-// for studio-editor-b@example.com (BARKPARK_ADMIN_TOKEN, else BARKPARK_TOKEN, must be
-// an admin). Sanity: SANITY_TOKEN, and SANITY_TOKEN_B if set (e.g. your own
+// Two authors on each side. Barkpark: BARKPARK_TOKEN, and studio-editor-b@example.com:
+// the dev sign-in's own token for editor b (scripts/lib/dev-tokens.mjs) while it works,
+// else one minted and kept there (BARKPARK_ADMIN_TOKEN, else BARKPARK_TOKEN, must be an
+// admin). CI reads no history (history.spec is evidence only), so there editor a writes
+// both parts: a mint per CI reset left a member row each time (157 of them by 2026-10-11). Sanity: SANITY_TOKEN, and SANITY_TOKEN_B if set (e.g. your own
 // `npx sanity debug --secrets` token) — otherwise one author there.
 // seed-barkpark.mjs runs it after every reset (a reset deletes posts that aren't in the seed).
 import {readFileSync} from 'node:fs'
+import {devToken, keepDevToken} from './lib/dev-tokens.mjs'
 
 const ID = 'post-history'
 const env = (k, d) => process.env[k] ?? d ?? fail(`missing env ${k} (see .env.example)`)
@@ -79,15 +82,22 @@ async function bp(token, mutations) {
 // The seed's Sanity shapes → Barkpark's, for the few fields this doc carries.
 const toBarkpark = ({_id, _type, slug, author, categories, body, attachment, links, ...rest}) => ({...rest, slug: slug.current, author: author._ref})
 
+const EDITOR_B = 'studio-editor-b@example.com'
 async function editorB() {
+  if (process.env.CI) return env('BARKPARK_TOKEN')
+  const kept = devToken(env('BARKPARK_WORKSPACE'), EDITOR_B)
+  if (kept && (await fetch(`${BP}/v1/data/query/${DATASET}/post?limit=1`, {headers: {authorization: `Bearer ${kept}`}})).ok) return kept
+  // Workspace-wide like the dev sign-in's (no dataset), so every lane and the dev sign-in reuse it.
   const admin = process.env.BARKPARK_ADMIN_TOKEN || env('BARKPARK_TOKEN')
   const res = await fetch(`${env('BARKPARK_URL')}/v1/auth/app-tokens`, {
     method: 'POST',
     headers: {authorization: `Bearer ${admin}`, 'content-type': 'application/json'},
-    body: JSON.stringify({email: 'studio-editor-b@example.com', workspace: env('BARKPARK_WORKSPACE'), permissions: ['read', 'write'], label: 'app:studio-editor-b@example.com', dataset: DATASET}),
+    body: JSON.stringify({email: EDITOR_B, workspace: env('BARKPARK_WORKSPACE'), permissions: ['read', 'write'], label: `app:${EDITOR_B}`}),
   })
   if (!res.ok) fail(`minting editor B's token: ${res.status} ${await res.text()}`)
-  return (await res.json()).token
+  const {token} = await res.json()
+  keepDevToken(env('BARKPARK_WORKSPACE'), EDITOR_B, token)
+  return token
 }
 
 async function barkparkHistory() {

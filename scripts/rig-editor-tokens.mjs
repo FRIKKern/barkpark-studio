@@ -6,6 +6,9 @@
 // Earlier runs' editor-c (rig:) tokens are revoked too. It goes into the shared dev-token
 // store (scripts/lib/dev-tokens.mjs), where dev sign-in reuses it. Minted with the .env token (it
 // must administer the workspace). --revoke revokes them and forgets them.
+// Not bound to the lane's dataset: read-only anywhere, so every lane reuses it (e2e/rig/
+// warmup.ts re-mints only when it is missing or can write) instead of each lane minting
+// its own; every mint leaves a member row in the workspace (task-0b926def1700437e).
 import {editorPermissions, keepDevToken} from './lib/dev-tokens.mjs'
 
 const lane = process.argv[2]
@@ -29,7 +32,7 @@ for (const [email, kind] of Object.entries(editors)) {
   const res = await fetch(`${url}/v1/auth/app-tokens`, {
     method: 'POST',
     headers: admin,
-    body: JSON.stringify({email, workspace: process.env.BARKPARK_WORKSPACE, permissions: editorPermissions(email), label: `${kind}:${email}`, dataset: lane}),
+    body: JSON.stringify({email, workspace: process.env.BARKPARK_WORKSPACE, permissions: editorPermissions(email), label: `${kind}:${email}`}),
   })
   if (!res.ok) throw new Error(`minting for ${email}: ${res.status} ${await res.text()}`)
   const {token} = await res.json()
