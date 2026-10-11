@@ -6,6 +6,7 @@ import {NewDocMenu} from './NewDocMenu'
 import {ScopeSwitcher} from './ScopeSwitcher'
 import {WhoIsOnline} from './Presence'
 import {TasksPanel} from './TasksPanel'
+import {Diagnostics} from './Diagnostics'
 import {showTasks, useTasksView} from '../lib/tasks-ui'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
@@ -184,6 +185,7 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
   const next = useNewVersion()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
+  const [diagnostics, setDiagnostics] = useState(false)
   const [reloading, setReloading] = useState(false)
   const reload = async () => {
     setReloading(true)
@@ -219,6 +221,10 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio/issues/new/choose" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
             {t('Report a problem')}
           </a>
+          {/* J69: Sanity's Diagnostics: what a bug report needs, copyable. */}
+          <button type="button" role="menuitem" className="menu-item" onClick={() => (setOpen(false), setDiagnostics(true))}>
+            {t('Diagnostics')}
+          </button>
           <hr />
           <button type="button" role="menuitem" className="menu-item studio-version" disabled={!next || reloading} data-update={next ? '' : undefined} onClick={reload}>
             <span className="version-text">
@@ -239,8 +245,13 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio#readme" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
             {t('Documentation')}
           </a>
+          {/* Sanity's Changelog / What's new: ours is the README's timeline of merged changes. */}
+          <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio#what-happened" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+            {t("What's new")}
+          </a>
         </MenuPopover>
       )}
+      {diagnostics && <Diagnostics onClose={() => setDiagnostics(false)} />}
     </div>
   )
 }

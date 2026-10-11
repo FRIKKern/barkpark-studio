@@ -7,6 +7,8 @@ import {DialogBox} from './FocusScopes'
 import {ChevronDown} from './icons'
 import {useT} from '../lib/i18n'
 import {meQuery} from '../lib/session'
+import {barkparkInfoQuery} from '../lib/diagnostics'
+import {GroupIcon} from './GroupIcon'
 
 // B02: switch workspace / project / dataset, like Barkpark's LiveView Studio. The choice
 // goes into the URL (/w/<ws>/p/<project>/d/<dataset>/…) and opens as a fresh page, so
@@ -48,6 +50,7 @@ function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; o
   // A dataset-bound token (Barkpark #22393) opens only its own dataset: the others show, greyed.
   const bound = useQuery(meQuery).data?.boundDataset ?? null
   const options = useQuery(scopeOptionsQuery(pick))
+  const adminUrl = useQuery(barkparkInfoQuery).data?.adminUrl
   const tool = useRouterState({select: (s) => '/' + (s.location.pathname.split('/')[1] || 'structure')})
   // A new workspace or project: its first project / dataset until one is picked.
   useEffect(() => {
@@ -79,6 +82,12 @@ function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; o
           <span className="scope-card-name">{brand.name}</span>
         </span>
       </div>
+      {/* J69: Sanity's Manage project; ours is Barkpark's admin page (members & roles). */}
+      {adminUrl && (
+        <a className="btn btn-ghost manage-project" href={adminUrl} target="_blank" rel="noreferrer">
+          <GroupIcon name="cog" /> {t('Manage project')}
+        </a>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault()
