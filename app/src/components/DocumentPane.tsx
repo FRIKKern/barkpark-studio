@@ -887,9 +887,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   const actions = (studio.document?.actions?.(doc._type) ?? []).flatMap((action) => action({doc, set}) ?? [])
   const schemaActions = useSchemaActions(doc, () => setMenu(false), menu)
   const alt = useAltName()
-  const reason = publishReason ?? (blocked ? t('There are validation errors that need to be fixed before this document can be published') : undefined)
+  // J13: blocked by errors, Sanity's tooltip says why (a role's limit stays the button's title,
+  // as on the studio's other buttons).
   const publishTip = useTip(() =>
-    reason ? null : doc._draft && !isPristine(doc, state) ? (
+    publishReason ? null : blocked ? t('There are validation errors that need to be fixed before this document can be published') : doc._draft && !isPristine(doc, state) ? (
       <Keys keys={['Ctrl', alt, 'P']} />
     ) : doc._hasPublished !== false && doc._updatedAt ? (
       t('Published {ago}', {ago: ago(doc._updatedAt, locale)})
@@ -946,11 +947,11 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       )}
       <DocBadges doc={doc} />
       {/* Sanity's tooltip: the shortcut while there is something to publish, else when it was published. */}
-      <span className="publish-tip" {...(reason ? {} : publishTip.anchor)}>
+      <span className="publish-tip" {...(publishReason ? {} : publishTip.anchor)}>
       <button
         className="publish"
         disabled={!canWrite || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
-        title={reason}
+        title={publishReason}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async (e) => {
           // The button disables itself now, which drops keyboard focus on the page; it
