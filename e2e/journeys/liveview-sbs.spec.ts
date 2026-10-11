@@ -97,6 +97,8 @@ test('@evidence B03: list rows ticked for a bulk action', async ({page, browser}
   const lv = await liveView(browser)
   await page.goto(t.listPath('note'))
   await t.settle(page)
+  await page.getByRole('button', {name: 'List options'}).first().click()
+  await page.getByRole('menuitemradio', {name: 'Select documents'}).click()
   await page.getByRole('checkbox', {name: 'Select Fixture note 03'}).check()
   await page.getByRole('checkbox', {name: 'Select Fixture note 02'}).check()
   await page.screenshot({path: still('B03', '1-ticked', 'studio')})

@@ -17,8 +17,8 @@ import {RefArrayInput} from './RefArrayInput'
 import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {CodelistInput} from './CodelistInput'
 import {FieldComments} from './Comments'
-import {InvalidValueCard, KeysAlert, RichTextCard, UnsupportedAssetCard} from './BrokenValues'
-import {invalidValue, keyProblem, richTextProblem, unsupportedAsset} from '../lib/broken'
+import {InvalidValueCard, KeysAlert, RichTextCard, SanityPortableTextCard, UnsupportedAssetCard} from './BrokenValues'
+import {invalidValue, keyProblem, richTextProblem, sanityPortableText, unsupportedAsset} from '../lib/broken'
 import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
 import {PortableDocView} from './PortableDocView'
 import {modKey, useTip} from './Tip'
@@ -268,6 +268,9 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   const t = useT()
   const editPath = useContext(EditPathContext)
   const invalid = useContext(ProblemsContext).some((p) => p.path === path && p.level === 'error')
+  // B14: Sanity Portable Text in a rich text field reads as its text, kept as it is.
+  const pt = sanityPortableText(field, value)
+  if (pt) return <SanityPortableTextCard pt={pt} value={value} onChange={onChange} />
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
   if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />
@@ -652,9 +655,9 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
           }
         }}
       >
-        {!readOnly && (
-          <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />
-        )}
+        <div className="body-bar">
+          {!readOnly && <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />}
+        </div>
         <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">{t('Empty')}</p>}</div>
         {id && <BlockPresence docId={id} field={field} />}
       </div>
@@ -686,7 +689,9 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         (e.preventDefault(), e.stopPropagation(), toggle())
       }
     >
-      <ExpandButton expanded={expanded} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle} />
+      <div className="body-bar">
+        <ExpandButton expanded={expanded} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle} />
+      </div>
       <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} />
       {id && <BlockPresence docId={id} field={field} />}
     </div>

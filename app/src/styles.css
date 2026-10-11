@@ -283,18 +283,15 @@ a.preview:hover { background: var(--hover); }
 .preview[aria-current='true'] .dot { box-shadow: 0 0 0 1px var(--on-selected); }
 .preview[aria-current='true'] .media { background: transparent; color: var(--on-selected); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-selected) 30%, transparent); }
 .list-rows { padding: 0 12px 12px; }
-/* B03: a row's tick sits where its icon is, shown on hover / focus, on every row once one
-   is ticked, and always on touch (no hover): lists keep Sanity's look until you select. */
+/* B03: a row's tick sits where its icon is. It shows only while selecting (list menu
+   "Select documents", a Cmd/Ctrl- or Shift-click, or a ticked row) and when the tick has
+   keyboard focus; a plain hover keeps Sanity's row and its image, on touch too. */
 .bulk-row { position: relative; }
 /* The label is the 44 px tap target over the row's icon; the box inside is 18 px. */
-.bulk-check { position: absolute; z-index: 1; left: 3px; top: calc(50% - 24px); width: 44px; height: 44px; display: grid; place-items: center; opacity: 0; cursor: pointer; }
+.bulk-check { position: absolute; z-index: 1; left: 3px; top: calc(50% - 24px); width: 44px; height: 44px; display: grid; place-items: center; opacity: 0; pointer-events: none; cursor: pointer; }
 .bulk-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--studio-primary); cursor: pointer; }
-.bulk-row:is(:hover, :has(:focus-visible)) .bulk-check, .bulk-row[data-picked] .bulk-check, .list-rows:has(.bulk-row[data-picked]) .bulk-check { opacity: 1; }
-.bulk-row:is(:hover, :has(:focus-visible), [data-picked]) .media, .list-rows:has(.bulk-row[data-picked]) .bulk-row .media { visibility: hidden; }
-@media (hover: none) {
-  .bulk-check { opacity: 1; }
-  .bulk-row .media { visibility: hidden; }
-}
+.list-rows[data-selecting] .bulk-check, .bulk-row:has(.bulk-check :focus-visible) .bulk-check { opacity: 1; pointer-events: auto; }
+.list-rows[data-selecting] .bulk-row .media, .bulk-row:has(.bulk-check :focus-visible) .media { visibility: hidden; }
 /* Touch scout: on a phone the document header keeps one row, as Sanity's: icon buttons a
    little narrower (still 44 px tall), the chips may shrink. */
 @media (max-width: 480px) {
@@ -1075,20 +1072,36 @@ fieldset.object-field > .field-actions { top: -38px; }
 /* The canvas grows with its blocks, as Sanity's inline body does: a scroll box here would
    clip the canvas's block menu, which it places inside itself (barkpark block-handle.js). */
 .body-canvas .pd-canvas { margin-left: 0; }
-.body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 1.6; padding: 6px 12px 6px 0; min-height: 120px; }
-@media (max-width: 480px) { .body-canvas .bp-paper-editor-body { padding-left: 12px; } }
+/* Sanity's frame: a 33 px bar on top, text 12 px in from the border, the same at rest,
+   on hover and in focus (the read-only body and the live canvas share these numbers, so
+   clicking in moves nothing). Focus only turns the border blue. */
+.body-canvas bp-paper-canvas { padding-left: 0; }
+.body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 23px; padding: 12px 12px 20px; min-height: 120px; }
+/* The canvas's paper type (0.005em tracking, old-style figures) rewraps lines on click; Sanity's input has neither. */
+.body-canvas .bp-paper-editor-body, .body-canvas .bp-paper-editor-body * { letter-spacing: normal; font-feature-settings: normal; text-rendering: optimizeLegibility; font-variant-ligatures: none; }
+/* The read-only body wraps as ProseMirror does (a trailing space keeps its width), so a line never reflows on click. */
+.body-static .bp-paper-editor-body :is(p, li, h1, h2, h3, h4, h5, h6, blockquote) { white-space: break-spaces; overflow-wrap: break-word; }
+.body-bar { display: flex; align-items: center; justify-content: flex-end; flex: none; height: 33px; padding: 0 4px; box-shadow: inset 0 -1px 0 var(--line); }
+/* The canvas's + and drag gutter needs 52 px left of the text; the inline field has no
+   such room (Sanity's has none either), so it shows only when expanded. Slash menu and
+   keys still insert and move blocks. Its inline display is set by the canvas. */
+.body-canvas:not([data-expanded]) .bp-block-handle { display: none !important; }
+.body-canvas[data-expanded] bp-paper-canvas { padding-left: 40px; }
 .body-canvas .bp-paper-editor-body :is(h1, h2, h3, h4, h5, h6) { font-family: inherit; font-weight: 700; color: var(--fg-strong); line-height: 1.25; margin: 16px 0 8px; }
 .body-canvas .bp-paper-editor-body h1 { font-size: 28px; }
 .body-canvas .bp-paper-editor-body h2 { font-size: 22px; }
 .body-canvas .bp-paper-editor-body h3 { font-size: 18px; }
 .body-canvas .bp-paper-editor-body :is(h4, h5, h6) { font-size: 15px; }
 .body-canvas .bp-paper-editor-body p { margin: 0 0 8px; }
+/* The same heading gap in both states (the pane canvas gives an h2 32 px), none above the first block. */
+.body-canvas .bp-paper-editor-body > .ProseMirror > :is(h1, h2, h3, h4, h5, h6) { margin-top: 16px; }
+.body-canvas .bp-paper-editor-body > :first-child, .body-canvas .bp-paper-editor-body > .ProseMirror > :first-child { margin-top: 0; }
 .body-canvas .pd-conflict { margin: 8px; }
 
 /* J35: the body expanded over its pane (same canvas, its frame moved). */
-.body-expand { position: absolute; top: 4px; right: 4px; z-index: 3; width: 27px; height: 27px; }
+.body-expand { width: 25px; height: 25px; }
 /* F12: a 44 px tap target on phones and tablets (Sanity's is 25 px; the bar is ours). */
-@media (max-width: 768px) { .body-expand { top: 0; right: 0; width: 44px; height: 44px; } }
+@media (max-width: 768px) { .body-bar { height: 44px; padding: 0; } .body-expand { width: 44px; height: 44px; } }
 .body-canvas[data-expanded] { background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 16px 40px var(--shadow); display: flex; flex-direction: column; }
 .body-canvas[data-expanded] .pd-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .body-canvas[data-expanded] .pd-canvas { flex: 1; min-height: 0; overflow: auto; }
@@ -1166,6 +1179,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 .broken-label { font-weight: 500; color: var(--fg); }
 .broken-value { margin: 4px 0; padding: 6px 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; background: var(--bg); border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); color: var(--fg); }
 .broken-list { margin: 4px 0; padding-left: 18px; }
+.broken-pt { margin: 8px 0; padding: 8px 12px; font-size: 14px; line-height: 1.5; background: var(--bg); border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); color: var(--fg); }
+.broken-head .broken-pt p { margin: 4px 0; }
 .broken-actions { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 12px; }
 @media (max-width: 768px) { .broken-btn { min-height: 44px; } }
 .broken-btn { width: 100%; }
@@ -1465,7 +1480,16 @@ fieldset.object-field > .field-comments { top: -38px; }
 .scope-button svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
 .scope-ws { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scope-ds { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.scope-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 300px; padding: 12px; }
+.scope-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 340px; padding: 16px; }
+/* The studio name is the switcher's button (Sanity's workspace menu button). */
+.brand-button { padding: 3px 6px 3px 8px; max-width: 320px; font-weight: 500; color: var(--fg-header); }
+.brand-button .brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The card's head: the logo, where you are, and the studio's name (Sanity's). */
+.scope-card { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.navbar .scope-card-logo, .scope-card-logo { width: 41px; height: 41px; font-size: 15px; flex: none; }
+.scope-card-text { display: flex; flex-direction: column; min-width: 0; }
+.scope-card-where { font-size: 11px; line-height: 15px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-card-name { font-size: 15px; line-height: 21px; font-weight: 500; color: var(--fg-header); }
 .scope-popover form { display: flex; flex-direction: column; gap: 10px; }
 .scope-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .scope-field .input { width: 100%; box-sizing: border-box; }
@@ -1505,7 +1529,7 @@ fieldset.object-field > .field-comments { top: -38px; }
   .hotspot-tool .handle-grab { display: inline; }
 }
 /* J35: the body's expand button at phone width (F12). */
-@media (max-width: 768px) { .body-expand { width: 44px; height: 44px; top: 0; right: 0; } }
+@media (max-width: 768px) { .body-expand { width: 44px; height: 44px; } }
 /* J11: the canvas's slash menu (Barkpark's shell CSS). Its faint text (group labels,
    hints) is 3.7:1 in both themes: re-bound to >= 4.5:1 on the active row too (axe
    color-contrast). Items are 44 px tall at phone width (F12). */
