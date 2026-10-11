@@ -31,3 +31,12 @@ test('J36: the first click on Select, before the editors chunk lands, still open
   await page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')}).getByRole('button', {name: 'Select'}).click()
   await expect(page.getByRole('dialog')).toBeVisible({timeout: 5_000})
 })
+
+// task-3d93a715c9e2e3d6: the production server names the editors' chunk for a document
+// page (modulepreload), so it downloads with the page's code. A renamed entry would drop it silently.
+test('J36: a document page preloads the editors chunk (production build)', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio' || !(process.env.CI || process.env.E2E_PROD), 'the production server only (dev has no build manifest)')
+  const res = await page.request.get(t.docPath('post', 'post-17'), {maxRedirects: 0})
+  expect(res.headers().link).toMatch(/\/assets\/doc-editors-[\w-]+\.js>; rel=modulepreload/)
+})
