@@ -77,6 +77,7 @@ export default {
   'Remove {tag}': 'Fjern {tag}',
   Replace: 'Erstatt',
   Required: 'Obligatorisk',
+  'Slug is already in use': 'Slugen er allerede i bruk',
   'Reset value': 'Tilbakestill verdi',
   'Review changes': 'Gjennomgå endringer',
   'Search codes or labels…': 'Søk i koder eller etiketter…',

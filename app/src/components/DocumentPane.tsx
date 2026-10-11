@@ -3,6 +3,7 @@ import {GroupIcon} from './GroupIcon'
 import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {NarrowContext} from '../lib/layout'
 import {AnchoredLayer, DialogBox, MenuPopover} from './FocusScopes'
+import {useSlugInUse} from '../lib/slug-unique'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
@@ -114,7 +115,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const quiet = made?.id === pane.id && !made.acted
   // After the keystroke lands: re-rendering the form inside its input event drops it.
   const acted = () => quiet && setTimeout(() => setMade((m) => (m?.id === pane.id ? {...m, acted: true} : m)))
-  const own = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
+  const checked = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
+  // J28: a slug another document of this type has (a duplicate's copied slug) is taken, as Sanity says.
+  const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !pristine, t)
+  const own = slugTaken.length ? [...checked, ...slugTaken] : checked
   // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
   const advisories = useAdvisories(pane.id)
   const extra = advisories.length && schemaForPane && !viewingPublished ? advisoryProblems(advisories, schemaForPane, own, t) : []
@@ -314,6 +318,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const changes = useMemo(() => ({changed: changedSet, review: () => review.current(), inline, published: publishedQ.data}), [changedKey, inline, publishedQ.data])
   const problemsKey = JSON.stringify(problems)
   const steadyProblems = useMemo(() => problems, [problemsKey])
+  // A doc made a moment ago stays quiet, but a taken slug shows at once (Sanity flags a duplicate's).
+  const quietProblems = useMemo(() => (slugTaken.length ? slugTaken : NO_PROBLEMS), [slugTaken.map((p) => p.path).join()])
   // The form's fields with what they read: the pane's form, and (J68) each side of Compare versions.
   const formBody = (o: {shown: Doc; values: Record<string, unknown>; changes: typeof changes | null; problems: Problem[]; disabled: boolean; fields: typeof formFields; unknown: boolean}) => (
     <CommentsContext.Provider value={commentsApi}>
@@ -662,7 +668,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               shown: revision ? ({...doc, ...revision.content} as Doc) : doc,
               values: revision ? revision.content : doc,
               changes,
-              problems: revision || quiet ? NO_PROBLEMS : steadyProblems,
+              problems: revision ? NO_PROBLEMS : quiet ? quietProblems : steadyProblems,
               disabled: viewingPublished || !!revision || !canWrite,
               fields: formFields.slice(0, revealed),
               unknown: !revision && revealed >= formFields.length,
@@ -735,7 +741,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <>
               <LocationsBanner doc={doc} />
               <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
-              {formBody({shown: doc, values: doc, changes: {...changes, inline: true}, problems: quiet ? NO_PROBLEMS : steadyProblems, disabled: !canWrite, fields: formFields, unknown: false})}
+              {formBody({shown: doc, values: doc, changes: {...changes, inline: true}, problems: quiet ? quietProblems : steadyProblems, disabled: !canWrite, fields: formFields, unknown: false})}
             </>
           }
         />
