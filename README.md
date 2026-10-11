@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 24 changes, 2 tasks closed
+- **Today** · 25 changes, 2 tasks closed
+  - J40: the mention list loads with the composer and says Loading…, not 'No users found' ([#463](https://github.com/FRIKKern/barkpark-studio/pull/463))
   - Offline before the editors chunk lands: the form types on, the inputs come when it can ([#457](https://github.com/FRIKKern/barkpark-studio/pull/457))
   - Dropped: [J43 [2 Forms] Dialogs and popovers trap focus; on close, focus returns to the button that opened them](https://github.com/FRIKKern/barkpark/issues/21840)
-  - Dropped: [J52 [2 Forms] Focused field lives in the URL: reload or a copied link returns to that field](https://github.com/FRIKKern/barkpark/issues/21925)
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
