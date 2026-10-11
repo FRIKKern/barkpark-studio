@@ -115,6 +115,8 @@ export default {
   'Compact view': 'Kompakt visning',
   'Detailed view': 'Detaljert visning',
   'Default view': 'Standardvisning',
+  'Select documents': 'Velg dokumenter',
+  'Stop selecting': 'Avslutt valg',
   Title: 'Tittel',
 
   // A row's status tooltip (J56)

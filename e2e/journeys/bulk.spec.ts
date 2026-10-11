@@ -42,6 +42,9 @@ test('@local B03: tick rows, publish and unpublish them in one go', async ({page
   await expect(bar).toBeHidden()
   for (const id of IDS) expect(await versions(t, id), id).toBe('no draft, published')
 
+  // A bulk action ends selecting; the list menu starts it again.
+  await page.getByRole('button', {name: 'List options'}).first().click()
+  await page.getByRole('menuitemradio', {name: 'Select documents'}).click()
   await box('02').check()
   await box('03').check()
   await bar.getByRole('button', {name: 'Unpublish selected'}).click()
