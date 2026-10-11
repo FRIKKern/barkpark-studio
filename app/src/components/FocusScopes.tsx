@@ -1,4 +1,4 @@
-import {useCallback, useState, type HTMLAttributes, type ReactNode} from 'react'
+import {useCallback, useLayoutEffect, useState, type HTMLAttributes, type ReactNode, type RefObject} from 'react'
 import {createPortal} from 'react-dom'
 import {useFocusScope} from '../lib/focus-scope'
 
@@ -40,5 +40,30 @@ export function PaneOverlay({children}: {children: ReactNode}) {
       <span ref={anchor} hidden />
       {pane && createPortal(children, pane)}
     </>
+  )
+}
+
+/**
+ * J28: a menu drawn over the toasts, as Sanity's popovers are. A document pane is its
+ * own stacking context (its `container` query), so a menu inside it stays under the
+ * toast stack whatever its z-index. This draws the menu in <body>, in a fixed box
+ * over its button's own box, so the menu's CSS places it exactly as before. The box
+ * lets the pointer through to the button; the menu takes it back.
+ * The box follows nothing: it closes on resize (the footer itself does not move).
+ */
+export function AnchoredLayer({anchor, className, onClose, children}: {anchor: RefObject<HTMLElement | null>; className?: string; onClose: () => void; children: ReactNode}) {
+  const [box, setBox] = useState<DOMRect | null>(null)
+  useLayoutEffect(() => {
+    const wrap = anchor.current?.parentElement
+    if (wrap) setBox(wrap.getBoundingClientRect())
+    window.addEventListener('resize', onClose)
+    return () => window.removeEventListener('resize', onClose)
+  }, [anchor, onClose])
+  if (!box) return null
+  return createPortal(
+    <div className={className} style={{position: 'fixed', zIndex: 60, left: box.left, top: box.top, width: box.width, height: box.height, pointerEvents: 'none'}}>
+      {children}
+    </div>,
+    document.body,
   )
 }

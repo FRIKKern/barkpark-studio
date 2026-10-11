@@ -511,6 +511,7 @@ textarea.input { resize: vertical; }
 
 /* Dialogs (delete) */
 .popover.menu.up { top: auto; bottom: 30px; }
+.doc-menu-layer > .popover { pointer-events: auto; }
 .pane.doc { position: relative; }
 /* Like Sanity, a document's dialog sits over its own pane. */
 .dialog-backdrop { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; background: var(--backdrop); }
@@ -531,7 +532,7 @@ textarea.input { resize: vertical; }
 .used-in li .preview { margin: 0 4px; min-height: 41px; }
 @media (max-width: 768px) {
   .doc-footer .icon-btn, .delete-dialog .icon-btn { width: 44px; height: 44px; }
-  .doc-footer .menu-item, .delete-dialog .btn, .delete-dialog .used-in .preview { min-height: 44px; }
+  .doc-footer .menu-item, .doc-menu-layer .menu-item, .delete-dialog .btn, .delete-dialog .used-in .preview { min-height: 44px; }
 }
 .muted { color: var(--muted); }
 
