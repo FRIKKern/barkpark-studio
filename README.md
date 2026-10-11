@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 40 changes, 2 tasks closed
-  - JOURNEYS: J68 inline changes + compare versions, J69 navbar menus (Sanity scout) ([#477](https://github.com/FRIKKern/barkpark-studio/pull/477))
-  - D13: the linked-master bar says its state in a few words ([#475](https://github.com/FRIKKern/barkpark-studio/pull/475))
-  - D04: a new doc's fields stay quiet until someone types ([#474](https://github.com/FRIKKern/barkpark-studio/pull/474))
+- **Today** · 44 changes, 2 tasks closed
+  - J11: the body's callout dialog in our field styles, not bare browser controls ([#480](https://github.com/FRIKKern/barkpark-studio/pull/480))
+  - J04: the Published view without a published version keeps the form, as Sanity ([#479](https://github.com/FRIKKern/barkpark-studio/pull/479))
+  - J16: the first edit of a published document shows as "Draft created" and "Edited", as Sanity ([#478](https://github.com/FRIKKern/barkpark-studio/pull/478))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
