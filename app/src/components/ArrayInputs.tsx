@@ -3,6 +3,7 @@ import {copy} from '../lib/clipboard'
 import {Close as CloseIcon} from './icons'
 import {SortableRows} from './SortableRows'
 import {useT} from '../lib/i18n'
+import {sent, settle, shown, type Pending} from '../lib/pending-list'
 
 // Arrays of plain strings (J34), after Sanity's two layouts. `options.layout:
 // "tags"` is a box of chips with an input (Enter adds; × removes). Otherwise a list
@@ -12,27 +13,16 @@ import {useT} from '../lib/i18n'
 
 type Props = {id: string; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean}
 const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : [])
-const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i])
 
 export function TagsInput({id, value, onChange, readOnly}: Props) {
   const t = useT()
   const props = list(value)
   const [text, setText] = useState('')
-  // A fast second Enter (or ×) comes before the first change is back as `value`: built on
-  // that, it overwrote the tag before it (J13 re-recording). What we sent counts until
-  // `value` is the last of it; a `value` that is none of what we sent nor what we started
-  // from (someone else's edit, a refusal) wins at once.
-  const sent = useRef<{from: string[]; lists: string[][]} | null>(null)
-  if (sent.current) {
-    const {from, lists} = sent.current
-    if (same(props, lists.at(-1)!) || !(same(props, from) || lists.some((l) => same(l, props)))) sent.current = null
-  }
-  const tags = sent.current?.lists.at(-1) ?? props
-  const change = (next: string[]) => {
-    sent.current ??= {from: props, lists: []}
-    sent.current.lists.push(next)
-    onChange(next)
-  }
+  // A fast second Enter (or ×) builds on what was sent, not on a lagging `value` (lib/pending-list.ts).
+  const pending = useRef<Pending>(null)
+  pending.current = settle(pending.current, props)
+  const tags = shown(pending.current, props)
+  const change = (next: string[]) => ((pending.current = sent(pending.current, props, next)), onChange(next))
   return (
     <div className="tags-box" onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.focus()}>
       {tags.map((tag, i) => (
