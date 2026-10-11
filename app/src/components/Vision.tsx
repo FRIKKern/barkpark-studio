@@ -3,7 +3,9 @@ import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
 import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
-import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, searchQueries, type SavedQuery} from '../lib/vision-queries'
+import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, type SavedQuery} from '../lib/vision-queries'
+import {deleteSharedQuery, listSharedQueries, renameSharedQuery, shareQuery, type SharedQuery} from '../lib/vision-shared'
+import {ConfirmDialog} from './DocumentPane'
 import {deletePref, getPref, putPref} from '../lib/prefs'
 import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
 import {meQuery} from '../lib/session'
@@ -19,7 +21,8 @@ import {toast} from './Toasts'
 // Listen follows the query's changes until Stop (lib/vision-listen.ts). The last
 // query, perspective and dataset stay in this browser. Like Sanity's, Vision picks its own
 // dataset in the project (a dataset-bound token: only its own), and keeps saved queries
-// per editor on the server (lib/vision-queries.ts), in a panel on the right.
+// per editor on the server (lib/vision-queries.ts) and shared ones in the dataset
+// (lib/vision-shared.ts), in a panel on the right.
 
 const KEY = 'bp-vision'
 const EXAMPLE = 'post?order=_updatedAt:desc&limit=5'
@@ -213,17 +216,32 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   )
 }
 
-/** Sanity Vision's "Saved queries": save the current one, search, load, rename (click the title), delete. */
+/**
+ * Sanity Vision's "Saved queries": save the current one (as personal or shared), filter
+ * All / Personal / Team, search, load, rename (click the title), share, unshare, save a
+ * personal copy of someone else's, delete. Personal ones live in prefs, shared ones as
+ * documents in the dataset (lib/vision-shared.ts); only the author changes a shared one.
+ */
+type Item = (SavedQuery & {shared: false; mine: true}) | (SharedQuery & {shared: true})
 function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'perspective' | 'dataset'>; onLoad: (q: SavedQuery) => void}) {
   const t = useT()
   const locale = useLocale()
   const [list, setList] = useState<SavedQuery[]>([])
+  const [shared, setShared] = useState<SharedQuery[]>([])
+  const [filter, setFilter] = useState<'all' | 'personal' | 'team'>('all')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<string>()
   const [editing, setEditing] = useState<{key: string; title: string}>()
   const [menu, setMenu] = useState<string>()
+  const [saveMenu, setSaveMenu] = useState(false)
+  const [sharing, setSharing] = useState<SavedQuery | 'current'>()
+  const reloadShared = () => listSharedQueries().then(setShared).catch(() => {})
   useEffect(() => {
     void getPref({data: QUERIES_PREF}).then((v) => setList(readQueries(v))).catch(() => {})
+    void reloadShared()
+    // Sanity listens; a shared query someone else saved shows when the tab comes back.
+    window.addEventListener('focus', reloadShared)
+    return () => window.removeEventListener('focus', reloadShared)
   }, [])
   const store = async (next: SavedQuery[], done?: string) => {
     const before = list
@@ -232,32 +250,90 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
     const ok = await (next.length ? putPref({data: {key: QUERIES_PREF, value: {queries: next}}}) : deletePref({data: QUERIES_PREF})).catch(() => false)
     if (!ok) (setList(before), toast({title: t('Error saving query'), tone: 'critical'}))
     else if (done) toast({title: done, tone: 'positive'})
+    return ok
+  }
+  const fail = () => toast({title: t('Error saving query'), tone: 'critical'})
+  const already = () => {
+    const dup = findSaved(list, current) ?? shared.find((s) => findSaved([{...s, key: s.key}], current))
+    if (dup) toast({title: t('Query already saved'), description: `${dup.title} - ${new Date(dup.savedAt).toLocaleString(intlTag(locale))}`, tone: 'caution'})
+    return !!dup
   }
   const save = () => {
-    const dup = findSaved(list, current)
-    if (dup) return toast({title: t('Query already saved'), description: `${dup.title} - ${new Date(dup.savedAt).toLocaleString(intlTag(locale))}`, tone: 'caution'})
+    setSaveMenu(false)
+    if (already()) return
     const q: SavedQuery = {key: crypto.randomUUID(), title: t('Untitled'), ...current, savedAt: new Date().toISOString()}
     setSelected(q.key)
     void store(addQuery(list, q), t('Query saved'))
   }
-  const rename = (key: string, title: string) => {
-    setEditing(undefined)
-    if (title.trim() && title.trim() !== list.find((q) => q.key === key)?.title) void store(renameQuery(list, key, title))
+  // Share: the current query (Save as shared) or a personal one (its menu's Share, which moves it).
+  const share = async (what: SavedQuery | 'current') => {
+    setSharing(undefined)
+    const q = what === 'current' ? {title: t('Untitled'), ...current} : what
+    const res = await shareQuery({data: {title: q.title, query: q.query, perspective: q.perspective, dataset: q.dataset}}).catch(() => null)
+    if (!res) return fail()
+    if (what !== 'current') await store(deleteQuery(list, what.key))
+    setSelected(res.key)
+    await reloadShared()
+    toast({title: t('Shared query saved'), tone: 'positive'})
   }
+  const unshare = async (q: SharedQuery) => {
+    const mine: SavedQuery = {key: crypto.randomUUID(), title: q.title, query: q.query, perspective: q.perspective, dataset: q.dataset, savedAt: new Date().toISOString()}
+    if (!(await store(addQuery(list, mine)))) return
+    if (!(await deleteSharedQuery({data: q.key}).catch(() => null))) return fail()
+    await reloadShared()
+    toast({title: t('Query moved to personal'), tone: 'positive'})
+  }
+  const copy = (q: SharedQuery) => void store(addQuery(list, {key: crypto.randomUUID(), title: q.title, query: q.query, perspective: q.perspective, dataset: q.dataset, savedAt: new Date().toISOString()}), t('Personal copy saved'))
+  const remove = async (item: Item) => {
+    if (!item.shared) return void store(deleteQuery(list, item.key))
+    if (!(await deleteSharedQuery({data: item.key}).catch(() => null))) return fail()
+    await reloadShared()
+  }
+  const rename = async (item: Item, title: string) => {
+    setEditing(undefined)
+    if (!title.trim() || title.trim() === item.title) return
+    if (!item.shared) return void store(renameQuery(list, item.key, title))
+    if (!(await renameSharedQuery({data: {key: item.key, title}}).catch(() => null))) return fail()
+    await reloadShared()
+  }
+  const items: Item[] = [
+    ...(filter === 'team' ? [] : list.map((q) => ({...q, shared: false as const, mine: true as const}))),
+    ...(filter === 'personal' ? [] : shared.map((q) => ({...q, shared: true as const}))),
+  ].sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+  const shown = items.filter((q) => q.title.toLowerCase().includes(search.trim().toLowerCase()))
   return (
     <aside className="vision-saved" aria-label={t('Saved queries')}>
       <header>
         <h2 className="menu-label">{t('Saved queries')}</h2>
-        <button type="button" className="icon-btn" aria-label={t('Save query')} title={t('Save query')} onClick={save}>
-          <Add />
-        </button>
+        <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setSaveMenu(false)}>
+          <button type="button" className="icon-btn" aria-label={t('Save query')} title={t('Save query')} aria-haspopup="menu" aria-expanded={saveMenu} onClick={() => setSaveMenu(!saveMenu)}>
+            <Add />
+          </button>
+          {saveMenu && (
+            <MenuPopover className="popover menu" onClose={() => setSaveMenu(false)}>
+              <button type="button" role="menuitem" className="menu-item" onClick={save}>
+                {t('Save as personal')}
+              </button>
+              <button type="button" role="menuitem" className="menu-item" onClick={() => (setSaveMenu(false), !already() && setSharing('current'))}>
+                {t('Save as shared')}
+              </button>
+            </MenuPopover>
+          )}
+        </div>
       </header>
       <label className="vision-saved-search">
         <Search />
         <input className="input" type="search" placeholder={t('Search queries')} aria-label={t('Search queries')} value={search} onChange={(e) => setSearch(e.target.value)} />
       </label>
+      <div className="view-tabs vision-saved-filter" role="tablist" aria-label={t('Saved queries')}>
+        {(['all', 'personal', 'team'] as const).map((f) => (
+          <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}>
+            {t(f === 'all' ? 'All' : f === 'personal' ? 'Personal' : 'Team')}
+          </button>
+        ))}
+      </div>
       <ul>
-        {searchQueries(list, search).map((q) => (
+        {shown.map((q) => (
           <li key={q.key} data-selected={selected === q.key ? '' : undefined}>
             <div className="vision-saved-head">
               {editing?.key === q.key ? (
@@ -267,13 +343,15 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
                   autoFocus
                   value={editing.title}
                   onChange={(e) => setEditing({key: q.key, title: e.target.value})}
-                  onKeyDown={(e) => (e.key === 'Enter' ? rename(q.key, editing.title) : e.key === 'Escape' && setEditing(undefined))}
-                  onBlur={() => editing && rename(q.key, editing.title)}
+                  onKeyDown={(e) => (e.key === 'Enter' ? void rename(q, editing.title) : e.key === 'Escape' && setEditing(undefined))}
+                  onBlur={() => editing && void rename(q, editing.title)}
                 />
-              ) : (
+              ) : q.mine ? (
                 <button type="button" className="vision-saved-title" title={t('Rename')} onClick={() => setEditing({key: q.key, title: q.title})}>
                   {q.title}
                 </button>
+              ) : (
+                <span className="vision-saved-title">{q.title}</span>
               )}
               <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(undefined)}>
                 <button type="button" className="icon-btn" aria-label={t('Query actions')} aria-haspopup="menu" aria-expanded={menu === q.key} onClick={() => setMenu(menu === q.key ? undefined : q.key)}>
@@ -281,9 +359,26 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
                 </button>
                 {menu === q.key && (
                   <MenuPopover className="popover menu" onClose={() => setMenu(undefined)}>
-                    <button type="button" role="menuitem" className="menu-item danger" onClick={() => (setMenu(undefined), void store(deleteQuery(list, q.key)))}>
-                      {t('Delete')}
-                    </button>
+                    {!q.shared && (
+                      <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenu(undefined), setSharing(q))}>
+                        {t('Share')}
+                      </button>
+                    )}
+                    {q.shared && q.mine && (
+                      <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenu(undefined), void unshare(q))}>
+                        {t('Unshare')}
+                      </button>
+                    )}
+                    {q.shared && !q.mine && (
+                      <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenu(undefined), copy(q))}>
+                        {t('Save personal copy')}
+                      </button>
+                    )}
+                    {q.mine && (
+                      <button type="button" role="menuitem" className="menu-item danger" onClick={() => (setMenu(undefined), void remove(q))}>
+                        {t('Delete')}
+                      </button>
+                    )}
                   </MenuPopover>
                 )}
               </div>
@@ -291,13 +386,23 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
             <button type="button" className="vision-saved-load" aria-label={t('Load query {title}', {title: q.title})} title={`${q.dataset} · ${q.query}`} onClick={() => (setSelected(q.key), onLoad(q))}>
               <code className="vision-code">{q.query}</code>
               <span className="vision-saved-meta">
-                <span className="badge">{t('Personal')}</span>
+                <span className="badge">{q.shared ? t('Shared') : t('Personal')}</span>
+                {q.shared && q.author && !q.mine && <span>{q.author}</span>}
                 <time dateTime={q.savedAt}>{new Date(q.savedAt).toLocaleString(intlTag(locale), {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'})}</time>
               </span>
             </button>
           </li>
         ))}
       </ul>
+      {sharing && (
+        <ConfirmDialog
+          title={t('Share')}
+          body={t('Shared queries are stored as documents in this dataset, and everyone in the workspace sees them.')}
+          action={t('Save as shared')}
+          run={() => share(sharing)}
+          onClose={() => setSharing(undefined)}
+        />
+      )}
     </aside>
   )
 }

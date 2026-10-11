@@ -1,0 +1,14 @@
+{
+  "name": "studioVisionQuery",
+  "title": "Studio shared Vision query",
+  "visibility": "private",
+  "desk": {"hidden": true},
+  "fields": [
+    {"name": "title", "title": "Title", "type": "string"},
+    {"name": "query", "title": "Query", "type": "string"},
+    {"name": "perspective", "title": "Perspective", "type": "string"},
+    {"name": "dataset", "title": "Dataset", "type": "string"},
+    {"name": "authorEmail", "title": "Author", "type": "string"},
+    {"name": "savedAt", "title": "Saved", "type": "string"}
+  ]
+}

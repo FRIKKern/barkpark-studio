@@ -21,7 +21,7 @@ const BASE = `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE', 'studio-parit
 const DATASET = env('BARKPARK_DATASET', 'e2e-local')
 const SANITY_DATASET = env('SANITY_STUDIO_DATASET', 'e2e-local')
 // Schemaless types the studio writes too (comments, tasks), and Barkpark-native ones.
-const EXTRA = ['tag', 'paper_master', 'task', 'studioComment', 'studioTask']
+const EXTRA = ['tag', 'paper_master', 'task', 'studioComment', 'studioTask', 'studioVisionQuery']
 // `rev` and `body_html_*` are a paper's own server-side render (rebuilt from an unchanged body).
 const BOOKKEEPING = /^(_(rev|createdAt|updatedAt|draft|publishedId|hasPublished|publishedAt|seq|version|system)|rev|body_html_\w+)$/
 

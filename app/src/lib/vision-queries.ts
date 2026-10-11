@@ -1,6 +1,6 @@
 // J37, Vision's saved queries, as Sanity keeps them: personal ones, per editor, on the
 // server (Barkpark prefs, lib/prefs.ts), so they follow the editor to another browser.
-// Each remembers its query, perspective and dataset. Shared queries come later.
+// Each remembers its query, perspective and dataset. Shared ones: lib/vision-shared.ts.
 
 export type SavedQuery = {key: string; title: string; query: string; perspective: string; dataset: string; savedAt: string}
 

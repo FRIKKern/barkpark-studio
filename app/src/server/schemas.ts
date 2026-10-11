@@ -13,7 +13,7 @@ export type RawSchema = {name: string; title: string; fields: unknown[]; listPre
  * dataset so Barkpark knows them, never content. Kept out of the desk, lists, new
  * documents and search, as Sanity keeps its own task and comment types.
  */
-export const STUDIO_TYPES = ['studioTask', 'studioComment']
+export const STUDIO_TYPES = ['studioTask', 'studioComment', 'studioVisionQuery']
 
 export async function readSchemas(): Promise<RawSchema[]> {
   return (await readAllSchemas()).filter((s) => !STUDIO_TYPES.includes(s.name))
