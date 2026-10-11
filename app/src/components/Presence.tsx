@@ -145,7 +145,7 @@ export function PresenceHints({docId, scroller}: {docId: string; scroller: RefOb
   )
 }
 
-/** Navbar: who else is in the studio; pick one to open the doc they are on. */
+/** Navbar: who else is in the studio; pick one to open the doc and field they are on. */
 export function WhoIsOnline() {
   const t = useT()
   const people = usePresences()
@@ -192,7 +192,8 @@ function OnlineRow({p, onDone}: {p: Presence; onDone: () => void}) {
       onClick={async () => {
         const d = doc ?? (await qc.fetchQuery(docQuery(schemas.map((s) => s.name), p.documentId!)))
         onDone()
-        if (d) await navigate({href: `/structure/${d._type};${d._publishedId}`})
+        // Sanity's: to their document and the field they are in (J52's `path=`, which focuses it).
+        if (d) await navigate({href: `/structure/${d._type};${d._publishedId}${p.field ? `,path=${encodeURIComponent(p.field)}` : ''}`})
       }}
     >
       <Avatar p={p} />
