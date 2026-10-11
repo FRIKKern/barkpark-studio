@@ -27,5 +27,21 @@ export function releaseEarlyClicks() {
   const w = window as {__earlyClicks?: HTMLElement[] | null}
   const held = w.__earlyClicks ?? []
   w.__earlyClicks = null
-  for (const el of held) if (el.isConnected) el.click()
+  for (const el of held) (el.isConnected ? el : counterpart(el))?.click()
+}
+
+/**
+ * J36: hydrating can draw a server-rendered part anew (the image field's options button
+ * was replaced, and its held click went nowhere). The same button under the same id'd
+ * ancestor: matched by its label, else its text.
+ */
+function counterpart(el: HTMLElement): HTMLElement | null {
+  const label = el.getAttribute('aria-label')
+  for (let a = el.parentElement; a; a = a.parentElement) {
+    if (!a.id) continue
+    const now = document.getElementById(a.id)
+    const buttons = now ? [...now.querySelectorAll<HTMLElement>('button,[role=button]')] : []
+    return buttons.find((b) => (label ? b.getAttribute('aria-label') === label : b.textContent === el.textContent)) ?? null
+  }
+  return null
 }
