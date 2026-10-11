@@ -54,6 +54,10 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
     } else if (typeof value === 'string') {
       if (r.max !== undefined && value.length > r.max) push(r, t('Must be at most {max} characters long', {max: r.max}))
       if (r.min !== undefined && value.length < r.min) push(r, t('Must be at least {min} characters long', {min: r.min}))
+    } else if (Array.isArray(value)) {
+      // An array's item count, as you type (Sanity's); Barkpark's save says the same after.
+      if (r.max !== undefined && value.length > r.max) push(r, t('Must have at most {max} items', {max: r.max}))
+      if (r.min !== undefined && value.length < r.min) push(r, t('Must have at least {min} items', {min: r.min}))
     }
   }
   // Sanity's field types carry rules of their own: a URL, an email, a whole number, a date.

@@ -57,3 +57,18 @@ test('type rules: a url, an email, a whole number, a date of the wrong shape', (
   ])
   assert.deepEqual(of({site: 'https://example.com/a', mail: 'a@b.no', count: 3, day: '2026-10-11'}), [])
 })
+
+// An array's item count as you type (Sanity's Rule.min/max on an array), with its level.
+test('array count: min and max items, as you type', () => {
+  const listed: Schema = {
+    name: 'post',
+    title: 'Post',
+    fields: [
+      {name: 'tags', type: 'arrayOf', of: {name: 'tag', type: 'string'}, validation: {max: 3, level: 'warning'}},
+      {name: 'authors', type: 'arrayOf', of: {name: 'a', type: 'string'}, validation: {min: 2}},
+    ],
+  }
+  const of = (fields: Record<string, unknown>) => validate(doc(fields), listed).map((p) => `${p.path} ${p.level}: ${p.message}`)
+  assert.deepEqual(of({tags: ['a', 'b', 'c', 'd'], authors: ['x']}), ['tags warning: Must have at most 3 items', 'authors error: Must have at least 2 items'])
+  assert.deepEqual(of({tags: ['a', 'b', 'c'], authors: ['x', 'y']}), [])
+})
