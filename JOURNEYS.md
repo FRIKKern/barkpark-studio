@@ -43,7 +43,7 @@ status lives on the task board. A scout's honest gap adds a row: never a shrinki
 | J33 | 4 | Array of objects: insert menu with several types ([0005](docs/decisions/0005-multi-type-array-convention.md)), edit item in dialog or inline, preview in list, incl. Barkpark arrayOf-composite items (never "[object Object]") | F2 F7 |
 | J34 | 4 | Tags input (Enter adds, × removes; the reference ignores comma and Backspace) and reorderable rows for plain string arrays | F1 F5 |
 | J35 | 5 | Body editor expand to full screen and back (button or Cmd/Ctrl+Enter, the hotkey in its tooltip), caret and scroll kept; paste from Docs/Word/HTML keeps structure | F1 F7 |
-| J36 | 5 | Image actions: drop overlay, paste an image, upload error + retry, replace/remove, pick existing from library + "used in" | F9 F10 |
+| J36 | 5 | Image actions: drop overlay, paste an image, upload error + retry, replace/remove, pick existing from library + "used in"; an array of images (grid, add, drag to reorder) | F9 F10 |
 | J37 | after | Navbar shell: tool switcher (Vision), "+" create new document by type, user menu | F10 |
 | J38 | after | Global search filters: type picker, field filters with Sanity's operators, ordering; the search survives a reopen; recent searches (filters included) reapply, remove one, clear all; full screen at phone width; never fewer hits than Sanity for title vs body, prefixes, phrases, -exclusions and references by name; titles also match æ/ø/å typed as ae/o/a, the exact spelling first (search-quality.spec) | F2 F5 |
 | J39 | after | Broken values: wrong-type or unknown field shows Convert / Remove, bad array keys alert, invalid rich text gets a fix-it card | F9 |
