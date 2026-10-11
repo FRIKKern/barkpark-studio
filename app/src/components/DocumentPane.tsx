@@ -684,7 +684,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
         : viewingPublished
         ? doc && <PublishedFooter doc={doc} single={single} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} onReview={() => navigate({href: withParams(panes, index, {inspect: 'review', rev: undefined})})} />}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => void toggleValidation()} />}
       {pane.inspect === INCOMING && <IncomingReferences id={pane.id} panes={panes} index={index} onClose={() => navigate({href: withParams(panes, index, {inspect: undefined})})} />}
@@ -869,7 +869,7 @@ function WithCode({text, code}: {text: string; code: string}) {
 }
 
 /** `single` (B13): a singleton keeps Publish, Discard changes and (in History) Restore only. */
-function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void; askDelete: number}) {
+function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onReview}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void; askDelete: number; onReview: () => void}) {
   const actionsButton = useRef<HTMLButtonElement>(null)
   const t = useT()
   const locale = useLocale()
@@ -936,12 +936,15 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
               : t('Edited {ago}', {ago: ago(doc._updatedAt, locale)})
   return (
     <footer className="doc-footer">
-      {/* "N sec. ago" differs between the server render and hydration: not an error. */}
-      <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
-        {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
-        {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : actor ? <ActorAvatar actor={actor} /> : null}
-        {label}
-      </span>
+      {/* Sanity's status is a button: it opens History on Review changes (the keyboard reaches it too). */}
+      <button type="button" className="save-state-btn" aria-label={label || undefined} onClick={onReview} disabled={!label}>
+        {/* "N sec. ago" differs between the server render and hydration: not an error. */}
+        <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
+          {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
+          {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : actor ? <ActorAvatar actor={actor} /> : null}
+          {label}
+        </span>
+      </button>
       {state === 'signedOut' && (
         <SignInAgain />
       )}

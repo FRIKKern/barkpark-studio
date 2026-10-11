@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {closeAndSettle, target} from '../rig/targets'
+import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 
 // J16: History opened right after a publish. The doc footer reads the history for "Last
 // published …" and stops while you type, so the cached rows could predate the publish;
@@ -38,4 +38,17 @@ test('@local J16: History right after a publish lists that publish; no stale row
   await page.getByRole('menuitem', {name: 'History'}).click()
   await page.getByRole('list', {name: 'Document revisions'}).getByRole('button').filter({hasText: 'Published'}).first().click()
   await expect(t.field(page, 'title')).toHaveValue(NEW)
+})
+
+// Sanity's footer status ("Last published …") is a button: it opens History on Review changes.
+test('J15: the footer status opens Review changes', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours (Sanity is the scout reference)')
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.locator('.doc-footer').getByRole('button', {name: /Last published/}).click()
+  await expect(page).toHaveURL(/inspect=review/)
+  await expect(page.getByRole('tab', {name: 'Review changes'})).toHaveAttribute('aria-selected', 'true')
 })

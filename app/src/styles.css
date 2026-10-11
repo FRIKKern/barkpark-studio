@@ -365,7 +365,9 @@ textarea.input { resize: vertical; }
 .dot.published { background: var(--published); }
 .dot.draft { background: var(--caution-dot); }
 .doc-footer { height: 51px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 20px; font-size: 13px; color: var(--muted); }
-.doc-footer .save-state { margin-right: auto; }
+.doc-footer .save-state-btn { margin: 0 auto 0 -6px; padding: 3px 6px; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; cursor: pointer; }
+.doc-footer .save-state-btn:hover:not(:disabled) { background: var(--hover); }
+.doc-footer .save-state-btn:disabled { cursor: default; }
 .publish { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
 .publish:disabled { background: var(--publish-disabled-bg); color: var(--publish-disabled-fg); cursor: default; }
 .publish.danger { background: var(--danger-btn-bg); color: var(--danger-btn-fg); }
@@ -1699,7 +1701,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .stats th, .stats td { padding: 2px 24px 2px 0; text-align: right; }
 .stats th:first-child, .stats td:first-child { text-align: left; }
 .field-note { font-size: 12px; color: var(--muted); margin-top: 6px; }
-.doc-footer .save-state:has(+ .doc-badges) { margin-right: 12px; }
+.doc-footer .save-state-btn:has(+ .doc-badges) { margin-right: 12px; }
 .doc-footer .doc-badges { margin-right: auto; display: inline-flex; gap: 4px; }
 .doc-badge { font-size: 13px; line-height: 1; padding: 4px 6px; border-radius: 3px; background: var(--hover); color: var(--fg); white-space: nowrap; }
 .doc-badge[data-color=success] { background: var(--badge-positive-bg); color: var(--badge-positive-fg); }
