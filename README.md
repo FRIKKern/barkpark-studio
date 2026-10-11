@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 31 changes, 2 tasks closed
+- **Today** · 32 changes, 2 tasks closed
+  - Clicks on a document's inputs wait until they hydrate (the image field's Select after a reload) ([#467](https://github.com/FRIKKern/barkpark-studio/pull/467))
   - J37 Vision: shared queries update live, as Sanity's ([#469](https://github.com/FRIKKern/barkpark-studio/pull/469))
   - JSON tree in the code colours, light and dark: keys were 3.0:1 in dark mode ([#468](https://github.com/FRIKKern/barkpark-studio/pull/468))
-  - History lists only rows read since it opened: no stale rows re-drawn under the pointer ([#462](https://github.com/FRIKKern/barkpark-studio/pull/462))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
