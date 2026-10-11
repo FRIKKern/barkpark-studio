@@ -18,7 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 2 changes
+- **Today** · 3 changes
+  - Guard: copy+paste and cut+paste keep a declared callout (Barkpark #22931) ([#445](https://github.com/FRIKKern/barkpark-studio/pull/445))
   - D09 guard: typing over a selected divider or image keeps the block (Barkpark #22881, #22924) ([#444](https://github.com/FRIKKern/barkpark-studio/pull/444))
   - J11 spec: the palette's callout dialog by keyboard alone (Barkpark #22892) ([#443](https://github.com/FRIKKern/barkpark-studio/pull/443))
 - **Yesterday** · 89 changes, 8 tasks closed
