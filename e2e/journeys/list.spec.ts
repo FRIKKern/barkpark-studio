@@ -63,8 +63,8 @@ test('first run: a dataset with no document types shows Sanity\'s card', async (
 })
 
 // J19 (a CI gate): Sanity's list keys. From a row, ArrowDown / ArrowUp move a row, End /
-// Home to the last / first loaded row, Enter opens it. Nothing is written.
-test('J19: list rows move by arrow keys, Home and End; Enter opens', async ({page}, info) => {
+// Home to the last / first loaded row, Enter opens it; the list is one Tab stop. Nothing is written.
+test('J19: a list is one Tab stop; rows move by arrow keys, Home and End; Enter opens', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "Sanity's list moves an active row (aria-activedescendant), not focus")
   await t.prepare(page.context())
@@ -80,7 +80,13 @@ test('J19: list rows move by arrow keys, Home and End; Enter opens', async ({pag
   expect(await focused()).toBe(await href(0))
   await page.keyboard.press('End')
   expect(await focused()).toBe(await href((await rows.count()) - 1))
-  await page.keyboard.press('Home')
+  // One Tab stop, as Sanity's: from the search box Tab enters the list, the next Tab leaves it.
+  await page.getByRole('searchbox', {name: 'Search list'}).focus()
+  await page.keyboard.press('Tab')
+  expect(await focused()).toBe(await href(0))
+  await page.keyboard.press('Tab')
+  expect(await page.evaluate(() => !!document.activeElement?.closest('.list-rows')), 'Tab left the list').toBe(false)
+  await rows.first().focus()
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(new RegExp(`${(await href(1))!.split(';').pop()}$`))
