@@ -92,8 +92,34 @@ export const FieldView = memo(function FieldView(props: FieldProps) {
 function ConditionalField(props: FieldProps) {
   const doc = useContext(DocContext)
   const parent = useContext(ParentContext)
-  if (doc && isHidden(props.field, doc, parent)) return null
+  const hidden = !!doc && isHidden(props.field, doc, parent)
+  useSteadyFocus(hidden)
+  if (hidden) return null
   return <FieldBody {...props} readOnly={props.readOnly || (doc ? isReadOnly(props.field, doc, parent) : false)} />
+}
+
+/**
+ * J30: a field that comes or goes above the control you just used (Featured brings
+ * its note back above the switch) leaves that control where it was on screen, as
+ * Sanity's does: its place is read while the field flips, and the pane scrolls by
+ * however far it moved. Several fields flipping at once: the first scroll covers all.
+ */
+function useSteadyFocus(hidden: boolean) {
+  const was = useRef(hidden)
+  const before = useRef<{el: Element; top: number} | null>(null)
+  if (was.current !== hidden) {
+    was.current = hidden
+    const el = typeof document === 'undefined' ? null : document.activeElement
+    before.current = el && el !== document.body && el.closest('.pane-body') ? {el, top: el.getBoundingClientRect().top} : null
+  }
+  useLayoutEffect(() => {
+    const b = before.current
+    before.current = null
+    if (!b || !b.el.isConnected) return
+    const moved = b.el.getBoundingClientRect().top - b.top
+    const scroller = b.el.closest('.pane-body')
+    if (moved && scroller) scroller.scrollTop += moved
+  }, [hidden])
 }
 
 /** An object (or an image): a fieldset, its title the legend. Collapsible ones fold, like Sanity's. */
