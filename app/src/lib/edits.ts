@@ -87,6 +87,8 @@ type DocEdits = {
   createRequested?: boolean
   /** The server rev our unsent edits are made against (sent as ifRevisionID). */
   rev?: string
+  /** J16: these edits make the draft of a published document (see send). */
+  forks?: boolean
   /** For each field with edits in dirty or inflight: the server value they were made from. */
   base: Map<string, unknown>
   /** Rebases in a row (a guard against a write that never gets through). */
@@ -329,7 +331,7 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
     e.redo = []
   }
   // What this edit is made against: the server's value (and rev) as this browser has it.
-  if (!e.dirty.size && !e.inflight) e.rev = held._rev || undefined
+  if (!e.dirty.size && !e.inflight) (e.rev = held._rev || undefined), (e.forks = held._draft === false && !e.pendingCreate)
   const pending = [...e.base.keys()].some((k) => within(field, k) || within(k, field))
   if (!pending) e.base.set(field, getPath(held, field))
   // One pending write per spot: a path inside an object already pending whole goes
@@ -477,11 +479,18 @@ async function send(qc: QueryClient, id: string) {
   const {set, unset} = toPatch(e.inflight)
   const creating = e.pendingCreate
   try {
-    const mutation: Json = creating
-      ? {create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}
-      : {patch: {id, type: e.type, set, unset, ...(e.rev ? {ifRevisionID: e.rev} : {})}}
-    const r = (await mutate({data: {mutations: [mutation]}})) as {results: {document: Doc}[]; warnings?: unknown}
-    const saved = r.results[0].document
+    const fence: Record<string, Json> = e.rev ? {ifRevisionID: e.rev} : {}
+    // J16: the first edit of a published document makes its draft. Sent as an empty patch
+    // and then the edit, Barkpark's history says "Draft created" and then "Edited", as
+    // Sanity's timeline does (one patch was only "Draft created").
+    const mutations: Json[] = creating
+      ? [{create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}]
+      : e.forks
+        ? [{patch: {id, type: e.type, set: {}, ...fence}}, {patch: {id, type: e.type, set, unset}}]
+        : [{patch: {id, type: e.type, set, unset, ...fence}}]
+    const r = (await mutate({data: {mutations}})) as {results: {document: Doc}[]; warnings?: unknown}
+    const saved = r.results.at(-1)!.document
+    e.forks = false
     e.advisories = advisoryFindings(r)
     if (creating) { e.pendingCreate = undefined; e.createRequested = false }
     // What we sent is now the server's: a field still being typed builds on it.
