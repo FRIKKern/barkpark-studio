@@ -64,11 +64,13 @@ test.describe('D13', () => {
     await page.locator('body .bp-slash-menu [role=option][data-type="master-linked"]').first().click()
     const linked = page.getByTestId('linked-master')
     await expect(linked).toHaveCount(1, {timeout: 10_000})
+    await expect(linked).toContainText('Linked · follows the master')
     const blockTypes = async () => ((await t.docValue(ID, 'blocks', 'paper')) as {type: string; version?: unknown; master?: {mode?: string}}[])
     await expect.poll(async () => (await blockTypes()).filter((b) => b.type === 'master-ref').length).toBe(1)
     // Pin, then unpin: the server block carries a version only while pinned.
     await linked.getByRole('button', {name: 'Pin'}).click()
     await expect(linked.getByRole('button', {name: 'Unpin'})).toBeVisible({timeout: 10_000})
+    await expect(linked).toContainText('Pinned · readers see this version')
     await expect.poll(async () => (await blockTypes()).find((b) => b.type === 'master-ref')?.version != null).toBe(true)
     await linked.getByRole('button', {name: 'Unpin'}).click()
     await expect(linked.getByRole('button', {name: 'Pin'})).toBeVisible({timeout: 10_000})
