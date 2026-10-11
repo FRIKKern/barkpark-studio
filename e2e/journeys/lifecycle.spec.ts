@@ -96,8 +96,8 @@ test('@local J13 J04: validation as you type blocks publish (errors only); disca
   await expect(page.getByText('Search results show about 150 characters').filter({visible: true}).first()).toBeVisible()
   await expect.poll(async () => ((await t.docValue(CHECKED, 'seo')) as {metaDescription?: string} | undefined)?.metaDescription, BACKEND_POLL).toBe('Too short')
   await expect(publish).toBeEnabled({timeout: 10_000})
-  // An array's length (tags: max 3, a warning): Sanity checks it as you type; ours shows
-  // Barkpark's advisory from the save (#22406, #22425), in the same words. Never blocks.
+  // An array's length (tags: max 3, a warning): both check it as you type (ours too since
+  // task-6b8f4b5102eb33a3; Barkpark's save says the same, #22406, #22425). Never blocks.
   await t.field(page, 'tags').click()
   for (const tag of ['three', 'four']) (await page.keyboard.type(tag), await page.keyboard.press('Enter'))
   await expect(page.getByText('Must have at most 3 items').filter({visible: true}).first()).toBeVisible({timeout: 10_000})
