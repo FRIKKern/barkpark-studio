@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 52 changes, 2 tasks closed
+- **Today** · 54 changes, 2 tasks closed
+  - J13: a Publish blocked by errors says why in the studio's tooltip, as Sanity ([#490](https://github.com/FRIKKern/barkpark-studio/pull/490))
+  - J13: an array's item count is checked as you type, as Sanity's ([#489](https://github.com/FRIKKern/barkpark-studio/pull/489))
   - J13: field types validate their own shape, as Sanity's: Not a valid URL, email, integer, date ([#488](https://github.com/FRIKKern/barkpark-studio/pull/488))
-  - J13 scout: the row names Sanity's type rules, array counts as you type, and the blocked Publish's tooltip ([#487](https://github.com/FRIKKern/barkpark-studio/pull/487))
-  - J04: a disabled Unpublish greys out, as Publish does ([#485](https://github.com/FRIKKern/barkpark-studio/pull/485))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
