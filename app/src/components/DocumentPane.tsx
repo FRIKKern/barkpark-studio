@@ -2,7 +2,7 @@ import {announce} from '../lib/announce'
 import {GroupIcon} from './GroupIcon'
 import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {NarrowContext} from '../lib/layout'
-import {DialogBox, MenuPopover} from './FocusScopes'
+import {AnchoredLayer, DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
@@ -824,6 +824,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   const {canWrite, editReason, publishReason, createReason} = useCanWrite()
   const [publishing, setPublishing] = useState(false)
   const [menu, setMenu] = useState(false)
+  const closeMenu = useCallback(() => setMenu(false), [])
   const [deleting, setDeleting] = useState(false)
   const [discarding, setDiscarding] = useState(false)
   // Discard needs a draft to drop and a published version to fall back to.
@@ -922,7 +923,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
           <Ellipsis />
         </button>
         {menu && (
-          <MenuPopover className="popover menu up" onClose={() => setMenu(false)}>
+          <AnchoredLayer anchor={actionsButton} className="doc-menu-layer" onClose={closeMenu}>
+          <MenuPopover className="popover menu up" onClose={closeMenu}>
             {!single && (
               <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
                 <span className="menu-icon-text">
@@ -955,6 +957,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
               </button>
             )}
           </MenuPopover>
+          </AnchoredLayer>
         )}
       </div>}
       {deleting && <DeleteDialog doc={doc} closeHref={closeHref} onClose={() => setDeleting(false)} />}
