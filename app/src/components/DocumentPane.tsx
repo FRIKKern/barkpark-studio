@@ -890,7 +890,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
   // J13: blocked by errors, Sanity's tooltip says why (a role's limit stays the button's title,
   // as on the studio's other buttons).
   const publishTip = useTip(() =>
-    publishReason ? null : blocked ? t('There are validation errors that need to be fixed before this document can be published') : doc._draft && !isPristine(doc, state) ? (
+    publishReason ? null : blocked ? <span className="tip-text">{t('There are validation errors that need to be fixed before this document can be published')}</span> : doc._draft && !isPristine(doc, state) ? (
       <Keys keys={['Ctrl', alt, 'P']} />
     ) : doc._hasPublished !== false && doc._updatedAt ? (
       t('Published {ago}', {ago: ago(doc._updatedAt, locale)})
