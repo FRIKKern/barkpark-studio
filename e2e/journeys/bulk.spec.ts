@@ -26,7 +26,10 @@ test('@local B03: tick rows, publish and unpublish them in one go', async ({page
   await page.goto(t.listPath('note'))
   await t.settle(page)
   const box = (n: string) => page.getByRole('checkbox', {name: `Select Fixture note ${n}`})
-  // Keyboard: Tab onto the first tick, Space; then the others.
+  // Keyboard: start selecting from the list menu (the ticks are in the tab order only
+  // then; otherwise the list is one Tab stop, as Sanity's), Tab onto the first tick, Space.
+  await page.getByRole('button', {name: 'List options'}).first().click()
+  await page.getByRole('menuitemradio', {name: 'Select documents'}).click()
   await page.getByRole('searchbox', {name: 'Search list'}).focus()
   await page.keyboard.press('Tab')
   await expect(box('03')).toBeFocused()

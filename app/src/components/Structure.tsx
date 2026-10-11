@@ -449,12 +449,15 @@ function listSearchText(value: unknown): string {
 
 /**
  * Sanity's list keys: ArrowDown / ArrowUp move from row to row, Home / End to the first /
- * last loaded row; Enter opens (the row link's own). Only from a row: the search box and
- * the bulk ticks keep their keys.
+ * last loaded row; Enter opens (the row link's own). A list is one Tab stop, as Sanity's:
+ * Tab from a row leaves the list (Shift+Tab goes back before it), unless the list is
+ * selecting (B03), when Tab walks the ticks. Only from a row: the search box and the bulk
+ * ticks keep their keys.
  */
 function rowKeys(e: React.KeyboardEvent<HTMLElement>) {
-  const step = ({ArrowDown: 1, ArrowUp: -1, Home: -Infinity, End: Infinity} as Record<string, number>)[e.key]
   const from = (e.target as HTMLElement).closest('a[href]')
+  if (e.key === 'Tab' && from && !e.currentTarget.hasAttribute('data-selecting') && !e.altKey && !e.metaKey && !e.ctrlKey) return leaveList(e, e.currentTarget)
+  const step = ({ArrowDown: 1, ArrowUp: -1, Home: -Infinity, End: Infinity} as Record<string, number>)[e.key]
   if (step === undefined || !from || e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return
   const rows = [...e.currentTarget.querySelectorAll<HTMLAnchorElement>('a[href]')].filter((a) => a.offsetParent)
   const at = rows.indexOf(from as HTMLAnchorElement)
@@ -463,6 +466,21 @@ function rowKeys(e: React.KeyboardEvent<HTMLElement>) {
   e.preventDefault()
   next?.focus()
   next?.scrollIntoView({block: 'nearest'})
+}
+
+const TABBABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/**
+ * Tab out of a list: focus the first tabbable after it (or, with Shift, the last before it).
+ * Nothing after it (the last pane): focus leaves the list for the page, as Sanity's does.
+ */
+function leaveList(e: React.KeyboardEvent<HTMLElement>, list: HTMLElement) {
+  const all = [...document.querySelectorAll<HTMLElement>(TABBABLE)].filter((el) => el.tabIndex >= 0 && el.offsetParent && !list.contains(el))
+  const after = (el: HTMLElement) => !!(list.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
+  const to = e.shiftKey ? all.filter((el) => !after(el)).at(-1) : all.find(after)
+  e.preventDefault()
+  if (to) to.focus()
+  else (e.target as HTMLElement).blur()
 }
 
 function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {panes: Pane[]; index: number; type: string; node?: string; treeParent?: string; selected?: string}) {
@@ -714,7 +732,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               }}
             >
               <label className="bulk-check">
-                <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type), t)})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
+                <input type="checkbox" tabIndex={selecting || picked.size > 0 ? 0 : -1} aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type), t)})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
               </label>
               {row}
             </div>
