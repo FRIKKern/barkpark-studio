@@ -103,8 +103,11 @@ export function BlockPresence({docId, field}: {docId: string; field: string}) {
 }
 
 /** The element a focus path is shown on: the field, or an array item row (J07). */
-export const placeOf = (root: ParentNode, field: string) =>
-  root.querySelector(`[id="${CSS.escape(field)}"]`) ?? root.querySelector(`[data-presence-path="${CSS.escape(field)}"]`)
+export const placeOf = (root: ParentNode, field: string): Element | null =>
+  root.querySelector(`[id="${CSS.escape(field)}"]`) ??
+  root.querySelector(`[data-presence-path="${CSS.escape(field)}"]`) ??
+  // A block in the body (`body[_key=="p5"]`) has no element of its own here: its field has.
+  (field.includes('[') ? placeOf(root, field.slice(0, field.indexOf('['))) : null)
 
 /**
  * Sanity's above/below hints: someone is in a field scrolled out of view in this
