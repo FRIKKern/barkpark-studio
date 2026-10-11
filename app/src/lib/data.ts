@@ -10,7 +10,7 @@ import type {T} from './i18n'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import {withStudioItems} from './structure-config'
 import type {Sort} from './list-prefs'
-import type {PreviewText} from './preview'
+import type {PreviewMediaSpec, PreviewText} from './preview'
 import {excluded, parseTextQuery, textScore} from './text-search'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
@@ -52,8 +52,8 @@ export type Field = {
   editor?: string
   /** codelist (B04/B05): `<plugin>:<name>`. */
   codelistId?: string
-  /** Array item preview: which subfields title and subtitle a row (J33). */
-  preview?: {title?: string; subtitle?: string}
+  /** Array item preview (J33): title, subtitle and media, read like a list preview (lib/preview.ts). */
+  preview?: {title?: PreviewText; subtitle?: PreviewText; media?: PreviewMediaSpec}
   visibleWhen?: Condition
   readOnly?: boolean | Condition
 }
