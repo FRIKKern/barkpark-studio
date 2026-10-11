@@ -142,6 +142,7 @@ export default {
   'Inspector': 'Inspektør',
   'Invalid clipboard item': 'Ugyldig utklippselement',
   'Last published {ago}': 'Sist publisert {ago}',
+  'Unpublished {ago}': 'Avpublisert {ago}',
   'Loading document…': 'Laster dokument…',
   'Looking for documents that refer to it…': 'Ser etter dokumenter som refererer til det…',
   'Looking for documents that refer to them…': 'Ser etter dokumenter som refererer til dem…',

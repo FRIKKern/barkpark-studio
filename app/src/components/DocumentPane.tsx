@@ -75,7 +75,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // The published version: for its perspective, and (J15) to see what the draft changed.
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished || (!!draftQ.data?._draft && draftQ.data?._hasPublished !== false)})
   const docQ = viewingPublished ? publishedQ : draftQ
-  const {data: doc, isPending, error} = docQ
+  const {data: shown, isPending, error} = docQ
+  // J04: the Published perspective of a document that has only a draft (unpublished, or
+  // never published): Sanity keeps the form, empty and read-only, and its footer says what
+  // happened. A stub with no fields stands in for the published version.
+  const noPublished = viewingPublished && publishedQ.data === null && !!draftQ.data
+  const stub = useMemo(() => ({_id: pane.id, _publishedId: pane.id, _type: pane.type, _draft: false, _rev: '', _updatedAt: ''}) as Doc, [pane.id, pane.type])
+  const doc = noPublished ? stub : shown
   // J16: an old revision (rev=… in the URL) shows in the form's place, read-only.
   const revQ = useQuery({...revisionQuery(pane.rev ?? ''), enabled: !!pane.rev})
   const revision = pane.rev ? revQ.data : undefined
@@ -1028,19 +1034,25 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const {canWrite, publishReason} = useCanWrite()
-  const actor = useLastActor(doc, true)
+  // J04: no published version (the pane's stub): Sanity's "Unpublished just now", from the
+  // history, when an unpublish was the last publish-or-unpublish; else nothing.
+  const none = !doc._rev
+  const actor = useLastActor(doc, !none)
+  const {data: revisions} = useQuery({...historyQuery(doc._type, doc._publishedId), enabled: none})
+  const last = none ? revisions?.find((r) => r.action === 'publish' || r.action === 'unpublish') : undefined
+  const gone = last?.action === 'unpublish' ? last : undefined
   const run = () =>
     unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, tt('was unpublished. A draft has been created from the latest published revision.'))}))
   return (
     <footer className="doc-footer">
       <span className="save-state" role="status" suppressHydrationWarning>
-        {actor && <ActorAvatar actor={actor} />}
-        {t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}
+        {none ? gone?.actor && <ActorAvatar actor={gone.actor} /> : actor && <ActorAvatar actor={actor} />}
+        {none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}
       </span>
       <DocBadges doc={doc} />
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
       {!single && (
-        <button className="publish danger" disabled={!canWrite} title={publishReason} onClick={() => setConfirm(true)}>
+        <button className="publish danger" disabled={!canWrite || none} title={publishReason} onClick={() => setConfirm(true)}>
           <UnpublishIcon />
           {t('Unpublish')}
         </button>

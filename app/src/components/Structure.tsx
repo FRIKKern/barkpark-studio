@@ -186,9 +186,10 @@ function usePaneTitle(pane: Pane) {
   const id = pane.kind === 'doc' ? pane.id : ''
   const type = pane.kind === 'doc' ? pane.type : ''
   const known = !!schemaOf(schemas, type)
-  const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && known && !published})
   const {data: live} = useQuery({...publishedQuery(type, id), enabled: pane.kind === 'doc' && known && published})
-  const doc = published ? live : draft
+  const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && known && (!published || live === null)})
+  // J04: Published with no published version: named by its draft, as Sanity's.
+  const doc = published ? (live === null && draft ? draft : live) : draft
   if (pane.kind === 'types') return desk?.title ?? t('Content')
   if (pane.kind === 'menu') return node?.title ?? pane.node
   // J18: a child list is titled by its declaration ("Posts"), its parent list by its own ("Authors").
