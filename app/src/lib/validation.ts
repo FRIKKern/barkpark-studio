@@ -77,7 +77,13 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
 
 /** A value of the wrong shape for its type, in Sanity's words (its url, email, number and date validators). */
 function typeRule(type: string, value: unknown, t: T): string | undefined {
-  if (type === 'url' && typeof value === 'string' && !URL.canParse(value)) return t('Not a valid URL')
+  if (type === 'url' && typeof value === 'string') {
+    // Sanity's url type: absolute, http or https only, no username or password in it.
+    const url = URL.canParse(value) ? new URL(value) : null
+    if (!url) return t('Not a valid URL')
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return t('Does not match allowed protocols/schemes')
+    if (url.username || url.password) return t('Username/password not allowed')
+  }
   if (type === 'email' && typeof value === 'string' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return t('Must be a valid email address')
   if (type === 'integer' && typeof value === 'number' && !Number.isInteger(value)) return t('Must be an integer')
   if ((type === 'date' || type === 'datetime') && typeof value === 'string' && Number.isNaN(Date.parse(value))) return t('Must be a valid ISO-8601 formatted date string')

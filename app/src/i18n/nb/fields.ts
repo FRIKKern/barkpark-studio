@@ -51,6 +51,8 @@ export default {
   'Must be greater than or equal to {min}': 'Må være større enn eller lik {min}',
   'Must be lower than or equal to {max}': 'Må være mindre enn eller lik {max}',
   'Not a valid URL': 'Ikke en gyldig URL',
+  'Does not match allowed protocols/schemes': 'Samsvarer ikke med tillatte protokoller',
+  'Username/password not allowed': 'Brukernavn/passord er ikke tillatt',
   'Must be a valid email address': 'Må være en gyldig e-postadresse',
   'Must be an integer': 'Må være et heltall',
   'Must be a valid ISO-8601 formatted date string': 'Må være en gyldig dato i ISO 8601-format',

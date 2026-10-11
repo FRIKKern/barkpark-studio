@@ -72,3 +72,14 @@ test('array count: min and max items, as you type', () => {
   assert.deepEqual(of({tags: ['a', 'b', 'c', 'd'], authors: ['x']}), ['tags warning: Must have at most 3 items', 'authors error: Must have at least 2 items'])
   assert.deepEqual(of({tags: ['a', 'b', 'c'], authors: ['x', 'y']}), [])
 })
+
+// Sanity's url type takes http and https only, and no credentials in the URL (probed on Sanity 6.17).
+test('url: http(s) only, no username or password, absolute', () => {
+  const linked: Schema = {name: 'post', title: 'Post', fields: [{name: 'site', type: 'url'}]}
+  const of = (site: string) => validate(doc({site}), linked).map((p) => p.message)
+  assert.deepEqual(of('mailto:a@b.no'), ['Does not match allowed protocols/schemes'])
+  assert.deepEqual(of('ftp://x.com/a'), ['Does not match allowed protocols/schemes'])
+  assert.deepEqual(of('https://user:pw@x.com'), ['Username/password not allowed'])
+  assert.deepEqual(of('/relative'), ['Not a valid URL'])
+  assert.deepEqual(of('http://x.com'), [])
+})
