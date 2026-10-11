@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 67 changes, 2 tasks closed
+- **Today** · 68 changes, 2 tasks closed
+  - J59: Cmd/Ctrl+\ toggles Presentation's Edit overlay; its tooltip shows Alt ([#503](https://github.com/FRIKKern/barkpark-studio/pull/503))
   - J36 row: an array of images (grid, add, drag to reorder) ([#502](https://github.com/FRIKKern/barkpark-studio/pull/502))
   - J19/B03: a list is one Tab stop, as Sanity's; bulk ticks tabbable only while selecting ([#501](https://github.com/FRIKKern/barkpark-studio/pull/501))
-  - J19: list rows move by arrow keys, Home and End, as Sanity's lists ([#500](https://github.com/FRIKKern/barkpark-studio/pull/500))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
