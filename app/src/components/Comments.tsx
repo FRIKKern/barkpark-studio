@@ -24,8 +24,10 @@ type Api = {
 }
 export const CommentsContext = createContext<Api | null>(null)
 
-const nameOf = (t: T, email: string | null | undefined) => (email ? email.replace(/@.*/, '') : t('Unknown user'))
-const initialOf = (email: string | null | undefined) => (email ? email[0]!.toUpperCase() : '?')
+// No author email: written in shared-token mode, where nobody is signed in and the
+// studio itself writes. It is named as presence names that session ("Studio").
+const nameOf = (t: T, email: string | null | undefined) => (email ? email.replace(/@.*/, '') : t('Studio'))
+const initialOf = (email: string | null | undefined) => (email ? email[0]!.toUpperCase() : 'S')
 const newId = () => `comment-${crypto.randomUUID()}`
 
 /** The field's comment button and its composer (Sanity's CommentsField). */
