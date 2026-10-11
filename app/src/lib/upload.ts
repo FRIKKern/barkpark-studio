@@ -45,12 +45,24 @@ export async function uploadFile(file: File, onProgress: (fraction: number) => v
   return send(file, onProgress, signal)
 }
 
+// F9: the browser going offline keeps an in-flight request open (Chromium), so the
+// upload would wait in silence: it fails at once with the field's Retry. Bytes that stop
+// moving for STALL_MS fail the same way (while sending; the answer may take its time).
+const STALL_MS = 15_000
+
 function send(file: File, onProgress: (fraction: number) => void, signal: AbortSignal): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
+    let stall: ReturnType<typeof setTimeout> | undefined
+    // Rejected before the abort: the first settles, and an AbortError would read as Cancel.
+    const lost = () => (done(), reject(new UploadError('The network is unreachable.', true)), xhr.abort())
+    const moved = () => (clearTimeout(stall), (stall = setTimeout(lost, STALL_MS)))
+    const done = () => (clearTimeout(stall), removeEventListener('offline', lost))
     xhr.open('POST', '/api/media/upload')
-    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)
+    xhr.upload.onprogress = (e) => (moved(), e.lengthComputable && onProgress(e.loaded / e.total))
+    xhr.upload.onload = () => clearTimeout(stall)
     xhr.onload = () => {
+      done()
       if (xhr.status < 200 || xhr.status >= 300) return reject(new UploadError(`The server answered ${xhr.status}.`))
       try {
         resolve((JSON.parse(xhr.responseText) as {ref: string}).ref)
@@ -58,12 +70,15 @@ function send(file: File, onProgress: (fraction: number) => void, signal: AbortS
         reject(new UploadError('The server answered with something unreadable.'))
       }
     }
-    xhr.onerror = () => reject(new UploadError('The network is unreachable.', true))
-    xhr.onabort = () => reject(new DOMException('Upload cancelled', 'AbortError'))
+    xhr.onerror = () => (done(), reject(new UploadError('The network is unreachable.', true)))
+    xhr.onabort = () => (done(), reject(new DOMException('Upload cancelled', 'AbortError')))
     if (signal.aborted) return xhr.onabort(new ProgressEvent('abort'))
+    if (!navigator.onLine) return lost()
     signal.addEventListener('abort', () => xhr.abort(), {once: true})
+    addEventListener('offline', lost)
     const body = new FormData()
     body.append('file', file)
     xhr.send(body)
+    moved()
   })
 }
