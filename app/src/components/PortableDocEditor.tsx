@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
-import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult, type Rev} from '../lib/blocks'
+import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type Blocks, type OpsResult, type Rev} from '../lib/blocks'
 import {toast} from './Toasts'
 import {setCanvasProblem, unsavedElsewhere} from '../lib/edits'
 import {existingAsset} from '../lib/upload'
@@ -9,7 +9,7 @@ import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
 import {reportSelection, usePresences, type CaretSelection} from '../lib/presence'
 import {detachMaster, insertMaster, mastersQuery, pinMaster, saveMaster, type Master, type MasterResult} from '../lib/paper-masters'
-import {t as translate, useCanvasStrings, useT, useLocale} from '../lib/i18n'
+import {ago, t as translate, useCanvasStrings, useT, useLocale} from '../lib/i18n'
 import {forget, keep, keptKey, putBackOps, readKept, restoreOps, type Kept} from '../lib/kept-words'
 import {editedBy} from '../lib/history'
 import {useRouter} from '@tanstack/react-router'
@@ -92,10 +92,10 @@ const sameContent = (a: Block[], b: Block[]) => {
 }
 
 /** A rev as the card shows it: a paper's number, or a document rev's first characters. */
-const shortRev = (rev: Rev) => (typeof rev === 'number' ? String(rev) : String(rev).slice(0, 7))
 
 type Save = {state: 'saved' | 'saving' | 'error' | 'idle'; message?: string}
-type Problem = {message: string; kept?: boolean; conflict?: {mine: Rev; theirs: Rev; blocks: Block[]}}
+// D20: who wrote the version that won, and when (the card names them, not revision ids).
+type Problem = {message: string; kept?: boolean; conflict?: {mine: Rev; theirs: Rev; blocks: Block[]; who?: string | null; at?: string | null}}
 
 /**
  * `field`: edit that richText field's own block list (J10) instead of the document's;
@@ -213,6 +213,9 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     // one batch in flight; a 412 resends the same batch fenced on the other writer's rev
     // (ops are id-keyed, so both writers' blocks are kept); after a save, read the doc
     // and hand its blocks back as the canvas's own echo BEFORE acknowledging.
+    // The conflict card's "who": the history row of the server's version (D22's lookup).
+    const whoWrote = (server: Blocks) =>
+      server.docRev && void editedBy({data: {type, id, rev: server.docRev}}).then((who) => !gone && setProblem((p) => (p?.conflict?.theirs === server.rev ? {...p, conflict: {...p.conflict, who}} : p)))
     async function applyOps(ops: BlockOp[], seq: number) {
       const el = canvas.current
       if (!el || !ops.length) return
@@ -235,7 +238,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
             setSave({state: 'error', message: t('Someone else changed the same block')})
             refused.current = true // now, not at the next render: a read on its way checks it
 
-            setProblem({message: t('Someone else changed the same block'), kept: keepNow(), conflict: {mine: l.rev, theirs: server.rev, blocks: decorate.current(server.blocks)}})
+            setProblem({message: t('Someone else changed the same block'), kept: keepNow(), conflict: {mine: l.rev, theirs: server.rev, blocks: decorate.current(server.blocks), at: server.updatedAt}})
+            whoWrote(server)
             return
           }
         }
@@ -254,7 +258,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           if (!server) throw new Error(t('Conflict, and the server copy could not be fetched'))
           refused.current = true
 
-          setProblem({message: r.message, kept: keepNow(), conflict: {mine, theirs: server.rev, blocks: server.blocks}})
+          setProblem({message: r.message, kept: keepNow(), conflict: {mine, theirs: server.rev, blocks: server.blocks, at: server.updatedAt}})
+          whoWrote(server)
           return
         }
         if (!r.ok) throw new Error(r.message)
@@ -631,7 +636,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       )}
       {problem?.conflict && (
         <div className="pd-conflict" role="alert" data-conflict>
-          <strong>{t('Someone else changed this document')}</strong> {t('(Barkpark is at rev {theirs}, you were editing rev {mine}).', {theirs: shortRev(problem.conflict.theirs), mine: shortRev(problem.conflict.mine)})} {t('Your unsaved edits are still on screen.')}
+          <strong>{problem.conflict.who ? t('{who} changed this document', {who: problem.conflict.who}) : t('Someone else changed this document')}</strong>
+          {problem.conflict.at && <> {ago(problem.conflict.at, locale)}.</>} {t('Your unsaved edits are still on screen.')}
           {problem.kept && <> {t('Your words are kept on this computer.')}</>}
           <div>
             <button type="button" className="btn-text" onClick={() => resolveRef.current?.theirs(problem.conflict!.blocks, problem.conflict!.theirs)}>

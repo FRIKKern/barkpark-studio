@@ -51,7 +51,7 @@ export default {
   'Put the words back': 'Legg ordene tilbake',
   // D20: the conflict card (after Barkdown's)
   'Someone else changed this document': 'Noen andre har endret dokumentet',
-  '(Barkpark is at rev {theirs}, you were editing rev {mine}).': '(Barkpark er på rev {theirs}, du redigerte rev {mine}).',
+  '{who} changed this document': '{who} endret dette dokumentet',
   'Your unsaved edits are still on screen.': 'Endringene dine som ikke er lagret, vises fortsatt.',
   'Load the server version': 'Last inn serverens versjon',
   'Re-apply my edit on top': 'Legg endringen min oppå',
