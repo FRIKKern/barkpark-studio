@@ -72,6 +72,8 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
   // Restore; the kept edits' save is held while Barkpark gets a newer version (same text).
   await banner.getByRole('button', {name: 'Restore most recent revision'}).click()
   await expect.poll(() => held.length, {timeout: 15_000}).toBeGreaterThan(0)
+  // The restore has landed on Barkpark (the kept edits' save is still held).
+  await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author')
   await bpMutate([{patch: {id: ID, type: 'author', set: {title: 'Kept Author, touched'}}}])
   await page.waitForTimeout(800) // its live frame arrives
   for (const r of held.splice(0)) await r.continue()
