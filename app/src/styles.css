@@ -1489,6 +1489,8 @@ fieldset.object-field > .field-comments { top: -38px; }
 .scope-ws { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scope-ds { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scope-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 340px; padding: 16px; }
+/* Sanity's workspace card opens under the logo, 4 px from the window's edge, not under the name. */
+@media (min-width: 769px) { .scope-popover { left: -45px; } }
 /* The studio name is the switcher's button (Sanity's workspace menu button). */
 .brand-button { padding: 3px 6px 3px 8px; max-width: 320px; font-weight: 500; color: var(--fg-header); }
 .brand-button .brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
