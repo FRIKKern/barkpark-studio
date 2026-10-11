@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 5 changes
+- **Today** · 6 changes
+  - Doc footer shows who published last, as an avatar beside "Last published" (Sanity) ([#448](https://github.com/FRIKKern/barkpark-studio/pull/448))
   - Restore's kept edits are made against the restored version (real loss behind the J32 flake) ([#447](https://github.com/FRIKKern/barkpark-studio/pull/447))
   - Clipboard guard: copy+paste only, inside the 5 s budget ([#446](https://github.com/FRIKKern/barkpark-studio/pull/446))
-  - Guard: copy+paste and cut+paste keep a declared callout (Barkpark #22931) ([#445](https://github.com/FRIKKern/barkpark-studio/pull/445))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
