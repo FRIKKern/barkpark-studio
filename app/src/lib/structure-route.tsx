@@ -3,7 +3,7 @@ import {usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
 import {deskQuery, docQuery, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
-import {deskIndex, deskSort, listFilter, parseDeskPanes, unsupportedOps} from './desk'
+import {deskIndex, deskSort, listFilter, parseDeskPanes, rootDesk, unsupportedOps} from './desk'
 import {parseSingletonPanes, type Pane} from './panes'
 import {startsAtStudioItem, studioDesk} from './structure-config'
 import {previewRefs} from './preview'
@@ -38,7 +38,8 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   // J18: without one, the studio's own structure items still name their segments.
   const own = desk ? null : studioDesk()
   const panes = desk ? parseDeskPanes(splat, desk) : own && startsAtStudioItem(splat) ? parseDeskPanes(splat, own) : parseSingletonPanes(splat, new Set(schemas.filter((s) => s.singleton).map((s) => s.name)))
-  const nodes = desk ?? own ? deskIndex((desk ?? own)!) : undefined
+  const root = rootDesk(desk, own)
+  const nodes = root ? deskIndex(root) : undefined
   const [widthHint, listPrefs] = await Promise.all([
     onServer ? fetchViewportHint() : document.querySelector('[data-testid=panes]')?.clientWidth ?? window.innerWidth,
     onServer ? (fetchListPrefs() as Promise<ListPrefs>) : readListPrefsCookie(),
