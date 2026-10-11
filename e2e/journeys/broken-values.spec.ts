@@ -68,11 +68,12 @@ test('@local J39: convert, reset, add keys, remove unknown, fix rich text', asyn
 // a slug as {current}). The editor opens and reads them as their values; it crashed on
 // the reference (scout 2026-10-10: every imported post and author).
 // @local: about 9 s in CI, over rule 5's 5 s, with the shards near 60 s (2026-10-10).
-test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {current} slug', async ({page, context}, info) => {
+test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {current} slug, a Portable Text body', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the shapes are Sanity\'s own there')
   await t.prepare(context)
-  await t.patch(ID, {author: {_type: 'reference', _ref: 'author-ada'}, slug: {_type: 'slug', current: 'broken-post'}})
+  const body = [{_key: 'p1', _type: 'block', style: 'normal', markDefs: [], children: [{_key: 's1', _type: 'span', marks: [], text: 'Sanity paragraph'}]}]
+  await t.patch(ID, {author: {_type: 'reference', _ref: 'author-ada'}, slug: {_type: 'slug', current: 'broken-post'}, body})
   await page.goto(t.docPath('post', ID))
   await signInIfAsked(page)
   await t.settle(page)
@@ -80,6 +81,8 @@ test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {cur
   await expect(page.getByText('Could not render the document editor')).toHaveCount(0)
   await expect(t.field(page, 'slug')).toHaveValue('broken-post')
   await expect(t.refLink(page.locator('body'), 'author')).toContainText('Ada Lovelace')
+  // B14: a Portable Text body reads as its text, read-only (the canvas reads PortableDoc).
+  await expect(page.getByRole('alert').filter({hasText: 'Sanity Portable Text'})).toContainText('Sanity paragraph')
 })
 
 // task-ec9b4c0c78185fa4: a team moving over from Sanity brings asset values Barkpark has

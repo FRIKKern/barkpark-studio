@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {invalidValue, keyProblem, richTextProblem, unknownFields, unsupportedAsset} from './broken.ts'
+import {invalidValue, keyProblem, richTextProblem, sanityPortableText, unknownFields, unsupportedAsset} from './broken.ts'
 import type {Field, Schema} from './data.ts'
 
 const f = (type: string): Field => ({name: 'x', type})
@@ -53,3 +53,19 @@ test('an asset this studio cannot show: Sanity export form, a foreign ref', () =
   assert.equal(unsupportedAsset(f('string'), {_sanityAsset: 'x'}), null)
 })
 
+
+test('Sanity Portable Text in a rich text field: read as its text', () => {
+  const pt = [
+    {_type: 'block', style: 'h2', children: [{_type: 'span', text: 'Heading'}], markDefs: []},
+    {_type: 'block', listItem: 'bullet', children: [{_type: 'span', text: 'One '}, {_type: 'span', text: 'two'}]},
+    {_type: 'callout', text: 'A custom block.'},
+  ]
+  assert.deepEqual(sanityPortableText(f('richText'), pt)?.lines, [
+    {style: 'h2', text: 'Heading'},
+    {style: 'listItem', text: 'One two'},
+    {style: 'object', text: 'callout'},
+  ])
+  assert.equal(sanityPortableText(f('richText'), [{_type: 'callout'}]), null)
+  assert.equal(sanityPortableText(f('richText'), {blocks: []}), null)
+  assert.equal(sanityPortableText(f('arrayOf'), pt), null)
+})

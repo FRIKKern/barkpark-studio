@@ -17,8 +17,8 @@ import {RefArrayInput} from './RefArrayInput'
 import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {CodelistInput} from './CodelistInput'
 import {FieldComments} from './Comments'
-import {InvalidValueCard, KeysAlert, RichTextCard, UnsupportedAssetCard} from './BrokenValues'
-import {invalidValue, keyProblem, richTextProblem, unsupportedAsset} from '../lib/broken'
+import {InvalidValueCard, KeysAlert, RichTextCard, SanityPortableTextCard, UnsupportedAssetCard} from './BrokenValues'
+import {invalidValue, keyProblem, richTextProblem, sanityPortableText, unsupportedAsset} from '../lib/broken'
 import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
 import {PortableDocView} from './PortableDocView'
 import {modKey, useTip} from './Tip'
@@ -268,6 +268,9 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   const t = useT()
   const editPath = useContext(EditPathContext)
   const invalid = useContext(ProblemsContext).some((p) => p.path === path && p.level === 'error')
+  // B14: Sanity Portable Text in a rich text field reads as its text, kept as it is.
+  const pt = sanityPortableText(field, value)
+  if (pt) return <SanityPortableTextCard pt={pt} value={value} onChange={onChange} />
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
   if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />
