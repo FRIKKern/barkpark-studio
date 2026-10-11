@@ -34,8 +34,12 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
   review: ReactNode
 }) {
   const t = useT()
-  const {data: revisions, error} = useQuery({...historyQuery(type, id), refetchInterval: 10_000})
-  const entries = revisions ? timeline(revisions) : []
+  // J16: the doc footer keeps this query warm, so rows read before the panel opened can
+  // miss the publish just made, and the list re-drew under the pointer when the fresh
+  // read landed (a click opened v3 for v4). List only rows read since the panel opened.
+  const [opened] = useState(Date.now)
+  const {data: revisions, error, dataUpdatedAt} = useQuery({...historyQuery(type, id), refetchInterval: 10_000, refetchOnMount: 'always'})
+  const entries = revisions && dataUpdatedAt >= opened ? timeline(revisions) : []
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   return (
     <aside className="inspector history" aria-label={t('History')}>
