@@ -56,6 +56,9 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
       if (r.min !== undefined && value.length < r.min) push(r, t('Must be at least {min} characters long', {min: r.min}))
     }
   }
+  // Sanity's field types carry rules of their own: a URL, an email, a whole number, a date.
+  const wrongShape = typeRule(field.type, value, t)
+  if (wrongShape) push({}, wrongShape)
   // Sanity: a reference must point at a published doc (a missing one fails the same way).
   if (field.type === 'reference' && typeof value === 'string' && target) {
     const doc = target(value)
@@ -66,6 +69,15 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
     value.forEach((it, i) => refId(it) || out.push({path: itemPath(path, it, i), title, message: t('Must be a reference to a document'), level: 'error', ...(parents.length ? {parents} : {}), group}))
   if (field.type === 'composite')
     for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t)
+}
+
+/** A value of the wrong shape for its type, in Sanity's words (its url, email, number and date validators). */
+function typeRule(type: string, value: unknown, t: T): string | undefined {
+  if (type === 'url' && typeof value === 'string' && !URL.canParse(value)) return t('Not a valid URL')
+  if (type === 'email' && typeof value === 'string' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return t('Must be a valid email address')
+  if (type === 'integer' && typeof value === 'number' && !Number.isInteger(value)) return t('Must be an integer')
+  if ((type === 'date' || type === 'datetime') && typeof value === 'string' && Number.isNaN(Date.parse(value))) return t('Must be a valid ISO-8601 formatted date string')
+  return undefined
 }
 
 /** `t`: the render's translate (useT), so the messages are in the Studio's language. */
