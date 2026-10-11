@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 23 changes
-  - J30: a conditional field coming back leaves the switch in place, as Sanity's ([#459](https://github.com/FRIKKern/barkpark-studio/pull/459))
-  - J28: the document menu opens over the toasts, as Sanity's ([#458](https://github.com/FRIKKern/barkpark-studio/pull/458))
-  - J37 Vision: a refused query shows where it went wrong ([#456](https://github.com/FRIKKern/barkpark-studio/pull/456))
+- **Today** · 24 changes, 2 tasks closed
+  - Offline before the editors chunk lands: the form types on, the inputs come when it can ([#457](https://github.com/FRIKKern/barkpark-studio/pull/457))
+  - Dropped: [J43 [2 Forms] Dialogs and popovers trap focus; on close, focus returns to the button that opened them](https://github.com/FRIKKern/barkpark/issues/21840)
+  - Dropped: [J52 [2 Forms] Focused field lives in the URL: reload or a copied link returns to that field](https://github.com/FRIKKern/barkpark/issues/21925)
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
