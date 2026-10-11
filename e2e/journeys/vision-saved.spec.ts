@@ -93,6 +93,24 @@ test('J37: Vision listens to a query and shows its changes', async ({page, conte
   }
 })
 
+// A refused query: Barkpark's message, and the bad part of the query marked (Sanity's
+// dash line and carets, line and column).
+test('J37: Vision points at the bad part of a refused query', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  await t.prepare(context)
+  await page.goto('/vision')
+  await signInIfAsked(page)
+  await expect(page.getByRole('combobox', {name: 'Dataset', exact: true})).toBeEnabled()
+  const query = page.getByLabel('Query', {exact: true})
+  await query.fill('post?filter[title][bogus]=x&limit=1')
+  await query.press('ControlOrMeta+Enter')
+  const error = page.getByRole('region', {name: 'Result'}).getByRole('alert')
+  await expect(error).toContainText('unknown filter operator "bogus"')
+  await expect(error).toContainText(`-----${'^'.repeat(22)}`)
+  await expect(error).toContainText('Column: 6')
+})
+
 test('@evidence J37: Vision saved queries and dataset, side by side', async ({page, context}, info) => {
   const t = target(info)
   await t.prepare(context)

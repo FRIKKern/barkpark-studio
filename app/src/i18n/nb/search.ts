@@ -142,6 +142,8 @@ export default {
   'The listener closed': 'Lytteren ble lukket',
   Result: 'Resultat',
   'Barkpark answered {status}': 'Barkpark svarte {status}',
+  Line: 'Linje',
+  Column: 'Kolonne',
   'Execution: {time}': 'Utførelsestid: {time}',
   'End-to-end: {time}': 'Ende-til-ende: {time}',
   'n/a': '-',
