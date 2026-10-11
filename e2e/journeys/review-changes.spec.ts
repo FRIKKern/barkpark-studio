@@ -55,6 +55,8 @@ test('@evidence J15: change bars, review changes, revert one field and all', asy
   await expect(panel(page)).toContainText('Changed for review.')
   // The range starts at the last publish, named as Sanity names it ("Published: …").
   await expect(panel(page)).toContainText('Published:', {timeout: 15_000})
+  // The slug from → to, as Sanity draws a slug's change.
+  if (t.name === 'studio') await expect(panel(page).locator('[data-field="slug"] .review-fromto')).toContainText('→')
   await page.screenshot({path: shot(t.name, '1-review')})
 
   // Revert one field: Title goes back, Excerpt stays changed.
