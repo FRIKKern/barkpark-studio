@@ -32,3 +32,26 @@ test('J07: a closed tab is gone from the other browser within 2 s', async ({brow
     await Promise.all([ctxA.close(), ctxB.close()])
   }
 })
+
+// Who's online (J07): picking someone opens their document at the field they are in, as
+// Sanity's presence menu does (it opened the document at its top).
+test('J07: who\'s online opens the other editor\'s document at their field', async ({browser}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "Barkpark's presence room")
+  const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])
+  await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
+  const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
+  try {
+    await Promise.all([a.goto(t.listPath('post')), b.goto(t.docPath('post', 'post-03'))])
+    await Promise.all([t.settle(a), t.settle(b)])
+    await t.field(b, 'excerpt').click()
+    // B's field reaches A's room on B's next presence beat (the room carries no probe for it).
+    await a.waitForTimeout(1500)
+    await a.getByRole('button', {name: "Who's online"}).click()
+    await a.getByRole('menuitem').filter({hasText: 'Fixture post 03'}).first().click()
+    await expect(a).toHaveURL(/post-03,path=excerpt/)
+    await expect(t.field(a, 'excerpt')).toBeFocused()
+  } finally {
+    await Promise.all([ctxA.close(), ctxB.close()])
+  }
+})
