@@ -655,9 +655,9 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
           }
         }}
       >
-        {!readOnly && (
-          <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />
-        )}
+        <div className="body-bar">
+          {!readOnly && <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />}
+        </div>
         <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">{t('Empty')}</p>}</div>
         {id && <BlockPresence docId={id} field={field} />}
       </div>
@@ -689,7 +689,9 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         (e.preventDefault(), e.stopPropagation(), toggle())
       }
     >
-      <ExpandButton expanded={expanded} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle} />
+      <div className="body-bar">
+        <ExpandButton expanded={expanded} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle} />
+      </div>
       <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} />
       {id && <BlockPresence docId={id} field={field} />}
     </div>
