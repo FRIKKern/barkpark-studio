@@ -416,7 +416,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         ) : (
           <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
         )
-      if (field.of?.type === 'composite') return <ObjectArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
+      if (field.of?.type === 'composite' || field.of?.type === 'image') return <ObjectArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       return (
         <div className="tags" id={path}>
           {items.map((v, i) => (

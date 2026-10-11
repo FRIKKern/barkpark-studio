@@ -54,7 +54,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         readOnly={readOnly}
         keyOf={(it, i) => it._key ?? i}
         itemId={(it, i) => (it._key ? `${id}[_key=="${it._key}"]` : `${id}[${i}]`)}
-        blank={(type) => ({...of.initialValue, ...(typing && type ? {[typing.field]: type} : {}), _key: newKey()})}
+        blank={(type) => (of.type === 'image' ? {_type: 'image', _key: newKey()} : {...of.initialValue, ...(typing && type ? {[typing.field]: type} : {}), _key: newKey()})}
         types={typing?.types}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
@@ -131,7 +131,8 @@ export function useItemPreview(item: Item, of: Field) {
   return {
     title: formatPreview(titleSpec, read, {typeTitle}) || translate(locale, 'Untitled'),
     subtitle: formatPreview(p.subtitle, read, {typeTitle}),
-    media: firstMedia(p.media, read, (v) => !!imageRef(v)) as ImageValue | undefined,
+    // An array of images: each item is its own picture.
+    media: (of.type === 'image' && imageRef(item) ? item : firstMedia(p.media, read, (v) => !!imageRef(v))) as ImageValue | undefined,
   }
 }
 
@@ -183,9 +184,14 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
         <div className="dialog-body item-fields">
           <fieldset className="form-fields" disabled={readOnly}>
             <ParentContext.Provider value={item}>
-              {fieldsOf(of, item).map((f) => (
-                <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange({...item, [f.name]: v})} />
-              ))}
+              {of.type === 'image' ? (
+                // An array of images: the item is the image (upload, select, hotspot and crop, its fields).
+                <FieldView field={{...of, name: 'image', title: t('Image')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _type: 'image', _key: item._key})} />
+              ) : (
+                fieldsOf(of, item).map((f) => (
+                  <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange({...item, [f.name]: v})} />
+                ))
+              )}
             </ParentContext.Provider>
           </fieldset>
         </div>

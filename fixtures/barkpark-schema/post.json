@@ -17,6 +17,7 @@
     {"name": "categories", "title": "Categories", "type": "arrayOf", "ordered": true, "group": "content",
      "of": {"type": "reference", "refType": "category"}},
     {"name": "mainImage", "title": "Main image", "type": "image", "group": "content", "options": {"hotspot": true}, "fields": [{"name": "alt", "title": "Alternative text", "type": "string"}]},
+    {"name": "gallery", "title": "Gallery", "type": "arrayOf", "ordered": true, "group": "content", "of": {"type": "image", "options": {"hotspot": true}}},
     {"name": "body", "title": "Body", "type": "richText", "editor": "blocks", "group": "content",
      "blocks": {"styles": ["normal", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"], "lists": ["bullet", "number"],
                 "marks": ["strong", "em", "code", "underline", "strikethrough"], "annotations": [{"name": "link"}, {"name": "wikilink"}], "inline": [{"name": "chip", "title": "Chip", "fields": [{"name": "text", "title": "Text", "type": "string"}, {"name": "tone", "title": "Tone", "type": "select", "options": {"list": [{"title": "Neutral", "value": "neutral"}, {"title": "Positive", "value": "positive"}, {"title": "Caution", "value": "caution"}]}}]}],
