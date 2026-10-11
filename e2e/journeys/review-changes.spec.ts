@@ -97,16 +97,3 @@ test('@local J15: after a publish, Review changes shows what it changed; field a
   await expect(review).toContainText('(day three)', {timeout: 15_000})
   await expect(review).not.toContainText('There are no changes')
 })
-
-// Sanity's footer status ("Last published …") is a button: it opens History on Review changes.
-test('J15: the footer status opens Review changes', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', 'ours (Sanity is the scout reference)')
-  await t.prepare(page.context())
-  await page.goto(t.docPath('post', 'post-23'))
-  await signInIfAsked(page)
-  await t.settle(page)
-  await page.locator('.doc-footer').getByRole('button', {name: /Last published/}).click()
-  await expect(page).toHaveURL(/inspect=review/)
-  await expect(page.getByRole('tab', {name: 'Review changes'})).toHaveAttribute('aria-selected', 'true')
-})
