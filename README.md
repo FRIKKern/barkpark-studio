@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 59 changes, 2 tasks closed
+- **Today** · 60 changes, 2 tasks closed
+  - tags-fast.spec runs in CI: lost input is what CI guards ([#496](https://github.com/FRIKKern/barkpark-studio/pull/496))
   - Document pages preload the editors chunk (Link: modulepreload from the build manifest) ([#495](https://github.com/FRIKKern/barkpark-studio/pull/495))
   - The blocked Publish's tooltip wraps and stays on screen ([#494](https://github.com/FRIKKern/barkpark-studio/pull/494))
-  - J34: tags typed fast all land: a quick Enter no longer builds on the list before the last ([#493](https://github.com/FRIKKern/barkpark-studio/pull/493))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
