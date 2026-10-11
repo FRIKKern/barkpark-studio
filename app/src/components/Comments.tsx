@@ -93,7 +93,9 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
   const [men, setMen] = useState<{start: number; query: string} | null>(null)
   const [active, setActive] = useState(0)
   const listId = useId()
-  const {data: people = []} = useQuery({...mentionableQuery, enabled: men !== null})
+  // Asked as the composer opens, so the list is there by the time '@' is typed (it said
+  // 'No users found' while still loading).
+  const {data: people = [], isPending: peoplePending} = useQuery(mentionableQuery)
   const matches = men ? people.filter((p) => p.toLowerCase().includes(men.query.toLowerCase())).slice(0, 8) : []
   const follow = (value: string, caret: number) => (setMen(mentionAt(value, caret)), setActive(0))
   const pick = (email: string) => {
@@ -177,7 +179,9 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
       </div>
       {men && (
         <div className="popover mention-menu" role="listbox" id={listId} aria-label={t('List of users to mention')}>
-          {matches.length ? (
+          {peoplePending ? (
+            <p className="muted">{t('Loading…')}</p>
+          ) : matches.length ? (
             matches.map((p, i) => (
               <div key={p} id={`${listId}-${i}`} role="option" aria-selected={i === active} onMouseDown={(e) => (e.preventDefault(), pick(p))} onMouseEnter={() => setActive(i)}>
                 <span className="avatar small">{initialOf(p)}</span>
