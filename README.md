@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 55 changes, 2 tasks closed
-  - J36: the first click on an image field before its chunk lands opens it; fetch the chunk at load on doc pages ([#492](https://github.com/FRIKKern/barkpark-studio/pull/492))
-  - J13: a Publish blocked by errors says why in the studio's tooltip, as Sanity ([#490](https://github.com/FRIKKern/barkpark-studio/pull/490))
-  - J13: an array's item count is checked as you type, as Sanity's ([#489](https://github.com/FRIKKern/barkpark-studio/pull/489))
+- **Today** · 58 changes, 2 tasks closed
+  - The blocked Publish's tooltip wraps and stays on screen ([#494](https://github.com/FRIKKern/barkpark-studio/pull/494))
+  - J34: tags typed fast all land: a quick Enter no longer builds on the list before the last ([#493](https://github.com/FRIKKern/barkpark-studio/pull/493))
+  - URL fields take http and https only, and no username or password, as Sanity's ([#491](https://github.com/FRIKKern/barkpark-studio/pull/491))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
