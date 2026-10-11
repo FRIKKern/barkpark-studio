@@ -40,12 +40,12 @@ export function AvatarStack({people, max = 3}: {people: Presence[]; max?: number
 
 /**
  * Who acted last on a doc, beside the footer's "Last published" / "Edited" as Sanity's:
- * their avatar, name on hover. In their presence colour while they are online, else
- * their author colour (the one their changes are tinted with).
+ * their avatar, name on hover, in their author colour (the hue their changes are tinted
+ * with). Its 700 shade: white initials on 500 (or a presence colour) fail F13's contrast
+ * at this size (axe on J01, 2026-10-11).
  */
 export function ActorAvatar({actor}: {actor: string}) {
-  const online = usePresences().find((p) => p.name === actor.split('@')[0])
-  return <Avatar p={{sessionId: actor, name: actor, color: online?.color ?? USER_HUES[userHue(actor)][500], documentId: null, field: null}} />
+  return <Avatar p={{sessionId: actor, name: actor, color: USER_HUES[userHue(actor)][700], documentId: null, field: null}} />
 }
 
 /** Everyone with this doc open. */
