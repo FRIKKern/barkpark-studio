@@ -2,8 +2,9 @@ import {useEffect, useState, useSyncExternalStore} from 'react'
 import {studio, tellStudio} from './barkpark'
 
 // J59, Barkpark mode: Sanity's Edit overlay. A value marked `data-bp-edit`
-// (from Barkpark's source map) gets an outline and its document's title on hover;
-// a click opens that field in the studio instead of following the page.
+// (from Barkpark's source map) gets an outline and its document's type icon and title
+// on hover, in Sanity's colour; a click opens that field in the studio instead of
+// following the page. The icons come from the studio (a fixed set of @sanity/icons bodies).
 const useOverlays = () => useSyncExternalStore((l) => (studio.listeners.add(l), () => studio.listeners.delete(l)), () => studio.overlays)
 
 export function EditOverlays() {
@@ -38,9 +39,11 @@ export function EditOverlays() {
   }, [on])
   if (!hover) return null
   const {box, el} = hover
+  const icon = studio.icons.byType[el.dataset.bpEdit!.split(':')[0]!] ?? studio.icons.fallback
   return (
-    <div aria-hidden="true" style={{position: 'fixed', left: box.left - 2, top: box.top - 2, width: box.width + 4, height: box.height + 4, border: '1px solid #2276fc', borderRadius: 3, pointerEvents: 'none', zIndex: 2147483647}}>
-      <span style={{position: 'absolute', left: -1, bottom: '100%', marginBottom: 2, background: '#2276fc', color: '#fff', font: '500 13px/1 system-ui, sans-serif', padding: '5px 8px', borderRadius: 3, whiteSpace: 'nowrap'}}>
+    <div aria-hidden="true" style={{position: 'fixed', left: box.left - 2, top: box.top - 2, width: box.width + 4, height: box.height + 4, border: '1px solid #556bfc', borderRadius: 3, pointerEvents: 'none', zIndex: 2147483647}}>
+      <span style={{position: 'absolute', left: -1, bottom: '100%', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 2, background: '#556bfc', color: '#fff', font: '600 13px/15px system-ui, sans-serif', padding: '4px 7px 4px 4px', borderRadius: 3, whiteSpace: 'nowrap'}}>
+        {icon && <svg width={15} height={15} viewBox="0 0 25 25" fill="none" dangerouslySetInnerHTML={{__html: icon}} />}
         {el.dataset.bpLabel || el.dataset.bpEdit}
       </span>
     </div>

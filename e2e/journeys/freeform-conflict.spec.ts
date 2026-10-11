@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type Page} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // D05 (Freeform side track, ours only): two tabs on note-01 in Freeform. A changes the
 // Title block; B changes the Label block on the rev it had, so its save is refused
@@ -16,7 +16,8 @@ const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjso
 }
 type Block = {id: string}
 let before: Block[] | undefined
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio' && before) await target(info).restore(ID, {title: SEED.title, label: SEED.label, body: SEED.body, blocks: before}, 'note')
 })
 

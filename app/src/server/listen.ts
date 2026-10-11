@@ -12,9 +12,11 @@
 // The upstream can die without a word: the connection goes silent and stays open
 // until undici notices (10+ s), while writes happen. The hub then has nothing to
 // replay. So it re-opens the upstream (resuming at Last-Event-ID, which makes
-// Barkpark replay what was missed) when a browser comes back after a gap and the
-// upstream has been quiet, when one of our own writes gets no echo, and after 45 s
-// with no byte at all (Barkpark sends a keepalive every 30 s).
+// Barkpark replay what was missed; with no id yet, the pages are told to read
+// again) when a browser comes back after a gap and the upstream has been quiet,
+// when one of our own writes gets no echo, after 45 s with no byte at all
+// (Barkpark sends a keepalive every 30 s), and when Barkpark answers from a newly
+// booted instance (watchBoot below).
 import '@tanstack/react-start/server-only'
 import {bpFetch, forgetReads, forgetReadsOf, READ_DEDUPE_MS, scope} from './barkpark'
 import type {Scope} from '../lib/scope'
@@ -44,6 +46,10 @@ type Hub = {
   lastFrameFor: Map<string, number>
   /** When the upstream first answered (0: not listening). A reconnect resumes at Last-Event-ID, so it stays live. */
   liveSince: number
+  /** e2e: the stream hears nothing (it is on an instance being retired) until a new boot is seen. */
+  deaf?: boolean
+  /** e2e: no reconnect before this (a cut that lasts). */
+  holdUntil?: number
 }
 
 const QUIET_MS = 1000
@@ -147,7 +153,60 @@ export function expectEcho(token: string, docIds: string[]) {
   }, ECHO_MS).unref?.()
 }
 
+// Barkpark deploys blue/green: once Caddy flips to the new instance the old one drains
+// for some seconds, and a stream opened before the flip stays on it, keepalives and all,
+// while every write lands on the new one. The hub then hears nothing (de6987a, 2026-10-09:
+// ~25 s; the frames came late, replayed once the old instance closed the stream).
+// status.json says when the instance answering it booted: a new boot re-opens every hub
+// now, at its last event id, and Barkpark replays what the old stream missed.
+const BOOT_CHECK_MS = 5000
+let booted: number | null = null
+let bootShift = 0
+let bootTimer: ReturnType<typeof setInterval> | undefined
+const onBoot = new Set<() => void>()
+/** e2e: presence streams opened before this hear nothing (on an instance being retired); one re-opened after hears. */
+export let presenceDeafSince = 0
+/** Run `cb` when Barkpark answers from a newly booted instance (presence re-opens its stream then). */
+export function onNewBoot(cb: () => void): () => void {
+  onBoot.add(cb)
+  watchBoot()
+  return () => void onBoot.delete(cb)
+}
+function watchBoot() {
+  if (bootTimer) return
+  // From the first stream on, while any is open: the boot it started on is the baseline.
+  const check = async () => {
+    if (![...hubs.values()].some((h) => h.upstream) && !onBoot.size) return
+    try {
+      const s = (await (await fetch(`${process.env.BARKPARK_URL}/status.json`)).json()) as {checked_at?: string; uptime_seconds?: number}
+      if (!s.checked_at || typeof s.uptime_seconds !== 'number') return
+      const boot = Date.parse(s.checked_at) - s.uptime_seconds * 1000 + bootShift
+      if (booted !== null && Math.abs(boot - booted) > 5000) {
+        for (const h of hubs.values()) if (h.upstream) (h.deaf = false), refresh(h)
+        for (const cb of [...onBoot]) cb()
+      }
+      booted = boot
+    } catch {
+      // Unreachable for a moment: the other checks still stand.
+    }
+  }
+  bootTimer = setInterval(check, BOOT_CHECK_MS)
+  bootTimer.unref?.()
+  setTimeout(check, 0)
+}
+
+/** e2e (STUDIO_E2E_HOOKS=1): make every hub's (and presence) stream deaf, cut it for `ms`, or fake a newly booted instance. */
+export function e2eListen(action: 'deaf' | 'cut' | 'flip', ms = 0) {
+  if (action === 'flip') return void (bootShift += 60_000)
+  if (action === 'deaf') presenceDeafSince = Date.now()
+  for (const h of hubs.values()) {
+    if (action === 'deaf') h.deaf = true
+    else (h.holdUntil = Date.now() + ms), refresh(h)
+  }
+}
+
 async function connect(hub: Hub) {
+  watchBoot()
   const ctrl = new AbortController()
   hub.upstream = ctrl
   let delay = 500
@@ -160,13 +219,21 @@ async function connect(hub: Hub) {
     const stop = () => attempt.abort()
     ctrl.signal.addEventListener('abort', stop)
     try {
+      while (hub.holdUntil && Date.now() < hub.holdUntil && !attempt.signal.aborted) await new Promise((r) => setTimeout(r, 50))
       const headers: Record<string, string> = {accept: 'text/event-stream'}
       if (hub.lastEventId) headers['last-event-id'] = hub.lastEventId
+      // A re-open with no id to resume at (no frame since the hub connected, and the
+      // welcome carries none): Barkpark replays nothing, so the gap is unknown and every
+      // page reads again once the new stream answers.
+      const blind = !hub.lastEventId && !!hub.liveSince
       const res = await bpFetch(`/v1/data/listen/${hub.scope.dataset}`, {headers, signal: attempt.signal}, hub.token, {at: hub.scope})
+      // A dead token (401, Barkpark #22517) won't come back by itself: ask again once a minute, not every 10 s.
+      if (res.status === 401) delay = 60_000
       if (!res.ok || !res.body) throw new Error(`listen ${res.status}`)
       hub.lastByte = Date.now()
       hub.liveSince ||= Date.now()
       delay = 500
+      if (blind) for (const sub of hub.subscribers) sub.send('event: reset\ndata: {}\n\n')
       await pump(hub, res.body)
     } catch (err) {
       if (ctrl.signal.aborted) return
@@ -177,7 +244,7 @@ async function connect(hub: Hub) {
     // A refresh reconnects at once; a failure backs off.
     if (!attempt.signal.aborted) {
       await new Promise((r) => setTimeout(r, delay))
-      delay = Math.min(delay * 2, 10_000)
+      delay = delay >= 60_000 ? delay : Math.min(delay * 2, 10_000)
     }
   }
 }
@@ -197,6 +264,7 @@ async function pump(hub: Hub, body: ReadableStream<Uint8Array>) {
 }
 
 function dispatch(hub: Hub, frame: string) {
+  if (hub.deaf) return
   const {buffer, subscribers} = hub
   let id: string | null = null
   let event = 'message'

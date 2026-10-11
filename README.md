@@ -1,4 +1,4 @@
-[![Barkpark Studio roadmap: phases 0 to 6 and after with journeys passing out of total, plus the Freeform side track counted apart](docs/images/roadmap.svg)](docs/ROADMAP.md)
+[![Barkpark Studio roadmap: phases 0 to 6 and after with journeys signed off by the quality owner, and those built awaiting sign-off, out of the total; side tracks counted apart](docs/images/roadmap.svg)](docs/ROADMAP.md)
 
 ## Vision
 
@@ -18,16 +18,16 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 44 changes, 19 tasks closed
-  - B12: desk lists read referencedBy / notReferencedBy ([#275](https://github.com/FRIKKern/barkpark-studio/pull/275))
-  - D22 on papers: the other writer is named, and Undo takes their block out ([#279](https://github.com/FRIKKern/barkpark-studio/pull/279))
-  - Tokens that span datasets are minted without one (Barkpark binds them) ([#274](https://github.com/FRIKKern/barkpark-studio/pull/274))
-- **Yesterday** · 114 changes, 77 tasks closed
-  - J61: Presentation follows the page — links and the URL bar, main document, documents on the page ([#232](https://github.com/FRIKKern/barkpark-studio/pull/232))
-  - J58: Presentation — the site in an iframe beside Documents on this page, with Sanity's connection states ([#231](https://github.com/FRIKKern/barkpark-studio/pull/231))
-- **This week** · 107 changes, 37 tasks closed
-  - Done: [J26 [1 Panes+Refs] Split pane right on a doc, edit both sides, close the split](https://github.com/FRIKKern/barkpark/issues/21771)
-  - Done: [J25 [1 Panes+Refs] List "…" menu: sort by created / last edited, compact / detailed view; sticks per type](https://github.com/FRIKKern/barkpark/issues/21770)
+- **Today** · 7 changes
+  - An upload fails with Retry when the network drops mid-upload ([#449](https://github.com/FRIKKern/barkpark-studio/pull/449))
+  - Doc footer shows who published last, as an avatar beside "Last published" (Sanity) ([#448](https://github.com/FRIKKern/barkpark-studio/pull/448))
+  - Restore's kept edits are made against the restored version (real loss behind the J32 flake) ([#447](https://github.com/FRIKKern/barkpark-studio/pull/447))
+- **Yesterday** · 89 changes, 8 tasks closed
+  - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
+  - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
+- **This week** · 334 changes, 74 tasks closed
+  - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
+  - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
@@ -38,7 +38,7 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 | Phases | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
 | The quality bar + test budget | [`QUALITY.md`](QUALITY.md) |
 | The journeys (the spec) | [`JOURNEYS.md`](JOURNEYS.md) |
-| How we work | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| How we work; extending it (types, desk, inputs, actions, build) | [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/EXTENDING.md`](docs/EXTENDING.md) |
 | Ported code + licenses | [`THIRD-PARTY.md`](THIRD-PARTY.md) |
 | Decisions | [`docs/decisions/`](docs/decisions/), one page each |
 | Status, who does what | Barkpark tasks under goal `task-130be6b834d485ae`, mirrored to [FRIKKern/barkpark#21665](https://github.com/FRIKKern/barkpark/issues/21665). Never in docs |
@@ -63,18 +63,18 @@ docs/                roadmap, decisions (one page each)
 cd reference/sanity && SANITY_STUDIO_DATASET=e2e-local pnpm dev # reference, :3333; use this env for e2e too
 pnpm exec sanity dataset import ../../fixtures/seed.ndjson --dataset e2e-local # seed isolated reference; never reset production
 cp .env.example .env                            # BARKPARK_TOKEN (+ SANITY_TOKEN to verify the reference)
-node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify Barkpark studio-parity (--verify: check only)
+node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify BARKPARK_DATASET (your e2e-<you>; production refused)
 node --env-file=.env scripts/seed-bulk.mjs      # optional J41: e2e-local datasets only; see script for overrides
 cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
 pnpm check                                      # typecheck + build; fails if client code imports src/server
 cd ../e2e && pnpm install && pnpm test          # journeys on both studios; ours on :3100 against dataset e2e-local
 pnpm reference                                # P0 crown clips, Sanity only; uses the Sanity CLI login
 STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (dev only; app/src/server/auth.ts)
+pnpm --dir ../app serve                         # production build: editors sign in with their Barkpark account; STUDIO_SIGN_IN=shared = one shared token
 ```
 
 `pnpm reference` records Sanity; `pnpm recording` records our built app against
 `e2e-local` (requires Barkpark environment variables). Both reuse J01/J02/J08/J17/
 J19/J21/J22/J23 with two-second holds after content is ready. Reports and WebM clips
-live under `e2e/evidence/{reference,studio}/<run>/`. Install dependencies and `pnpm --dir e2e exec playwright install ffmpeg`. Reference auth uses
-`pnpm --dir reference/sanity exec sanity login` or `SANITY_TOKEN`; credentials stay in memory.
+live under `e2e/evidence/{reference,studio}/<run>/`. Install dependencies and `pnpm --dir e2e exec playwright install ffmpeg`. Reference auth uses `pnpm --dir reference/sanity exec sanity login` or `SANITY_TOKEN`; credentials stay in memory.
 Link reviewed clips to tasks; recording alone is not sign-off.

@@ -6,6 +6,8 @@
 //   node --env-file=.env scripts/seed-barkpark.mjs --data    # reset data, leave schemas (CI token can't write schemas)
 //   node --env-file=.env scripts/seed-barkpark.mjs --schemas # schemas only, data untouched (other lanes' datasets)
 //   … --no-history                                          # skip rebuilding post-history after a reset
+//   … --production                                          # required to write the production dataset
+//   … --remove-type <name> [--with-docs] [--yes]            # drop a type whose fixture file is gone (dry run unless --yes)
 //
 // With SANITY_TOKEN set, verify also reads the reference Sanity dataset live and
 // checks it maps to the same documents.
@@ -16,8 +18,13 @@ import {spawnSync} from 'node:child_process'
 import {readFileSync, readdirSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
 import {isDeepStrictEqual} from 'node:util'
+import {sendBatches} from './lib/batches.mjs'
+import {idempotent, withRetry} from './lib/retry.mjs'
 import {seedAssets} from './lib/seed-assets.mjs'
 import {toBarkpark} from './lib/seed-map.mjs'
+import {checkJsonSchema} from './lib/json-schema-check.mjs'
+import {planRemoveType} from './lib/remove-type.mjs'
+import {seedPlan} from './lib/seed-plan.mjs'
 
 const root = new URL('..', import.meta.url)
 const env = (k, d) => process.env[k] ?? d ?? fail(`missing env ${k} (see .env.example)`)
@@ -38,11 +45,12 @@ function fail(msg) {
 }
 
 async function bp(method, path, body, tries = 3) {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'},
-    body: body && JSON.stringify(body),
-  })
+  // Reads, schema upserts and deletes land the same if sent twice: asked again through a
+  // Barkpark redeploy (lib/retry.mjs).
+  const res = await withRetry(
+    () => fetch(`${BASE}${path}`, {method, headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'}, body: body && JSON.stringify(body)}),
+    {label: `${method} ${path}`},
+  )
   const json = await res.json().catch(() => ({}))
   // Rate limited (other lanes share the workspace): wait as told, then retry.
   if (res.status === 429 && tries > 1) {
@@ -53,7 +61,20 @@ async function bp(method, path, body, tries = 3) {
   return json
 }
 
-const mutate = (mutations) => bp('POST', `/v1/data/mutate/${DATASET}`, {mutations})
+// Deletes go in batches under Barkpark's cap (lib/batches.mjs); a 429 waits as told.
+const mutate = async (mutations) => {
+  const send = async (part, tries = 3) => {
+    const res = await withRetry(
+      () => fetch(`${BASE}/v1/data/mutate/${DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations: part})}),
+      {label: `POST /v1/data/mutate/${DATASET} (${part.length})`, safe: idempotent(part)},
+    )
+    if (res.status !== 429 || tries <= 1) return res
+    await new Promise((r) => setTimeout(r, 1000 * (Number(res.headers.get('retry-after')) || 1)))
+    return send(part, tries - 1)
+  }
+  const res = await sendBatches(mutations, send)
+  if (res && !res.ok) fail(`POST /v1/data/mutate/${DATASET} → ${res.status} ${(await res.text()).slice(0, 500)}`)
+}
 
 async function listAll(type, perspective) {
   const r = await bp('GET', `/v1/data/query/${DATASET}/${type}?perspective=${perspective}&limit=1000`)
@@ -75,6 +96,47 @@ const stripSystem = (doc, want) =>
       .map(([k, v]) => (k === 'body' && v && typeof v === 'object' && want.body && !('html' in want.body) ? [k, withoutHtml(v)] : [k, v])),
   )
 
+// --remove-type: the other half of --schemas (lib/remove-type.mjs). Its documents (drafts
+// too, by published id) are read in pages; nothing is written without --yes.
+async function removeType(type) {
+  const get = (path) => fetch(`${BASE}${path}`, {headers: {authorization: `Bearer ${env('BARKPARK_TOKEN')}`}})
+  const ids = new Set()
+  for (let offset = 0; type && !type.startsWith('-'); ) {
+    const res = await get(`/v1/data/query/${DATASET}/${encodeURIComponent(type)}?perspective=raw&limit=1000&offset=${offset}`)
+    if (res.status === 404) break
+    if (!res.ok) fail(`GET query ${type} → ${res.status} ${(await res.text()).slice(0, 300)}`)
+    const {result} = await res.json()
+    for (const d of result.documents) ids.add(d._publishedId ?? d._id.replace(/^drafts\./, ''))
+    if (!result.hasMore) break
+    offset = result.nextOffset
+  }
+  const dir = new URL('fixtures/barkpark-schema/', root)
+  const inFixtures = readdirSync(dir).some((f) => f.endsWith('.json') && JSON.parse(readFileSync(new URL(f, dir), 'utf8')).name === type)
+  const registered = !!type && (await get(`/v1/schemas/${DATASET}/${encodeURIComponent(type)}`)).ok
+  const plan = planRemoveType({
+    type,
+    dataset: DATASET,
+    docs: [...ids].map((id) => ({id})),
+    inFixtures,
+    seeded: [...TYPES, ...NATIVE_TYPES].includes(type),
+    registered,
+    production: process.argv.includes('--production'),
+    withDocs: process.argv.includes('--with-docs'),
+  })
+  if (plan.refuse) fail(`--remove-type: ${plan.refuse}`)
+  if (plan.done) return console.log(`remove-type: ${plan.done}`)
+  const what = `${plan.deletes.length} ${type} document(s)${plan.dropSchema ? `, then the ${type} schema` : ''}, from ${DATASET}`
+  if (!process.argv.includes('--yes')) return console.log(`remove-type (dry run): would delete ${what}. Run again with --yes.`)
+  if (plan.deletes.length) await mutate(plan.deletes)
+  if (plan.dropSchema) await bp('DELETE', `/v1/schemas/${DATASET}/${encodeURIComponent(type)}`)
+  console.log(`remove-type: deleted ${what}`)
+}
+const removeAt = process.argv.indexOf('--remove-type')
+if (removeAt !== -1) {
+  await removeType(process.argv[removeAt + 1])
+  process.exit(0)
+}
+
 // ── steps ───────────────────────────────────────────────────────────────────
 
 const seed = readFileSync(new URL('fixtures/seed.ndjson', root), 'utf8')
@@ -93,15 +155,21 @@ const native = readFileSync(new URL('fixtures/barkpark-only.ndjson', root), 'utf
 const nativeContent = ({_id, _type, ...content}) =>
   Array.isArray(content.blocks) ? {...Object.fromEntries(content.blocks.filter((b) => b.fieldName && b.fieldName !== 'title').map((b) => [b.fieldName, b.value])), ...content} : content
 // The seed's files (post.attachment, J54) as this dataset's media; uploaded on first use.
-const asset = await seedAssets(seed, {base: BASE, dataset: DATASET, token: env('BARKPARK_TOKEN')})
-const mirrored = new Map(seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d, asset)}]))
-const expected = new Map([...mirrored, ...native.map((d) => [d._id, {type: d._type, content: nativeContent(d)}])])
+// The plan says whether the seed's files are wanted at all, looked up, or uploaded (lib/seed-plan.mjs).
+const plan = seedPlan(process.argv, DATASET)
+if (plan.refuse) fail(plan.refuse)
+const asset = plan.assets === 'none' ? null : await seedAssets(seed, {base: BASE, dataset: DATASET, token: env('BARKPARK_TOKEN'), upload: plan.assets === 'upload'})
+const expectedDocs = () => new Map([...seed.map((d) => [d._id, {type: d._type, content: toBarkpark(d, asset)}]), ...native.map((d) => [d._id, {type: d._type, content: nativeContent(d)}])])
 
 async function applySchemas() {
   const dir = new URL('fixtures/barkpark-schema/', root)
-  for (const f of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
-    await bp('POST', `/v1/schemas/${DATASET}`, JSON.parse(readFileSync(new URL(f, dir), 'utf8')))
-  }
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => [f, JSON.parse(readFileSync(new URL(f, dir), 'utf8'))])
+  // Barkpark ignores a key it doesn't know (task-415c5c02fad8a3c7): a misspelled rule would
+  // be applied as no rule. The fixtures must pass fixtures/barkpark-schema.schema.json first.
+  const contract = JSON.parse(readFileSync(new URL('fixtures/barkpark-schema.schema.json', root), 'utf8'))
+  const problems = files.flatMap(([f, schema]) => checkJsonSchema(contract, schema).map((p) => `${f} ${p}`))
+  if (problems.length) fail(`fixture schemas don't pass fixtures/barkpark-schema.schema.json (nothing written):\n  ${problems.join('\n  ')}`)
+  for (const [, schema] of files) await bp('POST', `/v1/schemas/${DATASET}`, schema)
 }
 
 // Upsert, then prune: the seed is written BEFORE anything is deleted, so a refused write
@@ -161,7 +229,7 @@ async function verifySchemas() {
 async function verify() {
   await verifySchemas()
   const docs = (await Promise.all([...TYPES, ...NATIVE_TYPES].map((t) => listAll(t, 'raw')))).flat()
-  compare('barkpark', docs, expected)
+  compare('barkpark', docs, expectedDocs())
 
   if (!process.env.SANITY_TOKEN) return console.log('verify sanity: skipped (no SANITY_TOKEN)')
   const q = encodeURIComponent(`*[_type in ${JSON.stringify(TYPES)}]`)
@@ -195,13 +263,10 @@ function history() {
   if (run.status !== 0) console.warn('seed-barkpark: post-history not rebuilt (J15/J16 need it): run scripts/reference-history.mjs by hand')
 }
 
-if (process.argv.includes('--schemas')) await applySchemas()
-else {
-  if (!process.argv.includes('--verify')) {
-    if (!process.argv.includes('--data')) await applySchemas()
-    await reset()
-    await resetPrefs()
-    history()
-  }
-  await verify()
+if (plan.schemas) await applySchemas()
+if (plan.reset) {
+  await reset()
+  await resetPrefs()
+  history()
 }
+if (plan.verify) await verify()

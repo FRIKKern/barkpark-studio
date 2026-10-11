@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // List thumbnails, both studios: post's preview selects media: mainImage, so a post
 // with an image shows it in its list row; a crop narrows what the thumbnail shows.
@@ -7,7 +7,7 @@ import {signInIfAsked, target, type Target} from '../rig/targets'
 const ID = 'post-05'
 const shot = (name: string, step: string) => `evidence/list-media-${step}-${name}.png`
 test.setTimeout(90_000)
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: 'Fixture post 05'}, 'post', ['mainImage']))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {title: 'Fixture post 05'}, 'post', ['mainImage'])))
 
 const imageField = (t: Target, page: Page) =>
   t.name === 'sanity' ? page.locator('fieldset').filter({has: page.getByTestId('image-input')}).last() : page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')})

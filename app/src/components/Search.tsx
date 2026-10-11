@@ -26,7 +26,9 @@ export function GlobalSearch() {
   const opener = useRef<HTMLElement | null>(null)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      // An editor that took the key (the Freeform canvas's link row on a selection,
+      // as Barkdown's) keeps it: the search opens only for a Cmd/Ctrl+K nobody handled.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !e.defaultPrevented) {
         e.preventDefault()
         setOpen((o) => {
           if (o) opener.current?.focus()

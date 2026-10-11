@@ -1,0 +1,5 @@
+{
+  "json.schemas": [
+    {"fileMatch": ["/fixtures/barkpark-schema/*.json"], "url": "./fixtures/barkpark-schema.schema.json"}
+  ]
+}

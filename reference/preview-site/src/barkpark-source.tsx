@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, useSyncExternalStore} from 'react'
 import type {PageKey} from './App'
-import {reportDocuments, shared, studio} from './barkpark'
+import {previewTokens, reportDocuments, shared, studio} from './barkpark'
 import {overlay, toPage, type Doc, type Raw} from './bp-pages'
 
 declare const __SOURCE__: 'sanity' | 'barkpark'
@@ -12,20 +12,21 @@ export const SOURCE = __SOURCE__
 export type Frame = {mutation?: string; documentId?: string; result?: Doc}
 const changed = new Set<(f: Frame) => void>()
 let stream: EventSource | null = null
-let streamToken: string | null | undefined
 function onChange(fn: (f: Frame) => void) {
   changed.add(fn)
-  listen()
+  void listen()
   return () => void changed.delete(fn)
 }
-// Opened again when the studio's token changes (a new one before the old runs out).
-function listen() {
-  if (stream && streamToken === studio.token) return
-  stream?.close()
-  stream = null
-  streamToken = studio.token
-  if (studio.token === undefined || !changed.size) return
-  stream = new EventSource(`/api/bp/listen${studio.token ? `?${new URLSearchParams({pt: studio.token})}` : ''}`)
+// Inside a studio the stream rides one single-use preview token: a dropped stream is
+// opened again with a new one (EventSource's own retry would reuse the spent one).
+let opening = false
+async function listen() {
+  if (stream || opening || !changed.size) return
+  opening = true
+  const pt = (await previewTokens(1))?.[0]
+  opening = false
+  if (stream || !changed.size) return
+  const es = (stream = new EventSource(`/api/bp/listen${pt ? `?${new URLSearchParams({pt})}` : ''}`))
   const ping = (e: MessageEvent) => {
     let frame: Frame = {}
     try {
@@ -33,10 +34,14 @@ function listen() {
     } catch {}
     changed.forEach((f) => f(frame))
   }
-  stream.addEventListener('mutation', ping)
-  stream.onmessage = ping
+  es.addEventListener('mutation', ping)
+  es.onmessage = ping
+  es.onerror = () => {
+    es.close()
+    if (stream === es) stream = null
+    if (pt) setTimeout(() => void listen(), 1000)
+  }
 }
-studio.listeners.add(listen)
 
 // The studio's picks (perspective, unsaved edits) as one value that changes when they do.
 let version = 0
@@ -69,19 +74,19 @@ export function BarkparkPage<T>({page, render}: {page: PageKey; render: (data: T
       }),
     [],
   )
-  const token = studio.token
   useEffect(() => {
-    if (token === undefined) return // inside a studio: its token first
     let live = true
-    fetch(`/api/bp/page?${new URLSearchParams({kind: page.kind, key, perspective})}`, {headers: token ? {'x-bp-preview': token} : {}})
-      .then((r) => r.json())
-      .then((out: {raw: Raw; error?: string}) => {
-        if (!live) return
-        if (out.error) return setError(out.error)
-        setState({at: `${at}|${perspective}`, raw: out.raw})
-      })
+    void (async () => {
+      // One single-use token per Barkpark read this page makes (an author page: two).
+      const tokens = await previewTokens(page.kind === 'author' ? 2 : 1)
+      if (!live) return
+      const out = (await (await fetch(`/api/bp/page?${new URLSearchParams({kind: page.kind, key, perspective})}`, {headers: tokens ? {'x-bp-preview': tokens.join(',')} : {}})).json()) as {raw: Raw; error?: string}
+      if (!live) return
+      if (out.error) return setError(out.error)
+      setState({at: `${at}|${perspective}`, raw: out.raw})
+    })()
     return () => void (live = false)
-  }, [at, perspective, tick, token])
+  }, [at, perspective, tick])
   // A perspective switch keeps the page on screen until the other one arrives.
   const shown = state?.at.startsWith(`${at}|`) ? toPage(page.kind, overlay(state.raw, studio.edits)) : null
   const ids = shown?.documents.map((d) => d._id).join(',')

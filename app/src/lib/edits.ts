@@ -2,12 +2,14 @@ import {useSyncExternalStore} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
+import {currentEditor, signOut} from '../server/auth'
 import {expectEcho, mutatedIds} from '../server/listen'
-import {docQuery, schemasQuery, type Doc, type Field, type ListPage} from './data'
-import {findingsOf, findingsReason} from './findings'
+import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type Field, type ListPage, type Schema} from './data'
+import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
 import {t} from './i18n'
 import {merge3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
+import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
 // title, list row all repaint with no network wait); the write goes to Barkpark
@@ -25,6 +27,10 @@ import {applyPaths, getPath, setPath, within} from './paths'
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 
+const throwLost = (): never => {
+  throw new Error(`mutate 401: ${JSON.stringify({error: {code: 'session_lost', message: "You've been logged out"}})}`)
+}
+
 export const mutate = createServerFn({method: 'POST'})
   .validator((d: {mutations: Json[]}) => d)
   .handler(async ({data}) => {
@@ -38,6 +44,15 @@ export const mutate = createServerFn({method: 'POST'})
       // The long `hint` is dropped so a publish wall's `details` (rule + fix) survive the cut.
       // A validation refusal keeps its coded findings whole (barkpark#22375), not the English map.
       const {error} = body as {error?: {[k: string]: Json}}
+      // A dead token (revoked or expired: 401 since Barkpark #22517). The signed-in editor's
+      // own: their session ends, they sign in again and get a new one (J48). The studio's
+      // own: nobody here can fix that, so say so (#312) instead of "logged out".
+      if (res.status === 401) {
+        // No editor any more (bpFetch refused to write as the studio): logged out, not refused.
+        if (error?.code === 'session_lost') throwLost()
+        if (currentEditor()) (void signOut(), throwLost())
+        throw new Error(`mutate 401: ${JSON.stringify({error: {code: 'token_refused', message: "Barkpark refused this studio's token."}})}`)
+      }
       const {hint: _, ...short} = error ?? {}
       if (Array.isArray(short.findings)) throw new Error(`mutate ${res.status}: ${JSON.stringify({error: {code: short.code, message: short.message, findings: short.findings}}).slice(0, 8000)}`)
       throw new Error(`mutate ${res.status}: ${JSON.stringify(error ? {error: short} : body).slice(0, 600)}`)
@@ -59,6 +74,8 @@ export type SaveState = 'saved' | 'saving' | 'stalled' | 'offline' | 'recovering
 type Snap = {state: SaveState; error?: string; creating?: boolean}
 type DocEdits = {
   type: string
+  /** What Barkpark's schema check said of the last save (advisory: never blocks, #22406). */
+  advisories?: Finding[]
   dirty: Map<string, unknown>
   inflight: Map<string, unknown> | null
   snap: Snap
@@ -74,9 +91,21 @@ type DocEdits = {
   base: Map<string, unknown>
   /** Rebases in a row (a guard against a write that never gets through). */
   conflicts: number
+  /** Text of ours someone rewrote meanwhile (clash): held, unsent, until the editor types on. */
+  held?: boolean
+  /** The clashed fields: what the other writer left there, and the version it came with. */
+  clashes?: Map<string, FieldClash>
+  /**
+   * A server version that changed a field of ours while it was in flight. It is merged
+   * when that write comes back refused or failed; until then `rev` stays where the write
+   * was made, so a retry is refused (412) rather than saved over theirs.
+   */
+  missed?: Doc
   /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
   undo: Change[]
   redo: Change[]
+  /** Writes this doc's unacknowledged edits to IndexedDB a moment after the last change. */
+  keepTimer?: ReturnType<typeof setTimeout>
 }
 
 /**
@@ -122,6 +151,49 @@ export function hasUnsaved() {
   for (const check of unsavedElsewhere) if (check()) return true
   return false
 }
+// e2e probe: a spec's cleanup waits for this page's saves on their way (not a refused or
+// offline state, which no wait ends) before it resets the data.
+if (typeof window !== 'undefined')
+  (window as {__savesPending?: () => boolean}).__savesPending = () =>
+    [...docs.values()].some((d) => d.dirty.size || d.inflight || d.createRequested) ||
+    [...document.querySelectorAll('bp-paper-canvas')].some((c) => !!(c as {hasPendingChanges?: () => boolean}).hasPendingChanges?.())
+
+/**
+ * B11 widen (lib/pending-edits.ts): where unacknowledged edits are kept: workspace,
+ * project, dataset and editor, set by the studio once it knows them. Unset: nothing is kept.
+ */
+let keepScope: string | null = null
+export function setKeepScope(scope: string | null) {
+  keepScope = scope
+}
+/** Where edits to `id` are kept for any page; this page's own entry is `keepKeyOf`. */
+const docKeyOf = (id: string) => keepScope && `${keepScope}|${id}`
+export const keepKeyOf = (id: string) => keepScope && pendingKey(`${keepScope}|${id}`)
+/** The entries for `id` left by pages that are gone (one still open keeps its own). */
+async function orphaned(id: string): Promise<{keys: string[]; pending: Pending} | null> {
+  const key = docKeyOf(id)
+  if (!key) return null
+  const mine = pendingKey(key)
+  const all = await readDocPending(key)
+  const dead: [string, Pending][] = []
+  for (const [k, p] of all) if (k !== mine && !(await ownedElsewhere(p))) dead.push([k, p])
+  const pending = combine(dead.map(([, p]) => p))
+  return pending && {keys: dead.map(([k]) => k), pending}
+}
+const KEEP_GAP_MS = 150
+
+/** Keep what Barkpark has not acknowledged for `id` in this browser, or forget it once there is nothing. */
+function keepUnsaved(id: string, e: DocEdits) {
+  const key = keepKeyOf(id)
+  if (!key) return
+  clearTimeout(e.keepTimer)
+  // A doc that exists only here has no server version to replay onto: not kept.
+  if (e.pendingCreate || (!e.dirty.size && !e.inflight)) return void dropPending(key)
+  e.keepTimer = setTimeout(() => {
+    const fields = [...(e.inflight ?? []), ...e.dirty]
+    if (fields.length) void putPending(key, {at: Date.now(), type: e.type, rev: e.rev, fields, base: [...e.base], tab: TAB})
+  }, KEEP_GAP_MS)
+}
 
 const SAVED: Snap = {state: 'saved'}
 const docs = new Map<string, DocEdits>()
@@ -142,6 +214,8 @@ function overlay(id: string, doc: Doc): Doc {
   const e = docs.get(id)
   return e ? applyPaths(applyPaths(doc, e.inflight ?? []), e.dirty) : doc
 }
+// Every read of a doc keeps the values still on their way (see data.ts withUnsaved).
+setUnsavedOverlay((doc) => overlay(doc._publishedId, doc))
 
 function writeCache(qc: QueryClient, id: string, type: string, doc: Doc) {
   // J56: when the published version last changed; a draft keeps what the row knew.
@@ -152,9 +226,14 @@ function writeCache(qc: QueryClient, id: string, type: string, doc: Doc) {
 
 const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
 
-/** Move our unsent edits onto server doc `d`: fields someone else changed meanwhile merge. */
-function rebase(e: DocEdits, d: Doc) {
-  e.rev = d._rev
+/**
+ * Move our unsent edits onto server doc `d`: fields someone else changed meanwhile merge.
+ * Returns the fields that could not: text of ours they rewrote. Ours stays (on screen and
+ * pending), unsent, until the editor says so.
+ */
+function rebase(e: DocEdits, d: Doc): string[] {
+  const clashed: string[] = []
+  let missed = false
   for (const [f, base] of e.base) {
     const theirs = getPath(d, f)
     if (same(theirs, base)) continue
@@ -163,12 +242,64 @@ function rebase(e: DocEdits, d: Doc) {
       e.base.set(f, theirs)
       continue
     }
-    // An inflight-only field waits for its 412; a dirty one merges now.
-    if (!e.dirty.has(f)) continue
+    // An inflight-only field merges when its write comes back (afterInflight); a dirty one
+    // merges now. Advancing `rev` past theirs here let a retry of that write save over
+    // theirs, unseen (the form-refused clash flake, task-41ba9f3dc3fd81e2).
+    if (!e.dirty.has(f)) {
+      missed = true
+      continue
+    }
     const mine = e.dirty.get(f)
-    if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') e.dirty.set(f, merge3(base, mine, theirs))
+    if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') {
+      const merged = merge3(base, mine, theirs)
+      if (merged === null) clashed.push(f)
+      else e.dirty.set(f, merged)
+    }
     e.base.set(f, theirs)
   }
+  if (missed) e.missed = d
+  else e.rev = d._rev
+  return clashed
+}
+
+/**
+ * A write came back without saving (refused, failed): its values wait in `dirty` again,
+ * merged with any server version that changed them meanwhile. A clash is said at once.
+ * True when it clashed (the edits are held, nothing to retry).
+ */
+function afterInflight(qc: QueryClient, id: string, e: DocEdits): boolean {
+  e.dirty = new Map([...e.inflight!, ...e.dirty])
+  e.inflight = null
+  const d = e.missed
+  e.missed = undefined
+  const clashed = d ? rebase(e, d) : []
+  if (d && clashed.length) clash(qc, id, e, clashed, d)
+  return clashed.length > 0
+}
+
+/**
+ * Someone rewrote text the editor had changed: theirs and ours cannot both stand. Ours
+ * stays on screen, not sent: said in the footer (refused), until the editor types on (then
+ * it goes, over theirs, their choice) or discards.
+ */
+export type FieldClash = {theirs: unknown; rev: string; at: string}
+function clash(qc: QueryClient, id: string, e: DocEdits, fields: string[], doc: Doc) {
+  e.held = true
+  e.clashes = new Map(e.clashes)
+  for (const f of fields) e.clashes.set(f, {theirs: getPath(doc, f), rev: doc._rev, at: doc._updatedAt})
+  clearTimeout(e.timer)
+  e.timer = undefined
+  const all = qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === e.type)?.fields ?? []
+  const names = fields.map((f) => fieldTitle(all, f) ?? f).join(', ')
+  setState(e, 'refused', t('Someone else rewrote {fields} meanwhile. Your text is kept here, not saved: type on to save yours over theirs.', {fields: names}))
+}
+
+// J16: an open History / Review changes panel follows the doc as Sanity's does: its
+// revisions are read again a moment after any write lands (only while a panel shows them).
+const historyTimers = new Map<string, ReturnType<typeof setTimeout>>()
+export function historyChanged(qc: QueryClient, id: string) {
+  clearTimeout(historyTimers.get(id))
+  historyTimers.set(id, setTimeout(() => (historyTimers.delete(id), void qc.invalidateQueries({queryKey: ['history', id]})), 600))
 }
 
 /** Fold server truth into the cache: skip it when older than what we hold, keep unsent edits on top. */
@@ -177,10 +308,12 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   const held = qc.getQueryData<Doc | null>(['doc', id])
   if (held && held._updatedAt > doc._updatedAt) return
   const e = docs.get(id)
-  if (e) rebase(e, doc)
+  const clashed = e ? rebase(e, doc) : []
   // A published row (or a publish) proves a published version; a draft keeps what we knew.
   const _hasPublished = !doc._draft || (doc._hasPublished ?? held?._hasPublished ?? false)
+  historyChanged(qc, id)
   writeCache(qc, id, doc._type, overlay(id, {...doc, _hasPublished} as Doc))
+  if (e && clashed.length) clash(qc, id, e, clashed, doc)
 }
 
 /** `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. */
@@ -207,6 +340,8 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
     for (const k of [...e.dirty.keys()]) if (k !== field && within(k, field)) e.dirty.delete(k)
     e.dirty.set(field, value)
   }
+  if (e.held) (e.held = false), (e.clashes = undefined) // typing on after a clash: theirs is overruled, by the editor
+  keepUnsaved(id, e)
   // An edit makes (or updates) the draft: show it as one now.
   writeCache(qc, id, doc._type, setPath({...held, _draft: true} as Doc, field, value))
   if (e.snap.state === 'saved') setState(e, 'saving')
@@ -297,7 +432,12 @@ function fieldTitle(fields: Field[], path: string): string | undefined {
 /** Barkpark's own reason, from a thrown "mutate 403: {error: {message}}" (cut at 600 characters). */
 export function reasonOf(msg: string): string | undefined {
   try {
-    const body = JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {message?: string; details?: {rule?: unknown; fix?: unknown}}}
+    const body = JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {code?: string; message?: string; details?: {rule?: unknown; fix?: unknown; kind?: string; max?: number}}}
+    // Too many of one kind in one request (Barkpark #22499): the studio splits deletes, but say it plainly if it ever shows.
+    if (body.error?.code === 'batch_too_large') {
+      const {kind, max} = body.error.details ?? {}
+      return kind === 'delete' ? t('Too many deletions at once (at most {limit}). Try fewer.', {limit: max ?? 500}) : t('Too many changes at once. Try fewer.')
+    }
     // A publish wall says which rule broke and how to fix it (D12).
     const {rule, fix} = body.error?.details ?? {}
     return body.error?.message && [body.error.message, rule, fix].filter((s): s is string => typeof s === 'string').map((s) => (/[.!?]$/.test(s) ? s : `${s}.`)).join(' ')
@@ -324,6 +464,8 @@ async function send(qc: QueryClient, id: string) {
   if (!e || e.inflight || (e.dirty.size === 0 && !e.createRequested)) return
   // Signed out: nothing goes until the editor is back (resumeSaving) — not even a flush on blur.
   if (e.snap.state === 'signedOut') return
+  // A clash waits for the editor (no retry, no blur flush sends it over theirs).
+  if (e.held) return
   if (e.pendingCreate) e.createRequested = true
   if (!online()) return waitForNetwork(qc, id, e)
   e.inflight = e.dirty
@@ -338,8 +480,9 @@ async function send(qc: QueryClient, id: string) {
     const mutation: Json = creating
       ? {create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}
       : {patch: {id, type: e.type, set, unset, ...(e.rev ? {ifRevisionID: e.rev} : {})}}
-    const r = (await mutate({data: {mutations: [mutation]}})) as {results: {document: Doc}[]}
+    const r = (await mutate({data: {mutations: [mutation]}})) as {results: {document: Doc}[]; warnings?: unknown}
     const saved = r.results[0].document
+    e.advisories = advisoryFindings(r)
     if (creating) { e.pendingCreate = undefined; e.createRequested = false }
     // What we sent is now the server's: a field still being typed builds on it.
     for (const f of e.inflight.keys()) {
@@ -347,14 +490,21 @@ async function send(qc: QueryClient, id: string) {
       else e.base.delete(f)
     }
     e.inflight = null
+    e.missed = undefined // the save went through: what it answered is newer
     e.conflicts = 0
     clearTimeout(stall)
+    keepUnsaved(id, e)
     applyServer(qc, saved)
     setState(e, e.dirty.size ? 'saving' : 'saved')
   } catch (err) {
     clearTimeout(stall)
     const msg = (err as Error).message ?? ''
     // Signed out, or not allowed: keep every value, say why, stop writing.
+    if (/token_refused/.test(msg)) {
+      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      e.inflight = null
+      return setState(e, 'refused', reasonOf(msg) ?? "Barkpark refused this studio's token.")
+    }
     if (/^mutate 401\b/.test(msg) || /session_lost/.test(msg)) {
       e.dirty = new Map([...e.inflight!, ...e.dirty])
       e.inflight = null
@@ -364,6 +514,18 @@ async function send(qc: QueryClient, id: string) {
       e.dirty = new Map([...e.inflight!, ...e.dirty])
       e.inflight = null
       return setState(e, 'refused', reasonOf(msg) ?? 'Barkpark refused the change')
+    }
+    // J32 widen: the doc was deleted (by someone else) under these edits. Keep every value,
+    // here and in this browser's store, and stop: the deleted banner's Restore puts them back.
+    if (/^mutate 404\b/.test(msg)) {
+      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      e.inflight = null
+      keepUnsaved(id, e)
+      // The 404 is proof enough: read the doc again, so the pane turns to the deleted
+      // banner (and the list drops it) whether or not the live frame of the delete arrives.
+      void qc.invalidateQueries({queryKey: ['doc', id]})
+      void qc.invalidateQueries({queryKey: ['list', e.type]})
+      return setState(e, 'refused', t('This document has been deleted.'))
     }
     // A validation refusal (a dataset that enforces its schema): say which fields and why,
     // in the editor's words; sending it again would only be refused again.
@@ -384,7 +546,7 @@ async function send(qc: QueryClient, id: string) {
     // same generated id; keep later typing queued instead of creating a duplicate.
     if (creating && /^mutate 409\b|already been taken/.test(msg)) {
       try {
-        const saved = await qc.fetchQuery({...docQuery(e.type, id), staleTime: 0})
+        const saved = await readServerDoc(e.type, id)
         if (saved) {
           e.pendingCreate = undefined
           e.createRequested = false
@@ -404,13 +566,13 @@ async function send(qc: QueryClient, id: string) {
     // task-324b4d00706a6cfb.)
     if (!creating && /^mutate (409|412)\b/.test((err as Error).message) && e.conflicts++ < 5) {
       try {
-        const latest = await qc.fetchQuery({...docQuery(e.type, id), staleTime: 0})
+        const latest = await readServerDoc(e.type, id)
         e.dirty = new Map([...e.inflight!, ...e.dirty])
         e.inflight = null
-        if (latest) {
-          rebase(e, latest)
-          writeCache(qc, id, e.type, overlay(id, latest))
-        }
+        e.missed = undefined // the latest read supersedes it
+        const clashed = latest ? rebase(e, latest) : []
+        if (latest) writeCache(qc, id, e.type, overlay(id, latest))
+        if (clashed.length && latest) return clash(qc, id, e, clashed, latest)
         void send(qc, id)
         return
       } catch {
@@ -418,8 +580,7 @@ async function send(qc: QueryClient, id: string) {
       }
     }
     // Keep every value: put the failed batch back under anything typed since, retry.
-    e.dirty = new Map([...e.inflight!, ...e.dirty])
-    e.inflight = null
+    if (afterInflight(qc, id, e)) return
     setState(e, 'error', (err as Error).message)
     setTimeout(() => void send(qc, id), 2000)
     return
@@ -488,10 +649,74 @@ export async function publish(qc: QueryClient, doc: Doc) {
   qc.setQueryData(['doc-published', id], r.results[0].document)
 }
 
+/** A field's clash, if one holds (the inline card), and the editor's own unsent value there. */
+export function useFieldClash(id: string | null, field: string): (FieldClash & {mine: unknown}) | null {
+  const c = useSyncExternalStore(
+    (l) => (listeners.add(l), () => listeners.delete(l)),
+    () => (id ? docs.get(id)?.clashes?.get(field) : undefined),
+    () => undefined,
+  )
+  return c && id ? {...c, mine: docs.get(id)?.dirty.get(field)} : null
+}
+
+/** The card's answer for one clashed field: "Keep mine" sends mine over theirs; "Take theirs" drops mine. */
+export function settleClash(qc: QueryClient, id: string, field: string, keep: 'mine' | 'theirs') {
+  const e = docs.get(id)
+  const c = e?.clashes?.get(field)
+  if (!e || !c) return
+  e.clashes = new Map(e.clashes)
+  e.clashes.delete(field)
+  if (keep === 'theirs') {
+    e.dirty.delete(field)
+    e.base.delete(field)
+    const held = qc.getQueryData<Doc>(['doc', id])
+    if (held) writeCache(qc, id, e.type, setPath({...held}, field, c.theirs))
+  }
+  if (e.clashes.size) return listeners.forEach((l) => l())
+  e.clashes = undefined
+  e.held = false
+  keepUnsaved(id, e)
+  if (!e.dirty.size && !e.inflight) return setState(e, 'saved')
+  setState(e, 'saving')
+  schedule(qc, id)
+}
+
+const NO_FINDINGS: Finding[] = []
+/** Barkpark's advisory findings on this doc's last save (lib/findings.ts says them). */
+export function useAdvisories(id: string): Finding[] {
+  return useSyncExternalStore(
+    (l) => (listeners.add(l), () => listeners.delete(l)),
+    () => docs.get(id)?.advisories ?? NO_FINDINGS,
+    () => NO_FINDINGS,
+  )
+}
+
+/**
+ * A Freeform canvas in a field (the body) saves on its own; when it can't (refused, a
+ * conflict), the document's footer says so too, as for any field (collaboration hour:
+ * the footer said "Last published …" while the body's edit was not saved).
+ */
+const canvasSnaps = new Map<string, Snap>()
+const canvasProblems = new Map<string, Map<string, string>>()
+export function setCanvasProblem(docId: string, key: string, message: string | null) {
+  const held = canvasProblems.get(docId) ?? new Map<string, string>()
+  if (message) held.set(key, message)
+  else held.delete(key)
+  canvasProblems.set(docId, held)
+  const first = [...held.values()][0]
+  if (first) canvasSnaps.set(docId, {state: 'refused', error: first})
+  else canvasSnaps.delete(docId)
+  listeners.forEach((l) => l())
+}
+
 export function useSaveState(id: string): Snap {
   return useSyncExternalStore(
     (l) => (listeners.add(l), () => listeners.delete(l)),
-    () => docs.get(id)?.snap ?? SAVED,
+    () => {
+      const own = docs.get(id)?.snap ?? SAVED
+      const canvas = canvasSnaps.get(id)
+      return canvas && (own.state === 'saved' || own.state === 'saving') ? canvas : own
+    },
     () => SAVED,
   )
 }
@@ -501,6 +726,8 @@ export async function deleteDoc(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   await mutate({data: {mutations: [{delete: {id, type: doc._type}}]}})
   docs.delete(id)
+  const key = docKeyOf(id)
+  if (key) void readDocPending(key).then((all) => all.forEach(([k]) => void dropPending(k)))
   qc.setQueriesData<ListPage>({queryKey: ['list', doc._type]}, (page) => page && {...page, docs: page.docs.filter((d) => d._publishedId !== id)})
   qc.removeQueries({queryKey: ['doc', id]})
 }
@@ -513,16 +740,85 @@ export async function unpublish(qc: QueryClient, doc: Doc) {
   const r = (await mutate({data: {mutations: [{unpublish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
   writeCache(qc, id, doc._type, overlay(id, {...r.results[0].document, _hasPublished: false} as Doc))
   qc.setQueryData(['doc-published', id], null)
+  historyChanged(qc, id)
 }
 
 /** Discard the draft: back to the published version; anything unsent is dropped too. */
 export async function discardDraft(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   const e = docs.get(id)
-  if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear())
+  if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear(), keepUnsaved(id, e))
   await whenSaved(id)
   await mutate({data: {mutations: [{discardDraft: {id, type: doc._type}}]}})
+  if (e) e.advisories = undefined // what Barkpark said of the draft went with it
   const published = qc.getQueryData<Doc | null>(['doc-published', id])
   if (published) writeCache(qc, id, doc._type, {...published, _hasPublished: true} as Doc)
+  historyChanged(qc, id)
   await qc.invalidateQueries({queryKey: ['doc', id]})
+}
+
+export type Recovered = {pending: Pending; fields: [string, unknown][]; gone?: string[]; keys: string[]}
+/**
+ * B11 widen: on open, edits this browser kept for `doc` that never reached Barkpark (a
+ * reload or crash). Same server rev → sent again now, quietly (`replayed`); a newer rev →
+ * returned for the pane to offer (`ask`). Nothing when the page that wrote them is still open.
+ */
+export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema): Promise<{replayed: number} | {ask: Recovered} | null> {
+  const id = doc._publishedId
+  const e = docs.get(id)
+  if (!docKeyOf(id) || doc._rev === '' || (e && (e.dirty.size || e.inflight || e.pendingCreate))) return null
+  const kept = await orphaned(id)
+  if (!kept) return null
+  const {keys, pending} = kept
+  const verdict = judge(pending, doc, schema)
+  if (verdict.kind === 'drop') return (keys.forEach((k) => void dropPending(k)), null)
+  if (verdict.kind === 'ask') return {ask: {pending, fields: verdict.fields, gone: verdict.gone, keys}}
+  for (const [f, v] of verdict.fields) edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? doc, f, v)
+  // Now this page's own edits (kept under its own entry): the dead pages' entries go.
+  keys.forEach((k) => void dropPending(k))
+  return {replayed: pending.at}
+}
+
+/** Restore kept edits over the document as it is now (text merges with what changed since). */
+export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys}: Recovered) {
+  for (const [f, v] of fields) {
+    const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
+    edit(qc, now, f, restoreValue(pending, f, v, now))
+  }
+  keys.forEach((k) => void dropPending(k))
+}
+
+export function discardPending({keys}: Recovered) {
+  keys.forEach((k) => void dropPending(k))
+}
+
+/**
+ * J32 widen: edits to `id` that never reached Barkpark, from this page or kept in this
+ * browser from an earlier one, with when they were made; null when there are none.
+ */
+export async function unsavedFor(id: string): Promise<{at: number; fields: [string, unknown][]} | null> {
+  const e = docs.get(id)
+  if (e && (e.dirty.size || e.inflight)) return {at: Date.now(), fields: [...(e.inflight ?? []), ...e.dirty]}
+  const p = (await orphaned(id))?.pending
+  return p && p.fields.length ? {at: p.at, fields: p.fields} : null
+}
+
+/** J32 widen: after a deleted doc is restored, put the edits it lost back on top and send them. */
+export function reapply(qc: QueryClient, restored: Doc, fields: [string, unknown][]) {
+  const id = restored._publishedId
+  const e = entry(id, restored._type)
+  clearTimeout(e.timer)
+  e.timer = undefined
+  e.dirty = new Map()
+  e.inflight = null
+  e.missed = undefined
+  e.base.clear()
+  setState(e, 'saved')
+  // The edits are made against the restored version, not against what the screen shows
+  // (it already shows them): with the screen as base, a newer version from Barkpark
+  // meanwhile read as "the editor changed nothing" and theirs replaced the typing.
+  e.rev = restored._rev
+  for (const [f] of fields) e.base.set(f, getPath(restored, f))
+  for (const [f, v] of fields) edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? restored, f, v)
+  flush(qc, id)
 }

@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {bpMutate, target} from '../rig/targets'
+import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // D19 (Freeform side track, ours only), after Barkdown's find and replace (#17,
 // editor-find.live.mjs): in a fresh note, Ctrl/Cmd+F opens the find bar with the matches
@@ -12,7 +12,8 @@ type Block = {type: string; content?: {type: string; value?: string}[]}
 const para = (id: string, value: string) => ({id, type: 'paragraph', content: [{type: 'text', value}]})
 
 const mutate = (mutations: unknown[]) => bpMutate(mutations).then(() => {})
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await mutate([{delete: {id: ID, type: 'note', force: true}}]).catch(() => {})
 })
 
@@ -39,9 +40,11 @@ test('@local D19: find and replace in the canvas — count, step, replace, repla
 
   // 1. Ctrl/Cmd+F from inside the canvas: the bar, three matches (case-insensitive), the
   // first after the caret active.
-  await canvas.locator('.ProseMirror > *', {hasText: 'The cat sat'}).click()
-  await page.waitForTimeout(100)
-  await page.keyboard.press('Home')
+  // The caret at the line's start by where the click lands: Home does not move it on
+  // macOS, and a click in the box's middle is past this short text (find then started
+  // after the second 'cat': "3 of 3").
+  await canvas.locator('.ProseMirror > *', {hasText: 'The cat sat'}).click({position: {x: 2, y: 8}})
+  await expect(canvas.locator('.ProseMirror')).toBeFocused()
   await page.keyboard.press('ControlOrMeta+f')
   await expect(bar.getByRole('textbox', {name: 'Find'})).toBeFocused()
   await page.keyboard.type('cat')

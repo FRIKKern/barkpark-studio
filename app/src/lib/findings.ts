@@ -1,8 +1,12 @@
-// Barkpark's validation refusal (422 validation_failed) in the studio's words. Since
-// barkpark#22375 each finding carries a stable `code` and its `params`; the studio
+// Barkpark's validation findings in the studio's words: a refusal (422 validation_failed,
+// barkpark#22375) or, on a dataset that does not enforce its schema, the advisory
+// warnings a save answers with (#22406). Each finding carries a stable `code` and its `params`; the studio
 // says it the way its own checks do (lib/validation.ts, Sanity's wording) in the
 // editor's language, and falls back to Barkpark's English for a code it does not know.
 // `custom` is the schema author's own text: shown as written.
+
+import type {Field, Schema} from './data'
+import type {Level, Problem} from './validation'
 
 export type Finding = {path: string; message: string; code: string; params?: Record<string, unknown>}
 type Translate = (en: string, vars?: Record<string, string | number>) => string
@@ -42,7 +46,8 @@ const param = (v: unknown) => (Array.isArray(v) ? v.join(', ') : typeof v === 'n
 /** One finding as a sentence in the editor's language. */
 export function findingSentence(f: Finding, t: Translate): string {
   const en = SENTENCES[f.code]
-  if (!en) return f.message
+  // An advisory's own message may lead with its path ("/seo/x: …"): the field names itself here.
+  if (!en) return f.message.startsWith(`${f.path}: `) ? f.message.slice(f.path.length + 2) : f.message
   return t(en, Object.fromEntries(Object.entries(f.params ?? {}).map(([k, v]) => [k, param(v)])))
 }
 
@@ -66,4 +71,62 @@ export function findingsOf(msg: string): Finding[] | undefined {
   } catch {
     return undefined
   }
+}
+
+/** The advisory findings a save answered with (warnings of code schema_validation, #22406). */
+export function advisoryFindings(body: unknown): Finding[] {
+  const warnings = (body as {warnings?: {code?: string; findings?: Finding[]}[]} | null)?.warnings ?? []
+  return warnings.flatMap((w) => (w.code === 'schema_validation' && Array.isArray(w.findings) ? w.findings : []))
+}
+
+/** A finding's path as the form's: "/seo/metaDescription" → "seo.metaDescription". */
+export const formPath = (path: string) => path.replace(/^[$/.]+/, '').replace(/\//g, '.')
+
+/**
+ * Barkpark's advisory findings (#22406) for the rules
+ * (array lengths, patterns, allowed values, shapes) that lib/validation.ts does not
+ * check itself: one problem each, in the studio's words, at its field's level. A path
+ * the studio already flags is left to it.
+ */
+export function advisoryProblems(findings: Finding[], schema: Schema, known: Problem[], t: Translate): Problem[] {
+  const flagged = new Set(known.map((p) => p.path))
+  return findings.flatMap((f) => {
+    const path = formPath(f.path)
+    if (flagged.has(path)) return []
+    const parents: string[] = []
+    let fields: Field[] | undefined = schema.fields
+    let field: Field | undefined
+    // A field inside a rich-text block (body.1.tone): the block types the field declares
+    // (blocks.of {name, fields}) name it, "Body / Callout / Tone", and it shows on the body.
+    let at = path
+    for (const name of path.split('.').filter((p) => p && !/^\d+$|^\[/.test(p))) {
+      field = fields?.find((x) => x.name === name)
+      if (!field) break
+      if (field.type === 'richText') {
+        const blocks = ((field as {blocks?: {of?: unknown[]}}).blocks?.of ?? []).filter((o): o is {name: string; title?: string; fields?: Field[]} => !!o && typeof o === 'object' && Array.isArray((o as {fields?: unknown}).fields))
+        const rest = path.split('.').slice(path.split('.').indexOf(name) + 1).filter((p) => p && !/^\d+$/.test(p))
+        const block = blocks.find((b) => b.fields!.some((x) => x.name === rest[0]))
+        const inner = block?.fields!.find((x) => x.name === rest[0])
+        if (block && inner) {
+          parents.push(field.title ?? field.name, block.title ?? block.name)
+          at = path.split('.').slice(0, path.split('.').indexOf(name) + 1).join('.')
+          const level = levelOfField(inner)
+          return [{path: at, title: inner.title ?? inner.name, message: findingSentence(f, t), level, parents, group: field.group}]
+        }
+        break
+      }
+      fields = field.fields ?? field.of?.fields
+      if (fields && field.type === 'composite') parents.push(field.title ?? field.name)
+    }
+    if (field?.type === 'composite') parents.pop()
+    const level = field ? levelOfField(field) : 'error'
+    return [{path: at, title: field?.title ?? field?.name ?? path, message: findingSentence(f, t), level, ...(parents.length ? {parents} : {}), group: field?.group}]
+  })
+}
+
+// A field's level as lib/validation.ts reads its rules: warning / info if a rule says so.
+function levelOfField(field: Field): Level {
+  const rules = Array.isArray(field.validation) ? field.validation : field.validation ? [field.validation] : []
+  const l = rules.find((r) => r.level)?.level
+  return l === 'warning' || l === 'warn' ? 'warning' : l === 'info' ? 'info' : 'error'
 }

@@ -4,6 +4,7 @@ import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {docQuery, isSingleton, previewTitle, refId, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
 import {createDoc} from '../lib/edits'
+import {choicesFor, type Choice} from '../lib/templates'
 import {focusFirstField} from '../lib/focus'
 import {useT} from '../lib/i18n'
 import {Add, ChevronDown, Close, Ellipsis, HelpCircle} from './icons'
@@ -100,16 +101,18 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
         change(picked)
       }}
       onCancel={value ? () => { focusPreview.current = true; setSearching(false) } : undefined}
-      onCreate={async (q, refType) => {
+      onCreate={async (q, start) => {
+        const refType = start.type
         // J22: a new draft of the referenced type, opened in the next pane at once
         // (it is in the cache before the request leaves); the reference is set
-        // as soon as the server has the doc. The search text becomes its title.
+        // as soon as the server has the doc. The search text becomes its title, over
+        // the chosen template's values (J18).
         const schema = schemaOf(schemas, refType)
         const titleField = schema?.listPreview?.title ?? (schema?.fields.some((f) => f.name === 'title') ? 'title' : 'name')
         const newId = crypto.randomUUID()
         const choice = Symbol()
         creatingReferences.set(creationKey, choice)
-        const created = createDoc(qc, refType, newId, q ? {[titleField]: q} : {})
+        const created = createDoc(qc, refType, newId, {...(start.id === refType ? {} : start.value), ...(q ? {[titleField]: q} : {})})
         setValue(newId)
         setSearching(false)
         void navigate({href: linkFor(newId, refType).href})
@@ -167,7 +170,7 @@ type SearchProps = {
   invalid?: boolean
   onPick: (id: string) => void
   onCancel?: () => void
-  onCreate: (q: string, type: string) => void
+  onCreate: (q: string, choice: Choice) => void
 }
 
 function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCancel, onCreate}: SearchProps) {
@@ -186,7 +189,8 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
     return () => clearTimeout(timer)
   }, [q])
   const search = useQuery({...searchQuery(types, query, filter), enabled: open, placeholderData: keepPreviousData})
-  const creatable = types.filter((t) => !isSingleton(schemas, t))
+  // J18: each type's ways to start it (its templates too).
+  const creatable = types.filter((t) => !isSingleton(schemas, t)).flatMap((t) => choicesFor(schemas, t))
   const waiting = q.trim() !== query || search.isPending || search.isPlaceholderData
   // Never let Enter select a result belonging to the previous search text.
   const results = waiting || search.isError ? [] : search.data ?? []
@@ -259,7 +263,7 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
       </button>
       {/* B13: a singleton type is never created from here (it has its one document). */}
       {creatable.length > 1 ? (
-        <CreateMenu types={creatable} title={typeTitle} onPick={(type) => onCreate(q.trim(), type)} />
+        <CreateMenu choices={creatable} onPick={(choice) => onCreate(q.trim(), choice)} />
       ) : creatable.length === 1 ? (
         <button type="button" className="btn-create" onClick={() => onCreate(q.trim(), creatable[0]!)}>
           <Add />
@@ -300,7 +304,7 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
 }
 
 /** Several target types: Sanity's "Create…" asks which one first. */
-function CreateMenu({types, title, onPick}: {types: string[]; title: (type: string) => string; onPick: (type: string) => void}) {
+function CreateMenu({choices, onPick}: {choices: Choice[]; onPick: (choice: Choice) => void}) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -329,9 +333,9 @@ function CreateMenu({types, title, onPick}: {types: string[]; title: (type: stri
       </button>
       {open && (
         <MenuPopover onClose={() => setOpen(false)}>
-          {types.map((type) => (
-            <button key={type} type="button" role="menuitem" className="menu-item" onClick={() => (setOpen(false), onPick(type))}>
-              {title(type)}
+          {choices.map((c) => (
+            <button key={c.id} type="button" role="menuitem" className="menu-item" onClick={() => (setOpen(false), onPick(c))}>
+              {c.title}
             </button>
           ))}
         </MenuPopover>

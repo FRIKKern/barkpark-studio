@@ -1,5 +1,5 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {target, type Target} from '../rig/targets'
+import {target, type Target, closeAndSettle} from '../rig/targets'
 
 // J28 evidence, both studios: share (copy document URL / ID), Inspect with
 // Ctrl+Alt+I (Parsed and Raw JSON), Duplicate from the footer menu, which opens
@@ -23,7 +23,8 @@ const shareButton = (t: Target, page: Page) =>
 const clipboard = (page: Page) => page.evaluate(() => navigator.clipboard.readText())
 
 let duplicated: string | undefined
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   if (duplicated) await t.deleteDoc(duplicated, 'post')
   duplicated = undefined

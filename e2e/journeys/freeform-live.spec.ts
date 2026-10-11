@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type Page} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // D03 (Freeform side track, ours only): two browsers on story-01, A in Freeform and B
 // in Classic. A edits the Kicker field block, B's Classic field follows; B edits the
@@ -14,7 +14,8 @@ const bound = (name: string) => SEED_BLOCKS.find((x) => x.fieldName === name)!.v
 const SEED = {kicker: bound('kicker'), summary: bound('summary'), blocks: SEED_BLOCKS}
 const shot = (step: string) => `evidence/D03-${step}-studio.png`
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await target(info).restore(ID, {kicker: SEED.kicker, summary: SEED.summary, blocks: SEED.blocks}, 'story')
 })
 

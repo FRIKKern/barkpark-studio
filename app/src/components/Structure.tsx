@@ -1,4 +1,5 @@
 import {Fragment, useContext, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {deskQuery, docQuery, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
@@ -8,15 +9,17 @@ import {announce} from '../lib/announce'
 import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
 import {collapsed, NARROW, NarrowContext} from '../lib/layout'
 import {useLive} from '../lib/live'
-import {createDoc, draftNew, flushOnUnload} from '../lib/edits'
-import {editorMode} from '../lib/editor-mode'
+import {flushOnUnload} from '../lib/edits'
+import {choicesFor, startNew, templateChoice, type Choice} from '../lib/templates'
+import {studioDesk} from '../lib/structure-config'
 import {toast} from './Toasts'
 import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
 import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
 import {DocumentPane, docTitle} from './DocumentPane'
+import {FocusModeContext, useFocusMode} from './FocusMode'
 import {DeskIcon} from './DeskIcon'
-import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search, Sort as SortIcon, Stack, StackCompact} from './icons'
+import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search, Sort as SortIcon, Stack, StackCompact, WarningOutline} from './icons'
 import {DocPreview} from './Preview'
 import {BulkBar} from './BulkBar'
 import {MAX_SELECTED} from '../lib/bulk'
@@ -47,8 +50,12 @@ function usePaneWidth(hint: number) {
   return [ref, width] as const
 }
 
+/** F11: how many list rows mount per task while a big page arrives. */
+const MOUNT_STEP = 60
+
 export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}) {
   const [ref, width] = usePaneWidth(widthHint)
+  usePrefetchDocEditors()
   useEffect(() => {
     addEventListener('pagehide', flushOnUnload)
     return () => removeEventListener('pagehide', flushOnUnload)
@@ -108,12 +115,23 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
 
   // J42: a narrow window shows only the last pane; its back link walks the URL back.
   const narrow = width < NARROW
+  // J26: focus mode shows one document pane alone, until the panes change.
+  const [focusMode, setFocusMode] = useState<{path: string; index: number} | null>(null)
+  const focused = focusMode?.path === path && panes[focusMode.index]?.kind === 'doc' ? focusMode.index : null
+  const focusCtx = useMemo(() => ({focused, toggle: (i: number) => setFocusMode(focused === i ? null : {path, index: i})}), [focused, path])
   return (
     <NarrowContext.Provider value={narrow}>
-      <div className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined}>
+      <FocusModeContext.Provider value={focusCtx}>
+      <div className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined} data-focus-mode={focused !== null ? '' : undefined}>
         <TabTitle pane={panes[panes.length - 1]} />
         {panes.map((pane, i) =>
-          narrow ? (
+          focused !== null ? (
+            i === focused && (
+              <PaneBoundary key={paneKey(pane) + i} kind={pane.kind}>
+                <PaneView panes={panes} index={i} />
+              </PaneBoundary>
+            )
+          ) : narrow ? (
             i === panes.length - 1 && (
               <PaneBoundary key={paneKey(pane) + i} kind={pane.kind}>
                 <PaneView panes={panes} index={i} />
@@ -127,8 +145,9 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
             </PaneBoundary>
           ),
         )}
-        {!narrow && panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
+        {!narrow && focused === null && panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
       </div>
+      </FocusModeContext.Provider>
     </NarrowContext.Provider>
   )
 }
@@ -150,7 +169,10 @@ function BackLink({panes, index}: {panes: Pane[]; index: number}) {
 /** B12: a desk node by id, when the workspace has a declared desk. */
 function useDeskNode(id: string | undefined): DeskNode | undefined {
   const {data: desk} = useQuery(deskQuery)
-  const index = useMemo(() => (desk ? deskIndex(desk) : undefined), [desk])
+  const index = useMemo(() => {
+    const root = desk ?? studioDesk()
+    return root ? deskIndex(root) : undefined
+  }, [desk])
   return id ? index?.get(id) : undefined
 }
 
@@ -159,7 +181,7 @@ function usePaneTitle(pane: Pane) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: desk} = useQuery(deskQuery)
   const node = useDeskNode(pane.kind === 'types' ? undefined : pane.node)
-  const {data: treeParent} = useQuery({...docQuery(pane.kind === 'list' ? pane.type : '', pane.kind === 'list' ? pane.treeParent ?? '' : ''), enabled: pane.kind === 'list' && !!pane.treeParent})
+  const {data: treeParent} = useQuery({...docQuery(pane.kind === 'list' ? pane.type : '', pane.kind === 'list' ? pane.treeParent ?? '' : ''), enabled: pane.kind === 'list' && !!pane.treeParent && !node?.child})
   const published = usePublishedPerspective()
   const id = pane.kind === 'doc' ? pane.id : ''
   const type = pane.kind === 'doc' ? pane.type : ''
@@ -169,14 +191,17 @@ function usePaneTitle(pane: Pane) {
   const doc = published ? live : draft
   if (pane.kind === 'types') return desk?.title ?? t('Content')
   if (pane.kind === 'menu') return node?.title ?? pane.node
-  if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type))
+  // J18: a child list is titled by its declaration ("Posts"), its parent list by its own ("Authors").
+  if (pane.kind === 'list' && pane.treeParent && node?.child) return node.child.title ?? schemaOf(schemas, pane.type)?.title ?? pane.type
+  if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type), t)
+  if (pane.kind === 'list' && node?.child) return node.listTitle ?? node.title ?? pane.type
   if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? t('Unknown pane type')
   const schema = schemaOf(schemas, pane.type)
   if (!schema) return t('Unknown document type')
   if (doc === null) return t('The document was not found')
   // A desk singleton is named by its desk row (Sanity's S.document().title()).
   if (pane.node && node?.title) return node.title
-  return doc && schema ? docTitle(doc, schema, t) : previewTitle(doc, schema)
+  return doc && schema ? docTitle(doc, schema, t) : previewTitle(doc, schema, t)
 }
 
 /** The last pane owns the tab title, including cached edits and browser history. */
@@ -212,6 +237,7 @@ function Strip({pane, index, onOpen}: {pane: Pane; index: number; onOpen: () => 
 function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
   const t = useT()
+  const {focused} = useFocusMode()
   const {data: schemas = []} = useQuery(schemasQuery)
   // e2e probe (J50): this pane throws while rendering, as a bug would.
   if ((globalThis as {__crashPane?: string}).__crashPane === paneKey(pane)) throw new Error(`e2e probe: ${paneKey(pane)} crashed`)
@@ -253,11 +279,35 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
       header={
         <span className="title-row">
           <BackLink panes={panes} index={index} />
-          <PaneTitle pane={pane} />
+          {focused === index ? <FocusCrumbs panes={panes} index={index} /> : <PaneTitle pane={pane} />}
         </span>
       }
       closeIcon={<Close />}
     />
+  )
+}
+
+/**
+ * J26: in focus mode the title line is Sanity's breadcrumb: the panes it hides, each a
+ * way back to there (which ends focus mode), then this document.
+ */
+function FocusCrumbs({panes, index}: {panes: Pane[]; index: number}) {
+  const t = useT()
+  const navigate = usePaneNavigate()
+  return (
+    <nav className="focus-crumbs" aria-label={t('Breadcrumb')}>
+      {panes.slice(0, index).map((p, i) => (
+        <Fragment key={paneKey(p) + i}>
+          <button type="button" className="crumb" onClick={() => navigate({href: panesPath(panes.slice(0, i + 1))})}>
+            <PaneTitle pane={p} />
+          </button>
+          <span aria-hidden="true">/</span>
+        </Fragment>
+      ))}
+      <span className="crumb current" aria-current="page">
+        <PaneTitle pane={panes[index]!} />
+      </span>
+    </nav>
   )
 }
 
@@ -271,7 +321,7 @@ function RootPane({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
   const menu = useDeskNode(pane.kind === 'menu' ? pane.node : undefined)
   const next = panes[index + 1]
-  if (!desk) return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.type : next?.kind === 'doc' ? next.id : undefined} />
+  if (!desk) return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.node ?? next.type : next?.kind === 'doc' ? next.id : undefined} />
   return <DeskPane panes={panes} index={index} node={pane.kind === 'menu' ? menu : desk} />
 }
 
@@ -317,7 +367,7 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
 
 function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; selected?: string}) {
   const t = useT()
-  const {data: schemas = []} = useQuery(schemasQuery)
+  const {data: schemas = [], isSuccess} = useQuery(schemasQuery)
   // Sanity's default structure: one row per document type, in schema order.
   const order = ['post', 'author', 'category']
   // Types not named here keep the schema's order, after these (they used to sort first).
@@ -326,6 +376,29 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   // B13: singletons are not lists. Like Barkpark's default desk they sit under Settings,
   // each opening its one document (id = the type's name).
   const singletons = schemas.filter((s) => s.singleton)
+  const own = studioDesk()?.items ?? []
+  // A dataset with no schema yet: Sanity's "No document types" card, not an empty pane (and
+  // not the studio's own items, which list types that are not there).
+  if (isSuccess && schemas.length === 0)
+    return (
+      <section className="pane types" aria-label={t('Content')} data-testid="pane" data-pane="types" data-pane-index={index}>
+        <header className="pane-header">
+          <span className="title">{t('Content')}</span>
+        </header>
+        <div className="pane-body">
+          <div className="no-types" role="status">
+            <WarningOutline />
+            <div>
+              <p className="no-types-title">{t('No document types')}</p>
+              <p>{t('Please define at least one document type in your schema.')}</p>
+              <a href="https://github.com/FRIKKern/barkpark/blob/main/docs/contracts/schema-reference.md" target="_blank" rel="noreferrer">
+                {t('Learn how to add a document type →')}
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
   return (
     <section className="pane types" aria-label={t('Content')} data-testid="pane" data-pane="types" data-pane-index={index}>
       <header className="pane-header">
@@ -346,6 +419,19 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
             {s.title}
           </PaneLink>
         ))}
+        {/* J18: the studio config's own structure items, after a divider (Sanity's S.divider()). */}
+        {own.length > 0 && <hr className="desk-divider" />}
+        {own.map((item) => {
+          const to = opens(item)
+          return to ? (
+            <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, to)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined}>
+              {item.title}
+              <span className="chev">
+                <ChevronRight />
+              </span>
+            </PaneLink>
+          ) : null
+        })}
       </div>
     </section>
   )
@@ -375,7 +461,10 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const {sort: prefSort, view, set} = useListPrefs(type)
   const sort = prefs[type]?.sort ?? deskSort(node) ?? prefSort
   const tree = !!node?.tree
-  const {data: parentDoc} = useQuery({...docQuery(type, treeParent ?? ''), enabled: !!treeParent})
+  const {data: parentDoc} = useQuery({...docQuery(type, treeParent ?? ''), enabled: tree && !!treeParent})
+  // J18: a list whose rows open their own child list (Sanity's .child((id) => …)).
+  const child = treeParent ? undefined : node?.child
+  const childTemplate = treeParent && node?.child?.template ? templateChoice(node.child.template.id, {[node.child.template.param]: treeParent}) : undefined
   // J41: the first LIST_PAGE rows; near the end, up to LIST_MAX (Sanity's numbers).
   const [limit, setLimit] = useState(LIST_PAGE)
   const readable = !missingOps.length
@@ -441,6 +530,16 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     }
     return [...hits].sort(builtIn[sort] ?? byOrder(sort))
   }, [indexed, query, sort, schemas, type])
+  // F11: growing to LIST_MAX mounts ~1,900 rows; done at once it stalled a frame for
+  // ~350 ms mid-scroll. They mount MOUNT_STEP at a time instead, a task apart, so the
+  // list keeps scrolling at 60 fps while the rest arrives.
+  const [mounted, setMounted] = useState(LIST_PAGE)
+  useEffect(() => {
+    if (shown.length <= mounted) return
+    const id = setTimeout(() => setMounted((m) => m + MOUNT_STEP), 0)
+    return () => clearTimeout(id)
+  }, [shown.length, mounted])
+  const rows = shown.length > mounted ? shown.slice(0, mounted) : shown
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
   const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())
   // Ticks show only while selecting: after "Select documents" in the list menu, a Cmd/Ctrl- or
@@ -459,7 +558,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   }
   // Ticked docs as the list has them now (a live edit since the tick is taken into account).
   const pickedDocs = useMemo(() => [...picked.values()].map((d) => docs?.find((x) => x._publishedId === d._publishedId) ?? d), [picked, docs])
-  const selectable = !tree && !published && !isSingleton(schemas, type)
+  // B03: ticks only for a token that may publish (read-only: none, as in Sanity and LiveView).
+  const selectable = canWrite && !tree && !published && !isSingleton(schemas, type)
   // J47: a list says what it holds when it opens, and what a search found (the last pane only).
   const listTitle = node?.title ?? schemaOf(schemas, type)?.title ?? type
   const isLastPane = index === panes.length - 1
@@ -486,28 +586,24 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         <BackLink panes={panes} index={index} />
         <PaneTitle pane={panes[index]} />
         {/* B13: a singleton type has its one document, never a new one. */}
-        {!isSingleton(schemas, type) && <button
-          type="button"
-          className="icon-btn"
-          aria-label={t('Create new {type}', {type: schemaOf(schemas, type)?.title ?? type})}
-          disabled={!canWrite}
-          data-tip={t('Create new document')}
-          title={canWrite ? undefined : createReason}
-          onClick={() => {
-            // J18: a new doc opens in the next pane with the type's initial values;
-            // it is created on its first edit (Sanity's way: leaving it costs nothing).
-            // D04: a type with an Expectation is created at once: Barkpark builds its
-            // block list from the schema's layout and fills it from its prefill.
-            const id = crypto.randomUUID()
-            if (editorMode(type, schemaOf(schemas, type)) !== 'none')
-              void createDoc(qc, type, id, {}).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
-            else draftNew(qc, type, id, schemaOf(schemas, type)?.initialValues ?? {})
-            void navigate({href: openAfter(panes, index, {kind: 'doc', id, type})})
-            focusFirstField(id)
-          }}
-        >
-          <Add />
-        </button>}
+        {!isSingleton(schemas, type) && (
+          <NewInList
+            choices={childTemplate ? [childTemplate] : choicesFor(schemas, type)}
+            label={childTemplate ? childTemplate.title : t('Create new {type}', {type: schemaOf(schemas, type)?.title ?? type})}
+            disabledReason={canWrite ? undefined : createReason}
+            onPick={(choice) => {
+              // J18: a new doc opens in the next pane with the chosen template's values;
+              // it is created on its first edit (Sanity's way: leaving it costs nothing).
+              // D04: a type with an Expectation is created at once: Barkpark builds its
+              // block list from the schema's layout and fills it from its prefill.
+              const id = crypto.randomUUID()
+              startNew(qc, schemas, choice, id).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
+              // A child list's template opens the new doc under its type's own list, as Sanity's create intent does.
+              void navigate({href: childTemplate ? panesPath([{kind: 'types'}, {kind: 'list', type}, {kind: 'doc', id, type}]) : openAfter(panes, index, {kind: 'doc', id, type})})
+              focusFirstField(id)
+            }}
+          />
+        )}
         <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} selecting={selectable ? selecting || picked.size > 0 : undefined} onSelecting={(on) => (on ? setSelecting(true) : stopSelecting())} />
       </header>
       <div className="search">
@@ -541,10 +637,10 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         onKeyDown={(e) => e.key === 'Escape' && (selecting || picked.size > 0) && stopSelecting()}
       >
         {!readable && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: missingOps.join(', ')})}</p>}
-        {treeParent && parentDoc && (
+        {tree && treeParent && parentDoc && (
           <>
             <DocPreview doc={parentDoc} href={openAfter(panes, index, {kind: 'doc', id: treeParent, type})} selected={selected === treeParent} active={index === panes.length - 2} testId="pane-item" />
-            <div className="desk-divider">{docs ? t('{n} under {title}', {n: docs.length, title: previewTitle(parentDoc, schemaOf(schemas, type))}) : ''}</div>
+            <div className="desk-divider">{docs ? t('{n} under {title}', {n: docs.length, title: previewTitle(parentDoc, schemaOf(schemas, type), t)}) : ''}</div>
           </>
         )}
         {searchOffline ? <p className="list-empty" role="status">{t("You're offline. Reconnect to search all documents.")}</p> : searchFailed ? (
@@ -562,12 +658,12 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty">{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" aria-label={listTitle} className="rows-list">
-        {shown.map((d) => {
+        {rows.map((d) => {
           const row = (
             <DocPreview
               key={d._publishedId}
               doc={d}
-              href={openAfter(panes, index, tree ? {kind: 'list', type, node: nodeId, treeParent: d._publishedId} : {kind: 'doc', id: d._publishedId, type})}
+              href={openAfter(panes, index, tree ? {kind: 'list', type, node: nodeId, treeParent: d._publishedId} : child ? {kind: 'list', type: child.typeName, node: nodeId, treeParent: d._publishedId} : {kind: 'doc', id: d._publishedId, type})}
               selected={selected === d._publishedId}
               active={index === panes.length - 2}
               testId="pane-item"
@@ -599,7 +695,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               }}
             >
               <label className="bulk-check">
-                <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type))})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
+                <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type), t)})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
               </label>
               {row}
             </div>
@@ -719,6 +815,37 @@ function ListMenu({schema, sort, view, set, selecting, onSelecting}: {schema: Sc
               {item(selecting ? t('Stop selecting') : t('Select documents'), selecting, () => onSelecting(!selecting))}
             </>
           )}
+        </MenuPopover>
+      )}
+    </div>
+  )
+}
+
+/**
+ * A list's "+" (J18): one way to start the type, one button; several (templates), a menu
+ * of them, Sanity's multi-action "+".
+ */
+function NewInList({choices, label, disabledReason, onPick}: {choices: Choice[]; label: string; disabledReason?: string; onPick: (choice: Choice) => void}) {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  if (choices.length === 1)
+    return (
+      <button type="button" className="icon-btn" aria-label={label} disabled={!!disabledReason} data-tip={t('Create new document')} title={disabledReason} onClick={() => onPick(choices[0]!)}>
+        <Add />
+      </button>
+    )
+  return (
+    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <button type="button" className="icon-btn" aria-label={label} disabled={!!disabledReason} data-tip={t('Create new document')} title={disabledReason} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Add />
+      </button>
+      {open && (
+        <MenuPopover onClose={() => setOpen(false)}>
+          {choices.map((c, i) => (
+            <button key={c.id} type="button" role="menuitem" className="menu-item" autoFocus={i === 0} onClick={() => (setOpen(false), onPick(c))}>
+              {c.title}
+            </button>
+          ))}
         </MenuPopover>
       )}
     </div>
