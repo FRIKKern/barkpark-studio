@@ -1,7 +1,7 @@
 // J40: threads from flat comments — the first comment carries open / resolved, replies point at it.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {threadsOf, type Comment} from './comment-threads.ts'
+import {mentionablePeople, threadsOf, type Comment} from './comment-threads.ts'
 
 const c = (id: string, extra: Partial<Comment> = {}): Comment => ({_id: id, documentId: 'post-01', documentType: 'post', fieldPath: 'title', threadId: id, message: id, authorEmail: null, createdAt: '2026-10-08T10:00:00Z', ...extra})
 
@@ -18,4 +18,12 @@ test('mentions: typed after "@", inserted as @email, found and shown as chips', 
   assert.deepEqual(ins, {text: 'Hi @studio-editor-b@example.com ', caret: 32})
   assert.deepEqual(mentionsIn(`${ins.text}and @a@b.co.`), ['studio-editor-b@example.com', 'a@b.co'])
   assert.deepEqual(messageParts('Ask @a@b.co now'), [{text: 'Ask '}, {mention: 'a@b.co'}, {text: ' now'}])
+})
+
+test('mention list: people from every page of members, not only the first', async () => {
+  const pages = [
+    {members: [{principal_type: 'api_token', identity: 'bp-token'}, {principal_type: 'user', identity: 'b@example.com'}], hasMore: true, nextOffset: 2},
+    {members: [{principal_type: 'user', identity: 'a@example.com'}, {principal_type: 'user', identity: 'gone@example.com', revoked: true}], hasMore: false},
+  ]
+  assert.deepEqual(await mentionablePeople(async (offset) => pages[offset / 2]!), ['a@example.com', 'b@example.com'])
 })

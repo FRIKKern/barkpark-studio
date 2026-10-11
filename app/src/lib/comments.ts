@@ -3,7 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, serviceToken} from '../server/barkpark'
 import {sendBatches} from '../../../scripts/lib/batches.mjs'
 import {currentEditor} from '../server/auth'
-import {COMMENT_TYPE, mentionsIn, type Comment, type CommentStatus} from './comment-threads'
+import {COMMENT_TYPE, mentionablePeople, mentionsIn, type Comment, type CommentStatus} from './comment-threads'
 
 export {COMMENT_TYPE, threadsOf, type Comment, type CommentStatus, type Thread} from './comment-threads'
 
@@ -98,10 +98,11 @@ export const deleteComment = createServerFn({method: 'POST'})
  * users, not tokens), by email. Read with the studio's token (listing members
  * needs it); only the emails reach the page.
  */
-const fetchMentionable = createServerFn({method: 'GET'}).handler(async () => {
-  const res = await bpFetch('/v1/members?limit=200', {}, serviceToken())
-  if (!res.ok) throw new Error(`Could not load the users (${res.status})`)
-  const {members} = (await res.json()) as {members: {identity?: string; principal_type: string; revoked?: boolean | null}[]}
-  return [...new Set(members.filter((m) => m.principal_type === 'user' && !m.revoked && m.identity?.includes('@')).map((m) => m.identity!))].sort()
-})
+const fetchMentionable = createServerFn({method: 'GET'}).handler(() =>
+  mentionablePeople(async (offset) => {
+    const res = await bpFetch(`/v1/members?limit=200&offset=${offset}`, {}, serviceToken())
+    if (!res.ok) throw new Error(`Could not load the users (${res.status})`)
+    return res.json()
+  }),
+)
 export const mentionableQuery = queryOptions({queryKey: ['mentionable'], staleTime: 5 * 60_000, queryFn: async () => (await fetchMentionable()) as string[]})
