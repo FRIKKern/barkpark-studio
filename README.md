@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 70 changes, 2 tasks closed
+- **Today** · 71 changes, 2 tasks closed
+  - J28: a duplicated document flags its copied slug as already in use, as Sanity's ([#506](https://github.com/FRIKKern/barkpark-studio/pull/506))
   - J15: the footer status opens Review changes, as Sanity's ([#504](https://github.com/FRIKKern/barkpark-studio/pull/504))
   - J36: an array of images (post.gallery): add in its item dialog, drag to reorder ([#505](https://github.com/FRIKKern/barkpark-studio/pull/505))
-  - J59: Cmd/Ctrl+\ toggles Presentation's Edit overlay; its tooltip shows Alt ([#503](https://github.com/FRIKKern/barkpark-studio/pull/503))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
