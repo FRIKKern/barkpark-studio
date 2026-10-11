@@ -6,7 +6,7 @@ import {mapCaret} from '../lib/merge'
 import {FieldClashCard} from './FieldClash'
 import {worst, type Level, type Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
-import {ChevronDown, ClearCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
+import {ChevronDown, ResetCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {toast} from './Toasts'
 import {BlockPresence, FieldPresence} from './Presence'
@@ -498,7 +498,7 @@ function SelectInput({id, field, value, onChange}: {id: string; field: Field; va
     const horizontal = !Array.isArray(field.options) && field.options?.direction === 'horizontal'
     const clear = value !== undefined && (
       <button type="button" className="icon-btn" aria-label={t('Clear')} title={t('Clear')} onClick={() => onChange(undefined)}>
-        <ClearCircle />
+        <ResetCircle />
       </button>
     )
     return (

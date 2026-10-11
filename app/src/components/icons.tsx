@@ -74,10 +74,11 @@ export const Clock = () => (
     <path d="M12.5 8.5v4l3 2" />
   </svg>
 )
-export const ClearCircle = () => (
-  <svg {...s}>
-    <circle cx="12.5" cy="12.5" r="7" />
-    <path d="M10 10l5 5M15 10l-5 5" />
+/** Sanity's reset icon: a select list's "Clear", an x in a circling arrow. */
+export const ResetCircle = () => (
+  <svg {...s} strokeLinejoin="round">
+    <path d="M7 11L4.56189 13.5L2 11" />
+    <path d="M9.50001 15.5L15.5 9.5M9.5 9.5L15.5 15.5M4.56189 13.5C4.52104 13.1724 4.5 12.8387 4.5 12.5C4.5 8.08172 8.08172 4.5 12.5 4.5C16.9183 4.5 20.5 8.08172 20.5 12.5C20.5 16.9183 16.9183 20.5 12.5 20.5C9.75033 20.5 7.32466 19.1128 5.88468 17" />
   </svg>
 )
 export const HelpCircle = () => (
