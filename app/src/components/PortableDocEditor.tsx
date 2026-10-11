@@ -719,9 +719,8 @@ function LinkedMasters({slug, linked, masters, actions}: {slug: string; linked: 
         <div role="listitem" key={l.id} className="pd-linked" data-testid="linked-master">
           <span className="pd-linked-title">{masters.find((m) => m.docId === l.master)?.title ?? l.master}</span>
           <span className="pd-linked-note">
-            {l.pinned
-              ? t('Pinned to a published version of the master — readers see exactly this. Unpin to follow the master, or Detach to edit it here.')
-              : t('Linked master — it shows the master\'s content. Edit the master, or Detach to edit it here.')}
+            {/* The state in a few words; the buttons' tooltips say what each does. */}
+            {l.pinned ? t('Pinned · readers see this version') : t('Linked · follows the master')}
           </span>
           <button
             type="button"
