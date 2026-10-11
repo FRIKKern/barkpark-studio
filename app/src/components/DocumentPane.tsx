@@ -32,11 +32,11 @@ import {InspectDialog} from './InspectDialog'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {CommentsContext, CommentsPanel} from './Comments'
 import {commentsQuery, threadsOf} from '../lib/comments'
-import {revisionQuery} from '../lib/history'
+import {historyQuery, revisionQuery} from '../lib/history'
 import {PortableDocEditor, ReviewChanges} from './DocEditors'
 import {PaperSidebar} from './PaperSidebar'
 import {PAPER_TYPES} from '../lib/paper'
-import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
+import {ActorAvatar, AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
@@ -862,6 +862,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
     return () => clearInterval(timer)
   }, [])
   const saved = state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !!doc._draft && (justSaved || !doc._updatedAt)
+  // "Last published …" / "Edited …": Sanity puts who did it beside the words.
+  const actor = useLastActor(doc, state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !saved)
   const label =
     state === 'refused'
       ? t('Not saved: {reason}', {reason: error ?? t('Barkpark refused the change')})
@@ -879,7 +881,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       {/* "N sec. ago" differs between the server render and hydration: not an error. */}
       <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
         {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
-        {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : null}
+        {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : actor ? <ActorAvatar actor={actor} /> : null}
         {label}
       </span>
       {state === 'signedOut' && (
@@ -995,6 +997,12 @@ function DocBadges({doc}: {doc: Doc}) {
   )
 }
 
+/** Who wrote what the footer dates: the last publish, or the draft's last edit (none for a service token). */
+function useLastActor(doc: Doc, enabled: boolean) {
+  const {data} = useQuery({...historyQuery(doc._type, doc._publishedId), enabled})
+  return enabled ? data?.find((r) => (doc._draft ? r.status === 'draft' : r.action === 'publish'))?.actor : undefined
+}
+
 /** The Published perspective: read-only, and the way to take a document down. */
 function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const t = useT()
@@ -1002,11 +1010,13 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const {canWrite, publishReason} = useCanWrite()
+  const actor = useLastActor(doc, true)
   const run = () =>
     unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, tt('was unpublished. A draft has been created from the latest published revision.'))}))
   return (
     <footer className="doc-footer">
       <span className="save-state" role="status" suppressHydrationWarning>
+        {actor && <ActorAvatar actor={actor} />}
         {t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}
       </span>
       <DocBadges doc={doc} />
