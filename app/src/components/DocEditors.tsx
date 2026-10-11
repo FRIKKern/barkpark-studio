@@ -1,5 +1,5 @@
 import {Suspense, use, useEffect, type ComponentProps, type ComponentType} from 'react'
-import {releaseEarlyClicks} from '../lib/hydrated'
+import {holdReleaseUntil, releaseEarlyClicks} from '../lib/hydrated'
 
 // Cold-load scout (2026-10-09, task-5242fdab0458e203): the image and file inputs, the
 // Freeform canvas host and Review changes are only for a document pane, yet sat in every
@@ -45,9 +45,20 @@ function holdClicks() {
   const w = window as {__earlyClicks?: HTMLElement[] | null}
   w.__earlyClicks ??= []
   const live = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-  void Promise.race([loadDocEditors().then(live), new Promise((r) => setTimeout(r, HOLD_MS))]).then(releaseEarlyClicks)
+  const until = Promise.race([loadDocEditors().then(live), new Promise((r) => setTimeout(r, HOLD_MS))])
+  // The page's own mark (lib/hydrated.ts) may come first: it waits for this too.
+  holdReleaseUntil(until)
+  void until.then(releaseEarlyClicks)
 }
 const HOLD_MS = 3_000
+
+// A page that opens on a document (a /structure path with a doc in it, or Presentation)
+// draws these inputs in its first frame: fetch the chunk as this module loads, alongside
+// the rest of the page's code, not once hydration reaches them (task-63978ba572421248).
+// Other pages keep the desk's idle prefetch. Clicks are held from now: React hydrates the
+// server-drawn inputs after the page marks itself interactive, so holding only once they
+// render let a held click go to the inert server button (see holdClicks).
+if (!import.meta.env.SSR && /^(?:\/w\/[^/]+\/p\/[^/]+(?:\/d\/[^/]+)?)?\/(?:structure\/[^?#]*;|presentation)/.test(location.pathname)) holdClicks()
 
 /** Fetch the chunk when the browser is idle (the desk calls this once it has rendered). */
 export function usePrefetchDocEditors() {
