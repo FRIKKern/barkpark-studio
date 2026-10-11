@@ -369,6 +369,8 @@ textarea.input { resize: vertical; }
 .publish { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
 .publish:disabled { background: var(--publish-disabled-bg); color: var(--publish-disabled-fg); cursor: default; }
 .publish.danger { background: var(--danger-btn-bg); color: var(--danger-btn-fg); }
+/* J04: a disabled Unpublish greys out like Publish (the danger colours came after :disabled and won). */
+.publish.danger:disabled { background: var(--danger-btn-disabled-bg); color: var(--danger-btn-disabled-fg); cursor: default; }
 .switch { display: inline-block; position: relative; width: 33px; height: 19px; }
 .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--line-strong); pointer-events: none; }
