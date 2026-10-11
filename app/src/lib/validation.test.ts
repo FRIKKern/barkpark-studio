@@ -35,3 +35,25 @@ test('unique: an arrayOf with the same reference or value twice', () => {
   assert.deepEqual(messages({slug: 'a', tags: [{_key: 'a', _ref: 't1'}, {_key: 'b', _ref: 't2'}]}), [])
 })
 
+
+// Sanity's types validate their own shape (url, email, integer, date), as errors.
+test('type rules: a url, an email, a whole number, a date of the wrong shape', () => {
+  const typed: Schema = {
+    name: 'contact',
+    title: 'Contact',
+    fields: [
+      {name: 'site', type: 'url'},
+      {name: 'mail', type: 'email'},
+      {name: 'count', type: 'integer'},
+      {name: 'day', type: 'date'},
+    ],
+  }
+  const of = (fields: Record<string, unknown>) => validate(doc(fields), typed).map((p) => `${p.path} ${p.level}: ${p.message}`)
+  assert.deepEqual(of({site: 'not a url', mail: 'nobody', count: 2.5, day: 'soon'}), [
+    'site error: Not a valid URL',
+    'mail error: Must be a valid email address',
+    'count error: Must be an integer',
+    'day error: Must be a valid ISO-8601 formatted date string',
+  ])
+  assert.deepEqual(of({site: 'https://example.com/a', mail: 'a@b.no', count: 3, day: '2026-10-11'}), [])
+})
