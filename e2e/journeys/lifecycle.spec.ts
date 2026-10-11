@@ -74,6 +74,12 @@ test('@local J13 J04: validation as you type blocks publish (errors only); disca
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.press('Backspace')
   await expect(publish).toBeDisabled()
+  // Blocked by errors, the disabled Publish says why in the studio's tooltip (Sanity's words).
+  if (t.name === 'studio') {
+    await publish.hover({force: true})
+    await expect(page.getByRole('tooltip')).toHaveText('There are validation errors that need to be fixed before this document can be published')
+    await page.mouse.move(0, 0)
+  }
   await page.getByRole('tab', {name: 'Meta'}).click()
   await t.field(page, 'rating').click()
   await page.keyboard.press('ControlOrMeta+a')
