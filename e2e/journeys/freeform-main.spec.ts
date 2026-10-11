@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // D01 (Freeform side track, ours only): note is Freeform-main (lib/editor-mode.ts), so
 // note-01 opens in the canvas. Its bound fields (title, label) sit in place as field
@@ -24,7 +24,8 @@ const read = async () => {
 
 // The block list as the test found it: after a canvas save the doc stores its blocks.
 let before: Block[] | undefined
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio' && before) await target(info).restore(ID, {title: SEED.title, label: SEED.label, body: SEED.body, blocks: before}, 'note')
 })
 

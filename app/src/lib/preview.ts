@@ -5,6 +5,9 @@
 // Barkpark will format previews itself (task-f3203617ae4cf03e); until then the
 // Studio reads the same declaration.
 
+import {unsupportedAsset} from './broken.ts'
+import {imageRef} from './image.ts'
+
 export type PreviewText = string | {parts: string[]; join?: string; empty?: string}
 
 const pathOf = (part: string) => part.split('|')[0]!.trim()
@@ -36,4 +39,17 @@ export function formatPreview(spec: PreviewText | undefined, read: (path: string
   if (typeof spec === 'string') return one(spec)
   const shown = spec.parts.map(one).filter(Boolean)
   return shown.length ? shown.join(spec.join ?? ' · ') : spec.empty
+}
+
+/**
+ * A row's media (list_preview.media): an image to show, an asset value the studio can't
+ * show (a Sanity export's `_sanityAsset`, a Sanity asset id; task-ec9b4c0c78185fa4), or
+ * none. The unsupported one draws a broken-image icon, not an empty box.
+ */
+export type PreviewMedia = {kind: 'image'; ref: string} | {kind: 'unsupported'; source: string} | {kind: 'none'}
+export function previewMedia(value: unknown): PreviewMedia {
+  const foreign = unsupportedAsset({name: 'media', type: 'image'}, value)
+  if (foreign) return {kind: 'unsupported', source: foreign.source}
+  const ref = imageRef(value)
+  return ref ? {kind: 'image', ref} : {kind: 'none'}
 }

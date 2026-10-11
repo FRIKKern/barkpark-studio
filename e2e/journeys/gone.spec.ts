@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {sanityMutate, signInIfAsked, target, type Target} from '../rig/targets'
+import {sanityMutate, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J32 evidence, both studios: someone else (an API write, as another editor would)
 // (1) deletes the doc you have open → "This document has been deleted." + Restore
@@ -23,7 +23,8 @@ const createAuthor = (t: Target) =>
 const deleteAuthor = (t: Target) => (t.name === 'sanity' ? sanity([{delete: {id: `drafts.${AUTHOR}`}}, {delete: {id: AUTHOR}}]) : bp([{delete: {id: AUTHOR, type: 'author'}}]))
 const banner = (page: Page, text: RegExp) => page.getByText(text).first()
 
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   await t.restore(POST, {author: t.ref('author-alan')})
   await deleteAuthor(t)

@@ -6,7 +6,11 @@ import type {Field} from './data'
 // validation never disagree. `readOnly` is `true` or the same condition shape:
 // Barkpark stores it but has no editor rule for it yet (task-00eac0b023b11517).
 // Like Sanity's hidden/readOnly, both are editor behaviour, not access control.
-export type Condition = {field: string; operator: string; value?: unknown}
+/**
+ * `scope` (barkpark#22554, Sanity's `({parent}) => …`): "document" (the default) reads
+ * `field` from the document root; "parent" from the object or array item the field sits in.
+ */
+export type Condition = {field: string; operator: string; value?: unknown; scope?: 'document' | 'parent'}
 
 // Dotted path from the document root; a list on the way fans out over its rows.
 function lookup(doc: unknown, path: string[]): unknown {
@@ -47,6 +51,8 @@ export function matches(c: Condition, doc: Record<string, unknown>): boolean {
   }
 }
 
-export const isHidden = (f: Field, doc: Record<string, unknown>) => !!f.visibleWhen && !matches(f.visibleWhen, doc)
-export const isReadOnly = (f: Field, doc: Record<string, unknown>) =>
-  f.readOnly === true || (typeof f.readOnly === 'object' && f.readOnly !== null && matches(f.readOnly, doc))
+/** What a condition reads from: the enclosing object for scope "parent" (the document when there is none). */
+const base = (c: Condition, doc: Record<string, unknown>, parent?: Record<string, unknown>) => (c.scope === 'parent' && parent ? parent : doc)
+export const isHidden = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => !!f.visibleWhen && !matches(f.visibleWhen, base(f.visibleWhen, doc, parent))
+export const isReadOnly = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) =>
+  f.readOnly === true || (typeof f.readOnly === 'object' && f.readOnly !== null && matches(f.readOnly, base(f.readOnly, doc, parent)))

@@ -1,5 +1,6 @@
 import {readFileSync} from 'node:fs'
 import type {BrowserContext, Locator, Page, TestInfo} from '@playwright/test'
+import {sendBatches} from '../../scripts/lib/batches.mjs'
 import {sanityAsset, seedAssets} from '../../scripts/lib/seed-assets.mjs'
 import {toBarkpark} from '../../scripts/lib/seed-map.mjs'
 
@@ -57,12 +58,41 @@ export type Target = {
 }
 
 /**
- * Before an afterEach puts fixture docs back: close the page and give a save it already
- * sent time to land, or that save lands after the reset and leaves a draft behind.
+ * Before an afterEach puts fixture docs back: let the page's saves land, then close it,
+ * or a save (or a write the reset itself sets off) lands after the reset and leaves a
+ * draft behind. Ours says when no save is on its way (lib/edits.ts); Sanity, which
+ * batches its saves, gets 3 s.
  */
 export async function closeAndSettle(page: Page) {
+  if (page.isClosed()) return
+  if (page.url() === 'about:blank') return void (await page.close())
+  const ours = await page.evaluate(() => typeof (window as {__savesPending?: unknown}).__savesPending === 'function').catch(() => false)
+  if (ours) await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending(), null, {timeout: 5_000}).catch(() => {})
   await page.close()
-  await new Promise((r) => setTimeout(r, 1500))
+  if (!ours) await new Promise((r) => setTimeout(r, 3000))
+}
+
+/**
+ * A list row, rendered. Sanity's list is virtual (about 25 rows drawn) and sorted by
+ * last edit, so after a few runs a fixture post can sit below the drawn rows: scroll
+ * the list until the row exists. Ours renders every row, so this returns at once.
+ */
+export async function reveal(item: Locator) {
+  const page = item.page()
+  // Step its virtual list's scroller down (what a wheel does) until the row is drawn.
+  for (let i = 0; i < 30 && !(await item.count()); i++) {
+    // From the top first (an earlier reveal may have left it scrolled past the row).
+    await page.evaluate((step) => {
+      // The last list row on the page: a link one pane deep (`/structure/post;post-02`),
+      // not a document pane's own links further down the chain.
+      let box = [...document.querySelectorAll<HTMLElement>('a[href^="/structure/"]')].filter((a) => a.getAttribute('href')!.split(';').length === 2).at(-1)?.parentElement ?? null
+      while (box && !(box.scrollHeight > box.clientHeight + 5 && getComputedStyle(box).overflowY !== 'visible')) box = box.parentElement
+      if (box) box.scrollTop = step ? box.scrollTop + box.clientHeight * 0.8 : 0
+    }, i)
+    await page.waitForTimeout(250)
+  }
+  await item.scrollIntoViewIfNeeded()
+  return item
 }
 
 /** One document of fixtures/seed.ndjson, as Sanity holds it. */
@@ -218,11 +248,13 @@ const sanity: Target = {
   },
 }
 
-const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
-const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
+export const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
+export const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
 // A 429 waits out Retry-After, as the studio's own server does: here one token is
 // shared by both browsers, the rig and presence (task-2c31de0cf6597d32).
-export const bpMutate = async (mutations: unknown[], waits = 3): Promise<Response> => {
+// Deletes go in batches under Barkpark's cap (scripts/lib/batches.mjs).
+export const bpMutate = async (mutations: unknown[]): Promise<Response> => ok((await sendBatches(mutations, (part) => bpSend(part)))!)
+const bpSend = async (mutations: unknown[], waits = 3): Promise<Response> => {
   const res = await fetch(`${bpBase()}/v1/data/mutate/${bpDataset()}`, {
     method: 'POST',
     headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`, 'content-type': 'application/json'},
@@ -230,9 +262,9 @@ export const bpMutate = async (mutations: unknown[], waits = 3): Promise<Respons
   })
   if (res.status === 429 && waits > 0) {
     const s = Math.min(Number(res.headers.get('retry-after')) || 1, 5)
-    return new Promise((r) => setTimeout(() => r(bpMutate(mutations, waits - 1)), s * 1000 + 100))
+    return new Promise((r) => setTimeout(() => r(bpSend(mutations, waits - 1)), s * 1000 + 100))
   }
-  return ok(res)
+  return res
 }
 
 const studio: Target = {
@@ -290,7 +322,8 @@ const studio: Target = {
     }).then(ok)
     return ((await r.json()) as {result?: {title?: string}}).result?.title
   },
-  deleteDoc: (id, type) => bpMutate([{delete: {id, type}}]).then(() => {}, () => {}), // gone already is fine
+  // force: a never-published draft goes too (a plain delete leaves it). Gone already is fine.
+  deleteDoc: (id, type) => bpMutate([{delete: {id, type, force: true}}]).then(() => {}, () => {}),
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
   patch: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),
   restore: (id, set, type = 'post', unset = []) => bpMutate([{patch: {id, type, set, unset}}, {publish: {id, type}}]).then(() => {}),

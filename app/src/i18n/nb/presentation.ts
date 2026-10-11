@@ -34,4 +34,5 @@ export default {
   'Edit': 'Rediger',
   'Enable edit overlay': 'Aktiver redigeringsoverlay',
   'Disable edit overlay': 'Deaktiver redigeringsoverlay',
+  'Only an admin can stop a shared link. It stops working by itself {when}.': 'Bare en administrator kan stoppe en delt lenke. Den slutter å virke av seg selv {when}.',
 }

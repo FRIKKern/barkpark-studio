@@ -3,16 +3,17 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
 import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type OpsResult, type Rev} from '../lib/blocks'
 import {toast} from './Toasts'
-import {unsavedElsewhere} from '../lib/edits'
+import {setCanvasProblem, unsavedElsewhere} from '../lib/edits'
+import {existingAsset} from '../lib/upload'
 import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
+import {reportSelection, usePresences, type CaretSelection} from '../lib/presence'
 import {detachMaster, insertMaster, mastersQuery, pinMaster, saveMaster, type Master, type MasterResult} from '../lib/paper-masters'
-import {t as translate, useT, useLocale} from '../lib/i18n'
+import {t as translate, useCanvasStrings, useT, useLocale} from '../lib/i18n'
 import {forget, keep, keptKey, putBackOps, readKept, restoreOps, type Kept} from '../lib/kept-words'
 import {editedBy} from '../lib/history'
 import {useRouter} from '@tanstack/react-router'
 import {FindBar, findKey, type FindCanvas} from './FindBar'
-import canvasNb from '../i18n/canvas-nb.json'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
 // EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
@@ -26,7 +27,8 @@ type Canvas = HTMLElement & {
   acknowledgedSaves: boolean
   acknowledgeOps(seq: number, saved: boolean): boolean
   identifyOpsRequest(seq: number, requestId: string, previousRequestId?: string | null): boolean
-  discardInflightOps(seq: number): boolean
+  /** `refusal.reason`: the server's "path: why"; a refused inline-object save reopens its dialog on that field. */
+  discardInflightOps(seq: number, refusal?: {reason: string}): boolean
   resendPendingOps(): boolean
   applyServerBlocks(blocks: Block[], echo?: {mode?: 'own' | 'own-stale'; requestId?: string}): void
   applyServerBlocksIfIdle(blocks: Block[]): boolean
@@ -36,22 +38,24 @@ type Canvas = HTMLElement & {
   mediaUploader: ((file: File) => Promise<{src?: string; url?: string; alt?: string}>) | null
   hasPendingChanges(): boolean
   focusBlock(id: string): boolean
+  /** D11: the other editors' carets (decorations only). */
+  setRemoteSelections(list: ({id: string; name: string; color: string} & CaretSelection)[]): void
   /** What the author has now, saved or not (D21). */
   recoverySnapshot?(): {blocks?: Block[]} | null
 }
 
 type LinkTarget = {kind: 'link' | 'wikilink'; href: string | null; target: string | null; docId: string | null; alias: string | null}
 
-const CANVAS_NB = JSON.stringify(canvasNb)
-
 let bundle: Promise<void> | null = null
-/** Load the canvas once per page: script + both stylesheets, from the connected Barkpark. */
+/** Load the canvas once per page: script + its stylesheets, from the connected Barkpark. */
 function loadCanvas(): Promise<void> {
   bundle ??= (async () => {
     const origin = await canvasOrigin()
     // Its own CSS inject is origin-relative (wrong origin here): link them ourselves.
     ;(window as {BP_PAPER_EDITOR_NO_INJECT?: boolean}).BP_PAPER_EDITOR_NO_INJECT = true
-    for (const css of ['bp-paper-editor.css', 'bp-paper-editor-shell.css']) {
+    // bp-paper-surface.css (Barkpark #22541): the paper surface's own rules, the task and
+    // fleet blocks among them (D14).
+    for (const css of ['bp-paper-editor.css', 'bp-paper-editor-shell.css', 'bp-paper-surface.css']) {
       const link = document.createElement('link')
       link.rel = 'stylesheet'
       link.href = `${origin}/assets/${css}`
@@ -117,9 +121,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   const t = useT()
   const locale = useLocale()
   // The canvas's own words (its chrome: block handle, slash menu, bubble), in the editor's
-  // language: Barkpark's map, read from the nearest data-strings when it mounts
-  // (scripts/canvas-strings.mjs copies it out of Barkpark).
-  const canvasStrings = locale === 'nb-NO' ? CANVAS_NB : undefined
+  // language: Barkpark's map (lib/i18n), read from the nearest data-strings when it mounts.
+  const canvasStrings = useCanvasStrings()
   // D14: a paper's task blocks show Barkpark's live previews (lib/fleet.ts).
   const fleetOn = type === 'paper' && !field
   const {data: fleet} = useQuery({...fleetQuery(id), enabled: fleetOn})
@@ -154,6 +157,16 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   openDocRef.current = openDoc
   const vocabularyKey = vocabulary ? JSON.stringify(vocabulary) : ''
   const canvas = useRef<Canvas | null>(null)
+  // D11, shared carets: everyone else's caret in this document, in their presence color.
+  // A caret in another canvas of the same document names blocks this one hasn't, and
+  // the canvas drops it.
+  const remote = usePresences()
+    .filter((p) => p.documentId === id && p.selection)
+    .map((p) => ({id: p.sessionId, name: p.name, color: p.color, ...p.selection!}))
+  const remoteRef = useRef(remote)
+  remoteRef.current = remote
+  const remoteKey = JSON.stringify(remote)
+  useEffect(() => canvas.current?.setRemoteSelections(remoteRef.current), [remoteKey])
   const loop = useRef<{rev: Rev; saving: number; requests: number; merge?: boolean}>({rev: '', saving: 0, requests: 0})
   const [save, setSave] = useState<Save>({state: 'idle'})
   const [problem, setProblem] = useState<Problem | null>(null)
@@ -165,6 +178,11 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // B11: closing the tab asks first while this canvas holds a batch not yet saved or refused.
   const refused = useRef(false)
   refused.current = !!problem
+  // The document's footer says it too (lib/edits.ts setCanvasProblem).
+  useEffect(() => {
+    setCanvasProblem(id, field ?? '', problem ? problem.message : null)
+    return () => setCanvasProblem(id, field ?? '', null)
+  }, [id, field, problem?.message])
   useEffect(() => {
     const check = () => refused.current || !!canvas.current?.hasPendingChanges()
     unsavedElsewhere.add(check)
@@ -188,6 +206,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
 
   useEffect(() => {
     let gone = false
+    let caret: CaretSelection | null = null
     const l = loop.current
     const read = () => readBase().then((r) => (track(r.blocks), {...r, blocks: decorate.current(r.blocks)}))
     // Barkpark's EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7):
@@ -203,6 +222,23 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       setSave({state: 'saving'})
       try {
         let r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+        // Collaboration hour: the other writer changed a block this batch rewrites (both typed
+        // in one paragraph). Resending on their rev would silently put ours over theirs, so ask
+        // instead (D20), with both versions kept. Separate blocks still resend (D05).
+        if (!r.ok && r.status === 412 && base.current) {
+          const was = new Map(base.current.blocks.map((b) => [b.id, JSON.stringify(b)]))
+          const touched = new Set(ops.flatMap((o) => [o.id, (o.block as Block | undefined)?.id].filter((x): x is string => typeof x === 'string')))
+          const server = await readBase().catch(() => null)
+          if (gone) return
+          if (server && server.blocks.some((b) => touched.has(b.id) && was.has(b.id) && was.get(b.id) !== JSON.stringify(b))) {
+            el.discardInflightOps(seq)
+            setSave({state: 'error', message: t('Someone else changed the same block')})
+            refused.current = true // now, not at the next render: a read on its way checks it
+
+            setProblem({message: t('Someone else changed the same block'), kept: keepNow(), conflict: {mine: l.rev, theirs: server.rev, blocks: decorate.current(server.blocks)}})
+            return
+          }
+        }
         for (let tries = 0; !r.ok && r.status === 412 && r.actual !== undefined && r.actual !== null && tries < 3; tries++) {
           l.rev = r.actual
           r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
@@ -216,6 +252,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           el.discardInflightOps(seq)
           setSave({state: 'error', message: r.message})
           if (!server) throw new Error(t('Conflict, and the server copy could not be fetched'))
+          refused.current = true
+
           setProblem({message: r.message, kept: keepNow(), conflict: {mine, theirs: server.rev, blocks: server.blocks}})
           return
         }
@@ -240,8 +278,11 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         if (gone) return
         // Refused: the edit stays on screen and goes out with the next batch, and the
         // words are kept on this computer now, so closing the tab loses nothing (D21).
-        el.discardInflightOps(seq)
+        // Barkpark's vocabulary refusal reads "not allowed in this field: <path>: <why>".
+        el.discardInflightOps(seq, {reason: (e as Error).message.replace(/^not allowed in this field: /, '')})
         setSave({state: 'error', message: (e as Error).message})
+        refused.current = true
+
         setProblem({message: (e as Error).message, kept: keepNow()})
       } finally {
         l.saving--
@@ -292,6 +333,12 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         el.blocks = first.blocks
         el.setAttribute('editable', String(editable))
         if (vocabulary) el.setAttribute('data-vocabulary', JSON.stringify(vocabulary))
+        el.setRemoteSelections(remoteRef.current)
+        // D11: our caret goes out with our presence focus (lib/presence.ts).
+        el.addEventListener('bp-canvas-selection', (e) => {
+          caret = (e as CustomEvent<CaretSelection | null>).detail
+          reportSelection(id, caret)
+        })
         el.addEventListener('bp-canvas-ops', (e) => {
           const {ops, seq} = (e as CustomEvent<{ops: BlockOp[]; seq: number}>).detail
           void applyOps(ops, seq)
@@ -356,11 +403,13 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           const doc = await qc.fetchQuery(anyDocQuery(docId))
           if (!doc) return {title: t('Document not found'), excerpt: docId}
           const schema = schemaOf(qc.getQueryData<Schema[]>(['schemas']) ?? [], doc._type)
-          return {title: previewTitle(doc, schema), excerpt: doc.preview?.description ?? schema?.title}
+          return {title: previewTitle(doc, schema, t), excerpt: doc.preview?.description ?? schema?.title}
         }
         // D07: a dropped or pasted picture uploads to Barkpark's media; the block stores the
         // file's Barkpark path. The canvas shows "uploading" and any failure on the block.
         el.mediaUploader = async (file) => {
+          const known = await existingAsset(file)
+          if (known?.url) return {src: known.url}
           const body = new FormData()
           body.append('file', file)
           const res = await fetch('/api/media/upload', {method: 'POST', body})
@@ -372,12 +421,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // The `[[` menu: documents of any type.
         el.wikilinkSource = async (query) => {
           const schemas = qc.getQueryData<Schema[]>(['schemas']) ?? []
-          return (await searchAllDocs(query)).map((d) => ({title: previewTitle(d, schemaOf(schemas, d._type)), id: d._publishedId, type: d._type}))
+          return (await searchAllDocs(query)).map((d) => ({title: previewTitle(d, schemaOf(schemas, d._type), t), id: d._publishedId, type: d._type}))
         }
-        // A fresh canvas starts with a node selection on its first block. When that is a
-        // bound field and a click into text doesn't reach the editor's state, the next
-        // keystroke replaces the field (canvas bug task-f24549dea0618da2). Until it is
-        // fixed there, park the caret in the last text block instead, without keeping focus.
         // The canvas's ProseMirror area carries no name of its own (axe aria-input-field-name).
         el.addEventListener(
           'bp-ready',
@@ -385,19 +430,6 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
             const pm = el.querySelector('.ProseMirror')
             if (labelledBy) pm?.setAttribute('aria-labelledby', labelledBy)
             else pm?.setAttribute('aria-label', label ?? t('Document body'))
-          },
-          {once: true},
-        )
-        el.addEventListener(
-          'bp-ready',
-          () => {
-            const text = [...first.blocks].reverse().find((b) => b.type === 'paragraph' || b.type === 'heading')
-            if (!text || !first.blocks[0]?.type.startsWith('field-')) return
-            const had = document.activeElement
-            if (!el.focusBlock(text.id) || document.activeElement === had) return
-            // Focus elsewhere (another field, a sidebar) gets it back; nothing focused stays so.
-            if (had instanceof HTMLElement && had !== document.body) had.focus({preventScroll: true})
-            else (document.activeElement as HTMLElement | null)?.blur()
           },
           {once: true},
         )
@@ -416,6 +448,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     })()
     return () => {
       gone = true
+      if (caret) reportSelection(id, null)
       canvas.current?.remove()
       canvas.current = null
     }
@@ -499,12 +532,15 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   useEffect(() => {
     const l = loop.current
     const el = canvas.current
-    if (!el || !seenRev || seenRev === l.rev || l.saving || el.hasPendingChanges()) return
+    // A refused batch leaves the author's words on screen with nothing pending in the
+    // canvas (discardInflightOps): taking the server's blocks now would type over them, and
+    // the D16 check would then call it Saved. They wait for Retry or the conflict card.
+    if (!el || !seenRev || seenRev === l.rev || l.saving || refused.current || el.hasPendingChanges()) return
     let gone = false
     const before = base.current
-    void readBase().then((fresh) => {
+    void readBlocks(type, id, field).then((fresh) => {
       track(fresh.blocks)
-      if (gone || fresh.rev === l.rev || l.saving) return
+      if (gone || fresh.rev === l.rev || l.saving || refused.current) return
       // D22: from the blocks this canvas held, so Undo can put them back.
       if (before?.rev === l.rev) {
         setOtherEdit({before: before.blocks, afterRev: fresh.rev, who: null})
@@ -512,8 +548,15 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       } else setOtherEdit(null)
       // Idle: taken now. Focused (the author is in a field block, say): the canvas defers
       // it until they leave (EMBED-CONTRACT applyServerBlocks) instead of dropping it (D05).
-      if (!el.applyServerBlocksIfIdle(decorate.current(fresh.blocks))) el.applyServerBlocks(decorate.current(fresh.blocks))
-      l.rev = fresh.rev
+      if (el.applyServerBlocksIfIdle(decorate.current(fresh.blocks))) {
+        base.current = fresh
+        l.rev = fresh.rev
+      } else {
+        // Deferred (the author is in a block): the canvas still holds the old blocks, so the
+        // base and rev stay theirs: a batch made meanwhile 412s and is checked for a clash in
+        // the same block (applyOps) instead of silently landing over the other writer's words.
+        el.applyServerBlocks(decorate.current(fresh.blocks))
+      }
     })
     return () => {
       gone = true

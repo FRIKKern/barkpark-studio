@@ -1,0 +1,26 @@
+name: unit
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  # Typecheck and the unit tests (app/src/lib/*.test.ts): a required check on main.
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.0 }
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - run: pnpm --dir app install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm --dir app exec tsc --noEmit
+      - name: Unit tests
+        run: pnpm --dir app test

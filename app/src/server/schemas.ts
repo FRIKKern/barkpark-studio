@@ -6,9 +6,20 @@ import {readdir, readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
 import {bpFetch, dataset, serviceToken} from './barkpark'
 
-type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown}
+export type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown}
+
+/**
+ * The studio's own record types (lib/tasks.ts, lib/comments.ts): declared in each
+ * dataset so Barkpark knows them, never content. Kept out of the desk, lists, new
+ * documents and search, as Sanity keeps its own task and comment types.
+ */
+export const STUDIO_TYPES = ['studioTask', 'studioComment']
 
 export async function readSchemas(): Promise<RawSchema[]> {
+  return (await readAllSchemas()).filter((s) => !STUDIO_TYPES.includes(s.name))
+}
+
+async function readAllSchemas(): Promise<RawSchema[]> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') {
     const dir = resolve(process.cwd(), '../fixtures/barkpark-schema')
     const files = (await readdir(dir)).filter((f) => f.endsWith('.json'))
@@ -39,4 +50,17 @@ export async function readDesk(): Promise<unknown | null> {
   // Barkpark keeps a doc's title in a row column while its resolver reads content.title,
   // so the tree answers "Structure" (task-b40b41f8d21992ae); the declared title wins here.
   return typeof title === 'string' && title.trim() ? {...tree, title: title.trim()} : tree
+}
+
+/**
+ * The content model as one short string (each type's name and Barkpark's schemaHash):
+ * when it differs from what a tab loaded, a schema was changed under it (lib/version.ts).
+ */
+export async function schemaFingerprint(): Promise<string> {
+  if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return 'fixtures'
+  const schemas = (await readSchemas()) as (RawSchema & {schemaHash?: string})[]
+  return schemas
+    .map((s) => `${s.name}:${s.schemaHash ?? JSON.stringify(s.fields).length}`)
+    .sort()
+    .join(',')
 }

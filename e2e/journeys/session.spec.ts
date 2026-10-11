@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {signInIfAsked, target} from '../rig/targets'
+import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // task-ccd1876176b0fc08 / J48 evidence, ours with dev sign-in (STUDIO_DEV_LOGIN=1 +
 // BARKPARK_ADMIN_TOKEN, dev server): (1) the session is lost mid-edit (cookie gone,
@@ -17,7 +17,7 @@ const shot = (step: string) => `evidence/J48-studio-${step}.png`
 test.use({video: 'on'})
 test.setTimeout(120_000)
 
-test.afterEach(async ({}, info) => target(info).restore(ID, {excerpt: EXCERPT}))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {excerpt: EXCERPT})))
 
 const base = () => `${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}/v1/data`
 const lastAuthor = async () => {

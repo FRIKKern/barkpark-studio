@@ -4,19 +4,19 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
 import {usePresences, type Presence} from '../lib/presence'
+import {USER_HUES, userHue} from '../lib/user-colors'
 import {Users} from './icons'
 import {useT} from '../lib/i18n'
 
 // J07: other editors, where Sanity shows them — on the field they are in, on the
 // list row and pane of the doc they have open, and in the navbar's "who's online".
 
-const initials = (name: string) =>
-  name
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join('')
+// First and last word, as Sanity's avatars: "studio-editor-a" and "studio-editor-b" read
+// SA and SB, not SE twice (collaboration hour).
+const initials = (name: string) => {
+  const words = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean)
+  return [words[0], words.length > 1 ? words.at(-1) : undefined].filter((w): w is string => !!w).map((w) => w[0]!.toUpperCase()).join('')
+}
 
 export function Avatar({p}: {p: Presence}) {
   return (
@@ -36,6 +36,16 @@ export function AvatarStack({people, max = 3}: {people: Presence[]; max?: number
       {people.length > max && <span className="p-avatar more">+{people.length - max}</span>}
     </span>
   )
+}
+
+/**
+ * Who acted last on a doc, beside the footer's "Last published" / "Edited" as Sanity's:
+ * their avatar, name on hover. In their presence colour while they are online, else
+ * their author colour (the one their changes are tinted with).
+ */
+export function ActorAvatar({actor}: {actor: string}) {
+  const online = usePresences().find((p) => p.name === actor.split('@')[0])
+  return <Avatar p={{sessionId: actor, name: actor, color: online?.color ?? USER_HUES[userHue(actor)][500], documentId: null, field: null}} />
 }
 
 /** Everyone with this doc open. */
@@ -187,7 +197,7 @@ function OnlineRow({p, onDone}: {p: Presence; onDone: () => void}) {
     >
       <Avatar p={p} />
       <span className="who-name">{p.name}</span>
-      <span className="who-doc">{p.documentId ? (doc ? previewTitle(doc, schemaOf(schemas, doc._type)) : '…') : t('Not in a document')}</span>
+      <span className="who-doc">{p.documentId ? (doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : '…') : t('Not in a document')}</span>
     </button>
   )
 }

@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type Page} from '@playwright/test'
 import {installProbes, stats, typeAndMeasure} from '../rig/feel'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // D10 (Freeform side track, ours only). (1) In note-01's canvas: æøå typed straight,
 // Norwegian dead keys (´ then e → é, ¨ then o → ö) and an IME composition (Japanese),
@@ -24,7 +24,8 @@ const mutate = (mutations: unknown[]) =>
   })
 
 let before: Block[] | undefined
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name !== 'studio') return
   if (before) await target(info).restore(ID, {title: SEED.title, label: SEED.label, body: SEED.body, blocks: before}, 'note')
   await mutate([{delete: {id: BIG, type: 'note', force: true}}]).catch(() => {})

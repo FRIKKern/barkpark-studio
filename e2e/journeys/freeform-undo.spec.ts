@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // D08 (Freeform side track, ours only): in note-01's canvas, type, paste, then undo
 // twice and redo once (Cmd/Ctrl+Z, Shift+Z). Each step is saved: the server holds the
@@ -10,7 +10,8 @@ const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjso
 const P = 'A note opens in the canvas; its title and label are field blocks.'
 type Block = {id: string; content?: {value?: string}[]}
 let before: Block[] | undefined
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio' && before) await target(info).restore(ID, {title: SEED.title, label: SEED.label, body: SEED.body, blocks: before}, 'note')
 })
 

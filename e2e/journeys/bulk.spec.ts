@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // B03 (Barkpark-native, ours only), after LiveView's bulk bar: tick note rows (keyboard:
 // Tab + Space), Publish selected → each doc on its own, one summary ("Published 2 of 3"
@@ -12,7 +12,8 @@ const versions = async (t: ReturnType<typeof target>, id: string) => {
   const [d, p] = await Promise.all([get('drafts'), get('published')])
   return `${d?.result?._draft ? 'draft' : 'no draft'}, ${p?.result ? 'published' : 'not published'}`
 }
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   if (t.name === 'studio') for (const id of IDS) await t.restore(id, {label: SEED_LABEL[id]}, 'note')
 })
@@ -41,6 +42,9 @@ test('@local B03: tick rows, publish and unpublish them in one go', async ({page
   await expect(bar).toBeHidden()
   for (const id of IDS) expect(await versions(t, id), id).toBe('no draft, published')
 
+  // A bulk action ends selecting; the list menu starts it again.
+  await page.getByRole('button', {name: 'List options'}).first().click()
+  await page.getByRole('menuitemradio', {name: 'Select documents'}).click()
   await box('02').check()
   await box('03').check()
   await bar.getByRole('button', {name: 'Unpublish selected'}).click()

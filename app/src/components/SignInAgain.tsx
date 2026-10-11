@@ -1,6 +1,6 @@
 import {useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
-import {devSignIn} from '../lib/session'
+import {SignInForm} from './SignInForm'
 import {resumeSaving} from '../lib/edits'
 import {DialogBox, PaneOverlay} from './FocusScopes'
 import {useT} from '../lib/i18n'
@@ -11,27 +11,9 @@ export function SignInAgain() {
   const t = useT()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [email, setEmail] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
   // Where the editor was typing when the session went: signed in again, they go back
   // there (the Sign in that opened the dialog leaves with the banner).
   const [editing] = useState(() => (typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)))
-  const submit = async () => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      await devSignIn({data: {email}})
-      await qc.invalidateQueries({queryKey: ['me']})
-      resumeSaving(qc)
-      setOpen(false)
-      requestAnimationFrame(() => editing?.isConnected && editing !== document.body && editing.focus({preventScroll: true}))
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
   return (
     <>
       <button type="button" className="btn" onClick={() => setOpen(true)}>
@@ -41,27 +23,34 @@ export function SignInAgain() {
         <PaneOverlay>
           <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}>
             <DialogBox className="dialog" aria-modal="true" aria-labelledby="sign-in-again-title" onClose={() => setOpen(false)}>
-              <form
+              <SignInForm
+                idPrefix="sign-in-again"
                 className="dialog-body sign-in-again"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void submit()
+                autoFocus
+                heading={
+                  <>
+                    <h2 id="sign-in-again-title">{t("You've been logged out")}</h2>
+                    <p>{t('Sign in again to save your edits. They are kept in this page until you do.')}</p>
+                  </>
+                }
+                onSignedIn={async () => {
+                  await qc.invalidateQueries({queryKey: ['me']})
+                  resumeSaving(qc)
+                  setOpen(false)
+                  requestAnimationFrame(() => editing?.isConnected && editing !== document.body && editing.focus({preventScroll: true}))
                 }}
               >
-                <h2 id="sign-in-again-title">{t("You've been logged out")}</h2>
-                <p>{t('Sign in again to save your edits. They are kept in this page until you do.')}</p>
-                <label htmlFor="sign-in-again-email">{t('Your email')}</label>
-                <input id="sign-in-again-email" className="input" type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
-                {error && <p className="field-error" role="alert">{t(error)}</p>}
-                <div className="dialog-actions">
-                  <button type="button" className="btn" onClick={() => setOpen(false)}>
-                    {t('Cancel')}
-                  </button>
-                  <button className="publish" disabled={busy}>
-                    {busy ? t('Signing in…') : t('Sign in')}
-                  </button>
-                </div>
-              </form>
+                {(busy) => (
+                  <div className="dialog-actions">
+                    <button type="button" className="btn" onClick={() => setOpen(false)}>
+                      {t('Cancel')}
+                    </button>
+                    <button className="publish" disabled={busy}>
+                      {busy ? t('Signing in…') : t('Sign in')}
+                    </button>
+                  </div>
+                )}
+              </SignInForm>
             </DialogBox>
           </div>
         </PaneOverlay>

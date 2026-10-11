@@ -3,10 +3,12 @@ import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {resumeMark} from '../server/listen'
-import {readDesk, readSchemas} from '../server/schemas'
+import {readDesk, readSchemas, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
+import type {T} from './i18n'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
+import {withStudioItems} from './structure-config'
 import type {Sort} from './list-prefs'
 import type {PreviewText} from './preview'
 import {excluded, parseTextQuery, textScore} from './text-search'
@@ -23,7 +25,7 @@ export type Doc = {_id: string; _publishedId: string; _type: string; _draft: boo
   unknown
 >
 /** Barkpark's field rule: Sanity's checks, `level` (default error) and a `message` that replaces the generated one. */
-export type Rule = {required?: boolean; min?: number; max?: number; level?: string; message?: string}
+export type Rule = {required?: boolean; min?: number; max?: number; pattern?: string; unique?: boolean; level?: string; message?: string}
 
 export type Field = {
   name: string
@@ -242,17 +244,19 @@ export async function ensureDocs(client: QueryClient, types: string[], ids: stri
   for (const id of missing) if (client.getQueryData(['doc', id]) === undefined) client.setQueryData(['doc', id], null)
 }
 
-/** A reference field's filter, in Barkpark's query terms: {field: {op: value}}. */
+/** A reference field's filter, in Barkpark's query terms: {field: {op: value}}; op '' is `filter[field]=value` (`_references`). */
 export type RefFilter = Record<string, Record<string, string>>
+const refFilterParams = (filter: RefFilter | undefined) =>
+  Object.entries(filter ?? {})
+    .flatMap(([field, ops]) => Object.entries(ops).map(([op, v]) => `&filter[${encodeURIComponent(field)}]${op ? `[${encodeURIComponent(op)}]` : ''}=${encodeURIComponent(v)}`))
+    .join('')
 
 const fetchSearch = createServerFn({method: 'GET'})
   .validator((d: {type: string; q: string; filter?: RefFilter; order?: string; limit?: number}) => d)
   .handler(async ({data}) => {
     // `contains` is case-insensitive; `title` is the row's preview title for every type.
     // `order` (J38): `_updatedAt:desc` (default) or `_createdAt:desc`.
-    let filter = data.q ? `&filter[title][contains]=${encodeURIComponent(data.q)}` : ''
-    for (const [field, ops] of Object.entries(data.filter ?? {}))
-      for (const [op, v] of Object.entries(ops)) filter += `&filter[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
+    const filter = (data.q ? `&filter[title][contains]=${encodeURIComponent(data.q)}` : '') + refFilterParams(data.filter)
     const r = await bpJson<{result: {documents: Doc[]}}>(
       `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&order=${encodeURIComponent(data.order ?? '_updatedAt:desc')}&limit=${Math.min(data.limit ?? 20, 100)}${filter}`,
     )
@@ -270,21 +274,29 @@ const fetchTextSearch = createServerFn({method: 'GET'})
   .validator((d: {q: string; asked: {type: string; filter: RefFilter}[]; order: string; limit: number}) => d)
   .handler(async ({data}) => {
     const types = data.asked.map((a) => a.type)
-    const found = await bpJson<{documents: Doc[]}>(
-      `/v1/data/search/${dataset()}?perspective=drafts&limit=200&q=${encodeURIComponent(data.q)}&types=${types.map(encodeURIComponent).join(',')}`,
-    )
+    const search = (q: string) => bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&limit=200&q=${encodeURIComponent(q)}&types=${types.map(encodeURIComponent).join(',')}`)
+    const found = await search(data.q)
+    // An id with a dot ("drafts.sq-fox"): Barkpark's search misses some of its docs, so its
+    // words are asked too; textScore then matches the id as Sanity does.
+    if (data.q.includes('.')) {
+      const more = (await search(data.q.replace(/\./g, ' '))).documents.filter((d) => !found.documents.some((f) => f._id === d._id))
+      found.documents.push(...more)
+    }
     const schemas = await readSchemas()
     const q = parseTextQuery(data.q)
+    // Which drafts also have a published version (their published id is searchable too,
+    // a draft-only doc's is not: Sanity's id matching). One query per type with drafts.
+    const draftTypes = [...new Set(found.documents.filter((d) => d._draft).map((d) => d._type))]
+    const marked = new Map((await Promise.all(draftTypes.map((type) => withHasPublished(type, found.documents.filter((d) => d._type === type))))).flat().map((d) => [d._id, d]))
     let hits = found.documents
+      .map((d) => marked.get(d._id) ?? d)
       .map((d): Doc => ({...d, _score: textScore(d, q, schemas.find((s) => s.name === d._type) as Schema | undefined)}))
       .filter((d) => (d._score as number) > 0 && types.includes(d._type))
     const kept = await Promise.all(
       data.asked.map(async ({type, filter}) => {
         const ids = hits.filter((d) => d._type === type).flatMap((d) => [d._id, d._publishedId])
         if (!ids.length || !Object.keys(filter).length) return ids
-        let f = `&filter[_id][in]=${[...new Set(ids)].map(encodeURIComponent).join(',')}`
-        for (const [field, ops] of Object.entries(filter))
-          for (const [op, v] of Object.entries(ops)) f += `&filter[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
+        const f = `&filter[_id][in]=${[...new Set(ids)].map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
         const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${f}`)
         return r.result.documents.flatMap((d) => [d._id, d._publishedId])
       }),
@@ -323,8 +335,7 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
         // The referenced doc must match on the previewed field itself.
         const ids = found.documents.filter((d) => textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId)
         if (!ids.length) continue
-        let fq = `&filter[${encodeURIComponent(field!)}][in]=${ids.map(encodeURIComponent).join(',')}`
-        for (const [k, ops] of Object.entries(filter)) for (const [op, v] of Object.entries(ops)) fq += `&filter[${encodeURIComponent(k)}][${encodeURIComponent(op)}]=${encodeURIComponent(v)}`
+        const fq = `&filter[${encodeURIComponent(field!)}][in]=${ids.map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
         const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${fq}`)
         out.push(...r.result.documents.filter((d) => !excluded(d, q, schema)))
       }
@@ -392,7 +403,7 @@ export const deskQuery = queryOptions({
   staleTime: Infinity,
   queryFn: async (): Promise<DeskNode | null> => {
     const raw = await fetchDesk()
-    return raw ? normalizeDesk(raw) : null
+    return withStudioItems(raw ? normalizeDesk(raw) : null)
   },
 })
 
@@ -436,8 +447,26 @@ export const listSearchQuery = (type: string, q: string) =>
     },
   })
 
+/**
+ * The editor's unsaved values over a doc read from the server (lib/edits.ts sets it). A
+ * read while they wait (a reconnect's re-read, a refetch) put the server's older value
+ * on screen: the caret jumped and the next key saved over the lost text (J60 flake).
+ */
+let withUnsaved = (doc: Doc) => doc
+/** The server's doc as it is, without the unsaved values: what a rebase must compare with. */
+export const readServerDoc = async (type: string | string[], id: string) => (await fetchDoc({data: {type, id}})) as unknown as Doc | null
+export const setUnsavedOverlay = (f: (doc: Doc) => Doc) => void (withUnsaved = f)
+
 export const docQuery = (type: string | string[], id: string) =>
-  queryOptions({queryKey: ['doc', id], staleTime: 30_000, ...paneRetry, queryFn: async () => (await fetchDoc({data: {type, id}})) as unknown as Doc | null})
+  queryOptions({
+    queryKey: ['doc', id],
+    staleTime: 30_000,
+    ...paneRetry,
+    queryFn: async () => {
+      const doc = (await fetchDoc({data: {type, id}})) as unknown as Doc | null
+      return doc && withUnsaved(doc)
+    },
+  })
 
 export const searchQuery = (type: string | string[], q: string, filter?: RefFilter, order?: string, limit?: number) =>
   queryOptions({
@@ -473,7 +502,7 @@ const fetchSearchAll = createServerFn({method: 'GET'})
   .validator((d: {q: string}) => d)
   .handler(async ({data}) => {
     const r = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?q=${encodeURIComponent(data.q)}&limit=10&perspective=drafts`)
-    return r.documents as unknown as Json
+    return r.documents.filter((d) => !STUDIO_TYPES.includes(d._type)) as unknown as Json
   })
 export const searchAllDocs = async (q: string) => (await fetchSearchAll({data: {q}})) as unknown as Doc[]
 
@@ -482,21 +511,27 @@ export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) =>
 export const isSingleton = (schemas: Schema[], type: string) => schemaOf(schemas, type)?.singleton === true
 
 /** The types a reference field (or a reference array's member) may point to. */
-/** A reference value: a bare id, or a keyed array item {_key, _type: 'reference', _ref} (task-fb4c4703cc92b32e). */
-export const refId = (v: unknown): string | undefined => (typeof v === 'string' ? v : typeof (v as {_ref?: unknown})?._ref === 'string' ? (v as {_ref: string})._ref : undefined)
-/** An array item's path: by _key when it has one (Sanity's `categories[_key=="c2"]`), else by index. */
-export const itemPath = (path: string, item: unknown, i: number) => {
-  const key = (item as {_key?: unknown})?._key
-  return typeof key === 'string' ? `${path}[_key=="${key}"]` : `${path}[${i}]`
-}
+export {itemPath, refId} from './refs'
 export const refTypesOf = (field: Field | undefined): string[] => field?.to?.map((t) => t.type) ?? (field?.refType ? [field.refType] : [])
 
-/** Preview title per Sanity's rules: list_preview.title, else title/name. */
-export function previewTitle(doc: Doc | null | undefined, schema?: Schema): string {
-  if (!doc) return 'Untitled'
+/** The types with a reference field (at any depth, in arrays too) that can point at `type`: who can refer to it. */
+export function referringTypes(schemas: Schema[], type: string): string[] {
+  const points = (fields: Field[] | undefined): boolean =>
+    (fields ?? []).some((f) => refTypesOf(f).includes(type) || refTypesOf(f.of).includes(type) || points(f.fields) || points(f.of?.fields))
+  return schemas.filter((s) => points(s.fields)).map((s) => s.name)
+}
+
+/**
+ * Preview title per Sanity's rules: list_preview.title, else title/name. Without one,
+ * the placeholder: 'Untitled', or with `t` in the editor's language (anything shown
+ * or announced passes it; sorting and matching don't).
+ */
+export function previewTitle(doc: Doc | null | undefined, schema?: Schema, t?: T): string {
+  const none = t ? t('Untitled') : 'Untitled'
+  if (!doc) return none
   const key = schema?.listPreview?.title
   const v = (key && doc[key]) ?? doc.title ?? doc.name
-  return typeof v === 'string' && v ? v : 'Untitled'
+  return typeof v === 'string' && v ? v : none
 }
 
 export type {QueryClient}

@@ -1,6 +1,6 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
 import {installProbes, stats} from '../rig/feel'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J10 evidence, both studios, in post-10's body: markdown shortcuts (## heading,
 // - and 1. lists, > quote; ours: a pullquote block), marks by keyboard (Ctrl+B / Ctrl+I), heading 3 and 6 from the
@@ -32,7 +32,8 @@ async function newLine(t: Target, page: Page, body: Locator) {
 
 // The body as it was, put back after (a field patch publishes on ours; Sanity's restore drops the draft).
 let original: unknown
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (original !== undefined) await target(info).restore(ID, {body: original})
 })
 
