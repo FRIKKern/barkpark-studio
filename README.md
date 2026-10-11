@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 11 changes
+- **Today** · 13 changes
+  - J37 Vision: Listen, the query's changes as they happen, until Stop ([#452](https://github.com/FRIKKern/barkpark-studio/pull/452))
+  - Give the rich text field Sanity's steady frame ([#285](https://github.com/FRIKKern/barkpark-studio/pull/285))
   - B03: list ticks show only while selecting, not on every hover ([#284](https://github.com/FRIKKern/barkpark-studio/pull/284))
-  - J37 Vision: Save result as CSV, beside JSON ([#451](https://github.com/FRIKKern/barkpark-studio/pull/451))
-  - B02: the studio's name opens the workspace / dataset menu, as Sanity's does ([#292](https://github.com/FRIKKern/barkpark-studio/pull/292))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
