@@ -74,6 +74,8 @@ quality first, never a shrinking finish line.
 | J65 | after | Plugin surface: a custom tool in the navbar, a custom field input, a custom document action + badge, "Open preview" in the document menu | F5 F9 F10 |
 | J66 | after | Tasks, as Sanity's, on Barkpark's own task store: create from the doc menu (title, description, target, assignee, deadline), navbar Tasks panel (assigned / subscribed / done), open the target, mark done | F5 F9 |
 | J67 | after | Production sign-in as yourself: a sign-in screen (Barkpark account), edits, presence and history name the person, sign out; never a shared token for a signed-in editor. Server: task-287b009456a8591a split into 0f1fd3d17e5f4edb, f583460d431d195c, 27006bc488ad1570 | F9 F15 |
+| J68 | after | Document menu "Inline changes" (fields changed against published marked in the form; toggle) and "Compare versions" (draft vs published side by side; disabled with its reason when there is one version) | F2 F9 |
+| J69 | after | Navbar menus complete: workspace menu "Manage project" (Barkpark members); Help has Diagnostics (copyable version, browser, project for a bug report) and What's new. Sanity's sales / community / support links stay out | F10 |
 
 ★ = crown journeys (endless panes + references), built first, judged hardest.
 
