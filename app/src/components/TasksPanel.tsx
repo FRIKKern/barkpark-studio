@@ -4,7 +4,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useRouter} from '@tanstack/react-router'
 import {createTask, deleteTask, tasksQuery, updateTask, type Task, type TaskState} from '../lib/tasks'
 import {showTasks, useActiveDocument, useTasksView, type TaskTarget, type TasksTab} from '../lib/tasks-ui'
-import {mentionableQuery} from '../lib/comments'
+import {peopleQuery} from '../lib/people'
 import {anyDocQuery, previewTitle, schemaOf, schemasQuery, searchAllDocs, type Doc} from '../lib/data'
 import {meQuery} from '../lib/session'
 import {ago, useLocale, useT} from '../lib/i18n'
@@ -249,7 +249,7 @@ function TargetField({target, onChange, open}: {target: TaskTarget | null; onCha
 
 function AssigneeField({value, onChange, id}: {value: string | null; onChange: (email: string | null) => void; id: string}) {
   const t = useT()
-  const {data: people = []} = useQuery(mentionableQuery)
+  const {data: people = []} = useQuery(peopleQuery)
   return (
     <select id={id} className="input" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
       <option value="">{t('Select assignee')}</option>
