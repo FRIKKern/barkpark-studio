@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 35 changes, 2 tasks closed
+- **Today** · 36 changes, 2 tasks closed
+  - A held early click lands on the button hydration drew anew ([#473](https://github.com/FRIKKern/barkpark-studio/pull/473))
   - CI: plan e2e shards by wall time per spec, hooks included ([#461](https://github.com/FRIKKern/barkpark-studio/pull/461))
   - B01: the navbar's Structure tool reads Struktur in nb-NO ([#471](https://github.com/FRIKKern/barkpark-studio/pull/471))
-  - B13 guard: the footer status starts with the publisher's avatar ([#470](https://github.com/FRIKKern/barkpark-studio/pull/470))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
