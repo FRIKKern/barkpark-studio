@@ -61,3 +61,27 @@ test('first run: a dataset with no document types shows Sanity\'s card', async (
   await expect(pane.getByRole('link', {name: 'Learn how to add a document type →'})).toHaveAttribute('href', /schema-reference/)
   await expect(pane.locator('.type-row')).toHaveCount(0)
 })
+
+// J19 (a CI gate): Sanity's list keys. From a row, ArrowDown / ArrowUp move a row, End /
+// Home to the last / first loaded row, Enter opens it. Nothing is written.
+test('J19: list rows move by arrow keys, Home and End; Enter opens', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "Sanity's list moves an active row (aria-activedescendant), not focus")
+  await t.prepare(page.context())
+  await page.goto(t.listPath('post'))
+  await t.settle(page)
+  const rows = page.locator('section.pane.list a[href*=";"]')
+  const href = (i: number) => rows.nth(i).getAttribute('href')
+  const focused = () => page.evaluate(() => document.activeElement?.getAttribute('href'))
+  await rows.first().focus()
+  await page.keyboard.press('ArrowDown')
+  expect(await focused()).toBe(await href(1))
+  await page.keyboard.press('ArrowUp')
+  expect(await focused()).toBe(await href(0))
+  await page.keyboard.press('End')
+  expect(await focused()).toBe(await href((await rows.count()) - 1))
+  await page.keyboard.press('Home')
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(new RegExp(`${(await href(1))!.split(';').pop()}$`))
+})

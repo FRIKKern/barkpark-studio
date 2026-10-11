@@ -345,7 +345,7 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
         <BackLink panes={panes} index={index} />
         <span className="title">{node?.title ?? (isRoot ? t('Content') : '')}</span>
       </header>
-      <div className="pane-body">
+      <div className="pane-body" onKeyDown={rowKeys}>
         {!node && <p className="list-empty">{t('This list is not in the desk')}</p>}
         {node?.items?.map((item, i) => {
           if (item.type === 'divider') return item.title ? <div key={item.id ?? i} className="desk-divider">{item.title}</div> : <hr key={item.id ?? i} className="desk-divider" />
@@ -405,7 +405,7 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
       <header className="pane-header">
         <span className="title">{t('Content')}</span>
       </header>
-      <div className="pane-body">
+      <div className="pane-body" onKeyDown={rowKeys}>
         {types.map((s) => (
           <PaneLink key={s.name} className="type-row" href={openAfter(panes, index, {kind: 'list', type: s.name})} aria-current={selected === s.name && index === panes.length - 2} data-selected={selected === s.name ? '' : undefined}>
             {s.title}
@@ -445,6 +445,24 @@ function listSearchText(value: unknown): string {
   if (Array.isArray(value)) return value.map(listSearchText).join(' ')
   if (value && typeof value === 'object') return Object.entries(value).filter(([key]) => !key.startsWith('_')).map(([, item]) => listSearchText(item)).join(' ')
   return ''
+}
+
+/**
+ * Sanity's list keys: ArrowDown / ArrowUp move from row to row, Home / End to the first /
+ * last loaded row; Enter opens (the row link's own). Only from a row: the search box and
+ * the bulk ticks keep their keys.
+ */
+function rowKeys(e: React.KeyboardEvent<HTMLElement>) {
+  const step = ({ArrowDown: 1, ArrowUp: -1, Home: -Infinity, End: Infinity} as Record<string, number>)[e.key]
+  const from = (e.target as HTMLElement).closest('a[href]')
+  if (step === undefined || !from || e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return
+  const rows = [...e.currentTarget.querySelectorAll<HTMLAnchorElement>('a[href]')].filter((a) => a.offsetParent)
+  const at = rows.indexOf(from as HTMLAnchorElement)
+  if (at < 0) return
+  const next = rows[Math.min(rows.length - 1, Math.max(0, step === -Infinity ? 0 : step === Infinity ? rows.length - 1 : at + step))]
+  e.preventDefault()
+  next?.focus()
+  next?.scrollIntoView({block: 'nearest'})
 }
 
 function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {panes: Pane[]; index: number; type: string; node?: string; treeParent?: string; selected?: string}) {
@@ -635,7 +653,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
       <div
         className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}
         data-selecting={selectable && (selecting || picked.size > 0) ? '' : undefined}
-        onKeyDown={(e) => e.key === 'Escape' && (selecting || picked.size > 0) && stopSelecting()}
+        onKeyDown={(e) => (e.key === 'Escape' && (selecting || picked.size > 0) ? stopSelecting() : rowKeys(e))}
       >
         {!readable && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: missingOps.join(', ')})}</p>}
         {tree && treeParent && parentDoc && (
