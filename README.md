@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 17 changes
+- **Today** · 18 changes
+  - Side by side follow-ups: Stage radios in a row, Sanity's reset icon, workspace card under the logo ([#453](https://github.com/FRIKKern/barkpark-studio/pull/453))
   - Images: hotspot and crop from the field's own flag; desk icons follow the row's color ([#293](https://github.com/FRIKKern/barkpark-studio/pull/293))
   - Document header as Sanity's: one view shows no tabs; no type label over its own name ([#288](https://github.com/FRIKKern/barkpark-studio/pull/288))
-  - Form layout: Agency parity (descriptions, radio list, gutter, tabs) ([#287](https://github.com/FRIKKern/barkpark-studio/pull/287))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
