@@ -7,9 +7,19 @@ import {median, recordFeel} from '../rig/feel'
 // Ours previews reference/preview-site from Barkpark (PREVIEW_SITE_PORT_BARKPARK, default 3537).
 const SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT_BARKPARK}` // playwright.config sets it
 
+// Drafts on the Barkpark site (a preview token) and sharing are a workspace admin's
+// (Barkpark answers 403 otherwise). A lane's studio token (scripts/lane-token.mjs) is a
+// member's: those checks skip there, which is the rig, not the studio.
+async function studioIsAdmin() {
+  const me = (await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${process.env.BARKPARK_APP_TOKEN || process.env.BARKPARK_TOKEN}`}})
+    .then((r) => r.json())
+    .catch(() => ({}))) as {permissions?: string[]; seat?: {can?: {admin?: boolean}}}
+  return !!me.seat?.can?.admin || !!me.permissions?.includes('admin')
+}
+
 // The tests that edit post-01 put it back after, passed or failed: a draft one left
 // behind ("Fixture post 01 (draft)") failed the J59 and J61 tests after it.
-const EDITS_POST_01 = /J60 \+ J63|J64 sharing/
+const EDITS_POST_01 = /J60 \+ J63|J64 sharing|editor's own preview tokens/
 test.afterEach(async ({page}, info) => {
   if (info.project.name !== 'studio' || !EDITS_POST_01.test(info.title) || info.status === 'skipped') return
   await closeAndSettle(page)
@@ -62,6 +72,10 @@ test('J60 + J63: typing reaches the page at once, focus stays; the page shows th
   await page.locator('.presentation-panel').getByRole('button', {name: /^Published/}).first().click()
   await expect(page).toHaveURL(/perspective=published/)
   await expect(site.locator('#p')).toHaveText('published')
+  // The page loads again (a full navigation, a reload): it is told again, never left on
+  // its own default (drafts) while the panel shows Published.
+  await page.frames().find((f) => f !== page.mainFrame())!.evaluate(() => location.reload())
+  await expect(site.locator('#p')).toHaveText('published')
   await page.locator('.presentation-panel').getByRole('button', {name: /^Draft/}).first().click()
   await expect(site.locator('#p')).toHaveText('drafts')
 })
@@ -69,6 +83,7 @@ test('J60 + J63: typing reaches the page at once, focus stays; the page shows th
 test('@local J60 + J63: the Barkpark site follows typing live, and Published / Draft', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  test.skip(!(await studioIsAdmin()), "the studio's Barkpark token is not a workspace admin (a lane's member token): it can't mint the preview token the site reads drafts with")
   await t.prepare(context)
   await page.goto('/presentation?preview=/posts/fixture-post-01')
   await signInIfAsked(page)
@@ -96,13 +111,7 @@ test('@local J60 + J63: the Barkpark site follows typing live, and Published / D
 test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the draft; off ends it', async ({page, context, browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "the check runs on ours; the reference robot token can't share in Sanity either")
-  // Sharing is a workspace admin's (Barkpark answers 403 otherwise). The studio server's
-  // token in a lane (scripts/lane-token.mjs) is a member's: that is the rig, not the studio.
-  const scope = `${process.env.BARKPARK_WORKSPACE}/${process.env.BARKPARK_PROJECT || 'default'}/${process.env.BARKPARK_DATASET}`
-  const probe = await fetch(`${process.env.BARKPARK_URL}/v1/shares/preview-links?${new URLSearchParams({scope, ref_type: 'post', doc_id: 'post-01'})}`, {
-    headers: {authorization: `Bearer ${process.env.BARKPARK_APP_TOKEN || process.env.BARKPARK_TOKEN}`},
-  })
-  test.skip(probe.status === 401 || probe.status === 403, "the studio's Barkpark token is not a workspace admin (a lane's member token); sharing needs one")
+  // Any member who may write shares and stops their own links (Barkpark #22488, #22556).
   await t.prepare(context)
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/presentation?preview=/posts/fixture-post-01')
@@ -129,7 +138,8 @@ test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the
   expect(link).toMatch(new RegExp(`^${SITE}/posts/fixture-post-01\\?bp-share=`))
 
   // Anyone with the link: the page, with the draft.
-  const outside = await (await browser.newContext()).newPage()
+  const outsider = await browser.newContext()
+  const outside = await outsider.newPage()
   await outside.goto(link)
   await expect(outside.getByRole('heading', {level: 1})).toHaveText('Fixture post 01 (draft)')
   await expect(outside.getByText('Preview of unpublished changes')).toBeVisible()
@@ -140,6 +150,7 @@ test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the
   await outside.reload()
   await expect(outside.getByText('This preview link has expired or was turned off.')).toBeVisible()
   await expect(outside.getByRole('heading', {level: 1})).toHaveText('Fixture post 01')
+  await outsider.close()
 })
 
 // J59 on a stand-in: a click on a marked value asks the studio to edit it; the
@@ -178,6 +189,7 @@ test('J59: clicking a value opens its field in the panel; Edit turns the overlay
 test('@local J59: the Barkpark page outlines its values; a click edits that field', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  test.skip(!(await studioIsAdmin()), "the studio's Barkpark token is not a workspace admin (a lane's member token): it can't mint the preview token the site reads drafts with")
   await t.prepare(context)
   await page.goto('/presentation?preview=/posts/fixture-post-01')
   await signInIfAsked(page)
@@ -186,6 +198,8 @@ test('@local J59: the Barkpark page outlines its values; a click edits that fiel
   await expect(excerpt).toHaveAttribute('data-bp-edit', 'post:post-01:excerpt')
   await excerpt.hover()
   await expect(site.getByText('Fixture post 01', {exact: true}).last()).toBeVisible()
+  // The label leads with the type's icon, as Sanity's (the post's: the document icon).
+  await expect(site.getByText('Fixture post 01', {exact: true}).last().locator('svg')).toHaveCount(1)
   await excerpt.click()
   await expect(page.locator('.presentation-panel [id="excerpt"]')).toBeFocused()
   // A referenced document on the page (the author) opens itself, from its own source map.
@@ -292,4 +306,23 @@ test('J63: the navbar picker switches the studio to Published and back', async (
   await expect(page).not.toHaveURL(/perspective=/)
   await expect(page.frameLocator('iframe').locator('#p')).toHaveText('drafts')
   await expect(picker).toHaveText('Drafts')
+})
+
+// Barkpark #22468: the draft preview is read with single-use preview tokens the signed-in
+// editor's own token mints (no admin token on that path). A write member sees the draft;
+// a read-only editor may not mint, so the page shows what is published. With dev sign-in
+// (STUDIO_DEV_LOGIN=1 + BARKPARK_ADMIN_TOKEN, editor d from scripts/rig-editor-tokens.mjs).
+test("@local J63: the draft preview reads with the editor's own preview tokens", async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity' || process.env.STUDIO_DEV_LOGIN !== '1', 'ours, with dev sign-in')
+  await bpMutate([{patch: {id: 'post-01', type: 'post', set: {title: 'Fixture post 01 (member draft)'}}}])
+  const h1 = page.frameLocator('iframe').getByRole('heading', {level: 1})
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page, 'studio-editor-a@example.com')
+  await expect(h1).toHaveText('Fixture post 01 (member draft)', {timeout: 20_000})
+
+  await context.clearCookies()
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await signInIfAsked(page, 'studio-editor-d@example.com')
+  await expect(h1).toHaveText('Fixture post 01', {timeout: 20_000})
 })

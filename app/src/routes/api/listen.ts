@@ -1,6 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {requestToken} from '../../server/barkpark'
 import {head, subscribe} from '../../server/listen'
+import {clientGone} from '../../server/client-gone'
 
 // GET /api/listen?ids=post-01,author-ada&types=post[&since=<event id>] → SSE of
 // mutation frames for those docs (drafts included) and every doc of those types.
@@ -32,7 +33,7 @@ export const Route = createFileRoute('/api/listen')({
               clearInterval(ping)
               unsubscribe()
             }
-            request.signal.addEventListener('abort', () => {
+            clientGone(request).addEventListener('abort', () => {
               cleanup()
               try {
                 controller.close()

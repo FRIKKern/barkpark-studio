@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import {expect, test, type Page} from '@playwright/test'
 import {installProbes, median, networkBudget, timeToReady} from '../rig/feel'
-import {seededCount, target} from '../rig/targets'
+import {seededCount, target, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
 // Crown slice, one spec for both studios: J01 (list), J02 (deep URL restore),
@@ -43,7 +43,7 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   await page.locator('a[href="/structure/post"]').click()
   // Sanity virtualises the list (renders ~25 rows); ours renders all of them.
   if (t.name === 'studio') await expect(page.locator('a[href^="/structure/post;"]')).toHaveCount(posts)
-  else await expect(t.listItem(page, 'post-02')).toBeVisible()
+  else await expect(await reveal(t.listItem(page, 'post-02'))).toBeVisible()
   const coldMs = Date.now() - t0
   await referenceHold(page, t.listItem(page, 'post-02'))
 
@@ -51,7 +51,7 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   // is a noisy sample); post-02 last, so what follows reads it. Every open: no shift.
   const opens = []
   for (const id of ['post-03', 'post-04', 'post-02'])
-    opens.push(await timeToReady(page, t.listItem(page, id), `(w) => document.getElementById('title')?.value === w`, `Fixture post ${id.slice(-2)}`))
+    opens.push(await timeToReady(page, await reveal(t.listItem(page, id)), `(w) => document.getElementById('title')?.value === w`, `Fixture post ${id.slice(-2)}`))
   const open = {ms: median(opens.map((o) => o.ms)), cls: Math.max(...opens.map((o) => o.cls)), shifted: opens.map((o) => o.shifted).filter(Boolean).join(' | ')}
   expect(path(page)).toBe('/structure/post;post-02')
   await expect(t.listItem(page, 'post-02')).toHaveAttribute('data-selected')

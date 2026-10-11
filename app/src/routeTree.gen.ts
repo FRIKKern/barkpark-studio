@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MediaRouteImport } from './routes/media'
 import { Route as PresentationRouteImport } from './routes/presentation'
 import { Route as VisionRouteImport } from './routes/vision'
+import { Route as ApiE2eListenRouteImport } from './routes/api/e2e-listen'
 import { Route as ApiListenRouteImport } from './routes/api/listen'
 import { Route as ApiMutateRouteImport } from './routes/api/mutate'
 import { Route as ApiPresenceRouteImport } from './routes/api/presence'
@@ -27,8 +28,10 @@ import { Route as StructureSplatRouteImport } from './routes/structure/$'
 import { Route as WSplatRouteImport } from './routes/w/$'
 import { Route as ApiBacklinksIdRouteImport } from './routes/api/backlinks/$id'
 import { Route as ApiMediaIndexRouteImport } from './routes/api/media/index'
+import { Route as ApiMediaBySha1RouteImport } from './routes/api/media/by-sha1'
 import { Route as ApiMediaFilesRouteImport } from './routes/api/media/files'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
+import { Route as ApiPapersReaderRouteImport } from './routes/api/papers/reader'
 import { Route as ApiQueryTypeRouteImport } from './routes/api/query/$type'
 import { Route as ApiDocTypeIdRouteImport } from './routes/api/doc/$type/$id'
 import { Route as ApiHistoryTypeIdRouteImport } from './routes/api/history/$type/$id'
@@ -69,6 +72,11 @@ const PresentationRoute = PresentationRouteImport.update({
 const VisionRoute = VisionRouteImport.update({
   id: '/vision',
   path: '/vision',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiE2eListenRoute = ApiE2eListenRouteImport.update({
+  id: '/api/e2e-listen',
+  path: '/api/e2e-listen',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiListenRoute = ApiListenRouteImport.update({
@@ -126,6 +134,11 @@ const ApiMediaIndexRoute = ApiMediaIndexRouteImport.update({
   path: '/api/media/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaBySha1Route = ApiMediaBySha1RouteImport.update({
+  id: '/api/media/by-sha1',
+  path: '/api/media/by-sha1',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMediaFilesRoute = ApiMediaFilesRouteImport.update({
   id: '/api/media/files',
   path: '/api/media/files',
@@ -134,6 +147,11 @@ const ApiMediaFilesRoute = ApiMediaFilesRouteImport.update({
 const ApiMediaUploadRoute = ApiMediaUploadRouteImport.update({
   id: '/api/media/upload',
   path: '/api/media/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPapersReaderRoute = ApiPapersReaderRouteImport.update({
+  id: '/api/papers/reader',
+  path: '/api/papers/reader',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiQueryTypeRoute = ApiQueryTypeRouteImport.update({
@@ -175,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/media': typeof MediaRoute
   '/presentation': typeof PresentationRoute
   '/vision': typeof VisionRoute
+  '/api/e2e-listen': typeof ApiE2eListenRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
   '/api/presence': typeof ApiPresenceRoute
@@ -185,8 +204,10 @@ export interface FileRoutesByFullPath {
   '/w/$': typeof WSplatRoute
   '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
+  '/api/media/by-sha1': typeof ApiMediaBySha1Route
   '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
+  '/api/papers/reader': typeof ApiPapersReaderRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/media/': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
@@ -203,6 +224,7 @@ export interface FileRoutesByTo {
   '/media': typeof MediaRoute
   '/presentation': typeof PresentationRoute
   '/vision': typeof VisionRoute
+  '/api/e2e-listen': typeof ApiE2eListenRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
   '/api/presence': typeof ApiPresenceRoute
@@ -213,8 +235,10 @@ export interface FileRoutesByTo {
   '/w/$': typeof WSplatRoute
   '/structure': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
+  '/api/media/by-sha1': typeof ApiMediaBySha1Route
   '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
+  '/api/papers/reader': typeof ApiPapersReaderRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/media': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
@@ -232,6 +256,7 @@ export interface FileRoutesById {
   '/media': typeof MediaRoute
   '/presentation': typeof PresentationRoute
   '/vision': typeof VisionRoute
+  '/api/e2e-listen': typeof ApiE2eListenRoute
   '/api/listen': typeof ApiListenRoute
   '/api/mutate': typeof ApiMutateRoute
   '/api/presence': typeof ApiPresenceRoute
@@ -242,8 +267,10 @@ export interface FileRoutesById {
   '/w/$': typeof WSplatRoute
   '/structure/': typeof StructureIndexRoute
   '/api/backlinks/$id': typeof ApiBacklinksIdRoute
+  '/api/media/by-sha1': typeof ApiMediaBySha1Route
   '/api/media/files': typeof ApiMediaFilesRoute
   '/api/media/upload': typeof ApiMediaUploadRoute
+  '/api/papers/reader': typeof ApiPapersReaderRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
   '/api/media/': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
@@ -262,6 +289,7 @@ export interface FileRouteTypes {
     | '/media'
     | '/presentation'
     | '/vision'
+    | '/api/e2e-listen'
     | '/api/listen'
     | '/api/mutate'
     | '/api/presence'
@@ -272,8 +300,10 @@ export interface FileRouteTypes {
     | '/w/$'
     | '/structure/'
     | '/api/backlinks/$id'
+    | '/api/media/by-sha1'
     | '/api/media/files'
     | '/api/media/upload'
+    | '/api/papers/reader'
     | '/api/query/$type'
     | '/api/media/'
     | '/api/doc/$type/$id'
@@ -290,6 +320,7 @@ export interface FileRouteTypes {
     | '/media'
     | '/presentation'
     | '/vision'
+    | '/api/e2e-listen'
     | '/api/listen'
     | '/api/mutate'
     | '/api/presence'
@@ -300,8 +331,10 @@ export interface FileRouteTypes {
     | '/w/$'
     | '/structure'
     | '/api/backlinks/$id'
+    | '/api/media/by-sha1'
     | '/api/media/files'
     | '/api/media/upload'
+    | '/api/papers/reader'
     | '/api/query/$type'
     | '/api/media'
     | '/api/doc/$type/$id'
@@ -318,6 +351,7 @@ export interface FileRouteTypes {
     | '/media'
     | '/presentation'
     | '/vision'
+    | '/api/e2e-listen'
     | '/api/listen'
     | '/api/mutate'
     | '/api/presence'
@@ -328,8 +362,10 @@ export interface FileRouteTypes {
     | '/w/$'
     | '/structure/'
     | '/api/backlinks/$id'
+    | '/api/media/by-sha1'
     | '/api/media/files'
     | '/api/media/upload'
+    | '/api/papers/reader'
     | '/api/query/$type'
     | '/api/media/'
     | '/api/doc/$type/$id'
@@ -347,6 +383,7 @@ export interface RootRouteChildren {
   MediaRoute: typeof MediaRoute
   PresentationRoute: typeof PresentationRoute
   VisionRoute: typeof VisionRoute
+  ApiE2eListenRoute: typeof ApiE2eListenRoute
   ApiListenRoute: typeof ApiListenRoute
   ApiMutateRoute: typeof ApiMutateRoute
   ApiPresenceRoute: typeof ApiPresenceRoute
@@ -357,8 +394,10 @@ export interface RootRouteChildren {
   WSplatRoute: typeof WSplatRoute
   StructureIndexRoute: typeof StructureIndexRoute
   ApiBacklinksIdRoute: typeof ApiBacklinksIdRoute
+  ApiMediaBySha1Route: typeof ApiMediaBySha1Route
   ApiMediaFilesRoute: typeof ApiMediaFilesRoute
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
+  ApiPapersReaderRoute: typeof ApiPapersReaderRoute
   ApiQueryTypeRoute: typeof ApiQueryTypeRoute
   ApiMediaIndexRoute: typeof ApiMediaIndexRoute
   ApiDocTypeIdRoute: typeof ApiDocTypeIdRoute
@@ -417,6 +456,13 @@ declare module '@tanstack/react-router' {
       path: '/vision'
       fullPath: '/vision'
       preLoaderRoute: typeof VisionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/e2e-listen': {
+      id: '/api/e2e-listen'
+      path: '/api/e2e-listen'
+      fullPath: '/api/e2e-listen'
+      preLoaderRoute: typeof ApiE2eListenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/listen': {
@@ -496,6 +542,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMediaIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/by-sha1': {
+      id: '/api/media/by-sha1'
+      path: '/api/media/by-sha1'
+      fullPath: '/api/media/by-sha1'
+      preLoaderRoute: typeof ApiMediaBySha1RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/media/files': {
       id: '/api/media/files'
       path: '/api/media/files'
@@ -508,6 +561,13 @@ declare module '@tanstack/react-router' {
       path: '/api/media/upload'
       fullPath: '/api/media/upload'
       preLoaderRoute: typeof ApiMediaUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/papers/reader': {
+      id: '/api/papers/reader'
+      path: '/api/papers/reader'
+      fullPath: '/api/papers/reader'
+      preLoaderRoute: typeof ApiPapersReaderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/query/$type': {
@@ -563,6 +623,7 @@ const rootRouteChildren: RootRouteChildren = {
   MediaRoute: MediaRoute,
   PresentationRoute: PresentationRoute,
   VisionRoute: VisionRoute,
+  ApiE2eListenRoute: ApiE2eListenRoute,
   ApiListenRoute: ApiListenRoute,
   ApiMutateRoute: ApiMutateRoute,
   ApiPresenceRoute: ApiPresenceRoute,
@@ -573,8 +634,10 @@ const rootRouteChildren: RootRouteChildren = {
   WSplatRoute: WSplatRoute,
   StructureIndexRoute: StructureIndexRoute,
   ApiBacklinksIdRoute: ApiBacklinksIdRoute,
+  ApiMediaBySha1Route: ApiMediaBySha1Route,
   ApiMediaFilesRoute: ApiMediaFilesRoute,
   ApiMediaUploadRoute: ApiMediaUploadRoute,
+  ApiPapersReaderRoute: ApiPapersReaderRoute,
   ApiQueryTypeRoute: ApiQueryTypeRoute,
   ApiMediaIndexRoute: ApiMediaIndexRoute,
   ApiDocTypeIdRoute: ApiDocTypeIdRoute,

@@ -2,8 +2,7 @@ import {useId, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {isSingleton, schemasQuery} from '../lib/data'
-import {createDoc, draftNew} from '../lib/edits'
-import {editorMode} from '../lib/editor-mode'
+import {choicesFor, startNew, type Choice} from '../lib/templates'
 import {focusFirstField} from '../lib/focus'
 import {useFocusScope} from '../lib/focus-scope'
 import {useCanWrite} from '../lib/session'
@@ -14,7 +13,7 @@ import {t as tBrowser, useT} from '../lib/i18n'
 // J37, Sanity's navbar "+" ("Create new document"): a filterable list of the
 // types, A–Z; picking one opens a new document of it as the type's list + the
 // doc, created on its first edit like the list's own "+" (J18). Singletons are
-// never offered (B13).
+// never offered (B13). J18: a type's templates are offered beside it, A–Z by title.
 export function NewDocMenu() {
   const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
@@ -29,16 +28,13 @@ export function NewDocMenu() {
       </button>
       {open && (
         <TypePicker
-          types={schemas.filter((s) => !isSingleton(schemas, s.name)).sort((a, b) => a.title.localeCompare(b.title))}
+          choices={schemas.filter((s) => !isSingleton(schemas, s.name)).flatMap((s) => choicesFor(schemas, s.name)).sort((a, b) => a.title.localeCompare(b.title))}
           onClose={() => setOpen(false)}
-          onPick={(type) => {
+          onPick={(choice) => {
             setOpen(false)
-            const schema = schemas.find((s) => s.name === type)
             const id = crypto.randomUUID()
-            if (editorMode(type, schema) !== 'none')
-              void createDoc(qc, type, id, {}).catch((err) => toast({tone: 'critical', title: tBrowser('Could not create the document'), description: (err as Error).message}))
-            else draftNew(qc, type, id, schema?.initialValues ?? {})
-            void navigate({href: `/structure/${type};${id}`})
+            startNew(qc, schemas, choice, id).catch((err) => toast({tone: 'critical', title: tBrowser('Could not create the document'), description: (err as Error).message}))
+            void navigate({href: `/structure/${choice.type};${id}`})
             focusFirstField(id)
           }}
         />
@@ -47,13 +43,13 @@ export function NewDocMenu() {
   )
 }
 
-function TypePicker({types, onPick, onClose}: {types: {name: string; title: string}[]; onPick: (type: string) => void; onClose: () => void}) {
+function TypePicker({choices, onPick, onClose}: {choices: Choice[]; onPick: (choice: Choice) => void; onClose: () => void}) {
   const tr = useT()
   const scope = useFocusScope<HTMLDivElement>({onDismiss: onClose})
   const [find, setFind] = useState('')
   const [active, setActive] = useState(0)
   const id = useId()
-  const shown = types.filter((t) => t.title.toLowerCase().includes(find.trim().toLowerCase()))
+  const shown = choices.filter((t) => t.title.toLowerCase().includes(find.trim().toLowerCase()))
   const at = Math.min(active, shown.length - 1)
   return (
     <div ref={scope} className="popover new-doc-popover" onBlur={(e) => !e.currentTarget.parentElement?.contains(e.relatedTarget) && onClose()}>
@@ -72,14 +68,14 @@ function TypePicker({types, onPick, onClose}: {types: {name: string; title: stri
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') (e.preventDefault(), setActive(Math.min(at + 1, shown.length - 1)))
             else if (e.key === 'ArrowUp') (e.preventDefault(), setActive(Math.max(at - 1, 0)))
-            else if (e.key === 'Enter' && shown[at]) (e.preventDefault(), onPick(shown[at]!.name))
+            else if (e.key === 'Enter' && shown[at]) (e.preventDefault(), onPick(shown[at]!))
           }}
         />
       </div>
       {shown.length > 0 ? (
         <div role="listbox" id={id} aria-label={tr('New document')} className="command-list">
           {shown.map((t, i) => (
-            <div key={t.name} id={`${id}-${i}`} role="option" aria-selected={i === at} className="command-item" onMouseEnter={() => setActive(i)} onMouseDown={(e) => (e.preventDefault(), onPick(t.name))}>
+            <div key={t.id} id={`${id}-${i}`} role="option" aria-selected={i === at} className="command-item" onMouseEnter={() => setActive(i)} onMouseDown={(e) => (e.preventDefault(), onPick(t))}>
               {t.title}
             </div>
           ))}

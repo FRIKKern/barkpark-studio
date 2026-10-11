@@ -4,11 +4,21 @@ import {applyPatches, makePatches} from '@sanity/diff-match-patch'
 // does it with diff-match-patch on its server; Barkpark sets whole values, so the
 // client rebases: my changes since `base`, re-applied onto `theirs`.
 
-/** Three-way text merge: the edits base → mine, applied onto theirs. */
-export function merge3(base: string, mine: string, theirs: string): string {
+/**
+ * Three-way text merge: the edits base → mine, applied onto theirs. Null when some of
+ * mine has nowhere to go (they rewrote the text it was in): applied anyway, those words
+ * would just be gone.
+ */
+export function merge3(base: string, mine: string, theirs: string): string | null {
   if (mine === base || theirs === mine) return theirs
   if (theirs === base) return mine
-  return applyPatches(makePatches(base, mine), theirs)[0]
+  // Mine already landed and they wrote on top (a save whose answer was lost, a kept edit
+  // the unload beacon delivered): taking mine back out of theirs works, so it is in there,
+  // and applying it again would type it twice (adversarial review, 2026-10-09).
+  const [without, undone] = applyPatches(makePatches(mine, base), theirs)
+  if (without !== theirs && undone.every(Boolean) && applyPatches(makePatches(base, mine), without)[0] === theirs) return theirs
+  const [merged, applied] = applyPatches(makePatches(base, mine), theirs)
+  return applied.every(Boolean) ? merged : null
 }
 
 /** Undo text change `from` → `to` on `now`, keeping what changed elsewhere since (F7). */

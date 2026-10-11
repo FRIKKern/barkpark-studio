@@ -1,8 +1,9 @@
 import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
+import {refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
+import {FieldClashCard} from './FieldClash'
 import {worst, type Level, type Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
 import {ChevronDown, ClearCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
@@ -15,12 +16,10 @@ import {ObjectArrayInput} from './ObjectArrayInput'
 import {RefArrayInput} from './RefArrayInput'
 import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {CodelistInput} from './CodelistInput'
-import {FileInput} from './FileInput'
-import {ImageInput} from './ImageInput'
 import {FieldComments} from './Comments'
-import {InvalidValueCard, KeysAlert, RichTextCard} from './BrokenValues'
-import {invalidValue, keyProblem, richTextProblem} from '../lib/broken'
-import {PortableDocEditor} from './PortableDocEditor'
+import {InvalidValueCard, KeysAlert, RichTextCard, UnsupportedAssetCard} from './BrokenValues'
+import {invalidValue, keyProblem, richTextProblem, unsupportedAsset} from '../lib/broken'
+import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
 import {PortableDocView} from './PortableDocView'
 import {modKey, useTip} from './Tip'
 import {t as tBrowser, useT} from '../lib/i18n'
@@ -46,6 +45,8 @@ export const ChangesContext = createContext<{changed: Set<string>; review: () =>
 /** The doc being edited, for inputs that read a sibling field (slug's source,
  *  conditional fields). It changes on every keystroke, so only those read it. */
 export const DocContext = createContext<Doc | null>(null)
+/** The object or array item the fields inside it belong to (a condition's `scope: "parent"`). */
+export const ParentContext = createContext<Record<string, unknown> | undefined>(undefined)
 /** The doc's id: steady while typing, for what only needs to know which doc. */
 export const DocIdContext = createContext<string | null>(null)
 /** The doc's type, steady too (a richText field's canvas saves to its own doc). */
@@ -90,8 +91,9 @@ export const FieldView = memo(function FieldView(props: FieldProps) {
 
 function ConditionalField(props: FieldProps) {
   const doc = useContext(DocContext)
-  if (doc && isHidden(props.field, doc)) return null
-  return <FieldBody {...props} readOnly={props.readOnly || (doc ? isReadOnly(props.field, doc) : false)} />
+  const parent = useContext(ParentContext)
+  if (doc && isHidden(props.field, doc, parent)) return null
+  return <FieldBody {...props} readOnly={props.readOnly || (doc ? isReadOnly(props.field, doc, parent) : false)} />
 }
 
 /** An object (or an image): a fieldset, its title the legend. Collapsible ones fold, like Sanity's. */
@@ -166,6 +168,7 @@ function FieldBody(props: FieldProps) {
         <ProblemMark path={props.path} />
         <FieldPresenceHere path={props.path} />
       </label>
+      <FieldClashCard path={props.path} />
       <CustomOrDefault {...props} />
     </div>
   )
@@ -219,7 +222,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
   }
   return (
     <div ref={register} className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={t('Field actions')} data-tip={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
@@ -268,6 +271,9 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
   if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />
+  // An asset from elsewhere (a Sanity export, a Sanity asset id): kept as it is, never read as empty.
+  const foreign = unsupportedAsset(field, value)
+  if (foreign) return <UnsupportedAssetCard asset={foreign} value={value} onChange={onChange} />
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
   if (readOnly && !['string', 'url', 'email', 'text', 'slug', 'composite', 'datetime', 'arrayOf', 'markdown', 'date', 'time', 'tags', 'color', 'source', 'json', 'localizedText', 'codelist'].includes(field.type))
@@ -282,7 +288,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'email':
       return <TextInput id={path} value={str} onChange={onChange} readOnly={readOnly} />
     case 'slug':
-      return <SlugInput id={path} value={str} onChange={onChange} source={(field.options as {source?: string})?.source} readOnly={readOnly} />
+      // Sanity-shaped data (an import) holds {current}; Barkpark a string.
+      return <SlugInput id={path} value={value && typeof value === 'object' ? String((value as {current?: unknown}).current ?? '') : str} onChange={onChange} source={(field.options as {source?: string})?.source} readOnly={readOnly} />
     case 'text':
       return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 3} readOnly={readOnly} />
     case 'number':
@@ -326,7 +333,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
           id={path}
           types={refTypesOf(field)}
           filter={field.options?.filter as RefFilter | undefined}
-          value={value as string | undefined}
+          // A Sanity-shaped reference ({_ref}, as an import from Sanity holds it) reads as its id.
+          value={refId(value)}
           invalid={invalid}
           onChange={onChange}
           linkFor={(id, type) => openRef(type, id, path)}
@@ -357,6 +365,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'composite':
       return (
         <div className="fieldset" id={path}>
+          <ParentContext.Provider value={(value as Record<string, unknown> | undefined) ?? {}}>
           {field.fields?.map((f) => (
             <FieldView
               key={f.name}
@@ -369,6 +378,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
               onChange={(v) => (editPath ? editPath(`${path}.${f.name}`, v) : onChange({...(value as Record<string, unknown>), [f.name]: v}))}
             />
           ))}
+          </ParentContext.Provider>
         </div>
       )
     case 'richText': {
@@ -533,9 +543,10 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
   )
 }
 
-type Inline = {type: string; value?: string; children?: Inline[]}
+// An inline object (J11, post-11's chip) carries its words in `text`.
+type Inline = {type: string; value?: string; text?: string; children?: Inline[]}
 type Block = {id: string; type: string; level?: number; tone?: string; content?: Inline[]}
-const text = (nodes: Inline[] = []): string => nodes.map((n) => n.value ?? text(n.children)).join('')
+const text = (nodes: Inline[] = []): string => nodes.map((n) => n.value ?? n.text ?? text(n.children)).join('')
 
 export function RichText({id, value}: {id: string; value: unknown}) {
   const blocks = ((value as {blocks?: Block[]})?.blocks ?? []) as Block[]
@@ -577,21 +588,44 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
   // the end of the text. Mapped by block, not by pixel: the canvas lays out a
   // little differently from the read-only view.
   const at = useRef<{block: string; offset: number} | null>(null)
+  // F8: what is typed between the activating click (or key) and the canvas taking the
+  // caret (its bundle and the blocks are still loading) is kept here and typed in once
+  // it can take it — never dropped (it was, on a fresh page load: task-1dd00fd2a0dc1c60).
+  // Text, and Enter as a paragraph break, in the order typed.
+  const typed = useRef<string[]>([])
   useEffect(() => {
     if (!active) return
+    const ready = () => !!box.current?.querySelector('.ProseMirror')?.contains(document.activeElement)
+    const keep = (e: KeyboardEvent) => {
+      if (ready() || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return
+      // Keys for another field the author went to meanwhile are that field's, not the body's.
+      const at = document.activeElement
+      if (at && at !== document.body && !box.current?.contains(at)) return
+      const last = typed.current.length - 1
+      if (e.key.length === 1) typed.current[last] !== undefined && typed.current[last] !== '\n' ? (typed.current[last] += e.key) : typed.current.push(e.key)
+      else if (e.key === 'Enter') typed.current.push('\n')
+      else if (e.key === 'Backspace') typed.current[last] === '\n' || typed.current[last]?.length === 1 ? typed.current.pop() : last >= 0 && (typed.current[last] = typed.current[last]!.slice(0, -1))
+      else return
+      e.preventDefault()
+    }
+    addEventListener('keydown', keep, true)
     const timer = setInterval(() => {
       const pm = box.current?.querySelector<HTMLElement>('.ProseMirror')
       if (!pm) return
       clearInterval(timer)
-      if (pm.contains(document.activeElement)) return // the author got there first
-      pm.focus()
-      const sel = getSelection()
-      if (!sel) return
-      const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
-      if (target) sel.collapse(target.node, target.offset)
-      else (sel.selectAllChildren(pm), sel.collapseToEnd())
+      removeEventListener('keydown', keep, true)
+      if (!pm.contains(document.activeElement)) {
+        pm.focus()
+        const sel = getSelection()
+        const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
+        if (sel && target) sel.collapse(target.node, target.offset)
+        else if (sel) (sel.selectAllChildren(pm), sel.collapseToEnd())
+      }
+      // The canvas reads it as typed input (beforeinput), so it saves and undoes as typing does.
+      for (const run of typed.current) document.execCommand(run === '\n' ? 'insertParagraph' : 'insertText', false, run === '\n' ? undefined : run)
+      typed.current = []
     }, 30)
-    return () => clearInterval(timer)
+    return () => (clearInterval(timer), removeEventListener('keydown', keep, true))
   }, [active])
   if (!id || !type) return null
   const blocks = ((value as {blocks?: unknown[]} | undefined)?.blocks ?? []) as Parameters<typeof PortableDocView>[0]['blocks']
@@ -611,7 +645,11 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
           if (readOnly || e.target !== e.currentTarget) return
           // J35: Cmd/Ctrl+Enter opens it expanded, as Sanity's hotkey.
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) return e.preventDefault(), setActive(true), setExpanded(true)
-          if ((e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey) e.preventDefault(), setActive(true)
+          if ((e.key === 'Enter' || e.key.length === 1) && !e.metaKey && !e.ctrlKey) {
+            e.preventDefault()
+            if (e.key.length === 1) typed.current = [e.key] // the key that wakes it is typed too
+            setActive(true)
+          }
         }}
       >
         <div className="body-bar">

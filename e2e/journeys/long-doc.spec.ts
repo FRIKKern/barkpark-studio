@@ -1,6 +1,6 @@
 import {expect, test, type Page} from '@playwright/test'
 import {installProbes, stats, timeToReady, typeAndMeasure} from '../rig/feel'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J44 evidence, both studios, CPU throttled 4×: longform-1 has 200 fields and a
 // 300-item array (scripts/gen-longform.mjs). F2: open it warm from the list.
@@ -18,7 +18,8 @@ const rowsField = (t: Target, page: Page) =>
 
 test.use({video: 'on'})
 test.setTimeout(120_000)
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   const t = target(info)
   // Back to the seed: the typed fields, and the rows in each side's item shape.
   const rows = Array.from({length: 300}, (_, i) => {
