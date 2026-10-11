@@ -22,12 +22,39 @@ export function useHydratedMark() {
  */
 export const EARLY_CLICKS = `window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
 
+let pending: Promise<unknown> | null = null
+/**
+ * J36: the document editors' inputs are live only once their chunk lands, which on a slow
+ * link is after the page is marked interactive. Until `until` settles, a release waits:
+ * releasing at the mark clicked the inert server-drawn Select, and the click was lost
+ * (task-63978ba572421248).
+ */
+export function holdReleaseUntil(until: Promise<unknown>) {
+  pending = until
+}
+
 /** The page is interactive: stop holding clicks and click what was held. Once per page load. */
 export function releaseEarlyClicks() {
+  if (pending) {
+    const until = pending
+    pending = null
+    void until.then(releaseEarlyClicks)
+    return
+  }
   const w = window as {__earlyClicks?: HTMLElement[] | null}
   const held = w.__earlyClicks ?? []
   w.__earlyClicks = null
-  for (const el of held) (el.isConnected ? el : counterpart(el))?.click()
+  for (const el of held) (el.isConnected ? el.click() : clickCounterpart(el))
+}
+
+/**
+ * A held button React has drawn anew: its new self may still be on its way (the editors'
+ * inputs commit a few frames after their chunk lands), so look again each frame for a second.
+ */
+function clickCounterpart(el: HTMLElement, frames = 60) {
+  const now = counterpart(el)
+  if (now) now.click()
+  else if (frames > 0) requestAnimationFrame(() => clickCounterpart(el, frames - 1))
 }
 
 /**
