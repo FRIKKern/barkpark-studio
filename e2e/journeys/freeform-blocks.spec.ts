@@ -8,6 +8,7 @@ import {bpMutate, target, closeAndSettle} from '../rig/targets'
 // selection paste as blocks / a link. The server holds each result. Stills in
 // e2e/evidence/D09-*.
 const ID = `note-d09-${Date.now().toString(36)}` // fresh each run: a reused id carries its delete in its history
+const OVER = `${ID}-over`
 type Block = {type: string; text?: string; level?: number; href?: string; content?: Inline[]; items?: Inline[][]}
 type Inline = {type: string; value?: string; href?: string; children?: Inline[]}
 const para = (id: string, value: string) => ({id, type: 'paragraph', content: [{type: 'text', value}]})
@@ -19,7 +20,7 @@ const line = (b: Block) => `${b.type} ${b.text ?? (b.items ? b.items.map(flat).j
 const mutate = (mutations: unknown[]) => bpMutate(mutations).then(() => {})
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
-  if (target(info).name === 'studio') await mutate([{delete: {id: ID, type: 'note', force: true}}]).catch(() => {})
+  if (target(info).name === 'studio') for (const id of [ID, OVER]) await mutate([{delete: {id, type: 'note', force: true}}]).catch(() => {})
 })
 
 /** Click into a block's text, then give the editor the beat a person always does: a
@@ -119,4 +120,32 @@ test('@local D09: block gutter, keyboard moves, slash menu, drag; markdown/HTML/
     'paragraph Gamma.',
   ])
   await page.screenshot({path: 'evidence/D09-3-pasted-studio.png'})
+})
+
+// Typing over a selected non-text block (a divider, an image) keeps it and writes in a
+// new paragraph after it (Barkpark #22881, #22924); an end-of-line key never selects it.
+test('@local D09: typing over a selected divider or image keeps the block', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'Barkpark-only: Sanity has no Freeform')
+  const image = {id: 'i', type: 'image', url: 'https://barkpark.cloud/favicon.ico', alt: 'Icon'}
+  await mutate([
+    {createOrReplace: {_id: OVER, _type: 'note', title: 'D09 type over', label: 'Idea', body: {blocks: [para('a', 'Alpha.'), {id: 'd', type: 'divider'}, image, para('c', 'Gamma.')]}}},
+    {publish: {id: OVER, type: 'note'}},
+  ])
+  await page.goto(t.docPath('note', OVER))
+  await t.settle(page)
+  const canvas = page.locator('bp-paper-canvas')
+  const kinds = async () => ((((await t.docValue(OVER, 'blocks', 'note')) as Block[]) ?? []).filter((b) => !b.type.startsWith('field-')).map(line))
+  const selected = () => canvas.locator('.ProseMirror-selectednode')
+  await caretIn(page, canvas.locator('.ProseMirror > *', {hasText: 'Alpha.'}).first())
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
+  await expect(selected(), 'an end-of-line key stays in the paragraph').toHaveCount(0)
+  await page.keyboard.press('ArrowDown')
+  await expect(selected()).toHaveCount(1)
+  await page.keyboard.type('After divider')
+  await expect.poll(kinds, {timeout: 10_000}).toEqual(['paragraph Alpha.', 'divider', 'paragraph After divider', 'image', 'paragraph Gamma.'])
+  await page.keyboard.press('ArrowDown')
+  await expect(selected()).toHaveCount(1)
+  await page.keyboard.type('After image')
+  await expect.poll(kinds, {timeout: 10_000}).toEqual(['paragraph Alpha.', 'divider', 'paragraph After divider', 'image', 'paragraph After image', 'paragraph Gamma.'])
 })
