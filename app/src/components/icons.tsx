@@ -373,3 +373,10 @@ export const LaunchIcon = () => (
     <path d="M13.5 6.5h5v5M18.5 6.5l-7 7M11.5 7.5h-5v11h11v-5" />
   </svg>
 )
+/** Sanity's TransferIcon: Compare versions (J68). */
+export const Transfer = () => (
+  <svg {...s}>
+    <path d="M19.5 16.5H6M5.5 8.5L19 8.5" />
+    <path d="M16 13L19.5 16.5L16 20M9 12L5.5 8.5L9 5" />
+  </svg>
+)

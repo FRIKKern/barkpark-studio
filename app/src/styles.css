@@ -35,6 +35,8 @@
   --info-fg: #2550c7;
   --diff-bg: #fde6d8;
   --diff-fg: #8a3a12;
+  --inline-removed-bg: #fff3f2; /* J68, Sanity's inline diff */
+  --inline-added-bg: #fcf3bb;
   --drop-bg: rgba(240, 245, 255, 0.92);
   --drop-fg: #1f3a7a;
   --code-key: #2f3f9e;
@@ -119,6 +121,8 @@
   --info-fg: #9db6ff;
   --diff-bg: #4a2a17;
   --diff-fg: #ffc9a8;
+  --inline-removed-bg: #4a1f1c;
+  --inline-added-bg: #4a3f0f;
   --drop-bg: rgba(29, 37, 64, 0.92);
   --drop-fg: #b7c8ff;
   --code-key: #9fb0ff;
@@ -784,6 +788,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .menu-item .keys { margin-left: auto; padding-left: 16px; display: inline-flex; gap: 2px; }
 .menu-item .keys kbd { margin: 0; padding: 0 3px; border-radius: 2px; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent); font-size: 10px; line-height: 15px; color: inherit; }
 .menu-icon-text svg { width: 19px; height: 19px; margin: -2px 0 -2px -4px; }
+/* J68: a menu toggle's check, its space kept when off (Sanity's). */
+.menu-check { display: inline-flex; }
+.menu-check:not([data-on]) svg { visibility: hidden; }
 
 /* String arrays (J34), after Sanity's: tags in a box; rows with handle, value and "…", then Add item */
 .tags-box { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 35px; padding: 3px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); cursor: text; }
@@ -871,6 +878,16 @@ fieldset.object-field > .field-actions { top: -38px; }
 /* Review changes (J15), after Sanity's: change bars beside changed fields, and the inspector's diff list */
 .change-bar { position: absolute; top: 34px; bottom: 0; right: -10px; width: 2px; padding: 0; border: 0; border-radius: 1px; background: var(--caution-dot); cursor: pointer; }
 .change-bar:hover, .change-bar:focus-visible { width: 5px; right: -11px; outline: none; }
+/* J68: Sanity's "Inline changes": the input's text with the diff since publish, over the
+   input (which takes the click); removed struck on red, added on yellow. */
+.inline-diff { position: relative; }
+.inline-diff-view {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden; padding: 6px 12px; border-radius: 3px;
+  font-size: 15px; line-height: 23px; color: var(--fg-strong); white-space: pre; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line);
+}
+.inline-diff-view[data-multiline] { white-space: pre-wrap; word-break: break-word; }
+.inline-diff-view del { color: var(--muted); text-decoration: line-through; background: var(--inline-removed-bg); }
+.inline-diff-view ins { text-decoration: none; background: var(--inline-added-bg); }
 .history-note { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; padding: 4px 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); font-size: 10px; line-height: 14px; color: var(--muted); }
 .history-note strong { color: var(--fg); font-weight: 600; }
 .history-note svg { flex: none; width: 13px; height: 13px; }
@@ -1062,6 +1079,20 @@ fieldset.object-field > .field-actions { top: -38px; }
 .asset-tile:hover .asset-more, .asset-more:focus-within { opacity: 1; }
 .asset-more .icon-btn { background: var(--bg-glass); box-shadow: inset 0 0 0 1px var(--line); }
 .dialog-backdrop.nested { z-index: 70; }
+/* J68: Compare versions, over the whole studio as Sanity's (12 px from each edge). */
+.dialog-backdrop.compare-backdrop { position: fixed; z-index: 80; }
+.dialog.compare { width: calc(100vw - 24px); height: calc(100vh - 24px); max-height: none; font-size: 15px; }
+.dialog.compare > header { position: relative; padding: 12px 12px 12px 20px; border-bottom: 1px solid var(--border); }
+.dialog.compare h2 { font-size: 13px; font-weight: 400; color: var(--muted); }
+.compare-sides { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.compare-sides svg { width: 19px; height: 19px; }
+.compare-sides .chip { box-shadow: none; }
+.compare-sides .chip[data-version=published] { background: var(--badge-positive-bg); color: var(--positive-fg); }
+.compare-sides .chip[data-version=draft] { background: var(--warn-bg); color: var(--fg); }
+.compare-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; }
+.compare-side.doc-form { max-width: none; margin: 0; overflow-y: auto; padding: 20px 54px 40px; }
+.compare-side + .compare-side { border-left: 1px solid var(--border); }
+@media (max-width: 720px) { .compare-body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } .compare-side + .compare-side { border-left: 0; border-top: 1px solid var(--border); } .compare-side.doc-form { padding: 16px; } }
 .usage-none { font-size: 13px; font-weight: 500; margin: 24px 0; text-align: center; }
 .usage-count { font-size: 13px; font-weight: 500; margin: 16px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .usage-list { list-style: none; padding: 0; margin: 8px 0; }

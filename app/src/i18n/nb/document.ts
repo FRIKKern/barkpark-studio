@@ -40,6 +40,10 @@ export default {
   'Close pane': 'Lukk panel',
   'Close reference': 'Lukk referansen',
   'Close split pane': 'Lukk delt panel',
+  // J68, Sanity's nb pack.
+  'Compare versions': 'Sammenlign versjoner',
+  'Inline changes': 'Endringer i teksten',
+  'There are no other versions of this document to compare.': 'Det er ingen andre versjoner av dette dokumentet å sammenligne med.',
   'Close validation': 'Lukk validering',
   'Collapse': 'Skjul',
   'Comments': 'Kommentarer',

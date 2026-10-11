@@ -3,6 +3,7 @@ import {MenuPopover} from './FocusScopes'
 import {refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
+import {textDiff} from '../lib/changes'
 import {FieldClashCard} from './FieldClash'
 import {worst, type Level, type Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
@@ -40,8 +41,12 @@ export const ProblemsContext = createContext<Problem[]>([])
 export const OpenObjectsContext = createContext<{isOpen: (path: string, byDefault: boolean) => boolean; toggle: (path: string, open: boolean) => void} | null>(null)
 /** Writes one value at a dotted path ("seo.metaTitle"), so a subfield edit sends only that path. */
 export const EditPathContext = createContext<((path: string, value: unknown) => void) | null>(null)
-/** J15: top-level fields the draft changed since publish, and how to open Review changes. */
-export const ChangesContext = createContext<{changed: Set<string>; review: () => void} | null>(null)
+/**
+ * J15: top-level fields the draft changed since publish, and how to open Review changes.
+ * J68: `inline` (Sanity's "Inline changes") also shows a changed text field's diff
+ * against `published` in place.
+ */
+export const ChangesContext = createContext<{changed: Set<string>; review: () => void; inline?: boolean; published?: Record<string, unknown> | null} | null>(null)
 /** The doc being edited, for inputs that read a sibling field (slug's source,
  *  conditional fields). It changes on every keystroke, so only those read it. */
 export const DocContext = createContext<Doc | null>(null)
@@ -197,7 +202,36 @@ function FieldBody(props: FieldProps) {
       </label>
       {props.field.description && <p className="field-desc" id={`${props.path}-desc`}>{props.field.description}</p>}
       <FieldClashCard path={props.path} />
-      <CustomOrDefault {...props} />
+      {changes?.inline && changes.changed.has(props.path) && INLINE_DIFF_TYPES.has(props.field.type) ? (
+        <InlineDiff before={changes.published?.[props.path]} after={props.value} multiline={props.field.type === 'text' || props.field.type === 'markdown'}>
+          <CustomOrDefault {...props} />
+        </InlineDiff>
+      ) : (
+        <CustomOrDefault {...props} />
+      )}
+    </div>
+  )
+}
+
+/** J68: the plain-text inputs Sanity's "Inline changes" marks in place. */
+const INLINE_DIFF_TYPES = new Set(['string', 'url', 'email', 'text', 'markdown'])
+
+/**
+ * J68: a changed text field as Sanity's "Inline changes" draws it: the text with what
+ * was removed since publish struck through and what was added marked. Laid over the
+ * input, which takes the click; while you type, the plain input shows.
+ */
+function InlineDiff({before, after, multiline, children}: {before: unknown; after: unknown; multiline: boolean; children: ReactElement}) {
+  const [editing, setEditing] = useState(false)
+  const str = (v: unknown) => (v == null ? '' : String(v))
+  return (
+    <div className="inline-diff" onFocus={() => setEditing(true)} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setEditing(false)}>
+      {children}
+      {!editing && (
+        <div className="inline-diff-view" data-multiline={multiline || undefined} data-testid="inline-diff" aria-hidden="true">
+          {textDiff(str(before), str(after)).map((seg, i) => (seg.kind === 'removed' ? <del key={i}>{seg.text}</del> : seg.kind === 'added' ? <ins key={i}>{seg.text}</ins> : <span key={i}>{seg.text}</span>))}
+        </div>
+      )}
     </div>
   )
 }
