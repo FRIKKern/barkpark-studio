@@ -2,7 +2,7 @@
 // moves (measured 2026-10-06 on reference/sanity, e2e/journeys/image.spec.ts).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {dragCrop, frame, imageRef, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
+import {dragCrop, frame, imageRef, pickedImage, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≉ ${b}`)
 
@@ -37,4 +37,11 @@ test('an image ref reads the canonical value and the legacy {assetId} one', () =
   assert.equal(imageRef({assetId: 'b2', url: '/media/files/b2.jpg', alt: 'x'}), 'asset-b2')
   assert.equal(imageRef({alt: 'only alt'}), undefined)
   assert.equal(imageRef(null), undefined)
+})
+
+test('a picked asset keeps the legacy shape only where the content uses it', () => {
+  const legacy = {assetId: 'old', url: '/media/files/old.jpg', alt: 'A', focalX: 0.3, hotspot: {x: 0.5, y: 0.5, width: 1, height: 1}}
+  assert.deepEqual(pickedImage(legacy, 'asset-new', '/media/files/new.jpg'), {alt: 'A', asset: {_ref: 'asset-new'}, assetId: 'new', url: '/media/files/new.jpg'})
+  assert.deepEqual(pickedImage(legacy, 'asset-new'), {alt: 'A', asset: {_ref: 'asset-new'}})
+  assert.deepEqual(pickedImage({asset: {_ref: 'asset-a'}, alt: 'B'}, 'asset-b', '/x.jpg'), {alt: 'B', asset: {_ref: 'asset-b'}})
 })

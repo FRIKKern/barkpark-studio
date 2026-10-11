@@ -23,6 +23,18 @@ export const imageRef = (v: unknown): string | undefined => {
 /** Keys of the legacy shape a new asset replaces (they would point at the old one). */
 export const LEGACY_IMAGE_KEYS = ['assetId', 'url', 'lqip', 'width', 'height', 'focalX', 'focalY'] as const
 
+/**
+ * The value to store for a newly picked asset. Content in the legacy shape (migrated
+ * twins read `url` on their site) keeps that shape alongside the canonical ref, so the
+ * site still finds the file; canonical content stays canonical.
+ */
+export function pickedImage(prev: Record<string, unknown>, ref: string, url?: string): Record<string, unknown> {
+  const {hotspot: _h, crop: _c, ...keep} = prev
+  const legacy = typeof prev.assetId === 'string' || typeof prev.url === 'string'
+  for (const k of LEGACY_IMAGE_KEYS) delete keep[k]
+  return legacy && url ? {...keep, asset: {_ref: ref}, assetId: ref.replace(/^asset-/, ''), url} : {...keep, asset: {_ref: ref}}
+}
+
 export const assetUrl = (ref: string) => `/api/media/${encodeURIComponent(ref.replace(/^asset-/, ''))}`
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
