@@ -19,6 +19,8 @@ test('@local J40: comment on a field, mention list, count, resolve, re-open, del
   // Mentions (Sanity's): "@" opens the list of users; Escape closes it and keeps the text.
   await box.pressSequentially('@')
   await expect(page.getByRole('listbox', {name: 'List of users to mention'})).toBeVisible()
+  // The workspace's people are listed (it said 'No users found' while still loading).
+  await expect(page.getByRole('listbox', {name: 'List of users to mention'}).getByRole('option').first()).toContainText('@')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('listbox', {name: 'List of users to mention'})).toBeHidden()
   await box.fill(text)
