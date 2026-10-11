@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
+import {toCsv} from '../lib/vision-csv'
 import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, searchQueries, type SavedQuery} from '../lib/vision-queries'
 import {deletePref, getPref, putPref} from '../lib/prefs'
 import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
@@ -13,7 +14,7 @@ import {toast} from './Toasts'
 
 // J37, Vision: Sanity's layout (dataset, perspective and the query URL with Copy on top,
 // the query on the left, the result as a folding JSON tree on the right, timings and
-// Save result as JSON below), for Barkpark's query API. Ctrl/Cmd+Enter fetches. The last
+// Save result as JSON or CSV below), for Barkpark's query API. Ctrl/Cmd+Enter fetches. The last
 // query, perspective and dataset stay in this browser. Like Sanity's, Vision picks its own
 // dataset in the project (a dataset-bound token: only its own), and keeps saved queries
 // per editor on the server (lib/vision-queries.ts), in a panel on the right.
@@ -57,6 +58,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
       return undefined
     }
   })()
+  const csv = parsed === undefined ? null : toCsv(parsed)
   const fetchIt = async () => {
     setBusy(true)
     try {
@@ -150,6 +152,15 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
                 <a className="btn" download={`vision-${dataset}.json`} href={`data:application/json;charset=utf-8,${encodeURIComponent(result!.body)}`}>
                   JSON
                 </a>
+                {csv !== null ? (
+                  <a className="btn" download={`vision-${dataset}.csv`} href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}>
+                    CSV
+                  </a>
+                ) : (
+                  <button type="button" className="btn" disabled title={t('Result cannot be encoded as CSV')}>
+                    CSV
+                  </button>
+                )}
               </span>
             )}
           </footer>

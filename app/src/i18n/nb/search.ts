@@ -144,6 +144,7 @@ export default {
   'Query URL': 'Spørrings-URL',
   'Copy to clipboard': 'Kopier til utklippstavlen',
   'Save result as': 'Lagre resultatet som',
+  'Result cannot be encoded as CSV': 'Resultatet kan ikke lagres som CSV',
   '{count} items': '{count} elementer',
   '{count} properties': '{count} egenskaper',
   // Vision's saved queries (Sanity's nb-NO words; ours where Sanity has none)
