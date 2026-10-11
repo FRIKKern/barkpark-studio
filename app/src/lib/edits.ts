@@ -806,8 +806,19 @@ export async function unsavedFor(id: string): Promise<{at: number; fields: [stri
 /** J32 widen: after a deleted doc is restored, put the edits it lost back on top and send them. */
 export function reapply(qc: QueryClient, restored: Doc, fields: [string, unknown][]) {
   const id = restored._publishedId
-  const e = docs.get(id)
-  if (e) (clearTimeout(e.timer), (e.timer = undefined), (e.dirty = new Map()), (e.inflight = null), e.base.clear(), setState(e, 'saved'))
+  const e = entry(id, restored._type)
+  clearTimeout(e.timer)
+  e.timer = undefined
+  e.dirty = new Map()
+  e.inflight = null
+  e.missed = undefined
+  e.base.clear()
+  setState(e, 'saved')
+  // The edits are made against the restored version, not against what the screen shows
+  // (it already shows them): with the screen as base, a newer version from Barkpark
+  // meanwhile read as "the editor changed nothing" and theirs replaced the typing.
+  e.rev = restored._rev
+  for (const [f] of fields) e.base.set(f, getPath(restored, f))
   for (const [f, v] of fields) edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? restored, f, v)
   flush(qc, id)
 }
