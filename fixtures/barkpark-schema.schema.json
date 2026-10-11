@@ -149,6 +149,9 @@
           "description": "Its label.",
           "type": "string"
         },
+        "description": {
+          "description": "Help text under the label."
+        },
         "type": {
           "description": "One of the field types.",
           "enum": [
@@ -266,9 +269,6 @@
         },
         "refTypes": {
           "description": "reference: the types it may point to (another spelling of `to`)."
-        },
-        "description": {
-          "description": "Help text in Studio."
         },
         "surface": {
           "description": "\"body\" or \"sidebar\" (metadata only)."
@@ -317,6 +317,9 @@
           "description": "Its label.",
           "type": "string"
         },
+        "description": {
+          "description": "Help text under the label."
+        },
         "type": {
           "description": "One of the field types.",
           "enum": [
@@ -434,9 +437,6 @@
         },
         "refTypes": {
           "description": "reference: the types it may point to (another spelling of `to`)."
-        },
-        "description": {
-          "description": "Help text in Studio."
         },
         "surface": {
           "description": "\"body\" or \"sidebar\" (metadata only)."

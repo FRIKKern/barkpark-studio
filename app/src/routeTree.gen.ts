@@ -22,6 +22,7 @@ import { Route as ApiMutateRouteImport } from './routes/api/mutate'
 import { Route as ApiPresenceRouteImport } from './routes/api/presence'
 import { Route as ApiSchemasRouteImport } from './routes/api/schemas'
 import { Route as ApiVersionRouteImport } from './routes/api/version'
+import { Route as ApiVisionListenRouteImport } from './routes/api/vision-listen'
 import { Route as DebugLiveRouteImport } from './routes/debug/live'
 import { Route as StructureIndexRouteImport } from './routes/structure/index'
 import { Route as StructureSplatRouteImport } from './routes/structure/$'
@@ -102,6 +103,11 @@ const ApiSchemasRoute = ApiSchemasRouteImport.update({
 const ApiVersionRoute = ApiVersionRouteImport.update({
   id: '/api/version',
   path: '/api/version',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVisionListenRoute = ApiVisionListenRouteImport.update({
+  id: '/api/vision-listen',
+  path: '/api/vision-listen',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DebugLiveRoute = DebugLiveRouteImport.update({
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/api/presence': typeof ApiPresenceRoute
   '/api/schemas': typeof ApiSchemasRoute
   '/api/version': typeof ApiVersionRoute
+  '/api/vision-listen': typeof ApiVisionListenRoute
   '/debug/live': typeof DebugLiveRoute
   '/structure/$': typeof StructureSplatRoute
   '/w/$': typeof WSplatRoute
@@ -230,6 +237,7 @@ export interface FileRoutesByTo {
   '/api/presence': typeof ApiPresenceRoute
   '/api/schemas': typeof ApiSchemasRoute
   '/api/version': typeof ApiVersionRoute
+  '/api/vision-listen': typeof ApiVisionListenRoute
   '/debug/live': typeof DebugLiveRoute
   '/structure/$': typeof StructureSplatRoute
   '/w/$': typeof WSplatRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/api/presence': typeof ApiPresenceRoute
   '/api/schemas': typeof ApiSchemasRoute
   '/api/version': typeof ApiVersionRoute
+  '/api/vision-listen': typeof ApiVisionListenRoute
   '/debug/live': typeof DebugLiveRoute
   '/structure/$': typeof StructureSplatRoute
   '/w/$': typeof WSplatRoute
@@ -295,6 +304,7 @@ export interface FileRouteTypes {
     | '/api/presence'
     | '/api/schemas'
     | '/api/version'
+    | '/api/vision-listen'
     | '/debug/live'
     | '/structure/$'
     | '/w/$'
@@ -326,6 +336,7 @@ export interface FileRouteTypes {
     | '/api/presence'
     | '/api/schemas'
     | '/api/version'
+    | '/api/vision-listen'
     | '/debug/live'
     | '/structure/$'
     | '/w/$'
@@ -357,6 +368,7 @@ export interface FileRouteTypes {
     | '/api/presence'
     | '/api/schemas'
     | '/api/version'
+    | '/api/vision-listen'
     | '/debug/live'
     | '/structure/$'
     | '/w/$'
@@ -389,6 +401,7 @@ export interface RootRouteChildren {
   ApiPresenceRoute: typeof ApiPresenceRoute
   ApiSchemasRoute: typeof ApiSchemasRoute
   ApiVersionRoute: typeof ApiVersionRoute
+  ApiVisionListenRoute: typeof ApiVisionListenRoute
   DebugLiveRoute: typeof DebugLiveRoute
   StructureSplatRoute: typeof StructureSplatRoute
   WSplatRoute: typeof WSplatRoute
@@ -498,6 +511,13 @@ declare module '@tanstack/react-router' {
       path: '/api/version'
       fullPath: '/api/version'
       preLoaderRoute: typeof ApiVersionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vision-listen': {
+      id: '/api/vision-listen'
+      path: '/api/vision-listen'
+      fullPath: '/api/vision-listen'
+      preLoaderRoute: typeof ApiVisionListenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/debug/live': {
@@ -629,6 +649,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPresenceRoute: ApiPresenceRoute,
   ApiSchemasRoute: ApiSchemasRoute,
   ApiVersionRoute: ApiVersionRoute,
+  ApiVisionListenRoute: ApiVisionListenRoute,
   DebugLiveRoute: DebugLiveRoute,
   StructureSplatRoute: StructureSplatRoute,
   WSplatRoute: WSplatRoute,

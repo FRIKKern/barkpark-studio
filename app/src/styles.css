@@ -324,11 +324,13 @@ a.preview:hover { background: var(--hover); }
 .pane-body:has(> .preview-view) { display: flex; overflow: hidden; }
 .preview-view { flex: 1; width: 100%; height: 100%; border: 0; display: block; }
 .preview-view-message { padding: 32px; text-align: center; }
-.doc-form { max-width: 664px; margin: 0 auto; padding: 27px 32px 120px; }
+.doc-form { max-width: 640px; margin: 0 auto; padding: 27px 20px 120px; }
 .doc-form .kind { font-size: 13px; line-height: 19px; color: var(--muted); }
 .doc-form h1 { margin: 8px 0 52px; font-size: 33px; line-height: 41px; font-weight: 700; color: var(--fg); }
 .field { margin-bottom: 59px; }
 .field > label, .field > .label { display: block; font-size: 13px; line-height: 19px; font-weight: 500; margin-bottom: 15px; }
+/* Sanity: the description sits 6px under the label, 11px above the input. */
+.field-desc { margin: -9px 0 11px; font-size: 13px; line-height: 19px; color: var(--muted); }
 .input {
   display: block; width: 100%; font: inherit; font-size: 15px; line-height: 23px; padding: 6px 12px;
   color: var(--fg-strong); border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg);
@@ -561,10 +563,10 @@ button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
   .group-tabs-root .group-tabs { display: none; }
   .group-tabs-root .group-select { display: block; }
 }
-.group-tabs [role=tab] { font: inherit; font-size: 13px; padding: 5px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
+.group-tabs [role=tab] { font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; padding: 3px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
 .group-tabs [role=tab]:hover { background: var(--hover); }
 .group-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
-.group-tabs .group-icon { margin: -3px 4px -4px -2px; vertical-align: middle; }
+.group-tabs .group-icon { margin: -3px 4px -3px 0; vertical-align: middle; }
 .group-tabs [role=tab]:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--selected); }
 .bool-box { display: flex !important; align-items: center; gap: 10px; padding: 14px 8px; margin: 0 !important; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-weight: 400 !important; cursor: pointer; }
 fieldset.object-field { border: 0; padding: 0; margin: 0 0 59px; min-width: 0; }
@@ -664,8 +666,14 @@ fieldset.object-field[data-open=false] > legend { margin-bottom: 0; }
 /* Select lists (J31), after Sanity's: radios in a box with a clear button; a native dropdown with a chevron */
 .radio-box { display: flex; align-items: center; min-height: 45px; padding: 0 4px 0 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
 .radio-box [role=group] { flex: 1; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.radio-box[data-direction=vertical] { padding: 13px 13px 13px 13px; }
+.radio-box[data-direction=vertical] [role=group] { flex-direction: column; gap: 10px; }
+.radio-row { display: flex; align-items: center; min-height: 17px; }
+.radio-box[data-direction=vertical] .radio-row .icon-btn { margin: -4px -1px -4px auto; }
 .radio { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; line-height: 19px; color: var(--fg-strong); cursor: pointer; }
-.radio input { width: 15px; height: 15px; margin: 0; accent-color: var(--fg-strong); }
+.radio input { appearance: none; flex: none; width: 17px; height: 17px; margin: 0; border-radius: 50%; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-strong); cursor: pointer; }
+.radio input:checked { background: radial-gradient(circle, var(--fg-strong) 0 4.5px, var(--bg) 5px); box-shadow: inset 0 0 0 1px var(--line); }
+.radio input:focus-visible { outline: 2px solid var(--selected); outline-offset: 1px; }
 .select-box { position: relative; display: block; }
 .select-box select { appearance: none; padding-right: 36px; cursor: pointer; }
 .select-box svg { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--fg-strong); }
@@ -950,6 +958,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .array-item-preview .text { display: flex; flex-direction: column; min-width: 0; }
 .array-item-preview .title { font-size: 14px; font-weight: 500; line-height: 19px; }
 .array-item-preview .subtitle { font-size: 13px; line-height: 17px; color: var(--muted); }
+.array-item-preview .media.has-image { position: relative; overflow: hidden; }
+.array-item-preview .media.has-image img { position: absolute; max-width: none; }
+.array-item-preview .title, .array-item-preview .subtitle { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .dialog.item-dialog { width: min(640px, calc(100% - 64px)); min-height: 60%; }
 .item-dialog header { padding: 16px 16px 8px 20px; }
 .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; }
@@ -1069,20 +1080,36 @@ fieldset.object-field > .field-actions { top: -38px; }
 /* The canvas grows with its blocks, as Sanity's inline body does: a scroll box here would
    clip the canvas's block menu, which it places inside itself (barkpark block-handle.js). */
 .body-canvas .pd-canvas { margin-left: 0; }
-.body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 1.6; padding: 6px 12px 6px 0; min-height: 120px; }
-@media (max-width: 480px) { .body-canvas .bp-paper-editor-body { padding-left: 12px; } }
+/* Sanity's frame: a 33 px bar on top, text 12 px in from the border, the same at rest,
+   on hover and in focus (the read-only body and the live canvas share these numbers, so
+   clicking in moves nothing). Focus only turns the border blue. */
+.body-canvas bp-paper-canvas { padding-left: 0; }
+.body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 23px; padding: 12px 12px 20px; min-height: 120px; }
+/* The canvas's paper type (0.005em tracking, old-style figures) rewraps lines on click; Sanity's input has neither. */
+.body-canvas .bp-paper-editor-body, .body-canvas .bp-paper-editor-body * { letter-spacing: normal; font-feature-settings: normal; text-rendering: optimizeLegibility; font-variant-ligatures: none; }
+/* The read-only body wraps as ProseMirror does (a trailing space keeps its width), so a line never reflows on click. */
+.body-static .bp-paper-editor-body :is(p, li, h1, h2, h3, h4, h5, h6, blockquote) { white-space: break-spaces; overflow-wrap: break-word; }
+.body-bar { display: flex; align-items: center; justify-content: flex-end; flex: none; height: 33px; padding: 0 4px; box-shadow: inset 0 -1px 0 var(--line); }
+/* The canvas's + and drag gutter needs 52 px left of the text; the inline field has no
+   such room (Sanity's has none either), so it shows only when expanded. Slash menu and
+   keys still insert and move blocks. Its inline display is set by the canvas. */
+.body-canvas:not([data-expanded]) .bp-block-handle { display: none !important; }
+.body-canvas[data-expanded] bp-paper-canvas { padding-left: 40px; }
 .body-canvas .bp-paper-editor-body :is(h1, h2, h3, h4, h5, h6) { font-family: inherit; font-weight: 700; color: var(--fg-strong); line-height: 1.25; margin: 16px 0 8px; }
 .body-canvas .bp-paper-editor-body h1 { font-size: 28px; }
 .body-canvas .bp-paper-editor-body h2 { font-size: 22px; }
 .body-canvas .bp-paper-editor-body h3 { font-size: 18px; }
 .body-canvas .bp-paper-editor-body :is(h4, h5, h6) { font-size: 15px; }
 .body-canvas .bp-paper-editor-body p { margin: 0 0 8px; }
+/* The same heading gap in both states (the pane canvas gives an h2 32 px), none above the first block. */
+.body-canvas .bp-paper-editor-body > .ProseMirror > :is(h1, h2, h3, h4, h5, h6) { margin-top: 16px; }
+.body-canvas .bp-paper-editor-body > :first-child, .body-canvas .bp-paper-editor-body > .ProseMirror > :first-child { margin-top: 0; }
 .body-canvas .pd-conflict { margin: 8px; }
 
 /* J35: the body expanded over its pane (same canvas, its frame moved). */
-.body-expand { position: absolute; top: 4px; right: 4px; z-index: 3; width: 27px; height: 27px; }
+.body-expand { width: 25px; height: 25px; }
 /* F12: a 44 px tap target on phones and tablets (Sanity's is 25 px; the bar is ours). */
-@media (max-width: 768px) { .body-expand { top: 0; right: 0; width: 44px; height: 44px; } }
+@media (max-width: 768px) { .body-bar { height: 44px; padding: 0; } .body-expand { width: 44px; height: 44px; } }
 .body-canvas[data-expanded] { background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 16px 40px var(--shadow); display: flex; flex-direction: column; }
 .body-canvas[data-expanded] .pd-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .body-canvas[data-expanded] .pd-canvas { flex: 1; min-height: 0; overflow: auto; }
@@ -1510,7 +1537,7 @@ fieldset.object-field > .field-comments { top: -38px; }
   .hotspot-tool .handle-grab { display: inline; }
 }
 /* J35: the body's expand button at phone width (F12). */
-@media (max-width: 768px) { .body-expand { width: 44px; height: 44px; top: 0; right: 0; } }
+@media (max-width: 768px) { .body-expand { width: 44px; height: 44px; } }
 /* J11: the canvas's slash menu (Barkpark's shell CSS). Its faint text (group labels,
    hints) is 3.7:1 in both themes: re-bound to >= 4.5:1 on the active row too (axe
    color-contrast). Items are 44 px tall at phone width (F12). */

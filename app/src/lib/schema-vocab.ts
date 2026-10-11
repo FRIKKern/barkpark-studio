@@ -20,6 +20,7 @@ export const FIELD_TYPES = [
 export const FIELD_KEYS = {
   name: 'The field\'s name (its path segment).',
   title: 'Its label.',
+  description: 'Help text under the label.',
   type: 'One of the field types.',
   refType: 'reference: the type it points to.',
   to: 'reference: the types it may point to, [{type}].',
@@ -47,7 +48,6 @@ export const BARKPARK_FIELD_KEYS = {
   format: 'localizedText: "plain" or "rich".',
   refTypeTolerant: 'reference: resolve the target as any type.',
   refTypes: 'reference: the types it may point to (another spelling of `to`).',
-  description: 'Help text in Studio.',
   surface: '"body" or "sidebar" (metadata only).',
   encrypted: 'Encrypted at rest.',
   private: 'Per-field read visibility.',

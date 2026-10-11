@@ -53,6 +53,31 @@ test('J37: Vision saves, renames, loads and deletes a query, and switches datase
   await expect(page.getByRole('region', {name: 'Result'})).toContainText('documents')
 })
 
+// Listen: the query's changes as they happen (Barkpark's listen stream, narrowed by the
+// query's type and equality filter), newest first, until Stop.
+test('J37: Vision listens to a query and shows its changes', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  const id = `post-listen-${Date.now().toString(36)}`
+  await t.draftOnly(id, 'post', {title: 'Listen probe'})
+  try {
+    await t.prepare(context)
+    await page.goto('/vision')
+    await signInIfAsked(page)
+    await expect(page.getByRole('combobox', {name: 'Dataset', exact: true})).toBeEnabled()
+    await page.getByLabel('Query', {exact: true}).fill(`post?filter[title]=Listen probe`)
+    await page.getByRole('button', {name: 'Listen'}).click()
+    const result = page.getByRole('region', {name: 'Result'})
+    await expect(result).toContainText('Listening for changes')
+    await t.patch(id, {excerpt: 'heard'})
+    await expect(result).toContainText(`drafts.${id}`)
+    await page.getByRole('button', {name: 'Stop'}).click()
+    await expect(page.getByRole('button', {name: 'Listen'})).toBeVisible()
+  } finally {
+    await t.deleteDoc(id, 'post')
+  }
+})
+
 test('@evidence J37: Vision saved queries and dataset, side by side', async ({page, context}, info) => {
   const t = target(info)
   await t.prepare(context)

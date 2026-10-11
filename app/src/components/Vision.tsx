@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
+import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
 import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, searchQueries, type SavedQuery} from '../lib/vision-queries'
 import {deletePref, getPref, putPref} from '../lib/prefs'
 import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
@@ -14,7 +15,8 @@ import {toast} from './Toasts'
 
 // J37, Vision: Sanity's layout (dataset, perspective and the query URL with Copy on top,
 // the query on the left, the result as a folding JSON tree on the right, timings and
-// Save result as JSON or CSV below), for Barkpark's query API. Ctrl/Cmd+Enter fetches. The last
+// Save result as JSON or CSV below), for Barkpark's query API. Ctrl/Cmd+Enter fetches;
+// Listen follows the query's changes until Stop (lib/vision-listen.ts). The last
 // query, perspective and dataset stay in this browser. Like Sanity's, Vision picks its own
 // dataset in the project (a dataset-bound token: only its own), and keeps saved queries
 // per editor on the server (lib/vision-queries.ts), in a panel on the right.
@@ -36,6 +38,8 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const [dataset, setDataset] = useState(pageDataset)
   const [result, setResult] = useState<VisionResult & {total?: number}>()
   const [busy, setBusy] = useState(false)
+  // Listen: the open stream (Stop aborts it), its mutations (newest first) and why it ended.
+  const [listening, setListening] = useState<{stop: AbortController; open: boolean; events: ListenEvent[]; error?: string}>()
   const bound = useQuery(meQuery).data?.boundDataset ?? null
   const {data: scope} = useQuery(currentScopeQuery)
   const datasets = useQuery({...scopeOptionsQuery(scope ?? {workspace: '', project: ''}), enabled: !!scope}).data?.datasets
@@ -59,16 +63,38 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     }
   })()
   const csv = parsed === undefined ? null : toCsv(parsed)
-  const fetchIt = async () => {
-    setBusy(true)
+  const remember = () => {
     try {
       localStorage.setItem(KEY, JSON.stringify({query, perspective, dataset}))
     } catch {}
+  }
+  useEffect(() => () => listening?.stop.abort(), [listening?.stop])
+  const fetchIt = async () => {
+    listening?.stop.abort()
+    setListening(undefined)
+    setBusy(true)
+    remember()
     const t0 = performance.now()
     const r = await runVisionQuery({data: {query, perspective, dataset}}).catch((e: Error) => ({ok: false, status: 0, url: '', ms: 0, body: '', error: e.message}))
     setResult({...r, total: Math.round(performance.now() - t0)})
     setBusy(false)
   }
+  // Sanity's Listen: the query's changes as they happen, until Stop.
+  const listenIt = () => {
+    if (listening && !listening.error) return (listening.stop.abort(), setListening(undefined))
+    remember()
+    setResult(undefined)
+    const stop = new AbortController()
+    setListening({stop, open: false, events: []})
+    const update = (f: (l: NonNullable<typeof listening>) => NonNullable<typeof listening>) => setListening((l) => (l?.stop === stop ? f(l) : l))
+    void listen(
+      {query, perspective, dataset},
+      stop.signal,
+      (e) => update((l) => ({...l, events: [e, ...l.events].slice(0, LISTEN_KEEP)})),
+      () => update((l) => ({...l, open: true})),
+    ).then((error) => update((l) => ({...l, error: error ?? (stop.signal.aborted ? undefined : t('The listener closed'))})))
+  }
+  const live = !!listening && !listening.error
   return (
     <main className="vision">
       <div className="vision-top">
@@ -125,11 +151,20 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
           <button type="button" className="btn btn-primary vision-fetch" disabled={busy} aria-keyshortcuts="Control+Enter Meta+Enter" onClick={() => void fetchIt()}>
             ▶ {t('Fetch')}
           </button>
+          <button type="button" className="btn vision-fetch" aria-pressed={live} onClick={listenIt}>
+            {live ? `■ ${t('Stop')}` : t('Listen')}
+          </button>
         </section>
         <section className="vision-result" aria-label={t('Result')} aria-busy={busy}>
           <div className="menu-label">{t('Result')}</div>
           <div className="vision-out-wrap">
-          {result?.error ? (
+          {listening ? (
+            <>
+              {listening.error && <p role="alert" className="field-error">{listening.error}</p>}
+              {!listening.error && !listening.events.length && <p className="vision-hint">{t(listening.open ? 'Listening for changes…' : 'Connecting…')}</p>}
+              {listening.events.length > 0 && <div className="vision-code vision-out"><JsonTree value={listening.events} open={2} /></div>}
+            </>
+          ) : result?.error ? (
             <p role="alert" className="field-error">
               {result.error}
             </p>
