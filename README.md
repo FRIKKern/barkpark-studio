@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes
+- **Today** · 10 changes
+  - J37 Vision: Save result as CSV, beside JSON ([#451](https://github.com/FRIKKern/barkpark-studio/pull/451))
   - B02: the studio's name opens the workspace / dataset menu, as Sanity's does ([#292](https://github.com/FRIKKern/barkpark-studio/pull/292))
   - B14: a Sanity Portable Text body reads as its text; the import path, tried end to end ([#450](https://github.com/FRIKKern/barkpark-studio/pull/450))
-  - An upload fails with Retry when the network drops mid-upload ([#449](https://github.com/FRIKKern/barkpark-studio/pull/449))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
