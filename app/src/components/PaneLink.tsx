@@ -2,7 +2,7 @@ import {createContext, useCallback, useContext, type AnchorHTMLAttributes} from 
 import {useNavigate, useRouter, type NavigateOptions} from '@tanstack/react-router'
 import {parseScope, scopedPath} from '../lib/scope'
 import type {ScopeRef} from '../router'
-import {usePublishedPerspective, withPerspective} from '../lib/perspective'
+import {useInlineChanges, usePublishedPerspective, withPerspective} from '../lib/perspective'
 
 /**
  * B02: a studio path as this page's URL spells it: with the page's scope in front
@@ -25,14 +25,15 @@ export function usePaneNavigate() {
   const navigate = useNavigate()
   const map = useContext(PaneHrefContext)
   const published = usePublishedPerspective()
-  return useCallback((options: NavigateOptions & {href?: string}) => navigate(options.href ? {...options, href: map(withPerspective(options.href, published))} : options), [navigate, map, published])
+  const inline = useInlineChanges()
+  return useCallback((options: NavigateOptions & {href?: string}) => navigate(options.href ? {...options, href: map(withPerspective(options.href, published, inline))} : options), [navigate, map, published, inline])
 }
 
 /** A real link (open in new tab works) that navigates client-side on a plain click. */
 export function PaneLink({href: paneHref, ...rest}: AnchorHTMLAttributes<HTMLAnchorElement> & {href: string}) {
   const navigate = useNavigate()
   const scoped = useScopedHref()
-  const href = useContext(PaneHrefContext)(withPerspective(paneHref, usePublishedPerspective()))
+  const href = useContext(PaneHrefContext)(withPerspective(paneHref, usePublishedPerspective(), useInlineChanges()))
   return (
     <a
       href={scoped(href)}

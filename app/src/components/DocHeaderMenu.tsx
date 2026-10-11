@@ -4,7 +4,7 @@ import {useQueryClient} from '@tanstack/react-query'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
-import {Braces, Calendar, ClipboardIcon, Clock, Copy, EarthGlobe, Ellipsis, Share, LinkIcon} from './icons'
+import {Braces, Calendar, Check, ClipboardIcon, Clock, Copy, EarthGlobe, Ellipsis, Share, LinkIcon, Transfer} from './icons'
 import studio from '../studio.config'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
@@ -53,12 +53,12 @@ function useCopyRef(doc: Doc, after: () => void) {
 
 /**
  * The document pane header's "…" menu, after Sanity's:
- * History, Incoming references (J17), Inspect, Open preview (J65), Copy document, Paste
- * document (J29). A paste fills every field whose name and schema type match the
+ * History, Incoming references (J17), Inspect, Compare versions and Inline changes
+ * (J68), Open preview (J65), Copy document, Paste document (J29). A paste fills every field whose name and schema type match the
  * copied document's and leaves the rest alone, so pasting a post into an author
  * moves only what fits.
  */
-export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIncoming}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void; onHistory: () => void; onIncoming: () => void}) {
+export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIncoming, onCompare, inline, onInline}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void; onHistory: () => void; onIncoming: () => void; onCompare?: () => void; inline: boolean; onInline: () => void}) {
   const t = useT()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -95,6 +95,28 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
               <Braces /> {t('Inspect')}
             </span>
             <Keys keys={['Ctrl', alt, 'I']} />
+          </button>
+          {/* J68: draft beside published; with one version there is nothing to compare, and the item says so. */}
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            aria-disabled={!onCompare || undefined}
+            title={onCompare ? undefined : t('There are no other versions of this document to compare.')}
+            onClick={() => onCompare && (close(), onCompare())}
+          >
+            <span className="menu-icon-text">
+              <Transfer /> {t('Compare versions')}
+            </span>
+          </button>
+          {/* J68: a toggle, checked while on (Sanity keeps the check's space when off). */}
+          <button type="button" role="menuitemcheckbox" className="menu-item" aria-checked={inline} onClick={() => (close(), onInline())}>
+            <span className="menu-icon-text">
+              <span className="menu-check" data-on={inline || undefined}>
+                <Check />
+              </span>
+              {t('Inline changes')}
+            </span>
           </button>
           <hr />
           {/* J65: the studio config's preview URL, opened in a new tab. */}

@@ -4,7 +4,7 @@ import {useCallback, useContext, useEffect, useMemo, useRef, useState, type Reac
 import {NarrowContext} from '../lib/layout'
 import {AnchoredLayer, DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
-import {usePublishedPerspective} from '../lib/perspective'
+import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
 import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
@@ -29,6 +29,7 @@ import {UnpublishDialog} from './UnpublishDialog'
 import {setActiveDocument} from '../lib/tasks-ui'
 import {DocHeaderMenu, DocShareMenu, Keys, openPreview, useAltName} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
+import {CompareVersions, useCompareVersions} from './CompareVersions'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {CommentsContext, CommentsPanel} from './Comments'
 import {commentsQuery, threadsOf} from '../lib/comments'
@@ -306,9 +307,40 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const changedKey = [...changedSet].join(',')
   const review = useRef(() => {})
   review.current = () => navigate({href: withParams(panes, index, {inspect: 'review'})})
-  const changes = useMemo(() => ({changed: changedSet, review: () => review.current()}), [changedKey])
+  // J68: Sanity's "Inline changes" (sticky in the URL) and "Compare versions" (draft beside published).
+  const inline = useInlineChanges()
+  const compare = useCompareVersions(pane.type, pane.id)
+  const comparable = !viewingPublished && !pane.rev && !!draftQ.data?._draft && !!publishedQ.data
+  const changes = useMemo(() => ({changed: changedSet, review: () => review.current(), inline, published: publishedQ.data}), [changedKey, inline, publishedQ.data])
   const problemsKey = JSON.stringify(problems)
   const steadyProblems = useMemo(() => problems, [problemsKey])
+  // The form's fields with what they read: the pane's form, and (J68) each side of Compare versions.
+  const formBody = (o: {shown: Doc; values: Record<string, unknown>; changes: typeof changes | null; problems: Problem[]; disabled: boolean; fields: typeof formFields; unknown: boolean}) => (
+    <CommentsContext.Provider value={commentsApi}>
+    <ChangesContext.Provider value={o.changes}>
+    <DocIdContext.Provider value={o.shown._publishedId}>
+    <DocTypeContext.Provider value={pane.type}>
+    <DocContext.Provider value={o.shown}>
+    <UrlPathContext.Provider value={pane.path}>
+    <EditPathContext.Provider value={onEdit}>
+    <ProblemsContext.Provider value={o.problems}>
+    <OpenObjectsContext.Provider value={openObjects}>
+    <fieldset className="form-fields" disabled={o.disabled} title={editReason}>
+      {o.fields.map((f) => (
+        <FieldView key={f.name} field={f} path={f.name} value={o.values[f.name]} openRef={openRef} onChange={onChangeOf(f.name)} />
+      ))}
+      {o.unknown && <UnknownFields doc={o.shown} names={unknownFields(schema!, o.shown)} onRemove={(name) => onEdit(name, undefined)} />}
+    </fieldset>
+    </OpenObjectsContext.Provider>
+    </ProblemsContext.Provider>
+    </EditPathContext.Provider>
+    </UrlPathContext.Provider>
+    </DocContext.Provider>
+    </DocTypeContext.Provider>
+    </DocIdContext.Provider>
+    </ChangesContext.Provider>
+    </CommentsContext.Provider>
+  )
   // J47: validation is heard when an edit changes it, with what it blocks (the
   // count, then the first field and message). Opening a doc says nothing new.
   const problemCount = useRef<number | null>(null)
@@ -467,7 +499,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </button>
         )}
         {doc && schema && (
-          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} />
+          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} onCompare={comparable ? compare.open : undefined} inline={inline} onInline={compare.toggleInline} />
         )}
         {/* J42: a narrow window has no splits and no close: the back link goes back. */}
         {narrow && <FocusButton index={index} />}
@@ -626,32 +658,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             {!revision && <LocationsBanner doc={doc} />}
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
-            <CommentsContext.Provider value={commentsApi}>
-            <ChangesContext.Provider value={changes}>
-            <DocIdContext.Provider value={doc._publishedId}>
-            <DocTypeContext.Provider value={pane.type}>
-            <DocContext.Provider value={revision ? ({...doc, ...revision.content} as Doc) : doc}>
-            <UrlPathContext.Provider value={pane.path}>
-            <EditPathContext.Provider value={onEdit}>
-            <ProblemsContext.Provider value={revision || quiet ? NO_PROBLEMS : steadyProblems}>
-            <OpenObjectsContext.Provider value={openObjects}>
-            <fieldset className="form-fields" disabled={viewingPublished || !!revision || !canWrite} title={editReason}>
-              {formFields.slice(0, revealed).map((f) => (
-                <FieldView key={f.name} field={f} path={f.name} value={(revision ? revision.content : doc)[f.name]} openRef={openRef} onChange={onChangeOf(f.name)} />
-              ))}
-              {!revision && revealed >= formFields.length && (
-                <UnknownFields doc={doc} names={unknownFields(schema, doc)} onRemove={(name) => onEdit(name, undefined)} />
-              )}
-            </fieldset>
-            </OpenObjectsContext.Provider>
-            </ProblemsContext.Provider>
-            </EditPathContext.Provider>
-            </UrlPathContext.Provider>
-            </DocContext.Provider>
-            </DocTypeContext.Provider>
-            </DocIdContext.Provider>
-            </ChangesContext.Provider>
-            </CommentsContext.Provider>
+            {formBody({
+              shown: revision ? ({...doc, ...revision.content} as Doc) : doc,
+              values: revision ? revision.content : doc,
+              changes,
+              problems: revision || quiet ? NO_PROBLEMS : steadyProblems,
+              disabled: viewingPublished || !!revision || !canWrite,
+              fields: formFields.slice(0, revealed),
+              unknown: !revision && revealed >= formFields.length,
+            })}
           </div>
         )}
       </div>
@@ -705,6 +720,26 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         />
       )}
       </div>
+      {/* J68: one dialog per document, not one per split sibling. */}
+      {compare.isOpen && comparable && !pane.sibling && doc && schema && publishedQ.data && (
+        <CompareVersions
+          onClose={compare.close}
+          published={
+            <>
+              <LocationsBanner doc={publishedQ.data} />
+              <GroupTabs schema={schema} value={group} onChange={setGroup} problems={NO_PROBLEMS} />
+              {formBody({shown: publishedQ.data, values: publishedQ.data, changes: null, problems: NO_PROBLEMS, disabled: true, fields: formFields, unknown: false})}
+            </>
+          }
+          draft={
+            <>
+              <LocationsBanner doc={doc} />
+              <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
+              {formBody({shown: doc, values: doc, changes: {...changes, inline: true}, problems: quiet ? NO_PROBLEMS : steadyProblems, disabled: !canWrite, fields: formFields, unknown: false})}
+            </>
+          }
+        />
+      )}
       {inspectOpen && doc && schema && <InspectDialog doc={doc} title={docTitle(doc, schema, t)} onClose={() => setInspectOpen(false)} />}
     </section>
   )
