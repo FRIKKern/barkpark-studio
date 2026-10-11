@@ -90,6 +90,10 @@ export default {
   'Could not fetch list items': 'Kunne ikke hente listeobjekter',
   'No results found': 'Ingen resultater funnet',
   'No documents of this type': 'Ingen dokumenter av denne typen',
+  // Sanity's own nb (@sanity/locale-nb-no, no-document-types-screen.*).
+  'No document types': 'Ingen dokumenttyper',
+  'Please define at least one document type in your schema.': 'Vennligst definer minst én dokumenttype i ditt skjema.',
+  'Learn how to add a document type →': 'Lær hvordan du legger til en dokumenttype →',
   'Select {title}': 'Velg {title}',
   'Selection limit reached ({max})': 'Grensen for utvalg er nådd ({max})',
   'Loading more documents…': 'Laster flere dokumenter…',
@@ -111,6 +115,8 @@ export default {
   'Compact view': 'Kompakt visning',
   'Detailed view': 'Detaljert visning',
   'Default view': 'Standardvisning',
+  'Select documents': 'Velg dokumenter',
+  'Stop selecting': 'Avslutt valg',
   Title: 'Tittel',
 
   // A row's status tooltip (J56)
@@ -141,6 +147,10 @@ export default {
   // Dev sign-in
   'Dev sign-in — no password. Never enabled in a production build.': 'Utviklerinnlogging — uten passord. Aldri slått på i en produksjonsversjon.',
   'Your email': 'E-postadressen din',
+  Password: 'Passord',
+  'Code from your authenticator app': 'Koden fra autentiseringsappen din',
+  'The email or password is incorrect.': 'E-postadressen eller passordet er feil.',
+  'That code is not right. Try the current one.': 'Koden stemmer ikke. Prøv den gjeldende.',
   'Signing in…': 'Logger inn…',
   'Sign in': 'Logg inn',
 } satisfies Record<string, string>

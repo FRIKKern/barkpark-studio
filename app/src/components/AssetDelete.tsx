@@ -12,20 +12,24 @@ type Use = {_id: string; _type: string; title?: string}
 /**
  * J36: Sanity's asset "Delete" dialog. An asset some document uses can't be deleted:
  * it says so and lists them (each opens in the next pane). Otherwise it asks, then
- * deletes the asset and its metadata (the studio's DELETE refuses one in use, too).
+ * deletes the asset and its metadata. Barkpark refuses one in use too (409 with where
+ * it is used): that list replaces the lookup's, so a use made since still shows.
  */
 export function AssetDeleteDialog({kind, asset, path, openRef, onClose, onOpen}: {kind: 'image' | 'file'; asset: {id: string; name: string}; path: string; openRef: OpenRef; onClose: () => void; onOpen: () => void}) {
   const t = useT()
   const qc = useQueryClient()
   const [busy, setBusy] = useState(false)
-  const {data: uses, isPending} = useQuery({queryKey: ['media-usage', asset.id], staleTime: 0, queryFn: () => fetch(`/api/media/${encodeURIComponent(asset.id)}/usage`).then((r) => r.json() as Promise<Use[]>)})
+  const {data: found, isPending} = useQuery({queryKey: ['media-usage', asset.id], staleTime: 0, queryFn: () => fetch(`/api/media/${encodeURIComponent(asset.id)}/usage`).then((r) => r.json() as Promise<Use[]>)})
+  const [refused, setRefused] = useState<Use[] | null>(null)
+  const uses = refused ?? found
   const image = kind === 'image'
   const remove = async () => {
     setBusy(true)
     const res = await fetch(`/api/media/${encodeURIComponent(asset.id)}`, {method: 'DELETE'}).catch(() => null)
     setBusy(false)
     if (!res?.ok) {
-      if (res?.status === 409) return void qc.invalidateQueries({queryKey: ['media-usage', asset.id]})
+      const listed = res?.status === 409 ? ((await res.json().catch(() => ({}))) as {uses?: Use[]}).uses : undefined
+      if (listed?.length) return setRefused(listed)
       return toast({tone: 'critical', title: image ? t('Image could not be deleted') : t('File could not be deleted')})
     }
     toast({tone: 'positive', title: image ? t('Image was deleted') : t('File was deleted')})

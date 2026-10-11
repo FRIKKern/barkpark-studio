@@ -35,11 +35,26 @@ test('@local J37: tool switcher, Vision query, user menu', async ({page, context
   await tool('Vision').click()
   await expect(page).toHaveURL(/\/vision$/)
   await expect(tool('Vision')).toHaveAttribute('aria-current', 'page')
-  const query = page.getByLabel('Query')
+  const query = page.getByLabel('Query', {exact: true})
   await query.fill('post?filter[title][contains]=post 12&limit=5')
   await query.press('ControlOrMeta+Enter')
-  await expect(page.getByRole('region', {name: 'Result'})).toContainText('"Fixture post 12"')
+  const result = page.getByRole('region', {name: 'Result'})
+  await expect(result).toContainText('Fixture post 12')
   await expect(page.getByText(/^Execution: \d+ ms$/)).toBeVisible()
+  await page.screenshot({path: 'evidence/J37-studio-4-vision-result.png'})
+  // Sanity Vision's result: a folding JSON tree that scrolls in its pane (the page stays put),
+  // the query URL to copy, and Save result as JSON.
+  const fold = result.getByRole('button', {name: /documents: \[…\] 1 item/})
+  const docs = fold.locator('xpath=..')
+  await expect(docs).toHaveAttribute('aria-expanded', 'true')
+  await fold.click()
+  await expect(docs).toHaveAttribute('aria-expanded', 'false')
+  await expect(result).not.toContainText('Fixture post 12')
+  await expect(page.getByLabel('Query URL')).toHaveValue(/\/v1\/data\/query\/[^/]+\/post\?.*perspective=drafts/)
+  await page.getByRole('button', {name: 'Copy to clipboard'}).click()
+  await expect(page.getByText('The URL is copied to the clipboard')).toBeVisible()
+  await expect(page.getByRole('link', {name: 'JSON'})).toHaveAttribute('download', /\.json$/)
+  expect(await page.evaluate(() => scrollY), 'the page itself never scrolls').toBe(0)
   // Anything but a type and a query string never reaches Barkpark.
   await query.fill('../../v1/tasks')
   await page.getByRole('button', {name: 'Fetch'}).click()
@@ -93,4 +108,29 @@ test('@local J46: phone width — tools in a drawer, search an icon, 44 px targe
   await drawer.getByRole('link', {name: 'Vision'}).click()
   await expect(page).toHaveURL(/\/vision$/)
   await expect(drawer).toBeHidden()
+})
+
+test('@local J46: on a touch phone, what hover reveals is there, and the document header is one row', async ({browser}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the touch scout compared both; this guards ours')
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true})
+  try {
+    await t.prepare(context)
+    const page = await context.newPage()
+    await page.goto(t.docPath('post', 'post-03'))
+    await signInIfAsked(page)
+    await t.settle(page)
+    // Field "…" and Add comment: hover-only on a desktop, always shown without hover (as Sanity's).
+    const fieldActions = page.getByRole('button', {name: 'Field actions'}).first()
+    await expect(fieldActions).toBeVisible()
+    expect(await fieldActions.evaluate((el) => Number(getComputedStyle(el.closest('.field-actions')!).opacity))).toBe(1)
+    await fieldActions.tap()
+    await expect(page.getByRole('menuitem').first()).toBeVisible()
+    await page.keyboard.press('Escape')
+    // The document header keeps one row (it wrapped its last button onto a second).
+    const tops = await page.locator('[data-testid="document-pane"] .pane-header').first().locator(':scope > button, :scope > .menu-wrap > button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)))
+    expect(new Set(tops).size, `header button rows (tops ${tops})`).toBe(1)
+  } finally {
+    await context.close()
+  }
 })

@@ -8,6 +8,8 @@ export type Revision = {
   title?: string
   actorId?: string
   author: string
+  /** Who acted, when Barkpark names a person (a service token has no owner). */
+  actor?: string
 }
 
 /** Sanity's words for what happened. Each new draft (after a publish, or the first) is "Draft created". */

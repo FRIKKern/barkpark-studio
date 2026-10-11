@@ -1,5 +1,5 @@
 import {createServerFn} from '@tanstack/react-start'
-import {queryOptions} from '@tanstack/react-query'
+import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query'
 import {bpFetch, dataset} from '../server/barkpark'
 
 // B08: the Media tool, after Barkpark's LiveView media library (its bp-asset-explorer
@@ -8,7 +8,10 @@ import {bpFetch, dataset} from '../server/barkpark'
 // lock's holder is "you" for the one who checked it out.
 
 export type Visibility = 'public' | 'private'
-export type LibraryAsset = {id: string; name: string; mimeType: string; size: number; visibility?: Visibility; createdAt: string; checkedOutBy?: string | null}
+/** Barkpark's asset kinds (mediaAsset bp_asset_kind), LiveView's library filter. */
+export const KINDS = ['image', 'video', 'audio', 'document', 'other'] as const
+export type Kind = (typeof KINDS)[number]
+export type LibraryAsset = {id: string; name: string; mimeType: string; size: number; visibility?: Visibility; createdAt: string; checkedOutBy?: string | null; kind?: string}
 export type Collection = {id: string; title: string; kind: string}
 export type AssetDetail = LibraryAsset & {
   /** The mediaAsset document holding the editable metadata (title, alt text). */
@@ -20,6 +23,11 @@ export type AssetDetail = LibraryAsset & {
   checkedOutAt?: string
   canEdit: boolean
   visibilityNotice?: {label: string; copy: string}
+  /** Barkpark's processing state ("ready", "processing", "failed"), LiveView's status chip. */
+  processing?: string
+  updatedAt?: string
+  /** The file's address at Barkpark (LiveView's Copy link). */
+  link?: string
 }
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -35,7 +43,9 @@ type RawAsset = {
   permissions?: string[]
   checkoutLabel?: string | null
   visibilityNotice?: {label: string; copy: string}
-  asset?: {_id?: string; title?: string; altText?: string; checkedOutBy?: string | null; checkedOutAt?: string; fileInfo?: {mimeType?: string; originalName?: string}}
+  updatedAt?: string
+  absoluteUrl?: string
+  asset?: {_id?: string; _updatedAt?: string; bp_processing_status?: string; title?: string; altText?: string; checkedOutBy?: string | null; checkedOutAt?: string; bp_asset_kind?: string; fileInfo?: {mimeType?: string; originalName?: string}}
 }
 const toAsset = (a: RawAsset): LibraryAsset => ({
   id: a.id,
@@ -45,6 +55,7 @@ const toAsset = (a: RawAsset): LibraryAsset => ({
   visibility: a.visibility,
   createdAt: a.createdAt ?? '',
   checkedOutBy: a.asset?.checkedOutBy ?? null,
+  kind: a.asset?.bp_asset_kind,
 })
 const base = () => `/v1/media/${dataset()}`
 async function read<T>(path: string): Promise<T> {
@@ -63,22 +74,53 @@ const fetchCollections = createServerFn({method: 'GET'}).handler(async () => {
 })
 export const collectionsQuery = queryOptions({queryKey: ['media', 'collections'], queryFn: async () => (await fetchCollections()) as unknown as Collection[]})
 
+/** LiveView's orderings (Barkpark's search sort keys). */
+export const SORTS = ['created-desc', 'created-asc', 'updated-desc'] as const
+export type Sort = (typeof SORTS)[number]
+type Filter = {collection?: string; q?: string; visibility?: Visibility; kind?: Kind; sort?: Sort}
+/** A page: LiveView's 50 (Barkpark's search time grows with the page: 200 took 3-4 s). */
+const PAGE = 50
+/** Where the next page starts: Barkpark's cursor where the sort has one, else an offset. */
+type From = {cursor?: string; offset?: number}
+type Page = {assets: LibraryAsset[]; more: boolean; total: number | null; next: From | null}
 const fetchAssets = createServerFn({method: 'GET'})
-  .validator((d: {collection?: string; q?: string; visibility?: Visibility}) => d)
+  .validator((d: Filter & {from?: From}) => d)
   .handler(async ({data}) => {
-    const params = new URLSearchParams({limit: '200', sort: 'createdAt:desc'})
+    const params = new URLSearchParams({limit: String(PAGE), sort: data.sort ?? 'created-desc'})
+    if (data.from?.cursor) params.set('cursor', data.from.cursor)
+    else if (data.from?.offset) params.set('offset', String(data.from.offset))
     if (data.q) params.set('q', data.q)
-    if (data.collection) {
-      const r = await read<{assets?: RawAsset[]; hits?: RawAsset[]; hasMore?: boolean}>(`${base()}/collections/${encodeURIComponent(data.collection)}/assets?${params}`)
-      return {assets: (r.assets ?? r.hits ?? []).map(toAsset).filter((a) => !data.visibility || a.visibility === data.visibility), more: !!r.hasMore} as unknown as Json
-    }
+    // A folder is one more filter on the same search (Barkpark's collection=), so it sorts,
+    // filters by kind and counts as the whole library does.
+    if (data.collection) params.set('collection', data.collection)
     // The search's visibility facet (#22127: an asset with none stored is public).
     if (data.visibility) params.set('facet.visibility', data.visibility)
-    const r = await read<{hits: RawAsset[]; hasMore?: boolean}>(`${base()}/search?${params}`)
-    return {assets: r.hits.map(toAsset), more: !!r.hasMore} as unknown as Json
+    if (data.kind) params.set('kind', data.kind)
+    const r = await read<{hits: RawAsset[]; hasMore?: boolean; total?: number; nextCursor?: string | null}>(`${base()}/search?${params}`)
+    const next = !r.hasMore ? null : r.nextCursor ? {cursor: r.nextCursor} : {offset: (data.from?.offset ?? 0) + r.hits.length}
+    const page: Page = {assets: r.hits.map(toAsset), more: !!r.hasMore, total: r.total ?? null, next}
+    return page as unknown as Json
   })
-export const assetsQuery = (f: {collection?: string; q?: string; visibility?: Visibility}) =>
-  queryOptions({queryKey: ['media', 'assets', f], queryFn: async () => (await fetchAssets({data: f})) as unknown as {assets: LibraryAsset[]; more: boolean}})
+/** How many assets of each kind the library holds under this search and visibility (Barkpark's kind facet). */
+const fetchKindCounts = createServerFn({method: 'GET'})
+  .validator((d: Omit<Filter, 'kind' | 'collection'>) => d)
+  .handler(async ({data}) => {
+    const params = new URLSearchParams({limit: '1', facets: 'kind'})
+    if (data.q) params.set('q', data.q)
+    if (data.visibility) params.set('facet.visibility', data.visibility)
+    const r = await read<{total?: number; facets?: {kind?: {value: string; count: number}[]}}>(`${base()}/search?${params}`)
+    return {total: r.total ?? 0, kinds: Object.fromEntries((r.facets?.kind ?? []).map((k) => [k.value, k.count]))} as unknown as Json
+  })
+export const kindCountsQuery = (f: Omit<Filter, 'kind' | 'collection'>) =>
+  queryOptions({queryKey: ['media', 'assets', 'kinds', f], queryFn: async () => (await fetchKindCounts({data: f})) as unknown as {total: number; kinds: Record<string, number>}})
+
+export const assetsQuery = (f: Filter) =>
+  infiniteQueryOptions({
+    queryKey: ['media', 'assets', f],
+    initialPageParam: {} as From,
+    queryFn: async ({pageParam}) => (await fetchAssets({data: {...f, from: pageParam}})) as unknown as Page,
+    getNextPageParam: (last: Page) => last.next ?? undefined,
+  })
 
 const fetchAsset = createServerFn({method: 'GET'})
   .validator((d: {id: string}) => d)
@@ -93,6 +135,9 @@ const fetchAsset = createServerFn({method: 'GET'})
       checkedOutAt: a.asset?.checkedOutAt,
       canEdit: (a.permissions ?? []).includes('edit_metadata'),
       visibilityNotice: a.visibilityNotice && {label: a.visibilityNotice.label, copy: a.visibilityNotice.copy},
+      processing: a.asset?.bp_processing_status,
+      updatedAt: a.asset?._updatedAt ?? a.updatedAt,
+      link: a.absoluteUrl,
     }
     return detail as unknown as Json
   })

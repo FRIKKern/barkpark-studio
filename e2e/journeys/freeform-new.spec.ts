@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // D04 (Freeform side track, ours only): "+" on a type with an Expectation creates the
 // doc at once, and Barkpark builds it from the layout and fills it from the prefill.
@@ -8,7 +8,8 @@ import {target} from '../rig/targets'
 // Classic) opens with Kicker prefilled "New story", the caret in Title. Stills in
 // e2e/evidence/D04-*. The docs it creates are deleted after.
 const created: {id: string; type: string}[] = []
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   for (const d of created.splice(0)) await target(info).deleteDoc(d.id, d.type)
 })
 

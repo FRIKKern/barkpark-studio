@@ -64,7 +64,8 @@ test('@local J27: missing doc + Clear, draft-only target, filtered search, creat
 
   // Two target types: Create asks which.
   await pane.getByRole('button', {name: /^Create(…|\.\.\.)$/}).click()
-  await expect(page.getByRole('menuitem', {name: 'Post'})).toBeVisible()
+  await expect(page.getByRole('menuitem', {name: 'Post', exact: true})).toBeVisible()
+  await expect(page.getByRole('menuitem', {name: 'Post by Alan Turing'})).toBeVisible() // J18: its template too
   await expect(page.getByRole('menuitem', {name: /^Aut/})).toBeVisible()
   await page.keyboard.press('Escape')
   // Ours coalesces writes: let the Clear land before the reset.

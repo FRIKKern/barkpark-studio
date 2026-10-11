@@ -11,7 +11,7 @@
   ]},
   "fields": [
     {"name": "title", "title": "Title", "type": "string", "group": "content", "validation": {"required": true, "max": 120}},
-    {"name": "slug", "title": "Slug", "type": "slug", "group": "content", "options": {"source": "title"}, "validation": {"required": true}},
+    {"name": "slug", "title": "Slug", "type": "slug", "group": "content", "options": {"source": "title"}, "validation": [{"required": true}, {"pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "message": "Lowercase letters and digits, words joined by dashes"}]},
     {"name": "excerpt", "title": "Excerpt", "type": "text", "rows": 3, "group": "content", "validation": {"max": 160, "level": "warning", "message": "Long excerpts get cut off in previews"}},
     {"name": "author", "title": "Author", "type": "reference", "refType": "author", "group": "content"},
     {"name": "categories", "title": "Categories", "type": "arrayOf", "ordered": true, "group": "content",
@@ -19,8 +19,8 @@
     {"name": "mainImage", "title": "Main image", "type": "image", "group": "content", "options": {"hotspot": true}, "fields": [{"name": "alt", "title": "Alternative text", "type": "string"}]},
     {"name": "body", "title": "Body", "type": "richText", "editor": "blocks", "group": "content",
      "blocks": {"styles": ["normal", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"], "lists": ["bullet", "number"],
-                "marks": ["strong", "em", "code", "underline", "strikethrough"], "annotations": [{"name": "link"}, {"name": "wikilink"}],
-                "of": ["image", "callout"]}},
+                "marks": ["strong", "em", "code", "underline", "strikethrough"], "annotations": [{"name": "link"}, {"name": "wikilink"}], "inline": [{"name": "chip", "title": "Chip", "fields": [{"name": "text", "title": "Text", "type": "string"}, {"name": "tone", "title": "Tone", "type": "select", "options": {"list": [{"title": "Neutral", "value": "neutral"}, {"title": "Positive", "value": "positive"}, {"title": "Caution", "value": "caution"}]}}]}],
+                "of": ["image", {"name": "callout", "title": "Callout", "fields": [{"name": "tone", "title": "Tone", "type": "select", "options": {"list": [{"title": "Info", "value": "info"}, {"title": "Warning", "value": "warning"}, {"title": "Danger", "value": "danger"}]}}, {"name": "text", "title": "Text", "type": "text"}]}]}},
     {"name": "stage", "title": "Stage", "type": "select", "group": "meta", "layout": "radio",
      "options": ["idea", "writing", "review", "done"]},
     {"name": "format", "title": "Format", "type": "select", "group": "meta",
@@ -43,9 +43,14 @@
     {"name": "publishedAt", "title": "Published at", "type": "datetime", "group": "meta"},
     {"name": "featured", "title": "Featured", "type": "boolean", "group": "meta"},
     {"name": "rating", "title": "Rating", "type": "number", "group": "meta", "validation": {"min": 0, "max": 5}},
-    {"name": "tags", "title": "Tags", "type": "arrayOf", "ordered": true, "group": "meta", "options": {"layout": "tags"},
+    {"name": "tags", "title": "Tags", "type": "arrayOf", "ordered": true, "group": "meta", "options": {"layout": "tags"}, "validation": {"max": 3, "level": "warning"},
      "of": {"type": "string"}},
     {"name": "highlights", "title": "Highlights", "type": "arrayOf", "ordered": true, "group": "meta", "of": {"type": "string"}},
+    {"name": "cta", "title": "Call to action", "type": "composite", "group": "meta", "fields": [
+      {"name": "kind", "title": "Kind", "type": "select", "options": [{"value": "url", "title": "Link"}, {"value": "internal", "title": "Page"}]},
+      {"name": "url", "title": "URL", "type": "url", "visibleWhen": {"field": "kind", "operator": "eq", "value": "url", "scope": "parent"}},
+      {"name": "page", "title": "Page", "type": "reference", "refType": "post", "visibleWhen": {"field": "kind", "operator": "eq", "value": "internal", "scope": "parent"}}
+    ]},
     {"name": "seo", "title": "SEO", "type": "composite", "group": "meta", "options": {"collapsible": true, "collapsed": true}, "fields": [
       {"name": "metaTitle", "title": "Meta title", "type": "string", "validation": {"max": 60}},
       {"name": "metaDescription", "title": "Meta description", "type": "text", "rows": 2, "validation": {"min": 50, "level": "info", "message": "Search results show about 150 characters"}}

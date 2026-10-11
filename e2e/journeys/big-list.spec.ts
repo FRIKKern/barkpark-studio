@@ -63,8 +63,24 @@ test('@local J41: big list pages to 2,000 with the note; search reaches past it'
     const r = el.getBoundingClientRect()
     return r.top < innerHeight && r.bottom > 0
   })
+  // F11 while it grows: the rows from 100 to 2,000 mount a few at a time, never one long frame.
+  await page.evaluate(() => {
+    const w = window as {__grow?: number[]; __growing?: boolean}
+    w.__grow = []
+    w.__growing = true
+    let last = performance.now()
+    const tick = (t: number) => (w.__grow!.push(t - last), (last = t), w.__growing && requestAnimationFrame(tick))
+    requestAnimationFrame(tick)
+  })
   for (let i = 0; i < 400 && !(await atEnd()); i++) await page.mouse.wheel(0, 3000)
   await expect(note).toBeInViewport()
+  const worstGrowing = await page.evaluate(() => {
+    const w = window as {__grow?: number[]; __growing?: boolean}
+    w.__growing = false
+    return Math.max(...w.__grow!.slice(1))
+  })
+  console.log(`[J41 ${t.name}] growing to 2,000 rows: worst frame ${worstGrowing.toFixed(0)} ms`)
+  if (t.name === 'studio') expect(worstGrowing, 'F11: growing to 2,000 never stalls a frame').toBeLessThan(100)
 
   const f = await frames(page, 40)
   console.log(`[J41 ${t.name}] scrolling 2,000 rows: mean ${f.mean.toFixed(1)} ms, p95 ${f.p95.toFixed(1)} ms over ${f.n} frames, ${f.distance} px travelled`)

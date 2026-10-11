@@ -28,5 +28,7 @@ test('sinceLastPublish stops at the newest publish', () => {
 test('textDiff and asText', () => {
   assert.deepEqual(textDiff('Fixture post 24', 'History fixture v7').map((s) => s.kind).includes('removed'), true)
   assert.equal(asText({blocks: [{content: [{type: 'text', value: 'Hi'}]}, {text: 'Head'}]}), 'Hi\nHead')
+  // An inline object keeps its words in the diff (J11 chip).
+  assert.equal(asText({blocks: [{content: [{type: 'text', value: 'Status '}, {type: 'chip', text: 'Reviewed', tone: 'positive'}]}]}), 'Status Reviewed')
   assert.equal(asText({x: 1}), undefined)
 })
