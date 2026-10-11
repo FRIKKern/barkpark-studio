@@ -61,3 +61,23 @@ export function insertMention(text: string, start: number, caret: number, email:
 
 /** A person's name from their email, as the chip shows it. */
 export const personName = (email: string) => email.replace(/@.*/, '')
+
+type Member = {identity?: string; principal_type: string; revoked?: boolean | null}
+type MembersPage = {members: Member[]; hasMore?: boolean; nextOffset?: number}
+
+/**
+ * Who can be mentioned (J40): every page of the workspace's members, its people (users
+ * with an email, not tokens), sorted. Tokens far outnumber people, so the people may sit
+ * past the first page (studio-parity: 17 people among 269 members, 2 past the first 200).
+ */
+export async function mentionablePeople(page: (offset: number) => Promise<MembersPage>, maxPages = 20): Promise<string[]> {
+  const people = new Set<string>()
+  let offset = 0
+  for (let i = 0; i < maxPages; i++) {
+    const {members, hasMore, nextOffset} = await page(offset)
+    for (const m of members) if (m.principal_type === 'user' && !m.revoked && m.identity?.includes('@')) people.add(m.identity)
+    if (!hasMore || nextOffset === undefined || nextOffset <= offset) break
+    offset = nextOffset
+  }
+  return [...people].sort()
+}
