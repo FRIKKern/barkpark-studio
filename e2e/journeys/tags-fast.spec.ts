@@ -6,8 +6,7 @@ import {closeAndSettle, target} from '../rig/targets'
 const ID = 'post-20'
 test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'post')))
 
-// @local: 3–11 s locally (the server catching up with four writes), over rule 5's 5 s.
-test('@local J34: tags typed fast with Enter all land, in order', async ({page}, info) => {
+test('J34: tags typed fast with Enter all land, in order', async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
   await page.goto(t.docPath('post', ID))
@@ -15,5 +14,8 @@ test('@local J34: tags typed fast with Enter all land, in order', async ({page},
   await page.getByRole('tab', {name: 'Meta'}).click()
   await t.field(page, 'tags').click()
   for (const tag of ['one', 'two', 'three', 'four']) (await page.keyboard.type(tag), await page.keyboard.press('Enter'))
-  await expect.poll(() => t.docValue(ID, 'tags'), {timeout: 10_000}).toEqual(['fixture', 't0', 'one', 'two', 'three', 'four'])
+  const all = ['fixture', 't0', 'one', 'two', 'three', 'four']
+  // On screen at once (the lost tag never showed as a chip), then on the server.
+  if (t.name === 'studio') await expect.poll(() => page.locator('.tags-box .tag').allInnerTexts()).toEqual(all)
+  await expect.poll(() => t.docValue(ID, 'tags'), {timeout: 10_000}).toEqual(all)
 })
