@@ -97,6 +97,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const byId = new Map(refFields.map((f, i) => [doc![f.name] as string, targets[i].data]))
   // J18: a new doc nobody has typed in yet exists only here; Sanity checks nothing until the first edit.
   const pristine = isPristine(doc, useSaveState(pane.id).state)
+  // D04: on a doc made here, fields stay quiet until someone types (its initial values or an
+  // Expectation's prefill are the studio's writes, not an edit): no red Title on a doc you
+  // just made. Publishing still checks everything (the errors below are unchanged).
+  // Made here: not saved yet, or created a moment ago (an Expectation's prefill saves at once).
+  const [made, setMade] = useState<{id: string; acted: boolean}>()
+  const justMade = !!doc && (pristine || (doc._hasPublished === false && Date.now() - Date.parse(String(doc._createdAt ?? '')) < 15_000))
+  if (justMade && made?.id !== pane.id) setMade({id: pane.id, acted: false})
+  const quiet = made?.id === pane.id && !made.acted
+  // After the keystroke lands: re-rendering the form inside its input event drops it.
+  const acted = () => quiet && setTimeout(() => setMade((m) => (m?.id === pane.id ? {...m, acted: true} : m)))
   const own = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
   // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
   const advisories = useAdvisories(pane.id)
@@ -333,6 +343,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       data-testid="document-pane"
       data-pane={`doc:${pane.id}`}
       data-pane-index={index}
+      onInputCapture={acted}
+      onPasteCapture={acted}
+      onDropCapture={acted}
       onFocus={(e) => {
         // J07: the most specific path: an array item (data-presence-path) unless a
         // field inside it has its own, longer one.
@@ -614,7 +627,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <DocContext.Provider value={revision ? ({...doc, ...revision.content} as Doc) : doc}>
             <UrlPathContext.Provider value={pane.path}>
             <EditPathContext.Provider value={onEdit}>
-            <ProblemsContext.Provider value={revision ? NO_PROBLEMS : steadyProblems}>
+            <ProblemsContext.Provider value={revision || quiet ? NO_PROBLEMS : steadyProblems}>
             <OpenObjectsContext.Provider value={openObjects}>
             <fieldset className="form-fields" disabled={viewingPublished || !!revision || !canWrite} title={editReason}>
               {formFields.slice(0, revealed).map((f) => (

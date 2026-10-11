@@ -46,6 +46,13 @@ test('@local D04: new doc from an Expectation — layout scaffold, prefill, care
   const storyId = await newDoc(page, 'story', 'Story')
   await expect(t.field(page, 'kicker')).toHaveValue('New story', {timeout: 15_000})
   await expect(t.field(page, 'title')).toBeFocused()
+  // Nobody has typed yet: no red Title on a doc you just made (sign-off pack D04).
+  await expect.poll(() => t.docValue(storyId, 'kicker', 'story')).toBe('New story')
+  await expect(page.locator('.field', {has: t.field(page, 'title')})).not.toHaveAttribute('data-invalid')
+  // Once someone types, the rules speak: an emptied Title is red.
+  await page.keyboard.type('x')
+  await page.keyboard.press('Backspace')
+  await expect(page.locator('.field', {has: t.field(page, 'title')})).toHaveAttribute('data-invalid')
   await page.screenshot({path: 'evidence/D04-2-story-studio.png'})
   expect(((await t.docValue(storyId, 'blocks', 'story')) as {fieldName?: string}[]).map((b) => b.fieldName ?? '·')).toEqual(['title', 'kicker', 'summary', '·'])
 })
