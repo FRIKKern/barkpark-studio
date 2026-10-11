@@ -124,4 +124,7 @@ test('J04: unpublish from the published perspective leaves only a draft', async 
   await page.getByRole('button', {name: /^Unpublish$/}).last().click()
   await confirm(page, /^Unpublish( now)?$/).click()
   await expect.poll(versions, BACKEND_POLL).toEqual({draft: 'Fixture post 30', published: undefined})
+  // As Sanity: the form stays, empty and read-only, and the footer says what happened.
+  await expect(t.field(page, 'title')).toHaveValue('')
+  await expect(page.getByText(/^Unpublished just now$/).or(page.getByText(/Unpublished just now/)).first()).toBeVisible()
 })
