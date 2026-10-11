@@ -14,17 +14,21 @@ export const loadDocEditors = () => (pending ??= untilLoaded().then((m) => (Obje
 // here reached the pane's error card, and stayed cached until a reload). It never
 // rejects: a failed fetch tries again once the browser is back online (or in a moment,
 // if it never noticed going offline); the editors in it wait, the rest of the form types on.
-function untilLoaded(): Promise<Mod> {
-  return import('./doc-editors').catch(
-    () =>
+// The browser keeps a failed module fetch failed, so a retry asks for the same file
+// under a fresh URL (the one the error names).
+function untilLoaded(attempt: () => Promise<Mod> = () => import('./doc-editors')): Promise<Mod> {
+  return attempt().catch(
+    (err: unknown) =>
       new Promise<Mod>((resolve) => {
-        const again = () => resolve(untilLoaded())
+        const url = /https?:\/\/[^\s'"]+/.exec(String((err as Error)?.message))?.[0]?.replace(/[?&]retry=\d+$/, '')
+        const next = url ? () => import(/* @vite-ignore */ `${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`) as Promise<Mod> : attempt
+        const again = () => resolve(untilLoaded(next))
         if (navigator.onLine) setTimeout(again, RETRY_MS)
         else addEventListener('online', again, {once: true})
       }),
   )
 }
-const RETRY_MS = 2_000
+const RETRY_MS = 1_000
 if (import.meta.env.SSR) void loadDocEditors()
 
 /** Fetch the chunk when the browser is idle (the desk calls this once it has rendered). */
