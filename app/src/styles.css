@@ -1245,6 +1245,9 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 .vision-fetch { height: 33px; }
 .vision-result { display: flex; flex-direction: column; min-width: 0; padding: 12px 12px 0; }
 .vision-out-wrap { flex: 1; min-height: 0; overflow: auto; }
+.vision-error { display: flex; flex-direction: column; gap: 8px; }
+.vision-error p { margin: 0; }
+.vision-error pre { margin: 0; padding: 8px; white-space: pre; overflow-x: auto; border-radius: 3px; background: var(--danger-bg); color: var(--danger-fg); }
 .vision-out { overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-word; }
 .vision-foot { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; padding: 16px 8px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
 .vision-url-field { flex: 1; min-width: 0; display: flex; flex-direction: column; }

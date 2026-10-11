@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
+import {dashLine, queryError} from '../lib/vision-error'
 import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
 import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, type SavedQuery} from '../lib/vision-queries'
 import {deleteSharedQuery, listSharedQueries, renameSharedQuery, shareQuery, type SharedQuery} from '../lib/vision-shared'
@@ -39,7 +40,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const [query, setQuery] = useState(EXAMPLE)
   const [perspective, setPerspective] = useState<Perspective>('drafts')
   const [dataset, setDataset] = useState(pageDataset)
-  const [result, setResult] = useState<VisionResult & {total?: number}>()
+  const [result, setResult] = useState<VisionResult & {total?: number; query?: string}>()
   const [busy, setBusy] = useState(false)
   // Listen: the open stream (Stop aborts it), its mutations (newest first) and why it ended.
   const [listening, setListening] = useState<{stop: AbortController; open: boolean; events: ListenEvent[]; error?: string}>()
@@ -65,6 +66,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
       return undefined
     }
   })()
+  const failure = result && !result.ok && !result.error ? queryError(result.query ?? query, result.body) : null
   const csv = parsed === undefined ? null : toCsv(parsed)
   const remember = () => {
     try {
@@ -79,7 +81,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     remember()
     const t0 = performance.now()
     const r = await runVisionQuery({data: {query, perspective, dataset}}).catch((e: Error) => ({ok: false, status: 0, url: '', ms: 0, body: '', error: e.message}))
-    setResult({...r, total: Math.round(performance.now() - t0)})
+    setResult({...r, query, total: Math.round(performance.now() - t0)})
     setBusy(false)
   }
   // Sanity's Listen: the query's changes as they happen, until Stop.
@@ -174,9 +176,16 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
           ) : (
             result && (
               <>
-                {!result.ok && <p role="alert" className="field-error">{t('Barkpark answered {status}', {status: result.status})}</p>}
-                {/* Open five deep: Barkpark wraps the documents in {result: {documents: […]}}, two levels Sanity's result doesn't have. */}
-                {parsed !== undefined ? <div className="vision-code vision-out"><JsonTree value={parsed} open={5} /></div> : <pre className="vision-code vision-out">{result.body}</pre>}
+                {/* A refused query: Sanity's error, where it went wrong; the body only when it names none. */}
+                {failure ? (
+                  <QueryErrorCard status={result.status} error={failure} />
+                ) : (
+                  <>
+                    {!result.ok && <QueryErrorCard status={result.status} error={null} />}
+                    {/* Open five deep: Barkpark wraps the documents in {result: {documents: […]}}, two levels Sanity's result doesn't have. */}
+                    {parsed !== undefined ? <div className="vision-code vision-out"><JsonTree value={parsed} open={5} /></div> : <pre className="vision-code vision-out">{result.body}</pre>}
+                  </>
+                )}
               </>
             )
           )}
@@ -184,7 +193,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
           <footer className="vision-foot">
             <span>{t('Execution: {time}', {time: result && !result.error ? `${result.ms} ms` : t('n/a')})}</span>
             <span>{t('End-to-end: {time}', {time: result?.total !== undefined && !result.error ? `${result.total} ms` : t('n/a')})}</span>
-            {parsed !== undefined && (
+            {parsed !== undefined && result?.ok && (
               <span className="vision-save">
                 {t('Save result as')}{' '}
                 <a className="btn" download={`vision-${dataset}.json`} href={`data:application/json;charset=utf-8,${encodeURIComponent(result!.body)}`}>
@@ -213,6 +222,23 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
         />
       </div>
     </main>
+  )
+}
+
+/** A refused query, as Sanity shows one: the message, and where in the query it went wrong. */
+function QueryErrorCard({status, error}: {status: number; error: ReturnType<typeof queryError>}) {
+  const t = useT()
+  return (
+    <div role="alert" className="vision-error">
+      <p className="field-error">{error?.message ?? t('Barkpark answered {status}', {status})}</p>
+      {error?.hint && <p>{error.hint}</p>}
+      {error?.spot && (
+        <>
+          <pre className="vision-code">{`${error.spot.line}\n${dashLine(error.spot.column, error.spot.columnEnd)}`}</pre>
+          <pre className="vision-code">{`${t('Line')}:   ${error.spot.lineNumber}\n${t('Column')}: ${error.spot.column + 1}`}</pre>
+        </>
+      )}
+    </div>
   )
 }
 
