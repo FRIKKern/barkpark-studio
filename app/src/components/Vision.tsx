@@ -5,7 +5,7 @@ import {toCsv} from '../lib/vision-csv'
 import {dashLine, queryError} from '../lib/vision-error'
 import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
 import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, type SavedQuery} from '../lib/vision-queries'
-import {deleteSharedQuery, listSharedQueries, renameSharedQuery, shareQuery, type SharedQuery} from '../lib/vision-shared'
+import {deleteSharedQuery, listSharedQueries, renameSharedQuery, SHARED_TYPE, shareQuery, type SharedQuery} from '../lib/vision-shared'
 import {ConfirmDialog} from './DocumentPane'
 import {deletePref, getPref, putPref} from '../lib/prefs'
 import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
@@ -265,9 +265,12 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
   useEffect(() => {
     void getPref({data: QUERIES_PREF}).then((v) => setList(readQueries(v))).catch(() => {})
     void reloadShared()
-    // Sanity listens; a shared query someone else saved shows when the tab comes back.
+    // As Sanity's: a shared query someone else saves, renames or removes shows at once
+    // (the studio's listen stream, narrowed to the type), and again when the tab comes back.
+    const es = new EventSource(`/api/listen?types=${SHARED_TYPE}`)
+    es.addEventListener('mutation', () => void reloadShared())
     window.addEventListener('focus', reloadShared)
-    return () => window.removeEventListener('focus', reloadShared)
+    return () => (es.close(), window.removeEventListener('focus', reloadShared))
   }, [])
   const store = async (next: SavedQuery[], done?: string) => {
     const before = list

@@ -130,3 +130,30 @@ test('@evidence J37: Vision saved queries and dataset, side by side', async ({pa
     await page.getByRole('menuitem', {name: 'Delete'}).click()
   }
 })
+
+// Shared queries are live, as Sanity's: one editor shares a query and another's open
+// Vision lists it without a reload; unsharing takes it away again.
+test('@local J37: a query shared in one browser shows in another at once', async ({browser}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
+  const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])
+  await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
+  const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
+  const marker = `j37-live-${Date.now().toString(36)}`
+  try {
+    await Promise.all([a.goto('/vision'), b.goto('/vision')])
+    await Promise.all([signInIfAsked(a), signInIfAsked(b)])
+    await Promise.all([a, b].map((p) => expect(p.getByRole('combobox', {name: 'Dataset', exact: true})).toBeEnabled()))
+    const rowOn = (p: typeof a) => p.getByRole('complementary', {name: 'Saved queries'}).getByRole('listitem').filter({hasText: marker})
+    await b.getByLabel('Query', {exact: true}).fill(`post?filter[title][contains]=${marker}`)
+    await b.getByRole('complementary', {name: 'Saved queries'}).getByRole('button', {name: 'Save query'}).click()
+    await b.getByRole('menuitem', {name: 'Save as shared'}).click()
+    await b.getByRole('dialog').getByRole('button', {name: 'Save as shared'}).click()
+    await expect(rowOn(a)).toBeVisible()
+    await rowOn(b).getByRole('button', {name: 'Query actions'}).click()
+    await b.getByRole('menuitem', {name: 'Delete'}).click()
+    await expect(rowOn(a)).toHaveCount(0)
+  } finally {
+    await Promise.all([ctxA.close(), ctxB.close()])
+  }
+})
