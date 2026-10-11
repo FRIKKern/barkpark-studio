@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 27 changes, 2 tasks closed
+- **Today** · 28 changes, 2 tasks closed
+  - Editors chunk retry asks for a fresh URL: the browser keeps a failed module fetch failed ([#465](https://github.com/FRIKKern/barkpark-studio/pull/465))
   - J07: someone typing in the body far below shows as a hint ([#466](https://github.com/FRIKKern/barkpark-studio/pull/466))
   - J07: who's online opens the other editor's document at their field, as Sanity's ([#464](https://github.com/FRIKKern/barkpark-studio/pull/464))
-  - J40: the mention list loads with the composer and says Loading…, not 'No users found' ([#463](https://github.com/FRIKKern/barkpark-studio/pull/463))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
