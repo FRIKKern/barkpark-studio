@@ -21,8 +21,11 @@ const SNAPSHOTS = 12
 export function ReviewChanges({schema, draft, published, onRevert}: {schema: Schema; draft: Doc; published: Doc | null | undefined; onRevert: (changes: FieldChange[]) => void}) {
   const t = useT()
   const locale = useLocale()
-  const {data: revisions = [], isPending} = useQuery(historyQuery(draft._type, draft._publishedId))
+  const {data: revisions = [], isPending, isFetching} = useQuery(historyQuery(draft._type, draft._publishedId))
   const {draft: drafts, publish} = sinceLastPublish(revisions)
+  // A cached history from before this draft's edits lists none of them: until it is
+  // fetched again the range is unknown ("…"), never the last publish's (J15).
+  const catchingUp = draft._draft && !drafts.length && isFetching
   // Sanity's From / To: picked points of the timeline; unpicked, the draft since it was last published.
   const entries = flatEntries(timeline(revisions))
   const [picked, setPicked] = useState<{from?: string; to?: string}>({})
@@ -33,7 +36,7 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
   // Nothing unpublished (just published): Sanity shows what the last publish changed,
   // from the publish before it to that one, not an empty panel.
   const publishes = revisions.filter((r) => r.action === 'publish')
-  const lastPublish = !custom && !drafts.length && publishes.length > 1 ? {from: publishes[1]!, to: publishes[0]!} : undefined
+  const lastPublish = !custom && !draft._draft && !drafts.length && publishes.length > 1 ? {from: publishes[1]!, to: publishes[0]!} : undefined
   const sinceFrom = lastPublish ? revisions.slice(revisions.indexOf(lastPublish.to), revisions.indexOf(lastPublish.from)) : []
   const wanted = custom
     ? [...range!.between.slice(0, SNAPSHOTS), ...(range!.base ? [range!.base] : [])]
@@ -46,7 +49,9 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
   const authors = ready ? authorsByField(wanted.map((r, i) => [r, snaps[i]!.data!.content] as [Revision, Record<string, unknown>])) : new Map<string, string[]>()
   const before = custom ? (range!.base ? content(range!.base) : {}) : lastPublish ? content(lastPublish.from) : published
   const after = custom ? (range!.target ? content(range!.target) : draft) : lastPublish ? content(lastPublish.to) : draft
-  const changes = before === undefined || after === undefined ? [] : changedFields(schema, before, after).map((c) => ({...c, authors: authors.get(c.field.name) ?? []}))
+  // Either side still loading: say so, never "There are no changes" (J15: Sanity opens onto the diffs).
+  const loading = before === undefined || after === undefined
+  const changes = loading ? [] : changedFields(schema, before, after).map((c) => ({...c, authors: authors.get(c.field.name) ?? []}))
   const options = fromEntry ? rangeOptions(revisions, entries, fromEntry, toEntry) : {from: [], to: []}
   // Sanity names the start of the default range by the publish it starts from ("Published: …").
   const published_ = (r: Revision) => `${t('Published')}: ${rangeDate(r.timestamp, locale)}`
@@ -57,14 +62,16 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
       <dl className="review-range">
         <div>
           <dt>{t('From')}</dt>
-          <dd>{isPending ? '…' : <RangePicker label={t('From')} text={fromText} options={options.from} selected={fromEntry} onPick={(e) => setPicked((p) => ({...p, from: e.revision.id}))} />}</dd>
+          <dd>{isPending || catchingUp ? '…' : <RangePicker label={t('From')} text={fromText} options={options.from} selected={fromEntry} onPick={(e) => setPicked((p) => ({...p, from: e.revision.id}))} />}</dd>
         </div>
         <div>
           <dt>{t('To')}</dt>
-          <dd>{isPending ? '…' : <RangePicker label={t('To')} text={toText} options={options.to} selected={toEntry ?? entries[0]} onPick={(e) => setPicked((p) => ({...p, to: e === entries[0] ? undefined : e.revision.id}))} />}</dd>
+          <dd>{isPending || catchingUp ? '…' : <RangePicker label={t('To')} text={toText} options={options.to} selected={toEntry ?? entries[0]} onPick={(e) => setPicked((p) => ({...p, to: e === entries[0] ? undefined : e.revision.id}))} />}</dd>
         </div>
       </dl>
-      {changes.length === 0 ? (
+      {loading ? (
+        <p className="review-loading muted" role="status">{t('Loading…')}</p>
+      ) : changes.length === 0 ? (
         <div className="review-empty">
           <h3>{t('There are no changes')}</h3>
           <p className="muted">{t('Edit the document or select an older version in the timeline to see a list of changes appear in this panel.')}</p>
