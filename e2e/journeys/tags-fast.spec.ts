@@ -6,7 +6,8 @@ import {closeAndSettle, target} from '../rig/targets'
 const ID = 'post-20'
 test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'post')))
 
-test('J34: tags typed fast with Enter all land, in order', async ({page}, info) => {
+// @local: the end-to-end check (about 3.3 s); CI's guard is lib/pending-list.test.ts.
+test('@local J34: tags typed fast with Enter all land, in order', async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
   await page.goto(t.docPath('post', ID))
