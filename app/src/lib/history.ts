@@ -30,6 +30,7 @@ const fetchHistory = createServerFn({method: 'GET'})
       title: r.title,
       actorId: r.actor_id,
       author: r.actor_label || 'API token', // a row with no owner (a service token)
+      actor: r.actor_label || undefined,
     })) as unknown as Json
   })
 

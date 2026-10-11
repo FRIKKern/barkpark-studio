@@ -4,6 +4,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
 import {usePresences, type Presence} from '../lib/presence'
+import {USER_HUES, userHue} from '../lib/user-colors'
 import {Users} from './icons'
 import {useT} from '../lib/i18n'
 
@@ -35,6 +36,16 @@ export function AvatarStack({people, max = 3}: {people: Presence[]; max?: number
       {people.length > max && <span className="p-avatar more">+{people.length - max}</span>}
     </span>
   )
+}
+
+/**
+ * Who acted last on a doc, beside the footer's "Last published" / "Edited" as Sanity's:
+ * their avatar, name on hover. In their presence colour while they are online, else
+ * their author colour (the one their changes are tinted with).
+ */
+export function ActorAvatar({actor}: {actor: string}) {
+  const online = usePresences().find((p) => p.name === actor.split('@')[0])
+  return <Avatar p={{sessionId: actor, name: actor, color: online?.color ?? USER_HUES[userHue(actor)][500], documentId: null, field: null}} />
 }
 
 /** Everyone with this doc open. */
