@@ -45,9 +45,10 @@ export function textDiff(before: string, after: string): Segment[] {
   return cleanupSemantic(makeDiff(before, after)).map(([op, text]) => ({kind: op === DIFF_DELETE ? 'removed' : op === DIFF_INSERT ? 'added' : 'same', text}))
 }
 
-type Inline = {type: string; value?: string; children?: Inline[]}
+// An inline object (J11, post-11's chip) carries its words in `text`.
+type Inline = {type: string; value?: string; text?: string; children?: Inline[]}
 type Block = {id?: string; content?: Inline[]; items?: {content?: Inline[]}[]; text?: string}
-const inlineText = (nodes: Inline[] = []): string => nodes.map((n) => n.value ?? inlineText(n.children)).join('')
+const inlineText = (nodes: Inline[] = []): string => nodes.map((n) => n.value ?? n.text ?? inlineText(n.children)).join('')
 /** Plain text of a value, for diffing: strings as is, rich text block by block. */
 export function asText(v: unknown): string | undefined {
   if (v == null) return ''

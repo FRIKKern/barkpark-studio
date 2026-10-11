@@ -25,6 +25,8 @@ test('@evidence J49: a read-only editor sees why everything is locked', async ({
   await expect(t.field(page, 'title')).toBeEnabled()
   await expect(page.getByText(REASON)).toHaveCount(0)
   await expect(page.getByRole('button', {name: 'Create new Post'})).toBeEnabled()
+  const ticks = page.getByRole('checkbox', {name: /^Select Fixture post/})
+  await expect(ticks.first()).toBeVisible() // B03: rows can be ticked for bulk actions
 
   // Editor d: read-only.
   await context.clearCookies()
@@ -39,6 +41,7 @@ test('@evidence J49: a read-only editor sees why everything is locked', async ({
   const create = page.getByRole('button', {name: 'Create new Post'})
   await expect(create).toBeDisabled()
   await expect(create).toHaveAttribute('title', 'Your role Viewer does not have permission to create documents.')
+  await expect(ticks).toHaveCount(0) // B03: nothing to bulk publish with
   await page.screenshot({path: shot('1-locked')})
 
   await page.getByRole('button', {name: 'Document actions'}).last().click()

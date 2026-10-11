@@ -17,6 +17,7 @@ test('each code in the studio’s words, in English and Norwegian; an unknown co
   assert.equal(findingSentence(f('stage', 'not_in_list', {allowed: ['idea', 'done']}), no), 'Må være en av idea, done')
   assert.equal(findingSentence(f('x', 'something_new'), no), 'English from Barkpark')
   assert.equal(findingSentence(f('x', 'custom', {}, 'Written by the schema author'), no), 'Written by the schema author')
+  assert.equal(findingSentence(f('/seo/x', 'custom', {}, '/seo/x: Written by the schema author'), no), 'Written by the schema author')
 })
 
 test('a refusal names each field by its title', () => {
@@ -30,4 +31,13 @@ test('only a 422 validation_failed with findings is read as one', () => {
   assert.deepEqual(findingsOf(`mutate 422: ${JSON.stringify(body)}`), body.error.findings)
   assert.equal(findingsOf(`mutate 422: {"error":{"code":"validation_failed","details":{"doc_id":["has already been taken"]}}}`), undefined)
   assert.equal(findingsOf(`mutate 403: ${JSON.stringify(body)}`), undefined)
+})
+
+test('a save’s advisory warnings carry the findings (#22406)', async () => {
+  const {advisoryFindings, formPath} = await import('./findings.ts')
+  const body = {warnings: [{code: 'patch.forked_published', message: 'x'}, {code: 'schema_validation', message: 'tags — Must have at most 3 items', findings: [f('tags', 'list_too_long', {max: 3})]}]}
+  assert.deepEqual(advisoryFindings(body), [f('tags', 'list_too_long', {max: 3})])
+  assert.deepEqual(advisoryFindings({}), [])
+  assert.equal(formPath('/seo/metaDescription'), 'seo.metaDescription')
+  assert.equal(formPath('/rating'), 'rating')
 })

@@ -9,14 +9,14 @@ const W = 1200, PAD = 40, GAP = 16, TOP = 196, ROW = 30;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const cut = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
-const ICON = { done: '✓', in_progress: '◐', open: '○', cancelled: '✕' };
+const ICON = { done: '✓', built: '◆', in_progress: '◐', open: '○', cancelled: '✕' };
 
 // Short journey label: the JOURNEYS.md text up to its first separator.
 const journeyText = Object.fromEntries(
   [...fs.readFileSync(new URL('../JOURNEYS.md', import.meta.url), 'utf8').matchAll(/^\| ([JDB]\d\d) \| [^|]+\| ([^|]+)\|/gm)]
     .map(([, id, text]) => [id, text.replace(/\*\*/g, '').split(/[:;,→(]/)[0].replace(/"/g, '').trim()]),
 );
-const CLS = { done: 'done', in_progress: 'now', open: 'todo', cancelled: 'todo' };
+const CLS = { done: 'done', built: 'built', in_progress: 'now', open: 'todo', cancelled: 'todo' };
 
 // Items in a box of `width`: one labelled row each while they fit, else compact
 // id-only chips, so a phase keeps working at 20+ journeys.
@@ -52,13 +52,15 @@ function render(board, jPhase, phaseRows, dIds, bIds) {
   const firstOpen = cols.findIndex((c) => !c.done);
   cols.forEach((c, i) => { c.tag = c.done ? 'done' : i === firstOpen ? 'now' : i === firstOpen + 1 ? 'next' : 'later'; });
 
+  // Signed off by the quality owner, side by side; built = awaiting that sign-off.
   const passed = journeys.filter((j) => byId[j]?.status === 'done').length;
+  const built = journeys.filter((j) => byId[j]?.status === 'built').length;
   // Side tracks, each counted apart from the Sanity journeys.
   const lanes = [
     {key: 'freeform', letter: 'D', name: 'Freeform', note: "PortableDoc documents in Barkpark's shared canvas", items: dIds.map(item)},
     {key: 'native', letter: 'B', name: 'Barkpark-native', note: 'What editors use in the LiveView Studio today', items: bIds.map(item)},
   ].filter((l) => l.items.length);
-  lanes.forEach((l) => { l.done = l.items.filter((i) => i.status === 'done').length; });
+  lanes.forEach((l) => { l.done = l.items.filter((i) => i.status === 'done').length; l.built = l.items.filter((i) => i.status === 'built').length; });
   const gaps = board.filter((t) => t.id === 'gap');
   const gapsDone = gaps.filter((t) => t.status === 'done').length;
   const PER_ROW = 4;
@@ -74,14 +76,14 @@ function render(board, jPhase, phaseRows, dIds, bIds) {
   const out = [];
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="t d">`);
   out.push(`<title id="t">Barkpark Studio roadmap</title>`);
-  out.push(`<desc id="d">${passed} of ${journeys.length} journeys pass side by side. ${esc(cols.map((c) => `Phase ${c.key} ${c.name}: ${c.tag}`).join('. '))}. ${lanes.map((l) => `${l.name} track: ${l.done} of ${l.items.length}`).join('. ')}.</desc>`);
+  out.push(`<desc id="d">${passed} of ${journeys.length} journeys signed off side by side by the quality owner; ${built} more built, awaiting sign-off. ${esc(cols.map((c) => `Phase ${c.key} ${c.name}: ${c.tag}`).join('. '))}. ${lanes.map((l) => `${l.name} track: ${l.done} of ${l.items.length} signed off, ${l.built} built`).join('. ')}.</desc>`);
   out.push(`<style>
-  svg { --bg:#fbfaf7; --card:#ffffff; --line:#e3e0d6; --ink:#1f1e1b; --muted:#6c6a63; --done:#2c7a4b; --now:#b26b00; --todo:#a3a097; --nowbg:#fff6e5; }
+  svg { --bg:#fbfaf7; --card:#ffffff; --line:#e3e0d6; --ink:#1f1e1b; --muted:#6c6a63; --done:#2c7a4b; --now:#b26b00; --todo:#a3a097; --nowbg:#fff6e5; --built:#3f6fb5; }
   @media (prefers-color-scheme: dark) {
-    svg { --bg:#14161a; --card:#1c1f24; --line:#30343b; --ink:#ecebe6; --muted:#9a9ca3; --done:#6cc28f; --now:#e8b55a; --todo:#6d7179; --nowbg:#2a2418; }
+    svg { --bg:#14161a; --card:#1c1f24; --line:#30343b; --ink:#ecebe6; --muted:#9a9ca3; --done:#6cc28f; --now:#e8b55a; --todo:#6d7179; --nowbg:#2a2418; --built:#8fb3ea; }
   }
   text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--ink); }
-  .muted { fill: var(--muted); } .done { fill: var(--done); } .now { fill: var(--now); } .todo { fill: var(--todo); }
+  .muted { fill: var(--muted); } .done { fill: var(--done); } .built { fill: var(--built); } .now { fill: var(--now); } .todo { fill: var(--todo); }
   .bg { fill: var(--bg); } .track { fill: var(--line); } .bar { fill: var(--done); } .rule { stroke: var(--line); }
   .card { fill: var(--card); stroke: var(--line); } .card.on { fill: var(--nowbg); stroke: var(--now); stroke-width: 2; }
 </style>`);
@@ -89,10 +91,11 @@ function render(board, jPhase, phaseRows, dIds, bIds) {
   out.push(`<text x="${PAD}" y="70" font-size="36" font-weight="700" letter-spacing="-0.8">Barkpark Studio</text>`);
   out.push(`<text x="${PAD}" y="102" font-size="19" class="muted">Sanity-quality editing on Barkpark, one journey at a time.</text>`);
   out.push(`<text x="${W - PAD}" y="70" font-size="40" font-weight="700" text-anchor="end">${passed}<tspan class="muted" font-weight="400"> / ${journeys.length}</tspan></text>`);
-  out.push(`<text x="${W - PAD}" y="102" font-size="16" text-anchor="end" class="muted">journeys pass side by side</text>`);
+  out.push(`<text x="${W - PAD}" y="102" font-size="16" text-anchor="end" class="muted">journeys signed off side by side · <tspan class="built">${built} built, awaiting sign-off</tspan></text>`);
   out.push(`<rect x="${PAD}" y="124" width="${barW}" height="8" rx="4" class="track"/>`);
+  if (built) out.push(`<rect x="${PAD + (barW * passed) / journeys.length}" y="124" width="${(barW * built) / journeys.length}" height="8" rx="4" class="built"/>`);
   if (passed) out.push(`<rect x="${PAD}" y="124" width="${(barW * passed) / journeys.length}" height="8" rx="4" class="bar"/>`);
-  out.push(`<text x="${PAD}" y="168" font-size="16"><tspan class="done">✓ passed</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>`);
+  out.push(`<text x="${PAD}" y="168" font-size="16"><tspan class="done">✓ signed off</tspan><tspan class="built" dx="24">◆ built, awaiting sign-off</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>`);
   out.push(`<text x="${W - PAD}" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: ${gapsDone} / ${gaps.length}</text>`);
 
   let y0 = TOP;
@@ -115,7 +118,7 @@ function render(board, jPhase, phaseRows, dIds, bIds) {
     out.push(`<g data-track="${l.key}">`);
     out.push(`<rect x="${PAD}" y="${y0}" width="${barW}" height="${l.h}" rx="12" class="card"/>`);
     out.push(`<text x="${PAD + 20}" y="${y0 + 32}" font-size="13" font-weight="700" letter-spacing="1.5" class="muted">SIDE TRACK · COUNTED APART</text>`);
-    out.push(`<text x="${W - PAD - 20}" y="${y0 + 32}" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="muted">${l.letter}-JOURNEYS PASS</text>`);
+    out.push(`<text x="${W - PAD - 20}" y="${y0 + 32}" font-size="13" font-weight="700" letter-spacing="1.5" text-anchor="end" class="muted">${l.letter}-JOURNEYS SIGNED OFF · <tspan class="built">${l.built} BUILT</tspan></text>`);
     out.push(`<text x="${PAD + 20}" y="${y0 + 66}" font-size="23" font-weight="600">${esc(l.name)}<tspan class="muted" font-weight="400" font-size="17" dx="12">${esc(l.note)}</tspan></text>`);
     out.push(`<text x="${W - PAD - 20}" y="${y0 + 66}" font-size="26" font-weight="700" text-anchor="end">${l.done}<tspan class="muted" font-weight="400"> / ${l.items.length}</tspan></text>`);
     out.push(`<path d="M${PAD + 20} ${y0 + 86}H${W - PAD - 20}" class="rule"/>`);

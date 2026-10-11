@@ -2,11 +2,11 @@ import {useCallback, useContext, useEffect, useRef, useState} from 'react'
 import {DialogBox, PaneOverlay} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Field} from '../lib/data'
-import {formatPreview, previewMedia, previewRefs, type PreviewText} from '../lib/preview'
+import {firstMedia, formatPreview, previewRefs, type PreviewText} from '../lib/preview'
 import {imageRef, type ImageValue} from '../lib/image'
 import {Thumb} from './Preview'
 import {copy} from '../lib/clipboard'
-import {FieldView, UrlPathContext, type OpenRef} from './Fields'
+import {FieldView, UrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, DocumentIcon} from './icons'
 import {translate, useLocale, useT} from '../lib/i18n'
@@ -110,6 +110,7 @@ function fieldsOf(of: Field, item: Item): Field[] {
  */
 export function useItemPreview(item: Item, of: Field) {
   const locale = useLocale()
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const p = of.preview ?? {}
   const titleSpec: PreviewText | undefined = p.title ?? of.fields?.find((f) => f.type === 'string')?.name
@@ -123,14 +124,14 @@ export function useItemPreview(item: Item, of: Field) {
     const r = refs.findIndex((x) => x.name === head)
     if (r < 0) return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], item[head!])
     const target = targets[r]?.data
-    if (!rest.length) return target ? previewTitle(target, schemaOf(schemas, target._type)) : undefined
+    if (!rest.length) return target ? previewTitle(target, schemaOf(schemas, target._type), t) : undefined
     return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], target)
   }
   const typeTitle = (type: string) => schemaOf(schemas, type)?.title
   return {
     title: formatPreview(titleSpec, read, {typeTitle}) || translate(locale, 'Untitled'),
     subtitle: formatPreview(p.subtitle, read, {typeTitle}),
-    media: previewMedia(p.media, read, (v) => !!imageRef(v)) as ImageValue | undefined,
+    media: firstMedia(p.media, read, (v) => !!imageRef(v)) as ImageValue | undefined,
   }
 }
 
@@ -181,9 +182,11 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
         </header>
         <div className="dialog-body item-fields">
           <fieldset className="form-fields" disabled={readOnly}>
-            {fieldsOf(of, item).map((f) => (
-              <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange({...item, [f.name]: v})} />
-            ))}
+            <ParentContext.Provider value={item}>
+              {fieldsOf(of, item).map((f) => (
+                <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange({...item, [f.name]: v})} />
+              ))}
+            </ParentContext.Provider>
           </fieldset>
         </div>
       </DialogBox>

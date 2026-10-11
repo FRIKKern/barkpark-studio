@@ -15,6 +15,9 @@ const BODIES: Record<string, string> = {
   "schema": "<path d=\"M12.5 9.5V12.5M12.5 12.5H8.5V15.5M12.5 12.5H16.5V15.5M10.5 5.5H14.5V9.5H10.5V5.5ZM6.5 15.5H10.5V19.5H6.5V15.5ZM14.5 15.5H18.5V19.5H14.5V15.5Z\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"></path>",
 }
 
+/** An icon's SVG body (25×25 viewBox), by name; Sanity's DocumentIcon when it has none. */
+export const iconBody = (name?: string) => (name && BODIES[name]) || BODIES.document!
+
 /** A desk icon by name, or null. The SVG bodies are fixed strings from @sanity/icons, never user input. */
 export function DeskIcon({name}: {name?: string}) {
   const body = name ? BODIES[name] : undefined

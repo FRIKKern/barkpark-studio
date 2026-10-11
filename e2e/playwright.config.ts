@@ -26,8 +26,8 @@ export default defineConfig({
   testMatch: ['*.spec.ts', 'journeys/*.spec.ts'],
   globalSetup: './rig/warmup.ts',
   globalTeardown: './rig/feel-summary.ts',
-  // CI shards by test, not by file, so the two shards share the work evenly (each
-  // must stay under 60 s). One worker either way: tests still run one at a time.
+  // CI hands each shard its spec files by recorded time (scripts/shard-files.mjs), each
+  // shard under 60 s. One worker either way: tests still run one at a time.
   fullyParallel: !!process.env.CI,
   workers: 1,
   timeout: process.env.CI ? 15_000 : 30_000,
@@ -65,7 +65,10 @@ export default defineConfig({
       timeout: 60_000,
       stdout: 'pipe',
       // A local lane's studio server writes on its own token (scripts/lane-token.mjs).
-      ...(process.env.BARKPARK_APP_TOKEN ? {env: {...process.env, BARKPARK_TOKEN: process.env.BARKPARK_APP_TOKEN} as Record<string, string>} : {}),
+      // STUDIO_E2E_HOOKS: the listen hub's levers (live.spec, /api/e2e-listen).
+      // STUDIO_SIGN_IN=shared: a production build asks for a Barkpark account (J67); the
+      // specs act as the lane's token unless a run asks for account sign-in.
+      env: {...process.env, STUDIO_E2E_HOOKS: '1', STUDIO_SIGN_IN: process.env.STUDIO_SIGN_IN ?? 'shared', ...(process.env.BARKPARK_APP_TOKEN && {BARKPARK_TOKEN: process.env.BARKPARK_APP_TOKEN})} as Record<string, string>,
     },
   ],
 })

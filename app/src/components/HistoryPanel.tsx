@@ -15,7 +15,12 @@ import {ago, intlTag, t as tt, useLocale, useT, type Locale} from '../lib/i18n'
 const BADGE: Record<string, string> = {Published: 'published', Unpublished: 'unpublished', 'Discarded draft': 'discarded', Deleted: 'discarded', Restored: 'edited', Edited: 'edited', 'Draft created': 'created'}
 
 export {ago}
-const initials = (name: string) => (name === 'API token' ? '·' : name.replace(/@.*/, '').split(/[.\s_-]+/).map((w) => w[0]?.toUpperCase() ?? '').join('').slice(0, 2))
+const initials = (name: string) => {
+  if (name === 'API token') return '·'
+  // First and last word, as the presence avatars (and Sanity's).
+  const words = name.replace(/@.*/, '').split(/[.\s_-]+/).filter(Boolean)
+  return [words[0], words.length > 1 ? words.at(-1) : undefined].filter((w): w is string => !!w).map((w) => w[0]!.toUpperCase()).join('')
+}
 
 export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'history', onTab, review}: {
   type: string

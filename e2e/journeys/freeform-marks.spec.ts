@@ -1,5 +1,5 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {bpMutate, target} from '../rig/targets'
+import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // D18 (Freeform side track, ours only), after Barkdown's EDITOR-PARITY rows 2 and 14 and
 // its #20/#21 rows: in a fresh note's canvas, the selection bubble marks a word struck,
@@ -15,7 +15,8 @@ type Block = {type: string; text?: string; level?: number; align?: string; task?
 const para = (id: string, value: string) => ({id, type: 'paragraph', content: [{type: 'text', value}]})
 
 const mutate = (mutations: unknown[]) => bpMutate(mutations).then(() => {})
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await mutate([{delete: {id: ID, type: 'note', force: true}}]).catch(() => {})
 })
 

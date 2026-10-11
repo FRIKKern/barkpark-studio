@@ -1,7 +1,7 @@
 // J56: prepared previews, read the way Sanity's prepare in reference/sanity/schemaTypes/category.ts reads.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {formatPreview, previewMedia, previewRefs, type PreviewText} from './preview.ts'
+import {firstMedia, formatPreview, previewMedia, previewRefs, type PreviewText} from './preview.ts'
 
 const featured: PreviewText = {parts: ['featuredPost.title', 'featuredPost.publishedAt|date'], join: ' · ', empty: 'No featured post'}
 const read = (values: Record<string, unknown>) => (path: string) => values[path]
@@ -14,6 +14,15 @@ test('a referenced title and a formatted date, a fallback when empty', () => {
   // A plain path, as before ("author.name"), and a date-only value.
   assert.equal(formatPreview('author.name', read({'author.name': 'Ada Lovelace'})), 'Ada Lovelace')
   assert.equal(formatPreview({parts: ['releaseDate|date']}, read({releaseDate: '2026-01-31'})), '31.01.2026')
+})
+
+test('a row\'s media: an image, an asset from elsewhere (broken-image icon), or none', () => {
+  assert.deepEqual(previewMedia({asset: {_ref: 'asset-123'}}), {kind: 'image', ref: 'asset-123'})
+  assert.deepEqual(previewMedia({assetId: '9', url: '/x'}), {kind: 'image', ref: 'asset-9'})
+  assert.deepEqual(previewMedia({_type: 'image', asset: {_type: 'reference', _ref: 'image-0f1e-640x400-png'}, hotspot: {x: 0.5, y: 0.5, width: 1, height: 1}}), {kind: 'unsupported', source: 'image-0f1e-640x400-png'})
+  assert.deepEqual(previewMedia({_type: 'image', _sanityAsset: 'image@file://./images/abc-640x400.png'}), {kind: 'unsupported', source: 'image@file://./images/abc-640x400.png'})
+  assert.deepEqual(previewMedia(undefined), {kind: 'none'})
+  assert.deepEqual(previewMedia({}), {kind: 'none'})
 })
 
 // J33: array item previews, as Agency's feature card prepares a banner row.
@@ -30,7 +39,7 @@ test('alternatives, templates, a type title and the first image', () => {
   assert.deepEqual(previewRefs(title, subtitle, ['backgroundImage', 'linkedDocument.cover']), ['linkedDocument'])
   const isImage = (v: unknown) => !!(v as {asset?: unknown})?.asset
   const img = {asset: {_ref: 'image-1'}}
-  assert.equal(previewMedia(['backgroundImage', 'images', 'linkedDocument.cover'], read({images: [{productId: 'p'}, img]}), isImage), img)
-  assert.equal(previewMedia(['backgroundImage', 'linkedDocument.cover'], read({'linkedDocument.cover': img}), isImage), img)
-  assert.equal(previewMedia('backgroundImage', read({}), isImage), undefined)
+  assert.equal(firstMedia(['backgroundImage', 'images', 'linkedDocument.cover'], read({images: [{productId: 'p'}, img]}), isImage), img)
+  assert.equal(firstMedia(['backgroundImage', 'linkedDocument.cover'], read({'linkedDocument.cover': img}), isImage), img)
+  assert.equal(firstMedia('backgroundImage', read({}), isImage), undefined)
 })

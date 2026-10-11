@@ -1,16 +1,18 @@
 import {useCallback, useEffect, useReducer, useRef, useState} from 'react'
 import {useNavigate} from '@tanstack/react-router'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {mintPreviewToken, mintShare, revokeShares, shareState} from '../lib/preview-links'
+import {mintPreviewTokens, mintShare, revokeShares, shareState} from '../lib/preview-links'
 import {toast} from './Toasts'
 import {useT} from '../lib/i18n'
-import {docQuery, listQuery} from '../lib/data'
+import {deskQuery, docQuery, listQuery} from '../lib/data'
 import type {Pane} from '../lib/panes'
 import type {MainDocument} from '../lib/plugins'
 import {Desktop, LaunchIcon, Mobile, Share, SyncIcon, WarningOutline} from './icons'
 import {DialogBox} from './FocusScopes'
 import {PaneHrefContext} from './PaneLink'
 import {RefPreview} from './Preview'
+import {iconBody} from './DeskIcon'
+import type {DeskNode} from '../lib/desk'
 import {Structure} from './Structure'
 
 /**
@@ -40,6 +42,13 @@ type State = {
   load: 'loading' | 'timedOut' | 'dismissed' | 'loaded'
   /** The site said hello since the iframe last (re)loaded, or since a refresh it asked for. */
   connected: boolean
+  /**
+   * Hellos so far. A page that loads again (a full navigation, a reload) says hello with
+   * the frame already connected: what it is told (perspective, overlays, icons) follows
+   * this, not `connected`, or the new page shows its own default (J63: drafts while the
+   * panel showed Published).
+   */
+  hellos: number
   /** It has connected before on this page: a refresh reconnects without the overlays. */
   hadConnection: boolean
   wait: 'pending' | 'slow' | 'timedOut'
@@ -58,7 +67,7 @@ type Action =
   | {type: 'slow'}
   | {type: 'wait timeout'}
 
-const initial: State = {load: 'loading', connected: false, hadConnection: false, wait: 'pending', dismissed: false, refreshing: false}
+const initial: State = {load: 'loading', connected: false, hellos: 0, hadConnection: false, wait: 'pending', dismissed: false, refreshing: false}
 
 function reduce(s: State, a: Action): State {
   switch (a.type) {
@@ -73,7 +82,7 @@ function reduce(s: State, a: Action): State {
     case 'loaded':
       return {...s, load: 'loaded', wait: 'pending'}
     case 'hello':
-      return {...s, connected: true, hadConnection: true, dismissed: false, refreshing: false}
+      return {...s, connected: true, hellos: s.hellos + 1, hadConnection: true, dismissed: false, refreshing: false}
     case 'slow':
       return s.wait === 'pending' ? {...s, wait: 'slow'} : s
     case 'wait timeout':
@@ -144,10 +153,11 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== origin || e.source !== frame.current?.contentWindow || e.data?.bp !== 'preview') return
-      if (e.data.type === 'hello') {
-        send({type: 'hello'})
-        // A page that loaded again (its own reload) waits for the token: say it again.
-        if (tokenRef.current !== undefined) frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'token', token: tokenRef.current?.token ?? null}, origin)
+      if (e.data.type === 'hello') send({type: 'hello'})
+      // The site asks for single-use preview tokens before each read (lib/preview-links.ts).
+      if (e.data.type === 'tokens' && typeof e.data.id === 'string') {
+        const reply = (tokens: string[] | null) => frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'tokens', id: e.data.id, tokens}, origin)
+        void mintPreviewTokens({data: Number(e.data.n) || 1}).then(reply, (err: Error) => (console.error(`Could not mint a preview token: ${err.message}`), reply(null)))
       }
       if (e.data.type === 'location' && typeof e.data.url === 'string') onPage(e.data.url)
       // J59: a click on an outlined value opens its field in the panel.
@@ -226,31 +236,21 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   const tell = useCallback((msg: Record<string, unknown>) => frame.current?.contentWindow?.postMessage({bp: 'studio', ...msg}, origin), [origin])
   useEffect(() => {
     if (s.connected) tell({type: 'perspective', perspective: shownPerspective})
-  }, [s.connected, shownPerspective, tell])
+  }, [s.connected, s.hellos, shownPerspective, tell])
   useEffect(() => {
     if (s.connected) tell({type: 'overlays', enabled: overlaysOn && shownPerspective === 'drafts'})
-  }, [s.connected, overlaysOn, shownPerspective, tell])
+  }, [s.connected, s.hellos, overlaysOn, shownPerspective, tell])
 
-  // The site reads drafts with a preview token minted here (lib/preview-links.ts), told
-  // on every hello and again, a new one, five minutes before it runs out.
-  const [token, setToken] = useState<{token: string; expiresAt: number} | null | undefined>(undefined)
+  // J59: the overlay label's icon is the document type's, as Sanity's (the desk's icon
+  // for the type; Sanity's DocumentIcon when it has none): told once connected.
+  const {data: desk} = useQuery(deskQuery)
   useEffect(() => {
-    let gone = false
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const mint = async () => {
-      const got = await mintPreviewToken().catch((e: Error) => (console.error(`Could not mint a preview token: ${e.message}`), null))
-      if (gone) return
-      setToken(got)
-      if (got) timer = setTimeout(mint, Math.max(60_000, got.expiresAt - Date.now() - 5 * 60_000))
-    }
-    void mint()
-    return () => ((gone = true), clearTimeout(timer))
-  }, [])
-  const tokenRef = useRef(token)
-  tokenRef.current = token
-  useEffect(() => {
-    if (s.connected && token !== undefined) tell({type: 'token', token: token?.token ?? null})
-  }, [s.connected, token, tell])
+    if (!s.connected) return
+    const icons: Record<string, string> = {}
+    const walk = (n: DeskNode) => (n.typeName && n.icon && !icons[n.typeName] && (icons[n.typeName] = iconBody(n.icon)), n.items?.forEach(walk))
+    if (desk) walk(desk)
+    tell({type: 'icons', icons, fallback: iconBody()})
+  }, [s.connected, s.hellos, desk, tell])
 
   // J60: an edit to a document on the page reaches the site as it is typed (the
   // editor's cache changes before the save), not after the save comes back round.
@@ -302,12 +302,21 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'refresh'}, origin)
   }
 
+  const [narrowTab, setNarrowTab] = useState<'preview' | 'content'>('preview')
   const busy = s.load === 'loading' || s.refreshing || connecting
   const status = s.load === 'loading' ? t('Loading.') : s.refreshing ? t('Refreshing.') : undefined
   const blocked = s.load === 'loading' || s.load === 'timedOut' || connecting
   return (
-    <div className="presentation">
-      <section className="presentation-preview" aria-label={t('Presentation')}>
+    <div className="presentation" data-narrow-tab={narrowTab}>
+      {/* J46: Sanity's narrow tab bar (under 900 px): one panel at a time, the page or the document. */}
+      <div className="presentation-narrow-tabs" role="tablist" aria-label={t('Presentation')}>
+        {(['preview', 'content'] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" id={`presentation-narrow-tab-${tab}`} aria-controls={`presentation-narrow-panel-${tab}`} aria-selected={narrowTab === tab} onClick={() => setNarrowTab(tab)}>
+            {tab === 'preview' ? t('Presentation') : t('Structure')}
+          </button>
+        ))}
+      </div>
+      <section className="presentation-preview" id="presentation-narrow-panel-preview" aria-label={t('Presentation')}>
         <div className="presentation-toolbar">
           <label className="presentation-edit" data-tip={overlaysOn ? t('Disable edit overlay') : t('Enable edit overlay')}>
             <span className="switch">
@@ -384,11 +393,11 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
       </section>
       <PaneHrefContext.Provider value={paneHref}>
         {docPane ? (
-          <aside className="presentation-panel docked" aria-label={t('Document')}>
+          <aside className="presentation-panel docked" id="presentation-narrow-panel-content" aria-label={t('Document')}>
             <Structure panes={panes} widthHint={350} />
           </aside>
         ) : (
-          <aside className="presentation-panel" aria-label={t('Documents on this page')}>
+          <aside className="presentation-panel" id="presentation-narrow-panel-content" aria-label={t('Documents on this page')}>
             {missing && (
               <p className="presentation-missing" role="status">
                 <WarningOutline /> <span>{t('Missing a main document for')} <code>{missing}</code></span>
@@ -414,8 +423,8 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
 /**
  * J64, Sanity's share menu: sharing on/off, a QR code of the shared link, Copy
  * preview link. Barkpark links one document, draft included, for 24 hours; the
- * shared page shows the panel's document as it is now. Only a workspace admin may
- * share (Barkpark answers 403 otherwise), as Sanity's needs the grant.
+ * shared page shows the panel's document as it is now. An editor who may write may
+ * share (Barkpark #22488) and stop what they shared (#22556); a read-only seat sees why not.
  */
 function ShareMenu({doc, pageUrl}: {doc: {type: string; id: string} | null; pageUrl: string}) {
   const t = useT()
@@ -427,15 +436,16 @@ function ShareMenu({doc, pageUrl}: {doc: {type: string; id: string} | null; page
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [qr, setQr] = useState<string | null>(null)
-  const remembered = (): {token: string; id: string} | null => {
+  const remembered = (): {token: string; id: string; expiresAt?: string} | null => {
     try {
       return key ? JSON.parse(localStorage.getItem(key) ?? 'null') : null
     } catch {
       return null
     }
   }
-  const active = state?.allowed ? state.active : []
   const mine = remembered()
+  // Barkpark lists links only to an admin: otherwise the one this browser made, while live.
+  const active = !state?.allowed ? [] : state.listed ? state.active : mine?.expiresAt && Date.parse(mine.expiresAt) > Date.now() ? [{id: mine.id, expiresAt: mine.expiresAt}] : []
   const token = mine && active.some((l) => l.id === mine.id) ? mine.token : null
   const on = active.length > 0
   const url = token ? `${pageUrl}${pageUrl.includes('?') ? '&' : '?'}bp-share=${token}` : null
@@ -451,13 +461,14 @@ function ShareMenu({doc, pageUrl}: {doc: {type: string; id: string} | null; page
     setError(null)
     try {
       if (on) {
-        await revokeShares({data: active.map((l) => l.id)})
+        if (!(await revokeShares({data: active.map((l) => l.id)})))
+          throw new Error(t('Only an admin can stop a shared link. It stops working by itself {when}.', {when: new Date(active[0]!.expiresAt).toLocaleString()}))
         if (key) localStorage.removeItem(key)
       } else {
         // The draft when there is one: the link shows what the editor sees.
         const draft = qc.getQueryData<{_draft?: boolean}>(['doc', doc.id])?._draft
         const link = await mintShare({data: {type: doc.type, id: draft ? `drafts.${doc.id}` : doc.id}})
-        if (key) localStorage.setItem(key, JSON.stringify({token: link.token, id: link.id}))
+        if (key) localStorage.setItem(key, JSON.stringify({token: link.token, id: link.id, expiresAt: link.expiresAt}))
       }
       await refetch()
     } catch (e) {

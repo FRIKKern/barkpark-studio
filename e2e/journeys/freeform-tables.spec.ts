@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {resetNative, target, type Target} from '../rig/targets'
+import {resetNative, target, type Target, closeAndSettle} from '../rig/targets'
 
 // D15, Barkdown's EDITOR-PARITY row 10 (app/tests/editor-tables.live.mjs) on our
 // canvas: /table inserts a table with a header row; type in cells, Tab / Shift+Tab
@@ -9,7 +9,8 @@ import {resetNative, target, type Target} from '../rig/targets'
 // agree after each step that saves.
 const ID = 'paper-03'
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control'
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await resetNative(ID, 'paper')
 })
 
@@ -75,6 +76,8 @@ const caretInCell = async (page: Page, i: number) => {
     ed.commands.setTextSelection(cell.pos + cell.size - 1)
     ed.commands.focus()
   }, k)
+  // tiptap's focus() lands a frame later: keys before it go to the page body.
+  await expect(page.locator('bp-paper-canvas .ProseMirror')).toBeFocused()
 }
 
 /** The table chrome lives in a "Configure table" disclosure: open it, then the button. */

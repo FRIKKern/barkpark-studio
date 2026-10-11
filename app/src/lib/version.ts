@@ -1,4 +1,5 @@
 import {useEffect, useState} from 'react'
+import {createServerFn} from '@tanstack/react-start'
 
 // J53, Sanity's "New version available": the tab knows the build it loaded; the
 // server says which one it runs now. They differ after a redeploy, and the help
@@ -32,4 +33,40 @@ export function useNewVersion(): string | null {
     }
   }, [])
   return next
+}
+
+const fetchSchemaFingerprint = createServerFn({method: 'GET'}).handler(async () => (await import('../server/schemas')).schemaFingerprint())
+
+/**
+ * Bad day: Barkpark's content model changes live (a field removed, a type changed) while
+ * a tab has the old one. Asked like the build (every minute, and when the tab comes
+ * back): true once it differs from the model this tab loaded, so the studio can say so
+ * and offer a reload (Sanity: a schema change is a redeploy, its "New version available").
+ */
+export function useSchemaChanged(): boolean {
+  const [changed, setChanged] = useState(false)
+  useEffect(() => {
+    let stop = false
+    let first: string | undefined
+    const ask = () =>
+      fetchSchemaFingerprint()
+        .then((f) => {
+          if (stop) return
+          if (first === undefined) first = f
+          else if (f !== first) setChanged(true)
+        })
+        .catch(() => {}) // offline or refused: ask again later
+    const visible = () => document.visibilityState === 'visible' && void ask()
+    void ask()
+    const timer = setInterval(ask, EVERY_MS)
+    addEventListener('focus', visible)
+    document.addEventListener('visibilitychange', visible)
+    return () => {
+      stop = true
+      clearInterval(timer)
+      removeEventListener('focus', visible)
+      document.removeEventListener('visibilitychange', visible)
+    }
+  }, [])
+  return changed
 }

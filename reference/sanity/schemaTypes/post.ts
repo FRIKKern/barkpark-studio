@@ -13,7 +13,18 @@ export const post = defineType({
   ],
   fields: [
     defineField({name: 'title', type: 'string', group: 'content', validation: (r) => r.required().max(120)}),
-    defineField({name: 'slug', type: 'slug', group: 'content', options: {source: 'title'}, validation: (r) => r.required()}),
+    // A slug pattern, as fixtures/barkpark-schema/post.json declares it (Barkpark's `pattern`);
+    // Sanity's slug rule has no regex(), so a custom rule with the same message.
+    defineField({
+      name: 'slug',
+      type: 'slug',
+      group: 'content',
+      options: {source: 'title'},
+      validation: (r) => [
+        r.required(),
+        r.custom((v: {current?: string} | undefined) => !v?.current || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v.current) || 'Lowercase letters and digits, words joined by dashes'),
+      ],
+    }),
     // J13: a warning (never blocks publish).
     defineField({name: 'excerpt', type: 'text', rows: 3, group: 'content', components: {input: CountedInput}, validation: (r) => r.max(160).warning('Long excerpts get cut off in previews')}),
     defineField({name: 'author', type: 'reference', to: [{type: 'author'}], group: 'content'}),
@@ -134,9 +145,22 @@ export const post = defineType({
     defineField({name: 'publishedAt', title: 'Published at', type: 'datetime', group: 'meta'}),
     defineField({name: 'featured', type: 'boolean', group: 'meta', initialValue: false}),
     defineField({name: 'rating', type: 'number', group: 'meta', validation: (r) => r.min(0).max(5)}),
-    defineField({name: 'tags', type: 'array', group: 'meta', of: [{type: 'string'}], options: {layout: 'tags'}}),
+    // J13: a rule only Barkpark's check runs for us (an array's length), shown from its advisory.
+    defineField({name: 'tags', type: 'array', group: 'meta', of: [{type: 'string'}], options: {layout: 'tags'}, validation: (r) => r.max(3).warning()}),
     // A plain string array: reorderable rows (J34).
     defineField({name: 'highlights', type: 'array', group: 'meta', of: [{type: 'string'}]}),
+    // J30 + barkpark#22554: a field shown by a sibling in the same object (Sanity's `parent`).
+    defineField({
+      name: 'cta',
+      title: 'Call to action',
+      type: 'object',
+      group: 'meta',
+      fields: [
+        defineField({name: 'kind', type: 'string', options: {list: [{title: 'Link', value: 'url'}, {title: 'Page', value: 'internal'}]}}),
+        defineField({name: 'url', title: 'URL', type: 'url', hidden: ({parent}) => parent?.kind !== 'url'}),
+        defineField({name: 'page', type: 'reference', to: [{type: 'post'}], hidden: ({parent}) => parent?.kind !== 'internal'}),
+      ],
+    }),
     defineField({
       name: 'seo',
       title: 'SEO',

@@ -4,11 +4,12 @@ import {useQueryClient} from '@tanstack/react-query'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
-import {Braces, ClipboardIcon, Clock, Copy, EarthGlobe, Ellipsis, Share} from './icons'
+import {Braces, Calendar, ClipboardIcon, Clock, Copy, EarthGlobe, Ellipsis, Share, LinkIcon} from './icons'
 import studio from '../studio.config'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
 import {t as tt, useT} from '../lib/i18n'
+import {showTasks} from '../lib/tasks-ui'
 
 /** Sanity names the Alt key "Option" on a Mac in its shortcut chips; known only in the browser. */
 export function useAltName() {
@@ -52,12 +53,12 @@ function useCopyRef(doc: Doc, after: () => void) {
 
 /**
  * The document pane header's "…" menu, after Sanity's:
- * History, Inspect, Open preview (J65), Copy document, Paste
+ * History, Incoming references (J17), Inspect, Open preview (J65), Copy document, Paste
  * document (J29). A paste fills every field whose name and schema type match the
  * copied document's and leaves the rest alone, so pasting a post into an author
  * moves only what fits.
  */
-export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void; onHistory: () => void}) {
+export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIncoming}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void; onHistory: () => void; onIncoming: () => void}) {
   const t = useT()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -71,9 +72,22 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory}: {do
       </button>
       {open && (
         <MenuPopover onClose={close}>
-          <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (close(), onHistory())}>
+          {/* J66: Sanity lists "Create new task" first; it opens the Tasks sidebar on this document. */}
+          <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (close(), showTasks({kind: 'create', target: {id: doc._publishedId, type: doc._type}}))}>
+            <span className="menu-icon-text">
+              <Calendar /> {t('Create new task')}
+            </span>
+          </button>
+          <hr />
+          <button type="button" role="menuitem" className="menu-item" onClick={() => (close(), onHistory())}>
             <span className="menu-icon-text">
               <Clock /> {t('History')}
+            </span>
+          </button>
+          {/* J17 widen: Sanity's "Incoming references", next after History as there. */}
+          <button type="button" role="menuitem" className="menu-item" onClick={() => (close(), onIncoming())}>
+            <span className="menu-icon-text">
+              <LinkIcon /> {t('Incoming references')}
             </span>
           </button>
           <button type="button" role="menuitem" className="menu-item" aria-keyshortcuts="Control+Alt+I" onClick={() => (close(), onInspect())}>

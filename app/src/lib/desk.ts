@@ -21,6 +21,14 @@ export type DeskNode = {
   orderings?: {field: string; direction: 'asc' | 'desc'}[]
   /** document_type_list: a parent-child tree over this reference field. */
   tree?: {parent: string}
+  /**
+   * document_type_list (J18, Sanity's `.child((id) => S.documentList()…)`): a row opens the
+   * `typeName` docs whose `field` points at it, and that list's "+" starts `template` with
+   * `{[param]: the row's id}`.
+   */
+  child?: {typeName: string; title?: string; field: string; template?: {id: string; param: string}}
+  /** A list with a `child`: its own pane's title ("Authors"), when not its row's ("Posts by author"). */
+  listTitle?: string
   items?: DeskNode[]
 }
 
@@ -69,6 +77,7 @@ export function unsupportedOps(filter: DeskFilter | undefined): string[] {
 
 /** What a list pane reads: the node's filter, or one tree level's children. */
 export function listFilter(node: DeskNode | undefined, treeParent?: string): DeskFilter | undefined {
+  if (node?.child && treeParent) return {[node.child.field]: {eq: treeParent}}
   if (node?.tree && treeParent) return {[node.tree.parent]: {eq: treeParent}}
   return node?.filter
 }
@@ -123,6 +132,13 @@ export function parseDeskPanes(splat: string | undefined, root: DeskNode): Pane[
       }
       list = {node: child, type: child.typeName ?? ''}
       panes.push({kind: 'list', type: list.type, node: child.id})
+      continue
+    }
+    // A child list (J18): the row's id opens the docs that point at it.
+    const childOf = list?.node?.child && !list.treeParent ? list.node : undefined
+    if (list && childOf) {
+      list = {node: childOf, type: childOf.child!.typeName, treeParent: id}
+      panes.push({kind: 'list', type: list.type, node: childOf.id, treeParent: id})
       continue
     }
     const treeNode = list?.node?.tree ? list.node : undefined
