@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes
+- **Today** · 8 changes
+  - B14: a Sanity Portable Text body reads as its text; the import path, tried end to end ([#450](https://github.com/FRIKKern/barkpark-studio/pull/450))
   - An upload fails with Retry when the network drops mid-upload ([#449](https://github.com/FRIKKern/barkpark-studio/pull/449))
   - Doc footer shows who published last, as an avatar beside "Last published" (Sanity) ([#448](https://github.com/FRIKKern/barkpark-studio/pull/448))
-  - Restore's kept edits are made against the restored version (real loss behind the J32 flake) ([#447](https://github.com/FRIKKern/barkpark-studio/pull/447))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
