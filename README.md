@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 72 changes, 2 tasks closed
+- **Today** · 73 changes, 2 tasks closed
+  - J36: gallery rows titled by the picture's file name, and 'Add item', as Sanity's ([#510](https://github.com/FRIKKern/barkpark-studio/pull/510))
   - People pickers share one helper: lib/members.ts (people, never tokens) + lib/people.ts ([#507](https://github.com/FRIKKern/barkpark-studio/pull/507))
   - J28: a duplicated document flags its copied slug as already in use, as Sanity's ([#506](https://github.com/FRIKKern/barkpark-studio/pull/506))
-  - J15: the footer status opens Review changes, as Sanity's ([#504](https://github.com/FRIKKern/barkpark-studio/pull/504))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
