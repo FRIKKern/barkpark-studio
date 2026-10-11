@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 64 changes, 2 tasks closed
+- **Today** · 65 changes, 2 tasks closed
+  - J19: list rows move by arrow keys, Home and End, as Sanity's lists ([#500](https://github.com/FRIKKern/barkpark-studio/pull/500))
   - J40: mention every member page; a shared-session comment reads Studio, as presence ([#499](https://github.com/FRIKKern/barkpark-studio/pull/499))
   - J37 flake: log slow Barkpark calls; the share step waits for its write ([#498](https://github.com/FRIKKern/barkpark-studio/pull/498))
-  - J11: inline body as Sanity's: no gutter on text, a block object's "…" menu at its right edge (regression from #285); CI guard ([#486](https://github.com/FRIKKern/barkpark-studio/pull/486))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
