@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 14 changes
+- **Today** · 15 changes
+  - Form layout: Agency parity (descriptions, radio list, gutter, tabs) ([#287](https://github.com/FRIKKern/barkpark-studio/pull/287))
   - feat(form): Agency-style array item previews ([#286](https://github.com/FRIKKern/barkpark-studio/pull/286))
   - J37 Vision: Listen, the query's changes as they happen, until Stop ([#452](https://github.com/FRIKKern/barkpark-studio/pull/452))
-  - Give the rich text field Sanity's steady frame ([#285](https://github.com/FRIKKern/barkpark-studio/pull/285))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
