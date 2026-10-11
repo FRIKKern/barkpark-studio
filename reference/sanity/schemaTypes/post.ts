@@ -42,6 +42,8 @@ export const post = defineType({
       options: {hotspot: true},
       fields: [defineField({name: 'alt', type: 'string', title: 'Alternative text'})],
     }),
+    // An array of images (J36 widen): add, edit, drag to reorder.
+    defineField({name: 'gallery', type: 'array', group: 'content', of: [defineArrayMember({type: 'image', options: {hotspot: true}})]}),
     defineField({
       name: 'body',
       type: 'array',
