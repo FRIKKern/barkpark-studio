@@ -7,6 +7,7 @@ import {expectEcho, mutatedIds} from '../server/listen'
 import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type Field, type ListPage, type Schema} from './data'
 import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
 import {t} from './i18n'
+import {setFooterOffline} from './footer-offline'
 import {merge3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
@@ -200,6 +201,7 @@ const docs = new Map<string, DocEdits>()
 const listeners = new Set<() => void>()
 const setState = (e: DocEdits, state: SaveState, error?: string) => {
   e.snap = {state, error, creating: !!e.pendingCreate && !!e.createRequested}
+  setFooterOffline([...docs.values()].some((d) => d.snap.state === 'offline'))
   listeners.forEach((l) => l())
 }
 

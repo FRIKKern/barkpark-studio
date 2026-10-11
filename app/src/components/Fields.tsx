@@ -455,20 +455,25 @@ export function TextInput({id, value, onChange, rows, readOnly}: {id: string; va
     onChange(v)
   }
   return rows ? (
-    <textarea ref={ref} id={id} className="input" rows={rows} value={local} readOnly={readOnly} onChange={(e) => change(e.target.value)} />
+    <textarea ref={ref} id={id} className="input" rows={rows} value={local} readOnly={readOnly} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
   ) : (
     <input ref={ref} id={id} className="input" value={local} readOnly={readOnly} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
   )
 }
 
 /**
- * Home/End with the caret already at that end do nothing in the input, so the
- * browser scrolls the pane instead (a jump Sanity doesn't make). Swallow those.
+ * Home/End with the caret already at that end (of its line, in a text area) do nothing
+ * in the field, so the browser scrolls the pane instead (a jump Sanity doesn't make; J20's
+ * excerpt, End then typing, showed Main image and Body for a moment). Swallow those.
  */
-function keepPaneStill(e: ReactKeyboardEvent<HTMLInputElement>) {
+function keepPaneStill(e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
   const el = e.currentTarget
-  const atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length
-  const atStart = el.selectionStart === 0 && el.selectionEnd === 0
+  const at = el.selectionStart
+  if (at === null || at !== el.selectionEnd) return
+  // Ctrl/Cmd+Home/End go to the whole text's end, plain Home/End to the line's.
+  const whole = e.ctrlKey || e.metaKey
+  const atEnd = at === el.value.length || (!whole && el.value[at] === '\n')
+  const atStart = at === 0 || (!whole && el.value[at - 1] === '\n')
   if ((e.key === 'End' && atEnd) || (e.key === 'Home' && atStart)) e.preventDefault()
 }
 
