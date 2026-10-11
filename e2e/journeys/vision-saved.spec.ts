@@ -3,8 +3,9 @@ import {signInIfAsked, target} from '../rig/targets'
 
 // J37, Vision as Sanity's: saved queries are the editor's own, kept on the server (they
 // survive a reload), renamed by their title and deleted from their menu; and Vision
-// reads another dataset of the project. Sanity's side is the J37 evidence stills.
-test('J37: Vision saves, renames, loads and deletes a query, and switches dataset', async ({page, context}, info) => {
+// reads another dataset of the project. Shared queries: Share and Unshare move one between
+// the editor's prefs and the dataset. Sanity's side is the J37 evidence stills.
+test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, and switches dataset', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)
@@ -19,6 +20,7 @@ test('J37: Vision saves, renames, loads and deletes a query, and switches datase
   const row = saved.getByRole('listitem').filter({hasText: marker})
   await query.fill(text)
   await saved.getByRole('button', {name: 'Save query'}).click()
+  await page.getByRole('menuitem', {name: 'Save as personal'}).click()
   await expect(page.getByText('Query saved')).toBeVisible()
   await row.getByRole('button', {name: 'Untitled', exact: true}).click()
   await row.getByLabel('Title', {exact: true}).fill(`Mine ${marker}`)
@@ -36,7 +38,20 @@ test('J37: Vision saves, renames, loads and deletes a query, and switches datase
   await row.getByRole('button', {name: `Load query Mine ${marker}`}).click()
   await expect(query).toHaveValue(text)
   await saved.getByRole('button', {name: 'Save query'}).click()
+  await page.getByRole('menuitem', {name: 'Save as personal'}).click()
   await expect(page.getByText('Query already saved')).toBeVisible()
+  // Shared: Share moves it to the team (a document in the dataset), Unshare brings it back.
+  await row.getByRole('button', {name: 'Query actions'}).click()
+  await page.getByRole('menuitem', {name: 'Share'}).click()
+  await page.getByRole('dialog').getByRole('button', {name: 'Save as shared'}).click()
+  await expect(page.getByText('Shared query saved')).toBeVisible()
+  await saved.getByRole('tab', {name: 'Team'}).click()
+  await expect(row.getByText('Shared', {exact: true})).toBeVisible()
+  await row.getByRole('button', {name: 'Query actions'}).click()
+  await page.getByRole('menuitem', {name: 'Unshare'}).click()
+  await expect(page.getByText('Query moved to personal')).toBeVisible()
+  await expect(row).toHaveCount(0)
+  await saved.getByRole('tab', {name: 'Personal'}).click()
   await row.getByRole('button', {name: 'Query actions'}).click()
   await page.getByRole('menuitem', {name: 'Delete'}).click()
   await expect(row).toHaveCount(0)

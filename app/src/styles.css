@@ -1220,6 +1220,7 @@ fieldset.object-field > .field-actions { top: -38px; }
 .vision-saved { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--border); }
 .vision-saved header { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 0 12px; }
 .vision-saved h2 { margin: 0; font: inherit; }
+.vision-saved-filter { margin: 0 12px 8px; }
 .vision-saved-search { position: relative; display: flex; align-items: center; margin: 8px 12px 12px; }
 .vision-saved-search svg { position: absolute; left: 8px; color: var(--muted); pointer-events: none; }
 .vision-saved .vision-saved-search .input { flex: 1; padding-left: 30px; }
