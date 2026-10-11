@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 48 changes, 2 tasks closed
+- **Today** · 49 changes, 2 tasks closed
+  - J69: Manage project in the workspace card; Help gets Diagnostics and What's new ([#483](https://github.com/FRIKKern/barkpark-studio/pull/483))
   - J68: Inline changes and Compare versions in the document menu ([#484](https://github.com/FRIKKern/barkpark-studio/pull/484))
   - JOURNEYS: cap back to 130; tighter intro makes room for J68/J69 ([#482](https://github.com/FRIKKern/barkpark-studio/pull/482))
-  - B12: a declared desk is shown exactly; studio.config items only without one (owner's call) ([#481](https://github.com/FRIKKern/barkpark-studio/pull/481))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
