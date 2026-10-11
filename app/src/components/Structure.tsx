@@ -3,7 +3,7 @@ import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {deskQuery, docQuery, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
-import {deskIndex, deskSort, listFilter, unsupportedOps, type DeskNode} from '../lib/desk'
+import {deskIndex, deskSort, listFilter, rootDesk, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
 import {announce} from '../lib/announce'
 import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
@@ -170,7 +170,7 @@ function BackLink({panes, index}: {panes: Pane[]; index: number}) {
 function useDeskNode(id: string | undefined): DeskNode | undefined {
   const {data: desk} = useQuery(deskQuery)
   const index = useMemo(() => {
-    const root = desk ?? studioDesk()
+    const root = rootDesk(desk, studioDesk())
     return root ? deskIndex(root) : undefined
   }, [desk])
   return id ? index?.get(id) : undefined

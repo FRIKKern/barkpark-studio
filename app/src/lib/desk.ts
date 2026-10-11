@@ -42,6 +42,14 @@ const QUERY_OPS = new Set(['eq', 'neq', 'in', 'nin', 'has', 'nhas', 'hasStrong',
  * Barkpark-native track), so they go, and so do the dividers they leave
  * leading, trailing or doubled.
  */
+/**
+ * The desk the first pane shows (owner's call, B12): a declared desk is the whole desk,
+ * exactly as declared; the studio config's own items (J18) show only when none is declared.
+ */
+export function rootDesk(declared: DeskNode | null | undefined, own: DeskNode | null): DeskNode | null {
+  return declared ?? own
+}
+
 export function normalizeDesk(raw: unknown): DeskNode {
   const node = raw as DeskNode & {items?: unknown[]}
   const kept = (node.items ?? [])
