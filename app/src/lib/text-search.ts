@@ -4,10 +4,21 @@
 // Sanity would show and in what order. Checked against the reference project.
 import type {Field, Schema} from './data.ts'
 
-type Part = {words: string[]; prefix: boolean}
+type Part = {words: string[]; prefix: boolean; idWords: string[]}
 export type TextQuery = {any: Part[]; not: Part[]; raw: string}
 
 const words = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
+// A document id as Sanity's search reads it: a dot stays inside a word, so a draft's id
+// "drafts.sq-fox" is ["drafts.sq", "fox"] and "sq-fox" does not find it; "drafts.sq-fox"
+// and "fox-rev" (in "drafts.sq-fox-rev") do, and a published "post-01" is ["post", "01"].
+const idWords = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}.]+/gu)?.map((w) => w.replace(/^\.+|\.+$/g, '')).filter(Boolean) ?? []
+// Titles fold æøå, as Barkpark's title search does (#22703): "aerlig" finds "Ærlig" (Sanity
+// too), "okonomi" and "oekonomi" find "Økonomi", "arsrapport" and "aarsrapport" find
+// "Årsrapport" (more than Sanity finds: never fewer hits). A title as typed ranks first.
+// Body text matches as written, as on Sanity ("aerlighet" does not find a body's "Ærlighet").
+const forms = (w: string) => [w, w.replace(/æ/g, 'ae').replace(/ø/g, 'o').replace(/å/g, 'a'), w.replace(/æ/g, 'ae').replace(/ø/g, 'oe').replace(/å/g, 'aa')]
+const sameFolded = (t: string, w: string, prefix: boolean) => forms(t).some((a) => forms(w).some((b) => (prefix ? a.startsWith(b) : a === b)))
+const foldedHit = (text: string[], p: Part) => text.some((_, i) => p.words.every((w, j) => text[i + j] !== undefined && sameFolded(text[i + j]!, w, j === p.words.length - 1 && p.prefix)))
 
 /**
  * Sanity's query syntax: terms are OR-ed, `-term` excludes, `"a b"` and `a-b`
@@ -23,7 +34,7 @@ export function parseTextQuery(raw: string): TextQuery {
   tokens.forEach((t, i) => {
     const negated = t.startsWith('-')
     const body = negated ? t.slice(1) : t
-    const part = {words: words(body), prefix: i === last || body.endsWith('*')}
+    const part = {words: words(body), prefix: i === last || body.endsWith('*'), idWords: idWords(body.replace(/^"|"$/g, ''))}
     if (part.words.length) (negated ? not : any).push(part)
   })
   return {any, not, raw: raw.trim()}
@@ -38,7 +49,7 @@ const hit = (text: string[], p: Part) =>
  * system keys and the block structure (ids, block types, heading levels).
  */
 export function docText(doc: Record<string, unknown>, schema?: Schema): {text: string[][]; refs: string[]} {
-  const text: string[][] = [words(String(doc._publishedId ?? doc._id ?? ''))]
+  const text: string[][] = []
   const refs: string[] = []
   const walk = (v: unknown, f: Field | undefined, inBlocks: boolean) => {
     if (f?.type === 'reference') return void (typeof v === 'string' && refs.push(v))
@@ -70,17 +81,27 @@ const LINK_KEYS = new Set(['target', 'docId'])
 export function textScore(doc: Record<string, unknown>, q: TextQuery, schema?: Schema): number {
   const title = words(String(doc.title ?? ''))
   const {text, refs} = docText(doc, schema)
+  if (excludes(text, title, q)) return 0
   text.push(title)
-  if (excludes(text, q)) return 0
-  const score = q.any.reduce((s, p) => s + (hit(title, p) ? 10 : 0) + (text.some((t) => hit(t, p)) ? 1 : 0), 0)
+  // As typed: 10; only with æøå folded: 8, so the exact spelling ranks first.
+  const titleScore = (p: Part) => (hit(title, p) ? 10 : foldedHit(title, p) ? 8 : 0)
+  const ids = docIds(doc)
+  const idHit = (p: Part) => ids.some((id) => hit(id, {...p, words: p.idWords}))
+  const score = q.any.reduce((s, p) => s + titleScore(p) + (titleScore(p) || text.some((t) => hit(t, p)) || idHit(p) ? 1 : 0), 0)
   return score || (refs.includes(q.raw) ? 1 : 0)
 }
 
-const excludes = (text: string[][], q: TextQuery) => q.not.some((p) => text.some((t) => hit(t, p)))
+/** The ids Sanity's search sees for this row: its draft's ("drafts.…") and, when published, the published one. */
+const docIds = (doc: Record<string, unknown>) => {
+  const published = String(doc._publishedId ?? doc._id ?? '').replace(/^drafts\./, '')
+  const ids = [doc._draft ? `drafts.${published}` : '', doc._hasPublished !== false || !doc._draft ? published : ''].filter(Boolean)
+  return ids.map(idWords)
+}
+
+const excludes = (text: string[][], title: string[], q: TextQuery) => q.not.some((p) => foldedHit(title, p) || text.some((t) => hit(t, p)))
 
 /** A `-term` in the query rules this doc out. */
 export function excluded(doc: Record<string, unknown>, q: TextQuery, schema?: Schema): boolean {
   const {text} = docText(doc, schema)
-  text.push(words(String(doc.title ?? '')))
-  return excludes(text, q)
+  return excludes(text, words(String(doc.title ?? '')), q)
 }

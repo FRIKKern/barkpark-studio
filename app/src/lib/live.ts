@@ -15,6 +15,7 @@ type Frame = {documentId: string; type: string; mutation: string; result: Doc | 
 // asks the server for everything since, so nothing falls between two streams.
 let lastSeen: string | null = null
 let fleetTimer: ReturnType<typeof setTimeout> | undefined
+let backlinksTimer: ReturnType<typeof setTimeout> | undefined
 
 // A page rendered on the server read its data before its stream opened. The
 // server says where to resume from (its listen position as of that read); when it
@@ -58,12 +59,16 @@ export function useLive(ids: string[], types: string[]) {
     }
     // e2e probe: cut the stream for `ms`, as a dead network would.
     ;(window as {__dropLive?: (ms: number) => void}).__dropLive = (ms) => (es.close(), (retry = setTimeout(open, ms)))
+    // e2e probe: read everything again, as a reconnect that lost its place does.
+    ;(window as {__readAll?: () => void}).__readAll = () => void qc.invalidateQueries()
     const onFrame = (e: Event) => {
       if ((e as MessageEvent).lastEventId) lastSeen = (e as MessageEvent).lastEventId
       const f = JSON.parse((e as MessageEvent).data) as Frame
       ;(window as {__liveFrames?: string[]}).__liveFrames?.push(`${lastSeen}|${f.documentId}`) // e2e probe
       // J40: a comment changed somewhere: the comment threads read again.
       if (f.type === 'studioComment') return void qc.invalidateQueries({queryKey: ['comments']})
+      // J66: a task changed: the Tasks sidebar reads again.
+      if (f.type === 'studioTask') return void qc.invalidateQueries({queryKey: ['tasks']})
       // D14: a task changed: papers' task previews read again (debounced: a bulk
       // edit is one read).
       if (f.type === 'task') return void (clearTimeout(fleetTimer), (fleetTimer = setTimeout(() => void qc.invalidateQueries({queryKey: ['fleet']}), 400)))
@@ -73,7 +78,14 @@ export function useLive(ids: string[], types: string[]) {
         void qc.invalidateQueries({queryKey: ['doc-published', id]})
         void qc.invalidateQueries({queryKey: ['list-published', f.type]})
       }
-      if (!f.result || f.mutation === 'delete') {
+      // J17: who refers to what may have changed: open Incoming references panels read again,
+      // once per burst. Barkpark's edges are right as the write returns (#22591), so one read
+      // does; a doc pointing away still leaves the panel from the frame's doc (IncomingReferences).
+      clearTimeout(backlinksTimer)
+      backlinksTimer = setTimeout(() => void qc.invalidateQueries({queryKey: ['backlinks']}), 150)
+      // A delete or a discard carries the document it removed: read again, never apply it
+      // (a replayed discardDraft put a dead draft back on screen, J36 flake 2026-10-09).
+      if (!f.result || f.mutation === 'delete' || f.mutation === 'discardDraft') {
         void qc.invalidateQueries({queryKey: ['doc', id]})
         void qc.invalidateQueries({queryKey: ['list', f.type]})
         return

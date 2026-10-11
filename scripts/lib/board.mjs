@@ -33,12 +33,15 @@ async function subIssues(issue) {
 }
 
 // One row per task: { id: 'J21' | 'D03' | 'P0' | 'gap' | 'other', title, status, closedAt, url }.
-// status: done | cancelled | in_progress | open — from the bridge's status:* label.
+// status: done | cancelled | in_progress | open — from the bridge's status:* label — or
+// built: open, labelled awaiting-owner-signoff (a builder built and self-reviewed it; the
+// quality owner's side-by-side sign-off is pending). Only an owner sign-off makes it done.
 export async function tasks() {
   return (await subIssues(GOAL.issue)).map((i) => {
     const label = i.labels.map((l) => l.name).find((n) => n.startsWith('status:'));
     let status = label ? label.slice(7) : 'open';
     if (i.state === 'closed') status = i.state_reason === 'not_planned' ? 'cancelled' : 'done';
+    else if (i.labels.some((l) => l.name === 'awaiting-owner-signoff')) status = 'built';
     const j = i.title.match(/^([JDB]\d\d)\b/);
     const id = j ? j[1] : i.title.startsWith('P0 ') ? 'P0' : i.title.startsWith('Barkpark:') ? 'gap' : 'other';
     return { id, title: i.title, status, closedAt: i.closed_at, url: i.html_url };

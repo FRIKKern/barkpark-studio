@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react'
-import type {Invalid, KeyProblem, RichTextProblem} from '../lib/broken'
+import type {Invalid, KeyProblem, RichTextProblem, UnsupportedAsset} from '../lib/broken'
 import {ErrorOutline, WarningOutline} from './icons'
 import {useT} from '../lib/i18n'
 
@@ -61,6 +61,34 @@ export function InvalidValueCard({invalid, value, onChange}: {invalid: Invalid; 
           {t('Convert to {type}', {type: invalid.expected})}
         </button>
       )}
+      <button type="button" className="btn broken-btn danger" onClick={() => onChange(undefined)}>
+        {t('Reset value')}
+      </button>
+    </Card>
+  )
+}
+
+/**
+ * An image or file field holding an asset this studio can't show (a Sanity export's
+ * `_sanityAsset`, a Sanity asset id): shown as it is, read-only, never as an empty
+ * field. Saves elsewhere leave it untouched; Reset is the only change offered.
+ */
+export function UnsupportedAssetCard({asset, value, onChange}: {asset: UnsupportedAsset; value: unknown; onChange: (v: unknown) => void}) {
+  const t = useT()
+  return (
+    <Card
+      tone="warn"
+      title={t('Unsupported asset value')}
+      text={t(asset.reason === 'sanityAsset' ? 'This field points to a file from an export that has not been uploaded to Barkpark. It is kept as it is.' : 'This field points to an asset Barkpark does not know. It is kept as it is.')}
+      dev={
+        <>
+          <p className="broken-label">
+            <code>{asset.source}</code>
+          </p>
+          <pre className="broken-value">{json(value)}</pre>
+        </>
+      }
+    >
       <button type="button" className="btn broken-btn danger" onClick={() => onChange(undefined)}>
         {t('Reset value')}
       </button>

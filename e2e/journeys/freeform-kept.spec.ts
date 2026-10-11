@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type Page} from '@playwright/test'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // D21, after Barkdown's "Put the words back": a canvas save fails (here the network
 // drops it), the card says the words are kept on this computer, the tab closes; on
@@ -13,7 +13,8 @@ const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjso
 }
 type Block = {id: string}
 let before: Block[] | undefined
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio' && before) await target(info).restore(ID, {title: SEED.title, label: SEED.label, body: SEED.body, blocks: before}, 'note')
 })
 

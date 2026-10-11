@@ -1,6 +1,6 @@
 import {expect, test} from '@playwright/test'
 import {installProbes, stats, typeAndMeasure} from '../rig/feel'
-import {target} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // B06 evidence, ours (the reference is Barkpark's LiveView Studio, which lists
 // every language as a row; the journey asks for tabs): volume-01's blurb opens
@@ -11,7 +11,8 @@ const ID = 'volume-01'
 const BLURB = {nob: 'En bok om felter.', eng: 'A book about fields.'}
 const shot = (step: string) => `evidence/B06-studio-${step}.png`
 test.use({video: 'on'})
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (target(info).name === 'studio') await target(info).restore(ID, {blurb: BLURB}, 'volume')
 })
 

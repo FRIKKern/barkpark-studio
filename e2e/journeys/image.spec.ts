@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J12 evidence, both studios, on post-05's main image: upload, alt text, then
 // hotspot and crop in the "Edit hotspot and crop" dialog — by mouse (resize the
@@ -16,7 +16,7 @@ const imageField = (t: Target, page: Page) =>
 
 test.use({video: 'on'})
 test.setTimeout(90_000)
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: 'Fixture post 05'}, 'post', ['mainImage']))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {title: 'Fixture post 05'}, 'post', ['mainImage'])))
 
 test('@evidence J12: image upload, alt text, hotspot and crop by mouse and keyboard', async ({page}, info) => {
   const t = target(info)

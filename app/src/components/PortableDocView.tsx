@@ -6,7 +6,7 @@ import type {ReactNode} from 'react'
 // marks and links inside them. An unknown block draws as its text. Blocks carry
 // data-bp-id like the canvas's, so a caret maps from one to the other.
 
-type Inline = {type: string; value?: string; href?: string; children?: Inline[]}
+type Inline = {type: string; value?: string; text?: string; href?: string; children?: Inline[]}
 type Block = {id: string; type: string; level?: number; tone?: string; text?: string; content?: Inline[]; items?: Inline[][]; ordered?: boolean; url?: string; alt?: string}
 
 const MARKS: Record<string, string> = {strong: 'strong', em: 'em', code: 'code', underline: 'u', strikethrough: 's', highlight: 'mark', sub: 'sub', sup: 'sup'}
@@ -15,6 +15,8 @@ function inline(nodes: Inline[] = [], key = ''): ReactNode[] {
   return nodes.map((n, i) => {
     const k = `${key}${i}`
     if (n.type === 'text' || n.value !== undefined) return n.value ?? ''
+    // An inline object (J11, post-11's chip): its words, as a chip.
+    if (!n.children && typeof n.text === 'string') return <span key={k} className="inline-object" data-type={n.type}>{n.text}</span>
     const kids = inline(n.children, `${k}.`)
     if (n.type === 'link' && n.href) return <a key={k} href={n.href} target="_blank" rel="noopener noreferrer">{kids}</a>
     const Tag = (MARKS[n.type] ?? 'span') as 'span'

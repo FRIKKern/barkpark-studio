@@ -6,42 +6,49 @@ import {DialogBox, MenuPopover} from './FocusScopes'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
+import {advisoryProblems} from '../lib/findings'
 import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
-import {createDoc, discardDraft, draftNew, edit, flush, publish, reasonOf, undo, unpublish, useSaveState} from '../lib/edits'
+import {createDoc, discardDraft, discardPending, draftNew, edit, flush, publish, reasonOf, recoverPending, restorePending, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
-import {useCanWrite} from '../lib/session'
+import {meQuery, useBoundElsewhere, useCanWrite, useStudioTokenRefused} from '../lib/session'
+import {currentScopeQuery} from '../lib/scope-switch'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {PaneLink, usePaneNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
 import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
-import {ReviewChanges} from './ReviewChanges'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
+import {setActiveDocument} from '../lib/tasks-ui'
 import {DocHeaderMenu, DocShareMenu, Keys, openPreview, useAltName} from './DocHeaderMenu'
 import {InspectDialog} from './InspectDialog'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {CommentsContext, CommentsPanel} from './Comments'
 import {commentsQuery, threadsOf} from '../lib/comments'
-import {revisionQuery} from '../lib/history'
-import {PortableDocEditor} from './PortableDocEditor'
+import {historyQuery, revisionQuery} from '../lib/history'
+import {PortableDocEditor, ReviewChanges} from './DocEditors'
 import {PaperSidebar} from './PaperSidebar'
 import {PAPER_TYPES} from '../lib/paper'
-import {AvatarStack, PresenceHints, useDocPresence} from './Presence'
+import {ActorAvatar, AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
-import {ReadErrorCard} from './PaneError'
-import {CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo} from './icons'
+import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
+import {ChevronDown, CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse} from './icons'
+import {useFocusMode} from './FocusMode'
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
 import {LocationsBanner} from './LocationsBanner'
+import {IncomingReferences} from './IncomingReferences'
+
+/** Sanity's inspector name for it, so a copied Sanity-style link opens the same panel. */
+const INCOMING = 'sanity/structure/incoming-references'
 import {EditIcon, EyeOpenIcon, PreviewView} from './PreviewView'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
@@ -90,7 +97,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const byId = new Map(refFields.map((f, i) => [doc![f.name] as string, targets[i].data]))
   // J18: a new doc nobody has typed in yet exists only here; Sanity checks nothing until the first edit.
   const pristine = isPristine(doc, useSaveState(pane.id).state)
-  const problems = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
+  const own = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
+  // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
+  const advisories = useAdvisories(pane.id)
+  const extra = advisories.length && schemaForPane && !viewingPublished ? advisoryProblems(advisories, schemaForPane, own, t) : []
+  // In the form's order, as Sanity lists them (a field's own problems stay in theirs).
+  const order = (p: Problem) => (schemaForPane?.fields ?? []).findIndex((f) => f.name === p.path.split(/[.[]/)[0])
+  const problems = extra.length ? [...own, ...extra].map((p, i) => [p, i] as const).sort(([a, i], [b, j]) => order(a) - order(b) || i - j).map(([p]) => p) : own
   // J13: only errors block publishing; warnings and infos are shown, never in the way.
   const errors = errorsOf(problems)
   const openObjects = useOpenObjects(pane.id)
@@ -120,6 +133,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Decision 0004: a type with a layout also opens in Barkpark's block canvas (FF3,
   // lib/editor-mode.ts, from the schema's layout); an Expectation doc once it carries its block list.
   const {canWrite, editReason, signedOut} = useCanWrite()
+  const boundElsewhere = useBoundElsewhere()
+  const studioTokenRefused = useStudioTokenRefused()
 
   // J52: the focused field lives in the URL (Sanity's `path=`): a reload or a copied
   // link opens on it. Opening: focus the named field (showing all groups if it sits
@@ -167,10 +182,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     // path, it read as a link into the item and opened its dialog (J33).
     if (id.endsWith('-menuButton')) return
     clearTimeout(pathTimer.current)
-    const at = location.pathname
+    // The whole URL: in Presentation the panes and the perspective are its query (J63: a
+    // Published click within these 300 ms was undone by a write built from the old URL).
+    const at = location.pathname + location.search
     pathTimer.current = setTimeout(() => {
-      // The panes moved meanwhile (a reference opened, a pane closed): that URL wins.
-      if (location.pathname !== at) return
+      // The URL moved meanwhile (a reference opened, a pane closed, Published): it wins.
+      if (location.pathname + location.search !== at) return
       opened.current = `${pane.id}|${id}` // ours, not a link to follow
       void navigate({href: withParams(panes, index, {path: id}), replace: true})
     }, 300)
@@ -224,6 +241,26 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   }, [onEdit])
   // Closing the pane (or navigating it away) sends what is still waiting.
   useEffect(() => () => flush(qc, pane.id), [qc, pane.id])
+  // B11 widen: edits this browser kept from a reload or crash (lib/pending-edits.ts), per
+  // workspace, project, dataset and editor. Unchanged underneath: sent again; else asked.
+  const scopeNow = useQuery(currentScopeQuery).data
+  const me = useQuery(meQuery).data
+  const keepScope = scopeNow && me ? [scopeNow.workspace, scopeNow.project, scopeNow.dataset, me.email ?? '-'].join('|') : null
+  useEffect(() => setKeepScope(keepScope), [keepScope])
+  const [recovered, setRecovered] = useState<Recovered | null>(null)
+  const editable = !!draftQ.data && !viewingPublished
+  useEffect(() => {
+    setRecovered(null)
+    // Judged against the schema as it is now (a field it dropped or retyped is not sent).
+    if (!keepScope || !editable || !draftQ.data || !schema) return
+    let live = true
+    void recoverPending(qc, draftQ.data, schema).then((r) => {
+      if (!live || !r) return
+      if ('ask' in r) setRecovered(r.ask)
+      else toast({title: tt('Unsaved changes from {date} were put back.', {date: longDate(new Date(r.replayed).toISOString(), locale)})})
+    })
+    return () => void (live = false)
+  }, [keepScope, pane.id, editable, !!schema])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   const [inspectOpen, setInspectOpen] = useState(false)
   const [askDelete, setAskDelete] = useState(0)
@@ -281,6 +318,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => {
     if (isLast) reportFocus(pane.id, null)
   }, [isLast, pane.id])
+  // J66: the last pane's document is the Tasks sidebar's "Active Document".
+  useEffect(() => {
+    if (!isLast) return
+    setActiveDocument({id: pane.id, type: pane.type})
+    return () => setActiveDocument(null)
+  }, [isLast, pane.id, pane.type])
 
   return (
     <section
@@ -342,6 +385,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
                 return at ? t('Published {date}', {date: longDate(at, locale)}) : t('Published')
               }}
               data-selected={viewingPublished ? '' : undefined}
+              data-tone="positive"
               aria-pressed={viewingPublished}
               onClick={() => navigate({href: `${base}?perspective=published`})}
             >
@@ -404,14 +448,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </button>
         )}
         {doc && schema && (
-          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} />
+          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} />
         )}
         {/* J42: a narrow window has no splits and no close: the back link goes back. */}
+        {narrow && <FocusButton index={index} />}
         {!narrow && (
           <>
             <button type="button" className="icon-btn" aria-label={t('Split pane right')} data-tip={t('Split pane right')} onClick={() => navigate({href: splitRight(panes, index)})}>
               <SplitVertical />
             </button>
+            <FocusButton index={index} />
             {split ? (
               // Like Sanity: closing one side of a split is a button, closing a pane a link.
               <button type="button" className="icon-btn" aria-label={t('Close split pane')} data-tip={t('Close pane')} data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
@@ -436,6 +482,26 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           <div className="pane-banner" role="alert">
             <span>{t("You've been logged out. Your edits are kept here and saved once you sign in again.")}</span>
             <SignInAgain />
+          </div>
+        )}
+        {recovered && doc && (
+          <div className="pane-banner" role="alert" data-testid="kept-edits">
+            <span>
+              {recovered.fields.length > 0 && t('Unsaved changes from {date}, kept in this browser. The document has changed since.', {date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}
+              {recovered.gone?.length
+                ? `${recovered.fields.length ? ' ' : ''}${t('Unsaved changes to {fields} from {date} cannot be put back: the schema has changed since.', {fields: recovered.gone.map((f) => fieldLabels[f.split(/[.[]/)[0]!] ?? f).join(', '), date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}`
+                : null}
+            </span>
+            <span className="pane-banner-actions">
+              {recovered.fields.length > 0 && (
+                <button type="button" className="btn-text" onClick={() => (restorePending(qc, doc, recovered), setRecovered(null))}>
+                  {t('Restore')}
+                </button>
+              )}
+              <button type="button" className="btn-text" onClick={() => (discardPending(recovered), setRecovered(null))}>
+                {t('Discard')}
+              </button>
+            </span>
           </div>
         )}
         {/* J49: Sanity's permission banner: no tint, the read-only icon, medium text. */}
@@ -468,7 +534,11 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         )}
         {error &&
           !doc &&
-          (/→ 403\b/.test(String(error)) ? (
+          (boundElsewhere ? (
+            <BoundDatasetCard {...boundElsewhere} />
+          ) : studioTokenRefused ? (
+            <RefusedTokenCard />
+          ) : /→ 403\b/.test(String(error)) ? (
             // J49: a doc this editor may not read.
             <div className="pane-banner" role="alert">
               <span>{t("You don't have access to this document.")}</span>
@@ -506,8 +576,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             {here.length > 0 && (
               <p className="pd-hint" role="note" data-testid="coediting-hint">
                 {here.length === 1
-                  ? t('{name} has this document open. Freeform has no shared carets. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {name: here[0]!.name})
-                  : t('{n} others have this document open. Freeform has no shared carets. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {n: here.length})}
+                  ? t('{name} has this document open. You see where the others are typing. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {name: here[0]!.name})
+                  : t('{n} others have this document open. You see where the others are typing. Their saved changes appear when this canvas is idle. Avoid editing the same block at the same time.', {n: here.length})}
               </p>
             )}
             <PortableDocEditor
@@ -581,6 +651,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} />}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => void toggleValidation()} />}
+      {pane.inspect === INCOMING && <IncomingReferences id={pane.id} panes={panes} index={index} onClose={() => navigate({href: withParams(panes, index, {inspect: undefined})})} />}
       {pane.inspect === 'comments' && (
         <CommentsPanel
           docId={pane.id}
@@ -659,45 +730,59 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
 
 /**
  * Sanity's field-group tabs: "All fields" + one per group. Arrow keys move between
- * tabs (roving tabindex), Enter/Space or a click selects. No groups, no tabs.
+ * tabs (roving tabindex), Enter/Space or a click selects. No groups, no tabs. In a
+ * pane under 360 px (Presentation's panel) they are a select instead, as Sanity's
+ * (its ElementQuery: `data-eq-max~='0'` shows the Select); CSS picks which.
  */
 function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: string; onChange: (g: string) => void; problems: Problem[]}) {
   const t = useT()
   if (!schema.groups?.length) return null
   const tabs = [{name: '', title: t('All fields')}, ...schema.groups]
   return (
-    <div
-      className="group-tabs"
-      role="tablist"
-      aria-label={t('Field groups')}
-      onKeyDown={(e) => {
-        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
-        const btns = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')]
-        const i = btns.indexOf(document.activeElement as HTMLButtonElement)
-        btns[(i + (e.key === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length]?.focus()
-        e.preventDefault()
-      }}
-    >
-      {tabs.map((g) => (
-        <button
-          key={g.name}
-          type="button"
-          role="tab"
-          id={`group-tab-${g.name || 'all-fields'}`}
-          aria-selected={value === g.name}
-          tabIndex={value === g.name ? 0 : -1}
-          onClick={() => onChange(g.name)}
-        >
-          {/* A group's `icon` (a Sanity icon name) before its title, as Sanity's tabs. */}
-          <GroupIcon name={(g as {icon?: unknown}).icon} />
-          {g.title ?? g.name}
-          {/* The most serious level in the group, like Sanity's tab icons. */}
-          {(() => {
-            const level = worst(problems.filter((p) => !g.name || p.group === g.name))
-            return level && <LevelIcon level={level} label={level === 'error' ? t('has validation errors') : level === 'warning' ? t('has validation warnings') : t('has validation info')} />
-          })()}
-        </button>
-      ))}
+    <div className="group-tabs-root">
+      <span className="select-box group-select">
+        <select className="input" aria-label={t('Field groups')} value={value} onChange={(e) => onChange(e.target.value)}>
+          {tabs.map((g) => (
+            <option key={g.name} value={g.name}>
+              {g.title ?? g.name}
+            </option>
+          ))}
+        </select>
+        <ChevronDown />
+      </span>
+      <div
+        className="group-tabs"
+        role="tablist"
+        aria-label={t('Field groups')}
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+          const btns = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]')]
+          const i = btns.indexOf(document.activeElement as HTMLButtonElement)
+          btns[(i + (e.key === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length]?.focus()
+          e.preventDefault()
+        }}
+      >
+        {tabs.map((g) => (
+          <button
+            key={g.name}
+            type="button"
+            role="tab"
+            id={`group-tab-${g.name || 'all-fields'}`}
+            aria-selected={value === g.name}
+            tabIndex={value === g.name ? 0 : -1}
+            onClick={() => onChange(g.name)}
+          >
+            {/* A group's `icon` (a Sanity icon name) before its title, as Sanity's tabs. */}
+            <GroupIcon name={(g as {icon?: unknown}).icon} />
+            {g.title ?? g.name}
+            {/* The most serious level in the group, like Sanity's tab icons. */}
+            {(() => {
+              const level = worst(problems.filter((p) => !g.name || p.group === g.name))
+              return level && <LevelIcon level={level} label={level === 'error' ? t('has validation errors') : level === 'warning' ? t('has validation warnings') : t('has validation info')} />
+            })()}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -729,6 +814,7 @@ function WithCode({text, code}: {text: string; code: string}) {
 
 /** `single` (B13): a singleton keeps Publish, Discard changes and (in History) Restore only. */
 function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void; askDelete: number}) {
+  const actionsButton = useRef<HTMLButtonElement>(null)
   const t = useT()
   const locale = useLocale()
   const qc = useQueryClient()
@@ -776,6 +862,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
     return () => clearInterval(timer)
   }, [])
   const saved = state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !!doc._draft && (justSaved || !doc._updatedAt)
+  // "Last published …" / "Edited …": Sanity puts who did it beside the words.
+  const actor = useLastActor(doc, state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !saved)
   const label =
     state === 'refused'
       ? t('Not saved: {reason}', {reason: error ?? t('Barkpark refused the change')})
@@ -793,7 +881,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       {/* "N sec. ago" differs between the server render and hydration: not an error. */}
       <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
         {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
-        {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : null}
+        {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : actor ? <ActorAvatar actor={actor} /> : null}
         {label}
       </span>
       {state === 'signedOut' && (
@@ -807,7 +895,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
         disabled={!canWrite || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
         title={reason}
         aria-keyshortcuts="Control+Alt+P"
-        onClick={async () => {
+        onClick={async (e) => {
+          // The button disables itself now, which drops keyboard focus on the page; it
+          // goes to "…" beside it instead, in the same footer.
+          if (document.activeElement === e.currentTarget) actionsButton.current?.focus()
           setPublishing(true)
           try {
             await publishAndTell(qc, doc)
@@ -825,7 +916,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
       {publishTip.tip}
       </span>
       {(!single || canDiscard || actions.length > 0) && <div className="menu-wrap">
-        <button type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
+        <button ref={actionsButton} type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
         {menu && (
@@ -882,7 +973,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete}: {d
 // J04: Sanity's toast after each lifecycle action, the document's name in bold.
 const named = (qc: QueryClient, doc: Doc, rest: string) => (
   <>
-    <strong>{previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type))}</strong> {rest}
+    <strong>{previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type), tt)}</strong> {rest}
   </>
 )
 /** Publish, then say so (the footer button and Ctrl+Alt+P). */
@@ -906,6 +997,12 @@ function DocBadges({doc}: {doc: Doc}) {
   )
 }
 
+/** Who wrote what the footer dates: the last publish, or the draft's last edit (none for a service token). */
+function useLastActor(doc: Doc, enabled: boolean) {
+  const {data} = useQuery({...historyQuery(doc._type, doc._publishedId), enabled})
+  return enabled ? data?.find((r) => (doc._draft ? r.status === 'draft' : r.action === 'publish'))?.actor : undefined
+}
+
 /** The Published perspective: read-only, and the way to take a document down. */
 function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const t = useT()
@@ -913,11 +1010,13 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const {canWrite, publishReason} = useCanWrite()
+  const actor = useLastActor(doc, true)
   const run = () =>
     unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, tt('was unpublished. A draft has been created from the latest published revision.'))}))
   return (
     <footer className="doc-footer">
       <span className="save-state" role="status" suppressHydrationWarning>
+        {actor && <ActorAvatar actor={actor} />}
         {t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}
       </span>
       <DocBadges doc={doc} />
@@ -1066,5 +1165,17 @@ function RelatedView({view, id, hrefOf, selected}: {view: DeskView; id: string; 
         </div>
       ))}
     </div>
+  )
+}
+
+/** J26: Sanity's "Enter focus mode (hide navigation)", and the way out. */
+function FocusButton({index}: {index: number}) {
+  const t = useT()
+  const {focused, toggle} = useFocusMode()
+  const on = focused === index
+  return (
+    <button type="button" className="icon-btn" data-testid="focus-pane-button" aria-label={t(on ? 'Exit focus mode (show navigation)' : 'Enter focus mode (hide navigation)')} data-tip={t(on ? 'Exit focus mode' : 'Enter focus mode')} aria-pressed={on} onClick={() => toggle(index)}>
+      {on ? <Collapse /> : <Expand />}
+    </button>
   )
 }

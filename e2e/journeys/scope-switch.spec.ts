@@ -26,7 +26,7 @@ test('@local B02: switch dataset; the URL carries it through links and a reload'
   await expect(button).toHaveAttribute('aria-label', new RegExp(`dataset ${there}\\.`))
 
   // Links and panes keep the scope; so does a reload of a deep URL.
-  await page.locator('[data-pane="types"] .type-row', {hasText: 'Post'}).click()
+  await page.locator('[data-pane="types"] .type-row', {hasText: /^Post$/}).click()
   const row = page.getByTestId('pane-item').first()
   await expect(row).toHaveAttribute('href', new RegExp(`^/w/[^/]+/p/[^/]+/d/${there}/structure/post;`))
   await row.click()

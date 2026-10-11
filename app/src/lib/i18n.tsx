@@ -1,7 +1,7 @@
 import {createContext, useContext, type ReactNode} from 'react'
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {bpFetch} from '../server/barkpark'
+import {bpFetch, serviceToken} from '../server/barkpark'
 
 // B01: the Studio speaks the workspace's language, chosen in Barkpark (workspace
 // settings `locale`, read at GET /v1/workspace/locale: "en" or "nb-NO"). English
@@ -13,19 +13,45 @@ export type Locale = 'en' | 'nb-NO'
 export type Vars = Record<string, string | number>
 export type T = (en: string, vars?: Vars) => string
 
-/** The workspace's locale and, for one other than English, its strings. */
-export type LocaleData = {locale: Locale; strings?: Record<string, string>}
+/**
+ * The workspace's locale and, for one other than English, its strings, and the Freeform
+ * canvas's own (`canvas`: Barkpark's map as JSON, stamped as the canvas's data-strings).
+ */
+export type LocaleData = {locale: Locale; strings?: Record<string, string>; canvas?: string}
+
+// The canvas's chrome words come from Barkpark (GET /v1/i18n/paper_canvas, #22439: the
+// map its LiveView stamps), read on the server and kept a while per locale; a failed
+// read keeps the last one, or none (the canvas then speaks English).
+const CANVAS_TTL_MS = 10 * 60_000
+const PROBE = 'Add a block below' // a canvas string every non-English map translates
+const canvasCache: Partial<Record<Locale, {at: number; json?: string}>> = {}
+async function canvasStrings(locale: Locale): Promise<string | undefined> {
+  const held = canvasCache[locale]
+  if (held && Date.now() - held.at < CANVAS_TTL_MS) return held.json
+  try {
+    const res = await fetch(`${process.env.BARKPARK_URL}/v1/i18n/paper_canvas?locale=${locale}`, {signal: AbortSignal.timeout(3000)})
+    const body = res.ok ? ((await res.json()) as {locale?: string; strings?: Record<string, string>}) : undefined
+    // An unknown locale falls back to English with a 200: only a map in this locale counts.
+    const ours = body?.locale === locale && body.strings && body.strings[PROBE] !== PROBE ? body.strings : undefined
+    const json = ours ? JSON.stringify(ours) : held?.json
+    canvasCache[locale] = {at: Date.now(), json}
+    return json
+  } catch {
+    return held?.json
+  }
+}
 
 // The strings come with the locale, so a server render carries them in its payload and
 // hydration has them; an English workspace downloads none (the dictionary is not in
 // the client bundle: it is imported here, server side only).
 const fetchLocale = createServerFn({method: 'GET'}).handler(async (): Promise<LocaleData> => {
-  const pick = async (locale: Locale): Promise<LocaleData> => (locale === 'nb-NO' ? {locale, strings: (await import('../i18n/nb')).NB} : {locale})
+  const pick = async (locale: Locale): Promise<LocaleData> => (locale === 'nb-NO' ? {locale, strings: (await import('../i18n/nb')).NB, canvas: await canvasStrings(locale)} : {locale})
   // A lane's dev server can force one (evidence runs): the workspace setting is shared.
   const forced = process.env.STUDIO_LOCALE
   if (forced === 'en' || forced === 'nb-NO') return pick(forced)
   try {
-    const res = await bpFetch('/v1/workspace/locale', {}, undefined, {retry: false})
+    // The studio's own token: the sign-in screen is in the workspace's language too.
+    const res = await bpFetch('/v1/workspace/locale', {}, serviceToken(), {retry: false})
     const locale = res.ok ? ((await res.json()) as {locale?: string}).locale : undefined
     return pick(locale === 'nb-NO' ? 'nb-NO' : 'en')
   } catch {
@@ -55,14 +81,22 @@ export function translate(locale: Locale, en: string, vars?: Vars): string {
 }
 
 const LocaleContext = createContext<Locale>('en')
+const CanvasStringsContext = createContext<string | undefined>(undefined)
 
 /** Rendering: the server render knows the request's locale through this, not a global. */
 export function LocaleProvider({data, children}: {data: LocaleData; children: ReactNode}) {
   register(data) // a hydrating page: its strings came in the server's payload
   const locale = data.locale
   browserLocale = typeof window === 'undefined' ? browserLocale : locale
-  return <LocaleContext.Provider value={locale}>{children}</LocaleContext.Provider>
+  return (
+    <LocaleContext.Provider value={locale}>
+      <CanvasStringsContext.Provider value={data.canvas}>{children}</CanvasStringsContext.Provider>
+    </LocaleContext.Provider>
+  )
 }
+
+/** The Freeform canvas's own words for this locale, as its `data-strings` (none: English). */
+export const useCanvasStrings = () => useContext(CanvasStringsContext)
 
 export const useLocale = () => useContext(LocaleContext)
 

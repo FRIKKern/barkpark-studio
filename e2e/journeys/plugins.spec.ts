@@ -76,5 +76,6 @@ test('@local J65: the studio config adds a tool, an input, an action, a badge an
   await tool.click()
   await expect(page).toHaveURL(/\/stats$/)
   await expect(tool).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByRole('row', {name: /^post \d+ \d+$/})).toBeVisible()
+  // Two counts per type on a busy shared token: give the table time to come.
+  await expect(page.getByRole('row', {name: /^post \d+ \d+$/})).toBeVisible({timeout: 15_000})
 })
