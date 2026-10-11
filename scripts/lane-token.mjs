@@ -8,20 +8,43 @@
 // Reused while they work, else the lane's old ones (label lane:<dataset>[:rig]) are
 // revoked and new ones minted with the .env token (it must administer the workspace).
 // Kept in the gitignored .e2e-lane-tokens.json; e2e/run.mjs picks them up by dataset.
+// Also kept for the whole machine (~/.cache/barkpark-studio/lane-tokens.json), so a new
+// worktree reuses the lane's tokens instead of minting: every mint leaves a member row
+// in the workspace for good, revoked or not (task-0b926def1700437e).
 // --revoke revokes the lane's tokens and forgets them.
-import {readFileSync, writeFileSync} from 'node:fs'
+import {mkdirSync, readFileSync, writeFileSync} from 'node:fs'
+import {homedir} from 'node:os'
+import {dirname, join} from 'node:path'
 
 const lane = process.argv[2]
 if (!lane || !/^(?:e2e-[a-z0-9-]+)$/.test(lane)) throw new Error('usage: lane-token.mjs <e2e-… dataset> [--revoke]')
 const file = new URL('../.e2e-lane-tokens.json', import.meta.url)
-const tokens = (() => { try { return JSON.parse(readFileSync(file, 'utf8')) } catch { return {} } })()
+const read = (f) => { try { return JSON.parse(readFileSync(f, 'utf8')) } catch { return {} } }
+const tokens = read(file)
 const url = process.env.BARKPARK_URL
 const ws = process.env.BARKPARK_WORKSPACE
+const machineFile = process.env.STUDIO_LANE_TOKENS_FILE || join(homedir(), '.cache', 'barkpark-studio', 'lane-tokens.json')
+const machine = read(machineFile)
+const machineKey = `${url}|${ws}|${lane}`
+const keep = (pair) => {
+  mkdirSync(dirname(machineFile), {recursive: true})
+  const next = {...read(machineFile), [machineKey]: pair}
+  if (!pair) delete next[machineKey]
+  writeFileSync(machineFile, JSON.stringify(next, null, 2), {mode: 0o600})
+}
 const scope = `${url}/w/${ws}/p/${process.env.BARKPARK_PROJECT || 'default'}`
 const admin = {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`, 'content-type': 'application/json'}
 const labels = {app: `lane:${lane}`, rig: `lane:${lane}:rig`}
 const works = (t) => t && fetch(`${scope}/v1/data/query/${lane}/post?limit=1`, {headers: {authorization: `Bearer ${t}`}}).then((r) => r.ok)
-if (!process.argv.includes('--revoke') && (await works(tokens[lane]?.app)) && (await works(tokens[lane]?.rig))) (console.log(`${lane}: tokens still good`), process.exit(0))
+if (!process.argv.includes('--revoke'))
+  for (const [where, pair] of [['this worktree', tokens[lane]], ['this machine', machine[machineKey]]])
+    if ((await works(pair?.app)) && (await works(pair?.rig))) {
+      tokens[lane] = pair
+      writeFileSync(file, JSON.stringify(tokens, null, 2))
+      keep(pair)
+      console.log(`${lane}: tokens still good (from ${where})`)
+      process.exit(0)
+    }
 const list = await fetch(`${url}/v1/auth/app-tokens`, {headers: admin})
 if (!list.ok) throw new Error(`listing app tokens: ${list.status} (the .env token must administer ${ws})`)
 let revoked = 0
@@ -41,4 +64,5 @@ if (!process.argv.includes('--revoke')) {
   }
 }
 writeFileSync(file, JSON.stringify(tokens, null, 2))
+keep(tokens[lane])
 console.log(`${lane}: revoked ${revoked}${tokens[lane] ? ', minted 2' : ''}`)
