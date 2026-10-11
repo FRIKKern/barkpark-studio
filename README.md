@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 37 changes, 2 tasks closed
+- **Today** · 38 changes, 2 tasks closed
+  - D04: a new doc's fields stay quiet until someone types ([#474](https://github.com/FRIKKern/barkpark-studio/pull/474))
   - D20: the conflict card names who changed the document and when ([#472](https://github.com/FRIKKern/barkpark-studio/pull/472))
   - A held early click lands on the button hydration drew anew ([#473](https://github.com/FRIKKern/barkpark-studio/pull/473))
-  - CI: plan e2e shards by wall time per spec, hooks included ([#461](https://github.com/FRIKKern/barkpark-studio/pull/461))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
