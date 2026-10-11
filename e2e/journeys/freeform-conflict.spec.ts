@@ -98,8 +98,11 @@ for (const answer of ['theirs', 'mine'] as const) {
     })
     await label.fill('Mine')
     const card = page.locator('[data-conflict]')
-    await expect(card).toContainText('Someone else changed this document', {timeout: 15_000})
+    await expect(card).toContainText('changed this document', {timeout: 15_000})
     await expect(card).toContainText('Your unsaved edits are still on screen.')
+    // Who and when, not revision ids (sign-off pack D20).
+    await expect(card).toContainText(/ago|just now/)
+    await expect(card).not.toContainText(/\brev\b/)
     await expect(page.locator('.pd-status')).toHaveText('Conflict')
     await page.screenshot({path: `evidence/D20-1-card.png`})
     stale = false

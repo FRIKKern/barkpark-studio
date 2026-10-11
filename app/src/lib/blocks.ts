@@ -19,17 +19,17 @@ const fetchBlocks = createServerFn({method: 'GET'})
   .handler(async ({data}) => {
     const res = await bpFetch(`${docPath(data.type, data.id)}?perspective=drafts`)
     if (!res.ok) throw new Error(`Barkpark ${res.status} reading ${data.id}`)
-    const doc = ((await res.json()) as {result: {_rev: string; blocks?: Json[]} & Record<string, Json>}).result
+    const doc = ((await res.json()) as {result: {_rev: string; _updatedAt?: string; blocks?: Json[]} & Record<string, Json>}).result
     const blocks = data.field ? ((doc[data.field] as {blocks?: Json[]} | null)?.blocks ?? []) : (doc.blocks ?? [])
     // A Bulldocs paper's ops fence on its own integer `rev` (Barkpark #22149), not `_rev`.
     const rev = data.type === 'paper' && !data.field ? ((doc.rev as number | undefined) ?? 0) : doc._rev
     // `docRev`: the document's `_rev` either way, what its history rows name (D22).
-    return {rev, docRev: doc._rev, blocks} as Json
+    return {rev, docRev: doc._rev, updatedAt: doc._updatedAt ?? null, blocks} as Json
   })
 
 /** `rev`: the doc's `_rev`, or a paper's integer rev (what its ops fence on). */
 export type Rev = string | number
-export type Blocks = {rev: Rev; docRev?: string; blocks: Block[]}
+export type Blocks = {rev: Rev; docRev?: string; updatedAt?: string | null; blocks: Block[]}
 export const blocksQuery = (type: string, id: string, field?: string) =>
   queryOptions({queryKey: ['blocks', id, field ?? ''], staleTime: 0, queryFn: async () => (await fetchBlocks({data: {type, id, field}})) as unknown as Blocks})
 export const readBlocks = async (type: string, id: string, field?: string) => (await fetchBlocks({data: {type, id, field}})) as unknown as Blocks
