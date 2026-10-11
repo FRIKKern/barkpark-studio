@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target, BACKEND_POLL} from '../rig/targets'
+import {target, BACKEND_POLL, closeAndSettle} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
 // J19, keyboard only on both studios: global search → open → edit → publish.
@@ -7,7 +7,7 @@ import {referenceHold} from '../rig/reference'
 const ID = 'post-12'
 const TITLE = 'Fixture post 12'
 
-test.afterEach(async ({}, info) => target(info).restore(ID, {title: TITLE}))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {title: TITLE})))
 
 test('J19: search recovery and visible keyboard selection', async ({page}, info) => {
   const t = target(info)
@@ -68,7 +68,9 @@ test('J19: keyboard only — search, open, edit, publish', async ({page}, info) 
     for (let i = 0; i < 12 && !(await t.field(page, 'title').evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab')
   }
   await expect(t.field(page, 'title')).toBeFocused()
-  await page.keyboard.press('End')
+  // Tab into an input selects its text, and macOS's End doesn't move the caret in an
+  // input: typing then replaced the title (" kb" on Sanity's side). Cmd+→ goes to the end.
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
   await page.keyboard.type(' kb')
   await referenceHold(page, t.field(page, 'title'), `${TITLE} kb`)
   if (t.name === 'sanity') {
@@ -80,4 +82,71 @@ test('J19: keyboard only — search, open, edit, publish', async ({page}, info) 
   await expect.poll(() => t.publishedTitle(ID), BACKEND_POLL).toBe(`${TITLE} kb`)
   await expect(t.field(page, 'title'), 'F6: focus stays in the field').toBeFocused()
   await referenceHold(page, t.field(page, 'title'), `${TITLE} kb`)
+})
+
+// The caret lands in the opened doc's first field however long its read takes: it
+// used to give up after 5 s and leave it on the page body (CI's slow reads, J19).
+test('@local J19: a slow doc read still puts the caret in its first field', async ({page}, info) => {
+  const t = target(info)
+  test.setTimeout(60_000)
+  test.skip(t.name !== 'studio', 'ours: the read is slowed in the studio')
+  await t.prepare(page.context())
+  await page.goto('/structure')
+  await t.settle(page)
+  await page.keyboard.press('ControlOrMeta+k')
+  await page.keyboard.type('post 12')
+  await expect(page.getByText('Fixture post 12', {exact: true}).first()).toBeVisible()
+  // Every request from here takes 6 s (CI's slow Barkpark reads, and the code the pane needs).
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Network.enable')
+  await cdp.send('Network.emulateNetworkConditions', {offline: false, latency: 6000, downloadThroughput: -1, uploadThroughput: -1})
+  await page.keyboard.press('Enter')
+  await expect(t.field(page, 'title')).toBeVisible({timeout: 30_000})
+  await expect(t.field(page, 'title')).toBeFocused()
+  await cdp.send('Network.emulateNetworkConditions', {offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1})
+})
+
+// Publish by keyboard on the button: the button disables itself while it publishes,
+// which dropped focus on the page (Sanity's too). It goes to "…" beside it.
+test('J19: Publish by Enter keeps the keyboard in the footer', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours (Sanity's drops focus on the page)")
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', ID))
+  await t.settle(page)
+  await t.field(page, 'title').click()
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
+  await page.keyboard.type(' kb')
+  const publish = page.getByRole('button', {name: 'Publish', exact: true})
+  await expect(publish).toBeEnabled({timeout: 10_000})
+  await publish.focus()
+  await page.keyboard.press('Enter')
+  await expect.poll(() => t.publishedTitle(ID), BACKEND_POLL).toBe(`${TITLE} kb`)
+  await expect(page.getByRole('button', {name: 'Document actions'}).last()).toBeFocused()
+})
+
+// The canvas's list chords, as Google Docs and Notion have them: Cmd+Shift+8 a bullet
+// list, Cmd+Shift+7 a numbered one (Barkpark #22707; 8 used to do nothing). Ours only:
+// Sanity's text editor has neither. The body is put back after.
+test('D: Cmd+Shift+8 makes a bullet list, Cmd+Shift+7 a numbered one, in the canvas', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the canvas (Sanity has no list chords)')
+  const body = await t.docValue(ID, 'body')
+  await t.prepare(page.context())
+  try {
+    await page.goto(t.docPath('post', ID))
+    await t.settle(page)
+    const para = page.locator('[id="body"]').getByText(/Body paragraph for post 12/)
+    await para.click()
+    await expect(page.locator('[id="body"] .ProseMirror')).toBeFocused({timeout: 15_000})
+    const list = () => para.evaluate((p) => (p.closest('ul') ? 'ul' : p.closest('ol') ? 'ol' : 'none'))
+    await page.keyboard.press('ControlOrMeta+Shift+8')
+    await expect.poll(list).toBe('ul')
+    await page.keyboard.press('ControlOrMeta+Shift+7')
+    await expect.poll(list).toBe('ol')
+  } finally {
+    // The canvas's last change lands first: a restore before it was overwritten by it.
+    await closeAndSettle(page)
+    await t.restore(ID, {title: TITLE, body})
+  }
 })

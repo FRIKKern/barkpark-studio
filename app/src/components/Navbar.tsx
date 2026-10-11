@@ -1,17 +1,20 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Link, useNavigate} from '@tanstack/react-router'
-import {devSignOut, meQuery} from '../lib/session'
+import {endSession, meQuery} from '../lib/session'
 import {GlobalSearch} from './Search'
 import {NewDocMenu} from './NewDocMenu'
 import {ScopeSwitcher} from './ScopeSwitcher'
 import {WhoIsOnline} from './Presence'
+import {TasksPanel} from './TasksPanel'
+import {showTasks, useTasksView} from '../lib/tasks-ui'
 import {DialogBox, MenuPopover} from './FocusScopes'
-import {ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
+import {CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useHydratedMark} from '../lib/hydrated'
-import {BUILD, buildName, useNewVersion} from '../lib/version'
+import {BUILD, buildName, useNewVersion, useSchemaChanged} from '../lib/version'
 import {saveAll} from '../lib/edits'
+import {stickyToast} from './Toasts'
 import {useT} from '../lib/i18n'
 import studio from '../studio.config'
 import {studioBrand} from '../lib/plugins'
@@ -27,11 +30,12 @@ export function Navbar() {
   const published = usePublishedPerspective()
   return (
     <nav className="navbar" data-perspective={published ? 'published' : undefined}>
+      <SchemaWatch />
+      <TasksPanel />
       <div className="brand">
         <NavDrawer />
         <span className="logo">{brand.initials}</span>
-        <span className="brand-name">{brand.name}</span>
-        <ScopeSwitcher />
+        <ScopeSwitcher brand={brand} />
         <NewDocMenu />
         <GlobalSearch />
       </div>
@@ -46,6 +50,7 @@ export function Navbar() {
       <div className="nav-right">
         <PerspectivePicker />
         <WhoIsOnline />
+        <TasksButton />
         <Help />
         <Editor />
       </div>
@@ -66,7 +71,7 @@ function NavDrawer() {
   const navigate = useNavigate()
   const appearance = useAppearance()
   const [open, setOpen] = useState(false)
-  const signedIn = !!(me?.devLogin && me.email)
+  const signedIn = !!(me && me.signIn !== 'shared' && me.email)
   const close = () => setOpen(false)
   return (
     <>
@@ -91,6 +96,9 @@ function NavDrawer() {
               ))}
             </nav>
             <div className="drawer-foot">
+              {/* A phone's navbar has no room for Help (Sanity's has none there either): it is here. */}
+              <Help inDrawer />
+              <hr />
               {APPEARANCES.map(([a, label, Icon]) => (
                 <button key={a} type="button" aria-pressed={appearance === a} aria-label={t(`Use ${a} appearance`)} className="drawer-item check" onClick={() => setAppearance(a)}>
                   <span className="menu-icon-text">
@@ -106,7 +114,7 @@ function NavDrawer() {
                     className="drawer-item"
                     onClick={async () => {
                       close()
-                      await devSignOut()
+                      await endSession()
                       qc.clear()
                       await navigate({to: '/login', search: {redirect: '/structure'}})
                     }}
@@ -126,12 +134,52 @@ function NavDrawer() {
 }
 
 /**
+ * Bad day: Barkpark's content model changed while this tab is open (a field removed, a
+ * type changed). Say so, sticky, with Reload: what is typed is saved first, then the
+ * page reads the new model. Until then the open form keeps the model it loaded.
+ */
+function SchemaWatch() {
+  const t = useT()
+  const qc = useQueryClient()
+  const changed = useSchemaChanged()
+  useEffect(() => {
+    if (!changed) return
+    const reload = async () => (await saveAll(qc), location.reload())
+    stickyToast('schema-changed', {
+      tone: 'caution',
+      title: (
+        <span>
+          {t('The content model changed.')}{' '}
+          <button type="button" className="btn-text" onClick={() => void reload()}>
+            {t('Reload')}
+          </button>
+        </span>
+      ),
+      description: t('Reload to see the fields as they are now. What you typed is saved first.'),
+    })
+    return () => stickyToast('schema-changed', null)
+  }, [changed, qc, t])
+  return null
+}
+
+/**
  * J53, Sanity's "Help and resources" (top right): a dot on the button when a new
  * Studio version is out; the Studio item names this build and, when the server
  * runs a newer one, reads "Reload to update to …" and reloads once every waiting
  * edit is saved. Sanity's other entries become ours: report a problem, the docs.
  */
-function Help() {
+/** J66: Sanity's navbar Tasks button opens (or closes) the Tasks sidebar on its lists. */
+function TasksButton() {
+  const t = useT()
+  const open = useTasksView().kind !== 'closed'
+  return (
+    <button type="button" className="icon-btn" data-testid="tasks-toolbar" aria-label={t('Tasks')} data-tip={t('Tasks')} aria-pressed={open} onClick={() => showTasks(open ? {kind: 'closed'} : {kind: 'list', tab: 'assigned'})}>
+      <CheckmarkCircle />
+    </button>
+  )
+}
+
+function Help({inDrawer = false}: {inDrawer?: boolean}) {
   const t = useT()
   const next = useNewVersion()
   const qc = useQueryClient()
@@ -143,22 +191,31 @@ function Help() {
     location.reload()
   }
   return (
-    <div className="menu-wrap help" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+    <div className={inDrawer ? 'menu-wrap help in-drawer' : 'menu-wrap help'} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
       <button
-        id="help-menu"
+        id={inDrawer ? 'help-menu-drawer' : 'help-menu'}
         type="button"
-        className="icon-btn"
+        className={inDrawer ? 'drawer-item' : 'icon-btn'}
         aria-label={t('Help and resources')}
-        data-tip={next ? t('New version available') : t('Help and resources')}
+        data-tip={inDrawer ? undefined : next ? t('New version available') : t('Help and resources')}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        <HelpCircle />
-        {next && <span className="update-dot" aria-hidden="true" />}
+        {inDrawer ? (
+          <span className="menu-icon-text">
+            <HelpCircle /> {t('Help and resources')}
+            {next && <span className="update-dot" aria-hidden="true" />}
+          </span>
+        ) : (
+          <>
+            <HelpCircle />
+            {next && <span className="update-dot" aria-hidden="true" />}
+          </>
+        )}
       </button>
       {open && (
-        <MenuPopover className="popover menu help-menu" onClose={() => setOpen(false)} aria-labelledby="help-menu">
+        <MenuPopover className="popover menu help-menu" onClose={() => setOpen(false)} aria-labelledby={inDrawer ? 'help-menu-drawer' : 'help-menu'}>
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio/issues/new/choose" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
             {t('Report a problem')}
           </a>
@@ -199,11 +256,11 @@ function Editor() {
   const navigate = useNavigate()
   const appearance = useAppearance()
   const [open, setOpen] = useState(false)
-  const signedIn = !!(me?.devLogin && me.email)
+  const signedIn = !!(me && me.signIn !== 'shared' && me.email)
   const choose = (a: Appearance) => () => (setAppearance(a), setOpen(false))
   return (
     <div className="editor">
-      {signedIn && (
+      {signedIn && me!.devLogin && (
         <span className="dev-badge" title={t('Dev sign-in: identity is asserted, not proven')}>
           DEV
         </span>
@@ -232,7 +289,7 @@ function Editor() {
                   className="menu-item spread"
                   onClick={async () => {
                     setOpen(false)
-                    await devSignOut()
+                    await endSession()
                     qc.clear()
                     await navigate({to: '/login', search: {redirect: '/structure'}})
                   }}

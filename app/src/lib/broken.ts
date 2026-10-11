@@ -96,3 +96,42 @@ export function unknownFields(schema: Schema, doc: Record<string, unknown>): str
   const known = new Set(schema.fields.map((f) => f.name))
   return Object.keys(doc).filter((k) => !k.startsWith('_') && !known.has(k) && !SERVER_KEYS.has(k) && doc[k] !== undefined && doc[k] !== null)
 }
+
+export type UnsupportedAsset = {reason: 'sanityAsset' | 'foreignRef'; source: string}
+
+/**
+ * An image or file value holding an asset this studio can't show: Sanity's export form
+ * ({_sanityAsset: 'image@file://…'}) or a ref that is not a Barkpark media id
+ * (Sanity's 'image-<sha>-640x400-png'). Read as empty, one save would drop it: the field
+ * shows it as it is, read-only, with Reset (task-ec9b4c0c78185fa4).
+ */
+export function unsupportedAsset(field: Field, value: unknown): UnsupportedAsset | null {
+  if (field.type !== 'image' && field.type !== 'file') return null
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const v = value as {_sanityAsset?: unknown; asset?: {_ref?: unknown}}
+  if (typeof v._sanityAsset === 'string') return {reason: 'sanityAsset', source: v._sanityAsset}
+  const ref = v.asset?._ref
+  if (typeof ref === 'string' && !ref.startsWith('asset-')) return {reason: 'foreignRef', source: ref}
+  return null
+}
+
+export type SanityPortableText = {lines: {style: string; text: string}[]}
+
+/**
+ * A rich text field holding Sanity Portable Text (a list of `_type: 'block'` items with
+ * `children`), as `bp import` brings it over from a Sanity export (B14). The canvas reads
+ * PortableDoc only, so it shows as its text, read-only, and is kept as it is until
+ * Barkpark converts it (task-5412419a2e931805). Other items read as their `_type`.
+ */
+export function sanityPortableText(field: Field, value: unknown): SanityPortableText | null {
+  if (field.type !== 'richText' || !Array.isArray(value)) return null
+  const items = value.filter((b): b is Record<string, unknown> => !!b && typeof b === 'object' && !Array.isArray(b))
+  if (!items.some((b) => b._type === 'block' && Array.isArray(b.children))) return null
+  return {
+    lines: items.map((b) =>
+      b._type === 'block'
+        ? {style: typeof b.listItem === 'string' ? 'listItem' : typeof b.style === 'string' ? b.style : 'normal', text: Array.isArray(b.children) ? b.children.map((c) => (c && typeof c === 'object' && typeof (c as {text?: unknown}).text === 'string' ? (c as {text: string}).text : '')).join('') : ''}
+        : {style: 'object', text: String(b._type ?? '')},
+    ),
+  }
+}

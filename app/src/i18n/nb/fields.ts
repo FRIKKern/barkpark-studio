@@ -42,9 +42,12 @@ export default {
   'Missing keys': 'Manglende nøkler',
   Month: 'Måned',
   'Move item {n}': 'Flytt element {n}',
+  'Drag to re-order': 'Dra for å endre rekkefølge',
   'Must be a reference to a document': 'Må være en referanse til et dokument',
   'Must be at least {min} characters long': 'Må være minst {min} tegn lang',
   'Must be at most {max} characters long': 'Må være maksimalt {max} tegn lang',
+  'Does not match "{pattern}"-pattern': 'Samsvarer ikke med mønsteret "{pattern}"',
+  "Can't be a duplicate": 'Kan ikke være et duplikat',
   'Must be greater than or equal to {min}': 'Må være større enn eller lik {min}',
   'Must be lower than or equal to {max}': 'Må være mindre enn eller lik {max}',
   'No color': 'Ingen farge',
@@ -130,4 +133,10 @@ export default {
   'Must have at least {min} items': 'Må ha minst {min} elementer',
   'Must have at most {max} items': 'Kan ha høyst {max} elementer',
   'Items must be unique': 'Elementene må være unike',
+  // task-ec9b4c0c78185fa4: an asset from elsewhere, kept as it is.
+  'Unsupported asset value': 'Ressursverdi som ikke støttes',
+  'This field points to a file from an export that has not been uploaded to Barkpark. It is kept as it is.': 'Dette feltet viser til en fil fra en eksport som ikke er lastet opp til Barkpark. Den beholdes som den er.',
+  'This field points to an asset Barkpark does not know. It is kept as it is.': 'Dette feltet viser til en ressurs Barkpark ikke kjenner. Den beholdes som den er.',
+  'Sanity Portable Text': 'Sanity Portable Text',
+  'This field holds rich text from Sanity, which this studio cannot edit yet. Its text is shown below and kept as it is.': 'Dette feltet har rik tekst fra Sanity, som dette studioet ikke kan redigere ennå. Teksten vises under og beholdes som den er.',
 } satisfies Record<string, string>

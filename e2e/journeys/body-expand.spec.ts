@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J35 evidence, both studios, in post-12's body: (1) expand the editor over the
 // pane and back — typing before, while and after lands in one run (the caret is
@@ -20,7 +20,8 @@ const WORD_HTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office"><body
 <o:p></o:p></body></html>`
 
 let original: unknown
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
   if (original !== undefined) await target(info).restore(ID, {body: original})
 })
 

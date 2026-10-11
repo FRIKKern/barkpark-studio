@@ -3,7 +3,7 @@ import {DialogBox, PaneOverlay} from './FocusScopes'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Field} from '../lib/data'
 import {copy} from '../lib/clipboard'
-import {FieldView, UrlPathContext, type OpenRef} from './Fields'
+import {FieldView, UrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, DocumentIcon} from './icons'
 import {translate, useLocale, useT} from '../lib/i18n'
@@ -125,9 +125,10 @@ function Subtitle({item, of}: {item: Item; of: Field}) {
   const name = of.preview?.subtitle
   const f = of.fields?.find((x) => x.name === name)
   const refId = f?.type === 'reference' && typeof item[name!] === 'string' ? (item[name!] as string) : undefined
+  const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: target} = useQuery({...docQuery(f?.refType ?? '', refId ?? ''), enabled: !!refId})
-  const text = refId ? (target ? previewTitle(target, schemaOf(schemas, target._type)!) : '') : previewText(item, of, 'subtitle')
+  const text = refId ? (target ? previewTitle(target, schemaOf(schemas, target._type)!, t) : '') : previewText(item, of, 'subtitle')
   return text ? <span className="subtitle">{text}</span> : null
 }
 
@@ -165,9 +166,11 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
         </header>
         <div className="dialog-body item-fields">
           <fieldset className="form-fields" disabled={readOnly}>
-            {fieldsOf(of, item).map((f) => (
-              <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange({...item, [f.name]: v})} />
-            ))}
+            <ParentContext.Provider value={item}>
+              {fieldsOf(of, item).map((f) => (
+                <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange({...item, [f.name]: v})} />
+              ))}
+            </ParentContext.Provider>
           </fieldset>
         </div>
       </DialogBox>

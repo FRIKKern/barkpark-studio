@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react'
-import type {Invalid, KeyProblem, RichTextProblem} from '../lib/broken'
+import type {Invalid, KeyProblem, RichTextProblem, SanityPortableText, UnsupportedAsset} from '../lib/broken'
 import {ErrorOutline, WarningOutline} from './icons'
 import {useT} from '../lib/i18n'
 
@@ -9,7 +9,7 @@ import {useT} from '../lib/i18n'
 
 const json = (v: unknown) => JSON.stringify(v, null, 2)
 
-function Card({tone, title, text, dev, children}: {tone: 'warn' | 'danger'; title: string; text: string; dev: ReactNode; children: ReactNode}) {
+function Card({tone, title, text, body, dev, devOpen = true, children}: {tone: 'warn' | 'danger'; title: string; text: string; body?: ReactNode; dev: ReactNode; devOpen?: boolean; children: ReactNode}) {
   const t = useT()
   return (
     <div className="broken-card" data-tone={tone} role="alert">
@@ -18,7 +18,8 @@ function Card({tone, title, text, dev, children}: {tone: 'warn' | 'danger'; titl
         <div>
           <strong>{title}</strong>
           <p>{text}</p>
-          <details open>
+          {body}
+          <details open={devOpen}>
             <summary>{t('Developer info')}</summary>
             {dev}
           </details>
@@ -61,6 +62,73 @@ export function InvalidValueCard({invalid, value, onChange}: {invalid: Invalid; 
           {t('Convert to {type}', {type: invalid.expected})}
         </button>
       )}
+      <button type="button" className="btn broken-btn danger" onClick={() => onChange(undefined)}>
+        {t('Reset value')}
+      </button>
+    </Card>
+  )
+}
+
+/**
+ * An image or file field holding an asset this studio can't show (a Sanity export's
+ * `_sanityAsset`, a Sanity asset id): shown as it is, read-only, never as an empty
+ * field. Saves elsewhere leave it untouched; Reset is the only change offered.
+ */
+export function UnsupportedAssetCard({asset, value, onChange}: {asset: UnsupportedAsset; value: unknown; onChange: (v: unknown) => void}) {
+  const t = useT()
+  return (
+    <Card
+      tone="warn"
+      title={t('Unsupported asset value')}
+      text={t(asset.reason === 'sanityAsset' ? 'This field points to a file from an export that has not been uploaded to Barkpark. It is kept as it is.' : 'This field points to an asset Barkpark does not know. It is kept as it is.')}
+      dev={
+        <>
+          <p className="broken-label">
+            <code>{asset.source}</code>
+          </p>
+          <pre className="broken-value">{json(value)}</pre>
+        </>
+      }
+    >
+      <button type="button" className="btn broken-btn danger" onClick={() => onChange(undefined)}>
+        {t('Reset value')}
+      </button>
+    </Card>
+  )
+}
+
+/**
+ * B14: a rich text field holding Sanity Portable Text (a Sanity export brought over).
+ * The canvas can't edit it, so its text shows read-only, never an empty canvas; saves
+ * elsewhere leave it untouched and Reset is the only change offered.
+ */
+export function SanityPortableTextCard({pt, value, onChange}: {pt: SanityPortableText; value: unknown; onChange: (v: unknown) => void}) {
+  const t = useT()
+  return (
+    <Card
+      tone="warn"
+      title={t('Sanity Portable Text')}
+      text={t('This field holds rich text from Sanity, which this studio cannot edit yet. Its text is shown below and kept as it is.')}
+      body={
+        <div className="broken-pt">
+          {pt.lines.map((line, i) =>
+            line.style === 'object' ? (
+              <p key={i} className="broken-label">
+                <code>{line.text}</code>
+              </p>
+            ) : /^h[1-6]$/.test(line.style) ? (
+              <p key={i}>
+                <strong>{line.text}</strong>
+              </p>
+            ) : (
+              <p key={i}>{line.style === 'listItem' ? `• ${line.text}` : line.text}</p>
+            ),
+          )}
+        </div>
+      }
+      dev={<pre className="broken-value">{json(value)}</pre>}
+      devOpen={false}
+    >
       <button type="button" className="btn broken-btn danger" onClick={() => onChange(undefined)}>
         {t('Reset value')}
       </button>

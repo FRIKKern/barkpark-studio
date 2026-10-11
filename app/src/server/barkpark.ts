@@ -3,7 +3,7 @@
 // (server/auth.ts), else the studio's BARKPARK_TOKEN.
 import '@tanstack/react-start/server-only'
 import {getRequestHeader, getRequestUrl} from '@tanstack/react-start/server'
-import {currentEditor, devLoginEnabled} from './auth'
+import {currentEditor, signInMode, signInRequired} from './auth'
 import {parseScope, type Scope} from '../lib/scope'
 
 function env(key: string): string {
@@ -40,7 +40,9 @@ export function scope(): Scope {
 const config = (at: Scope = scope()) => ({
   base: `${env('BARKPARK_URL')}/w/${at.workspace}/p/${at.project}`,
   dataset: at.dataset,
-  token: currentEditor()?.token ?? env('BARKPARK_TOKEN'),
+  // J67: with account sign-in nobody reads as the studio. Signed out, a request carries
+  // no token and Barkpark refuses it (the routes send the person to sign in first).
+  token: currentEditor()?.token ?? (signInMode() === 'account' ? '' : env('BARKPARK_TOKEN')),
 })
 
 /** The studio's own token, for what isn't any one editor's business (the content model).
@@ -69,7 +71,7 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
   // session was lost to a studio restart or an expired cookie — never goes out under
   // the shared studio token (history would name the wrong author). The editor is
   // told to sign in again; their unsent edits wait.
-  if (method !== 'GET' && !stream && devLoginEnabled() && !currentEditor())
+  if (method !== 'GET' && !stream && signInRequired() && !currentEditor())
     return Response.json({error: {code: 'session_lost', message: "You've been logged out"}}, {status: 401})
   if (method !== 'GET') recent.clear() // a write: no read may answer from before it
   const base = config(at ?? scope()).base
@@ -91,18 +93,38 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
 export const READ_DEDUPE_MS = 500
 /** Drop the shared reads: none may answer for a point after this one. */
 export const forgetReads = () => recent.clear()
-/** Someone (anyone) wrote this doc: no read of it may answer from before that. */
+/**
+ * Someone (anyone) wrote this doc: no read of it may answer from before that. Nor may any
+ * "used in" read: the write can add or drop an edge to any doc (J17; Barkpark's edges are
+ * right as the write returns since #22591, so a shared read is the only thing in the way).
+ */
 export const forgetReadsOf = (docId: string) => {
   const needle = `/${encodeURIComponent(docId)}`
-  for (const key of recent.keys()) if (key.includes(needle)) recent.delete(key)
+  for (const key of recent.keys()) if (key.includes(needle) || key.includes('/v1/data/backlinks/')) recent.delete(key)
 }
 const recent = new Map<string, {expires: number; res: Promise<{status: number; type: string | null; body: string}>}>()
+
+/** e2e (STUDIO_E2E_HOOKS=1): reads fail as a deploy's reset would, until this time. */
+let readBlipUntil = 0
+export const e2eReadBlip = (ms: number) => void (readBlipUntil = Date.now() + ms)
 
 async function send(base: string, path: string, init: RequestInit, token: string, retry = true): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set('authorization', `Bearer ${token}`)
-  for (let attempt = 0; ; attempt++) {
-    const res = await fetch(`${base}${path}`, {...init, headers})
+  // A read that meets a Barkpark deploy (the old instance stopping under it: a reset or a
+  // 502 from Caddy) is asked again: reads are safe to repeat (J19 flake, 02:07 UTC 2026-10-10).
+  const read = (init.method ?? 'GET').toUpperCase() === 'GET' && headers.get('accept') !== 'text/event-stream'
+  for (let attempt = 0, blips = 0; ; attempt++) {
+    const blip = read && Date.now() < readBlipUntil ? Promise.reject(new TypeError('fetch failed (e2e blip)')) : null
+    const res = await (blip ?? fetch(`${base}${path}`, {...init, headers})).catch((err: unknown) => {
+      if (!read || blips >= 2 || init.signal?.aborted) throw err
+      return null
+    })
+    if (!res || (read && blips < 2 && [502, 503, 504].includes(res.status))) {
+      blips++
+      await new Promise((r) => setTimeout(r, 300))
+      continue
+    }
     if (res.status !== 429 || !retry || attempt === 3 || headers.get('accept') === 'text/event-stream') return res
     const wait = Math.min(Number(res.headers.get('retry-after')) || 1, 5)
     console.warn(`[barkpark] 429 on ${path}, retrying in ${wait}s`)

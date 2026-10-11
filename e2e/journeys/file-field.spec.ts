@@ -1,5 +1,5 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J54, both studios, on post-03's attachment (the seed's fixture-attachment.txt, a real
 // file on both sides: barkpark#22289): its name and size; Clear field empties it; a PDF
@@ -16,7 +16,7 @@ const fileField = (t: Target, page: Page) =>
 test.use({video: 'on'})
 test.setTimeout(120_000)
 test.beforeEach(async ({}, info) => target(info).resetDoc(ID, 'post'))
-test.afterEach(async ({}, info) => target(info).resetDoc(ID, 'post'))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'post')))
 
 test('@evidence J54: a seeded file shows name and size; clear; upload a PDF; canonical value', async ({page}, info) => {
   const t = target(info)

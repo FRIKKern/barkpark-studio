@@ -57,8 +57,15 @@ const flags = mode === 'reset' ? ['--data'] : [
   ...(mode === 'baseline' || mode === 'evidence' ? ['--grep', `@${mode}`] : []),
   ...(mode === 'reference' || mode === 'recording' ? ['--config', 'reference.config.ts'] : []),
 ]
-const result = spawnSync(process.execPath, [cli, ...flags, ...args], {
-  cwd: fileURLToPath(new URL('.', import.meta.url)), stdio: 'inherit', env: process.env,
-})
+// The reference Sanity has one test dataset (e2e-local; its project allows no more), and
+// every lane writes it with one robot token: a run that includes the Sanity side waits
+// for any other such run (two at once merged each other's typing, J26 2026-10-09). Our
+// own project (--project studio) has a dataset per lane and stays parallel.
+const projects = args.flatMap((a, i) => (a === '--project' ? [args[i + 1]] : a.startsWith('--project=') ? [a.slice(10)] : []))
+const sanitySide = mode === 'reference' || (mode !== 'reset' && mode !== 'recording' && (!projects.length || projects.includes('sanity')))
+const command = [process.execPath, cli, ...flags, ...args]
+const result = sanitySide
+  ? spawnSync(fileURLToPath(new URL('../scripts/with-lock.sh', import.meta.url)), command, {cwd: fileURLToPath(new URL('.', import.meta.url)), stdio: 'inherit', env: {...process.env, BP_LOCK: '/tmp/barkpark-studio-sanity.lock'}})
+  : spawnSync(command[0], command.slice(1), {cwd: fileURLToPath(new URL('.', import.meta.url)), stdio: 'inherit', env: process.env})
 if (result.error) console.error(result.error.message)
 process.exit(result.status ?? 1)

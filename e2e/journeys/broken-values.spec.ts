@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {BACKEND_POLL, signInIfAsked, target} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J39, broken values: a draft written by another client with values the schema
 // doesn't allow — a number and a boolean stored as strings, a field the schema
@@ -17,7 +17,7 @@ const BROKEN = {
 const shot = (name: string, step: string) => `evidence/J39-${name}-${step}.png`
 test.setTimeout(60_000)
 test.beforeEach(async ({}, info) => target(info).draftOnly(ID, 'post', BROKEN))
-test.afterEach(async ({}, info) => target(info).deleteDoc(ID, 'post'))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).deleteDoc(ID, 'post')))
 
 test('@evidence J39: broken values side by side', async ({page, context}, info) => {
   const t = target(info)
@@ -62,4 +62,67 @@ test('@local J39: convert, reset, add keys, remove unknown, fix rich text', asyn
   await page.getByRole('button', {name: 'Add missing block ids'}).click()
   await expect.poll(async () => ((await t.docValue(ID, 'body')) as {blocks: {id?: string}[]}).blocks[0]?.id, BACKEND_POLL).toMatch(/\w{12}/)
   await expect(page.getByText('Kept text')).toBeVisible()
+})
+
+// A team moving over from Sanity: its data keeps Sanity's shapes (a reference as {_ref},
+// a slug as {current}). The editor opens and reads them as their values; it crashed on
+// the reference (scout 2026-10-10: every imported post and author).
+// @local: about 9 s in CI, over rule 5's 5 s, with the shards near 60 s (2026-10-10).
+test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {current} slug, a Portable Text body', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the shapes are Sanity\'s own there')
+  await t.prepare(context)
+  const body = [{_key: 'p1', _type: 'block', style: 'normal', markDefs: [], children: [{_key: 's1', _type: 'span', marks: [], text: 'Sanity paragraph'}]}]
+  await t.patch(ID, {author: {_type: 'reference', _ref: 'author-ada'}, slug: {_type: 'slug', current: 'broken-post'}, body})
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.getByRole('tab', {name: 'All fields'}).click()
+  await expect(page.getByText('Could not render the document editor')).toHaveCount(0)
+  await expect(t.field(page, 'slug')).toHaveValue('broken-post')
+  await expect(t.refLink(page.locator('body'), 'author')).toContainText('Ada Lovelace')
+  // B14: a Portable Text body reads as its text, read-only (the canvas reads PortableDoc).
+  await expect(page.getByRole('alert').filter({hasText: 'Sanity Portable Text'})).toContainText('Sanity paragraph')
+})
+
+// task-ec9b4c0c78185fa4: a team moving over from Sanity brings asset values Barkpark has
+// no media for: the export form ({_sanityAsset}) and Sanity asset ids. The field shows
+// them as they are (never an empty picker, which one save would turn into a drop), a
+// save elsewhere leaves them byte-identical, and Reset is the one change offered.
+const FOREIGN = 'post-foreign-asset'
+const SANITY_IMAGE = {_type: 'image', asset: {_type: 'reference', _ref: 'image-0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6-640x400-png'}}
+const SANITY_FILE = {_type: 'file', _sanityAsset: 'file@file://./files/0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6.pdf'}
+test('unsupported asset values: shown as they are, kept byte-identical by a save elsewhere, Reset clears one', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: Sanity shows its own assets')
+  await t.draftOnly(FOREIGN, 'post', {title: 'Foreign assets', mainImage: SANITY_IMAGE, attachment: SANITY_FILE})
+  try {
+    await t.prepare(context)
+    await page.goto(t.docPath('post', FOREIGN))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await page.getByRole('tab', {name: 'All fields'}).click()
+    // Each field's card names the asset it holds.
+    const image = page.getByRole('alert').filter({hasText: SANITY_IMAGE.asset._ref})
+    const file = page.getByRole('alert').filter({hasText: SANITY_FILE._sanityAsset})
+    for (const card of [image, file]) await expect(card).toContainText('Unsupported asset value')
+    // Its list row: a broken-image icon that says why, not an empty thumbnail.
+    await expect(page.locator(`a[href$=";${FOREIGN}"] .media-broken`)).toHaveAttribute('title', `Unsupported asset value: ${SANITY_IMAGE.asset._ref}`)
+    // A save elsewhere sends that field only: the raw values stay exactly as stored
+    // (as Barkpark stores them: compared to its own copy from before the save).
+    const stored = async () => JSON.stringify([await t.docValue(FOREIGN, 'mainImage'), await t.docValue(FOREIGN, 'attachment')])
+    const before = await stored()
+    expect(JSON.parse(before)).toEqual([SANITY_IMAGE, SANITY_FILE])
+    await t.field(page, 'title').fill('Foreign assets, edited')
+    await expect.poll(() => t.docValue(FOREIGN, 'title'), BACKEND_POLL).toBe('Foreign assets, edited')
+    expect(await stored()).toBe(before)
+    // Reset: the file field is empty, the image untouched.
+    await file.getByRole('button', {name: 'Reset value'}).click()
+    await expect.poll(async () => (await t.docValue(FOREIGN, 'attachment')) ?? null, BACKEND_POLL).toBeNull()
+    await expect(file).toHaveCount(0)
+    expect(JSON.stringify(await t.docValue(FOREIGN, 'mainImage'))).toBe(JSON.stringify(JSON.parse(before)[0]))
+  } finally {
+    await closeAndSettle(page)
+    await t.deleteDoc(FOREIGN, 'post')
+  }
 })

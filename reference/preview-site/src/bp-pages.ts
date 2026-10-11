@@ -30,6 +30,12 @@ export function overlay<T>(value: T, edits: Map<string, Doc>, replace = false): 
     // The edit holds a reference as its id; keep the expanded copy we already have.
     const held = out[k]
     if (isDoc(held) && (v === id(held) || (v as {_ref?: string})?._ref === id(held))) continue
+    // So does a list of them (categories): each reference to a document we hold expanded.
+    if (Array.isArray(held) && Array.isArray(v)) {
+      const byId = new Map(held.filter(isDoc).map((d) => [id(d), d]))
+      out[k] = v.map((r) => byId.get(typeof r === 'string' ? r : (r as {_ref?: string})?._ref ?? '') ?? r)
+      continue
+    }
     out[k] = v
   }
   return out as T
@@ -42,11 +48,14 @@ const row = (p: Doc) => ({_id: id(p), title: p.title, slug: p.slug, excerpt: p.e
 function rows(posts: Doc[], map: SourceMap | null | undefined) {
   return posts.flatMap((p, i) => (p.slug ? [{...row(p), $edit: editOf(map, p.title, `$[${i}]`), $editAuthor: editOf(map, isDoc(p.author) ? p.author.name : '', `$[${i}]["author"]`)}] : []))
 }
+// Inline words: text, a mark's or link's children, an inline object's `text` (J11 chip).
+type Inline = {value?: string; text?: string; children?: Inline[]}
+const words = (nodes: Inline[] = []): string => nodes.map((c) => c.value ?? c.text ?? words(c.children)).join('')
 // A PortableDoc's text blocks, in the shape the page renders (Sanity's blocks).
 const blocks = (body: unknown) =>
-  ((body as {blocks?: {id: string; type: string; content?: {value?: string}[]}[]})?.blocks ?? [])
+  ((body as {blocks?: {id: string; type: string; content?: Inline[]}[]})?.blocks ?? [])
     .filter((b) => b.type === 'paragraph' || b.type === 'heading')
-    .map((b) => ({_key: b.id, _type: 'block', children: [{_key: `${b.id}-0`, text: (b.content ?? []).map((c) => c.value ?? '').join('')}]}))
+    .map((b) => ({_key: b.id, _type: 'block', children: [{_key: `${b.id}-0`, text: words(b.content)}]}))
 
 // A source map's value at `prefix` + `["field"]` (`$` a document's; `$[row]` a query
 // row; `$[row]["author"]` a reference expanded in it) → where it came from: its

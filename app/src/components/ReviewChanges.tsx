@@ -30,19 +30,28 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
   const toEntry = entries.find((e) => e.revision.id === picked.to) ?? null
   const custom = !!(picked.from || picked.to) && !!fromEntry
   const range = custom ? reviewRange(revisions, fromEntry!, toEntry) : undefined
+  // Nothing unpublished (just published): Sanity shows what the last publish changed,
+  // from the publish before it to that one, not an empty panel.
+  const publishes = revisions.filter((r) => r.action === 'publish')
+  const lastPublish = !custom && !drafts.length && publishes.length > 1 ? {from: publishes[1]!, to: publishes[0]!} : undefined
+  const sinceFrom = lastPublish ? revisions.slice(revisions.indexOf(lastPublish.to), revisions.indexOf(lastPublish.from)) : []
   const wanted = custom
     ? [...range!.between.slice(0, SNAPSHOTS), ...(range!.base ? [range!.base] : [])]
-    : [...drafts.slice(0, SNAPSHOTS), ...(publish ? [publish] : [])]
+    : lastPublish
+      ? [...sinceFrom.slice(0, SNAPSHOTS), lastPublish.from]
+      : [...drafts.slice(0, SNAPSHOTS), ...(publish ? [publish] : [])]
   const snaps = useQueries({queries: wanted.map((r) => revisionQuery(r.id))})
   const ready = snaps.every((s) => s.data)
   const content = (r?: Revision) => (r ? snaps[wanted.indexOf(r)]?.data?.content : undefined)
   const authors = ready ? authorsByField(wanted.map((r, i) => [r, snaps[i]!.data!.content] as [Revision, Record<string, unknown>])) : new Map<string, string[]>()
-  const before = custom ? (range!.base ? content(range!.base) : {}) : published
-  const after = custom ? (range!.target ? content(range!.target) : draft) : draft
+  const before = custom ? (range!.base ? content(range!.base) : {}) : lastPublish ? content(lastPublish.from) : published
+  const after = custom ? (range!.target ? content(range!.target) : draft) : lastPublish ? content(lastPublish.to) : draft
   const changes = before === undefined || after === undefined ? [] : changedFields(schema, before, after).map((c) => ({...c, authors: authors.get(c.field.name) ?? []}))
   const options = fromEntry ? rangeOptions(revisions, entries, fromEntry, toEntry) : {from: [], to: []}
-  const fromText = fromEntry ? `${t(fromEntry.label)}: ${rangeDate(fromEntry.revision.timestamp, locale)}` : published ? t('Published') : t('Not published')
-  const toText = toEntry ? `${t(toEntry.label)}: ${rangeDate(toEntry.revision.timestamp, locale)}` : drafts[0] ? `${t('Edited')}: ${rangeDate(drafts[0].timestamp, locale)}` : t('Current draft')
+  // Sanity names the start of the default range by the publish it starts from ("Published: …").
+  const published_ = (r: Revision) => `${t('Published')}: ${rangeDate(r.timestamp, locale)}`
+  const fromText = custom && fromEntry ? `${t(fromEntry.label)}: ${rangeDate(fromEntry.revision.timestamp, locale)}` : lastPublish ? published_(lastPublish.from) : publish ? published_(publish) : fromEntry ? `${t(fromEntry.label)}: ${rangeDate(fromEntry.revision.timestamp, locale)}` : published ? t('Published') : t('Not published')
+  const toText = toEntry ? `${t(toEntry.label)}: ${rangeDate(toEntry.revision.timestamp, locale)}` : lastPublish ? published_(lastPublish.to) : drafts[0] ? `${t('Edited')}: ${rangeDate(drafts[0].timestamp, locale)}` : t('Current draft')
   return (
     <div className="review">
       <dl className="review-range">

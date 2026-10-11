@@ -10,6 +10,9 @@ import {signInIfAsked, target} from '../rig/targets'
 test('@local B10: a schema action asks, runs a dry-run, shows its answer', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-native: Sanity has no schema-declared actions')
+  // The studio's own token decides (a lane's member token, e2e/run.mjs, sees none either).
+  const self = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${process.env.BARKPARK_APP_TOKEN ?? process.env.BARKPARK_TOKEN}`}}).then((r) => r.json() as Promise<{seat?: {role?: string}}>)
+  test.skip(self.seat?.role !== 'admin', "the studio's token is not an admin: no schema actions to show")
   await t.prepare(context)
   await page.goto(t.docPath('volume', 'volume-01'))
   await signInIfAsked(page)
