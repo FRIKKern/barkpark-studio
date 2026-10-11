@@ -882,7 +882,7 @@ fieldset.object-field > .field-actions { top: -38px; }
 .review-pick:hover:not(:disabled), .review-pick[aria-expanded=true] { background: var(--hover); }
 .review-pick:disabled { cursor: default; }
 .review-pick-menu { position: absolute; top: calc(100% + 2px); right: 0; left: 0; z-index: 5; max-height: 320px; overflow: auto; padding: 4px; }
-.review-empty { padding: 32px 8px; text-align: center; }
+.review-empty, .review-loading { padding: 32px 8px; text-align: center; }
 .review-empty h3 { margin: 0 0 8px; font-size: 14px; }
 .inspector .review-list { gap: 12px; }
 .review-list li { padding: 4px 0; }
