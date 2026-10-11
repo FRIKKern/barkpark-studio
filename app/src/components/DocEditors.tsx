@@ -1,4 +1,5 @@
 import {Suspense, use, useEffect, type ComponentProps, type ComponentType} from 'react'
+import {releaseEarlyClicks} from '../lib/hydrated'
 
 // Cold-load scout (2026-10-09, task-5242fdab0458e203): the image and file inputs, the
 // Freeform canvas host and Review changes are only for a document pane, yet sat in every
@@ -31,6 +32,23 @@ function untilLoaded(attempt: () => Promise<Mod> = () => import('./doc-editors')
 const RETRY_MS = 1_000
 if (import.meta.env.SSR) void loadDocEditors()
 
+/**
+ * J36: inputs from this chunk that the server rendered stay inert until it lands and React
+ * hydrates them, after the page is marked interactive: a click on them was lost (the empty
+ * image field's Select, right after a reload). Clicks are held meanwhile, as before the page
+ * hydrated (lib/hydrated.ts), and made once the inputs are live (at most HOLD_MS).
+ */
+let holding = false
+function holdClicks() {
+  if (holding) return
+  holding = true
+  const w = window as {__earlyClicks?: HTMLElement[] | null}
+  w.__earlyClicks ??= []
+  const live = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+  void Promise.race([loadDocEditors().then(live), new Promise((r) => setTimeout(r, HOLD_MS))]).then(releaseEarlyClicks)
+}
+const HOLD_MS = 3_000
+
 /** Fetch the chunk when the browser is idle (the desk calls this once it has rendered). */
 export function usePrefetchDocEditors() {
   useEffect(() => {
@@ -45,6 +63,7 @@ export function usePrefetchDocEditors() {
 // Suspense boundary on the server and the client, so hydration keeps the server's HTML
 // while the chunk is still on its way instead of failing over a different tree.
 function From<K extends keyof Mod>({name, props}: {name: K; props: object}) {
+  if (!mod && typeof window !== 'undefined') holdClicks()
   const C = use(loadDocEditors())[name] as ComponentType<object>
   return <C {...props} />
 }
