@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 62 changes, 2 tasks closed
+- **Today** · 63 changes, 2 tasks closed
+  - J37 flake: log slow Barkpark calls; the share step waits for its write ([#498](https://github.com/FRIKKern/barkpark-studio/pull/498))
   - J11: inline body as Sanity's: no gutter on text, a block object's "…" menu at its right edge (regression from #285); CI guard ([#486](https://github.com/FRIKKern/barkpark-studio/pull/486))
   - J34: the lost-tag guard as a unit test; the end-to-end check back to @local ([#497](https://github.com/FRIKKern/barkpark-studio/pull/497))
-  - tags-fast.spec runs in CI: lost input is what CI guards ([#496](https://github.com/FRIKKern/barkpark-studio/pull/496))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
