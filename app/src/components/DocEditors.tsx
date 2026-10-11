@@ -8,7 +8,23 @@ type Mod = typeof import('./doc-editors')
 let mod: Mod | undefined
 // Marked fulfilled when it lands (React's thenable fields), so use() reads it at once.
 let pending: (Promise<Mod> & {status?: string; value?: Mod}) | undefined
-export const loadDocEditors = () => (pending ??= import('./doc-editors').then((m) => (Object.assign(pending!, {status: 'fulfilled', value: m}), (mod = m))))
+export const loadDocEditors = () => (pending ??= untilLoaded().then((m) => (Object.assign(pending!, {status: 'fulfilled', value: m}), (mod = m))))
+
+// J20: offline before the chunk lands must not take the pane down (a rejected import
+// here reached the pane's error card, and stayed cached until a reload). It never
+// rejects: a failed fetch tries again once the browser is back online (or in a moment,
+// if it never noticed going offline); the editors in it wait, the rest of the form types on.
+function untilLoaded(): Promise<Mod> {
+  return import('./doc-editors').catch(
+    () =>
+      new Promise<Mod>((resolve) => {
+        const again = () => resolve(untilLoaded())
+        if (navigator.onLine) setTimeout(again, RETRY_MS)
+        else addEventListener('online', again, {once: true})
+      }),
+  )
+}
+const RETRY_MS = 2_000
 if (import.meta.env.SSR) void loadDocEditors()
 
 /** Fetch the chunk when the browser is idle (the desk calls this once it has rendered). */
