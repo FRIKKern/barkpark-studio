@@ -1,12 +1,10 @@
 # Journeys
 
-The spec. Each row is one end-to-end thing an editor does. Before building,
-record it in `reference/sanity` (crown clips: `pnpm --dir e2e reference`). The clip and
-the side-by-side sign-off are the proof. A Playwright spec exists only where
-[`QUALITY.md`](QUALITY.md) rule 5 asks for one, and one spec may cover several
-journeys. Phase names: [`docs/ROADMAP.md`](docs/ROADMAP.md). Status lives on the
-task board, not here. The list grows whenever a scout finds an honest gap:
-quality first, never a shrinking finish line.
+The spec. Each row is one end-to-end thing an editor does. Before building, record it in
+`reference/sanity` (crown clips: `pnpm --dir e2e reference`); the clip and the side-by-side
+sign-off are the proof. A Playwright spec exists only where [`QUALITY.md`](QUALITY.md) rule 5
+asks for one (one may cover several journeys). Phases: [`docs/ROADMAP.md`](docs/ROADMAP.md);
+status lives on the task board. A scout's honest gap adds a row: never a shrinking finish line.
 
 | ID | Phase | Journey | Feel rows that matter most |
 |---|---|---|---|
