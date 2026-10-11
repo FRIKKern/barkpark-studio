@@ -216,12 +216,15 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     setTyped(null)
   }
 
-  // J59: Sanity's Edit switch (and Alt, held, flips it): the outlines and click-to-edit.
+  // J59: Sanity's Edit switch (and Alt, held, flips it; Cmd/Ctrl+\ toggles it): the outlines and click-to-edit.
   const [overlays, setOverlays] = useState(true)
   const [altHeld, setAltHeld] = useState(false)
   const overlaysOn = overlays !== altHeld
   useEffect(() => {
-    const down = (e: KeyboardEvent) => e.key === 'Alt' && !e.repeat && setAltHeld(true)
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'Alt' && !e.repeat) setAltHeld(true)
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') (e.preventDefault(), setOverlays((o) => !o))
+    }
     const up = (e: KeyboardEvent) => e.key === 'Alt' && setAltHeld(false)
     const reset = () => setAltHeld(false)
     addEventListener('keydown', down)
@@ -318,7 +321,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
       </div>
       <section className="presentation-preview" id="presentation-narrow-panel-preview" aria-label={t('Presentation')}>
         <div className="presentation-toolbar">
-          <label className="presentation-edit" data-tip={overlaysOn ? t('Disable edit overlay') : t('Enable edit overlay')}>
+          <label className="presentation-edit" data-tip={overlaysOn ? t('Disable edit overlay') : t('Enable edit overlay')} data-tip-keys="Alt">
             <span className="switch">
               <input type="checkbox" role="switch" checked={overlaysOn} onChange={(e) => setOverlays(e.target.checked !== altHeld)} />
               <span />

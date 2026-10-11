@@ -285,3 +285,20 @@ test('@evidence J62: the locations banner, side by side', async ({page, context}
     await page.screenshot({path: `evidence/J62-${t.name}-${type}.png`})
   }
 })
+
+// J59, keyboard: Cmd/Ctrl+\ toggles the Edit overlay, as Sanity's Presentation does.
+test('J59: Cmd/Ctrl+\\ toggles the Edit overlay', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours; Sanity reads the key the same way')
+  await t.prepare(context)
+  await context.route(`${SITE}/**`, (route) => route.fulfill({contentType: 'text/html', body: '<h1>Site</h1>'}))
+  await page.goto('/presentation')
+  await signInIfAsked(page)
+  const edit = page.getByRole('switch', {name: 'Edit'})
+  await expect(edit).toBeChecked()
+  await page.locator('html[data-hydrated]').waitFor()
+  await page.keyboard.press('ControlOrMeta+Backslash')
+  await expect(edit).not.toBeChecked()
+  await page.keyboard.press('ControlOrMeta+Backslash')
+  await expect(edit).toBeChecked()
+})
