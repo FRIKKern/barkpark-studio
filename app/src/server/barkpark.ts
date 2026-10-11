@@ -108,6 +108,8 @@ const recent = new Map<string, {expires: number; res: Promise<{status: number; t
 let readBlipUntil = 0
 export const e2eReadBlip = (ms: number) => void (readBlipUntil = Date.now() + ms)
 
+const SLOW_MS = 2_000
+
 async function send(base: string, path: string, init: RequestInit, token: string, retry = true): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set('authorization', `Bearer ${token}`)
@@ -116,10 +118,15 @@ async function send(base: string, path: string, init: RequestInit, token: string
   const read = (init.method ?? 'GET').toUpperCase() === 'GET' && headers.get('accept') !== 'text/event-stream'
   for (let attempt = 0, blips = 0; ; attempt++) {
     const blip = read && Date.now() < readBlipUntil ? Promise.reject(new TypeError('fetch failed (e2e blip)')) : null
+    const started = Date.now()
     const res = await (blip ?? fetch(`${base}${path}`, {...init, headers})).catch((err: unknown) => {
       if (!read || blips >= 2 || init.signal?.aborted) throw err
       return null
     })
+    // A slow answer goes in the server's log (CI keeps it as preview.log): J37's share once
+    // took over 5 s on CI with no 429 logged, and nothing said where the time went.
+    const took = Date.now() - started
+    if (took > SLOW_MS && headers.get('accept') !== 'text/event-stream') console.warn(`[barkpark] slow ${(init.method ?? 'GET').toUpperCase()} ${path.split('?')[0]}: ${took} ms → ${res?.status ?? 'failed'}`)
     if (!res || (read && blips < 2 && [502, 503, 504].includes(res.status))) {
       blips++
       await new Promise((r) => setTimeout(r, 300))

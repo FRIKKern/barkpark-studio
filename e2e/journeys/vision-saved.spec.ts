@@ -44,7 +44,9 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
   await row.getByRole('button', {name: 'Query actions'}).click()
   await page.getByRole('menuitem', {name: 'Share'}).click()
   await page.getByRole('dialog').getByRole('button', {name: 'Save as shared'}).click()
-  await expect(page.getByText('Shared query saved')).toBeVisible()
+  // A write to the dataset (create + publish), then the list: on CI it once took over 5 s
+  // (#486, 1 in about 60 runs, no 429 logged; the server now logs slow Barkpark calls).
+  await expect(page.getByText('Shared query saved')).toBeVisible({timeout: 10_000})
   await saved.getByRole('tab', {name: 'Team'}).click()
   await expect(row.getByText('Shared', {exact: true})).toBeVisible()
   await row.getByRole('button', {name: 'Query actions'}).click()
