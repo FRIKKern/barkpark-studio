@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 74 changes, 2 tasks closed
+- **Today** · 75 changes, 2 tasks closed
+  - CI: e2e shards lease a dataset from a pool of ten instead of cancelling each other ([#512](https://github.com/FRIKKern/barkpark-studio/pull/512))
   - Token pileup: reuse lane and editor tokens; stale-tokens.mjs lists the rest (dry run) ([#509](https://github.com/FRIKKern/barkpark-studio/pull/509))
   - J36: gallery rows titled by the picture's file name, and 'Add item', as Sanity's ([#510](https://github.com/FRIKKern/barkpark-studio/pull/510))
-  - People pickers share one helper: lib/members.ts (people, never tokens) + lib/people.ts ([#507](https://github.com/FRIKKern/barkpark-studio/pull/507))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
