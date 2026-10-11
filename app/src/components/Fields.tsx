@@ -750,6 +750,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       ref={box}
       data-expanded={expanded || undefined}
       style={expanded ? area : undefined}
+      onMouseMove={(e) => markObjectHover(e.currentTarget, e.target as Element)}
       // Escape collapses. Caught before the canvas, whose own keymap takes Escape to
       // select the parent block; an open canvas menu or the link input keeps it.
       onKeyDownCapture={(e) =>
@@ -770,6 +771,21 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       {id && <BlockPresence docId={id} field={field} />}
     </div>
   )
+}
+
+/**
+ * J11, Sanity's inline body: a text block shows no gutter, a block object (callout, image)
+ * offers its menu at its own right edge. The canvas has one shared block handle and does
+ * not say which block it is on, so the field marks when the pointer is on a top-level
+ * object (`data-hover-object`) and CSS shows the handle there as that object's "…". On the
+ * handle or its menu the mark stays.
+ */
+function markObjectHover(field: HTMLElement, target: Element) {
+  if (target.closest('.bp-block-handle, .bp-block-menu')) return
+  const doc = target.closest('.ProseMirror')
+  let block: Element | null = doc ? target : null
+  while (block && block.parentElement !== doc) block = block.parentElement
+  field.toggleAttribute('data-hover-object', !!block && !/^(P|H[1-6]|UL|OL|BLOCKQUOTE)$/.test(block.tagName))
 }
 
 /** The body's expand button; its tooltip names the hotkey (J35, Sanity's "Expand editor ⌘ Enter"). */
