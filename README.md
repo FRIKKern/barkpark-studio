@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 44 changes, 2 tasks closed
+- **Today** · 45 changes, 2 tasks closed
+  - J15: Review changes opens onto the diffs, never a stale range or There are no changes ([#460](https://github.com/FRIKKern/barkpark-studio/pull/460))
   - J11: the body's callout dialog in our field styles, not bare browser controls ([#480](https://github.com/FRIKKern/barkpark-studio/pull/480))
   - J04: the Published view without a published version keeps the form, as Sanity ([#479](https://github.com/FRIKKern/barkpark-studio/pull/479))
-  - J16: the first edit of a published document shows as "Draft created" and "Edited", as Sanity ([#478](https://github.com/FRIKKern/barkpark-studio/pull/478))
 - **Yesterday** · 89 changes, 8 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
