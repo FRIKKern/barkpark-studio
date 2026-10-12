@@ -536,6 +536,27 @@ textarea.input { resize: vertical; }
 /* J69: Help > Diagnostics over the whole studio, in Sanity's cards: two columns, label left, value right. */
 .diagnostics-backdrop { position: fixed; z-index: 70; place-items: start center; padding-top: 87px; }
 .dialog.diagnostics { width: min(960px, calc(100vw - 32px)); }
+.diagnostics-run { grid-column: 1 / -1; display: flex; align-items: center; gap: 24px; padding: 16px 20px; border-radius: 3px; background: var(--hover); }
+.diagnostics-run dl { flex: 1; display: flex; gap: 48px; margin: 0; }
+.diagnostics-run dt { color: var(--muted); }
+.diagnostics-run dd { margin: 0; font-weight: 600; }
+.dialog.diagnostics { max-height: calc(100vh - 87px - 40px); }
+.diagnostics-wide { grid-column: 1 / -1; }
+.diagnostics-wide > h3 { margin: 8px 0; font-size: 15px; font-weight: 600; color: var(--fg-strong); }
+/* Sanity's listen tests: one card per connection, side by side; Open / Welcome / Total in a row. */
+.diagnostics-listen { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.diagnostics-listen h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+.diagnostics-card dl.diagnostics-stats { flex-direction: row; justify-content: space-between; }
+.diagnostics-card dl.diagnostics-stats > div { flex-direction: column; gap: 2px; }
+.diagnostics-stats dd { font-family: inherit; font-weight: 600; }
+/* Sanity's API request tests: one row each, the path over its detail, the time and the result on the right. */
+.diagnostics-requests { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.diagnostics-requests li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 8px 12px; }
+.diagnostics-requests li > span:first-child { display: flex; flex-direction: column; min-width: 0; }
+.diagnostics-requests code { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.diagnostics-requests li > span:last-child { flex: none; display: flex; align-items: center; gap: 8px; }
+.diagnostics-status { padding: 0 6px; border-radius: 3px; font-family: inherit; font-size: 11px; line-height: 17px; color: var(--positive-fg, #3ab667); background: color-mix(in srgb, currentColor 15%, transparent); }
+.diagnostics-status[data-status='error'] { color: var(--critical, #f03e2f); }
 .diagnostics-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; padding: 16px 20px; }
 .diagnostics-card { padding: 16px 20px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); min-width: 0; }
 .diagnostics-card h3 { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--fg-strong); }
