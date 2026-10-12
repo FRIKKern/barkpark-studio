@@ -61,6 +61,13 @@ type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; 
 const NO_PROBLEMS: Problem[] = []
 /** J44: fields drawn in the first frame; a longer form gets the rest right after. */
 const FIRST_FIELDS = 40
+// A field by its path: the element itself, or, when that is a wrapper (an image's), the
+// first thing in it that takes focus (its drop box), as Sanity focuses (J59).
+const TAKES_FOCUS = 'input:not([type=hidden], [hidden]), textarea, select, button, [tabindex], [contenteditable], bp-paper-canvas'
+const fieldEl = (root: HTMLElement | null, path: string) => {
+  const el = root?.querySelector<HTMLElement>(`[id="${CSS.escape(path)}"]`)
+  return el && !el.matches(TAKES_FOCUS) ? (el.querySelector<HTMLElement>(TAKES_FOCUS) ?? el) : el
+}
 
 export function DocumentPane({panes, index, split, closeHref, header, closeIcon}: Props) {
   const t = useT()
@@ -137,7 +144,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     if (group && p.group !== group) setGroup('')
     // A field inside collapsed objects: open each one on the way (Sanity does).
     p.path.split('.').slice(0, -1).forEach((_, i, parts) => openObjects.toggle(parts.slice(0, i + 1).join('.'), true))
-    requestAnimationFrame(() => paneRoot.current?.querySelector<HTMLElement>(`[id="${CSS.escape(p.path)}"]`)?.focus())
+    requestAnimationFrame(() => fieldEl(paneRoot.current, p.path)?.focus())
   }
   // J40: the document's comment threads, for the field buttons and the inspector.
   const commentsQ = useQuery(commentsQuery(pane.id))
@@ -174,7 +181,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     want.split('[')[0]!.split('.').slice(0, -1).forEach((_, i, parts) => openObjects.toggle(parts.slice(0, i + 1).join('.'), true))
     let frames = 90
     const tryFocus = () => {
-      const el = paneRoot.current?.querySelector<HTMLElement>(`[id="${CSS.escape(want)}"]`)
+      const el = fieldEl(paneRoot.current, want)
       if (el) (el.focus({preventScroll: true}), el.scrollIntoView({block: 'center'}))
       else if (frames-- > 0) requestAnimationFrame(tryFocus)
     }
@@ -425,7 +432,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         if (mod && !e.altKey && (key === 'z' || key === 'y') && !viewingPublished && !(e.target as HTMLElement).closest('bp-paper-canvas')) {
           e.preventDefault()
           const field = undo(qc, pane.id, key === 'z' && !e.shiftKey)
-          if (field) requestAnimationFrame(() => paneRoot.current?.querySelector<HTMLElement>(`[id="${CSS.escape(field)}"]`)?.focus())
+          if (field) requestAnimationFrame(() => fieldEl(paneRoot.current, field)?.focus())
         }
       }}
     >
