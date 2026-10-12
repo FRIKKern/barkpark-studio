@@ -22,15 +22,32 @@ const SECOND = ['ci-b-1', 'ci-b-2', 'ci-b-3', 'ci-b-4', 'ci-b-5']
 export const POOL = process.env.CI_LEASE_POOL === 'wide' ? [...FIRST, ...SECOND] : FIRST
 const LOCKS = 'ci-locks'
 const TTL_MS = 15 * 60_000 // a shard's whole job, waiting aside, is well under this
-const POLL_MS = 10_000
+const POLL_MS = 15_000
 
 const env = (k) => process.env[k] ?? (k === 'BARKPARK_PROJECT' ? 'default' : fail(`missing env ${k}`))
 const base = () => `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${env('BARKPARK_PROJECT')}/v1/data`
 const headers = () => ({authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'})
-const mutate = (mutation) => fetch(`${base()}/mutate/${LOCKS}`, {method: 'POST', headers: headers(), body: JSON.stringify({mutations: [mutation]})})
+// Every call shares the CI token's rate budget with the running shards: a 429 waits the
+// Retry-After and asks again, never fails the job.
+async function call(url, init) {
+  for (;;) {
+    const res = await fetch(url, {...init, headers: headers()})
+    if (res.status !== 429) return res
+    const wait = Number(res.headers.get('retry-after')) || 2
+    await new Promise((r) => setTimeout(r, (wait + Math.random()) * 1000))
+  }
+}
+const mutate = (mutation) => call(`${base()}/mutate/${LOCKS}`, {method: 'POST', body: JSON.stringify({mutations: [mutation]})})
 const read = async (dataset) => {
-  const res = await fetch(`${base()}/doc/${LOCKS}/ciLease/drafts.lease-${dataset}`, {headers: headers()})
+  const res = await call(`${base()}/doc/${LOCKS}/ciLease/drafts.lease-${dataset}`)
   return res.ok ? ((await res.json()).result) : null
+}
+/** Every lease, in one read (waiting shards poll this, not a create per dataset). */
+const leases = async () => {
+  const res = await call(`${base()}/query/${LOCKS}/ciLease?perspective=raw&limit=100`)
+  if (!res.ok) return null
+  const docs = ((await res.json()).result?.documents ?? [])
+  return new Map(docs.map((d) => [String(d._publishedId ?? d._id).replace(/^drafts\./, '').replace(/^lease-/, ''), d]))
 }
 function fail(message) {
   console.error(`ci-lease: ${message}`)
@@ -44,23 +61,21 @@ export async function acquire({prefer, holder = holderOf(), waitMs = 25 * 60_000
   const order = [prefer, ...POOL.filter((d) => d !== prefer)].filter((d) => POOL.includes(d))
   const deadline = Date.now() + waitMs
   for (let round = 0; ; round++) {
+    // One read for all; a create only where the dataset looks free (or its lease has lapsed).
+    const held = await leases()
     for (const dataset of order) {
+      const lease = held?.get(dataset)
+      if (lease && Number(lease.until) >= Date.now()) continue
+      if (lease) await mutate({delete: {id: `lease-${dataset}`, type: 'ciLease', ifRevisionID: lease._rev}}) // lapsed: a job that died
       const res = await mutate({create: {_id: `lease-${dataset}`, _type: 'ciLease', holder, until: Date.now() + TTL_MS}})
-      if (res.ok) return dataset
-      // Held: 409, or 422 "doc_id has already been taken" when two creates race (seen in CI).
+      if (res.ok) return (lease && console.error(`ci-lease: took over ${dataset} from a lapsed lease (${lease.holder})`), dataset)
+      // Taken meanwhile: 409, or 422 "doc_id has already been taken" when two creates race.
       const body = await res.text()
       if (res.status !== 409 && !(res.status === 422 && body.includes('already been taken'))) fail(`lease ${dataset}: Barkpark answered ${res.status} ${body.slice(0, 200)}`)
-      // Held. A lease past its time belongs to a job that died: take it over, fenced on its rev.
-      const lease = await read(dataset)
-      if (lease && Number(lease.until) < Date.now()) {
-        await mutate({delete: {id: `lease-${dataset}`, type: 'ciLease', ifRevisionID: lease._rev}})
-        const again = await mutate({create: {_id: `lease-${dataset}`, _type: 'ciLease', holder, until: Date.now() + TTL_MS}})
-        if (again.ok) return (console.error(`ci-lease: took over ${dataset} from a lapsed lease (${lease.holder})`), dataset)
-      }
     }
     if (Date.now() > deadline) fail(`no CI dataset free after ${waitMs / 60_000} min`)
     if (round % 6 === 0) console.error(`ci-lease: all ${POOL.length} CI datasets are in use; waiting…`)
-    await new Promise((r) => setTimeout(r, POLL_MS))
+    await new Promise((r) => setTimeout(r, POLL_MS * (0.75 + Math.random() / 2)))
   }
 }
 
