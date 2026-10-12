@@ -104,10 +104,12 @@ test('a search folds æøå in titles, the exact spelling first, and matches ids
     await page.keyboard.press('ControlOrMeta+k')
     await expect(page.getByRole('combobox').first()).toBeFocused({timeout: 1000})
   }).toPass()
-  for (const [q, want, none] of [...FOLDS, ...IDS]) {
+  // The ids' two docs tie, and a tie comes oldest first: seeded at once, either can be
+  // older (main's ci-3, after #523), so for them only which docs come back counts.
+  for (const [q, want, none, ordered] of [...FOLDS.map((c) => [...c, true] as const), ...IDS.map((c) => [...c, false] as const)]) {
     await page.getByRole('combobox').first().fill(q)
     if (!want.length) await expect(dialog(page).getByText('No results found'), q).toBeVisible({timeout: 10_000})
-    else await expect.poll(async () => (await dialog(page).getByRole('option').allInnerTexts()).map((s) => s.split('\n')[0].trim()).filter((s) => want.includes(s)), {message: q, timeout: 10_000}).toEqual(want)
+    else await expect.poll(async () => (await dialog(page).getByRole('option').allInnerTexts()).map((s) => s.split('\n')[0].trim()).filter((s) => want.includes(s)).sort((a, b) => (ordered ? 0 : a.localeCompare(b))), {message: q, timeout: 10_000}).toEqual(ordered ? want : [...want].sort((a, b) => a.localeCompare(b)))
     if (none) await expect(dialog(page).getByRole('option').filter({hasText: none}), q).toHaveCount(0)
   }
 })
