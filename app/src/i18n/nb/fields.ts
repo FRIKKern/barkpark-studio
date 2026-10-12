@@ -147,4 +147,6 @@ export default {
   'This field points to an asset Barkpark does not know. It is kept as it is.': 'Dette feltet viser til en ressurs Barkpark ikke kjenner. Den beholdes som den er.',
   'Sanity Portable Text': 'Sanity Portable Text',
   'This field holds rich text from Sanity, which this studio cannot edit yet. Its text is shown below and kept as it is.': 'Dette feltet har rik tekst fra Sanity, som dette studioet ikke kan redigere ennå. Teksten vises under og beholdes som den er.',
+  // A drag handle's role, heard by screen readers (aria-roledescription).
+  'sortable': 'sorterbar',
 } satisfies Record<string, string>

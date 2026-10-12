@@ -18,16 +18,16 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 76 changes, 2 tasks closed
+- **Today** · 4 changes, 76 tasks closed
+  - J30: Sanity's gaps round the locations banner ([#508](https://github.com/FRIKKern/barkpark-studio/pull/508))
+  - Presentation: Open in Structure on the document, and Search list over the documents on the page, as Sanity's ([#515](https://github.com/FRIKKern/barkpark-studio/pull/515))
+  - CI: one run at a time on the lease pool (fixes 60 s timeouts from #512) ([#518](https://github.com/FRIKKern/barkpark-studio/pull/518))
+- **Yesterday** · 76 changes, 2 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
   - CI: e2e shards lease a dataset from a pool of ten instead of cancelling each other ([#512](https://github.com/FRIKKern/barkpark-studio/pull/512))
-  - Token pileup: reuse lane and editor tokens; stale-tokens.mjs lists the rest (dry run) ([#509](https://github.com/FRIKKern/barkpark-studio/pull/509))
-- **Yesterday** · 89 changes, 8 tasks closed
+- **Last week** · 423 changes, 82 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
-- **This week** · 334 changes, 74 tasks closed
-  - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
-  - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)

@@ -155,9 +155,16 @@ test('J61: links and the URL bar move the page; the panel follows it', async ({p
   // The documents on a page open in the panel.
   await page.frameLocator('iframe').getByRole('link', {name: 'Home'}).click()
   await expect(panel.getByRole('link')).toHaveCount(2)
+  // Sanity's "Search list" over them, by title.
+  await panel.getByRole('searchbox', {name: 'Search list'}).fill('post 01')
+  await expect(panel.getByRole('link')).toHaveCount(1)
   await panel.getByRole('link', {name: /Fixture post 01/}).click()
   await expect(panel.locator('[id="title"]')).toHaveValue('Fixture post 01')
   await expect(page).toHaveURL(/preview=%2F&pane=post/)
+  // Sanity's "Open in Structure": the document in Structure, out of Presentation.
+  await page.getByRole('button', {name: 'Open in Structure'}).click()
+  await expect(page).toHaveURL(/\/structure\/post;post-01/)
+  await expect(page.locator('[id="title"]')).toHaveValue('Fixture post 01')
 })
 
 test('@evidence J61: the panel follows the page, side by side', async ({page, context}, info) => {

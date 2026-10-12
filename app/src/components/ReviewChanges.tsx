@@ -132,6 +132,15 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
   if (before === undefined || after === undefined)
     return <p className="review-diff muted">{change.before === undefined ? t('Added') : change.after === undefined ? t('Removed') : t('Changed')}</p>
   const by = (what: string) => (author ? t(`${what} by {author}`, {author}) : t(what))
+  // A slug is replaced, not edited word by word: Sanity shows it from → to.
+  if (change.field.type === 'slug')
+    return (
+      <p className="review-diff review-fromto" style={userColorVars(author ?? 'unknown')}>
+        <del title={by('Removed')}>{before}</del>
+        <span className="review-arrow" aria-label={t('changed to')}>→</span>
+        <ins title={by('Added')}>{after}</ins>
+      </p>
+    )
   return (
     <p className="review-diff" style={userColorVars(author ?? 'unknown')}>
       {textDiff(before, after).map((s, i) =>

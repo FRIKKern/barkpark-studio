@@ -40,6 +40,9 @@ export default {
   'Close pane': 'Lukk panel',
   'Close reference': 'Lukk referansen',
   'Close split pane': 'Lukk delt panel',
+  // The Agency preview view (B09), its own Norwegian until now.
+  'Add a URL to enable preview.': 'Legg til en URL for å aktivere forhåndsvisning.',
+  'Preview': 'Forhåndsvisning',
   // J68, Sanity's nb pack.
   'Compare versions': 'Sammenlign versjoner',
   'Inline changes': 'Endringer i teksten',
@@ -146,6 +149,7 @@ export default {
   'Inspector': 'Inspektør',
   'Invalid clipboard item': 'Ugyldig utklippselement',
   'Last published {ago}': 'Sist publisert {ago}',
+  'Open in Structure': 'Åpne i Struktur',
   'Unpublished {ago}': 'Avpublisert {ago}',
   'Loading document…': 'Laster dokument…',
   'Looking for documents that refer to it…': 'Ser etter dokumenter som refererer til det…',
@@ -184,6 +188,7 @@ export default {
   'Retrying…': 'Prøver på nytt…',
   'Retrying… (#{n}).': 'Prøver på nytt… (#{n}).',
   'Revert all': 'Angre alle',
+  'changed to': 'endret til',
   'Revert change': 'Angre endring',
   'Revert changes to {field}': 'Angre endringer i {field}',
   'Revert to revision': 'Gjenopprett',
