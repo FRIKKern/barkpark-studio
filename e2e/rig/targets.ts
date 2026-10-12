@@ -57,6 +57,8 @@ export type Target = {
   restore(id: string, set: Record<string, unknown>, type?: string, unset?: string[]): Promise<void>
   /** Drop a doc's draft only: the published version and its history stay as they are. */
   discardDraft(id: string, type: string): Promise<void>
+  /** The backend's history has the doc's latest writes (published and draft): poll before reading history in the UI. */
+  historyReady(id: string): Promise<boolean>
 }
 
 /**
@@ -249,6 +251,17 @@ const sanity: Target = {
     await sanityActions([{actionType: 'sanity.action.document.publish', draftId, publishedId: id}])
   },
   discardDraft: (id) => sanityMutate([{delete: {id: `drafts.${id}`}}]).then(() => {}),
+  // A Sanity doc's _rev is the id of the transaction that last wrote it; the transaction log
+  // lags the document store, and a Review changes opened before it catches up reads
+  // "Since: unknown version / There are no changes". Ready once the log lists both _revs.
+  historyReady: async (id) => {
+    const headers = {authorization: `Bearer ${need('SANITY_TOKEN')}`}
+    const q = encodeURIComponent(`*[_id in ["${id}", "drafts.${id}"]]._rev`)
+    const revs = ((await (await fetch(`https://ecu57yeh.api.sanity.io/v2025-02-19/data/query/${SANITY_DATASET}?query=${q}&perspective=raw`, {headers})).json()) as {result: string[]}).result
+    const log = await (await fetch(`https://ecu57yeh.api.sanity.io/v2025-02-19/data/history/${SANITY_DATASET}/transactions/${id},drafts.${id}?excludeContent=true&reverse=true&limit=20`, {headers})).text()
+    const ids = new Set(log.split('\n').filter(Boolean).map((l) => (JSON.parse(l) as {id: string}).id))
+    return revs.length > 0 && revs.every((r) => ids.has(r))
+  },
 }
 
 export const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
@@ -331,6 +344,8 @@ const studio: Target = {
   patch: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),
   restore: (id, set, type = 'post', unset = []) => bpMutate([{patch: {id, type, set, unset}}, {publish: {id, type}}]).then(() => {}),
   discardDraft: (id, type) => bpMutate([{discardDraft: {id, type}}]).then(() => {}, () => {}),
+  // Ours reads Barkpark's history and catches up in the panel itself (J15, #460).
+  historyReady: async () => true,
 }
 
 /**
