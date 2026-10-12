@@ -1,6 +1,7 @@
 import {createContext, useContext, useEffect, useId, useRef, useState, type KeyboardEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {commentsQuery, deleteComment, editComment, mentionableQuery, postComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
+import {commentsQuery, deleteComment, editComment, postComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
+import {peopleQuery} from '../lib/people'
 import {insertMention, mentionAt, messageParts, personName} from '../lib/comment-threads'
 import {meQuery, useCanWrite} from '../lib/session'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
@@ -97,7 +98,7 @@ function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel
   const listId = useId()
   // Asked as the composer opens, so the list is there by the time '@' is typed (it said
   // 'No users found' while still loading).
-  const {data: people = [], isPending: peoplePending} = useQuery(mentionableQuery)
+  const {data: people = [], isPending: peoplePending} = useQuery(peopleQuery)
   const matches = men ? people.filter((p) => p.toLowerCase().includes(men.query.toLowerCase())).slice(0, 8) : []
   const follow = (value: string, caret: number) => (setMen(mentionAt(value, caret)), setActive(0))
   const pick = (email: string) => {
