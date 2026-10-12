@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 11 changes, 76 tasks closed
+- **Today** · 13 changes, 76 tasks closed
+  - J59: a click on a body paragraph in the preview opens that block, the caret in it ([#524](https://github.com/FRIKKern/barkpark-studio/pull/524))
+  - CI budget: search folds in one dialog, seeding at once; two visible J19/D checks @local ([#523](https://github.com/FRIKKern/barkpark-studio/pull/523))
   - J59 widen: click-to-edit on a reference item, a number, a date and an image ([#521](https://github.com/FRIKKern/barkpark-studio/pull/521))
-  - J15 evidence: wait for Sanity's transaction log to catch up, not a fixed pause ([#522](https://github.com/FRIKKern/barkpark-studio/pull/522))
-  - CI: a sixth shard (ci-6) and re-recorded durations: shards had no room under 60 s ([#520](https://github.com/FRIKKern/barkpark-studio/pull/520))
 - **Yesterday** · 76 changes, 2 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
   - CI: e2e shards lease a dataset from a pool of ten instead of cancelling each other ([#512](https://github.com/FRIKKern/barkpark-studio/pull/512))
