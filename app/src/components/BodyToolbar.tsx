@@ -3,6 +3,7 @@ import {MenuPopover} from './FocusScopes'
 import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, ImageIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
 import {useT} from '../lib/i18n'
 import {loadCanvas} from '../lib/canvas-bundle'
+import {linkHref} from '../lib/link-href'
 
 // J10, Sanity's Portable Text toolbar over the rich text field: block style, marks,
 // link, lists and the field's insertable blocks, from the field's vocabulary (its
@@ -160,10 +161,12 @@ function ToolButton({label, pressed, disabled, onClick, children}: {label: strin
   )
 }
 
-/** The link's address, asked for in place (Enter sets it, Escape cancels). */
+/** The link's address, asked for in place (Enter sets it, Escape cancels). Only the
+ *  reader's allowlist is taken (lib/link-href.ts): anything else says so and stays open. */
 function LinkInput({onDone}: {onDone: (href: string | null) => void}) {
   const t = useT()
   const input = useRef<HTMLInputElement>(null)
+  const [refused, setRefused] = useState(false)
   useEffect(() => input.current?.focus(), [])
   return (
     <div className="popover body-link" onMouseDown={(e) => e.stopPropagation()}>
@@ -172,13 +175,27 @@ function LinkInput({onDone}: {onDone: (href: string | null) => void}) {
         className="input"
         type="url"
         aria-label={t('Link')}
+        aria-invalid={refused || undefined}
+        aria-describedby={refused ? 'body-link-refused' : undefined}
         placeholder="https://"
+        onChange={() => setRefused(false)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.preventDefault(), onDone(e.currentTarget.value.trim() || null))
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            const raw = e.currentTarget.value
+            if (!raw.trim()) return onDone(null)
+            const href = linkHref(raw)
+            return href ? onDone(href) : setRefused(true)
+          }
           if (e.key === 'Escape') (e.preventDefault(), e.stopPropagation(), onDone(null))
         }}
         onBlur={() => onDone(null)}
       />
+      {refused && (
+        <p className="body-link-refused" id="body-link-refused" role="alert">
+          {t('Use a web, mail or phone address (https:, mailto:, tel:) or a path.')}
+        </p>
+      )}
     </div>
   )
 }
