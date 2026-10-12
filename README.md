@@ -18,16 +18,14 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 15 changes, 77 tasks closed
+- **Today** · 1 change
+  - J69: Diagnostics runs connection tests (live stream, API, media) and copies JSON in Sanity's shape ([#527](https://github.com/FRIKKern/barkpark-studio/pull/527))
+- **Yesterday** · 15 changes, 77 tasks closed
   - search-quality: the ids' tied docs count as a set (seeded at once, either can be older) ([#526](https://github.com/FRIKKern/barkpark-studio/pull/526))
   - J59 evidence: the side-by-side records a body-paragraph click too (#524) ([#525](https://github.com/FRIKKern/barkpark-studio/pull/525))
-  - Done: [J22 [1 Panes+Refs] Create new from a reference field: new doc opens in next pane, ref set when it exists](https://github.com/FRIKKern/barkpark/issues/21676)
-- **Yesterday** · 76 changes, 2 tasks closed
+- **Last week** · 499 changes, 84 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
   - CI: e2e shards lease a dataset from a pool of ten instead of cancelling each other ([#512](https://github.com/FRIKKern/barkpark-studio/pull/512))
-- **Last week** · 423 changes, 82 tasks closed
-  - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
-  - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
