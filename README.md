@@ -18,16 +18,16 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 76 changes, 2 tasks closed
+- **Today** · 1 change, 66 tasks closed
+  - nb-NO scout: Tasks panel label, drag handle role and the Agency preview view through t(); guard catches plain attribute literals and tt()/tBrowser() ([#517](https://github.com/FRIKKern/barkpark-studio/pull/517))
+  - Done: [J53 [after] New Studio version while tabs are open: "ready to update" prompt, reload, nothing lost](https://github.com/FRIKKern/barkpark/issues/21926)
+  - Done: [J51 [1 Panes+Refs] Slow network (Fast 3G): shell paints, every pane shows a loading state, never a blank or dead click](https://github.com/FRIKKern/barkpark/issues/21923)
+- **Yesterday** · 76 changes, 2 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
   - CI: e2e shards lease a dataset from a pool of ten instead of cancelling each other ([#512](https://github.com/FRIKKern/barkpark-studio/pull/512))
-  - Token pileup: reuse lane and editor tokens; stale-tokens.mjs lists the rest (dry run) ([#509](https://github.com/FRIKKern/barkpark-studio/pull/509))
-- **Yesterday** · 89 changes, 8 tasks closed
+- **Last week** · 423 changes, 82 tasks closed
   - A re-read while typing is unsent keeps the typing (J60 flake on main d7ed007) ([#442](https://github.com/FRIKKern/barkpark-studio/pull/442))
   - Vision: deleting the last saved query deletes its pref (DELETE /v1/prefs) ([#441](https://github.com/FRIKKern/barkpark-studio/pull/441))
-- **This week** · 334 changes, 74 tasks closed
-  - J63: Published sticks, and a reloaded preview page is told it ([#350](https://github.com/FRIKKern/barkpark-studio/pull/350))
-  - Adversarial review of today's riskiest code: three real bugs, fixed ([#352](https://github.com/FRIKKern/barkpark-studio/pull/352))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
