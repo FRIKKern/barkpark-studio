@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 6 changes, 76 tasks closed
+- **Today** · 7 changes, 76 tasks closed
+  - J16 evidence: afterAll discards post-history's draft on both sides ([#514](https://github.com/FRIKKern/barkpark-studio/pull/514))
   - ci-lease: waiting shards poll one read, back off on 429, and never fail on it ([#519](https://github.com/FRIKKern/barkpark-studio/pull/519))
   - J15: a slug's change reads from → to, as Sanity's slug diff ([#511](https://github.com/FRIKKern/barkpark-studio/pull/511))
-  - J30: Sanity's gaps round the locations banner ([#508](https://github.com/FRIKKern/barkpark-studio/pull/508))
 - **Yesterday** · 76 changes, 2 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
   - CI: e2e shards lease a dataset from a pool of ten instead of cancelling each other ([#512](https://github.com/FRIKKern/barkpark-studio/pull/512))
