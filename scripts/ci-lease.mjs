@@ -47,7 +47,9 @@ export async function acquire({prefer, holder = holderOf(), waitMs = 25 * 60_000
     for (const dataset of order) {
       const res = await mutate({create: {_id: `lease-${dataset}`, _type: 'ciLease', holder, until: Date.now() + TTL_MS}})
       if (res.ok) return dataset
-      if (res.status !== 409) fail(`lease ${dataset}: Barkpark answered ${res.status} ${(await res.text()).slice(0, 200)}`)
+      // Held: 409, or 422 "doc_id has already been taken" when two creates race (seen in CI).
+      const body = await res.text()
+      if (res.status !== 409 && !(res.status === 422 && body.includes('already been taken'))) fail(`lease ${dataset}: Barkpark answered ${res.status} ${body.slice(0, 200)}`)
       // Held. A lease past its time belongs to a job that died: take it over, fenced on its rev.
       const lease = await read(dataset)
       if (lease && Number(lease.until) < Date.now()) {
