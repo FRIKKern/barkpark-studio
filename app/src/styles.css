@@ -1776,6 +1776,10 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .action-preview pre { margin: 0; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
 /* J62: Sanity's locations banner — a bordered card over the form that unfolds to the pages. */
 .locations-banner { margin: 24px 0 8px; border: 1px solid var(--line); border-radius: 3px; padding: 4px; font-size: 13px; }
+/* J30: Sanity's gaps round the banner: 49 px title to banner, 37 px banner to the group
+   tabs (the tabs' root is a container, so the banner's 8 px adds to their margin). */
+.doc-form h1:has(+ .locations-banner) { margin-bottom: 49px; }
+.locations-banner + .group-tabs-root .group-tabs { margin-top: 29px; }
 .locations-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
 .locations-banner[data-open] .locations-toggle { background: var(--hover); }
 .locations-toggle:disabled { cursor: default; }

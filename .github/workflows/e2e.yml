@@ -1,9 +1,10 @@
 # Our-side journey specs against Barkpark workspace studio-parity. The Sanity
 # side of each spec stays local (needs a Sanity login). Budget: each shard < 60 s
 # (aim for 45 s). Five shards on five runners, each on a dataset of its own, leased
-# from a pool of ten (ci, ci-2 … ci-5, ci-b-1 … ci-b-5; scripts/ci-lease.mjs): two runs
-# go at once, a third waits in its jobs for a free dataset, and nothing is cancelled
-# (a concurrency group per dataset cancelled the pending run before it). Spec files go
+# (ci, ci-2 … ci-5; scripts/ci-lease.mjs): one run at a time, the next waits in its
+# jobs for free datasets, and nothing is cancelled (a concurrency group per dataset
+# cancelled the pending run before it). A second pool (ci-b-*) is ready for two runs at
+# once, off until the shards have room under load (CI_LEASE_POOL=wide). Spec files go
 # to shards by recorded CI time (scripts/shard-files.mjs, e2e/durations.json), so the
 # heavy ones spread; re-record after a big change.
 name: e2e
