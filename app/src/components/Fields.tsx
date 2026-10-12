@@ -670,6 +670,16 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
   // it can take it — never dropped (it was, on a fresh page load: task-1dd00fd2a0dc1c60).
   // Text, and Enter as a paragraph break, in the order typed.
   const typed = useRef<string[]>([])
+  // J59: a link to one of its blocks (`body[_key=="p1"]`, a click in Presentation's preview)
+  // wakes the canvas with the caret at that block's start, as Sanity opens that paragraph.
+  const urlPath = useContext(UrlPathContext)
+  useEffect(() => {
+    const key = urlPath?.match(new RegExp(`^${field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\[_key=="([^"]+)"\\]$`))?.[1]
+    if (!key || readOnly) return
+    at.current = {block: key, offset: 0}
+    setActive(true)
+    box.current?.scrollIntoView({block: 'center'})
+  }, [urlPath, field, readOnly])
   useEffect(() => {
     if (!active) return
     const ready = () => !!box.current?.querySelector('.ProseMirror')?.contains(document.activeElement)

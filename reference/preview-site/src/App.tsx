@@ -34,6 +34,9 @@ const AUTHOR = `*[_type == "author" && _id == $id][0] {
   _id, name, bio, "posts": *[_type == "post" && references(^._id) && defined(slug.current)] | order(title asc) {${ROW}}
 }`
 
+/** J59: a body paragraph's edit target is its own block (`body[_key=="p1"]`), as Sanity's overlay opens that paragraph. */
+const inBlock = (attrs: Record<string, string> | undefined, key: string) => attrs && {...attrs, 'data-bp-edit': `${attrs['data-bp-edit']}[_key=="${key}"]`}
+
 export type PageKey = {kind: 'home'} | {kind: 'post'; slug: string} | {kind: 'author'; id: string}
 const QUERIES = {home: HOME, post: POST, author: AUTHOR}
 
@@ -85,7 +88,7 @@ function Page() {
               {p.author && <p className="meta">by <Link to={`/authors/${p.author._id}`}><span {...p.$editAuthor?.('name')}>{p.author.name}</span></Link></p>}
               {p.excerpt && <p><em {...p.$edit?.('excerpt')}>{p.excerpt}</em></p>}
               <p>{p.categories?.map((c) => <span className="chip" key={c._id}>{c.title}</span>)}</p>
-              {p.body?.filter((b) => b._type === 'block').map((b) => <p key={b._key} {...p.$edit?.('body')}>{b.children?.map((c) => c.text).join('')}</p>)}
+              {p.body?.filter((b) => b._type === 'block').map((b) => <p key={b._key} {...inBlock(p.$edit?.('body'), b._key)}>{b.children?.map((c) => c.text).join('')}</p>)}
               {p.related && (
                 <p className="meta">
                   Related:{' '}

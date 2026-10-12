@@ -155,12 +155,13 @@ test('@local J64 sharing: on mints a link (QR, copy), the page outside shows the
 
 // J59 on a stand-in: a click on a marked value asks the studio to edit it; the
 // Edit switch (and Alt, held) turns the overlay off.
-const clickSite = `<!doctype html><h1>Fixture post 01</h1><p id="x">Short excerpt</p><p id="o">on</p>
+const clickSite = `<!doctype html><h1>Fixture post 01</h1><p id="x">Short excerpt</p><p id="b">Body paragraph for post 1.</p><p id="o">on</p>
 <script>
   const post = (m) => parent.postMessage({bp: 'preview', ...m}, '*')
   post({type: 'hello'})
   post({type: 'location', url: location.pathname})
   document.getElementById('x').onclick = () => post({type: 'edit', doc: {type: 'post', id: 'post-01'}, path: 'excerpt'})
+  document.getElementById('b').onclick = () => post({type: 'edit', doc: {type: 'post', id: 'post-01'}, path: 'body[_key=="p1"]'})
   addEventListener('message', (e) => e.data?.bp === 'studio' && e.data.type === 'overlays' && (document.getElementById('o').textContent = e.data.enabled ? 'on' : 'off'))
 </script>`
 
@@ -176,6 +177,9 @@ test('J59: clicking a value opens its field in the panel; Edit turns the overlay
   await site.locator('#x').click()
   await expect(page).toHaveURL(/pane=post%3Bpost-01%2Cpath%3Dexcerpt/)
   await expect(page.locator('.presentation-panel [id="excerpt"]')).toBeFocused()
+  // A body paragraph opens that block, the caret in it (Sanity's body[_key=="p1"]), not just the body field.
+  await site.locator('#b').click()
+  await expect.poll(() => page.evaluate(() => getSelection()?.focusNode?.parentElement?.closest('[data-bp-id]')?.getAttribute('data-bp-id')), {timeout: 15_000}).toBe('p1')
 
   const edit = page.getByRole('switch', {name: 'Edit'})
   await edit.click()
