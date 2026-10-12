@@ -13,7 +13,13 @@
 // Env: BARKPARK_URL, BARKPARK_WORKSPACE, BARKPARK_PROJECT, BARKPARK_TOKEN; CI_LEASE_HOLDER (default: the run + shard, or this process).
 import {appendFileSync} from 'node:fs'
 
-export const POOL = ['ci', 'ci-2', 'ci-3', 'ci-4', 'ci-5', 'ci-b-1', 'ci-b-2', 'ci-b-3', 'ci-b-4', 'ci-b-5']
+// One run at a time for now: two at once (ten shards against one Barkpark) slowed every
+// spec enough to push shards past CI's 60 s budget (2026-10-12, three PRs red at 16:09).
+// The second pool is seeded and ready; CI_LEASE_POOL=wide turns it on once the shards
+// have room (more shards, or a token of its own).
+const FIRST = ['ci', 'ci-2', 'ci-3', 'ci-4', 'ci-5']
+const SECOND = ['ci-b-1', 'ci-b-2', 'ci-b-3', 'ci-b-4', 'ci-b-5']
+export const POOL = process.env.CI_LEASE_POOL === 'wide' ? [...FIRST, ...SECOND] : FIRST
 const LOCKS = 'ci-locks'
 const TTL_MS = 15 * 60_000 // a shard's whole job, waiting aside, is well under this
 const POLL_MS = 10_000
