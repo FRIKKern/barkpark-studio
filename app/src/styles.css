@@ -1310,6 +1310,16 @@ textarea.vision-code { flex: 1; resize: none; border: 0; outline: none; padding:
 textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); border-radius: 3px; }
 .vision-hint { margin: 0; color: var(--muted); font-size: 12px; }
 .vision-fetch { height: 33px; }
+/* J37: Sanity's Params box under the query (a third of the column) and Fetch beside Listen. */
+textarea.vision-code.vision-params { flex: 0 0 30%; border-top: 1px solid var(--border); }
+.vision-actions { display: flex; gap: 8px; }
+.vision-actions .vision-fetch { flex: 1; }
+.vision-label-help { display: inline-flex; align-items: center; gap: 4px; }
+.vision-help { display: inline-flex; color: var(--muted); cursor: help; }
+.vision-help svg { width: 17px; height: 17px; }
+/* A refused query fills the result with Sanity's red. */
+.vision-out-wrap[data-error] { margin: 0 -12px; padding: 8px 12px; background: var(--danger-bg); }
+.vision-out-wrap[data-error] .vision-error pre { background: none; padding: 0; }
 .vision-result { display: flex; flex-direction: column; min-width: 0; padding: 12px 12px 0; }
 .vision-out-wrap { flex: 1; min-height: 0; overflow: auto; }
 .vision-error { display: flex; flex-direction: column; gap: 8px; }

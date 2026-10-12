@@ -159,3 +159,21 @@ test('@local J37: a query shared in one browser shows in another at once', async
     await Promise.all([ctxA.close(), ctxB.close()])
   }
 })
+
+// J37, Sanity's Params: $name in the query takes its value from the Params JSON, as the
+// Query URL shows; a name Params don't have is said, not sent. Nothing is written.
+test('J37: Vision puts Params into the query', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's Params editor is the evidence still")
+  await t.prepare(context)
+  await page.goto('/vision')
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.getByRole('textbox', {name: 'Query', exact: true}).fill('post?filter[title][contains]=$t&limit=$n')
+  await page.getByRole('textbox', {name: 'Params', exact: true}).fill('{"t": "post 1", "n": 2}')
+  await page.getByRole('button', {name: '▶ Fetch'}).click()
+  await expect(page.getByLabel('Query URL')).toHaveValue(/filter\[title\]\[contains\]=post\+1&limit=2/)
+  await page.getByRole('textbox', {name: 'Params', exact: true}).fill('{"t": "post 1"}')
+  await page.getByRole('button', {name: '▶ Fetch'}).click()
+  await expect(page.getByRole('region', {name: 'Result'}).getByRole('alert')).toHaveText('Param $n referenced, but not provided')
+})

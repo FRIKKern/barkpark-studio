@@ -13,14 +13,14 @@ export const PERSPECTIVES = ['drafts', 'published', 'raw'] as const
 export type Perspective = (typeof PERSPECTIVES)[number]
 
 /** `url`: the query as Barkpark's path; `href`: the whole address, to copy and run elsewhere (with a token). */
-export type VisionResult = {ok: boolean; status: number; url: string; href?: string; ms: number; body: string; error?: string}
+export type VisionResult = {ok: boolean; status: number; url: string; href?: string; ms: number; body: string; error?: string; sent?: string}
 
 export const runVisionQuery = createServerFn({method: 'GET'})
-  .validator((d: {query: string; perspective: Perspective; dataset?: string}) => d)
+  .validator((d: {query: string; perspective: Perspective; dataset?: string; params?: string}) => d)
   .handler(async ({data}): Promise<VisionResult> => {
     const target = await visionTarget(data)
     if ('error' in target) return {ok: false, status: 0, url: '', ms: 0, body: '', error: target.error}
-    const {ds, type, params} = target
+    const {ds, type, params, sent} = target
     const url = `/v1/data/query/${ds}/${type}?${decodeURIComponent(params.toString())}`
     const t0 = performance.now()
     const res = await bpFetch(`/v1/data/query/${ds}/${type}?${params}`)
@@ -30,7 +30,7 @@ export const runVisionQuery = createServerFn({method: 'GET'})
     try {
       body = JSON.stringify(JSON.parse(text), null, 2)
     } catch {}
-    return {ok: res.ok, status: res.status, url, href: `${process.env.BARKPARK_URL}/w/${scope().workspace}/p/${scope().project}${url}`, ms, body}
+    return {ok: res.ok, status: res.status, url, href: `${process.env.BARKPARK_URL}/w/${scope().workspace}/p/${scope().project}${url}`, ms, body, sent}
   })
 
 export const visionDataset = createServerFn({method: 'GET'}).handler(async () => dataset())

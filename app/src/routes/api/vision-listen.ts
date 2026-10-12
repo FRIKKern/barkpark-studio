@@ -15,7 +15,7 @@ export const Route = createFileRoute('/api/vision-listen')({
     handlers: {
       GET: async ({request}) => {
         const q = new URL(request.url).searchParams
-        const target = await visionTarget({query: q.get('query') ?? '', perspective: (q.get('perspective') ?? 'drafts') as Perspective, dataset: q.get('dataset') ?? undefined})
+        const target = await visionTarget({query: q.get('query') ?? '', perspective: (q.get('perspective') ?? 'drafts') as Perspective, dataset: q.get('dataset') ?? undefined, params: q.get('params') ?? undefined})
         if ('error' in target) return Response.json({error: {message: target.error}}, {status: 400})
         const params = new URLSearchParams({types: target.type})
         for (const [k, v] of target.params) if (k === 'perspective' || k.startsWith('filter[')) params.append(k, v)
