@@ -19,6 +19,8 @@ export function useScopedHref() {
  * document panel hosts the same panes and maps those hrefs onto its own URL.
  */
 export const PaneHrefContext = createContext<(href: string) => string>((href) => href)
+/** The panes are hosted in Presentation's panel (J61): a document offers "Open in Structure". */
+export const InPresentationContext = createContext(false)
 
 /** useNavigate for pane hrefs: `{href}` goes where this pane host says. */
 export function usePaneNavigate() {
@@ -27,6 +29,14 @@ export function usePaneNavigate() {
   const published = usePublishedPerspective()
   const inline = useInlineChanges()
   return useCallback((options: NavigateOptions & {href?: string}) => navigate(options.href ? {...options, href: map(withPerspective(options.href, published, inline))} : options), [navigate, map, published, inline])
+}
+
+/** Out of the pane host, to /structure itself (Presentation's "Open in Structure"); the perspective goes along. */
+export function useStructureNavigate() {
+  const navigate = useNavigate()
+  const published = usePublishedPerspective()
+  const inline = useInlineChanges()
+  return useCallback((href: string) => navigate({href: withPerspective(href, published, inline)}), [navigate, published, inline])
 }
 
 /** A real link (open in new tab works) that navigates client-side on a plain click. */

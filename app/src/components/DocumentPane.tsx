@@ -20,7 +20,7 @@ import {useTip} from './Tip'
 import {meQuery, useBoundElsewhere, useCanWrite, useStudioTokenRefused} from '../lib/session'
 import {currentScopeQuery} from '../lib/scope-switch'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
-import {PaneLink, usePaneNavigate} from './PaneLink'
+import {InPresentationContext, PaneLink, usePaneNavigate, useStructureNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
 import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
@@ -93,6 +93,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   )
   const base = panesPath(panes)
   const navigate = usePaneNavigate()
+  const inPresentation = useContext(InPresentationContext)
+  const toStructure = useStructureNavigate()
   // Field groups (Sanity's tabs): the schema's default group first; '' = all fields.
   const defaultGroup = schemaOf(schemas, pane.type)?.groups?.find((g) => g.default)?.name ?? ''
   const [chosenGroup, setGroup] = useState<string | null>(null)
@@ -506,6 +508,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         )}
         {doc && schema && (
           <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} onCompare={comparable ? compare.open : undefined} inline={inline} onInline={compare.toggleInline} />
+        )}
+        {/* Sanity's Presentation: the document opens in Structure, leaving the preview. */}
+        {inPresentation && (
+          <button type="button" className="icon-btn" aria-label={t('Open in Structure')} data-tip={t('Open in Structure')} onClick={() => toStructure(`/structure/${pane.type};${pane.id}`)}>
+            <SplitVertical />
+          </button>
         )}
         {/* J42: a narrow window has no splits and no close: the back link goes back. */}
         {narrow && <FocusButton index={index} />}

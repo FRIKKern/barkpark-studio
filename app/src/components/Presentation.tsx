@@ -1,15 +1,15 @@
 import {useCallback, useEffect, useReducer, useRef, useState} from 'react'
 import {useNavigate} from '@tanstack/react-router'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query'
 import {mintPreviewTokens, mintShare, revokeShares, shareState} from '../lib/preview-links'
 import {toast} from './Toasts'
 import {useT} from '../lib/i18n'
-import {deskQuery, docQuery, listQuery} from '../lib/data'
+import {deskQuery, docQuery, listQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
 import type {Pane} from '../lib/panes'
 import type {MainDocument} from '../lib/plugins'
-import {Desktop, LaunchIcon, Mobile, Share, SyncIcon, WarningOutline} from './icons'
+import {Close, Desktop, LaunchIcon, Mobile, Search, Share, SyncIcon, WarningOutline} from './icons'
 import {DialogBox} from './FocusScopes'
-import {PaneHrefContext} from './PaneLink'
+import {InPresentationContext, PaneHrefContext} from './PaneLink'
 import {RefPreview} from './Preview'
 import {iconBody} from './DeskIcon'
 import type {DeskNode} from '../lib/desk'
@@ -116,6 +116,11 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   const [url, setUrl] = useState(src)
   const [typed, setTyped] = useState<string | null>(null)
   const [docs, setDocs] = useState<PageDoc[]>([])
+  // Sanity's "Search list" over the documents on the page: by their preview titles.
+  const [docsQuery, setDocsQuery] = useState('')
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const docTitles = useQueries({queries: docs.map((d) => docQuery(d._type, d._id))}).map((q) => (q.data ? previewTitle(q.data, schemaOf(schemas, q.data._type), t) : ''))
+  const shownDocs = docsQuery.trim() ? docs.filter((_, i) => docTitles[i]!.toLowerCase().includes(docsQuery.trim().toLowerCase())) : docs
   const [missing, setMissing] = useState<string | null>(null)
   const previewRef = useRef(preview)
   previewRef.current = preview
@@ -397,7 +402,9 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
       <PaneHrefContext.Provider value={paneHref}>
         {docPane ? (
           <aside className="presentation-panel docked" id="presentation-narrow-panel-content" aria-label={t('Document')}>
-            <Structure panes={panes} widthHint={350} />
+            <InPresentationContext.Provider value={true}>
+              <Structure panes={panes} widthHint={350} />
+            </InPresentationContext.Provider>
           </aside>
         ) : (
           <aside className="presentation-panel" id="presentation-narrow-panel-content" aria-label={t('Documents on this page')}>
@@ -407,9 +414,10 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
               </p>
             )}
             <h2>{t('Documents on this page')}</h2>
-            {docs.length ? (
+            <PageDocsSearch query={docsQuery} onQuery={setDocsQuery} />
+            {shownDocs.length ? (
               <div className="presentation-docs">
-                {docs.map((d) => (
+                {shownDocs.map((d) => (
                   <RefPreview key={d._id} type={d._type} id={d._id} href={`/structure/${d._type};${d._id}`} selected={false} />
                 ))}
               </div>
@@ -533,6 +541,25 @@ function Status({text}: {text: string}) {
         <span className="spinner" aria-hidden="true" />
         {text}
       </div>
+    </div>
+  )
+}
+
+/** "Search list" over the documents on the page, as Sanity's panel (and our lists) has it. */
+function PageDocsSearch({query, onQuery}: {query: string; onQuery: (q: string) => void}) {
+  const t = useT()
+  const input = useRef<HTMLInputElement>(null)
+  return (
+    <div className="search">
+      <span className="search-icon">
+        <Search />
+      </span>
+      <input ref={input} type="search" aria-label={t('Search list')} placeholder={t('Search list')} value={query} onChange={(e) => onQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onQuery('')} />
+      {query && (
+        <button type="button" className="icon-btn search-clear" aria-label={t('Clear search')} onClick={() => (input.current?.focus(), onQuery(''))}>
+          <Close />
+        </button>
+      )}
     </div>
   )
 }
