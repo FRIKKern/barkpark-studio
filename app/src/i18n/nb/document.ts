@@ -146,6 +146,7 @@ export default {
   'Inspector': 'Inspektør',
   'Invalid clipboard item': 'Ugyldig utklippselement',
   'Last published {ago}': 'Sist publisert {ago}',
+  'Open in Structure': 'Åpne i Struktur',
   'Unpublished {ago}': 'Avpublisert {ago}',
   'Loading document…': 'Laster dokument…',
   'Looking for documents that refer to it…': 'Ser etter dokumenter som refererer til det…',
