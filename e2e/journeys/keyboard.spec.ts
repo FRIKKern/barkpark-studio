@@ -9,7 +9,8 @@ const TITLE = 'Fixture post 12'
 
 test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {title: TITLE})))
 
-test('J19: search recovery and visible keyboard selection', async ({page}, info) => {
+// @local: what it checks shows on screen when it breaks (CI's 5 s per journey rule).
+test('@local J19: search recovery and visible keyboard selection', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'Candidate failure and scrolling regression; reference comparison is recorded separately')
   await page.setViewportSize({width: 1440, height: 450})
@@ -125,10 +126,11 @@ test('J19: Publish by Enter keeps the keyboard in the footer', async ({page}, in
   await expect(page.getByRole('button', {name: 'Document actions'}).last()).toBeFocused()
 })
 
+// @local: the chords are the canvas's (Barkpark), and a broken one shows when pressed.
 // The canvas's list chords, as Google Docs and Notion have them: Cmd+Shift+8 a bullet
 // list, Cmd+Shift+7 a numbered one (Barkpark #22707; 8 used to do nothing). Ours only:
 // Sanity's text editor has neither. The body is put back after.
-test('D: Cmd+Shift+8 makes a bullet list, Cmd+Shift+7 a numbered one, in the canvas', async ({page}, info) => {
+test('@local D: Cmd+Shift+8 makes a bullet list, Cmd+Shift+7 a numbered one, in the canvas', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the canvas (Sanity has no list chords)')
   const body = await t.docValue(ID, 'body')
