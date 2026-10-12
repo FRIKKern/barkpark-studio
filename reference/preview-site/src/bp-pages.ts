@@ -87,9 +87,13 @@ export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]
         ...row(p),
         $edit: editOf(raw.maps?.[0], p.title, '$[0]'),
         $editAuthor: editOf(raw.maps?.[0], isDoc(p.author) ? p.author.name : '', '$[0]["author"]'),
-        categories: categories.map((c) => ({_id: id(c), title: c.title})),
+        // J59 widen: each reference item and the related document are click-to-edit too (their own title).
+        categories: categories.map((c, i) => ({_id: id(c), title: c.title, $edit: editOf(raw.maps?.[0], c.title, `$[0]["categories"][${i}]`)})),
         body: blocks(p.body),
-        related: related && {_type: related._type, _id: id(related), title: related.title, name: related.name, slug: related.slug},
+        related: related && {_type: related._type, _id: id(related), title: related.title, name: related.name, slug: related.slug, $edit: editOf(raw.maps?.[0], related.title ?? related.name, '$[0]["related"]')},
+        rating: typeof p.rating === 'number' ? p.rating : undefined,
+        publishedAt: typeof p.publishedAt === 'string' ? p.publishedAt : undefined,
+        mainImage: p.mainImage && typeof p.mainImage === 'object' ? {alt: (p.mainImage as {alt?: string}).alt} : null,
       },
       documents: seen([ref(p), ref(p.author), ...categories.map(ref), ref(related)]),
     }
