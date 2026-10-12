@@ -59,7 +59,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
         onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'object', value: it}})}
-        addLabel="Add item..."
+        addLabel={of.type === 'image' ? 'Add item' : 'Add item...'}
         renderItem={renderItem}
       />
       {index >= 0 && (
@@ -128,8 +128,16 @@ export function useItemPreview(item: Item, of: Field) {
     return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], target)
   }
   const typeTitle = (type: string) => schemaOf(schemas, type)?.title
+  // An array of images: titled by the picture's file name, as Sanity's.
+  const picture = of.type === 'image' ? imageRef(item as ImageValue) : undefined
+  const {data: asset} = useQuery({
+    queryKey: ['media-info', picture],
+    enabled: !!picture,
+    staleTime: Infinity,
+    queryFn: () => fetch(`/api/media/${encodeURIComponent(picture!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<{name?: string}>) : null)),
+  })
   return {
-    title: formatPreview(titleSpec, read, {typeTitle}) || translate(locale, 'Untitled'),
+    title: (of.type === 'image' ? asset?.name : formatPreview(titleSpec, read, {typeTitle})) || translate(locale, 'Untitled'),
     subtitle: formatPreview(p.subtitle, read, {typeTitle}),
     // An array of images: each item is its own picture.
     media: (of.type === 'image' && imageRef(item) ? item : firstMedia(p.media, read, (v) => !!imageRef(v))) as ImageValue | undefined,
