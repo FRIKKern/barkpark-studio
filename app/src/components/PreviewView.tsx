@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import type {Doc} from '../lib/data'
 import {previewUrlOf, slugOf} from '../lib/preview-url'
+import {useT} from '../lib/i18n'
 
 // The "Forhåndsvisning" document view, as the Agency Studio's preview-pane.tsx draws it:
 // the site in an iframe, reloaded 800 ms after the document changes. The URL is the
@@ -23,6 +24,7 @@ export const EyeOpenIcon = () => (
 )
 
 export function PreviewView({template, doc, id}: {template: string; doc: Doc; id: string}) {
+  const t = useT()
   const url = previewUrlOf(template, id, slugOf(doc))
   // Reload shortly after the document changes, like Agency's listener does.
   const [reload, setReload] = useState(0)
@@ -36,7 +38,7 @@ export function PreviewView({template, doc, id}: {template: string; doc: Doc; id
     const timer = setTimeout(() => setReload((n) => n + 1), 800)
     return () => clearTimeout(timer)
   }, [rev])
-  if (!url) return <p className="muted preview-view-message">Legg til en URL for å aktivere forhåndsvisning.</p>
+  if (!url) return <p className="muted preview-view-message">{t('Add a URL to enable preview.')}</p>
   const src = `${url}${url.includes('?') ? '&' : '?'}r=${reload}`
-  return <iframe className="preview-view" src={src} title="Forhåndsvisning" data-testid="preview-view" />
+  return <iframe className="preview-view" src={src} title={t('Preview')} data-testid="preview-view" />
 }
