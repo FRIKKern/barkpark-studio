@@ -16,7 +16,8 @@ const walk = (d: string) => {
   }
 }
 walk(src)
-const said = /\b(?:t\(|translate\(\s*[\w.]+\s*,)\s*(['"])((?:\\.|(?!\1).)*)\1/g
+// t, and its imported aliases (tt, tBrowser: the module-level translate for toasts and handlers).
+const said = /\b(?:(?:t|tt|tBrowser)\(|translate\(\s*[\w.]+\s*,)\s*(['"])((?:\\.|(?!\1).)*)\1/g
 
 test('B01: every t() and translate() literal has Norwegian (an nb-NO workspace sees no English)', async () => {
   const NB: Record<string, string> = {}
@@ -28,4 +29,13 @@ test('B01: every t() and translate() literal has Norwegian (an nb-NO workspace s
       if (!(en in NB)) missing.add(`${en}  (${f.slice(src.length)})`)
     }
   assert.deepEqual([...missing], [])
+})
+
+// What a screen reader hears or a tooltip shows, written as a plain attribute, skips t()
+// altogether: aria-label="Tasks" stayed English in nb-NO (2026-10-12 scout).
+test('B01: no UI attribute is a plain English literal', () => {
+  const plain = /\b(aria-label|aria-roledescription|aria-description|title|placeholder|alt|data-tip)="([^"]*[A-Za-z]{2}[^"]*)"/g
+  const allowed = new Set(['URL'])
+  const found = files.filter((f) => f.endsWith('.tsx')).flatMap((f) => [...readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(plain)].filter((m) => !allowed.has(m[2]!)).map((m) => `${m[1]}="${m[2]}"  (${f.slice(src.length)})`))
+  assert.deepEqual(found, [])
 })
