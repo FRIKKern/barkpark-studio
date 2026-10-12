@@ -170,4 +170,5 @@ export default {
   'Link': 'Lenke',
   'Insert {typeName} (block)': 'Sett inn {typeName} (blokk)',
   'Callout': 'Callout',
+  'Use a web, mail or phone address (https:, mailto:, tel:) or a path.': 'Bruk en nett-, e-post- eller telefonadresse (https:, mailto:, tel:) eller en sti.',
 } satisfies Record<string, string>
