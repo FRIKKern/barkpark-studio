@@ -1,7 +1,8 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
-import {applyBlockOps, canvasOrigin, readBlocks, type Block, type BlockOp, type Blocks, type OpsResult, type Rev} from '../lib/blocks'
+import {loadCanvas} from '../lib/canvas-bundle'
+import {applyBlockOps, readBlocks, type Block, type BlockOp, type Blocks, type OpsResult, type Rev} from '../lib/blocks'
 import {toast} from './Toasts'
 import {setCanvasProblem, unsavedElsewhere} from '../lib/edits'
 import {existingAsset} from '../lib/upload'
@@ -46,35 +47,6 @@ type Canvas = HTMLElement & {
 
 type LinkTarget = {kind: 'link' | 'wikilink'; href: string | null; target: string | null; docId: string | null; alias: string | null}
 
-let bundle: Promise<void> | null = null
-/** Load the canvas once per page: script + its stylesheets, from the connected Barkpark. */
-function loadCanvas(): Promise<void> {
-  bundle ??= (async () => {
-    const origin = await canvasOrigin()
-    // Its own CSS inject is origin-relative (wrong origin here): link them ourselves.
-    ;(window as {BP_PAPER_EDITOR_NO_INJECT?: boolean}).BP_PAPER_EDITOR_NO_INJECT = true
-    // bp-paper-surface.css (Barkpark #22541): the paper surface's own rules, the task and
-    // fleet blocks among them (D14).
-    for (const css of ['bp-paper-editor.css', 'bp-paper-editor-shell.css', 'bp-paper-surface.css']) {
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.href = `${origin}/assets/${css}`
-      document.head.appendChild(link)
-    }
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement('script')
-      script.src = `${origin}/assets/bp-paper-editor.bundle.js`
-      script.onload = () => resolve()
-      script.onerror = () => reject(new Error(translate('could not load the editor from {origin}', {origin})))
-      document.head.appendChild(script)
-    })
-    await customElements.whenDefined('bp-paper-canvas')
-  })().catch((e) => {
-    bundle = null
-    throw e
-  })
-  return bundle
-}
 
 /**
  * Two block lists say the same thing: block ids and labels aside (a paste mints new
