@@ -55,6 +55,8 @@ export type Target = {
   deleteDoc(id: string, type: string): Promise<void>
   /** Drop drafts a test left behind and restore published values. */
   restore(id: string, set: Record<string, unknown>, type?: string, unset?: string[]): Promise<void>
+  /** Drop a doc's draft only: the published version and its history stay as they are. */
+  discardDraft(id: string, type: string): Promise<void>
 }
 
 /**
@@ -246,6 +248,7 @@ const sanity: Target = {
     await sanityActions([{actionType: 'sanity.action.document.edit', draftId, publishedId: id, patch: {set, unset}}])
     await sanityActions([{actionType: 'sanity.action.document.publish', draftId, publishedId: id}])
   },
+  discardDraft: (id) => sanityMutate([{delete: {id: `drafts.${id}`}}]).then(() => {}),
 }
 
 export const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
@@ -327,6 +330,7 @@ const studio: Target = {
   // Barkpark: a patch on a published doc writes its draft; publish lands it like an HTTP client would.
   patch: (id, set, type = 'post') => bpMutate([{patch: {id, type, set}}, {publish: {id, type}}]).then(() => {}),
   restore: (id, set, type = 'post', unset = []) => bpMutate([{patch: {id, type, set, unset}}, {publish: {id, type}}]).then(() => {}),
+  discardDraft: (id, type) => bpMutate([{discardDraft: {id, type}}]).then(() => {}, () => {}),
 }
 
 /**

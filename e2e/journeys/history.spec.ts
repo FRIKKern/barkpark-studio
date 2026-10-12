@@ -7,12 +7,16 @@ import {signInIfAsked, target, type Target} from '../rig/targets'
 // History from the "…" menu; pick a published revision: it shows
 // read-only at a deep URL that survives a reload; Revert to revision writes it
 // back as the draft. Stills + clips go to e2e/evidence/. Not a CI gate.
-// Re-run scripts/reference-history.mjs after (the revert leaves a draft).
+// The run publishes v4 and leaves a v5 draft; afterAll discards that draft (draft only:
+// Sanity's restore fails on this project, so the revert can't be relied on to clear it).
 // Authors are named by Barkpark (each token owner's email, task-d0c6a847e2a4658e).
 const ID = 'post-history'
 const FIRST = 'History fixture v4'
 const shot = (name: string, step: string) => `evidence/J16-${name}-${step}.png`
 test.use({video: 'on'})
+test.afterAll(async ({}, info) => {
+  await target(info).discardDraft(ID, 'post')
+})
 
 async function openMenu(t: Target, page: Page, button: Locator) {
   const id = t.name === 'sanity' ? await button.first().getAttribute('id') : null
