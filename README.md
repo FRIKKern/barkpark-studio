@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes, 76 tasks closed
+- **Today** · 10 changes, 76 tasks closed
+  - J15 evidence: wait for Sanity's transaction log to catch up, not a fixed pause ([#522](https://github.com/FRIKKern/barkpark-studio/pull/522))
   - CI: a sixth shard (ci-6) and re-recorded durations: shards had no room under 60 s ([#520](https://github.com/FRIKKern/barkpark-studio/pull/520))
   - J59 row: a body paragraph opens that block; click-to-edit on every field type the page shows ([#516](https://github.com/FRIKKern/barkpark-studio/pull/516))
-  - J16 evidence: afterAll discards post-history's draft on both sides ([#514](https://github.com/FRIKKern/barkpark-studio/pull/514))
 - **Yesterday** · 76 changes, 2 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
   - CI: e2e shards lease a dataset from a pool of ten instead of cancelling each other ([#512](https://github.com/FRIKKern/barkpark-studio/pull/512))
