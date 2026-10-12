@@ -18,7 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change
+- **Today** · 2 changes
+  - J10: Sanity's rich text toolbar over the body field (style, marks, lists, link, insert), driven by the canvas's toolbar commands ([#529](https://github.com/FRIKKern/barkpark-studio/pull/529))
   - J69: Diagnostics runs connection tests (live stream, API, media) and copies JSON in Sanity's shape ([#527](https://github.com/FRIKKern/barkpark-studio/pull/527))
 - **Yesterday** · 15 changes, 77 tasks closed
   - search-quality: the ids' tied docs count as a set (seeded at once, either can be older) ([#526](https://github.com/FRIKKern/barkpark-studio/pull/526))
