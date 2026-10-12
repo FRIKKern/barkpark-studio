@@ -18,6 +18,7 @@ import {Add, CheckmarkCircle, Close, DocumentIcon, Trash} from './icons'
  * status, fields and activity. Docked at the right under the navbar, as Sanity's.
  */
 export function TasksPanel() {
+  const t = useT()
   const view = useTasksView()
   const open = view.kind !== 'closed'
   useEffect(() => {
@@ -27,7 +28,7 @@ export function TasksPanel() {
   }, [open])
   if (!open || typeof document === 'undefined') return null
   return createPortal(
-    <aside className="tasks-panel" aria-label="Tasks">
+    <aside className="tasks-panel" aria-label={t('Tasks')}>
       {view.kind === 'list' && <TaskList tab={view.tab} />}
       {view.kind === 'create' && <CreateTask key={view.target?.id ?? 'none'} target={view.target} />}
       {view.kind === 'task' && <TaskView id={view.id} />}
