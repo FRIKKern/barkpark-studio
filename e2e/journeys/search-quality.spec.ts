@@ -37,11 +37,12 @@ const resultTitles = async (t: Target, page: Page) =>
 
 test.beforeAll(async ({}, info) => {
   const t = target(info)
-  for (const [id, d] of Object.entries(DOCS)) await t.draftOnly(id, 'post', {title: d.title, excerpt: d.excerpt, ...(d.author && {author: t.ref(d.author)})})
+  // At once, not one by one: CI's budget (seeding was 7 s of this spec's 19).
+  await Promise.all(Object.entries(DOCS).map(([id, d]) => t.draftOnly(id, 'post', {title: d.title, excerpt: d.excerpt, ...(d.author && {author: t.ref(d.author)})})))
 })
 test.afterAll(async ({}, info) => {
   const t = target(info)
-  for (const id of Object.keys(DOCS)) await t.deleteDoc(id, 'post')
+  await Promise.all(Object.keys(DOCS).map((id) => t.deleteDoc(id, 'post')))
 })
 
 test('@evidence search quality side by side', async ({page, context}, info) => {
@@ -91,20 +92,22 @@ const IDS: [string, string[], string][] = [
   ['drafts.sq-fox', ['The quick brown fox', 'Fox brown quick'], ''],
   ['sq-fox', [], ''],
 ]
-for (const [q, want, none, what] of [...FOLDS.map((c) => [...c, 'folds titles, the exact spelling first'] as const), ...IDS.map((c) => [...c, 'matches ids as Sanity does'] as const)])
-  test(`a search for "${q}" ${what}`, async ({page, context}, info) => {
-    const t = target(info)
-    test.skip(t.name !== 'studio', 'the check runs on ours; Sanity is the evidence above')
-    await t.prepare(context)
-    await page.goto('/structure')
-    await signInIfAsked(page)
-    await t.settle(page)
-    await expect(async () => {
-      await page.keyboard.press('ControlOrMeta+k')
-      await expect(page.getByRole('combobox').first()).toBeFocused({timeout: 1000})
-    }).toPass()
-    await page.keyboard.type(q)
-    if (!want.length) await expect(dialog(page).getByText('No results found')).toBeVisible({timeout: 10_000})
-    else await expect.poll(async () => (await dialog(page).getByRole('option').allInnerTexts()).map((s) => s.split('\n')[0].trim()).filter((s) => want.includes(s)), {timeout: 10_000}).toEqual(want)
-    if (none) await expect(dialog(page).getByRole('option').filter({hasText: none})).toHaveCount(0)
-  })
+// One search dialog for all of them (CI's budget: a page load each was 11 s).
+test('a search folds æøå in titles, the exact spelling first, and matches ids as Sanity does', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'the check runs on ours; Sanity is the evidence above')
+  await t.prepare(context)
+  await page.goto('/structure')
+  await signInIfAsked(page)
+  await t.settle(page)
+  await expect(async () => {
+    await page.keyboard.press('ControlOrMeta+k')
+    await expect(page.getByRole('combobox').first()).toBeFocused({timeout: 1000})
+  }).toPass()
+  for (const [q, want, none] of [...FOLDS, ...IDS]) {
+    await page.getByRole('combobox').first().fill(q)
+    if (!want.length) await expect(dialog(page).getByText('No results found'), q).toBeVisible({timeout: 10_000})
+    else await expect.poll(async () => (await dialog(page).getByRole('option').allInnerTexts()).map((s) => s.split('\n')[0].trim()).filter((s) => want.includes(s)), {message: q, timeout: 10_000}).toEqual(want)
+    if (none) await expect(dialog(page).getByRole('option').filter({hasText: none}), q).toHaveCount(0)
+  }
+})
