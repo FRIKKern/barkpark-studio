@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change, 66 tasks closed
-  - nb-NO scout: Tasks panel label, drag handle role and the Agency preview view through t(); guard catches plain attribute literals and tt()/tBrowser() ([#517](https://github.com/FRIKKern/barkpark-studio/pull/517))
-  - Done: [J53 [after] New Studio version while tabs are open: "ready to update" prompt, reload, nothing lost](https://github.com/FRIKKern/barkpark/issues/21926)
-  - Done: [J51 [1 Panes+Refs] Slow network (Fast 3G): shell paints, every pane shows a loading state, never a blank or dead click](https://github.com/FRIKKern/barkpark/issues/21923)
+- **Today** · 2 changes, 76 tasks closed
+  - CI: one run at a time on the lease pool (fixes 60 s timeouts from #512) ([#518](https://github.com/FRIKKern/barkpark-studio/pull/518))
+  - Done: [D11 [Freeform both] Known limit written down: no live co-editing in the canvas yet (remote edits apply when idle)](https://github.com/FRIKKern/barkpark/issues/21790)
+  - Done: [D10 [Freeform both] Norwegian dead keys and IME type correctly; a 500-block doc still meets F1](https://github.com/FRIKKern/barkpark/issues/21791)
 - **Yesterday** · 76 changes, 2 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
   - CI: e2e shards lease a dataset from a pool of ten instead of cancelling each other ([#512](https://github.com/FRIKKern/barkpark-studio/pull/512))
