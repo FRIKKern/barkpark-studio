@@ -104,5 +104,6 @@
   "upload-dedup.spec.ts": 0,
   "upload-progress.spec.ts": 2,
   "vision-saved.spec.ts": 6.3,
+  "visual-editing-types.spec.ts": 0,
   "visual-editing.spec.ts": 6.3
 }

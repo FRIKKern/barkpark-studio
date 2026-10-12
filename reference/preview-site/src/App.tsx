@@ -1,5 +1,7 @@
 import {useLiveMode, type QueryResponseInitial} from '@sanity/react-loader'
 import {VisualEditing} from '@sanity/visual-editing/react'
+import {createDataAttribute} from '@sanity/visual-editing'
+import {stegaClean} from '@sanity/client/stega'
 import {Link, historyAdapter, usePathname} from './router'
 import {draftMode, liveClient, useLiveData, useLoad} from './sanity'
 import {BarkparkPage, SharedBanner, SOURCE} from './barkpark-source'
@@ -19,16 +21,30 @@ type PostRow = {
   $editAuthor?: Edit
 }
 type Post = PostRow & {
-  categories?: {_id: string; title?: string}[]
+  categories?: {_id: string; title?: string; $edit?: Edit}[]
   body?: {_key: string; _type: string; children?: {_key: string; text?: string}[]}[]
-  related?: {_type: string; _id: string; title?: string; name?: string; slug?: string}
+  related?: {_type: string; _id: string; title?: string; name?: string; slug?: string; $edit?: Edit}
+  rating?: number
+  publishedAt?: string
+  mainImage?: {alt?: string} | null
 }
+
+declare const __STUDIO_URL__: string
+declare const __DATASET__: string
+/**
+ * J59 widen: values that are not strings (a number, a date, an image) carry no stega, so
+ * from Sanity they are marked with its data attribute; from Barkpark, `$edit` as for text.
+ */
+const marked = (p: Post, field: string): Record<string, string> | undefined =>
+  SOURCE === 'barkpark'
+    ? p.$edit?.(field)
+    : {'data-sanity': createDataAttribute({projectId: 'ecu57yeh', dataset: __DATASET__, baseUrl: __STUDIO_URL__, id: p._id.replace(/^drafts\./, ''), type: 'post', path: field}).toString()}
 type Author = {_id: string; name?: string; bio?: string; posts: PostRow[]; $edit?: Edit}
 
 const ROW = `_id, title, "slug": slug.current, excerpt, author->{_id, name}`
 const HOME = `*[_type == "post" && defined(slug.current)] | order(title asc) {${ROW}}`
 const POST = `*[_type == "post" && slug.current == $slug][0] {
-  ${ROW}, categories[]->{_id, title}, body, related->{_type, _id, title, name, "slug": slug.current}
+  ${ROW}, categories[]->{_id, title}, body, related->{_type, _id, title, name, "slug": slug.current}, rating, publishedAt, mainImage{alt}
 }`
 const AUTHOR = `*[_type == "author" && _id == $id][0] {
   _id, name, bio, "posts": *[_type == "post" && references(^._id) && defined(slug.current)] | order(title asc) {${ROW}}
@@ -87,12 +103,20 @@ function Page() {
               <h1 {...p.$edit?.('title')}>{p.title}</h1>
               {p.author && <p className="meta">by <Link to={`/authors/${p.author._id}`}><span {...p.$editAuthor?.('name')}>{p.author.name}</span></Link></p>}
               {p.excerpt && <p><em {...p.$edit?.('excerpt')}>{p.excerpt}</em></p>}
-              <p>{p.categories?.map((c) => <span className="chip" key={c._id}>{c.title}</span>)}</p>
+              <p>{p.categories?.map((c) => <span className="chip" key={c._id} {...c.$edit?.('title')}>{c.title}</span>)}</p>
+              {(p.rating !== undefined || p.publishedAt) && (
+                <p className="meta">
+                  {p.rating !== undefined && <span {...marked(p, 'rating')}>Rating {p.rating}</span>}
+                  {p.rating !== undefined && p.publishedAt && ' · '}
+                  {p.publishedAt && <time {...marked(p, 'publishedAt')}>{new Date(stegaClean(p.publishedAt)).toISOString().slice(0, 10)}</time>}
+                </p>
+              )}
+              {p.mainImage && <figure className="image" {...marked(p, 'mainImage')}>{stegaClean(p.mainImage.alt) || 'Main image'}</figure>}
               {p.body?.filter((b) => b._type === 'block').map((b) => <p key={b._key} {...inBlock(p.$edit?.('body'), b._key)}>{b.children?.map((c) => c.text).join('')}</p>)}
               {p.related && (
                 <p className="meta">
                   Related:{' '}
-                  <Link to={p.related._type === 'post' ? `/posts/${p.related.slug}` : `/authors/${p.related._id}`}>{p.related.title ?? p.related.name}</Link>
+                  <Link to={p.related._type === 'post' ? `/posts/${p.related.slug}` : `/authors/${p.related._id}`}><span {...p.related.$edit?.(p.related._type === 'post' ? 'title' : 'name')}>{p.related.title ?? p.related.name}</span></Link>
                 </p>
               )}
             </article>

@@ -49,7 +49,9 @@ test('@evidence J15: change bars, review changes, revert one field and all', asy
   // The change bar beside Title opens Review changes.
   const bar = t.name === 'sanity' ? page.getByRole('button', {name: 'Review changes'}).first() : page.locator('.field').filter({has: page.locator('[id="title"]')}).locator('.change-bar')
   await expect(bar).toBeVisible({timeout: 10_000})
-  await page.waitForTimeout(t.name === 'sanity' ? 1500 : 300) // let the draft's edits land in each history
+  // Sanity's Review changes reads its transaction log, which lags the draft: wait until
+  // the log has the edits (not a fixed pause), or it opens on "There are no changes".
+  await expect.poll(() => t.historyReady(ID), {timeout: 15_000}).toBe(true)
   await bar.click()
   await expect(panel(page)).toContainText('Post 24 reviewed', {timeout: 15_000})
   await expect(panel(page)).toContainText('Changed for review.')
@@ -88,9 +90,11 @@ test('@local J15: after a publish, Review changes shows what it changed; field a
     const actions = page.getByRole('button', {name: 'Field actions'}).first()
     expect(await actions.evaluate((el) => Number(getComputedStyle(el.closest('.field-actions')!).opacity))).toBe(1)
   }
-  await page.waitForTimeout(t.name === 'sanity' ? 1500 : 500)
+  // Publish once the edit is saved as the draft (not after a fixed pause).
+  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: `${TITLE} (day three)`})
   await page.getByRole('button', {name: /^Publish$/}).last().click()
   await expect.poll(() => t.publishedTitle(ID), {timeout: 20_000}).toBe(`${TITLE} (day three)`)
+  await expect.poll(() => t.historyReady(ID), {timeout: 15_000}).toBe(true)
   const menu = t.name === 'sanity' ? page.locator('[data-testid="document-pane"] [data-testid="pane-context-menu-button"]').first() : page.getByRole('button', {name: 'Show document actions'})
   await menu.click()
   await page.getByRole('menuitem', {name: 'History'}).click()
