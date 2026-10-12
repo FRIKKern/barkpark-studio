@@ -243,6 +243,13 @@ test('@evidence J59: hover outline and click-to-edit, side by side', async ({pag
   await site.getByText('Short excerpt for post 1.').click()
   await page.waitForTimeout(2000)
   await page.screenshot({path: `evidence/J59-${t.name}-2-click.png`})
+  // A body paragraph: the body opens at that block, the caret in it.
+  await site.getByText('Body paragraph for post 1.').hover()
+  await page.waitForTimeout(700)
+  await page.screenshot({path: `evidence/J59-${t.name}-3-body-hover.png`})
+  await site.getByText('Body paragraph for post 1.').click()
+  await page.waitForTimeout(2500)
+  await page.screenshot({path: `evidence/J59-${t.name}-4-body-click.png`})
 })
 
 // J60 (F4): someone else's edit to a document on the page is on the preview as soon
