@@ -21,6 +21,7 @@ import {FieldComments} from './Comments'
 import {InvalidValueCard, KeysAlert, RichTextCard, SanityPortableTextCard, UnsupportedAssetCard} from './BrokenValues'
 import {invalidValue, keyProblem, richTextProblem, sanityPortableText, unsupportedAsset} from '../lib/broken'
 import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
+import {BodyToolbar} from './BodyToolbar'
 import {PortableDocView} from './PortableDocView'
 import {modKey, useTip} from './Tip'
 import {t as tBrowser, useT} from '../lib/i18n'
@@ -740,6 +741,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         }}
       >
         <div className="body-bar">
+          {!readOnly && <BodyToolbar host={box} vocabulary={vocabulary} onWake={() => setActive(true)} />}
           {!readOnly && <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />}
         </div>
         <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">{t('Empty')}</p>}</div>
@@ -775,6 +777,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       }
     >
       <div className="body-bar">
+        {!readOnly && <BodyToolbar host={box} vocabulary={vocabulary} />}
         <ExpandButton expanded={expanded} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle} />
       </div>
       <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} />
