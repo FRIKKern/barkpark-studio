@@ -30,7 +30,7 @@ const root = new URL('..', import.meta.url)
 const env = (k, d) => process.env[k] ?? d ?? fail(`missing env ${k} (see .env.example)`)
 const BASE = `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${env('BARKPARK_PROJECT', 'default')}`
 const DATASET = env('BARKPARK_DATASET', 'production')
-const TYPES = ['longform', 'author', 'category', 'post'] // refs point left: posts last
+const TYPES = ['longform', 'author', 'category', 'post', 'fieldTypes'] // refs point left: posts, then what points at them
 // Barkpark-native types: no Sanity mirror, seeded as written (fixtures/barkpark-only.ndjson).
 // story and note are PortableDoc types (decision 0004; Sanity has no equivalent): story
 // is the Expectation fixture seeded as a block list; note is Freeform-main, with a

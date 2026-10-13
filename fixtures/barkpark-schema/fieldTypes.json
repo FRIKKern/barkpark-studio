@@ -1,0 +1,236 @@
+{
+  "name": "fieldTypes",
+  "title": "Field types",
+  "visibility": "public",
+  "initialValues": {
+    "count": 3
+  },
+  "fields": [
+    {
+      "name": "title",
+      "title": "Title",
+      "type": "string",
+      "validation": {
+        "required": true
+      }
+    },
+    {
+      "name": "choice",
+      "title": "Choice",
+      "type": "select",
+      "options": [
+        {
+          "value": "a",
+          "title": "Alpha"
+        },
+        {
+          "value": "b",
+          "title": "Beta"
+        },
+        {
+          "value": "c",
+          "title": "Gamma"
+        }
+      ]
+    },
+    {
+      "name": "agree",
+      "title": "Agree",
+      "type": "boolean",
+      "options": {
+        "layout": "checkbox"
+      }
+    },
+    {
+      "name": "day",
+      "title": "Day",
+      "type": "date",
+      "options": {
+        "dateFormat": "DD.MM.YYYY"
+      }
+    },
+    {
+      "name": "at",
+      "title": "At",
+      "type": "datetime",
+      "options": {
+        "dateFormat": "DD.MM.YYYY",
+        "timeFormat": "HH:mm",
+        "timeStep": 15
+      }
+    },
+    {
+      "name": "handle",
+      "title": "Handle",
+      "type": "slug",
+      "options": {
+        "source": "title",
+        "maxLength": 20
+      },
+      "validation": {
+        "required": true
+      }
+    },
+    {
+      "name": "place",
+      "title": "Place",
+      "type": "geopoint"
+    },
+    {
+      "name": "weakRef",
+      "title": "Weak reference",
+      "type": "reference",
+      "refType": "post",
+      "weak": true,
+      "options": {
+        "disableNew": true
+      }
+    },
+    {
+      "name": "colours",
+      "title": "Colours",
+      "type": "arrayOf",
+      "ordered": true,
+      "of": {
+        "type": "string"
+      },
+      "options": {
+        "list": [
+          {
+            "value": "red",
+            "title": "Red"
+          },
+          {
+            "value": "green",
+            "title": "Green"
+          },
+          {
+            "value": "blue",
+            "title": "Blue"
+          }
+        ],
+        "layout": "grid"
+      }
+    },
+    {
+      "name": "cards",
+      "title": "Cards",
+      "type": "arrayOf",
+      "ordered": true,
+      "layout": "grid",
+      "of": {
+        "type": "composite",
+        "name": "card",
+        "fields": [
+          {
+            "name": "label",
+            "title": "Label",
+            "type": "string"
+          },
+          {
+            "name": "note",
+            "title": "Note",
+            "type": "text",
+            "rows": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "address",
+      "title": "Address",
+      "type": "composite",
+      "fieldsets": [
+        {
+          "name": "where",
+          "title": "Where",
+          "options": {
+            "collapsible": true,
+            "collapsed": false,
+            "columns": 2
+          }
+        }
+      ],
+      "fields": [
+        {
+          "name": "street",
+          "title": "Street",
+          "type": "string",
+          "fieldset": "where"
+        },
+        {
+          "name": "city",
+          "title": "City",
+          "type": "string",
+          "fieldset": "where"
+        },
+        {
+          "name": "zip",
+          "title": "Zip",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "width",
+      "title": "Width",
+      "type": "number",
+      "fieldset": "size"
+    },
+    {
+      "name": "height",
+      "title": "Height",
+      "type": "number",
+      "fieldset": "size"
+    },
+    {
+      "name": "count",
+      "title": "Count",
+      "type": "integer",
+      "validation": {
+        "min": 0,
+        "max": 10
+      }
+    },
+    {
+      "name": "hiddenNote",
+      "title": "Shown when agreed",
+      "type": "string",
+      "visibleWhen": {
+        "field": "agree",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "name": "lockedNote",
+      "title": "Locked when agreed",
+      "type": "string",
+      "readOnly": {
+        "field": "agree",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "name": "attachment",
+      "title": "Attachment",
+      "type": "file",
+      "options": {
+        "accept": "image/*"
+      }
+    },
+    {
+      "name": "photo",
+      "title": "Photo",
+      "type": "image",
+      "options": {
+        "hotspot": true,
+        "metadata": [
+          "palette",
+          "exif"
+        ]
+      }
+    }
+  ]
+}

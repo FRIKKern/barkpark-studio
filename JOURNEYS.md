@@ -21,7 +21,7 @@ status lives on the task board. A scout's honest gap adds a row: never a shrinki
 | J11 | 5 | Insert callout + image block, edit in dialog; block "…" menu, drag blocks, inline objects (yes, [0006](docs/decisions/0006-owner-calls-roles-comments-scheduling.md)) | F2 F10 |
 | J12 | 5 | Image: upload, hotspot/crop (mouse + keyboard), alt text | F9 F10 |
 | J13 | 2 | Validation: error/warning/info inline, publish blocked (the disabled Publish says why in Sanity's tooltip), validation panel; click an error → focus the field, even in another tab or a collapsed object; the field types' own rules as Sanity's (URL, email, integer, date) and an array's item count checked as you type | F9 F10 |
-| J14 | 2 | Field groups (tabs, with validation badge) and nested objects that collapse and keep that state | F2 F5 |
+| J14 | 2 | Field groups (tabs, with validation badge) and nested objects that collapse and keep that state; an object's fieldsets (columns, collapsible) and Sanity's field options: a list's checkboxes, geopoint, checkbox boolean, slug maxLength, reference disableNew (fieldTypes) | F2 F5 |
 | J15 | 6 | Review changes: change bars, per-field diff by author, revert one field or all, image/rich-text diffs | F10 |
 | J16 | 6 | Browse history: timeline with authors, open an old revision read-only (deep URL), restore it | F9 |
 | J17 | 1 ★ | Delete author with incoming refs → blocked, "used in" shown; any time, the doc menu's "Incoming references" panel lists them by type, each opens in a pane | F9 |

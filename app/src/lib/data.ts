@@ -57,6 +57,12 @@ export type Field = {
   preview?: {title?: PreviewText; subtitle?: PreviewText; media?: PreviewMediaSpec}
   visibleWhen?: Condition
   readOnly?: boolean | Condition
+  /** Sanity's fieldsets on an object: [{name, title, options: {collapsible, collapsed, columns}}]. */
+  fieldsets?: {name: string; title?: string; options?: {collapsible?: boolean; collapsed?: boolean; columns?: number}}[]
+  /** The fieldset (of its object) this field shows in. */
+  fieldset?: string
+  /** reference: Sanity's weak reference (kept as declared; Barkpark doesn't enforce it). */
+  weak?: boolean
 }
 export type Group = {name: string; title?: string; default?: boolean}
 /** J55: a type's own sort, Sanity's `orderings` (Barkpark: the schema's `desk.orderings`). */

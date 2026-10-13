@@ -31,6 +31,8 @@ type Props = {
   linkFor: (id: string, type: string) => {href: string; selected: boolean; active: boolean}
   /** Focus the search when it mounts (a row just added, Sanity's). */
   autoFocus?: boolean
+  /** Sanity's `options.disableNew`: no Create beside the search. */
+  disableNew?: boolean
 }
 
 /**
@@ -38,7 +40,7 @@ type Props = {
  * "…" menu (Clear / Replace / Open in new tab); empty or replacing, a combobox
  * that searches the referenced type. Keyboard: arrows move, Enter picks, Esc cancels.
  */
-export function RefInput({id, referencePath = id, types, filter, value: outer, invalid, onChange, linkFor, autoFocus}: Props) {
+export function RefInput({id, referencePath = id, types, filter, value: outer, invalid, onChange, linkFor, autoFocus, disableNew}: Props) {
   const parentId = useContext(DocIdContext)
   const creationKey = JSON.stringify([parentId, referencePath])
   // Show a pick at once; the cache (and so `outer`) catches up a tick later.
@@ -93,6 +95,7 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
       id={id}
       types={types}
       filter={filter}
+      disableNew={disableNew}
       current={value}
       autoFocus={autoFocus || focusSearch.current}
       invalid={invalid}
@@ -171,9 +174,10 @@ type SearchProps = {
   onPick: (id: string) => void
   onCancel?: () => void
   onCreate: (q: string, choice: Choice) => void
+  disableNew?: boolean
 }
 
-function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCancel, onCreate}: SearchProps) {
+function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCancel, onCreate, disableNew}: SearchProps) {
   const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: currentDoc} = useQuery({...docQuery(types, current ?? ''), enabled: !!current})
@@ -190,7 +194,7 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
   }, [q])
   const search = useQuery({...searchQuery(types, query, filter), enabled: open, placeholderData: keepPreviousData})
   // J18: each type's ways to start it (its templates too).
-  const creatable = types.filter((t) => !isSingleton(schemas, t)).flatMap((t) => choicesFor(schemas, t))
+  const creatable = disableNew ? [] : types.filter((t) => !isSingleton(schemas, t)).flatMap((t) => choicesFor(schemas, t))
   const waiting = q.trim() !== query || search.isPending || search.isPlaceholderData
   // Never let Enter select a result belonging to the previous search text.
   const results = waiting || search.isError ? [] : search.data ?? []

@@ -13,7 +13,7 @@ import type {RawSchema} from '../server/schemas'
 /** The field types the form draws (the switch in components/Fields.tsx). */
 export const FIELD_TYPES = [
   'string', 'text', 'number', 'integer', 'float', 'boolean', 'date', 'datetime', 'time', 'url', 'email', 'slug', 'select', 'tags', 'color',
-  'reference', 'image', 'file', 'arrayOf', 'composite', 'codelist', 'localizedText', 'richText', 'markdown', 'json', 'source',
+  'reference', 'image', 'file', 'arrayOf', 'composite', 'geopoint', 'codelist', 'localizedText', 'richText', 'markdown', 'json', 'source',
 ] as const
 
 /** Every key the studio reads on a field, and what it means. */
@@ -39,6 +39,9 @@ export const FIELD_KEYS = {
   preview: 'An array item\'s row: {title, subtitle} subfield names.',
   visibleWhen: 'Shown only when {field, operator, value, scope?} holds.',
   readOnly: 'true, or a condition like visibleWhen.',
+  fieldsets: 'composite: Sanity\'s fieldsets, [{name, title, options: {collapsible, collapsed, columns}}].',
+  fieldset: 'The fieldset (of its composite) it shows in.',
+  weak: 'reference: Sanity\'s weak reference; kept, not enforced by Barkpark.',
 } satisfies Record<keyof Field, string>
 
 /** Keys Barkpark reads on a field that the studio passes through as they are. */

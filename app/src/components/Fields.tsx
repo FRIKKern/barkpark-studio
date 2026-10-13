@@ -1,4 +1,4 @@
-import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
+import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
@@ -179,7 +179,7 @@ function FieldBody(props: FieldProps) {
       </div>
     )
   // An object (or an image, with its own fields below it): a fieldset with its title as the legend.
-  if (props.field.type === 'composite' || props.field.type === 'image')
+  if (props.field.type === 'composite' || props.field.type === 'image' || props.field.type === 'geopoint')
     return (
       <ObjectField {...props} label={label} changed={!!changes?.changed.has(props.path)} review={changes?.review} />
     )
@@ -355,7 +355,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       return <TextInput id={path} value={str} onChange={onChange} readOnly={readOnly} />
     case 'slug':
       // Sanity-shaped data (an import) holds {current}; Barkpark a string.
-      return <SlugInput id={path} value={value && typeof value === 'object' ? String((value as {current?: unknown}).current ?? '') : str} onChange={onChange} source={(field.options as {source?: string})?.source} readOnly={readOnly} />
+      return <SlugInput id={path} value={value && typeof value === 'object' ? String((value as {current?: unknown}).current ?? '') : str} onChange={onChange} source={(field.options as {source?: string})?.source} maxLength={(field.options as {maxLength?: number})?.maxLength} readOnly={readOnly} />
     case 'text':
       return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 3} readOnly={readOnly} />
     case 'number':
@@ -387,6 +387,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'select':
       return <SelectInput id={path} field={field} value={value} onChange={onChange} />
     case 'boolean':
+      // Sanity's `options.layout: 'checkbox'`: a checkbox instead of the switch.
+      if ((field.options as {layout?: string} | undefined)?.layout === 'checkbox') return <input id={path} type="checkbox" className="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} />
       return (
         <span className="switch">
           <input id={path} type="checkbox" role="switch" checked={!!value} onChange={(e) => onChange(e.target.checked)} />
@@ -399,6 +401,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
           id={path}
           types={refTypesOf(field)}
           filter={field.options?.filter as RefFilter | undefined}
+          disableNew={!!(field.options as {disableNew?: boolean} | undefined)?.disableNew}
           // A Sanity-shaped reference ({_ref}, as an import from Sanity holds it) reads as its id.
           value={refId(value)}
           invalid={invalid}
@@ -411,6 +414,9 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       const keys = keyProblem(items)
       if (keys) return <KeysAlert problem={keys} onChange={onChange} />
       if (field.of?.type === 'reference') return <RefArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
+      // Sanity: an array of strings with `options.list` is a set of checkboxes (a grid with layout 'grid').
+      const choices = !Array.isArray(field.options) && Array.isArray(field.options?.list) ? (field.options.list as (string | {value: string; title?: string})[]) : undefined
+      if (field.of?.type === 'string' && choices) return <CheckboxList id={path} choices={choices} grid={(!Array.isArray(field.options) && field.options?.layout === 'grid') || field.layout === 'grid'} value={items} onChange={onChange} readOnly={readOnly} />
       if (field.of?.type === 'string' || field.of?.type === 'text')
         return (field.options as {layout?: string} | undefined)?.layout === 'tags' ? (
           <TagsInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
@@ -428,25 +434,36 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         </div>
       )
     }
-    case 'composite':
+    case 'geopoint':
+    case 'composite': {
+      // Sanity's geopoint is an object of three numbers (no map without its plugin).
+      const fields = field.type === 'geopoint' ? GEOPOINT.map((f) => ({...f, title: t(f.title!)})) : (field.fields ?? [])
+      const sub = (f: Field) => (
+        <FieldView
+          key={f.name}
+          field={readOnly ? {...f, readOnly: true} : f}
+          path={`${path}.${f.name}`}
+          value={(value as Record<string, unknown>)?.[f.name]}
+          openRef={openRef}
+          // Barkpark patches paths (task-bfb66a2ff491f6e7): a subfield edit sends
+          // only its own path, so two editors on different subfields both keep theirs.
+          onChange={(v) =>
+            field.type === 'geopoint'
+              ? onChange({_type: 'geopoint', ...(value as Record<string, unknown>), [f.name]: v})
+              : editPath
+                ? editPath(`${path}.${f.name}`, v)
+                : onChange({...(value as Record<string, unknown>), [f.name]: v})
+          }
+        />
+      )
       return (
         <div className="fieldset" id={path}>
           <ParentContext.Provider value={(value as Record<string, unknown> | undefined) ?? {}}>
-          {field.fields?.map((f) => (
-            <FieldView
-              key={f.name}
-              field={readOnly ? {...f, readOnly: true} : f}
-              path={`${path}.${f.name}`}
-              value={(value as Record<string, unknown>)?.[f.name]}
-              openRef={openRef}
-              // Barkpark patches paths (task-bfb66a2ff491f6e7): a subfield edit sends
-              // only its own path, so two editors on different subfields both keep theirs.
-              onChange={(v) => (editPath ? editPath(`${path}.${f.name}`, v) : onChange({...(value as Record<string, unknown>), [f.name]: v}))}
-            />
-          ))}
+            {inFieldsets(fields, field.fieldsets).map((g) => ('set' in g ? <Fieldset key={`fs:${g.set.name}`} path={`${path}.${g.set.name}`} fieldset={g.set}>{g.fields.map(sub)}</Fieldset> : sub(g)))}
           </ParentContext.Provider>
         </div>
       )
+    }
     case 'richText': {
       const broken = richTextProblem(value)
       if (broken) return <RichTextCard problem={broken} onChange={onChange} />
@@ -517,7 +534,8 @@ const slugify = (s: string) =>
   s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 200)
 
 /** A slug: a text input plus Sanity's Generate, from the field named in options.source. */
-function SlugInput({id, value, onChange, source, readOnly}: {id: string; value: string; onChange: (v: unknown) => void; source?: string; readOnly?: boolean}) {
+// `maxLength`: Sanity's slug option, cutting a generated slug (its default is 200).
+function SlugInput({id, value, onChange, source, maxLength = 200, readOnly}: {id: string; value: string; onChange: (v: unknown) => void; source?: string; maxLength?: number; readOnly?: boolean}) {
   const t = useT()
   const doc = useContext(DocContext)
   const from = source && doc ? doc[source] : undefined
@@ -531,11 +549,80 @@ function SlugInput({id, value, onChange, source, readOnly}: {id: string; value: 
           className="btn-create"
           // Sanity's stays enabled with an empty source; the click then does nothing.
           disabled={readOnly}
-          onClick={() => typeof from === 'string' && from && (onChange(slugify(from)), force((n) => n + 1))}
+          onClick={() => typeof from === 'string' && from && (onChange(slugify(from).slice(0, maxLength)), force((n) => n + 1))}
         >
           {t('Generate')}
         </button>
       )}
+    </div>
+  )
+}
+
+const GEOPOINT: Field[] = [
+  {name: 'lat', title: 'Latitude', type: 'number'},
+  {name: 'lng', title: 'Longitude', type: 'number'},
+  {name: 'alt', title: 'Altitude', type: 'number'},
+]
+
+type FieldsetDef = NonNullable<Field['fieldsets']>[number]
+/** Sanity's fieldsets: fields that name one show together, in the order the first of them comes. */
+function inFieldsets(fields: Field[], fieldsets: Field['fieldsets'] = []): (Field | {set: FieldsetDef; fields: Field[]})[] {
+  const out: (Field | {set: FieldsetDef; fields: Field[]})[] = []
+  const groups = new Map<string, {set: FieldsetDef; fields: Field[]}>()
+  for (const f of fields) {
+    const def = f.fieldset ? fieldsets.find((s) => s.name === f.fieldset) : undefined
+    if (!def) out.push(f)
+    else if (groups.has(def.name)) groups.get(def.name)!.fields.push(f)
+    else (groups.set(def.name, {set: def, fields: [f]}), out.push(groups.get(def.name)!))
+  }
+  return out
+}
+
+/** One fieldset: its title (a fold when collapsible) and its fields, in `columns` columns. */
+function Fieldset({path, fieldset, children}: {path: string; fieldset: FieldsetDef; children: ReactNode}) {
+  const opened = useContext(OpenObjectsContext)
+  const {collapsible = false, collapsed = false, columns} = fieldset.options ?? {}
+  const open = !(collapsible || collapsed) || (opened ? opened.isOpen(path, !collapsed) : !collapsed)
+  const title = fieldset.title ?? fieldset.name
+  return (
+    <fieldset className="field object-field fieldset-group" data-collapsible={collapsible || collapsed || undefined} data-open={collapsible || collapsed ? open : undefined}>
+      <legend>
+        {collapsible || collapsed ? (
+          <button type="button" className="object-toggle" aria-expanded={open} onClick={() => opened?.toggle(path, !open)}>
+            <span className="toggle-arrow" data-open={open}>
+              <ToggleArrowRight />
+            </span>
+            {title}
+          </button>
+        ) : (
+          title
+        )}
+      </legend>
+      {open && (
+        <div className="fieldset" style={columns && columns > 1 ? {display: 'grid', gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, columnGap: 24} : undefined}>
+          {children}
+        </div>
+      )}
+    </fieldset>
+  )
+}
+
+/** An array of strings picked from a list: one checkbox each (Sanity's), in a row of three with layout 'grid'. */
+function CheckboxList({id, choices, grid, value, onChange, readOnly}: {id: string; choices: (string | {value: string; title?: string})[]; grid: boolean; value: unknown[]; onChange: (v: unknown) => void; readOnly?: boolean}) {
+  const opts = choices.map((c) => (typeof c === 'string' ? {value: c, title: c} : {value: c.value, title: c.title ?? c.value}))
+  const set = new Set(value.map(String))
+  const toggle = (v: string, on: boolean) => {
+    const next = opts.map((o) => o.value).filter((o) => (o === v ? on : set.has(o)))
+    onChange(next.length ? next : undefined)
+  }
+  return (
+    <div className="checkbox-list" id={id} role="group" data-grid={grid || undefined}>
+      {opts.map((o) => (
+        <label key={o.value} className="checkbox-item">
+          <input type="checkbox" className="checkbox" checked={set.has(o.value)} disabled={readOnly} onChange={(e) => toggle(o.value, e.target.checked)} />
+          <span>{o.title}</span>
+        </label>
+      ))}
     </div>
   )
 }
