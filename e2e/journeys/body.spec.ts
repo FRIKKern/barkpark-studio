@@ -4,9 +4,9 @@ import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets
 
 // J10 evidence, both studios, in post-10's body: markdown shortcuts (## heading,
 // - and 1. lists, > quote; ours: a pullquote block), marks by keyboard (Ctrl+B / Ctrl+I), heading 3 and 6 from the
-// style control (Sanity's dropdown; ours: the canvas's / menu, decision 0004), a
-// link from the link control (Sanity's toolbar button; ours: the selection
-// bubble), and F1 while typing. What each side ends up with goes to the
+// toolbar's style menu, a link from the toolbar's Link button (both sides: Sanity's
+// Portable Text toolbar; ours: the same toolbar over Barkpark's canvas commands), and
+// F1 while typing. What each side ends up with goes to the
 // annotations; stills + clips go to e2e/evidence/. Not a CI gate (rule 5).
 const ID = 'post-10'
 // To the end of the line: End does nothing in a macOS contenteditable (Sanity's), Cmd+→ does.
@@ -94,9 +94,10 @@ test('@evidence J10: body — shortcuts, marks, styles, link, lists', async ({pa
       await body.getByText(text, {exact: true}).click()
       await page.keyboard.press(END)
     } else {
-      await page.keyboard.type('/')
-      await page.locator('.bp-slash-item').filter({hasText: `Heading ${level}`}).click()
       await page.keyboard.type(text)
+      await page.locator('.body-toolbar .body-style').click()
+      await page.getByRole('menuitemradio', {name: `Heading ${level}`}).click()
+      await page.keyboard.press(END)
     }
     await page.waitForTimeout(500)
   }
@@ -120,8 +121,8 @@ test('@evidence J10: body — shortcuts, marks, styles, link, lists', async ({pa
     await url.fill('https://example.com/j10')
     await page.keyboard.press('Escape')
   } else {
-    await page.locator('.bp-paper-format__btn--link').click()
-    await page.locator('.bp-paper-format__link-input').fill('https://example.com/j10')
+    await page.getByRole('toolbar', {name: 'Formatting'}).getByRole('button', {name: 'Link'}).click()
+    await page.getByRole('textbox', {name: 'Link'}).fill('https://example.com/j10')
     await page.keyboard.press('Enter')
   }
   await page.waitForTimeout(2500)
