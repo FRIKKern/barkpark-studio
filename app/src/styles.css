@@ -42,7 +42,7 @@
   --code-key: #2f3f9e;
   --code-summary: #8d3fc2;
   --code-string: #a0522d;
-  --code-number: #1f7a8c;
+  --code-number: #1e7889; /* AA on the code background (#f2f3f5) */
   color-scheme: light;
   --published: #0db770; /* reference/sanity's positive dot, measured (its theme's badge dot #0db66e) */
   --positive-fg: #0d5133; /* the Published chip's text, measured on reference/sanity */
@@ -74,7 +74,7 @@
   --badge-critical-bg: #ffdfdc;
   --badge-critical-fg: #cc2518;
   /* History event badges and avatars: Sanity's avatar colours */
-  --avatar-blue: #556bfc;
+  --avatar-blue: #4f66fb; /* Sanity's #556bfc, a shade darker: white initials at AA (4.5:1) */
   --avatar-green: #0db97a;
   --avatar-yellow: #d28a12;
   --avatar-orange: #fa6412;

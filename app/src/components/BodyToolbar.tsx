@@ -108,9 +108,37 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   const inlines = (vocab.inline ?? []).map((o) => (typeof o === 'string' ? {name: o, title: o} : {name: o.name, title: o.title ?? o.name})).map((o) => ({...o, title: o.title.charAt(0).toUpperCase() + o.title.slice(1)}))
   const styleLabel = state.blockStyle ? t(STYLE_LABEL[state.blockStyle] ?? 'Normal') : t('No style')
 
+  // J47: one Tab stop, as a WAI-ARIA toolbar: arrow keys, Home and End move along its
+  // buttons (a screen reader announces it as a toolbar, so its users press those).
+  const bar = useRef<HTMLDivElement>(null)
+  const at = useRef(0)
+  const tools = () => [...(bar.current?.querySelectorAll<HTMLButtonElement>(':scope > button, :scope > .menu-wrap > button') ?? [])].filter((b) => !b.disabled)
+  const roveTo = (list: HTMLButtonElement[], i: number) => {
+    at.current = i
+    list.forEach((b, j) => (b.tabIndex = j === i ? 0 : -1))
+  }
+  useEffect(() => {
+    const list = tools()
+    if (list.length) roveTo(list, Math.min(at.current, list.length - 1))
+  })
+  const rove = (e: React.KeyboardEvent) => {
+    const list = tools()
+    const i = list.indexOf(e.target as HTMLButtonElement)
+    const next = i < 0 ? -1 : {ArrowRight: (i + 1) % list.length, ArrowLeft: (i - 1 + list.length) % list.length, Home: 0, End: list.length - 1}[e.key] ?? -1
+    if (next < 0) return
+    e.preventDefault()
+    roveTo(list, next)
+    list[next]!.focus()
+  }
+  const focused = (e: React.FocusEvent) => {
+    const list = tools()
+    const i = list.indexOf(e.target as HTMLButtonElement)
+    if (i >= 0) roveTo(list, i)
+  }
+
   if (!supported) return <span className="body-toolbar" />
   return (
-    <div className="body-toolbar" role="toolbar" aria-label={t('Formatting')} onMouseDown={keepSelection}>
+    <div ref={bar} className="body-toolbar" role="toolbar" aria-label={t('Formatting')} onMouseDown={keepSelection} onKeyDown={rove} onFocus={focused}>
       {styles.length > 0 && (
         // The style button takes focus (the canvas keeps its selection), so the menu returns
         // focus to it, inside this wrap, and leaving the wrap closes the menu.
