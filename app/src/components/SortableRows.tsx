@@ -32,9 +32,11 @@ type Props<T> = {
   extraActions?: (item: T, index: number) => {label: string; run: () => void; last?: boolean}[]
   /** The item's id stem (its menu button is `<stem>-menuButton`), e.g. Sanity's `categories[_key=="c2"]`. */
   itemId?: (item: T, index: number) => string
+  /** Sanity's `options.layout: 'grid'`: the items as tiles. */
+  grid?: boolean
 }
 
-export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, duplicate = (x) => x, onCopy, keyOf = (_, i) => i, onAdded, addLabel = 'Add item', extraActions, itemId}: Props<T>) {
+export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, duplicate = (x) => x, onCopy, keyOf = (_, i) => i, onAdded, addLabel = 'Add item', extraActions, itemId, grid}: Props<T>) {
   const t = useT()
   // While a row is being moved: which row (original index), and where it is now.
   const [moving, setMoving] = useState<{from: number; to: number} | null>(null)
@@ -112,7 +114,7 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
 
   return (
     <div className="array-field" id={id}>
-      <div ref={rows} className="array-box" role={items.length ? 'list' : undefined} aria-describedby={`${id}-dnd-help`}>
+      <div ref={rows} className="array-box" data-layout={grid ? 'grid' : undefined} role={items.length ? 'list' : undefined} aria-describedby={`${id}-dnd-help`}>
         {items.length === 0 && <div className="array-empty">{t('No items')}</div>}
         {order.slice(0, revealed).map((orig, i) => (
           <Row
