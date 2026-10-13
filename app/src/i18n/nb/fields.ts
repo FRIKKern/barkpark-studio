@@ -169,6 +169,7 @@ export default {
   'Numbered list': 'Nummerert liste',
   'Link': 'Lenke',
   'Insert {typeName} (block)': 'Sett inn {typeName} (blokk)',
+  'Insert {typeName} (inline)': 'Sett inn {typeName} (i teksten)',
   'Callout': 'Callout',
   'Use a web, mail or phone address (https:, mailto:, tel:) or a path.': 'Bruk en nett-, e-post- eller telefonadresse (https:, mailto:, tel:) eller en sti.',
 } satisfies Record<string, string>

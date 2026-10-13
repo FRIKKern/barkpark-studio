@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type ReactNode, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, ImageIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
+import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, ImageIcon, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
 import {useT} from '../lib/i18n'
 import {loadCanvas} from '../lib/canvas-bundle'
 import {linkHref} from '../lib/link-href'
@@ -12,14 +12,14 @@ import {linkHref} from '../lib/link-href'
 // can() / state() say what is allowed and pressed. On a Barkpark whose canvas has no
 // toolbar commands the field keeps its expand button alone, as before.
 
-type Command = 'toggleMark' | 'setBlockStyle' | 'toggleList' | 'insertBlock'
+type Command = 'toggleMark' | 'setBlockStyle' | 'toggleList' | 'insertBlock' | 'insertInline'
 type ToolbarState = {marks: string[]; blockStyle: string | null; list: string | null; link: {href: string} | null}
 type Canvas = HTMLElement & {
   run?: (command: Command, args?: object) => boolean
   can?: (command: Command, args?: object) => boolean
   state?: () => ToolbarState
 }
-type Vocabulary = {styles?: string[]; lists?: string[]; marks?: string[]; annotations?: {name: string}[]; of?: (string | {name: string; title?: string})[]}
+type Vocabulary = {styles?: string[]; lists?: string[]; marks?: string[]; annotations?: {name: string}[]; of?: (string | {name: string; title?: string})[]; inline?: (string | {name: string; title?: string})[]}
 
 const STYLES = ['normal', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote']
 const STYLE_LABEL: Record<string, string> = {normal: 'Normal', h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3', h4: 'Heading 4', h5: 'Heading 5', h6: 'Heading 6', blockquote: 'Quote'}
@@ -96,6 +96,8 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   const lists = LISTS.filter(([kind]) => !vocab.lists || vocab.lists.includes(kind))
   const link = !vocab.annotations || vocab.annotations.some((a) => a.name === 'link')
   const inserts = (vocab.of ?? ['image', 'callout']).map((o) => (typeof o === 'string' ? {name: o, title: o === 'image' ? 'Image' : o === 'callout' ? 'Callout' : o} : {name: o.name, title: o.title ?? o.name}))
+  // Sanity's inline objects (a chip) after the blocks: "Insert Chip (inline)" (Barkpark 1.6+).
+  const inlines = (vocab.inline ?? []).map((o) => (typeof o === 'string' ? {name: o, title: o} : {name: o.name, title: o.title ?? o.name})).map((o) => ({...o, title: o.title.charAt(0).toUpperCase() + o.title.slice(1)}))
   const styleLabel = state.blockStyle ? t(STYLE_LABEL[state.blockStyle] ?? 'Normal') : t('No style')
 
   if (!supported) return <span className="body-toolbar" />
@@ -149,10 +151,16 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
           </div>
         </>
       )}
-      {inserts.length > 0 && <span className="body-toolbar-sep" />}
+      {inserts.length + inlines.length > 0 && <span className="body-toolbar-sep" />}
       {inserts.map(({name, title}) => (
         <button key={name} type="button" className="body-insert" aria-label={t('Insert {typeName} (block)', {typeName: t(title)})} disabled={!can('insertBlock', {type: name})} onClick={() => act('insertBlock', {type: name})}>
           {name === 'image' ? <ImageIcon /> : <BlockIcon />}
+          <span>{t(title)}</span>
+        </button>
+      ))}
+      {inlines.map(({name, title}) => (
+        <button key={name} type="button" className="body-insert" aria-label={t('Insert {typeName} (inline)', {typeName: t(title)})} disabled={!can('insertInline', {type: name})} onClick={() => act('insertInline', {type: name})}>
+          <InlineIcon />
           <span>{t(title)}</span>
         </button>
       ))}
