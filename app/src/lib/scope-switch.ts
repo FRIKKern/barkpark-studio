@@ -8,7 +8,8 @@ import type {Scope} from './scope'
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 export type Option = {slug: string; name: string}
-export type ScopeOptions = {workspaces: Option[]; projects: Option[]; datasets: Option[]}
+/** A list is missing when Barkpark refused it: that switcher stays on the current scope. */
+export type ScopeOptions = {workspaces?: Option[]; projects?: Option[]; datasets?: Option[]}
 
 const fetchCurrent = createServerFn({method: 'GET'}).handler(async () => scope() as unknown as Json)
 export const currentScopeQuery = queryOptions({queryKey: ['scope'], queryFn: async () => (await fetchCurrent()) as unknown as Scope, staleTime: Infinity})
@@ -24,12 +25,15 @@ const fetchOptions = createServerFn({method: 'GET'})
   .validator((d: {workspace: string; project: string}) => d)
   .handler(async ({data}) => {
     const ws = encodeURIComponent(data.workspace)
-    const [workspaces, projects, datasets] = await Promise.all([
+    // Each list on its own: one Barkpark refuses (a member's session may not list
+    // workspaces) leaves that switcher on the current scope, not all three disabled.
+    const [workspaces, projects, datasets] = await Promise.allSettled([
       list('/api/workspaces', 'workspaces'),
       list(`/api/workspaces/${ws}/projects`, 'projects'),
       list(`/api/workspaces/${ws}/projects/${encodeURIComponent(data.project)}/datasets`, 'datasets'),
     ])
-    return {workspaces, projects, datasets} as unknown as Json
+    const got = (r: PromiseSettledResult<Option[]>) => (r.status === 'fulfilled' ? r.value : (console.warn('[scope]', r.reason instanceof Error ? r.reason.message : r.reason), undefined))
+    return {workspaces: got(workspaces), projects: got(projects), datasets: got(datasets)} as unknown as Json
   })
 export const scopeOptionsQuery = (at: {workspace: string; project: string}) =>
   queryOptions({queryKey: ['scope-options', at.workspace, at.project], queryFn: async () => (await fetchOptions({data: at})) as unknown as ScopeOptions})
