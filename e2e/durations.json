@@ -25,6 +25,7 @@
   "editor-mode.spec.ts": 0,
   "editors-chunk.spec.ts": 3.5,
   "field-clipboard.spec.ts": 0,
+  "field-types.spec.ts": 4,
   "field-url.spec.ts": 0,
   "file-field.spec.ts": 0,
   "focus-mode.spec.ts": 2.4,

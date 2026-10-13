@@ -1989,3 +1989,10 @@ html body .bp-inline-object-dialog__actions button { font: inherit; font-size: 1
 html body .bp-inline-object-dialog__actions .bp-inline-object-dialog__cancel:hover { background: var(--hover); }
 html body .bp-inline-object-dialog__actions .bp-inline-object-dialog__save { background: var(--selected); color: var(--on-selected); }
 html body .bp-inline-object-dialog__actions .bp-inline-object-dialog__save:hover { background: var(--primary-hover); }
+
+/* Field-type matrix: a checkbox (boolean layout 'checkbox', an array of strings from a list), Sanity's */
+input.checkbox { width: 17px; height: 17px; margin: 0; accent-color: var(--fg); }
+.checkbox-list { display: flex; flex-direction: column; gap: 12px; padding-left: 12px; border-left: 1px solid var(--border); }
+.checkbox-list[data-grid] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.fieldset-group > .fieldset > .field { margin-bottom: 32px; }

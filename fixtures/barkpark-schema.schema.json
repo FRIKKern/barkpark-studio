@@ -175,6 +175,7 @@
             "file",
             "arrayOf",
             "composite",
+            "geopoint",
             "codelist",
             "localizedText",
             "richText",
@@ -252,6 +253,15 @@
         },
         "readOnly": {
           "description": "true, or a condition like visibleWhen."
+        },
+        "fieldsets": {
+          "description": "composite: Sanity's fieldsets, [{name, title, options: {collapsible, collapsed, columns}}]."
+        },
+        "fieldset": {
+          "description": "The fieldset (of its composite) it shows in."
+        },
+        "weak": {
+          "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
         },
         "ordered": {
           "description": "arrayOf: adds reordering.",
@@ -343,6 +353,7 @@
             "file",
             "arrayOf",
             "composite",
+            "geopoint",
             "codelist",
             "localizedText",
             "richText",
@@ -420,6 +431,15 @@
         },
         "readOnly": {
           "description": "true, or a condition like visibleWhen."
+        },
+        "fieldsets": {
+          "description": "composite: Sanity's fieldsets, [{name, title, options: {collapsible, collapsed, columns}}]."
+        },
+        "fieldset": {
+          "description": "The fieldset (of its composite) it shows in."
+        },
+        "weak": {
+          "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
         },
         "ordered": {
           "description": "arrayOf: adds reordering.",

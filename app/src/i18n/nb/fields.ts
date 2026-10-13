@@ -175,4 +175,7 @@ export default {
   'Insert {typeName} (inline)': 'Sett inn {typeName} (i teksten)',
   'Callout': 'Callout',
   'Use a web, mail or phone address (https:, mailto:, tel:) or a path.': 'Bruk en nett-, e-post- eller telefonadresse (https:, mailto:, tel:) eller en sti.',
+  'Latitude': 'Breddegrad',
+  'Longitude': 'Lengdegrad',
+  'Altitude': 'Høyde',
 } satisfies Record<string, string>
