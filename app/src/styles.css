@@ -1349,6 +1349,9 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 textarea.vision-code.vision-params { flex: 0 0 30%; border-top: 1px solid var(--border); }
 .vision-actions { display: flex; gap: 8px; }
 .vision-actions .vision-fetch { flex: 1; }
+/* Listen is Sanity's grey button beside the blue Fetch. */
+.vision-actions .btn:not(.btn-primary) { background: var(--hover-strong); }
+.vision-actions .btn:not(.btn-primary):hover { background: var(--hover); }
 .vision-label-help { display: inline-flex; align-items: center; gap: 4px; }
 .vision-help { display: inline-flex; color: var(--muted); cursor: help; }
 .vision-help svg { width: 17px; height: 17px; }

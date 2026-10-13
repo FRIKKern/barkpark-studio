@@ -391,7 +391,7 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
       <div className="view-tabs vision-saved-filter" role="tablist" aria-label={t('Saved queries')}>
         {(['all', 'personal', 'team'] as const).map((f) => (
           <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}>
-            {t(f === 'all' ? 'All' : f === 'personal' ? 'Personal' : 'Team')}
+            {t(f === 'all' ? 'All' : f === 'personal' ? 'Personal' : 'Shared')}
           </button>
         ))}
       </div>
