@@ -61,6 +61,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'object', value: it}})}
         addLabel={of.type === 'image' ? 'Add item' : 'Add item...'}
         renderItem={renderItem}
+        grid={field.layout === 'grid' || (!Array.isArray(field.options) && field.options?.layout === 'grid')}
       />
       {index >= 0 && (
         <ItemDialog

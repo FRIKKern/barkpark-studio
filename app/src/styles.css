@@ -1996,3 +1996,16 @@ input.checkbox { width: 17px; height: 17px; margin: 0; accent-color: var(--fg); 
 .checkbox-list[data-grid] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 .fieldset-group > .fieldset > .field { margin-bottom: 32px; }
+
+/* An array with options.layout 'grid' (Sanity's): tiles, the picture or icon in the middle,
+   the handle top left and the item menu bottom right. */
+.array-box[data-layout=grid] { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; padding: 8px; }
+.array-box[data-layout=grid] > .array-row { position: relative; flex-direction: column; align-items: stretch; aspect-ratio: 4 / 5; padding: 0; box-shadow: inset 0 0 0 1px var(--line); }
+.array-box[data-layout=grid] > .array-row > .drag-handle { position: absolute; top: 4px; left: 4px; z-index: 1; opacity: 0; }
+.array-box[data-layout=grid] > .array-row:hover > .drag-handle, .array-box[data-layout=grid] > .array-row > .drag-handle:focus-visible, .array-box[data-layout=grid] > .array-row[data-moving] > .drag-handle { opacity: 1; }
+.array-box[data-layout=grid] > .array-row > .menu-wrap { position: absolute; right: 4px; bottom: 4px; }
+.array-box[data-layout=grid] .array-item-preview { flex-direction: column; justify-content: center; gap: 8px; height: 100%; padding: 8px 8px 32px; }
+.array-box[data-layout=grid] .array-item-preview .media { width: 100%; height: auto; flex: 1; box-shadow: none; }
+.array-box[data-layout=grid] .array-item-preview .media.has-image { overflow: hidden; }
+.array-box[data-layout=grid] .array-item-preview .text { align-items: center; text-align: center; max-width: 100%; }
+.array-box[data-layout=grid] .array-item-preview .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
