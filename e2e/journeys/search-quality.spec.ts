@@ -94,6 +94,10 @@ const IDS: [string, string[], string][] = [
 ]
 // One search dialog for all of them (CI's budget: a page load each was 11 s).
 test('a search folds æøå in titles, the exact spelling first, and matches ids as Sanity does', async ({page, context}, info) => {
+  // Six searches in a row: on a loaded CI box one Barkpark search took 6.3 s (main's
+  // ci-2, run 38328314136: the right results, but after the 15 s test budget). It
+  // guards which docs come back, not how fast; speed is J38's F-numbers.
+  test.setTimeout(45_000)
   const t = target(info)
   test.skip(t.name !== 'studio', 'the check runs on ours; Sanity is the evidence above')
   await t.prepare(context)
