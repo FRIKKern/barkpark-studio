@@ -2,24 +2,18 @@ import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useFocusScope} from '../lib/focus-scope'
 import {Calendar, ChevronLeft, ChevronRight, ChevronDown} from './icons'
 import {intlTag, useLocale, useT, type Locale} from '../lib/i18n'
+import {formatDate, parseDate} from '../lib/date-format'
 
 // Sanity's date-time input (J31): a text field in local time ("2026-09-06 11:00")
 // that commits on blur or Enter when it parses (half-typed dates never land), plus a calendar popover — month select, year
 // stepper, a day grid driven by the keyboard, a time box and "Set to current time".
-// The store keeps ISO UTC, like Sanity's datetime.
+// The store keeps ISO UTC, like Sanity's datetime. Sanity's options shape the box: dateFormat
+// and timeFormat (moment tokens, defaults YYYY-MM-DD and HH:mm) and timeStep (minutes, for the
+// time box). `dateOnly` is Sanity's date: no time, stored as YYYY-MM-DD.
 
 const pad = (n: number) => String(n).padStart(2, '0')
-export const formatLocal = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-
-/** "YYYY-MM-DD HH:mm" (or with a T, or date only) in local time; undefined if it isn't one. */
-export function parseLocal(text: string): Date | undefined {
-  const m = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?\s*$/.exec(text)
-  if (!m) return undefined
-  const [y, mo, d, h = '0', mi = '0'] = m.slice(1).map((x) => x ?? '0') as string[]
-  const date = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi))
-  // Reject roll-overs like 2026-02-31.
-  return date.getMonth() === Number(mo) - 1 && date.getDate() === Number(d) && Number(h) < 24 ? date : undefined
-}
+const STORED_DATE = 'YYYY-MM-DD'
+export type DateOptions = {dateFormat?: string; timeFormat?: string; timeStep?: number}
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -33,9 +27,13 @@ const dayLabel = (d: Date, locale: Locale) =>
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, d.getHours(), d.getMinutes())
 
-export function DateTimeInput({id, value, onChange, readOnly}: {id: string; value: string | undefined; onChange: (v: unknown) => void; readOnly?: boolean}) {
+export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, options = {}}: {id: string; value: string | undefined; onChange: (v: unknown) => void; readOnly?: boolean; dateOnly?: boolean; options?: DateOptions}) {
   const t = useT()
-  const stored = value ? new Date(value) : undefined
+  const format = dateOnly ? (options.dateFormat ?? STORED_DATE) : `${options.dateFormat ?? STORED_DATE} ${options.timeFormat ?? 'HH:mm'}`
+  const formatLocal = (d: Date) => formatDate(d, format)
+  const parseLocal = (text: string) => parseDate(text, format)
+  // A date is stored as the day itself (no time zone); a datetime as an instant.
+  const stored = value ? (dateOnly ? parseDate(value, STORED_DATE) : new Date(value)) : undefined
   const shown = stored ? formatLocal(stored) : ''
   // Like TextInput: the box owns what is typed; a new value from outside wins.
   const [text, setText] = useState(shown)
@@ -56,7 +54,7 @@ export function DateTimeInput({id, value, onChange, readOnly}: {id: string; valu
     const next = d ? formatLocal(d) : ''
     setText(next)
     setSeen(next)
-    onChange(d?.toISOString())
+    onChange(d ? (dateOnly ? formatDate(d, STORED_DATE) : d.toISOString()) : undefined)
   }
 
   return (
@@ -86,6 +84,8 @@ export function DateTimeInput({id, value, onChange, readOnly}: {id: string; valu
       {open && (
         <DatePicker
           value={stored}
+          dateOnly={dateOnly}
+          timeStep={options.timeStep}
           onPick={(d) => commit(d)}
           onClose={() => (setOpen(false), button.current?.focus())}
         />
@@ -94,7 +94,7 @@ export function DateTimeInput({id, value, onChange, readOnly}: {id: string; valu
   )
 }
 
-function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) => void; onClose: () => void}) {
+function DatePicker({value, dateOnly, timeStep = 1, onPick, onClose}: {value?: Date; dateOnly: boolean; timeStep?: number; onPick: (d: Date) => void; onClose: () => void}) {
   const t = useT()
   const locale = useLocale()
   const [focused, setFocused] = useState(() => value ?? new Date())
@@ -199,10 +199,11 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
           )
         })}
       </div>
-      <div className="dp-foot">
+      {!dateOnly && <div className="dp-foot">
         <span className="dp-time">
           <input
             type="time"
+            step={timeStep * 60}
             aria-label={t('Select time')}
             value={time}
             onChange={(e) => {
@@ -218,6 +219,8 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
           className="btn-text"
           onClick={() => {
             const now = new Date()
+            // On the time step's grid, as Sanity's picker (15: 11:07 → 11:00).
+            now.setMinutes(now.getMinutes() - (now.getMinutes() % timeStep), 0, 0)
             setTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`)
             setFocused(now)
             onPick(now)
@@ -225,7 +228,7 @@ function DatePicker({value, onPick, onClose}: {value?: Date; onPick: (d: Date) =
         >
           {t('Set to current time')}
         </button>
-      </div>
+      </div>}
     </div>
   )
 }

@@ -11,7 +11,7 @@ import {ChevronDown, ResetCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, C
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {toast} from './Toasts'
 import {BlockPresence, FieldPresence} from './Presence'
-import {DateTimeInput} from './DateTimeInput'
+import {DateTimeInput, type DateOptions} from './DateTimeInput'
 import {StringArrayInput, TagsInput} from './ArrayInputs'
 import {ObjectArrayInput} from './ObjectArrayInput'
 import {RefArrayInput} from './RefArrayInput'
@@ -367,7 +367,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'markdown':
       return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 5} readOnly={readOnly} />
     case 'date':
-      return <input id={path} className="input" type="date" value={str} readOnly={readOnly} onChange={(e) => onChange(e.target.value || undefined)} />
+      return <DateTimeInput id={path} value={str || undefined} onChange={onChange} readOnly={readOnly} dateOnly options={field.options as DateOptions | undefined} />
     case 'time':
       return <input id={path} className="input" type="time" value={str} readOnly={readOnly} onChange={(e) => onChange(e.target.value || undefined)} />
     case 'tags':
@@ -383,7 +383,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'codelist':
       return <CodelistInput id={path} codelistId={field.codelistId} value={value} onChange={onChange} readOnly={readOnly} />
     case 'datetime':
-      return <DateTimeInput id={path} value={value as string | undefined} onChange={onChange} readOnly={readOnly} />
+      return <DateTimeInput id={path} value={value as string | undefined} onChange={onChange} readOnly={readOnly} options={field.options as DateOptions | undefined} />
     case 'select':
       return <SelectInput id={path} field={field} value={value} onChange={onChange} />
     case 'boolean':
