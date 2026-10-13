@@ -199,7 +199,7 @@ type Asset = {id: string; name: string}
 type Use = {_id: string; _type: string; title?: string}
 
 /** Sanity's "Select image for <field>": the library as tiles; each tile's "…" shows where it is used. */
-function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; path: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
+export function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; path: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
   // A page at a time, newest first; "Load more" reads the next, as Sanity's picker does.
   // Each open starts again at the first page (gcTime 0): a cached list would show first
   // and then refetch every page it had loaded, one after another, with a fresh upload

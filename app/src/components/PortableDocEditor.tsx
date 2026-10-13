@@ -6,6 +6,8 @@ import {applyBlockOps, readBlocks, type Block, type BlockOp, type Blocks, type O
 import {toast} from './Toasts'
 import {setCanvasProblem, unsavedElsewhere} from '../lib/edits'
 import {existingAsset} from '../lib/upload'
+import {assetUrl} from '../lib/image'
+import {AssetPicker} from './ImageInput'
 import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
 import {reportSelection, usePresences, type CaretSelection} from '../lib/presence'
@@ -37,6 +39,8 @@ type Canvas = HTMLElement & {
   linkPreviewSource: ((t: LinkTarget) => Promise<{title?: string; excerpt?: string; href?: string} | null>) | null
   wikilinkSource: ((query: string) => Promise<{title: string; id: string; type: string}[]>) | null
   mediaUploader: ((file: File) => Promise<{src?: string; url?: string; alt?: string}>) | null
+  /** J11: the studio's own image dialog for the canvas's Image insert and an image's Select (Barkpark contract 1.4). */
+  mediaPicker?: ((request: {kind: 'insert' | 'replace'; current: {src: string; alt: string | null} | null}) => Promise<{src: string; alt?: string} | null>) | null
   hasPendingChanges(): boolean
   focusBlock(id: string): boolean
   /** D11: the other editors' carets (decorations only). */
@@ -166,6 +170,9 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   const keyRef = useRef('')
   keyRef.current = keptKey(scope ? JSON.stringify(scope) : '-', type, id, field)
   const [offer, setOffer] = useState<Kept | null>(null)
+  // J11: the canvas asks for a picture (its Image insert, an image's Select); the
+  // library dialog answers with the picked asset's address, or null when closed.
+  const [picking, setPicking] = useState<((picked: {src: string} | null) => void) | null>(null)
   const keepNow = () => {
     const blocks = canvas.current?.recoverySnapshot?.()?.blocks
     return Array.isArray(blocks) && keep(keyRef.current, {at: Date.now(), rev: loop.current.rev, blocks})
@@ -395,6 +402,9 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           if (!url) throw new Error(t('upload failed (no file url)'))
           return {src: url}
         }
+        // Sanity's Image opens its asset dialog: so does the canvas's, with ours (Barkpark 1.4+;
+        // an older canvas never asks).
+        el.mediaPicker = () => new Promise((resolve) => setPicking(() => resolve))
         // The `[[` menu: documents of any type.
         el.wikilinkSource = async (query) => {
           const schemas = qc.getQueryData<Schema[]>(['schemas']) ?? []
@@ -595,6 +605,27 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   return (
     <div className="pd-editor" onKeyDownCapture={onKeyDownCapture}>
       {finding && <FindBar canvas={findCanvas} opened={finding} onClose={closeFind} editable={editable} />}
+      {picking && (
+        <AssetPicker
+          title={t('Image')}
+          path={field ?? 'body'}
+          openRef={(docType, docId) => ({href: `/structure/${docType};${docId}`, selected: false, active: false})}
+          onPick={(ref) => {
+            const done = picking
+            setPicking(null)
+            // The asset's own address, as an upload answers it; the studio path if Barkpark has none.
+            void fetch(`${assetUrl(ref)}/info`)
+              .then((r) => (r.ok ? (r.json() as Promise<{url?: string}>) : null))
+              .catch(() => null)
+              .then((info) => done({src: info?.url || assetUrl(ref)}))
+          }}
+          onClose={() => {
+            const done = picking
+            setPicking(null)
+            done(null)
+          }}
+        />
+      )}
       <div className="pd-status" role="status">
         {save.state === 'saving' ? t('Saving…') : save.state === 'saved' ? t('Saved') : save.state === 'error' ? (problem?.conflict ? t('Conflict') : t('Not saved')) : ''}
       </div>
