@@ -27,6 +27,11 @@ test('J10: the body toolbar marks, sets a style, and refuses a script link', asy
   await expect(field.locator('.ProseMirror')).toBeFocused({timeout: 15_000})
   await page.keyboard.press('End')
   for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowLeft')
+  // ProseMirror reads a keyboard selection on the browser's selectionchange, a task
+  // after the key; a press before that runs on the selection it had (one char, in a
+  // CI run; the canvas fix is task-ee29b37ca1c6139d). Wait until the canvas reports the selection.
+  await expect.poll(() => page.evaluate(() => (document.querySelector('bp-paper-canvas') as unknown as {state(): {selection: {empty: boolean}}}).state().selection.empty)).toBe(false)
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null)))))
   await bar.getByRole('button', {name: 'Strong'}).click()
   await expect(bar.getByRole('button', {name: 'Strong'})).toHaveAttribute('aria-pressed', 'true')
   await expect(field.locator('.ProseMirror strong')).toHaveText('1.')
