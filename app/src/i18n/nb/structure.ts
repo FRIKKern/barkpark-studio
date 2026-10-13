@@ -134,6 +134,8 @@ export default {
   'Structure item of type': 'Strukturelement av type',
   'is not a known entity.': 'er ikke en kjent enhet.',
   'The document was not found': 'Dokumentet ble ikke funnet',
+  '…Rest': '…Resten',
+  'No schema for this type': 'Typen har ikke noe skjema',
   'This list is not in the desk': 'Denne listen finnes ikke i desken',
   'Your work is automatically saved!': 'Arbeidet ditt lagres automatisk!',
 

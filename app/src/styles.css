@@ -249,6 +249,8 @@ a { color: inherit; text-decoration: none; }
   font-size: 13px; line-height: 19px; font-weight: 500; height: 33px;
 }
 .type-row:hover { background: var(--hover); }
+.type-row-static { color: var(--muted); cursor: default; }
+.type-row-static:hover { background: none; }
 .type-row .chev { margin-left: auto; color: var(--muted); }
 .type-row[data-selected] { background: var(--hover-strong); }
 .type-row[aria-current='true'] { background: var(--selected); color: var(--on-selected); }

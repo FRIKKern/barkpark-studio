@@ -53,6 +53,20 @@ export async function readDesk(): Promise<unknown | null> {
 }
 
 /**
+ * Barkpark's "…Rest": the doc types in this dataset that no desk row places (its own
+ * tree's last group), so no type is silently out of reach. A type with a schema opens
+ * as a list; one without (orphaned) is a count only, as in LiveView. Never fatal: a
+ * failed read just leaves the group out.
+ */
+export async function readRest(): Promise<unknown[]> {
+  if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return []
+  const res = await bpFetch(`/v1/structure/${dataset()}`, {}, serviceToken()).catch(() => null)
+  if (!res?.ok) return []
+  const tree = ((await res.json()) as {structure?: {items?: {id?: string; items?: unknown[]}[]}}).structure
+  return tree?.items?.find((i) => i.id === 'rest')?.items ?? []
+}
+
+/**
  * The content model as one short string (each type's name and Barkpark's schemaHash):
  * when it differs from what a tab loaded, a schema was changed under it (lib/version.ts).
  */
