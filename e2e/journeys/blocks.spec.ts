@@ -203,7 +203,14 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     await item.click({timeout: 5_000}).catch(() => note('image item', 'not clickable'))
     // Our library dialog opens on it, as Sanity's (mediaPicker, #538): pick the first picture.
     const library = page.getByRole('dialog').filter({hasText: 'Select image'})
-    await library.locator('.media-tile, button:has(img)').first().click({timeout: 10_000})
+    // The first tile showing a real picture (the library also holds blank test uploads).
+    const tiles = library.locator('.asset-pick')
+    await tiles.first().waitFor({timeout: 10_000})
+    await page.waitForTimeout(800)
+    const real = await tiles.evaluateAll((els) => els.findIndex((el) => { const img = el.querySelector('img'); return !!img && img.naturalWidth > 64 }))
+    await tiles.nth(Math.max(real, 0)).click()
+    // The picture itself in the block, loaded.
+    await expect.poll(() => page.locator('bp-paper-canvas .bp-canvas-image-img[src]').last().evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0), {timeout: 10_000}).toBe(true)
     await expect(library).toHaveCount(0)
     // Saved with the next batch, a moment after the pick.
     const saved = await expect.poll(async () => (await blockKinds(t)).includes('image'), {timeout: 10_000}).toBe(true).then(() => true, () => false)
