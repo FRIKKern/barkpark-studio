@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 21 changes
+- **Today** · 22 changes
+  - fix(pane): a deleted doc's banner waits for its delete in the history, not "not found" ([#548](https://github.com/FRIKKern/barkpark-studio/pull/548))
   - J47 sweep fixes: Formatting toolbar arrow keys, named menus, dialog focus, AA colours ([#547](https://github.com/FRIKKern/barkpark-studio/pull/547))
   - e2e(J35): the expanded editor's Internal link, Chip and Callout ([#546](https://github.com/FRIKKern/barkpark-studio/pull/546))
-  - fix(body): a document link draws as a link in the body at rest ([#545](https://github.com/FRIKKern/barkpark-studio/pull/545))
 - **Yesterday** · 15 changes, 77 tasks closed
   - search-quality: the ids' tied docs count as a set (seeded at once, either can be older) ([#526](https://github.com/FRIKKern/barkpark-studio/pull/526))
   - J59 evidence: the side-by-side records a body-paragraph click too (#524) ([#525](https://github.com/FRIKKern/barkpark-studio/pull/525))
