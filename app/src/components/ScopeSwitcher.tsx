@@ -56,8 +56,9 @@ function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; o
   useEffect(() => {
     const o = options.data
     if (!o) return
-    if (o.projects.length && !o.projects.some((p) => p.slug === pick.project)) setPick((s) => ({...s, project: o.projects[0]!.slug}))
-    else if (o.datasets.length && !o.datasets.some((d) => d.slug === pick.dataset)) setPick((s) => ({...s, dataset: o.datasets[0]!.slug}))
+    const {projects = [], datasets = []} = o
+    if (projects.length && !projects.some((p) => p.slug === pick.project)) setPick((s) => ({...s, project: projects[0]!.slug}))
+    else if (datasets.length && !datasets.some((d) => d.slug === pick.dataset)) setPick((s) => ({...s, dataset: datasets[0]!.slug}))
   }, [options.data])
   const same = pick.workspace === current.workspace && pick.project === current.project && pick.dataset === current.dataset
   const field = (label: string, key: keyof Scope, list?: {slug: string; name: string}[]) => (
