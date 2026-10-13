@@ -1179,6 +1179,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .body-style svg, .body-insert svg { width: 19px; height: 19px; flex: none; }
 .body-insert { padding-right: 6px; color: var(--muted); }
 .body-link { position: absolute; top: 100%; left: 0; z-index: 30; padding: 4px; width: 260px; }
+.body-doclink { width: 300px; }
+.body-doclink-list { list-style: none; margin: 4px 0 0; padding: 0; max-height: 240px; overflow-y: auto; }
+.body-doclink-list [aria-selected='true'] { background: var(--hover); }
 .body-link-refused { margin: 4px 2px 0; font-size: 12px; line-height: 16px; color: var(--critical-icon); }
 /* The canvas's + and drag gutter needs 52 px left of the text; the inline field has no
    such room and Sanity's shows none: there it shows only when expanded. A block object

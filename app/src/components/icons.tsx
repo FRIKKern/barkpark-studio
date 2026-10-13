@@ -429,6 +429,12 @@ export const InlineIcon = () => (
     <path d="M5 7.5V17.5M20 7.5V17.5M8.5 9.5H16.5V15.5H8.5V9.5Z" />
   </svg>
 )
+/** A link to a document (Sanity's internal link annotation): a page with a link. */
+export const DocLinkIcon = () => (
+  <svg {...s}>
+    <path d="M10 5.5H6.5V19.5H18.5V14M13.5 5.5H18.5V10.5M18.5 5.5L11.5 12.5" />
+  </svg>
+)
 /** Sanity's BlockElementIcon: an inserted block object (a callout). */
 export const BlockIcon = () => (
   <svg {...s}>

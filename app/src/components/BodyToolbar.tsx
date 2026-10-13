@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type ReactNode, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, ImageIcon, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
+import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, DocLinkIcon, ImageIcon, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
 import {useT} from '../lib/i18n'
 import {loadCanvas} from '../lib/canvas-bundle'
 import {linkHref} from '../lib/link-href'
@@ -13,13 +13,16 @@ import {linkHref} from '../lib/link-href'
 // toolbar commands the field keeps its expand button alone, as before.
 
 type Command = 'toggleMark' | 'setBlockStyle' | 'toggleList' | 'insertBlock' | 'insertInline'
-type ToolbarState = {marks: string[]; blockStyle: string | null; list: string | null; link: {href: string} | null}
+type ToolbarState = {marks: string[]; blockStyle: string | null; list: string | null; link: {href: string} | null; wikilink?: {target: string; docId: string | null} | null}
+type DocHit = {title: string; id: string; type: string}
 type Canvas = HTMLElement & {
+  /** The canvas's own `[[` document search, which the studio sets (PortableDocEditor). */
+  wikilinkSource?: ((query: string) => Promise<DocHit[]>) | null
   run?: (command: Command, args?: object) => boolean
   can?: (command: Command, args?: object) => boolean
   state?: () => ToolbarState
 }
-type Vocabulary = {styles?: string[]; lists?: string[]; marks?: string[]; annotations?: {name: string}[]; of?: (string | {name: string; title?: string})[]; inline?: (string | {name: string; title?: string})[]}
+type Vocabulary = {styles?: string[]; lists?: string[]; marks?: string[]; annotations?: {name: string; fields?: {name: string; to?: {type: string}[]}[]}[]; of?: (string | {name: string; title?: string})[]; inline?: (string | {name: string; title?: string})[]}
 
 const STYLES = ['normal', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote']
 const STYLE_LABEL: Record<string, string> = {normal: 'Normal', h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3', h4: 'Heading 4', h5: 'Heading 5', h6: 'Heading 6', blockquote: 'Quote'}
@@ -45,6 +48,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   const [styleMenu, setStyleMenu] = useState(false)
   // The link input, open with the address it starts from ('' for a new link).
   const [linking, setLinking] = useState<string | null>(null)
+  const [docLinking, setDocLinking] = useState(false)
   const rest = !!onWake
   // Whether the connected Barkpark's canvas has toolbar commands: its bundle is fetched
   // once the page is idle, so a field at rest shows the toolbar it will have.
@@ -95,6 +99,10 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   const marks = MARKS.filter(([, schema]) => !vocab.marks || vocab.marks.includes(schema))
   const lists = LISTS.filter(([kind]) => !vocab.lists || vocab.lists.includes(kind))
   const link = !vocab.annotations || vocab.annotations.some((a) => a.name === 'link')
+  // Sanity's internalLink (a link to a document) is the canvas's document link, wikilink
+  // (Barkpark 1.7+), declared under either name. A reference's `to` narrows the search.
+  const internal = vocab.annotations?.find((a) => a.name === 'internalLink' || a.name === 'wikilink')
+  const internalTypes = internal?.fields?.flatMap((f) => f.to?.map((x) => x.type) ?? []) ?? []
   const inserts = (vocab.of ?? ['image', 'callout']).map((o) => (typeof o === 'string' ? {name: o, title: o === 'image' ? 'Image' : o === 'callout' ? 'Callout' : o} : {name: o.name, title: o.title ?? o.name}))
   // Sanity's inline objects (a chip) after the blocks: "Insert Chip (inline)" (Barkpark 1.6+).
   const inlines = (vocab.inline ?? []).map((o) => (typeof o === 'string' ? {name: o, title: o} : {name: o.name, title: o.title ?? o.name})).map((o) => ({...o, title: o.title.charAt(0).toUpperCase() + o.title.slice(1)}))
@@ -151,6 +159,26 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
           </div>
         </>
       )}
+      {internal && (
+        <div className="menu-wrap">
+          <ToolButton
+            label={t('Internal link')}
+            pressed={!!state.wikilink}
+            // One in place is removed; otherwise a document is asked for (it needs a selection).
+            disabled={live && !(state.wikilink ? can('toggleMark', {mark: 'wikilink'}) : can('toggleMark', {mark: 'wikilink', docId: 'x'}))}
+            onClick={() => (onWake ? onWake() : state.wikilink ? act('toggleMark', {mark: 'wikilink'}) : setDocLinking(true))}
+          >
+            <DocLinkIcon />
+          </ToolButton>
+          {docLinking && canvas?.wikilinkSource && (
+            <DocLinkInput
+              search={canvas.wikilinkSource}
+              types={internalTypes}
+              onDone={(hit) => (setDocLinking(false), hit && act('toggleMark', {mark: 'wikilink', docId: hit.id, target: hit.title}))}
+            />
+          )}
+        </div>
+      )}
       {inserts.length + inlines.length > 0 && <span className="body-toolbar-sep" />}
       {inserts.map(({name, title}) => (
         <button key={name} type="button" className="body-insert" aria-label={t('Insert {typeName} (block)', {typeName: t(title)})} disabled={!can('insertBlock', {type: name})} onClick={() => act('insertBlock', {type: name})}>
@@ -173,6 +201,56 @@ function ToolButton({label, pressed, disabled, onClick, children}: {label: strin
     <button type="button" className="icon-btn body-tool" aria-label={label} data-tip={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
       {children}
     </button>
+  )
+}
+
+/** The document an internal link goes to, searched in place as the canvas's `[[` menu
+ *  searches (its wikilinkSource): Up/Down and Enter or a click pick, Escape cancels. */
+function DocLinkInput({search, types, onDone}: {search: (query: string) => Promise<DocHit[]>; types: string[]; onDone: (hit: DocHit | null) => void}) {
+  const t = useT()
+  const input = useRef<HTMLInputElement>(null)
+  const [query, setQuery] = useState('')
+  const [hits, setHits] = useState<DocHit[]>([])
+  const [active, setActive] = useState(0)
+  useEffect(() => input.current?.focus(), [])
+  useEffect(() => {
+    let live = true
+    const timer = setTimeout(() => {
+      void search(query)
+        .then((all) => live && (setHits(all.filter((h) => !types.length || types.includes(h.type)).slice(0, 8)), setActive(0)))
+        .catch(() => live && setHits([]))
+    }, 150)
+    return () => ((live = false), clearTimeout(timer))
+  }, [query])
+  return (
+    <div className="popover body-link body-doclink" onMouseDown={(e) => e.stopPropagation()}>
+      <input
+        ref={input}
+        className="input"
+        type="search"
+        role="combobox"
+        aria-expanded={hits.length > 0}
+        aria-controls="body-doclink-list"
+        aria-activedescendant={hits[active] ? `body-doclink-${active}` : undefined}
+        aria-label={t('Internal link')}
+        placeholder={t('Search documents')}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') (e.preventDefault(), setActive((i) => (hits.length ? (i + (e.key === 'ArrowDown' ? 1 : hits.length - 1)) % hits.length : 0)))
+          if (e.key === 'Enter') (e.preventDefault(), hits[active] && onDone(hits[active]))
+          if (e.key === 'Escape') (e.preventDefault(), e.stopPropagation(), onDone(null))
+        }}
+        onBlur={() => onDone(null)}
+      />
+      <ul className="body-doclink-list" id="body-doclink-list" role="listbox" aria-label={t('Documents')}>
+        {hits.map((h, i) => (
+          <li key={h.id} id={`body-doclink-${i}`} role="option" aria-selected={i === active} className="menu-item" onMouseDown={(e) => (e.preventDefault(), onDone(h))}>
+            {h.title}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

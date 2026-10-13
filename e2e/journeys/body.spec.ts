@@ -121,7 +121,7 @@ test('@evidence J10: body — shortcuts, marks, styles, link, lists', async ({pa
     await url.fill('https://example.com/j10')
     await page.keyboard.press('Escape')
   } else {
-    await page.getByRole('toolbar', {name: 'Formatting'}).getByRole('button', {name: 'Link'}).click()
+    await page.getByRole('toolbar', {name: 'Formatting'}).getByRole('button', {name: 'Link', exact: true}).click()
     await page.getByRole('textbox', {name: 'Link'}).fill('https://example.com/j10')
     await page.keyboard.press('Enter')
   }
