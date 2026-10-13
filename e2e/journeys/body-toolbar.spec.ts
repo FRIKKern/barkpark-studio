@@ -23,6 +23,16 @@ test('J10: the body toolbar marks, sets a style, and refuses a script link', asy
   const field = page.locator('.body-canvas')
   const bar = field.getByRole('toolbar', {name: 'Formatting'})
   await expect(bar).toBeVisible({timeout: 15_000})
+  // What happened around the selection, for the report when it does not hold: focus
+  // moves, keys, the browser's selectionchange and the canvas's transactions (CI ci-3
+  // lost the Shift+ArrowLeft selection twice, once even with the canvas flush).
+  await page.evaluate(() => {
+    const log: string[] = ((window as unknown as {__selLog: string[]}).__selLog = [])
+    const at = () => Math.round(performance.now())
+    document.addEventListener('focusin', (e) => log.push(`focus ${(e.target as HTMLElement).tagName}.${String((e.target as HTMLElement).className).slice(0, 24)}@${at()}`), true)
+    document.addEventListener('keydown', (e) => log.push(`key ${e.key}${e.defaultPrevented ? '!' : ''}@${at()}`), true)
+    document.addEventListener('selectionchange', () => log.push(`sel ${JSON.stringify(getSelection()?.toString())}@${at()}`))
+  })
   await field.getByText('Body paragraph for post 1.').click()
   await expect(field.locator('.ProseMirror')).toBeFocused({timeout: 15_000})
   await page.keyboard.press('End')
@@ -30,7 +40,15 @@ test('J10: the body toolbar marks, sets a style, and refuses a script link', asy
   // ProseMirror reads a keyboard selection on the browser's selectionchange, a task
   // after the key; a press before that runs on the selection it had (one char, in a
   // CI run; the canvas fix is task-ee29b37ca1c6139d). Wait until the canvas reports the selection.
-  await expect.poll(() => page.evaluate(() => (document.querySelector('bp-paper-canvas') as unknown as {state(): {selection: {empty: boolean}}}).state().selection.empty)).toBe(false)
+  await expect
+    .poll(() => page.evaluate(() => (document.querySelector('bp-paper-canvas') as unknown as {state(): {selection: {empty: boolean}}}).state().selection.empty))
+    .toBe(false)
+    .catch(async (e) => {
+      const why = await page.evaluate(() => ({active: `${document.activeElement?.tagName}.${String(document.activeElement?.className).slice(0, 40)}`, dom: getSelection()?.toString(), log: (window as unknown as {__selLog?: string[]}).__selLog?.slice(-40)}))
+      info.annotations.push({type: 'selection lost', description: JSON.stringify(why)})
+      console.log('[selection lost]', JSON.stringify(why))
+      throw e
+    })
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null)))))
   await bar.getByRole('button', {name: 'Strong'}).click()
   await expect(bar.getByRole('button', {name: 'Strong'})).toHaveAttribute('aria-pressed', 'true')
