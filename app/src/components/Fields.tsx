@@ -68,7 +68,7 @@ export function LevelIcon({level, label}: {level: Level; label?: string}) {
   const t = useT()
   const Icon = LEVEL_ICON[level]
   return (
-    <span className="error-icon" data-level={level} role="img" aria-label={label ?? t(LEVEL_WORD[level])} title={label}>
+    <span className="error-icon" data-level={level} role="img" aria-label={label || t(LEVEL_WORD[level])} title={label}>
       <Icon />
     </span>
   )

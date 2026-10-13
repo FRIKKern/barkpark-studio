@@ -72,7 +72,9 @@ export function useFocusScope<T extends HTMLElement>({trap = false, menu = false
   // Focus moves in if nothing inside took it (no autoFocus); it goes back out on close.
   useEffect(() => {
     const root = node.current
-    if (root && !root.contains(document.activeElement)) (menu ? root.querySelector<HTMLElement>('[role^=menuitem]:not([disabled])') : focusables(root)[0])?.focus()
+    // Nothing to focus yet (a control still loading, disabled): the dialog itself, so a
+    // screen reader says where it is (J47).
+    if (root && !root.contains(document.activeElement)) ((menu ? root.querySelector<HTMLElement>('[role^=menuitem]:not([disabled])') : focusables(root)[0]) ?? ((root.tabIndex = -1), root)).focus()
     return () => {
       const active = document.activeElement
       const lost = !active || active === document.body || (root && root.contains(active)) || !active.isConnected

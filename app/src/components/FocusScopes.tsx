@@ -10,12 +10,17 @@ type DivProps = HTMLAttributes<HTMLDivElement> & {children: ReactNode; onClose: 
 /** A menu popover: arrow keys move, Escape and Tab close, focus returns to its button. */
 export function MenuPopover({onClose, className = 'popover menu', children, ...rest}: DivProps) {
   const scope = useFocusScope<HTMLDivElement>({menu: true, onDismiss: onClose})
+  // A menu is named after the button that opened it (J47: "Document actions, menu"), unless named here.
+  const [named] = useState(() => (rest['aria-label'] || rest['aria-labelledby'] || typeof document === 'undefined' ? undefined : nameOf(document.activeElement)))
   return (
-    <div ref={scope} className={className} role="menu" {...rest}>
+    <div ref={scope} className={className} role="menu" aria-label={named} {...rest}>
       {children}
     </div>
   )
 }
+
+// The opener only (Safari leaves focus on the page when a button is clicked).
+const nameOf = (el: Element | null) => (el?.matches('button, [role="button"], [aria-haspopup]') ? el.getAttribute('aria-label') || el.textContent?.trim() || undefined : undefined)
 
 /** A dialog (modal or popover confirm): Tab stays inside, Escape closes, focus returns to its opener. */
 export function DialogBox({onClose, children, ...rest}: DivProps) {
