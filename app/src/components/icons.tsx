@@ -423,6 +423,12 @@ export const OlistIcon = () => (
     <path d="M10 7.5H19M10 12.5H19M10 17.5H19M5 18.5H7.5L7 17.5L7.5 16.5H5M5 6.5H6.5V8.5M5 8.5H6.5M6.5 8.5H8M8 13.5H6L7 11.5H5" />
   </svg>
 )
+/** Sanity's InlineElementIcon: an inline object in the text (a chip). */
+export const InlineIcon = () => (
+  <svg {...s}>
+    <path d="M5 7.5V17.5M20 7.5V17.5M8.5 9.5H16.5V15.5H8.5V9.5Z" />
+  </svg>
+)
 /** Sanity's BlockElementIcon: an inserted block object (a callout). */
 export const BlockIcon = () => (
   <svg {...s}>
