@@ -56,7 +56,7 @@ test('@evidence J48: session lost mid-edit fails closed; signing in again saves 
   await page.screenshot({path: shot('1-logged-out')})
 
   // Sign in again, right there: the waiting edit goes out, as editor A.
-  await footer.getByRole('button', {name: 'Sign in'}).click()
+  await footer.getByRole('button', {name: 'Sign in', exact: true}).click()
   const dialog = page.getByRole('dialog', {name: "You've been logged out"})
   await dialog.locator('#sign-in-again-email').fill('studio-editor-a@example.com')
   await dialog.getByRole('button', {name: 'Sign in'}).click()
