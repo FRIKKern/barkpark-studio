@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {lazy, Suspense, useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
@@ -25,6 +25,8 @@ import {toast} from './Toasts'
 // per editor on the server (lib/vision-queries.ts) and shared ones in the dataset
 // (lib/vision-shared.ts), in a panel on the right.
 
+/** CodeMirror arrives with Vision only: other tools don't load it. */
+const VisionEditor = lazy(() => import('./VisionEditor'))
 const KEY = 'bp-vision'
 const EXAMPLE = 'post?order=_updatedAt:desc&limit=5'
 const NO_PARAMS = '{\n  \n}'
@@ -163,28 +165,43 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
           <label htmlFor="vision-query" className="menu-label">
             {t('Query')}
           </label>
-          <textarea
-            id="vision-query"
-            className="vision-code"
-            spellCheck={false}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
-          />
+          {/* Sanity's code editor (CodeMirror, loaded with Vision only); a plain box until it arrives. */}
+          <Suspense
+            fallback={
+              <textarea
+                id="vision-query"
+                className="vision-code"
+                spellCheck={false}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
+              />
+            }
+          >
+            <VisionEditor id="vision-query" label={t('Query')} language="query" value={query} onChange={setQuery} onRun={() => void fetchIt()} />
+          </Suspense>
           <p className="vision-hint">
             {t("A type, then Barkpark's query string:")} <code>filter[field][op]=value</code>, <code>order</code>, <code>limit</code>. {t('$name takes its value from Params.')}
           </p>
           <label htmlFor="vision-params" className="menu-label">
             {t('Params')}
           </label>
-          <textarea
-            id="vision-params"
-            className="vision-code vision-params"
-            spellCheck={false}
-            value={params}
-            onChange={(e) => setParams(e.target.value)}
-            onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
-          />
+          <Suspense
+            fallback={
+              <textarea
+                id="vision-params"
+                className="vision-code vision-params"
+                spellCheck={false}
+                value={params}
+                onChange={(e) => setParams(e.target.value)}
+                onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
+              />
+            }
+          >
+            <div className="vision-params">
+              <VisionEditor id="vision-params" label={t('Params')} language="json" value={params} onChange={setParams} onRun={() => void fetchIt()} />
+            </div>
+          </Suspense>
           <div className="vision-actions">
             <button type="button" className="btn btn-primary vision-fetch" disabled={busy} aria-keyshortcuts="Control+Enter Meta+Enter" onClick={() => void fetchIt()}>
               ▶ {t('Fetch')}

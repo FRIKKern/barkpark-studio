@@ -36,7 +36,7 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
   await query.fill('author')
   await saved.getByRole('searchbox', {name: 'Search queries'}).fill(marker)
   await row.getByRole('button', {name: `Load query Mine ${marker}`}).click()
-  await expect(query).toHaveValue(text)
+  await expect(query).toHaveText(text) // the code editor (contenteditable) shows the loaded query
   await saved.getByRole('button', {name: 'Save query'}).click()
   await page.getByRole('menuitem', {name: 'Save as personal'}).click()
   await expect(page.getByText('Query already saved')).toBeVisible()

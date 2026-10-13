@@ -1347,6 +1347,11 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 .vision-fetch { height: 33px; }
 /* J37: Sanity's Params box under the query (a third of the column) and Fetch beside Listen. */
 textarea.vision-code.vision-params { flex: 0 0 30%; border-top: 1px solid var(--border); }
+/* The code editors (VisionEditor.tsx): the query fills the column, Params the lower third. */
+.vision-query > .vision-editor { flex: 1; min-height: 0; overflow: hidden; }
+div.vision-params { flex: 0 0 30%; min-height: 0; display: flex; border-top: 1px solid var(--border); }
+div.vision-params > .vision-editor { flex: 1; min-height: 0; overflow: hidden; }
+.vision-editor .cm-editor { height: 100%; }
 .vision-actions { display: flex; gap: 8px; }
 .vision-actions .vision-fetch { flex: 1; }
 .vision-label-help { display: inline-flex; align-items: center; gap: 4px; }
