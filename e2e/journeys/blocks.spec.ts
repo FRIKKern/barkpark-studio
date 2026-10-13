@@ -72,14 +72,15 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     await page.keyboard.press('Enter')
     await page.keyboard.type('/')
     // The declared callout (tone + text) wins over the canvas's own (Barkpark #22846):
-    // the pick opens its field dialog, Tone only the declared options, titled.
+    // the pick opens our modal with our fields (editBlockObject, Barkpark #23043), as
+    // Sanity's does; closing it puts the callout in.
     await page.locator('.bp-slash-item').filter({hasText: 'Callout'}).click()
-    const dialog = page.locator('.bp-inline-object-dialog').filter({visible: true})
-    note('callout tones', await dialog.getByRole('combobox', {name: 'Tone'}).locator('option').allInnerTexts())
-    await dialog.getByRole('combobox', {name: 'Tone'}).selectOption('warning')
+    const dialog = page.getByRole('dialog', {name: 'Callout'})
+    note('callout tones', await dialog.getByRole('combobox').first().locator('option').allInnerTexts())
+    await dialog.getByRole('combobox').first().selectOption({label: 'Warning'})
     await dialog.getByRole('textbox', {name: 'Text'}).fill('Callout from J11')
     await page.screenshot({path: shot(t.name, '1-callout')})
-    await dialog.locator('.bp-inline-object-dialog__save').click()
+    await dialog.getByRole('button', {name: 'Close dialog'}).click()
   }
   // Sanity's block preview shows the type, not the text: count callouts on the server.
   await expect.poll(async () => (await blockKinds(t)).filter((k) => k === 'callout').length, {timeout: 10_000}).toBe(2)
@@ -88,9 +89,9 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     const tones = async () => (((await t.docValue(ID, 'body')) as {blocks?: {type: string; text?: string; tone?: string}[]})?.blocks ?? []).filter((b) => b.text === 'Callout from J11').map((b) => b.tone)
     await expect.poll(tones, {timeout: 10_000}).toEqual(['warning'])
     await ourCallout(page).dblclick()
-    const dialog = page.locator('.bp-inline-object-dialog').filter({visible: true})
-    await dialog.getByRole('combobox', {name: 'Tone'}).selectOption({label: 'Danger'})
-    await dialog.locator('.bp-inline-object-dialog__save').click()
+    const dialog = page.getByRole('dialog', {name: 'Callout'})
+    await dialog.getByRole('combobox').first().selectOption({label: 'Danger'})
+    await dialog.getByRole('button', {name: 'Close dialog'}).click()
     await expect.poll(tones, {timeout: 10_000}).toEqual(['danger'])
     note('callout tone edit', await tones())
     await expect(ourCallout(page)).toHaveText('Callout · Callout from J11')
@@ -101,11 +102,13 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     await page.keyboard.press('ControlOrMeta+p')
     await page.keyboard.type('Insert Callout')
     await page.keyboard.press('Enter')
-    const tone = dialog.getByRole('combobox', {name: 'Tone'})
+    const tone = dialog.getByRole('combobox').first()
     await expect(tone).toBeFocused()
     note('palette callout dialog', await tone.locator('option').allInnerTexts())
-    await page.keyboard.press('Tab')
-    await expect(dialog.getByRole('textbox', {name: 'Text'})).toBeFocused()
+    // Tab reaches Text past Tone's field actions (as in every field of ours).
+    const text = dialog.getByRole('textbox', {name: 'Text'})
+    for (let i = 0; i < 4 && !(await text.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab')
+    await expect(text).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
     expect(await page.evaluate(() => !!document.activeElement?.closest('bp-paper-canvas')), 'focus back in the canvas').toBe(true)
@@ -198,37 +201,27 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     const item = page.locator('.bp-slash-item[data-type="image"]')
     await item.scrollIntoViewIfNeeded({timeout: 5_000}).catch(() => {})
     await item.click({timeout: 5_000}).catch(() => note('image item', 'not clickable'))
+    // Our library dialog opens on it, as Sanity's (mediaPicker, #538): pick the first picture.
+    const library = page.getByRole('dialog').filter({hasText: 'Select image'})
+    await library.locator('.media-tile, button:has(img)').first().click({timeout: 10_000})
+    await expect(library).toHaveCount(0)
     // Saved with the next batch, a moment after the pick.
     const saved = await expect.poll(async () => (await blockKinds(t)).includes('image'), {timeout: 10_000}).toBe(true).then(() => true, () => false)
     note('image block', saved ? 'inserted' : 'not inserted (no / menu: see caret after Enter)')
     await page.screenshot({path: shot(t.name, '4-image')})
-    // 5. A chip, from the slash menu, on a fresh line at the bottom of the window:
-    // the dialog flips above the caret (Barkpark #22833), so Save stays on screen.
+    // 5. A chip, from the slash menu: our modal over the pane, as Sanity's inline
+    // object dialog (editBlockObject, Barkpark #23043), so it is never cut off.
     await page.locator('bp-paper-canvas').getByText(/Body paragraph for post 11/).click()
     await page.keyboard.press('End')
     await page.keyboard.press('Enter')
-    // The caret's line (an empty line's selection has no box: measure its element).
-    const lineBottom = () => page.evaluate(() => {
-      const n = getSelection()!.focusNode!
-      return (n instanceof Element ? n : n.parentElement!).getBoundingClientRect().bottom
-    })
-    await page.evaluate(() => { const n = getSelection()!.focusNode!; (n instanceof Element ? n : n.parentElement!).scrollIntoView({block: 'end'}) })
-    // The page may not scroll that far: a shorter window puts the line ~60 px from its bottom.
-    const size = page.viewportSize()!
-    const lineY = await lineBottom()
-    await page.setViewportSize({width: size.width, height: Math.round(lineY) + 60})
     await page.keyboard.type('/chip')
-    const caretY = await lineBottom()
     await page.locator('.bp-slash-menu').filter({visible: true}).getByText('Chip').click({timeout: 5_000}).catch(() => page.keyboard.press('Enter'))
-    const dlg = page.locator('.bp-inline-object-dialog').filter({visible: true})
+    const dlg = page.getByRole('dialog').filter({has: page.getByRole('heading', {name: /chip/i})})
     await dlg.getByRole('textbox').first().fill('Draft')
-    await dlg.locator('select').first().selectOption('caution')
+    const toneSelect = dlg.locator('select').first()
+    await toneSelect.selectOption({label: await toneSelect.locator('option', {hasText: /^caution$/i}).innerText()})
     await page.screenshot({path: shot(t.name, '4-inline')})
-    const save = (await dlg.locator('.bp-inline-object-dialog__save').boundingBox())!
-    note('chip dialog', {caretY: Math.round(caretY), dialogTop: Math.round((await dlg.boundingBox())!.y), saveBottom: Math.round(save.y + save.height), viewport: page.viewportSize()!.height})
-    expect(save.y + save.height).toBeLessThanOrEqual(page.viewportSize()!.height)
-    await dlg.locator('.bp-inline-object-dialog__save').click()
-    await page.setViewportSize(size)
+    await dlg.getByRole('button', {name: 'Close dialog'}).click()
     await expect.poll(() => chips(t), {timeout: 10_000}).toContain('Draft/caution')
     await expect(page.locator('bp-paper-canvas [aria-label="Chip: Draft"]')).toBeVisible()
     note('inline object', await chips(t))

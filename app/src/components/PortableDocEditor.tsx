@@ -8,6 +8,7 @@ import {setCanvasProblem, unsavedElsewhere} from '../lib/edits'
 import {existingAsset} from '../lib/upload'
 import {assetUrl} from '../lib/image'
 import {AssetPicker} from './ImageInput'
+import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
 import {reportSelection, usePresences, type CaretSelection} from '../lib/presence'
@@ -41,6 +42,8 @@ type Canvas = HTMLElement & {
   mediaUploader: ((file: File) => Promise<{src?: string; url?: string; alt?: string}>) | null
   /** J11: the studio's own image dialog for the canvas's Image insert and an image's Select (Barkpark contract 1.4). */
   mediaPicker?: ((request: {kind: 'insert' | 'replace'; current: {src: string; alt: string | null} | null}) => Promise<{src: string; alt?: string} | null>) | null
+  /** J11: the studio's own modal for a declared block or inline object (Barkpark contract 1.5). */
+  editBlockObject?: ((request: BlockObjectRequest) => Promise<Record<string, unknown> | null>) | null
   hasPendingChanges(): boolean
   focusBlock(id: string): boolean
   /** D11: the other editors' carets (decorations only). */
@@ -173,6 +176,9 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // J11: the canvas asks for a picture (its Image insert, an image's Select); the
   // library dialog answers with the picked asset's address, or null when closed.
   const [picking, setPicking] = useState<((picked: {src: string} | null) => void) | null>(null)
+  // J11: the canvas asks the studio to edit a declared object (a block or an inline
+  // object): our modal with our fields answers, or null when nothing changed.
+  const [objectEdit, setObjectEdit] = useState<{request: BlockObjectRequest; done: (value: Record<string, unknown> | null) => void} | null>(null)
   const keepNow = () => {
     const blocks = canvas.current?.recoverySnapshot?.()?.blocks
     return Array.isArray(blocks) && keep(keyRef.current, {at: Date.now(), rev: loop.current.rev, blocks})
@@ -405,6 +411,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // Sanity's Image opens its asset dialog: so does the canvas's, with ours (Barkpark 1.4+;
         // an older canvas never asks).
         el.mediaPicker = () => new Promise((resolve) => setPicking(() => resolve))
+        // Sanity edits a block object in a modal with its inputs: so does ours (1.5+).
+        el.editBlockObject = (request) => new Promise((done) => setObjectEdit({request, done}))
         // The `[[` menu: documents of any type.
         el.wikilinkSource = async (query) => {
           const schemas = qc.getQueryData<Schema[]>(['schemas']) ?? []
@@ -623,6 +631,19 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
             const done = picking
             setPicking(null)
             done(null)
+          }}
+        />
+      )}
+      {objectEdit && (
+        <BlockObjectDialog
+          key={JSON.stringify(objectEdit.request)}
+          request={objectEdit.request}
+          path={`${field ?? 'body'}.${objectEdit.request.type}`}
+          openRef={(docType, docId) => ({href: `/structure/${docType};${docId}`, selected: false, active: false})}
+          onDone={(value) => {
+            const {done} = objectEdit
+            setObjectEdit(null)
+            done(value)
           }}
         />
       )}
