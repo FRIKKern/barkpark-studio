@@ -3,6 +3,7 @@ import {usePaneNavigate} from './PaneLink'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {docQuery, type Doc} from '../lib/data'
 import {historyQuery, restoreRevision} from '../lib/history'
+import {deletedPoll, deletedState} from '../lib/deleted'
 import {applyServer, reapply, unsavedFor, useSaveState} from '../lib/edits'
 import {openAfter, type Pane} from '../lib/panes'
 import {toast} from './Toasts'
@@ -17,13 +18,21 @@ import {intlTag, t as tt, useLocale, useT} from '../lib/i18n'
 /**
  * Is this missing doc one that was deleted (its history ends in a delete), rather
  * than a new id? `undefined` while that is being found out. Barkpark keeps a doc's
- * history after a delete, so this holds after a reload too.
+ * history after a delete, so this holds after a reload too. A doc with history but
+ * no delete yet is read again for a few seconds (lib/deleted.ts) before it shows as
+ * "not found", which would hide its kept edits.
  */
 export function useDeleted(type: string, id: string, missing: boolean): boolean | undefined {
-  const {data: revisions, isError} = useQuery({...historyQuery(type, id), enabled: missing, staleTime: 0})
+  const qc = useQueryClient()
+  const query = historyQuery(type, id)
+  const {data: revisions, isError} = useQuery({
+    ...query,
+    enabled: missing,
+    staleTime: 0,
+    refetchInterval: (q) => (missing ? deletedPoll(q.state.data, q.state.dataUpdateCount) : false),
+  })
   if (!missing) return false
-  if (isError) return false
-  return revisions ? revisions[0]?.action === 'delete' : undefined
+  return deletedState(revisions, qc.getQueryState(query.queryKey)?.dataUpdateCount ?? 0, isError)
 }
 
 export function DeletedBanner({type, id}: {type: string; id: string}) {
