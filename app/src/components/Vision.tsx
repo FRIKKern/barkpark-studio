@@ -13,7 +13,7 @@ import {meQuery} from '../lib/session'
 import {intlTag, useLocale, useT} from '../lib/i18n'
 import {JsonTree} from './JsonTree'
 import {MenuPopover} from './FocusScopes'
-import {Add, Ellipsis, Search} from './icons'
+import {Add, Ellipsis, HelpCircle, Search} from './icons'
 import {toast} from './Toasts'
 
 // J37, Vision: Sanity's layout (dataset, perspective and the query URL with Copy on top,
@@ -27,17 +27,22 @@ import {toast} from './Toasts'
 
 const KEY = 'bp-vision'
 const EXAMPLE = 'post?order=_updatedAt:desc&limit=5'
-const load = (): {query: string; perspective: Perspective; dataset?: string} => {
+const NO_PARAMS = '{\n  \n}'
+const load = (): {query: string; perspective: Perspective; dataset?: string; params?: string} => {
   try {
     return {query: EXAMPLE, perspective: 'drafts', ...JSON.parse(localStorage.getItem(KEY) ?? '{}')}
   } catch {
     return {query: EXAMPLE, perspective: 'drafts'}
   }
 }
+// Sanity's perspective names; Barkpark's are drafts, published and raw.
+const PERSPECTIVE_LABEL: Record<Perspective, string> = {drafts: 'drafts', published: 'published', raw: 'No perspective (raw)'}
 
 export function Vision({dataset: pageDataset}: {dataset: string}) {
   const t = useT()
   const [query, setQuery] = useState(EXAMPLE)
+  // Sanity's Params: JSON whose keys the query names as $key (lib/vision-params.ts).
+  const [params, setParams] = useState(NO_PARAMS)
   const [perspective, setPerspective] = useState<Perspective>('drafts')
   const [dataset, setDataset] = useState(pageDataset)
   const [result, setResult] = useState<VisionResult & {total?: number; query?: string}>()
@@ -51,6 +56,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   useEffect(() => {
     const saved = load()
     setQuery(saved.query)
+    if (saved.params !== undefined) setParams(saved.params)
     setPerspective(saved.perspective)
     if (saved.dataset) setDataset(saved.dataset)
   }, [])
@@ -66,11 +72,12 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
       return undefined
     }
   })()
-  const failure = result && !result.ok && !result.error ? queryError(result.query ?? query, result.body) : null
+  // Where it went wrong, in the query as sent (its $params already put in).
+  const failure = result && !result.ok && !result.error ? queryError(result.sent ?? result.query ?? query, result.body) : null
   const csv = parsed === undefined ? null : toCsv(parsed)
   const remember = () => {
     try {
-      localStorage.setItem(KEY, JSON.stringify({query, perspective, dataset}))
+      localStorage.setItem(KEY, JSON.stringify({query, perspective, dataset, params}))
     } catch {}
   }
   useEffect(() => () => listening?.stop.abort(), [listening?.stop])
@@ -80,7 +87,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     setBusy(true)
     remember()
     const t0 = performance.now()
-    const r = await runVisionQuery({data: {query, perspective, dataset}}).catch((e: Error) => ({ok: false, status: 0, url: '', ms: 0, body: '', error: e.message}))
+    const r = await runVisionQuery({data: {query, perspective, dataset, params}}).catch((e: Error) => ({ok: false, status: 0, url: '', ms: 0, body: '', error: e.message}))
     setResult({...r, query, total: Math.round(performance.now() - t0)})
     setBusy(false)
   }
@@ -93,7 +100,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     setListening({stop, open: false, events: []})
     const update = (f: (l: NonNullable<typeof listening>) => NonNullable<typeof listening>) => setListening((l) => (l?.stop === stop ? f(l) : l))
     void listen(
-      {query, perspective, dataset},
+      {query, perspective, dataset, params},
       stop.signal,
       (e) => update((l) => ({...l, events: [e, ...l.events].slice(0, LISTEN_KEEP)})),
       () => update((l) => ({...l, open: true})),
@@ -113,11 +120,25 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
             ))}
           </select>
         </label>
+        {/* Sanity's API version; Barkpark's query API has the one, v1. */}
         <label>
-          <span className="menu-label">{t('Perspective')}</span>
+          <span className="menu-label">{t('API version')}</span>
+          <select className="input" value="v1" title={t("Barkpark's query API has one version")} onChange={() => {}}>
+            <option value="v1">v1</option>
+          </select>
+        </label>
+        <label>
+          <span className="menu-label vision-label-help">
+            {t('Perspective')}
+            <span className="vision-help" role="img" aria-label={t('About perspectives')} title={t('A perspective is the view of the content a query reads: drafts (each document as editors see it, draft over published), published only, or no perspective (raw: drafts and published as separate documents).')}>
+              <HelpCircle />
+            </span>
+          </span>
           <select className="input" value={perspective} onChange={(e) => setPerspective(e.target.value as Perspective)}>
             {PERSPECTIVES.map((p) => (
-              <option key={p}>{p}</option>
+              <option key={p} value={p}>
+                {t(PERSPECTIVE_LABEL[p])}
+              </option>
             ))}
           </select>
         </label>
@@ -151,18 +172,31 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
             onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
           />
           <p className="vision-hint">
-            {t("A type, then Barkpark's query string:")} <code>filter[field][op]=value</code>, <code>order</code>, <code>limit</code>.
+            {t("A type, then Barkpark's query string:")} <code>filter[field][op]=value</code>, <code>order</code>, <code>limit</code>. {t('$name takes its value from Params.')}
           </p>
-          <button type="button" className="btn btn-primary vision-fetch" disabled={busy} aria-keyshortcuts="Control+Enter Meta+Enter" onClick={() => void fetchIt()}>
-            ▶ {t('Fetch')}
-          </button>
-          <button type="button" className="btn vision-fetch" aria-pressed={live} onClick={listenIt}>
-            {live ? `■ ${t('Stop')}` : t('Listen')}
-          </button>
+          <label htmlFor="vision-params" className="menu-label">
+            {t('Params')}
+          </label>
+          <textarea
+            id="vision-params"
+            className="vision-code vision-params"
+            spellCheck={false}
+            value={params}
+            onChange={(e) => setParams(e.target.value)}
+            onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
+          />
+          <div className="vision-actions">
+            <button type="button" className="btn btn-primary vision-fetch" disabled={busy} aria-keyshortcuts="Control+Enter Meta+Enter" onClick={() => void fetchIt()}>
+              ▶ {t('Fetch')}
+            </button>
+            <button type="button" className="btn vision-fetch" aria-pressed={live} onClick={listenIt}>
+              {live ? `■ ${t('Stop')}` : `▶ ${t('Listen')}`}
+            </button>
+          </div>
         </section>
         <section className="vision-result" aria-label={t('Result')} aria-busy={busy}>
           <div className="menu-label">{t('Result')}</div>
-          <div className="vision-out-wrap">
+          <div className="vision-out-wrap" data-error={failure || result?.error || (result && !result.ok) ? '' : undefined}>
           {listening ? (
             <>
               {listening.error && <p role="alert" className="field-error">{listening.error}</p>}
