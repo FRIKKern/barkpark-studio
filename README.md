@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 12 changes
+- **Today** · 13 changes
+  - B10 spec: Barkpark now refuses a non-book's dry-run with a clear message ([#539](https://github.com/FRIKKern/barkpark-studio/pull/539))
   - feat(body): the canvas's Image opens the studio's Select image dialog (J11) ([#538](https://github.com/FRIKKern/barkpark-studio/pull/538))
   - search-quality: room for a slow Barkpark search (it guards results, not speed) ([#535](https://github.com/FRIKKern/barkpark-studio/pull/535))
-  - fix(scope): one refused scope list no longer disables the other switchers ([#537](https://github.com/FRIKKern/barkpark-studio/pull/537))
 - **Yesterday** · 15 changes, 77 tasks closed
   - search-quality: the ids' tied docs count as a set (seeded at once, either can be older) ([#526](https://github.com/FRIKKern/barkpark-studio/pull/526))
   - J59 evidence: the side-by-side records a body-paragraph click too (#524) ([#525](https://github.com/FRIKKern/barkpark-studio/pull/525))
