@@ -43,7 +43,8 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   const [canvas, setCanvas] = useState<Canvas | null>(null)
   const [state, setState] = useState<ToolbarState>(EMPTY)
   const [styleMenu, setStyleMenu] = useState(false)
-  const [linking, setLinking] = useState(false)
+  // The link input, open with the address it starts from ('' for a new link).
+  const [linking, setLinking] = useState<string | null>(null)
   const rest = !!onWake
   // Whether the connected Barkpark's canvas has toolbar commands: its bundle is fetched
   // once the page is idle, so a field at rest shows the toolbar it will have.
@@ -73,7 +74,13 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
     const read = () => setState({...EMPTY, ...canvas.state?.()})
     read()
     canvas.addEventListener('bp-selection-change', read)
-    return () => canvas.removeEventListener('bp-selection-change', read)
+    // Sanity draws no floating bubble: this toolbar is the field's only one (Barkpark
+    // #23026; an older canvas ignores the attribute). Mod+K and the link card's Edit then
+    // ask here, with the link's address, and open this toolbar's link input.
+    canvas.setAttribute('format-bubble', 'off')
+    const askLink = (e: Event) => (e.preventDefault(), setLinking((e as CustomEvent<{href: string | null}>).detail?.href ?? ''))
+    canvas.addEventListener('bp-canvas-link-request', askLink)
+    return () => (canvas.removeEventListener('bp-selection-change', read), canvas.removeEventListener('bp-canvas-link-request', askLink))
   }, [canvas])
 
   const live = !!canvas
@@ -134,11 +141,11 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
               pressed={!!state.link}
               // A link in place is removed; otherwise the address is asked for (it needs a selection).
               disabled={live && !(state.link ? can('toggleMark', {mark: 'link'}) : can('toggleMark', {mark: 'link', href: 'https://example.com'}))}
-              onClick={() => (onWake ? onWake() : state.link ? act('toggleMark', {mark: 'link'}) : setLinking(true))}
+              onClick={() => (onWake ? onWake() : state.link ? act('toggleMark', {mark: 'link'}) : setLinking(''))}
             >
               <LinkIcon />
             </ToolButton>
-            {linking && <LinkInput onDone={(href) => (setLinking(false), href && act('toggleMark', {mark: 'link', href}))} />}
+            {linking !== null && <LinkInput initial={linking} onDone={(href) => (setLinking(null), href && act('toggleMark', {mark: 'link', href}))} />}
           </div>
         </>
       )}
@@ -163,7 +170,7 @@ function ToolButton({label, pressed, disabled, onClick, children}: {label: strin
 
 /** The link's address, asked for in place (Enter sets it, Escape cancels). Only the
  *  reader's allowlist is taken (lib/link-href.ts): anything else says so and stays open. */
-function LinkInput({onDone}: {onDone: (href: string | null) => void}) {
+function LinkInput({initial, onDone}: {initial: string; onDone: (href: string | null) => void}) {
   const t = useT()
   const input = useRef<HTMLInputElement>(null)
   const [refused, setRefused] = useState(false)
@@ -173,6 +180,7 @@ function LinkInput({onDone}: {onDone: (href: string | null) => void}) {
       <input
         ref={input}
         className="input"
+        defaultValue={initial}
         type="url"
         aria-label={t('Link')}
         aria-invalid={refused || undefined}
