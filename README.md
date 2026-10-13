@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 17 changes
+- **Today** · 18 changes
+  - feat(body): Internal link on the body toolbar (J10/J35) ([#544](https://github.com/FRIKKern/barkpark-studio/pull/544))
   - e2e(J10): wait for the canvas to take the keyboard selection before Strong ([#543](https://github.com/FRIKKern/barkpark-studio/pull/543))
   - feat(body): Insert Chip (inline) on the body toolbar (J11/J35) ([#542](https://github.com/FRIKKern/barkpark-studio/pull/542))
-  - e2e(J11): pick a library tile showing a real picture and wait for it to load ([#541](https://github.com/FRIKKern/barkpark-studio/pull/541))
 - **Yesterday** · 15 changes, 77 tasks closed
   - search-quality: the ids' tied docs count as a set (seeded at once, either can be older) ([#526](https://github.com/FRIKKern/barkpark-studio/pull/526))
   - J59 evidence: the side-by-side records a body-paragraph click too (#524) ([#525](https://github.com/FRIKKern/barkpark-studio/pull/525))
