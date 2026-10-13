@@ -3,7 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {resumeMark} from '../server/listen'
-import {readDesk, readSchemas, STUDIO_TYPES} from '../server/schemas'
+import {readDesk, readRest, readSchemas, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import type {T} from './i18n'
@@ -397,6 +397,14 @@ export const fetchViewportHint = createServerFn({method: 'GET'}).handler(async (
 export const schemasQuery = queryOptions({queryKey: ['schemas'], queryFn: async () => (await fetchSchemas()) as unknown as Schema[], staleTime: Infinity})
 
 const fetchDesk = createServerFn({method: 'GET'}).handler(async () => (await readDesk()) as Json)
+const fetchRest = createServerFn({method: 'GET'}).handler(async () => (await readRest()) as Json)
+
+/** Barkpark's "…Rest" rows: doc types no desk row places (readRest). */
+export const restQuery = queryOptions({
+  queryKey: ['desk-rest'],
+  staleTime: 60_000,
+  queryFn: async (): Promise<DeskNode[]> => ((await fetchRest()) as unknown as DeskNode[]).filter((n) => n && (n.type === 'document_type_list' || n.type === 'document')),
+})
 
 /** B12: the workspace's declared desk, or null for the plain type list. */
 export const deskQuery = queryOptions({

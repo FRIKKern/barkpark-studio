@@ -2,7 +2,7 @@ import {Fragment, useContext, type ReactNode, useEffect, useLayoutEffect, useMem
 import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
-import {deskQuery, docQuery, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {deskQuery, restQuery, docQuery, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {deskIndex, deskSort, listFilter, rootDesk, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
 import {announce} from '../lib/announce'
@@ -326,9 +326,13 @@ function RootPane({panes, index}: {panes: Pane[]; index: number}) {
   return <DeskPane panes={panes} index={index} node={pane.kind === 'menu' ? menu : desk} />
 }
 
+/** Barkpark's "…Rest" row for a type with no schema (orphaned): a count, nothing to open. */
+const orphan = (item: DeskNode) => item.type === 'document' && !item.docId && item.id.startsWith('rest-')
+
 /** The pane a desk node opens: one of its rows. */
 function opens(item: DeskNode): Pane | undefined {
   if (item.type === 'list') return {kind: 'menu', node: item.id}
+  if (orphan(item)) return undefined
   if (item.type === 'document') return {kind: 'doc', id: item.docId ?? item.id, type: item.typeName ?? '', node: item.id}
   if (item.type === 'document_type_list') return {kind: 'list', type: item.typeName ?? '', node: item.id}
 }
@@ -350,7 +354,7 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
         {node?.items?.map((item, i) => {
           if (item.type === 'divider') return item.title ? <div key={item.id ?? i} className="desk-divider">{item.title}</div> : <hr key={item.id ?? i} className="desk-divider" />
           const target = opens(item)
-          if (!target) return null
+          if (!target) return orphan(item) ? <RestOrphan key={item.id} item={item} /> : null
           return (
             <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, target)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined} data-desk-node={item.id}>
               <DeskIcon name={item.icon} />
@@ -366,9 +370,23 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
   )
 }
 
+/** A "…Rest" type with no schema: its documents exist, but there is no form to open them in. */
+function RestOrphan({item}: {item: DeskNode}) {
+  const t = useT()
+  return (
+    <div className="type-row type-row-static" aria-disabled="true" title={t('No schema for this type')} data-desk-node={item.id}>
+      <DeskIcon name={item.icon} />
+      {item.title ?? item.id}
+    </div>
+  )
+}
+
 function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; selected?: string}) {
   const t = useT()
   const {data: schemas = [], isSuccess} = useQuery(schemasQuery)
+  // Barkpark's "…Rest": doc types in the dataset that no row here places (a type left
+  // out of the schema list, or orphaned): never silently out of reach, as in LiveView.
+  const {data: restAll = []} = useQuery(restQuery)
   // Sanity's default structure: one row per document type, in schema order.
   const order = ['post', 'author', 'category']
   // Types not named here keep the schema's order, after these (they used to sort first).
@@ -378,6 +396,8 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   // each opening its one document (id = the type's name).
   const singletons = schemas.filter((s) => s.singleton)
   const own = studioDesk()?.items ?? []
+  const listed = new Set([...schemas.map((s) => s.name), ...own.map((i) => i.typeName)])
+  const rest = restAll.filter((i) => !(i.type === 'document_type_list' && listed.has(i.typeName ?? '')))
   // A dataset with no schema yet: Sanity's "No document types" card, not an empty pane (and
   // not the studio's own items, which list types that are not there).
   if (isSuccess && schemas.length === 0)
@@ -432,6 +452,20 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
               </span>
             </PaneLink>
           ) : null
+        })}
+        {rest.length > 0 && <div className="desk-divider">{t('…Rest')}</div>}
+        {rest.map((item) => {
+          const to = opens(item)
+          return to ? (
+            <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, to)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined} data-desk-node={item.id}>
+              {item.title}
+              <span className="chev">
+                <ChevronRight />
+              </span>
+            </PaneLink>
+          ) : (
+            <RestOrphan key={item.id} item={item} />
+          )
         })}
       </div>
     </section>
