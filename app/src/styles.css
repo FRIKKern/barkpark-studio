@@ -1354,6 +1354,9 @@ div.vision-params > .vision-editor { flex: 1; min-height: 0; overflow: hidden; }
 .vision-editor .cm-editor { height: 100%; }
 .vision-actions { display: flex; gap: 8px; }
 .vision-actions .vision-fetch { flex: 1; }
+/* Listen is Sanity's grey button beside the blue Fetch. */
+.vision-actions .btn:not(.btn-primary) { background: var(--hover-strong); }
+.vision-actions .btn:not(.btn-primary):hover { background: var(--hover); }
 .vision-label-help { display: inline-flex; align-items: center; gap: 4px; }
 .vision-help { display: inline-flex; color: var(--muted); cursor: help; }
 .vision-help svg { width: 17px; height: 17px; }
