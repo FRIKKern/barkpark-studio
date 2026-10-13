@@ -18,10 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes
+- **Today** · 8 changes
+  - J37: Vision's Query and Params are code editors (CodeMirror 6, loaded with Vision only) ([#533](https://github.com/FRIKKern/barkpark-studio/pull/533))
   - J10: the body toolbar turns the canvas's floating bubble off; Mod+K and the link card's Edit open the toolbar's link input ([#534](https://github.com/FRIKKern/barkpark-studio/pull/534))
   - J37: Vision's Listen is a grey button, and the saved-queries tab reads Shared, as Sanity's ([#532](https://github.com/FRIKKern/barkpark-studio/pull/532))
-  - J37: Vision gets Sanity's Params, API version, perspective names and help, and the red error pane ([#528](https://github.com/FRIKKern/barkpark-studio/pull/528))
 - **Yesterday** · 15 changes, 77 tasks closed
   - search-quality: the ids' tied docs count as a set (seeded at once, either can be older) ([#526](https://github.com/FRIKKern/barkpark-studio/pull/526))
   - J59 evidence: the side-by-side records a body-paragraph click too (#524) ([#525](https://github.com/FRIKKern/barkpark-studio/pull/525))
