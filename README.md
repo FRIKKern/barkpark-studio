@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 3 changes
+- **Today** · 4 changes
+  - J40: the comments spec checks a new comment names its author (Studio with a shared token) ([#558](https://github.com/FRIKKern/barkpark-studio/pull/558))
   - Vision: Barkpark's query refusals in the workspace's language ([#556](https://github.com/FRIKKern/barkpark-studio/pull/556))
-  - e2e(field-types): drop the document-fieldset check until Barkpark keeps top-level fieldsets ([#557](https://github.com/FRIKKern/barkpark-studio/pull/557))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
