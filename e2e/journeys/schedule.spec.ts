@@ -11,7 +11,7 @@ test('J40: schedule a draft for publishing, then delete the schedule', async ({p
   const route = await fetch(`${bpBase()}/v1/data/schedules/${bpDataset()}`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
   test.skip(route.status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   const id = `post-schedule-${Date.now().toString(36)}`
-  await t.draftOnly(id, 'post', {title: 'Schedule probe'})
+  await t.draftOnly(id, 'post', {title: 'Schedule probe', slug: {_type: 'slug', current: id}})
   try {
     await t.prepare(context)
     await page.goto(t.docPath('post', id))

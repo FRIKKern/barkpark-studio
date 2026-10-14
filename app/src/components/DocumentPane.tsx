@@ -1034,7 +1034,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
             )}
             {/* J40: Sanity's Schedule publish (a draft to publish, a Barkpark that schedules), or Delete schedule once set. */}
             {!single && scheduleQ.data?.supported && !schedule && doc._draft && (
-              <button type="button" role="menuitem" className="menu-item" disabled={!canWrite || !!publishReason} title={publishReason} onClick={() => (setMenu(false), setScheduling(true))}>
+              <button type="button" role="menuitem" className="menu-item" disabled={!canWrite || !!publishReason || blocked > 0} title={publishReason ?? (blocked > 0 ? t('Cannot schedule draft due to validation issues in the current draft.') : undefined)} onClick={() => (setMenu(false), setScheduling(true))}>
                 <span className="menu-icon-text">
                   <Clock /> {t('Schedule publish')}
                 </span>
