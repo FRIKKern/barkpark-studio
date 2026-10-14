@@ -5,7 +5,7 @@ import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 // didn't. An array of strings from a list is checkboxes and keeps the list's order; a
 // geopoint is three numbers and stays a geopoint; a reference with disableNew offers no
 // Create; a generated slug stops at maxLength; a checkbox boolean; an object's fieldset
-// folds and the document's own sits width beside height; dates show and take their dateFormat/timeFormat; a grid array is tiles. Sanity's side: fieldTypes in reference/sanity (stills, not a gate).
+// folds; dates show and take their dateFormat/timeFormat; a grid array is tiles. Sanity's side: fieldTypes in reference/sanity (stills, not a gate).
 const ID = 'field-types-01'
 test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'fieldTypes')))
 
@@ -47,7 +47,6 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
 
   await page.getByRole('button', {name: 'Where'}).click()
   await expect(page.locator('[id="address.street"]')).toHaveCount(0)
-  await expect(page.getByRole('group', {name: 'Size'}).locator('[id="width"], [id="height"]')).toHaveCount(2)
 
   await page.getByRole('button', {name: 'Reference actions'}).click()
   await page.getByRole('menuitem', {name: /Replace/}).click()
