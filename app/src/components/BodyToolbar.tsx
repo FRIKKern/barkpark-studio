@@ -1,6 +1,6 @@
-import {useEffect, useRef, useState, type ReactNode, type RefObject} from 'react'
+import {Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, DocLinkIcon, ImageIcon, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
+import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, DocLinkIcon, Ellipsis, ImageIcon, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
 import {useT} from '../lib/i18n'
 import {loadCanvas} from '../lib/canvas-bundle'
 import {linkHref} from '../lib/link-href'
@@ -112,7 +112,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   // buttons (a screen reader announces it as a toolbar, so its users press those).
   const bar = useRef<HTMLDivElement>(null)
   const at = useRef(0)
-  const tools = () => [...(bar.current?.querySelectorAll<HTMLButtonElement>(':scope > button, :scope > .menu-wrap > button') ?? [])].filter((b) => !b.disabled)
+  const tools = () => [...(bar.current?.querySelectorAll<HTMLButtonElement>(':scope > .menu-wrap > button, :scope > .body-tool-slot > button, :scope > .body-tool-slot > .menu-wrap > button') ?? [])].filter((b) => !b.disabled)
   const roveTo = (list: HTMLButtonElement[], i: number) => {
     at.current = i
     list.forEach((b, j) => (b.tabIndex = j === i ? 0 : -1))
@@ -136,13 +136,137 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
     if (i >= 0) roveTo(list, i)
   }
 
+  // Sanity's fold: a narrow field puts the tail of each group (the marks, lists and links;
+  // the inserts) behind a "Show more" menu at that group's end, so nothing spills past the
+  // field. Widths are read with everything shown and kept per tool.
+  type Tool = {key: string; label: string; icon: ReactNode; pressed?: boolean; disabled: boolean; run: () => void; node: ReactNode; sep?: boolean}
+  const linkPopover = linking !== null && <LinkInput initial={linking} onDone={(href) => (setLinking(null), href && act('toggleMark', {mark: 'link', href}))} />
+  const docPopover = docLinking && canvas?.wikilinkSource && (
+    <DocLinkInput search={canvas.wikilinkSource} types={internalTypes} onDone={(hit) => (setDocLinking(false), hit && act('toggleMark', {mark: 'wikilink', docId: hit.id, target: hit.title}))} />
+  )
+  const actions: Tool[] = [
+    ...marks.map(([mark, , label, Icon]): Tool => ({key: mark, label: t(label), icon: <Icon />, pressed: state.marks.includes(mark), disabled: !can('toggleMark', {mark}), run: () => act('toggleMark', {mark}), node: null})),
+    ...lists.map(([kind, label, Icon], i): Tool => ({key: kind, label: t(label), icon: <Icon />, pressed: state.list === kind, disabled: !can('toggleList', {kind}), run: () => act('toggleList', {kind}), node: null, sep: i === 0 && marks.length > 0})),
+  ]
+  for (const tool of actions) tool.node = <ToolButton label={tool.label} pressed={!!tool.pressed} disabled={tool.disabled} onClick={tool.run}>{tool.icon}</ToolButton>
+  if (link) {
+    // A link in place is removed; otherwise the address is asked for (it needs a selection).
+    const run = () => (onWake ? onWake() : state.link ? act('toggleMark', {mark: 'link'}) : setLinking(''))
+    const disabled = live && !(state.link ? can('toggleMark', {mark: 'link'}) : can('toggleMark', {mark: 'link', href: 'https://example.com'}))
+    actions.push({key: 'link', label: t('Link'), icon: <LinkIcon />, pressed: !!state.link, disabled, run, sep: actions.length > 0, node: (
+      <div className="menu-wrap">
+        <ToolButton label={t('Link')} pressed={!!state.link} disabled={disabled} onClick={run}><LinkIcon /></ToolButton>
+        {linkPopover}
+      </div>
+    )})
+  }
+  if (internal) {
+    // One in place is removed; otherwise a document is asked for (it needs a selection).
+    const run = () => (onWake ? onWake() : state.wikilink ? act('toggleMark', {mark: 'wikilink'}) : setDocLinking(true))
+    const disabled = live && !(state.wikilink ? can('toggleMark', {mark: 'wikilink'}) : can('toggleMark', {mark: 'wikilink', docId: 'x'}))
+    actions.push({key: 'wikilink', label: t('Internal link'), icon: <DocLinkIcon />, pressed: !!state.wikilink, disabled, run, sep: actions.length > 0 && !link, node: (
+      <div className="menu-wrap">
+        <ToolButton label={t('Internal link')} pressed={!!state.wikilink} disabled={disabled} onClick={run}><DocLinkIcon /></ToolButton>
+        {docPopover}
+      </div>
+    )})
+  }
+  const insertTool = (name: string, title: string, kind: 'block' | 'inline', icon: ReactNode): Tool => {
+    const label = kind === 'block' ? t('Insert {typeName} (block)', {typeName: t(title)}) : t('Insert {typeName} (inline)', {typeName: t(title)})
+    const command = kind === 'block' ? 'insertBlock' : 'insertInline'
+    const disabled = !can(command, {type: name})
+    const run = () => act(command, {type: name})
+    return {key: `${kind}:${name}`, label: t(title), icon, disabled, run, node: (
+      <button type="button" className="body-insert" aria-label={label} disabled={disabled} onClick={run}>
+        {icon}
+        <span>{t(title)}</span>
+      </button>
+    )}
+  }
+  const insertTools = [
+    ...inserts.map(({name, title}) => insertTool(name, title, 'block', name === 'image' ? <ImageIcon /> : <BlockIcon />)),
+    ...inlines.map(({name, title}) => insertTool(name, title, 'inline', <InlineIcon />)),
+  ]
+
+  const widths = useRef(new Map<string, number>())
+  const [folded, setFolded] = useState<[number, number]>([0, 0])
+  const toolKeys = [...actions, ...insertTools].map((x) => x.key).join()
+  // Everything shown again when the tools change, to measure them.
+  useLayoutEffect(() => setFolded([0, 0]), [toolKeys])
+  const SEP = 8 // a separator: 1 px, its 6 px margin and the 1 px gap after it
+  useLayoutEffect(() => {
+    const el = bar.current
+    if (!el) return
+    const fit = () => {
+      for (const tool of el.querySelectorAll<HTMLElement>('[data-tool]')) widths.current.set(tool.dataset.tool!, tool.offsetWidth + 1)
+      const width = (tools: Tool[]) => tools.reduce((sum, x) => sum + (widths.current.get(x.key) ?? 25) + (x.sep ? SEP : 0), 0)
+      // Each part counts its width and the 1 px gap after it. Fixed: the style menu and the groups' separators.
+      const style = el.querySelector<HTMLElement>(':scope > .body-style-wrap')
+      let fixed = style ? style.offsetWidth + 1 : 0
+      if (actions.length && styles.length) fixed += SEP
+      if (insertTools.length) fixed += SEP
+      const more = 26
+      // The last tool has no gap after it: that 1 px is kept for rounding.
+      const room = el.clientWidth - fixed
+      const shown = [actions.length, insertTools.length]
+      const need = () => width(actions.slice(0, shown[0])) + width(insertTools.slice(0, shown[1])) + (shown[0] < actions.length ? more : 0) + (shown[1] < insertTools.length ? more : 0)
+      // Fold one at a time from the end of the wider group, as Sanity's two menus share the room.
+      while (need() > room && shown[0] + shown[1] > 0) {
+        const a = width(actions.slice(0, shown[0]))
+        const b = width(insertTools.slice(0, shown[1]))
+        if ((a >= b && shown[0] > 0) || shown[1] === 0) shown[0]--
+        else shown[1]--
+      }
+      const next: [number, number] = [actions.length - shown[0], insertTools.length - shown[1]]
+      setFolded((f) => (f[0] === next[0] && f[1] === next[1] ? f : next))
+    }
+    fit()
+    const watch = new ResizeObserver(fit)
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [toolKeys, supported, folded])
+  const [moreMenu, setMoreMenu] = useState<0 | 1 | null>(null)
+  const group = (tools: Tool[], fold: number, which: 0 | 1) => {
+    const shown = tools.slice(0, tools.length - fold)
+    const rest = tools.slice(tools.length - fold)
+    return (
+      <>
+        {shown.map((tool) => (
+          <Fragment key={tool.key}>
+            {tool.sep && <span className="body-toolbar-sep" />}
+            <span className="body-tool-slot" data-tool={tool.key}>{tool.node}</span>
+          </Fragment>
+        ))}
+        {rest.length > 0 && (
+          <div className="menu-wrap body-more-wrap" onMouseDown={(e) => e.stopPropagation()} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMoreMenu(null)}>
+            <button type="button" className="icon-btn body-tool" aria-label={t('Show more')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={moreMenu === which} onClick={() => (onWake ? onWake() : setMoreMenu((m) => (m === which ? null : which)))}>
+              <Ellipsis />
+            </button>
+            {moreMenu === which && (
+              <MenuPopover onClose={() => setMoreMenu(null)}>
+                {rest.map((tool) => (
+                  <button key={tool.key} type="button" role={tool.pressed === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={tool.pressed} className="menu-item body-more-item" disabled={tool.disabled} onClick={() => (setMoreMenu(null), tool.run())}>
+                    {tool.icon}
+                    <span>{tool.label}</span>
+                  </button>
+                ))}
+              </MenuPopover>
+            )}
+            {which === 0 && rest.some((x) => x.key === 'link') && linkPopover}
+            {which === 0 && rest.some((x) => x.key === 'wikilink') && docPopover}
+          </div>
+        )}
+      </>
+    )
+  }
+
   if (!supported) return <span className="body-toolbar" />
   return (
     <div ref={bar} className="body-toolbar" role="toolbar" aria-label={t('Formatting')} onMouseDown={keepSelection} onKeyDown={rove} onFocus={focused}>
       {styles.length > 0 && (
         // The style button takes focus (the canvas keeps its selection), so the menu returns
         // focus to it, inside this wrap, and leaving the wrap closes the menu.
-        <div className="menu-wrap" onMouseDown={(e) => e.stopPropagation()} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setStyleMenu(false)}>
+        <div className="menu-wrap body-style-wrap" onMouseDown={(e) => e.stopPropagation()} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setStyleMenu(false)}>
           <button type="button" className="body-style" aria-haspopup="menu" aria-expanded={styleMenu} disabled={live && !styles.some((s) => can('setBlockStyle', {style: s}))} onClick={() => (onWake ? onWake() : setStyleMenu((o) => !o))}>
             <span>{styleLabel}</span>
             <ChevronDown />
@@ -158,68 +282,10 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
           )}
         </div>
       )}
-      {marks.length > 0 && <span className="body-toolbar-sep" />}
-      {marks.map(([mark, , label, Icon]) => (
-        <ToolButton key={mark} label={t(label)} pressed={state.marks.includes(mark)} disabled={!can('toggleMark', {mark})} onClick={() => act('toggleMark', {mark})}>
-          <Icon />
-        </ToolButton>
-      ))}
-      {lists.length > 0 && <span className="body-toolbar-sep" />}
-      {lists.map(([kind, label, Icon]) => (
-        <ToolButton key={kind} label={t(label)} pressed={state.list === kind} disabled={!can('toggleList', {kind})} onClick={() => act('toggleList', {kind})}>
-          <Icon />
-        </ToolButton>
-      ))}
-      {link && (
-        <>
-          <span className="body-toolbar-sep" />
-          <div className="menu-wrap">
-            <ToolButton
-              label={t('Link')}
-              pressed={!!state.link}
-              // A link in place is removed; otherwise the address is asked for (it needs a selection).
-              disabled={live && !(state.link ? can('toggleMark', {mark: 'link'}) : can('toggleMark', {mark: 'link', href: 'https://example.com'}))}
-              onClick={() => (onWake ? onWake() : state.link ? act('toggleMark', {mark: 'link'}) : setLinking(''))}
-            >
-              <LinkIcon />
-            </ToolButton>
-            {linking !== null && <LinkInput initial={linking} onDone={(href) => (setLinking(null), href && act('toggleMark', {mark: 'link', href}))} />}
-          </div>
-        </>
-      )}
-      {internal && (
-        <div className="menu-wrap">
-          <ToolButton
-            label={t('Internal link')}
-            pressed={!!state.wikilink}
-            // One in place is removed; otherwise a document is asked for (it needs a selection).
-            disabled={live && !(state.wikilink ? can('toggleMark', {mark: 'wikilink'}) : can('toggleMark', {mark: 'wikilink', docId: 'x'}))}
-            onClick={() => (onWake ? onWake() : state.wikilink ? act('toggleMark', {mark: 'wikilink'}) : setDocLinking(true))}
-          >
-            <DocLinkIcon />
-          </ToolButton>
-          {docLinking && canvas?.wikilinkSource && (
-            <DocLinkInput
-              search={canvas.wikilinkSource}
-              types={internalTypes}
-              onDone={(hit) => (setDocLinking(false), hit && act('toggleMark', {mark: 'wikilink', docId: hit.id, target: hit.title}))}
-            />
-          )}
-        </div>
-      )}
-      {inserts.length + inlines.length > 0 && <span className="body-toolbar-sep" />}
-      {inserts.map(({name, title}) => (
-        <button key={name} type="button" className="body-insert" aria-label={t('Insert {typeName} (block)', {typeName: t(title)})} disabled={!can('insertBlock', {type: name})} onClick={() => act('insertBlock', {type: name})}>
-          {name === 'image' ? <ImageIcon /> : <BlockIcon />}
-          <span>{t(title)}</span>
-        </button>
-      ))}
-      {inlines.map(({name, title}) => (
-        <button key={name} type="button" className="body-insert" aria-label={t('Insert {typeName} (inline)', {typeName: t(title)})} disabled={!can('insertInline', {type: name})} onClick={() => act('insertInline', {type: name})}>
-          <InlineIcon />
-          <span>{t(title)}</span>
-        </button>
-      ))}
+      {actions.length > 0 && styles.length > 0 && <span className="body-toolbar-sep" />}
+      {group(actions, folded[0], 0)}
+      {insertTools.length > 0 && <span className="body-toolbar-sep" />}
+      {group(insertTools, folded[1], 1)}
     </div>
   )
 }

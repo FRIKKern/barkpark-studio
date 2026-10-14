@@ -1179,12 +1179,18 @@ fieldset.object-field > .field-actions { top: -38px; }
 .body-toolbar .icon-btn.body-tool svg { width: 21px; height: 21px; }
 .body-toolbar .icon-btn.body-tool[aria-pressed='true'] { background: var(--hover); color: var(--fg-strong); }
 .body-toolbar button:disabled { opacity: 0.4; cursor: default; }
-.body-toolbar-sep { flex: none; width: 1px; height: 17px; margin: 0 4px; background: var(--line); }
+.body-toolbar-sep { flex: none; width: 1px; height: 17px; margin: 0 3px; background: var(--line); }
 .body-style, .body-insert { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 4px 0 6px; border: 0; border-radius: 3px; background: none; font: inherit; font-size: 13px; color: var(--fg); cursor: pointer; white-space: nowrap; }
 .body-style { min-width: 84px; justify-content: space-between; }
 .body-style:hover:not(:disabled), .body-insert:hover:not(:disabled) { background: var(--hover); }
 .body-style svg, .body-insert svg { width: 19px; height: 19px; flex: none; }
-.body-insert { padding-right: 6px; color: var(--muted); }
+.body-insert { padding-right: 5px; color: var(--muted); }
+.body-tool-slot { display: inline-flex; flex: none; }
+/* Sanity's fold: the tools that don't fit sit in a "Show more" menu at their group's end. */
+.body-more-item { display: flex; align-items: center; gap: 8px; }
+.body-more-item svg { width: 21px; height: 21px; flex: none; }
+.body-more-item[aria-checked='true'] { background: var(--hover); }
+.body-more-wrap > .body-link { left: auto; right: 0; }
 .body-link { position: absolute; top: 100%; left: 0; z-index: 30; padding: 4px; width: 260px; }
 .body-doclink { width: 300px; }
 .body-doclink-list { list-style: none; margin: 4px 0 0; padding: 0; max-height: 240px; overflow-y: auto; }
