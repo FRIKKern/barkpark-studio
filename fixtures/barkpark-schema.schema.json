@@ -33,6 +33,9 @@
     "groups": {
       "description": "Field groups (tabs): [{name, title, default?}]."
     },
+    "fieldsets": {
+      "description": "Sanity's fieldsets for the document's own fields, as a composite's."
+    },
     "initialValues": {
       "description": "A new document's starting values."
     },
