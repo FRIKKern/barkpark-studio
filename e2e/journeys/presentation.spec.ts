@@ -133,6 +133,10 @@ test('J61: links and the URL bar move the page; the panel follows it', async ({p
   // The main document by slug, in the same document pane as /structure.
   await expect(panel.locator('[id="title"]')).toHaveValue('Fixture post 01')
   await expect(page).toHaveURL(/[?&]pane=post%3Bpost-01/)
+  // The narrow panel stacks an empty image field as Sanity's (under 440 px): the hint, then Upload and Select.
+  const drop = panel.locator('.image-empty-box').first()
+  const [hint, upload] = [await drop.locator('.hint').boundingBox(), await drop.getByRole('button', {name: 'Upload'}).boundingBox()]
+  expect(upload!.y).toBeGreaterThan(hint!.y + hint!.height)
 
   // A link in the page: the URL, the URL bar and the panel follow.
   await page.frameLocator('iframe').getByRole('link', {name: 'Alan'}).click()
