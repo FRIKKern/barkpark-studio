@@ -1065,7 +1065,7 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* J12 image input, after Sanity's: an empty drop box, or the image on a grey card
    with its edit and options buttons top-right; the image's own fields below. */
-.image-input { display: flex; flex-direction: column; gap: 32px; }
+.image-input { display: flex; flex-direction: column; gap: 32px; container-type: inline-size; }
 .image-input > .field { margin-bottom: 0; }
 .image-empty-box { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 43px; padding: 4px 4px 4px 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); }
 .image-empty-box .hint { display: inline-flex; align-items: center; gap: 4px; }
@@ -1407,7 +1407,13 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 /* D11: the honest co-editing note above the canvas. */
 .pd-hint { margin: 12px 20px 0; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); color: var(--fg); font-size: 13px; line-height: 19px; }
 /* J54: the file field, Sanity's: a bordered row (icon, name, size, "…"), or the empty drop box. */
-.file-input { position: relative; }
+.file-input { position: relative; container-type: inline-size; }
+/* Sanity's upload placeholder under 440 px: the hint on its own line, Upload and Select centred under it. */
+@container (max-width: 439px) {
+  .image-empty-box, .file-box.empty { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; }
+  :is(.image-empty-actions, .file-actions) { display: flex; justify-content: center; }
+  .image-empty-box .btn { box-shadow: none; }
+}
 .file-box { position: relative; display: flex; align-items: center; gap: 12px; min-height: 51px; padding: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
 .file-box.empty { justify-content: space-between; min-height: 43px; padding: 4px 4px 4px 12px; color: var(--muted); }
 .file-box:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
