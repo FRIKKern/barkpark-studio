@@ -23,7 +23,7 @@ import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {InPresentationContext, PaneLink, usePaneNavigate, useStructureNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
-import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
+import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
@@ -329,6 +329,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const steadyProblems = useMemo(() => problems, [problemsKey])
   // A doc made a moment ago stays quiet, but a taken slug shows at once (Sanity flags a duplicate's).
   const quietProblems = useMemo(() => (slugTaken.length ? slugTaken : NO_PROBLEMS), [slugTaken.map((p) => p.path).join()])
+  // Document-level fieldsets (Sanity's) group the form's fields as a composite's do.
+  const fieldView = (f: (typeof formFields)[number], values: Record<string, unknown>) => (
+    <FieldView key={f.name} field={f} path={f.name} value={values[f.name]} openRef={openRef} onChange={onChangeOf(f.name)} />
+  )
   // The form's fields with what they read: the pane's form, and (J68) each side of Compare versions.
   const formBody = (o: {shown: Doc; values: Record<string, unknown>; changes: typeof changes | null; problems: Problem[]; disabled: boolean; fields: typeof formFields; unknown: boolean}) => (
     <CommentsContext.Provider value={commentsApi}>
@@ -341,9 +345,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     <ProblemsContext.Provider value={o.problems}>
     <OpenObjectsContext.Provider value={openObjects}>
     <fieldset className="form-fields" disabled={o.disabled} title={editReason}>
-      {o.fields.map((f) => (
-        <FieldView key={f.name} field={f} path={f.name} value={o.values[f.name]} openRef={openRef} onChange={onChangeOf(f.name)} />
-      ))}
+      {inFieldsets(o.fields, schema?.fieldsets).map((g) => ('set' in g ? <Fieldset key={`fs:${g.set.name}`} path={`fieldset:${g.set.name}`} fieldset={g.set}>{g.fields.map((f) => fieldView(f, o.values))}</Fieldset> : fieldView(g, o.values)))}
       {o.unknown && <UnknownFields doc={o.shown} names={unknownFields(schema!, o.shown)} onRemove={(name) => onEdit(name, undefined)} />}
     </fieldset>
     </OpenObjectsContext.Provider>
