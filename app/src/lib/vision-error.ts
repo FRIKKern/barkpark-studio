@@ -4,9 +4,11 @@
 // part is found from what the error names: details.parameter (limit), a details key
 // (order), or the field and operator of a filter ("operator \"bogus\" on field \"title\"").
 
-export type QueryError = {message: string; hint?: string; spot?: {line: string; lineNumber: number; column: number; columnEnd: number}}
+import type {T} from './i18n'
 
-type BarkparkError = {message?: unknown; hint?: unknown; details?: unknown}
+export type QueryError = {message: string; hint?: string; code?: string; details?: Record<string, unknown>; spot?: {line: string; lineNumber: number; column: number; columnEnd: number}}
+
+type BarkparkError = {code?: unknown; message?: unknown; hint?: unknown; details?: unknown}
 
 /** The error a Vision result body holds, with where it is in the query when that can be told; null when it holds none. */
 export function queryError(query: string, body: string): QueryError | null {
@@ -41,8 +43,52 @@ export function queryError(query: string, body: string): QueryError | null {
   return {
     message: error.message,
     hint: typeof error.hint === 'string' ? error.hint : undefined,
+    code: typeof error.code === 'string' ? error.code : undefined,
+    details,
     spot: hit ? {line: text, lineNumber: 1, column: hit.start, columnEnd: hit.end} : undefined,
   }
+}
+
+// B01: Barkpark words its query errors in English only. In another locale the refusals
+// Vision meets are told again in the studio's words, from the error's code and details
+// (the operator list from its message); a shape not known here keeps Barkpark's text.
+/** A refused query in the studio's words, or null when its shape isn't one known here. */
+export function localQueryError(e: QueryError, t: T): {message: string; hint?: string} | null {
+  const d = e.details ?? {}
+  const str = (k: string) => (typeof d[k] === 'string' ? (d[k] as string) : undefined)
+  const [op, field, parameter, received] = [str('op'), str('field'), str('parameter'), str('received')]
+  const ops = /valid operators: (.*)$/.exec(e.message)?.[1] ?? /operators \(([^)]*)\)/.exec(e.hint ?? '')?.[1]
+  if (e.code === 'invalid_filter') {
+    const hint = ops ? t('Use one of the documented filter operators ({ops}). Check for a typo or wrong case.', {ops}) : undefined
+    const message =
+      op && field && e.message.startsWith('unknown filter operator') && ops ? t('Unknown filter operator "{op}" on field "{field}". Valid operators: {ops}', {op, field, ops})
+      : op && e.message.startsWith('unsupported filter operator') && ops ? t('Unsupported filter operator "{op}". Valid operators: {ops}', {op, ops})
+      : op === 'hasStrong' && field && / got (.*)$/.test(e.message) ? t('filter[{field}][hasStrong] takes "<tag>:<min_strength>" (e.g. "epic:50"), got {got}', {field, got: / got (.*)$/.exec(e.message)![1]!})
+      : op && field && e.message.includes('takes a single value') ? t('filter[{field}][{op}] takes a single value, not a list or object. The list form filter[{field}][{op}][]=… is only valid for in, nin and nbetween.', {field, op})
+      : str('filter') !== undefined ? t('Malformed filter "{filter}". Expected field<op>value (op: = == != > >= < <= ^= $= *=), "<field> is [not] null", "<field> [not] in a,b,c" or "<field> hasStrong <tag>:<min>".', {filter: str('filter')!})
+      : str('param') !== undefined ? t('Malformed filter parameter "{param}". Use filter[field][op]=value, filter=field<op>value or a repeated filter[]=field<op>value.', {param: str('param')!})
+      : field && e.message.startsWith('boolean filter groups') ? t('Boolean filter groups are not supported: "{field}" is read as a document field, not an operator. Repeat the filter parameter (filter[]=a=1&filter[]=b=2) to require several conditions; there is no OR form.', {field})
+      : null
+    return message ? {message, hint} : null
+  }
+  if (e.code === 'malformed' && parameter && received !== undefined) {
+    if (d.expected === 'integer') return {message: t('?{parameter}= must be a whole number; received "{received}"', {parameter, received}), hint: t('Send ?{parameter}= as a whole number (out-of-range values are clamped), or leave it out for the default.', {parameter})}
+    if (parameter === 'perspective' && Array.isArray(d.supported)) return {message: t('Unsupported perspective "{received}". Supported values: {supported}. Leave out ?perspective for published.', {received, supported: d.supported.join(', ')})}
+    if (parameter === 'expand' && Array.isArray(d.expandable)) {
+      const expandable = d.expandable.join(', ')
+      return {
+        message: `${t('?expand= names "{received}", which is not a reference field on this type.', {received})} ${expandable ? t('Reference fields: {expandable}', {expandable}) : t('This type has no reference fields to expand.')}`,
+        hint: t('Name only reference fields of this type, send ?expand=true for all of them, or leave ?expand out.'),
+      }
+    }
+  }
+  const order = Array.isArray(d.order) && typeof d.order[0] === 'string' ? /order spec "([^"]*)"/.exec(d.order[0])?.[1] : undefined
+  if (e.code === 'validation_failed' && order !== undefined)
+    return {
+      message: t('Unrecognised order "{order}". Expected <field>[.<path>]:asc|desc, _updatedAt:asc|desc, _createdAt:asc|desc, or popularity, _popularity, _views7d or _views30d with :asc|desc.', {order}),
+      hint: t('Fix the order parameter to one of the forms above, then resend.'),
+    }
+  return null
 }
 
 /** Sanity's marker line: a dash per character before the bad part, a caret under each of its own. */
