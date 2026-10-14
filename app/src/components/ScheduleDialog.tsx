@@ -2,9 +2,8 @@ import {useState} from 'react'
 import {DialogBox} from './FocusScopes'
 import {Close} from './icons'
 import {useT} from '../lib/i18n'
+import {localInput} from '../lib/schedule-read'
 
-/** `datetime-local` wants the local time, minute precision: 2026-10-20T10:00. */
-const localInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 
 /**
  * J40, Sanity's "Schedule draft for publishing": pick a future date and time; Schedule

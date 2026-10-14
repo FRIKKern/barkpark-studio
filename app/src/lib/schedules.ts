@@ -1,22 +1,20 @@
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
+import {readSchedules, type Schedule} from './schedule-read'
 
 // J40, Sanity's "Schedule publish": the draft publishes at a set time, run on the
 // server as the editor who scheduled it (Barkpark /v1/data/schedules, task-8e88b5539acafdae).
 // A Barkpark without the route answers 404: then `supported` is false and the studio
 // offers no Schedule action.
 
-export type Schedule = {_id: string; documentId: string; type: string; publishAt: string; status: string; reason?: string | null}
+export type {Schedule} from './schedule-read'
 
 const fetchSchedule = createServerFn({method: 'GET'})
   .validator((d: {id: string; type: string}) => d)
   .handler(async ({data}) => {
     const res = await bpFetch(`/v1/data/schedules/${dataset()}?id=${encodeURIComponent(data.id)}&type=${encodeURIComponent(data.type)}`)
-    if (res.status === 404) return {supported: false, schedule: null}
-    if (!res.ok) throw new Error(`Could not read the schedule (${res.status})`)
-    const {schedules} = ((await res.json()) as {result: {schedules: Schedule[]}}).result
-    return {supported: true, schedule: schedules.find((s) => s.status === 'scheduled') ?? null}
+    return readSchedules(res.status, res.ok ? await res.json() : null)
   })
 
 export const scheduleQuery = (id: string, type: string) =>
