@@ -2,7 +2,7 @@ import {lazy, Suspense, useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
-import {dashLine, queryError} from '../lib/vision-error'
+import {dashLine, localQueryError, queryError} from '../lib/vision-error'
 import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
 import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, type SavedQuery} from '../lib/vision-queries'
 import {deleteSharedQuery, listSharedQueries, renameSharedQuery, SHARED_TYPE, shareQuery, type SharedQuery} from '../lib/vision-shared'
@@ -279,10 +279,14 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
 /** A refused query, as Sanity shows one: the message, and where in the query it went wrong. */
 function QueryErrorCard({status, error}: {status: number; error: ReturnType<typeof queryError>}) {
   const t = useT()
+  const locale = useLocale()
+  // B01: Barkpark's English, told in the workspace's language where the error's shape is known.
+  const local = error && locale !== 'en' ? localQueryError(error, t) : null
+  const shown = local ?? error
   return (
     <div role="alert" className="vision-error">
-      <p className="field-error">{error?.message ?? t('Barkpark answered {status}', {status})}</p>
-      {error?.hint && <p>{error.hint}</p>}
+      <p className="field-error">{shown?.message ?? t('Barkpark answered {status}', {status})}</p>
+      {shown?.hint && <p>{shown.hint}</p>}
       {error?.spot && (
         <>
           <pre className="vision-code">{`${error.spot.line}\n${dashLine(error.spot.column, error.spot.columnEnd)}`}</pre>
