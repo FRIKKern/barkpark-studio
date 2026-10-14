@@ -18,15 +18,15 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
+- **Today** · 2 changes, 6 tasks closed
+  - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
+  - Done: [J47 [after] Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced](https://github.com/FRIKKern/barkpark/issues/21845)
 - **Yesterday** · 26 changes
   - An array of objects with layout 'grid' draws as tiles, as Sanity's ([#552](https://github.com/FRIKKern/barkpark-studio/pull/552))
-  - Dates honour Sanity's dateFormat, timeFormat and timeStep; a date is Sanity's text box + calendar ([#551](https://github.com/FRIKKern/barkpark-studio/pull/551))
 - **This week** · 15 changes, 77 tasks closed
   - search-quality: the ids' tied docs count as a set (seeded at once, either can be older) ([#526](https://github.com/FRIKKern/barkpark-studio/pull/526))
-  - J59 evidence: the side-by-side records a body-paragraph click too (#524) ([#525](https://github.com/FRIKKern/barkpark-studio/pull/525))
 - **Last week** · 499 changes, 84 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
-  - CI: e2e shards lease a dataset from a pool of ten instead of cancelling each other ([#512](https://github.com/FRIKKern/barkpark-studio/pull/512))
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
