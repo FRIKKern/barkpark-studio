@@ -403,7 +403,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
         {docPane ? (
           <aside className="presentation-panel docked" id="presentation-narrow-panel-content" aria-label={t('Document')}>
             <InPresentationContext.Provider value={true}>
-              <Structure panes={panes} widthHint={350} />
+              <Structure panes={panes} widthHint={325} />
             </InPresentationContext.Provider>
           </aside>
         ) : (
