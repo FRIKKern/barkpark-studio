@@ -2,6 +2,15 @@
   "name": "fieldTypes",
   "title": "Field types",
   "visibility": "public",
+  "fieldsets": [
+    {
+      "name": "size",
+      "title": "Size",
+      "options": {
+        "columns": 2
+      }
+    }
+  ],
   "initialValues": {
     "count": 3
   },

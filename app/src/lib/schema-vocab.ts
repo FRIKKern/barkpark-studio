@@ -83,6 +83,7 @@ export const SCHEMA_KEYS = {
   listPreview: 'A list row: {title, subtitle, media} field names.',
   list_preview: 'listPreview, as Barkpark spells it.',
   groups: 'Field groups (tabs): [{name, title, default?}].',
+  fieldsets: 'Sanity\'s fieldsets for the document\'s own fields, as a composite\'s.',
   initialValues: 'A new document\'s starting values.',
   initial_values: 'initialValues, as Barkpark spells it.',
   desk: 'Desk settings: orderings, views; hidden: true keeps the type off Barkpark\'s desk while its URLs still open (barkpark#22789).',

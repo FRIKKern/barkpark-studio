@@ -18,13 +18,12 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 2 changes, 6 tasks closed
+- **Today** · 1 change
+  - Document-level fieldsets: group the form's fields as Sanity does ([#555](https://github.com/FRIKKern/barkpark-studio/pull/555))
+- **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
-  - Done: [J47 [after] Screen reader pass J01→J04: panes, rows, save/publish/validation states and search counts are announced](https://github.com/FRIKKern/barkpark/issues/21845)
-- **Yesterday** · 26 changes
+- **This week** · 41 changes, 77 tasks closed
   - An array of objects with layout 'grid' draws as tiles, as Sanity's ([#552](https://github.com/FRIKKern/barkpark-studio/pull/552))
-- **This week** · 15 changes, 77 tasks closed
-  - search-quality: the ids' tied docs count as a set (seeded at once, either can be older) ([#526](https://github.com/FRIKKern/barkpark-studio/pull/526))
 - **Last week** · 499 changes, 84 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
 <!-- timeline:end -->

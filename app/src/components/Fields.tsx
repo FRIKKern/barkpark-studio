@@ -566,7 +566,7 @@ const GEOPOINT: Field[] = [
 
 type FieldsetDef = NonNullable<Field['fieldsets']>[number]
 /** Sanity's fieldsets: fields that name one show together, in the order the first of them comes. */
-function inFieldsets(fields: Field[], fieldsets: Field['fieldsets'] = []): (Field | {set: FieldsetDef; fields: Field[]})[] {
+export function inFieldsets(fields: Field[], fieldsets: Field['fieldsets'] = []): (Field | {set: FieldsetDef; fields: Field[]})[] {
   const out: (Field | {set: FieldsetDef; fields: Field[]})[] = []
   const groups = new Map<string, {set: FieldsetDef; fields: Field[]}>()
   for (const f of fields) {
@@ -579,7 +579,7 @@ function inFieldsets(fields: Field[], fieldsets: Field['fieldsets'] = []): (Fiel
 }
 
 /** One fieldset: its title (a fold when collapsible) and its fields, in `columns` columns. */
-function Fieldset({path, fieldset, children}: {path: string; fieldset: FieldsetDef; children: ReactNode}) {
+export function Fieldset({path, fieldset, children}: {path: string; fieldset: FieldsetDef; children: ReactNode}) {
   const opened = useContext(OpenObjectsContext)
   const {collapsible = false, collapsed = false, columns} = fieldset.options ?? {}
   const open = !(collapsible || collapsed) || (opened ? opened.isOpen(path, !collapsed) : !collapsed)
