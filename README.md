@@ -18,11 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 26 changes
+- **Yesterday** · 26 changes
   - An array of objects with layout 'grid' draws as tiles, as Sanity's ([#552](https://github.com/FRIKKern/barkpark-studio/pull/552))
   - Dates honour Sanity's dateFormat, timeFormat and timeStep; a date is Sanity's text box + calendar ([#551](https://github.com/FRIKKern/barkpark-studio/pull/551))
-  - Field-type matrix: fieldTypes fixture in both studios; list checkboxes, geopoint, fieldsets, checkbox boolean, slug maxLength, disableNew ([#550](https://github.com/FRIKKern/barkpark-studio/pull/550))
-- **Yesterday** · 15 changes, 77 tasks closed
+- **This week** · 15 changes, 77 tasks closed
   - search-quality: the ids' tied docs count as a set (seeded at once, either can be older) ([#526](https://github.com/FRIKKern/barkpark-studio/pull/526))
   - J59 evidence: the side-by-side records a body-paragraph click too (#524) ([#525](https://github.com/FRIKKern/barkpark-studio/pull/525))
 - **Last week** · 499 changes, 84 tasks closed
