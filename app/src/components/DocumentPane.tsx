@@ -919,7 +919,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
   const locale = useLocale()
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
-  const {canWrite, editReason, publishReason, createReason} = useCanWrite()
+  const {canWrite, canPublish, editReason, publishReason, createReason, deletePublishedReason} = useCanWrite()
+  // A Contributor deletes a draft only: deleting a published document unpublishes it.
+  const deleteReason = doc._hasPublished !== false && !canPublish ? deletePublishedReason : editReason
+  const canDelete = canWrite && !(doc._hasPublished !== false && !canPublish)
   const [publishing, setPublishing] = useState(false)
   const [menu, setMenu] = useState(false)
   const closeMenu = useCallback(() => setMenu(false), [])
@@ -948,7 +951,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
   )
   // J28: Sanity's Delete shortcut (Ctrl+Alt+D) asks here.
   useEffect(() => {
-    if (askDelete && !single && canWrite) setDeleting(true)
+    if (askDelete && !single && canDelete) setDeleting(true)
   }, [askDelete])
   // J04: Sanity says "Saved" for about 3 s after a save, then "Edited N ago" (a
   // draft opened later says "Edited" at once). The 30 s tick keeps "ago" current.
@@ -1001,7 +1004,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       <span className="publish-tip" {...(publishReason ? {} : publishTip.anchor)}>
       <button
         className="publish"
-        disabled={!canWrite || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
+        disabled={!canPublish || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
         title={publishReason}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async (e) => {
@@ -1070,7 +1073,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
             {/* B10: the schema's own actions (a plugin's), as LiveView lists them last. */}
             {schemaActions.items}
             {!single && (
-              <button type="button" role="menuitem" className="menu-item danger" aria-keyshortcuts="Control+Alt+D" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDeleting(true))}>
+              <button type="button" role="menuitem" className="menu-item danger" aria-keyshortcuts="Control+Alt+D" disabled={!canDelete} title={deleteReason} onClick={() => (setMenu(false), setDeleting(true))}>
                 <span className="menu-icon-text">
                   <Trash /> {t('Delete')}
                 </span>
@@ -1165,7 +1168,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const locale = useLocale()
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
-  const {canWrite, publishReason} = useCanWrite()
+  const {canPublish, unpublishReason} = useCanWrite()
   // J04: no published version (the pane's stub): Sanity's "Unpublished just now", from the
   // history, when an unpublish was the last publish-or-unpublish; else nothing.
   const none = !doc._rev
@@ -1184,7 +1187,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
       <DocBadges doc={doc} />
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
       {!single && (
-        <button className="publish danger" disabled={!canWrite || none} title={publishReason} onClick={() => setConfirm(true)}>
+        <button className="publish danger" disabled={!canPublish || none} title={unpublishReason} onClick={() => setConfirm(true)}>
           <UnpublishIcon />
           {t('Unpublish')}
         </button>

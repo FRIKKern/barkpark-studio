@@ -156,7 +156,7 @@ async function editorToken(email: string): Promise<string> {
  * its permissions as far as its seat in the workspace allows, and the dataset it is held
  * to when bound (#22393). Kept a minute per token. Unknown: Barkpark judges each write.
  */
-export type TokenSelf = {permissions: string[]; boundDataset: string | null; refused?: boolean}
+export type TokenSelf = {permissions: string[]; boundDataset: string | null; refused?: boolean; canPublish?: boolean}
 const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
 export function describeToken(token: string): Promise<TokenSelf> {
   // A login session holds a seat per workspace: what it may do depends on where it is.
@@ -175,9 +175,10 @@ export function describeToken(token: string): Promise<TokenSelf> {
     // A login session (#22783): its seat in this workspace says what it may do; none, nothing.
     if (me.kind === 'session') {
       const can = me.seats?.find((s) => s.workspace?.slug === workspace)?.can ?? {}
-      return {permissions: ['read', 'write', 'admin'].filter((p) => can[p]), boundDataset: null}
+      return {permissions: ['read', 'write', 'admin'].filter((p) => can[p]), boundDataset: null, canPublish: can.publish !== false}
     }
-    return {permissions: (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false), boundDataset: me.dataset_bound && me.dataset ? me.dataset : null}
+    // A Contributor seat (#22762) writes drafts but can't publish, unpublish or delete what is published.
+    return {permissions: (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false), boundDataset: me.dataset_bound && me.dataset ? me.dataset : null, canPublish: me.seat?.can?.publish !== false}
   })()
   described.set(key, {at: Date.now(), self})
   return self
