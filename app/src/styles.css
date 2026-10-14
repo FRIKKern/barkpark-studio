@@ -632,6 +632,8 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .doc-main { flex: 1; display: flex; min-height: 0; }
 .doc-main > .pane-body { flex: 1; }
 .inspector { width: 345px; flex: none; border-left: 1px solid var(--border); padding: 12px; overflow: auto; font-size: 13px; }
+/* Sanity's split: the inspector takes a third of the document pane, never under 320 px (345 at 1440, 320 at 1024). */
+.doc-split > .inspector { flex: 0 0 max(320px, 33.333%); width: auto; }
 .inspector header { display: flex; align-items: center; justify-content: space-between; padding: 0 0 12px 8px; }
 .inspector h2 { margin: 0; font-size: 13px; font-weight: 600; }
 .inspector ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -943,7 +945,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 .review-pick:disabled { cursor: default; }
 .review-pick-menu { position: absolute; top: calc(100% + 2px); right: 0; left: 0; z-index: 5; max-height: 320px; overflow: auto; padding: 4px; }
 .review-empty, .review-loading { padding: 32px 8px; text-align: center; }
-.review-empty h3 { margin: 0 0 8px; font-size: 14px; }
+.review-empty { padding: 32px 0; text-align: left; }
+.review-empty h3 { margin: 0 0 4px; font-size: 13px; font-weight: 500; }
 .inspector .review-list { gap: 12px; }
 .review-list li { padding: 4px 0; }
 .review-body { margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--border); }
@@ -1588,7 +1591,9 @@ fieldset.object-field > .field-comments { top: -38px; }
 .inspector.comments header h2 { flex: 1; }
 .inspector.comments .popover.menu { right: 0; left: auto; top: calc(100% + 4px); }
 .comments-list { display: flex; flex-direction: column; gap: 16px; }
-.comments-empty { margin: 40% 0 0; text-align: center; }
+.inspector.comments { display: flex; flex-direction: column; }
+.comments-list:has(> .comments-empty) { flex: 1; justify-content: center; }
+.comments-empty { margin: 0; text-align: center; }
 .comments-empty .title { margin: 0 0 8px; color: var(--fg); }
 .comments-empty .muted { margin: 0; color: var(--muted); }
 .comment-group { display: flex; flex-direction: column; gap: 8px; }
