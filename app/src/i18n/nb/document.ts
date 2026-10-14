@@ -298,4 +298,17 @@ export default {
   'Exit focus mode (show navigation)': 'Gå ut av fokusmodus (vis navigasjonen)',
   'Enter focus mode': 'Gå til fokusmodus',
   'Exit focus mode': 'Gå ut av fokusmodus',
+  // J40: scheduled publish (from Sanity's nb-NO pack where it has the string).
+  'Delete schedule': 'Slett tidsplan',
+  'Delete scheduled draft': 'Slett planlagt utkast',
+  'Delete this scheduled draft? Your draft is already up to date.': 'Slette dette planlagte utkastet? Utkastet ditt er allerede oppdatert.',
+  'Publish on': 'Publiser på',
+  'Schedule': 'Planlegg',
+  'Schedule draft for publishing': 'Planlegg utkast for publisering',
+  'Schedule for a future time and date.': 'Planlegg for et fremtidig tidspunkt og dato.',
+  'Schedule publish': 'Planlegg publisering',
+  'Scheduled publish': 'Planlagt publisering',
+  'Scheduled to be published on {date}': 'Planlagt publisert {date}',
+  'Select when this document should be published.': 'Velg når dette dokumentet skal publiseres.',
+  'Yes, delete schedule': 'Ja, slett planlegging',
 } satisfies Record<string, string>

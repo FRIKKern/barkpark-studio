@@ -42,7 +42,9 @@ import {ActorAvatar, AvatarStack, PresenceHints, useDocPresence} from './Presenc
 import {toast} from './Toasts'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
-import {ChevronDown, CheckmarkCircle, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse} from './icons'
+import {cancelSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
+import {ScheduleDialog} from './ScheduleDialog'
+import {ChevronDown, CheckmarkCircle, Clock, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse} from './icons'
 import {useFocusMode} from './FocusMode'
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
@@ -84,6 +86,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // The published version: for its perspective, and (J15) to see what the draft changed.
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished || (!!draftQ.data?._draft && draftQ.data?._hasPublished !== false)})
   const docQ = viewingPublished ? publishedQ : draftQ
+  const schedule = useSchedule(pane.id, pane.type, draftQ.data?._rev)
   const {data: shown, isPending, error} = docQ
   // J04: the Published perspective of a document that has only a draft (unpublished, or
   // never published): Sanity keeps the form, empty and read-only, and its footer says what
@@ -471,6 +474,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <span className="dot draft" />
             {t('Draft')}
           </TipChip>
+          {/* J40: Sanity's scheduled version chip. */}
+          {schedule && (
+            <span className="chip" data-tone="scheduled" title={t('Scheduled to be published on {date}', {date: longDate(schedule.publishAt, locale)})}>
+              <Clock />
+              {t('Scheduled publish')}
+            </span>
+          )}
         </span>
         {doc && !pristine && <DocShareMenu doc={doc} />}
         {/* Sanity shows it only when there is something to show (an info alone: a check). */}
@@ -576,6 +586,11 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
                 {t('Discard')}
               </button>
             </span>
+          </div>
+        )}
+        {schedule && doc && (
+          <div className="pane-banner" data-tone="scheduled" role="note">
+            <span>{t('Scheduled to be published on {date}', {date: longDate(schedule.publishAt, locale)})}</span>
           </div>
         )}
         {/* J49: Sanity's permission banner: no tint, the read-only icon, medium text. */}
@@ -904,6 +919,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
   const closeMenu = useCallback(() => setMenu(false), [])
   const [deleting, setDeleting] = useState(false)
   const [discarding, setDiscarding] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
+  const [unscheduling, setUnscheduling] = useState(false)
+  const scheduleQ = useQuery(scheduleQuery(doc._publishedId, doc._type))
+  const schedule = scheduleQ.data?.schedule ?? null
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
   const set = (field: string, value: unknown) => edit(qc, doc, field, value)
@@ -1013,6 +1032,21 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
                 </span>
               </button>
             )}
+            {/* J40: Sanity's Schedule publish (a draft to publish, a Barkpark that schedules), or Delete schedule once set. */}
+            {!single && scheduleQ.data?.supported && !schedule && doc._draft && (
+              <button type="button" role="menuitem" className="menu-item" disabled={!canWrite || !!publishReason} title={publishReason} onClick={() => (setMenu(false), setScheduling(true))}>
+                <span className="menu-icon-text">
+                  <Clock /> {t('Schedule publish')}
+                </span>
+              </button>
+            )}
+            {schedule && (
+              <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setUnscheduling(true))}>
+                <span className="menu-icon-text">
+                  <Trash /> {t('Delete schedule')}
+                </span>
+              </button>
+            )}
             {/* Sanity offers Discard only when there is a draft to discard. */}
             {canDiscard && (
               <button type="button" role="menuitem" className="menu-item danger" autoFocus={single} disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
@@ -1043,6 +1077,24 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       </div>}
       {deleting && <DeleteDialog doc={doc} closeHref={closeHref} onClose={() => setDeleting(false)} />}
       {schemaActions.dialog}
+      {scheduling && (
+        <ScheduleDialog
+          run={async (publishAt) => {
+            await schedulePublish({data: {id: doc._publishedId, type: doc._type, publishAt}})
+            await qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
+          }}
+          onClose={() => setScheduling(false)}
+        />
+      )}
+      {unscheduling && schedule && (
+        <ConfirmDialog
+          title={t('Delete scheduled draft')}
+          body={t('Delete this scheduled draft? Your draft is already up to date.')}
+          action={t('Yes, delete schedule')}
+          run={() => cancelSchedule({data: {scheduleId: schedule._id}}).then(() => qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]}))}
+          onClose={() => setUnscheduling(false)}
+        />
+      )}
       {discarding && (
         <ConfirmDialog
           title={t('Discard changes?')}
@@ -1069,6 +1121,18 @@ async function publishAndTell(qc: QueryClient, doc: Doc) {
 }
 
 /** J65: the studio config's badges, beside the save state, Sanity's colors. */
+/**
+ * J40: the document's pending scheduled publish, if any. Read again when the draft
+ * changes (the scheduled publish lands as a new revision) and while one waits, so the
+ * chip goes once Barkpark has published it.
+ */
+function useSchedule(id: string, type: string, rev: string | undefined): Schedule | null {
+  const qc = useQueryClient()
+  const {data} = useQuery({...scheduleQuery(id, type), refetchInterval: (q) => (q.state.data?.schedule ? 30_000 : false)})
+  useEffect(() => void qc.invalidateQueries({queryKey: ['schedule', id]}), [rev])
+  return data?.schedule ?? null
+}
+
 function DocBadges({doc}: {doc: Doc}) {
   const badges = (studio.document?.badges?.(doc._type) ?? []).flatMap((badge) => badge(doc) ?? [])
   if (!badges.length) return null
