@@ -4,7 +4,8 @@ import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 // J10 guard (a CI gate): the body field's toolbar runs Barkpark's canvas commands
 // (EMBED-CONTRACT 1.2.0, barkpark 3cd936a4). A press applies to the selection and shows
 // pressed, the style menu sets a heading, and a script address is refused before it
-// reaches the canvas. The toolbar shows only when the canvas has the commands, so a
+// reaches the canvas. In a narrow pane the tools that don't fit fold into "Show more"
+// menus, as Sanity's, so none spills past the field. The toolbar shows only when the canvas has the commands, so a
 // Barkpark that lost them would hide it: this test fails then instead.
 const ID = 'post-01'
 let original: unknown
@@ -65,4 +66,13 @@ test('J10: the body toolbar marks, sets a style, and refuses a script link', asy
   await page.getByRole('menuitemradio', {name: 'Heading 3'}).click()
   await expect(field.locator('.ProseMirror h3')).toContainText('Body paragraph for post 1.')
   await expect(bar.locator('.body-style')).toContainText('Heading 3')
+  // A narrow field (Presentation's pane is 287 px): the tail folds into "Show more", and
+  // no tool lies past the field.
+  await field.evaluate((f) => void (f.style.width = '300px'))
+  await expect(bar.getByRole('button', {name: 'Show more'}).first()).toBeVisible()
+  const spill = await bar.evaluate((b) => {
+    const edge = b.closest('.body-canvas')!.getBoundingClientRect().right
+    return [...b.querySelectorAll('button')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > edge).length
+  })
+  expect(spill).toBe(0)
 })
