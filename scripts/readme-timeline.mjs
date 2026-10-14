@@ -8,7 +8,7 @@ const README = new URL('../README.md', import.meta.url);
 const TZ = process.env.TIMELINE_TZ || 'Europe/Oslo';
 const BOT = /github-actions|\[bot\]/;
 // Items listed per period; older periods show counts only. Keeps README under its 80-line cap.
-const SHOW = { Today: 3, Yesterday: 2, 'This week': 2, 'Last week': 2 };
+const SHOW = { Today: 2, Yesterday: 1, 'This week': 1, 'Last week': 1 };
 
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', cwd: new URL('..', import.meta.url) });
 const repo = process.env.GITHUB_REPOSITORY
