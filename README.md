@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 5 changes
+- **Today** · 6 changes
+  - An empty image or file field under 440 px stacks its hint over Upload and Select, as Sanity's ([#560](https://github.com/FRIKKern/barkpark-studio/pull/560))
   - Inspector: a third of the document pane, never under 320 px, as Sanity's; empty states placed as Sanity's ([#559](https://github.com/FRIKKern/barkpark-studio/pull/559))
-  - J40: the comments spec checks a new comment names its author (Studio with a shared token) ([#558](https://github.com/FRIKKern/barkpark-studio/pull/558))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
