@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 2 changes
+- **Today** · 3 changes
+  - Vision: Barkpark's query refusals in the workspace's language ([#556](https://github.com/FRIKKern/barkpark-studio/pull/556))
   - e2e(field-types): drop the document-fieldset check until Barkpark keeps top-level fieldsets ([#557](https://github.com/FRIKKern/barkpark-studio/pull/557))
-  - Document-level fieldsets: group the form's fields as Sanity does ([#555](https://github.com/FRIKKern/barkpark-studio/pull/555))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
