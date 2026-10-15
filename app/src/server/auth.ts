@@ -143,6 +143,10 @@ export async function signOut() {
   deleteCookie(COOKIE, {path: '/'})
   // Dev sign-in keeps its token (other sessions and lanes share it); an account's ends.
   if (editor?.session) await endBarkparkSession(editor.session)
+  // A copy of the sealed cookie still unseals until it expires. Its login session ended at
+  // Barkpark just now, so forget what we knew of that token: the next request asks again,
+  // hears 401, and the copy is signed out at once, not after the minute's cache.
+  if (editor?.session) for (const key of described.keys()) if (key.startsWith(`${editor.session} `)) described.delete(key)
 }
 
 const admin = () => {

@@ -11,7 +11,7 @@ const EMAIL = process.env.LIVEVIEW_TEST_EMAIL
 const PASSWORD = process.env.LIVEVIEW_TEST_PASSWORD
 test.skip(process.env.STUDIO_SIGN_IN !== 'account' || !EMAIL || !PASSWORD, 'needs STUDIO_SIGN_IN=account and an account in .env')
 
-test('@local J67: sign in with a Barkpark account, work as yourself, sign out', async ({page}, info) => {
+test('@local J67: sign in with a Barkpark account, work as yourself, sign out', async ({page, browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours')
   // Signed out, the studio sends you to sign in, and nothing reads as the studio meanwhile.
@@ -78,9 +78,17 @@ test('@local J67: sign in with a Barkpark account, work as yourself, sign out', 
   await page.screenshot({path: 'evidence/J67-1-signed-in-studio.png'})
 
   // Sign out: back to the sign-in screen, which returns to this doc after signing in again.
+  const copied = (await page.context().cookies()).find((c) => c.name === 'bp_sid')!
   await page.getByRole('menuitem', {name: 'Sign out'}).click()
   // The doc and the field the caret was in (B11's field URL), as the redirect.
   await page.waitForURL((u) => u.pathname === '/login' && !!u.searchParams.get('redirect')?.startsWith(t.docPath('post', 'post-01')))
+  // A copy of the signed-out cookie (the session is sealed in it) opens nothing either.
+  const elsewhere = await browser.newContext()
+  await elsewhere.addCookies([copied])
+  const other = await elsewhere.newPage()
+  await other.goto(new URL(t.docPath('post', 'post-01'), page.url()).href)
+  await other.waitForURL(/\/login\?redirect=/)
+  await elsewhere.close()
   await page.locator('html[data-hydrated]').waitFor({state: 'attached'})
   await page.getByLabel('Your email').fill(EMAIL!)
   await page.getByLabel('Password').fill(PASSWORD!)
