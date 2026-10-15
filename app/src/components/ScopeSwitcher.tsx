@@ -1,8 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {useRouterState} from '@tanstack/react-router'
-import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
-import {scopedPath, type Scope} from '../lib/scope'
+import {currentScopeQuery, scopeOptionsQuery, switchedPath} from '../lib/scope-switch'
+import type {Scope} from '../lib/scope'
 import {DialogBox} from './FocusScopes'
 import {ChevronDown} from './icons'
 import {useT} from '../lib/i18n'
@@ -12,7 +11,8 @@ import {GroupIcon} from './GroupIcon'
 
 // B02: switch workspace / project / dataset, like Barkpark's LiveView Studio. The choice
 // goes into the URL (/w/<ws>/p/<project>/d/<dataset>/…) and opens as a fresh page, so
-// nothing read in the old dataset can show in the new one. The tool you are in stays.
+// nothing read in the old dataset can show in the new one. The tool you are in stays, and
+// in the structure so do the open panes that exist there (lib/scope-switch.ts switchedPath).
 
 /** The studio's name and logo initials (the config's title, Sanity's workspace title). */
 type Brand = {name: string; initials: string}
@@ -61,7 +61,6 @@ function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; o
   const bound = useQuery(meQuery).data?.boundDataset ?? null
   const options = useQuery(scopeOptionsQuery(pick))
   const adminUrl = useQuery(barkparkInfoQuery).data?.adminUrl
-  const tool = useRouterState({select: (s) => '/' + (s.location.pathname.split('/')[1] || 'structure')})
   // A new workspace or project: its first project / dataset until one is picked.
   useEffect(() => {
     const o = options.data
@@ -104,7 +103,9 @@ function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; o
           e.preventDefault()
           if (same) return
           setSwitching(true)
-          window.location.assign(scopedPath(pick, tool))
+          // A fresh page in the new scope (nothing read in the old one shows there), with
+          // the panes that exist there still open.
+          void switchedPath(pick, location).then((href) => window.location.assign(href))
         }}
       >
         {field(t('Workspace'), 'workspace', options.data?.workspaces)}
