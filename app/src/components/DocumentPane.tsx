@@ -29,7 +29,7 @@ import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
 import {setActiveDocument} from '../lib/tasks-ui'
 import {DocHeaderMenu, DocShareMenu, Keys, openPreview, useAltName} from './DocHeaderMenu'
-import {InspectDialog} from './InspectDialog'
+import {InspectDialog, storedValue} from './InspectDialog'
 import {CompareVersions, useCompareVersions} from './CompareVersions'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {CommentsContext, CommentsPanel} from './Comments'
@@ -705,7 +705,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </div>
         )}
         {!isPending && !doc && !error && viewingPublished && <p role="alert">{t('Not published.')}</p>}
-        {doc && view === 'json' && <pre className="json-view">{JSON.stringify(doc, null, 2)}</pre>}
+        {doc && view === 'json' && <pre className="json-view">{JSON.stringify(storedValue(doc), null, 2)}</pre>}
         {doc && view === 'preview' && previewTemplate && <PreviewView template={previewTemplate} doc={doc} id={pane.id} />}
         {doc && view.startsWith('desk:') && (() => {
           const v = schema?.views?.find((x) => `desk:${x.id}` === view)
