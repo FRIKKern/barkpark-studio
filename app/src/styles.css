@@ -829,8 +829,11 @@ fieldset.object-field > .field-actions { top: -38px; }
 .toast[data-tone=caution] strong { font-weight: 400; color: var(--warn-fg); }
 
 /* Inspect (J28), after Sanity's: a dialog over the pane, Parsed tree or Raw JSON */
-.inspect-backdrop { place-items: start stretch; padding: 98px 12px 60px; }
-.dialog.inspect { width: auto; max-height: 100%; }
+.inspect-backdrop { place-items: start stretch; grid-template-rows: minmax(0, 1fr); padding: 98px 12px 60px; }
+/* Sanity's Inspect stays inside its pane and scrolls the document within (a single auto
+   row would grow with the JSON and run off the window). */
+.dialog.inspect { width: auto; max-height: 100%; min-height: 0; }
+.dialog.inspect .inspect-body { flex: 1 1 auto; min-height: 0; }
 .dialog.inspect h2 em { font-style: italic; }
 .inspect-tabs { padding: 8px 12px 12px; border-bottom: 1px solid var(--border); }
 .inspect-body { padding: 16px 20px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 19px; }
