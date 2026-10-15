@@ -845,6 +845,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* Toasts, after Sanity's: bottom right, title + one line */
 .toasts { position: fixed; right: 20px; bottom: 84px; z-index: 50; display: flex; flex-direction: column; gap: 8px; }
+/* Over a studio-wide dialog (Diagnostics, version), as Sanity's: its "copied" toast sat under it. Menus still go over toasts (J28). */
+body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .toast { position: relative; width: 380px; display: flex; flex-direction: column; gap: 6px; padding: 12px 40px 12px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 17px; color: var(--fg-strong); }
 .toast strong { font-weight: 500; }
 .toast[data-tone=default] { background: var(--hover); }

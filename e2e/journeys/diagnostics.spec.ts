@@ -23,4 +23,11 @@ test('J69: Diagnostics runs its connection tests and copies JSON', async ({page,
   const json = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()))
   expect(Object.keys(json)).toEqual(['diagnosticVersion', 'startedAt', 'generatedAt', 'durationMs', 'studio', 'schema', 'user', 'browser', 'network'])
   expect(json.network.listen.first.status).toBe('success')
+  // The "copied" toast shows over the dialog, as Sanity's (it sat under it, cut off).
+  const toast = page.locator('.toast', {hasText: 'Diagnostics copied to clipboard'})
+  await expect(toast).toBeVisible()
+  expect(await toast.evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2))
+  })).toBe(true)
 })
