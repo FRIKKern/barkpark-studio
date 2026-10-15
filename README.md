@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 77 changes
+- **Today** · 78 changes
+  - Diagnostics as Sanity's: UTC switch, its missing rows, recent request timings ([#633](https://github.com/FRIKKern/barkpark-studio/pull/633))
   - fix(form): field rhythm as Sanity's, label for label (J14) ([#632](https://github.com/FRIKKern/barkpark-studio/pull/632))
-  - fix(auth): a canvas's kept words are kept per editor, under no email ([#631](https://github.com/FRIKKern/barkpark-studio/pull/631))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
