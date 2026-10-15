@@ -770,6 +770,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
   }, [urlPath, field, readOnly])
   useEffect(() => {
     if (!active) return
+    const wokeFrom = document.activeElement
     const ready = () => !!box.current?.querySelector('.ProseMirror')?.contains(document.activeElement)
     const keep = (e: KeyboardEvent) => {
       if (ready() || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return
@@ -790,9 +791,10 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       clearInterval(timer)
       removeEventListener('keydown', keep, true)
       // The author went to another field while it woke (J10): the caret stays there. What
-      // was typed for the body before that still goes in, and the focus goes back.
+      // was typed for the body before that still goes in, and the focus goes back. A wake
+      // from elsewhere (J59: Presentation's click on a paragraph) still takes the caret.
       const now = document.activeElement as HTMLElement | null
-      const elsewhere = !!now && now !== document.body && !box.current?.contains(now)
+      const elsewhere = !!now && now !== wokeFrom && now !== document.body && !box.current?.contains(now)
       if (elsewhere && !typed.current.length) return
       if (!pm.contains(document.activeElement)) {
         pm.focus()

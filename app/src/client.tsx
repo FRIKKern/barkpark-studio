@@ -9,7 +9,7 @@ import {hydrateRoot} from 'react-dom/client'
 import {StartClient} from '@tanstack/react-start/client'
 import {loadDocEditors, onDocPage} from './components/DocEditors'
 
-const HYDRATE_WAIT_MS = 3_000
+const HYDRATE_WAIT_MS = 1_500
 
 const hydrate = () =>
   startTransition(() => {
