@@ -62,3 +62,12 @@ export function insertMention(text: string, start: number, caret: number, email:
 /** A person's name from their email, as the chip shows it. */
 export const personName = (email: string) => email.replace(/@.*/, '')
 
+/**
+ * J49, Sanity's Viewer may comment: Barkpark lets a read seat write comments when the
+ * comment type's schema opts in (`readerWrites`, Barkpark #22790): create, and resolve
+ * through the listed fields. Older Barkparks, or a schema without it, keep viewers out.
+ */
+export function readersMayComment(schema: {readerWrites?: unknown; reader_writes?: unknown} | undefined): boolean {
+  const rule = (schema?.readerWrites ?? schema?.reader_writes) as {create?: unknown; patchFields?: unknown} | undefined
+  return rule?.create === true && Array.isArray(rule.patchFields) && rule.patchFields.includes('state')
+}

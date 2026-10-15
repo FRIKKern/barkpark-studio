@@ -100,6 +100,7 @@ export const BARKPARK_SCHEMA_KEYS = {
   desk_groups: 'Desk groups.',
   cross_validations: 'Cross-field rules: [{name, title, rule, level, fields}].',
   cors_origins: 'Origins allowed to read it from a browser.',
+  readerWrites: 'What a read seat may write on this type (barkpark#22790): {create, patchFields}; studioComment uses it so Viewers comment (J49).',
 }
 
 type JsonSchema = Record<string, unknown>

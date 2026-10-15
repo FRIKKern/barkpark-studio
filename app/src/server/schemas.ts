@@ -19,6 +19,11 @@ export async function readSchemas(): Promise<RawSchema[]> {
   return (await readAllSchemas()).filter((s) => !STUDIO_TYPES.includes(s.name))
 }
 
+/** The studio comment type's schema as the dataset holds it (J49: does it let viewers comment?). */
+export async function readCommentSchema(): Promise<RawSchema | undefined> {
+  return (await readAllSchemas()).find((s) => s.name === 'studioComment')
+}
+
 async function readAllSchemas(): Promise<RawSchema[]> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') {
     const dir = resolve(process.cwd(), '../fixtures/barkpark-schema')

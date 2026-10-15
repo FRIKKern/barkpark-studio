@@ -267,6 +267,7 @@ export default {
   'No documents yet': 'Ingen dokumenter ennå',
   // D19: find and replace in the canvas
   'Your role Viewer does not have permission to comment on this document.': 'Rollen din, Leser, har ikke tillatelse til å kommentere dette dokumentet.',
+  'Your role Viewer does not have permission to delete this comment.': 'Rollen din, Leser, har ikke tillatelse til å slette denne kommentaren.',
   'This token can only open the dataset {dataset}.': 'Dette tokenet kan bare åpne datasettet {dataset}.',
   'This page is in {dataset}.': 'Denne siden er i {dataset}.',
   'Open {dataset}': 'Åpne {dataset}',
