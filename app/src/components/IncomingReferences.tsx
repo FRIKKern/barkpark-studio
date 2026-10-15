@@ -86,6 +86,6 @@ export function IncomingReferences({id, panes, index, onClose}: {id: string; pan
 function Row({link, href, selected, active}: {link: Backlink; href: string; selected: boolean; active: boolean}) {
   const {data} = useQuery(docQuery(link.type, link.from_doc_id))
   const fallback = {_id: link.from_doc_id, _publishedId: link.from_doc_id, _type: link.type, title: link.title} as unknown as Doc
-  return <DocPreview doc={data ?? fallback} href={href} selected={selected} active={active} />
+  return <DocPreview doc={data ?? fallback} href={href} selected={selected} active={active} iconless />
 }
 
