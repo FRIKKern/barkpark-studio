@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 46 changes
+- **Today** · 47 changes
+  - Tasks: previous/next task and Copy link to task, as Sanity's ([#603](https://github.com/FRIKKern/barkpark-studio/pull/603))
   - Comments: Sanity's reactions and Copy link to comment ([#602](https://github.com/FRIKKern/barkpark-studio/pull/602))
-  - D01: freeform field blocks read like the Classic inputs again ([#599](https://github.com/FRIKKern/barkpark-studio/pull/599))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
