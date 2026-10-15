@@ -1788,6 +1788,9 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .comment-actions .popover.menu { right: 0; top: 100%; }
 /* Sanity's inline comments: the span in the body, its quote on the thread, and the body's Add comment. */
 .body-canvas .bp-comment-range { background: var(--comment-range-bg); border-bottom: 2px solid var(--comment-range-line); }
+/* The same spans on the read-only body (CSS highlights cannot draw a border: an underline instead). */
+::highlight(bp-comment) { background-color: var(--comment-range-bg); text-decoration: underline 2px var(--comment-range-line); }
+::highlight(bp-comment-active) { background-color: var(--comment-range-active-bg); text-decoration: underline 2px var(--comment-range-active-line); }
 .body-canvas .bp-comment-range--active, .body-canvas .bp-comment-range:hover { background: var(--comment-range-active-bg); border-bottom-color: var(--comment-range-active-line); }
 .comment-thread:has(> .commented-text:not([data-gone])) { cursor: pointer; }
 .comment-thread[data-active] { box-shadow: inset 0 0 0 1px var(--selected); }
