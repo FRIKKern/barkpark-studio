@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 80 changes
+- **Today** · 81 changes
+  - fix(arrays): reference rows and the drag handle as Sanity's (J14) ([#636](https://github.com/FRIKKern/barkpark-studio/pull/636))
   - fix(auth): a signed-in editor with no seat here sees Sanity's no-access screen ([#635](https://github.com/FRIKKern/barkpark-studio/pull/635))
-  - J14: datetime offset only on datetime; no band in column grids (follow-up to #632) ([#634](https://github.com/FRIKKern/barkpark-studio/pull/634))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
