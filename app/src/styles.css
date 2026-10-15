@@ -1703,6 +1703,14 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .comment-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .comment-meta strong { color: var(--fg); font-weight: 600; }
 .comment-actions { margin-left: auto; display: inline-flex; }
+/* Sanity's reactions: pills under the message; yours outlined. */
+.comment-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.reaction { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 6px; border: 0; border-radius: 11px; background: var(--hover); font: inherit; font-size: 12px; color: var(--fg); cursor: pointer; }
+.reaction[aria-pressed=true] { box-shadow: inset 0 0 0 1px var(--selected); }
+.reaction-menu { flex-direction: row; min-width: 0; }
+.reaction-menu .menu-item { padding: 4px 6px; font-size: 16px; }
+.add-reaction { font-size: 15px; line-height: 1; }
+.comment-item[data-linked] { border-radius: 4px; box-shadow: 0 0 0 2px var(--selected); }
 .comment-actions .icon-btn { width: 25px; height: 25px; }
 .comment-actions .menu-wrap { position: relative; }
 .comment-actions .popover.menu { right: 0; top: 100%; }
