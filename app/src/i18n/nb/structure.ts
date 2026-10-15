@@ -217,4 +217,8 @@ export default {
   'That code is not right. Try the current one.': 'Koden stemmer ikke. Prøv den gjeldende.',
   'Signing in…': 'Logger inn…',
   'Sign in': 'Logg inn',
+  // Sanity's intent links (routes/intent.$.tsx).
+  'Go to Structure': 'Gå til Struktur',
+  'Opening…': 'Åpner…',
+  'This link is not one the Studio knows.': 'Studioet kjenner ikke denne lenken.',
 } satisfies Record<string, string>
