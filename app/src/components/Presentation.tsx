@@ -314,8 +314,9 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   const busy = s.load === 'loading' || s.refreshing || connecting
   const status = s.load === 'loading' ? t('Loading.') : s.refreshing ? t('Refreshing.') : undefined
   const blocked = s.load === 'loading' || s.load === 'timedOut' || connecting
+  const [panelWidth, setPanelWidth] = usePanelWidth()
   return (
-    <div className="presentation" data-narrow-tab={narrowTab}>
+    <div className="presentation" data-narrow-tab={narrowTab} style={{'--presentation-panel-w': `${panelWidth}px`} as React.CSSProperties}>
       {/* J46: Sanity's narrow tab bar (under 900 px): one panel at a time, the page or the document. */}
       <div className="presentation-narrow-tabs" role="tablist" aria-label={t('Presentation')}>
         {(['preview', 'content'] as const).map((tab) => (
@@ -399,6 +400,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
           ) : null}
         </div>
       </section>
+      <PanelResizer width={panelWidth} onWidth={setPanelWidth} />
       <PaneHrefContext.Provider value={paneHref}>
         {docPane ? (
           <aside className="presentation-panel docked" id="presentation-narrow-panel-content" aria-label={t('Document')}>
@@ -561,5 +563,67 @@ function PageDocsSearch({query, onQuery}: {query: string; onQuery: (q: string) =
         </button>
       )}
     </div>
+  )
+}
+
+// Sanity's Presentation: the divider between the preview and the panel drags, and the
+// split holds across reloads (it keeps it in localStorage too). The panel is 325 px by
+// default (Sanity's), never narrower; the preview keeps at least 360 px.
+const PANEL_KEY = 'presentation/panel-width'
+const PANEL_MIN = 325
+const PREVIEW_MIN = 360
+const clampPanel = (w: number, total: number) => Math.round(Math.max(PANEL_MIN, Math.min(w, total - PREVIEW_MIN)))
+function usePanelWidth(): [number, (w: number) => void] {
+  const [width, setWidth] = useState(PANEL_MIN)
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem(PANEL_KEY))
+      if (saved > 0) setWidth(clampPanel(saved, window.innerWidth))
+    } catch {}
+  }, [])
+  const set = useCallback((w: number) => {
+    setWidth(w)
+    try {
+      localStorage.setItem(PANEL_KEY, String(w))
+    } catch {}
+  }, [])
+  return [width, set]
+}
+
+function PanelResizer({width, onWidth}: {width: number; onWidth: (w: number) => void}) {
+  const t = useT()
+  const ref = useRef<HTMLDivElement>(null)
+  const total = () => ref.current?.parentElement?.getBoundingClientRect() ?? {right: window.innerWidth, width: window.innerWidth}
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const el = e.currentTarget
+    el.setPointerCapture(e.pointerId)
+    const box = total()
+    const move = (ev: PointerEvent) => onWidth(clampPanel(box.right - ev.clientX, box.width))
+    const up = () => (el.removeEventListener('pointermove', move), el.removeEventListener('pointerup', up), el.removeEventListener('pointercancel', up))
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
+  }
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const box = total()
+    const next = {ArrowLeft: width + 16, ArrowRight: width - 16, Home: box.width - PREVIEW_MIN, End: PANEL_MIN}[e.key]
+    if (next === undefined) return
+    e.preventDefault()
+    onWidth(clampPanel(next, box.width))
+  }
+  return (
+    <div
+      ref={ref}
+      className="presentation-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={t('Resize the panel')}
+      aria-valuenow={width}
+      aria-valuemin={PANEL_MIN}
+      tabIndex={0}
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+    />
   )
 }

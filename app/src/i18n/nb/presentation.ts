@@ -35,4 +35,6 @@ export default {
   'Enable edit overlay': 'Aktiver redigeringsoverlay',
   'Disable edit overlay': 'Deaktiver redigeringsoverlay',
   'Only an admin can stop a shared link. It stops working by itself {when}.': 'Bare en administrator kan stoppe en delt lenke. Den slutter å virke av seg selv {when}.',
+  // Presentation's divider between the preview and the panel.
+  'Resize the panel': 'Endre bredden på panelet',
 }

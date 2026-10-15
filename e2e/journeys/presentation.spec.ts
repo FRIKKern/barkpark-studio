@@ -170,6 +170,13 @@ test('J61: links and the URL bar move the page; the panel follows it', async ({p
   await panel.getByRole('link', {name: /Fixture post 01/}).click()
   await expect(panel.locator('[id="title"]')).toHaveValue('Fixture post 01')
   await expect(page).toHaveURL(/preview=%2F&pane=post/)
+  // Sanity's divider between the preview and the panel drags (task-669649c81d2c7f43).
+  const divider = (await page.getByRole('separator', {name: 'Resize the panel'}).boundingBox())!
+  await page.mouse.move(divider.x, divider.y + 200)
+  await page.mouse.down()
+  await page.mouse.move(divider.x - 150, divider.y + 200, {steps: 5})
+  await page.mouse.up()
+  expect((await panel.boundingBox())!.width).toBeGreaterThan(460)
   // Sanity's "Open in Structure": the document in Structure, out of Presentation.
   await page.getByRole('button', {name: 'Open in Structure'}).click()
   await expect(page).toHaveURL(/\/structure\/post;post-01/)
