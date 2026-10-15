@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 64 changes
+- **Today** · 65 changes
+  - fix(comments): the commented-text quote as Sanity's (J40) ([#621](https://github.com/FRIKKern/barkpark-studio/pull/621))
   - fix(validation): items as Sanity's cards, in its tone colours ([#620](https://github.com/FRIKKern/barkpark-studio/pull/620))
-  - Sign-ins survive a restart: the session is a sealed cookie, sliding 12 h ([#619](https://github.com/FRIKKern/barkpark-studio/pull/619))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
