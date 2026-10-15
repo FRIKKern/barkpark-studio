@@ -490,7 +490,7 @@ export const searchQuery = (type: string | string[], q: string, filter?: RefFilt
     queryFn: async ({client}) => {
       const types = [type].flat()
       const found = (await Promise.all(types.map((t) => fetchSearch({data: {type: t, q, filter, order, limit}})))).flat() as unknown as Doc[]
-      const docs = types.length > 1 ? found.sort((a, b) => b._updatedAt.localeCompare(a._updatedAt)).slice(0, 20) : found
+      const docs = types.length > 1 ? found.sort((a, b) => b._updatedAt.localeCompare(a._updatedAt)).slice(0, limit ?? 20) : found
       for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
       return docs
     },
