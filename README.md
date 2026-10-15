@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 20 changes
+- **Today** · 21 changes
+  - Live: a reorder by one editor survives another typing in the same list ([#578](https://github.com/FRIKKern/barkpark-studio/pull/578))
   - Inspect stays inside its pane on a long document and scrolls within, as Sanity's ([#577](https://github.com/FRIKKern/barkpark-studio/pull/577))
-  - J40: Publish now drops the schedule first, then publishes ([#575](https://github.com/FRIKKern/barkpark-studio/pull/575))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
