@@ -1,4 +1,5 @@
-import {useContext, useEffect, useId, useLayoutEffect, useRef, useState} from 'react'
+import {useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {rankRefs} from '../lib/ref-rank'
 import {usePaneNavigate} from './PaneLink'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
@@ -177,6 +178,9 @@ type SearchProps = {
   disableNew?: boolean
 }
 
+/** A typed search reads more than the 20 of the empty list, as Sanity's (it showed 35). */
+const REF_SEARCH_LIMIT = 50
+
 function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCancel, onCreate, disableNew}: SearchProps) {
   const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
@@ -192,12 +196,12 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
     const timer = setTimeout(() => setQuery(q.trim()), 120)
     return () => clearTimeout(timer)
   }, [q])
-  const search = useQuery({...searchQuery(types, query, filter), enabled: open, placeholderData: keepPreviousData})
+  const search = useQuery({...searchQuery(types, query, filter, undefined, query ? REF_SEARCH_LIMIT : undefined), enabled: open, placeholderData: keepPreviousData})
   // J18: each type's ways to start it (its templates too).
   const creatable = disableNew ? [] : types.filter((t) => !isSingleton(schemas, t)).flatMap((t) => choicesFor(schemas, t))
   const waiting = q.trim() !== query || search.isPending || search.isPlaceholderData
   // Never let Enter select a result belonging to the previous search text.
-  const results = waiting || search.isError ? [] : search.data ?? []
+  const results = useMemo(() => (waiting || search.isError ? [] : rankRefs(search.data ?? [], query, (d) => previewTitle(d, schemaOf(schemas, d._type)))), [waiting, search.isError, search.data, query, schemas])
   const typeTitle = (type: string) => schemaOf(schemas, type)?.title ?? type
 
   const replacing = !!onCancel
