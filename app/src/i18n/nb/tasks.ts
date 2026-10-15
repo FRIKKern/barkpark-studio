@@ -35,4 +35,10 @@ export default {
   'Once a document has connected tasks, they will be shown here.': 'Når et dokument har tilknyttede oppgaver, vises de her.',
   'Open a document to see its task': 'Åpne et dokument for å se oppgavene',
   'Tasks on your active document will be shown here.': 'Oppgaver på dokumentet du har åpent, vises her.',
+  // Sanity's task view: walk the list, copy a link.
+  'Go to previous task': 'Gå til forrige oppgave',
+  'Go to next task': 'Gå til neste oppgave',
+  'Copy link to task': 'Kopier lenke til oppgave',
+  'Copied link to clipboard': 'Lenken er kopiert til utklippstavlen',
+  'Unable to copy link to clipboard': 'Kunne ikke kopiere lenken til utklippstavlen',
 } satisfies Record<string, string>

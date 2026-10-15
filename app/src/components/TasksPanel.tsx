@@ -9,7 +9,7 @@ import {anyDocQuery, previewTitle, schemaOf, schemasQuery, searchAllDocs, type D
 import {meQuery} from '../lib/session'
 import {ago, useLocale, useT} from '../lib/i18n'
 import {toast} from './Toasts'
-import {Add, CheckmarkCircle, Close, DocumentIcon, Trash} from './icons'
+import {Add, CheckmarkCircle, ChevronLeft, ChevronRight, Close, DocumentIcon, LinkIcon, Trash} from './icons'
 
 /**
  * J66, Sanity's Tasks sidebar: the navbar's Tasks button opens it on the Assigned /
@@ -21,6 +21,15 @@ export function TasksPanel() {
   const t = useT()
   const view = useTasksView()
   const open = view.kind !== 'closed'
+  // A task's link (Copy link to task): ?task=<id> opens it here once, then leaves the URL.
+  useEffect(() => {
+    const url = new URL(location.href)
+    const id = url.searchParams.get('task')
+    if (!id) return
+    showTasks({kind: 'task', id})
+    url.searchParams.delete('task')
+    history.replaceState(history.state, '', url)
+  }, [])
   useEffect(() => {
     if (!open) return
     document.body.dataset.tasksOpen = ''
@@ -31,7 +40,7 @@ export function TasksPanel() {
     <aside className="tasks-panel" aria-label={t('Tasks')}>
       {view.kind === 'list' && <TaskList tab={view.tab} />}
       {view.kind === 'create' && <CreateTask key={view.target?.id ?? 'none'} target={view.target} />}
-      {view.kind === 'task' && <TaskView id={view.id} />}
+      {view.kind === 'task' && <TaskView id={view.id} list={view.list} />}
     </aside>,
     document.body,
   )
@@ -68,6 +77,7 @@ function TaskList({tab}: {tab: TasksTab}) {
   const shown = tasks.filter((x) => (tab === 'assigned' ? !!me && x.assignee === me : tab === 'subscribed' ? !!me && (x.subscribers ?? []).includes(me) : !!active && x.target?._ref === active.id))
   const open = shown.filter((x) => x.state !== 'done')
   const done = shown.filter((x) => x.state === 'done')
+  const order = [...open, ...done].map((x) => x._id)
   const [heading, text] = tab === 'document' && !active ? ['Open a document to see its task', 'Tasks on your active document will be shown here.'] : EMPTY[tab]
   return (
     <>
@@ -99,7 +109,7 @@ function TaskList({tab}: {tab: TasksTab}) {
           <>
             <ul className="tasks-list" aria-label={t('Open')}>
               {open.map((x) => (
-                <TaskRow key={x._id} task={x} />
+                <TaskRow key={x._id} task={x} list={order} />
               ))}
             </ul>
             {done.length > 0 && (
@@ -109,7 +119,7 @@ function TaskList({tab}: {tab: TasksTab}) {
                 </summary>
                 <ul className="tasks-list" aria-label={t('Done')}>
                   {done.map((x) => (
-                    <TaskRow key={x._id} task={x} />
+                    <TaskRow key={x._id} task={x} list={order} />
                   ))}
                 </ul>
               </details>
@@ -158,14 +168,14 @@ function StatusToggle({task}: {task: Task}) {
   )
 }
 
-function TaskRow({task}: {task: Task}) {
+function TaskRow({task, list}: {task: Task; list: string[]}) {
   const t = useT()
   const locale = useLocale()
   return (
     <li className="task-row" data-done={task.state === 'done' || undefined}>
       <StatusToggle task={task} />
       <div className="task-text">
-        <button type="button" className="task-title" onClick={() => showTasks({kind: 'task', id: task._id})}>
+        <button type="button" className="task-title" onClick={() => showTasks({kind: 'task', id: task._id, list})}>
           {task.title}
         </button>
         <span className="task-meta muted">
@@ -363,13 +373,14 @@ function CreateTask({target: initial}: {target: TaskTarget | null}) {
   )
 }
 
-function TaskView({id}: {id: string}) {
+function TaskView({id, list = []}: {id: string; list?: string[]}) {
   const t = useT()
   const locale = useLocale()
   const qc = useQueryClient()
   const ids = useId()
   const {data: tasks, isPending} = useQuery(tasksQuery)
   const task = tasks?.find((x) => x._id === id)
+  const at = list.indexOf(id)
   const [title, setTitle] = useState(task?.title ?? '')
   const [description, setDescription] = useState(task?.description ?? '')
   useEffect(() => void (task && (setTitle(task.title), setDescription(task.description ?? ''))), [task?._id])
@@ -419,6 +430,29 @@ function TaskView({id}: {id: string}) {
           <span aria-hidden="true">›</span>
           <h2>{task?.title ?? '…'}</h2>
         </nav>
+        {/* Sanity's: walk the list this task was opened from, and copy a link that opens it. */}
+        <button type="button" className="icon-btn" aria-label={t('Go to previous task')} data-tip={t('Go to previous task')} disabled={at <= 0} onClick={() => showTasks({kind: 'task', id: list[at - 1]!, list})}>
+          <ChevronLeft />
+        </button>
+        <button type="button" className="icon-btn" aria-label={t('Go to next task')} data-tip={t('Go to next task')} disabled={at < 0 || at >= list.length - 1} onClick={() => showTasks({kind: 'task', id: list[at + 1]!, list})}>
+          <ChevronRight />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={t('Copy link to task')}
+          data-tip={t('Copy link to task')}
+          onClick={() => {
+            const url = new URL(location.href)
+            url.searchParams.set('task', id)
+            navigator.clipboard.writeText(url.toString()).then(
+              () => toast({title: t('Copied link to clipboard')}),
+              () => toast({tone: 'critical', title: t('Unable to copy link to clipboard')}),
+            )
+          }}
+        >
+          <LinkIcon />
+        </button>
       </Header>
       <div className="tasks-body task-form">
         {isPending && <p className="muted">{t('Loading…')}</p>}

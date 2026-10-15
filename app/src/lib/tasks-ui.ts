@@ -6,7 +6,8 @@ import {useSyncExternalStore} from 'react'
 
 export type TasksTab = 'assigned' | 'subscribed' | 'document'
 export type TaskTarget = {id: string; type: string}
-export type TasksView = {kind: 'closed'} | {kind: 'list'; tab: TasksTab} | {kind: 'create'; target: TaskTarget | null} | {kind: 'task'; id: string}
+/** `list`: the tasks the one shown was opened from (previous / next walk them, as Sanity's). */
+export type TasksView = {kind: 'closed'} | {kind: 'list'; tab: TasksTab} | {kind: 'create'; target: TaskTarget | null} | {kind: 'task'; id: string; list?: string[]}
 
 function store<T>(initial: T) {
   let value = initial
