@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 26 changes
+- **Today** · 27 changes
+  - History reads every page, down to Created ([#582](https://github.com/FRIKKern/barkpark-studio/pull/582))
   - Presentation: drag the divider between the preview and the panel, as Sanity's ([#581](https://github.com/FRIKKern/barkpark-studio/pull/581))
-  - A saved draft without a title reads Untitled, as Sanity's; New <Type> only before it is saved ([#580](https://github.com/FRIKKern/barkpark-studio/pull/580))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
