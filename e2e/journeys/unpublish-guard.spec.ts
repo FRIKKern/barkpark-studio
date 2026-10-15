@@ -19,7 +19,7 @@ test('@local B07: unpublish lists who refers to it first; Cancel or Unpublish an
   await t.settle(page)
   await page.getByRole('button', {name: 'Unpublish', exact: true}).click()
   const dialog = page.getByRole('dialog', {name: 'Unpublish document?'})
-  await expect(dialog.getByRole('status')).toHaveText('“Alan Turing” is referenced by 10 documents. Unpublishing it will leave those references pointing at nothing live:')
+  await expect(dialog.getByRole('status')).toHaveText('10 documents refer to “Alan Turing”')
   await expect(dialog.locator('.used-in li')).toHaveCount(10)
   await expect(dialog.locator('.used-in li').first()).toContainText('Post / author')
   await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
