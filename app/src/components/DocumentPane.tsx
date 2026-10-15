@@ -1150,11 +1150,18 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
           body={t('Are you sure you want to publish this scheduled draft immediately?')}
           action={t('Yes, run now')}
           run={async () => {
-            // Published first, then the schedule goes: a failed publish keeps the schedule, and a
-            // schedule left behind finds no draft to publish.
-            await publish(qc, doc)
-            await cancelSchedule({data: {scheduleId: schedule._id}}).catch(() => {})
-            await qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
+            // The schedule goes first (a refusal says why, and nothing is published), then the
+            // draft is published; a failed publish puts the schedule back at its time.
+            await cancelSchedule({data: {scheduleId: schedule._id}})
+            try {
+              await publish(qc, doc)
+            } catch (e) {
+              if (new Date(schedule.publishAt).getTime() > Date.now())
+                await schedulePublish({data: {id: doc._publishedId, type: doc._type, publishAt: schedule.publishAt}}).catch(() => {})
+              throw e
+            } finally {
+              await qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
+            }
             toast({tone: 'positive', title: tt('The scheduled draft document {title} has been published.', {title: previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type), tt)})})
           }}
           onClose={() => setPublishingNow(false)}
