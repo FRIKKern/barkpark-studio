@@ -8,7 +8,7 @@ import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type
 import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
 import {t} from './i18n'
 import {setFooterOffline} from './footer-offline'
-import {merge3, unapply} from './merge'
+import {merge3, mergeList3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 
@@ -23,7 +23,7 @@ import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, rea
 //
 // Concurrent edits (J05, J06): every patch carries the rev it was made against
 // (ifRevisionID). Someone else wrote first → 412 → read theirs, rebase ours on it
-// (text fields merge with diff-match-patch, other values: ours wins), send again.
+// (text fields merge with diff-match-patch, lists item by item, other values: ours wins), send again.
 // A live frame that changes a field being typed in rebases it the same way at once.
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -258,6 +258,10 @@ function rebase(e: DocEdits, d: Doc): string[] {
       const merged = merge3(base, mine, theirs)
       if (merged === null) clashed.push(f)
       else e.dirty.set(f, merged)
+    } else if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(theirs)) {
+      // A list: their reorder, add or remove stays while I edit an item (else ours wins).
+      const merged = mergeList3(base, mine, theirs)
+      if (merged) e.dirty.set(f, merged as Json)
     }
     e.base.set(f, theirs)
   }

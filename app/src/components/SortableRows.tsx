@@ -36,8 +36,10 @@ type Props<T> = {
   grid?: boolean
 }
 
-export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, duplicate = (x) => x, onCopy, keyOf = (_, i) => i, onAdded, addLabel = 'Add item', extraActions, itemId, grid}: Props<T>) {
+export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, duplicate = (x) => x, onCopy, keyOf: keyOfProp, onAdded, addLabel = 'Add item', extraActions, itemId, grid}: Props<T>) {
   const t = useT()
+  const stable = useStableKeys(items)
+  const keyOf = keyOfProp ?? ((_: T, i: number) => stable[i]!)
   // While a row is being moved: which row (original index), and where it is now.
   const [moving, setMoving] = useState<{from: number; to: number} | null>(null)
   const rows = useRef<HTMLDivElement>(null)
@@ -145,6 +147,29 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
       </div>
     </div>
   )
+}
+
+/**
+ * Row keys for a list without its own (strings): a row keeps its key while another editor
+ * moves it, so the input being typed in moves with its item instead of handing the caret
+ * to whatever item lands in its place. Each item takes the key of an equal item it had
+ * before, then of the row it replaces (an edit), else a new one.
+ */
+function useStableKeys<T>(items: T[]): number[] {
+  const prev = useRef<{items: T[]; keys: number[]; next: number}>({items: [], keys: [], next: 0})
+  const p = prev.current
+  if (p.items === items) return p.keys
+  const used = new Set<number>()
+  const keys: (number | undefined)[] = items.map((x) => {
+    const j = p.items.findIndex((y, k) => !used.has(k) && JSON.stringify(y) === JSON.stringify(x))
+    if (j < 0) return undefined
+    used.add(j)
+    return p.keys[j]
+  })
+  const free = p.keys.filter((_, k) => !used.has(k))
+  const out = keys.map((k, i) => k ?? (items.length === p.items.length && free.length ? free.shift()! : (free.shift() ?? p.next + i)))
+  prev.current = {items, keys: out, next: Math.max(p.next, ...out.map((k) => k + 1), items.length)}
+  return out
 }
 
 type RowActions<T> = {
