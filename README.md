@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 22 changes
+- **Today** · 23 changes
+  - Shard-5 flakes: held clicks wait for React; reads ride out a deploy's gap ([#576](https://github.com/FRIKKern/barkpark-studio/pull/576))
   - A new sort of a long list keeps the old order until the server answers, never the loaded page re-sorted ([#579](https://github.com/FRIKKern/barkpark-studio/pull/579))
-  - Live: a reorder by one editor survives another typing in the same list ([#578](https://github.com/FRIKKern/barkpark-studio/pull/578))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
