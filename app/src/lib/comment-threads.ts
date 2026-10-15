@@ -19,7 +19,16 @@ export type Comment = {
   mentions?: string[]
   /** Sanity's reactions: who reacted with what (one of REACTIONS). */
   reactions?: Reaction[]
+  /** Sanity's inline comments: the span of body text a thread is on, as canvas Points. */
+  selection?: CommentSelection
+  /** The text it was on when written (Sanity's contentSnapshot). */
+  contentSnapshot?: string
+  /** That text has since been deleted: the thread stays, its highlight goes. */
+  textDeleted?: boolean
 }
+/** A spot in a canvas body (Barkpark EMBED-CONTRACT, Shared carets). */
+export type Point = {blockId: string; path?: string; offset: number}
+export type CommentSelection = {anchor: Point; head: Point}
 export type Reaction = {_key: string; shortName: string; userId: string | null; addedAt: string}
 
 /** Sanity's six comment reactions (COMMENT_REACTION_OPTIONS), in its order. */
@@ -50,6 +59,34 @@ export type Thread = {root: Comment; replies: Comment[]; status: CommentStatus}
 export function threadsOf(comments: Comment[]): Thread[] {
   const roots = comments.filter((c) => !c.parentCommentId)
   return roots.map((root) => ({root, replies: comments.filter((c) => c.parentCommentId === root._id), status: root.state ?? 'open'}))
+}
+
+/** Painted in the body: an open thread on a span of text that is still there. */
+const painted = (th: Thread, fieldPath: string) => th.status === 'open' && th.root.fieldPath === fieldPath && !!th.root.selection && !th.root.textDeleted
+
+/**
+ * The canvas's comment ranges for one field. `live` holds the Points the canvas has
+ * mapped through edits since; they win over the saved ones, which may lag behind.
+ */
+export function commentRangesOf(threads: Thread[], fieldPath: string, active: string | undefined, live: ReadonlyMap<string, CommentSelection>) {
+  return threads.filter((th) => painted(th, fieldPath)).map((th) => ({id: th.root._id, ...(live.get(th.root._id) ?? th.root.selection!), ...(th.root._id === active ? {active: true} : {})}))
+}
+
+const samePoint = (a: Point, b: Point) => a.blockId === b.blockId && (a.path ?? '') === (b.path ?? '') && a.offset === b.offset
+
+/**
+ * What to save after the canvas moved or dropped ranges: each thread's new Points, or
+ * null when its text is gone. Only a range the canvas once painted (`seen`) counts as
+ * gone: one it never placed (blocks it has not loaded yet) is left alone.
+ */
+export function rangeMoves(threads: Thread[], fieldPath: string, live: ({id: string} & CommentSelection)[], seen: ReadonlySet<string>): {id: string; selection: CommentSelection | null}[] {
+  const byId = new Map(live.map((r) => [r.id, r]))
+  return threads.filter((th) => painted(th, fieldPath)).flatMap((th): {id: string; selection: CommentSelection | null}[] => {
+    const now = byId.get(th.root._id)
+    const was = th.root.selection!
+    if (!now) return seen.has(th.root._id) ? [{id: th.root._id, selection: null}] : []
+    return samePoint(now.anchor, was.anchor) && samePoint(now.head, was.head) ? [] : [{id: th.root._id, selection: {anchor: now.anchor, head: now.head}}]
+  })
 }
 
 // Mentions (J40), as Sanity's: "@" opens the list of users; a pick puts @<email> in

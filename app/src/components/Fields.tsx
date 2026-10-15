@@ -470,7 +470,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       const broken = richTextProblem(value)
       if (broken) return <RichTextCard problem={broken} onChange={onChange} />
       // J10: a block-editor field is Barkpark's canvas (decision 0004), scoped to the field.
-      return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} /> : <RichText id={path} value={value} />
+      return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} title={field.title ?? field.name} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} /> : <RichText id={path} value={value} />
     }
     case 'image':
       return <ImageInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
@@ -742,7 +742,7 @@ export function RichText({id, value}: {id: string; value: unknown}) {
  * with a body costs nothing extra (no canvas bundle, no block reads), and a remote
  * edit to the body just redraws.
  */
-function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value: unknown; vocabulary?: unknown; readOnly?: boolean}) {
+function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string; title: string; value: unknown; vocabulary?: unknown; readOnly?: boolean}) {
   const t = useT()
   const id = useContext(DocIdContext)
   const type = useContext(DocTypeContext)
@@ -877,7 +877,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
         {!readOnly && <BodyToolbar host={box} vocabulary={vocabulary} />}
         <ExpandButton expanded={expanded} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle} />
       </div>
-      <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} />
+      <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} commentsTitle={title} />
       {id && <BlockPresence docId={id} field={field} />}
     </div>
   )
