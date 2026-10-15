@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 62 changes
+- **Today** · 63 changes
+  - Sign-ins survive a restart: the session is a sealed cookie, sliding 12 h ([#619](https://github.com/FRIKKern/barkpark-studio/pull/619))
   - fix(inspect): Parsed highlights the line under the pointer, as Sanity's (J28) ([#617](https://github.com/FRIKKern/barkpark-studio/pull/617))
-  - Help + scope switcher as Sanity's: click outside closes, busy Switch, version dialog ([#615](https://github.com/FRIKKern/barkpark-studio/pull/615))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
