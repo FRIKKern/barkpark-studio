@@ -5,7 +5,7 @@ import {signOutHere} from '../lib/sign-out'
 import {GlobalSearch} from './Search'
 import {NewDocMenu} from './NewDocMenu'
 import {ScopeSwitcher} from './ScopeSwitcher'
-import {WhoIsOnline} from './Presence'
+import {ActorAvatar, WhoIsOnline} from './Presence'
 import {TasksPanel} from './TasksPanel'
 import {Diagnostics} from './Diagnostics'
 import {showTasks, useTasksView} from '../lib/tasks-ui'
@@ -72,6 +72,8 @@ function NavDrawer() {
   const {data: me} = useQuery(meQuery)
   const qc = useQueryClient()
   const navigate = useNavigate()
+  // Sign out returns here once signed in again, as Sanity's (task-701f8a5fdb6b4d52).
+  const here = useRouterState({select: (st) => st.location.href})
   const appearance = useAppearance()
   const [open, setOpen] = useState(false)
   const signedIn = !!(me && me.signIn !== 'shared' && me.email)
@@ -85,8 +87,8 @@ function NavDrawer() {
         <div className="drawer-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
           <DialogBox className="nav-drawer" aria-modal="true" aria-label={t('Menu')} onClose={close}>
             <header>
-              {signedIn ? <span className="user-initial">{me!.email![0]!.toUpperCase()}</span> : <span className="logo">B</span>}
-              <span className="drawer-who">{signedIn ? me!.email : 'Barkpark Studio'}</span>
+              {signedIn ? <ActorAvatar actor={me!.name ?? me!.email!} /> : <span className="logo">B</span>}
+              <span className="drawer-who">{signedIn ? (me!.name ?? me!.email) : 'Barkpark Studio'}</span>
               <button type="button" className="icon-btn" aria-label={t('Close menu')} onClick={close}>
                 <Close />
               </button>
@@ -119,7 +121,7 @@ function NavDrawer() {
                     onClick={async () => {
                       close()
                       await signOutHere(qc)
-                      await navigate({to: '/login', search: {redirect: '/structure'}})
+                      await navigate({to: '/login', search: {redirect: here}})
                     }}
                   >
                     <span className="menu-icon-text">
@@ -319,6 +321,8 @@ function Editor() {
   const {data: me} = useQuery(meQuery)
   const qc = useQueryClient()
   const navigate = useNavigate()
+  // Sign out returns here once signed in again, as Sanity's (task-701f8a5fdb6b4d52).
+  const here = useRouterState({select: (st) => st.location.href})
   const appearance = useAppearance()
   const [open, setOpen] = useState(false)
   const signedIn = !!(me && me.signIn !== 'shared' && me.email)
@@ -332,11 +336,23 @@ function Editor() {
       )}
       <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
         <button id="user-menu" type="button" className="icon-btn user-btn" aria-label={t('Open user menu')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-          {signedIn ? <span className="user-initial">{me!.email![0]!.toUpperCase()}</span> : <UserIcon />}
+          {signedIn ? <ActorAvatar actor={me!.name ?? me!.email!} /> : <UserIcon />}
         </button>
         {open && (
           <MenuPopover className="popover menu user-menu" onClose={() => setOpen(false)} aria-labelledby="user-menu">
-            <div className="user-head">{signedIn ? me!.email : 'Barkpark Studio'}</div>
+            {/* Sanity's: the avatar, the name, and the role here (task-701f8a5fdb6b4d52). */}
+            {signedIn ? (
+              <div className="user-head">
+                <ActorAvatar actor={me!.name ?? me!.email!} />
+                <span className="user-who">
+                  <span className="user-name">{me!.name ?? me!.email}</span>
+                  {me!.name && <span className="user-email">{me!.email}</span>}
+                  {me!.role && <span className="user-role">{me!.role[0]!.toUpperCase() + me!.role.slice(1)}</span>}
+                </span>
+              </div>
+            ) : (
+              <div className="user-head">Barkpark Studio</div>
+            )}
             <hr />
             {APPEARANCES.map(([a, label, Icon]) => (
               <button key={a} type="button" role="menuitemradio" aria-checked={appearance === a} aria-label={t(`Use ${a} appearance`)} className="menu-item check" onClick={choose(a)}>
@@ -355,7 +371,7 @@ function Editor() {
                   onClick={async () => {
                     setOpen(false)
                     await signOutHere(qc)
-                    await navigate({to: '/login', search: {redirect: '/structure'}})
+                    await navigate({to: '/login', search: {redirect: here}})
                   }}
                 >
                   <span className="menu-icon-text">{t('Sign out')}</span>

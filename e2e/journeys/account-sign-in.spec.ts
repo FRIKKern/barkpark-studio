@@ -11,7 +11,7 @@ const EMAIL = process.env.LIVEVIEW_TEST_EMAIL
 const PASSWORD = process.env.LIVEVIEW_TEST_PASSWORD
 test.skip(process.env.STUDIO_SIGN_IN !== 'account' || !EMAIL || !PASSWORD, 'needs STUDIO_SIGN_IN=account and an account in .env')
 
-test('@local J67: sign in with a Barkpark account, work as yourself, sign out', async ({page}, info) => {
+test('@local J67: sign in with a Barkpark account, work as yourself, sign out', async ({page, browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours')
   // Signed out, the studio sends you to sign in, and nothing reads as the studio meanwhile.
@@ -70,11 +70,37 @@ test('@local J67: sign in with a Barkpark account, work as yourself, sign out', 
     await page.goto(t.docPath('post', 'post-01'))
     await t.settle(page)
   }
+  // task-701f8a5fdb6b4d52: the user menu as Sanity's: avatar, name (or email) and the role here.
   await page.getByRole('button', {name: 'Open user menu'}).click()
-  await expect(page.locator('.user-head')).toHaveText(EMAIL!.toLowerCase())
+  await expect(page.locator('.user-head')).toContainText(EMAIL!.toLowerCase())
+  await expect(page.locator('.user-head .p-avatar')).toBeVisible()
+  await expect(page.locator('.user-head .user-role')).toHaveText(/^[A-Z]\w+$/)
   await page.screenshot({path: 'evidence/J67-1-signed-in-studio.png'})
 
-  // Sign out: back to the sign-in screen, and the studio no longer opens.
+  // Sign out: back to the sign-in screen, which returns to this doc after signing in again.
+  const copied = (await page.context().cookies()).find((c) => c.name === 'bp_sid')!
+  await page.getByRole('menuitem', {name: 'Sign out'}).click()
+  // The doc and the field the caret was in (B11's field URL), as the redirect.
+  await page.waitForURL((u) => u.pathname === '/login' && !!u.searchParams.get('redirect')?.startsWith(t.docPath('post', 'post-01')))
+  // A copy of the signed-out cookie (the session is sealed in it) opens nothing either.
+  const elsewhere = await browser.newContext()
+  await elsewhere.addCookies([copied])
+  const other = await elsewhere.newPage()
+  await other.goto(new URL(t.docPath('post', 'post-01'), page.url()).href)
+  await other.waitForURL(/\/login\?redirect=/)
+  await elsewhere.close()
+  await page.locator('html[data-hydrated]').waitFor({state: 'attached'})
+  await page.getByLabel('Your email').fill(EMAIL!)
+  await page.getByLabel('Password').fill(PASSWORD!)
+  await page.getByRole('button', {name: 'Sign in'}).click()
+  await page.waitForURL(/\/structure\/post;post-01/)
+  // Signed in, /login goes straight on to where it points.
+  await page.goto('/login?redirect=%2Fstructure%2Fpost')
+  await page.waitForURL((u) => u.pathname === '/structure/post')
+
+  // Signed out, the studio no longer opens.
+  await t.settle(page)
+  await page.getByRole('button', {name: 'Open user menu'}).click()
   await page.getByRole('menuitem', {name: 'Sign out'}).click()
   await page.waitForURL(/\/login/)
   await page.goto(t.docPath('post', 'post-01'))

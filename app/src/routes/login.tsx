@@ -1,5 +1,5 @@
 import {useQueryClient} from '@tanstack/react-query'
-import {createFileRoute, useNavigate} from '@tanstack/react-router'
+import {createFileRoute, redirect, useNavigate} from '@tanstack/react-router'
 import {SignInForm} from '../components/SignInForm'
 import {useHydratedMark} from '../lib/hydrated'
 import {useT} from '../lib/i18n'
@@ -12,6 +12,12 @@ import {meQuery} from '../lib/session'
 export const Route = createFileRoute('/login')({
   // Back where the editor was going: a path on this studio only (lib/return-path.ts).
   validateSearch: (s: Record<string, unknown>) => ({redirect: returnPath(s.redirect)}),
+  // Signed in already: straight on to where they were going. Sanity never shows a
+  // signed-in editor its sign-in screen (task-701f8a5fdb6b4d52).
+  beforeLoad: async ({context, search}) => {
+    const me = await context.queryClient.ensureQueryData(meQuery)
+    if (me.signIn !== 'shared' && me.email) throw redirect({href: search.redirect})
+  },
   component: Login,
 })
 

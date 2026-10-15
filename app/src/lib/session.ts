@@ -1,6 +1,6 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {accountSignIn, currentEditor, describeToken, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
+import {accountSignIn, currentEditor, describeToken, displayName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {requestToken} from '../server/barkpark'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
@@ -23,6 +23,9 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     signIn: mode,
     devLogin: mode === 'dev',
     email: ended ? null : editor?.email ?? null,
+    /** task-701f8a5fdb6b4d52, the user menu as Sanity's: their name (Barkpark display name) and role here. */
+    name: ended || !editor ? null : await displayName(editor.token),
+    role: ended || !editor ? null : self?.role ?? null,
     canWrite: self && !ended ? self.permissions.includes('write') : true,
     canPublish: self && !ended ? self.canPublish !== false : true,
     /** A token held to one dataset (Barkpark #22393): the only one it can open. */

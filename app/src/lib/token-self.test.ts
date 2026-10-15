@@ -15,6 +15,9 @@ test('J49: a seat that may not publish (Contributor) still writes; a member publ
   assert.deepEqual(viewer.permissions, ['read'])
   const session = tokenSelf({kind: 'session', seats: [{workspace: {slug: 'other'}, can: {read: true, write: true, publish: true}}, {workspace: {slug: 'ws'}, can: {read: true, write: true, publish: false}}]}, 'ws')
   assert.deepEqual([session.permissions, session.canPublish], [['read', 'write'], false])
+  // task-701f8a5fdb6b4d52: the seat's role here, for the user menu.
+  assert.equal(tokenSelf({kind: 'session', seats: [{workspace: {slug: 'other'}, role: 'admin'}, {workspace: {slug: 'ws'}, role: 'editor'}]}, 'ws').role, 'editor')
+  assert.equal(tokenSelf({kind: 'api', seat: {role: 'viewer', can: {read: true}}}, 'ws').role, 'viewer')
 })
 
 test("task-73a9f8eafae5fbf1: the studio's own token reads only for an editor seated here", () => {
