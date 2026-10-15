@@ -13,7 +13,7 @@ import {meQuery} from '../lib/session'
 import {intlTag, useLocale, useT} from '../lib/i18n'
 import {JsonTree} from './JsonTree'
 import {MenuPopover} from './FocusScopes'
-import {Add, Ellipsis, HelpCircle, Search} from './icons'
+import {Add, ChevronDown, ChevronLeft, ChevronRight, Copy, DocumentIcon, Ellipsis, HelpCircle, PlayIcon, Search, StopIcon} from './icons'
 import {toast} from './Toasts'
 
 // J37, Vision: Sanity's layout (dataset, perspective and the query URL with Copy on top,
@@ -49,6 +49,21 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const [dataset, setDataset] = useState(pageDataset)
   const [result, setResult] = useState<VisionResult & {total?: number; query?: string}>()
   const [busy, setBusy] = useState(false)
+  // Sanity's › between Result and Saved queries hides the saved queries (remembered here).
+  const [savedOpen, setSavedOpen] = useState(() => {
+    try {
+      return localStorage.getItem(`${KEY}-saved`) !== 'off'
+    } catch {
+      return true
+    }
+  })
+  const toggleSaved = () =>
+    setSavedOpen((open) => {
+      try {
+        localStorage.setItem(`${KEY}-saved`, open ? 'off' : 'on')
+      } catch {}
+      return !open
+    })
   // Listen: the open stream (Stop aborts it), its mutations (newest first) and why it ended.
   const [listening, setListening] = useState<{stop: AbortController; open: boolean; events: ListenEvent[]; error?: string}>()
   const bound = useQuery(meQuery).data?.boundDataset ?? null
@@ -109,25 +124,32 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     ).then((error) => update((l) => ({...l, error: error ?? (stop.signal.aborted ? undefined : t('The listener closed'))})))
   }
   const live = !!listening && !listening.error
+  const copyUrl = () => result?.url && void navigator.clipboard.writeText(result.href ?? result.url).then(() => toast({title: t('The URL is copied to the clipboard')}))
   return (
     <main className="vision">
       <div className="vision-top">
         <label>
           <span className="menu-label">{t('Dataset')}</span>
-          <select className="input" value={dataset} disabled={!datasets} onChange={(e) => setDataset(e.target.value)}>
-            {(datasets ?? [{slug: dataset, name: dataset}]).map((d) => (
-              <option key={d.slug} value={d.slug} disabled={!readable(d.slug)}>
-                {d.name === d.slug ? d.slug : `${d.name} (${d.slug})`}
-              </option>
-            ))}
-          </select>
+          <span className="select-box">
+            <select className="input" value={dataset} disabled={!datasets} onChange={(e) => setDataset(e.target.value)}>
+              {(datasets ?? [{slug: dataset, name: dataset}]).map((d) => (
+                <option key={d.slug} value={d.slug} disabled={!readable(d.slug)}>
+                  {d.name === d.slug ? d.slug : `${d.name} (${d.slug})`}
+                </option>
+              ))}
+            </select>
+            <ChevronDown />
+          </span>
         </label>
         {/* Sanity's API version; Barkpark's query API has the one, v1. */}
         <label>
           <span className="menu-label">{t('API version')}</span>
-          <select className="input" value="v1" title={t("Barkpark's query API has one version")} onChange={() => {}}>
-            <option value="v1">v1</option>
-          </select>
+          <span className="select-box">
+            <select className="input" value="v1" title={t("Barkpark's query API has one version")} onChange={() => {}}>
+              <option value="v1">v1</option>
+            </select>
+            <ChevronDown />
+          </span>
         </label>
         <label>
           <span className="menu-label vision-label-help">
@@ -136,31 +158,36 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
               <HelpCircle />
             </span>
           </span>
-          <select className="input" value={perspective} onChange={(e) => setPerspective(e.target.value as Perspective)}>
-            {PERSPECTIVES.map((p) => (
-              <option key={p} value={p}>
-                {t(PERSPECTIVE_LABEL[p])}
-              </option>
-            ))}
-          </select>
+          <span className="select-box">
+            <select className="input" value={perspective} onChange={(e) => setPerspective(e.target.value as Perspective)}>
+              {PERSPECTIVES.map((p) => (
+                <option key={p} value={p}>
+                  {t(PERSPECTIVE_LABEL[p])}
+                </option>
+              ))}
+            </select>
+            <ChevronDown />
+          </span>
         </label>
         {result?.url && (
-          <label className="vision-url-field">
-            <span className="menu-label">{t('Query URL')}</span>
-            <span className="vision-url-row">
-              <input className="input vision-code" readOnly value={result.href ?? result.url} onFocus={(e) => e.currentTarget.select()} />
-              <button
-                type="button"
-                className="btn"
-                onClick={() => void navigator.clipboard.writeText(result.href ?? result.url).then(() => toast({title: t('The URL is copied to the clipboard')}))}
-              >
-                {t('Copy to clipboard')}
+          // Sanity's: "[Copy to clipboard]" beside the label, and a copy button beside the field.
+          <div className="vision-url-field">
+            <span className="menu-label">
+              <label htmlFor="vision-url">{t('Query URL')}</label>{' '}
+              <button type="button" className="vision-url-copy" onClick={copyUrl}>
+                [{t('Copy to clipboard')}]
               </button>
             </span>
-          </label>
+            <span className="vision-url-row">
+              <input id="vision-url" className="input" readOnly value={result.href ?? result.url} onFocus={(e) => e.currentTarget.select()} />
+              <button type="button" className="icon-btn vision-url-icon" aria-label={t('Copy URL')} data-tip={t('Copy URL')} onClick={copyUrl}>
+                <Copy />
+              </button>
+            </span>
+          </div>
         )}
       </div>
-      <div className="vision-body">
+      <div className="vision-body" data-saved={savedOpen ? undefined : 'off'}>
         <section className="vision-query">
           <label htmlFor="vision-query" className="menu-label">
             {t('Query')}
@@ -204,10 +231,10 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
           </Suspense>
           <div className="vision-actions">
             <button type="button" className="btn btn-primary vision-fetch" disabled={busy} aria-keyshortcuts="Control+Enter Meta+Enter" onClick={() => void fetchIt()}>
-              ▶ {t('Fetch')}
+              <PlayIcon /> {t('Fetch')}
             </button>
             <button type="button" className="btn vision-fetch" aria-pressed={live} onClick={listenIt}>
-              {live ? `■ ${t('Stop')}` : `▶ ${t('Listen')}`}
+              {live ? <StopIcon /> : <PlayIcon />} {live ? t('Stop') : t('Listen')}
             </button>
           </div>
         </section>
@@ -247,30 +274,33 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
             {parsed !== undefined && result?.ok && (
               <span className="vision-save">
                 {t('Save result as')}{' '}
-                <a className="btn" download={`vision-${dataset}.json`} href={`data:application/json;charset=utf-8,${encodeURIComponent(result!.body)}`}>
-                  JSON
+                <a className="btn vision-save-btn" download={`vision-${dataset}.json`} href={`data:application/json;charset=utf-8,${encodeURIComponent(result!.body)}`}>
+                  <DocumentIcon /> JSON
                 </a>
                 {csv !== null ? (
-                  <a className="btn" download={`vision-${dataset}.csv`} href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}>
-                    CSV
+                  <a className="btn vision-save-btn" download={`vision-${dataset}.csv`} href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}>
+                    <DocumentIcon /> CSV
                   </a>
                 ) : (
-                  <button type="button" className="btn" disabled title={t('Result cannot be encoded as CSV')}>
-                    CSV
+                  <button type="button" className="btn vision-save-btn" disabled title={t('Result cannot be encoded as CSV')}>
+                    <DocumentIcon /> CSV
                   </button>
                 )}
               </span>
             )}
           </footer>
+          <button type="button" className="icon-btn vision-saved-toggle" aria-label={savedOpen ? t('Hide saved queries') : t('Show saved queries')} aria-expanded={savedOpen} onClick={toggleSaved}>
+            {savedOpen ? <ChevronRight /> : <ChevronLeft />}
+          </button>
         </section>
-        <SavedQueries
+        {savedOpen && <SavedQueries
           current={{query, perspective, dataset}}
           onLoad={(q) => {
             setQuery(q.query)
             if ((PERSPECTIVES as readonly string[]).includes(q.perspective)) setPerspective(q.perspective as Perspective)
             if (readable(q.dataset)) setDataset(q.dataset)
           }}
-        />
+        />}
       </div>
     </main>
   )
