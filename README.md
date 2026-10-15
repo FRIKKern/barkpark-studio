@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 70 changes
+- **Today** · 71 changes
+  - fix(fields): Field actions and Add comment where Sanity puts them (J40) ([#626](https://github.com/FRIKKern/barkpark-studio/pull/626))
   - Scope switch keeps the open panes that exist there ([#625](https://github.com/FRIKKern/barkpark-studio/pull/625))
-  - feat(comments): inline comments show on the read-only body too (J40) ([#624](https://github.com/FRIKKern/barkpark-studio/pull/624))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
