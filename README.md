@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 55 changes
+- **Today** · 56 changes
+  - Cold load: gzip the HTML (doc page 135 KB → 22 KB) ([#607](https://github.com/FRIKKern/barkpark-studio/pull/607))
   - fix(json-view): the JSON tab shows the stored document, as Inspect (J26) ([#611](https://github.com/FRIKKern/barkpark-studio/pull/611))
-  - fix(incoming): rows without the document icon, spaced as Sanity's (J17) ([#610](https://github.com/FRIKKern/barkpark-studio/pull/610))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
