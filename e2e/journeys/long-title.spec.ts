@@ -3,7 +3,8 @@ import {signInIfAsked, target} from '../rig/targets'
 
 // A long title, as Sanity shows it: the title bar under the header stays one line with an
 // ellipsis, and the heading breaks a long word inside the pane instead of running past it.
-test('a long title: one-line title bar, the heading breaks long words', async ({page, context}, info) => {
+// @local: layout, visible when it breaks (CI's 5 s per journey rule).
+test('@local a long title: one-line title bar, the heading breaks long words', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the scout still')
   const id = `post-long-${Date.now().toString(36)}`
