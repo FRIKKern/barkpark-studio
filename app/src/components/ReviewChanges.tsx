@@ -1,8 +1,8 @@
-import {Fragment, useState, type ReactNode} from 'react'
+import {Fragment, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
-import {useQueries, useQuery} from '@tanstack/react-query'
+import {useInfiniteQuery, useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
-import {historyQuery, revisionQuery, type HistoryEntry, type Revision} from '../lib/history'
+import {historyPagesQuery, revisionQuery, type HistoryEntry, type Revision} from '../lib/history'
 import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
 import {docDiff, type AttrChange, type DocBlock, type Piece} from '../lib/doc-diff'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
@@ -23,7 +23,11 @@ const SNAPSHOTS = 12
 export function ReviewChanges({schema, draft, published, onRevert}: {schema: Schema; draft: Doc; published: Doc | null | undefined; onRevert: (changes: FieldChange[]) => void}) {
   const t = useT()
   const locale = useLocale()
-  const {data: revisions = [], isPending, isFetching} = useQuery(historyQuery(draft._type, draft._publishedId))
+  // The whole timeline, a page at a time: the From picker reaches past the newest 100 (Sanity's loads as it scrolls).
+  const pages = useInfiniteQuery(historyPagesQuery(draft._type, draft._publishedId))
+  const {isPending, isFetching} = pages
+  const revisions = useMemo(() => pages.data?.pages.flatMap((p) => p.revisions) ?? [], [pages.data])
+  const more = pages.hasNextPage ? {loading: pages.isFetchingNextPage, load: () => void pages.fetchNextPage()} : undefined
   const {draft: drafts, publish} = sinceLastPublish(revisions)
   // A cached history from before this draft's edits lists none of them: until it is
   // fetched again the range is unknown ("…"), never the last publish's (J15).
@@ -31,7 +35,15 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
   // Sanity's From / To: picked points of the timeline; unpicked, the draft since it was last published.
   const entries = flatEntries(timeline(revisions))
   const [picked, setPicked] = useState<{from?: string; to?: string}>({})
-  const fromEntry = entries.find((e) => e.revision.id === picked.from) ?? (drafts.length ? entries.find((e) => e.revision.id === drafts.at(-1)!.id) : undefined)
+  // The timeline entry holding a revision: a run of edits is one entry, headed by its newest.
+  const entryOf = (id: string) => {
+    const i = revisions.findIndex((r) => r.id === id)
+    return entries.find((e) => {
+      const at = revisions.indexOf(e.revision)
+      return at <= i && i <= at + e.count - 1
+    })
+  }
+  const fromEntry = entries.find((e) => e.revision.id === picked.from) ?? (drafts.length ? entryOf(drafts.at(-1)!.id) : undefined)
   const toEntry = entries.find((e) => e.revision.id === picked.to) ?? null
   const custom = !!(picked.from || picked.to) && !!fromEntry
   const range = custom ? reviewRange(revisions, fromEntry!, toEntry) : undefined
@@ -64,7 +76,7 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
       <dl className="review-range">
         <div>
           <dt>{t('From')}</dt>
-          <dd>{isPending || catchingUp ? '…' : <RangePicker label={t('From')} text={fromText} options={options.from} selected={fromEntry} onPick={(e) => setPicked((p) => ({...p, from: e.revision.id}))} />}</dd>
+          <dd>{isPending || catchingUp ? '…' : <RangePicker label={t('From')} text={fromText} options={options.from} selected={fromEntry} more={more} onPick={(e) => setPicked((p) => ({...p, from: e.revision.id}))} />}</dd>
         </div>
         <div>
           <dt>{t('To')}</dt>
@@ -308,8 +320,17 @@ function Attrs({attrs, fields, by}: {attrs: AttrChange[]; fields?: Field[]; by: 
 }
 
 /** Sanity's From / To picker: the range end as text; open, the timeline to pick another from. */
-function RangePicker({label, text, options, selected, onPick}: {label: string; text: string; options: HistoryEntry[]; selected?: HistoryEntry; onPick: (e: HistoryEntry) => void}) {
+function RangePicker({label, text, options, selected, more, onPick}: {label: string; text: string; options: HistoryEntry[]; selected?: HistoryEntry; more?: {loading: boolean; load: () => void}; onPick: (e: HistoryEntry) => void}) {
+  const t = useT()
   const [open, setOpen] = useState(false)
+  // Older revisions load as the list reaches its end, as Sanity's.
+  const end = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    if (!open || !end.current || !more) return
+    const seen = new IntersectionObserver(([e]) => e?.isIntersecting && !more.loading && more.load())
+    seen.observe(end.current)
+    return () => seen.disconnect()
+  })
   return (
     <span className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
       <button type="button" className="review-pick" aria-label={`${label}: ${text}`} aria-expanded={open} disabled={!options.length} onClick={() => setOpen((o) => !o)}>
@@ -322,6 +343,11 @@ function RangePicker({label, text, options, selected, onPick}: {label: string; t
             {options.map((e) => (
               <Row key={e.revision.id} e={e} selected={e === selected} onPick={() => (setOpen(false), onPick(e))} />
             ))}
+            {more && (
+              <li ref={end} className="history-more muted" role="status">
+                {t('Loading history…')}
+              </li>
+            )}
           </ul>
         </DialogBox>
       )}
