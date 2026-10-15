@@ -884,6 +884,12 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .json-tree, .json-tree ul { list-style: none; margin: 0; padding: 0 0 0 20px; }
 .json-tree { padding-left: 0; }
 .json-toggle { font: inherit; border: 0; background: none; padding: 0; cursor: pointer; color: inherit; text-align: left; }
+/* Sanity's Parsed: a full-width band behind the line under the pointer (a branch's own line only). */
+.dialog.inspect .inspect-body { overflow-x: hidden; }
+.inspect .json-tree { isolation: isolate; }
+.inspect .json-tree li:not([aria-expanded]), .inspect .json-tree .json-toggle { position: relative; display: block; width: 100%; }
+.inspect .json-tree li:not([aria-expanded])::after, .inspect .json-tree .json-toggle::after { content: ''; position: absolute; inset: 0 -50px 0 -200px; z-index: -1; pointer-events: none; }
+.inspect .json-tree li:not([aria-expanded]):hover::after, .inspect .json-tree .json-toggle:hover::after { background: var(--bg-soft); }
 .json-caret { display: inline-block; width: 1.5ch; color: var(--syntax-punctuation); }
 .inspect .json-key, .syntax-property { color: var(--syntax-property); }
 .inspect .json-summary, .inspect .json-value[data-type=number], .inspect .json-value[data-type=boolean], .inspect .json-value[data-type=null], .syntax-constant { color: var(--syntax-constant); }

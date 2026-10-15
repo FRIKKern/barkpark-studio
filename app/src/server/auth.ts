@@ -24,6 +24,7 @@ import {randomBytes} from 'node:crypto'
 import {devToken, editorPermissions, keepDevToken, sweepDevTokens} from '../../../scripts/lib/dev-tokens.mjs'
 import {getCookie, setCookie, deleteCookie} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
+import {seal, unseal} from './session-cookie'
 import {tokenSelf, type TokenBody, type TokenSelf} from '../lib/token-self'
 export type {TokenSelf} from '../lib/token-self'
 
@@ -42,23 +43,52 @@ if (devLoginEnabled() && import.meta.env.PROD)
   throw new Error('STUDIO_DEV_LOGIN is dev-only and refused in a production build: it trusts an email without a password.')
 
 const COOKIE = 'bp_sid'
-const SESSION_SECONDS = 60 * 60 * 12
+// task-1883ba9b1ace5dcf: the session is the cookie, sealed (server/session-cookie.ts), not
+// an entry in this process's memory: a restart or a deploy signed every editor out. It
+// ends after IDLE_SECONDS without a request; an editor at work past half of that gets a
+// fresh one, so nobody active is signed out by the clock (it was a fixed 12 h).
+const IDLE_SECONDS = 60 * 60 * 12
 // `session`: an account sign-in's Barkpark login session, kept only to sign it out.
-type Editor = {email: string; token: string; permissions: string[]; session?: string}
-const sessions = new Map<string, Editor>()
+type Editor = {email: string; token: string; session?: string}
+type Sealed = Editor & {exp: number}
+
+// STUDIO_SESSION_SECRET (32+ random characters, e.g. `openssl rand -base64 32`) seals the
+// cookie. Without it each process makes its own, and a restart signs everyone out as before.
+let secret: string | undefined
+function sessionSecret() {
+  if (secret) return secret
+  const set = process.env.STUDIO_SESSION_SECRET
+  if (set && set.length < 32) throw new Error('STUDIO_SESSION_SECRET is too short: use 32 or more random characters (openssl rand -base64 32).')
+  if (!set) console.warn('[auth] STUDIO_SESSION_SECRET is not set: sign-ins end when this server restarts.')
+  return (secret = set ?? randomBytes(32).toString('base64'))
+}
+
+const readSession = (): Sealed | undefined => {
+  const raw = getCookie(COOKIE)
+  const s = raw ? unseal<Sealed>(raw, sessionSecret()) : undefined
+  return s && typeof s.email === 'string' && typeof s.token === 'string' && typeof s.exp === 'number' && s.exp * 1000 > Date.now() ? s : undefined
+}
+
+const writeSession = ({email, token, session}: Editor) =>
+  setCookie(COOKIE, seal({email, token, ...(session && {session}), exp: Math.floor(Date.now() / 1000) + IDLE_SECONDS}, sessionSecret()), {httpOnly: true, sameSite: 'lax', secure: import.meta.env.PROD, path: '/', maxAge: IDLE_SECONDS})
 
 /** The signed-in editor for this request, if any. */
 export function currentEditor(): Editor | undefined {
   if (!signInRequired()) return undefined
-  const sid = getCookie(COOKIE)
-  return sid ? sessions.get(sid) : undefined
+  const s = readSession()
+  if (!s) return undefined
+  const editor: Editor = {email: s.email, token: s.token, ...(s.session && {session: s.session})}
+  // Sliding: in use past half its time, sealed again for a full window. A response that
+  // has started (a live stream) can't take a header; the next request renews it.
+  if (s.exp * 1000 - Date.now() < (IDLE_SECONDS * 1000) / 2) {
+    try {
+      writeSession(editor)
+    } catch {}
+  }
+  return editor
 }
 
-const startSession = async (editor: Omit<Editor, 'permissions'>) => {
-  const sid = randomBytes(24).toString('base64url')
-  sessions.set(sid, {...editor, permissions: await tokenPermissions(editor.token)})
-  setCookie(COOKIE, sid, {httpOnly: true, sameSite: 'lax', secure: import.meta.env.PROD, path: '/', maxAge: SESSION_SECONDS})
-}
+const startSession = async (editor: Editor) => writeSession(editor)
 
 /** Dev sign-in: an email, no password (dev builds only). */
 export async function signIn(email: string) {
@@ -109,9 +139,7 @@ async function endBarkparkSession(session: string) {
 }
 
 export async function signOut() {
-  const sid = getCookie(COOKIE)
-  const editor = sid ? sessions.get(sid) : undefined
-  if (sid) sessions.delete(sid)
+  const editor = readSession()
   deleteCookie(COOKIE, {path: '/'})
   // Dev sign-in keeps its token (other sessions and lanes share it); an account's ends.
   if (editor?.session) await endBarkparkSession(editor.session)
@@ -176,5 +204,4 @@ export function describeToken(token: string): Promise<TokenSelf> {
   described.set(key, {at: Date.now(), self})
   return self
 }
-const tokenPermissions = async (token: string) => (await describeToken(token)).permissions
 
