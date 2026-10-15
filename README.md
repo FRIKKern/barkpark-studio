@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 16 changes
+- **Today** · 17 changes
+  - Vision chrome as Sanity's: select chevrons, play icons, [Copy to clipboard] and a copy button, file-icon Save buttons, a hide toggle for Saved queries ([#571](https://github.com/FRIKKern/barkpark-studio/pull/571))
   - Vision: Sanity's 16 px code, a grey line-number gutter and a blue current line ([#570](https://github.com/FRIKKern/barkpark-studio/pull/570))
-  - Vision keeps Saved queries as a third column at laptop widths, as Sanity's ([#569](https://github.com/FRIKKern/barkpark-studio/pull/569))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
