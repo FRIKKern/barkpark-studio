@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 43 changes
+- **Today** · 44 changes
+  - Toasts as Sanity's: one per message, 5 s, and schedule toasts ([#601](https://github.com/FRIKKern/barkpark-studio/pull/601))
   - Hover and selection fade over 0.1 s, as Sanity's ([#598](https://github.com/FRIKKern/barkpark-studio/pull/598))
-  - D20: the footer says the conflict in the editor's words, not 'document revision mismatch' ([#597](https://github.com/FRIKKern/barkpark-studio/pull/597))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
