@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 35 changes
+- **Today** · 36 changes
+  - Review changes: the From picker reaches older history; a run of edits no longer disables it ([#591](https://github.com/FRIKKern/barkpark-studio/pull/591))
   - Arrays: Duplicate on an object item opens the copy in its dialog, as Sanity's ([#590](https://github.com/FRIKKern/barkpark-studio/pull/590))
-  - Field types: an unset checkbox is indeterminate, one member type says Add item, fieldTypes initial values survive Barkpark ([#589](https://github.com/FRIKKern/barkpark-studio/pull/589))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
