@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 66 changes
-  - User menu as Sanity's: avatar, name, role; sign-out returns where you were ([#622](https://github.com/FRIKKern/barkpark-studio/pull/622))
-  - fix(comments): the commented-text quote as Sanity's (J40) ([#621](https://github.com/FRIKKern/barkpark-studio/pull/621))
+- **Today** · 68 changes
+  - fix(auth): signing out in one tab shows the sign-in screen in every tab ([#618](https://github.com/FRIKKern/barkpark-studio/pull/618))
+  - fix(inspectors): headings at Sanity's weight; Comments empty state as Sanity's ([#623](https://github.com/FRIKKern/barkpark-studio/pull/623))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
