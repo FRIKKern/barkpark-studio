@@ -7,11 +7,12 @@ import {localInput} from '../lib/schedule-read'
 
 /**
  * J40, Sanity's "Schedule draft for publishing": pick a future date and time; Schedule
- * stays off (with Sanity's warning) until it is in the future. It opens on now, as Sanity's.
+ * stays off (with Sanity's warning) until it is in the future. It opens on now, as Sanity's,
+ * or on a paused schedule's own time (`initial`).
  */
-export function ScheduleDialog({run, onClose}: {run: (publishAt: string) => Promise<unknown>; onClose: () => void}) {
+export function ScheduleDialog({initial, run, onClose}: {initial?: Date; run: (publishAt: string) => Promise<unknown>; onClose: () => void}) {
   const t = useT()
-  const [value, setValue] = useState(() => localInput(new Date()))
+  const [value, setValue] = useState(() => localInput(initial ?? new Date()))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const at = value ? new Date(value) : null

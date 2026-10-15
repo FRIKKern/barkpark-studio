@@ -40,13 +40,23 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
     await page.getByRole('button', {name: 'Document actions', exact: true}).click()
     await expect(page.getByRole('menuitem', {name: 'Delete schedule'})).toBeEnabled()
     await page.keyboard.press('Escape')
-    // Pause to edit: the schedule goes, the draft stays and is editable again.
+    // Pause to edit: the draft is editable again. A Barkpark that pauses (#23198) keeps the
+    // schedule, as Sanity's, and the footer's Schedule reactivates it at its own time; an
+    // older one cancels it, and it is scheduled again from the menu.
     await page.locator('.pane-banner[data-tone=scheduled]').getByRole('button', {name: 'Pause to edit'}).click()
-    await expect(page.locator('.chip[data-tone=scheduled]')).toBeHidden()
     await expect(t.field(page, 'title')).toBeEnabled()
     await expect(t.field(page, 'title')).toHaveValue('Schedule probe')
+    const pausedBanner = page.getByText('Schedule paused while editing. Press Schedule to reactivate or pick a new date.')
+    if (await pausedBanner.isVisible()) {
+      await expect(page.locator('.chip[data-tone=scheduled]')).toBeVisible()
+      await page.locator('.doc-footer').getByRole('button', {name: 'Schedule publish'}).click()
+      await dialog.getByRole('button', {name: 'Schedule'}).click()
+      await expect(t.field(page, 'title')).toBeDisabled()
+    } else {
+      await expect(page.locator('.chip[data-tone=scheduled]')).toBeHidden()
+      await scheduleAgain()
+    }
     // Publish now: Sanity's confirm, then published at once and the schedule gone.
-    await scheduleAgain()
     await expect(page.locator('.chip[data-tone=scheduled]')).toBeVisible()
     await page.getByRole('button', {name: 'Document actions', exact: true}).click()
     await page.getByRole('menuitem', {name: 'Publish now'}).click()

@@ -42,7 +42,7 @@ import {ActorAvatar, AvatarStack, PresenceHints, useDocPresence} from './Presenc
 import {toast} from './Toasts'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
-import {cancelSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
+import {cancelSchedule, pauseSchedule, resumeSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
 import {ScheduleDialog} from './ScheduleDialog'
 import {ChevronDown, CheckmarkCircle, Clock, LockIcon, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse} from './icons'
 import {useFocusMode} from './FocusMode'
@@ -87,14 +87,17 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished || (!!draftQ.data?._draft && draftQ.data?._hasPublished !== false)})
   const docQ = viewingPublished ? publishedQ : draftQ
   const schedule = useSchedule(pane.id, pane.type, draftQ.data?._rev)
-  // J40: Sanity's "Pause to edit": the schedule goes, the draft is editable again.
+  // J40: Sanity's "Pause to edit": the schedule keeps its time and the draft is editable
+  // until Schedule reactivates it. A Barkpark without pause (barkpark#23198) cancels it.
+  const scheduleLocked = schedule?.status === 'scheduled'
   const [pausing, setPausing] = useState(false)
   const pause = () => {
     if (!schedule) return
     setPausing(true)
-    cancelSchedule({data: {scheduleId: schedule._id}})
+    pauseSchedule({data: {scheduleId: schedule._id}})
+      .then(async ({paused}) => void (paused || (await cancelSchedule({data: {scheduleId: schedule._id}}))))
       .then(() => qc.invalidateQueries({queryKey: ['schedule', pane.id]}))
-      .catch((e: Error) => toast({tone: 'critical', title: tt('Could not delete the schedule'), description: e.message}))
+      .catch((e: Error) => toast({tone: 'critical', title: tt('Could not pause the schedule'), description: e.message}))
       .finally(() => setPausing(false))
   }
   const {data: shown, isPending, error} = docQ
@@ -518,7 +521,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <span className="chip" data-tone="scheduled" title={t('Scheduled to be published on {date}', {date: longDate(schedule.publishAt, locale)})}>
               <Clock />
               {t('Scheduled publish')}
-              <LockIcon />
+              {scheduleLocked && <LockIcon />}
             </span>
           )}
         </span>
@@ -634,8 +637,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             </span>
           </div>
         )}
-        {/* J40: as Sanity's scheduled version, the draft is locked until its schedule is paused (cancelled). */}
-        {schedule && doc && (
+        {/* J40: Sanity's paused schedule: editable, until Schedule reactivates it. */}
+        {schedule && !scheduleLocked && doc && (
+          <div className="pane-banner" role="note">
+            <span>{t('Schedule paused while editing. Press Schedule to reactivate or pick a new date.')}</span>
+          </div>
+        )}
+        {/* J40: as Sanity's scheduled version, the draft is locked until its schedule is paused. */}
+        {scheduleLocked && doc && (
           <div className="pane-banner" data-tone="scheduled" role="note">
             <span className="pane-banner-text">
               <LockIcon />
@@ -756,7 +765,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               values: revision ? revision.content : doc,
               changes,
               problems: revision ? NO_PROBLEMS : quiet ? quietProblems : steadyProblems,
-              disabled: viewingPublished || !!revision || !canWrite || !!schedule,
+              disabled: viewingPublished || !!revision || !canWrite || scheduleLocked,
               fields: formFields.slice(0, revealed),
               unknown: !revision && revealed >= formFields.length,
             })}
@@ -830,7 +839,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <>
               <LocationsBanner doc={doc} />
               <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
-              {formBody({shown: doc, values: doc, changes: {...changes, inline: true}, problems: quiet ? quietProblems : steadyProblems, disabled: !canWrite || !!schedule, fields: formFields, unknown: false})}
+              {formBody({shown: doc, values: doc, changes: {...changes, inline: true}, problems: quiet ? quietProblems : steadyProblems, disabled: !canWrite || scheduleLocked, fields: formFields, unknown: false})}
             </>
           }
         />
@@ -985,6 +994,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
   const [publishingNow, setPublishingNow] = useState(false)
   const scheduleQ = useQuery(scheduleQuery(doc._publishedId, doc._type))
   const schedule = scheduleQ.data?.schedule ?? null
+  const paused = schedule?.status === 'paused'
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
   const set = (field: string, value: unknown) => edit(qc, doc, field, value)
@@ -1054,6 +1064,14 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       )}
       <DocBadges doc={doc} />
       {/* Sanity's tooltip: the shortcut while there is something to publish, else when it was published. */}
+      {/* J40: a paused schedule's footer offers Schedule, as Sanity's: the same time or a new one. */}
+      {paused ? (
+        <button type="button" className="publish" disabled={!canPublish} title={publishReason} onClick={() => setScheduling(true)}>
+          <Clock />
+          {t('Schedule publish')}
+        </button>
+      ) : (
+      <>
       <span className="publish-tip" {...(publishReason ? {} : publishTip.anchor)}>
       <button
         className="publish"
@@ -1080,6 +1098,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       </button>
       {publishTip.tip}
       </span>
+      </>
+      )}
       {(!single || canDiscard || actions.length > 0) && <div className="menu-wrap">
         <button ref={actionsButton} type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
@@ -1095,7 +1115,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
               </button>
             )}
             {/* J40: Sanity's Schedule publish (a draft to publish, a Barkpark that schedules), or Delete schedule once set. */}
-            {!single && scheduleQ.data?.supported && !schedule && doc._draft && (
+            {!single && scheduleQ.data?.supported && (!schedule || paused) && doc._draft && (
               <button type="button" role="menuitem" className="menu-item" disabled={!canWrite || !!publishReason || blocked > 0} title={publishReason ?? (blocked > 0 ? t('Cannot schedule draft due to validation issues in the current draft.') : undefined)} onClick={() => (setMenu(false), setScheduling(true))}>
                 <span className="menu-icon-text">
                   <Clock /> {t('Schedule publish')}
@@ -1149,8 +1169,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       {schemaActions.dialog}
       {scheduling && (
         <ScheduleDialog
+          initial={paused && schedule ? new Date(schedule.publishAt) : undefined}
           run={async (publishAt) => {
-            await schedulePublish({data: {id: doc._publishedId, type: doc._type, publishAt}})
+            if (paused && schedule) await resumeSchedule({data: {scheduleId: schedule._id, publishAt}})
+            else await schedulePublish({data: {id: doc._publishedId, type: doc._type, publishAt}})
             toast({tone: 'positive', title: tt('Scheduled draft successfully')})
             await qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
           }}
