@@ -546,7 +546,7 @@ textarea.input { resize: vertical; }
 /* The Comments panel's Open / Resolved menu and close, as Sanity's (measured at 1440). */
 .inspector.comments header .chip-btn.plain { padding: 0 2px 0 8px; margin-right: 4px; color: var(--fg-header); }
 .inspector.comments header .chip-btn.plain svg { width: 21px; height: 21px; color: var(--icon-muted); }
-.inspector.comments header > .icon-btn { color: var(--icon-muted); }
+.inspector:is(.comments, .validation, .incoming, .history) header > .icon-btn { color: var(--icon-muted); }
 .link-btn { font: inherit; font-size: 13px; border: 0; background: none; color: var(--selected); cursor: pointer; padding: 4px 8px; border-radius: 3px; }
 .link-btn:hover { background: var(--hover); }
 .link-btn.danger { color: var(--danger-text); font-weight: 500; }
