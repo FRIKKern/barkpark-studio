@@ -124,27 +124,24 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
       <FocusModeContext.Provider value={focusCtx}>
       <div className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined} data-focus-mode={focused !== null ? '' : undefined}>
         <TabTitle pane={panes[panes.length - 1]} />
-        {panes.map((pane, i) =>
-          focused !== null ? (
-            i === focused && (
-              <PaneBoundary key={paneKey(pane) + i} kind={pane.kind}>
-                <PaneView panes={panes} index={i} />
-              </PaneBoundary>
-            )
-          ) : narrow ? (
-            i === panes.length - 1 && (
-              <PaneBoundary key={paneKey(pane) + i} kind={pane.kind}>
-                <PaneView panes={panes} index={i} />
-              </PaneBoundary>
-            )
-          ) : isCollapsed[i] ? (
-            <Strip key={paneKey(pane) + i} pane={pane} index={i} onOpen={() => setFocus({path, index: i})} />
-          ) : (
-            <PaneBoundary key={paneKey(pane) + i} kind={pane.kind}>
+        {panes.map((pane, i) => {
+          // Every branch is the same keyed Fragment, its pane in the second slot, so turning
+          // focus mode on or off keeps the pane mounted (and its focus).
+          const shown = focused !== null ? i === focused : narrow ? i === panes.length - 1 : true
+          const view = (
+            <PaneBoundary kind={pane.kind}>
               <PaneView panes={panes} index={i} />
             </PaneBoundary>
-          ),
-        )}
+          )
+          const open = focused === null && !narrow
+          return (
+            <Fragment key={paneKey(pane) + i}>
+              {/* Sanity's divider: drag it to widen or narrow the pane on its left. */}
+              {open && i > 0 && !isCollapsed[i - 1] && !isCollapsed[i] && <PaneResizer />}
+              {open && isCollapsed[i] ? <Strip pane={pane} index={i} onOpen={() => setFocus({path, index: i})} /> : shown && view}
+            </Fragment>
+          )
+        })}
         {!narrow && focused === null && panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
       </div>
       </FocusModeContext.Provider>
@@ -929,4 +926,50 @@ function NewInList({choices, label, disabledReason, onPick}: {choices: Choice[];
       )}
     </div>
   )
+}
+
+/**
+ * Sanity's pane divider: drag it (or use the arrow keys) to set the width of the pane on its
+ * left, at least 320 px. The width holds while that pane stays open; like Sanity's, it is not
+ * kept across a reload.
+ */
+const PANE_MIN = 320
+function PaneResizer() {
+  const t = useT()
+  const ref = useRef<HTMLDivElement>(null)
+  const pane = () => ref.current?.previousElementSibling as HTMLElement | null
+  const setWidth = (w: number) => {
+    const el = pane()
+    if (!el) return
+    const width = Math.max(PANE_MIN, Math.round(w))
+    el.style.flex = `0 0 ${width}px`
+    el.style.maxWidth = 'none'
+    ref.current?.setAttribute('aria-valuenow', String(width))
+  }
+  // A focusable separator says its value (axe: aria-required-attr).
+  useEffect(() => {
+    const el = pane()
+    if (el) ref.current?.setAttribute('aria-valuenow', String(Math.round(el.getBoundingClientRect().width)))
+  })
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = pane()
+    if (!el) return
+    e.preventDefault()
+    const handle = e.currentTarget
+    handle.setPointerCapture(e.pointerId)
+    const [x0, w0] = [e.clientX, el.getBoundingClientRect().width]
+    const move = (ev: PointerEvent) => setWidth(w0 + ev.clientX - x0)
+    const up = () => (handle.removeEventListener('pointermove', move), handle.removeEventListener('pointerup', up), handle.removeEventListener('pointercancel', up))
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', up)
+    handle.addEventListener('pointercancel', up)
+  }
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const step = {ArrowLeft: -16, ArrowRight: 16}[e.key]
+    const el = pane()
+    if (!step || !el) return
+    e.preventDefault()
+    setWidth(el.getBoundingClientRect().width + step)
+  }
+  return <div ref={ref} className="pane-resizer" role="separator" aria-orientation="vertical" aria-label={t('Resize pane')} aria-valuemin={PANE_MIN} tabIndex={0} onPointerDown={onPointerDown} onKeyDown={onKeyDown} />
 }

@@ -221,4 +221,6 @@ export default {
   'Go to Structure': 'Gå til Struktur',
   'Opening…': 'Åpner…',
   'This link is not one the Studio knows.': 'Studioet kjenner ikke denne lenken.',
+  // Sanity's pane divider.
+  'Resize pane': 'Endre bredden på ruten',
 } satisfies Record<string, string>

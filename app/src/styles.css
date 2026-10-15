@@ -218,6 +218,11 @@ a { color: inherit; text-decoration: none; }
 .presentation-panel .pane.doc > .pane-header .chips { flex: 0 1 auto; min-width: 0; margin-right: 0; }
 .presentation-panel .pane.doc > .pane-header > :is(.icon-btn, .menu-wrap) { flex-shrink: 0; }
 .pane.filler { flex: 2 1 0; border-right: 0; }
+/* Sanity's pane divider: a 9 px drag area over the border between two panes. */
+.pane-resizer { position: relative; flex: none; width: 0; z-index: 3; }
+.pane-resizer::after { content: ''; position: absolute; inset: 0 -5px 0 -4px; cursor: ew-resize; }
+.pane-resizer:hover::after, .pane-resizer:focus-visible::after { background: color-mix(in srgb, var(--ring) 35%, transparent); }
+.pane-resizer:focus-visible { outline: none; }
 .pane.strip { flex: 0 0 var(--strip); min-width: var(--strip); max-width: var(--strip); cursor: pointer; }
 .pane.strip:hover { background: var(--hover); }
 /* J42: a narrow window shows one pane, full width. */
