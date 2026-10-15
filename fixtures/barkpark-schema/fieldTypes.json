@@ -146,6 +146,126 @@
       }
     },
     {
+      "name": "sections",
+      "title": "Sections",
+      "type": "arrayOf",
+      "ordered": true,
+      "of": {
+        "type": "composite",
+        "name": "section",
+        "preview": {
+          "title": "title"
+        },
+        "fields": [
+          {
+            "name": "title",
+            "title": "Title",
+            "type": "string"
+          },
+          {
+            "name": "items",
+            "title": "Items",
+            "type": "arrayOf",
+            "ordered": true,
+            "of": {
+              "type": "composite",
+              "name": "item",
+              "preview": {
+                "title": "label"
+              },
+              "fields": [
+                {
+                  "name": "label",
+                  "title": "Label",
+                  "type": "string"
+                },
+                {
+                  "name": "note",
+                  "title": "Note",
+                  "type": "text",
+                  "rows": 2
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "blocks",
+      "title": "Blocks",
+      "type": "arrayOf",
+      "ordered": true,
+      "of": {
+        "type": "composite",
+        "name": "block",
+        "preview": {
+          "title": "heading"
+        },
+        "options": {
+          "typeField": "kind",
+          "fieldsByType": {
+            "hero": [
+              "heading"
+            ],
+            "quote": [
+              "heading"
+            ],
+            "cta": [
+              "heading"
+            ],
+            "stat": [
+              "heading"
+            ],
+            "faq": [
+              "heading"
+            ],
+            "logo": [
+              "heading"
+            ]
+          }
+        },
+        "fields": [
+          {
+            "name": "kind",
+            "title": "Kind",
+            "type": "select",
+            "options": [
+              {
+                "value": "hero",
+                "title": "Hero"
+              },
+              {
+                "value": "quote",
+                "title": "Quote"
+              },
+              {
+                "value": "cta",
+                "title": "Call to action"
+              },
+              {
+                "value": "stat",
+                "title": "Stat"
+              },
+              {
+                "value": "faq",
+                "title": "FAQ"
+              },
+              {
+                "value": "logo",
+                "title": "Logo strip"
+              }
+            ]
+          },
+          {
+            "name": "heading",
+            "title": "Heading",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
       "name": "address",
       "title": "Address",
       "type": "composite",
