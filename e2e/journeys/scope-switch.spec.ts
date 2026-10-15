@@ -15,6 +15,10 @@ test('@local B02: switch dataset; the URL carries it through links and a reload'
   await expect(button).toHaveAttribute('aria-label', new RegExp(`dataset ${here}\\.`))
   await button.click()
   const dialog = page.getByRole('dialog', {name: 'Switch workspace, project or dataset'})
+  // A click outside closes it, as Sanity's workspace menu.
+  await page.mouse.click(900, 600)
+  await expect(dialog).toHaveCount(0)
+  await button.click()
   const datasets = dialog.getByRole('combobox', {name: 'Dataset'})
   await expect.poll(() => datasets.locator('option').count()).toBeGreaterThan(1) // the list has loaded
   await expect(datasets.locator('option', {hasText: here})).toHaveCount(1)

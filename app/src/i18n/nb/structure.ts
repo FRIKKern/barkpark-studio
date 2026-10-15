@@ -28,6 +28,10 @@ export default {
   'Reload to update': 'Last inn på nytt for å oppdatere',
   'Reload to update to {version}': 'Last inn på nytt for å oppdatere til {version}',
   'Up to date': 'Oppdatert',
+  'Open commit {commit} on GitHub': 'Åpne commit {commit} på GitHub',
+  'Built {date}': 'Bygget {date}',
+  OK: 'OK',
+  'Switching…': 'Bytter…',
   Documentation: 'Dokumentasjon',
   // J69: Help > Diagnostics and What's new; the workspace card's Manage project.
   Diagnostics: 'Diagnostikk',

@@ -77,8 +77,12 @@ test('@local J53: a newer build on the server shows the update dot and "Reload t
   await t.settle(page)
   const help = page.getByRole('button', {name: 'Help and resources'})
   await help.click()
-  await expect(page.getByRole('menuitem', {name: /Barkpark Studio\s*Up to date/})).toBeVisible()
-  await page.keyboard.press('Escape')
+  // Up to date, the item opens Sanity's version dialog; OK closes it.
+  await page.getByRole('menuitem', {name: /Barkpark Studio\s*Up to date/}).click()
+  const version = page.getByRole('dialog', {name: 'Studio version'})
+  await expect(version).toContainText('Up to date')
+  await version.getByRole('button', {name: 'OK'}).click()
+  await expect(version).toHaveCount(0)
   // A redeploy: the server now answers another build.
   await page.route('**/api/version', (route) => route.fulfill({json: {build: 'abc1234-next'}}))
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
