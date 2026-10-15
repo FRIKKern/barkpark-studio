@@ -4,6 +4,7 @@ import {accountSignIn, currentEditor, describeToken, displayName, editorKey, sig
 import {requestToken} from '../server/barkpark'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
+import {serviceAccess} from './token-self'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
 // httpOnly and the token never leaves the server.
@@ -34,6 +35,8 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     boundDataset: self?.boundDataset ?? null,
     /** The studio's own token is refused (revoked, or out of the workspace): nothing will load. */
     studioTokenRefused: !editor && !!self?.refused,
+    /** Signed in, but with no seat in this workspace (or it doesn't exist): Sanity's no-access screen. */
+    noSeat: !!editor && !ended && !!self && serviceAccess(self) === 'no_seat',
   }
 })
 
