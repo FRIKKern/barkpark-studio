@@ -19,5 +19,8 @@ test('lane reset (run.mjs reset): e2e lane datasets only; production, shared one
   assert.equal(laneResetRefusal('e2e-freeform'), undefined)
   for (const dataset of ['production', 'ci', 'staging', 'e2e-', 'xe2e-me', 'e2e-ME', undefined]) assert.match(laneResetRefusal(dataset) ?? '', /e2e lane dataset/, String(dataset))
   assert.match(laneResetRefusal('e2e-me', ['--production']) ?? '', /--production/)
+  // An unknown flag stops it: seed-barkpark ignores --help and resets anyway (2026-10-15).
+  for (const flag of ['--help', '-h', '--dry-run', '--data']) assert.match(laneResetRefusal('e2e-me', [flag]) ?? '', /takes only --no-history/, flag)
+  assert.equal(laneResetRefusal('e2e-me', ['--no-history']), undefined)
 })
 
