@@ -1987,7 +1987,10 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .action-preview { margin: 12px 0 0; border: 1px solid var(--line); border-radius: 4px; max-height: 320px; overflow: auto; }
 .action-preview pre { margin: 0; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
 /* J62: Sanity's locations banner — a bordered card over the form that unfolds to the pages. */
-.locations-banner { margin: 24px 0 8px; border: 1px solid var(--line); border-radius: 3px; padding: 4px; font-size: 13px; }
+.locations-banner { margin: -4px 0 4px; border: 1px solid var(--line); border-radius: 3px; padding: 3px; font-size: 13px; }
+/* Measured on reference/sanity at 1440: the box 329-370 under the title, group tabs at 403, or
+   (no groups) the first field's label at 410. */
+.locations-banner + .form-fields { margin-top: 40px; }
 /* J30: Sanity's gaps round the banner: 49 px title to banner, 37 px banner to the group
    tabs (the tabs' root is a container, so the banner's 8 px adds to their margin). */
 .doc-form h1:has(+ .locations-banner) { margin-bottom: 49px; }
