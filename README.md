@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 61 changes
+- **Today** · 62 changes
+  - fix(inspect): Parsed highlights the line under the pointer, as Sanity's (J28) ([#617](https://github.com/FRIKKern/barkpark-studio/pull/617))
   - Help + scope switcher as Sanity's: click outside closes, busy Switch, version dialog ([#615](https://github.com/FRIKKern/barkpark-studio/pull/615))
-  - fix(incoming): the empty card where Sanity's sits, text muted (J17) ([#616](https://github.com/FRIKKern/barkpark-studio/pull/616))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
