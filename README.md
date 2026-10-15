@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 83 changes
+- **Today** · 84 changes
+  - fix(previews): media icon at 21 px, title and subtitle 17 px apart (J01) ([#639](https://github.com/FRIKKern/barkpark-studio/pull/639))
   - fix(previews): the status dot where Sanity puts it (J01) ([#638](https://github.com/FRIKKern/barkpark-studio/pull/638))
-  - fix(icons): every icon button draws a 21 px icon, as Sanity's ([#637](https://github.com/FRIKKern/barkpark-studio/pull/637))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
