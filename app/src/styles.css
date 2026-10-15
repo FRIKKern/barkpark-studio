@@ -803,6 +803,7 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .toggle-arrow { display: inline-grid; transition: transform 100ms; }
 .toggle-arrow[data-open=true] { transform: rotate(90deg); }
 .object-toggle:focus-visible { outline: 2px solid var(--focus-ring); }
+fieldset.object-field[data-collapsible] > legend { min-height: 25px; display: flex; align-items: center; }
 fieldset.object-field[data-open=false] > legend { margin-bottom: 0; min-height: 25px; display: flex; align-items: center; }
 /* A collapsed object is a 25 px header row in Sanity, 52 px under the field above. */
 fieldset.object-field[data-open=false] { margin-top: -7px; }
@@ -2239,6 +2240,11 @@ input.checkbox { width: 17px; height: 17px; margin: 0; accent-color: var(--fg); 
 .checkbox-list[data-grid] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 .fieldset-group > .fieldset > .field { margin-bottom: 32px; }
+/* None after the last field, and in columns the 32 px is between rows only: Sanity's 'Where' is
+   followed by Zip 59 px under its inputs (field-types-01, 1440). */
+.fieldset-group > .fieldset > .field:last-child { margin-bottom: 0; }
+.fieldset-group > .fieldset[style*=grid] { row-gap: 32px; }
+.fieldset-group > .fieldset[style*=grid] > .field { margin-bottom: 0; }
 
 /* An array with options.layout 'grid' (Sanity's): tiles, the picture or icon in the middle,
    the handle top left and the item menu bottom right. */
