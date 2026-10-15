@@ -3,11 +3,13 @@ import {createFileRoute, useNavigate} from '@tanstack/react-router'
 import {SignInForm} from '../components/SignInForm'
 import {useHydratedMark} from '../lib/hydrated'
 import {useT} from '../lib/i18n'
+import {returnPath} from '../lib/return-path'
 
 // The sign-in screen (server/auth.ts): a Barkpark account (J67), or dev sign-in's email
 // only. The seated dev test editors are studio-editor-{a..d}@example.com.
 export const Route = createFileRoute('/login')({
-  validateSearch: (s: Record<string, unknown>) => ({redirect: typeof s.redirect === 'string' ? s.redirect : '/structure'}),
+  // Back where the editor was going: a path on this studio only (lib/return-path.ts).
+  validateSearch: (s: Record<string, unknown>) => ({redirect: returnPath(s.redirect)}),
   component: Login,
 })
 
