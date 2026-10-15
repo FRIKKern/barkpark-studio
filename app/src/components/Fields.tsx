@@ -388,7 +388,9 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       return <SelectInput id={path} field={field} value={value} onChange={onChange} />
     case 'boolean':
       // Sanity's `options.layout: 'checkbox'`: a checkbox instead of the switch.
-      if ((field.options as {layout?: string} | undefined)?.layout === 'checkbox') return <input id={path} type="checkbox" className="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} />
+      // Not set yet: Sanity draws the checkbox indeterminate (a dash), not unchecked.
+      if ((field.options as {layout?: string} | undefined)?.layout === 'checkbox')
+        return <input id={path} type="checkbox" className="checkbox" checked={!!value} ref={(el) => void (el && (el.indeterminate = value === undefined || value === null))} onChange={(e) => onChange(e.target.checked)} />
       return (
         <span className="switch">
           <input id={path} type="checkbox" role="switch" checked={!!value} onChange={(e) => onChange(e.target.checked)} />
