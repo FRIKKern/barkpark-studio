@@ -11,6 +11,7 @@ import {setFooterOffline} from './footer-offline'
 import {merge3, mergeList3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
+import {writeBudget} from './write-budget'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
 // title, list row all repaint with no network wait); the write goes to Barkpark
@@ -114,7 +115,7 @@ type DocEdits = {
 
 /**
  * One of this editor's own changes: typing in one field within UNDO_GROUP_MS is one
- * change, kept as its keystrokes (each from the value as it stood then, so someone
+ * change (timed by the keys, never by the writes), kept as its keystrokes (each from the value as it stood then, so someone
  * else's text merged in between is never part of a step).
  */
 type Change = {field: string; steps: {before: unknown; after: unknown}[]; at: number}
@@ -126,14 +127,7 @@ export const WRITE_GAP_MS = 750
 // the write, Barkpark and the live frame take ~70 ms (task-d22fd88c4694877a).
 const MIN_GAP_MS = 100
 const WRITE_BURST = 8
-let writeTokens = WRITE_BURST
-let tokensAt = Date.now()
-function writeBudget() {
-  const now = Date.now()
-  writeTokens = Math.min(WRITE_BURST, writeTokens + (now - tokensAt) / WRITE_GAP_MS)
-  tokensAt = now
-  return writeTokens
-}
+const budget = writeBudget(WRITE_BURST, WRITE_GAP_MS)
 const STALL_MS = 4000
 const OFFLINE_RETRY_MS = 5000
 
@@ -376,7 +370,7 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
 function schedule(qc: QueryClient, id: string) {
   const e = docs.get(id)
   if (!e || e.timer || (e.dirty.size === 0 && !e.createRequested)) return
-  const wait = Math.max(0, e.lastSent + MIN_GAP_MS - Date.now(), (1 - writeBudget()) * WRITE_GAP_MS)
+  const wait = Math.max(e.lastSent + MIN_GAP_MS - Date.now(), budget.wait())
   if (wait === 0) void send(qc, id)
   else e.timer = setTimeout(() => ((e.timer = undefined), void send(qc, id)), wait)
 }
@@ -493,7 +487,7 @@ async function send(qc: QueryClient, id: string) {
   e.inflight = e.dirty
   e.dirty = new Map()
   e.lastSent = Date.now()
-  writeTokens = Math.max(-WRITE_BURST, writeBudget() - 1)
+  budget.spend()
   const after = e.snap.state === 'offline' || e.snap.state === 'recovering'
   setState(e, after ? 'recovering' : 'saving')
   const stall = setTimeout(() => e.inflight && setState(e, 'stalled'), STALL_MS)

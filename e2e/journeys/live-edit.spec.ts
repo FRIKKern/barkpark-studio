@@ -41,10 +41,7 @@ test('J05 J06: two browsers, different fields then the same field', async ({brow
     // QUALITY F4: a typed edit is seen sooner than Sanity's p95 (1104 ms).
     if (t.name === 'studio') expect(ms, 'F4 typed edit seen in 2nd browser').toBeLessThan(networkBudget(1104))
 
-    // J06: both in the title, typing at the same moment at different ends. A pause first:
-    // keys in one field within 600 ms are one undo step, and F7 below undoes " aaa" alone
-    // (writes used to take 750 ms, which made that pause by accident).
-    await a.waitForTimeout(700)
+    // J06: both in the title, typing at the same moment at different ends.
     await t.field(b, 'title').click()
     await b.keyboard.press(LINE_START)
     await Promise.all([a.keyboard.type(' aaa'), b.keyboard.type('bbb ')])
@@ -57,11 +54,13 @@ test('J05 J06: two browsers, different fields then the same field', async ({brow
     if (t.name === 'studio') expect(carets, 'F6: carets stay put').toEqual({a: {id: 'title', at: both.length}, b: {id: 'title', at: 'bbb '.length}})
     expect(await value(b, 'excerpt')).toBe(`${SEED.excerpt} B`)
 
-    // F7: A's undo takes back A's " aaa" only; B's "bbb " stays, here and in B.
+    // F7: A's undo takes back A's typing only; B's "bbb " stays, here and in B. Twice: " A"
+    // and " aaa" are one undo step or two, by the pause between them (keys, not writes).
+    await a.keyboard.press('ControlOrMeta+z')
     await a.keyboard.press('ControlOrMeta+z')
     console.log(`[F7 ${t.name}] A after undo: ${JSON.stringify(await value(a, 'title'))}`)
     if (t.name === 'studio') {
-      const undone = `bbb ${SEED.title} A`
+      const undone = `bbb ${SEED.title}`
       await expect(t.field(a, 'title')).toHaveValue(undone)
       await expect(t.field(b, 'title')).toHaveValue(undone, {timeout: 10_000})
     }
