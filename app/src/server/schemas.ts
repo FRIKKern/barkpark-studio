@@ -30,7 +30,7 @@ async function readAllSchemas(): Promise<RawSchema[]> {
     const files = (await readdir(dir)).filter((f) => f.endsWith('.json'))
     return Promise.all(files.map(async (f) => JSON.parse(await readFile(join(dir, f), 'utf8')) as RawSchema))
   }
-  const res = await bpFetch(`/v1/schemas/${dataset()}`, {}, serviceToken())
+  const res = await bpFetch(`/v1/schemas/${dataset()}`, {}, await serviceToken())
   if (!res.ok) throw new Error(`Barkpark /v1/schemas/${dataset()} → ${res.status}`)
   return ((await res.json()) as {schemas: RawSchema[]}).schemas
 }
@@ -43,11 +43,11 @@ async function readAllSchemas(): Promise<RawSchema[]> {
 // Fixtures mode (CI) has no desk.
 export async function readDesk(): Promise<unknown | null> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return null
-  const declared = await bpFetch(`/v1/data/doc/${dataset()}/deskStructure/deskStructure?perspective=published`, {}, serviceToken())
+  const declared = await bpFetch(`/v1/data/doc/${dataset()}/deskStructure/deskStructure?perspective=published`, {}, await serviceToken())
   if (declared.status === 404) return null
   if (!declared.ok) throw new Error(`Could not read the desk configuration (${declared.status})`)
   const title = ((await declared.json()) as {result?: {title?: unknown}}).result?.title
-  const res = await bpFetch(`/v1/structure/${dataset()}`, {}, serviceToken())
+  const res = await bpFetch(`/v1/structure/${dataset()}`, {}, await serviceToken())
   if (!res.ok) throw new Error(`Could not read the desk navigation (${res.status})`)
   const tree = ((await res.json()) as {structure?: {title?: string}}).structure
   if (!tree) throw new Error('The desk navigation response was empty')
@@ -65,7 +65,7 @@ export async function readDesk(): Promise<unknown | null> {
  */
 export async function readRest(): Promise<unknown[]> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return []
-  const res = await bpFetch(`/v1/structure/${dataset()}`, {}, serviceToken()).catch(() => null)
+  const res = await serviceToken().then((token) => bpFetch(`/v1/structure/${dataset()}`, {}, token)).catch(() => null)
   if (!res?.ok) return []
   const tree = ((await res.json()) as {structure?: {items?: {id?: string; items?: unknown[]}[]}}).structure
   return tree?.items?.find((i) => i.id === 'rest')?.items ?? []

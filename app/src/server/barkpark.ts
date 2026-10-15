@@ -3,7 +3,8 @@
 // (server/auth.ts), else the studio's BARKPARK_TOKEN.
 import '@tanstack/react-start/server-only'
 import {getRequestHeader, getRequestUrl} from '@tanstack/react-start/server'
-import {currentEditor, signInMode, signInRequired} from './auth'
+import {currentEditor, describeToken, signInRequired} from './auth'
+import {serviceAccess} from '../lib/token-self'
 import {parseScope, type Scope} from '../lib/scope'
 
 function env(key: string): string {
@@ -12,13 +13,18 @@ function env(key: string): string {
   return v
 }
 
+/** The studio's own workspace, project and dataset (.env). */
+const defaultScope = (): Scope => ({workspace: env('BARKPARK_WORKSPACE'), project: process.env.BARKPARK_PROJECT || 'default', dataset: process.env.BARKPARK_DATASET || 'production'})
+
 /**
  * B02: the workspace, project and dataset this request works in. A page names them in
  * its URL (lib/scope.ts); a server function, an API route or the live stream is asked
  * for by a page, whose URL is its Referer. Neither: the studio's default from .env.
+ * A Referer is whatever the client says: it picks a workspace, never grants one (reads go
+ * with the editor's own token, and serviceToken() checks their seat there).
  */
 export function scope(): Scope {
-  const fallback = {workspace: env('BARKPARK_WORKSPACE'), project: process.env.BARKPARK_PROJECT || 'default', dataset: process.env.BARKPARK_DATASET || 'production'}
+  const fallback = defaultScope()
   let url: URL
   try {
     url = getRequestUrl()
@@ -40,15 +46,41 @@ export function scope(): Scope {
 const config = (at: Scope = scope()) => ({
   base: `${env('BARKPARK_URL')}/w/${at.workspace}/p/${at.project}`,
   dataset: at.dataset,
-  // J67: with account sign-in nobody reads as the studio. Signed out, a request carries
-  // no token and Barkpark refuses it (the routes send the person to sign in first).
-  token: currentEditor()?.token ?? (signInMode() === 'account' ? '' : env('BARKPARK_TOKEN')),
+  // J67: with sign-in on nobody reads as the studio. Signed out, a request carries no
+  // token and Barkpark refuses it (the routes send the person to sign in first).
+  token: currentEditor()?.token ?? (signInRequired() ? '' : env('BARKPARK_TOKEN')),
 })
 
-/** The studio's own token, for what isn't any one editor's business (the content model).
- *  A local e2e lane runs on its own member token (scripts/lane-token.mjs) and keeps the
- *  .env token here, since member tokens can't read schemas yet (task-23c4ac86976c46a9). */
-export const serviceToken = () => process.env.BARKPARK_SERVICE_TOKEN || env('BARKPARK_TOKEN')
+/** The studio's own token. Never handed out as such: serviceToken() and workspaceLocale() below. */
+const studioToken = () => process.env.BARKPARK_SERVICE_TOKEN || env('BARKPARK_TOKEN')
+
+/**
+ * The studio's own token, for what isn't any one editor's business (the content model, the
+ * people pickers). A local e2e lane runs on its own member token (scripts/lane-token.mjs) and
+ * keeps the .env token here, since member tokens can't read schemas yet (task-23c4ac86976c46a9).
+ * It reads more than any one editor may, and a request's workspace is only what the request
+ * says (its Referer), so with sign-in on it is lent only to a signed-in editor whose own seat
+ * is in this workspace; anyone else is refused (task-73a9f8eafae5fbf1: signed out, a forged
+ * Referer read any workspace's member emails and schemas).
+ */
+export async function serviceToken(): Promise<string> {
+  if (signInRequired()) {
+    const editor = currentEditor()
+    const access = serviceAccess(editor && (await describeToken(editor.token)))
+    if (access !== 'ok') throw new Error(access === 'signed_out' ? "You've been logged out" : 'You have no access to this workspace')
+  }
+  return studioToken()
+}
+
+/**
+ * The workspace's locale (its language), with the studio's token: the sign-in screen is in
+ * it too. Signed out it is the studio's own workspace's, never one the request names.
+ */
+export async function workspaceLocale(): Promise<string | undefined> {
+  const seated = await serviceToken().then(() => true, () => false)
+  const res = await bpFetch('/v1/workspace/locale', {}, studioToken(), {retry: false, at: seated ? undefined : defaultScope()})
+  return res.ok ? ((await res.json()) as {locale?: string}).locale : undefined
+}
 
 /** The token this request acts with (the editor's, or the studio's). */
 export const requestToken = () => config().token

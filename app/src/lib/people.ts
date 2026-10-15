@@ -9,7 +9,7 @@ import {workspacePeople} from './members'
  */
 const fetchPeople = createServerFn({method: 'GET'}).handler(() =>
   workspacePeople(async (offset) => {
-    const res = await bpFetch(`/v1/members?limit=200&offset=${offset}`, {}, serviceToken())
+    const res = await bpFetch(`/v1/members?limit=200&offset=${offset}`, {}, await serviceToken())
     if (!res.ok) throw new Error(`Could not load the users (${res.status})`)
     return res.json()
   }),
