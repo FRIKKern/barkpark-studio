@@ -109,27 +109,32 @@ let readBlipUntil = 0
 export const e2eReadBlip = (ms: number) => void (readBlipUntil = Date.now() + ms)
 
 const SLOW_MS = 2_000
+const BLIP_BUDGET_MS = 6_000
 
 async function send(base: string, path: string, init: RequestInit, token: string, retry = true): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set('authorization', `Bearer ${token}`)
   // A read that meets a Barkpark deploy (the old instance stopping under it: a reset or a
   // 502 from Caddy) is asked again: reads are safe to repeat (J19 flake, 02:07 UTC 2026-10-10).
+  // For up to BLIP_BUDGET_MS, backing off: a deploy's gap outlasted two quick tries, and the
+  // read that failed then emptied the footer's history or took the page to its error screen
+  // (task-f6d036a472f9a813, J04 on CI during a guerrilla deploy, 2026-10-14 23:57 UTC).
   const read = (init.method ?? 'GET').toUpperCase() === 'GET' && headers.get('accept') !== 'text/event-stream'
+  const blipStart = Date.now()
   for (let attempt = 0, blips = 0; ; attempt++) {
     const blip = read && Date.now() < readBlipUntil ? Promise.reject(new TypeError('fetch failed (e2e blip)')) : null
     const started = Date.now()
     const res = await (blip ?? fetch(`${base}${path}`, {...init, headers})).catch((err: unknown) => {
-      if (!read || blips >= 2 || init.signal?.aborted) throw err
+      if (!read || Date.now() - blipStart >= BLIP_BUDGET_MS || init.signal?.aborted) throw err
       return null
     })
     // A slow answer goes in the server's log (CI keeps it as preview.log): J37's share once
     // took over 5 s on CI with no 429 logged, and nothing said where the time went.
     const took = Date.now() - started
     if (took > SLOW_MS && headers.get('accept') !== 'text/event-stream') console.warn(`[barkpark] slow ${(init.method ?? 'GET').toUpperCase()} ${path.split('?')[0]}: ${took} ms → ${res?.status ?? 'failed'}`)
-    if (!res || (read && blips < 2 && [502, 503, 504].includes(res.status))) {
-      blips++
-      await new Promise((r) => setTimeout(r, 300))
+    if (!res || (read && Date.now() - blipStart < BLIP_BUDGET_MS && [502, 503, 504].includes(res.status))) {
+      if (!blips) console.warn(`[barkpark] ${res?.status ?? 'failed'} on GET ${path.split('?')[0]}, asking again`)
+      await new Promise((r) => setTimeout(r, Math.min(300 * 2 ** blips++, 1_500)))
       continue
     }
     if (res.status !== 429 || !retry || attempt === 3 || headers.get('accept') === 'text/event-stream') return res

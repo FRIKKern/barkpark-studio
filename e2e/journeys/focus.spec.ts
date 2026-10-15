@@ -135,3 +135,20 @@ test('J43: menu → dialog keeps focus inside, returns it to "…"', async ({pag
   await expect(del).toHaveCount(0)
   await expect(dots).toBeFocused()
 })
+
+// Inspect on a document longer than the window stays inside it and scrolls within, as
+// Sanity's (task-f0f926fff6847008: it was 1201 px tall in a 900 px window).
+test('J28: Inspect fits the window on a long document and scrolls inside', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', "ours: Sanity's is the reference")
+  await page.setViewportSize({width: 1440, height: 900})
+  await page.goto(t.docPath('post', 'post-02'))
+  await t.settle(page)
+  await t.field(page, 'title').click()
+  await page.keyboard.press('Control+Alt+i')
+  const dialog = page.getByRole('dialog').filter({hasText: 'Inspecting'})
+  await dialog.getByRole('tab', {name: 'Raw JSON'}).click()
+  expect((await dialog.boundingBox())!.y + (await dialog.boundingBox())!.height).toBeLessThanOrEqual(900)
+  expect(await dialog.locator('.inspect-body').evaluate((b) => b.scrollHeight > b.clientHeight)).toBe(true)
+  await page.keyboard.press('Escape')
+})

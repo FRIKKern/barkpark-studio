@@ -1,7 +1,7 @@
 // J06's text merge and caret mapping (node --test).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {mapCaret, merge3, unapply} from './merge.ts'
+import {mapCaret, merge3, mergeList3, unapply} from './merge.ts'
 
 test('merge3 keeps both edits', () => {
   assert.equal(merge3('Fixture post', 'bbb Fixture post', 'Fixture post aaa'), 'bbb Fixture post aaa')
@@ -32,4 +32,21 @@ test('mine with nowhere to go (they rewrote the text it was in) is no merge, not
   assert.equal(merge3('Hello world', 'Hello brave world', 'Goodbye'), null)
   // An insertion at the end still finds its place.
   assert.equal(merge3('Short excerpt here.', 'Short excerpt here. mine', 'Completely rewritten elsewhere.'), 'Completely rewritten elsewhere. mine')
+})
+
+test('mergeList3 keeps their reorder while I edit an item', () => {
+  // Unkeyed strings: I typed into "two"; they moved "one" below it.
+  assert.deepEqual(mergeList3(['one', 'two', 'three'], ['one', 'two-edited', 'three'], ['two', 'one', 'three']), ['two-edited', 'one', 'three'])
+  // Keyed objects: my edit, my add after k2, their reorder and their add, all kept; my remove too.
+  const o = (k: string, v: string) => ({_key: k, v})
+  assert.deepEqual(
+    mergeList3([o('k1', 'a'), o('k2', 'b'), o('k3', 'c')], [o('k2', 'B'), o('kn', 'new'), o('k3', 'c')], [o('k3', 'c'), o('k2', 'b'), o('k1', 'a'), o('kt', 't')]),
+    [o('k3', 'c'), o('k2', 'B'), o('kn', 'new'), o('kt', 't')],
+  )
+  // Unkeyed shape change of mine can't be placed: null (the caller keeps ours).
+  assert.equal(mergeList3(['a', 'b'], ['a', 'b', 'c'], ['b', 'a']), null)
+})
+
+test('mergeList3: I moved an item while they typed in another', () => {
+  assert.deepEqual(mergeList3(['one', 'two', 'three'], ['two', 'one', 'three'], ['one', 'two-by-A', 'three']), ['two-by-A', 'one', 'three'])
 })

@@ -93,3 +93,30 @@ test('@local J41: big list pages to 2,000 with the note; search reaches past it'
   await info.attach('scale-metrics.json', {body: JSON.stringify({scroll: f, open}), contentType: 'application/json'})
   if (t.name === 'studio') expect(open.ms, 'F2: open from a big list').toBeLessThan(100)
 })
+
+// A new sort of a longer list than is loaded: the old order stays until the server's
+// answer, never the loaded page sorted on the client (it read "Bulk item 0100" for a
+// moment under Sort by Created).
+test('@local J41: a new sort shows no wrongly ordered first page meanwhile', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity shows its loading rows instead")
+  await t.prepare(page.context())
+  await page.goto('/structure/bulk')
+  const first = page.locator('a[href^="/structure/bulk;"]').first()
+  await first.waitFor()
+  const menu = page.getByRole('button', {name: 'List options'}).first()
+  try {
+    for (const [sort, want] of [['Sort by Title', 'Bulk item 0001'], ['Sort by Created', 'Bulk item 5000']] as const) {
+      const before = (await first.textContent())!.trim()
+      await menu.click()
+      await page.getByText(sort).first().click()
+      const seen = new Set<string>()
+      for (let i = 0; i < 40 && !seen.has(want); i++) seen.add((await first.textContent())!.trim()), await page.waitForTimeout(25)
+      expect([...seen].filter((s) => s !== before && s !== want), `${sort}: only the old first row, then the new one`).toEqual([])
+      await expect(first).toHaveText(want)
+    }
+  } finally {
+    await menu.click()
+    await page.getByText('Default sort').first().click()
+  }
+})

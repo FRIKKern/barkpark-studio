@@ -10,9 +10,13 @@ import {useT, type T} from '../lib/i18n'
 
 type Json = null | boolean | number | string | Json[] | {[k: string]: Json}
 
+// Sanity reopens Inspect on the view used last.
+let lastTab: 'parsed' | 'raw' = 'parsed'
+
 export function InspectDialog({doc, title, onClose}: {doc: Doc; title: string; onClose: () => void}) {
   const t = useT()
-  const [tab, setTab] = useState<'parsed' | 'raw'>('parsed')
+  const [tab, setTabState] = useState<'parsed' | 'raw'>(lastTab)
+  const setTab = (next: 'parsed' | 'raw') => setTabState((lastTab = next))
   const [query, setQuery] = useState('')
   const {_hasPublished, ...stored} = doc
   void _hasPublished
