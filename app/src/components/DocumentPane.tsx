@@ -534,9 +534,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <SplitVertical />
           </button>
         )}
+        {/* Sanity's Presentation: no focus mode, and a close that goes back to the page's documents. */}
+        {inPresentation && (
+          <PaneLink href={closeHref} className="icon-btn" aria-label={t('Close pane')} data-tip={t('Close pane')} data-testid="pane-close">
+            {closeIcon}
+          </PaneLink>
+        )}
         {/* J42: a narrow window has no splits and no close: the back link goes back. */}
-        {narrow && <FocusButton index={index} />}
-        {!narrow && (
+        {narrow && !inPresentation && <FocusButton index={index} />}
+        {!narrow && !inPresentation && (
           <>
             <button type="button" className="icon-btn" aria-label={t('Split pane right')} data-tip={t('Split pane right')} onClick={() => navigate({href: splitRight(panes, index)})}>
               <SplitVertical />
@@ -603,8 +609,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       </div>
       <div className="doc-title-bar">
         {header}
-        {/* Sanity shows the view tabs only when a document has more than one view. */}
-        {views.length > 1 && <div className="view-tabs" role="tablist" aria-label={t('Views')}>
+        {/* Sanity shows the view tabs only when a document has more than one view, and none in Presentation. */}
+        {views.length > 1 && !inPresentation && <div className="view-tabs" role="tablist" aria-label={t('Views')}>
           {views.map((v) => (
             <button key={v.id} type="button" role="tab" aria-selected={view === v.id} onClick={() => navigate({href: withView(panes, index, viewParam(v.id, mode))})}>
               {v.icon}

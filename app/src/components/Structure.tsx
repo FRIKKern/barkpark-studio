@@ -25,7 +25,7 @@ import {BulkBar} from './BulkBar'
 import {MAX_SELECTED} from '../lib/bulk'
 import {AvatarStack} from './Presence'
 import {usePresences, type Presence} from '../lib/presence'
-import {PaneLink, usePaneNavigate} from './PaneLink'
+import {InPresentationContext, PaneLink, usePaneNavigate} from './PaneLink'
 import {PaneBoundary, ReadErrorCard} from './PaneError'
 import {t as tBrowser, useT} from '../lib/i18n'
 
@@ -240,6 +240,7 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
   const t = useT()
   const {focused} = useFocusMode()
   const {data: schemas = []} = useQuery(schemasQuery)
+  const inPresentation = useContext(InPresentationContext)
   // e2e probe (J50): this pane throws while rendering, as a bug would.
   if ((globalThis as {__crashPane?: string}).__crashPane === paneKey(pane)) throw new Error(`e2e probe: ${paneKey(pane)} crashed`)
   const next = panes[index + 1]
@@ -279,7 +280,8 @@ function PaneView({panes, index}: {panes: Pane[]; index: number}) {
       closeHref={isSplit(panes, index) ? closeSplit(panes, index) : closeFrom(panes, index)}
       header={
         <span className="title-row">
-          <BackLink panes={panes} index={index} />
+          {/* Presentation's document pane closes from its header instead, as Sanity's. */}
+          {!inPresentation && <BackLink panes={panes} index={index} />}
           {focused === index ? <FocusCrumbs panes={panes} index={index} /> : <PaneTitle pane={pane} />}
         </span>
       }

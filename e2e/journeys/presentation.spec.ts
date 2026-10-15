@@ -137,6 +137,11 @@ test('J61: links and the URL bar move the page; the panel follows it', async ({p
   const drop = panel.locator('.image-empty-box').first()
   const [hint, upload] = [await drop.locator('.hint').boundingBox(), await drop.getByRole('button', {name: 'Upload'}).boundingBox()]
   expect(upload!.y).toBeGreaterThan(hint!.y + hint!.height)
+  // Sanity's document pane here: 325 px, a close and no focus mode in its header, no view tabs.
+  expect(Math.abs((await panel.boundingBox())!.width - 325)).toBeLessThanOrEqual(5)
+  await expect(panel.getByRole('link', {name: 'Close pane'})).toBeVisible()
+  await expect(panel.getByRole('button', {name: /focus mode/})).toHaveCount(0)
+  await expect(panel.getByRole('tablist', {name: 'Views'})).toHaveCount(0)
 
   // A link in the page: the URL, the URL bar and the panel follow.
   await page.frameLocator('iframe').getByRole('link', {name: 'Alan'}).click()
