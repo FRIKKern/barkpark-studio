@@ -993,7 +993,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
         <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
           {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
           {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : actor ? <ActorAvatar actor={actor} /> : null}
-          {label}
+          <span className="save-state-text">{label}</span>
         </span>
       </button>
       {state === 'signedOut' && (
@@ -1182,7 +1182,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
     <footer className="doc-footer">
       <span className="save-state" role="status" suppressHydrationWarning>
         {none ? gone?.actor && <ActorAvatar actor={gone.actor} /> : actor && <ActorAvatar actor={actor} />}
-        {none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}
+        <span className="save-state-text">{none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}</span>
       </span>
       <DocBadges doc={doc} />
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
