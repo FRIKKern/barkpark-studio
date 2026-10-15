@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 57 changes
+- **Today** · 58 changes
+  - fix(locations): the banner and the first field where Sanity puts them (J62) ([#613](https://github.com/FRIKKern/barkpark-studio/pull/613))
   - fix(auth): sign out leaves nothing of the session for the next editor ([#612](https://github.com/FRIKKern/barkpark-studio/pull/612))
-  - Cold load: gzip the HTML (doc page 135 KB → 22 KB) ([#607](https://github.com/FRIKKern/barkpark-studio/pull/607))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
