@@ -37,10 +37,12 @@ const colours = HighlightStyle.define([
 ])
 
 const theme = EditorView.theme({
-  '&': {height: '100%', fontSize: '12px', background: 'transparent', color: 'var(--fg)'},
-  '.cm-scroller': {fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: '1.6'},
-  '.cm-gutters': {background: 'transparent', border: '0', color: 'var(--muted)'},
-  '.cm-activeLine, .cm-activeLineGutter': {background: 'var(--hover)'},
+  // Sanity's Vision editor: 16 px code, a grey line-number gutter down the whole editor, a blue current line.
+  '&': {height: '100%', fontSize: '16px', background: 'transparent', color: 'var(--fg)'},
+  '.cm-scroller': {fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: '1.4'},
+  '.cm-gutters': {minHeight: '100%', background: 'var(--bg-soft)', borderRight: '1px solid var(--line)', color: 'var(--muted)'},
+  '.cm-activeLine': {background: 'var(--code-active-line)'},
+  '.cm-activeLineGutter': {background: 'var(--code-active-gutter)'},
   '&.cm-focused': {outline: 'none'},
   '&.cm-focused .cm-content': {caretColor: 'var(--fg-strong)'},
   '.cm-content': {padding: '4px 0'},
