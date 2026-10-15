@@ -58,7 +58,8 @@ const HOLD_MS = 3_000
 // Other pages keep the desk's idle prefetch. Clicks are held from now: React hydrates the
 // server-drawn inputs after the page marks itself interactive, so holding only once they
 // render let a held click go to the inert server button (see holdClicks).
-if (!import.meta.env.SSR && /^(?:\/w\/[^/]+\/p\/[^/]+(?:\/d\/[^/]+)?)?\/(?:structure\/[^?#]*;|presentation)/.test(location.pathname)) holdClicks()
+export const onDocPage = () => /^(?:\/w\/[^/]+\/p\/[^/]+(?:\/d\/[^/]+)?)?\/(?:structure\/[^?#]*;|presentation)/.test(location.pathname)
+if (!import.meta.env.SSR && onDocPage()) holdClicks()
 
 /** Fetch the chunk when the browser is idle (the desk calls this once it has rendered). */
 export function usePrefetchDocEditors() {

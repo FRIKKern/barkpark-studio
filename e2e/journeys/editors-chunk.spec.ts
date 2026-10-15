@@ -46,6 +46,7 @@ test('J36: the first click on Select, before the editors chunk lands, still open
     requestAnimationFrame(watch)
   })
   await page.route(/doc-editors/, async (route) => (await new Promise((r) => setTimeout(r, 1_000)), route.continue()))
+  const started = Date.now()
   await page.goto(t.docPath('post', 'post-17'), {waitUntil: 'commit'})
   await page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')}).getByRole('button', {name: 'Select'}).click()
   await expect(page.getByRole('dialog'))
@@ -54,6 +55,8 @@ test('J36: the first click on Select, before the editors chunk lands, still open
       console.log(`J36 timeline:\n${((await page.evaluate(() => (window as {__j36?: string[]}).__j36).catch(() => null)) ?? []).join('\n')}`)
       throw err
     })
+  // A slow pass says why too (CI: 8 s once, against ~2 s locally).
+  if (Date.now() - started > 4_000) console.log(`J36 slow pass, timeline:\n${((await page.evaluate(() => (window as {__j36?: string[]}).__j36).catch(() => null)) ?? []).join('\n')}`)
 })
 
 // task-3d93a715c9e2e3d6: the production server names the editors' chunk for a document
