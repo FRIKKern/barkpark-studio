@@ -26,10 +26,34 @@ test('J20: the editors chunk failing to load waits, and lands once it can', asyn
 test('J36: the first click on Select, before the editors chunk lands, still opens it', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
+  // On CI this flaked about 1 run in 6 from 2026-10-14 23:52 UTC and never locally
+  // (task-0d76ab147c56c3c9): a failure prints where the click went, so the next one says why.
+  await page.addInitScript(() => {
+    const t0 = performance.now()
+    const log: string[] = ((window as {__j36?: string[]}).__j36 = [])
+    const say = (s: string) => log.push(`${Math.round(performance.now() - t0)} ${s}`)
+    const live = (el: Element) => Object.keys(el).some((k) => k.startsWith('__reactProps$'))
+    const name = (el: Element | null) => (el ? `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : ''} "${el.textContent?.trim().slice(0, 16)}"` : 'none')
+    addEventListener('click', (e) => say(`click ${e.isTrusted ? 'trusted' : 'replayed'} on ${name(e.target as Element)} live=${live(e.target as Element)} held=${Array.isArray((window as {__earlyClicks?: unknown}).__earlyClicks)} hydrated=${document.documentElement.hasAttribute('data-hydrated')} at ${e.clientX},${e.clientY}`), true)
+    let last = ''
+    const watch = () => {
+      const b = [...document.querySelectorAll('button')].find((x) => x.textContent?.trim() === 'Select')
+      const r = b?.getBoundingClientRect()
+      const k = r ? `${Math.round(r.x)},${Math.round(r.y)} live=${live(b!)}` : 'absent'
+      if (k !== last) say(`Select ${(last = k)}`)
+      if (performance.now() - t0 < 8_000) requestAnimationFrame(watch)
+    }
+    requestAnimationFrame(watch)
+  })
   await page.route(/doc-editors/, async (route) => (await new Promise((r) => setTimeout(r, 1_000)), route.continue()))
   await page.goto(t.docPath('post', 'post-17'), {waitUntil: 'commit'})
   await page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')}).getByRole('button', {name: 'Select'}).click()
-  await expect(page.getByRole('dialog')).toBeVisible({timeout: 5_000})
+  await expect(page.getByRole('dialog'))
+    .toBeVisible({timeout: 5_000})
+    .catch(async (err) => {
+      console.log(`J36 timeline:\n${((await page.evaluate(() => (window as {__j36?: string[]}).__j36).catch(() => null)) ?? []).join('\n')}`)
+      throw err
+    })
 })
 
 // task-3d93a715c9e2e3d6: the production server names the editors' chunk for a document
