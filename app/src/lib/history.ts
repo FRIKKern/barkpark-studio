@@ -2,6 +2,7 @@ import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import type {Doc} from './data'
+import {allPages} from './pages'
 
 // Document history (J16), from Barkpark's snapshots: /v1/data/history lists the
 // revisions (newest first), /v1/data/revision/:id is one snapshot, and its
@@ -19,9 +20,15 @@ type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 const fetchHistory = createServerFn({method: 'GET'})
   .validator((d: {type: string; id: string}) => d)
   .handler(async ({data}) => {
-    const res = await bpFetch(`/v1/data/history/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?limit=100`)
-    if (!res.ok) throw new Error(`history ${res.status}`)
-    const {revisions} = (await res.json()) as {revisions: RawRevision[]}
+    // Every page (Barkpark pages by `next_offset`, at most 200 a page): the newest 100
+    // alone lost a long-edited document's Created row and everything older
+    // (task-2502560b41be3217).
+    const revisions = await allPages(async (offset) => {
+      const res = await bpFetch(`/v1/data/history/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?limit=200&offset=${offset}`)
+      if (!res.ok) throw new Error(`history ${res.status}`)
+      const body = (await res.json()) as {revisions: RawRevision[]; next_offset?: number | null}
+      return {items: body.revisions, next: body.next_offset}
+    })
     return revisions.map((r) => ({
       id: r.id,
       action: r.action,
