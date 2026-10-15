@@ -46,6 +46,12 @@ test('@local D01: a Freeform-main doc opens in the canvas, bound fields as title
   await expect(fields.nth(0).locator('input')).toHaveValue(SEED.title)
   await expect(fields.nth(1).locator('.bp-canvas-field-label')).toHaveText('Label')
   await expect(fields.nth(1).locator('input')).toHaveValue(SEED.label)
+  // They read like the Classic inputs (pack D01), not the shared editor's bare serif line.
+  const look = await fields.nth(0).locator('input').evaluate((el) => {
+    const cs = getComputedStyle(el)
+    return {font: cs.fontFamily.split(',')[0], padding: cs.paddingLeft}
+  })
+  expect(look).toEqual({font: 'Inter', padding: '12px'})
   await page.screenshot({path: shot('1-open')})
 
   // A field block saves into its field; the pane title follows.
