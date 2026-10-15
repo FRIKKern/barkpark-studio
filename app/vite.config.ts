@@ -22,6 +22,22 @@ const immutableAssets = (): Plugin => ({
   },
 })
 
+// task-e290a2a48bef759a: Start's preview handler marks every HTML response `content-encoding:
+// identity`, which keeps Vite's compression middleware off it, so a document page's HTML
+// (markup plus the router's dehydrated data) went out as ~135 KB instead of ~22 KB gzipped:
+// ~0.6 s of Fast 3G before first paint. Our pages are written in one go, not streamed, so
+// gzip holds nothing back. If SSR ever streams, revisit this (gzip buffers until the end).
+const compressHtml = (): Plugin => ({
+  name: 'compress-html',
+  configurePreviewServer(server) {
+    server.middlewares.use((_req, res, next) => {
+      const set = res.setHeader.bind(res)
+      res.setHeader = (name, value) => (name.toLowerCase() === 'content-encoding' && value === 'identity' ? res : set(name, value))
+      next()
+    })
+  },
+})
+
 // task-3d93a715c9e2e3d6: a document page draws the editors' inputs (image, file, body) in
 // its first frame, but their chunk is a dynamic import the browser finds only once the
 // page's code has run: on a slow link the first click waited for that fetch after the page
@@ -78,6 +94,6 @@ export default defineConfig(({mode}) => {
     environments: {client: {build: {manifest: true}}},
     define: {__STUDIO_BUILD__: JSON.stringify(build)},
     // Server-only modules (src/server) imported into client code fail the build, not mock silently.
-    plugins: [immutableAssets(), preloadEditors(), tanstackStart({importProtection: {behavior: 'error', client: {files: ['**/src/server/**']}}}), viteReact()],
+    plugins: [immutableAssets(), compressHtml(), preloadEditors(), tanstackStart({importProtection: {behavior: 'error', client: {files: ['**/src/server/**']}}}), viteReact()],
   }
 })
