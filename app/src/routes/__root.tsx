@@ -6,6 +6,7 @@ import appCss from '../styles.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
 import {IconTips} from '../components/Tip'
 import {ToastHost} from '../components/Toasts'
+import {SessionGate} from '../components/SessionGate'
 import {useAnnouncer} from '../lib/announce'
 import {THEME_BOOT} from '../lib/theme'
 import {EARLY_CLICKS, releaseEarlyClicks} from '../lib/hydrated'
@@ -64,7 +65,7 @@ function RootDocument({children}: {children: ReactNode}) {
       </head>
       <body>
         <LocaleProvider data={localeData}>
-          {children}
+          <SessionGate>{children}</SessionGate>
           <ToastHost />
           <IconTips />
           <Announcer />

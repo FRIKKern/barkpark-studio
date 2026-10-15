@@ -1,6 +1,7 @@
 import type {QueryClient} from '@tanstack/react-query'
 import {forgetEdits} from './edits'
 import {endSession} from './session'
+import {announceSession} from './session-channel'
 
 // Sign out of this tab (task-03ca6c0c9a79adf1): the session ends, and nothing of it stays
 // for whoever signs in next here, as in Sanity: no unsent edit (lib/edits.ts), no cached
@@ -12,6 +13,7 @@ const KEPT_PREFIXES = ['bp-share:', 'bp-kept-words:']
 export async function signOutHere(qc: QueryClient) {
   forgetEdits()
   await endSession()
+  announceSession()
   qc.clear()
   try {
     for (const key of Object.keys(localStorage)) if (KEPT.includes(key) || KEPT_PREFIXES.some((p) => key.startsWith(p))) localStorage.removeItem(key)

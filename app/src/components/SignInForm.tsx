@@ -2,6 +2,7 @@ import {useState, type ReactNode} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {devSignIn, meQuery, signInWithAccount} from '../lib/session'
 import {useT} from '../lib/i18n'
+import {announceSession} from '../lib/session-channel'
 
 /**
  * The sign-in fields (server/auth.ts says which way in): a Barkpark account's email and
@@ -35,6 +36,7 @@ export function SignInForm({idPrefix, className, heading, autoFocus, onSignedIn,
         }
       }
       setPassword('')
+      announceSession()
       await onSignedIn()
     } catch (err) {
       setError((err as Error).message)
