@@ -44,7 +44,8 @@ export function releaseEarlyClicks() {
   const w = window as {__earlyClicks?: HTMLElement[] | null}
   const held = w.__earlyClicks ?? []
   w.__earlyClicks = null
-  for (const el of held) clickWhenLive(el)
+  const at = performance.now()
+  for (const el of held) clickWhenLive(el, at)
 }
 
 /**
@@ -54,11 +55,17 @@ export function releaseEarlyClicks() {
  * the editors' Suspense boundary hydrated later than that, the click went to the inert
  * server-drawn Select and was lost (task-0d76ab147c56c3c9, J36 on CI 2026-10-14 23:52 UTC).
  */
-function clickWhenLive(el: HTMLElement, frames = 180) {
+function clickWhenLive(el: HTMLElement, since: number, frames = 180) {
+  // Pressed somewhere else meanwhile: the held click is stale, and clicking it now would
+  // take the focus from where the person went (J10: the title lost its keys to the body).
+  if (lastPointerDown > since) return
   const now = el.isConnected ? el : counterpart(el)
   if (now && (isLive(now) || frames === 0)) return void now.click()
-  if (frames > 0) requestAnimationFrame(() => clickWhenLive(el, frames - 1))
+  if (frames > 0) requestAnimationFrame(() => clickWhenLive(el, since, frames - 1))
 }
+
+let lastPointerDown = 0
+if (typeof window !== 'undefined') addEventListener('pointerdown', (e) => e.isTrusted && (lastPointerDown = performance.now()), true)
 
 // React marks an element it has hydrated or rendered with its props (`__reactProps$<id>`).
 const isLive = (el: HTMLElement) => Object.keys(el).some((k) => k.startsWith('__reactProps$'))
