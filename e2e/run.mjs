@@ -3,6 +3,7 @@
 import {existsSync, readFileSync} from 'node:fs'
 import {loadEnvFile} from 'node:process'
 import {spawnSync} from 'node:child_process'
+import {LANE_RESET_USAGE, laneResetRefusal} from '../scripts/lib/seed-plan.mjs'
 import {fileURLToPath} from 'node:url'
 
 const [mode, ...args] = process.argv.slice(2)
@@ -13,6 +14,17 @@ if (!['test', 'baseline', 'evidence', 'reference', 'recording', 'reset'].include
 process.env.BARKPARK_DATASET ||= 'e2e-local'
 const envFile = fileURLToPath(new URL('../.env', import.meta.url))
 if (existsSync(envFile)) loadEnvFile(envFile)
+// A reset writes schemas and data: an e2e lane only, checked after .env (it may name production).
+// Help (or any flag it doesn't pass on) prints usage and touches nothing.
+if (mode === 'reset' && (args.includes('--help') || args.includes('-h'))) {
+  console.log(LANE_RESET_USAGE)
+  process.exit(0)
+}
+const refused = mode === 'reset' && laneResetRefusal(process.env.BARKPARK_DATASET, args)
+if (refused) {
+  console.error(`run.mjs reset: refused. ${refused}\n${LANE_RESET_USAGE}`)
+  process.exit(1)
+}
 process.env.SANITY_TOKEN ||= process.env.SANITY_AUTH_TOKEN || ''
 // A lane's own member tokens (scripts/lane-token.mjs): the studio server on `app`, the
 // specs on `rig`, so neither shares a rate-limit bucket with the other or another lane.
@@ -52,7 +64,10 @@ if (mode === 'reference' || mode === 'recording') {
   }
 }
 const cli = mode === 'reset' ? '../scripts/seed-barkpark.mjs' : 'node_modules/@playwright/test/cli.js'
-const flags = mode === 'reset' ? ['--data'] : [
+// A lane's reset writes the fixture schemas too (the .env token may; CI's seeds data only,
+// in e2e.yml): a --data reset left e2e-freeform's post schema a field and a desk behind
+// the fixtures, a warning nobody acted on (2026-10-15).
+const flags = mode === 'reset' ? [] : [
   'test',
   ...(mode === 'baseline' || mode === 'evidence' ? ['--grep', `@${mode}`] : []),
   ...(mode === 'reference' || mode === 'recording' ? ['--config', 'reference.config.ts'] : []),
