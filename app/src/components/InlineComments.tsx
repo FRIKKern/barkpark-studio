@@ -1,9 +1,9 @@
-import {useContext, useEffect, useRef, useState} from 'react'
+import {useContext, useEffect, useId, useLayoutEffect, useRef, useState, type RefObject} from 'react'
 import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {CommentsContext, Composer, newId} from './Comments'
 import {moveCommentSelections, postComment, readerCommentsQuery} from '../lib/comments'
-import {commentRangesOf, rangeMoves, type CommentSelection} from '../lib/comment-threads'
+import {commentRangesOf, rangeMoves, type CommentSelection, type Point} from '../lib/comment-threads'
 import {useCanWrite} from '../lib/session'
 import {useT} from '../lib/i18n'
 import {AddComment} from './icons'
@@ -13,9 +13,9 @@ import {AddComment} from './icons'
 // edits (Barkpark EMBED-CONTRACT 1.8, "Comment ranges"); the studio owns the threads.
 // An older canvas has no setCommentRanges: then the body has field comments only.
 
-type Range = {id: string; active?: boolean} & CommentSelection
+type CommentRange = {id: string; active?: boolean} & CommentSelection
 type RangeCanvas = HTMLElement & {
-  setCommentRanges(list: Range[]): void
+  setCommentRanges(list: CommentRange[]): void
   commentRanges(): ({id: string; text: string} & CommentSelection)[]
   commentsInSelection(): string[]
 }
@@ -55,7 +55,7 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
   const apiRef = useRef(api)
   apiRef.current = api
 
-  const ranges: Range[] = [...commentRangesOf(threads, field, api?.active, live.current), ...(draft ? [{id: DRAFT, ...draft.selection, active: true}] : [])]
+  const ranges: CommentRange[] = [...commentRangesOf(threads, field, api?.active, live.current), ...(draft ? [{id: DRAFT, ...draft.selection, active: true}] : [])]
   const rangesRef = useRef(ranges)
   rangesRef.current = ranges
   // Handed over when a thread comes or goes or another is picked, not on every save of
@@ -161,4 +161,65 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
     </>,
     document.body,
   )
+}
+
+// Before the body wakes, Sanity's highlights still show. The read-only view paints the open
+// threads' spans with the CSS Custom Highlight API (no DOM change), on top-level text blocks
+// (a Point with a path, inside a list or a cell, waits for the canvas). One registry for every
+// read-only body on the page: each sets its ranges, all are painted together.
+const statics = new Map<string, {all: Range[]; active: Range[]}>()
+function repaint() {
+  if (typeof CSS === 'undefined' || !CSS.highlights || typeof Highlight === 'undefined') return
+  const parts = [...statics.values()]
+  CSS.highlights.set('bp-comment', new Highlight(...parts.flatMap((p) => p.all)))
+  CSS.highlights.set('bp-comment-active', new Highlight(...parts.flatMap((p) => p.active)))
+}
+
+/** The text node and offset a Point names in the read-only view, or null. */
+function pointIn(root: HTMLElement, p: Point): {node: Node; offset: number} | null {
+  if (p.path) return null
+  const block = root.querySelector(`[data-bp-id="${CSS.escape(p.blockId)}"]`)
+  if (!block) return null
+  const walk = document.createTreeWalker(block, NodeFilter.SHOW_TEXT)
+  let left = p.offset
+  for (let n = walk.nextNode() as Text | null; n; n = walk.nextNode() as Text | null) {
+    if (left <= n.length) return {node: n, offset: left}
+    left -= n.length
+  }
+  return null
+}
+
+/**
+ * Paints the open inline comments of `field` on its read-only view while `on`; returns what a
+ * click there names: the thread whose span holds (block, offset), if any.
+ */
+export function useStaticCommentHighlights(root: RefObject<HTMLElement | null>, field: string, on: boolean, value: unknown) {
+  const api = useContext(CommentsContext)
+  const id = useId()
+  const ranges = api ? commentRangesOf(api.threads, field, api.active, new Map()) : []
+  const key = JSON.stringify(ranges)
+  useLayoutEffect(() => {
+    const el = root.current
+    if (!on || !el || typeof CSS === 'undefined' || !CSS.highlights) return
+    const all: Range[] = []
+    const active: Range[] = []
+    for (const r of ranges) {
+      const a = pointIn(el, r.anchor)
+      const b = pointIn(el, r.head)
+      if (!a || !b) continue
+      const range = document.createRange()
+      range.setStart(a.node, a.offset)
+      range.setEnd(b.node, b.offset)
+      if (range.collapsed) (range.setStart(b.node, b.offset), range.setEnd(a.node, a.offset))
+      if (!range.collapsed) (r.active ? active : all).push(range)
+    }
+    statics.set(id, {all, active})
+    repaint()
+    return () => void (statics.delete(id), repaint())
+  }, [on, key, value, id])
+  return (at: {block: string; offset: number} | null) => {
+    if (!at || !api) return
+    const hit = ranges.find((r) => !r.anchor.path && r.anchor.blockId === at.block && r.head.blockId === at.block && Math.min(r.anchor.offset, r.head.offset) <= at.offset && at.offset <= Math.max(r.anchor.offset, r.head.offset))
+    if (hit) api.open(field, hit.id)
+  }
 }

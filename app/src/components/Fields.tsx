@@ -18,6 +18,7 @@ import {RefArrayInput} from './RefArrayInput'
 import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {CodelistInput} from './CodelistInput'
 import {FieldComments} from './Comments'
+import {useStaticCommentHighlights} from './InlineComments'
 import {InvalidValueCard, KeysAlert, RichTextCard, SanityPortableTextCard, UnsupportedAssetCard} from './BrokenValues'
 import {invalidValue, keyProblem, richTextProblem, sanityPortableText, unsupportedAsset} from '../lib/broken'
 import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
@@ -750,6 +751,9 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
   const [expanded, setExpanded] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const area = useExpandArea(box, expanded)
+  // Inline comments show on the read-only view too, and a click on one opens its thread.
+  const staticBody = useRef<HTMLDivElement>(null)
+  const pickComment = useStaticCommentHighlights(staticBody, field, !active, value)
   // Where the activating click landed, as (block id, text offset): the caret goes
   // there once the canvas is up (one click activates and places it). By keyboard:
   // the end of the text. Mapped by block, not by pixel: the canvas lays out a
@@ -824,7 +828,12 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
         aria-labelledby={`${field}-label`}
         aria-readonly={readOnly || undefined}
         tabIndex={0}
-        onClick={(e) => !readOnly && !(e.target as HTMLElement).closest('a') && ((at.current = clickedAt(e.clientX, e.clientY)), setActive(true))}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest('a')) return
+          const spot = clickedAt(e.clientX, e.clientY)
+          pickComment(spot)
+          if (!readOnly) (at.current = spot), setActive(true)
+        }}
         // Keys on the box itself; Enter or Space on the expand button is that button's own click.
         onKeyDown={(e) => {
           if (readOnly || e.target !== e.currentTarget) return
@@ -841,7 +850,7 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
           {!readOnly && <BodyToolbar host={box} vocabulary={vocabulary} onWake={() => setActive(true)} />}
           {!readOnly && <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />}
         </div>
-        <div className="bp-paper-editor-body">{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">{t('Empty')}</p>}</div>
+        <div className="bp-paper-editor-body" ref={staticBody}>{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">{t('Empty')}</p>}</div>
         {id && <BlockPresence docId={id} field={field} />}
       </div>
     )
