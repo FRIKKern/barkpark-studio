@@ -313,6 +313,8 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   const [narrowTab, setNarrowTab] = useState<'preview' | 'content'>('preview')
   const busy = s.load === 'loading' || s.refreshing || connecting
   const status = s.load === 'loading' ? t('Loading.') : s.refreshing ? t('Refreshing.') : undefined
+  // While an overlay covers the frame it is hidden too (as Sanity's), so a preview site
+  // that is down never shows the browser's broken-page icon under the spinner.
   const blocked = s.load === 'loading' || s.load === 'timedOut' || connecting
   const [panelWidth, setPanelWidth] = usePanelWidth()
   return (
@@ -365,7 +367,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
           <ShareMenu doc={shareDoc} pageUrl={url} />
         </div>
         <div className="presentation-frame" data-viewport={viewport ?? 'desktop'} style={{cursor: busy ? 'wait' : undefined}}>
-          {mounted && <iframe key={generation} ref={frame} src={src} title={t('Presentation')} style={{pointerEvents: blocked ? 'none' : undefined}} onLoad={() => send({type: 'loaded'})} />}
+          {mounted && <iframe key={generation} ref={frame} src={src} title={t('Presentation')} style={{visibility: blocked ? 'hidden' : undefined}} onLoad={() => send({type: 'loaded'})} />}
           {s.load === 'loading' ? (
             <Status text={t('Loading.')} />
           ) : s.load === 'timedOut' ? (

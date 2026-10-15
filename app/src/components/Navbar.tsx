@@ -97,7 +97,8 @@ function NavDrawer() {
               ))}
             </nav>
             <div className="drawer-foot">
-              {/* A phone's navbar has no room for Help (Sanity's has none there either): it is here. */}
+              {/* A phone's navbar has no room for Tasks or Help (Sanity's has neither there): they are here. */}
+              <TasksButton inDrawer onPick={close} />
               <Help inDrawer />
               <hr />
               {APPEARANCES.map(([a, label, Icon]) => (
@@ -170,11 +171,23 @@ function SchemaWatch() {
  * edit is saved. Sanity's other entries become ours: report a problem, the docs.
  */
 /** J66: Sanity's navbar Tasks button opens (or closes) the Tasks sidebar on its lists. */
-function TasksButton() {
+function TasksButton({inDrawer = false, onPick}: {inDrawer?: boolean; onPick?: () => void}) {
   const t = useT()
   const open = useTasksView().kind !== 'closed'
+  const toggle = () => {
+    showTasks(open ? {kind: 'closed'} : {kind: 'list', tab: 'assigned'})
+    onPick?.()
+  }
+  if (inDrawer)
+    return (
+      <button type="button" className="drawer-item drawer-tasks" aria-pressed={open} onClick={toggle}>
+        <span className="menu-icon-text">
+          <CheckmarkCircle /> {t('Tasks')}
+        </span>
+      </button>
+    )
   return (
-    <button type="button" className="icon-btn" data-testid="tasks-toolbar" aria-label={t('Tasks')} data-tip={t('Tasks')} aria-pressed={open} onClick={() => showTasks(open ? {kind: 'closed'} : {kind: 'list', tab: 'assigned'})}>
+    <button type="button" className="icon-btn tasks-btn" data-testid="tasks-toolbar" aria-label={t('Tasks')} data-tip={t('Tasks')} aria-pressed={open} onClick={toggle}>
       <CheckmarkCircle />
     </button>
   )
@@ -359,10 +372,10 @@ function PerspectivePicker() {
     void navigate({href: withPerspective(`${path}?${q}`, false)})
   }
   return (
-    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+    <div className="menu-wrap perspective" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
       <button type="button" className="perspective-picker" aria-label={t('Perspective')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span className={`dot ${published ? 'published' : 'draft-ring'}`} aria-hidden="true" />
-        {published ? t('Published') : t('Drafts')}
+        <span className="perspective-label">{published ? t('Published') : t('Drafts')}</span>
         <ChevronDown />
       </button>
       {open && (

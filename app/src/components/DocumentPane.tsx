@@ -483,7 +483,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           {draftQ.data?._hasPublished === false ? (
             <span className="chip" data-off="" aria-disabled="true" title={t('Not published')}>
               <span className="dot published" />
-              {t('Published')}
+              <span className="chip-label">{t('Published')}</span>
             </span>
           ) : (
             <TipChip
@@ -497,7 +497,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               onClick={() => navigate({href: `${base}?perspective=published`})}
             >
               <span className="dot published" />
-              {t('Published')}
+              <span className="chip-label">{t('Published')}</span>
             </TipChip>
           )}
           <TipChip
@@ -508,7 +508,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             onClick={() => navigate({href: `${base}?perspective=drafts`})}
           >
             <span className="dot draft" />
-            {t('Draft')}
+            <span className="chip-label">{t('Draft')}</span>
           </TipChip>
           {/* J40: Sanity's scheduled version chip. */}
           {schedule && (

@@ -39,14 +39,18 @@ test('J58: connecting, unable to connect, could not connect', async ({page, cont
   await page.goto('/presentation')
   await signInIfAsked(page)
   const frame = page.locator('.presentation-frame')
-  await expect(page.frameLocator('iframe').getByRole('heading', {name: 'A site without the preview script'})).toBeVisible()
+  await expect(page.frameLocator('iframe').getByRole('heading', {name: 'A site without the preview script'})).toBeAttached()
   await expect(frame.getByRole('status')).toHaveText('Loading.')
+  // Under the overlay the frame is hidden (Sanity's), so a site that is down never shows the browser's broken-page icon.
+  await expect(frame.locator('iframe')).toBeHidden()
   await page.clock.runFor(5_100)
   await expect(frame.getByRole('status')).toHaveText('Connecting.')
   await page.clock.runFor(3_100)
   await expect(frame.getByRole('status')).toHaveText('Unable to connect, check the browser console for more information.')
+  await expect(frame.locator('iframe')).toBeHidden()
   await frame.getByRole('button', {name: 'Continue anyway'}).click()
   await expect(frame.getByRole('status')).toBeHidden()
+  await expect(frame.locator('iframe')).toBeVisible()
 
   // A frame that never fires `load`.
   site = 'hang'

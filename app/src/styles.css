@@ -316,12 +316,14 @@ a.preview:hover { background: var(--hover); }
 .bulk-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--studio-primary); cursor: pointer; }
 .list-rows[data-selecting] .bulk-check, .bulk-row:has(.bulk-check :focus-visible) .bulk-check { opacity: 1; pointer-events: auto; }
 .list-rows[data-selecting] .bulk-row .media, .bulk-row:has(.bulk-check :focus-visible) .media { visibility: hidden; }
-/* Touch scout: on a phone the document header keeps one row, as Sanity's: icon buttons a
-   little narrower (still 44 px tall), the chips may shrink. */
+/* Touch scout: on a phone the document header keeps one row, as Sanity's: the icon
+   buttons stay 44 px taps, the chips shrink. */
 @media (max-width: 480px) {
   .pane.doc > .pane-header, .pane.doc .pane-header { flex-wrap: nowrap; }
   .pane.doc .pane-header .chips { min-width: 0; flex: 0 1 auto; }
-  .pane.doc .pane-header > .icon-btn, .pane.doc .pane-header > .menu-wrap > .icon-btn { width: 36px; min-width: 36px; }
+  .pane.doc > .pane-header { padding-left: 6px; padding-right: 2px; }
+  .pane.doc .pane-header .chip { min-width: 0; padding-left: 6px; padding-right: 6px; gap: 6px; }
+  .pane.doc .pane-header .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 .bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg); font-size: 13px; }
 .bulk-count { flex: 1; color: var(--fg); font-weight: 500; }
@@ -1627,10 +1629,18 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
   .navbar .brand-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nav-right { margin-left: auto; order: 2; }
   .nav-search { order: 3; margin-left: 0; }
-  /* The dataset name gives way first, so the bar fits a phone with no sideways scroll. */
-  .navbar .scope-switcher { flex: 0 1 auto; min-width: 0; }
+  /* The workspace name takes what is left and ends in "…" (Sanity's), so the bar fits
+     a phone with no sideways scroll. Tasks and Help move into the drawer for the room. */
+  .navbar .scope-switcher { flex: 1 1 0; min-width: 64px; }
   .navbar .icon-btn, .navbar .nav-right > .menu-wrap { flex: none; }
-  .navbar .nav-right > .menu-wrap.help { display: none; }
+  .navbar .nav-right > .menu-wrap.help, .navbar .nav-right > .tasks-btn { display: none; }
+  .nav-drawer .drawer-item.drawer-tasks { display: flex; }
+  /* On the narrowest phones the perspective label gives way too, so a few letters of the name stay. */
+  .nav-right { min-width: 0; }
+  .navbar .nav-right > .menu-wrap.perspective { flex: 0 1 auto; min-width: 0; }
+  .navbar .perspective-picker { max-width: 100%; }
+  .navbar .perspective-picker svg { flex: none; }
+  .navbar .perspective-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .navbar .scope-button { max-width: 100%; min-width: 44px; }
   .navbar .scope-ds { min-width: 0; }
 }
@@ -1735,15 +1745,16 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 
 /* J42/F12: on a touch-size screen every control in a doc pane is a 44 px tap. The
    perspective chips sit in a clipping title, so a clear border grows their box (the inset
-   ring and background keep their drawn size); Publish gets an invisible hit area; the field
+   ring and background keep their drawn size); Publish and the save state get an invisible hit area; the field
    menu and Generate, stacked close together, take real size so their taps don't overlap. */
 @media (max-width: 768px) {
   button.chip, button.chip[data-active], button.chip[data-selected]:not([data-active]), button.chip:hover { border-style: solid; border-color: transparent; border-width: 10px 0; background-clip: padding-box; }
-  .doc-footer .publish { position: relative; }
-  .doc-footer .publish::after { content: ''; position: absolute; z-index: 1; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
+  .doc-footer .publish, .doc-footer .save-state-btn { position: relative; }
+  .doc-footer .publish::after, .doc-footer .save-state-btn::after { content: ''; position: absolute; z-index: 1; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
   button.icon-btn[aria-label='Field actions'] { min-width: 44px; min-height: 44px; }
   .field > .field-actions, .field > .field-comments { top: -10px; } /* their 44 px end where the input begins */
   .btn-create { min-height: 44px; }
+  .locations-toggle, .group-select select { min-height: 44px; }
 }
 /* J10: the canvas's format bubble at phone width: 44 px buttons, wrapping inside the screen (F12). */
 @media (max-width: 768px) {
@@ -1967,6 +1978,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 
 /* Help in the phone drawer: a drawer item, its menu opening in place. */
 .nav-drawer .menu-wrap.help.in-drawer { display: block; }
+.nav-drawer .drawer-tasks { display: none; }
 .nav-drawer .menu-wrap.help.in-drawer .drawer-item { width: 100%; }
 .nav-drawer .menu-wrap.help.in-drawer .help-menu { position: static; margin: 4px 0; box-shadow: none; }
 .nav-drawer .update-dot { position: static; display: inline-block; margin-left: 6px; }

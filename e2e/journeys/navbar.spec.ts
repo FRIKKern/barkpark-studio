@@ -98,10 +98,15 @@ test('@local J46: phone width — tools in a drawer, search an icon, 44 px targe
   await expect(page.getByRole('link', {name: 'Vision'})).toBeHidden()
   const small = await page.locator('.navbar button:visible').evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().width < 44 || e.getBoundingClientRect().height < 44).length)
   expect(small, 'navbar tap targets ≥ 44 px').toBe(0)
+  // The workspace name keeps a few letters and an ellipsis (it was cut to one letter).
+  const name = page.locator('.navbar .brand-name')
+  expect(await name.evaluate((e) => e.getBoundingClientRect().width), 'workspace name width').toBeGreaterThan(24)
+  await expect(page.getByRole('button', {name: 'Perspective'})).toContainText('Drafts')
   const open = page.getByRole('button', {name: 'Open menu'})
   await open.click()
   const drawer = page.getByRole('dialog', {name: 'Menu'})
   await expect(drawer.getByRole('link', {name: 'Structure'})).toHaveAttribute('aria-current', 'page')
+  await expect(drawer.getByRole('button', {name: 'Tasks'})).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(open).toBeFocused()
   await open.click()
@@ -130,6 +135,13 @@ test('@local J46: on a touch phone, what hover reveals is there, and the documen
     // The document header keeps one row (it wrapped its last button onto a second).
     const tops = await page.locator('[data-testid="document-pane"] .pane-header').first().locator(':scope > button, :scope > .menu-wrap > button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)))
     expect(new Set(tops).size, `header button rows (tops ${tops})`).toBe(1)
+    // Every doc-pane control is a 44 px tap here (header icons, Used on, the field groups select).
+    const small = await page
+      .locator('[data-testid="document-pane"]')
+      .first()
+      .locator('.pane-header button:visible, .locations-toggle:visible, .group-select select:visible')
+      .evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().width < 44 || e.getBoundingClientRect().height < 44).map((e) => e.getAttribute('aria-label') ?? e.textContent))
+    expect(small, 'doc pane tap targets ≥ 44 px').toEqual([])
   } finally {
     await context.close()
   }
