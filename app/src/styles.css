@@ -11,6 +11,7 @@
   --hover-strong: #e9eaee;
   --selected-fill: #eeeef1; /* Sanity's selected tab and chip fill (measured, light) */
   --footer-meta: #6a6e7d; /* Sanity's footer status text (measured, light) */
+  --icon-muted: #6a6e7d; /* Sanity's muted icon grey (chevrons, close), measured */
   --selected: #465be8; /* F13: white text on it passes AA (5.3:1) */
   --on-selected: #fff;
   --on-selected-soft: rgba(255, 255, 255, 0.9);
@@ -110,6 +111,7 @@
    data-theme before first paint (System follows prefers-color-scheme). */
 :root[data-theme='dark'] {
   --footer-meta: #93949f;
+  --icon-muted: #93949f;
   --fg: #e4e5e9;
   --fg-strong: #fff;
   --fg-header: #c8cad3;
@@ -541,6 +543,10 @@ textarea.input { resize: vertical; }
 .chip-btn svg { width: 19px; height: 19px; }
 .chip-btn.plain { background: none; padding: 0 8px 0 4px; font-weight: 500; }
 .chip-btn.plain:hover, .chip-btn.plain[aria-expanded='true'] { background: var(--hover); }
+/* The Comments panel's Open / Resolved menu and close, as Sanity's (measured at 1440). */
+.inspector.comments header .chip-btn.plain { padding: 0 2px 0 8px; margin-right: 4px; color: var(--fg-header); }
+.inspector.comments header .chip-btn.plain svg { width: 21px; height: 21px; color: var(--icon-muted); }
+.inspector.comments header > .icon-btn { color: var(--icon-muted); }
 .link-btn { font: inherit; font-size: 13px; border: 0; background: none; color: var(--selected); cursor: pointer; padding: 4px 8px; border-radius: 3px; }
 .link-btn:hover { background: var(--hover); }
 .link-btn.danger { color: var(--danger-text); font-weight: 500; }
