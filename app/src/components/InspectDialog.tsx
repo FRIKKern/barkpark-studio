@@ -25,14 +25,19 @@ const keepView = (view: 'parsed' | 'raw') => {
   } catch {}
 }
 
+/** The document as stored, keys in order (Sanity's): client-only bookkeeping (_hasPublished) left out. */
+export function storedValue(doc: Doc): Json {
+  const {_hasPublished, ...stored} = doc
+  void _hasPublished
+  return Object.fromEntries(Object.entries(stored).sort(([a], [b]) => a.localeCompare(b))) as Json
+}
+
 export function InspectDialog({doc, title, onClose}: {doc: Doc; title: string; onClose: () => void}) {
   const t = useT()
   const [tab, setTabState] = useState<'parsed' | 'raw'>(readView)
   const setTab = (next: 'parsed' | 'raw') => (keepView(next), setTabState(next))
   const [query, setQuery] = useState('')
-  const {_hasPublished, ...stored} = doc
-  void _hasPublished
-  const value = Object.fromEntries(Object.entries(stored).sort(([a], [b]) => a.localeCompare(b))) as Json
+  const value = storedValue(doc)
   return (
     <div className="dialog-backdrop inspect-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog inspect" aria-modal="true" aria-label={t('Inspecting {title}', {title})} onClose={onClose}>
