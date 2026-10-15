@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 68 changes
+- **Today** · 69 changes
+  - feat(comments): inline comments show on the read-only body too (J40) ([#624](https://github.com/FRIKKern/barkpark-studio/pull/624))
   - fix(auth): signing out in one tab shows the sign-in screen in every tab ([#618](https://github.com/FRIKKern/barkpark-studio/pull/618))
-  - fix(inspectors): headings at Sanity's weight; Comments empty state as Sanity's ([#623](https://github.com/FRIKKern/barkpark-studio/pull/623))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
