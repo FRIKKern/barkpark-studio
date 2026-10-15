@@ -176,4 +176,9 @@ test('J37: Vision puts Params into the query', async ({page, context}, info) => 
   await page.getByRole('textbox', {name: 'Params', exact: true}).fill('{"t": "post 1"}')
   await page.getByRole('button', {name: '▶ Fetch'}).click()
   await expect(page.getByRole('region', {name: 'Result'}).getByRole('alert')).toHaveText('Param $n referenced, but not provided')
+  // At 1024 Saved queries stays a third column beside the result, as Sanity's.
+  await page.setViewportSize({width: 1024, height: 800})
+  const result = (await page.getByRole('region', {name: 'Result'}).boundingBox())!
+  const saved = (await page.getByRole('complementary', {name: 'Saved queries'}).boundingBox())!
+  expect(saved.x).toBeGreaterThanOrEqual(result.x + result.width - 1)
 })

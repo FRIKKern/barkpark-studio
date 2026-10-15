@@ -1361,7 +1361,7 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .vision-top { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .vision-top label { display: flex; flex-direction: column; width: 228px; }
 .vision-top .menu-label { padding: 4px 0 8px; }
-.vision-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(240px, 300px) 1fr 280px; grid-template-rows: minmax(0, 1fr); }
+.vision-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(240px, 300px) 1fr 274px; grid-template-rows: minmax(0, 1fr); }
 /* Saved queries (Sanity Vision's right-hand panel). */
 .vision-saved { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--border); }
 .vision-saved header { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 0 12px; }
@@ -1381,7 +1381,8 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .vision-saved-load code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vision-saved-meta { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
 .vision-saved-meta .badge { padding: 1px 6px; border-radius: 3px; background: var(--hover); }
-@media (max-width: 1100px) { .vision-body { grid-template-columns: minmax(240px, 300px) 1fr; } .vision-saved { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border); max-height: 40vh; } }
+/* Sanity keeps its three columns (300 | result | 274) at laptop widths; only a phone or tablet stacks them. */
+@media (max-width: 768px) { .vision-body { grid-template-columns: minmax(240px, 300px) 1fr; } .vision-saved { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border); max-height: 40vh; } }
 .vision-query { display: flex; flex-direction: column; padding: 12px; gap: 8px; border-right: 1px solid var(--border); background: var(--bg-soft, var(--bg)); }
 .vision-query .menu-label, .vision-result .menu-label { padding: 4px 0; }
 .vision-code { font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fg); }
