@@ -1146,6 +1146,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
         <ScheduleDialog
           run={async (publishAt) => {
             await schedulePublish({data: {id: doc._publishedId, type: doc._type, publishAt}})
+            toast({tone: 'positive', title: tt('Scheduled draft successfully')})
             await qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
           }}
           onClose={() => setScheduling(false)}
@@ -1179,7 +1180,12 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
           title={t('Delete scheduled draft')}
           body={t('Delete this scheduled draft? Your draft is already up to date.')}
           action={t('Yes, delete schedule')}
-          run={() => cancelSchedule({data: {scheduleId: schedule._id}}).then(() => qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]}))}
+          run={() =>
+            cancelSchedule({data: {scheduleId: schedule._id}}).then(() => {
+              toast({tone: 'positive', title: tt('The scheduled draft document {title} has been deleted.', {title: previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type), tt)})})
+              return qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
+            })
+          }
           onClose={() => setUnscheduling(false)}
         />
       )}

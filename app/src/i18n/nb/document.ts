@@ -34,6 +34,8 @@ export default {
   'Before': 'Før',
   'Cancel': 'Avbryt',
   'Changed': 'Endret',
+  'Scheduled draft successfully': 'Utkastet er planlagt',
+  'The scheduled draft document {title} has been deleted.': 'Det planlagte utkastet {title} er slettet.',
   'Unpublishing it will leave these references pointing at nothing live:': 'Avpublisering gjør at disse referansene peker på noe som ikke er publisert:',
   'Tone': 'Tone',
   'Level': 'Nivå',
