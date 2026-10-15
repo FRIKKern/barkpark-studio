@@ -26,7 +26,8 @@ test('@local B13: a singleton opens from Settings as its one doc; only publish, 
   await page.goto('/structure')
   await t.settle(page)
   const types = page.locator('[data-pane="types"]')
-  await expect(types.locator('div.desk-divider')).toHaveText('Settings')
+  // A lane with freeform types the desk doesn't place adds a '…Rest' divider after it (B12).
+  await expect(types.locator('div.desk-divider').first()).toHaveText('Settings')
   await expect(types.getByRole('link', {name: 'Site settings'})).toBeVisible()
   await types.getByRole('link', {name: 'Site settings'}).click()
   await expect(page).toHaveURL(/\/structure\/siteSettings$/)
