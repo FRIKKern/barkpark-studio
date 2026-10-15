@@ -46,6 +46,8 @@
   --code-summary: #8d3fc2;
   --code-string: #a0522d;
   --code-number: #1e7889; /* AA on the code background (#f2f3f5) */
+  --code-active-line: rgba(204, 238, 255, 0.27); /* Vision's current line, measured on reference/sanity */
+  --code-active-gutter: #e2f2ff;
   color-scheme: light;
   --published: #0db770; /* reference/sanity's positive dot, measured (its theme's badge dot #0db66e) */
   --positive-fg: #0d5133; /* the Published chip's text, measured on reference/sanity */
@@ -135,6 +137,8 @@
   --code-summary: #c99bf0;
   --code-string: #f0a875;
   --code-number: #6cc4d4;
+  --code-active-line: rgba(70, 120, 200, 0.16);
+  --code-active-gutter: #1f2a3d;
   --positive-fg: #5df3bd;
   --published: #13c184;
   --focus-ring: #596ffc;
@@ -1383,7 +1387,7 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .vision-saved-meta .badge { padding: 1px 6px; border-radius: 3px; background: var(--hover); }
 /* Sanity keeps its three columns (300 | result | 274) at laptop widths; only a phone or tablet stacks them. */
 @media (max-width: 768px) { .vision-body { grid-template-columns: minmax(240px, 300px) 1fr; } .vision-saved { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border); max-height: 40vh; } }
-.vision-query { display: flex; flex-direction: column; padding: 12px; gap: 8px; border-right: 1px solid var(--border); background: var(--bg-soft, var(--bg)); }
+.vision-query { display: flex; flex-direction: column; padding: 12px; gap: 8px; border-right: 1px solid var(--border); background: var(--bg); }
 .vision-query .menu-label, .vision-result .menu-label { padding: 4px 0; }
 .vision-code { font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fg); }
 textarea.vision-code { flex: 1; resize: none; border: 0; outline: none; padding: 4px; background: none; }
@@ -1394,6 +1398,8 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 textarea.vision-code.vision-params { flex: 0 0 30%; border-top: 1px solid var(--border); }
 /* The code editors (VisionEditor.tsx): the query fills the column, Params the lower third. */
 .vision-query > .vision-editor { flex: 1; min-height: 0; overflow: hidden; }
+/* The editors run to the column's left edge, as Sanity's gutter does. */
+.vision-query > .vision-editor, div.vision-params { margin-left: -12px; }
 div.vision-params { flex: 0 0 30%; min-height: 0; display: flex; border-top: 1px solid var(--border); }
 div.vision-params > .vision-editor { flex: 1; min-height: 0; overflow: hidden; }
 .vision-editor .cm-editor { height: 100%; }
@@ -1414,6 +1420,7 @@ div.vision-params > .vision-editor { flex: 1; min-height: 0; overflow: hidden; }
 .vision-error p { margin: 0; }
 .vision-error pre { margin: 0; padding: 8px; white-space: pre; overflow-x: auto; border-radius: 3px; background: var(--danger-bg); color: var(--danger-fg); }
 .vision-out { overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-word; }
+.vision-code.vision-out { font-size: 16px; line-height: 23px; } /* Sanity's result tree */
 .vision-foot { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; padding: 16px 8px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
 .vision-url-field { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .vision-url-row { display: flex; gap: 6px; }

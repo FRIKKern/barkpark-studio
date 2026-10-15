@@ -169,6 +169,8 @@ test('J37: Vision puts Params into the query', async ({page, context}, info) => 
   await page.goto('/vision')
   await signInIfAsked(page)
   await t.settle(page)
+  // Sanity's 16 px code in the editors and the result.
+  await expect(page.locator('.vision-query .cm-line').first()).toHaveCSS('font-size', '16px')
   await page.getByRole('textbox', {name: 'Query', exact: true}).fill('post?filter[title][contains]=$t&limit=$n')
   await page.getByRole('textbox', {name: 'Params', exact: true}).fill('{"t": "post 1", "n": 2}')
   await page.getByRole('button', {name: '▶ Fetch'}).click()
