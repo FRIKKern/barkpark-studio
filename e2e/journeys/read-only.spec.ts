@@ -54,3 +54,24 @@ test('@evidence J49: a read-only editor sees why everything is locked', async ({
   await expect(page.getByRole('menuitem', {name: 'Copy document'})).toBeEnabled() // reading stays
   await page.keyboard.press('Escape')
 })
+
+// J49, a Contributor (barkpark #22762): drafts stay editable, but Publish, Unpublish and
+// Delete of a published document are greyed with the role's reason. Needs a dev sign-in
+// editor holding a contributor seat (STUDIO_CONTRIBUTOR_EMAIL); none in the rig yet, so it
+// skips until the owner grants one.
+test('@evidence J49: a Contributor edits drafts but cannot publish', async ({page, context}, info) => {
+  const t = target(info)
+  const email = process.env.STUDIO_CONTRIBUTOR_EMAIL
+  test.skip(t.name === 'sanity' || process.env.STUDIO_DEV_LOGIN !== '1' || !email, 'ours, with dev sign-in and a contributor seat')
+  await t.prepare(context)
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page, email)
+  await t.settle(page)
+  await expect(t.field(page, 'title')).toBeEnabled()
+  await expect(page.getByText(REASON)).toHaveCount(0)
+  await expect(page.getByRole('button', {name: /^Publish$/}).last()).toHaveAttribute('title', 'Your role Contributor does not have permission to publish this document.')
+  await page.getByRole('button', {name: 'Document actions'}).last().click()
+  await expect(page.getByRole('menuitem', {name: 'Delete'})).toBeDisabled()
+  await page.screenshot({path: shot('3-contributor')})
+  await page.keyboard.press('Escape')
+})
