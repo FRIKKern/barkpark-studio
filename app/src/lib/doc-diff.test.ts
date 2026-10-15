@@ -33,3 +33,13 @@ test('links keep their href', () => {
   const r = runs([{type: 'link', href: 'https://x.test', children: [t('a link')]}])
   assert.equal(r[0]!.href, 'https://x.test')
 })
+
+test('J15 widen: a word made bold is "formatted"; a callout tone and an image block show as property changes', () => {
+  const t = (value: string) => ({type: 'text', value})
+  const before = [{id: 'p', type: 'paragraph', content: [t('a bold word')]}, {id: 'c', type: 'callout', tone: 'info', content: [t('x')]}, {id: 'i', type: 'image', url: '/a.png', alt: 'A'}]
+  const after = [{id: 'p', type: 'paragraph', content: [t('a '), {type: 'strong', children: [t('bold')]}, t(' word')]}, {id: 'c', type: 'callout', tone: 'warning', content: [t('x')]}, {id: 'i', type: 'image', url: '/b.png', alt: 'B'}]
+  const [p, c, i] = docDiff(before, after)
+  assert.deepEqual(p!.pieces.filter((x) => x.change !== 'same').map((x) => [x.text, x.change, x.marks.join()]), [['bold', 'formatted', 'strong']])
+  assert.deepEqual(c!.attrs, [{name: 'tone', before: 'info', after: 'warning'}])
+  assert.deepEqual(i!.attrs!.map((a) => a.name), ['alt', 'url'])
+})
