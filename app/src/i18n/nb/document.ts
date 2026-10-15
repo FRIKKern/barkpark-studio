@@ -306,6 +306,8 @@ export default {
   // J40: scheduled publish (from Sanity's nb-NO pack where it has the string).
   'Cannot schedule draft due to validation issues in the current draft.': 'Kan ikke planlegge utkast på grunn av valideringsfeil i gjeldende utkast.',
   'Delete schedule': 'Slett tidsplan',
+  'Pause to edit': 'Sett på pause for å redigere',
+  'Could not delete the schedule': 'Kunne ikke slette tidsplanen',
   'Delete scheduled draft': 'Slett planlagt utkast',
   'Delete this scheduled draft? Your draft is already up to date.': 'Slette dette planlagte utkastet? Utkastet ditt er allerede oppdatert.',
   'Publish on': 'Publiser på',

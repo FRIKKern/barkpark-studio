@@ -1254,6 +1254,10 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .pane-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 8px 8px 8px 12px; border-radius: 3px; background: var(--warn-bg); color: var(--warn-fg); font-size: 13px; }
 .pane-banner-actions { display: flex; flex: none; gap: 4px; }
 .pane-banner[data-tone=scheduled] { background: var(--scheduled-banner-bg); color: var(--scheduled-fg); }
+.pane-banner-text { display: flex; align-items: center; gap: 6px; }
+.pane-banner-text > svg, .chip[data-tone=scheduled] > svg:last-child { flex: none; width: 17px; height: 17px; }
+/* J40: Sanity's "Pause to edit", a filled button in the banner's tone. */
+.pane-banner .btn.pane-banner-primary { padding: 3px 8px; font-size: 13px; background: var(--scheduled-fg); color: var(--scheduled-banner-bg); box-shadow: none; }
 .dialog.schedule-dialog { width: min(320px, calc(100vw - 32px)); }
 .schedule-dialog .btn-primary:disabled { background: var(--publish-disabled-bg); color: var(--publish-disabled-fg); }
 .schedule-field { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; font-weight: 500; }

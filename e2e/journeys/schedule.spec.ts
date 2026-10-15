@@ -2,10 +2,11 @@ import {expect, test} from '@playwright/test'
 import {bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
 
 // J40, Sanity's Schedule publish: a draft is scheduled from the document menu
-// ("Schedule draft for publishing", a future time), the header and a banner say so, and
-// Delete schedule takes it back. Barkpark runs the publish at that time as the editor
+// ("Schedule draft for publishing", a future time), the header and a banner say so, the
+// scheduled draft is locked, and the banner's "Pause to edit" (or Delete schedule) takes
+// it back. Barkpark runs the publish at that time as the editor
 // (/v1/data/schedules, Barkpark #22775); a Barkpark without the route offers no Schedule.
-test('J40: schedule a draft for publishing, then delete the schedule', async ({page, context}, info) => {
+test('J40: schedule a draft for publishing; it is locked until Pause to edit', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "the check runs on ours; Sanity's dialog is the evidence clip")
   const route = await fetch(`${bpBase()}/v1/data/schedules/${bpDataset()}`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
@@ -28,11 +29,15 @@ test('J40: schedule a draft for publishing, then delete the schedule', async ({p
     await dialog.getByRole('button', {name: 'Schedule'}).click()
     await expect(page.locator('.chip[data-tone=scheduled]')).toHaveText('Scheduled publish')
     await expect(page.locator('.pane-banner[data-tone=scheduled]')).toContainText('Scheduled to be published on')
-    // Delete schedule: the draft stays, the chip goes.
+    // Locked, as Sanity's scheduled version; the menu still offers Delete schedule.
+    await expect(t.field(page, 'title')).toBeDisabled()
     await page.getByRole('button', {name: 'Document actions', exact: true}).click()
-    await page.getByRole('menuitem', {name: 'Delete schedule'}).click()
-    await page.getByRole('dialog').getByRole('button', {name: 'Yes, delete schedule'}).click()
+    await expect(page.getByRole('menuitem', {name: 'Delete schedule'})).toBeEnabled()
+    await page.keyboard.press('Escape')
+    // Pause to edit: the schedule goes, the draft stays and is editable again.
+    await page.locator('.pane-banner[data-tone=scheduled]').getByRole('button', {name: 'Pause to edit'}).click()
     await expect(page.locator('.chip[data-tone=scheduled]')).toBeHidden()
+    await expect(t.field(page, 'title')).toBeEnabled()
     await expect(t.field(page, 'title')).toHaveValue('Schedule probe')
   } finally {
     await t.deleteDoc(id, 'post')

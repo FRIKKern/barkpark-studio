@@ -44,7 +44,7 @@ import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from 
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
 import {cancelSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
 import {ScheduleDialog} from './ScheduleDialog'
-import {ChevronDown, CheckmarkCircle, Clock, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse} from './icons'
+import {ChevronDown, CheckmarkCircle, Clock, LockIcon, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse} from './icons'
 import {useFocusMode} from './FocusMode'
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
@@ -87,6 +87,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished || (!!draftQ.data?._draft && draftQ.data?._hasPublished !== false)})
   const docQ = viewingPublished ? publishedQ : draftQ
   const schedule = useSchedule(pane.id, pane.type, draftQ.data?._rev)
+  // J40: Sanity's "Pause to edit": the schedule goes, the draft is editable again.
+  const [pausing, setPausing] = useState(false)
+  const pause = () => {
+    if (!schedule) return
+    setPausing(true)
+    cancelSchedule({data: {scheduleId: schedule._id}})
+      .then(() => qc.invalidateQueries({queryKey: ['schedule', pane.id]}))
+      .catch((e: Error) => toast({tone: 'critical', title: tt('Could not delete the schedule'), description: e.message}))
+      .finally(() => setPausing(false))
+  }
   const {data: shown, isPending, error} = docQ
   // J04: the Published perspective of a document that has only a draft (unpublished, or
   // never published): Sanity keeps the form, empty and read-only, and its footer says what
@@ -479,6 +489,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <span className="chip" data-tone="scheduled" title={t('Scheduled to be published on {date}', {date: longDate(schedule.publishAt, locale)})}>
               <Clock />
               {t('Scheduled publish')}
+              <LockIcon />
             </span>
           )}
         </span>
@@ -594,9 +605,18 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             </span>
           </div>
         )}
+        {/* J40: as Sanity's scheduled version, the draft is locked until its schedule is paused (cancelled). */}
         {schedule && doc && (
           <div className="pane-banner" data-tone="scheduled" role="note">
-            <span>{t('Scheduled to be published on {date}', {date: longDate(schedule.publishAt, locale)})}</span>
+            <span className="pane-banner-text">
+              <LockIcon />
+              {t('Scheduled to be published on {date}', {date: longDate(schedule.publishAt, locale)})}
+            </span>
+            {canWrite && (
+              <button type="button" className="btn pane-banner-primary" disabled={pausing} onClick={pause}>
+                {t('Pause to edit')}
+              </button>
+            )}
           </div>
         )}
         {/* J49: Sanity's permission banner: no tint, the read-only icon, medium text. */}
@@ -707,7 +727,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               values: revision ? revision.content : doc,
               changes,
               problems: revision ? NO_PROBLEMS : quiet ? quietProblems : steadyProblems,
-              disabled: viewingPublished || !!revision || !canWrite,
+              disabled: viewingPublished || !!revision || !canWrite || !!schedule,
               fields: formFields.slice(0, revealed),
               unknown: !revision && revealed >= formFields.length,
             })}
@@ -779,7 +799,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <>
               <LocationsBanner doc={doc} />
               <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
-              {formBody({shown: doc, values: doc, changes: {...changes, inline: true}, problems: quiet ? quietProblems : steadyProblems, disabled: !canWrite, fields: formFields, unknown: false})}
+              {formBody({shown: doc, values: doc, changes: {...changes, inline: true}, problems: quiet ? quietProblems : steadyProblems, disabled: !canWrite || !!schedule, fields: formFields, unknown: false})}
             </>
           }
         />

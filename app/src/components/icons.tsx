@@ -74,6 +74,12 @@ export const Clock = () => (
     <path d="M12.5 8.5v4l3 2" />
   </svg>
 )
+/** Sanity's LockIcon: a scheduled draft is locked (J40). */
+export const LockIcon = () => (
+  <svg {...s} strokeLinejoin="round">
+    <path d="M9.5 11.5v-3a3 3 0 0 1 6 0v3M7.5 11.5h10v8h-10z" />
+  </svg>
+)
 /** Sanity's reset icon: a select list's "Clear", an x in a circling arrow. */
 export const ResetCircle = () => (
   <svg {...s} strokeLinejoin="round">
