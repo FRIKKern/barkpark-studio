@@ -10,6 +10,7 @@
   --hover: #f2f3f5;
   --hover-strong: #e9eaee;
   --selected-fill: #eeeef1; /* Sanity's selected tab and chip fill (measured, light) */
+  --footer-meta: #6a6e7d; /* Sanity's footer status text (measured, light) */
   --selected: #465be8; /* F13: white text on it passes AA (5.3:1) */
   --on-selected: #fff;
   --on-selected-soft: rgba(255, 255, 255, 0.9);
@@ -108,6 +109,7 @@
 /* J45 dark, measured on reference/sanity in its dark appearance. lib/theme.ts sets
    data-theme before first paint (System follows prefers-color-scheme). */
 :root[data-theme='dark'] {
+  --footer-meta: #93949f;
   --fg: #e4e5e9;
   --fg-strong: #fff;
   --fg-header: #c8cad3;
@@ -454,8 +456,14 @@ textarea.input { resize: vertical; }
 .chip .dot { width: 5px; height: 5px; border-radius: 50%; }
 .dot.published { background: var(--published); }
 .dot.draft { background: var(--caution-dot); }
-.doc-footer { height: 51px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 20px; font-size: 13px; color: var(--muted); }
-.doc-footer .save-state-btn { margin: 0 auto 0 -6px; padding: 3px 6px; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; cursor: pointer; min-width: 0; text-align: left; }
+.doc-footer { height: 51px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 16px; font-size: 13px; color: var(--muted); }
+/* Sanity's footer (measured at 1440): Publish 79x25 with a 21 px icon at 2 and the label at 25,
+   12 px before the actions menu, whose icon is the header grey. */
+.doc-footer .publish { min-height: 25px; padding: 2px 8px 2px 2px; gap: 2px; }
+.doc-footer .publish > svg { width: 21px; height: 21px; margin: 0; }
+.doc-footer .publish-tip + *, .doc-footer .publish + * { margin-left: 4px; }
+.doc-footer > .icon-btn, .doc-footer .menu-wrap > .icon-btn { color: var(--fg-header); }
+.doc-footer .save-state-btn { color: var(--footer-meta); margin: 0 auto 0 0; padding: 3px 6px; border: 0; border-radius: 3px; background: none; font: inherit; cursor: pointer; min-width: 0; text-align: left; }
 .doc-footer .save-state-btn:hover:not(:disabled) { background: var(--hover); }
 .doc-footer .save-state-btn:disabled { cursor: default; }
 .publish { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
