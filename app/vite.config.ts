@@ -4,6 +4,7 @@ import path from 'node:path'
 import {defineConfig, loadEnv, type Plugin} from 'vite'
 import {tanstackStart} from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
+import {parseChanges} from './src/lib/whats-new'
 
 // Cold-load scout (2026-10-09): the production server sent its content-hashed
 // /assets/* with `no-cache`, so a warm load fetched all ~230 KB of JS again. A hashed
@@ -89,10 +90,19 @@ export default defineConfig(({mode}) => {
   // bundle, and two Date.now() values made every production tab offer a reload.
   process.env.STUDIO_BUILD ||= `${commit}-${Date.now().toString(36)}`
   const build = process.env.STUDIO_BUILD
+  // Help > What's new: this build's latest merged PRs (src/lib/whats-new.ts). A shallow
+  // checkout (CI) lists what it has, maybe nothing.
+  const changes = (() => {
+    try {
+      return parseChanges(execSync('git log --first-parent -n 80 --format=%cs%x09%s', {stdio: ['ignore', 'pipe', 'ignore']}).toString())
+    } catch {
+      return []
+    }
+  })()
   return {
     server: {port: 3000},
     environments: {client: {build: {manifest: true}}},
-    define: {__STUDIO_BUILD__: JSON.stringify(build)},
+    define: {__STUDIO_BUILD__: JSON.stringify(build), __STUDIO_CHANGES__: JSON.stringify(changes)},
     // Server-only modules (src/server) imported into client code fail the build, not mock silently.
     plugins: [immutableAssets(), compressHtml(), preloadEditors(), tanstackStart({importProtection: {behavior: 'error', client: {files: ['**/src/server/**']}}}), viteReact()],
   }

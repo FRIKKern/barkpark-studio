@@ -291,6 +291,14 @@ export const MenuIcon = () => (
   </svg>
 )
 /** Sanity's CommentIcon: a speech bubble. */
+/** Sanity's BugIcon (Help > Diagnostics): a beetle, legs out. */
+export const BugIcon = () => (
+  <svg {...s}>
+    <path d="M10 9.5a2.5 2.5 0 0 1 5 0" />
+    <rect x="8.5" y="9.5" width="8" height="9" rx="4" />
+    <path d="M12.5 12v6.5M6 13.5h2.5M16.5 13.5H19M7 9l1.8 1.8M18 9l-1.8 1.8M7 18.5l1.9-1.4M18 18.5l-1.9-1.4" />
+  </svg>
+)
 export const CommentIcon = () => (
   <svg {...s}>
     <path d="M6.5 7.5h12v8h-7l-3 3v-3h-2z" strokeLinejoin="round" />

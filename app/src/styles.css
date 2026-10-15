@@ -599,6 +599,16 @@ textarea.input { resize: vertical; }
 .dialog.diagnostics { width: min(960px, calc(100vw - 32px)); }
 /* Help > the version item, up to date: Sanity's version dialog, centred, logo over name and build. */
 .diagnostics-backdrop:has(.version-dialog) { place-items: center; padding-top: 0; }
+/* Help > What's new (in the studio, as Sanity's): this build's latest merged changes. */
+.dialog.whats-new-dialog { width: min(560px, calc(100vw - 32px)); }
+.whats-new { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.whats-new li { display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border); line-height: 19px; }
+.whats-new li:last-child { border-bottom: 0; }
+.whats-new time { flex: none; width: 48px; color: var(--muted); }
+.whats-new a { color: var(--fg); text-decoration: none; }
+.whats-new a:hover { text-decoration: underline; }
+.whats-new-foot { padding: 12px 20px 16px; }
+.whats-new-foot a { color: var(--fg); text-decoration: none; }
 .dialog.version-dialog { width: min(320px, calc(100vw - 32px)); }
 .version-body { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 32px 20px 12px; text-align: center; }
 .version-body p { margin: 0; }
