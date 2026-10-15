@@ -4,6 +4,8 @@ import {SignInForm} from '../components/SignInForm'
 import {useHydratedMark} from '../lib/hydrated'
 import {useT} from '../lib/i18n'
 import {returnPath} from '../lib/return-path'
+import {editorIs, resumeSaving} from '../lib/edits'
+import {meQuery} from '../lib/session'
 
 // The sign-in screen (server/auth.ts): a Barkpark account (J67), or dev sign-in's email
 // only. The seated dev test editors are studio-editor-{a..d}@example.com.
@@ -26,6 +28,8 @@ function Login() {
         autoFocus
         onSignedIn={async () => {
           await qc.invalidateQueries({queryKey: ['me']})
+          // Edits held from a lost session (J48) go out if they are this editor's; anyone else's are dropped.
+          if (editorIs(qc.getQueryData(meQuery.queryKey)?.email ?? null)) resumeSaving(qc)
           qc.removeQueries({predicate: (q) => q.queryKey[0] !== 'me'}) // re-read as this editor
           await navigate({href: redirect})
         }}

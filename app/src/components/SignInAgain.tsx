@@ -1,7 +1,8 @@
 import {useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {SignInForm} from './SignInForm'
-import {resumeSaving} from '../lib/edits'
+import {editorIs, resumeSaving} from '../lib/edits'
+import {meQuery} from '../lib/session'
 import {DialogBox, PaneOverlay} from './FocusScopes'
 import {useT} from '../lib/i18n'
 
@@ -35,7 +36,8 @@ export function SignInAgain() {
                 }
                 onSignedIn={async () => {
                   await qc.invalidateQueries({queryKey: ['me']})
-                  resumeSaving(qc)
+                  // Someone else signing in here neither sees nor sends the edits held for the last editor.
+                  if (editorIs(qc.getQueryData(meQuery.queryKey)?.email ?? null)) resumeSaving(qc)
                   setOpen(false)
                   requestAnimationFrame(() => editing?.isConnected && editing !== document.body && editing.focus({preventScroll: true}))
                 }}

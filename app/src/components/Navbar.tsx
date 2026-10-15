@@ -1,6 +1,7 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Link, useNavigate} from '@tanstack/react-router'
-import {endSession, meQuery} from '../lib/session'
+import {meQuery} from '../lib/session'
+import {signOutHere} from '../lib/sign-out'
 import {GlobalSearch} from './Search'
 import {NewDocMenu} from './NewDocMenu'
 import {ScopeSwitcher} from './ScopeSwitcher'
@@ -116,8 +117,7 @@ function NavDrawer() {
                     className="drawer-item"
                     onClick={async () => {
                       close()
-                      await endSession()
-                      qc.clear()
+                      await signOutHere(qc)
                       await navigate({to: '/login', search: {redirect: '/structure'}})
                     }}
                   >
@@ -313,8 +313,7 @@ function Editor() {
                   className="menu-item spread"
                   onClick={async () => {
                     setOpen(false)
-                    await endSession()
-                    qc.clear()
+                    await signOutHere(qc)
                     await navigate({to: '/login', search: {redirect: '/structure'}})
                   }}
                 >

@@ -8,6 +8,7 @@ import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type
 import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
 import {t} from './i18n'
 import {setFooterOffline} from './footer-offline'
+import {heldFor} from './held-for'
 import {merge3, mergeList3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
@@ -466,6 +467,30 @@ export function reasonOf(msg: string): string | undefined {
 /** After signing in again: send every doc's edits that waited for it. */
 export function resumeSaving(qc: QueryClient) {
   for (const [id, e] of docs) if (e.snap.state === 'signedOut' && (e.dirty.size || e.createRequested)) (setState(e, 'saving'), void send(qc, id))
+}
+
+/** J48 / task-03ca6c0c9a79adf1: told each sign-in's email; false when the held edits were someone else's and are dropped. */
+const owns = heldFor()
+export function editorIs(email: string | null): boolean {
+  const theirs = owns(email)
+  if (!theirs) forgetEdits()
+  return theirs
+}
+
+/** Sign out: every edit held in this page is dropped, from memory and from this browser. */
+export function forgetEdits() {
+  for (const [id, e] of docs) {
+    clearTimeout(e.timer)
+    clearTimeout(e.keepTimer)
+    const key = keepKeyOf(id)
+    if (key) void dropPending(key)
+  }
+  docs.clear()
+  waiting.clear()
+  canvasSnaps.clear()
+  canvasProblems.clear()
+  setFooterOffline(false)
+  listeners.forEach((l) => l())
 }
 
 /** Offline: hold everything, send again when the network is back (or try every few seconds). */
