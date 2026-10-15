@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 87 changes
+- **Today** · 88 changes
+  - fix(navbar): the perspective pill laid out as Sanity's (J37) ([#643](https://github.com/FRIKKern/barkpark-studio/pull/643))
   - fix(tokens): Sanity's selected fill on tabs and chips (J01) ([#642](https://github.com/FRIKKern/barkpark-studio/pull/642))
-  - fix(navbar): button spacing as Sanity's (J01) ([#641](https://github.com/FRIKKern/barkpark-studio/pull/641))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
