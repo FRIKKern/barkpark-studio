@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 71 changes
+- **Today** · 72 changes
+  - Help as Sanity's: What's new in the studio, a Changelog item, icons ([#627](https://github.com/FRIKKern/barkpark-studio/pull/627))
   - fix(fields): Field actions and Add comment where Sanity puts them (J40) ([#626](https://github.com/FRIKKern/barkpark-studio/pull/626))
-  - Scope switch keeps the open panes that exist there ([#625](https://github.com/FRIKKern/barkpark-studio/pull/625))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
