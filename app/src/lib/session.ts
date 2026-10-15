@@ -26,6 +26,8 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     /** task-701f8a5fdb6b4d52, the user menu as Sanity's: their name (Barkpark display name) and role here. */
     name: ended || !editor ? null : await displayName(editor.token),
     role: ended || !editor ? null : self?.role ?? null,
+    /** Help > Diagnostics: the Barkpark user behind a login session. */
+    userId: ended || !editor ? null : self?.userId ?? null,
     /** The editor in browser storage keys: a digest, never the email. */
     editorKey: ended || !editor ? null : editorKey(editor.email),
     canWrite: self && !ended ? self.permissions.includes('write') : true,

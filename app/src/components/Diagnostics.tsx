@@ -1,4 +1,4 @@
-import {version as reactVersion, useCallback, useEffect, useState} from 'react'
+import {version as reactVersion, useCallback, useEffect, useMemo, useState} from 'react'
 import {createPortal} from 'react-dom'
 import {useQuery} from '@tanstack/react-query'
 import {DialogBox} from './FocusScopes'
@@ -7,7 +7,8 @@ import {toast} from './Toasts'
 import {useT} from '../lib/i18n'
 import {BUILD, buildName} from '../lib/version'
 import {barkparkInfoQuery, diagnosticsJson, listenCheck, mediaCheck, pingStudio, runServerChecks, type Check, type ListenCheck} from '../lib/diagnostics'
-import {currentScopeQuery} from '../lib/scope-switch'
+import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
+import {samplesOf, summarize, type Sample} from '../lib/request-timings'
 import {schemasQuery} from '../lib/data'
 import {meQuery} from '../lib/session'
 
@@ -55,6 +56,9 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
   const me = useQuery(meQuery).data
   const [run, setRun] = useState<Run | null>(null)
   const [running, setRunning] = useState(false)
+  // Sanity's UTC time switch: the run's times, tracking start and the chart's axis in UTC.
+  const [utc, setUtc] = useState(false)
+  const options = useQuery({...scopeOptionsQuery(scope ?? {workspace: '', project: ''}), enabled: !!scope}).data
   const type = schemas[0]?.name
   // The tests, as Sanity's: run on open and by "Run again".
   const start = useCallback(async () => {
@@ -75,10 +79,16 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
   useEffect(() => void start(), [start])
   const browser = browserFacts()
   const pending = '…'
-  const time = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString() : pending)
+  const time = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString(undefined, utc ? {timeZone: 'UTC'} : undefined) : pending)
+  // This tab's requests to the studio server since it opened (Resource Timing), read again per run.
+  const samples = useMemo(() => samplesOf(performance.getEntriesByType('resource') as PerformanceResourceTiming[], location.origin), [run])
+  const tabOpen = (() => {
+    const s = Math.round(performance.now() / 1000)
+    return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
+  })()
   const ms = (n: number | null | undefined) => (n == null ? '–' : `${Math.round(n)} ms`)
   const sections: [string, [string, string][]][] = [
-    [t('Studio'), [[t('Studio version'), buildName(BUILD)], [t('React version'), reactVersion]]],
+    [t('Studio'), [[t('Studio version'), buildName(BUILD)], [t('React version'), reactVersion], [t('Workspaces'), options?.workspaces ? String(options.workspaces.length) : '–']]],
     [
       t('Workspace'),
       [
@@ -94,9 +104,10 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
     [
       t('User'),
       [
+        [t('User ID'), me?.userId ?? '–'],
         [t('Email'), me?.email ?? '–'],
         [t('Sign-in'), me?.signIn ?? pending],
-        [t('Roles'), me ? (me.canWrite ? t('Editor') : t('Viewer')) : pending],
+        [t('Roles'), me ? (me.role ? me.role[0]!.toUpperCase() + me.role.slice(1) : me.canWrite ? t('Editor') : t('Viewer')) : pending],
       ],
     ],
     [
@@ -111,6 +122,7 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
         [t('Connection estimate'), browser.connection ? `${browser.connection.effectiveType ?? '?'} · ${browser.connection.downlinkMbps ?? '?'} Mbps · ${browser.connection.roundtripTimeMs ?? '?'} ms RTT` : '–'],
         [t('Local storage'), browser.localStorage.status === 'success' ? t('Enabled') : t('Blocked')],
         [t('Hardware'), t('{cpus} logical processors · {memory} GB memory', {cpus: browser.hardwareConcurrency, memory: browser.deviceMemoryGb ?? '?'})],
+        [t('Max touch points'), String(browser.maxTouchPoints)],
       ],
     ],
     [
@@ -120,6 +132,9 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
         [t('Studio server TTFB'), run ? ms(run.ttfbMs) : pending],
         [t('Barkpark ping'), run ? ms(run.requests.find((r) => r.path === '/v1/version')?.durationMs) : pending],
         [t('Live stream'), run ? (run.first?.status === 'success' ? t('Connected') : t('Failed')) : pending],
+        [t('Session requests'), String(samples.length)],
+        [t('Tracking started'), time(new Date(performance.timeOrigin).toISOString())],
+        [t('Tab open'), tabOpen],
       ],
     ],
   ]
@@ -130,9 +145,9 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
       durationMs: run?.durationMs ?? 0,
       studio: {version: buildName(BUILD), reactVersion, workspaceName: scope?.workspace ?? null, workspaceTitle: scope?.workspace ?? null, projectId: scope?.project ?? null, dataset: scope?.dataset ?? null, apiHost: bp?.url ?? null, barkparkVersion: bp?.version ?? null, barkparkCommit: bp?.commit ?? null, basePath: '/'},
       schema: {documentTypes: schemas.length},
-      user: {id: me?.email ?? null, provider: me?.signIn ?? null, roles: [me?.canWrite ? {name: 'editor', title: 'Editor'} : {name: 'viewer', title: 'Viewer'}]},
+      user: {id: me?.userId ?? me?.email ?? null, provider: me?.signIn ?? null, roles: [me?.canWrite ? {name: 'editor', title: 'Editor'} : {name: 'viewer', title: 'Viewer'}]},
       browser: browser as unknown as Record<string, never>,
-      network: {protocol: {protocol: run?.protocol ?? null, ttfbMs: run?.ttfbMs ?? null}, requests: run?.requests ?? [], listen: {first: run?.first ?? null, secondWhileFirstOpen: run?.second ?? null}},
+      network: {protocol: {protocol: run?.protocol ?? null, ttfbMs: run?.ttfbMs ?? null}, requests: run?.requests ?? [], requestHistory: samples, listen: {first: run?.first ?? null, secondWhileFirstOpen: run?.second ?? null}},
     })
     return navigator.clipboard
       .writeText(JSON.stringify(json, null, 2))
@@ -156,6 +171,10 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
               <div><dt>{t('Completed')}</dt><dd>{running ? pending : time(run?.generatedAt)}</dd></div>
               <div><dt>{t('Diagnostics duration')}</dt><dd>{running || !run ? pending : ms(run.durationMs)}</dd></div>
             </dl>
+            <label className="diagnostics-utc">
+              <span>{t('UTC time')}</span>
+              <input type="checkbox" role="switch" checked={utc} onChange={(e) => setUtc(e.target.checked)} />
+            </label>
             <button type="button" className="btn" disabled={running} onClick={() => void start()}>{t('Run again')}</button>
           </section>
           {sections.map(([title, rows]) => (
@@ -171,6 +190,13 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
               </dl>
             </section>
           ))}
+          <section className="diagnostics-wide" aria-label={t('Recent request timings')}>
+            <h3 className="diagnostics-chart-head">
+              {t('Recent request timings')}
+              <span className="muted">{t('{n} requests this session', {n: samples.length})}</span>
+            </h3>
+            <RequestTimings samples={samples} utc={utc} />
+          </section>
           <section className="diagnostics-wide" aria-label={t('Live stream connection tests')}>
             <h3>{t('Live stream connection tests')}</h3>
             <div className="diagnostics-listen">
@@ -217,3 +243,70 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
     document.body,
   )
 }
+
+// One colour per series, as Sanity's chart: the avatar palette, then muted.
+const COLORS = ['var(--avatar-blue)', 'var(--avatar-green)', 'var(--avatar-orange)', 'var(--avatar-yellow)']
+
+/** Sanity's "Recent request timings": each request a dot (when, how long), and per series n / median / p95 / max. */
+function RequestTimings({samples, utc}: {samples: Sample[]; utc: boolean}) {
+  const t = useT()
+  const summary = summarize(samples)
+  if (!samples.length) return <p className="muted">{t('No requests yet.')}</p>
+  const color = (series: string) => COLORS[summary.findIndex((s) => s.series === series)] ?? 'var(--muted)'
+  const [W, H, L, R, T, B] = [800, 180, 64, 12, 12, 26]
+  const t0 = samples[0]!.at
+  const t1 = Math.max(samples.at(-1)!.at, t0 + 1)
+  const top = Math.max(...samples.map((s) => s.ms), 1)
+  const x = (at: number) => L + ((at - t0) / (t1 - t0)) * (W - L - R)
+  const y = (ms: number) => T + (1 - ms / top) * (H - T - B)
+  const clock = (at: number) => new Date(performance.timeOrigin + at).toLocaleTimeString(undefined, utc ? {timeZone: 'UTC'} : undefined)
+  return (
+    <div className="diagnostics-card diagnostics-timings">
+      <svg className="diagnostics-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('Request durations over time')}>
+        {[0, top / 2, top].map((v) => (
+          <g key={v}>
+            <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} />
+            <text x={L - 8} y={y(v) + 4} textAnchor="end">
+              {Math.round(v)} ms
+            </text>
+          </g>
+        ))}
+        <text x={L} y={H - 6}>{clock(t0)}</text>
+        <text x={W - R} y={H - 6} textAnchor="end">
+          {clock(t1)}
+        </text>
+        {samples.map((s, i) => (
+          <circle key={i} cx={x(s.at)} cy={y(s.ms)} r="3.5" fill={color(s.series)}>
+            <title>{`${s.series} · ${s.ms} ms · ${clock(s.at)}`}</title>
+          </circle>
+        ))}
+      </svg>
+      <table className="diagnostics-summary">
+        <caption>{t('Session summary')}</caption>
+        <thead>
+          <tr>
+            <th>{t('Series')}</th>
+            <th>n</th>
+            <th>{t('Median')}</th>
+            <th>p95</th>
+            <th>{t('Max')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {summary.map((s) => (
+            <tr key={s.series}>
+              <td>
+                <span className="diagnostics-dot" style={{background: color(s.series)}} /> {s.series}
+              </td>
+              <td>{s.n}</td>
+              <td>{s.median} ms</td>
+              <td>{s.p95} ms</td>
+              <td>{s.max} ms</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
