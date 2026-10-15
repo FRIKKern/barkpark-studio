@@ -3,6 +3,7 @@
   "title": "Studio comment",
   "visibility": "private",
   "desk": {"hidden": true},
+  "readerWrites": {"create": true, "patchFields": ["state"]},
   "fields": [
     {"name": "documentId", "title": "Document", "type": "string"},
     {"name": "documentType", "title": "Document type", "type": "string"},

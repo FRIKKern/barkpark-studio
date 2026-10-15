@@ -1,6 +1,7 @@
-import {createContext, useContext, useEffect, useId, useRef, useState, type KeyboardEvent} from 'react'
+import {createContext, forwardRef, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent} from 'react'
+import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {commentsQuery, deleteComment, editComment, postComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
+import {commentsQuery, readerCommentsQuery, deleteComment, editComment, postComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
 import {peopleQuery} from '../lib/people'
 import {insertMention, mentionAt, messageParts, personName} from '../lib/comment-threads'
 import {meQuery, useCanWrite} from '../lib/session'
@@ -33,28 +34,33 @@ const newId = () => `comment-${crypto.randomUUID()}`
 
 /** The field's comment button and its composer (Sanity's CommentsField). */
 export function FieldComments({path, title}: {path: string; title: string}) {
-  const {commentReason} = useCanWrite()
+  const {canWrite, commentReason: lockedReason} = useCanWrite()
+  // J49: Sanity's Viewer comments; ours may when the comment schema lets read seats write.
+  const {data: readers} = useQuery({...readerCommentsQuery, enabled: !canWrite})
+  const commentReason = canWrite || readers ? undefined : lockedReason
   const api = useContext(CommentsContext)
   const t = useT()
   const [composing, setComposing] = useState(false)
   // J43: closing the composer hands focus back to the button that opened it.
-  const opener = useRef<HTMLButtonElement>(null)
+  const opener = useRef<HTMLSpanElement>(null)
   const close = () => (setComposing(false), requestAnimationFrame(() => opener.current?.focus()))
   if (!api) return null
   const open = api.threads.filter((th) => th.root.fieldPath === path && th.status === 'open')
   return (
     <div className="field-comments" data-has={open.length || undefined}>
+      {/* J49: not <button>s, and the composer in a layer of its own: a Viewer's form is a
+          disabled fieldset, which would disable them too, and a Viewer may comment. */}
       {open.length ? (
-        <button type="button" className="comment-count" aria-label={t('Open comments')} title={open.length === 1 ? t('View comment') : t('View comments')} onClick={() => api.open(path)}>
+        <SpanButton className="comment-count" aria-label={t('Open comments')} title={open.length === 1 ? t('View comment') : t('View comments')} onPress={() => api.open(path)}>
           <CommentIcon /> {open.length}
-        </button>
+        </SpanButton>
       ) : (
-        <button ref={opener} type="button" className="icon-btn comment-add" aria-label={t('Add comment')} data-tip={t('Add comment')} title={commentReason} disabled={!!commentReason} aria-expanded={composing} onClick={() => setComposing(true)}>
+        <SpanButton ref={opener} className="icon-btn comment-add" aria-label={t('Add comment')} data-tip={t('Add comment')} title={commentReason} disabled={!!commentReason} aria-expanded={composing} onPress={() => setComposing(true)}>
           <AddComment />
-        </button>
+        </SpanButton>
       )}
       {composing && (
-        <div className="popover comment-popover">
+        <FollowLayer anchor={opener} className="popover comment-popover">
           <Composer
             label={t('Add comment to {field}', {field: title})}
             placeholder={<>{t('Add comment to')} <strong>{title}</strong></>}
@@ -66,9 +72,49 @@ export function FieldComments({path, title}: {path: string; title: string}) {
             }}
             onCancel={close}
           />
-        </div>
+        </FollowLayer>
       )}
     </div>
+  )
+}
+
+/** A button that a disabled fieldset around it leaves alone (role=button; Enter and Space press it). */
+const SpanButton = forwardRef<HTMLSpanElement, {onPress: () => void; disabled?: boolean; children: React.ReactNode} & Omit<React.HTMLAttributes<HTMLSpanElement>, 'onClick'> & Record<`data-${string}`, string | undefined>>(function SpanButton({onPress, disabled, children, ...rest}, ref) {
+  return (
+    <span
+      ref={ref}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled || undefined}
+      {...rest}
+      onClick={() => !disabled && onPress()}
+      onKeyDown={(e) => {
+        if (disabled || (e.key !== 'Enter' && e.key !== ' ')) return
+        e.preventDefault()
+        onPress()
+      }}
+    >
+      {children}
+    </span>
+  )
+})
+
+/** The field composer, in a layer on the page under its button (outside the form), following it as the form scrolls. */
+function FollowLayer({anchor, className, children}: {anchor: React.RefObject<HTMLElement | null>; className: string; children: React.ReactNode}) {
+  const [box, setBox] = useState<DOMRect | null>(null)
+  useLayoutEffect(() => {
+    const place = () => anchor.current && setBox(anchor.current.getBoundingClientRect())
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => (window.removeEventListener('scroll', place, true), window.removeEventListener('resize', place))
+  }, [anchor])
+  if (!box) return null
+  return createPortal(
+    <div className={className} style={{position: 'fixed', top: box.bottom + 4, left: Math.max(8, box.right - 320)}}>
+      {children}
+    </div>,
+    document.body,
   )
 }
 
@@ -347,6 +393,8 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const mine = (comment.authorEmail ?? null) === (me?.email ?? null)
+  // A read seat writes its comments but never deletes (Barkpark #22790 refuses it).
+  const {canWrite} = useCanWrite()
   const thread = head && replyIds.length > 0
   return (
     <div className="comment-item">
@@ -374,7 +422,7 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
                     <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenu(false), setEditing(true))}>
                       {t('Edit comment')}
                     </button>
-                    <button type="button" role="menuitem" className="menu-item danger" onClick={() => (setMenu(false), setDeleting(true))}>
+                    <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={canWrite ? undefined : t('Your role Viewer does not have permission to delete this comment.')} onClick={() => (setMenu(false), setDeleting(true))}>
                       {t('Delete comment')}
                     </button>
                   </MenuPopover>

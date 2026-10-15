@@ -93,6 +93,9 @@
     },
     "cors_origins": {
       "description": "Origins allowed to read it from a browser."
+    },
+    "readerWrites": {
+      "description": "What a read seat may write on this type (barkpark#22790): {create, patchFields}; studioComment uses it so Viewers comment (J49)."
     }
   },
   "definitions": {

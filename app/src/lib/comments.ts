@@ -3,7 +3,8 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import {sendBatches} from '../../../scripts/lib/batches.mjs'
 import {currentEditor} from '../server/auth'
-import {COMMENT_TYPE, mentionsIn, type Comment, type CommentStatus} from './comment-threads'
+import {COMMENT_TYPE, mentionsIn, readersMayComment, type Comment, type CommentStatus} from './comment-threads'
+import {readCommentSchema} from '../server/schemas'
 
 export {COMMENT_TYPE, threadsOf, type Comment, type CommentStatus, type Thread} from './comment-threads'
 
@@ -31,6 +32,11 @@ const fetchComments = createServerFn({method: 'GET'})
     const docs = ((await res.json()) as {result: {documents: (Comment & {_publishedId: string})[]}}).result.documents
     return docs.map(({_publishedId, ...c}) => ({...c, _id: _publishedId})) as unknown as Json
   })
+
+const fetchReaderComments = createServerFn({method: 'GET'}).handler(async () => readersMayComment((await readCommentSchema()) as {readerWrites?: unknown} | undefined))
+
+/** J49: may a read-only seat add and resolve comments here (the comment schema opts in)? */
+export const readerCommentsQuery = queryOptions({queryKey: ['reader-comments'], staleTime: 5 * 60_000, queryFn: () => fetchReaderComments()})
 
 export const commentsQuery = (documentId: string) =>
   queryOptions({queryKey: ['comments', documentId], staleTime: 10_000, queryFn: async () => (await fetchComments({data: {documentId}})) as unknown as Comment[]})

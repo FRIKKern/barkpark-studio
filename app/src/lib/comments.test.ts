@@ -1,7 +1,7 @@
 // J40: threads from flat comments — the first comment carries open / resolved, replies point at it.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {threadsOf, type Comment} from './comment-threads.ts'
+import {readersMayComment, threadsOf, type Comment} from './comment-threads.ts'
 import {workspacePeople} from './members.ts'
 
 const c = (id: string, extra: Partial<Comment> = {}): Comment => ({_id: id, documentId: 'post-01', documentType: 'post', fieldPath: 'title', threadId: id, message: id, authorEmail: null, createdAt: '2026-10-08T10:00:00Z', ...extra})
@@ -27,4 +27,12 @@ test('mention list: people from every page of members, not only the first', asyn
     {members: [{principal_type: 'user', identity: 'a@example.com'}, {principal_type: 'user', identity: 'gone@example.com', revoked: true}], hasMore: false},
   ]
   assert.deepEqual(await workspacePeople(async (offset) => pages[offset / 2]!), ['a@example.com', 'b@example.com'])
+})
+
+test('J49: viewers comment only where the comment schema lets read seats create and resolve', () => {
+  assert.equal(readersMayComment({readerWrites: {create: true, patchFields: ['state']}}), true)
+  assert.equal(readersMayComment({reader_writes: {create: true, patchFields: ['state', 'resolvedAt']}}), true)
+  assert.equal(readersMayComment({readerWrites: {create: true, patchFields: []}}), false)
+  assert.equal(readersMayComment({}), false)
+  assert.equal(readersMayComment(undefined), false)
 })
