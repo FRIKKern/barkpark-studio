@@ -168,14 +168,17 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // J40: the document's comment threads, for the field buttons and the inspector.
   const commentsQ = useQuery(commentsQuery(pane.id))
   const [commentField, setCommentField] = useState<string | undefined>()
-  const openComments = useRef((_path?: string) => {})
-  openComments.current = (path) => {
+  // The picked thread (an inline comment's): its span shows active in the body.
+  const [commentThread, setCommentThread] = useState<string | undefined>()
+  const openComments = useRef((_path?: string, _thread?: string) => {})
+  openComments.current = (path, thread) => {
     setCommentField(path)
+    setCommentThread(thread)
     if (pane.inspect !== 'comments') void navigate({href: withParams(panes, index, {inspect: 'comments', rev: undefined})})
   }
   const commentsApi = useMemo(
-    () => ({docId: pane.id, docType: pane.type, threads: threadsOf(commentsQ.data ?? []), open: (path?: string) => openComments.current(path)}),
-    [pane.id, pane.type, commentsQ.data],
+    () => ({docId: pane.id, docType: pane.type, threads: threadsOf(commentsQ.data ?? []), open: (path?: string, thread?: string) => openComments.current(path, thread), active: commentThread, select: setCommentThread}),
+    [pane.id, pane.type, commentsQ.data, commentThread],
   )
   const schema = schemaOf(schemas, pane.type)
   const fieldLabels = useMemo(() => Object.fromEntries((schema?.fields ?? []).map((f) => [f.name, f.title ?? f.name])), [schema])
@@ -784,8 +787,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           docType={pane.type}
           fieldTitle={(path) => path.split('.').map((part, i) => (i === 0 ? fieldLabels[part] ?? part : part)).join(' › ')}
           focusField={commentField}
+          active={commentThread}
+          onSelect={setCommentThread}
           onGoToField={(path) => goTo({path, group: (schema?.fields.find((f) => f.name === path.split('.')[0]) as {group?: string} | undefined)?.group})}
-          onClose={() => navigate({href: withParams(panes, index, {inspect: undefined})})}
+          onClose={() => (setCommentThread(undefined), navigate({href: withParams(panes, index, {inspect: undefined})}))}
         />
       )}
       {(pane.inspect === 'history' || pane.inspect === 'review') && (

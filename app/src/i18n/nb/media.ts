@@ -140,6 +140,8 @@ export default {
   'Add comment': 'Legg til kommentar',
   'Add comment to {field}': 'Legg til kommentar på {field}',
   'Add comment to': 'Legg til kommentar på',
+  'Comments cannot overlap': 'Kommentarer kan ikke overlappe',
+  'The commented text has been deleted': 'Den kommenterte teksten er slettet',
   'Failed to send.': 'Klarte ikke å sende.',
   'Mention user': 'Nevn bruker',
   'Send comment': 'Send kommentar',

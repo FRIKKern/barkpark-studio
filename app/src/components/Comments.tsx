@@ -21,8 +21,11 @@ type Api = {
   docId: string
   docType: string
   threads: Thread[]
-  /** Open the inspector, on a field's threads when given. */
-  open: (fieldPath?: string) => void
+  /** Open the inspector, on a field's threads when given, and on one thread (an inline comment's). */
+  open: (fieldPath?: string, threadId?: string) => void
+  /** The thread the author has picked (Sanity's selected thread): its span of text shows active. */
+  active?: string
+  select: (threadId?: string) => void
 }
 export const CommentsContext = createContext<Api | null>(null)
 
@@ -30,7 +33,7 @@ export const CommentsContext = createContext<Api | null>(null)
 // studio itself writes. It is named as presence names that session ("Studio").
 const nameOf = (t: T, email: string | null | undefined) => (email ? email.replace(/@.*/, '') : t('Studio'))
 const initialOf = (email: string | null | undefined) => (email ? email[0]!.toUpperCase() : 'S')
-const newId = () => `comment-${crypto.randomUUID()}`
+export const newId = () => `comment-${crypto.randomUUID()}`
 
 /** The field's comment button and its composer (Sanity's CommentsField). */
 export function FieldComments({path, title}: {path: string; title: string}) {
@@ -119,7 +122,7 @@ function FollowLayer({anchor, className, children}: {anchor: React.RefObject<HTM
 }
 
 /** Sanity's comment input: avatar, a growing text box, Send (Enter sends, Shift+Enter is a new line); Escape asks before throwing text away. */
-function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel, compact}: {
+export function Composer({label, placeholder, initial = '', autoFocus, onSend, onCancel, compact}: {
   label: string
   placeholder: React.ReactNode
   initial?: string
@@ -287,11 +290,14 @@ function ConfirmDialog({title, body, confirm, onConfirm, onClose}: {title: strin
 }
 
 /** Sanity's Comments inspector. */
-export function CommentsPanel({docId, docType, fieldTitle, focusField, onGoToField, onClose}: {
+export function CommentsPanel({docId, docType, fieldTitle, focusField, active, onSelect, onGoToField, onClose}: {
   docId: string
   docType: string
   fieldTitle: (path: string) => string
   focusField?: string
+  /** The picked thread: marked, and scrolled to in the list. */
+  active?: string
+  onSelect: (threadId: string) => void
   onGoToField: (path: string) => void
   onClose: () => void
 }) {
@@ -313,6 +319,12 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, onGoToFie
     const el = linked ? document.getElementById(`comment-${linked}`) : null
     if (el) (el.scrollIntoView({block: 'center'}), el.setAttribute('data-linked', ''))
   }, [linked, linkedThread?.status, data])
+  // An inline comment's highlight picked in the body: its thread, scrolled to.
+  const activeThread = active ? threadsOf(data ?? []).find((th) => th.root._id === active) : undefined
+  useEffect(() => {
+    if (activeThread && activeThread.status !== status) setStatus(activeThread.status)
+    if (active) list.current?.querySelector(`[data-thread="${CSS.escape(active)}"]`)?.scrollIntoView({block: 'nearest'})
+  }, [active, activeThread?.status, data])
   return (
     <aside className="inspector comments" aria-label={t('Comments')}>
       <header>
@@ -352,7 +364,7 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, onGoToFie
             {threads
               .filter((th) => th.root.fieldPath === f)
               .map((th) => (
-                <ThreadCard key={th.root._id} thread={th} docId={docId} docType={docType} />
+                <ThreadCard key={th.root._id} thread={th} docId={docId} docType={docType} active={th.root._id === active} onSelect={() => onSelect(th.root._id)} />
               ))}
           </section>
         ))}
@@ -361,7 +373,7 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, onGoToFie
   )
 }
 
-function ThreadCard({thread, docId, docType}: {thread: Thread; docId: string; docType: string}) {
+function ThreadCard({thread, docId, docType, active, onSelect}: {thread: Thread; docId: string; docType: string; active: boolean; onSelect: () => void}) {
   const qc = useQueryClient()
   const t = useT()
   const refresh = () => void qc.invalidateQueries({queryKey: ['comments']})
@@ -375,7 +387,20 @@ function ThreadCard({thread, docId, docType}: {thread: Thread; docId: string; do
     }
   }
   return (
-    <article className="comment-thread" data-status={thread.status}>
+    // Picking a thread on a span of text marks that span in the body and brings it into view (Sanity's).
+    <article
+      className="comment-thread"
+      data-status={thread.status}
+      data-thread={thread.root._id}
+      data-active={active || undefined}
+      onClick={(e) => {
+        // Its own controls (resolve, menu, reply) do their own thing.
+        if (!thread.root.selection || (e.target as HTMLElement).closest('button, textarea, [role=menu], [role=button]')) return
+        onSelect()
+        document.querySelector(`.bp-comment-range[data-comment-id="${CSS.escape(thread.root._id)}"]`)?.scrollIntoView({block: 'center', behavior: 'smooth'})
+      }}
+    >
+      {thread.root.selection && <CommentedText text={thread.root.contentSnapshot ?? ''} gone={!!thread.root.textDeleted} />}
       <CommentItem comment={thread.root} replyIds={thread.replies.map((r) => r._id)} head onToggle={toggle} resolved={resolved} />
       {thread.replies.map((r) => (
         <CommentItem key={r._id} comment={r} />
@@ -389,6 +414,16 @@ function ThreadCard({thread, docId, docType}: {thread: Thread; docId: string; do
         />
       )}
     </article>
+  )
+}
+
+/** Sanity's referenced value: the text an inline comment is on; greyed, with a note, once deleted. */
+function CommentedText({text, gone}: {text: string; gone: boolean}) {
+  const t = useT()
+  return (
+    <blockquote className="commented-text" data-gone={gone || undefined} title={gone ? t('The commented text has been deleted') : undefined}>
+      {text}
+    </blockquote>
   )
 }
 

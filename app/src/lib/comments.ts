@@ -3,7 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import {sendBatches} from '../../../scripts/lib/batches.mjs'
 import {currentEditor} from '../server/auth'
-import {COMMENT_TYPE, mentionsIn, readersMayComment, toggleReaction, type Comment, type CommentStatus} from './comment-threads'
+import {COMMENT_TYPE, mentionsIn, readersMayComment, toggleReaction, type Comment, type CommentSelection, type CommentStatus} from './comment-threads'
 import {readCommentSchema} from '../server/schemas'
 
 export {COMMENT_TYPE, threadsOf, type Comment, type CommentStatus, type Thread} from './comment-threads'
@@ -42,7 +42,7 @@ export const commentsQuery = (documentId: string) =>
   queryOptions({queryKey: ['comments', documentId], staleTime: 10_000, queryFn: async () => (await fetchComments({data: {documentId}})) as unknown as Comment[]})
 
 export const postComment = createServerFn({method: 'POST'})
-  .validator((d: {id: string; documentId: string; documentType: string; fieldPath: string; message: string; parentCommentId?: string}) => d)
+  .validator((d: {id: string; documentId: string; documentType: string; fieldPath: string; message: string; parentCommentId?: string; selection?: CommentSelection; contentSnapshot?: string}) => d)
   .handler(async ({data}) => {
     const message = data.message.trim()
     if (!message) throw new Error('A comment needs some text.')
@@ -55,6 +55,8 @@ export const postComment = createServerFn({method: 'POST'})
       fieldPath: data.fieldPath,
       threadId: data.parentCommentId ?? data.id,
       ...(data.parentCommentId ? {parentCommentId: data.parentCommentId} : {state: 'open'}),
+      // Sanity's inline comments: a thread on a span of body text (never a reply).
+      ...(!data.parentCommentId && data.selection ? {selection: data.selection as unknown as Json, contentSnapshot: data.contentSnapshot ?? ''} : {}),
       message,
       mentions: mentionsIn(message),
       authorEmail: currentEditor()?.email ?? null,
@@ -68,6 +70,22 @@ export const setThreadStatus = createServerFn({method: 'POST'})
   .validator((d: {threadId: string; status: CommentStatus}) => d)
   .handler(async ({data}) => {
     await write([{patch: {id: data.threadId, type: COMMENT_TYPE, set: {state: data.status}}}, {publish: {id: data.threadId, type: COMMENT_TYPE}}])
+    return {ok: true}
+  })
+
+/**
+ * The body was edited around inline comments: save each thread's span where the canvas
+ * moved it, or mark its text deleted (Sanity keeps the thread and greys the quote).
+ */
+export const moveCommentSelections = createServerFn({method: 'POST'})
+  .validator((d: {moves: {id: string; selection: CommentSelection | null}[]}) => d)
+  .handler(async ({data}) => {
+    await write(
+      data.moves.flatMap(({id, selection}): Json[] => [
+        {patch: {id, type: COMMENT_TYPE, set: (selection ? {selection: selection as unknown as Json} : {textDeleted: true}) as Json}},
+        {publish: {id, type: COMMENT_TYPE}},
+      ]),
+    )
     return {ok: true}
   })
 

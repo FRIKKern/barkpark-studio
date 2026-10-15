@@ -18,6 +18,7 @@ import {forget, keep, keptKey, putBackOps, readKept, restoreOps, type Kept} from
 import {editedBy} from '../lib/history'
 import {useRouter} from '@tanstack/react-router'
 import {FindBar, findKey, type FindCanvas} from './FindBar'
+import {InlineComments} from './InlineComments'
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
 // EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
@@ -82,9 +83,10 @@ type Problem = {message: string; kept?: boolean; conflict?: {mine: Rev; theirs: 
  * the canvas offers and enforces, as Barkpark's LiveView stamps it (`data-vocabulary`);
  * `labels`: field name → title, shown on the bound field blocks that carry no label;
  * `openDoc`: where a wikilink goes (D06);
- * `label` / `labelledBy`: the editable area's accessible name (F13).
+ * `label` / `labelledBy`: the editable area's accessible name (F13);
+ * `commentsTitle`: a field canvas takes inline comments on its text, named so.
  */
-export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc, label, labelledBy, editable = true}: {
+export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc, label, labelledBy, editable = true, commentsTitle}: {
   type: string
   id: string
   field?: string
@@ -95,6 +97,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   label?: string
   labelledBy?: string
   editable?: boolean
+  commentsTitle?: string
 }) {
   const host = useRef<HTMLDivElement>(null)
   const t = useT()
@@ -136,6 +139,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   openDocRef.current = openDoc
   const vocabularyKey = vocabulary ? JSON.stringify(vocabulary) : ''
   const canvas = useRef<Canvas | null>(null)
+  // The mounted canvas, for what renders beside it (inline comments).
+  const [mounted, setMounted] = useState<Canvas | null>(null)
   // D11, shared carets: everyone else's caret in this document, in their presence color.
   // A caret in another canvas of the same document names blocks this one hasn't, and
   // the canvas drops it.
@@ -433,6 +438,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         l.rev = first.rev
         host.current.replaceChildren(el)
         canvas.current = el
+        setMounted(el)
         setSave({state: 'saved'})
         // D21: words a failed save kept the last time, offered back unless the
         // document already says them.
@@ -448,6 +454,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       if (caret) reportSelection(id, null)
       canvas.current?.remove()
       canvas.current = null
+      setMounted(null)
     }
   }, [type, id, field, editable, vocabularyKey])
 
@@ -702,6 +709,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           </div>
         </div>
       )}
+      {field && commentsTitle && <InlineComments canvas={mounted} field={field} title={commentsTitle} />}
       {failed && <p role="alert">{t('The editor could not load: {reason}', {reason: failed})}</p>}
       {mastersOn ? (
         // The canvas finds its masters on this carrier inside a `.bp-paper-editor`, as
