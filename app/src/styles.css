@@ -991,9 +991,14 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .tags-input { flex: 1; min-width: 120px; font: inherit; font-size: 15px; line-height: 23px; padding: 3px 6px; border: 0; outline: none; background: none; color: var(--fg-strong); }
 .array-box { border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); padding: 4px; }
 .array-row { display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 3px; background: var(--bg); }
+/* A reference row as Sanity's: 5 px around its 49 px preview, which drops the list's 4 px gap here. */
+.array-row:has(> .ref-row-preview) { padding: 5px 4px 5px 7px; }
+.array-box:has(.ref-row-preview) { padding: 5px 4px 3px; }
+.ref-row-preview > .preview { margin-bottom: 0; }
 .array-row[data-moving] { box-shadow: 0 0 0 1px var(--selected), 0 6px 16px var(--shadow); position: relative; z-index: 1; }
 .array-row .input { flex: 1; }
 .drag-handle { cursor: grab; touch-action: none; color: var(--muted); }
+.drag-handle > svg { width: 21px; height: 21px; } /* Sanity draws its handle at 21 px */
 .drag-handle[aria-pressed=true] { cursor: grabbing; color: var(--selected); }
 .array-empty { padding: 8px; text-align: center; font-size: 13px; line-height: 19px; color: var(--muted); }
 /* Sanity's empty array: the 'No items' card 35 px, Add item (33 px) 8 px below. */

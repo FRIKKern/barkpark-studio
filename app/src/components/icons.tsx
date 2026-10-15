@@ -111,12 +111,12 @@ export const Share = () => (
 )
 export const DragHandle = () => (
   <svg {...s} fill="currentColor" stroke="none">
-    <circle cx="10" cy="7.5" r="1.1" />
-    <circle cx="15" cy="7.5" r="1.1" />
-    <circle cx="10" cy="12.5" r="1.1" />
-    <circle cx="15" cy="12.5" r="1.1" />
-    <circle cx="10" cy="17.5" r="1.1" />
-    <circle cx="15" cy="17.5" r="1.1" />
+    <circle cx="9.5" cy="6.5" r="1.5" />
+    <circle cx="15.5" cy="6.5" r="1.5" />
+    <circle cx="9.5" cy="12.5" r="1.5" />
+    <circle cx="15.5" cy="12.5" r="1.5" />
+    <circle cx="9.5" cy="18.5" r="1.5" />
+    <circle cx="15.5" cy="18.5" r="1.5" />
   </svg>
 )
 export const Undo = () => (
