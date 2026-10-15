@@ -41,7 +41,10 @@ test('J05 J06: two browsers, different fields then the same field', async ({brow
     // QUALITY F4: a typed edit is seen sooner than Sanity's p95 (1104 ms).
     if (t.name === 'studio') expect(ms, 'F4 typed edit seen in 2nd browser').toBeLessThan(networkBudget(1104))
 
-    // J06: both in the title, typing at the same moment at different ends.
+    // J06: both in the title, typing at the same moment at different ends. A pause first:
+    // keys in one field within 600 ms are one undo step, and F7 below undoes " aaa" alone
+    // (writes used to take 750 ms, which made that pause by accident).
+    await a.waitForTimeout(700)
     await t.field(b, 'title').click()
     await b.keyboard.press(LINE_START)
     await Promise.all([a.keyboard.type(' aaa'), b.keyboard.type('bbb ')])
