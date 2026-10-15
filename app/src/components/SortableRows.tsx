@@ -27,6 +27,8 @@ type Props<T> = {
   keyOf?: (item: T, index: number) => string | number
   /** Called with the new item's index after an add, e.g. to open it for editing. */
   onAdded?: (index: number, items: T[]) => void
+  /** Called with the copy's index after Duplicate (Sanity opens an object item's copy). */
+  onDuplicated?: (index: number, items: T[]) => void
   addLabel?: string
   /** More item-menu entries: after Remove (e.g. a reference's Replace), or at the end (`last`). */
   extraActions?: (item: T, index: number) => {label: string; run: () => void; last?: boolean}[]
@@ -36,7 +38,7 @@ type Props<T> = {
   grid?: boolean
 }
 
-export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, duplicate = (x) => x, onCopy, keyOf: keyOfProp, onAdded, addLabel = 'Add item', extraActions, itemId, grid}: Props<T>) {
+export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, duplicate = (x) => x, onCopy, keyOf: keyOfProp, onAdded, onDuplicated, addLabel = 'Add item', extraActions, itemId, grid}: Props<T>) {
   const t = useT()
   const stable = useStableKeys(items)
   const keyOf = keyOfProp ?? ((_: T, i: number) => stable[i]!)
@@ -97,8 +99,8 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
 
   // What a row does, read at the moment it does it: rows are memoized (J44: editing
   // one row of 300 re-renders that row), so they never hold a stale `items`.
-  const latest = useRef({items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, extraActions, types})
-  latest.current = {items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, extraActions, types}
+  const latest = useRef({items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, onDuplicated, extraActions, types})
+  latest.current = {items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, onDuplicated, extraActions, types}
   const [act] = useState<RowActions<T>>(() => ({
     key: (i) => (e) => latest.current.onHandleKey(i)(e),
     pointer: (i) => (e) => latest.current.onPointerDown(i)(e),
@@ -107,7 +109,9 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
     hasCopy: () => !!latest.current.onCopy,
     duplicate: (orig) => {
       const xs = latest.current.items
-      latest.current.onChange([...xs.slice(0, orig + 1), latest.current.duplicate(xs[orig]!), ...xs.slice(orig + 1)])
+      const next = [...xs.slice(0, orig + 1), latest.current.duplicate(xs[orig]!), ...xs.slice(orig + 1)]
+      latest.current.onChange(next)
+      latest.current.onDuplicated?.(orig + 1, next)
     },
     insert: (at, type) => latest.current.insert(at, type),
     types: () => latest.current.types,

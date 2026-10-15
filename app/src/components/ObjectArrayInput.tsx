@@ -57,6 +57,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         types={typing?.types}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
+        onDuplicated={(i, next) => setEditing(next[i]!._key ?? null)}
         onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'object', value: it}})}
         addLabel={typing ? 'Add item...' : 'Add item'}
         renderItem={renderItem}
