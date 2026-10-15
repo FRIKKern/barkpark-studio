@@ -34,6 +34,7 @@ export default {
   'Before': 'Før',
   'Cancel': 'Avbryt',
   'Changed': 'Endret',
+  'Loading history…': 'Laster historikk …',
   'Classic': 'Klassisk',
   'Close': 'Lukk',
   'Close history': 'Lukk historikk',

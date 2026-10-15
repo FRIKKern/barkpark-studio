@@ -1,4 +1,4 @@
-import {queryOptions} from '@tanstack/react-query'
+import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import type {Doc} from './data'
@@ -16,23 +16,28 @@ type RawRevision = {id: string; action: string; status: 'draft' | 'published'; t
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 
-const fetchHistory = createServerFn({method: 'GET'})
-  .validator((d: {type: string; id: string}) => d)
+// One page of the history, newest first: `next` is Barkpark's `next_offset` (null on the last).
+const fetchHistoryPage = createServerFn({method: 'GET'})
+  .validator((d: {type: string; id: string; offset: number}) => d)
   .handler(async ({data}) => {
-    const res = await bpFetch(`/v1/data/history/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?limit=100`)
+    const res = await bpFetch(`/v1/data/history/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?limit=100&offset=${data.offset}`)
     if (!res.ok) throw new Error(`history ${res.status}`)
-    const {revisions} = (await res.json()) as {revisions: RawRevision[]}
-    return revisions.map((r) => ({
-      id: r.id,
-      action: r.action,
-      status: r.status,
-      timestamp: r.timestamp,
-      title: r.title,
-      actorId: r.actor_id,
-      author: r.actor_label || 'API token', // a row with no owner (a service token)
-      actor: r.actor_label || undefined,
-    })) as unknown as Json
+    const {revisions, next_offset} = (await res.json()) as {revisions: RawRevision[]; next_offset?: number | null}
+    return {
+      revisions: revisions.map((r) => ({
+        id: r.id,
+        action: r.action,
+        status: r.status,
+        timestamp: r.timestamp,
+        title: r.title,
+        actorId: r.actor_id,
+        author: r.actor_label || 'API token', // a row with no owner (a service token)
+        actor: r.actor_label || undefined,
+      })),
+      next: next_offset ?? null,
+    } as unknown as Json
   })
+type HistoryPage = {revisions: Revision[]; next: number | null}
 
 const fetchRevision = createServerFn({method: 'GET'})
   .validator((d: {id: string}) => d)
@@ -64,8 +69,22 @@ export const editedBy = createServerFn({method: 'GET'})
     return row ? row.actor_label || 'API token' : null
   })
 
+/** The newest 100 revisions: what the footer, banners and Review changes read. */
 export const historyQuery = (type: string, id: string) =>
-  queryOptions({queryKey: ['history', id], staleTime: 5_000, queryFn: async () => (await fetchHistory({data: {type, id}})) as unknown as Revision[]})
+  queryOptions({queryKey: ['history', id], staleTime: 5_000, queryFn: async () => ((await fetchHistoryPage({data: {type, id, offset: 0}})) as unknown as HistoryPage).revisions})
+
+/**
+ * The whole timeline, a page at a time (task-2502560b41be3217): the History panel loads
+ * older pages as it scrolls to the end, as Sanity's ("Loading history…"), down to Created.
+ */
+export const historyPagesQuery = (type: string, id: string) =>
+  infiniteQueryOptions({
+    queryKey: ['history', id, 'pages'], // under ['history', id]: every invalidation of it reaches this too
+    initialPageParam: 0,
+    staleTime: 5_000,
+    queryFn: async ({pageParam}) => (await fetchHistoryPage({data: {type, id, offset: pageParam}})) as unknown as HistoryPage,
+    getNextPageParam: (last) => last.next ?? undefined,
+  })
 
 export type RevisionDoc = {id: string; timestamp: string; action: string; content: Record<string, unknown>}
 export const revisionQuery = (id: string) =>

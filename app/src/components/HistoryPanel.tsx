@@ -1,7 +1,7 @@
-import {useState, type ReactNode} from 'react'
+import {useEffect, useRef, useState, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {historyQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
+import {useInfiniteQuery, useQuery, useQueryClient} from '@tanstack/react-query'
+import {historyPagesQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
 import {applyServer} from '../lib/edits'
 import type {Doc} from '../lib/data'
 import {ChevronDown, ChevronLeft, Close as CloseIcon, InfoOutline} from './icons'
@@ -38,7 +38,17 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
   // miss the publish just made, and the list re-drew under the pointer when the fresh
   // read landed (a click opened v3 for v4). List only rows read since the panel opened.
   const [opened] = useState(Date.now)
-  const {data: revisions, error, dataUpdatedAt} = useQuery({...historyQuery(type, id), refetchInterval: 10_000, refetchOnMount: 'always'})
+  const pages = useInfiniteQuery({...historyPagesQuery(type, id), refetchInterval: 10_000, refetchOnMount: 'always'})
+  const {error, dataUpdatedAt} = pages
+  const revisions = pages.data?.pages.flatMap((p) => p.revisions)
+  // Sanity's timeline loads older history as you reach its end.
+  const end = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    if (!end.current || !pages.hasNextPage) return
+    const seen = new IntersectionObserver(([e]) => e?.isIntersecting && !pages.isFetchingNextPage && void pages.fetchNextPage())
+    seen.observe(end.current)
+    return () => seen.disconnect()
+  })
   const entries = revisions && dataUpdatedAt >= opened ? timeline(revisions) : []
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   return (
@@ -90,6 +100,11 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
             ...(open ? (e.children ?? []).map((c) => <Row key={c.revision.id} e={c} child selected={c.revision.id === selected} onPick={() => onPick(c)} />) : []),
           ]
         })}
+        {pages.hasNextPage && (
+          <li ref={end} className="history-more muted" role="status">
+            {t('Loading history…')}
+          </li>
+        )}
       </ul>
       </>}
       </div>
