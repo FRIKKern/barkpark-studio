@@ -83,3 +83,33 @@ test('url: http(s) only, no username or password, absolute', () => {
   assert.deepEqual(of('/relative'), ['Not a valid URL'])
   assert.deepEqual(of('http://x.com'), [])
 })
+
+test("an array item's fields are checked, named as Sanity's (Links / External link / URL)", () => {
+  const links: Schema = {
+    name: 'post',
+    title: 'Post',
+    fields: [
+      {
+        name: 'links',
+        title: 'Links',
+        type: 'arrayOf',
+        of: {
+          name: 'link',
+          type: 'composite',
+          options: {typeField: 'kind', fieldsByType: {externalLink: ['title', 'url'], docLink: ['title']}},
+          fields: [
+            {name: 'kind', type: 'select', options: [{value: 'externalLink', title: 'External link'}]},
+            {name: 'title', type: 'string', validation: {max: 5}},
+            {name: 'url', title: 'URL', type: 'url'},
+          ],
+        },
+      },
+      {name: 'sites', type: 'arrayOf', of: {name: 'site', type: 'url'}},
+    ],
+  }
+  const got = validate(doc({links: [{_key: 'l1', kind: 'externalLink', title: 'ok', url: 'not a url'}, {_key: 'l2', kind: 'docLink', url: 'not a url either'}], sites: ['https://ok.example', '/relative']}), links)
+  assert.deepEqual(
+    got.map((p) => `${p.path} ${[...(p.parents ?? []), p.title].join(' / ')}: ${p.message}`),
+    ['links[_key=="l1"].url Links / External link / URL: Not a valid URL', 'sites[1] sites: Not a valid URL'],
+  )
+})

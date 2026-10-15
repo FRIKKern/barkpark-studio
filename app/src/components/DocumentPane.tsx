@@ -154,6 +154,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const inspecting = pane.inspect === 'validation'
   const toggleValidation = () => navigate({href: withParams(panes, index, {inspect: inspecting ? undefined : 'validation', rev: undefined})})
   const goTo = (p: Pick<Problem, 'path' | 'group'>) => {
+    // A field inside an array item: the item opens from the URL's path (J52, its dialog),
+    // and the pane focuses the field once it is drawn, as a link to it does (Sanity's jump).
+    if (p.path.includes('[_key==')) {
+      opened.current = null
+      return void navigate({href: withParams(panes, index, {path: p.path}), replace: true})
+    }
     if (group && p.group !== group) setGroup('')
     // A field inside collapsed objects: open each one on the way (Sanity does).
     p.path.split('.').slice(0, -1).forEach((_, i, parts) => openObjects.toggle(parts.slice(0, i + 1).join('.'), true))
