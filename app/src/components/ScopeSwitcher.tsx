@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {useRouterState} from '@tanstack/react-router'
 import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
@@ -24,9 +24,17 @@ export function ScopeSwitcher({brand}: {brand: Brand}) {
   const t = useT()
   const {data: current} = useQuery(currentScopeQuery)
   const [open, setOpen] = useState(false)
+  // A click outside the card closes it, as Sanity's workspace menu.
+  const wrap = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => !wrap.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
   if (!current) return <span className="brand-name">{brand.name}</span>
   return (
-    <div className="menu-wrap scope-switcher">
+    <div className="menu-wrap scope-switcher" ref={wrap}>
       <button
         type="button"
         className="scope-button brand-button"
@@ -47,6 +55,8 @@ export function ScopeSwitcher({brand}: {brand: Brand}) {
 function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; onClose: () => void}) {
   const t = useT()
   const [pick, setPick] = useState(current)
+  // Switching opens a fresh page, which takes a moment: say so on the button meanwhile.
+  const [switching, setSwitching] = useState(false)
   // A dataset-bound token (Barkpark #22393) opens only its own dataset: the others show, greyed.
   const bound = useQuery(meQuery).data?.boundDataset ?? null
   const options = useQuery(scopeOptionsQuery(pick))
@@ -92,7 +102,9 @@ function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; o
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          if (!same) window.location.assign(scopedPath(pick, tool))
+          if (same) return
+          setSwitching(true)
+          window.location.assign(scopedPath(pick, tool))
         }}
       >
         {field(t('Workspace'), 'workspace', options.data?.workspaces)}
@@ -111,8 +123,8 @@ function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; o
           <button type="button" className="btn" onClick={onClose}>
             {t('Cancel')}
           </button>
-          <button type="submit" className="publish" disabled={same || options.isFetching}>
-            {t('Switch')}
+          <button type="submit" className="publish" disabled={same || options.isFetching || switching} aria-busy={switching || undefined}>
+            {switching ? t('Switching…') : t('Switch')}
           </button>
         </div>
       </form>

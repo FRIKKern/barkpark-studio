@@ -588,6 +588,17 @@ textarea.input { resize: vertical; }
 /* J69: Help > Diagnostics over the whole studio, in Sanity's cards: two columns, label left, value right. */
 .diagnostics-backdrop { position: fixed; z-index: 70; place-items: start center; padding-top: 87px; }
 .dialog.diagnostics { width: min(960px, calc(100vw - 32px)); }
+/* Help > the version item, up to date: Sanity's version dialog, centred, logo over name and build. */
+.diagnostics-backdrop:has(.version-dialog) { place-items: center; padding-top: 0; }
+.dialog.version-dialog { width: min(320px, calc(100vw - 32px)); }
+.version-body { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 32px 20px 12px; text-align: center; }
+.version-body p { margin: 0; }
+.logo.version-logo { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 8px; background: #7c8cff; color: #fff; font-size: 22px; font-weight: 600; }
+.version-name { display: flex; align-items: center; gap: 8px; }
+a.version-badge { text-decoration: none; }
+a.version-badge:hover { color: var(--fg-strong); }
+.version-state { color: var(--muted); }
+.version-dialog footer .publish { flex: 1; justify-content: center; text-align: center; }
 .diagnostics-run { grid-column: 1 / -1; display: flex; align-items: center; gap: 24px; padding: 16px 20px; border-radius: 3px; background: var(--hover); }
 .diagnostics-run dl { flex: 1; display: flex; gap: 48px; margin: 0; }
 .diagnostics-run dt { color: var(--muted); }
@@ -834,6 +845,8 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* Toasts, after Sanity's: bottom right, title + one line */
 .toasts { position: fixed; right: 20px; bottom: 84px; z-index: 50; display: flex; flex-direction: column; gap: 8px; }
+/* Over a studio-wide dialog (Diagnostics, version), as Sanity's: its "copied" toast sat under it. Menus still go over toasts (J28). */
+body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .toast { position: relative; width: 380px; display: flex; flex-direction: column; gap: 6px; padding: 12px 40px 12px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 17px; color: var(--fg-strong); }
 .toast strong { font-weight: 500; }
 .toast[data-tone=default] { background: var(--hover); }

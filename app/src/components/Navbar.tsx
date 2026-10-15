@@ -13,11 +13,12 @@ import {DialogBox, MenuPopover} from './FocusScopes'
 import {CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
 import {useEffect, useState} from 'react'
+import {createPortal} from 'react-dom'
 import {useHydratedMark} from '../lib/hydrated'
 import {BUILD, buildName, useNewVersion, useSchemaChanged} from '../lib/version'
 import {saveAll} from '../lib/edits'
 import {stickyToast} from './Toasts'
-import {useT} from '../lib/i18n'
+import {intlTag, useLocale, useT} from '../lib/i18n'
 import studio from '../studio.config'
 import {studioBrand} from '../lib/plugins'
 import {usePublishedPerspective, withPerspective} from '../lib/perspective'
@@ -199,6 +200,7 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [diagnostics, setDiagnostics] = useState(false)
+  const [version, setVersion] = useState(false)
   const [reloading, setReloading] = useState(false)
   const reload = async () => {
     setReloading(true)
@@ -239,7 +241,8 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
             {t('Diagnostics')}
           </button>
           <hr />
-          <button type="button" role="menuitem" className="menu-item studio-version" disabled={!next || reloading} data-update={next ? '' : undefined} onClick={reload}>
+          {/* Up to date, it opens the version dialog, as Sanity's; with a newer build, it reloads to it. */}
+          <button type="button" role="menuitem" className="menu-item studio-version" disabled={reloading} data-update={next ? '' : undefined} onClick={() => (next ? void reload() : (setOpen(false), setVersion(true)))}>
             <span className="version-text">
               <span>Barkpark Studio</span>
               <span className="muted">
@@ -265,7 +268,45 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
         </MenuPopover>
       )}
       {diagnostics && <Diagnostics onClose={() => setDiagnostics(false)} />}
+      {version && <VersionDialog onClose={() => setVersion(false)} />}
     </div>
+  )
+}
+
+/** Sanity's studio version dialog: which build this tab runs, that it is current, its commit. */
+function VersionDialog({onClose}: {onClose: () => void}) {
+  const t = useT()
+  const locale = useLocale()
+  const [commit = BUILD, at] = BUILD.split('-')
+  const built = at ? new Date(parseInt(at, 36)) : null
+  return createPortal(
+    <div className="dialog-backdrop diagnostics-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <DialogBox className="dialog version-dialog" aria-modal="true" aria-label={t('Studio version')} onClose={onClose}>
+        <div className="dialog-body version-body">
+          <span className="logo version-logo" aria-hidden="true">{brand.initials}</span>
+          <p className="version-name">
+            <strong>Barkpark Studio</strong>
+            {/^[0-9a-f]{7,}$/.test(commit) ? (
+              <a className="version-badge" href={`https://github.com/FRIKKern/barkpark-studio/commit/${commit}`} target="_blank" rel="noreferrer" aria-label={t('Open commit {commit} on GitHub', {commit})}>
+                {commit}
+              </a>
+            ) : (
+              <span className="version-badge">{commit}</span>
+            )}
+          </p>
+          <p className="version-state">
+            {t('Up to date')}
+            {built && !Number.isNaN(built.getTime()) && ` · ${t('Built {date}', {date: new Intl.DateTimeFormat(intlTag(locale), {dateStyle: 'medium', timeStyle: 'short'}).format(built)})}`}
+          </p>
+        </div>
+        <footer>
+          <button type="button" className="publish" autoFocus onClick={onClose}>
+            {t('OK')}
+          </button>
+        </footer>
+      </DialogBox>
+    </div>,
+    document.body,
   )
 }
 
