@@ -20,7 +20,7 @@
 // rig's teardown sweeps after a dev sign-in run). Signing out keeps the token: other
 // sessions and lanes use the same one.
 import '@tanstack/react-start/server-only'
-import {randomBytes} from 'node:crypto'
+import {createHash, randomBytes} from 'node:crypto'
 import {devToken, editorPermissions, keepDevToken, sweepDevTokens} from '../../../scripts/lib/dev-tokens.mjs'
 import {getCookie, setCookie, deleteCookie} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
@@ -71,6 +71,12 @@ const readSession = (): Sealed | undefined => {
 
 const writeSession = ({email, token, session}: Editor) =>
   setCookie(COOKIE, seal({email, token, ...(session && {session}), exp: Math.floor(Date.now() / 1000) + IDLE_SECONDS}, sessionSecret()), {httpOnly: true, sameSite: 'lax', secure: import.meta.env.PROD, path: '/', maxAge: IDLE_SECONDS})
+
+/**
+ * The editor as browser storage keys name them (kept edits and words): an opaque digest of
+ * their email, so this browser's storage doesn't list who used it (task-78bb96e068c0550a).
+ */
+export const editorKey = (email: string) => createHash('sha256').update(email.trim().toLowerCase()).digest('base64url').slice(0, 16)
 
 /** The signed-in editor for this request, if any. */
 export function currentEditor(): Editor | undefined {

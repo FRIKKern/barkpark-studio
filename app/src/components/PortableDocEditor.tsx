@@ -14,6 +14,7 @@ import {useLive} from '../lib/live'
 import {reportSelection, usePresences, type CaretSelection} from '../lib/presence'
 import {detachMaster, insertMaster, mastersQuery, pinMaster, saveMaster, type Master, type MasterResult} from '../lib/paper-masters'
 import {ago, t as translate, useCanvasStrings, useT, useLocale} from '../lib/i18n'
+import {meQuery} from '../lib/session'
 import {forget, keep, keptKey, putBackOps, readKept, restoreOps, type Kept} from '../lib/kept-words'
 import {editedBy} from '../lib/history'
 import {useRouter} from '@tanstack/react-router'
@@ -176,7 +177,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // D21: a failed save's words, kept on this computer (lib/kept-words.ts).
   const scope = (useRouter().options.context as {scope?: {current?: unknown}}).scope?.current
   const keyRef = useRef('')
-  keyRef.current = keptKey(scope ? JSON.stringify(scope) : '-', type, id, field)
+  const editor = useQuery(meQuery).data?.editorKey ?? null
+  keyRef.current = keptKey(scope ? JSON.stringify(scope) : '-', editor, type, id, field)
   const [offer, setOffer] = useState<Kept | null>(null)
   // J11: the canvas asks for a picture (its Image insert, an image's Select); the
   // library dialog answers with the picked asset's address, or null when closed.

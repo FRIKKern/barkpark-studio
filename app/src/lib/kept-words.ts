@@ -3,12 +3,13 @@ import type {Block, BlockOp, Rev} from './blocks'
 // D21, after Barkdown's retained drafts ("Put the words back", tabs/paper.js): when a
 // canvas save fails, what the author wrote is kept on this computer at once, not at
 // quit, so a closed tab or a crash loses nothing. On reopen the document offers it back.
-// One entry per document (and field), per workspace scope; a later failure overwrites it.
+// One entry per document (and field), per workspace scope and editor (another editor in
+// this browser is never offered them, task-78bb96e068c0550a); a later failure overwrites it.
 
 export type Kept = {at: number; rev: Rev; blocks: Block[]}
 
 const KEY = 'bp-kept-words:'
-export const keptKey = (scope: string, type: string, id: string, field?: string) => `${KEY}${scope}|${type}|${id}${field ? `|${field}` : ''}`
+export const keptKey = (scope: string, editor: string | null, type: string, id: string, field?: string) => `${KEY}${scope}|${editor ?? '-'}|${type}|${id}${field ? `|${field}` : ''}`
 
 export function keep(key: string, kept: Kept) {
   try {
