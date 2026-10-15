@@ -36,6 +36,9 @@ export default {
   // J69: Help > Diagnostics and What's new; the workspace card's Manage project.
   Diagnostics: 'Diagnostikk',
   "What's new": 'Hva er nytt',
+  Changelog: 'Endringslogg',
+  'Full changelog on GitHub': 'Hele endringsloggen på GitHub',
+  'No changes are listed in this build.': 'Denne versjonen viser ingen endringer.',
   'Manage project': 'Administrer prosjekt',
   'Studio diagnostics': 'Studiodiagnostikk',
   'Copy output': 'Kopier utdata',

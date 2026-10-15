@@ -10,7 +10,7 @@ import {TasksPanel} from './TasksPanel'
 import {Diagnostics} from './Diagnostics'
 import {showTasks, useTasksView} from '../lib/tasks-ui'
 import {DialogBox, MenuPopover} from './FocusScopes'
-import {CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon} from './icons'
+import {CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon, BugIcon, CommentIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
 import {useEffect, useState} from 'react'
 import {createPortal} from 'react-dom'
@@ -203,6 +203,7 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
   const [open, setOpen] = useState(false)
   const [diagnostics, setDiagnostics] = useState(false)
   const [version, setVersion] = useState(false)
+  const [whatsNew, setWhatsNew] = useState(false)
   const [reloading, setReloading] = useState(false)
   const reload = async () => {
     setReloading(true)
@@ -235,12 +236,17 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
       </button>
       {open && (
         <MenuPopover className="popover menu help-menu" onClose={() => setOpen(false)} aria-labelledby={inDrawer ? 'help-menu-drawer' : 'help-menu'}>
+          {/* Sanity's first two, with their icons: Send feedback (ours: report a problem) and Diagnostics. */}
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio/issues/new/choose" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
-            {t('Report a problem')}
+            <span className="menu-icon-text">
+              <CommentIcon /> {t('Report a problem')}
+            </span>
           </a>
           {/* J69: Sanity's Diagnostics: what a bug report needs, copyable. */}
           <button type="button" role="menuitem" className="menu-item" onClick={() => (setOpen(false), setDiagnostics(true))}>
-            {t('Diagnostics')}
+            <span className="menu-icon-text">
+              <BugIcon /> {t('Diagnostics')}
+            </span>
           </button>
           <hr />
           {/* Up to date, it opens the version dialog, as Sanity's; with a newer build, it reloads to it. */}
@@ -263,15 +269,62 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio#readme" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
             {t('Documentation')}
           </a>
-          {/* Sanity's Changelog / What's new: ours is the README's timeline of merged changes. */}
-          <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio#what-happened" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
-            {t("What's new")}
+          {/* Sanity's Changelog (the README's timeline of merged changes) and What's new, in the studio. */}
+          <a role="menuitem" className="menu-item" href={CHANGELOG} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+            {t('Changelog')}
           </a>
+          <button type="button" role="menuitem" className="menu-item" onClick={() => (setOpen(false), setWhatsNew(true))}>
+            {t("What's new")}
+          </button>
         </MenuPopover>
       )}
       {diagnostics && <Diagnostics onClose={() => setDiagnostics(false)} />}
       {version && <VersionDialog onClose={() => setVersion(false)} />}
+      {whatsNew && <WhatsNewDialog onClose={() => setWhatsNew(false)} />}
     </div>
+  )
+}
+
+const CHANGELOG = 'https://github.com/FRIKKern/barkpark-studio#what-happened'
+
+/** Sanity's What's new, in the studio: this build's latest merged changes, each a link to its PR. */
+function WhatsNewDialog({onClose}: {onClose: () => void}) {
+  const t = useT()
+  const locale = useLocale()
+  const day = new Intl.DateTimeFormat(intlTag(locale), {month: 'short', day: 'numeric', timeZone: 'UTC'})
+  return createPortal(
+    <div className="dialog-backdrop diagnostics-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <DialogBox className="dialog whats-new-dialog" aria-modal="true" aria-label={t("What's new")} onClose={onClose}>
+        <header>
+          <h2>{t("What's new")}</h2>
+          <button type="button" className="icon-btn" aria-label={t('Close')} onClick={onClose}>
+            <Close />
+          </button>
+        </header>
+        <div className="dialog-body">
+          {__STUDIO_CHANGES__.length ? (
+            <ul className="whats-new">
+              {__STUDIO_CHANGES__.map((c) => (
+                <li key={c.pr}>
+                  <time dateTime={c.date}>{day.format(new Date(`${c.date}T00:00:00Z`))}</time>
+                  <a href={`https://github.com/FRIKKern/barkpark-studio/pull/${c.pr}`} target="_blank" rel="noreferrer">
+                    {c.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>{t('No changes are listed in this build.')}</p>
+          )}
+        </div>
+        <footer className="whats-new-foot">
+          <a href={CHANGELOG} target="_blank" rel="noreferrer">
+            {t('Full changelog on GitHub')} →
+          </a>
+        </footer>
+      </DialogBox>
+    </div>,
+    document.body,
   )
 }
 

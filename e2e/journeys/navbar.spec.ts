@@ -83,6 +83,14 @@ test('@local J53: a newer build on the server shows the update dot and "Reload t
   await expect(version).toContainText('Up to date')
   await version.getByRole('button', {name: 'OK'}).click()
   await expect(version).toHaveCount(0)
+  // What's new stays in the studio, as Sanity's; Changelog is the link out.
+  await help.click()
+  await expect(page.getByRole('menuitem', {name: 'Changelog'})).toHaveAttribute('href', /github\.com/)
+  await page.getByRole('menuitem', {name: "What's new"}).click()
+  const news = page.getByRole('dialog', {name: "What's new"})
+  await expect(news.getByRole('link', {name: /Full changelog/})).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(news).toHaveCount(0)
   // A redeploy: the server now answers another build.
   await page.route('**/api/version', (route) => route.fulfill({json: {build: 'abc1234-next'}}))
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
