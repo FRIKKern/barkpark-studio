@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 51 changes
+- **Today** · 52 changes
+  - fix(inspect): Sanity's syntax colours, centred on a short document, view kept (J28) ([#608](https://github.com/FRIKKern/barkpark-studio/pull/608))
   - fix(auth): lend the studio's token only to an editor seated in the workspace ([#606](https://github.com/FRIKKern/barkpark-studio/pull/606))
-  - feat(comments): inline comments on a span of body text (J40) ([#605](https://github.com/FRIKKern/barkpark-studio/pull/605))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
