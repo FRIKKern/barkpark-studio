@@ -50,6 +50,11 @@
   --code-summary: #8d3fc2;
   --code-string: #a0522d;
   --code-number: #1e7889; /* AA on the code background (#f2f3f5) */
+  --syntax-property: #4043e7; /* Inspect's syntax colours, measured on reference/sanity (light) */
+  --syntax-string: #965912;
+  --syntax-constant: #721fe5;
+  --syntax-operator: #b11651;
+  --syntax-punctuation: #515870;
   --code-active-line: rgba(204, 238, 255, 0.27); /* Vision's current line, measured on reference/sanity */
   --code-active-gutter: #e2f2ff;
   color-scheme: light;
@@ -145,6 +150,11 @@
   --code-summary: #c99bf0;
   --code-string: #f0a875;
   --code-number: #6cc4d4;
+  --syntax-property: #7898ff; /* measured on reference/sanity (dark) */
+  --syntax-string: #f9be1e;
+  --syntax-constant: #b28af7;
+  --syntax-operator: #f0749f;
+  --syntax-punctuation: #979cb0;
   --code-active-line: rgba(70, 120, 200, 0.16);
   --code-active-gutter: #1f2a3d;
   --positive-fg: #5df3bd;
@@ -843,8 +853,9 @@ fieldset.object-field > .field-actions { top: -38px; }
 .toast[data-tone=caution] { background: var(--warn-bg); box-shadow: inset 0 0 0 1px var(--ring); }
 .toast[data-tone=caution] strong { font-weight: 400; color: var(--warn-fg); }
 
-/* Inspect (J28), after Sanity's: a dialog over the pane, Parsed tree or Raw JSON */
-.inspect-backdrop { place-items: start stretch; grid-template-rows: minmax(0, 1fr); padding: 98px 12px 60px; }
+/* Inspect (J28), after Sanity's: a dialog over the pane, Parsed tree or Raw JSON; centred
+   in the pane while it is short, as Sanity's. */
+.inspect-backdrop { place-items: center stretch; grid-template-rows: minmax(0, 1fr); padding: 149px 12px 61px; /* Sanity's card area: under the tabs, 12 px in (200-939 px at 1000) */ }
 /* Sanity's Inspect stays inside its pane and scrolls the document within (a single auto
    row would grow with the JSON and run off the window). */
 .dialog.inspect { width: auto; max-height: 100%; min-height: 0; }
@@ -858,11 +869,12 @@ fieldset.object-field > .field-actions { top: -38px; }
 .json-tree, .json-tree ul { list-style: none; margin: 0; padding: 0 0 0 20px; }
 .json-tree { padding-left: 0; }
 .json-toggle { font: inherit; border: 0; background: none; padding: 0; cursor: pointer; color: inherit; text-align: left; }
-.json-caret { display: inline-block; width: 16px; font-size: 10px; color: var(--muted); transition: transform .1s; }
-.json-caret[data-open] { transform: rotate(90deg); }
-.json-key { color: var(--code-key); }
-.json-summary { color: var(--code-summary); }
-.json-value { color: var(--fg-strong); }
+.json-caret { display: inline-block; width: 1.5ch; color: var(--syntax-punctuation); }
+.inspect .json-key, .syntax-property { color: var(--syntax-property); }
+.inspect .json-summary, .inspect .json-value[data-type=number], .inspect .json-value[data-type=boolean], .inspect .json-value[data-type=null], .syntax-constant { color: var(--syntax-constant); }
+.inspect .json-value[data-type=string], .syntax-string { color: var(--syntax-string); }
+.syntax-operator { color: var(--syntax-operator); }
+.json-raw, .syntax-punctuation { color: var(--syntax-punctuation); }
 .json-raw { margin: 0; white-space: pre-wrap; word-break: break-word; }
 .menu-item kbd { margin-left: auto; padding-left: 16px; font: inherit; font-size: 11px; color: var(--muted); }
 .menu-item:has(kbd) { display: flex; align-items: center; }
