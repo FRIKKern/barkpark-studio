@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 74 changes
+- **Today** · 75 changes
+  - Lane reset writes the fixture schemas too ([#630](https://github.com/FRIKKern/barkpark-studio/pull/630))
   - fix(panes): header buttons 4 px apart with 21 px icons, as Sanity's ([#629](https://github.com/FRIKKern/barkpark-studio/pull/629))
-  - fix(header): the version chips as Sanity's ([#628](https://github.com/FRIKKern/barkpark-studio/pull/628))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
