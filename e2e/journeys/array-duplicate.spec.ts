@@ -3,7 +3,8 @@ import {signInIfAsked, target} from '../rig/targets'
 
 // J33, Sanity's Duplicate on an object item: the copy is added after it and opens in its
 // dialog ("Links / #2 …"), ready to change.
-test('J33: Duplicate on an object item opens the copy', async ({page}, info) => {
+// @local: a Duplicate that does not open shows on screen (CI's 5 s per journey rule).
+test('@local J33: Duplicate on an object item opens the copy', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's is the scout's still")
   const id = `post-dup-${Date.now().toString(36)}`
