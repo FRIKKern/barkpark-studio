@@ -334,6 +334,9 @@ a.preview:hover { background: var(--hover); }
 .doc-title-bar { height: 50px; flex: none; display: flex; align-items: center; padding: 0 20px; font-size: 13px; line-height: 19px; font-weight: 600; color: var(--fg-header); }
 /* J26: the views row under the title (Sanity: Editor | JSON). */
 .doc-title-bar:has(.view-tabs) { height: 87px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; padding: 0 12px 0 20px; }
+/* A long title stays one line with an ellipsis, as Sanity's title bar. */
+.doc-title-bar > .title-row { max-width: 100%; }
+.doc-title-bar .title-row > .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .view-tabs { display: flex; gap: 4px; margin-left: -8px; }
 .view-tabs [role=tab] { font: inherit; font-size: 13px; font-weight: 400; padding: 3px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
 .view-tabs [role=tab]:hover { background: var(--hover); }
@@ -346,7 +349,7 @@ a.preview:hover { background: var(--hover); }
 .preview-view-message { padding: 32px; text-align: center; }
 .doc-form { max-width: 640px; margin: 0 auto; padding: 27px 20px 120px; }
 .doc-form .kind { font-size: 13px; line-height: 19px; color: var(--muted); }
-.doc-form h1 { margin: 8px 0 52px; font-size: 33px; line-height: 41px; font-weight: 700; color: var(--fg); }
+.doc-form h1 { margin: 8px 0 52px; font-size: 33px; line-height: 41px; font-weight: 700; color: var(--fg); overflow-wrap: anywhere; }
 /* The title steps down with the document pane, as Sanity's: 33 px, 27 under 600 px,
    21 under 465 px (Presentation's docked pane, a phone). Measured on Sanity 2026-10-15. */
 @container document-pane (max-width: 599px) { .doc-form h1 { font-size: 27px; line-height: 35px; } }
