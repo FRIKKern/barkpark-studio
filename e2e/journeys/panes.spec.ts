@@ -159,3 +159,19 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
     }), LOCAL_POLL).toBe(true)
   }
 })
+
+// Sanity's pane divider: drag it to widen the pane on its left, never under 320 px.
+test('J21: a pane divider drags the pane on its left wider', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', "ours: Sanity's is the reference")
+  await page.goto(t.docPath('post', 'post-02'))
+  await t.settle(page)
+  const list = page.locator('.panes > .pane.list')
+  const before = (await list.boundingBox())!.width
+  const divider = (await page.getByRole('separator', {name: 'Resize pane'}).last().boundingBox())!
+  await page.mouse.move(divider.x + 1, divider.y + 200)
+  await page.mouse.down()
+  await page.mouse.move(divider.x + 101, divider.y + 200, {steps: 5})
+  await page.mouse.up()
+  expect((await list.boundingBox())!.width).toBeGreaterThan(before + 80)
+})
