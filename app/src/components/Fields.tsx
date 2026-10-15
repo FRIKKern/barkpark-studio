@@ -789,6 +789,11 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       if (!pm) return
       clearInterval(timer)
       removeEventListener('keydown', keep, true)
+      // The author went to another field while it woke (J10): the caret stays there. What
+      // was typed for the body before that still goes in, and the focus goes back.
+      const now = document.activeElement as HTMLElement | null
+      const elsewhere = !!now && now !== document.body && !box.current?.contains(now)
+      if (elsewhere && !typed.current.length) return
       if (!pm.contains(document.activeElement)) {
         pm.focus()
         const sel = getSelection()
@@ -799,6 +804,7 @@ function BodyCanvas({field, value, vocabulary, readOnly}: {field: string; value:
       // The canvas reads it as typed input (beforeinput), so it saves and undoes as typing does.
       for (const run of typed.current) document.execCommand(run === '\n' ? 'insertParagraph' : 'insertText', false, run === '\n' ? undefined : run)
       typed.current = []
+      if (elsewhere) now.focus()
     }, 30)
     return () => (clearInterval(timer), removeEventListener('keydown', keep, true))
   }, [active])
