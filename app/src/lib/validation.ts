@@ -73,6 +73,25 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
     value.forEach((it, i) => refId(it) || out.push({path: itemPath(path, it, i), title, message: t('Must be a reference to a document'), level: 'error', ...(parents.length ? {parents} : {}), group}))
   if (field.type === 'composite')
     for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t)
+  // An array's items are checked too (Sanity's "Links / External link / URL"): an object
+  // item's fields under the item's kind, a plain item by its type's own rule.
+  const of = field.of
+  if (of && of.type !== 'reference' && Array.isArray(value))
+    value.forEach((it, i) => {
+      const at = itemPath(path, it, i)
+      if (of.type === 'composite' && it && typeof it === 'object') {
+        const opts = (of.options ?? {}) as {typeField?: string; fieldsByType?: Record<string, string[]>}
+        const kind = opts.typeField ? (it as Record<string, unknown>)[opts.typeField] : undefined
+        const kindField = opts.typeField ? of.fields?.find((f) => f.name === opts.typeField) : undefined
+        const kindTitle = typeof kind === 'string' ? ((kindField?.options as {value: string; title?: string}[] | undefined)?.find((o) => o.value === kind)?.title ?? kind) : undefined
+        const shown = typeof kind === 'string' && opts.fieldsByType?.[kind]
+        for (const f of of.fields ?? [])
+          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${at}.${f.name}`, [...parents, title, ...(kindTitle ? [kindTitle] : [])], group, out, target, t)
+      } else {
+        const shape = typeRule(of.type, it, t)
+        if (shape) out.push({path: at, title, message: shape, level: 'error', ...(parents.length ? {parents} : {}), group})
+      }
+    })
 }
 
 /** A value of the wrong shape for its type, in Sanity's words (its url, email, number and date validators). */
