@@ -661,6 +661,20 @@ a.version-badge:hover { color: var(--fg-strong); }
 .diagnostics-card dl > div { display: flex; justify-content: space-between; gap: 16px; }
 .diagnostics-card dt { color: var(--muted); flex: none; }
 .diagnostics-card dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+/* Sanity's UTC time switch and its "Recent request timings": a dot per request, a summary per series. */
+.diagnostics-utc { display: flex; flex-direction: column; gap: 4px; color: var(--muted); cursor: pointer; }
+.diagnostics-utc input { margin: 0; width: 28px; height: 16px; accent-color: var(--fg-strong); }
+.diagnostics-chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.diagnostics-chart-head .muted { font-size: 13px; font-weight: 400; }
+.diagnostics-chart { display: block; width: 100%; height: auto; }
+.diagnostics-chart line { stroke: var(--border); stroke-width: 1; }
+.diagnostics-chart text { fill: var(--muted); font-size: 12px; }
+.diagnostics-summary { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 13px; }
+.diagnostics-summary caption { text-align: left; font-weight: 600; color: var(--fg-strong); padding-bottom: 4px; }
+.diagnostics-summary th { font-weight: 500; color: var(--muted); text-align: right; }
+.diagnostics-summary th:first-child, .diagnostics-summary td:first-child { text-align: left; }
+.diagnostics-summary td { text-align: right; padding: 2px 0; font-variant-numeric: tabular-nums; }
+.diagnostics-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
 .btn { font: inherit; font-size: 13px; font-weight: 500; padding: 6px 12px; border: 0; border-radius: 3px; background: none; color: var(--fg); cursor: pointer; }
 .btn:hover { background: var(--hover); }
 .btn:disabled { color: var(--disabled); cursor: default; }

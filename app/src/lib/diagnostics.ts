@@ -140,7 +140,7 @@ export function diagnosticsJson(d: {
   schema: Record<string, Json>
   user: Record<string, Json>
   browser: Record<string, Json>
-  network: {protocol: Json; requests: Check[]; listen: {first: ListenCheck | null; secondWhileFirstOpen: ListenCheck | null}}
+  network: {protocol: Json; requests: Check[]; requestHistory?: {series: string; at: number; ms: number}[]; listen: {first: ListenCheck | null; secondWhileFirstOpen: ListenCheck | null}}
 }) {
   const strip = (l: ListenCheck | null) => (l ? {path: l.path, status: l.status, openMs: l.openMs, welcomeMs: l.welcomeMs, durationMs: l.durationMs, timedOut: l.timedOut} : null)
   return {
@@ -152,6 +152,6 @@ export function diagnosticsJson(d: {
     schema: d.schema,
     user: d.user,
     browser: d.browser,
-    network: {protocol: d.network.protocol, requests: d.network.requests, listen: {first: strip(d.network.listen.first), secondWhileFirstOpen: strip(d.network.listen.secondWhileFirstOpen)}},
+    network: {protocol: d.network.protocol, requests: d.network.requests, requestHistory: d.network.requestHistory ?? [], listen: {first: strip(d.network.listen.first), secondWhileFirstOpen: strip(d.network.listen.secondWhileFirstOpen)}},
   }
 }

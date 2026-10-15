@@ -18,6 +18,7 @@ test('J49: a seat that may not publish (Contributor) still writes; a member publ
   // task-701f8a5fdb6b4d52: the seat's role here, for the user menu.
   assert.equal(tokenSelf({kind: 'session', seats: [{workspace: {slug: 'other'}, role: 'admin'}, {workspace: {slug: 'ws'}, role: 'editor'}]}, 'ws').role, 'editor')
   assert.equal(tokenSelf({kind: 'api', seat: {role: 'viewer', can: {read: true}}}, 'ws').role, 'viewer')
+  assert.equal(tokenSelf({kind: 'session', user: {id: 42}, seats: [{workspace: {slug: 'ws'}}]}, 'ws').userId, '42')
 })
 
 test("task-73a9f8eafae5fbf1: the studio's own token reads only for an editor seated here", () => {
