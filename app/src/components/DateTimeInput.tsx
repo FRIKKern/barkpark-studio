@@ -58,7 +58,7 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
   }
 
   return (
-    <div className="datetime" data-invalid={invalid || undefined}>
+    <div className="datetime" data-date-only={dateOnly || undefined} data-invalid={invalid || undefined}>
       <div className="datetime-box">
         <input
           id={id}

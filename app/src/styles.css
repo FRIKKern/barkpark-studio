@@ -416,7 +416,7 @@ textarea.input { resize: vertical; }
 .fieldset { border-left: 1px solid var(--border); padding-left: 12px; }
 /* Sanity's object body: 12 px in, a 7 px band above the first field, no margin after the last
    (measured at 1440 on post-01's Call to action). */
-.fieldset > .field:first-child, .fieldset > fieldset.object-field:first-child { padding-top: 7px; }
+.fieldset:not([style*=grid]) > .field:first-child, .fieldset:not([style*=grid]) > fieldset.object-field:first-child { padding-top: 7px; }
 .fieldset > .field:last-child, .fieldset > fieldset.object-field:last-child { margin-bottom: 0; }
 /* An image's own fields (alt text…) under its box: the same 7 px band above each, as Sanity's. */
 .image-input > .field { padding-top: 7px; }
@@ -845,8 +845,8 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 
 /* Date-time (J31): the field with a calendar button, and Sanity's picker popover */
 .datetime { position: relative; }
-/* Sanity's date and datetime fields start 8 px lower than the others (measured at 1440, post-01). */
-.field:has(> .datetime) { padding-top: 8px; }
+/* Sanity's datetime fields (not date-only ones) start 8 px lower than the others (measured at 1440). */
+.field:has(> .datetime:not([data-date-only])) { padding-top: 8px; }
 .datetime-box { position: relative; }
 .datetime-box .input { padding-right: 40px; }
 .datetime-box .icon-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; height: auto; border-radius: 0 3px 3px 0; box-shadow: inset 1px 0 0 var(--line); }
