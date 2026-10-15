@@ -950,6 +950,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
   const [discarding, setDiscarding] = useState(false)
   const [scheduling, setScheduling] = useState(false)
   const [unscheduling, setUnscheduling] = useState(false)
+  const [publishingNow, setPublishingNow] = useState(false)
   const scheduleQ = useQuery(scheduleQuery(doc._publishedId, doc._type))
   const schedule = scheduleQ.data?.schedule ?? null
   // Discard needs a draft to drop and a published version to fall back to.
@@ -1069,6 +1070,14 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
                 </span>
               </button>
             )}
+            {/* J40: Sanity's "Publish now" on a scheduled draft: published at once, the schedule dropped. */}
+            {schedule && (
+              <button type="button" role="menuitem" className="menu-item" disabled={!canPublish} title={publishReason} onClick={() => (setMenu(false), setPublishingNow(true))}>
+                <span className="menu-icon-text">
+                  <PublishIcon /> {t('Publish now')}
+                </span>
+              </button>
+            )}
             {schedule && (
               <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setUnscheduling(true))}>
                 <span className="menu-icon-text">
@@ -1113,6 +1122,22 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
             await qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
           }}
           onClose={() => setScheduling(false)}
+        />
+      )}
+      {publishingNow && schedule && (
+        <ConfirmDialog
+          title={t('Publish draft now')}
+          body={t('Are you sure you want to publish this scheduled draft immediately?')}
+          action={t('Yes, run now')}
+          run={async () => {
+            // Published first, then the schedule goes: a failed publish keeps the schedule, and a
+            // schedule left behind finds no draft to publish.
+            await publish(qc, doc)
+            await cancelSchedule({data: {scheduleId: schedule._id}}).catch(() => {})
+            await qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
+            toast({tone: 'positive', title: tt('The scheduled draft document {title} has been published.', {title: previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type), tt)})})
+          }}
+          onClose={() => setPublishingNow(false)}
         />
       )}
       {unscheduling && schedule && (

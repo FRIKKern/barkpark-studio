@@ -3,10 +3,10 @@ import {bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
 
 // J40, Sanity's Schedule publish: a draft is scheduled from the document menu
 // ("Schedule draft for publishing", a future time), the header and a banner say so, the
-// scheduled draft is locked, and the banner's "Pause to edit" (or Delete schedule) takes
-// it back. Barkpark runs the publish at that time as the editor
+// scheduled draft is locked, the banner's "Pause to edit" (or Delete schedule) takes it
+// back, and "Publish now" publishes it at once. Barkpark runs the publish at that time as the editor
 // (/v1/data/schedules, Barkpark #22775); a Barkpark without the route offers no Schedule.
-test('J40: schedule a draft for publishing; it is locked until Pause to edit', async ({page, context}, info) => {
+test('J40: schedule a draft for publishing; it is locked until Pause to edit; Publish now publishes it', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "the check runs on ours; Sanity's dialog is the evidence clip")
   const route = await fetch(`${bpBase()}/v1/data/schedules/${bpDataset()}`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
@@ -27,6 +27,12 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit', a
     const at = new Date(Date.now() + 2 * 86_400_000)
     await dialog.locator('input[type=datetime-local]').fill(new Date(at.getTime() - at.getTimezoneOffset() * 60_000).toISOString().slice(0, 16))
     await dialog.getByRole('button', {name: 'Schedule'}).click()
+    const scheduleAgain = async () => {
+      await page.getByRole('button', {name: 'Document actions', exact: true}).click()
+      await page.getByRole('menuitem', {name: 'Schedule publish'}).click()
+      await dialog.locator('input[type=datetime-local]').fill(new Date(at.getTime() - at.getTimezoneOffset() * 60_000).toISOString().slice(0, 16))
+      await dialog.getByRole('button', {name: 'Schedule'}).click()
+    }
     await expect(page.locator('.chip[data-tone=scheduled]')).toHaveText('Scheduled publish')
     await expect(page.locator('.pane-banner[data-tone=scheduled]')).toContainText('Scheduled to be published on')
     // Locked, as Sanity's scheduled version; the menu still offers Delete schedule.
@@ -39,6 +45,15 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit', a
     await expect(page.locator('.chip[data-tone=scheduled]')).toBeHidden()
     await expect(t.field(page, 'title')).toBeEnabled()
     await expect(t.field(page, 'title')).toHaveValue('Schedule probe')
+    // Publish now: Sanity's confirm, then published at once and the schedule gone.
+    await scheduleAgain()
+    await expect(page.locator('.chip[data-tone=scheduled]')).toBeVisible()
+    await page.getByRole('button', {name: 'Document actions', exact: true}).click()
+    await page.getByRole('menuitem', {name: 'Publish now'}).click()
+    await page.getByRole('dialog', {name: 'Publish draft now'}).getByRole('button', {name: 'Yes, run now'}).click()
+    await expect(page.locator('.chip[data-tone=scheduled]')).toBeHidden()
+    await expect(page.getByRole('button', {name: /^Published/}).first()).toBeEnabled()
+    await expect.poll(() => t.publishedTitle(id)).toBe('Schedule probe')
   } finally {
     await t.deleteDoc(id, 'post')
   }
