@@ -152,3 +152,17 @@ test('@local D: Cmd+Shift+8 makes a bullet list, Cmd+Shift+7 a numbered one, in 
     await t.restore(ID, {title: TITLE, body})
   }
 })
+
+// Sanity's document shortcuts work as soon as a document opens: a click on a list row
+// leaves focus on the row, and Ctrl+Alt+I still opens Inspect (task-01675b82e84cce6f).
+test('J19: Ctrl+Alt+I right after opening a document from the list', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', "ours: Sanity moves focus into the document instead")
+  await page.goto('/structure/post')
+  await t.settle(page)
+  await page.getByRole('link', {name: new RegExp(`^${TITLE}`)}).first().click()
+  await expect(t.field(page, 'title')).toHaveValue(TITLE)
+  await page.keyboard.press('Control+Alt+i')
+  await expect(page.getByRole('dialog').filter({hasText: 'Inspecting'})).toContainText(`Inspecting ${TITLE}`)
+  await page.keyboard.press('Escape')
+})
