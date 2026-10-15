@@ -104,6 +104,8 @@ for (const answer of ['theirs', 'mine'] as const) {
     await expect(card).toContainText(/ago|just now/)
     await expect(card).not.toContainText(/\brev\b/)
     await expect(page.locator('.pd-status')).toHaveText('Conflict')
+    // The footer says it in the editor's words too, not Barkpark's "revision mismatch".
+    await expect(page.locator('.doc-footer')).toContainText('Not saved: Someone else changed this document')
     await page.screenshot({path: `evidence/D20-1-card.png`})
     stale = false
 

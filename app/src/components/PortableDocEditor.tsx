@@ -239,11 +239,13 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           const server = await read().catch(() => null)
           if (gone) return
           el.discardInflightOps(seq)
-          setSave({state: 'error', message: r.message})
+          // The editor's words, not Barkpark's ("document revision mismatch").
+          const said = t('Someone else changed this document')
+          setSave({state: 'error', message: said})
           if (!server) throw new Error(t('Conflict, and the server copy could not be fetched'))
           refused.current = true
 
-          setProblem({message: r.message, kept: keepNow(), conflict: {mine, theirs: server.rev, blocks: server.blocks, at: server.updatedAt}})
+          setProblem({message: said, kept: keepNow(), conflict: {mine, theirs: server.rev, blocks: server.blocks, at: server.updatedAt}})
           whoWrote(server)
           return
         }
