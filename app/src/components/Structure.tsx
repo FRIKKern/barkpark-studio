@@ -545,6 +545,12 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const publishedList = useQuery({...publishedListQuery(type, sort, limit, filter), enabled: readable && published, placeholderData: keepPreviousData})
   const listQ = published ? publishedList : draftList
   const page = listQ.data
+  // A new sort shows the old page until the server's answer: sorting that page on the
+  // client would show the wrong first rows of a longer list for a moment.
+  const resolvedSort = useRef(sort)
+  if (!listQ.isPlaceholderData && page) resolvedSort.current = sort
+  const sortBusy = listQ.isPlaceholderData && !!page?.hasMore && resolvedSort.current !== sort
+  const order = sortBusy ? resolvedSort.current : sort
   const [query, setQuery] = useState('')
   const searchInput = useRef<HTMLInputElement>(null)
   // A list with more on the server is searched there too, so search reaches every doc.
@@ -601,8 +607,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
       updated: (a, b) => b._updatedAt.localeCompare(a._updatedAt),
       created: (a, b) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')),
     }
-    return [...hits].sort(builtIn[sort] ?? byOrder(sort))
-  }, [indexed, query, sort, schemas, type])
+    return [...hits].sort(builtIn[order] ?? byOrder(order))
+  }, [indexed, query, order, schemas, type])
   // F11: growing to LIST_MAX mounts ~1,900 rows; done at once it stalled a frame for
   // ~350 ms mid-scroll. They mount MOUNT_STEP at a time instead, a task apart, so the
   // list keeps scrolling at 60 fps while the rest arrives.
@@ -654,7 +660,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     if (text !== heard.current) (heard.current = text, announce(text))
   }, [isLastPane, docs, shown.length, searchComplete, query, listTitle, page?.hasMore])
   return (
-    <section className="pane list" aria-label={listTitle} aria-busy={!page || undefined} data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
+    <section className="pane list" aria-label={listTitle} aria-busy={!page || sortBusy || undefined} data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
       <header className="pane-header">
         <BackLink panes={panes} index={index} />
         <PaneTitle pane={panes[index]} />
