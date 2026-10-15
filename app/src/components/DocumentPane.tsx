@@ -347,6 +347,42 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     <FieldView key={f.name} field={f} path={f.name} value={values[f.name]} openRef={openRef} onChange={onChangeOf(f.name)} />
   )
   // The form's fields with what they read: the pane's form, and (J68) each side of Compare versions.
+  // Sanity's document shortcuts (Ctrl+Alt+P publish, I inspect, O preview, D delete).
+  const docShortcut = (e: Pick<KeyboardEvent, 'ctrlKey' | 'altKey' | 'code' | 'preventDefault'>) => {
+    // Sanity's publish shortcut, also mid-edit (publish flushes first). Like its
+    // button, a no-op with nothing to publish or while a publish is running.
+    if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !errors.length) {
+      e.preventDefault()
+      if (!publishingKey.current && !pristine && (doc._draft || saveState !== 'saved')) {
+        publishingKey.current = true
+        void publishAndTell(qc, doc)
+          .catch((err: Error) => toast({tone: 'critical', title: tt('Could not publish'), description: reasonOf(err.message) ?? err.message}))
+          .finally(() => (publishingKey.current = false))
+      }
+    }
+    if (e.ctrlKey && e.altKey && e.code === 'KeyI' && doc) (e.preventDefault(), setInspectOpen(true))
+    if (e.ctrlKey && e.altKey && e.code === 'KeyO' && doc) {
+      const url = studio.document?.productionUrl?.(doc)
+      if (url) (e.preventDefault(), openPreview(url))
+    }
+    if (e.ctrlKey && e.altKey && e.code === 'KeyD' && doc && !viewingPublished) (e.preventDefault(), setAskDelete((n) => n + 1))
+  }
+  // Sanity moves focus into a document as it opens, so its shortcuts work at once. Ours
+  // stays where it was (the list row clicked, or the page): the last document pane
+  // takes them from there too, but never from inside another pane, a dialog or a menu.
+  const shortcut = useRef(docShortcut)
+  shortcut.current = docShortcut
+  const lastDoc = panes.slice(index + 1).every((p) => p.kind !== 'doc')
+  useEffect(() => {
+    if (!lastDoc) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !(e.ctrlKey && e.altKey)) return
+      if ((e.target as Element | null)?.closest?.('.pane.doc, [role=dialog], [role=menu], [role=listbox]')) return
+      shortcut.current(e)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lastDoc])
   const formBody = (o: {shown: Doc; values: Record<string, unknown>; changes: typeof changes | null; problems: Problem[]; disabled: boolean; fields: typeof formFields; unknown: boolean}) => (
     <CommentsContext.Provider value={commentsApi}>
     <ChangesContext.Provider value={o.changes}>
@@ -423,23 +459,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         reportFocus(pane.id, (item && !(field?.startsWith(`${item}.`) || field?.startsWith(`${item}[`)) ? item : field) ?? null)
       }}
       onKeyDown={(e) => {
-        // Sanity's publish shortcut, also mid-edit (publish flushes first). Like its
-        // button, a no-op with nothing to publish or while a publish is running.
-        if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !errors.length) {
-          e.preventDefault()
-          if (!publishingKey.current && !pristine && (doc._draft || saveState !== 'saved')) {
-            publishingKey.current = true
-            void publishAndTell(qc, doc)
-              .catch((err: Error) => toast({tone: 'critical', title: tt('Could not publish'), description: reasonOf(err.message) ?? err.message}))
-              .finally(() => (publishingKey.current = false))
-          }
-        }
-        if (e.ctrlKey && e.altKey && e.code === 'KeyI' && doc) (e.preventDefault(), setInspectOpen(true))
-        if (e.ctrlKey && e.altKey && e.code === 'KeyO' && doc) {
-          const url = studio.document?.productionUrl?.(doc)
-          if (url) (e.preventDefault(), openPreview(url))
-        }
-        if (e.ctrlKey && e.altKey && e.code === 'KeyD' && doc && !viewingPublished) (e.preventDefault(), setAskDelete((n) => n + 1))
+        docShortcut(e)
         // F7: the document's own undo (this editor's changes only, across fields and
         // across others' edits). The block canvas keeps its own.
         const mod = e.metaKey || e.ctrlKey
