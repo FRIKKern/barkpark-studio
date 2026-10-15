@@ -2122,3 +2122,10 @@ input.checkbox { width: 17px; height: 17px; margin: 0; accent-color: var(--fg); 
 .menu-search { padding: 4px 4px 6px; }
 .menu-search .input { width: 100%; }
 .menu-empty { margin: 4px 8px; }
+
+/* Sanity's hover and selection fade: rows, buttons, menu items and chips change colour over
+   0.1 s rather than at once (measured on the reference, 2026-10-15). None with reduced motion. */
+.preview, .type-row, .icon-btn, .btn, .menu-item, .chip, .body-style, .body-insert, .review-pick { transition: background-color 0.1s, border-color 0.1s, color 0.1s; }
+@media (prefers-reduced-motion: reduce) {
+  .preview, .type-row, .icon-btn, .btn, .menu-item, .chip, .body-style, .body-insert, .review-pick { transition: none; }
+}
