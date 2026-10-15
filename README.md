@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 24 changes
+- **Today** · 25 changes
+  - A saved draft without a title reads Untitled, as Sanity's; New <Type> only before it is saved ([#580](https://github.com/FRIKKern/barkpark-studio/pull/580))
   - J49: a Viewer adds and resolves comments while the form stays locked, as Sanity's ([#572](https://github.com/FRIKKern/barkpark-studio/pull/572))
-  - Shard-5 flakes: held clicks wait for React; reads ride out a deploy's gap ([#576](https://github.com/FRIKKern/barkpark-studio/pull/576))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
