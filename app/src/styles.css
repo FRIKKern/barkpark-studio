@@ -397,6 +397,12 @@ a.preview:hover { background: var(--hover); }
 @container document-pane (max-width: 464px) { .doc-form h1 { font-size: 21px; line-height: 29px; } }
 .field { margin-bottom: 59px; }
 .field > label, .field > .label { display: block; font-size: 13px; line-height: 19px; font-weight: 500; margin-bottom: 15px; }
+/* Sanity draws objects, images, files and arrays as fieldsets: 4 px nearer the field above,
+   the control 30 px under the label top instead of 34 (measured at 1440, author-ada and post-01). */
+.field:has(> .file-input, > .array-field, > .tags-box, > .body-canvas) { margin-top: -4px; }
+/* A boolean has no label above it: Sanity's 51 px box starts 7 px nearer the field above. */
+.field:has(> .bool-box) { margin-top: -7px; }
+.field:has(> .file-input, > .array-field, > .tags-box, > .body-canvas) > label { margin-bottom: 11px; }
 /* Sanity: the description sits 6px under the label, 11px above the input. */
 .field-desc { margin: -9px 0 11px; font-size: 13px; line-height: 19px; color: var(--muted); }
 .input {
@@ -407,7 +413,13 @@ textarea.input { resize: vertical; }
 .ref-box { border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); padding: 4px; }
 .tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { font-size: 13px; padding: 2px 8px; border-radius: 3px; background: var(--hover); }
-.fieldset { border-left: 1px solid var(--border); padding-left: 16px; }
+.fieldset { border-left: 1px solid var(--border); padding-left: 12px; }
+/* Sanity's object body: 12 px in, a 7 px band above the first field, no margin after the last
+   (measured at 1440 on post-01's Call to action). */
+.fieldset > .field:first-child, .fieldset > fieldset.object-field:first-child { padding-top: 7px; }
+.fieldset > .field:last-child, .fieldset > fieldset.object-field:last-child { margin-bottom: 0; }
+/* An image's own fields (alt text…) under its box: the same 7 px band above each, as Sanity's. */
+.image-input > .field { padding-top: 7px; }
 .rich p, .rich h2 { margin: 0 0 8px; }
 .callout { padding: 8px 12px; border-radius: 3px; background: var(--info-bg); font-size: 14px; }
 .image-empty { height: 43px; display: flex; align-items: center; padding: 0 16px; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); }
@@ -709,9 +721,9 @@ button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .group-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
 .group-tabs .group-icon { margin: -3px 4px -3px 0; vertical-align: middle; }
 .group-tabs [role=tab]:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--selected); }
-.bool-box { display: flex !important; align-items: center; gap: 10px; padding: 14px 8px; margin: 0 !important; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-weight: 400 !important; cursor: pointer; }
-fieldset.object-field { border: 0; padding: 0; margin: 0 0 59px; min-width: 0; }
-fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px; font-weight: 500; margin-bottom: 15px; }
+.bool-box { display: flex !important; align-items: center; gap: 10px; padding: 16px 8px; margin: 0 !important; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-weight: 400 !important; cursor: pointer; }
+fieldset.object-field { border: 0; padding: 0; margin: -4px 0 59px; min-width: 0; }
+fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px; font-weight: 500; margin-bottom: 11px; }
 
 /* Validation (J13), after Sanity's */
 .error-icon { display: inline-grid; place-items: center; color: var(--critical-icon); margin-left: 4px; vertical-align: middle; }
@@ -791,7 +803,9 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .toggle-arrow { display: inline-grid; transition: transform 100ms; }
 .toggle-arrow[data-open=true] { transform: rotate(90deg); }
 .object-toggle:focus-visible { outline: 2px solid var(--focus-ring); }
-fieldset.object-field[data-open=false] > legend { margin-bottom: 0; }
+fieldset.object-field[data-open=false] > legend { margin-bottom: 0; min-height: 25px; display: flex; align-items: center; }
+/* A collapsed object is a 25 px header row in Sanity, 52 px under the field above. */
+fieldset.object-field[data-open=false] { margin-top: -7px; }
 .slug-row { display: flex; gap: 4px; }
 .slug-row .input { flex: 1; }
 .btn-create:disabled { color: var(--disabled); cursor: default; }
@@ -815,7 +829,7 @@ fieldset.object-field[data-open=false] > legend { margin-bottom: 0; }
 .popover.menu { white-space: nowrap; min-width: 200px; }
 
 /* Select lists (J31), after Sanity's: radios in a box with a clear button; a native dropdown with a chevron */
-.radio-box { display: flex; align-items: center; min-height: 45px; padding: 0 4px 0 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
+.radio-box { display: flex; align-items: center; min-height: 43px; padding: 0 4px 0 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
 .radio-box [role=group] { flex: 1; display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .radio-box[data-direction=vertical] { padding: 13px 13px 13px 13px; }
 .radio-box[data-direction=vertical] [role=group] { flex-direction: column; gap: 10px; }
@@ -831,6 +845,8 @@ fieldset.object-field[data-open=false] > legend { margin-bottom: 0; }
 
 /* Date-time (J31): the field with a calendar button, and Sanity's picker popover */
 .datetime { position: relative; }
+/* Sanity's date and datetime fields start 8 px lower than the others (measured at 1440, post-01). */
+.field:has(> .datetime) { padding-top: 8px; }
 .datetime-box { position: relative; }
 .datetime-box .input { padding-right: 40px; }
 .datetime-box .icon-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; height: auto; border-radius: 0 3px 3px 0; box-shadow: inset 1px 0 0 var(--line); }
@@ -963,8 +979,10 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .array-row .input { flex: 1; }
 .drag-handle { cursor: grab; touch-action: none; color: var(--muted); }
 .drag-handle[aria-pressed=true] { cursor: grabbing; color: var(--selected); }
-.array-empty { padding: 8px; text-align: center; font-size: 13px; color: var(--muted); }
-.add-item { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 4px; padding: 4px; font: inherit; font-size: 13px; font-weight: 500; border: 0; border-radius: 3px; background: var(--hover); color: var(--fg); cursor: pointer; }
+.array-empty { padding: 8px; text-align: center; font-size: 13px; line-height: 19px; color: var(--muted); }
+/* Sanity's empty array: the 'No items' card 35 px, Add item (33 px) 8 px below. */
+.array-box:has(> .array-empty) { padding: 0; }
+.add-item { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 8px; padding: 7px 4px; font: inherit; font-size: 13px; font-weight: 500; border: 0; border-radius: 3px; background: var(--hover); color: var(--fg); cursor: pointer; }
 .add-item:hover { background: var(--hover-strong); }
 .add-item svg { width: 19px; height: 19px; }
 /* J33: the insert menu of a several-type array, centred under Add item as Sanity's. */
@@ -1196,7 +1214,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
    with its edit and options buttons top-right; the image's own fields below. */
 .image-input { display: flex; flex-direction: column; gap: 32px; container-type: inline-size; }
 .image-input > .field { margin-bottom: 0; }
-.image-empty-box { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 43px; padding: 4px 4px 4px 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); }
+.image-empty-box { margin: 1px; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 43px; padding: 4px 4px 4px 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); }
 .image-empty-box .hint { display: inline-flex; align-items: center; gap: 4px; }
 .image-empty-box .btn { display: inline-flex; align-items: center; gap: 2px; padding: 4px 10px 4px 4px; box-shadow: inset 0 0 0 1px var(--line); }
 .image-empty-box svg, .image-menu svg { width: 21px; height: 21px; }
@@ -1581,7 +1599,7 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
   .image-empty-box .btn { box-shadow: none; }
 }
 .file-box { position: relative; display: flex; align-items: center; gap: 12px; min-height: 51px; padding: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
-.file-box.empty { justify-content: space-between; min-height: 43px; padding: 4px 4px 4px 12px; color: var(--muted); }
+.file-box.empty { margin: 1px; justify-content: space-between; min-height: 43px; padding: 4px 4px 4px 12px; color: var(--muted); }
 .file-box:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .file-box .hint { display: inline-flex; align-items: center; gap: 6px; }
 .file-box svg { width: 21px; height: 21px; flex-shrink: 0; }
