@@ -8,7 +8,7 @@ import {meQuery, useCanWrite} from '../lib/session'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {ago} from './HistoryPanel'
 import {intlTag, useLocale, useT, type T} from '../lib/i18n'
-import {AddComment, Check, ChevronDown, Close, CommentIcon, Ellipsis, Mention, Send, Undo} from './icons'
+import {AddComment, Check, ChevronDown, Close, CommentIcon, Ellipsis, LinkRemoved, Mention, Send, Undo} from './icons'
 import {toast} from './Toasts'
 
 // J40, Sanity's field comments: a comment button on every field (shown on hover,
@@ -417,12 +417,21 @@ function ThreadCard({thread, docId, docType, active, onSelect}: {thread: Thread;
   )
 }
 
-/** Sanity's referenced value: the text an inline comment is on; greyed, with a note, once deleted. */
+/**
+ * Sanity's referenced value: the text an inline comment is on, cut at 250 characters; once
+ * deleted, a grey rule and a link-removed mark that says so.
+ */
 function CommentedText({text, gone}: {text: string; gone: boolean}) {
   const t = useT()
+  const note = t('The commented text has been deleted')
   return (
-    <blockquote className="commented-text" data-gone={gone || undefined} title={gone ? t('The commented text has been deleted') : undefined}>
-      {text}
+    <blockquote className="commented-text" data-gone={gone || undefined}>
+      {gone && (
+        <span className="commented-gone" role="img" aria-label={note} data-tip={note}>
+          <LinkRemoved />
+        </span>
+      )}
+      {text.length <= 250 ? text : `${text.slice(0, 250)}...`}
     </blockquote>
   )
 }
