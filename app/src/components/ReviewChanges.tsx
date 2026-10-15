@@ -5,7 +5,9 @@ import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type 
 import {historyQuery, revisionQuery, type HistoryEntry, type Revision} from '../lib/history'
 import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
 import {docDiff, type DocBlock, type Piece} from '../lib/doc-diff'
-import type {Doc, Schema} from '../lib/data'
+import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
+import {arrayDiff} from '../lib/array-diff'
+import {useItemPreview} from './ObjectArrayInput'
 import {rangeDate, Row} from './HistoryPanel'
 import {ChevronDown, Undo} from './icons'
 import {userColorVars} from '../lib/user-colors'
@@ -127,11 +129,37 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
   const blocksOf = (v: unknown) => (v as {blocks?: DocBlock[]} | undefined)?.blocks
   if (Array.isArray(blocksOf(change.before)) || Array.isArray(blocksOf(change.after)))
     return <BlocksDiff before={blocksOf(change.before)} after={blocksOf(change.after)} author={author} t={t} />
+  const by = (what: string) => (author ? t(`${what} by {author}`, {author}) : t(what))
+  // A reference: the document it pointed to → the one it points to, as Sanity's.
+  if (change.field.type === 'reference' && (refId(change.before) || refId(change.after)))
+    return (
+      <p className="review-diff review-fromto" style={userColorVars(author ?? 'unknown')}>
+        {refId(change.before) && <del title={by('Removed')}><RefLabel id={refId(change.before)!} field={change.field} /></del>}
+        {refId(change.before) && refId(change.after) && <span className="review-arrow" aria-label={t('changed to')}>→</span>}
+        {refId(change.after) && <ins title={by('Added')}><RefLabel id={refId(change.after)!} field={change.field} /></ins>}
+      </p>
+    )
+  // An array: each item added, removed or moved, as Sanity's array diff.
+  if (Array.isArray(change.before) || Array.isArray(change.after)) {
+    const items = arrayDiff((change.before ?? []) as unknown[], (change.after ?? []) as unknown[]).filter((x) => x.kind !== 'kept')
+    return (
+      <ul className="review-diff review-array" style={userColorVars(author ?? 'unknown')}>
+        {items.map(({item, kind}, i) => {
+          const label = <ItemLabel item={item} field={change.field} />
+          return (
+            <li key={i} data-kind={kind}>
+              {kind === 'added' ? <ins title={by('Added')}>{label}</ins> : kind === 'removed' ? <del title={by('Removed')}>{label}</del> : <span>{label}</span>}
+              {kind === 'moved' && <span className="review-moved">{t('Moved')}</span>}
+            </li>
+          )
+        })}
+      </ul>
+    )
+  }
   const before = asText(change.before)
   const after = asText(change.after)
   if (before === undefined || after === undefined)
     return <p className="review-diff muted">{change.before === undefined ? t('Added') : change.after === undefined ? t('Removed') : t('Changed')}</p>
-  const by = (what: string) => (author ? t(`${what} by {author}`, {author}) : t(what))
   // A slug is replaced, not edited word by word: Sanity shows it from → to.
   if (change.field.type === 'slug')
     return (
@@ -149,6 +177,26 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
       )}
     </p>
   )
+}
+
+/** A referenced document by its preview title. */
+function RefLabel({id, field}: {id: string; field: Field}) {
+  const t = useT()
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const types = refTypesOf(field.type === 'reference' ? field : field.of)
+  const {data: target} = useQuery({...docQuery(types, id), enabled: types.length > 0})
+  return <>{target ? previewTitle(target, schemaOf(schemas, target._type), t) : id}</>
+}
+
+/** One array item, as its row in the form reads: a reference's title, an object's preview, a value. */
+function ItemLabel({item, field}: {item: unknown; field: Field}) {
+  if (item === null || typeof item !== 'object') return <>{String(item)}</>
+  const of = field.of ?? field
+  if (of.type === 'reference' || typeof (item as {_ref?: unknown})._ref === 'string') return <RefLabel id={refId(item)!} field={of.type === 'reference' ? of : field} />
+  return <ObjectLabel item={item as Record<string, unknown>} of={of} />
+}
+function ObjectLabel({item, of}: {item: Record<string, unknown>; of: Field}) {
+  return <>{useItemPreview(item as never, of).title}</>
 }
 
 const MARK_TAGS: Record<string, string> = {strong: 'strong', em: 'em', code: 'code', underline: 'u', strikethrough: 's', highlight: 'mark', sub: 'sub', sup: 'sup'}

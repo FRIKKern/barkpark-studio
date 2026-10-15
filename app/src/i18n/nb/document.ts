@@ -35,6 +35,7 @@ export default {
   'Cancel': 'Avbryt',
   'Changed': 'Endret',
   'Loading history…': 'Laster historikk …',
+  'Moved': 'Flyttet',
   'Classic': 'Klassisk',
   'Close': 'Lukk',
   'Close history': 'Lukk historikk',
