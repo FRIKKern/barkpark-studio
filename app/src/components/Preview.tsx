@@ -38,7 +38,8 @@ type Sel = {selected: boolean; active?: boolean}
  * Without `href` it renders as a plain row (e.g. a search option). Memo: a list
  * re-renders on every pane change, and its rows mostly stay the same.
  */
-export const DocPreview = memo(function DocPreview({doc, href, selected, active, testId, badge, extra}: {doc: Doc | null | undefined; href?: string; testId?: string; badge?: string; extra?: ReactNode} & Sel) {
+/** `iconless`: no document icon in place of media (Sanity's Incoming references rows); real media still shows. */
+export const DocPreview = memo(function DocPreview({doc, href, selected, active, testId, badge, extra, iconless}: {doc: Doc | null | undefined; href?: string; testId?: string; badge?: string; extra?: ReactNode; iconless?: boolean} & Sel) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const subtitle = useSubtitle(doc)
   const t = useT()
@@ -46,19 +47,22 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
   // The schema's list_preview.media: an image field shows as the row's thumbnail, like Sanity.
   const mediaKey = doc ? schemaOf(schemas, doc._type)?.listPreview?.media : undefined
   const media = previewMedia(mediaKey ? doc?.[mediaKey] : undefined)
+  const showMedia = !iconless || media.kind === 'image' || media.kind === 'unsupported'
   const body = (
     <>
-      <span className="media">
-        {media.kind === 'image' ? (
-          <Thumb value={doc![mediaKey!] as ImageValue} />
-        ) : media.kind === 'unsupported' ? (
-          <span className="media-broken" role="img" aria-label={t('Unsupported asset value')} title={`${t('Unsupported asset value')}: ${media.source}`}>
-            <BrokenImageIcon />
-          </span>
-        ) : (
-          <DocumentIcon />
-        )}
-      </span>
+      {showMedia && (
+        <span className="media">
+          {media.kind === 'image' ? (
+            <Thumb value={doc![mediaKey!] as ImageValue} />
+          ) : media.kind === 'unsupported' ? (
+            <span className="media-broken" role="img" aria-label={t('Unsupported asset value')} title={`${t('Unsupported asset value')}: ${media.source}`}>
+              <BrokenImageIcon />
+            </span>
+          ) : (
+            <DocumentIcon />
+          )}
+        </span>
+      )}
       <span className="text">
         <div className="t">{title}</div>
         {subtitle && <div className="s">{subtitle}</div>}

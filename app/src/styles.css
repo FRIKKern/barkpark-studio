@@ -927,10 +927,14 @@ fieldset.object-field > .field-actions { top: -38px; }
 
 /* History (J16), after Sanity's: timeline of revisions with author, action badge and time */
 .inspector.history header { padding-left: 0; }
-.inspector .incoming-card { margin: 0; padding: 4px; border: 1px solid var(--border); border-radius: 4px; }
+/* Sanity's Incoming references, measured on reference/sanity: the card in line with the
+   heading, its type label 8 px in, rows of title and subtitle with no icon, 2 px apart. */
+.inspector.incoming h2 { font-weight: 500; }
+.inspector .incoming-card { margin: 0 8px; padding: 4px; border: 1px solid var(--border); border-radius: 4px; }
 .inspector p.incoming-card { padding: 12px; }
 .inspector .incoming-group + .incoming-group { margin-top: 16px; }
-.inspector .incoming-group h3 { margin: 8px 8px 8px; font-size: 13px; font-weight: 500; }
+.inspector .incoming-group h3 { margin: 23px 8px 15px 16px; font-size: 13px; line-height: 19px; font-weight: 500; }
+.inspector .incoming-card .preview { margin-bottom: 2px; padding-left: 12px; }
 .inspector .incoming-card { gap: 0; }
 .inspector .history-list { gap: 2px; }
 .history-list li { display: flex; gap: 4px; }
