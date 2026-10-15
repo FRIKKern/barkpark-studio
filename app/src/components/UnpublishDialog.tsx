@@ -64,8 +64,8 @@ export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => P
               </button>
             </div>
           )}
-          {!checking && !failed && used.length === 0 && (
-            // J04: Sanity's words for one document.
+          {!checking && !failed && (used.length === 0 || !many) && (
+            // J04: Sanity's words for one document, asked first even when others refer to it.
             <p>
               {many ? (
                 t('They will no longer be live. Each one stays as a draft you can publish again.')
@@ -76,11 +76,11 @@ export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => P
           )}
           {used.map(({doc, refs}) => (
             <section key={doc._publishedId} aria-label={t('Referring to {title}', {title: title(doc)})}>
+              {/* Sanity's warning bar, then what unpublishing does to them. */}
               <p className="warning" role="status">
-                {refs.length === 1
-                  ? t('“{title}” is referenced by 1 document. Unpublishing it will leave those references pointing at nothing live:', {title: title(doc)})
-                  : t('“{title}” is referenced by {n} documents. Unpublishing it will leave those references pointing at nothing live:', {title: title(doc), n: refs.length})}
+                {refs.length === 1 ? t('1 document refers to “{title}”', {title: title(doc)}) : t('{n} documents refer to “{title}”', {title: title(doc), n: refs.length})}
               </p>
+              <p>{t('Unpublishing it will leave these references pointing at nothing live:')}</p>
               <UsedInList refs={refs} field />
             </section>
           ))}
