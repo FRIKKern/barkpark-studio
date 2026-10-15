@@ -52,7 +52,10 @@ if (mode === 'reference' || mode === 'recording') {
   }
 }
 const cli = mode === 'reset' ? '../scripts/seed-barkpark.mjs' : 'node_modules/@playwright/test/cli.js'
-const flags = mode === 'reset' ? ['--data'] : [
+// A lane's reset writes the fixture schemas too (the .env token may; CI's seeds data only,
+// in e2e.yml): a --data reset left e2e-freeform's post schema a field and a desk behind
+// the fixtures, a warning nobody acted on (2026-10-15).
+const flags = mode === 'reset' ? [] : [
   'test',
   ...(mode === 'baseline' || mode === 'evidence' ? ['--grep', `@${mode}`] : []),
   ...(mode === 'reference' || mode === 'recording' ? ['--config', 'reference.config.ts'] : []),
