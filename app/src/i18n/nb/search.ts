@@ -150,6 +150,9 @@ export default {
   // Vision's query URL, result tree and save (Sanity's nb-NO words)
   'Query URL': 'Spørrings-URL',
   'Copy to clipboard': 'Kopier til utklippstavlen',
+  'Copy URL': 'Kopier URL',
+  'Hide saved queries': 'Skjul lagrede spørringer',
+  'Show saved queries': 'Vis lagrede spørringer',
   'Save result as': 'Lagre resultatet som',
   'Result cannot be encoded as CSV': 'Resultatet kan ikke lagres som CSV',
   '{count} items': '{count} elementer',
