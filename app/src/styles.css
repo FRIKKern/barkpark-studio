@@ -40,6 +40,10 @@
   --diff-fg: #8a3a12;
   --inline-removed-bg: #fff3f2; /* J68, Sanity's inline diff */
   --inline-added-bg: #fcf3bb;
+  /* Sanity UI's card tones (its theme, light): validation items by level. */
+  --tone-info-bg: #f5f8ff; --tone-info-fg: #192357; --tone-info-muted: #5b5bbf; --tone-info-icon: #3e41e7;
+  --tone-warning-bg: #fefae1; --tone-warning-fg: #3b2212; --tone-warning-muted: #8b6946; --tone-warning-icon: #955712;
+  --tone-error-bg: #fff6f5; --tone-error-fg: #4d1714; --tone-error-muted: #a8554f; --tone-error-icon: #cc2719;
   --comment-range-bg: #fcf3bb; /* Sanity's inline comment highlight: yellow 100 / 300, picked 200 / 400 */
   --comment-range-line: #f7d455;
   --comment-range-active-bg: #f9e994;
@@ -140,6 +144,9 @@
   --diff-fg: #ffc9a8;
   --inline-removed-bg: #4a1f1c;
   --inline-added-bg: #4a3f0f;
+  --tone-info-bg: #161830; --tone-info-fg: #dce6ff; --tone-info-muted: #8698cb; --tone-info-icon: #7a99ff;
+  --tone-warning-bg: #1e1a1b; --tone-warning-fg: #f9ea98; --tone-warning-muted: #c2a74b; --tone-warning-icon: #f9bf1e;
+  --tone-error-bg: #24161b; --tone-error-fg: #ffdfdd; --tone-error-muted: #c78a85; --tone-error-icon: #f87c6f;
   --comment-range-bg: #3b220c; /* yellow 800 / 700, picked 700 / 600 */
   --comment-range-line: #653a0b;
   --comment-range-active-bg: #653a0b;
@@ -728,16 +735,22 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
   .paper-sidebar { position: absolute; inset: 0; z-index: 2; width: auto; border-left: 0; background: var(--bg); }
   .paper-sidebar header .icon-btn, .paper-tag-remove { width: 44px; height: 44px; }
 }
-.problem { width: 100%; display: flex; gap: 6px; align-items: flex-start; text-align: left; font: inherit; font-size: 13px; padding: 8px; border: 0; border-radius: 3px; background: var(--danger-bg); color: var(--danger-text); cursor: pointer; }
-.problem svg { flex: none; width: 19px; height: 19px; }
+/* A validation item as Sanity's: a card in its level's tone, measured at 1440 on an info item
+   (top 163, 50 tall, text at +33). */
+.inspector .problems { margin-top: 12px; }
+.problem { --tone-bg: var(--tone-error-bg); --tone-fg: var(--tone-error-fg); --tone-muted: var(--tone-error-muted); --tone-icon: var(--tone-error-icon);
+  width: 100%; display: flex; gap: 6px; align-items: flex-start; text-align: left; font: inherit; font-size: 13px; padding: 8px 12px 7px 6px; border: 0; border-radius: 3px; background: var(--tone-bg); color: var(--tone-muted); cursor: pointer; }
+.problem[data-level=warning] { --tone-bg: var(--tone-warning-bg); --tone-fg: var(--tone-warning-fg); --tone-muted: var(--tone-warning-muted); --tone-icon: var(--tone-warning-icon); }
+.problem[data-level=info] { --tone-bg: var(--tone-info-bg); --tone-fg: var(--tone-info-fg); --tone-muted: var(--tone-info-muted); --tone-icon: var(--tone-info-icon); }
+.problem svg { flex: none; width: 21px; height: 21px; }
 .problem span { display: flex; flex-direction: column; }
-.problem strong { color: var(--fg); font-weight: 500; }
+.problem > span > span { line-height: 19px; }
+.problem strong { color: var(--tone-fg); font-weight: 500; }
 .problem strong span { display: inline; }
-.problem .problem-slash { color: var(--muted); }
-.problem .error-icon { margin-left: 0; color: inherit; }
+.problem .problem-slash { color: var(--tone-muted); font-weight: 400; }
+.problem .error-icon[data-level] { margin: -2px 0 0; color: var(--tone-icon); }
 /* J13: warnings and infos, in Sanity's caution and primary tones. */
-.problem[data-level=warning] { background: var(--warn-bg); color: var(--warn-fg); }
-.problem[data-level=info] { background: var(--info-bg); color: var(--info-fg); }
+
 .error-icon[data-level=warning] { color: var(--caution-icon); }
 .error-icon[data-level=info] { color: var(--primary-icon); }
 .validation-btn[data-level=warning] { color: var(--caution-icon); }
