@@ -205,3 +205,19 @@ export function describeToken(token: string): Promise<TokenSelf> {
   return self
 }
 
+
+/**
+ * task-701f8a5fdb6b4d52: a login session's display name for the user menu (Barkpark's
+ * GET /v1/auth/me), kept a minute per token. None for an API token, or when unset.
+ */
+const named = new Map<string, {at: number; name: Promise<string | null>}>()
+export function displayName(token: string): Promise<string | null> {
+  const held = named.get(token)
+  if (held && Date.now() - held.at < 60_000) return held.name
+  const name = fetch(`${process.env.BARKPARK_URL}/v1/auth/me`, {headers: {authorization: `Bearer ${token}`}, signal: AbortSignal.timeout(5000)})
+    .then((r) => (r.ok ? (r.json() as Promise<{user?: {display_name?: string | null}}>) : undefined))
+    .then((b) => b?.user?.display_name?.trim() || null)
+    .catch(() => null)
+  named.set(token, {at: Date.now(), name})
+  return name
+}

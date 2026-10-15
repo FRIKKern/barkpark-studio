@@ -656,6 +656,15 @@ a.version-badge:hover { color: var(--fg-strong); }
 .login label { font-size: 13px; font-weight: 500; }
 .dev-badge { font-size: 12px; padding: 2px 6px; border-radius: 3px; background: var(--warn-bg); color: var(--warn-fg); }
 .navbar .editor { justify-self: end; display: flex; align-items: center; gap: 8px; color: var(--muted); }
+/* The user menu as Sanity's (task-701f8a5fdb6b4d52): a round avatar in the navbar; the menu
+   opens with it, the name, the email and the role here. */
+.user-btn .p-avatar { width: 25px; height: 25px; font-size: 10px; box-shadow: none; }
+.user-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px 10px 8px; min-width: 220px; }
+.user-head .p-avatar { width: 33px; height: 33px; font-size: 12px; box-shadow: none; }
+.user-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.user-name { font-weight: 500; color: var(--fg-strong); }
+.user-email, .user-role { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-drawer header .p-avatar { width: 33px; height: 33px; font-size: 12px; box-shadow: none; }
 /* Perspectives (J04) */
 button.chip { font: inherit; border: 0; background: none; cursor: pointer; }
 button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
