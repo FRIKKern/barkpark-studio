@@ -10,6 +10,7 @@
   --hover: #f2f3f5;
   --hover-strong: #e9eaee;
   --selected-fill: #eeeef1; /* Sanity's selected tab and chip fill (measured, light) */
+  --footer-meta: #6a6e7d; /* Sanity's footer status text (measured, light) */
   --selected: #465be8; /* F13: white text on it passes AA (5.3:1) */
   --on-selected: #fff;
   --on-selected-soft: rgba(255, 255, 255, 0.9);
@@ -108,6 +109,7 @@
 /* J45 dark, measured on reference/sanity in its dark appearance. lib/theme.ts sets
    data-theme before first paint (System follows prefers-color-scheme). */
 :root[data-theme='dark'] {
+  --footer-meta: #93949f;
   --fg: #e4e5e9;
   --fg-strong: #fff;
   --fg-header: #c8cad3;
@@ -461,7 +463,7 @@ textarea.input { resize: vertical; }
 .doc-footer .publish > svg { width: 21px; height: 21px; margin: 0; }
 .doc-footer .publish-tip + *, .doc-footer .publish + * { margin-left: 4px; }
 .doc-footer > .icon-btn, .doc-footer .menu-wrap > .icon-btn { color: var(--fg-header); }
-.doc-footer .save-state-btn { margin: 0 auto 0 0; padding: 3px 6px; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; cursor: pointer; min-width: 0; text-align: left; }
+.doc-footer .save-state-btn { color: var(--footer-meta); margin: 0 auto 0 0; padding: 3px 6px; border: 0; border-radius: 3px; background: none; font: inherit; cursor: pointer; min-width: 0; text-align: left; }
 .doc-footer .save-state-btn:hover:not(:disabled) { background: var(--hover); }
 .doc-footer .save-state-btn:disabled { cursor: default; }
 .publish { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
