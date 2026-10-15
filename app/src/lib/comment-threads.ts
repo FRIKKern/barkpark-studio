@@ -17,7 +17,33 @@ export type Comment = {
   editedAt?: string
   /** Who the message @-mentions (emails), Sanity's mentions. */
   mentions?: string[]
+  /** Sanity's reactions: who reacted with what (one of REACTIONS). */
+  reactions?: Reaction[]
 }
+export type Reaction = {_key: string; shortName: string; userId: string | null; addedAt: string}
+
+/** Sanity's six comment reactions (COMMENT_REACTION_OPTIONS), in its order. */
+export const REACTIONS: {shortName: string; title: string; emoji: string}[] = [
+  {shortName: ':+1:', title: 'Thumbs up', emoji: '👍'},
+  {shortName: ':-1:', title: 'Thumbs down', emoji: '👎'},
+  {shortName: ':heart:', title: 'Heart', emoji: '❤️'},
+  {shortName: ':rocket:', title: 'Rocket', emoji: '🚀'},
+  {shortName: ':heavy_plus_sign:', title: 'Heavy plus sign', emoji: '➕'},
+  {shortName: ':eyes:', title: 'Eyes', emoji: '👀'},
+]
+
+/** A reaction added by `user`, or taken back when they already gave it (Sanity's toggle). */
+export function toggleReaction(reactions: Reaction[] = [], shortName: string, user: string | null, now = new Date().toISOString()): Reaction[] {
+  const mine = reactions.find((r) => r.shortName === shortName && r.userId === user)
+  return mine ? reactions.filter((r) => r !== mine) : [...reactions, {_key: `${shortName}-${now}`.replace(/[^\w-]/g, ''), shortName, userId: user, addedAt: now}]
+}
+
+/** Reactions grouped as Sanity shows them: in REACTIONS order, each with who gave it. */
+export const reactionGroups = (reactions: Reaction[] = []) =>
+  REACTIONS.flatMap((r) => {
+    const users = reactions.filter((x) => x.shortName === r.shortName).map((x) => x.userId)
+    return users.length ? [{...r, users}] : []
+  })
 export type Thread = {root: Comment; replies: Comment[]; status: CommentStatus}
 
 /** Threads in the order Sanity lists them: by field, then oldest first. */

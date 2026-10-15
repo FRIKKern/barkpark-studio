@@ -3,7 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import {sendBatches} from '../../../scripts/lib/batches.mjs'
 import {currentEditor} from '../server/auth'
-import {COMMENT_TYPE, mentionsIn, readersMayComment, type Comment, type CommentStatus} from './comment-threads'
+import {COMMENT_TYPE, mentionsIn, readersMayComment, toggleReaction, type Comment, type CommentStatus} from './comment-threads'
 import {readCommentSchema} from '../server/schemas'
 
 export {COMMENT_TYPE, threadsOf, type Comment, type CommentStatus, type Thread} from './comment-threads'
@@ -99,3 +99,15 @@ export const deleteComment = createServerFn({method: 'POST'})
     return {ok: true}
   })
 
+
+/** Sanity's reaction toggle: the signed-in editor adds or takes back one reaction (anyone may react). */
+export const reactToComment = createServerFn({method: 'POST'})
+  .validator((d: {id: string; shortName: string}) => d)
+  .handler(async ({data}) => {
+    const res = await bpFetch(`/v1/data/doc/${dataset()}/${COMMENT_TYPE}/${encodeURIComponent(data.id)}?perspective=drafts`)
+    if (!res.ok) throw new Error(`Comment not found (${res.status})`)
+    const c = ((await res.json()) as {result: Comment}).result
+    const reactions = toggleReaction(c.reactions, data.shortName, currentEditor()?.email ?? null)
+    await write([{patch: {id: data.id, type: COMMENT_TYPE, set: {reactions}}}, {publish: {id: data.id, type: COMMENT_TYPE}}])
+    return {ok: true}
+  })

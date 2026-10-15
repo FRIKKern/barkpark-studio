@@ -1,9 +1,9 @@
 import {createContext, forwardRef, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {commentsQuery, readerCommentsQuery, deleteComment, editComment, postComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
+import {commentsQuery, readerCommentsQuery, deleteComment, editComment, postComment, reactToComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
 import {peopleQuery} from '../lib/people'
-import {insertMention, mentionAt, messageParts, personName} from '../lib/comment-threads'
+import {insertMention, mentionAt, messageParts, personName, REACTIONS, reactionGroups} from '../lib/comment-threads'
 import {meQuery, useCanWrite} from '../lib/session'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {ago} from './HistoryPanel'
@@ -305,6 +305,14 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, onGoToFie
   useEffect(() => {
     if (focusField) list.current?.querySelector(`[data-field="${CSS.escape(focusField)}"]`)?.scrollIntoView({block: 'nearest'})
   }, [focusField, data])
+  // A comment's link (Copy link to comment): its thread's tab, scrolled to and marked.
+  const linked = typeof location !== 'undefined' && location.hash.startsWith('#comment-') ? location.hash.slice('#comment-'.length) : null
+  const linkedThread = linked ? threadsOf(data ?? []).find((th) => th.root._id === linked || th.replies.some((r) => r._id === linked)) : undefined
+  useEffect(() => {
+    if (linkedThread && linkedThread.status !== status) setStatus(linkedThread.status)
+    const el = linked ? document.getElementById(`comment-${linked}`) : null
+    if (el) (el.scrollIntoView({block: 'center'}), el.setAttribute('data-linked', ''))
+  }, [linked, linkedThread?.status, data])
   return (
     <aside className="inspector comments" aria-label={t('Comments')}>
       <header>
@@ -397,7 +405,7 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
   const {canWrite} = useCanWrite()
   const thread = head && replyIds.length > 0
   return (
-    <div className="comment-item">
+    <div className="comment-item" id={`comment-${comment._id}`}>
       <span className="avatar">{initialOf(comment.authorEmail)}</span>
       <div className="comment-body">
         <div className="comment-meta">
@@ -412,18 +420,35 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
                 {resolved ? <Undo /> : <Check />}
               </button>
             )}
-            {mine && (
+            <ReactionPicker comment={comment} />
+            {(
               <span className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}>
                 <button type="button" className="icon-btn" aria-label={t('Open comment actions menu')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
                   <Ellipsis />
                 </button>
                 {menu && (
                   <MenuPopover className="popover menu" onClose={() => setMenu(false)}>
-                    <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenu(false), setEditing(true))}>
-                      {t('Edit comment')}
-                    </button>
-                    <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={canWrite ? undefined : t('Your role Viewer does not have permission to delete this comment.')} onClick={() => (setMenu(false), setDeleting(true))}>
-                      {t('Delete comment')}
+                    {mine && (
+                      <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenu(false), setEditing(true))}>
+                        {t('Edit comment')}
+                      </button>
+                    )}
+                    {mine && (
+                      <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} title={canWrite ? undefined : t('Your role Viewer does not have permission to delete this comment.')} onClick={() => (setMenu(false), setDeleting(true))}>
+                        {t('Delete comment')}
+                      </button>
+                    )}
+                    {/* Sanity's: a link that opens this document's comments at this one. */}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="menu-item"
+                      onClick={() => {
+                        setMenu(false)
+                        navigator.clipboard.writeText(`${location.href.split('#')[0]}#comment-${comment._id}`).catch(() => toast({tone: 'critical', title: t('Unable to copy link to clipboard')}))
+                      }}
+                    >
+                      {t('Copy link to comment')}
                     </button>
                   </MenuPopover>
                 )}
@@ -454,6 +479,7 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
             )}
           </p>
         )}
+        <Reactions comment={comment} />
       </div>
       {deleting && (
         <ConfirmDialog
@@ -473,5 +499,51 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
         />
       )}
     </div>
+  )
+}
+
+/** Sanity's reactions under a comment: each with its count; yours pressed; a click takes yours back or adds it. */
+function Reactions({comment}: {comment: Comment}) {
+  const t = useT()
+  const qc = useQueryClient()
+  const {data: me} = useQuery(meQuery)
+  const groups = reactionGroups(comment.reactions)
+  if (!groups.length) return null
+  const names = (users: (string | null)[]) => users.map((u) => (u && u === (me?.email ?? null) ? t('you') : nameOf(t, u))).join(', ')
+  return (
+    <div className="comment-reactions">
+      {groups.map((g) => {
+        const mine = g.users.includes(me?.email ?? null)
+        const tip = t('{users} reacted with {reaction}', {users: names(g.users), reaction: t(g.title)})
+        return (
+          <button key={g.shortName} type="button" className="reaction" aria-pressed={mine} aria-label={tip} data-tip={tip} onClick={() => void reactToComment({data: {id: comment._id, shortName: g.shortName}}).then(() => qc.invalidateQueries({queryKey: ['comments']}))}>
+            <span aria-hidden="true">{g.emoji}</span> {g.users.length}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Sanity's "Add reaction": its six, by name. */
+function ReactionPicker({comment}: {comment: Comment}) {
+  const t = useT()
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <button type="button" className="icon-btn" aria-label={t('Add reaction')} data-tip={t('Add reaction')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span aria-hidden="true" className="add-reaction">☺︎</span>
+      </button>
+      {open && (
+        <MenuPopover className="popover menu reaction-menu" onClose={() => setOpen(false)} aria-label={t('Add reaction')}>
+          {REACTIONS.map((r) => (
+            <button key={r.shortName} type="button" role="menuitem" className="menu-item" aria-label={t('React with {reaction}', {reaction: t(r.title)})} data-tip={t(r.title)} onClick={() => (setOpen(false), void reactToComment({data: {id: comment._id, shortName: r.shortName}}).then(() => qc.invalidateQueries({queryKey: ['comments']})))}>
+              {r.emoji}
+            </button>
+          ))}
+        </MenuPopover>
+      )}
+    </span>
   )
 }
