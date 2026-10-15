@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 50 changes
+- **Today** · 51 changes
+  - fix(auth): lend the studio's token only to an editor seated in the workspace ([#606](https://github.com/FRIKKern/barkpark-studio/pull/606))
   - feat(comments): inline comments on a span of body text (J40) ([#605](https://github.com/FRIKKern/barkpark-studio/pull/605))
-  - CI budget: re-record durations after the night's merges; three visible-only specs @local ([#604](https://github.com/FRIKKern/barkpark-studio/pull/604))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
