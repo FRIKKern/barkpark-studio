@@ -1,3 +1,4 @@
+import {spawn} from 'node:child_process'
 import {expect, test} from '@playwright/test'
 import {bpMutate, target} from '../rig/targets'
 
@@ -50,6 +51,24 @@ test('@local J67: sign in with a Barkpark account, work as yourself, sign out', 
     await expect.poll(last, {timeout: 10_000}).toBe(`user ${EMAIL!.toLowerCase()}`)
   } finally {
     await bpMutate([{discardDraft: {id: 'post-01', type: 'post'}}]).catch(() => {})
+  }
+
+  // task-1883ba9b1ace5dcf: a restart or a deploy keeps you signed in. A second studio server
+  // with the same STUDIO_SESSION_SECRET and nothing of the first in memory opens the same
+  // cookie (cookies ignore the port). Production build only: it serves the built app.
+  if (process.env.STUDIO_SESSION_SECRET && process.env.E2E_PROD) {
+    const port = Number(process.env.E2E_PORT || 3100) + 50
+    const env = {...process.env, STUDIO_SIGN_IN: 'account', ...(process.env.BARKPARK_APP_TOKEN && {BARKPARK_TOKEN: process.env.BARKPARK_APP_TOKEN})}
+    const other = spawn('pnpm', ['--dir', '../app', 'exec', 'vite', 'preview', '--port', String(port), '--strictPort'], {env, stdio: 'ignore', detached: true})
+    try {
+      await expect.poll(() => fetch(`http://localhost:${port}/health`).then((r) => r.ok, () => false), {timeout: 30_000}).toBe(true)
+      await page.goto(`http://localhost:${port}${t.docPath('post', 'post-01')}`)
+      await expect(t.field(page, 'title')).toHaveValue('Fixture post 01')
+    } finally {
+      process.kill(-other.pid!)
+    }
+    await page.goto(t.docPath('post', 'post-01'))
+    await t.settle(page)
   }
   await page.getByRole('button', {name: 'Open user menu'}).click()
   await expect(page.locator('.user-head')).toHaveText(EMAIL!.toLowerCase())
