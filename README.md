@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 90 changes
+- **Today** · 91 changes
+  - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
   - fix(comments): the panel's status menu and close as Sanity's (J40) ([#645](https://github.com/FRIKKern/barkpark-studio/pull/645))
-  - J03: footer Publish and actions menu as Sanity's ([#644](https://github.com/FRIKKern/barkpark-studio/pull/644))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
