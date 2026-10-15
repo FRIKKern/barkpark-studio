@@ -217,7 +217,10 @@ a { color: inherit; text-decoration: none; }
   line-height: 19px;
   font-weight: 500;
 }
-.navbar .brand { display: flex; align-items: center; gap: 12px; color: var(--fg-header); }
+.navbar .brand { display: flex; align-items: center; gap: 8px; color: var(--fg-header); }
+/* Sanity's navbar (measured at 1440): logo 4 px from the workspace, then 8 px between buttons;
+   on the right 4 px between buttons and 8 px before the user menu. */
+.navbar .brand > .logo + * { margin-left: -4px; }
 .navbar .logo { /* the Barkpark mark: its own colours in both modes */
   width: 25px; height: 25px; border-radius: 4px; background: #7c8cff; color: #fff;
   display: grid; place-items: center; font-size: 11px; font-weight: 600;
@@ -502,7 +505,7 @@ textarea.input { resize: vertical; }
 .chip[data-off] .dot { background: var(--line-strong); }
 
 /* Global search */
-.nav-search { margin-left: 4px; }
+.nav-search { margin-left: 0; }
 .search-backdrop { position: fixed; inset: 0; z-index: 50; background: var(--backdrop); }
 .search-dialog { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); width: min(800px, calc(100vw - 32px)); max-height: calc(100vh - 112px); display: flex; flex-direction: column; background: var(--bg); border-radius: 6px; box-shadow: 0 0 0 1px var(--ring), 0 16px 40px var(--shadow); }
 .search-bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
@@ -1178,7 +1181,8 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .p-avatar.more { background: var(--muted); }
 .field > label, .object-field > legend { display: flex; align-items: center; gap: 4px; }
 .pane-header > .p-avatars { margin: 0 6px 0 0; padding: 0; order: 0; }
-.nav-right { justify-self: end; display: flex; align-items: center; gap: 8px; }
+.nav-right { justify-self: end; display: flex; align-items: center; gap: 4px; }
+.nav-right > :last-child { margin-left: 4px; }
 .icon-btn.who { position: relative; }
 .icon-btn.who .count { position: absolute; top: 2px; right: 0; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--selected); color: var(--on-selected); font-size: 10px; line-height: 14px; }
 .who-menu { right: 0; left: auto; min-width: 260px; }
@@ -1880,7 +1884,7 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .scope-ds { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scope-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 340px; padding: 16px; }
 /* Sanity's workspace card opens under the logo, 4 px from the window's edge, not under the name. */
-@media (min-width: 769px) { .scope-popover { left: -45px; } }
+@media (min-width: 769px) { .scope-popover { left: -37px; } }
 /* The studio name is the switcher's button (Sanity's workspace menu button). */
 .brand-button { padding: 3px 6px 3px 8px; max-width: 320px; font-weight: 500; color: var(--fg-header); }
 .brand-button .brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
