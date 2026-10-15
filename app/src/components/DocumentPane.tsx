@@ -854,7 +854,7 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
       {problems.length === 0 ? (
         <p className="muted">{t('No validation errors')}</p>
       ) : (
-        <ul>
+        <ul className="problems">
           {problems.map((p) => (
             <li key={`${p.path} ${p.message}`}>
               <button type="button" className="problem" data-level={p.level} onClick={() => onPick(p)}>
