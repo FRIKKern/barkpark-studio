@@ -862,11 +862,11 @@ fieldset.object-field[data-open=false] > legend { margin-bottom: 0; }
 
 /* Field "…" menu (J29): top right of the field, on hover or focus; placed absolutely so the form never moves */
 .field { position: relative; }
-.field-actions { position: absolute; top: -4px; right: 29px; z-index: 2; opacity: 0; }
+.field-actions { position: absolute; top: 0; right: 25px; z-index: 2; opacity: 0; }
 /* A fieldset's box starts below its legend: lift its actions back up beside the legend. */
 fieldset.object-field > .field-actions { top: -38px; }
 .field:is(:hover, :focus-within) > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
-.field-actions .icon-btn { width: 25px; height: 25px; }
+.field-actions .icon-btn { width: 25px; height: 25px; color: var(--fg-header); } /* Sanity's: level with the label, touching Add comment, #383d51 */
 .field-actions .popover.menu { top: 29px; right: 0; min-width: 160px; }
 
 /* Toasts, after Sanity's: bottom right, title + one line */
@@ -1724,9 +1724,9 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 }
 /* J40: field comments (Sanity's) — the button at a field's top right (after "…"),
    the composer under it, and the Comments inspector. */
-.field-comments { position: absolute; top: -4px; right: 0; z-index: 2; }
+.field-comments { position: absolute; top: 0; right: 0; z-index: 2; }
 fieldset.object-field > .field-comments { top: -38px; }
-.field-comments .comment-add { width: 25px; height: 25px; opacity: 0; }
+.field-comments .comment-add { width: 25px; height: 25px; opacity: 0; color: var(--fg-header); }
 .field:is(:hover, :focus-within) > .field-comments .comment-add, .field-comments:focus-within .comment-add, .comment-add[aria-expanded='true'] { opacity: 1; }
 .field-comments[data-has] ~ .field-actions, .field-comments[data-has] + .field-actions { right: 52px; }
 .comment-count { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 6px 0 2px; border: 0; border-radius: 3px; background: var(--hover); font: inherit; font-size: 12px; font-weight: 500; color: var(--fg); cursor: pointer; }
