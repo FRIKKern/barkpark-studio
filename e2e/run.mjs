@@ -3,6 +3,7 @@
 import {existsSync, readFileSync} from 'node:fs'
 import {loadEnvFile} from 'node:process'
 import {spawnSync} from 'node:child_process'
+import {laneResetRefusal} from '../scripts/lib/seed-plan.mjs'
 import {fileURLToPath} from 'node:url'
 
 const [mode, ...args] = process.argv.slice(2)
@@ -13,6 +14,12 @@ if (!['test', 'baseline', 'evidence', 'reference', 'recording', 'reset'].include
 process.env.BARKPARK_DATASET ||= 'e2e-local'
 const envFile = fileURLToPath(new URL('../.env', import.meta.url))
 if (existsSync(envFile)) loadEnvFile(envFile)
+// A reset writes schemas and data: an e2e lane only, checked after .env (it may name production).
+const refused = mode === 'reset' && laneResetRefusal(process.env.BARKPARK_DATASET, args)
+if (refused) {
+  console.error(`run.mjs reset: refused. ${refused}`)
+  process.exit(1)
+}
 process.env.SANITY_TOKEN ||= process.env.SANITY_AUTH_TOKEN || ''
 // A lane's own member tokens (scripts/lane-token.mjs): the studio server on `app`, the
 // specs on `rig`, so neither shares a rate-limit bucket with the other or another lane.

@@ -13,3 +13,14 @@ export function seedPlan(argv, dataset) {
   if (has('--verify')) return {schemas: false, reset: false, verify: true, assets: 'find'}
   return {schemas: !has('--data'), reset: true, verify: true, assets: 'upload'}
 }
+
+/**
+ * `node run.mjs reset` (a lane's reset: schemas and data) only for an e2e lane dataset,
+ * never production or anything shared, whatever the shell or .env says, and never with
+ * --production passed through. Why it refuses, or undefined.
+ */
+export function laneResetRefusal(dataset, args = []) {
+  if (!/^e2e-[a-z0-9][a-z0-9-]*$/.test(dataset ?? '')) return `reset writes schemas and data, so it only takes an e2e lane dataset (BARKPARK_DATASET=e2e-<you>), not "${dataset}".`
+  if (args.includes('--production')) return 'reset never passes --production on.'
+}
+
