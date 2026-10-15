@@ -15,9 +15,8 @@ import {translate, useLocale, useT} from '../lib/i18n'
 // item's preview title/subtitle; a reference subtitle shows the referenced doc's
 // title), opened for editing in a dialog over the pane with "Links / #1 Title"
 // breadcrumbs. Items are keyed like Sanity's (_key), so the list keeps its rows
-// steady while you reorder and edit. Barkpark's arrayOf takes one member type, so
-// "Add item…" adds that type; Sanity's menu of several types waits on
-// task-b3ebbd3ab1575e2a.
+// steady while you reorder and edit. "Add item" adds the one member type; with several
+// (a typeField) it is Sanity's "Add item…" with a menu of them.
 
 type Item = {_key?: string} & Record<string, unknown>
 const newKey = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
@@ -59,7 +58,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
         onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'object', value: it}})}
-        addLabel={of.type === 'image' ? 'Add item' : 'Add item...'}
+        addLabel={typing ? 'Add item...' : 'Add item'}
         renderItem={renderItem}
         grid={field.layout === 'grid' || (!Array.isArray(field.options) && field.options?.layout === 'grid')}
       />

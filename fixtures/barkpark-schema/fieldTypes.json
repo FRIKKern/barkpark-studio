@@ -11,7 +11,7 @@
       }
     }
   ],
-  "initialValues": {
+  "initial_values": {
     "count": 3
   },
   "fields": [

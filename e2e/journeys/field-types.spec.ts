@@ -34,6 +34,8 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
 
   await expect(page.locator('[id="agree"]')).toHaveAttribute('type', 'checkbox')
   await expect(page.locator('[id="agree"]')).not.toHaveAttribute('role', 'switch')
+  // One member type: Sanity's plain "Add item" (the "…" menu is for several).
+  await expect(page.locator('[id="cards"]').getByRole('button', {name: 'Add item', exact: true})).toBeVisible()
 
   await page.getByRole('group').filter({has: page.getByRole('checkbox', {name: 'Green'})}).getByRole('checkbox', {name: 'Green'}).check()
   await expect.poll(() => value('colours'), {timeout: 10_000}).toEqual(['red', 'green', 'blue'])
@@ -53,4 +55,16 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
   await expect(page.locator('[id="weakRef"]')).toBeFocused()
   const refField = page.locator('[id="weakRef"]').locator('xpath=ancestor::*[contains(@class, "field")][1]')
   await expect(refField.getByRole('button', {name: /^Create/})).toHaveCount(0)
+})
+
+// A checkbox boolean not set yet is indeterminate, Sanity's dash (a new document; no write).
+test('field types: an unset checkbox boolean shows indeterminate', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours; Sanity is the reference stills')
+  await t.prepare(context)
+  await page.goto('/intent/create/type=fieldTypes')
+  await signInIfAsked(page)
+  const agree = page.locator('[id="agree"]')
+  await expect(agree).toHaveAttribute('type', 'checkbox')
+  expect(await agree.evaluate((e) => (e as HTMLInputElement).indeterminate)).toBe(true)
 })
