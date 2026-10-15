@@ -336,9 +336,9 @@ a.preview:hover { background: var(--hover); }
 .preview .t { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preview .s { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preview[aria-current='true'] .s { color: var(--on-selected-soft); }
-.preview .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--published); margin: 0 12px; }
+.preview .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--published); margin: 0 7px 0 12px; } /* 16 px from the row's edge, as Sanity's */
 .preview .ring { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--caution-dot); margin-left: 8px; }
-.preview .ring + .dot { margin-left: 6px; }
+.preview .ring + .dot { margin-left: 8px; } /* Sanity: ring and dot 8 px apart */
 .preview[aria-current='true'] .dot { box-shadow: 0 0 0 1px var(--on-selected); }
 .preview[aria-current='true'] .media { background: transparent; color: var(--on-selected); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-selected) 30%, transparent); }
 .list-rows { padding: 0 12px 12px; }
