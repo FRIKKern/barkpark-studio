@@ -2101,3 +2101,7 @@ input.checkbox { width: 17px; height: 17px; margin: 0; accent-color: var(--fg); 
 .array-box[data-layout=grid] .array-item-preview .media.has-image { overflow: hidden; }
 .array-box[data-layout=grid] .array-item-preview .text { align-items: center; text-align: center; max-width: 100%; }
 .array-box[data-layout=grid] .array-item-preview .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+/* Sanity's insert menu with many types: a search box above them. */
+.menu-search { padding: 4px 4px 6px; }
+.menu-search .input { width: 100%; }
+.menu-empty { margin: 4px 8px; }

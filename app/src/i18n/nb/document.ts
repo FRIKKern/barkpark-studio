@@ -208,6 +208,7 @@ export default {
   'Saving is taking longer than usual…': 'Lagringen tar lengre tid enn vanlig…',
   'Saving…': 'Lagrer…',
   'Search': 'Søk',
+  'No results': 'Ingen treff',
   'Share': 'Del',
   'Share document': 'Del dokument',
   'Show document actions': 'Vis dokumenthandlinger',

@@ -1,4 +1,4 @@
-import {useCallback, useContext, useEffect, useRef, useState} from 'react'
+import {createContext, Fragment, useCallback, useContext, useEffect, useRef, useState} from 'react'
 import {DialogBox, PaneOverlay} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Field} from '../lib/data'
@@ -19,6 +19,9 @@ import {translate, useLocale, useT} from '../lib/i18n'
 // (a typeField) it is Sanity's "Add item…" with a menu of them.
 
 type Item = {_key?: string} & Record<string, unknown>
+type Crumb = {label: string; position: number; title: string; close: () => void}
+/** The item dialogs open around this one, outermost first (an array inside an item). */
+const DialogCrumbsContext = createContext<Crumb[]>([])
 const newKey = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 
 export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}) {
@@ -171,13 +174,30 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
 }) {
   const t = useT()
   const {title} = useItemPreview(item, of)
+  // An array inside an item: its dialog names the whole way down, as Sanity's
+  // ("Sections / #1 Intro / Items / #2 …"); a crumb before ours closes back to it.
+  const outer = useContext(DialogCrumbsContext)
+  const here: Crumb = {label: parentTitle, position, title, close: onClose}
   // Over the whole document pane, as the other dialogs (not over the field's box).
   return (
+    <DialogCrumbsContext.Provider value={[...outer, here]}>
     <PaneOverlay>
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog item-dialog" aria-modal="true" aria-label={`${parentTitle} / ${title}`} onClose={onClose}>
         <header>
           <nav className="crumbs" aria-label={t('Breadcrumb')}>
+            {outer.map((c, i) => (
+              <Fragment key={i}>
+                <button type="button" className="crumb" onClick={c.close}>
+                  {c.label}
+                </button>
+                <span aria-hidden>/</span>
+                <button type="button" className="crumb" onClick={outer[i + 1]?.close ?? onClose}>
+                  <span className="muted">#{c.position}</span> {c.title}
+                </button>
+                <span aria-hidden>/</span>
+              </Fragment>
+            ))}
             <button type="button" className="crumb" onClick={onClose}>
               {parentTitle}
             </button>
@@ -207,5 +227,6 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
       </DialogBox>
     </div>
     </PaneOverlay>
+    </DialogCrumbsContext.Provider>
   )
 }

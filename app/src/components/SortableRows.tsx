@@ -1,4 +1,4 @@
-import {memo, useContext, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode} from 'react'
+import {memo, useContext, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {useRevealed} from '../lib/reveal'
 import {Add, DragHandle, Ellipsis} from './icons'
@@ -297,14 +297,32 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
 }
 
 /** The item types to add, one menu item each (the first takes focus). */
+/** Sanity's insert menu: past five types it gets a search box that narrows them as you type. */
 function TypeItems({types, pick}: {types: {value: string; title: string}[]; pick: (type: string) => void}) {
+  const t = useT()
+  const [q, setQ] = useState('')
+  const searchable = types.length > 5
+  // The menu puts focus on its first item when it opens; the search box takes it after.
+  const box = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (!searchable) return
+    const frame = requestAnimationFrame(() => box.current?.focus())
+    return () => cancelAnimationFrame(frame)
+  }, [searchable])
+  const shown = q.trim() ? types.filter((x) => x.title.toLowerCase().includes(q.trim().toLowerCase())) : types
   return (
     <>
-      {types.map((t, i) => (
-        <button key={t.value} type="button" role="menuitem" className="menu-item" autoFocus={i === 0} onClick={() => pick(t.value)}>
-          {t.title}
+      {searchable && (
+        <div className="menu-search">
+          <input ref={box} type="search" className="input" aria-label={t('Search')} placeholder={t('Search')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && shown[0] && (e.preventDefault(), pick(shown[0].value))} />
+        </div>
+      )}
+      {shown.map((x, i) => (
+        <button key={x.value} type="button" role="menuitem" className="menu-item" autoFocus={!searchable && i === 0} onClick={() => pick(x.value)}>
+          {x.title}
         </button>
       ))}
+      {searchable && !shown.length && <p className="menu-empty muted">{t('No results')}</p>}
     </>
   )
 }
