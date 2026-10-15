@@ -459,6 +459,8 @@ textarea.input { resize: vertical; }
 
 /* Reference input */
 .ref-row { display: flex; align-items: center; gap: 4px; padding: 4px 8px 4px 4px; }
+/* A reference field with a value: Sanity pads its card 5 px (59 px box, measured at 1440). */
+.ref-box.ref-row { padding: 5px 8px 5px 5px; }
 .ref-preview { flex: 1; min-width: 0; }
 .ref-preview .preview { margin: 0; }
 .ref-search { position: relative; display: flex; gap: 4px; }
