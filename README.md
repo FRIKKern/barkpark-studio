@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 85 changes
+- **Today** · 86 changes
+  - fix(navbar): button spacing as Sanity's (J01) ([#641](https://github.com/FRIKKern/barkpark-studio/pull/641))
   - fix(desk): list search 25 px with a 21 px icon; type chevrons 21 px (J01) ([#640](https://github.com/FRIKKern/barkpark-studio/pull/640))
-  - fix(previews): media icon at 21 px, title and subtitle 17 px apart (J01) ([#639](https://github.com/FRIKKern/barkpark-studio/pull/639))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
