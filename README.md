@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 10 changes
+- **Today** · 11 changes
+  - Narrow panes: footer status stays one line, title steps down as Sanity's ([#563](https://github.com/FRIKKern/barkpark-studio/pull/563))
   - J49: a Contributor seat drafts but can't publish, unpublish or delete what is published ([#565](https://github.com/FRIKKern/barkpark-studio/pull/565))
-  - Presentation's document pane as Sanity's: 325 px, a close, no focus mode or view tabs ([#564](https://github.com/FRIKKern/barkpark-studio/pull/564))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
