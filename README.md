@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 23 changes
+- **Today** · 24 changes
+  - J49: a Viewer adds and resolves comments while the form stays locked, as Sanity's ([#572](https://github.com/FRIKKern/barkpark-studio/pull/572))
   - Shard-5 flakes: held clicks wait for React; reads ride out a deploy's gap ([#576](https://github.com/FRIKKern/barkpark-studio/pull/576))
-  - A new sort of a long list keeps the old order until the server answers, never the loaded page re-sorted ([#579](https://github.com/FRIKKern/barkpark-studio/pull/579))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
