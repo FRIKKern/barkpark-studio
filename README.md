@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 41 changes
+- **Today** · 42 changes
+  - D20: the footer says the conflict in the editor's words, not 'document revision mismatch' ([#597](https://github.com/FRIKKern/barkpark-studio/pull/597))
   - Structure: drag the divider between panes, as Sanity's ([#596](https://github.com/FRIKKern/barkpark-studio/pull/596))
-  - Phone polish: workspace name ellipsis, 44 px doc-pane taps, Presentation frame hidden while loading ([#595](https://github.com/FRIKKern/barkpark-studio/pull/595))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
