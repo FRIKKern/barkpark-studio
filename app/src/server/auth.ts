@@ -24,6 +24,8 @@ import {randomBytes} from 'node:crypto'
 import {devToken, editorPermissions, keepDevToken, sweepDevTokens} from '../../../scripts/lib/dev-tokens.mjs'
 import {getCookie, setCookie, deleteCookie} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
+import {tokenSelf, type TokenBody, type TokenSelf} from '../lib/token-self'
+export type {TokenSelf} from '../lib/token-self'
 
 export type SignInMode = 'account' | 'dev' | 'shared'
 export function signInMode(): SignInMode {
@@ -156,7 +158,6 @@ async function editorToken(email: string): Promise<string> {
  * its permissions as far as its seat in the workspace allows, and the dataset it is held
  * to when bound (#22393). Kept a minute per token. Unknown: Barkpark judges each write.
  */
-export type TokenSelf = {permissions: string[]; boundDataset: string | null; refused?: boolean}
 const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
 export function describeToken(token: string): Promise<TokenSelf> {
   // A login session holds a seat per workspace: what it may do depends on where it is.
@@ -170,14 +171,7 @@ export function describeToken(token: string): Promise<TokenSelf> {
     if (res?.status === 401) return {permissions: [], boundDataset: null, refused: true}
     if (res?.status === 403) return {permissions: [], boundDataset: null}
     if (!res?.ok) return {permissions: ['read', 'write'], boundDataset: null}
-    type Can = Record<string, boolean>
-    const me = (await res.json()) as {kind?: string; permissions?: string[]; seat?: {can?: Can}; seats?: {workspace?: {slug?: string}; can?: Can}[]; dataset?: string; dataset_bound?: boolean}
-    // A login session (#22783): its seat in this workspace says what it may do; none, nothing.
-    if (me.kind === 'session') {
-      const can = me.seats?.find((s) => s.workspace?.slug === workspace)?.can ?? {}
-      return {permissions: ['read', 'write', 'admin'].filter((p) => can[p]), boundDataset: null}
-    }
-    return {permissions: (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false), boundDataset: me.dataset_bound && me.dataset ? me.dataset : null}
+    return tokenSelf((await res.json()) as TokenBody, workspace)
   })()
   described.set(key, {at: Date.now(), self})
   return self

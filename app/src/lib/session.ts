@@ -24,6 +24,7 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     devLogin: mode === 'dev',
     email: ended ? null : editor?.email ?? null,
     canWrite: self && !ended ? self.permissions.includes('write') : true,
+    canPublish: self && !ended ? self.canPublish !== false : true,
     /** A token held to one dataset (Barkpark #22393): the only one it can open. */
     boundDataset: self?.boundDataset ?? null,
     /** The studio's own token is refused (revoked, or out of the workspace): nothing will load. */
@@ -64,18 +65,23 @@ export const meQuery = queryOptions({queryKey: ['me'], queryFn: () => whoAmI(), 
 /**
  * J49: can this editor change things, and if not, the reason to show on what is
  * locked (Sanity's permission banner wording; Barkpark's read-only role reads as
- * Viewer).
+ * Viewer, its contributor seat as Contributor: drafts, but nothing published changes).
  */
 export function useCanWrite() {
   const t = useT()
   const {data: me} = useQuery(meQuery)
   const canWrite = me?.canWrite !== false
+  const canPublish = canWrite && me?.canPublish !== false
   return {
     canWrite,
+    canPublish,
     /** Sign-in is on and nobody is signed in any more. */
     signedOut: !!me && me.signIn !== 'shared' && !me.email,
     editReason: canWrite ? undefined : t('Your role Viewer does not have permission to edit this document.'),
-    publishReason: canWrite ? undefined : t('Your role Viewer does not have permission to publish this document.'),
+    publishReason: !canWrite ? t('Your role Viewer does not have permission to publish this document.') : canPublish ? undefined : t('Your role Contributor does not have permission to publish this document.'),
+    unpublishReason: !canWrite ? t('Your role Viewer does not have permission to unpublish this document.') : canPublish ? undefined : t('Your role Contributor does not have permission to unpublish this document.'),
+    /** Deleting a published document unpublishes it too: a Contributor deletes drafts only. */
+    deletePublishedReason: !canWrite ? t('Your role Viewer does not have permission to delete this document.') : canPublish ? undefined : t('Your role Contributor does not have permission to delete this document.'),
     createReason: canWrite ? undefined : t('Your role Viewer does not have permission to create documents.'),
     commentReason: canWrite ? undefined : t('Your role Viewer does not have permission to comment on this document.'),
   }
