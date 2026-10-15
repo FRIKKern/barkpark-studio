@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 12 changes
+- **Today** · 13 changes
+  - A long title: the title bar stays one line with an ellipsis, the heading breaks long words, as Sanity's ([#567](https://github.com/FRIKKern/barkpark-studio/pull/567))
   - J40: a scheduled draft is locked until Pause to edit, as Sanity's ([#566](https://github.com/FRIKKern/barkpark-studio/pull/566))
-  - Narrow panes: footer status stays one line, title steps down as Sanity's ([#563](https://github.com/FRIKKern/barkpark-studio/pull/563))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
