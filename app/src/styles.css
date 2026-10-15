@@ -1000,6 +1000,10 @@ fieldset.object-field > .field-actions { top: -38px; }
 .review-fromto { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .review-fromto del, .review-fromto ins { padding: 1px 6px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--user-200, var(--line)); }
 .review-fromto ins { text-decoration: underline; text-underline-offset: 3px; }
+.review-formatted { text-decoration: underline dotted var(--user-500, currentColor); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.review-attr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 0; font-size: 12px; }
+.review-attr-name { color: var(--muted); }
+.review-attr del, .review-attr ins { padding: 0 4px; border-radius: 3px; }
 .inspector .review-array, .review-array { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .review-array li { display: flex; align-items: center; gap: 8px; }
 .review-array del, .review-array ins { padding: 1px 6px; border-radius: 3px; }

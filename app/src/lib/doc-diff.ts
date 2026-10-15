@@ -4,12 +4,15 @@
 import {textDiff} from './changes.ts'
 
 export type DocInline = {type: string; value?: string; href?: string; children?: DocInline[]}
-export type DocBlock = {id: string; type: string; level?: number; tone?: string; text?: string; content?: DocInline[]; items?: DocInline[][]; ordered?: boolean}
+export type DocBlock = {id: string; type: string; level?: number; tone?: string; text?: string; content?: DocInline[]; items?: DocInline[][]; ordered?: boolean} & Record<string, unknown>
 
 /** A run of text with the marks around it (outermost first) and its link, if any. */
 export type Run = {text: string; marks: string[]; href?: string}
-export type Piece = Run & {change: 'same' | 'added' | 'removed'}
-export type BlockChange = {kind: 'added' | 'removed' | 'changed'; block: DocBlock; pieces: Piece[]; items?: Piece[][]}
+// 'formatted': the same text, its marks changed (made bold, a link added), as Sanity marks it.
+export type Piece = Run & {change: 'same' | 'added' | 'removed' | 'formatted'}
+/** A block's other properties that changed (a callout's tone, a heading's level, an image's picture or alt). */
+export type AttrChange = {name: string; before: unknown; after: unknown}
+export type BlockChange = {kind: 'added' | 'removed' | 'changed'; block: DocBlock; was?: DocBlock; pieces: Piece[]; items?: Piece[][]; attrs?: AttrChange[]}
 
 /** Inline nodes as flat runs. */
 export function runs(nodes: DocInline[] = [], marks: string[] = [], href?: string): Run[] {
@@ -44,9 +47,30 @@ export function diffRuns(before: Run[], after: Run[]): Piece[] {
     const n = s.text.length
     if (s.kind === 'removed') (out.push(...take(before, b, n, 'removed')), (b += n))
     else if (s.kind === 'added') (out.push(...take(after, a, n, 'added')), (a += n))
-    else (out.push(...take(after, a, n, 'same')), (a += n), (b += n))
+    else {
+      // The same text: marked 'formatted' where its marks differ from before's.
+      const was = take(before, b, n, 'same')
+      const markAt = (ps: Piece[], i: number) => {
+        for (const p of ps) if (i < p.text.length) return `${p.marks.join()}|${p.href ?? ''}`; else i -= p.text.length
+        return ''
+      }
+      let at = 0
+      for (const p of take(after, a, n, 'same')) {
+        const differs = [...p.text].some((_, i) => markAt(was, at + i) !== `${p.marks.join()}|${p.href ?? ''}`)
+        out.push(differs ? {...p, change: 'formatted'} : p)
+        at += p.text.length
+      }
+      ;(a += n), (b += n)
+    }
   }
   return out
+}
+
+const TEXT_KEYS = new Set(['id', 'type', 'content', 'items', 'text', '_key'])
+/** The block's non-text properties that changed, by name. */
+export function attrChanges(was: DocBlock, now: DocBlock): AttrChange[] {
+  const names = [...new Set([...Object.keys(was), ...Object.keys(now)])].filter((k) => !TEXT_KEYS.has(k)).sort()
+  return names.flatMap((name) => (JSON.stringify(was[name]) === JSON.stringify(now[name]) ? [] : [{name, before: was[name], after: now[name]}]))
 }
 
 const blockRuns = (b: DocBlock): Run[] => (b.content ? runs(b.content) : b.text ? [{text: b.text, marks: []}] : [])
@@ -69,7 +93,7 @@ export function docDiff(before: DocBlock[] = [], after: DocBlock[] = []): BlockC
     if (!was) out.push({kind: 'added', block: b, pieces: all(blockRuns(b), 'added'), items: b.items?.map((i) => all(runs(i), 'added'))})
     else if (!same(was, b)) {
       const items = b.items || was.items ? Array.from({length: Math.max(b.items?.length ?? 0, was.items?.length ?? 0)}, (_, i) => diffRuns(runs(was.items?.[i]), runs(b.items?.[i]))) : undefined
-      out.push({kind: 'changed', block: b, pieces: diffRuns(blockRuns(was), blockRuns(b)), items})
+      out.push({kind: 'changed', block: b, was, pieces: diffRuns(blockRuns(was), blockRuns(b)), items, attrs: attrChanges(was, b)})
     }
   }
   removedBefore(undefined)

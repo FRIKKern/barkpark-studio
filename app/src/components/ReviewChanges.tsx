@@ -1,10 +1,10 @@
-import {useState, type ReactNode} from 'react'
+import {Fragment, useState, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
 import {historyQuery, revisionQuery, type HistoryEntry, type Revision} from '../lib/history'
 import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
-import {docDiff, type DocBlock, type Piece} from '../lib/doc-diff'
+import {docDiff, type AttrChange, type DocBlock, type Piece} from '../lib/doc-diff'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
 import {arrayDiff} from '../lib/array-diff'
 import {useItemPreview} from './ObjectArrayInput'
@@ -113,23 +113,35 @@ const imageRefOf = (v: unknown) => imageRef(v)
 /** One field's change; text is tinted with its author's colour, as Sanity's. */
 function ChangeView({change, author}: {change: FieldChange; author?: string}) {
   const t = useT()
+  const by = (what: string) => (author ? t(`${what} by {author}`, {author}) : t(what))
   // An image: before → after thumbnails, as Sanity's image diff.
   if (imageRefOf(change.before) || imageRefOf(change.after)) {
     const thumb = (v: unknown, what: 'Before' | 'After') =>
       imageRefOf(v) ? <img src={`${assetUrl(imageRefOf(v)!)}?size=thumb`} alt={t(what)} /> : <span className="review-img-none">{what === 'Before' ? t('No image') : t('Removed')}</span>
+    // Its other subfields (alt text, hotspot, crop), as Sanity's image diff lists them.
+    const was = (change.before ?? {}) as Record<string, unknown>
+    const now = (change.after ?? {}) as Record<string, unknown>
+    const subs = [...new Set([...Object.keys(was), ...Object.keys(now)])]
+      .filter((k) => !['asset', '_type', '_key', 'assetId', 'url'].includes(k) && JSON.stringify(was[k]) !== JSON.stringify(now[k]))
+      .sort()
+      .map((name): AttrChange => ({name, before: was[name], after: now[name]}))
     return (
-      <p className="review-diff review-img">
-        {thumb(change.before, 'Before')}
-        <span aria-hidden="true">→</span>
-        {thumb(change.after, 'After')}
-      </p>
+      <div className="review-diff review-img-change" style={userColorVars(author ?? 'unknown')}>
+        {imageRefOf(change.before) !== imageRefOf(change.after) && (
+          <p className="review-img">
+            {thumb(change.before, 'Before')}
+            <span aria-hidden="true">→</span>
+            {thumb(change.after, 'After')}
+          </p>
+        )}
+        <Attrs attrs={subs} fields={change.field.fields} by={by} />
+      </div>
     )
   }
   // Rich text: only the changed blocks, in their own style, marks kept (Sanity's).
   const blocksOf = (v: unknown) => (v as {blocks?: DocBlock[]} | undefined)?.blocks
   if (Array.isArray(blocksOf(change.before)) || Array.isArray(blocksOf(change.after)))
     return <BlocksDiff before={blocksOf(change.before)} after={blocksOf(change.after)} author={author} t={t} />
-  const by = (what: string) => (author ? t(`${what} by {author}`, {author}) : t(what))
   // A reference: the document it pointed to → the one it points to, as Sanity's.
   if (change.field.type === 'reference' && (refId(change.before) || refId(change.after)))
     return (
@@ -211,13 +223,40 @@ function BlocksDiff({before, after, author, t}: {before?: DocBlock[]; after?: Do
       node = <Tag>{node}</Tag>
     }
     if (x.href) node = <a href={x.href} target="_blank" rel="noopener noreferrer">{node}</a>
+    if (x.change === 'formatted') return <span key={i} className="review-formatted" title={author ? t('Formatting changed by {author}', {author}) : t('Formatting changed')}>{node}</span>
     return x.change === 'removed' ? <del key={i} title={by('Removed')}>{node}</del> : x.change === 'added' ? <ins key={i} title={by('Added')}>{node}</ins> : <span key={i}>{node}</span>
   }
   const changes = docDiff(before, after)
+  // A picture block: before → after, as the image field's diff.
+  const src = (b?: DocBlock) => (b ? (imageRefOf(b) ? `${assetUrl(imageRefOf(b)!)}?size=thumb` : typeof b.url === 'string' ? b.url : undefined) : undefined)
+  const pic = (s: string | undefined, what: 'Before' | 'After') => (s ? <img src={s} alt={t(what)} /> : <span className="review-img-none">{t('No image')}</span>)
   return (
     <div className="review-diff review-blocks" style={userColorVars(author ?? 'unknown')}>
-      {changes.map(({kind, block: b, pieces, items}) => {
+      {changes.map(({kind, block: b, was, pieces, items, attrs = []}) => {
         const body = pieces.map(piece)
+        const k = `${kind}-${b.id}`
+        const rest = <Attrs attrs={attrs.filter((a) => !(b.type === 'image' && ['url', 'asset', 'assetId'].includes(a.name)))} by={by} />
+        if (b.type === 'image')
+          return (
+            <div key={k} data-change={kind}>
+              <p className="review-img">
+                {kind === 'added' ? <ins title={by('Added')}>{pic(src(b), 'After')}</ins> : kind === 'removed' ? <del title={by('Removed')}>{pic(src(b), 'Before')}</del> : src(was) !== src(b) ? <>{pic(src(was), 'Before')}<span aria-hidden="true">→</span>{pic(src(b), 'After')}</> : pic(src(b), 'After')}
+              </p>
+              {rest}
+            </div>
+          )
+        if (attrs.length)
+          return (
+            <div key={k} data-change={kind}>
+              {block(b, kind, body, items)}
+              {rest}
+            </div>
+          )
+        return <Fragment key={k}>{block(b, kind, body, items)}</Fragment>
+      })}
+    </div>
+  )
+  function block(b: DocBlock, kind: string, body: ReactNode, items?: Piece[][]) {
         const k = `${kind}-${b.id}`
         switch (b.type) {
           case 'heading': {
@@ -236,8 +275,35 @@ function BlocksDiff({before, after, author, t}: {before?: DocBlock[]; after?: Do
           default:
             return <p key={k} data-change={kind}>{body}</p>
         }
+  }
+}
+
+/** A block's or an image's other properties that changed: name, then before → after. */
+function Attrs({attrs, fields, by}: {attrs: AttrChange[]; fields?: Field[]; by: (what: string) => string}) {
+  const t = useT()
+  const NAMES: Record<string, string> = {tone: t('Tone'), level: t('Level'), alt: t('Alternative text'), caption: t('Caption'), hotspot: t('Hotspot'), crop: t('Crop')}
+  const show = (v: unknown) => (v === undefined || v === null || v === '' ? '—' : typeof v === 'object' ? null : String(v))
+  return (
+    <>
+      {attrs.map(({name, before, after}) => {
+        const label = fields?.find((f) => f.name === name)?.title ?? NAMES[name] ?? name
+        const [b, a] = [show(before), show(after)]
+        return (
+          <p key={name} className="review-attr">
+            <span className="review-attr-name">{label}</span>
+            {b === null || a === null ? (
+              <span className="muted">{t('Changed')}</span>
+            ) : (
+              <>
+                <del title={by('Removed')}>{b}</del>
+                <span className="review-arrow" aria-hidden="true">→</span>
+                <ins title={by('Added')}>{a}</ins>
+              </>
+            )}
+          </p>
+        )
       })}
-    </div>
+    </>
   )
 }
 
