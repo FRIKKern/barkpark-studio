@@ -46,6 +46,7 @@
   --tone-error-bg: #fff6f5; --tone-error-fg: #4d1714; --tone-error-muted: #a8554f; --tone-error-icon: #cc2719;
   --comment-range-bg: #fcf3bb; /* Sanity's inline comment highlight: yellow 100 / 300, picked 200 / 400 */
   --comment-range-line: #f7d455;
+  --comment-quote-gone: #bbbdc9; /* Sanity's gray 300: the rule of a quote whose text is gone */
   --comment-range-active-bg: #f9e994;
   --comment-range-active-line: #f9bc15;
   --drop-bg: rgba(240, 245, 255, 0.92);
@@ -149,6 +150,7 @@
   --tone-error-bg: #24161b; --tone-error-fg: #ffdfdd; --tone-error-muted: #c78a85; --tone-error-icon: #f87c6f;
   --comment-range-bg: #3b220c; /* yellow 800 / 700, picked 700 / 600 */
   --comment-range-line: #653a0b;
+  --comment-quote-gone: #383d51; /* gray 700 */
   --comment-range-active-bg: #653a0b;
   --comment-range-active-line: #965908;
   --drop-bg: rgba(29, 37, 64, 0.92);
@@ -1779,8 +1781,10 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .body-canvas .bp-comment-range--active, .body-canvas .bp-comment-range:hover { background: var(--comment-range-active-bg); border-bottom-color: var(--comment-range-active-line); }
 .comment-thread:has(> .commented-text:not([data-gone])) { cursor: pointer; }
 .comment-thread[data-active] { box-shadow: inset 0 0 0 1px var(--selected); }
-.commented-text { margin: 0; padding: 0 0 0 8px; border-left: 2px solid var(--comment-range-line); color: var(--muted); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.commented-text[data-gone] { border-left-color: var(--line-strong); text-decoration: line-through; }
+.commented-text { margin: 0; padding: 4px 4px 4px 8px; border-left: 2px solid var(--comment-range-line); color: var(--muted); font-size: 13px; line-height: 19px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.commented-text[data-gone] { border-left-color: var(--comment-quote-gone); }
+.commented-gone { display: inline-block; margin: 0 8px 0 4px; vertical-align: top; }
+.commented-gone svg { display: block; width: 25px; height: 25px; margin: -3px -6px; }
 .inline-comment-add { position: fixed; z-index: 60; display: inline-flex; align-items: center; gap: 4px; height: 29px; padding: 0 8px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 4px 12px var(--shadow); font: inherit; font-size: 13px; color: var(--fg); cursor: pointer; }
 .inline-comment-add:hover:not([aria-disabled=true]) { background: var(--hover); }
 .inline-comment-add[aria-disabled=true] { color: var(--disabled); cursor: default; }
