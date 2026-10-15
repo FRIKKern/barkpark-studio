@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 38 changes
+- **Today** · 39 changes
+  - Unpublish dialog: Sanity's question and 'N documents refer to' bar for a referenced document ([#594](https://github.com/FRIKKern/barkpark-studio/pull/594))
   - Arrays: a nested item dialog names the whole way down; an insert menu of six or more types gets Sanity's search ([#593](https://github.com/FRIKKern/barkpark-studio/pull/593))
-  - fieldTypes fixture: an array inside array items, and an array of six member types (both sides) ([#592](https://github.com/FRIKKern/barkpark-studio/pull/592))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
