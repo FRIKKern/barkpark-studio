@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 59 changes
-  - fix(inspect): below 600 px it takes the whole screen, as Sanity's (J46) ([#614](https://github.com/FRIKKern/barkpark-studio/pull/614))
-  - fix(locations): the banner and the first field where Sanity puts them (J62) ([#613](https://github.com/FRIKKern/barkpark-studio/pull/613))
+- **Today** · 61 changes
+  - Help + scope switcher as Sanity's: click outside closes, busy Switch, version dialog ([#615](https://github.com/FRIKKern/barkpark-studio/pull/615))
+  - fix(incoming): the empty card where Sanity's sits, text muted (J17) ([#616](https://github.com/FRIKKern/barkpark-studio/pull/616))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
