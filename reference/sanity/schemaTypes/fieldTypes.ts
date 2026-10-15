@@ -25,6 +25,34 @@ export const fieldTypes = defineType({
       options: {layout: 'grid'},
       of: [defineArrayMember({type: 'object', name: 'card', fields: [defineField({name: 'label', type: 'string'}), defineField({name: 'note', type: 'text', rows: 2})]})],
     }),
+    // An array whose items hold an array of their own: the item dialog opens over the item dialog.
+    defineField({
+      name: 'sections',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          type: 'object',
+          name: 'section',
+          fields: [
+            defineField({name: 'title', type: 'string'}),
+            defineField({name: 'items', type: 'array', of: [defineArrayMember({type: 'object', name: 'item', fields: [defineField({name: 'label', type: 'string'}), defineField({name: 'note', type: 'text', rows: 2})]})]}),
+          ],
+        }),
+      ],
+    }),
+    // Six member types: Sanity's insert menu (with search past its threshold).
+    defineField({
+      name: 'blocks',
+      type: 'array',
+      of: [
+        defineArrayMember({type: 'object', name: 'hero', title: 'Hero', fields: [defineField({name: 'heading', type: 'string'})]}),
+        defineArrayMember({type: 'object', name: 'quote', title: 'Quote', fields: [defineField({name: 'heading', type: 'string'})]}),
+        defineArrayMember({type: 'object', name: 'cta', title: 'Call to action', fields: [defineField({name: 'heading', type: 'string'})]}),
+        defineArrayMember({type: 'object', name: 'stat', title: 'Stat', fields: [defineField({name: 'heading', type: 'string'})]}),
+        defineArrayMember({type: 'object', name: 'faq', title: 'FAQ', fields: [defineField({name: 'heading', type: 'string'})]}),
+        defineArrayMember({type: 'object', name: 'logo', title: 'Logo strip', fields: [defineField({name: 'heading', type: 'string'})]}),
+      ],
+    }),
     defineField({
       name: 'address',
       type: 'object',
