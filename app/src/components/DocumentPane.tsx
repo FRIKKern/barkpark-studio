@@ -928,8 +928,9 @@ function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: 
 }
 
 /**
- * Sanity names a new untitled doc "New <Type>" in its own pane; anything else untitled is
- * "Untitled". `t`: the render's translate (English when not given).
+ * Sanity names a new untitled doc "New <Type>" in its own pane until it exists (its first
+ * edit saves a draft); anything else untitled, a draft too, is "Untitled". `t`: the
+ * render's translate (English when not given).
  */
 export const docTitle = (doc: Doc, schema: Schema, t: T = (en, vars) => translate('en', en, vars)) => {
   const title = previewTitle(doc, schema)
@@ -937,7 +938,7 @@ export const docTitle = (doc: Doc, schema: Schema, t: T = (en, vars) => translat
   // A singleton without a title field is named by its type, as Sanity's fixed
   // preview titles do ("Forside", "Nettstedsinnstillinger").
   if (schema.singleton) return schema.title
-  return doc._hasPublished === false ? t('New {type}', {type: schema.title}) : t('Untitled')
+  return !doc._rev ? t('New {type}', {type: schema.title}) : t('Untitled')
 }
 
 /** A translated sentence with one `{id}` set as code. */

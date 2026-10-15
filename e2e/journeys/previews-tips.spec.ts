@@ -19,6 +19,10 @@ test('J56: previews — reference subtitle, untitled fallback, status tooltips w
     await expect(row).toContainText('Fixture post 01')
     await expect(row).toContainText('Alan Turing') // the referenced author's title as subtitle
     await expect(page.locator('a[href*="post-untitled-j56"]').first()).toContainText('Untitled')
+    // Opened, an existing draft without a title is "Untitled" too ("New Post" is only for one not saved yet).
+    await page.locator('a[href*="post-untitled-j56"]').first().click()
+    await expect(page.locator('.doc-form h1')).toHaveText('Untitled')
+    await page.goBack()
     await row.getByTestId('row-status').hover()
     await expect(tooltip(page)).toContainText(/Published\s*Published (?:\d|a |an |just|yesterday)/)
     await expect(tooltip(page)).toContainText(/No unpublished edits|Edited/)
