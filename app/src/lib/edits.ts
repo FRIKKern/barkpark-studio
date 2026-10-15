@@ -11,14 +11,16 @@ import {setFooterOffline} from './footer-offline'
 import {merge3, mergeList3, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
+import {writeBudget} from './write-budget'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
 // title, list row all repaint with no network wait); the write goes to Barkpark
-// behind it. Writes are coalesced per document: at most one patch every
-// WRITE_GAP_MS (the first after a pause goes at once), one in flight, later
-// values for a field replacing earlier ones. Leaving a field, closing a pane or
-// the page flushes. Interim for task-2c31de0cf6597d32: every editor shares the
-// server token's 60 writes/min. Server truth (mutate responses, live frames) is folded
+// behind it. Writes are coalesced per document: one in flight, at least
+// MIN_GAP_MS apart, later values for a field replacing earlier ones. Over all
+// documents they spend a write budget (WRITE_BURST at once, then one per
+// WRITE_GAP_MS), so a short edit goes out at once and long typing settles at the
+// old pace, under Barkpark's per-token limit. Leaving a field, closing a pane or
+// the page flushes. Server truth (mutate responses, live frames) is folded
 // back in under whatever is still unsent, and never older than what we hold.
 //
 // Concurrent edits (J05, J06): every patch carries the rev it was made against
@@ -113,13 +115,19 @@ type DocEdits = {
 
 /**
  * One of this editor's own changes: typing in one field within UNDO_GROUP_MS is one
- * change, kept as its keystrokes (each from the value as it stood then, so someone
+ * change (timed by the keys, never by the writes), kept as its keystrokes (each from the value as it stood then, so someone
  * else's text merged in between is never part of a step).
  */
 type Change = {field: string; steps: {before: unknown; after: unknown}[]; at: number}
 const UNDO_GROUP_MS = 600
 
 export const WRITE_GAP_MS = 750
+// F4 (a live edit seen by the other browser): with one write per WRITE_GAP_MS, the second
+// key of " A" waited 750 ms, and the other browser saw it ~810 ms after typing, where
+// the write, Barkpark and the live frame take ~70 ms (task-d22fd88c4694877a).
+const MIN_GAP_MS = 100
+const WRITE_BURST = 8
+const budget = writeBudget(WRITE_BURST, WRITE_GAP_MS)
 const STALL_MS = 4000
 const OFFLINE_RETRY_MS = 5000
 
@@ -358,11 +366,11 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
   schedule(qc, id)
 }
 
-/** Send now if the last write was WRITE_GAP_MS ago, else once that gap has passed. */
+/** Send now if the budget has a write and the last one was MIN_GAP_MS ago, else once both hold. */
 function schedule(qc: QueryClient, id: string) {
   const e = docs.get(id)
   if (!e || e.timer || (e.dirty.size === 0 && !e.createRequested)) return
-  const wait = Math.max(0, e.lastSent + WRITE_GAP_MS - Date.now())
+  const wait = Math.max(e.lastSent + MIN_GAP_MS - Date.now(), budget.wait())
   if (wait === 0) void send(qc, id)
   else e.timer = setTimeout(() => ((e.timer = undefined), void send(qc, id)), wait)
 }
@@ -479,6 +487,7 @@ async function send(qc: QueryClient, id: string) {
   e.inflight = e.dirty
   e.dirty = new Map()
   e.lastSent = Date.now()
+  budget.spend()
   const after = e.snap.state === 'offline' || e.snap.state === 'recovering'
   setState(e, after ? 'recovering' : 'saving')
   const stall = setTimeout(() => e.inflight && setState(e, 'stalled'), STALL_MS)
