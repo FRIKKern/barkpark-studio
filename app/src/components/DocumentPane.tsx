@@ -297,7 +297,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // workspace, project, dataset and editor. Unchanged underneath: sent again; else asked.
   const scopeNow = useQuery(currentScopeQuery).data
   const me = useQuery(meQuery).data
-  const keepScope = scopeNow && me ? [scopeNow.workspace, scopeNow.project, scopeNow.dataset, me.email ?? '-'].join('|') : null
+  const keepScope = scopeNow && me ? [scopeNow.workspace, scopeNow.project, scopeNow.dataset, me.editorKey ?? '-'].join('|') : null
   useEffect(() => setKeepScope(keepScope), [keepScope])
   const [recovered, setRecovered] = useState<Recovered | null>(null)
   const editable = !!draftQ.data && !viewingPublished
