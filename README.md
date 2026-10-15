@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 30 changes
+- **Today** · 31 changes
+  - Sanity's intent links open in Structure: edit, and create from a template with its parameters ([#586](https://github.com/FRIKKern/barkpark-studio/pull/586))
   - Review changes: references old -> new, arrays item by item, as Sanity's ([#585](https://github.com/FRIKKern/barkpark-studio/pull/585))
-  - Reference picker: a typed search lists the best matches by title, as Sanity's, and reads up to 50 ([#583](https://github.com/FRIKKern/barkpark-studio/pull/583))
 - **Yesterday** · 2 changes, 6 tasks closed
   - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **This week** · 41 changes, 77 tasks closed
