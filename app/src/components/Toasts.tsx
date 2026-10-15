@@ -21,9 +21,15 @@ const drop = (id: number) => {
   emit()
 }
 
-/** `key`: Sanity's toast id; showing it again replaces the one on screen (never two alike). */
-export function toast(t: Omit<Toast, 'id' | 'tone'> & {tone?: Toast['tone']}, ms = 4000) {
-  const same = t.key ? toasts.find((x) => x.key === t.key) : undefined
+/**
+ * `key`: Sanity's toast id; showing it again replaces the one on screen (never two alike).
+ * A plain-text toast keys itself by its words, so the same message twice (Copy URL pressed
+ * again) is one toast, as Sanity's. Up 5 s, Sanity's default.
+ */
+export function toast(t: Omit<Toast, 'id' | 'tone'> & {tone?: Toast['tone']}, ms = 5000) {
+  const key = t.key ?? (typeof t.title === 'string' ? `text:${t.tone ?? 'default'}:${t.title}:${t.description ?? ''}` : undefined)
+  if (key) t = {...t, key}
+  const same = key ? toasts.find((x) => x.key === key) : undefined
   if (same) drop(same.id)
   const id = next++
   toasts = [...toasts, {tone: 'default', ...t, id, ms}]
