@@ -702,6 +702,8 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .doc-split > .inspector { flex: 0 0 max(320px, 33.333%); width: auto; }
 .inspector header { display: flex; align-items: center; justify-content: space-between; padding: 0 0 12px 8px; }
 .inspector h2 { margin: 0; font-size: 13px; font-weight: 600; }
+/* The document inspectors' headings, as Sanity's (13 px, 500). */
+.inspector:is(.comments, .incoming, .validation) h2 { font-weight: 500; }
 .inspector ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 /* D12: a paper's metadata sidebar (after LiveView's): collapsible sections, weighted tags. */
 .paper-sidebar:focus { outline: none; }
@@ -975,7 +977,6 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .inspector.history header { padding-left: 0; }
 /* Sanity's Incoming references, measured on reference/sanity: the card in line with the
    heading, its type label 8 px in, rows of title and subtitle with no icon, 2 px apart. */
-.inspector.incoming h2 { font-weight: 500; }
 .inspector .incoming-card { margin: 0 8px; padding: 4px; border: 1px solid var(--border); border-radius: 4px; }
 /* The empty, loading and error card: Sanity's spans the inspector (1107-1428 at 1440), text muted. */
 .inspector p.incoming-card { margin: 12px 0 0; padding: 11px 12px; line-height: 19px; }
@@ -1749,8 +1750,8 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .comments-list { display: flex; flex-direction: column; gap: 16px; }
 .inspector.comments { display: flex; flex-direction: column; }
 .comments-list:has(> .comments-empty) { flex: 1; justify-content: center; }
-.comments-empty { margin: 0; text-align: center; }
-.comments-empty .title { margin: 0 0 8px; color: var(--fg); }
+.comments-empty { margin: 0; padding: 0 20px; text-align: center; }
+.comments-empty .title { margin: 0 0 8px; color: var(--muted); font-weight: 500; }
 .comments-empty .muted { margin: 0; color: var(--muted); }
 .comment-group { display: flex; flex-direction: column; gap: 8px; }
 .comment-group[data-focused] .comment-thread { box-shadow: inset 0 0 0 1px var(--selected); }

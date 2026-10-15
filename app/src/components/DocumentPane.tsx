@@ -844,7 +844,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
 function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPick: (p: Problem) => void; onClose: () => void}) {
   const t = useT()
   return (
-    <aside className="inspector" aria-label={t('Validation')}>
+    <aside className="inspector validation" aria-label={t('Validation')}>
       <header>
         <h2>{t('Validation')}</h2>
         <button type="button" className="icon-btn" aria-label={t('Close validation')} onClick={onClose}>
