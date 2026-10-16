@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 41 changes, 4 tasks closed
+- **Today** · 42 changes, 4 tasks closed
+  - Empty image and file boxes as Sanity's: filled in a ring, 25 px ghost Upload and Select ([#687](https://github.com/FRIKKern/barkpark-studio/pull/687))
   - fix(body): internal-link search rows are document previews (type, subtitle, status); the card gets subtitle and badge ([#686](https://github.com/FRIKKern/barkpark-studio/pull/686))
-  - Array item dialog as Sanity's: 597 px in the pane's card area, 9 px corners, fields 20 px in with 32 on the right ([#684](https://github.com/FRIKKern/barkpark-studio/pull/684))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
