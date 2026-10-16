@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 114 changes, 4 tasks closed
+- **Today** · 115 changes, 4 tasks closed
+  - Menu key chips as Sanity's: a critical item's in its red, and under the pointer the item's fill and words ([#761](https://github.com/FRIKKern/barkpark-studio/pull/761))
   - Comments empty state and open inspector buttons as Sanity's ([#760](https://github.com/FRIKKern/barkpark-studio/pull/760))
-  - Array item menu as Sanity's: centred on the ⋯, every item with its icon, a rule before Open in new tab, the ⋯ filled while open ([#759](https://github.com/FRIKKern/barkpark-studio/pull/759))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
