@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 47 changes, 4 tasks closed
+- **Today** · 48 changes, 4 tasks closed
+  - Image with fields as Sanity's: drawn as an object, a rule on the left and all 13 px in ([#693](https://github.com/FRIKKern/barkpark-studio/pull/693))
   - Icon buttons as Sanity's: glyphs in its muted grey, a #f6f6f8 hover; Field actions and Add comment too, Add comment its own icon ([#692](https://github.com/FRIKKern/barkpark-studio/pull/692))
-  - Body field: an internal link opens its document in the next pane; a read-only body follows it ([#691](https://github.com/FRIKKern/barkpark-studio/pull/691))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
