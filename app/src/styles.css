@@ -1486,10 +1486,14 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .icon-btn.who { position: relative; }
 /* Sanity's StatusButton: a 4 px positive dot 6 px in from the top right. */
 .icon-btn.who .who-dot { position: absolute; top: 6px; right: 6px; width: 4px; height: 4px; border-radius: 3px; background: var(--published); box-shadow: 0 0 0 1px var(--bg); }
-.who-empty { display: grid; gap: 12px; max-width: 260px; }
-.who-empty p { margin: 0; }
+/* Nobody else here, Sanity's (measured at 1440): a 260 px card 4 px from the window's edge (the tasks, help and avatar
+   buttons past ours), the title 16 px in and 12 px down, the hint 400 wrapping, 21 px under it. */
+.who-empty { display: grid; gap: 2px; }
+.popover.menu.who-menu .menu-empty.who-empty { margin: 0; padding: 11px 16px; line-height: 19px; }
+.who-empty p { margin: 0; font-weight: 400; }
 .who-empty p:first-child { color: var(--fg); font-weight: 500; }
-.who-menu { right: 0; left: auto; min-width: 260px; }
+.popover.menu.who-menu { right: -99px; left: auto; min-width: 260px; }
+.popover.menu.who-menu:has(> .who-empty) { width: 260px; padding: 0; white-space: normal; }
 .who-row { display: flex; align-items: center; gap: 8px; text-align: left; }
 .who-row .who-name { font-weight: 500; }
 .who-row .who-doc { margin-left: auto; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
