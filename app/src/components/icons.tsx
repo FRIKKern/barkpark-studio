@@ -491,9 +491,10 @@ export const BlockIcon = () => (
   </svg>
 )
 // Sanity's Play and Stop (Vision's Fetch and Listen), filled.
+/** Sanity's PlayIcon: filled and stroked, round corners. */
 export const PlayIcon = () => (
-  <svg {...s} fill="currentColor" stroke="none">
-    <path d="M7.5 18.5v-12l10 6-10 6z" />
+  <svg {...s}>
+    <path d="M7.5 18.5v-12l10 6-10 6z" fill="currentColor" strokeLinejoin="round" />
   </svg>
 )
 export const StopIcon = () => (

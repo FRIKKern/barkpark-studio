@@ -12,7 +12,6 @@
   --asset-tile: #f6f6f8;
   --asset-tile-ring: rgba(110, 116, 142, 0.3);
   --asset-icon: #4e556d;
-  --asset-text: #515870;
   --fg-header: #383d51;
   --muted: #515870;
   --border: #e6e8ec;
@@ -115,6 +114,9 @@
   --critical-icon: #ef3d2f;
   --caution-icon: #cf8212;
   --primary-icon: #4d64fc;
+  --primary-btn-icon: #bfcbfe; /* the icon on Sanity's primary button (Vision's Fetch), measured */
+  --btn-secondary-icon: #838693; /* the icon on its secondary button (Listen) */
+  --tab-strong-fg: #232635; /* Vision's selected saved-queries tab */
   --danger-btn-bg: #d83d35;
   --danger-btn-fg: #fff;
   --danger-btn-hover: #cc2719;
@@ -159,9 +161,8 @@
   --asset-tile: #0d0e12;
   --asset-tile-ring: rgba(114, 120, 146, 0.4);
   --asset-icon: #9499ad;
-  --asset-text: #979cb0;
   --fg-header: #c8cad3;
-  --muted: #9ea3b5;
+  --muted: #979cb0; /* Sanity's dark muted text (Vision's labels, a file's name, the type over a title), measured */
   --border: #2a2d3f;
   --hover: #21232f;
   --icon-btn-hover: #21232f;
@@ -252,6 +253,9 @@
   --critical-icon: #f3503e;
   --caution-icon: #da951b;
   --primary-icon: #6076fd;
+  --primary-btn-icon: #303c7a;
+  --btn-secondary-icon: #7c7e89;
+  --tab-strong-fg: #e6e7ec;
   --danger-btn-bg: #f87c6f;
   --danger-btn-fg: #0d0e12;
   --danger-btn-hover: #fdb0a8;
@@ -1743,14 +1747,16 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .vision-url-row .vision-url-icon { flex: none; width: 33px; height: auto; box-shadow: inset 0 0 0 1px var(--line); }
 .vision-url-icon svg { width: 21px; height: 21px; }
 .vision-fetch { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-.vision-fetch svg { width: 17px; height: 17px; }
+.vision-fetch svg { width: 21px; height: 21px; }
+.btn-primary.vision-fetch svg { color: var(--primary-btn-icon); }
 /* Save result as: Sanity's outlined buttons with a file icon. */
 .vision-save .vision-save-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px 5px 6px; box-shadow: inset 0 0 0 1px var(--line); }
 .vision-save-btn svg { width: 21px; height: 21px; }
 .vision-saved header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 0 12px; }
 .vision-saved h2 { margin: 0; padding: 0; }
 .vision-saved-filter { margin: 0 12px 8px; }
-.vision-saved-filter [role=tab] { font-weight: 500; line-height: 19px; }
+.vision-saved-filter [role=tab] { font-weight: 500; line-height: 19px; color: var(--menu-fg); }
+.vision-saved-filter [role=tab][aria-selected='true'] { color: var(--tab-strong-fg); } /* Sanity's: words darker than the document's view tabs */
 .vision-saved-search { position: relative; display: flex; align-items: center; margin: 16px 12px 24px; }
 .vision-saved-search svg { position: absolute; left: 5px; color: var(--muted); pointer-events: none; }
 .vision-saved .vision-saved-search .input { flex: 1; padding-left: 35px; }
@@ -1787,9 +1793,10 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 .vision-pane > .vision-editor { flex: 1; min-height: 0; overflow: hidden; }
 .vision-editor .cm-editor { height: 100%; }
 .vision-actions { display: flex; gap: 12px; padding: 12px; border-top: 1px solid var(--border); }
-.vision-actions .vision-fetch { flex: 1; }
-/* Listen is Sanity's grey button beside the blue Fetch. */
-.vision-actions .btn:not(.btn-primary) { background: var(--hover-strong); }
+.vision-actions .vision-fetch { flex: 1; padding-right: 18px; } /* Sanity's icon and word sit 3 px left of centre */
+/* Listen is Sanity's secondary button beside the blue Fetch (measured at 1440, light and dark). */
+.vision-actions .btn:not(.btn-primary) { background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); }
+.vision-actions .btn:not(.btn-primary) svg { color: var(--btn-secondary-icon); }
 .vision-actions .btn:not(.btn-primary):hover { background: var(--hover); }
 .vision-label-help { display: inline-flex; align-items: center; gap: 4px; }
 .vision-help { display: inline-flex; color: var(--muted); cursor: help; }
@@ -1854,7 +1861,7 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .file-actions .btn:hover { background: var(--hover-strong); }
 .file-icon { display: inline-flex; align-items: center; justify-content: center; width: 35px; height: 35px; flex: none; border-radius: 1px; box-shadow: 0 0 0 0.5px var(--asset-tile-ring); color: var(--asset-icon); }
 .file-box .file-icon svg { width: 25px; height: 25px; }
-.file-text { flex: 1; min-width: 0; margin: -0.5px 0; display: flex; flex-direction: column; line-height: 19px; color: var(--asset-text); }
+.file-text { flex: 1; min-width: 0; margin: -0.5px 0; display: flex; flex-direction: column; line-height: 19px; color: var(--muted); }
 .file-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-size { margin-top: -2px; }
 .file-box .menu-wrap .popover.menu { right: 0; top: calc(100% + 4px); }
