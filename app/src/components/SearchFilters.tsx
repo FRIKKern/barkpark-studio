@@ -11,6 +11,7 @@ import {
   isComplete,
   isCount,
   newFilter,
+  opDefaults,
   operatorsFor,
   OPS,
   type FilterField,
@@ -274,7 +275,7 @@ function FilterChip({filter, field, open, onOpen, onChange, onRemove}: {
       <span className={`filter-chip${isComplete(filter) ? ' set' : ''}`}>
         <button type="button" className="filter-chip-label" aria-label={text} aria-expanded={open} onClick={() => onOpen(!open)}>
           {l.field}
-          {l.op && <span className="op"> {l.op} </span>}
+          {l.op && <span className="op">{l.op}</span>}
           {l.value}
         </button>
         <button type="button" className="icon-btn" aria-label={t('Remove filter')} onClick={onRemove}>
@@ -299,7 +300,7 @@ function FilterEditor({filter, field, onChange, onClose, onRemove}: {filter: Sea
   const pickOp = (op: OpName) => {
     setOps(false)
     if (op === filter.op) return
-    onChange({id: filter.id, field: filter.field, op, ...(op === 'last' && {value: '7', unit: 'days' as const})})
+    onChange({id: filter.id, field: filter.field, op, ...opDefaults(field, op)})
   }
   return (
     <div ref={(el) => ((outside.current = el), scope(el))} className="popover filter-editor" role="dialog" aria-label={fieldTitle(field, t)}>
@@ -381,11 +382,14 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
     return <input className="input" type="number" min={0} autoFocus aria-label={t('Value')} placeholder={t('Value')} value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})} />
   if (kind === 'boolean')
     return (
-      <select className="input" aria-label={t('Value')} autoFocus value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})}>
-        <option value="" disabled>{t('Select…')}</option>
-        <option value="true">{t('True')}</option>
-        <option value="false">{t('False')}</option>
-      </select>
+      <span className="select-box filter-bool">
+        <select className="input" aria-label={t('Value')} autoFocus value={filter.value ?? ''} onChange={(e) => set({value: e.target.value})}>
+          {!filter.value && <option value="" disabled>{t('Select…')}</option>}
+          <option value="true">{t('True')}</option>
+          <option value="false">{t('False')}</option>
+        </select>
+        <ChevronDown />
+      </span>
     )
   if (kind === 'select' && (op === 'eq' || op === 'neq'))
     return (

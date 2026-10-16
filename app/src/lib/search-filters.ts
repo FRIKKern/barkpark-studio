@@ -166,10 +166,14 @@ export function filterMenu(schemas: Schema[], types: string[], find: string, t: 
   return sections.map((s) => ({...s, fields: keep(s.fields)})).filter((s) => s.fields.length)
 }
 
-/** A new filter on `field`: its first operator; a date starts at "in the last 7 days", as Sanity's. */
+/** What a filter starts with under `op`, as Sanity's: a date "in the last 7 days", a boolean "is True". */
+export const opDefaults = (field: FilterField, op: OpName): Partial<SearchFilter> =>
+  op === 'last' ? {value: '7', unit: 'days'} : field.kind === 'boolean' && op === 'eq' ? {value: 'true'} : {}
+
+/** A new filter on `field`: its first operator and that operator's defaults. */
 export const newFilter = (field: FilterField, id: string): SearchFilter => {
   const op = operatorsFor(field)[0]![0]!
-  return {id, field: field.key, op, ...(op === 'last' && {value: '7', unit: 'days' as const})}
+  return {id, field: field.key, op, ...opDefaults(field, op)}
 }
 
 export const isComplete = (f: SearchFilter) =>
