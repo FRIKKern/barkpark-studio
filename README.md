@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change, 3 tasks closed
+- **Today** · 2 changes, 3 tasks closed
+  - Rich text body: Sanity's fixed 306 px box that scrolls inside and drags to resize ([#648](https://github.com/FRIKKern/barkpark-studio/pull/648))
   - Search after Barkpark #23174: any word, as Sanity; the reference picker searches every field ([#647](https://github.com/FRIKKern/barkpark-studio/pull/647))
-  - Done: [J46 [after] Phone width: navbar tools in a drawer, search as an icon, tap targets ≥ 44 px](https://github.com/FRIKKern/barkpark/issues/21843)
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
