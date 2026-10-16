@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 72 changes, 4 tasks closed
+- **Today** · 73 changes, 4 tasks closed
+  - Date picker as Sanity's: centred under the input, 46 x 25 days 4 px apart in 500, today filled, its footer rule; popovers take Sanity's shadow ([#718](https://github.com/FRIKKern/barkpark-studio/pull/718))
   - F7: the document's undo walks from the form into the body and back ([#717](https://github.com/FRIKKern/barkpark-studio/pull/717))
-  - Sanity's one light hairline (#e3e4e8) for borders and input rings; typed text #e4e5e9 in dark ([#716](https://github.com/FRIKKern/barkpark-studio/pull/716))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
