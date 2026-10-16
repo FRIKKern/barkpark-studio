@@ -44,6 +44,10 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
   await page.getByRole('group').filter({has: page.getByRole('checkbox', {name: 'Green'})}).getByRole('checkbox', {name: 'Green'}).check()
   await expect.poll(() => value('colours'), {timeout: 10_000}).toEqual(['red', 'green', 'blue'])
 
+  // A decimal comma is read as the point, as Sanity's number input reads it on a comma-locale machine.
+  await page.locator('[id="place.lat"]').fill('60,25')
+  await expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({lat: 60.25})
+  await expect(page.locator('[id="place.lat"]')).toHaveValue('60,25')
   await page.locator('[id="place.lat"]').fill('60.5')
   await expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522})
 

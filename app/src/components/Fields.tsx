@@ -702,9 +702,15 @@ function SelectInput({id, field, value, onChange}: {id: string; field: Field; va
 }
 
 /** Keeps what the user typed ("1.", "-") while the stored value stays a number. */
+// A typed number: a decimal comma reads as the point (Sanity's number input takes "1,5" on a
+// comma-locale machine and stores 1.5).
+const parseNumber = (s: string) => Number(s.trim().replace(',', '.'))
+// What is typed on the way to a number ("-", ",", "1,") stays in the field until it is one.
+const typingNumber = (s: string) => /^-?[.,]?$/.test(s.trim())
+
 function NumberInput({id, value, onChange, integer}: {id: string; value: number | undefined; onChange: (v: unknown) => void; integer?: boolean}) {
   const [text, setText] = useState<string | null>(null)
-  const shown = text !== null && Number(text) === value ? text : value == null ? '' : String(value)
+  const shown = text !== null && (parseNumber(text) === value || (typingNumber(text) && value == null)) ? text : value == null ? '' : String(value)
   return (
     <input
       id={id}
@@ -714,8 +720,9 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
       value={shown}
       onChange={(e) => {
         setText(e.target.value)
-        const n = Number(e.target.value)
-        if (e.target.value === '') onChange(undefined)
+        const n = parseNumber(e.target.value)
+        // Empty, or only a sign or a separator so far: no number yet (the field is unset, as Sanity's).
+        if (e.target.value === '' || typingNumber(e.target.value)) onChange(undefined)
         else if (Number.isFinite(n) && (!integer || Number.isInteger(n))) onChange(n)
       }}
     />
