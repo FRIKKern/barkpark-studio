@@ -1142,7 +1142,7 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 /* J14: a collapsible object's title is its toggle. */
 .object-toggle { display: inline-flex; align-items: center; gap: 3px; padding: 2px 4px 2px 0; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; cursor: pointer; }
 /* Sanity's: a 21 px arrow in the muted colour, centred in a 9 px slot, the title 12 px in (SEO, Where; 1440, light and dark). */
-.object-toggle svg { width: 21px; height: 21px; margin: 0 -6px; }
+.object-toggle svg { width: 21px; height: 21px; margin: -2px -6px; } /* in a 17 px row: the title keeps its line */
 .toggle-arrow { display: inline-grid; place-items: center; width: 9px; color: var(--muted); transition: transform 100ms; }
 .toggle-arrow[data-open=true] { transform: rotate(90deg); }
 .object-toggle:focus-visible { outline: 2px solid var(--focus-ring); }
@@ -1150,6 +1150,10 @@ fieldset.object-field[data-collapsible] > legend { min-height: 25px; display: fl
 fieldset.object-field[data-open=false] > legend { margin-bottom: 0; min-height: 25px; display: flex; align-items: center; }
 /* A collapsed object is a 25 px header row in Sanity, 52 px under the field above. */
 fieldset.object-field[data-open=false] { margin-top: -7px; }
+/* Opened, Sanity's row stays where it was (post-01 SEO, 124 px under Kind either way), its fields 37 px under its title. */
+fieldset.object-field[data-collapsible]:not(.fieldset-group) { margin-top: -7px; }
+fieldset.object-field[data-collapsible][data-open=true]:not(.fieldset-group) > legend { margin-bottom: 8px; }
+fieldset.object-field[data-collapsible][data-open=true]:not(.fieldset-group) { --lift: -34px; } /* the actions level with the title, above the legend's margin */
 .slug-row { display: flex; gap: 4px; }
 .slug-row .input { flex: 1; }
 .btn-create:disabled { color: var(--disabled); cursor: default; }
