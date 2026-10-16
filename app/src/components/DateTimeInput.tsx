@@ -107,6 +107,14 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
   )
 }
 
+// Sanity's popovers shift to stay 4 px inside the window: at 390 px the 362 px calendar would run off the right.
+function inside(el: HTMLElement) {
+  el.style.removeProperty('translate')
+  const r = el.getBoundingClientRect()
+  const shift = Math.max(Math.min(0, document.documentElement.clientWidth - 4 - r.right), 4 - r.left)
+  if (shift) el.style.translate = `${shift}px 0`
+}
+
 function DatePicker({value, dateOnly, timeStep = 1, min, notice, showZone, onPick, onClose}: {value?: Date; dateOnly: boolean; timeStep?: number; min?: Date; notice?: string; showZone?: boolean; onPick: (d: Date) => void; onClose: () => void}) {
   const t = useT()
   const locale = useLocale()
@@ -151,7 +159,11 @@ function DatePicker({value, dateOnly, timeStep = 1, min, notice, showZone, onPic
 
   return (
     <div
-      ref={(el) => ((root.current = el), scope(el))}
+      ref={(el) => {
+        root.current = el
+        scope(el)
+        if (el) inside(el)
+      }}
       className="popover datepicker"
       role="dialog"
       aria-label={t('Select date')}
