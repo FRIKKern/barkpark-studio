@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 129 changes, 4 tasks closed
+- **Today** · 130 changes, 4 tasks closed
+  - Opening a document moves focus into its form, as Sanity's ([#779](https://github.com/FRIKKern/barkpark-studio/pull/779))
   - Navbar order as Sanity's: Tasks, then Who's online, then help and the user ([#776](https://github.com/FRIKKern/barkpark-studio/pull/776))
-  - ci(e2e): re-record durations.json from five green main runs ([#777](https://github.com/FRIKKern/barkpark-studio/pull/777))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
