@@ -38,14 +38,17 @@ const colours = HighlightStyle.define([
 
 const theme = EditorView.theme({
   // Sanity's Vision editor: 16 px code, a grey line-number gutter down the whole editor, a blue current line.
-  '&': {height: '100%', fontSize: '16px', background: 'transparent', color: 'var(--fg)'},
+  '&': {height: '100%', fontSize: '16px', background: 'transparent', color: 'var(--fg-header)'},
   '.cm-scroller': {fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: '1.4'},
-  '.cm-gutters': {minHeight: '100%', background: 'var(--bg-soft)', borderRight: '1px solid var(--line)', color: 'var(--muted)'},
+  '.cm-gutters': {minHeight: '100%', background: 'var(--code-gutter-bg)', borderRight: '1px solid var(--code-gutter-rule)', color: 'var(--code-gutter-fg)'},
+  // Text starts 12 px past the gutter, in line with the pane's label.
+  '.cm-line': {paddingLeft: '12px'},
   '.cm-activeLine': {background: 'var(--code-active-line)'},
   '.cm-activeLineGutter': {background: 'var(--code-active-gutter)'},
   '&.cm-focused': {outline: 'none'},
   '&.cm-focused .cm-content': {caretColor: 'var(--fg-strong)'},
-  '.cm-content': {padding: '4px 0'},
+  // The first line starts below the pane's label (Vision.tsx), Sanity's 32 px; lines stop 20 px short of the edge.
+  '.cm-content': {padding: '32px 20px 4px 0'},
 })
 
 export default function VisionEditor({id, label, value, language, placeholder, onChange, onRun}: {id: string; label: string; value: string; language: 'query' | 'json'; placeholder?: string; onChange: (v: string) => void; onRun: () => void}) {

@@ -113,6 +113,7 @@ export default {
   'API version': 'API-versjon',
   "Barkpark's query API has one version": 'Barkparks spørre-API har én versjon',
   'About perspectives': 'Om perspektiver',
+  'About queries': 'Om spørringer',
   'A perspective is the view of the content a query reads: drafts (each document as editors see it, draft over published), published only, or no perspective (raw: drafts and published as separate documents).': 'Et perspektiv er hvilken utgave av innholdet spørringen leser: utkast (hvert dokument slik redaktørene ser det, utkast over publisert), bare publisert, eller uten perspektiv (rå: utkast og publisert som egne dokumenter).',
   'No perspective (raw)': 'Uten perspektiv (rå)',
   Params: 'Parametre',
