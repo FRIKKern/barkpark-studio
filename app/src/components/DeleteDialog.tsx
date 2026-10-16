@@ -18,7 +18,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
   const qc = useQueryClient()
   const navigate = usePaneNavigate()
   const {data: schemas = []} = useQuery(schemasQuery)
-  const {data: refs, isPending, isFetching, isError, fetchStatus, refetch} = useQuery({
+  const {data: refs, isPending, isFetching, isError, fetchStatus, refetch, errorUpdatedAt, dataUpdatedAt} = useQuery({
     ...backlinksQuery(doc._publishedId), refetchOnMount: 'always', retry: false,
   })
   const [error, setError] = useState<string>()
@@ -31,6 +31,10 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
   // dropped focus, and the dialog's focus trap handed Enter to Close.
   const checking = isPending || (isFetching && !refs)
   const used = refs?.length ?? 0
+  // The last answer was a failure, through a re-read too: a live frame refreshes "used in"
+  // behind the error, and a Retry unmounted for it dropped the focus it held (Enter then went
+  // nowhere: J17 on CI, 2026-10-16). It stays until a read succeeds.
+  const failed = isError || errorUpdatedAt > dataUpdatedAt
 
   return (
     <div className="dialog-backdrop delete-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -61,7 +65,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
           {(checking || fetchStatus === 'paused') && <p className="muted" role="status">
             {fetchStatus === 'paused' ? t("You're offline. Reconnect to check where this document is used.") : t('Looking for documents that refer to it…')}
           </p>}
-          {isError && !isFetching && (
+          {failed && (
             <div role="alert">
               <p>{t('Could not check where this document is used. Retry before deleting.')}</p>
               <button type="button" className="btn" onClick={() => { cancel.current?.focus(); void refetch() }}>{t('Retry')}</button>

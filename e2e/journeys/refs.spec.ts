@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test, type Route} from '@playwright/test'
 import {installProbes, networkBudget, recordFeel, timeToReady} from '../rig/feel'
 import {bpBase, bpDataset, bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
@@ -250,9 +250,15 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
   // Reads fail until let go: let go only as Retry is pressed, so no other read (a live
   // frame's "used in" refresh, CI ef7d9e8) can answer first and take the Retry button away.
   let failReads = true
+  let holdReads = false // failing reads wait here until let go, so a re-read is seen in flight
+  const held: Route[] = []
   if (t.name === 'studio') {
     await expect(t.field(page, 'name')).toHaveValue('Alan Turing')
-    await page.route('**/_serverFn/**', (route) => (failReads && route.request().method() === 'GET' ? route.abort('failed') : route.continue()))
+    await page.route('**/_serverFn/**', (route) => {
+      if (!failReads || route.request().method() !== 'GET') return route.continue()
+      if (holdReads) return void held.push(route)
+      return route.abort('failed')
+    })
   }
   await t.docMenu(page).click()
   await referenceHold(page, page.getByRole('menuitem', {name: 'Delete'}))
@@ -261,7 +267,21 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
   if (t.name === 'studio') {
     await expect(dialog.getByRole('alert')).toContainText('Could not check where this document is used')
     await expect(dialog.getByRole('button', {name: 'Delete document'})).toBeDisabled()
-    await dialog.getByRole('button', {name: 'Retry', exact: true}).focus()
+    const retry = dialog.getByRole('button', {name: 'Retry', exact: true})
+    await retry.focus()
+    // Someone saves Alan meanwhile: its live frame has "used in" read again behind the error,
+    // and Retry keeps the focus through that read (it unmounted for it, and Enter went
+    // nowhere: #829's CI, 2026-10-16).
+    holdReads = true
+    alanEdited = true
+    await t.patch('author-alan', {bio: `Edited meanwhile ${Date.now()}`}, 'author')
+    const rereading = dialog.getByText('Looking for documents that refer to it…')
+    await expect(rereading).toBeVisible({timeout: 10_000})
+    await expect(retry).toBeFocused()
+    holdReads = false
+    for (const r of held.splice(0)) await r.abort('failed').catch(() => {})
+    await expect(rereading).toBeHidden() // that read failed too: the error stands
+    await expect(retry).toBeFocused()
     failReads = false
     await page.keyboard.press('Enter')
     await page.unrouteAll({behavior: 'wait'})
