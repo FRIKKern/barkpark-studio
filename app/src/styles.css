@@ -19,6 +19,7 @@
   --icon-btn-hover: #f6f6f8; /* Sanity's icon button under the pointer: fill and glyph (measured); its tabs' fill too */
   --card-hover: #f6f6f8; /* a row, desk item or Locations page under the pointer (Sanity's, measured) */
   --icon-btn-hover-fg: #636570;
+  --icon-btn-open-fg: #60626d; /* its glyph while its menu is open, on --selected-fill (measured) */
   --hover-strong: #e9eaee;
   --selected-fill: #eeeef1; /* Sanity's selected tab and chip fill (measured, light) */
   --fill-soft: #eeeef1; /* Sanity's soft fill: the History entry shown, a type badge (measured) */
@@ -190,6 +191,7 @@
   --icon-btn-hover: #21232f;
   --card-hover: #191a24;
   --icon-btn-hover-fg: #9193a0;
+  --icon-btn-open-fg: #aeafb8;
   --hover-strong: #2a2d3f;
   --selected-fill: #2a2d3f;
   --fill-soft: #21232f;
@@ -632,6 +634,8 @@ textarea.input { resize: vertical; }
 .ref-box.ref-row { padding: 5px; }
 .ref-box .preview .status { margin-right: -3px; }
 .ref-row > .menu-wrap > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); }
+/* Sanity's Share menu: as wide as its items, 29 px under the button's top. */
+.popover.menu.share-menu { min-width: 0; width: max-content; top: 29px; }
 .popover.menu.ref-menu { min-width: 0; width: max-content; top: 29px; right: auto; left: 50%; transform: translateX(-50%); }
 .ref-preview { flex: 1; min-width: 0; }
 .ref-preview .preview { margin: 0; }
@@ -1108,7 +1112,8 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
    "Default sort / view" when already in use are pale (#e3e4e8) with a tooltip saying why. */
 .pane.list .pane-header .popover.menu { right: -8px; }
 /* Its button stays pressed while the menu is open, as Sanity's. */
-.pane.list .pane-header .menu-wrap > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); }
+/* Sanity's pane header button while its menu is open (list and document: Share, …), measured at 1440. */
+.pane-header .menu-wrap > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); color: var(--icon-btn-open-fg); }
 .pane.list .pane-header .popover.menu .menu-item-label { gap: 6px; }
 .pane.list .pane-header .popover.menu .menu-item-label svg { width: 21px; height: 21px; margin: -4px 0 -4px -6px; }
 .pane.list .pane-header .popover.menu .menu-item[aria-disabled='true'] { opacity: 1; background: none; cursor: default; color: color-mix(in srgb, var(--fg-header) 14%, var(--bg)); }

@@ -4,7 +4,7 @@ import {useQueryClient} from '@tanstack/react-query'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
-import {Braces, Calendar, Check, ClipboardIcon, Clock, Copy, EarthGlobe, Ellipsis, Share, LinkIcon, Transfer} from './icons'
+import {Braces, Calendar, Check, ClipboardIcon, Clock, Copy, EarthGlobe, Ellipsis, Share, LinkIcon, TargetIcon, Transfer} from './icons'
 import studio from '../studio.config'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
@@ -187,12 +187,16 @@ export function DocShareMenu({doc}: {doc: Doc}) {
         <Share />
       </button>
       {open && (
-        <MenuPopover onClose={close}>
+        <MenuPopover className="popover menu share-menu" onClose={close}>
           <button type="button" role="menuitem" className="menu-item" autoFocus onClick={copyRef.url}>
-            {t('Copy document URL')}
+            <span className="menu-icon-text">
+              <LinkIcon /> {t('Copy document URL')}
+            </span>
           </button>
           <button type="button" role="menuitem" className="menu-item" onClick={copyRef.id}>
-            {t('Copy document ID')}
+            <span className="menu-icon-text">
+              <TargetIcon /> {t('Copy document ID')}
+            </span>
           </button>
         </MenuPopover>
       )}
