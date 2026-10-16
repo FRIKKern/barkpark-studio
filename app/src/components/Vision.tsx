@@ -2,6 +2,7 @@ import {lazy, Suspense, useEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
+import {API_VERSIONS, DEFAULT_API_VERSION} from '../lib/vision-groq'
 import {dashLine, localQueryError, queryError} from '../lib/vision-error'
 import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
 import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, updateQuery, type SavedQuery} from '../lib/vision-queries'
@@ -18,7 +19,8 @@ import {toast} from './Toasts'
 
 // J37, Vision: Sanity's layout (dataset, perspective and the query URL with Copy on top,
 // the query on the left, the result as a folding JSON tree on the right, timings and
-// Save result as JSON or CSV below), for Barkpark's query API. Ctrl/Cmd+Enter fetches;
+// Save result as JSON or CSV below). The query is GROQ, read through Barkpark's
+// Sanity-compatible GROQ API (task-8919d95d9e581c6b), or Barkpark's older query string. Ctrl/Cmd+Enter fetches;
 // Listen follows the query's changes until Stop (lib/vision-listen.ts). The last
 // query, perspective and dataset stay in this browser. Like Sanity's, Vision picks its own
 // dataset in the project (a dataset-bound token: only its own), and keeps saved queries
@@ -28,9 +30,9 @@ import {toast} from './Toasts'
 /** CodeMirror arrives with Vision only: other tools don't load it. */
 const VisionEditor = lazy(() => import('./VisionEditor'))
 const KEY = 'bp-vision'
-const EXAMPLE = 'post?order=_updatedAt:desc&limit=5'
+const EXAMPLE = '*[_type == "post"] | order(_updatedAt desc)[0...5]{_id, title}'
 const NO_PARAMS = '{\n  \n}'
-const load = (): {query: string; perspective: Perspective; dataset?: string; params?: string} => {
+const load = (): {query: string; perspective: Perspective; dataset?: string; params?: string; version?: string} => {
   try {
     return {query: EXAMPLE, perspective: 'drafts', ...JSON.parse(localStorage.getItem(KEY) ?? '{}')}
   } catch {
@@ -53,6 +55,8 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const editQuery = (v: string) => ((edits.current.query = v), setQuery(v))
   const editParams = (v: string) => ((edits.current.params = v), setParams(v))
   const [perspective, setPerspective] = useState<Perspective>('drafts')
+  // Sanity's API version: the GROQ read's dated version (Barkpark answers each), today's by default.
+  const [version, setVersion] = useState(DEFAULT_API_VERSION)
   const [dataset, setDataset] = useState(pageDataset)
   const [result, setResult] = useState<VisionResult & {total?: number; query?: string}>()
   const [busy, setBusy] = useState(false)
@@ -83,25 +87,29 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     if (saved.params !== undefined) setParams(saved.params)
     setPerspective(saved.perspective)
     if (saved.dataset) setDataset(saved.dataset)
+    if (saved.version && API_VERSIONS.includes(saved.version)) setVersion(saved.version)
   }, [])
   // A remembered dataset this token can't read (it is bound to another): the page's.
   useEffect(() => {
     if (!readable(dataset)) setDataset(bound ?? pageDataset)
   }, [bound])
+  // A GROQ answer is {query, result, ms}: Vision shows its result, as Sanity's.
   const parsed = (() => {
     if (!result?.body || result.error) return undefined
     try {
-      return JSON.parse(result.body) as unknown
+      const body = JSON.parse(result.body) as unknown
+      return result.groq && result.ok && body && typeof body === 'object' && 'result' in body ? (body as {result: unknown}).result : body
     } catch {
       return undefined
     }
   })()
+  const saved = parsed === undefined ? '' : result?.groq ? JSON.stringify(parsed, null, 2) : result!.body
   // Where it went wrong, in the query as sent (its $params already put in).
   const failure = result && !result.ok && !result.error ? queryError(result.sent ?? result.query ?? query, result.body) : null
   const csv = parsed === undefined ? null : toCsv(parsed)
   const remember = () => {
     try {
-      localStorage.setItem(KEY, JSON.stringify({...edits.current, perspective, dataset}))
+      localStorage.setItem(KEY, JSON.stringify({...edits.current, perspective, dataset, version}))
     } catch {}
   }
   useEffect(() => () => listening?.stop.abort(), [listening?.stop])
@@ -114,7 +122,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     remember()
     const t0 = performance.now()
     const {query, params} = edits.current
-    const r = await runVisionQuery({data: {query, perspective, dataset, params}}).catch((e: Error) => ({ok: false, status: 0, url: '', ms: 0, body: '', error: e.message}))
+    const r = await runVisionQuery({data: {query, perspective, dataset, params, version}}).catch((e: Error) => ({ok: false, status: 0, url: '', ms: 0, body: '', error: e.message}))
     setResult({...r, query, total: Math.round(performance.now() - t0)})
     setBusy(false)
   }
@@ -127,7 +135,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     setListening({stop, open: false, events: []})
     const update = (f: (l: NonNullable<typeof listening>) => NonNullable<typeof listening>) => setListening((l) => (l?.stop === stop ? f(l) : l))
     void listen(
-      {...edits.current, perspective, dataset},
+      {...edits.current, perspective, dataset, version},
       stop.signal,
       (e) => update((l) => ({...l, events: [e, ...l.events].slice(0, LISTEN_KEEP)})),
       () => update((l) => ({...l, open: true})),
@@ -151,12 +159,16 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
             <ChevronDown />
           </span>
         </label>
-        {/* Sanity's API version; Barkpark's query API has the one, v1. */}
+        {/* Sanity's API version: the GROQ read's dated version. */}
         <label>
           <span className="menu-label">{t('API version')}</span>
           <span className="select-box">
-            <select className="input" value="v1" title={t("Barkpark's query API has one version")} onChange={() => {}}>
-              <option value="v1">v1</option>
+            <select className="input" value={version} onChange={(e) => setVersion(e.target.value)}>
+              {API_VERSIONS.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
             </select>
             <ChevronDown />
           </span>
@@ -203,7 +215,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
           <div className="vision-pane">
             <label htmlFor="vision-query" className="menu-label vision-label-help">
               {t('Query')}
-              <span className="vision-help" role="img" aria-label={t('About queries')} title={`${t("A type, then Barkpark's query string:")} filter[field][op]=value, order, limit. ${t('$name takes its value from Params.')}`}>
+              <span className="vision-help" role="img" aria-label={t('About queries')} title={`${t('A GROQ query, like *[_type == "post"][0...10]{title}.')} ${t('$name takes its value from Params.')}`}>
                 <HelpCircle />
               </span>
             </label>
@@ -273,8 +285,8 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
                 ) : (
                   <>
                     {!result.ok && <QueryErrorCard status={result.status} error={null} />}
-                    {/* Open five deep: Barkpark wraps the documents in {result: {documents: […]}}, two levels Sanity's result doesn't have. */}
-                    {parsed !== undefined ? <div className="vision-code vision-out"><JsonTree value={parsed} open={5} /></div> : <pre className="vision-code vision-out">{result.body}</pre>}
+                    {/* Open three deep, as Sanity's; Barkpark's query string wraps its documents in {result: {documents: […]}}, two levels more. */}
+                    {parsed !== undefined ? <div className="vision-code vision-out"><JsonTree value={parsed} open={result.groq ? 3 : 5} /></div> : <pre className="vision-code vision-out">{result.body}</pre>}
                   </>
                 )}
               </>
@@ -287,7 +299,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
             {parsed !== undefined && result?.ok && (
               <span className="vision-save">
                 {t('Save result as')}{' '}
-                <a className="btn vision-save-btn" download={`vision-${dataset}.json`} href={`data:application/json;charset=utf-8,${encodeURIComponent(result!.body)}`}>
+                <a className="btn vision-save-btn" download={`vision-${dataset}.json`} href={`data:application/json;charset=utf-8,${encodeURIComponent(saved)}`}>
                   <DocumentIcon /> JSON
                 </a>
                 {csv !== null ? (

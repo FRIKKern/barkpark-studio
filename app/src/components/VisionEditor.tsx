@@ -1,14 +1,16 @@
 import {useEffect, useRef} from 'react'
-import {EditorState} from '@codemirror/state'
+import {Compartment, EditorState} from '@codemirror/state'
 import {EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, placeholder as placeholderText} from '@codemirror/view'
 import {defaultKeymap, history, historyKeymap} from '@codemirror/commands'
 import {HighlightStyle, StreamLanguage, syntaxHighlighting} from '@codemirror/language'
 import {json} from '@codemirror/lang-json'
 import {tags} from '@lezer/highlight'
+import {isQueryString} from '../lib/vision-groq'
 
 // J37: Sanity's Vision edits its query and params in a code editor (line numbers, the
 // current line marked, colouring). Ours is CodeMirror 6, loaded only with Vision (lazy:
-// Vision.tsx), with a small mode for Barkpark's query string and JSON for Params.
+// Vision.tsx), with small modes for GROQ and Barkpark's query string (the editor follows
+// whichever the text is) and JSON for Params.
 
 /** Barkpark's query: `type?key[op]=value&…` — the type, keys, operators in brackets, values, `$params`. */
 const barkparkQuery = StreamLanguage.define<{part: 'type' | 'key' | 'value'}>({
@@ -26,6 +28,26 @@ const barkparkQuery = StreamLanguage.define<{part: 'type' | 'key' | 'value'}>({
   },
 })
 
+/** GROQ, coloured as Sanity's Vision colours it: strings, numbers, $params, functions and keywords, fields. */
+const groq = StreamLanguage.define<null>({
+  startState: () => null,
+  token(stream) {
+    if (stream.eatSpace()) return null
+    if (stream.match(/^\/\/.*/)) return 'comment'
+    if (stream.match(/^"(?:[^"\\]|\\.)*"?/) || stream.match(/^'(?:[^'\\]|\\.)*'?/)) return 'string'
+    if (stream.match(/^-?\d+(\.\d+)?/)) return 'number'
+    if (stream.match(/^\$[A-Za-z_]\w*/)) return 'variableName'
+    if (stream.match(/^(true|false|null)\b/)) return 'bool'
+    if (stream.match(/^(in|match|asc|desc)\b/)) return 'keyword'
+    if (stream.match(/^[A-Za-z_][\w:]*(?=\s*\()/)) return 'keyword'
+    if (stream.match(/^[A-Za-z_@^]\w*/)) return 'propertyName'
+    if (stream.match(/^(->|==|!=|<=|>=|&&|\|\||\.\.\.|\.\.|[*|=<>!+\-/%])/)) return 'operator'
+    stream.next()
+    return 'punctuation'
+  },
+})
+const languageOf = (text: string) => (isQueryString(text) ? barkparkQuery : groq)
+
 const colours = HighlightStyle.define([
   {tag: tags.typeName, color: 'var(--code-number)'},
   {tag: [tags.propertyName], color: 'var(--code-key)'},
@@ -33,7 +55,7 @@ const colours = HighlightStyle.define([
   {tag: [tags.string], color: 'var(--code-string)'},
   {tag: [tags.variableName], color: 'var(--code-key)', fontWeight: '600'},
   {tag: [tags.number, tags.bool, tags.null], color: 'var(--code-number)'},
-  {tag: [tags.operator, tags.punctuation, tags.brace, tags.separator], color: 'var(--muted)'},
+  {tag: [tags.operator, tags.punctuation, tags.brace, tags.separator, tags.comment], color: 'var(--muted)'},
 ])
 
 const theme = EditorView.theme({
@@ -57,6 +79,7 @@ export default function VisionEditor({id, label, value, language, placeholder, o
   // The latest callbacks, read by the editor's handlers (made once).
   const calls = useRef({onChange, onRun})
   calls.current = {onChange, onRun}
+  const mode = useRef(new Compartment())
   useEffect(() => {
     view.current = new EditorView({
       parent: host.current!,
@@ -68,13 +91,19 @@ export default function VisionEditor({id, label, value, language, placeholder, o
           highlightActiveLineGutter(),
           history(),
           keymap.of([{key: 'Mod-Enter', preventDefault: true, run: (v) => (calls.current.onRun(v.state.doc.toString()), true)}, ...defaultKeymap, ...historyKeymap]),
-          language === 'json' ? json() : barkparkQuery,
+          mode.current.of(language === 'json' ? json() : languageOf(value)),
           syntaxHighlighting(colours),
           theme,
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({id, 'aria-label': label}),
           ...(placeholder ? [placeholderText(placeholder)] : []),
-          EditorView.updateListener.of((u) => u.docChanged && calls.current.onChange(u.state.doc.toString())),
+          EditorView.updateListener.of((u) => {
+            if (!u.docChanged) return
+            const text = u.state.doc.toString()
+            calls.current.onChange(text)
+            // GROQ or a query string: the colouring follows what the text has become.
+            if (language === 'query' && isQueryString(text) !== isQueryString(u.startState.doc.toString())) queueMicrotask(() => u.view.dispatch({effects: mode.current.reconfigure(languageOf(text))}))
+          }),
         ],
       }),
     })

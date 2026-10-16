@@ -8,7 +8,7 @@ import type {T} from './i18n'
 
 export type QueryError = {message: string; hint?: string; code?: string; details?: Record<string, unknown>; spot?: {line: string; lineNumber: number; column: number; columnEnd: number}}
 
-type BarkparkError = {code?: unknown; message?: unknown; hint?: unknown; details?: unknown}
+type BarkparkError = {code?: unknown; message?: unknown; hint?: unknown; details?: unknown; type?: unknown; description?: unknown; start?: unknown; end?: unknown}
 
 /** The error a Vision result body holds, with where it is in the query when that can be told; null when it holds none. */
 export function queryError(query: string, body: string): QueryError | null {
@@ -19,6 +19,23 @@ export function queryError(query: string, body: string): QueryError | null {
     return null
   }
   if (!error || typeof error.message !== 'string') return null
+  // A GROQ parse error (task-8919d95d9e581c6b) carries its byte range, as Sanity's does:
+  // the line it is on, with carets under start..end. Barkpark's generic hint (about JSON
+  // bodies) says nothing about a query, so it is left out.
+  if (typeof error.start === 'number') {
+    const at = Math.max(0, Math.min(error.start, query.length))
+    const before = query.slice(0, at).split('\n')
+    const lineNumber = before.length
+    const line = query.split('\n')[lineNumber - 1] ?? ''
+    const column = before.at(-1)!.length
+    const end = typeof error.end === 'number' ? error.end : at + 1
+    return {
+      message: typeof error.description === 'string' ? error.description : error.message,
+      code: typeof error.code === 'string' ? error.code : undefined,
+      details: {},
+      spot: {line, lineNumber, column, columnEnd: Math.min(line.length + 1, Math.max(column + 1, column + (end - at)))},
+    }
+  }
   const text = query.trim()
   const q = text.indexOf('?')
   const segments: {key: string; start: number; end: number}[] = []

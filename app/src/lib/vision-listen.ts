@@ -7,7 +7,7 @@ export type ListenEvent = Record<string, unknown>
 export const LISTEN_KEEP = 50
 
 export async function listen(
-  q: {query: string; perspective: string; dataset: string; params: string},
+  q: {query: string; perspective: string; dataset: string; params: string; version: string},
   signal: AbortSignal,
   onMutation: (e: ListenEvent) => void,
   onOpen: () => void,
