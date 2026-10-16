@@ -6,6 +6,13 @@ import {getRequestHeader, getRequestUrl} from '@tanstack/react-start/server'
 import {currentEditor, describeToken, signInRequired} from './auth'
 import {serviceAccess} from '../lib/token-self'
 import {parseScope, type Scope} from '../lib/scope'
+import {Agent, setGlobalDispatcher} from 'undici'
+
+// Keep Barkpark connections open between page opens. Node's fetch drops an idle
+// connection after 4 s, so a doc opened after a pause paid a new TCP + TLS handshake
+// on every read in its chain: 65 ms more server render (209 ms against 146 warm, e2e-freeform
+// on guerrilla, task-2b605087a5f00278). 60 s stays well under Caddy's 5 min idle close.
+setGlobalDispatcher(new Agent({keepAliveTimeout: 60_000, keepAliveMaxTimeout: 600_000}))
 
 function env(key: string): string {
   const v = process.env[key]
