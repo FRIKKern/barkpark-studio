@@ -2075,7 +2075,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 
 /* J58: Presentation, after Sanity's — the site beside the document panel, its connection states over the frame. */
 .presentation { height: calc(100vh - var(--nav-h)); display: flex; color: var(--fg); }
-.presentation-preview { flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+.presentation-preview { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .presentation-toolbar { height: 51px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 12px; border-bottom: 1px solid var(--border); }
 .presentation-url { flex: 1; min-width: 0; height: 33px; font-size: 13px; }
 .presentation-frame { position: relative; flex: 1; background: var(--hover); }
@@ -2093,12 +2093,16 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .presentation-error .btn { padding: 4px 8px; font-weight: 400; box-shadow: inset 0 0 0 1px var(--line); }
 .presentation-error .btn.continue { color: var(--danger-text); }
 .spinner { width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid currentColor; border-right-color: transparent; animation: spin 0.8s linear infinite; }
-.presentation-panel { width: var(--presentation-panel-w, 325px); flex: none; display: flex; flex-direction: column; min-height: 0; }
+/* The rule between preview and panel is drawn inside the panel, as Sanity's: the preview keeps every pixel. */
+.presentation-panel { position: relative; width: var(--presentation-panel-w, 325px); flex: none; display: flex; flex-direction: column; min-height: 0; }
+.presentation-panel::before { content: ''; position: absolute; z-index: 3; inset: 0 auto 0 0; width: 1px; background: var(--border); pointer-events: none; }
 .presentation-resizer { position: relative; flex: none; width: 0; z-index: 2; }
 .presentation-resizer::after { content: ''; position: absolute; inset: 0 -4px; cursor: ew-resize; }
 .presentation-resizer:hover::after, .presentation-resizer:focus-visible::after { background: color-mix(in srgb, var(--focus, var(--ring)) 35%, transparent); }
 .presentation-resizer:focus-visible { outline: none; }
-.presentation-panel h2 { flex: none; font-size: 13px; font-weight: 600; margin: 0; padding: 0 20px; height: 51px; display: flex; align-items: center; }
+.presentation-panel-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 51px; padding: 0 12px 0 20px; }
+.presentation-panel h2 { font-size: 13px; font-weight: 600; margin: 0; color: var(--fg-header); }
+.presentation-order { right: -8px; top: 36px; }
 .presentation-empty { margin: auto; color: var(--muted); font-size: 15px; }
 /* J61: the panel docks the same panes as /structure (narrow: the last one), or lists the page's documents. */
 .presentation-panel.docked .panes { height: 100%; }
@@ -2124,8 +2128,9 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 @media (max-width: 899px) {
   .presentation { flex-direction: column; }
   .presentation-narrow-tabs { display: flex; }
-  .presentation-preview { border-right: 0; min-height: 0; }
+  .presentation-preview { min-height: 0; }
   .presentation-panel { width: auto; flex: 1; }
+  .presentation-panel::before { display: none; }
   .presentation-resizer { display: none; }
   .presentation[data-narrow-tab='preview'] .presentation-panel { display: none; }
   .presentation[data-narrow-tab='content'] .presentation-preview { display: none; }
