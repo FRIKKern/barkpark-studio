@@ -422,6 +422,24 @@ export const Mobile = () => (
     <path d="M11.5 17.5h2" />
   </svg>
 )
+/** Sanity's InsertAboveIcon and InsertBelowIcon: an array item's Add item before / after. */
+export const InsertAbove = () => (
+  <svg {...s} strokeLinecap="square" strokeLinejoin="round">
+    <path d="M14.5 10.5556L10.5 10.5556M12.5 12.5L12.5 8.5M18.5 5.5L6.5 5.5M18.5 19.5L6.5 19.5L6.5 15.5L18.5 15.5L18.5 19.5Z" />
+  </svg>
+)
+export const InsertBelow = () => (
+  <svg {...s}>
+    <path d="M10.5 14.5H14.5M12.5 12.5V16.5M6.5 19.5H18.5M6.5 5.5H18.5V9.5H6.5V5.5Z" />
+  </svg>
+)
+/** Sanity's AddDocumentIcon: an array item's Duplicate. */
+export const AddDocument = () => (
+  <svg {...s}>
+    <path d="M11.5 4.5V9.5H6.5" />
+    <path d="M11.5 4.5H18.5V12M11.5 4.5L6.5 9.5M11.5 4.5V9.5H6.5M6.5 9.5V19.5H11M20 17.5H16.5M16.5 17.5H13M16.5 17.5V14M16.5 17.5V21" />
+  </svg>
+)
 /** Sanity's LaunchIcon. */
 export const LaunchIcon = () => (
   <svg {...s}>
