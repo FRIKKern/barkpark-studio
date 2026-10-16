@@ -4,6 +4,8 @@
 :root {
   --fg: #252837;
   --fg-strong: #0d0e12;
+  --checkbox-on: #0d0e12; /* Sanity's ticked box, measured (light) */
+  --checkbox-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25' fill='none' stroke='%23fff' stroke-width='1.2'%3E%3Cpath d='M5.5 11.5L10.5 16.5L19.5 7.5'/%3E%3C/svg%3E");
   --fg-header: #383d51;
   --muted: #515870;
   --border: #e6e8ec;
@@ -122,6 +124,8 @@
   --placeholder: #555c75;
   --fg: #e4e5e9;
   --fg-strong: #fff;
+  --checkbox-on: #e4e5e9;
+  --checkbox-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25' fill='none' stroke='%2313141b' stroke-width='1.2'%3E%3Cpath d='M5.5 11.5L10.5 16.5L19.5 7.5'/%3E%3C/svg%3E");
   --fg-header: #c8cad3;
   --muted: #9ea3b5;
   --border: #2a2d3f;
@@ -529,6 +533,7 @@ textarea.input { resize: vertical; }
 .menu-item:hover, .menu-item:focus { background: var(--hover); outline: none; }
 .menu-item.danger { color: var(--danger-text); }
 .menu-item[aria-disabled] { opacity: 0.5; cursor: default; }
+.btn-create.btn-generate { padding: 0 12px; font-weight: 500; } /* Generate: Sanity's text button, 500, 12 px each side */
 .btn-create { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 4px; height: 35px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); font: inherit; font-size: 13px; font-weight: 400; cursor: pointer; }
 .btn-create:hover, .btn-square:hover { background: var(--hover); }
 .ref-search { flex-wrap: wrap; }
@@ -936,7 +941,7 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .field:has(> .datetime:not([data-date-only])) { padding-top: 8px; }
 .datetime-box { position: relative; }
 .datetime-box .input { padding-right: 40px; }
-.datetime-box .icon-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; height: auto; border-radius: 0 3px 3px 0; box-shadow: inset 1px 0 0 var(--line); }
+.datetime-box .icon-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 34px; height: auto; /* Sanity's 35 px segment, its rule included */ border-radius: 0 3px 3px 0; box-shadow: inset 1px 0 0 var(--line); }
 .datetime[data-invalid] .input { background: var(--danger-bg); }
 .datepicker { top: calc(100% + 4px); left: 0; width: 364px; padding: 8px; font-size: 13px; }
 .dp-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
@@ -2455,7 +2460,12 @@ html body .bp-inline-object-dialog__actions .bp-inline-object-dialog__save { bac
 html body .bp-inline-object-dialog__actions .bp-inline-object-dialog__save:hover { background: var(--primary-hover); }
 
 /* Field-type matrix: a checkbox (boolean layout 'checkbox', an array of strings from a list), Sanity's */
-input.checkbox { width: 17px; height: 17px; margin: 0; accent-color: var(--fg); }
+/* Sanity's checkbox, measured at 1440 (field-types-01), light and dark: a 17 px box, 3 px corners,
+   a 1 px ring in the line colour, ticked filled with the tick in the background's colour. */
+input.checkbox { appearance: none; flex: none; width: 17px; height: 17px; margin: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; }
+input.checkbox:checked { background: var(--checkbox-on) var(--checkbox-tick) center / 17px 17px no-repeat; box-shadow: inset 0 0 0 1px var(--checkbox-on); }
+input.checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+input.checkbox:disabled { cursor: default; opacity: .5; }
 .checkbox-list { display: flex; flex-direction: column; gap: 12px; padding-left: 12px; border-left: 1px solid var(--border); }
 .checkbox-list[data-grid] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 15px; }
