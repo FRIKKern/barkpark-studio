@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 69 changes, 4 tasks closed
+- **Today** · 70 changes, 4 tasks closed
+  - Tags as Sanity's: 27 px chips in its fill, 4 px in and apart, a 25 px remove with a 21 px x ([#715](https://github.com/FRIKKern/barkpark-studio/pull/715))
   - Object array rows as Sanity's: 59 px, 4 apart, a 33 px tile and 13 px title; its 25 x 33 handle; Add item its secondary button ([#714](https://github.com/FRIKKern/barkpark-studio/pull/714))
-  - Field group tabs as Sanity's: muted words, the shown tab's fill and words, 8 px apart, 21 px level icons; the locations text at 500 ([#713](https://github.com/FRIKKern/barkpark-studio/pull/713))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
