@@ -167,6 +167,13 @@ export function bodyHistory(id: string, type: string, field: string, kind: 'step
   else (e.undo = e.undo.filter((c) => !mine(c))), (e.redo = e.redo.filter((c) => !mine(c)))
 }
 
+// A patch is fenced on the fields it sets, not the whole document (Barkpark's opt-in, task-
+// 61e9a7d8a8b51192): another editor's write to another field, the body or a list no longer
+// sends it back as stale (412: read, rebase, resend; 133 of them in a five-editor room). A
+// change to one of its own fields still answers 412, so a clash is still seen. A Barkpark
+// without the opt-in ignores the key. Not on a draft's first edit: its empty marker patch
+// carries the fence there, and an empty patch touches no field.
+const FIELDS_FENCE = {fence: 'fields'} as const
 const MIN_GAP_MS = 100
 const budget = writeBudget(WRITE_BURST, WRITE_GAP_MS)
 const STALL_MS = 4000
@@ -593,7 +600,7 @@ async function send(qc: QueryClient, id: string) {
       ? [{create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}]
       : e.forks
         ? [{patch: {id, type: e.type, set: {}, ...fence}}, {patch: {id, type: e.type, set, unset}}]
-        : [{patch: {id, type: e.type, set, unset, ...fence}}]
+        : [{patch: {id, type: e.type, set, unset, ...fence, ...(e.rev ? FIELDS_FENCE : {})}}]
     const r = (await mutate({data: {mutations}})) as {results: {document: Doc}[]; warnings?: unknown; studioThrottled?: boolean}
     paced(!!r.studioThrottled)
     const saved = r.results.at(-1)!.document
