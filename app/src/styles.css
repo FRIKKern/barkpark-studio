@@ -1974,10 +1974,12 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 .pd-editor { --bp-evidence-pull: 0px; --bp-evidence-width: 100%; }
 
 /* B12: a declared desk's dividers, titled (Sanity's S.divider().title()) or plain. */
-.desk-divider { margin: 8px 12px 4px; padding: 7px 8px 8px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 19px; font-weight: 500; color: var(--muted); }
+/* Sanity's (measured at 1440, text tops): a heading 37 px under the item before it, in 600, its rule 25 px under it,
+   the next item 16 px under the rule; a plain rule 30 px under the item before and 12 px over the next. */
+.desk-divider { margin: 4px 12px 8px; padding: 7px 8px 6px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 19px; font-weight: 600; color: var(--muted); }
 /* A desk row's icon, Sanity's 25 px glyph left of the title. */
 .type-row .desk-icon { flex: none; margin: -3px 10px -3px -4px; color: inherit; }
-hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--border); }
+hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid var(--border); }
 /* D11: the honest co-editing note above the canvas. */
 .pd-hint { margin: 12px 20px 0; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); color: var(--fg); font-size: 13px; line-height: 19px; }
 /* J54: the file field, Sanity's: a bordered row (icon, name, size, "…"), or the empty drop box. */
