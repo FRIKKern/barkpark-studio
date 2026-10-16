@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 92 changes, 4 tasks closed
+- **Today** · 93 changes, 4 tasks closed
+  - Structure child lists as Sanity's: lists take their full 350 px with no doc open; an S.documentList() child has no menu ([#739](https://github.com/FRIKKern/barkpark-studio/pull/739))
   - Search filter menus stay inside the viewport on a phone, as Sanity's ([#738](https://github.com/FRIKKern/barkpark-studio/pull/738))
-  - Search with no results as Sanity's: no order row, two muted lines 10 px apart, no spellcheck ([#737](https://github.com/FRIKKern/barkpark-studio/pull/737))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
