@@ -308,8 +308,7 @@ export const Stack = () => (
 /** Sanity's InfoOutlineIcon. */
 export const InfoOutline = () => (
   <svg {...s}>
-    <circle cx="12.5" cy="12.5" r="7" />
-    <path d="M12.5 11v6M12.5 8v1.5" />
+    <path d="M12.5 10.5V9M12.5 12V16M20.5 12.5a8 8 0 1 1-16 0a8 8 0 1 1 16 0Z" strokeLinejoin="round" />
   </svg>
 )
 /** Sanity's MenuIcon (the phone navbar's drawer button). */
