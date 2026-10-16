@@ -77,6 +77,24 @@ export async function closeAndSettle(page: Page) {
 }
 
 /**
+ * Before keys that move the selection in a canvas that just took focus. ProseMirror's
+ * focus handler puts its own selection back on the page 20 ms after focus when the page's
+ * differs from the one it last read (prosemirror-view, `handlers.focus`). An End or
+ * Shift+Arrow sent inside that window is read after it, so it is undone (J10 on a cold CI
+ * shard: '.' bolded, not '1.'). Waits until that timer has run; no wait on Sanity's page.
+ */
+export async function canvasFocusSettled(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((done) => {
+        const view = (document.activeElement?.closest('bp-paper-canvas') as unknown as {_editor?: {view?: {input?: {lastFocus?: number}}}} | null)?._editor?.view
+        // A timer due after ProseMirror's runs after it: timers fire in due order.
+        setTimeout(done, Math.max(0, (view?.input?.lastFocus ?? 0) + 21 - Date.now()))
+      }),
+  )
+}
+
+/**
  * A list row, rendered. Sanity's list is virtual (about 25 rows drawn) and sorted by
  * last edit, so after a few runs a fixture post can sit below the drawn rows: scroll
  * the list until the row exists. Ours renders every row, so this returns at once.

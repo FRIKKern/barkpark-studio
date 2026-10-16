@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {canvasFocusSettled, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J10 guard (a CI gate): the body field's toolbar runs Barkpark's canvas commands
 // (EMBED-CONTRACT 1.2.0, barkpark 3cd936a4). A press applies to the selection and shows
@@ -36,6 +36,7 @@ test('J10: the body toolbar marks, sets a style, and refuses a script link', asy
   })
   await field.getByText('Body paragraph for post 1.').click()
   await expect(field.locator('.ProseMirror')).toBeFocused({timeout: 15_000})
+  await canvasFocusSettled(page)
   await page.keyboard.press('End')
   for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowLeft')
   // ProseMirror reads a keyboard selection on the browser's selectionchange, a task
