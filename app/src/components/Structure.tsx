@@ -33,7 +33,7 @@ const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayout
 
 /** Width of the pane area. Starts from the server's hint (cookie) so SSR and the first paint agree. */
 function usePaneWidth(hint: number) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLElement>(null)
   const [width, setWidth] = useState(hint)
   useIsoLayoutEffect(() => {
     const el = ref.current
@@ -122,7 +122,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
   return (
     <NarrowContext.Provider value={narrow}>
       <FocusModeContext.Provider value={focusCtx}>
-      <div className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined} data-focus-mode={focused !== null ? '' : undefined}>
+      <main className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined} data-focus-mode={focused !== null ? '' : undefined}>
         <TabTitle pane={panes[panes.length - 1]} />
         {panes.map((pane, i) => {
           // Every branch is the same keyed Fragment, its pane in the second slot, so turning
@@ -143,7 +143,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
           )
         })}
         {!narrow && focused === null && panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
-      </div>
+      </main>
       </FocusModeContext.Provider>
     </NarrowContext.Provider>
   )
@@ -770,8 +770,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
                 lastPick.current = d._publishedId
               }}
             >
-              <label className="bulk-check">
-                <input type="checkbox" tabIndex={selecting || picked.size > 0 ? 0 : -1} aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type), t)})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
+              {/* Out of the tab order and the accessibility tree until selecting: hidden ticks read as 31 stray checkboxes. */}
+              <label className="bulk-check" inert={!(selecting || picked.size > 0)}>
+                <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type), t)})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
               </label>
               {row}
             </div>

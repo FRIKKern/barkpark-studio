@@ -85,9 +85,12 @@ const writeRecent = (list: Recent[]) => {
 // Barkpark keeps a JSON object per key: the list rides as {searches: [...]}.
 const fromPref = (v: unknown): Recent[] | null => {
   const list = (v as {searches?: unknown} | null)?.searches
-  return Array.isArray(list) ? (list as Recent[]).filter((r) => r && typeof r.query === 'string').slice(0, 5) : null
+  // Another tab or an older studio may have saved the same search twice: once each (React keys on it).
+  return Array.isArray(list) ? (list as Recent[]).filter((r, i, all) => r && typeof r.query === 'string' && all.findIndex((x) => same(x, r)) === i).slice(0, 5) : null
 }
-const same = (a: Recent, b: Recent) => JSON.stringify(a) === JSON.stringify(b)
+function same(a: Recent, b: Recent) {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
 const addRecent = (list: Recent[], r: Recent) => [r, ...list.filter((x) => !same(x, r))].slice(0, 5)
 const strip = (filters: SearchFilter[]) => filters.filter(isComplete).map(({id: _, ...f}) => f)
 

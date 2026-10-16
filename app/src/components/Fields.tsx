@@ -1,4 +1,4 @@
-import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
+import {createContext, memo, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
@@ -267,6 +267,7 @@ export const fieldClipboard = new WeakMap<Element, {copy: () => void; paste?: ()
 
 function FieldActions({field, value, onChange, readOnly}: FieldProps) {
   const t = useT()
+  const desc = useId()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const doCopy = () => copy({kind: 'field', field: {name: field.name, sig: signature(field), value}})
@@ -286,7 +287,9 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
   }
   return (
     <div ref={register} className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label={t('Field actions')} data-tip={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      {/* Every field has one: the field's title tells a screen reader which. */}
+      <span id={desc} hidden>{field.title ?? field.name}</span>
+      <button type="button" className="icon-btn" aria-label={t('Field actions')} aria-describedby={desc} data-tip={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (

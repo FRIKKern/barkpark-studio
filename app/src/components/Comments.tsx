@@ -46,6 +46,7 @@ export function FieldComments({path, title}: {path: string; title: string}) {
   const commentReason = canWrite || readers ? undefined : lockedReason
   const api = useContext(CommentsContext)
   const t = useT()
+  const desc = useId()
   const [composing, setComposing] = useState(false)
   // J43: closing the composer hands focus back to the button that opened it (or, once the field
   // has a comment, the count that takes its place).
@@ -61,14 +62,15 @@ export function FieldComments({path, title}: {path: string; title: string}) {
   const open = api.threads.filter((th) => th.root.fieldPath === path && th.status === 'open')
   return (
     <div className="field-comments" data-has={open.length || undefined}>
+      <span id={desc} hidden>{title}</span>
       {/* J49: not <button>s, and the composer in a layer of its own: a Viewer's form is a
           disabled fieldset, which would disable them too, and a Viewer may comment. */}
       {open.length ? (
-        <SpanButton ref={opener} className="comment-count" aria-label={t('Open comments')} title={open.length === 1 ? t('View comment') : t('View comments')} onPress={() => api.open(path)}>
+        <SpanButton ref={opener} className="comment-count" aria-label={t('Open comments')} aria-describedby={desc} title={open.length === 1 ? t('View comment') : t('View comments')} onPress={() => api.open(path)}>
           <CommentIcon /> {open.length}
         </SpanButton>
       ) : (
-        <SpanButton ref={opener} className="icon-btn comment-add" aria-label={t('Add comment')} data-tip={t('Add comment')} title={commentReason} disabled={!!commentReason} aria-expanded={composing} onPress={() => setComposing(true)}>
+        <SpanButton ref={opener} className="icon-btn comment-add" aria-label={t('Add comment')} aria-describedby={desc} data-tip={t('Add comment')} title={commentReason} disabled={!!commentReason} aria-expanded={composing} onPress={() => setComposing(true)}>
           <AddComment />
         </SpanButton>
       )}
