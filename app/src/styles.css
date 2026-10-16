@@ -2051,12 +2051,14 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .menu-wrap.help { position: relative; }
 .menu-wrap.help .icon-btn { position: relative; }
 .update-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--caution-dot); box-shadow: 0 0 0 1.5px var(--bg); }
-.popover.menu.help-menu { right: 0; left: auto; top: calc(100% + 4px); min-width: 230px; max-width: calc(100vw - 32px); white-space: normal; }
+/* Sanity's sits 4 px from the window's edge (the avatar's 33 px and the navbar's 8 px past the button), measured at 1440. */
+.popover.menu.help-menu { right: -41px; left: auto; top: calc(100% + 4px); min-width: 226px; max-width: calc(100vw - 32px); white-space: normal; }
 .help-menu .menu-item { text-decoration: none; }
 .menu-item.studio-version { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .menu-item.studio-version:disabled { color: var(--fg); cursor: default; }
-.version-text { display: flex; flex-direction: column; gap: 4px; }
-.version-text .muted { color: var(--muted); }
+/* The studio's name and its version line 17 px under it, 400 in the icon grey, as Sanity's. */
+.version-text { display: flex; flex-direction: column; }
+.version-text .muted { margin-top: -2px; font-weight: 400; color: var(--icon-muted); }
 .studio-version[data-update] .version-text .muted { color: var(--warn-fg); }
 .version-badge { padding: 1px 5px; border-radius: 3px; background: var(--hover); color: var(--muted); font-size: 12px; }
 .studio-version[data-update] .version-badge { background: var(--warn-bg); color: var(--warn-fg); }
