@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 11 changes, 3 tasks closed
-  - Global search as Sanity's: 12% down and at most 735 px, 41 px header rows, cards 57 apart, a pill type badge ([#656](https://github.com/FRIKKern/barkpark-studio/pull/656))
-  - History as Sanity's: event badges carry the event's icon; 49 px rows 4 px apart, Sanity's fills ([#654](https://github.com/FRIKKern/barkpark-studio/pull/654))
+- **Today** · 12 changes, 4 tasks closed
+  - Create new document menu as Sanity's: centred under the +, 21 px search icon, 33 px rows 4 px apart ([#657](https://github.com/FRIKKern/barkpark-studio/pull/657))
+  - Done: [Barkpark: rate budget for a studio's shared server token (writes 60/min)](https://github.com/FRIKKern/barkpark/issues/21708)
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
