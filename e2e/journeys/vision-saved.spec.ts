@@ -115,6 +115,12 @@ test('J37: Vision points at the bad part of a refused query', async ({page, cont
   await expect(error).toContainText('unknown filter operator "bogus"')
   await expect(error).toContainText(`-----${'^'.repeat(22)}`)
   await expect(error).toContainText('Column: 6')
+  // A GROQ query Barkpark refuses: its parse error, at the byte it names (task-8919d95d9e581c6b).
+  await query.fill('*[_type ==]')
+  await query.press('ControlOrMeta+Enter')
+  await expect(error).toContainText('expected an expression')
+  await expect(error).toContainText(`${'-'.repeat(10)}^`)
+  await expect(error).toContainText('Column: 11')
 })
 
 test('@evidence J37: Vision saved queries and dataset, side by side', async ({page, context}, info) => {
