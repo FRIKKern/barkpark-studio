@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 145 changes, 4 tasks closed
+- **Today** · 146 changes, 4 tasks closed
+  - Field actions level with the field title as Sanity's: fieldsets 5 px above, nested, date-time and on/off fields 1 px ([#793](https://github.com/FRIKKern/barkpark-studio/pull/793))
   - fix(ci): a created dataset lease is kept only if no racing create landed over it ([#792](https://github.com/FRIKKern/barkpark-studio/pull/792))
-  - ci(e2e): re-record durations.json after #774 and #779 ([#789](https://github.com/FRIKKern/barkpark-studio/pull/789))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
