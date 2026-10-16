@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 95 changes, 4 tasks closed
+- **Today** · 96 changes, 4 tasks closed
+  - Vision saved queries as Sanity's QueryRecall: + saves personal, Update on an edited query, the card, menu icons and share dialog ([#742](https://github.com/FRIKKern/barkpark-studio/pull/742))
   - Help and resources menu as Sanity's: 4 px from the window's edge, 226 px, the version line 400 in the icon grey 17 px under the name ([#741](https://github.com/FRIKKern/barkpark-studio/pull/741))
-  - Recent searches as Sanity's: muted label, 35 px rows 4 px apart, 21 px clock and remove, grey active row, Clear recent searches on the left ([#740](https://github.com/FRIKKern/barkpark-studio/pull/740))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
