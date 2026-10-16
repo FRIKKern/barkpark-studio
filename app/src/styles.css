@@ -503,9 +503,12 @@ textarea.input { resize: vertical; }
 .popover.options [role=option][aria-selected='true'] .preview { background: var(--selected); color: var(--on-selected); }
 .popover.options [role=option][aria-selected='true'] .s { color: var(--on-selected-soft); }
 .menu-wrap { position: relative; }
-.popover.menu { right: 0; top: 30px; min-width: 160px; display: flex; flex-direction: column; }
-.popover.menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; width: 100%; }
-.menu-item { font: inherit; font-size: 13px; font-weight: 400; text-align: left; padding: 8px 12px; border: 0; background: none; border-radius: 3px; cursor: pointer; color: var(--fg); }
+/* Sanity's menus, measured at 1440 (document actions, list options, Create): 33 px items 4 px apart, #383d51 text. */
+.popover.menu { right: 0; top: 30px; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
+.popover.menu hr { border: 0; border-top: 1px solid var(--border); margin: 0; width: 100%; }
+/* A menu's group label (Actions, Layout), Sanity's: 9.5 px caps in #252837, the group's first item 31 px under its top. */
+.popover.menu .menu-label { font-size: 9.5px; line-height: 11px; letter-spacing: .5px; color: var(--fg); padding: 10px 12px 6px; }
+.menu-item { font: inherit; font-size: 13px; font-weight: 400; line-height: 19px; text-align: left; padding: 7px 12px; border: 0; background: none; border-radius: 3px; cursor: pointer; color: var(--fg-header); }
 .menu-item:hover, .menu-item:focus { background: var(--hover); outline: none; }
 .menu-item.danger { color: var(--danger-text); }
 .menu-item[aria-disabled] { opacity: 0.5; cursor: default; }
@@ -1022,7 +1025,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 /* J28: Sanity's shortcut chips, one box per key, tinted like their item. */
 .menu-item .keys { margin-left: auto; padding-left: 16px; display: inline-flex; gap: 2px; }
 .menu-item .keys kbd { margin: 0; padding: 0 3px; border-radius: 2px; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent); font-size: 10px; line-height: 15px; color: inherit; }
-.menu-icon-text svg { width: 19px; height: 19px; margin: -2px 0 -2px -4px; }
+.menu-icon-text svg { width: 21px; height: 21px; margin: -1px 0 -1px -6px; } /* Sanity's 21 px icon 6 px in, the text at 33 */
 /* J68: a menu toggle's check, its space kept when off (Sanity's). */
 .menu-check { display: inline-flex; }
 .menu-check:not([data-on]) svg { visibility: hidden; }
@@ -1568,7 +1571,7 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 
 .navbar .tool { padding: 3px 8px; border-radius: 3px; color: var(--fg-strong); }
 .navbar .tool:hover { background: var(--hover); }
-.menu-icon-text { display: inline-flex; align-items: center; gap: 8px; }
+.menu-icon-text { display: flex; align-items: center; gap: 6px; }
 .menu-item.spread { display: flex; justify-content: space-between; align-items: center; }
 .vision { height: calc(100vh - var(--nav-h)); display: flex; flex-direction: column; font-size: 13px; color: var(--fg); }
 .vision-top { display: flex; gap: 8px; padding: 12px 16px 13px; border-bottom: 1px solid var(--border); }
