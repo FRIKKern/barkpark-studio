@@ -764,6 +764,9 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
   // it can take it — never dropped (it was, on a fresh page load: task-1dd00fd2a0dc1c60).
   // Text, and Enter as a paragraph break, in the order typed.
   const typed = useRef<string[]>([])
+  // The read-only body scrolls inside its box: the canvas opens scrolled (and sized,
+  // when its corner was dragged) the same.
+  const scrolled = useRef({top: 0, height: ''})
   // J59: a link to one of its blocks (`body[_key=="p1"]`, a click in Presentation's preview)
   // wakes the canvas with the caret at that block's start, as Sanity opens that paragraph.
   const urlPath = useContext(UrlPathContext)
@@ -803,7 +806,9 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
       const elsewhere = !!now && now !== wokeFrom && now !== document.body && !box.current?.contains(now)
       if (elsewhere && !typed.current.length) return
       if (!pm.contains(document.activeElement)) {
-        pm.focus()
+        const scroller = box.current?.querySelector<HTMLElement>('.pd-canvas')
+        if (scroller) (scroller.style.height = scrolled.current.height), (scroller.scrollTop = scrolled.current.top)
+        pm.focus({preventScroll: !!scrolled.current.top})
         const sel = getSelection()
         const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
         if (sel && target) sel.collapse(target.node, target.offset)
@@ -831,6 +836,7 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
         onClick={(e) => {
           if ((e.target as HTMLElement).closest('a')) return
           const spot = clickedAt(e.clientX, e.clientY)
+          scrolled.current.height = staticBody.current?.style.height ?? ''
           pickComment(spot)
           if (!readOnly) (at.current = spot), setActive(true)
         }}
@@ -850,7 +856,7 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
           {!readOnly && <BodyToolbar host={box} vocabulary={vocabulary} onWake={() => setActive(true)} />}
           {!readOnly && <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />}
         </div>
-        <div className="bp-paper-editor-body" ref={staticBody}>{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">{t('Empty')}</p>}</div>
+        <div className="bp-paper-editor-body" ref={staticBody} onScroll={(e) => (scrolled.current.top = e.currentTarget.scrollTop)}>{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">{t('Empty')}</p>}</div>
         {id && <BlockPresence docId={id} field={field} />}
       </div>
     )

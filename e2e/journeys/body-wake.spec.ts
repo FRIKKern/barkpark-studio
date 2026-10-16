@@ -21,9 +21,13 @@ test('J10: keys typed while the body wakes up are all kept', async ({page}, info
   await t.settle(page)
   const body = page.locator('[id="body"]')
   await body.scrollIntoViewIfNeeded()
+  // Sanity's box is 306 px with a short body as with a long one (the text scrolls inside), asleep and awake.
+  const height = async () => Math.round((await body.boundingBox())!.height)
+  expect(await height()).toBe(306)
   await body.click()
   await page.keyboard.type('XYZZY', {delay: 20}) // at once, before the canvas is up
   await expect(body.locator('.ProseMirror')).toContainText('XYZZY', {timeout: 15_000})
+  expect(await height()).toBe(306)
   await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 15_000}).toContain('XYZZY')
 })
 
