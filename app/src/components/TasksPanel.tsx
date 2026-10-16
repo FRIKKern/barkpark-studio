@@ -9,6 +9,11 @@ import {anyDocQuery, previewTitle, schemaOf, schemasQuery, searchAllDocs, type D
 import {meQuery} from '../lib/session'
 import {ago, useLocale, useT} from '../lib/i18n'
 import {toast} from './Toasts'
+import {MenuPopover} from './FocusScopes'
+import {ActorAvatar} from './Presence'
+import {Status} from './Preview'
+import {DateTimeInput} from './DateTimeInput'
+import {personName} from '../lib/comment-threads'
 import {Add, CheckmarkCircle, ChevronLeft, ChevronRight, Close, DocumentIcon, LinkIcon, Trash, UserIcon} from './icons'
 
 /**
@@ -198,7 +203,13 @@ function TargetTitle({id}: {id: string}) {
   const t = useT()
   const {data: doc} = useQuery(anyDocQuery(id))
   const {data: schemas = []} = useQuery(schemasQuery)
-  return <span>{doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : '…'}</span>
+  return (
+    <>
+      <span>{doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : '…'}</span>
+      {/* Sanity's picked target shows its publish state, as a list row does. */}
+      {doc && <Status doc={doc} />}
+    </>
+  )
 }
 
 /** The task's target: its title, a way to open it, and (editable) to remove or pick one. */
@@ -259,21 +270,49 @@ function TargetField({target, onChange, open}: {target: TaskTarget | null; onCha
   )
 }
 
+// The deadline's hint, Sanity's: the stored format itself (not words, so not translated).
+const DATE_HINT = 'yyyy-mm-dd'
+
+/**
+ * Assign to, as Sanity's: a field that opens a searchable list of the workspace's people
+ * (avatar and name; "No assignee" first). The picked one shows as avatar and name.
+ */
 function AssigneeField({value, onChange, id}: {value: string | null; onChange: (email: string | null) => void; id: string}) {
   const t = useT()
   const {data: people = []} = useQuery(peopleQuery)
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const all = [...new Set([...people, ...(value ? [value] : [])])]
+  const shown = q.trim() ? all.filter((p) => p.toLowerCase().includes(q.trim().toLowerCase())) : all
+  const pick = (email: string | null) => (onChange(email), setOpen(false), setQ(''))
   return (
-    <span className="task-field-icon">
-      <UserIcon />
-    <select id={id} className="input" data-empty={!value || undefined} value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
-      <option value="">{t('Select assignee')}</option>
-      {[...new Set([...people, ...(value ? [value] : [])])].map((p) => (
-        <option key={p} value={p}>
-          {p}
-        </option>
-      ))}
-    </select>
-    </span>
+    <div className="menu-wrap task-assignee-field">
+      <button id={id} type="button" className="input task-field-btn" aria-haspopup="menu" aria-expanded={open} data-empty={!value || undefined} onClick={() => setOpen((o) => !o)}>
+        {value ? <ActorAvatar actor={value} /> : <UserIcon />}
+        <span>{value ? personName(value) : t('Select assignee')}</span>
+      </button>
+      {open && (
+        <MenuPopover className="popover menu task-assignee-menu" aria-label={t('Assign to')} onClose={() => (setOpen(false), setQ(''))}>
+          <span className="task-field-icon">
+            <UserIcon />
+            <input className="input" data-autofocus placeholder={t('Select assignee')} aria-label={t('Search people')} value={q} onChange={(e) => setQ(e.target.value)} />
+          </span>
+          <button type="button" role="menuitem" className="menu-item task-person" onClick={() => pick(null)}>
+            <span className="task-person-none">
+              <UserIcon />
+            </span>
+            {t('No assignee')}
+          </button>
+          {shown.map((p) => (
+            <button key={p} type="button" role="menuitem" className="menu-item task-person" aria-current={p === value || undefined} title={p} onClick={() => pick(p)}>
+              <ActorAvatar actor={p} />
+              {personName(p)}
+            </button>
+          ))}
+          {!shown.length && <p className="muted task-person-empty">{t('No users found')}</p>}
+        </MenuPopover>
+      )}
+    </div>
   )
 }
 
@@ -360,7 +399,7 @@ function CreateTask({target: initial}: {target: TaskTarget | null}) {
         <label className="task-label" htmlFor={`${ids}-due`}>
           {t('Deadline')}
         </label>
-        <input id={`${ids}-due`} className="input" type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+        <DateTimeInput id={`${ids}-due`} dateOnly value={dueAt || undefined} onChange={(v) => setDueAt((v as string | undefined) ?? '')} placeholder={DATE_HINT} calendarLabel={t('Open calendar')} />
         {error && (
           <p className="field-error" role="alert">
             {error}
@@ -496,7 +535,7 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
             <label className="task-label" htmlFor={`${ids}-due`}>
               {t('Deadline')}
             </label>
-            <input id={`${ids}-due`} className="input" type="date" value={task.dueAt ?? ''} onChange={(e) => void save({dueAt: e.target.value || null})} />
+            <DateTimeInput id={`${ids}-due`} dateOnly value={task.dueAt ?? undefined} onChange={(v) => void save({dueAt: (v as string | undefined) ?? null})} placeholder={DATE_HINT} calendarLabel={t('Open calendar')} />
             <section className="task-activity" aria-label={t('Activity')}>
               <h3>{t('Activity')}</h3>
               <p>

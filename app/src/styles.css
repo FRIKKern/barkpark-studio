@@ -374,9 +374,9 @@ a.preview:hover { background: var(--hover); }
 .preview .t + .s { margin-top: -2px; }
 .preview .media > svg { width: 21px; height: 21px; }
 .preview[aria-current='true'] .s { color: var(--on-selected-soft); }
-.preview .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--published); margin: 0 7px 0 12px; } /* 16 px from the row's edge, as Sanity's */
-.preview .ring { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--caution-dot); margin-left: 8px; }
-.preview .ring + .dot { margin-left: 8px; } /* Sanity: ring and dot 8 px apart */
+:is(.preview, .task-target) .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--published); margin: 0 7px 0 12px; } /* 16 px from the row's edge, as Sanity's */
+:is(.preview, .task-target) .ring { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--caution-dot); margin-left: 8px; }
+:is(.preview, .task-target) .ring + .dot { margin-left: 8px; } /* Sanity: ring and dot 8 px apart */
 .preview[aria-current='true'] .dot { box-shadow: 0 0 0 1px var(--on-selected); }
 .preview[aria-current='true'] .media { background: transparent; color: var(--on-selected); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-selected) 30%, transparent); }
 .list-rows { padding: 0 12px 12px; }
@@ -2355,6 +2355,7 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 .tasks-crumbs h2 { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A picked target reads as Sanity's preview: its title medium weight. */
 .task-target > span { font-weight: 500; }
+.task-target > .status { flex: none; display: inline-flex; align-items: center; overflow: visible; margin-right: 4px; }
 /* The navbar's Tasks button stays pressed while its panel is open, as Sanity's. */
 .navbar .tasks-btn[aria-pressed='true'] { background: var(--selected-fill); }
 .task-form { gap: 0; padding-top: 34px; }
@@ -2377,6 +2378,25 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 .task-more input[role=switch]:checked { background: var(--selected); }
 .task-more input[role=switch]:checked::after { left: 12px; }
 .task-more input[role=switch]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* Assign to, Sanity's picker: a field showing the person (avatar and name) that opens a
+   searchable list of people under it, "No assignee" first. */
+.task-assignee-field { display: block; }
+.task-field-btn { display: flex; align-items: center; gap: 4px; width: 100%; height: 35px; padding: 0 8px; text-align: left; cursor: pointer; color: var(--fg); }
+.task-field-btn[data-empty] { color: var(--placeholder); }
+.task-field-btn > svg { width: 21px; height: 21px; flex: none; color: var(--icon-muted); }
+.task-field-btn > .p-avatar { width: 21px; height: 21px; font-size: 9px; box-shadow: none; margin-right: 4px; }
+.task-person > .p-avatar { width: 25px; height: 25px; font-size: 10px; box-shadow: none; }
+.task-field-btn[aria-expanded='true'] { background: var(--selected); color: var(--on-selected); }
+.task-field-btn[aria-expanded='true'] > svg { color: inherit; }
+.task-assignee-menu { left: 10px; right: 10px; top: calc(100% + 4px); max-height: 280px; overflow: auto; }
+.task-assignee-menu > .task-field-icon > .input { height: 33px; box-shadow: none; }
+.task-person { display: flex; align-items: center; gap: 8px; }
+.task-person-none { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--border); color: var(--icon-muted); }
+.task-person-none svg { width: 19px; height: 19px; }
+.task-person[aria-current] { background: var(--selected-fill); }
+.task-person-empty { margin: 4px 8px; font-size: 13px; }
+/* Deadline: the date input (#551) in the task form, Sanity's 35 px box. */
+.task-form .datetime .input { height: 35px; }
 
 /* D11: a remote caret's name tag in the Studio's face, as the presence avatars (the canvas's text is serif). */
 bp-paper-canvas .bp-remote-caret__label { font-family: 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; font-size: 11px; font-weight: 500; line-height: 16px; border-radius: 3px; }
