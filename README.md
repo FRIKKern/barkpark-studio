@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 131 changes, 4 tasks closed
+- **Today** · 132 changes, 4 tasks closed
+  - Vision runs GROQ, as Sanity's, through Barkpark's GROQ read ([#780](https://github.com/FRIKKern/barkpark-studio/pull/780))
   - fix(e2e): the rig asks again once when a kept-alive socket was gone ([#778](https://github.com/FRIKKern/barkpark-studio/pull/778))
-  - Opening a document moves focus into its form, as Sanity's ([#779](https://github.com/FRIKKern/barkpark-studio/pull/779))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
