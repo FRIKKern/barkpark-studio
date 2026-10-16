@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 179 changes, 4 tasks closed
+- **Today** · 180 changes, 4 tasks closed
+  - Fixture: category.featuredPost reads 'Featured Post', as Sanity's ([#824](https://github.com/FRIKKern/barkpark-studio/pull/824))
   - Global search box as Sanity's: a 33 px field 4 px in, its icon at 21 px, words 400, 20 px from the window ([#828](https://github.com/FRIKKern/barkpark-studio/pull/828))
-  - Object arrays: an item added and typed into at once keeps the typing ([#826](https://github.com/FRIKKern/barkpark-studio/pull/826))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
