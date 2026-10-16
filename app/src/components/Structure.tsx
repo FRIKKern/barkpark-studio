@@ -928,10 +928,13 @@ function NewInList({choices, label, disabledReason, onPick}: {choices: Choice[];
         <Add />
       </button>
       {open && (
-        <MenuPopover onClose={() => setOpen(false)}>
+        // Sanity's: centred on the +, each choice with its + icon.
+        <MenuPopover centered className="popover menu new-in-list" onClose={() => setOpen(false)}>
           {choices.map((c, i) => (
             <button key={c.id} type="button" role="menuitem" className="menu-item" autoFocus={i === 0} onClick={() => (setOpen(false), onPick(c))}>
-              {c.title}
+              <span className="menu-icon-text">
+                <Add /> {c.title}
+              </span>
             </button>
           ))}
         </MenuPopover>
