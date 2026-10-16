@@ -63,10 +63,14 @@ export function mergeList3(base: unknown[], mine: unknown[], theirs: unknown[]):
         const m = mineBy.get(k)
         return b !== undefined && m !== undefined && !same(m, b) ? item(b, m, x) : x
       })
-    // Mine added: after the item it follows in mine (or first).
+    // Mine added: after the item it follows in mine (or first). One theirs has too, with a
+    // key no one else drew, is my own add come back (saved, or cached) and mine is newer:
+    // an item added and typed into at once kept the add's value ("Read more", J33).
     mine.forEach((x, i) => {
       const k = keyOf(x)!
-      if (baseBy.has(k) || out.some((y) => keyOf(y) === k)) return
+      if (baseBy.has(k)) return
+      const there = out.findIndex((y) => keyOf(y) === k)
+      if (there >= 0) return void (out[there] = x)
       const prev = i > 0 ? keyOf(mine[i - 1]) : null
       const at = prev === null ? 0 : out.findIndex((y) => keyOf(y) === prev) + 1
       out.splice(at > 0 || prev === null ? at : out.length, 0, x)

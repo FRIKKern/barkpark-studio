@@ -47,6 +47,14 @@ test('mergeList3 keeps their reorder while I edit an item', () => {
   assert.equal(mergeList3(['a', 'b'], ['a', 'b', 'c'], ['b', 'a']), null)
 })
 
+test('mergeList3: an item I added and typed into at once keeps my typing (J33)', () => {
+  // Drawn before my add; the cache already holds the add ("Read more") come back; mine has the title typed.
+  const l = (k: string, title: string) => ({_key: k, title})
+  assert.deepEqual(mergeList3([l('l1', 'a')], [l('l1', 'a'), l('n1', 'Barkpark')], [l('l1', 'a'), l('n1', 'Read more')]), [l('l1', 'a'), l('n1', 'Barkpark')])
+  // Their edit elsewhere in the list still stands.
+  assert.deepEqual(mergeList3([l('l1', 'a')], [l('l1', 'a'), l('n1', 'Barkpark')], [l('l1', 'A'), l('n1', 'Read more')]), [l('l1', 'A'), l('n1', 'Barkpark')])
+})
+
 test('mergeList3: I moved an item while they typed in another', () => {
   assert.deepEqual(mergeList3(['one', 'two', 'three'], ['two', 'one', 'three'], ['one', 'two-by-A', 'three']), ['two-by-A', 'one', 'three'])
 })
