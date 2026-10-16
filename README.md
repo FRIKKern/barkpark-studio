@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 107 changes, 4 tasks closed
+- **Today** · 108 changes, 4 tasks closed
+  - List pane menu icons and tick in Sanity's icon grey ([#754](https://github.com/FRIKKern/barkpark-studio/pull/754))
   - Document actions menu as Sanity's: centred on its button and clamped 4 px from the window, keys on white chips, disabled items in the border grey, the button filled while open ([#753](https://github.com/FRIKKern/barkpark-studio/pull/753))
-  - Share menu as Sanity's: Link and Target icons, as wide as its items; pane header buttons filled while their menu is open; Sanity's LinkIcon ([#752](https://github.com/FRIKKern/barkpark-studio/pull/752))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
