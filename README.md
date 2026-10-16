@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 43 changes, 4 tasks closed
+- **Today** · 44 changes, 4 tasks closed
+  - Reference field and menus as Sanity's: a 59 px card, its dot and … in place, a 154 px menu centred with icons; menu items in 500 with muted icons and Sanity's critical tone ([#689](https://github.com/FRIKKern/barkpark-studio/pull/689))
   - Switch as Sanity's: a 7 px thumb 5 px in on the line colour; the boolean card 49 px, its label 8 px after at 500 ([#688](https://github.com/FRIKKern/barkpark-studio/pull/688))
-  - Empty image and file boxes as Sanity's: filled in a ring, 25 px ghost Upload and Select ([#687](https://github.com/FRIKKern/barkpark-studio/pull/687))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
