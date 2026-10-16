@@ -41,6 +41,20 @@ export function keptFor(type: string, id: string, field?: string) {
   return false
 }
 
+/** When this browser last kept words for any canvas of a doc (null: none). */
+export function keptAt(type: string, id: string) {
+  let at: number | null = null
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k?.startsWith(KEY) || !(k.endsWith(`|${type}|${id}`) || k.includes(`|${type}|${id}|`))) continue
+      const kept = readKept(k)
+      if (kept && (at === null || kept.at > at)) at = kept.at
+    }
+  } catch {}
+  return at
+}
+
 export function forget(key: string) {
   try {
     localStorage.removeItem(key)
