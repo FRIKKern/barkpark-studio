@@ -2183,7 +2183,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
    tabs (the tabs' root is a container, so the banner's 8 px adds to their margin). */
 .doc-form h1:has(+ .locations-banner) { margin-bottom: 49px; }
 .locations-banner + .group-tabs-root .group-tabs { margin-top: 29px; }
-.locations-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
+.locations-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 8px 8px 6px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
 .locations-banner[data-open] .locations-toggle { background: var(--hover); }
 .locations-toggle:disabled { cursor: default; }
 .locations-banner ul { list-style: none; margin: 0; padding: 4px 0 0; }
@@ -2191,7 +2191,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .locations-banner .location:hover { background: var(--hover); }
 .locations-banner .location svg { flex: none; width: 19px; height: 19px; margin-top: -2px; }
 .locations-chevron { display: inline-flex; color: var(--muted); transition: transform 0.1s; }
-.locations-chevron svg { width: 17px; height: 17px; }
+.locations-chevron svg { width: 21px; height: 21px; margin: -2px 0; } /* Sanity's 21 px icon, 10 px in from the banner's edge */
 .locations-chevron[data-open] { transform: rotate(90deg); }
 .locations-banner .location > span > span { display: block; }
 .locations-banner .location small { display: block; color: var(--muted); font-size: 13px; }

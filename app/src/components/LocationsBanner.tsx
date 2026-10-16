@@ -5,7 +5,7 @@ import type {Doc} from '../lib/data'
 import {useT} from '../lib/i18n'
 import {locationsQuery, type Location} from '../lib/locations'
 import studio from '../studio.config'
-import {ChevronRight, Desktop} from './icons'
+import {ChevronRight, Desktop, InfoOutline} from './icons'
 
 /**
  * J62, Sanity's locations banner: "Used on N pages" over the form, unfolding to
@@ -34,8 +34,9 @@ export function LocationsBanner({doc}: {doc: Doc}) {
   return (
     <section className="locations-banner" data-open={open || undefined}>
       <button type="button" className="locations-toggle" aria-expanded={open} disabled={!locations.length} onClick={() => setOpen((o) => !o)}>
+        {/* Sanity's: a chevron when there are pages to unfold, an info icon when there are none. */}
         <span className="locations-chevron" data-open={open || undefined}>
-          <ChevronRight />
+          {!isPending && !locations.length ? <InfoOutline /> : <ChevronRight />}
         </span>
         {label}
       </button>
