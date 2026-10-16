@@ -1939,26 +1939,41 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .scope-button svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
 .scope-ws { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scope-ds { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.scope-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 340px; padding: 16px; }
+.scope-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 280px; padding: 0; display: flex; flex-direction: column; }
 /* Sanity's workspace card opens under the logo, 4 px from the window's edge, not under the name. */
 @media (min-width: 769px) { .scope-popover { left: -37px; } }
 /* The studio name is the switcher's button (Sanity's workspace menu button). */
 .brand-button { padding: 3px 6px 3px 8px; max-width: 320px; font-weight: 500; color: var(--fg-header); }
 .brand-button .brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The card's head: the logo, where you are, and the studio's name (Sanity's). */
-.scope-card { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.scope-head { display: flex; flex-direction: column; padding: 20px 20px 16px; }
+.scope-card { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
 .navbar .scope-card-logo, .scope-card-logo { width: 41px; height: 41px; font-size: 15px; flex: none; }
-.scope-card-text { display: flex; flex-direction: column; min-width: 0; }
-.scope-card-where { font-size: 11px; line-height: 15px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.scope-card-name { font-size: 15px; line-height: 21px; font-weight: 500; color: var(--fg-header); }
-.manage-project { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; margin: -4px 0 14px; padding: 4px 8px 4px 4px; text-decoration: none; color: var(--fg); box-shadow: inset 0 0 0 1px var(--border); }
+.scope-card-text { display: flex; flex-direction: column; min-width: 0; padding-top: 4px; }
+.scope-card-where { margin-bottom: -2px; font-size: 10px; line-height: 15px; color: var(--fg-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-card-name { font-size: 15px; line-height: 23px; font-weight: 500; color: var(--fg-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manage-project { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; padding: 2px 8px 2px 2px; text-decoration: none; color: var(--fg); box-shadow: inset 0 0 0 1px var(--border); }
 .manage-project .group-icon { width: 21px; height: 21px; }
-.scope-popover form { display: flex; flex-direction: column; gap: 10px; }
-.scope-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.scope-field .input { width: 100%; box-sizing: border-box; }
-.scope-note { margin: 0; font-size: 12px; color: var(--muted); }
-.scope-actions { display: flex; justify-content: flex-end; gap: 8px; }
-@media (max-width: 768px) { .scope-ws { display: none; } .scope-button { min-height: 44px; max-width: 120px; } .scope-actions button, .scope-field .input { min-height: 44px; } }
+/* Sanity's workspace list under a rule: a small head, then one 33 px row a place, 4 px apart,
+   the current one filled and checked; it scrolls past 40% of the window. */
+.scope-places { border-top: 1px solid var(--border); padding: 8px 0 4px; max-height: 40vh; overflow-y: auto; }
+.scope-places section + section { margin-top: 8px; }
+.scope-places-head { position: sticky; top: -8px; z-index: 1; margin: 0; padding: 8px 20px 8px 20px; margin-top: -8px; background: var(--bg); font-size: 10px; line-height: 15px; font-weight: 500; color: var(--fg-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.scope-place { display: flex; align-items: center; gap: 8px; width: calc(100% - 36px); margin: 0 20px 0 16px; padding: 4px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
+.scope-place:hover:not(:disabled) { background: var(--hover); }
+.scope-place:disabled { cursor: default; opacity: 0.5; }
+.scope-place[aria-current] { background: var(--selected); color: var(--on-selected); opacity: 1; }
+.scope-place-icon { flex: none; display: grid; place-items: center; width: 25px; height: 25px; border-radius: 3px; background: hsl(var(--place-hue) 70% 55%); color: #fff; font-size: 13px; line-height: normal; font-weight: 500; }
+/* Sanity's title sits 1 px under the row's top, above its icon: the text block lifts out of the 25 px line. */
+.scope-place-text { display: flex; flex-direction: column; min-width: 0; flex: 1; align-self: flex-start; margin: -3px 0; }
+.scope-place-title { font-size: 13px; line-height: 16px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-place-sub { font-size: 10px; line-height: 12px; font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-place[aria-current] .scope-place-sub { color: inherit; opacity: 0.75; }
+.scope-place svg { flex: none; width: 21px; height: 21px; margin-right: 2px; }
+.scope-note { margin: 0; padding: 4px 20px; font-size: 12px; color: var(--muted); }
+.scope-places .field-error { padding: 4px 20px; }
+@media (max-width: 768px) { .scope-ws { display: none; } .scope-button { min-height: 44px; max-width: 120px; } .scope-place { min-height: 44px; } }
 @media (max-width: 480px) { .scope-popover { position: fixed; top: 52px; left: 8px; right: 8px; width: auto; } }
 /* J37: the navbar "+" (Create new document), Sanity's type picker under it. */
 .menu-wrap.new-doc { position: relative; display: inline-flex; }
