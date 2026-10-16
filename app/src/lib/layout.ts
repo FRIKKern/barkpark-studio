@@ -40,3 +40,6 @@ export const NarrowContext = createContext(false)
  * expanding one doesn't. Empty once that URL has painted.
  */
 export const OpenedPanesContext = createContext<{current: Set<string>} | null>(null)
+
+/** A jump's scroll: smooth, or at once when the editor asked for reduced motion. */
+export const glide = (): ScrollBehavior => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth')
