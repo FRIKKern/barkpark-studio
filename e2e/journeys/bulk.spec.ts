@@ -30,7 +30,7 @@ test('@local B03: tick rows, publish and unpublish them in one go', async ({page
   // then; otherwise the list is one Tab stop, as Sanity's), Tab onto the first tick, Space.
   await page.getByRole('button', {name: 'List options'}).first().click()
   await page.getByRole('menuitemradio', {name: 'Select documents'}).click()
-  await page.getByRole('searchbox', {name: 'Search list'}).focus()
+  await page.getByRole('combobox', {name: 'Search list'}).focus()
   await page.keyboard.press('Tab')
   await expect(box('03')).toBeFocused()
   await page.keyboard.press('Space')

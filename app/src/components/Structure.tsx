@@ -1,4 +1,4 @@
-import {Fragment, useContext, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {Fragment, useContext, useId, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
@@ -560,6 +560,11 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const order = sortBusy ? resolvedSort.current : sort
   const [query, setQuery] = useState('')
   const searchInput = useRef<HTMLInputElement>(null)
+  // Sanity's list search is a combobox over its rows: typing lights the first result,
+  // ArrowDown/ArrowUp move the light, Enter opens it; the box names it (aria-activedescendant).
+  const listId = useId()
+  const [lit, setLit] = useState(0)
+  useEffect(() => setLit(0), [query])
   // A list with more on the server is searched there too, so search reaches every doc.
   const [q, setQ] = useState('')
   useEffect(() => {
@@ -626,6 +631,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     return () => clearTimeout(id)
   }, [shown.length, mounted])
   const rows = shown.length > mounted ? shown.slice(0, mounted) : shown
+  const searching = !!query.trim() && rows.length > 0
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
   const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())
   // Ticks show only while selecting: after "Select documents" in the list menu, a Cmd/Ctrl- or
@@ -705,7 +711,24 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           spellCheck={false}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={searching}
+          aria-controls={listId}
+          aria-activedescendant={searching ? `${listId}-item-${lit}` : undefined}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') return setQuery('')
+            if (!searching) return
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault()
+              const next = Math.min(rows.length - 1, Math.max(0, lit + (e.key === 'ArrowDown' ? 1 : -1)))
+              setLit(next)
+              document.getElementById(`${listId}-item-${next}`)?.scrollIntoView({block: 'nearest'})
+            } else if (e.key === 'Enter') {
+              e.preventDefault()
+              document.getElementById(`${listId}-item-${lit}`)?.querySelector<HTMLAnchorElement>('a[href]')?.click()
+            }
+          }}
         />
         {query && (
           <button type="button" className="icon-btn search-clear" aria-label={t('Clear search')} onClick={() => { searchInput.current?.focus(); setQuery('') }}>
@@ -750,8 +773,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           ))}
         {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className={`list-empty${query.trim() ? ' list-none' : ''}`}>{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
-        {shown.length > 0 && <div role="list" aria-label={listTitle} className="rows-list">
-        {rows.map((d) => {
+        {shown.length > 0 && <div role="list" id={listId} aria-label={listTitle} className="rows-list">
+        {rows.map((d, i) => {
+          const lightProps = {id: `${listId}-item-${i}`, 'data-lit': searching && i === lit ? '' : undefined}
           const row = (
             <DocPreview
               key={d._publishedId}
@@ -763,12 +787,13 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} max={2} editing /> : undefined}
             />
           )
-          if (!selectable) return <div key={d._publishedId} role="listitem" className="rows-item">{row}</div>
+          if (!selectable) return <div key={d._publishedId} role="listitem" className="rows-item" {...lightProps}>{row}</div>
           return (
             <div
               key={d._publishedId}
               role="listitem"
               className="bulk-row"
+              {...lightProps}
               data-picked={picked.has(d._publishedId) || undefined}
               onClickCapture={(e) => {
                 // Cmd/Ctrl-click ticks one row; Shift-click ticks the run from the last tick (Finder's way).
