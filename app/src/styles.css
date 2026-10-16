@@ -636,14 +636,15 @@ textarea.input { resize: vertical; }
 /* A menu's group label (Actions, Layout), Sanity's: 9.5 px caps in #252837, the group's first item 31 px under its top. */
 .popover.menu .menu-label { font-size: 9.5px; line-height: 11px; letter-spacing: .5px; color: var(--fg); padding: 10px 12px 6px; }
 .menu-item { font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; text-align: left; padding: 7px 12px; border: 0; background: none; border-radius: 3px; cursor: pointer; color: var(--menu-fg); }
-.menu-item:hover, .menu-item:focus { background: var(--hover); outline: none; }
+.menu-item:hover, .menu-item:focus-visible { background: var(--hover); }
+.menu-item:focus { outline: none; }
 /* Sanity's menus fill the item under the pointer or focus in its tone: blue, red for a critical one (measured at 1440). */
-/* One lit item: the pointer's while it is in the menu, else the focused one. */
-:is([role=menu] .menu-item:hover, [role=menu]:not(:hover) .menu-item:focus):not(:disabled, [aria-disabled='true']) { background: var(--selected); color: var(--menu-hover-fg); }
-:is([role=menu] .menu-item:hover, [role=menu]:not(:hover) .menu-item:focus):not(:disabled, [aria-disabled='true']) svg { color: var(--primary-btn-icon); }
-:is([role=menu] .menu-item.danger:hover, [role=menu]:not(:hover) .menu-item.danger:focus):not(:disabled, [aria-disabled='true']) { background: var(--menu-danger-hover); }
-:is([role=menu] .menu-item.danger:hover, [role=menu]:not(:hover) .menu-item.danger:focus):not(:disabled, [aria-disabled='true']) svg { color: var(--menu-danger-hover-icon); }
-[role=menu]:hover .menu-item:focus:not(:hover) { background: none; }
+/* One lit item: the pointer's while it is in the menu, else the one keys moved to (a click opens it unlit, as Sanity's). */
+:is([role=menu] .menu-item:hover, [role=menu]:not(:hover) .menu-item:focus-visible):not(:disabled, [aria-disabled='true']) { background: var(--selected); color: var(--menu-hover-fg); }
+:is([role=menu] .menu-item:hover, [role=menu]:not(:hover) .menu-item:focus-visible):not(:disabled, [aria-disabled='true']) svg { color: var(--primary-btn-icon); }
+:is([role=menu] .menu-item.danger:hover, [role=menu]:not(:hover) .menu-item.danger:focus-visible):not(:disabled, [aria-disabled='true']) { background: var(--menu-danger-hover); }
+:is([role=menu] .menu-item.danger:hover, [role=menu]:not(:hover) .menu-item.danger:focus-visible):not(:disabled, [aria-disabled='true']) svg { color: var(--menu-danger-hover-icon); }
+[role=menu]:hover .menu-item:focus-visible:not(:hover) { background: none; }
 .menu-item.danger { color: var(--menu-danger); }
 a.menu-item { display: block; text-decoration: none; }
 .menu-item[aria-disabled] { opacity: 0.5; cursor: default; }
