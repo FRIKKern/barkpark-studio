@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 51 changes, 4 tasks closed
+- **Today** · 52 changes, 4 tasks closed
+  - fix(live): reopen a stream that went quiet without closing ([#697](https://github.com/FRIKKern/barkpark-studio/pull/697))
   - Image tool: dialog over the form only, hotspot first, Sanity's handles, guidelines and size badge ([#696](https://github.com/FRIKKern/barkpark-studio/pull/696))
-  - Radio ring as Sanity's: the line colour, light and dark ([#695](https://github.com/FRIKKern/barkpark-studio/pull/695))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
