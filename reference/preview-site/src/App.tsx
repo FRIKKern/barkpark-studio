@@ -27,6 +27,9 @@ type Post = PostRow & {
   rating?: number
   publishedAt?: string
   mainImage?: {alt?: string} | null
+  /** Presentation at depth: a nested field and an object array's items (their own edit targets from Barkpark). */
+  seo?: {metaTitle?: string; $edit?: Edit} | null
+  links?: {_key: string; title?: string; $edit?: Edit}[]
 }
 
 declare const __STUDIO_URL__: string
@@ -44,7 +47,7 @@ type Author = {_id: string; name?: string; bio?: string; posts: PostRow[]; $edit
 const ROW = `_id, title, "slug": slug.current, excerpt, author->{_id, name}`
 const HOME = `*[_type == "post" && defined(slug.current)] | order(title asc) {${ROW}}`
 const POST = `*[_type == "post" && slug.current == $slug][0] {
-  ${ROW}, categories[]->{_id, title}, body, related->{_type, _id, title, name, "slug": slug.current}, rating, publishedAt, mainImage{alt}
+  ${ROW}, categories[]->{_id, title}, body, related->{_type, _id, title, name, "slug": slug.current}, rating, publishedAt, mainImage{alt}, seo{metaTitle}, links[]{_key, title}
 }`
 const AUTHOR = `*[_type == "author" && _id == $id][0] {
   _id, name, bio, "posts": *[_type == "post" && references(^._id) && defined(slug.current)] | order(title asc) {${ROW}}
@@ -113,6 +116,12 @@ function Page() {
               )}
               {p.mainImage && <figure className="image" {...marked(p, 'mainImage')}>{stegaClean(p.mainImage.alt) || 'Main image'}</figure>}
               {p.body?.filter((b) => b._type === 'block').map((b) => <p key={b._key} {...inBlock(p.$edit?.('body'), b._key)}>{b.children?.map((c) => c.text).join('')}</p>)}
+              {p.seo?.metaTitle && <p className="meta">SEO: <span {...p.seo.$edit?.('metaTitle')}>{p.seo.metaTitle}</span></p>}
+              {!!p.links?.length && (
+                <ul className="links">
+                  {p.links.map((l) => <li key={l._key}><span {...l.$edit?.('title')}>{l.title}</span></li>)}
+                </ul>
+              )}
               {p.related && (
                 <p className="meta">
                   Related:{' '}

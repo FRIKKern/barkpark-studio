@@ -69,8 +69,18 @@ function editOf(map: SourceMap | null | undefined, label: unknown, prefix = '$')
     return doc && path ? {'data-bp-edit': `${doc._type}:${doc._id.replace(/^drafts\./, '')}:${path}`, 'data-bp-label': String(label ?? '')} : undefined
   }
 }
+/** A nested value's own mapping, else `fallback` (the whole field's, with the rest of the path). */
+const inner = (own: Edit, fallback: Edit): Edit => (field) => own(field) ?? fallback(field)
+/** An edit target inside a whole-field mapping: `field` + `rest` (`.metaTitle`, `[_key=="l1"].title`). */
+const deeper = (edit: Edit, field: string, rest: string): Edit => () => {
+  const attrs = edit(field)
+  return attrs && {...attrs, 'data-bp-edit': `${attrs['data-bp-edit']}${rest}`}
+}
+// A keyed array item (`[?(@._key=="l1")]`) reads `[_key=="l1"]`, an index `[0]` stays.
 const dotted = (jsonPath: string | undefined) =>
-  jsonPath?.startsWith('$') ? jsonPath.slice(1).replace(/\["((?:[^"\\]|\\.)*)"\]/g, '.$1').replace(/^\./, '') || undefined : undefined
+  jsonPath?.startsWith('$')
+    ? jsonPath.slice(1).replace(/\[\?\(@\._key=="((?:[^"\\]|\\.)*)"\)\]/g, '[_key=="$1"]').replace(/\["((?:[^"\\]|\\.)*)"\]/g, '.$1').replace(/^\./, '') || undefined
+    : undefined
 
 export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]} {
   if (kind === 'home') {
@@ -94,6 +104,10 @@ export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]
         rating: typeof p.rating === 'number' ? p.rating : undefined,
         publishedAt: typeof p.publishedAt === 'string' ? p.publishedAt : undefined,
         mainImage: p.mainImage && typeof p.mainImage === 'object' ? {alt: (p.mainImage as {alt?: string}).alt} : null,
+        // A nested field and an object array's items: their own mapping (Barkpark #23590 maps
+        // nested values), else the whole field's with the rest of the path after it.
+        seo: p.seo && typeof p.seo === 'object' ? {metaTitle: (p.seo as {metaTitle?: string}).metaTitle, $edit: inner(editOf(raw.maps?.[0], p.title, '$[0]["seo"]'), deeper(editOf(raw.maps?.[0], p.title, '$[0]'), 'seo', '.metaTitle'))} : null,
+        links: ((p.links as {_key: string; title?: string}[] | undefined) ?? []).map((l, i) => ({_key: l._key, title: l.title, $edit: inner(editOf(raw.maps?.[0], p.title, `$[0]["links"][${i}]`), deeper(editOf(raw.maps?.[0], p.title, '$[0]'), 'links', `[_key=="${l._key}"].title`))})),
       },
       documents: seen([ref(p), ref(p.author), ...categories.map(ref), ref(related)]),
     }
