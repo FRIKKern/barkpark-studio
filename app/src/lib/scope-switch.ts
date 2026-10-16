@@ -40,6 +40,33 @@ const fetchOptions = createServerFn({method: 'GET'})
 export const scopeOptionsQuery = (at: {workspace: string; project: string}) =>
   queryOptions({queryKey: ['scope-options', at.workspace, at.project], queryFn: async () => (await fetchOptions({data: at})) as unknown as ScopeOptions})
 
+/** One place the switcher can go: a workspace, a project in it and a dataset in that. */
+export type Place = {workspace: Option; project: Option; dataset: Option}
+
+// Every place this editor's token reaches, for the one-click list (Sanity's workspace
+// menu lists each workspace as a row). Workspaces, then each one's projects, then each
+// project's datasets. A list Barkpark refuses falls back to the current scope's own slug,
+// so the list always has where you are.
+const fetchPlaces = createServerFn({method: 'GET'}).handler(async () => {
+  const here = scope()
+  const or = async (p: Promise<Option[]>, slug: string) => p.catch((e) => (console.warn('[scope]', e instanceof Error ? e.message : e), [{slug, name: slug}]))
+  const workspaces = await or(list('/api/workspaces', 'workspaces'), here.workspace)
+  const places = await Promise.all(
+    workspaces.map(async (ws) => {
+      const w = encodeURIComponent(ws.slug)
+      const projects = await or(list(`/api/workspaces/${w}/projects`, 'projects'), ws.slug === here.workspace ? here.project : 'default')
+      return Promise.all(
+        projects.map(async (project) => {
+          const datasets = await or(list(`/api/workspaces/${w}/projects/${encodeURIComponent(project.slug)}/datasets`, 'datasets'), ws.slug === here.workspace && project.slug === here.project ? here.dataset : '')
+          return datasets.filter((d) => d.slug).map((dataset) => ({workspace: ws, project, dataset}))
+        }),
+      )
+    }),
+  )
+  return places.flat(2) as unknown as Json
+})
+export const placesQuery = queryOptions({queryKey: ['scope-places'], queryFn: async () => (await fetchPlaces()) as unknown as Place[], staleTime: 60_000})
+
 // Switching keeps the open panes (scout 2026-10-15; it always went to the tool's root):
 // as many of them, from the left, as the target has too: each list's type in its schema,
 // each document there (draft or published). The rest close; none kept, the root.

@@ -20,12 +20,12 @@ test('@local B02: switch dataset; the URL carries it through links and a reload'
   await page.mouse.click(900, 600)
   await expect(dialog).toHaveCount(0)
   await button.click()
-  const datasets = dialog.getByRole('combobox', {name: 'Dataset'})
-  await expect.poll(() => datasets.locator('option').count()).toBeGreaterThan(1) // the list has loaded
-  await expect(datasets.locator('option', {hasText: here})).toHaveCount(1)
-  const there = (await datasets.locator('option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value))).find((v) => v.startsWith('e2e-') && v !== process.env.BARKPARK_DATASET)!
-  await datasets.selectOption(there)
-  await dialog.getByRole('button', {name: 'Switch'}).click()
+  // Sanity's workspace list: one row a place, where you are checked, one click to go.
+  // Where you are comes first: its workspace and project's datasets (a dataset name may recur elsewhere).
+  const place = (ds: string) => dialog.locator('section').first().locator('.scope-place').filter({has: page.locator('.scope-place-title', {hasText: new RegExp(`^${ds}$`)})})
+  await expect(place(here)).toHaveAttribute('aria-current', 'true')
+  const there = (await dialog.locator('section').first().locator('.scope-place-title').allTextContents()).find((v) => v.startsWith('e2e-') && v !== here)!
+  await place(there).click()
   // The same panes, there: the post list and post-02 (every lane dataset has the fixtures).
   await page.waitForURL(new RegExp(`/w/[^/]+/p/[^/]+/d/${there}/structure/post;post-02$`))
   await t.settle(page)
@@ -47,8 +47,7 @@ test('@local B02: switch dataset; the URL carries it through links and a reload'
   await page.goto(page.url().replace(/structure\/.*$/, 'structure/post;b02-not-in-any-dataset'))
   await t.settle(page)
   await button.click()
-  await dialog.getByRole('combobox', {name: 'Dataset'}).selectOption(here)
-  await dialog.getByRole('button', {name: 'Switch'}).click()
+  await place(here).click()
   await page.waitForURL(new RegExp(`/d/${here}/structure/post$`))
   await t.settle(page)
   await expect(button).toHaveAttribute('aria-label', new RegExp(`dataset ${here}\\.`))
