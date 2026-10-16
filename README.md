@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 29 changes, 4 tasks closed
+- **Today** · 30 changes, 4 tasks closed
+  - Tasks panel as Sanity's: header, tabs, empty states, create form, crumbs, pressed button ([#675](https://github.com/FRIKKern/barkpark-studio/pull/675))
   - J17: a lane whose link index is stale says so, and how to fix it ([#674](https://github.com/FRIKKern/barkpark-studio/pull/674))
-  - Footer: hold the avatar's box while the history loads, so "Last published" never moves ([#673](https://github.com/FRIKKern/barkpark-studio/pull/673))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
