@@ -9,6 +9,7 @@ import {USER_HUES, userHue} from '../lib/user-colors'
 import {Users} from './icons'
 import {useT} from '../lib/i18n'
 import {initialsOf, usePersonName, usePersonNamer} from '../lib/person'
+import {glide} from '../lib/layout'
 
 // J07: other editors, where Sanity shows them — on the field they are in, on the
 // list row and pane of the doc they have open, and in the navbar's "who's online".
@@ -148,7 +149,7 @@ export function PresenceHints({docId, scroller}: {docId: string; scroller: RefOb
   }
   const above = people.filter((p) => where(p) === 'above')
   const below = people.filter((p) => where(p) === 'below')
-  const go = (p: Presence) => (scroller.current && placeOf(scroller.current, p.field!))?.scrollIntoView({block: 'center', behavior: 'smooth'})
+  const go = (p: Presence) => (scroller.current && placeOf(scroller.current, p.field!))?.scrollIntoView({block: 'center', behavior: glide()})
   return (
     <>
       {above.length > 0 && (

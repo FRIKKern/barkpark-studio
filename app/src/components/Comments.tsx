@@ -13,6 +13,7 @@ import {toast} from './Toasts'
 import {PersonName} from './Presence'
 import {localPart, usePersonName} from '../lib/person'
 import {peopleNamesQuery} from '../lib/people'
+import {glide} from '../lib/layout'
 
 // J40, Sanity's field comments: a comment button on every field (shown on hover,
 // or always with a count once the field has open threads), a composer under it,
@@ -472,7 +473,7 @@ function ThreadCard({thread, docId, docType, active, onSelect}: {thread: Thread;
         // Its own controls (resolve, menu, reply) do their own thing.
         if (!thread.root.selection || (e.target as HTMLElement).closest('button, textarea, [role=menu], [role=button]')) return
         onSelect()
-        document.querySelector(`.bp-comment-range[data-comment-id="${CSS.escape(thread.root._id)}"]`)?.scrollIntoView({block: 'center', behavior: 'smooth'})
+        document.querySelector(`.bp-comment-range[data-comment-id="${CSS.escape(thread.root._id)}"]`)?.scrollIntoView({block: 'center', behavior: glide()})
       }}
     >
       {thread.root.selection && <CommentedText text={thread.root.contentSnapshot ?? ''} gone={!!thread.root.textDeleted} />}
