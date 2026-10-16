@@ -1123,18 +1123,18 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
         {menu && (
           <AnchoredLayer anchor={actionsButton} className="doc-menu-layer" onClose={closeMenu}>
           <MenuPopover className="popover menu up" onClose={closeMenu}>
-            {!single && (
-              <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
-                <span className="menu-icon-text">
-                  <Copy /> {t('Duplicate')}
-                </span>
-              </button>
-            )}
-            {/* J40: Sanity's Schedule publish (a draft to publish, a Barkpark that schedules), or Delete schedule once set. */}
+            {/* J40: Sanity's Schedule publish (a draft to publish, a Barkpark that schedules), or Delete schedule once set. Listed first, as Sanity's; Duplicate keeps the focus. */}
             {!single && scheduleQ.data?.supported && (!schedule || paused) && doc._draft && (
               <button type="button" role="menuitem" className="menu-item" disabled={!canWrite || !!publishReason || blocked > 0} title={publishReason ?? (blocked > 0 ? t('Cannot schedule draft due to validation issues in the current draft.') : undefined)} onClick={() => (setMenu(false), setScheduling(true))}>
                 <span className="menu-icon-text">
                   <Clock /> {t('Schedule publish')}
+                </span>
+              </button>
+            )}
+            {!single && (
+              <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
+                <span className="menu-icon-text">
+                  <Copy /> {t('Duplicate')}
                 </span>
               </button>
             )}
@@ -1346,8 +1346,8 @@ export function ConfirmDialog({title, body, action, run, onClose}: {title: strin
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   return (
-    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <DialogBox className="dialog" aria-modal="true" aria-label={title} onClose={onClose}>
+    <div className="dialog-backdrop pane-confirm-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <DialogBox className="dialog pane-confirm" aria-modal="true" aria-label={title} onClose={onClose}>
         <header>
           <h2>{title}</h2>
         </header>
