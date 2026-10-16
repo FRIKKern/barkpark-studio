@@ -8,7 +8,7 @@ import {people as byPerson, stack} from '../lib/presence-people'
 import {USER_HUES, userHue} from '../lib/user-colors'
 import {Users} from './icons'
 import {useT} from '../lib/i18n'
-import {initialsOf, usePersonName} from '../lib/person'
+import {initialsOf, usePersonName, usePersonNamer} from '../lib/person'
 
 // J07: other editors, where Sanity shows them — on the field they are in, on the
 // list row and pane of the doc they have open, and in the navbar's "who's online".
@@ -31,14 +31,15 @@ export function Avatar({p}: {p: Presence}) {
 export function AvatarStack({people, max = 3, editing = false}: {people: Presence[]; max?: number; editing?: boolean}) {
   const t = useT()
   const all = byPerson(people)
-  const one = usePersonName(all[0]?.name) ?? all[0]?.name
+  const nameOf = usePersonNamer()
+  const one = nameOf(all[0]?.name) ?? all[0]?.name
   if (!all.length) return null
   const {hidden, shown} = stack(all, max)
   const label = !editing ? undefined : all.length === 1 ? t('{name} is editing this document right now', {name: one}) : t('{count} people are editing this document right now', {count: all.length})
   return (
     <span className="p-avatars" data-testid="presence" title={label} aria-label={label} role={label ? 'img' : undefined}>
       {hidden > 0 && (
-        <span className="p-avatar more" title={all.slice(0, hidden).map((p) => p.name).join(', ')}>
+        <span className="p-avatar more" title={all.slice(0, hidden).map((p) => nameOf(p.name) ?? p.name).join(', ')}>
           {hidden}
         </span>
       )}
@@ -222,7 +223,9 @@ function OnlineRow({p, onDone}: {p: Presence; onDone: () => void}) {
       }}
     >
       <Avatar p={p} />
-      <span className="who-name">{p.name}</span>
+      <span className="who-name">
+        <PersonName who={p.name} fallback={p.name} />
+      </span>
       <span className="who-doc">{p.documentId ? (doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : '…') : t('Not in a document')}</span>
     </button>
   )

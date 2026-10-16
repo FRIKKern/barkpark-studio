@@ -19,9 +19,12 @@ export function initialsOf(name: string) {
 
 /** What to call `who` (an email, or a label that is not one). */
 export function usePersonName(who: string | null | undefined): string | null {
-  const {data: names} = useQuery({...peopleNamesQuery, enabled: !!who && who.includes('@')})
+  return usePersonNamer(!!who && who.includes('@'))(who)
+}
+
+/** usePersonName for a list (a stack's tooltip, the carets of everyone in a canvas). */
+export function usePersonNamer(lookUp = true): (who: string | null | undefined) => string | null {
+  const {data: names} = useQuery({...peopleNamesQuery, enabled: lookUp})
   const {data: me} = useQuery(meQuery)
-  if (!who) return null
-  if (!who.includes('@')) return who
-  return names?.[who] || (me?.email === who && me.name) || localPart(who)
+  return (who) => (!who ? null : !who.includes('@') ? who : names?.[who] || (me?.email === who && me.name) || localPart(who))
 }

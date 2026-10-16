@@ -16,10 +16,11 @@ test('one person per name, in the first session colour, at the place they moved 
   assert.equal(people([s('1', 'Ada', 'post-01'), s('3', 'Ada')], new Map([['3', 30]]))[0]!.documentId, 'post-01')
 })
 
-test('signed in, your own tabs are left out; shared sign-in leaves everyone in', () => {
-  const all = [s('1', 'ada'), s('2', 'grace'), s('3', 'ada')]
-  assert.deepEqual(withoutSelf(all, 'ada').map((p) => p.sessionId), ['2'])
-  assert.deepEqual(withoutSelf(all, null).map((p) => p.sessionId), ['1', '2', '3'])
+test('signed in, your own tabs are left out (by your whole email); shared sign-in leaves everyone in', () => {
+  const all = [s('1', 'ada@a.com'), s('2', 'grace@a.com'), s('3', 'ada@a.com'), s('4', 'ada@b.com')]
+  assert.deepEqual(withoutSelf(all, 'ada@a.com').map((p) => p.sessionId), ['2', '4'], 'ada@b.com is someone else')
+  assert.deepEqual(withoutSelf(all, null).map((p) => p.sessionId), ['1', '2', '3', '4'])
+  assert.equal(people(all).length, 3, 'two people sharing a local part stay two')
 })
 
 test('the stack shows up to max, then max - 1 and a counter of the rest (never a counter of 1)', () => {
