@@ -449,6 +449,10 @@ a { color: inherit; text-decoration: none; }
 .pane.doc > .pane-header { padding-left: 12px; }
 /* Sanity's pane header buttons: 25 px, 4 px apart, 21 px icons drawn in its muted grey (#6a6e7d, dark #93949f:
    the svg's own colour, measured at 1440; the button's text colour is darker but draws nothing). */
+/* The Published/Draft chips give way (an ellipsis) before a header button covers them:
+   a touch tablet's 44 px buttons at 600–660 px (task-ae2bb98fa7dbb4e0). */
+.pane.doc .pane-header .chips, .pane.doc .pane-header .chip { min-width: 0; }
+.pane.doc .pane-header .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pane-header .icon-btn { color: var(--icon-muted); }
 .pane-header .icon-btn > svg { width: 21px; height: 21px; }
 /* Sanity's validation button carries a 4 px dot in its tone at its icon's top right (6 px into a 25 px button;
@@ -488,8 +492,9 @@ a { color: inherit; text-decoration: none; }
 .type-row[aria-current='true'] { background: var(--selected); color: var(--on-selected); }
 .type-row[aria-current='true'] .chev { color: var(--on-selected); }
 
-/* J01: type/list navigation stays comfortable to tap on phones and tablets. */
-@media (max-width: 768px) {
+/* J01: type/list navigation stays comfortable to tap on phones and tablets: a touch
+   screen's (pointer: coarse). A narrow desktop window keeps Sanity's 25 px buttons. */
+@media (max-width: 768px) and (pointer: coarse) {
   .type-row { height: 44px; }
   .pane.list .pane-header .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
   .pane.list .search input { min-height: 44px; padding-right: 46px; }
@@ -1164,7 +1169,7 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .pane.list .pane-header .popover.menu .menu-item-label { gap: 6px; }
 .pane.list .pane-header .popover.menu .menu-item-label svg { width: 21px; height: 21px; margin: -4px 0 -4px -6px; }
 .pane.list .pane-header .popover.menu .menu-item[aria-disabled='true'] { opacity: 1; background: none; cursor: default; color: color-mix(in srgb, var(--fg-header) 14%, var(--bg)); }
-@media (max-width: 768px) { .pane.list .pane-header .menu-item { min-height: 44px; } }
+@media (max-width: 768px) and (pointer: coarse) { .pane.list .pane-header .menu-item { min-height: 44px; } }
 .search .search-clear { position: absolute; right: 2px; top: 0; }
 /* Sanity's, measured at 1440: a 25 px row 12 px in, its sort icon 21 px 2 px in, menu text; the rows 16 px under it. */
 .sorted-by { display: flex; align-items: center; gap: 2px; height: 25px; margin: 0 12px 16px; padding: 0 8px 0 2px; font-size: 13px; font-weight: 500; line-height: 19px; color: var(--menu-fg); }

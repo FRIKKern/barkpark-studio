@@ -162,3 +162,27 @@ test('@local J46: on a touch phone, what hover reveals is there, and the documen
     await context.close()
   }
 })
+
+// A narrow desktop window keeps Sanity's 25 px header buttons (44 px taps are a touch
+// screen's, pointer: coarse); on a touch tablet the chips give way, so Share never covers Draft.
+test('@local J46: at 620 px the header buttons are 25 px on a desktop, 44 px on touch, and Draft stays clear', async ({browser}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'Sanity is 25 px at every width; this guards ours')
+  for (const touch of [false, true]) {
+    const context = await browser.newContext({viewport: {width: 620, height: 800}, ...(touch ? {isMobile: true, hasTouch: true} : {})})
+    try {
+      await t.prepare(context)
+      const page = await context.newPage()
+      await page.goto(t.docPath('post', 'post-01'))
+      await signInIfAsked(page)
+      await t.settle(page)
+      const header = page.locator('[data-testid="document-pane"] .pane-header').first()
+      const share = (await header.getByRole('button', {name: 'Share document'}).boundingBox())!
+      const draft = (await header.locator('.chip').nth(1).boundingBox())!
+      expect(share.width, touch ? 'touch tap target' : 'desktop button').toBe(touch ? 44 : 25)
+      expect(draft.x + draft.width, 'Draft ends before Share').toBeLessThanOrEqual(share.x)
+    } finally {
+      await context.close()
+    }
+  }
+})
