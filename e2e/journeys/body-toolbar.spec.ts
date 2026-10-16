@@ -77,9 +77,11 @@ test('J10: the body toolbar marks, sets a style, and refuses a script link', asy
   // no tool lies past the field.
   await field.evaluate((f) => void (f.style.width = '300px'))
   await expect(bar.getByRole('button', {name: 'Show more'}).first()).toBeVisible()
-  const spill = await bar.evaluate((b) => {
-    const edge = b.closest('.body-canvas')!.getBoundingClientRect().right
-    return [...b.querySelectorAll('button')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > edge).length
-  })
-  expect(spill).toBe(0)
+  // A 600 px field already shows a "Show more" (#749), so wait for the refold itself.
+  const spill = () =>
+    bar.evaluate((b) => {
+      const edge = b.closest('.body-canvas')!.getBoundingClientRect().right
+      return [...b.querySelectorAll('button')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > edge).length
+    })
+  await expect.poll(spill, {timeout: 3000}).toBe(0)
 })
