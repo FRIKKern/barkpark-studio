@@ -1,25 +1,27 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {apiBase, bpFetch, bpFile, bpRaw, dataset} from '../../../../server/barkpark'
+import {fallsBackToOriginal, mediaHeaders, transformQuery} from '../../../../lib/media-proxy'
 
 // GET /api/media/<asset id> → the file's bytes. Barkpark serves media files to a token only,
 // and an <img> can't send one, so the studio fetches them for it. An image takes Barkpark's
 // transform parameters (lib/image.ts imageSrc: w, h, fit, auto=format), so a row thumbnail or
 // a field preview gets the size it shows at, as AVIF or WebP, instead of the original
 // (docs/media/IMAGE-TRANSFORMS.md in Barkpark). ?size=thumb is the 320 px JPEG preset.
-const TRANSFORM = ['w', 'h', 'fit', 'auto', 'q'] as const
 // An asset's path never changes under its id: one metadata read per asset, not per image.
+// Shared across editors on purpose: the path is never sent to the browser, and the file
+// read below goes with the requesting editor's own token (signed out: none), which
+// Barkpark checks on every file and transform read (403 without a seat, as the metadata
+// read would answer).
 const paths = new Map<string, {url: string; mimeType?: string}>()
 
 export const Route = createFileRoute('/api/media/$id/')({
   server: {
     handlers: {
       GET: async ({params, request}) => {
-        // An asset's bytes never change under its id; with auto=format they depend on Accept.
-        const immutable = {'cache-control': 'private, max-age=31536000, immutable', vary: 'Accept'}
         const query = new URL(request.url).searchParams
         if (query.get('size') === 'thumb') {
           const thumb = await bpRaw(`/media/renditions/${encodeURIComponent(params.id)}/thumb`)
-          return new Response(thumb.body, {status: thumb.status, headers: {'content-type': thumb.headers.get('content-type') ?? 'image/jpeg', ...immutable}})
+          return new Response(thumb.body, {status: thumb.status, headers: mediaHeaders(thumb.ok, thumb.headers.get('content-type') ?? 'image/jpeg')})
         }
         const key = `${apiBase()}|${dataset()}|${params.id}`
         let asset = paths.get(key)
@@ -30,14 +32,13 @@ export const Route = createFileRoute('/api/media/$id/')({
           if (paths.size > 5000) paths.clear()
           paths.set(key, asset)
         }
-        const transform = new URLSearchParams(TRANSFORM.flatMap((k) => (query.has(k) ? [[k, query.get(k)!]] : [])))
+        const transform = transformQuery(query)
         const accept = {accept: request.headers.get('accept') ?? 'image/*'}
-        let file = transform.size && asset.mimeType?.startsWith('image/') ? await bpFile(`${asset.url}?${transform}`, accept) : null
-        // Not transformable (an SVG, TIFF or HEIC) or past the asset's variant limit: the original.
-        if (!file?.ok) file = await bpFile(asset.url, accept)
+        let file = transform && asset.mimeType?.startsWith('image/') ? await bpFile(`${asset.url}?${transform}`, accept) : null
+        if (!file || fallsBackToOriginal(file.status)) file = await bpFile(asset.url, accept)
         return new Response(file.body, {
           status: file.status,
-          headers: {'content-type': file.headers.get('content-type') ?? asset.mimeType ?? 'application/octet-stream', ...immutable},
+          headers: mediaHeaders(file.ok, file.headers.get('content-type') ?? asset.mimeType ?? 'application/octet-stream'),
         })
       },
       // J36: Sanity's asset Delete. Barkpark refuses an asset in use itself (409 with
