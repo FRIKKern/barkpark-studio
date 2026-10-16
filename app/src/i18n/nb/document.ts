@@ -166,6 +166,7 @@ export default {
   'Last published {ago}': 'Sist publisert {ago}',
   'Open in Structure': 'Åpne i Struktur',
   'Unpublished {ago}': 'Avpublisert {ago}',
+  'Deleted {ago}': 'Slettet {ago}',
   'Loading document…': 'Laster dokument…',
   'Looking for documents that refer to it…': 'Ser etter dokumenter som refererer til det…',
   'Looking for documents that refer to them…': 'Ser etter dokumenter som refererer til dem…',

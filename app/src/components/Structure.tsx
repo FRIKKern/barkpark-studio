@@ -3,6 +3,7 @@ import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {deskQuery, restQuery, docQuery, docTitle, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {historyQuery} from '../lib/history'
 import {deskIndex, deskSort, listFilter, rootDesk, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
 import {announce} from '../lib/announce'
@@ -198,6 +199,8 @@ function usePaneTitle(pane: Pane) {
   const {data: draft} = useQuery({...docQuery(type, id), enabled: pane.kind === 'doc' && known && (!published || live === null)})
   // J04: Published with no published version: named by its draft, as Sanity's.
   const doc = published ? (live === null && draft ? draft : live) : draft
+  // J32: a doc someone deleted is "Untitled", as Sanity's (its pane reads this history already).
+  const {data: revisions} = useQuery({...historyQuery(type, id), enabled: pane.kind === 'doc' && known && doc === null})
   if (pane.kind === 'types') return desk?.title ?? t('Content')
   if (pane.kind === 'menu') return node?.title ?? pane.node
   // J18: a child list is titled by its declaration ("Posts"), its parent list by its own ("Authors").
@@ -207,7 +210,7 @@ function usePaneTitle(pane: Pane) {
   if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? t('Unknown pane type')
   const schema = schemaOf(schemas, pane.type)
   if (!schema) return t('Unknown document type')
-  if (doc === null) return t('The document was not found')
+  if (doc === null) return revisions?.[0]?.action === 'delete' && !published ? t('Untitled') : t('The document was not found')
   // A desk singleton is named by its desk row (Sanity's S.document().title()).
   if (pane.node && node?.title) return node.title
   return doc && schema ? docTitle(doc, schema, t) : previewTitle(doc, schema, t)
