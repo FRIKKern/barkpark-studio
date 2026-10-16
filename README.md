@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 141 changes, 4 tasks closed
+- **Today** · 142 changes, 4 tasks closed
+  - Nested fields: only the hovered field's actions show, as Sanity's ([#790](https://github.com/FRIKKern/barkpark-studio/pull/790))
   - Media at 320 px: the toolbar wraps under its search, Upload in reach ([#788](https://github.com/FRIKKern/barkpark-studio/pull/788))
-  - Body: keys typed right after the first click go where the click put the caret ([#787](https://github.com/FRIKKern/barkpark-studio/pull/787))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
