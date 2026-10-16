@@ -45,7 +45,7 @@ import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from 
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
 import {cancelSchedule, pauseSchedule, resumeSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
 import {ScheduleDialog} from './ScheduleDialog'
-import {ChevronDown, CheckmarkCircle, Clock, LockIcon, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse} from './icons'
+import {ChevronDown, CheckmarkCircle, Clock, LockIcon, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse, MasterDetail} from './icons'
 import {useFocusMode} from './FocusMode'
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
@@ -575,14 +575,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <CommentIcon />
           </button>
         )}
-        {doc && schema && (
-          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} onCompare={comparable ? compare.open : undefined} inline={inline} onInline={compare.toggleInline} />
-        )}
-        {/* Sanity's Presentation: the document opens in Structure, leaving the preview. */}
+        {/* Sanity's Presentation: the document opens in Structure, leaving the preview (its root
+            field action, before the menu, with the Structure tool's icon). */}
         {inPresentation && (
           <button type="button" className="icon-btn" aria-label={t('Open in Structure')} data-tip={t('Open in Structure')} onClick={() => toStructure(`/structure/${pane.type};${pane.id}`)}>
-            <SplitVertical />
+            <MasterDetail />
           </button>
+        )}
+        {doc && schema && (
+          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} onCompare={comparable ? compare.open : undefined} inline={inline} onInline={compare.toggleInline} />
         )}
         {/* Sanity's Presentation: no focus mode, and a close that goes back to the page's documents. */}
         {inPresentation && (
@@ -1060,19 +1061,23 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
               : t('Edited {ago}', {ago: ago(doc._updatedAt, locale)})
   return (
     <footer className="doc-footer">
-      {/* Sanity's status is a button: it opens History on Review changes (the keyboard reaches it too). */}
-      <button type="button" className="save-state-btn" aria-label={label || undefined} onClick={onReview} disabled={!label}>
-        {/* "N sec. ago" differs between the server render and hydration: not an error. */}
-        <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
-          {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
-          {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : <FooterActor actor={actor} pending={actorPending} />}
-          <span className="save-state-text">{label}</span>
-        </span>
-      </button>
-      {state === 'signedOut' && (
-        <SignInAgain />
-      )}
-      <DocBadges doc={doc} />
+      {/* Sanity's status bar: the status and the badges wrap as one group (a narrow pane puts the
+          badges on a second row), the actions stay on the first. */}
+      <div className="doc-footer-status">
+        {/* Sanity's status is a button: it opens History on Review changes (the keyboard reaches it too). */}
+        <button type="button" className="save-state-btn" aria-label={label || undefined} onClick={onReview} disabled={!label}>
+          {/* "N sec. ago" differs between the server render and hydration: not an error. */}
+          <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
+            {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
+            {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : <FooterActor actor={actor} pending={actorPending} />}
+            <span className="save-state-text">{label}</span>
+          </span>
+        </button>
+        {state === 'signedOut' && (
+          <SignInAgain />
+        )}
+        <DocBadges doc={doc} />
+      </div>
       {/* Sanity's tooltip: the shortcut while there is something to publish, else when it was published. */}
       {/* J40: a paused schedule's footer offers Schedule, as Sanity's: the same time or a new one. */}
       {paused ? (
@@ -1313,11 +1318,13 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
     unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, tt('was unpublished. A draft has been created from the latest published revision.'))}))
   return (
     <footer className="doc-footer">
-      <span className="save-state" role="status" suppressHydrationWarning>
-        <FooterActor actor={none ? gone?.actor : actor} pending={actorPending} />
-        <span className="save-state-text">{none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}</span>
-      </span>
-      <DocBadges doc={doc} />
+      <div className="doc-footer-status">
+        <span className="save-state" role="status" suppressHydrationWarning>
+          <FooterActor actor={none ? gone?.actor : actor} pending={actorPending} />
+          <span className="save-state-text">{none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}</span>
+        </span>
+        <DocBadges doc={doc} />
+      </div>
       {/* B13: a singleton is never unpublished (it keeps Publish, Discard and Restore). */}
       {!single && (
         <button className="publish danger" disabled={!canPublish || none} title={unpublishReason} onClick={() => setConfirm(true)}>

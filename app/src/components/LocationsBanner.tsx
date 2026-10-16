@@ -1,11 +1,24 @@
-import {useEffect, useState} from 'react'
+import {useContext, useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {Link} from '@tanstack/react-router'
+import {Link, useRouterState} from '@tanstack/react-router'
 import type {Doc} from '../lib/data'
 import {useT} from '../lib/i18n'
 import {locationsQuery, type Location} from '../lib/locations'
 import studio from '../studio.config'
 import {ChevronRight, Desktop, InfoOutline} from './icons'
+import {InPresentationContext} from './PaneLink'
+
+/**
+ * Sanity's areUrlsMatching: a location is the page shown when the paths agree and the
+ * page's URL carries every search parameter the location's has.
+ */
+export function isShownLocation(shown: string, href: string): boolean {
+  const page = new URL(shown, 'http://x')
+  const at = new URL(href, page)
+  if (page.origin !== at.origin || page.pathname !== at.pathname) return false
+  for (const [k, v] of at.searchParams) if (page.searchParams.get(k) !== v) return false
+  return true
+}
 
 /**
  * J62, Sanity's locations banner: "Used on N pages" over the form, unfolding to
@@ -17,6 +30,9 @@ export function LocationsBanner({doc}: {doc: Doc}) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const config = studio.presentation
+  // In Presentation, the page the preview shows is marked (Sanity's pressed card).
+  const inPresentation = useContext(InPresentationContext)
+  const shown = useRouterState({select: (st) => (st.location.search as {preview?: unknown}).preview})
   const own = config?.locations?.(doc)
   // Asked a moment after the pane opens: the document's own read goes first (F2).
   const [asked, setAsked] = useState(false)
@@ -44,7 +60,7 @@ export function LocationsBanner({doc}: {doc: Doc}) {
         <ul>
           {locations.map((l) => (
             <li key={l.href}>
-              <Link to="/presentation" search={{preview: l.href.startsWith('/') ? l.href : undefined, pane: `${doc._type};${doc._publishedId}`}} className="location">
+              <Link to="/presentation" search={{preview: l.href.startsWith('/') ? l.href : undefined, pane: `${doc._type};${doc._publishedId}`}} className="location" data-shown={(inPresentation && typeof shown === 'string' && isShownLocation(shown, l.href)) || undefined}>
                 <Desktop />
                 <span>
                   <span>{l.title}</span>

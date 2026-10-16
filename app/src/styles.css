@@ -33,6 +33,14 @@
   --disabled: #b0b4c0;
   --warn-bg: #fdf3c8;
   --warn-fg: #6b5300;
+  /* Sanity's caution card (Presentation's "Missing a main document"), measured */
+  --caution-card-bg: #fefae1;
+  --caution-card-fg: #3b2212;
+  --caution-code-fg: #955712;
+  --caution-code-bg: #fdf5c7;
+  --pressed-card: #eeeef1; /* Sanity's pressed card: the location the preview shows, measured */
+  --switch-on: #0d0e12; /* Sanity's Switch track when on, measured */
+  --edit-pill: #f6f6f8; /* Presentation's Edit switch card, measured */
   --danger-bg: #fde5e3;
   --ok-bg: #e5f8ee;
   --ok-fg: #0d5c34;
@@ -149,6 +157,13 @@
   --disabled: #5c6175;
   --warn-bg: #3b3216;
   --warn-fg: #f2d36b;
+  --caution-card-bg: #1e1a1b;
+  --caution-card-fg: #f9ea98;
+  --caution-code-fg: #f9bf1e;
+  --caution-code-bg: #28201b;
+  --pressed-card: #21232f;
+  --switch-on: #e3e4e8;
+  --edit-pill: #0d0e12;
   --danger-bg: #3a1d1d;
   --ok-bg: #16301f;
   --ok-fg: #8ee2b0;
@@ -266,7 +281,8 @@ a { color: inherit; text-decoration: none; }
 }
 /* Presentation's document pane (325 px) keeps one header row, as Sanity's: the chips
    clip before a button wraps. */
-.presentation-panel .pane.doc > .pane-header { flex-wrap: nowrap; }
+/* Its buttons keep Sanity's 4 px gaps (the narrow-pane rule drops them); the chips clip first. */
+.presentation-panel .pane.doc > .pane-header { flex-wrap: nowrap; gap: 4px; padding-right: 12px; }
 .presentation-panel .pane.doc > .pane-header .chips { flex: 0 1 auto; min-width: 0; margin-right: 0; }
 .presentation-panel .pane.doc > .pane-header > :is(.icon-btn, .menu-wrap) { flex-shrink: 0; }
 .pane.filler { flex: 2 1 0; border-right: 0; }
@@ -487,14 +503,17 @@ textarea.input { resize: vertical; }
 .chip .dot { width: 5px; height: 5px; border-radius: 50%; }
 .dot.published { background: var(--published); }
 .dot.draft { background: var(--caution-dot); }
-.doc-footer { height: 51px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 16px; font-size: 13px; color: var(--muted); }
+.doc-footer { min-height: 51px; flex: none; display: flex; align-items: flex-start; gap: 8px; padding: 13px 16px; font-size: 13px; color: var(--muted); }
+/* Sanity's status bar: status and badges wrap as one group, 12 px apart (8 in a pane under 480 px). */
+.doc-footer-status { flex: 1 1 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+@container document-pane (max-width: 480px) { .doc-footer-status { gap: 8px; } }
 /* Sanity's footer (measured at 1440): Publish 79x25 with a 21 px icon at 2 and the label at 25,
    12 px before the actions menu, whose icon is the header grey. */
 .doc-footer .publish { min-height: 25px; padding: 2px 8px 2px 2px; gap: 2px; }
 .doc-footer .publish > svg { width: 21px; height: 21px; margin: 0; }
 .doc-footer .publish-tip + *, .doc-footer .publish + * { margin-left: 4px; }
 .doc-footer > .icon-btn, .doc-footer .menu-wrap > .icon-btn { color: var(--fg-header); }
-.doc-footer .save-state-btn { color: var(--footer-meta); margin: 0 auto 0 0; padding: 3px 6px; border: 0; border-radius: 3px; background: none; font: inherit; cursor: pointer; min-width: 0; text-align: left; }
+.doc-footer .save-state-btn { color: var(--footer-meta); margin: 0; padding: 3px 6px; border: 0; border-radius: 3px; background: none; font: inherit; cursor: pointer; min-width: 0; text-align: left; }
 .doc-footer .save-state-btn:hover:not(:disabled) { background: var(--hover); }
 .doc-footer .save-state-btn:disabled { cursor: default; }
 .publish { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
@@ -502,12 +521,13 @@ textarea.input { resize: vertical; }
 .publish.danger { background: var(--danger-btn-bg); color: var(--danger-btn-fg); }
 /* J04: a disabled Unpublish greys out like Publish (the danger colours came after :disabled and won). */
 .publish.danger:disabled { background: var(--danger-btn-disabled-bg); color: var(--danger-btn-disabled-fg); cursor: default; }
-.switch { display: inline-block; position: relative; width: 33px; height: 19px; }
+/* Sanity's Switch: 25×17, a 9 px knob 4 px in. */
+.switch { display: inline-block; position: relative; width: 25px; height: 17px; flex: none; }
 .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--line-strong); pointer-events: none; }
-.switch span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 13px; height: 13px; border-radius: 50%; background: var(--bg); transition: left 0.1s; }
-.switch input:checked + span { background: var(--fg-strong); }
-.switch input:checked + span::after { left: 17px; }
+.switch span::after { content: ''; position: absolute; top: 4px; left: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--bg); transition: left 0.1s; }
+.switch input:checked + span { background: var(--switch-on); }
+.switch input:checked + span::after { left: 12px; }
 .switch input:focus-visible + span { box-shadow: 0 0 0 2px var(--selected); }
 
 /* Reference input */
@@ -749,6 +769,9 @@ a.version-badge:hover { color: var(--fg-strong); }
 .used-in { list-style: none; margin: 0; padding: 4px 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
 .used-in li .preview { margin: 0 4px; min-height: 41px; }
 @media (max-width: 768px) {
+  /* Phone: one row, centred on the 44 px taps; a long status ellipsizes. */
+  .doc-footer { height: 51px; align-items: center; padding: 0 16px; }
+  .doc-footer-status { flex-wrap: nowrap; }
   .doc-footer .icon-btn, .delete-dialog .icon-btn { width: 44px; height: 44px; }
   .doc-footer .menu-item, .doc-menu-layer .menu-item, .delete-dialog .btn, .delete-dialog .used-in .preview { min-height: 44px; }
 }
@@ -2088,7 +2111,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 @media (max-width: 768px) { .tags-box .tag button { width: 44px; height: 44px; } }
 /* J44: a boolean switch at phone width (F12): its invisible input reaches 45x45
    around the 33x19 track. */
-@media (max-width: 768px) { .switch input { inset: -13px -6px; } }
+@media (max-width: 768px) { .switch input { inset: -14px -10px; } }
 /* Hover tooltips (J35 hotkey, J56 status dates), as Sanity's: a small card under the target. */
 .hover-tip { position: fixed; z-index: 300; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; max-width: 280px; padding: 6px 10px; border-radius: 4px; background: var(--bg); color: var(--fg); box-shadow: 0 0 0 1px var(--line), 0 6px 16px var(--shadow); font-size: 13px; line-height: 1.4; pointer-events: none; white-space: nowrap; }
 .hover-tip .tip-line { display: flex; gap: 8px; }
@@ -2154,9 +2177,9 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .stats :is(th, td):last-child { padding-right: 0; }
 .stats th:first-child, .stats td:first-child { text-align: left; }
 .field-note { font-size: 12px; color: var(--muted); margin-top: 6px; }
-.doc-footer .save-state-btn:has(+ .doc-badges) { margin-right: 12px; }
-.doc-footer .doc-badges { margin-right: auto; display: inline-flex; gap: 4px; }
-.doc-badge { font-size: 13px; line-height: 1; padding: 4px 6px; border-radius: 3px; background: var(--hover); color: var(--fg); white-space: nowrap; }
+.doc-footer .doc-badges { display: inline-flex; gap: 4px; }
+/* Sanity's Badge: 17 px tall, fully round. */
+.doc-badge { font-size: 13px; line-height: 17px; padding: 0 8px; border-radius: 9px; background: var(--hover); color: var(--fg); white-space: nowrap; }
 .doc-badge[data-color=success] { background: var(--badge-positive-bg); color: var(--badge-positive-fg); }
 .doc-badge[data-color=primary] { background: var(--badge-primary-bg); color: var(--badge-primary-fg); }
 .doc-badge[data-color=warning] { background: var(--warn-bg); color: var(--warn-fg); }
@@ -2165,8 +2188,14 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 /* J58: Presentation, after Sanity's — the site beside the document panel, its connection states over the frame. */
 .presentation { height: calc(100vh - var(--nav-h)); display: flex; color: var(--fg); }
 .presentation-preview { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.presentation-toolbar { height: 51px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 12px; border-bottom: 1px solid var(--border); }
-.presentation-url { flex: 1; min-width: 0; height: 33px; font-size: 13px; }
+.presentation-toolbar { height: 51px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--border); }
+.presentation-toolbar .icon-btn { color: var(--icon-muted); }
+/* Sanity's: refresh | URL | Open preview, one bordered field with dividers. */
+.presentation-url-group { flex: 1; min-width: 0; display: flex; height: 33px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg); }
+.presentation-url-group > .icon-btn { flex: none; width: 31px; height: auto; border-radius: 0; }
+.presentation-url-group > .icon-btn:first-child { border-right: 1px solid var(--line); border-radius: 2px 0 0 2px; }
+.presentation-url-group > .icon-btn:last-child { border-left: 1px solid var(--line); border-radius: 0 2px 2px 0; }
+.presentation-url { flex: 1; min-width: 0; height: auto; font-size: 13px; border-radius: 0; box-shadow: none; background: none; }
 .presentation-frame { position: relative; flex: 1; background: var(--hover); }
 .presentation-frame iframe { /* the site's own page: white until it paints */ position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
 .presentation-overlay { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; backdrop-filter: blur(2px); }
@@ -2201,8 +2230,11 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .presentation-narrow-tabs [role=tab]:hover { background: var(--hover); }
 .presentation-narrow-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
 .presentation-docs { flex: 1; min-height: 0; padding: 0 8px; overflow: auto; }
-.presentation-missing { flex: none; display: flex; align-items: center; gap: 6px; margin: 0; padding: 0 20px; height: 51px; white-space: nowrap; overflow: hidden; background: var(--warn-bg); color: var(--warn-fg); font-size: 13px; }
-.presentation-missing svg { flex: none; }
+.presentation-missing { flex: none; display: flex; align-items: flex-start; gap: 6px; margin: 0; padding: 14px 20px 12px 14px; background: var(--caution-card-bg); color: var(--caution-card-fg); font-size: 13px; line-height: 20px; }
+.presentation-missing svg { flex: none; width: 21px; height: 21px; margin-top: -1px; }
+/* A long path wraps, as Sanity's does, never clipped. */
+.presentation-missing span { min-width: 0; overflow-wrap: anywhere; }
+.presentation-missing code { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13px; color: var(--caution-code-fg); background: var(--caution-code-bg); border-radius: 1px; }
 /* J64: the phone viewport (Sanity's 375×650, centred) and the share menu. */
 .presentation-frame[data-viewport=mobile] { display: flex; align-items: center; justify-content: center; }
 .presentation-frame[data-viewport=mobile] iframe { position: static; width: 375px; height: 650px; max-height: 100%; box-shadow: 0 0 0 1px var(--line); }
@@ -2244,17 +2276,20 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .locations-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 8px 8px 6px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
 .locations-banner[data-open] .locations-toggle { background: var(--hover); }
 .locations-toggle:disabled { cursor: default; }
-.locations-banner ul { list-style: none; margin: 0; padding: 4px 0 0; }
-.locations-banner .location { display: flex; gap: 8px; padding: 8px; border-radius: 3px; color: var(--fg); text-decoration: none; }
+.locations-banner ul { list-style: none; margin: 0; padding: 4px 0 0; display: grid; gap: 4px; }
+/* Sanity's location card: 50 px, its 21 px icon 6 px in, the title medium over the path. */
+.locations-banner .location { display: flex; gap: 6px; padding: 7px 6px; border-radius: 3px; color: var(--fg); text-decoration: none; line-height: 19px; }
 .locations-banner .location:hover { background: var(--hover); }
-.locations-banner .location svg { flex: none; width: 19px; height: 19px; margin-top: -2px; }
+/* In Presentation: the page the preview shows (Sanity's pressed card). */
+.locations-banner .location[data-shown] { background: var(--pressed-card); }
+.locations-banner .location svg { flex: none; width: 21px; height: 21px; margin-top: -1px; }
 .locations-chevron { display: inline-flex; color: var(--muted); transition: transform 0.1s; }
 .locations-chevron svg { width: 21px; height: 21px; margin: -2px 0; } /* Sanity's 21 px icon, 10 px in from the banner's edge */
 .locations-chevron[data-open] { transform: rotate(90deg); }
-.locations-banner .location > span > span { display: block; }
-.locations-banner .location small { display: block; color: var(--muted); font-size: 13px; }
+.locations-banner .location > span > span { display: block; font-weight: 500; }
+.locations-banner .location small { display: block; margin-top: -2px; color: var(--muted); font-size: 13px; }
 /* J59: Sanity's Edit switch in the preview toolbar. */
-.presentation-edit { display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; height: 33px; border-radius: 999px; font-size: 13px; color: var(--fg); background: var(--hover); cursor: pointer; flex: none; }
+.presentation-edit { display: inline-flex; align-items: center; gap: 8px; padding: 0 12px 0 8px; margin-right: 4px; height: 33px; border-radius: 999px; font-size: 13px; color: var(--fg); background: var(--edit-pill); cursor: pointer; flex: none; }
 /* J63: Sanity's perspective picker; in Published the navbar turns green. */
 .perspective-picker { display: inline-flex; align-items: center; gap: 8px; height: 33px; padding: 0 6px 0 12px; border: 0; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg); font: inherit; font-size: 13px; font-weight: 500; color: var(--fg); cursor: pointer; }
 .perspective-picker svg { width: 19px; height: 19px; color: var(--muted); }
