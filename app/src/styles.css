@@ -2413,29 +2413,34 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .nav-drawer-btn { display: none; }
 .drawer-backdrop { position: fixed; inset: 0; z-index: 60; background: var(--backdrop); }
 .nav-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: min(280px, calc(100vw - 48px)); display: flex; flex-direction: column; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 16px 40px var(--shadow); font-size: 13px; }
-.nav-drawer header { display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 12px; min-height: 52px; border-bottom: 1px solid var(--border); }
+.nav-drawer header { display: flex; align-items: center; gap: 10px; padding: 4px 12px; min-height: 50px; border-bottom: 1px solid var(--border); }
 .drawer-who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--fg); }
-.nav-drawer nav { display: flex; flex-direction: column; gap: 2px; padding: 8px; }
-.drawer-item { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 12px; border: 0; border-radius: 3px; background: none; font: inherit; font-weight: 500; color: var(--fg); text-align: left; cursor: pointer; }
-.drawer-item:hover, .drawer-item.on { background: var(--hover); }
+/* Sanity's drawer (800 wide, a mouse): 33 px rows 4 px apart, the current one on its selected fill. */
+.nav-drawer nav { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
+.drawer-item { display: flex; align-items: center; justify-content: space-between; min-height: 33px; padding: 0 12px; border: 0; border-radius: 3px; background: none; font: inherit; font-weight: 500; color: var(--menu-fg); text-align: left; cursor: pointer; }
+.drawer-item:hover { background: var(--hover); }
+.drawer-item.on { background: var(--selected-fill); color: var(--menu-active-fg); }
+@media (pointer: coarse) { .drawer-item { min-height: 44px; } } /* a finger's 44 px */
 .drawer-item.check { justify-content: flex-start; gap: 8px; }
-.drawer-item.check[aria-pressed='true'] { background: var(--hover); }
+.drawer-item.check[aria-pressed='true'] { background: var(--selected-fill); color: var(--menu-active-fg); }
 .drawer-item.check[aria-pressed='true']::after { content: '✓'; color: var(--muted); }
 .drawer-item svg { width: 21px; height: 21px; }
-.drawer-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding: 8px; border-top: 1px solid var(--border); }
-.drawer-foot hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; width: 100%; }
+.drawer-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding: 8px; border-top: 1px solid var(--border); }
+.drawer-foot hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; width: 100%; }
 @media (max-width: 899px) {
   .nav-drawer-btn { display: inline-flex; }
   .navbar { grid-template-columns: 1fr auto; }
   .navbar .tools, .navbar .editor .menu-wrap { display: none; }
-}
-@media (max-width: 768px) {
-  .navbar .brand { gap: 4px; }
-  .nav-right { gap: 0; }
+  /* Sanity's: Tasks moves into the drawer; Help stays in the bar (it moves only on a phone). */
+  .navbar .nav-right > .tasks-btn { display: none; }
+  .nav-drawer .drawer-item.drawer-tasks { display: flex; }
+  .navbar .editor:not(:has(.dev-badge)) { display: none; } /* the user menu went to the drawer: no empty slot at the end */
 }
 /* 44 px taps on a touch screen (the search dialog's icons are the navbar's too); a narrow
    desktop window keeps Sanity's 25 px. */
 @media (max-width: 768px) and (pointer: coarse) {
+  .navbar .brand { gap: 4px; }
+  .nav-right { gap: 0; } /* 44 px targets touch each other instead (a narrow desktop window keeps Sanity's 4 px) */
   .navbar .icon-btn { width: 44px; height: 44px; }
   .navbar .perspective-picker { min-height: 44px; }
 }
@@ -2886,7 +2891,8 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .upload-progress .upload-cancel { margin-left: auto; background: var(--danger-bg); color: var(--danger-text); }
 
 /* Help in the phone drawer: a drawer item, its menu opening in place. */
-.nav-drawer .menu-wrap.help.in-drawer { display: block; }
+.nav-drawer .menu-wrap.help.in-drawer { display: none; }
+@media (max-width: 599px) { .nav-drawer .menu-wrap.help.in-drawer { display: block; } }
 .nav-drawer .drawer-tasks { display: none; }
 .nav-drawer .menu-wrap.help.in-drawer .drawer-item { width: 100%; }
 .nav-drawer .menu-wrap.help.in-drawer .help-menu { position: static; margin: 4px 0; box-shadow: none; }
