@@ -9,6 +9,7 @@
   --upload-fill: #f6f6f8; /* Sanity's empty image/file box (measured); its tag chips too */
   --tag-x: #666a79; /* a tag chip's remove x (measured) */
   --upload-ring: #dbdce2;
+  --dot-on-selected: #55d8fd;
   --row-chain-bg: #eeeef1; /* a desk row open further along the chain, and its words */
   --row-chain-fg: #353a4d;
   --banner-neutral-bg: #f6f6f8; /* the deleted-document banner, its icon and button (measured) */
@@ -197,6 +198,7 @@
   --upload-fill: #0d0e12;
   --tag-x: #90919b;
   --upload-ring: #252837;
+  --dot-on-selected: #0d6e70;
   --row-chain-bg: #21232f;
   --row-chain-fg: #c1c3d0;
   --banner-neutral-bg: #0d0e12;
@@ -226,7 +228,7 @@
   --fill-soft: #21232f;
   --crumb-place-fg: #9da2b7;
   --selected: #7898ff;
-  --on-selected: #13141b;
+  --on-selected: #0d0e12; /* Sanity's open row words in dark (measured) */
   --on-selected-soft: rgba(19, 20, 27, 0.8);
   --bg: #13141b;
   --bg-soft: #191a24;
@@ -523,7 +525,7 @@ a.preview:hover, [data-lit] > a.preview:not([data-selected], [aria-current='true
 :is(.preview, .task-target) .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--published); margin: 0 7px 0 12px; } /* 16 px from the row's edge, as Sanity's */
 :is(.preview, .task-target) .ring { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--caution-dot); margin-left: 8px; }
 :is(.preview, .task-target) .ring + .dot { margin-left: 8px; } /* Sanity: ring and dot 8 px apart */
-.preview[aria-current='true'] .dot { box-shadow: 0 0 0 1px var(--on-selected); }
+.preview[aria-current='true'] .dot { background: var(--dot-on-selected); } /* the open row's published dot: Sanity's tint, no ring (#55d8fd, dark #0d6e70) */
 .preview[aria-current='true'] .media { background: transparent; color: var(--on-selected); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-selected) 30%, transparent); }
 .list-rows { padding: 0 12px 12px; }
 /* B03: a row's tick sits where its icon is. It shows only while selecting (list menu
