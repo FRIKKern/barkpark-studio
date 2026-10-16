@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 84 changes, 4 tasks closed
+- **Today** · 85 changes, 4 tasks closed
+  - Dialog and search backdrop as Sanity's: its hairline at half in light, its background at half in dark ([#732](https://github.com/FRIKKern/barkpark-studio/pull/732))
   - Pane dialogs dim only the card area, as Sanity's; the Delete card names the version with its status badge, Cancel in #383d51 ([#730](https://github.com/FRIKKern/barkpark-studio/pull/730))
-  - Presence: signed in, your own tabs are not shown (Sanity's) ([#727](https://github.com/FRIKKern/barkpark-studio/pull/727))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
