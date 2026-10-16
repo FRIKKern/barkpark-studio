@@ -10,6 +10,8 @@ import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
 import {assetUrl, dragCrop, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 import {uploadFile, UploadError} from '../lib/upload'
+import {uploadMeta} from '../lib/image-meta'
+import {useFileInfo} from './FileInput'
 import {UploadProgress} from './UploadProgress'
 
 // J12, after Sanity's image input: upload; the image with an "Edit hotspot and
@@ -45,6 +47,14 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   const [editing, setEditing] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const title = field.title ?? field.name
+  // While the image loads, its blur placeholder (the asset's lqip) where the image will
+  // sit: contained in the 270 px box, never larger than the image itself.
+  const {data: info} = useFileInfo(ref)
+  const [loaded, setLoaded] = useState<string>()
+  const placeholder =
+    ref && loaded !== ref && info?.lqip && info.width && info.height
+      ? {backgroundImage: `url("${info.lqip}")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundSize: `min(${info.width}px, 100%, ${Math.round((270 * info.width) / info.height)}px) auto`}
+      : undefined
   // Sanity's options.hotspot; Barkpark's schemas also say it on the field itself ({hotspot: true}).
   const hotspot = !!((field.options as {hotspot?: boolean} | undefined)?.hotspot || (field as {hotspot?: boolean}).hotspot)
   // One path per part, so an editor on the alt text and one on the crop both keep theirs.
@@ -66,7 +76,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
     setUploading({name: f.name, progress: 0, stop})
     setFailed(null)
     try {
-      use(await uploadFile(f, (progress) => setUploading((u) => (u && u.stop === stop ? {...u, progress} : u)), stop.signal))
+      use(await uploadFile(f, (progress) => setUploading((u) => (u && u.stop === stop ? {...u, progress} : u)), stop.signal, uploadMeta(field.options)))
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
       setFailed(f)
@@ -135,9 +145,9 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
           </span>
         </div>
       ) : (
-        <div className="image-preview" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste an image to replace it', {title})} data-over={over || undefined} {...target}>
+        <div className="image-preview" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste an image to replace it', {title})} data-over={over || undefined} style={placeholder} {...target}>
           {overlay}
-          <img src={imageSrc(ref, 1200, 540)} alt={t('Preview of uploaded image')} decoding="async" />
+          <img src={imageSrc(ref, 1200, 540)} alt={t('Preview of uploaded image')} decoding="async" onLoad={() => setLoaded(ref)} ref={(el) => void (el?.complete && el.naturalWidth && loaded !== ref && setLoaded(ref))} />
           <div className="image-actions">
             {hotspot && (
               <button type="button" className="icon-btn" aria-label={t('Open image edit dialog')} title={t('Edit hotspot and crop')} disabled={readOnly} onClick={() => setEditing(true)}>

@@ -12,6 +12,8 @@ import {rangeDate, Row} from './HistoryPanel'
 import {ChevronDown, Undo} from './icons'
 import {userColorVars} from '../lib/user-colors'
 import {assetUrl, imageRef, type ImageValue} from '../lib/image'
+import {sizeLabel} from '../lib/image-meta'
+import {useFileInfo} from './FileInput'
 import {useLocale, useT, type T} from '../lib/i18n'
 
 // Sanity's "Review changes" (J15): every field the draft changed since it was last
@@ -122,6 +124,23 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
 /** An image value's asset id, if `v` is one. */
 const imageRefOf = (v: unknown) => imageRef(v)
 
+/** One side of an image change: the picture, then its file name and size (Sanity's MetaInfo, "640 × 400"). */
+function ImageSide({asset, alt}: {asset: string; alt: string}) {
+  const {data: info} = useFileInfo(asset)
+  const size = sizeLabel(info)
+  return (
+    <span className="review-img-side">
+      <img src={`${assetUrl(asset)}?size=thumb`} alt={alt} />
+      {info && (
+        <span className="review-img-meta">
+          <span className="review-img-name">{info.name}</span>
+          {size && <span>{size}</span>}
+        </span>
+      )}
+    </span>
+  )
+}
+
 /** One field's change; text is tinted with its author's colour, as Sanity's. */
 function ChangeView({change, author}: {change: FieldChange; author?: string}) {
   const t = useT()
@@ -129,7 +148,7 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
   // An image: before → after thumbnails, as Sanity's image diff.
   if (imageRefOf(change.before) || imageRefOf(change.after)) {
     const thumb = (v: unknown, what: 'Before' | 'After') =>
-      imageRefOf(v) ? <img src={`${assetUrl(imageRefOf(v)!)}?size=thumb`} alt={t(what)} /> : <span className="review-img-none">{what === 'Before' ? t('No image') : t('Removed')}</span>
+      imageRefOf(v) ? <ImageSide asset={imageRefOf(v)!} alt={t(what)} /> : <span className="review-img-none">{what === 'Before' ? t('No image') : t('Removed')}</span>
     // Its other subfields (alt text, hotspot, crop), as Sanity's image diff lists them.
     const was = (change.before ?? {}) as Record<string, unknown>
     const now = (change.after ?? {}) as Record<string, unknown>

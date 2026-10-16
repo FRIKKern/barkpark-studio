@@ -38,11 +38,12 @@ export async function existingAsset(file: File, signal?: AbortSignal): Promise<{
   return res?.ok ? ((await res.json()) as {ref: string; url?: string}) : null
 }
 
-export async function uploadFile(file: File, onProgress: (fraction: number) => void, signal: AbortSignal): Promise<string> {
+/** `meta`: the optional metadata Barkpark reads at upload, as Sanity's (`exif`, `location`; lib/image-meta.ts). */
+export async function uploadFile(file: File, onProgress: (fraction: number) => void, signal: AbortSignal, meta: string[] = []): Promise<string> {
   const known = await existingAsset(file, signal)
   if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError')
   if (known) return onProgress(1), known.ref
-  return send(file, onProgress, signal)
+  return send(file, onProgress, signal, meta)
 }
 
 // F9: the browser going offline keeps an in-flight request open (Chromium), so the
@@ -50,7 +51,7 @@ export async function uploadFile(file: File, onProgress: (fraction: number) => v
 // moving for STALL_MS fail the same way (while sending; the answer may take its time).
 const STALL_MS = 15_000
 
-function send(file: File, onProgress: (fraction: number) => void, signal: AbortSignal): Promise<string> {
+function send(file: File, onProgress: (fraction: number) => void, signal: AbortSignal, meta: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     let stall: ReturnType<typeof setTimeout> | undefined
@@ -78,6 +79,7 @@ function send(file: File, onProgress: (fraction: number) => void, signal: AbortS
     addEventListener('offline', lost)
     const body = new FormData()
     body.append('file', file)
+    if (meta.length) body.append('meta', meta.join(','))
     xhr.send(body)
     moved()
   })
