@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 126 changes, 4 tasks closed
+- **Today** · 127 changes, 4 tasks closed
+  - D09: line start and end by Cmd+Arrow on macOS, where Home and End don't move the canvas caret ([#775](https://github.com/FRIKKern/barkpark-studio/pull/775))
   - Icons as Sanity's: 34 hand-drawn icons now draw the @sanity/icons 5.2.3 paths ([#773](https://github.com/FRIKKern/barkpark-studio/pull/773))
-  - Deep links in Sanity's form: its inspector names, and a followed doc without type= ([#772](https://github.com/FRIKKern/barkpark-studio/pull/772))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
