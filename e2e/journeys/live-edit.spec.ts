@@ -71,3 +71,37 @@ test('J05 J06: two browsers, different fields then the same field', async ({brow
     await Promise.all([ctxA.close(), ctxB.close()])
   }
 })
+
+// F7: Mod+Z with the focus outside the form (a click on the pane's "Post" label) is still the
+// document's undo, walking back across fields, not the browser's own undo of the last
+// input (which the field then saved as a new edit, so the next Mod+Z put it back).
+test('@local F7: undo with the focus outside the form is the document\'s, across fields', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours')
+  await t.prepare(page.context())
+  try {
+    await page.goto(t.docPath('post', ID))
+    await t.settle(page)
+    await t.field(page, 'title').click()
+    await page.keyboard.press('End')
+    await page.keyboard.type(' A')
+    await page.waitForTimeout(800) // a pause: a new undo step
+    await t.field(page, 'excerpt').click()
+    await page.keyboard.press('ControlOrMeta+End')
+    await page.keyboard.type(' B')
+    await expect(t.field(page, 'excerpt')).toHaveValue(`${SEED.excerpt} B`)
+    await page.locator(`[data-pane="doc:post-14"] .kind`).first().click()
+    expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true)
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(t.field(page, 'excerpt')).toHaveValue(SEED.excerpt)
+    await expect(t.field(page, 'excerpt')).toBeFocused()
+    await page.locator(`[data-pane="doc:post-14"] .kind`).first().click()
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(t.field(page, 'title')).toHaveValue(SEED.title)
+    await page.keyboard.press('Shift+ControlOrMeta+z')
+    await expect(t.field(page, 'title')).toHaveValue(`${SEED.title} A`)
+    await page.getByText(/^Saved$/).waitFor()
+  } finally {
+    await t.restore(ID, SEED)
+  }
+})

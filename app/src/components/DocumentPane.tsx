@@ -453,6 +453,25 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => {
     if (isLast) reportFocus(pane.id, null)
   }, [isLast, pane.id])
+  // F7: the browser's own undo (Cmd+Z pressed while the focus is outside the pane, the Edit
+  // menu) undoes the last field typed in, and the field would record that as a new edit:
+  // the next Mod+Z then put it back. It is this document's undo instead, as Mod+Z in the pane.
+  const viewingPublishedRef = useRef(viewingPublished)
+  viewingPublishedRef.current = viewingPublished
+  useEffect(() => {
+    const root = paneRoot.current
+    if (!root) return
+    const onBeforeInput = (e: InputEvent) => {
+      if (e.inputType !== 'historyUndo' && e.inputType !== 'historyRedo') return
+      const target = e.target as HTMLElement
+      if (!target.closest('.form-fields') || target.closest('bp-paper-canvas') || viewingPublishedRef.current) return
+      e.preventDefault()
+      const field = undo(qc, pane.id, e.inputType === 'historyUndo')
+      if (field) requestAnimationFrame(() => fieldEl(paneRoot.current, field)?.focus())
+    }
+    root.addEventListener('beforeinput', onBeforeInput, true)
+    return () => root.removeEventListener('beforeinput', onBeforeInput, true)
+  }, [qc, pane.id])
   // J66: the last pane's document is the Tasks sidebar's "Active Document".
   useEffect(() => {
     if (!isLast) return
