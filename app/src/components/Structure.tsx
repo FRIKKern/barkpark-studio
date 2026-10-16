@@ -27,7 +27,7 @@ import {AvatarStack} from './Presence'
 import {usePresences, type Presence} from '../lib/presence'
 import {InPresentationContext, PaneLink, usePaneNavigate} from './PaneLink'
 import {PaneBoundary, ReadErrorCard} from './PaneError'
-import {t as tBrowser, useT} from '../lib/i18n'
+import {collate, t as tBrowser, useLocale, useT, type Locale} from '../lib/i18n'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -539,6 +539,7 @@ function leaveList(e: React.KeyboardEvent<HTMLElement>, list: HTMLElement) {
 
 function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {panes: Pane[]; index: number; type: string; node?: string; treeParent?: string; selected?: string}) {
   const t = useT()
+  const locale = useLocale()
   const {canWrite, createReason} = useCanWrite()
   const {data: schemas = []} = useQuery(schemasQuery)
   const qc = useQueryClient()
@@ -620,18 +621,19 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
       // Sorted by relevance, like Sanity: words of the title that start with a
       // search term count most, then the list's own order.
       const score = (d: Doc) => {
-        const words = previewTitle(d, schemaOf(schemas, type)).toLowerCase().split(/\W+/)
+        // Words are letters and digits in any script: æøå are letters, not separators.
+        const words = previewTitle(d, schemaOf(schemas, type)).toLowerCase().split(/[^\p{L}\p{N}]+/u)
         return terms.filter((t) => words.some((w) => w.startsWith(t))).length
       }
       return [...hits].sort((a, b) => score(b) - score(a) || b._updatedAt.localeCompare(a._updatedAt))
     }
     const builtIn: Record<string, (a: Doc, b: Doc) => number> = {
-      title: (a, b) => previewTitle(a, schemaOf(schemas, type)).localeCompare(previewTitle(b, schemaOf(schemas, type))),
+      title: (a, b) => collate(previewTitle(a, schemaOf(schemas, type)), previewTitle(b, schemaOf(schemas, type)), locale),
       updated: (a, b) => b._updatedAt.localeCompare(a._updatedAt),
       created: (a, b) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')),
     }
-    return [...hits].sort(builtIn[order] ?? byOrder(order))
-  }, [indexed, query, order, schemas, type])
+    return [...hits].sort(builtIn[order] ?? byOrder(order, locale))
+  }, [indexed, query, order, schemas, type, locale])
   // F11: growing to LIST_MAX mounts ~1,900 rows; done at once it stalled a frame for
   // ~350 ms mid-scroll. They mount MOUNT_STEP at a time instead, a task apart, so the
   // list keeps scrolling at 60 fps while the rest arrives.
@@ -869,7 +871,7 @@ const titleFieldTitle = (schema: Schema | undefined, t: (en: string) => string) 
 }
 
 /** J55: compare by an order expression ("publishedAt:desc,title:asc"), the way the server sorts; empty values last. */
-function byOrder(sort: string) {
+function byOrder(sort: string, locale: Locale) {
   const keys = sort.split(',').map((k) => k.split(':') as [string, string])
   const at = (d: Doc, path: string) => path.split('.').reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)
   return (a: Doc, b: Doc) => {
@@ -880,7 +882,7 @@ function byOrder(sort: string) {
         if (x !== y) return x == null ? 1 : -1
         continue
       }
-      const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))
+      const c = typeof x === 'number' && typeof y === 'number' ? x - y : collate(String(x), String(y), locale)
       if (c) return dir === 'desc' ? -c : c
     }
     return String(a._createdAt ?? '').localeCompare(String(b._createdAt ?? ''))

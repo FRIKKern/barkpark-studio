@@ -6,7 +6,7 @@ import {resumeMark} from '../server/listen'
 import {readDesk, readRest, readSchemas, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
-import {translate, type T} from './i18n'
+import {collate, translate, type T} from './i18n'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
 import type {PreviewMediaSpec, PreviewText} from './preview'
@@ -351,7 +351,7 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
   }
   return out
 }
-const cmp = (a: unknown, b: unknown) => (typeof a === 'number' && typeof b === 'number' ? a - b : String(a ?? '').localeCompare(String(b ?? '')))
+const cmp = (a: unknown, b: unknown) => (typeof a === 'number' && typeof b === 'number' ? a - b : collate(String(a ?? ''), String(b ?? '')))
 
 export const textSearchQuery = (q: string, asked: {type: string; filter: RefFilter}[], order: string, limit: number) =>
   queryOptions({
