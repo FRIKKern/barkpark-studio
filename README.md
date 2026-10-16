@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 196 changes, 4 tasks closed
+- **Today** · 197 changes, 4 tasks closed
+  - Reference search results as Sanity's: none lit until the arrow keys, the pointer greys one ([#844](https://github.com/FRIKKern/barkpark-studio/pull/844))
   - Date picker stays inside the window at phone width ([#843](https://github.com/FRIKKern/barkpark-studio/pull/843))
-  - Array rows inset as Sanity's; string rows 45 px, 4 px apart ([#842](https://github.com/FRIKKern/barkpark-studio/pull/842))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
