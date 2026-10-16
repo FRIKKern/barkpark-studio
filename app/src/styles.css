@@ -39,6 +39,7 @@
   --shadow: rgba(0, 0, 0, 0.12);
   --popover-shadow: 0 0 0 0.5px rgba(114, 120, 146, 0.3), 0 7px 8px -4px rgba(114, 120, 146, 0.1), 0 12px 17px 2px rgba(114, 120, 146, 0.07), 0 5px 22px 4px rgba(114, 120, 146, 0.06); /* Sanity's menus and pickers, measured */
   --today-bg: #f5f8ff; /* the date picker's today (measured) */
+  --draft-ring-on: #e3bbfc; /* Drafts' ring on the perspective menu's blue (measured) */
   --today-fg: #192357;
   --toast-bg: #f6f6f8; /* Sanity's default toast (measured): fill, title, time bar, ring and shadow */
   --toast-fg: #242736;
@@ -200,6 +201,7 @@
   --shadow: rgba(0, 0, 0, 0.5);
   --popover-shadow: 0 0 0 0.5px rgba(117, 123, 150, 0.4), 0 7px 8px -4px rgba(0, 0, 0, 0.2), 0 12px 17px 2px rgba(0, 0, 0, 0.14), 0 5px 22px 4px rgba(0, 0, 0, 0.12);
   --today-bg: #161830;
+  --draft-ring-on: #635112;
   --today-fg: #dce6ff;
   --toast-bg: #191a24;
   --toast-fg: #e4e5ea;
@@ -2508,11 +2510,16 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .perspective-picker .dot, .perspective-menu .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .dot.draft-ring { background: none; box-shadow: inset 0 0 0 1.5px var(--caution-dot); }
 .perspective-menu { right: 0; top: 40px; min-width: 200px; }
+/* Sanity's (measured at 1440): 35 px items, each mark centred in a 25 px slot 9 px in, the word at 43,
+   and a hairline joining Published's mark to Drafts' below it (a timeline). */
+.perspective-menu .menu-item { position: relative; min-height: 35px; padding-top: 8px; padding-bottom: 8px; }
+.perspective-menu .menu-icon-text .dot { margin: 0 12px 0 6px; }
+.perspective-menu .menu-item:first-child::after { content: ''; position: absolute; left: 20px; top: 28px; bottom: -11px; width: 1px; background: var(--border); }
 .navbar[data-perspective=published] { background: color-mix(in srgb, var(--published) 10%, var(--bg)); }
 .navbar[data-perspective=published] .tab { background: color-mix(in srgb, var(--published) 22%, var(--bg)); }
 .navbar[data-perspective=published] .perspective-picker { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--published) 45%, var(--bg)); background: color-mix(in srgb, var(--published) 10%, var(--bg)); }
 .perspective-menu [aria-checked=true] { background: var(--selected); color: var(--on-selected); }
-.perspective-menu [aria-checked=true] .dot.draft-ring { box-shadow: inset 0 0 0 1.5px currentColor; }
+.perspective-menu [aria-checked=true] .dot.draft-ring { box-shadow: inset 0 0 0 1.5px var(--draft-ring-on); }
 /* Sanity's upload card (file and image fields): name over a progress bar, Cancel. */
 .upload-progress { display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 12px 20px; border: 1px solid color-mix(in srgb, var(--selected) 25%, var(--bg)); border-radius: 3px; background: color-mix(in srgb, var(--selected) 6%, var(--bg)); }
 .upload-progress-body { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 336px; }
