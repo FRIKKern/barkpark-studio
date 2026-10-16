@@ -384,7 +384,8 @@ a { color: inherit; text-decoration: none; }
   border-right: 1px solid var(--border); background: var(--bg); overflow: hidden;
 }
 .pane:last-child { border-right: 0; }
-.pane.list, .pane.types { flex: 1 1 0; min-width: 320px; max-width: 350px; }
+/* Sanity's widths are inside the 1 px line after each pane (panes start at 0, 321, 642 at 1440): ours is a border, so add it. */
+.pane.list, .pane.types { flex: 1 1 0; min-width: 321px; max-width: 351px; }
 .pane.doc { flex: 2.5 1 0; min-width: 320px; container: document-pane / inline-size; }
 /* Long chains can leave a small editor even in a wide window. Keep both
    perspectives readable: the action buttons wrap to a second row only when the
@@ -410,7 +411,7 @@ a { color: inherit; text-decoration: none; }
 /* Keyboard focus on the divider reads as a 2 px line in the focus colour (the faint hover band is too weak for 2.4.7). */
 .pane-resizer:focus-visible::after { background: linear-gradient(to right, transparent 3px, var(--focus-ring) 3px, var(--focus-ring) 5px, transparent 5px); }
 .pane-resizer:focus-visible { outline: none; }
-.pane.strip { flex: 0 0 var(--strip); min-width: var(--strip); max-width: var(--strip); cursor: pointer; }
+.pane.strip { flex: 0 0 calc(var(--strip) + 1px); min-width: calc(var(--strip) + 1px); max-width: calc(var(--strip) + 1px); cursor: pointer; }
 .pane.strip:hover { background: var(--hover); }
 /* J42: a narrow window shows one pane, full width. */
 .panes[data-narrow] > .pane { flex: 1 1 auto; min-width: 0; max-width: none; }

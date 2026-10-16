@@ -57,6 +57,8 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   await expect(t.listItem(page, 'post-02')).toHaveAttribute('data-selected')
   await referenceHold(page, t.field(page, 'title'), 'Fixture post 02')
   await expect(page).toHaveTitle(/^Fixture post 02 \| /)
+  // Sanity's panes are 320 wide, each followed by a 1 px line: the document starts at 642.
+  if (t.name === 'studio') expect((await page.getByTestId('document-pane').boundingBox())!.x).toBe(642)
 
   await page.reload()
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 02')
