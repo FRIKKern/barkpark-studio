@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 61 changes, 4 tasks closed
+- **Today** · 62 changes, 4 tasks closed
+  - Pane confirms as Sanity's: in the card area, body text, 25 px buttons; Schedule publish first in the document menu ([#707](https://github.com/FRIKKern/barkpark-studio/pull/707))
   - Inspect dims only the pane's card area, as Sanity's: header, tabs and footer stay as they are ([#706](https://github.com/FRIKKern/barkpark-studio/pull/706))
-  - J17: count what the lane refers with, not the seed's 12 ([#705](https://github.com/FRIKKern/barkpark-studio/pull/705))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
