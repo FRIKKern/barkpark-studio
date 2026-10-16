@@ -1,7 +1,7 @@
 import {Fragment, useEffect, useId, useRef, useState, type ReactNode} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, schemaOf, schemasQuery, type Schema} from '../lib/data'
-import {intlTag, useLocale, useT, type T} from '../lib/i18n'
+import {collate, intlTag, useLocale, useT, type T} from '../lib/i18n'
 import {useFocusScope} from '../lib/focus-scope'
 import {
   english,
@@ -41,7 +41,7 @@ export const sortLabel = (s: SearchSort, t: T = english) => t(SORTS.flat().find(
 /** Picked type titles, A–Z, cut to `chars` with "+N more" (Sanity's documentTypesTruncated). */
 export function typesLabel(schemas: Schema[], types: string[], t: T = english, chars = 40) {
   if (!types.length) return t('All types')
-  const titles = types.map((t) => schemas.find((s) => s.name === t)?.title ?? t).sort((a, b) => a.localeCompare(b))
+  const titles = types.map((t) => schemas.find((s) => s.name === t)?.title ?? t).sort((a, b) => collate(a, b))
   const shown: string[] = []
   for (const t of titles) if (!shown.length || [...shown, t].join(', ').length <= chars) shown.push(t)
     else break
@@ -193,7 +193,7 @@ export function SearchFilters({schemas, fields, types, onTypes, filters, onFilte
   const addBtn = useRef<HTMLButtonElement>(null)
   const open = (m: 'types' | 'add') => (setFind(''), setMenu(menu === m ? null : m))
   const toggle = (name: string) => onTypes(types.includes(name) ? types.filter((t) => t !== name) : [...types, name])
-  const sorted = [...schemas].sort((a, b) => a.title.localeCompare(b.title))
+  const sorted = [...schemas].sort((a, b) => collate(a.title, b.title))
   const typeItems: Item[] = sorted
     .filter((s) => s.title.toLowerCase().includes(find.trim().toLowerCase()))
     .map((s) => ({key: s.name, text: s.title, label: <span>{s.title}</span>, checked: types.includes(s.name), onPick: () => toggle(s.name)}))

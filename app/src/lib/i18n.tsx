@@ -116,6 +116,15 @@ export const t: T = (en, vars) => translate(browserLocale, en, vars)
 /** BCP-47 tag for Intl: dates and relative times in the Studio's language. */
 export const intlTag = (locale: Locale) => (locale === 'nb-NO' ? 'nb-NO' : 'en-US')
 
+// One collator per locale (a list sorts every row through it).
+const collators: Partial<Record<Locale, Intl.Collator>> = {}
+/**
+ * Compare two strings as the workspace's language orders them: in nb-NO … Z < Æ < Ø < Å
+ * (a bare localeCompare used the browser's or the server's own, so Å sorted with A).
+ * A render passes its locale (the server render has no browser one).
+ */
+export const collate = (a: string, b: string, locale: Locale = browserLocale) => (collators[locale] ??= new Intl.Collator(intlTag(locale))).compare(a, b)
+
 /**
  * "just now", "29 sec. ago", "12 min. ago", "3 hr. ago", "2 days ago" (Sanity's short
  * relative times, which are Intl's) and in Norwegian "akkurat nå", "for 12 min siden".

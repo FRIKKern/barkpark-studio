@@ -5,7 +5,7 @@ import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {schemaOf, schemasQuery, searchQuery, textSearchQuery, type Doc} from '../lib/data'
 import {announce} from '../lib/announce'
-import {intlTag, useLocale, useT} from '../lib/i18n'
+import {collate, intlTag, useLocale, useT} from '../lib/i18n'
 import {focusFirstField} from '../lib/focus'
 import {useFocusScope} from '../lib/focus-scope'
 import {ArrowLeft, Clock, Close, Controls, Search as SearchIcon} from './icons'
@@ -172,7 +172,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
       ? (textResult.data ?? [])
       : perType
           .flatMap((r) => r.data ?? [])
-          .sort((a, b) => (dir === 'desc' ? -1 : 1) * String(a[key]).localeCompare(String(b[key])))
+          .sort((a, b) => (dir === 'desc' ? -1 : 1) * collate(String(a[key]), String(b[key])))
           .slice(0, 50)
   const rows = showRecent ? recent.length : results.length
   useEffect(() => setActive(0), [query, types, filters, sort, showRecent])
