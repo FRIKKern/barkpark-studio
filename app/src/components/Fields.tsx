@@ -10,7 +10,7 @@ import {FieldClashCard} from './FieldClash'
 import {worst, type Level, type Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
 import {ChevronDown, ResetCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
-import {copy, fits, isEmpty, read, rekeyed, signature} from '../lib/clipboard'
+import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
 import {toast} from './Toasts'
 import {BlockPresence, FieldPresence} from './Presence'
 import {DateTimeInput, type DateOptions} from './DateTimeInput'
@@ -284,9 +284,9 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
     const item = clip?.kind === 'field' ? clip.field : undefined
     // Nothing copied, something else copied since, or an empty copy (kept by an older studio): nothing to paste.
     if (!item || isEmpty(item.value)) return toast({title: tBrowser('Nothing to paste')})
-    if (!fits(item.sig, item.value, field))
-      return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: tBrowser('Source and target schema types are not compatible')})
-    onChange(item.append ? [...(Array.isArray(value) ? value : []), ...rekeyed(item.value as unknown[])] : item.value)
+    const pasted = transfer(item, field, value)
+    if ('why' in pasted) return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: pasted.why})
+    onChange(pasted.value)
   }
   const latest = useRef({doCopy, doPaste, readOnly})
   latest.current = {doCopy, doPaste, readOnly}
