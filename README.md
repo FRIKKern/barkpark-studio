@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 223 changes, 4 tasks closed
+- **Today** · 224 changes, 4 tasks closed
+  - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
   - Desk and list rows start where Sanity's do: a 50 px list header ([#869](https://github.com/FRIKKern/barkpark-studio/pull/869))
-  - Fixture: promoLine has no initial value (it broke CI's seed verify) ([#870](https://github.com/FRIKKern/barkpark-studio/pull/870))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
