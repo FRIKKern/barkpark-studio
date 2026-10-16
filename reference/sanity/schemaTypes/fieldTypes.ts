@@ -7,7 +7,8 @@ export const fieldTypes = defineType({
   name: 'fieldTypes',
   title: 'Field types',
   type: 'document',
-  fieldsets: [{name: 'size', title: 'Size', options: {columns: 2}}],
+  // More: a fieldset folded until opened, with a rule inside (a jump to its error opens it).
+  fieldsets: [{name: 'size', title: 'Size', options: {columns: 2}}, {name: 'more', title: 'More', options: {collapsible: true, collapsed: true}}],
   initialValue: () => ({count: 3}),
   fields: [
     defineField({name: 'title', type: 'string', validation: (r) => r.required()}),
@@ -68,6 +69,7 @@ export const fieldTypes = defineType({
     defineField({name: 'count', type: 'number', validation: (r) => r.integer().min(0).max(10)}),
     defineField({name: 'hiddenNote', title: 'Shown when agreed', type: 'string', hidden: ({document}) => !document?.agree}),
     defineField({name: 'lockedNote', title: 'Locked when agreed', type: 'string', readOnly: ({document}) => !!document?.agree}),
+    defineField({name: 'limit', type: 'number', fieldset: 'more', validation: (r) => r.max(10)}),
     defineField({name: 'attachment', type: 'file', options: {accept: 'image/*'}}),
     defineField({name: 'photo', type: 'image', options: {hotspot: true, metadata: ['palette', 'exif']}}),
   ],

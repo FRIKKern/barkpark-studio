@@ -167,6 +167,19 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Sanity's `inspect=…/validation`: the panel survives a reload and a copied link.
   const inspecting = pane.inspect === 'validation'
   const toggleValidation = () => navigate({href: withParams(panes, index, {inspect: inspecting ? undefined : 'validation', rev: undefined})})
+  // A field inside collapsed objects and fieldsets: open each one on the way (J13/J14),
+  // as Sanity's expandFieldSet. A fieldset's fold is keyed as Fieldset draws it.
+  const openTheWay = (path: string) => {
+    const names = path.split('[')[0]!.split('.')
+    let fields = schemaForPane?.fields
+    names.forEach((name, i) => {
+      const f = fields?.find((x) => x.name === name)
+      const at = names.slice(0, i).join('.')
+      if (f?.fieldset) openObjects.toggle(at ? `${at}.${f.fieldset}` : `fieldset:${f.fieldset}`, true)
+      if (i < names.length - 1) openObjects.toggle(names.slice(0, i + 1).join('.'), true)
+      fields = f?.fields
+    })
+  }
   const goTo = (p: Pick<Problem, 'path' | 'group'>) => {
     // A field inside an array item: the item opens from the URL's path (J52, its dialog),
     // and the pane focuses the field once it is drawn, as a link to it does (Sanity's jump).
@@ -176,8 +189,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     }
     // Sanity's: the field's own group (All fields for one in none).
     if (group && p.group !== group) setGroup(p.group ?? '')
-    // A field inside collapsed objects: open each one on the way (Sanity does).
-    p.path.split('.').slice(0, -1).forEach((_, i, parts) => openObjects.toggle(parts.slice(0, i + 1).join('.'), true))
+    openTheWay(p.path)
     requestAnimationFrame(() => fieldEl(paneRoot.current, p.path)?.focus())
   }
   // J40: the document's comment threads, for the field buttons and the inspector.
@@ -226,8 +238,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     opened.current = `${pane.id}|${want}`
     const top = schemaHere.fields.find((f) => f.name === want.split(/[.[]/)[0])
     if (top && group && top.group !== group) setGroup(top.group ?? '')
-    // A field inside collapsed objects opens them (J13/J14).
-    want.split('[')[0]!.split('.').slice(0, -1).forEach((_, i, parts) => openObjects.toggle(parts.slice(0, i + 1).join('.'), true))
+    openTheWay(want)
     let frames = 90
     const tryFocus = () => {
       const el = fieldEl(paneRoot.current, want)

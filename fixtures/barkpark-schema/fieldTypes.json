@@ -9,6 +9,14 @@
       "options": {
         "columns": 2
       }
+    },
+    {
+      "name": "more",
+      "title": "More",
+      "options": {
+        "collapsible": true,
+        "collapsed": true
+      }
     }
   ],
   "initial_values": {
@@ -339,6 +347,15 @@
         "field": "agree",
         "operator": "eq",
         "value": true
+      }
+    },
+    {
+      "name": "limit",
+      "title": "Limit",
+      "type": "number",
+      "fieldset": "more",
+      "validation": {
+        "max": 10
       }
     },
     {

@@ -45,3 +45,22 @@ test("J13: picking an error in another group selects that field's group", async 
     await t.deleteDoc(id, 'post')
   }
 })
+
+// Sanity's jump opens a folded fieldset on the way: fieldTypes' More starts collapsed, with Limit (max 10) in it.
+test('J13: picking an error in a collapsed fieldset opens it', async ({page}, info) => {
+  const t = target(info)
+  const id = `ft-fieldset-jump-${Date.now().toString(36)}`
+  await t.draftOnly(id, 'fieldTypes', {title: 'Fieldset jump', handle: {_type: 'slug', current: id}, limit: 50})
+  try {
+    await t.prepare(page.context())
+    await page.goto(t.docPath('fieldTypes', id))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await expect(t.field(page, 'limit')).toBeHidden()
+    await page.getByRole('button', {name: 'Validation'}).first().click()
+    await page.getByText('Must be lower than or equal to 10').last().click()
+    await expect(t.field(page, 'limit')).toBeFocused()
+  } finally {
+    await t.deleteDoc(id, 'fieldTypes')
+  }
+})
