@@ -691,6 +691,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           type="search"
           aria-label={t('Search list')}
           placeholder={t('Search list')}
+          spellCheck={false}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
@@ -701,7 +702,12 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           </button>
         )}
       </div>
-      {query && <div className="sorted-by">{t('Sorted by relevance')}</div>}
+      {query && (
+        <div className="sorted-by">
+          <SortIcon />
+          {t('Sorted by relevance')}
+        </div>
+      )}
       {query.trim() && filter && page?.hasMore && (
         <p className="list-empty" role="status">
           {t('Search covers the {n} loaded documents in this list. Clear search and scroll to load more.', {n: page.docs.length})}
@@ -731,7 +737,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           ) : (
             <ListSkeleton />
           ))}
-        {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className="list-empty">{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
+        {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className={`list-empty${query.trim() ? ' list-none' : ''}`}>{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" aria-label={listTitle} className="rows-list">
         {rows.map((d) => {
