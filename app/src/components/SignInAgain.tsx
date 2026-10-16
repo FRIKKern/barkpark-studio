@@ -21,7 +21,7 @@ export function SignInAgain() {
         {t('Sign in')}
       </button>
       {open && (
-        <PaneOverlay>
+        <PaneOverlay whole>
           <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}>
             <DialogBox className="dialog" aria-modal="true" aria-labelledby="sign-in-again-title" onClose={() => setOpen(false)}>
               <SignInForm
