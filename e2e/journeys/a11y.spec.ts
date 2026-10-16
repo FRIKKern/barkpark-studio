@@ -87,4 +87,6 @@ test('@local forced colors: fields keep a box, the checkbox its state, focus a r
   expect(await style('input.checkbox', 'forced-color-adjust')).toBe('none')
   await page.locator('[id="title"]').focus()
   expect(await style('[id="title"]', 'outline-width')).toBe('2px')
+  // And axe finds nothing in that mode either.
+  expect(await scan(page)).toEqual([])
 })

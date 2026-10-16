@@ -1147,13 +1147,14 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .popover.menu { white-space: nowrap; min-width: 200px; }
 
 /* Select lists (J31), after Sanity's: radios in a box with a clear button; a native dropdown with a chevron */
-.radio-box { display: flex; align-items: center; min-height: 43px; padding: 0 4px 0 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
-.radio-box [role=group] { flex: 1; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.radio-box { display: flex; align-items: center; min-height: 43px; padding: 0 4px 0 13px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
+.radio-box [role=group] { flex: 1; display: flex; flex-wrap: wrap; gap: 8px 12px; } /* Sanity's options 12 px apart */
 .radio-box[data-direction=vertical] { padding: 13px 13px 13px 13px; }
 .radio-box[data-direction=vertical] [role=group] { flex-direction: column; gap: 10px; }
 .radio-row { display: flex; align-items: center; min-height: 17px; }
 .radio-box[data-direction=vertical] .radio-row .icon-btn { margin: -4px -1px -4px auto; }
-.radio { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; line-height: 19px; color: var(--fg-strong); cursor: pointer; }
+.radio { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; line-height: 19px; color: var(--fg); cursor: pointer; }
+.radio:has(input:checked) { font-weight: 500; } /* Sanity's chosen option */
 /* Sanity's unticked radio ring is the line colour (#e3e4e8, dark #3d4258), measured on post-01 Stage. */
 .radio input { appearance: none; flex: none; width: 17px; height: 17px; margin: 0; border-radius: 50%; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; }
 .radio input:checked { background: radial-gradient(circle, var(--fg-strong) 0 4.5px, var(--bg) 5px); box-shadow: inset 0 0 0 1px var(--line); }
@@ -2565,7 +2566,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .stats th, .stats td { padding: 0 24px 0 0; text-align: right; }
 .stats :is(th, td):last-child { padding-right: 0; }
 .stats th:first-child, .stats td:first-child { text-align: left; }
-.field-note { font-size: 12px; color: var(--fg); margin-top: 6px; } /* the fixture's character count, in Sanity's body colour */
+.field-note { font-size: 12px; color: var(--fg); opacity: .7; margin-top: 6px; } /* the fixture's character count: Sanity's body colour at 0.7 */
 .doc-footer .doc-badges { display: inline-flex; gap: 4px; }
 /* Sanity's Badge: 17 px tall, fully round. */
 .doc-badge { font-size: 13px; line-height: 17px; padding: 0 8px; border-radius: 9px; background: var(--hover); color: var(--fg); white-space: nowrap; }
