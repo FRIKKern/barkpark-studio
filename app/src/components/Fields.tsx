@@ -26,6 +26,7 @@ import {invalidValue, keyProblem, richTextProblem, sanityPortableText, unsupport
 import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
 import {BodyToolbar} from './BodyToolbar'
 import {PortableDocView} from './PortableDocView'
+import {keptFor} from '../lib/kept-words'
 import {modKey, useTip} from './Tip'
 import {t as tBrowser, useT} from '../lib/i18n'
 import studio from '../studio.config'
@@ -785,6 +786,13 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
   // J59: a link to one of its blocks (`body[_key=="p1"]`, a click in Presentation's preview)
   // wakes the canvas with the caret at that block's start, as Sanity opens that paragraph.
   const urlPath = useContext(UrlPathContext)
+  // D21: words a save never got to Barkpark are kept on this computer, and the canvas offers
+  // them back when it opens. The body opens itself for that (not focused), or the offer would
+  // wait for a click into it (closed offline, reopened: the long-offline run).
+  const quiet = useRef(false)
+  useEffect(() => {
+    if (!readOnly && id && type && keptFor(type, id, field)) (quiet.current = true), setActive(true)
+  }, [id, type, field, readOnly])
   useEffect(() => {
     const key = urlPath?.match(new RegExp(`^${field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\[_key=="([^"]+)"\\]$`))?.[1]
     if (!key || readOnly) return
@@ -814,6 +822,8 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
       if (!pm) return
       clearInterval(timer)
       removeEventListener('keydown', keep, true)
+      if (quiet.current && !typed.current.length) return void (quiet.current = false)
+      quiet.current = false
       // The author went to another field while it woke (J10): the caret stays there. What
       // was typed for the body before that still goes in, and the focus goes back. A wake
       // from elsewhere (J59: Presentation's click on a paragraph) still takes the caret.

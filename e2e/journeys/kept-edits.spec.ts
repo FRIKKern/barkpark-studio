@@ -19,6 +19,38 @@ test.afterEach(async ({page}, info) => {
   if (target(info).name === 'studio') await target(info).restore(ID, {excerpt: EXCERPT, title: TITLE})
 })
 
+// Long-offline run (task-02febe8790364a30): body words typed offline were refused ("Could
+// not save: Failed to fetch") and never sent again; once resent, the field save forking the
+// draft at the same moment made Barkpark refuse them (invalid_op), or its live frame typed
+// over them. Now they wait for the network, then go, with the fields typed meanwhile.
+test('body words typed offline are saved once back, with a field typed meanwhile', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours: the Freeform canvas body')
+  const body = await t.docValue(ID, 'body')
+  try {
+    await page.goto(t.docPath('post', ID))
+    await t.settle(page)
+    await page.locator('.body-canvas').first().click()
+    const para = page.locator('.body-canvas .ProseMirror p').first()
+    await para.waitFor()
+    await context.setOffline(true)
+    await t.field(page, 'title').click()
+    await page.keyboard.press('End')
+    await page.keyboard.type(' off')
+    await para.click()
+    await page.keyboard.press('End')
+    await page.keyboard.type(' kept words')
+    await expect(page.locator('.pd-status')).toHaveText(/^Offline/)
+    await t.field(page, 'title').click()
+    await context.setOffline(false)
+    await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 15_000}).toContain(' kept words')
+    await expect(para).toContainText(' kept words')
+    await expect.poll(() => t.docValue(ID, 'title'), {timeout: 15_000}).toBe(`${TITLE} off`)
+  } finally {
+    await t.restore(ID, {body})
+  }
+})
+
 async function typeThenCrash(context: BrowserContext, t: Target, text: string) {
   const page = await context.newPage()
   await page.addInitScript(() => (navigator.sendBeacon = () => true))

@@ -174,10 +174,10 @@ const MIN_GAP_MS = 100
 const WRITE_BURST = 8
 const budget = writeBudget(WRITE_BURST, WRITE_GAP_MS)
 const STALL_MS = 4000
-const OFFLINE_RETRY_MS = 5000
+export const OFFLINE_RETRY_MS = 5000
 
 const online = () => typeof navigator === 'undefined' || navigator.onLine
-const isNetworkError = (err: unknown) => !online() || err instanceof TypeError || /failed to fetch|networkerror|load failed|fetch failed/i.test(String((err as Error)?.message))
+export const isNetworkError = (err: unknown) => !online() || err instanceof TypeError || /failed to fetch|networkerror|load failed|fetch failed/i.test(String((err as Error)?.message))
 // Docs waiting for the network to come back: each sends again on the 'online' event.
 const waiting = new Map<string, () => void>()
 if (typeof window !== 'undefined') {
@@ -256,9 +256,10 @@ const docs = new Map<string, DocEdits>()
 const listeners = new Set<() => void>()
 const setState = (e: DocEdits, state: SaveState, error?: string) => {
   e.snap = {state, error, creating: !!e.pendingCreate && !!e.createRequested}
-  setFooterOffline([...docs.values()].some((d) => d.snap.state === 'offline'))
+  setFooterOffline(anyOffline())
   listeners.forEach((l) => l())
 }
+const anyOffline = () => [...docs.values()].some((d) => d.snap.state === 'offline') || [...canvasOffline.values()].some((k) => k.size > 0)
 
 const entry = (id: string, type: string) => {
   let e = docs.get(id)
@@ -551,6 +552,7 @@ export function forgetEdits() {
   waiting.clear()
   canvasSnaps.clear()
   canvasProblems.clear()
+  canvasOffline.clear()
   setFooterOffline(false)
   listeners.forEach((l) => l())
 }
@@ -822,12 +824,25 @@ export function setCanvasProblem(docId: string, key: string, message: string | n
   listeners.forEach((l) => l())
 }
 
+/** A canvas holding a batch until the network is back: the footer says offline, as for a field. */
+const canvasOffline = new Map<string, Set<string>>()
+const OFFLINE: Snap = {state: 'offline'}
+export function setCanvasOffline(docId: string, key: string, on: boolean) {
+  const held = canvasOffline.get(docId) ?? new Set<string>()
+  if (on === held.has(key)) return
+  if (on) held.add(key)
+  else held.delete(key)
+  canvasOffline.set(docId, held)
+  setFooterOffline(anyOffline())
+  listeners.forEach((l) => l())
+}
+
 export function useSaveState(id: string): Snap {
   return useSyncExternalStore(
     (l) => (listeners.add(l), () => listeners.delete(l)),
     () => {
       const own = docs.get(id)?.snap ?? SAVED
-      const canvas = canvasSnaps.get(id)
+      const canvas = canvasSnaps.get(id) ?? (canvasOffline.get(id)?.size ? OFFLINE : undefined)
       return canvas && (own.state === 'saved' || own.state === 'saving') ? canvas : own
     },
     () => SAVED,

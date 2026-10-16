@@ -6,7 +6,7 @@ import {applyBlockOps, readBlocks, type Block, type BlockOp, type Blocks, type O
 import {paceMs, paced} from '../lib/write-pace'
 
 import {toast} from './Toasts'
-import {bodyHistory, registerBody, setCanvasProblem, unsavedElsewhere} from '../lib/edits'
+import {bodyHistory, isNetworkError, OFFLINE_RETRY_MS, registerBody, setCanvasOffline, setCanvasProblem, unsavedElsewhere} from '../lib/edits'
 import {usePersonNamer} from '../lib/person'
 import {existingAsset} from '../lib/upload'
 import {assetUrl} from '../lib/image'
@@ -81,7 +81,7 @@ const sameContent = (a: Block[], b: Block[]) => {
 
 /** A rev as the card shows it: a paper's number, or a document rev's first characters. */
 
-type Save = {state: 'saved' | 'saving' | 'error' | 'idle'; message?: string}
+type Save = {state: 'saved' | 'saving' | 'error' | 'offline' | 'idle'; message?: string}
 // D20: who wrote the version that won, and when (the card names them, not revision ids).
 type Problem = {message: string; kept?: boolean; conflict?: {mine: Rev; theirs: Rev; blocks: Block[]; who?: string | null; at?: string | null}}
 
@@ -171,17 +171,21 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // B11: closing the tab asks first while this canvas holds a batch not yet saved or refused.
   const refused = useRef(false)
   refused.current = !!problem
+  // A batch that failed for want of a network: its words are on screen and nothing is
+  // pending in the canvas, so, as for a refused one, the server's blocks wait.
+  const offline = useRef(false)
   // The document's footer says it too (lib/edits.ts setCanvasProblem).
   useEffect(() => {
     setCanvasProblem(id, field ?? '', problem ? problem.message : null)
     return () => setCanvasProblem(id, field ?? '', null)
   }, [id, field, problem?.message])
   useEffect(() => {
-    const check = () => refused.current || !!canvas.current?.hasPendingChanges()
+    const check = () => refused.current || offline.current || !!canvas.current?.hasPendingChanges()
     unsavedElsewhere.add(check)
     return () => void unsavedElsewhere.delete(check)
   }, [])
   const [failed, setFailed] = useState<string>()
+  const [mountTry, setMountTry] = useState(0)
   // D21: a failed save's words, kept on this computer (lib/kept-words.ts).
   const scope = (useRouter().options.context as {scope?: {current?: unknown}}).scope?.current
   const keyRef = useRef('')
@@ -246,11 +250,16 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // Collaboration hour: the other writer changed a block this batch rewrites (both typed
         // in one paragraph). Resending on their rev would silently put ours over theirs, so ask
         // instead (D20), with both versions kept. Separate blocks still resend (D05).
-        if (!r.ok && r.status === 412 && base.current) {
+        // Barkpark answers a batch that races the doc's first draft (a field's save making it
+        // at the same moment, as both go out after a reconnect) with 422 invalid_op, not 412.
+        // Same race, same way: on the server's rev, unless the blocks it names changed.
+        const raced = !r.ok && r.code === 'invalid_op'
+        if (!r.ok && (r.status === 412 || raced) && base.current) {
           const was = new Map(base.current.blocks.map((b) => [b.id, JSON.stringify(b)]))
           const touched = new Set(ops.flatMap((o) => [o.id, (o.block as Block | undefined)?.id].filter((x): x is string => typeof x === 'string')))
           const server = await readBase().catch(() => null)
           if (gone) return
+          if (raced && server) r = {...r, status: 412, actual: server.rev}
           if (server && server.blocks.some((b) => touched.has(b.id) && was.has(b.id) && was.get(b.id) !== JSON.stringify(b))) {
             el.discardInflightOps(seq)
             setSave({state: 'error', message: t('Someone else changed the same block')})
@@ -298,9 +307,23 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         setOtherEdit(null) // the author wrote after it: Undo would take their words too
         if (type === 'paper' && !field) void qc.invalidateQueries({queryKey: ['fleet', id]})
         setProblem(null)
+        offline.current = false
+        setCanvasOffline(id, field ?? '', false)
         if (!el.hasPendingChanges()) (setSave({state: 'saved'}), forget(keyRef.current))
       } catch (e) {
         if (gone) return
+        // No network (offline, or a connection that died): not a refusal. The batch stays
+        // pending and goes again once the network is back, as a field's edits do
+        // (lib/edits.ts waitForNetwork); its words are kept on this computer meanwhile.
+        if (isNetworkError(e)) {
+          el.discardInflightOps(seq)
+          offline.current = true
+          keepNow()
+          setSave({state: 'offline'})
+          setCanvasOffline(id, field ?? '', true)
+          waitForNetwork()
+          return
+        }
         // Refused: the edit stays on screen and goes out with the next batch, and the
         // words are kept on this computer now, so closing the tab loses nothing (D21).
         // Barkpark's vocabulary refusal reads "not allowed in this field: <path>: <why>".
@@ -312,6 +335,18 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       } finally {
         l.saving--
       }
+    }
+    let offlineRetry: ReturnType<typeof setTimeout> | undefined
+    const sendAgain = () => {
+      clearTimeout(offlineRetry)
+      removeEventListener('online', sendAgain)
+      if (gone) return
+      if (!canvas.current?.resendPendingOps()) (setSave({state: 'saved'}), (offline.current = false), setCanvasOffline(id, field ?? '', false))
+    }
+    const waitForNetwork = () => {
+      clearTimeout(offlineRetry)
+      addEventListener('online', sendAgain)
+      offlineRetry = setTimeout(() => (navigator.onLine ? sendAgain() : waitForNetwork()), OFFLINE_RETRY_MS)
     }
     resolveRef.current = {
       // D20, Barkdown's two answers to a conflict.
@@ -488,11 +523,29 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         if (kept && putBackOps(first.blocks, kept.blocks).length) setOffer(kept)
         else if (kept) forget(keyRef.current)
       } catch (e) {
-        if (!gone) setFailed((e as Error).message)
+        if (gone) return
+        setFailed((e as Error).message)
+        // Opened offline: read again once the network is back (the body stays as drawn).
+        if (isNetworkError(e)) waitToMount()
       }
     })()
+    let mountRetry: ReturnType<typeof setTimeout> | undefined
+    function mountAgain() {
+      clearTimeout(mountRetry)
+      removeEventListener('online', mountAgain)
+      if (!gone) (setFailed(undefined), setMountTry((n) => n + 1))
+    }
+    function waitToMount() {
+      addEventListener('online', mountAgain)
+      mountRetry = setTimeout(() => (navigator.onLine ? mountAgain() : waitToMount()), OFFLINE_RETRY_MS)
+    }
     return () => {
       gone = true
+      clearTimeout(offlineRetry)
+      clearTimeout(mountRetry)
+      removeEventListener('online', sendAgain)
+      removeEventListener('online', mountAgain)
+      setCanvasOffline(id, field ?? '', false)
       if (caret) reportSelection(id, null)
       unregisterBody?.()
       if (field) bodyHistory(id, type, field, 'clear')
@@ -500,7 +553,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       canvas.current = null
       setMounted(null)
     }
-  }, [type, id, field, editable, vocabularyKey])
+  }, [type, id, field, editable, vocabularyKey, mountTry])
 
   // D16: after a refused batch the author may put the words back by hand (a vetoed
   // cut, then paste): the canvas then has no diff to send, and Barkdown's tab keeps
@@ -532,7 +585,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
 
   // D21: leaving with a refused or unsent batch keeps the words as they are now.
   useEffect(() => {
-    const leaving = () => void ((refused.current || canvas.current?.hasPendingChanges()) && keepNow())
+    const leaving = () => void ((refused.current || offline.current || canvas.current?.hasPendingChanges()) && keepNow())
     addEventListener('pagehide', leaving)
     return () => (removeEventListener('pagehide', leaving), leaving())
   }, [])
@@ -580,15 +633,15 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   useEffect(() => {
     const l = loop.current
     const el = canvas.current
-    // A refused batch leaves the author's words on screen with nothing pending in the
-    // canvas (discardInflightOps): taking the server's blocks now would type over them, and
+    // A refused batch (or one waiting for the network) leaves the author's words on screen
+    // with nothing pending in the canvas (discardInflightOps): taking the server's blocks now would type over them, and
     // the D16 check would then call it Saved. They wait for Retry or the conflict card.
-    if (!el || !seenRev || seenRev === l.rev || l.saving || refused.current || el.hasPendingChanges()) return
+    if (!el || !seenRev || seenRev === l.rev || l.saving || refused.current || offline.current || el.hasPendingChanges()) return
     let gone = false
     const before = base.current
     void readBlocks(type, id, field).then((fresh) => {
       track(fresh.blocks)
-      if (gone || fresh.rev === l.rev || l.saving || refused.current) return
+      if (gone || fresh.rev === l.rev || l.saving || refused.current || offline.current) return
       // D22: from the blocks this canvas held, so Undo can put them back.
       if (before?.rev === l.rev) {
         setOtherEdit({before: before.blocks, afterRev: fresh.rev, who: null})
@@ -701,7 +754,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         />
       )}
       <div className="pd-status" role="status">
-        {save.state === 'saving' ? t('Saving…') : save.state === 'saved' ? t('Saved') : save.state === 'error' ? (problem?.conflict ? t('Conflict') : t('Not saved')) : ''}
+        {save.state === 'saving' ? t('Saving…') : save.state === 'saved' ? t('Saved') : save.state === 'offline' ? t('Offline — not saving. Your edits are kept here.') : save.state === 'error' ? (problem?.conflict ? t('Conflict') : t('Not saved')) : ''}
       </div>
       {otherEdit && !problem && (
         <div className="pd-other-edit" role="status" data-other-edit>

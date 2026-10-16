@@ -56,11 +56,10 @@ test('@local B11: closing the tab with unsaved or failed edits asks first', asyn
   await page.keyboard.type(' unsaved')
   expect(await closeAsks(page), 'canvas, pending').toBe(true)
   // Its batch fails (offline): the canvas says so, and closing still asks.
-  await expect(page.locator('.pd-conflict')).toContainText('Could not save')
+  await expect(page.locator('.pd-status')).toHaveText(/^Offline/)
+  expect(await closeAsks(page), 'canvas, waiting for the network').toBe(true)
+  // Back online it goes again by itself; then the tab closes.
   await context.setOffline(false)
-  expect(await closeAsks(page), 'canvas, failed batch').toBe(true)
-  // Retry saves it; then the tab closes.
-  await page.getByRole('button', {name: 'Retry'}).click()
-  await expect(page.locator('.pd-status')).toHaveText('Saved')
+  await expect(page.locator('.pd-status')).toHaveText('Saved', {timeout: 10_000})
   expect(await closeAsks(page), 'canvas, saved').toBe(false)
 })
