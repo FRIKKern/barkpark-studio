@@ -6,7 +6,7 @@ import {applyBlockOps, readBlocks, type Block, type BlockOp, type Blocks, type O
 import {paceMs, paced} from '../lib/write-pace'
 
 import {toast} from './Toasts'
-import {setCanvasProblem, unsavedElsewhere} from '../lib/edits'
+import {bodyHistory, registerBody, setCanvasProblem, unsavedElsewhere} from '../lib/edits'
 import {existingAsset} from '../lib/upload'
 import {assetUrl} from '../lib/image'
 import {AssetPicker} from './ImageInput'
@@ -44,6 +44,9 @@ type Canvas = HTMLElement & {
   resolveConflictWithServerBlocks(blocks: Block[]): void
   linkPreviewSource: ((t: LinkTarget) => Promise<{title?: string; excerpt?: string; href?: string; subtitle?: string; badge?: string} | null>) | null
   wikilinkSource: ((query: string) => Promise<{title: string; id: string; type: string; doc?: Doc}[]>) | null
+  /** Barkpark canvas 1.10.0: one step of its own history (with `bp-canvas-history`). */
+  undo?: () => boolean
+  redo?: () => boolean
   mediaUploader: ((file: File) => Promise<{src?: string; url?: string; alt?: string}>) | null
   /** J11: the studio's own image dialog for the canvas's Image insert and an image's Select (Barkpark contract 1.4). */
   mediaPicker?: ((request: {kind: 'insert' | 'replace'; current: {src: string; alt: string | null} | null}) => Promise<{src: string; alt?: string} | null>) | null
@@ -202,6 +205,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   useEffect(() => {
     let gone = false
     let caret: CaretSelection | null = null
+    let unregisterBody: (() => void) | undefined
     const l = loop.current
     const read = () => readBase().then((r) => (track(r.blocks), {...r, blocks: decorate.current(r.blocks)}))
     // Barkpark's EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7):
@@ -362,6 +366,17 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           const {ops, seq} = (e as CustomEvent<{ops: BlockOp[]; seq: number}>).detail
           void applyOps(ops, seq)
         })
+        // F7, as Sanity's: a field's body takes part in the document's undo (Mod+Z from the
+        // form walks back into it). Its steps stay the canvas's; the document's undo follows
+        // them by the canvas's history report. A canvas without one (before 1.10.0) keeps
+        // its undo to itself, as before.
+        if (field && typeof el.undo === 'function' && typeof el.redo === 'function') {
+          el.addEventListener('bp-canvas-history', (e) => {
+            const {kind, count} = (e as CustomEvent<{kind: 'step' | 'undo' | 'redo' | 'clear'; count: number}>).detail
+            bodyHistory(id, type, field, kind, count)
+          })
+          unregisterBody = registerBody(id, field, {undo: () => el.undo!(), redo: () => el.redo!(), focus: () => el.querySelector<HTMLElement>('.ProseMirror')?.focus()})
+        }
         // A block the canvas could not draw says so (never a silent gap: F8).
         el.addEventListener('bp-canvas-node-failed', (e) => {
           const d = (e as CustomEvent<{type?: string; message?: string; error?: string}>).detail ?? {}
@@ -477,6 +492,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     return () => {
       gone = true
       if (caret) reportSelection(id, null)
+      unregisterBody?.()
+      if (field) bodyHistory(id, type, field, 'clear')
       canvas.current?.remove()
       canvas.current = null
       setMounted(null)

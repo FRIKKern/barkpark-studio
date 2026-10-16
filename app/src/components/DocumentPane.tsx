@@ -501,10 +501,11 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       onKeyDown={(e) => {
         docShortcut(e)
         // F7: the document's own undo (this editor's changes only, across fields and
-        // across others' edits). The block canvas keeps its own.
+        // across others' edits). A body canvas takes its own steps first; one with none
+        // left lets the key through, and the document's undo goes on into the form.
         const mod = e.metaKey || e.ctrlKey
         const key = e.key.toLowerCase()
-        if (mod && !e.altKey && (key === 'z' || key === 'y') && !viewingPublished && !(e.target as HTMLElement).closest('bp-paper-canvas')) {
+        if (mod && !e.altKey && (key === 'z' || key === 'y') && !viewingPublished && !e.defaultPrevented) {
           e.preventDefault()
           const field = undo(qc, pane.id, key === 'z' && !e.shiftKey)
           if (field) requestAnimationFrame(() => fieldEl(paneRoot.current, field)?.focus())

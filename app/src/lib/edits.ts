@@ -124,8 +124,47 @@ type DocEdits = {
  * change (timed by the keys, never by the writes), kept as its keystrokes (each from the value as it stood then, so someone
  * else's text merged in between is never part of a step).
  */
-type Change = {field: string; steps: {before: unknown; after: unknown}[]; at: number}
+type Change = {field: string; steps: {before: unknown; after: unknown}[]; at: number; body?: true}
 const UNDO_GROUP_MS = 600
+
+/**
+ * A body field's canvas, for the document's undo (Sanity's walks from the form into its
+ * Portable Text): one step of the canvas's own history (Barkpark canvas 1.10.0), and where
+ * the caret goes. The canvas keeps its steps; the document's undo holds a marker per step
+ * (`body`), moved as the canvas reports its history (bodyHistory), so a Mod+Z inside the
+ * canvas and one from the form never take the same step twice.
+ */
+type BodyHistory = {undo: () => boolean; redo: () => boolean; focus: () => void}
+const bodies = new Map<string, Map<string, BodyHistory>>()
+export function registerBody(id: string, field: string, history: BodyHistory) {
+  const byField = bodies.get(id) ?? new Map<string, BodyHistory>()
+  bodies.set(id, byField)
+  byField.set(field, history)
+  return () => void (byField.get(field) === history && byField.delete(field))
+}
+
+/**
+ * The canvas's history moved (its `bp-canvas-history`): a new step (which, as a field
+ * edit, ends what could be redone), an undo or redo of one, or the history gone (a remount).
+ */
+export function bodyHistory(id: string, type: string, field: string, kind: 'step' | 'undo' | 'redo' | 'clear', count = 1) {
+  const e = entry(id, type)
+  const mine = (c: Change) => !!c.body && c.field === field
+  const move = (from: Change[], to: Change[]) => {
+    for (let n = 0; n < count; n++) {
+      let at = from.length - 1
+      while (at >= 0 && !mine(from[at]!)) at--
+      if (at < 0) return
+      to.push(...from.splice(at, 1))
+    }
+  }
+  if (kind === 'step') {
+    for (let n = 0; n < count; n++) e.undo.push({field, steps: [], at: 0, body: true})
+    e.redo = []
+  } else if (kind === 'undo') move(e.undo, e.redo)
+  else if (kind === 'redo') move(e.redo, e.undo)
+  else (e.undo = e.undo.filter((c) => !mine(c))), (e.redo = e.redo.filter((c) => !mine(c)))
+}
 
 export const WRITE_GAP_MS = 750
 // F4 (a live edit seen by the other browser): with one write per WRITE_GAP_MS, the second
@@ -397,7 +436,17 @@ function schedule(qc: QueryClient, id: string) {
 export function undo(qc: QueryClient, id: string, back = true): string | undefined {
   const e = docs.get(id)
   const doc = qc.getQueryData<Doc>(['doc', id])
-  const change = (back ? e?.undo : e?.redo)?.pop()
+  const list = back ? e?.undo : e?.redo
+  // A body step: the canvas takes it (its history report moves the marker) and the caret
+  // goes into it; one whose canvas is gone, or has nothing left, is passed over.
+  const top = list?.at(-1)
+  if (top?.body) {
+    const body = bodies.get(id)?.get(top.field)
+    if (body && (back ? body.undo() : body.redo())) return void body.focus()
+    if (list!.at(-1) === top) list!.pop()
+    return undo(qc, id, back)
+  }
+  const change = list?.pop()
   if (!e || !doc || !change) return
   const steps = back ? [...change.steps].reverse().map((x) => [x.after, x.before] as const) : change.steps.map((x) => [x.before, x.after] as const)
   let now = getPath(doc, change.field)
