@@ -23,6 +23,7 @@ import {editedBy} from '../lib/history'
 import {useRouter} from '@tanstack/react-router'
 import {FindBar, findKey, type FindCanvas} from './FindBar'
 import {InlineComments} from './InlineComments'
+import {CanvasChrome} from './CanvasChrome'
 
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
@@ -821,6 +822,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       ) : (
         <div className="pd-canvas" ref={host} data-strings={canvasStrings} />
       )}
+      {/* The document's own canvas (not a field's) carries LiveView's chrome under it. */}
+      {!field && editable && <CanvasChrome canvas={mounted} paper={type === 'paper'} />}
     </div>
   )
 }

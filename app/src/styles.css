@@ -1359,6 +1359,21 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
    phone the canvas drops the gutter itself (slash menu and keys still work). */
 .pd-editor bp-paper-canvas { display: block; padding-left: 52px; }
 .pd-editor > .pd-canvas { margin-left: -20px; }
+/* task-dd9f680bbc4369a7: LiveView's chrome under its Beta canvas (paper_editor.ex): a rule,
+   "+ Add block" over a type select with Add beside it, a rule, then the words and blocks
+   (and a paper's Undo/Redo), small and muted, in line with the canvas text. */
+.pd-chrome { margin: 32px 0 0 32px; font-size: 13px; line-height: 19px; color: var(--muted); }
+.pd-add-block { display: flex; align-items: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
+.pd-add-block label { display: flex; flex-direction: column; gap: 4px; }
+.pd-add-block select { width: 225px; height: 33px; font-size: 13px; }
+.pd-footer { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; }
+.pd-history { display: inline-flex; gap: 4px; margin-left: 8px; }
+.pd-history .btn { padding: 2px 8px; font-size: 12px; }
+/* The paper sidebar's Relations (LiveView's): a refresh at the right, then titled groups. */
+.paper-rel-head { display: flex; justify-content: flex-end; margin: -4px 0 4px; }
+.paper-rel-group h4 { margin: 8px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.paper-rels { margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 19px; }
+.paper-rels li { padding: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 480px) {
   .pd-editor bp-paper-canvas { padding-left: 0; }
   .pd-editor > .pd-canvas { margin-left: 0; }
