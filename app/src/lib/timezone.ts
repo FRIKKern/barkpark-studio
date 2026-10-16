@@ -22,19 +22,21 @@ export function storeZone(zone: string) {
 
 export const zones = (): string[] => (Intl as {supportedValuesOf?: (k: string) => string[]}).supportedValuesOf?.('timeZone') ?? [localZone()]
 
-const part = (zone: string, style: 'short' | 'long' | 'shortOffset', at = new Date()) =>
-  new Intl.DateTimeFormat('en-US', {timeZone: zone, timeZoneName: style}).formatToParts(at).find((p) => p.type === 'timeZoneName')?.value ?? ''
+// Zone names in the browser's own language, as Sanity's: "CEST" on an en-GB browser, "GMT+2"
+// on an en-US one (task-556f6d421d271155). `locale` pins it (tests; the server has its own).
+const part = (zone: string, style: 'short' | 'long' | 'shortOffset', at = new Date(), locale?: string) =>
+  new Intl.DateTimeFormat(locale, {timeZone: zone, timeZoneName: style}).formatToParts(at).find((p) => p.type === 'timeZoneName')?.value ?? ''
 
 /** "Europe/Oslo" reads "Oslo"; "America/New_York" "New York". */
 export const cityOf = (zone: string) => zone.split('/').pop()!.replace(/_/g, ' ')
 /** Sanity's button label: "GMT+2 (Europe/Oslo)", "EDT (America/New York)". */
-export const zoneLabel = (zone: string, at?: Date) => `${part(zone, 'short', at)} (${zone.replace(/_/g, ' ')})`
+export const zoneLabel = (zone: string, at?: Date, locale?: string) => `${part(zone, 'short', at, locale)} (${zone.replace(/_/g, ' ')})`
 /** Its search field's text: "Central European Summer Time (Europe/Oslo)". */
-export const zoneLongName = (zone: string, at?: Date) => `${part(zone, 'long', at)} (${zone.replace(/_/g, ' ')})`
+export const zoneLongName = (zone: string, at?: Date, locale?: string) => `${part(zone, 'long', at, locale)} (${zone.replace(/_/g, ' ')})`
 /** An option: "New York (GMT-4)" and "Eastern Daylight Time". */
-export const zoneOption = (zone: string, at?: Date) => ({city: cityOf(zone), offset: part(zone, 'shortOffset', at), name: part(zone, 'long', at)})
+export const zoneOption = (zone: string, at?: Date, locale?: string) => ({city: cityOf(zone), offset: part(zone, 'shortOffset', at, locale), name: part(zone, 'long', at, locale)})
 /** The short name a time carries when the zone is not this computer's: "EDT". */
-export const zoneShort = (zone: string, at?: Date) => part(zone, 'short', at)
+export const zoneShort = (zone: string, at?: Date, locale?: string) => part(zone, 'short', at, locale)
 
 /** The calendar day of an instant in a zone: "2026-10-19". */
 export function dayKey(at: Date, zone: string) {

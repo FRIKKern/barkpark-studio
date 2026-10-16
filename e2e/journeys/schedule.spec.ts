@@ -149,3 +149,18 @@ test('Releases tool: scheduled drafts, calendar day filter and time zone, Active
     await t.deleteDoc(id, 'post')
   }
 })
+
+// The zone button names the zone in the browser's language, as Sanity's
+// (task-556f6d421d271155): an en-GB browser in Oslo reads "CEST (Europe/Oslo)" (CET in winter).
+test.describe('an en-GB browser in Oslo', () => {
+  test.use({locale: 'en-GB', timezoneId: 'Europe/Oslo'})
+  test('Releases tool: the zone in the browser\'s own words', async ({page, context}, info) => {
+    const t = target(info)
+    test.skip(t.name === 'sanity', 'ours')
+    await t.prepare(context)
+    await page.goto('/releases')
+    await signInIfAsked(page)
+    await t.settle(page)
+    await expect(page.locator('.releases-zone')).toHaveText(/^\s*CES?T \(Europe\/Oslo\)\s*$/)
+  })
+})
