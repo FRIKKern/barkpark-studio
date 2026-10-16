@@ -243,8 +243,9 @@ function FilePicker({title, path, accept, current, openRef, onPick, onClose}: {t
                     <Fragment key={f.id}>
                       <tr>
                         <td>
-                          <button type="button" className="file-pick" onClick={() => onPick(`asset-${f.id}`)}>
-                            <DocumentIcon /> {f.name}
+                          {/* A long name ellipsizes in its column; the whole name is the tooltip (Sanity's). */}
+                          <button type="button" className="file-pick" title={f.name} onClick={() => onPick(`asset-${f.id}`)}>
+                            <DocumentIcon /> <span className="file-pick-name">{f.name}</span>
                           </button>
                         </td>
                         <td>{humanBytes(f.size, locale)}</td>

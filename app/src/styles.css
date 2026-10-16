@@ -1873,7 +1873,16 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .accept-note { display: flex; align-items: center; gap: 6px; margin: 0 0 16px; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--selected) 20%, transparent); font-size: 13px; color: var(--fg); }
 .accept-note svg { width: 19px; height: 19px; color: var(--selected); }
 .file-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.file-table th { text-align: left; font-weight: 500; color: var(--fg); padding: 8px; border-bottom: 1px solid var(--border); }
+.file-table th { text-align: left; font-weight: 500; line-height: 19px; color: var(--muted); padding: 8px; border-bottom: 1px solid var(--border); }
+/* Sanity's file list (1440): "Filename" over the names, past their icon; Size, Type and
+   Date added start 973, 1075 and 1177 (Size and Type 102 px, Date added 198 before the menu). */
+.file-table th:first-child { padding-left: 36px; }
+.file-table th:nth-child(2), .file-table th:nth-child(3) { width: 102px; }
+.file-table th:nth-child(4) { width: 198px; }
+.file-table th:nth-child(5) { width: 41px; }
+.file-table { table-layout: fixed; }
+.file-table .file-pick { max-width: 100%; }
+.file-pick-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-table td { padding: 4px 8px; color: var(--fg); }
 .file-table tr:hover td { background: var(--hover); }
 .file-pick { display: inline-flex; align-items: center; gap: 8px; font: inherit; border: 0; background: none; color: inherit; cursor: pointer; padding: 6px 0; text-align: left; }
