@@ -66,12 +66,12 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
   const alt = useAltName()
   const previewUrl = studio.document?.productionUrl?.(doc)
   return (
-    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+    <div className="menu-wrap doc-actions" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
       <button type="button" className="icon-btn" aria-label={t('Show document actions')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
-        <MenuPopover onClose={close}>
+        <MenuPopover centered onClose={close}>
           {/* J66: Sanity lists "Create new task" first; it opens the Tasks sidebar on this document. */}
           <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (close(), showTasks({kind: 'create', target: {id: doc._publishedId, type: doc._type}}))}>
             <span className="menu-icon-text">

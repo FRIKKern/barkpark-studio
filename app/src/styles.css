@@ -668,7 +668,11 @@ textarea.input { resize: vertical; }
 [role=menu]:hover .menu-item:focus-visible:not(:hover) { background: none; }
 .menu-item.danger { color: var(--menu-danger); }
 a.menu-item { display: block; text-decoration: none; }
-.menu-item[aria-disabled] { opacity: 0.5; cursor: default; }
+/* Sanity's disabled menu item: its words and icon in the border grey (#e3e4e8, dark #2a2d3f), at full opacity. */
+.menu-item[aria-disabled] { color: var(--border); cursor: default; }
+.menu-item[aria-disabled] svg { color: var(--border); }
+.popover.menu.centered { right: auto; left: 50%; translate: -50% 0; }
+.doc-actions > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); color: var(--fg); } /* Sanity's open menu button */
 .btn-create.btn-generate { padding: 0 12px; font-weight: 500; } /* Generate: Sanity's text button, 500, 12 px each side */
 .btn-create { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 4px; height: 35px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); font: inherit; font-size: 13px; font-weight: 400; cursor: pointer; }
 .btn-create:hover, .btn-square:hover { background: var(--hover); }
@@ -1269,8 +1273,8 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .menu-item kbd { margin-left: auto; padding-left: 16px; font: inherit; font-size: 11px; color: var(--muted); }
 .menu-item:has(kbd) { display: flex; align-items: center; }
 /* J28: Sanity's shortcut chips, one box per key, tinted like their item. */
-.menu-item .keys { margin-left: auto; padding-left: 16px; display: inline-flex; gap: 2px; }
-.menu-item .keys kbd { margin: 0; padding: 0 3px; border-radius: 2px; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent); font-size: 10px; line-height: 15px; color: inherit; }
+.menu-item .keys { margin-left: auto; padding: 0 1px 0 21px; display: inline-flex; gap: 2px; } /* Sanity's: 20 px after the words, in a 1 px frame */
+.menu-item .keys kbd { margin: 0; padding: 0 4px; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); font-size: 10px; font-weight: 600; line-height: 15px; color: var(--muted); } /* Sanity's: a white chip in the border grey, 10 px 600 */
 .menu-icon-text svg { width: 21px; height: 21px; margin: -1px 0 -1px -6px; color: var(--icon-muted); } /* Sanity's 21 px icon 6 px in, the text at 33 */
 .menu-item.danger .menu-icon-text svg { color: var(--menu-danger-icon); }
 /* J68: a menu toggle's check, its space kept when off (Sanity's). */

@@ -7,13 +7,32 @@ import {useFocusScope} from '../lib/focus-scope'
 
 type DivProps = HTMLAttributes<HTMLDivElement> & {children: ReactNode; onClose: () => void}
 
-/** A menu popover: arrow keys move, Escape and Tab close, focus returns to its button. */
-export function MenuPopover({onClose, focusMenu, className = 'popover menu', children, ...rest}: DivProps & {focusMenu?: boolean}) {
+/**
+ * Sanity's menus open centred on their button and shift to stay 4 px inside the window (and
+ * inside the pane, which clips ours).
+ */
+function centre(el: HTMLElement) {
+  el.style.removeProperty('translate')
+  const r = el.getBoundingClientRect()
+  const right = Math.min(document.documentElement.clientWidth, el.closest('.pane')?.getBoundingClientRect().right ?? Infinity) - 4
+  const shift = Math.max(Math.min(0, right - r.right), 4 - r.left)
+  if (shift) el.style.translate = `calc(-50% + ${shift}px) 0`
+}
+
+/** A menu popover: arrow keys move, Escape and Tab close, focus returns to its button. `centered`: under its button's middle, as Sanity's. */
+export function MenuPopover({onClose, focusMenu, centered = false, className = 'popover menu', children, ...rest}: DivProps & {focusMenu?: boolean; centered?: boolean}) {
   const scope = useFocusScope<HTMLDivElement>({menu: true, focusMenu, onDismiss: onClose})
+  const ref = useCallback(
+    (el: HTMLDivElement | null) => {
+      scope(el)
+      if (centered && el) centre(el)
+    },
+    [scope, centered],
+  )
   // A menu is named after the button that opened it (J47: "Document actions, menu"), unless named here.
   const [named] = useState(() => (rest['aria-label'] || rest['aria-labelledby'] || typeof document === 'undefined' ? undefined : nameOf(document.activeElement)))
   return (
-    <div ref={scope} className={className} role="menu" aria-label={named} {...rest}>
+    <div ref={ref} className={centered ? `${className} centered` : className} role="menu" aria-label={named} {...rest}>
       {children}
     </div>
   )
