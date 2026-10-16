@@ -515,8 +515,15 @@ function leaveList(e: React.KeyboardEvent<HTMLElement>, list: HTMLElement) {
   const after = (el: HTMLElement) => !!(list.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
   const to = e.shiftKey ? all.filter((el) => !after(el)).at(-1) : all.find(after)
   e.preventDefault()
-  if (to) to.focus()
-  else (e.target as HTMLElement).blur()
+  if (to) return to.focus()
+  // Past the last pane focus leaves for the page; the next Tab starts at its top, as after
+  // Sanity's one-stop list. A blur alone leaves the browser's starting point on this row, so
+  // the next Tab would land on the row under it: move that point to the page's end first.
+  const end = document.createElement('span')
+  end.tabIndex = -1
+  document.body.append(end)
+  end.focus({preventScroll: true})
+  end.remove()
 }
 
 function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {panes: Pane[]; index: number; type: string; node?: string; treeParent?: string; selected?: string}) {

@@ -86,6 +86,9 @@ test('J19: a list is one Tab stop; rows move by arrow keys, Home and End; Enter 
   expect(await focused()).toBe(await href(0))
   await page.keyboard.press('Tab')
   expect(await page.evaluate(() => !!document.activeElement?.closest('.list-rows')), 'Tab left the list').toBe(false)
+  // The last pane: the next Tab starts at the page's top (the navbar), not on the row under the first.
+  await page.keyboard.press('Tab')
+  expect(await page.evaluate(() => !!document.activeElement?.closest('.list-rows')), 'the next Tab re-entered the list').toBe(false)
   await rows.first().focus()
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Enter')
