@@ -1802,7 +1802,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
    on hover and in focus (the read-only body and the live canvas share these numbers, so
    clicking in moves nothing). Focus only turns the border blue. */
 .body-canvas bp-paper-canvas { padding-left: 0; }
-.body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 23px; padding: 12px 12px 20px; min-height: 120px; }
+.body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 23px; padding: 12px 13px 20px; min-height: 120px; } /* 12 px inside the 1 px ring, as Sanity's */
 /* The canvas's paper type (0.005em tracking, old-style figures) rewraps lines on click; Sanity's input has neither. */
 .body-canvas .bp-paper-editor-body, .body-canvas .bp-paper-editor-body * { letter-spacing: normal; font-feature-settings: normal; text-rendering: optimizeLegibility; font-variant-ligatures: none; }
 /* The read-only body wraps as ProseMirror does (a trailing space keeps its width), so a line never reflows on click. */
@@ -1859,8 +1859,8 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25'%3E%3Cpath d='M6.5 11a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z'/%3E%3C/svg%3E") center / 25px 25px no-repeat;
 }
 /* Sanity's expanded body (measured at 1440): its text in a centred 640 px column, 32 px in, the first block 43 px under the bar. */
-.body-canvas[data-expanded] bp-paper-canvas { display: block; box-sizing: border-box; max-width: 640px; margin: 0 auto; padding: 21px 20px 0; } /* + the editor's own 12 px */
-.body-canvas .bp-paper-editor-body :is(h1, h2, h3, h4, h5, h6) { font-family: inherit; font-weight: 700; color: var(--fg-strong); margin: 20.5px 0 13.5px; }
+.body-canvas[data-expanded] bp-paper-canvas { display: block; box-sizing: border-box; max-width: 640px; margin: 0 auto; padding: 21px 19px 0; } /* + the editor's own 13 px */
+.body-canvas .bp-paper-editor-body :is(h1, h2, h3, h4, h5, h6) { font-family: inherit; font-weight: 700; color: var(--fg); margin: 20.5px 0 13.5px; } /* Sanity's: the body text colour */
 /* Sanity's heading scale (h1 to h6: its Heading sizes 5 to 0), and an h2's room (measured at 1440, collapsed and
    expanded): 28.5 px over it from the text before, 13.5 px under it to the next block; the first one 10.5 px down. */
 .body-canvas .bp-paper-editor-body h1 { font-size: 38px; line-height: 47px; }
