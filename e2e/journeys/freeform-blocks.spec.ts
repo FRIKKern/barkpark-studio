@@ -29,8 +29,13 @@ test.afterEach(async ({page}, info) => {
 async function caretIn(page: Page, at: Locator, end = true) {
   await at.click()
   await page.waitForTimeout(100)
-  if (end) await page.keyboard.press('End')
+  if (end) await page.keyboard.press(LINE_END)
 }
+// Line start and end in the canvas: Home and End scroll the page in Chromium on macOS
+// and leave the caret where it is (the D09 URL paste then linked "\nAlp" across into
+// Alpha from the end of "Beta here."), so a Mac run moves it with Cmd+Arrow.
+const LINE_START = process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Home'
+const LINE_END = process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End'
 
 test('@local D09: block gutter, keyboard moves, slash menu, drag; markdown/HTML/URL paste', async ({page, context}, info) => {
   const t = target(info)
@@ -105,7 +110,7 @@ test('@local D09: block gutter, keyboard moves, slash menu, drag; markdown/HTML/
   await page.keyboard.press(`${mod}+v`)
   await clip({'text/plain': 'https://barkpark.cloud/'})
   await caretIn(page, block('Beta here.'), false)
-  await page.keyboard.press('Home')
+  await page.keyboard.press(LINE_START)
   for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight')
   await page.waitForTimeout(100) // the same beat: the paste must see the selection
   await page.keyboard.press(`${mod}+v`)
@@ -138,7 +143,7 @@ test('@local D09: typing over a selected divider or image keeps the block', asyn
   const kinds = async () => ((((await t.docValue(OVER, 'blocks', 'note')) as Block[]) ?? []).filter((b) => !b.type.startsWith('field-')).map(line))
   const selected = () => canvas.locator('.ProseMirror-selectednode')
   await caretIn(page, canvas.locator('.ProseMirror > *', {hasText: 'Alpha.'}).first())
-  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
+  await page.keyboard.press(LINE_END)
   await expect(selected(), 'an end-of-line key stays in the paragraph').toHaveCount(0)
   await page.keyboard.press('ArrowDown')
   await expect(selected()).toHaveCount(1)
