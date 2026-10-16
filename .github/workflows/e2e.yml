@@ -83,6 +83,13 @@ jobs:
           STUDIO_E2E_HOOKS=1 STUDIO_SIGN_IN=shared nohup pnpm --dir app exec vite preview --port 3100 --strictPort > preview.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:3100/health > /dev/null && exit 0; sleep 1; done
           cat preview.log; exit 1
+      - name: Warm the studio's first page (its first Barkpark calls are outside the specs)
+        # task-0fbe272a366541f4: a fresh studio server's first page logged its Barkpark calls at
+        # ~3.2 s (all at once, every shard), while Barkpark's own log served them in 2-6 ms: the
+        # cost is the runner's cold first round trip, not Barkpark. One page here takes it.
+        run: |
+          curl -s -o /dev/null -w 'first page %{http_code} in %{time_total}s\n' --max-time 30 http://localhost:3100/structure/post || true
+          echo "preview.log lines before the specs: $(wc -l < preview.log)"
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
