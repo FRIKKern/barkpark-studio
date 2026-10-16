@@ -66,6 +66,16 @@ test('@evidence J12: image upload, alt text, hotspot and crop by mouse and keybo
   expect(byMouse.crop!.right).toBeGreaterThan(0.1)
   await page.screenshot({path: shot(t.name, '3-mouse')})
 
+  if (t.name === 'studio') {
+    // Sanity's: the dialog covers the form only (the footer stays as it is), and Tab
+    // reaches the hotspot before the crop.
+    const footer = (await page.locator('.doc-footer').first().boundingBox())!
+    expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x!, y!)?.closest('.doc-footer'), [footer.x + 40, footer.y + footer.height / 2])).toBe(true)
+    await dialog.locator('[data-handle="hotspot"]').focus()
+    await page.keyboard.press('Tab')
+    await expect(dialog.locator('[data-handle="crop"][tabindex="0"]')).toBeFocused()
+  }
+
   // By keyboard: hotspot left ×5 and Shift+up ×3; crop right ×4.
   await dialog.locator('[data-handle="hotspot"]').focus()
   for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowLeft')
