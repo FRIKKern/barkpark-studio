@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 206 changes, 4 tasks closed
+- **Today** · 207 changes, 4 tasks closed
+  - Jumping to a field in another group selects that field's group, as Sanity's ([#855](https://github.com/FRIKKern/barkpark-studio/pull/855))
   - Phone-width document header with a mouse as Sanity's: full chips, buttons 4 px apart at the end ([#853](https://github.com/FRIKKern/barkpark-studio/pull/853))
-  - Paste field transfers and refuses as Sanity's ([#852](https://github.com/FRIKKern/barkpark-studio/pull/852))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
