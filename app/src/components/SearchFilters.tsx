@@ -63,6 +63,15 @@ const ICON: Record<Kind, () => ReactNode> = {
 const fieldIcon = (f: FilterField) => (f.path === 'image' || f.path === 'mainImage' ? <ImageIcon /> : ICON[f.kind]())
 
 
+/** Sanity's popovers shift to stay 8 px inside the viewport (a phone); ours hang from their button, so nudge one left when it would run off. */
+function keepInView(el: HTMLElement | null) {
+  if (!el) return
+  el.style.removeProperty('translate')
+  const r = el.getBoundingClientRect()
+  const over = r.right - (document.documentElement.clientWidth - 8)
+  if (over > 0) el.style.translate = `${-Math.min(over, r.left - 8)}px 0`
+}
+
 /** Close a popover on a press outside its menu-wrap (its button included), Sanity's click-outside. */
 function useOutside(onClose: () => void) {
   const node = useRef<HTMLDivElement | null>(null)
@@ -103,7 +112,7 @@ function CommandPopover({groups, find, onFind, onClose, label, footer, className
   const id = useId()
   const at = Math.min(active, items.length - 1)
   return (
-    <div ref={(el) => ((outside.current = el), scope(el))} className={`popover command ${className}`}>
+    <div ref={(el) => ((outside.current = el), scope(el), keepInView(el))} className={`popover command ${className}`}>
       <div className="command-find">
         <SearchIcon />
         <input
@@ -303,7 +312,7 @@ function FilterEditor({filter, field, onChange, onClose, onRemove}: {filter: Sea
     onChange({id: filter.id, field: filter.field, op, ...opDefaults(field, op)})
   }
   return (
-    <div ref={(el) => ((outside.current = el), scope(el))} className="popover filter-editor" role="dialog" aria-label={fieldTitle(field, t)}>
+    <div ref={(el) => ((outside.current = el), scope(el), keepInView(el))} className="popover filter-editor" role="dialog" aria-label={fieldTitle(field, t)}>
       <div className="filter-editor-head">
         <p className="filter-editor-field">
           <span className="field-icon">{fieldIcon(field)}</span>
