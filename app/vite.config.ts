@@ -29,8 +29,10 @@ const immutableAssets = (): Plugin => ({
 // as the next (0.24 s against 0.12 s locally, ~1 s on a CI runner). At boot the server renders
 // one page of each kind for itself and opens a few Barkpark connections (the first page reads
 // about four at once; barkpark.ts keeps them 60 s), and /health waits for that, so whoever
-// waits for /health (CI, a deploy's switch) starts on a warm server.
-const POOL = 6
+// waits for /health (CI, a deploy's switch) starts on a warm server. Twelve, not six
+// (task-dbd164306efdcde9): a page's burst reaches 11 reads in flight, and every read past the
+// warm ones was a new connection whose lost first SYN cost 1 or 3 s on CI.
+const POOL = 12
 const warmAtBoot = (): Plugin => ({
   name: 'warm-at-boot',
   configurePreviewServer(server) {
