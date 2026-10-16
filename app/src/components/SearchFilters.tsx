@@ -1,6 +1,6 @@
 import {Fragment, useEffect, useId, useRef, useState, type ReactNode} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {schemasQuery, searchQuery, type Schema} from '../lib/data'
+import {docQuery, previewTitle, schemaOf, schemasQuery, type Schema} from '../lib/data'
 import {intlTag, useLocale, useT, type T} from '../lib/i18n'
 import {useFocusScope} from '../lib/focus-scope'
 import {
@@ -20,6 +20,8 @@ import {
   type SearchFilter,
   type Unit,
 } from '../lib/search-filters'
+import {DocPreview} from './Preview'
+import {RefSearch} from './RefInput'
 import {Add, Calendar, ListIcon, Check, ChevronDown, Close, DocumentIcon, ImageIcon, LinkIcon, Search as SearchIcon, Sort, Trash} from './icons'
 
 // J38, Sanity's search filters, side by side with sanity 6.17: the type picker
@@ -438,16 +440,41 @@ function ValueInput({filter, field, set}: {filter: SearchFilter; field: FilterFi
  * A document to filter on, Sanity's way: a closed search box ("Search for Author",
  * "Search all documents"); typing lists the matches under it, ArrowDown walks them.
  */
+/**
+ * A reference's value, Sanity's: its reference search (a 388 px box, the 33 px menu button
+ * joined to it, results as previews with their type), then the picked document's preview
+ * with a Clear under it.
+ */
 function ReferenceValue({filter, field, set}: {filter: SearchFilter; field: FilterField; set: (p: Partial<SearchFilter>) => void}) {
   const t = useT()
-  const [q, setQ] = useState('')
+  const id = useId()
   // "Contains document": any type's.
   const {data: schemas = []} = useQuery(schemasQuery)
   const types = field.kind === 'refs' ? schemas.map((x) => x.name) : (field.refTypes ?? [])
-  const found = useQuery({...searchQuery(types, q.trim()), enabled: !filter.value && !!q.trim()})
-  if (filter.value) return <Picked filter={filter} set={set} />
+  const {data: picked} = useQuery({...docQuery(types, filter.value ?? ''), enabled: !!filter.value && types.length > 0})
   const placeholder = field.kind === 'refs' ? t('Search all documents') : t('Search for {title}', {title: fieldTitle(field, t)})
-  return <Choices q={q} setQ={setQ} placeholder={placeholder} items={(found.data ?? []).map((d) => ({id: d._publishedId, label: String(d.title ?? d._publishedId)}))} pick={(it) => set({value: it.id, label: it.label})} />
+  if (filter.value)
+    return (
+      <div className="filter-ref-picked">
+        <div className="filter-ref-box">{picked ? <DocPreview doc={picked} selected={false} badge={schemaOf(schemas, picked._type)?.title} /> : <span className="filter-ref">{filter.label ?? filter.value}</span>}</div>
+        <button type="button" className="btn filter-ref-clear" onClick={() => set({value: undefined, label: undefined})}>
+          {t('Clear')}
+        </button>
+      </div>
+    )
+  return (
+    <RefSearch
+      id={id}
+      types={types}
+      autoFocus
+      disableNew
+      typeBadge
+      label={t('Value')}
+      placeholder={placeholder}
+      onCreate={() => {}}
+      onPick={(value, d) => set({value, label: previewTitle(d, schemaOf(schemas, d._type), t)})}
+    />
+  )
 }
 
 /** "Contains … image / file", Sanity's "Select image" / "Select file": then the dataset's images or files by name; the value is its media id (`asset-<id>`, what an image or file field holds). */

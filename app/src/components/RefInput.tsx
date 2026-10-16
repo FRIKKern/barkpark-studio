@@ -172,16 +172,20 @@ type SearchProps = {
   current?: string
   autoFocus?: boolean
   invalid?: boolean
-  onPick: (id: string) => void
+  onPick: (id: string, doc: Doc) => void
   onCancel?: () => void
   onCreate: (q: string, choice: Choice) => void
   disableNew?: boolean
+  /** The search filter's: its placeholder and name, and every result's type badge (Sanity's there, one type or many). */
+  placeholder?: string
+  label?: string
+  typeBadge?: boolean
 }
 
 /** A typed search reads more than the 20 of the empty list, as Sanity's (it showed 35). */
 const REF_SEARCH_LIMIT = 50
 
-function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCancel, onCreate, disableNew}: SearchProps) {
+export function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCancel, onCreate, disableNew, placeholder, label, typeBadge}: SearchProps) {
   const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const {data: currentDoc} = useQuery({...docQuery(types, current ?? ''), enabled: !!current})
@@ -219,7 +223,7 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
     if (open) document.getElementById(`${listId}-${active}`)?.scrollIntoView({block: 'nearest'})
   }, [active, open, listId])
 
-  const pick = (d: Doc | undefined) => d && onPick(d._publishedId)
+  const pick = (d: Doc | undefined) => d && onPick(d._publishedId, d)
 
   return (
     <div className="ref-search" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false) }}>
@@ -237,7 +241,8 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
           aria-activedescendant={open && results[active] ? `${listId}-${active}` : undefined}
           aria-autocomplete="list"
           aria-busy={open && waiting}
-          placeholder={t('Type to search')}
+          aria-label={label}
+          placeholder={placeholder ?? t('Type to search')}
           autoComplete="off"
           value={q}
           onFocus={() => setOpen(true)}
@@ -293,7 +298,7 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
               onMouseDown={(e) => (e.preventDefault(), pick(d))}
               onMouseEnter={() => setActive(i)}
             >
-              <DocPreview doc={d} selected={false} badge={types.length > 1 ? typeTitle(d._type) : undefined} />
+              <DocPreview doc={d} selected={false} badge={(typeBadge ?? types.length > 1) ? typeTitle(d._type) : undefined} />
             </div>
           ))}
         </div>
