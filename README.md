@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 199 changes, 4 tasks closed
+- **Today** · 200 changes, 4 tasks closed
+  - A copied array item pastes into an array of its type, as Sanity's ([#847](https://github.com/FRIKKern/barkpark-studio/pull/847))
   - A reference array row's status dot 3 px nearer the end, as Sanity's ([#846](https://github.com/FRIKKern/barkpark-studio/pull/846))
-  - Copy field refuses an empty value, as Sanity does ([#845](https://github.com/FRIKKern/barkpark-studio/pull/845))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
