@@ -51,7 +51,7 @@ const theme = EditorView.theme({
   '.cm-content': {padding: '32px 20px 4px 0'},
 })
 
-export default function VisionEditor({id, label, value, language, placeholder, onChange, onRun}: {id: string; label: string; value: string; language: 'query' | 'json'; placeholder?: string; onChange: (v: string) => void; onRun: () => void}) {
+export default function VisionEditor({id, label, value, language, placeholder, onChange, onRun}: {id: string; label: string; value: string; language: 'query' | 'json'; placeholder?: string; onChange: (v: string) => void; onRun: (text: string) => void}) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   // The latest callbacks, read by the editor's handlers (made once).
@@ -67,7 +67,7 @@ export default function VisionEditor({id, label, value, language, placeholder, o
           highlightActiveLine(),
           highlightActiveLineGutter(),
           history(),
-          keymap.of([{key: 'Mod-Enter', preventDefault: true, run: () => (calls.current.onRun(), true)}, ...defaultKeymap, ...historyKeymap]),
+          keymap.of([{key: 'Mod-Enter', preventDefault: true, run: (v) => (calls.current.onRun(v.state.doc.toString()), true)}, ...defaultKeymap, ...historyKeymap]),
           language === 'json' ? json() : barkparkQuery,
           syntaxHighlighting(colours),
           theme,
