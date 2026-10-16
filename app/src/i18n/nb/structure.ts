@@ -209,6 +209,9 @@ export default {
   'Compact view': 'Kompakt visning',
   'Detailed view': 'Detaljert visning',
   'Default view': 'Standardvisning',
+  // Sanity's nb (menu-items.*.restore-default.disabled-reason).
+  'Already using the default sort order': 'Bruker allerede standard sorteringsrekkefølge',
+  'Already using the default view': 'Bruker allerede standardvisningen',
   'Select documents': 'Velg dokumenter',
   'Stop selecting': 'Avslutt valg',
   Title: 'Tittel',

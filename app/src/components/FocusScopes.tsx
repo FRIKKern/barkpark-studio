@@ -8,8 +8,8 @@ import {useFocusScope} from '../lib/focus-scope'
 type DivProps = HTMLAttributes<HTMLDivElement> & {children: ReactNode; onClose: () => void}
 
 /** A menu popover: arrow keys move, Escape and Tab close, focus returns to its button. */
-export function MenuPopover({onClose, className = 'popover menu', children, ...rest}: DivProps) {
-  const scope = useFocusScope<HTMLDivElement>({menu: true, onDismiss: onClose})
+export function MenuPopover({onClose, focusMenu, className = 'popover menu', children, ...rest}: DivProps & {focusMenu?: boolean}) {
+  const scope = useFocusScope<HTMLDivElement>({menu: true, focusMenu, onDismiss: onClose})
   // A menu is named after the button that opened it (J47: "Document actions, menu"), unless named here.
   const [named] = useState(() => (rest['aria-label'] || rest['aria-labelledby'] || typeof document === 'undefined' ? undefined : nameOf(document.activeElement)))
   return (

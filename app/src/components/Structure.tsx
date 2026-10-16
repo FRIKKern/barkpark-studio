@@ -843,13 +843,13 @@ function ListMenu({schema, sort, view, set, selecting, onSelecting}: {schema: Sc
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    ref.current?.querySelector<HTMLElement>('[role=menuitemradio]')?.focus()
     const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [open])
-  const item = (label: string, checked: boolean, run: () => void, disabled = false, icon?: ReactNode) => (
-    <button type="button" role="menuitemradio" aria-checked={checked} disabled={disabled} className="menu-item check" onClick={() => (setOpen(false), run())}>
+  // A choice already in use stays hoverable (aria-disabled, not disabled) for Sanity's tooltip saying so.
+  const item = (label: string, checked: boolean, run: () => void, disabled: false | string = false, icon?: ReactNode) => (
+    <button type="button" role="menuitemradio" aria-checked={checked} aria-disabled={disabled ? true : undefined} data-tip={disabled || undefined} className="menu-item check" onClick={() => disabled || (setOpen(false), run())}>
       <span className="menu-item-label">
         {icon}
         {label}
@@ -861,30 +861,31 @@ function ListMenu({schema, sort, view, set, selecting, onSelecting}: {schema: Sc
       className="menu-wrap"
       ref={ref}
       onKeyDown={(e) => {
-        const items = [...(ref.current?.querySelectorAll<HTMLElement>('[role=menuitemradio]:not(:disabled)') ?? [])]
+        const items = [...(ref.current?.querySelectorAll<HTMLElement>('[role=menuitemradio]:not(:disabled, [aria-disabled=true])') ?? [])]
         const i = items.indexOf(document.activeElement as HTMLElement)
         if (e.key === 'Escape') setOpen(false)
         if (e.key === 'ArrowDown' && open) (e.preventDefault(), items[(i + 1) % items.length]?.focus())
-        if (e.key === 'ArrowUp' && open) (e.preventDefault(), items[(i - 1 + items.length) % items.length]?.focus())
+        if (e.key === 'ArrowUp' && open) (e.preventDefault(), items[i < 0 ? items.length - 1 : (i - 1 + items.length) % items.length]?.focus())
       }}
     >
       <button type="button" className="icon-btn" aria-label={t('List options')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
-        <MenuPopover onClose={() => setOpen(false)}>
+        // Sanity's: the menu itself takes focus (no item lit by a click); the first arrow picks one.
+        <MenuPopover focusMenu onClose={() => setOpen(false)}>
           <div className="menu-label">{t('Actions')}</div>
           {schema?.orderings?.length
             ? schema.orderings.map((o) => <Fragment key={o.name}>{item(t('Sort by {field}', {field: o.title}), sort === orderingSort(o), () => set({sort: orderingSort(o)}), false, <SortIcon />)}</Fragment>)
             : item(t('Sort by {field}', {field: titleFieldTitle(schema, t)}), sort === 'title', () => set({sort: 'title'}), false, <SortIcon />)}
           {item(t('Sort by Last Edited'), sort === 'updated', () => set({sort: 'updated'}), false, <SortIcon />)}
           {item(t('Sort by Created'), sort === 'created', () => set({sort: 'created'}), false, <SortIcon />)}
-          {item(t('Default sort'), false, () => set({sort: DEFAULT_SORT}), sort === DEFAULT_SORT)}
+          {item(t('Default sort'), false, () => set({sort: DEFAULT_SORT}), sort === DEFAULT_SORT && t('Already using the default sort order'))}
           <hr />
           <div className="menu-label">{t('Layout')}</div>
           {item(t('Compact view'), view === 'compact', () => set({view: 'compact'}), false, <StackCompact />)}
           {item(t('Detailed view'), view === 'detailed', () => set({view: 'detailed'}), false, <Stack />)}
-          {item(t('Default view'), false, () => set({view: DEFAULT_VIEW}), view === DEFAULT_VIEW)}
+          {item(t('Default view'), false, () => set({view: DEFAULT_VIEW}), view === DEFAULT_VIEW && t('Already using the default view'))}
           {selecting !== undefined && onSelecting && (
             <>
               <hr />
