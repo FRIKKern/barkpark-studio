@@ -1948,9 +1948,17 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 @media (max-width: 480px) { .scope-popover { position: fixed; top: 52px; left: 8px; right: 8px; width: auto; } }
 /* J37: the navbar "+" (Create new document), Sanity's type picker under it. */
 .menu-wrap.new-doc { position: relative; display: inline-flex; }
-.popover.new-doc-popover { top: calc(100% + 4px); left: 0; width: 320px; max-width: calc(100vw - 32px); padding: 0; display: flex; flex-direction: column; max-height: 420px; font-weight: 400; z-index: 60; }
+/* Sanity's, measured at 1440: centred under the "+", the search icon 21 px at 10 and its
+   text at 37, rows 33 px tall 4 px apart. */
+.popover.new-doc-popover { top: calc(100% + 4px); left: 50%; translate: -50%; width: 320px; max-width: calc(100vw - 32px); padding: 0; display: flex; flex-direction: column; max-height: 420px; font-weight: 400; z-index: 60; }
+.new-doc-popover .command-find { padding-left: 10px; }
+.new-doc-popover .command-find svg { width: 21px; height: 21px; }
+.new-doc-popover .command-find input { height: 33px; }
+.new-doc-popover .command-list { display: flex; flex-direction: column; gap: 4px; }
+.new-doc-popover .command-item { min-height: 33px; }
+.new-doc-popover .command-item[aria-selected='true'] { background: var(--bg-soft); } /* Sanity's row under the pointer: #f6f6f8, dark #191a24 */
 @media (max-width: 599px) {
-  .popover.new-doc-popover { position: fixed; top: calc(var(--nav-h) + 4px); left: 16px; right: 16px; width: auto; }
+  .popover.new-doc-popover { position: fixed; top: calc(var(--nav-h) + 4px); left: 16px; right: 16px; width: auto; translate: none; }
 }
 
 /* J42/F12: on a touch-size screen every control in a doc pane is a 44 px tap. The
