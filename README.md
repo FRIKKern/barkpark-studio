@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 202 changes, 4 tasks closed
+- **Today** · 203 changes, 4 tasks closed
+  - Phone-width navbar with a mouse as Sanity's: 12 px ends, its gaps, the name giving way first ([#851](https://github.com/FRIKKern/barkpark-studio/pull/851))
   - Undo never puts back a value another editor changed since ([#849](https://github.com/FRIKKern/barkpark-studio/pull/849))
-  - Field clipboard on the system clipboard, in Sanity's format ([#848](https://github.com/FRIKKern/barkpark-studio/pull/848))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
