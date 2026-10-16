@@ -74,6 +74,12 @@ test('@local J18: a parameterised template from a structure item — Posts by au
   await page.getByText('Alan Turing', {exact: true}).first().click()
   await expect.poll(() => decodeURIComponent(page.url())).toContain('/structure/posts-by-author;author-alan')
   await expect(page.getByText('Fixture post 07', {exact: true}).first()).toBeVisible()
+  // With no doc open, the lists take their full 350 px (the rest stays empty), as Sanity's;
+  // the posts are an S.documentList(): its "+" only, no "…" (the authors' list keeps its).
+  expect(await page.locator('[data-pane-index]').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)))).toEqual([350, 350, 350])
+  const more = '[data-testid="pane-context-menu-button"], button[aria-label="List options"]'
+  await expect(t.pane(page, 1).locator(more)).toHaveCount(1)
+  await expect(t.pane(page, 2).locator(more)).toHaveCount(0)
   await page.getByRole('link', {name: 'Post by author'}).or(page.getByRole('button', {name: 'Post by author'})).first().click()
   await expect(t.field(page, 'title')).toBeVisible()
   await expect(page.locator('[data-testid="document-pane"]').last().getByText('Alan Turing').first()).toBeVisible()

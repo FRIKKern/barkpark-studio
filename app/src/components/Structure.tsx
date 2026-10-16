@@ -683,7 +683,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             }}
           />
         )}
-        <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} selecting={selectable ? selecting || picked.size > 0 : undefined} onSelecting={(on) => (on ? setSelecting(true) : stopSelecting())} />
+        {/* J18: a structure's child list is Sanity's S.documentList(): no menu items, so no "…". */}
+        {!childTemplate && !(treeParent && node?.child) && <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} selecting={selectable ? selecting || picked.size > 0 : undefined} onSelecting={(on) => (on ? setSelecting(true) : stopSelecting())} />}
       </header>
       <div className="search">
         <span className="search-icon">
