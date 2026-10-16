@@ -1,15 +1,18 @@
 import {useEffect, useRef, useState, type FormEvent, type ReactNode} from 'react'
-import {useQuery} from '@tanstack/react-query'
-import type {Doc} from '../lib/data'
+import {useQueries, useQuery} from '@tanstack/react-query'
+import {anyDocQuery, backlinksQuery, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
+import {outboundIds} from '../lib/relations'
 import {checkLabel, labelEntries, slugFeedback, type WeightedTag} from '../lib/paper'
 import {TextInput} from './Fields'
-import {ChevronDown, ChevronRight, Close as CloseIcon} from './icons'
+import {ChevronDown, ChevronRight, Close as CloseIcon, Reset} from './icons'
 import {useT} from '../lib/i18n'
 
 // D12: a paper's metadata beside the canvas, after Barkpark's LiveView Studio sidebar
 // (paper_canvas.ex "t6"): Status (LiveView: Publish; renamed so it never shares a name
-// with the Publish action), Slug, Description, Labels. Every edit is a doc-field
-// edit through the pane's own save path; none touches a block.
+// with the Publish action), Slug, Context (dataset, workspace), Description, Labels,
+// Relations (what it references, what uses it). Every edit is a doc-field edit through
+// the pane's own save path; none touches a block.
 
 export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; published: boolean; onEdit: (field: string, value: unknown) => void; onClose: () => void}) {
   const t = useT()
@@ -57,6 +60,7 @@ export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; publi
         </p>
         <p className="muted paper-note">{t("The slug is this paper's id: checked as you type, not renamed here.")}</p>
       </Section>
+      <Context />
       <Section title={t('Description')}>
         <label className="sr-only" htmlFor="description">
           {t('Description')}
@@ -106,7 +110,83 @@ export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; publi
           </button>
         </form>
       </Section>
+      <Relations doc={doc} />
     </aside>
+  )
+}
+
+/** LiveView's Context: the dataset and workspace this paper lives in. */
+function Context() {
+  const t = useT()
+  const {data: scope} = useQuery(currentScopeQuery)
+  const options = useQuery({...scopeOptionsQuery(scope ?? {workspace: '', project: ''}), enabled: !!scope}).data
+  if (!scope) return null
+  const workspace = options?.workspaces?.find((w) => w.slug === scope.workspace)?.name ?? scope.workspace
+  return (
+    <Section title={t('Context')}>
+      <dl className="paper-facts">
+        <dt>{t('Dataset')}</dt>
+        <dd>{scope.dataset}</dd>
+        <dt>{t('Workspace')}</dt>
+        <dd>{workspace}</dd>
+      </dl>
+    </Section>
+  )
+}
+
+/**
+ * LiveView's Relations, folded into one section: the documents this paper references
+ * (its fields and blocks) and the ones that use it (Barkpark's backlinks), each by title,
+ * never an id; the refresh reads the backlinks again.
+ */
+function Relations({doc}: {doc: Doc}) {
+  const t = useT()
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const out = outboundIds(doc as Record<string, unknown>, doc._publishedId)
+  const outDocs = useQueries({queries: out.map((id) => anyDocQuery(id))})
+  const inbound = useQuery(backlinksQuery(doc._publishedId))
+  const seen = new Set<string>()
+  const usedBy = (inbound.data ?? []).map((b) => ({...b, from_doc_id: b.from_doc_id.replace(/^drafts\./, '')})).filter((b) => b.from_doc_id !== doc._publishedId && !seen.has(b.from_doc_id) && seen.add(b.from_doc_id))
+  const references = out.map((id, i) => ({id, doc: outDocs[i]?.data})).filter((r) => r.doc !== null)
+  const name = (d: Doc | null | undefined, id: string) => (d ? previewTitle(d, schemaOf(schemas, d._type), t) : id)
+  return (
+    <Section title={t('Relations')}>
+      <div className="paper-rel-head">
+        <button type="button" className="icon-btn" aria-label={t('Refresh inbound references')} title={t('Refresh inbound references')} onClick={() => void inbound.refetch()}>
+          <Reset />
+        </button>
+      </div>
+      {references.length === 0 && usedBy.length === 0 ? (
+        <p className="muted">{t('No relations.')}</p>
+      ) : (
+        <>
+          {references.length > 0 && (
+            <section className="paper-rel-group">
+              <h4>{t('References ({n})', {n: references.length})}</h4>
+              <ul className="paper-rels">
+                {references.map((r) => (
+                  <li key={r.id} title={r.id}>
+                    {name(r.doc, r.id)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {usedBy.length > 0 && (
+            <section className="paper-rel-group">
+              <h4>{t('Used by')}</h4>
+              <ul className="paper-rels">
+                {usedBy.map((b) => (
+                  <li key={b.from_doc_id} title={b.from_doc_id}>
+                    {b.title || b.from_doc_id}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
+    </Section>
   )
 }
 
