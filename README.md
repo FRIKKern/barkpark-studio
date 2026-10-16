@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 64 changes, 4 tasks closed
+- **Today** · 65 changes, 4 tasks closed
+  - F7: the browser's own undo outside the form is the document's undo ([#710](https://github.com/FRIKKern/barkpark-studio/pull/710))
   - fix(presence): reopen a presence stream that went quiet without closing ([#708](https://github.com/FRIKKern/barkpark-studio/pull/708))
-  - Expanded body as Sanity's: flush over the pane's card area with no frame, a 41 px bar, the text in a centred 640 px column 32 px in ([#709](https://github.com/FRIKKern/barkpark-studio/pull/709))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
