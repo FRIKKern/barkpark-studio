@@ -100,6 +100,24 @@ export function mergeList3(base: unknown[], mine: unknown[], theirs: unknown[]):
 }
 
 /**
+ * Undo (or redo) one step of mine, `from` back to `to`, on top of `now`: a three-way merge
+ * with my step reversed. Text unapplies, a keyed list puts back what I removed and drops
+ * what I added, and a value someone else changed since stays theirs (Sanity's Mod+Z never
+ * touches another editor's select, switch or list).
+ */
+export function revert(from: unknown, to: unknown, now: unknown): unknown {
+  if (same(now, from)) return to
+  // Text: only when redoing the step on the result gives `now` back, so the patch found my words
+  // and not a fuzzy match on theirs (a select's 'g' -> 'b' would otherwise turn their 'a' into 'b').
+  if (typeof from === 'string' && typeof to === 'string' && typeof now === 'string') {
+    const back = unapply(from, to, now)
+    return applyPatches(makePatches(to, from), back)[0] === now ? back : now
+  }
+  if (Array.isArray(from) && Array.isArray(to) && Array.isArray(now)) return mergeList3(from, to, now) ?? now
+  return now
+}
+
+/**
  * A change made from `seen` (what the pane last drew) to `mine`, put onto `now` (what the
  * cache holds, a live frame newer than that drawing): text merges, lists item by item,
  * anything else is mine. A drop or keystroke in the gap before a frame is drawn otherwise

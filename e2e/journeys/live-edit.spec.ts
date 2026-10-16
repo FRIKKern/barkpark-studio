@@ -1,6 +1,6 @@
 import {expect, test, type Page} from '@playwright/test'
 import {networkBudget, recordFeel, seenAt} from '../rig/feel'
-import {target} from '../rig/targets'
+import {bpMutate, target} from '../rig/targets'
 
 // J05 + J06, both studios, two browsers on one post. J05: each types in a different
 // field and sees the other's. J06: both type in the same field at once; the text
@@ -141,5 +141,42 @@ test('@local F7: undo walks from the form into the body; redo walks back', async
     await expect(t.field(page, 'title')).toBeFocused()
   } finally {
     await t.resetDoc(ID, 'post')
+  }
+})
+
+// F7: undo never puts back a value another editor changed since (Sanity's Mod+Z doesn't
+// touch selects or lists at all). Theirs stays; a list keeps their item while ours comes back.
+test('@local F7: undo leaves another editor\'s select value and list item', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours')
+  const id = `ft-undo-${Date.now().toString(36)}`
+  const card = (k: string, label: string) => ({_key: k, _type: 'card', label})
+  await t.draftOnly(id, 'fieldTypes', {title: 'Undo probe', choice: 'b', cards: [card('c1', 'One'), card('c2', 'Two')]})
+  const doc = async () => (await t.docValue(id, 'choice', 'fieldTypes')) as string
+  const labels = async () => ((await t.docValue(id, 'cards', 'fieldTypes')) as {label: string}[]).map((c) => c.label)
+  try {
+    await t.prepare(page.context())
+    await page.goto(t.docPath('fieldTypes', id))
+    await t.settle(page)
+    await t.field(page, 'choice').selectOption({label: 'Gamma'})
+    await expect.poll(doc).toBe('c')
+    await bpMutate([{patch: {id, type: 'fieldTypes', set: {choice: 'a'}}}])
+    await expect(t.field(page, 'choice').locator('option:checked')).toHaveText('Alpha')
+    await t.field(page, 'choice').focus()
+    await page.keyboard.press('ControlOrMeta+z')
+    await page.waitForTimeout(1000)
+    await expect(t.field(page, 'choice').locator('option:checked')).toHaveText('Alpha')
+    expect(await doc()).toBe('a')
+    // We remove One; they add Remote; undo brings One back and keeps Remote.
+    await page.locator(`[id='cards[_key=="c1"]-menuButton']`).click()
+    await page.getByRole('menuitem', {name: 'Remove'}).click()
+    await expect.poll(labels).toEqual(['Two'])
+    await bpMutate([{patch: {id, type: 'fieldTypes', set: {cards: [card('c2', 'Two'), card('r', 'Remote')]}}}])
+    await expect(page.locator(`[id='cards[_key=="r"]-menuButton']`)).toBeVisible()
+    await t.field(page, 'choice').focus()
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect.poll(labels).toEqual(['One', 'Two', 'Remote'])
+  } finally {
+    await t.deleteDoc(id, 'fieldTypes')
   }
 })

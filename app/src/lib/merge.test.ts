@@ -1,7 +1,7 @@
 // J06's text merge and caret mapping (node --test).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {mapCaret, merge3, mergeList3, onto, unapply} from './merge.ts'
+import {mapCaret, merge3, mergeList3, onto, revert, unapply} from './merge.ts'
 
 test('merge3 keeps both edits', () => {
   assert.equal(merge3('Fixture post', 'bbb Fixture post', 'Fixture post aaa'), 'bbb Fixture post aaa')
@@ -64,4 +64,17 @@ test('onto: a change made from an older drawing goes onto what came in since', (
   assert.deepEqual(onto(['one', 'two', 'three'], ['two', 'one', 'three'], ['one', 'two-by-A', 'three']), ['two-by-A', 'one', 'three'])
   assert.deepEqual(onto(['a'], ['b'], ['a']), ['b'])
   assert.equal(onto(1, 2, 3), 2)
+})
+
+test('revert undoes my step, never what another editor set since', () => {
+  assert.equal(revert('g', 'b', 'g'), 'b') // my select change, still mine
+  assert.equal(revert('g', 'b', 'a'), 'a') // they set Alpha since: theirs stays
+  assert.equal(revert(true, false, false), false)
+  assert.equal(revert('post A aaa', 'post A', 'bbb post A aaa'), 'bbb post A') // text: mine out, theirs kept
+  // I removed One; they added Remote: One comes back, Remote stays.
+  const one = {_key: '1', t: 'One'}, two = {_key: '2', t: 'Two'}, remote = {_key: 'r', t: 'Remote'}
+  assert.deepEqual(revert([two], [one, two], [two, remote]), [one, two, remote])
+  // I added Three; they added Remote: undo drops Three only.
+  const three = {_key: '3', t: 'Three'}
+  assert.deepEqual(revert([one, three], [one], [one, three, remote]), [one, remote])
 })
