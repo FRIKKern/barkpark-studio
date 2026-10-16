@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 33 changes, 4 tasks closed
+- **Today** · 34 changes, 4 tasks closed
+  - Comments: after sending a field comment, focus goes back to the field's comment button ([#680](https://github.com/FRIKKern/barkpark-studio/pull/680))
   - Keyboard: focus stays put after Enter on a desk row, Remove, a picked reference, a chosen asset ([#678](https://github.com/FRIKKern/barkpark-studio/pull/678))
-  - People: one way to name a person everywhere, ready for Barkpark's display names ([#677](https://github.com/FRIKKern/barkpark-studio/pull/677))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
