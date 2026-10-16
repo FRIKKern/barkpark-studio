@@ -5,6 +5,7 @@ import {ProblemMark, ProblemsContext, type OpenRef} from './Fields'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
 import {SortableRows} from './SortableRows'
+import {LaunchIcon, SyncIcon} from './icons'
 import {useT} from '../lib/i18n'
 
 // Arrays of references (J09), after Sanity's: keyed rows ({_key, _type, _ref}),
@@ -43,8 +44,8 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
         const ref = refId(it)
         if (!ref) return []
         return [
-          {label: t('Replace'), run: () => { focusKey.current = it._key; set(items.map((x, j) => (j === i ? {_key: x._key, _type: 'reference'} : x))) }},
-          {label: t('Open in new tab'), run: () => window.open(`/structure/${types[0]};${ref}`, '_blank'), last: true},
+          {label: t('Replace'), icon: <SyncIcon />, run: () => { focusKey.current = it._key; set(items.map((x, j) => (j === i ? {_key: x._key, _type: 'reference'} : x))) }},
+          {label: t('Open in new tab'), icon: <LaunchIcon />, run: () => window.open(`/structure/${types[0]};${ref}`, '_blank'), last: true},
         ]
       }}
       renderItem={(it, i) => {

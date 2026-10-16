@@ -1,7 +1,7 @@
 import {memo, useContext, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {useRevealed} from '../lib/reveal'
-import {Add, DragHandle, Ellipsis} from './icons'
+import {Add, AddDocument, Copy, DragHandle, Ellipsis, InsertAbove, InsertBelow, Trash} from './icons'
 import {DocIdContext, fieldClipboard} from './Fields'
 import {FieldPresence} from './Presence'
 import {useT} from '../lib/i18n'
@@ -31,7 +31,7 @@ type Props<T> = {
   onDuplicated?: (index: number, items: T[]) => void
   addLabel?: string
   /** More item-menu entries: after Remove (e.g. a reference's Replace), or at the end (`last`). */
-  extraActions?: (item: T, index: number) => {label: string; run: () => void; last?: boolean}[]
+  extraActions?: (item: T, index: number) => {label: string; run: () => void; last?: boolean; icon?: ReactNode}[]
   /** The item's id stem (its menu button is `<stem>-menuButton`), e.g. Sanity's `categories[_key=="c2"]`. */
   itemId?: (item: T, index: number) => string
   /** Sanity's `options.layout: 'grid'`: the items as tiles. */
@@ -185,7 +185,7 @@ type RowActions<T> = {
   duplicate: (orig: number) => void
   insert: (at: number, type?: string) => void
   types: () => {value: string; title: string}[] | undefined
-  extra: (item: T, orig: number) => {label: string; run: () => void; last?: boolean}[]
+  extra: (item: T, orig: number) => {label: string; run: () => void; last?: boolean; icon?: ReactNode}[]
 }
 
 type RowProps<T> = {item: T; orig: number; at: number; moving: boolean; readOnly?: boolean; path: string; renderItem: (item: T, index: number) => ReactNode; act: RowActions<T>}
@@ -240,7 +240,7 @@ export const reorder = <T,>(xs: T[], from: number, to: number) => {
   return out
 }
 
-function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string; run: () => void; last?: boolean}[]; onRemove: () => void; onCopy?: () => void; onDuplicate: () => void; types?: {value: string; title: string}[]; onAdd: (after: boolean, type?: string) => void}) {
+function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string; run: () => void; last?: boolean; icon?: ReactNode}[]; onRemove: () => void; onCopy?: () => void; onDuplicate: () => void; types?: {value: string; title: string}[]; onAdd: (after: boolean, type?: string) => void}) {
   const t = useT()
   const [open, setOpen] = useState(false)
   // With several item types, "Add item before…" turns the menu into the type list (Sanity's).
@@ -250,7 +250,7 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
   const add = (after: boolean) => () => (props.types ? setChoosing(after ? 'after' : 'before') : (close(), props.onAdd(after)))
   const dots = props.types ? '...' : ''
   return (
-    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+    <div className="menu-wrap item-actions" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
       <button id={props.id} type="button" className="icon-btn" aria-label={t('Item actions')} aria-haspopup="menu" aria-expanded={open} disabled={props.disabled} onClick={() => (open ? close() : setOpen(true))}>
         <Ellipsis />
       </button>
@@ -259,35 +259,51 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
           <TypeItems types={props.types} pick={(type) => (close(), props.onAdd(choosing === 'after', type))} />
         </MenuPopover>
       )}
+      {/* Sanity's: centred on the ⋯, every item with its icon, a rule before the last group (Open in new tab). */}
       {open && !choosing && (
-        <MenuPopover onClose={close} aria-labelledby={props.id}>
+        <MenuPopover centered className="popover menu item-menu" onClose={close} aria-labelledby={props.id}>
           <button type="button" role="menuitem" className="menu-item danger" autoFocus onClick={pick(props.onRemove)}>
-            {t('Remove')}
+            <span className="menu-icon-text">
+              <Trash /> {t('Remove')}
+            </span>
           </button>
           {props.extra.filter((a) => !a.last).map((a) => (
             <button key={a.label} type="button" role="menuitem" className="menu-item" onClick={pick(a.run)}>
-              {a.label}
+              <span className="menu-icon-text">
+                {a.icon} {a.label}
+              </span>
             </button>
           ))}
           {props.onCopy && (
             <button type="button" role="menuitem" className="menu-item" onClick={pick(props.onCopy)}>
-              {t('Copy')}
+              <span className="menu-icon-text">
+                <Copy /> {t('Copy')}
+              </span>
             </button>
           )}
           <button type="button" role="menuitem" className="menu-item" onClick={pick(props.onDuplicate)}>
-            {t('Duplicate')}
+            <span className="menu-icon-text">
+              <AddDocument /> {t('Duplicate')}
+            </span>
           </button>
           <button type="button" role="menuitem" className="menu-item" onClick={add(false)}>
-            {t('Add item before')}
-            {dots}
+            <span className="menu-icon-text">
+              <InsertAbove /> {t('Add item before')}
+              {dots}
+            </span>
           </button>
           <button type="button" role="menuitem" className="menu-item" onClick={add(true)}>
-            {t('Add item after')}
-            {dots}
+            <span className="menu-icon-text">
+              <InsertBelow /> {t('Add item after')}
+              {dots}
+            </span>
           </button>
+          {props.extra.some((a) => a.last) && <hr />}
           {props.extra.filter((a) => a.last).map((a) => (
             <button key={a.label} type="button" role="menuitem" className="menu-item" onClick={pick(a.run)}>
-              {a.label}
+              <span className="menu-icon-text">
+                {a.icon} {a.label}
+              </span>
             </button>
           ))}
         </MenuPopover>
