@@ -1104,9 +1104,10 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .validation-btn[data-level=warning] { color: var(--caution-icon); }
 .validation-btn[data-level=info] { color: var(--icon-muted); }
 /* J14: a collapsible object's title is its toggle. */
-.object-toggle { display: inline-flex; align-items: center; gap: 2px; margin-left: -4px; padding: 2px 4px 2px 0; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; cursor: pointer; }
-.object-toggle svg { width: 17px; height: 17px; }
-.toggle-arrow { display: inline-grid; transition: transform 100ms; }
+.object-toggle { display: inline-flex; align-items: center; gap: 3px; padding: 2px 4px 2px 0; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; cursor: pointer; }
+/* Sanity's: a 21 px arrow in the muted colour, centred in a 9 px slot, the title 12 px in (SEO, Where; 1440, light and dark). */
+.object-toggle svg { width: 21px; height: 21px; margin: 0 -6px; }
+.toggle-arrow { display: inline-grid; place-items: center; width: 9px; color: var(--muted); transition: transform 100ms; }
 .toggle-arrow[data-open=true] { transform: rotate(90deg); }
 .object-toggle:focus-visible { outline: 2px solid var(--focus-ring); }
 fieldset.object-field[data-collapsible] > legend { min-height: 25px; display: flex; align-items: center; }
@@ -2918,11 +2919,10 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
 /* A titled fieldset in columns gets the object body's 7 px band too: Sanity's 'Size' has Width
    and Height 37 px under its title (field-types-01, 1440). A fold's taller title already has it. */
 .fieldset-group:not([data-collapsible]) > .fieldset[style*=grid] { padding-top: 7px; }
-/* A folding fieldset's title: Sanity's 'Where' sits 4 px lower and 3 px nearer its arrow, its
+/* A folding fieldset's title: Sanity's 'Where' sits 4 px lower, its
    fields where they were (field-types-01, 1440). */
 .fieldset-group[data-collapsible] > legend { padding-top: 5px; }
 .fieldset-group[data-collapsible][data-open=true] > legend { margin-bottom: 9px; }
-.fieldset-group[data-collapsible] > legend .object-toggle { margin-left: -7px; }
 
 /* An array with options.layout 'grid' (Sanity's, field-types-01's Cards at 1440): tiles 9 px inside a box with 1 px corners;
    each a square picture or icon over a 33 px strip with the item menu; the title is for screen readers only; the handle
