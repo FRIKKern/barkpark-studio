@@ -147,6 +147,15 @@ const recent = new Map<string, {expires: number; res: Promise<{status: number; t
 let readBlipUntil = 0
 export const e2eReadBlip = (ms: number) => void (readBlipUntil = Date.now() + ms)
 
+/**
+ * When Barkpark last refused a token's write (429). In shared mode every editor writes as one
+ * token, so one tab's 429 is the whole room's: every write answered within
+ * PRESSURE_MS of one tells its browser to space its writes (lib/write-pace.ts).
+ */
+const limitedAt = new Map<string, number>()
+const PRESSURE_MS = 5_000
+export const underPressure = (token = requestToken()) => Date.now() - (limitedAt.get(token.slice(-12)) ?? 0) < PRESSURE_MS
+
 const SLOW_MS = 2_000
 const BLIP_BUDGET_MS = 6_000
 
@@ -176,6 +185,7 @@ async function send(base: string, path: string, init: RequestInit, token: string
       await new Promise((r) => setTimeout(r, Math.min(300 * 2 ** blips++, 1_500)))
       continue
     }
+    if (res.status === 429 && !read) limitedAt.set(token.slice(-12), Date.now())
     if (res.status !== 429 || !retry || attempt === 3 || headers.get('accept') === 'text/event-stream') return res
     const wait = Math.min(Number(res.headers.get('retry-after')) || 1, 5)
     console.warn(`[barkpark] 429 on ${path}, retrying in ${wait}s`)

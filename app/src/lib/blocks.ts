@@ -1,6 +1,6 @@
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {bpFetch, dataset} from '../server/barkpark'
+import {bpFetch, dataset, underPressure} from '../server/barkpark'
 
 // A document's PortableDoc block list, for the Freeform canvas (decision 0004).
 // Reads take `?perspective=drafts` (the draft when there is one: `raw` answers the
@@ -39,7 +39,7 @@ export const readBlocks = async (type: string, id: string, field?: string) => (a
  * or none, fenced on `ifRev`; `rev` is the doc's rev after it. A field's own list
  * goes to /fields/:field/ops, the doc's to /ops.
  */
-export type OpsResult = {ok: true; rev: Rev} | {ok: false; status: number; code?: string; message: string; rev: Rev; actual?: Rev}
+export type OpsResult = ({ok: true; rev: Rev} | {ok: false; status: number; code?: string; message: string; rev: Rev; actual?: Rev}) & {throttled?: boolean}
 export const applyBlockOps = createServerFn({method: 'POST'})
   .validator((d: {type: string; id: string; field?: string; ops: Json[]; ifRev: Rev}) => d)
   .handler(async ({data}) => {
@@ -53,13 +53,16 @@ export const applyBlockOps = createServerFn({method: 'POST'})
     const res = await bpFetch(path, {
       method: 'POST',
       headers: {'content-type': 'application/json'},
-      body: JSON.stringify({ops: data.ops, ifRev: data.ifRev}),
+      // A field's batch is fenced on the blocks it names, not the whole doc (Barkpark
+      // #23350): another editor's paragraph or field no longer refuses it. Ignored before.
+      body: JSON.stringify({ops: data.ops, ifRev: data.ifRev, ...(data.field ? {fence: 'blocks'} : {})}),
     })
     const body = (await res.json().catch(() => ({}))) as {result?: {rev: string}; rev?: number; error?: {code?: string; message?: string; details?: {actual?: Rev}}}
     // A 412 names the doc's current rev (`details.actual`): the batch goes again on it.
-    if (!res.ok) return {ok: false, status: res.status, code: body.error?.code, message: body.error?.message ?? `Barkpark ${res.status}`, rev: data.ifRev, actual: body.error?.details?.actual} as Json
+    const throttled = underPressure()
+    if (!res.ok) return {ok: false, status: res.status, code: body.error?.code, message: body.error?.message ?? `Barkpark ${res.status}`, rev: data.ifRev, actual: body.error?.details?.actual, throttled} as Json
     // The document route answers {result: {rev}}, the paper route its receipt {rev, …}.
-    return {ok: true, rev: (body.result?.rev ?? body.rev)!} as Json
+    return {ok: true, rev: (body.result?.rev ?? body.rev)!, throttled} as Json
   })
 
 /** Where the canvas bundle lives: the connected Barkpark serves it (no token needed). */

@@ -1,7 +1,7 @@
 import {useSyncExternalStore} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {bpFetch, dataset, requestToken} from '../server/barkpark'
+import {bpFetch, dataset, requestToken, underPressure} from '../server/barkpark'
 import {currentEditor, signOut} from '../server/auth'
 import {expectEcho, mutatedIds} from '../server/listen'
 import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type Field, type ListPage, type Schema} from './data'
@@ -13,6 +13,7 @@ import {merge3, mergeList3, onto, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {writeBudget} from './write-budget'
+import {paceMs, paced} from './write-pace'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
 // title, list row all repaint with no network wait); the write goes to Barkpark
@@ -44,6 +45,8 @@ export const mutate = createServerFn({method: 'POST'})
       body: JSON.stringify({mutations: data.mutations}),
     })
     const body = (await res.json().catch(() => ({}))) as Json
+    // The token's write budget is running out (lib/write-pace.ts): this browser writes less often.
+    if (res.ok && underPressure()) (body as {[k: string]: Json}).studioThrottled = true
     if (!res.ok) {
       // The long `hint` is dropped so a publish wall's `details` (rule + fix) survive the cut.
       // A validation refusal keeps its coded findings whole (barkpark#22375), not the English map.
@@ -381,7 +384,7 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
 function schedule(qc: QueryClient, id: string) {
   const e = docs.get(id)
   if (!e || e.timer || (e.dirty.size === 0 && !e.createRequested)) return
-  const wait = Math.max(e.lastSent + MIN_GAP_MS - Date.now(), budget.wait())
+  const wait = Math.max(e.lastSent + Math.max(MIN_GAP_MS, paceMs()) - Date.now(), budget.wait())
   if (wait === 0) void send(qc, id)
   else e.timer = setTimeout(() => ((e.timer = undefined), void send(qc, id)), wait)
 }
@@ -538,7 +541,8 @@ async function send(qc: QueryClient, id: string) {
       : e.forks
         ? [{patch: {id, type: e.type, set: {}, ...fence}}, {patch: {id, type: e.type, set, unset}}]
         : [{patch: {id, type: e.type, set, unset, ...fence}}]
-    const r = (await mutate({data: {mutations}})) as {results: {document: Doc}[]; warnings?: unknown}
+    const r = (await mutate({data: {mutations}})) as {results: {document: Doc}[]; warnings?: unknown; studioThrottled?: boolean}
+    paced(!!r.studioThrottled)
     const saved = r.results.at(-1)!.document
     e.forks = false
     e.advisories = advisoryFindings(r)
@@ -558,6 +562,7 @@ async function send(qc: QueryClient, id: string) {
   } catch (err) {
     clearTimeout(stall)
     const msg = (err as Error).message ?? ''
+    if (/^mutate 429\b/.test(msg)) paced(true)
     // Signed out, or not allowed: keep every value, say why, stop writing.
     if (/token_refused/.test(msg)) {
       e.dirty = new Map([...e.inflight!, ...e.dirty])
