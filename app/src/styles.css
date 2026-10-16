@@ -1346,7 +1346,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 
 /* J10: a block-editor richText field is Barkpark's canvas (decision 0004), framed
    as a form input like Sanity's portable-text box: the studio's font and colours,
-   a bordered box that scrolls past ~420 px, the paper's full-bleed rules off. */
+   a bordered box that scrolls inside (below), the paper's full-bleed rules off. */
 .block-presence { position: absolute; right: -36px; z-index: 2; pointer-events: none; }
 .body-canvas {
   position: relative; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line);
@@ -1357,9 +1357,11 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .body-canvas:focus-within { box-shadow: inset 0 0 0 1px var(--selected); }
 .body-canvas .pd-editor { padding: 0; }
 .body-canvas .pd-status { display: none; }
-/* The canvas grows with its blocks, as Sanity's inline body does: a scroll box here would
-   clip the canvas's block menu, which it places inside itself (barkpark block-handle.js). */
+/* Sanity's box is 306 px whatever the body's length (bar 33, text 271; measured with 1, 3,
+   12 and 40 paragraphs): the text scrolls inside, and its corner drags it taller or shorter
+   (min 80). The block menu sits on <body> now (#486), so the scroll box clips none of it. */
 .body-canvas .pd-canvas { margin-left: 0; }
+.body-canvas:not([data-expanded]) .pd-canvas, .body-static > .bp-paper-editor-body { height: 273px; min-height: 47px; overflow: auto; resize: vertical; }
 /* Sanity's frame: a 33 px bar on top, text 12 px in from the border, the same at rest,
    on hover and in focus (the read-only body and the live canvas share these numbers, so
    clicking in moves nothing). Focus only turns the border blue. */
