@@ -1956,6 +1956,7 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .new-doc-popover .command-find input { height: 33px; }
 .new-doc-popover .command-list { display: flex; flex-direction: column; gap: 4px; }
 .new-doc-popover .command-item { min-height: 33px; }
+.new-doc-popover .command-item[aria-selected='true'] { background: var(--bg-soft); } /* Sanity's row under the pointer: #f6f6f8, dark #191a24 */
 @media (max-width: 599px) {
   .popover.new-doc-popover { position: fixed; top: calc(var(--nav-h) + 4px); left: 16px; right: 16px; width: auto; translate: none; }
 }
