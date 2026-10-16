@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 142 changes, 4 tasks closed
-  - Nested fields: only the hovered field's actions show, as Sanity's ([#790](https://github.com/FRIKKern/barkpark-studio/pull/790))
-  - Media at 320 px: the toolbar wraps under its search, Upload in reach ([#788](https://github.com/FRIKKern/barkpark-studio/pull/788))
+- **Today** · 144 changes, 4 tasks closed
+  - ci(e2e): re-record durations.json after #774 and #779 ([#789](https://github.com/FRIKKern/barkpark-studio/pull/789))
+  - Reduced motion: comment and presence jumps scroll at once ([#791](https://github.com/FRIKKern/barkpark-studio/pull/791))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
