@@ -124,7 +124,7 @@ export default {
   'Delete': 'Slett',
   'Delete anyway': 'Slett uansett',
   'Delete document?': 'Slett dokument?',
-  'Delete now': 'Slett nå',
+  'Delete document': 'Slett dokument',
   'Deleted': 'Slettet',
   'Discard changes': 'Forkast endringer',
   'Discard changes?': 'Forkaste endringer?',
