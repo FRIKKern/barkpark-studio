@@ -1,5 +1,5 @@
 import {useRef, useState} from 'react'
-import {copy} from '../lib/clipboard'
+import {copyItem} from '../lib/clipboard'
 import {Close as CloseIcon} from './icons'
 import {SortableRows} from './SortableRows'
 import {useT} from '../lib/i18n'
@@ -61,7 +61,7 @@ export function StringArrayInput({id, value, onChange, readOnly}: Props) {
       onChange={onChange}
       readOnly={readOnly}
       blank={() => ''}
-      onCopy={(v, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'string', value: v}})}
+      onCopy={(v, i) => copyItem(id, i, 'array:string', v)}
       renderItem={(v, i) => <input id={`${id}[${i}]`} className="input" aria-label={t('Item {n}', {n: i + 1})} value={v} readOnly={readOnly} onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))} />}
     />
   )

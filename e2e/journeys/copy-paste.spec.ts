@@ -90,3 +90,23 @@ test('J29: copying an empty field is refused and the earlier copy still pastes',
   await fieldMenu(t, page, 'title', 'Paste field')
   await expect(t.field(page, 'title')).toHaveValue('Short excerpt for post 22.')
 })
+
+// Sanity's item Copy: a one-item list under its array's type, which Paste field on an array of that type appends with a new key.
+test('J29: a copied array item pastes onto the end of a Links array', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's is the scout's (task-85b17b03db53daf5)")
+  const id = `post-item-copy-${Date.now().toString(36)}`
+  await t.draftOnly(id, 'post', {title: 'Item copy probe', slug: {_type: 'slug', current: id}, links: [{_key: 'l1', kind: 'externalLink', title: 'Sanity docs', url: 'https://www.sanity.io/docs'}]})
+  try {
+    await t.prepare(page.context())
+    await page.goto(t.docPath('post', id))
+    await t.settle(page)
+    await page.getByRole('tab', {name: 'Meta'}).click()
+    await page.locator('[id=\'links[_key=="l1"]-menuButton\']').click()
+    await page.getByRole('menuitem', {name: 'Copy', exact: true}).click()
+    await fieldMenu(t, page, 'links', 'Paste field')
+    await expect.poll(async () => ((await t.docValue(id, 'links')) as {_key: string; title: string}[] | undefined)?.map((l) => `${l._key === 'l1'}:${l.title}`)).toEqual(['true:Sanity docs', 'false:Sanity docs'])
+  } finally {
+    await t.deleteDoc(id, 'post')
+  }
+})

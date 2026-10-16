@@ -5,7 +5,7 @@ import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type 
 import {firstMedia, formatPreview, previewRefs, type PreviewText} from '../lib/preview'
 import {imageRef, type ImageValue} from '../lib/image'
 import {Thumb} from './Preview'
-import {copy} from '../lib/clipboard'
+import {copyItem, signature} from '../lib/clipboard'
 import {FieldView, UrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, DocumentIcon} from './icons'
@@ -61,7 +61,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
         onDuplicated={(i, next) => setEditing(next[i]!._key ?? null)}
-        onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: 'object', value: it}})}
+        onCopy={(it, i) => copyItem(id, i, signature(field), it)}
         addLabel={typing ? 'Add item...' : 'Add item'}
         renderItem={renderItem}
         grid={field.layout === 'grid' || (!Array.isArray(field.options) && field.options?.layout === 'grid')}

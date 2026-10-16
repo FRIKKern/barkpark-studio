@@ -1,6 +1,6 @@
 import {useContext, useEffect, useRef} from 'react'
 import {itemPath, refId, refTypesOf, type Field, type RefFilter} from '../lib/data'
-import {copy} from '../lib/clipboard'
+import {copyItem, signature} from '../lib/clipboard'
 import {ProblemMark, ProblemsContext, type OpenRef} from './Fields'
 import {RefPreview} from './Preview'
 import {RefInput} from './RefInput'
@@ -37,7 +37,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
       keyOf={(it, i) => it._key ?? i}
       blank={() => ({_key: newKey(), _type: 'reference'})}
       duplicate={(it) => ({...it, _key: newKey()})}
-      onCopy={(it, i) => copy({kind: 'field', field: {name: `${id}[${i}]`, sig: `reference:${types.join(',')}`, value: refId(it)}})}
+      onCopy={(it, i) => copyItem(id, i, signature(field), it)}
       onAdded={(at, next) => (focusKey.current = next[at]?._key)}
       itemId={(it, i) => itemPath(id, it, i)}
       extraActions={(it, i) => {

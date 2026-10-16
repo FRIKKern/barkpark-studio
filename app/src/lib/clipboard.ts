@@ -8,7 +8,8 @@ import {t} from './i18n'
 // clipboard gets a plain-text version for pasting elsewhere. A paste only lands
 // where the schema types match, as in Sanity ("Invalid clipboard item").
 
-export type ClipField = {name: string; sig: string; value: unknown}
+/** `append`: an array item, copied as Sanity does: a one-item list under its array's type, which a paste adds to the end. */
+export type ClipField = {name: string; sig: string; value: unknown; append?: boolean}
 export type Clip = {kind: 'field'; field: ClipField} | {kind: 'document'; docType: string; fields: ClipField[]}
 
 const KEY = 'studio.clipboard'
@@ -49,7 +50,7 @@ export const isEmpty = (v: unknown) => v == null || (Array.isArray(v) ? v.length
 
 /** An empty value is refused with Sanity's warning and leaves both clipboards as they were, so a later paste can't wipe a field. */
 export function copy(clip: Clip) {
-  if (clip.kind === 'field' ? isEmpty(clip.field.value) : clip.fields.every((f) => isEmpty(f.value))) return void toast({tone: 'caution', title: t('Empty value, nothing to copy')})
+  if (clip.kind === 'field' ? isEmpty(clip.field.append ? (clip.field.value as unknown[])[0] : clip.field.value) : clip.fields.every((f) => isEmpty(f.value))) return void toast({tone: 'caution', title: t('Empty value, nothing to copy')})
   try {
     localStorage.setItem(KEY, JSON.stringify(clip))
   } catch {
@@ -58,6 +59,13 @@ export function copy(clip: Clip) {
   const text = clip.kind === 'field' ? asText(clip.field.value) : clip.fields.map((f) => asText(f.value)).filter(Boolean).join(', ')
   void navigator.clipboard?.writeText(text).catch(() => {})
 }
+
+/** Copy item `i` of array `arrayId` (signature `sig`). */
+export const copyItem = (arrayId: string, i: number, sig: string, item: unknown) => copy({kind: 'field', field: {name: `${arrayId}[${i}]`, sig, value: [item], append: true}})
+
+/** An appended copy's items with fresh keys, so a paste into the array it came from adds a new row. */
+export const rekeyed = (items: unknown[]) =>
+  items.map((it) => (it && typeof it === 'object' && '_key' in it ? {...it, _key: crypto.randomUUID().replace(/-/g, '').slice(0, 12)} : it))
 
 export function read(): Clip | null {
   try {
