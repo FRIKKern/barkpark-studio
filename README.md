@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 78 changes, 4 tasks closed
+- **Today** · 79 changes, 4 tasks closed
+  - Presence as Sanity's at many viewers: per person, its counter, a dot on Who's online ([#725](https://github.com/FRIKKern/barkpark-studio/pull/725))
   - Perspective menu as Sanity's: 35 px items, each mark in a 25 px slot joined by a hairline, Drafts' ring tinted on the blue ([#723](https://github.com/FRIKKern/barkpark-studio/pull/723))
-  - Menus as Sanity's: the item under the pointer or focus filled blue, red for a critical one (AA-safe in light) ([#722](https://github.com/FRIKKern/barkpark-studio/pull/722))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
