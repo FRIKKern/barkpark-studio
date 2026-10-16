@@ -526,7 +526,7 @@ a.preview:hover { background: var(--card-hover); }
 .search .search-icon > svg { display: block; width: 21px; height: 21px; }
 .search input { width: 100%; border: 0; outline: none; background: none; font: inherit; font-size: 13px; line-height: 19px; padding: 3px 8px 3px 29px; color: var(--fg); border-radius: 3px; }
 .search input::placeholder { color: var(--muted); }
-.search input:focus-visible { box-shadow: inset 0 0 0 1px var(--selected); }
+.search input:focus-visible { box-shadow: inset 0 0 0 1px var(--focus-ring); }
 .search input::-webkit-search-cancel-button { display: none; }
 
 /* Document form */
@@ -586,7 +586,7 @@ textarea.input { resize: vertical; }
 .image-empty { height: 43px; display: flex; align-items: center; padding: 0 16px; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); }
 
 /* Edit state */
-.input:focus { outline: none; box-shadow: inset 0 0 0 1px var(--selected); }
+.input:focus { outline: none; box-shadow: inset 0 0 0 1px var(--focus-ring); } /* Sanity's focus ring, #556bfc (dark #596ffc) */
 .chips { display: flex; gap: 4px; }
 .chip { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 500; box-shadow: inset 0 0 0 1px var(--border); color: var(--fg-header); }
 .chip[data-active] { background: var(--warn-bg); box-shadow: none; }
@@ -1298,7 +1298,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 /* String arrays (J34), after Sanity's: tags in a box; rows with handle, value and "…", then Add item */
 /* Sanity's tags (measured at 1440): 27 px chips 4 px in and apart, the word 8 px in, a 25 px remove flush at the end with a 21 px x. */
 .tags-box { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 35px; padding: 4px; border-radius: 1px; box-shadow: inset 0 0 0 1px var(--line); cursor: text; }
-.tags-box:focus-within { box-shadow: inset 0 0 0 1px var(--selected); }
+.tags-box:focus-within { box-shadow: inset 0 0 0 1px var(--focus-ring); }
 .tags-box .tag { display: inline-flex; align-items: center; gap: 4px; font-size: 15px; line-height: 23px; padding: 2px 0 2px 8px; background: var(--upload-fill); color: var(--fg); }
 .tags-box .tag button { display: inline-grid; place-items: center; width: 25px; height: 25px; margin: -1px 0; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--tag-x); cursor: pointer; }
 .tags-box .tag button:hover { background: var(--hover-strong); color: var(--fg-strong); }
@@ -1713,7 +1713,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
   --bp-section-rule: 0px; --bp-section-beat: 16px; --bp-section-gap: 0px; --bp-evidence-pull: 0px; --bp-evidence-width: 100%;
   --tok-reading-font: 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; --paper-bg: var(--bg); --paper-ink: var(--fg);
 }
-.body-canvas:focus-within { box-shadow: inset 0 0 0 1px var(--selected); }
+.body-canvas:focus-within { box-shadow: inset 0 0 0 1px var(--focus-ring); }
 .body-canvas .pd-editor { padding: 0; }
 .body-canvas .pd-status { display: none; }
 /* Sanity's box is 306 px whatever the body's length (bar 33, text 271; measured with 1, 3,
@@ -1887,7 +1887,7 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .pd-editor .bp-canvas-field-label { font: 500 13px/19px Inter, system-ui, sans-serif; color: var(--fg); }
 .pd-editor .bp-canvas-field .bp-canvas-field-control:is(input:not([type=checkbox]):not([type=color]), textarea, select) { box-sizing: border-box; width: 100%; padding: 7px 12px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); font: 400 15px/21px Inter, system-ui, sans-serif; color: var(--fg); }
 .pd-editor textarea.bp-canvas-field-control { resize: vertical; min-height: 84px; }
-.pd-editor .bp-canvas-field .bp-canvas-field-control:is(input:not([type=checkbox]):not([type=color]), textarea, select):focus { outline: none; box-shadow: inset 0 0 0 1px var(--selected), 0 0 0 1px var(--selected); }
+.pd-editor .bp-canvas-field .bp-canvas-field-control:is(input:not([type=checkbox]):not([type=color]), textarea, select):focus { outline: none; box-shadow: inset 0 0 0 1px var(--focus-ring), 0 0 0 1px var(--focus-ring); }
 /* The paper's section rule bleeds past a reading column; in a pane it stays inside. */
 .pd-editor .bp-paper-editor-body { background: transparent; }
 .pd-editor .bp-paper-editor-body > .ProseMirror > h2 { margin-inline: 0; padding-inline: 0; width: auto; margin-top: 32px; }
@@ -2263,7 +2263,7 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .composer { position: relative; display: flex; gap: 8px; align-items: flex-start; }
 .composer .avatar, .comment-item .avatar { flex: none; display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: var(--selected); color: var(--on-selected); font-size: 11px; font-weight: 600; }
 .composer-box { position: relative; flex: 1; display: flex; align-items: flex-end; gap: 4px; min-height: 57px; padding: 4px 4px 4px 4px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
-.composer-box:focus-within { box-shadow: inset 0 0 0 1px var(--selected); }
+.composer-box:focus-within { box-shadow: inset 0 0 0 1px var(--focus-ring); }
 .composer.compact .composer-box { min-height: 33px; }
 .composer-box textarea { flex: 1; min-width: 0; align-self: stretch; border: 0; outline: none; resize: none; background: none; font: inherit; font-size: 13px; line-height: 19px; color: var(--fg); padding: 2px 4px; field-sizing: content; max-height: 200px; }
 .composer-placeholder { position: absolute; left: 8px; top: 6px; font-size: 13px; color: var(--muted); pointer-events: none; }
@@ -2828,7 +2828,7 @@ html body .bp-inline-object-dialog__title { margin: 0 0 16px; font-size: 13px; l
 html body .bp-inline-object-dialog__row { display: flex; flex-direction: column; margin: 0 0 16px; }
 html body .bp-inline-object-dialog__row > label { margin: 0 0 8px; font-size: 13px; line-height: 19px; font-weight: 500; color: var(--fg-strong); }
 html body .bp-inline-object-dialog :is(select, textarea, input:not([type=checkbox], [type=radio])) { box-sizing: border-box; width: 100%; margin: 0; font: inherit; font-size: 15px; line-height: 23px; padding: 6px 12px; border: 0; border-radius: 3px; background-color: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--fg-strong); }
-html body .bp-inline-object-dialog :is(select, textarea, input):focus { outline: none; box-shadow: inset 0 0 0 1px var(--selected); }
+html body .bp-inline-object-dialog :is(select, textarea, input):focus { outline: none; box-shadow: inset 0 0 0 1px var(--focus-ring); }
 html body .bp-inline-object-dialog textarea { resize: vertical; }
 html body .bp-inline-object-dialog select { appearance: none; padding-right: 36px; cursor: pointer; background-repeat: no-repeat; background-position: right 10px center; background-size: 17px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25' fill='none' stroke='%230d0e12' stroke-width='1.2'%3E%3Cpath d='M17 10.5l-4.5 4.5L8 10.5'/%3E%3C/svg%3E"); }
 html[data-theme='dark'] body .bp-inline-object-dialog select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25' fill='none' stroke='%23ffffff' stroke-width='1.2'%3E%3Cpath d='M17 10.5l-4.5 4.5L8 10.5'/%3E%3C/svg%3E"); }
