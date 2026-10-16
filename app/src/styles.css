@@ -55,6 +55,8 @@
   --caution-code-fg: #955712;
   --caution-code-bg: #fdf5c7;
   --pressed-card: #eeeef1; /* Sanity's pressed card: the location the preview shows, measured */
+  --compare-published-bg: #c5fce8; /* Compare versions' chips, measured */
+  --compare-draft-bg: #fcf3bb;
   --switch-on: #0d0e12; /* Sanity's Switch track when on, measured */
   --edit-pill: #f6f6f8; /* Presentation's Edit switch card, measured */
   --danger-bg: #fde5e3;
@@ -209,6 +211,8 @@
   --caution-code-fg: #f9bf1e;
   --caution-code-bg: #28201b;
   --pressed-card: #21232f;
+  --compare-published-bg: var(--badge-positive-bg);
+  --compare-draft-bg: var(--warn-bg);
   --switch-on: #e3e4e8;
   --edit-pill: #0d0e12;
   --danger-bg: #3a1d1d;
@@ -895,7 +899,8 @@ button.chip { font: inherit; font-size: 13px; font-weight: 500; border: 0; backg
 button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .chip[data-selected]:not([data-active]) { background: var(--selected-fill); box-shadow: none; }
 .form-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
-.form-fields:disabled .input { background: var(--bg-soft); color: var(--muted); }
+/* Sanity 6.17's read-only inputs keep the text colour (published view, compare's left side). */
+.form-fields:disabled .input { background: var(--bg-soft); color: var(--fg); }
 /* Read-only fields (J30): text stays selectable, controls disable, all look muted like Sanity's */
 .input[readonly], .readonly-wrap .input { background: var(--bg-soft); }
 .readonly-wrap { border: 0; margin: 0; padding: 0; min-width: 0; }
@@ -1297,8 +1302,11 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; }
 
 /* Review changes (J15), after Sanity's: change bars beside changed fields, and the inspector's diff list */
-.change-bar { position: absolute; top: 34px; bottom: 0; right: -10px; width: 2px; padding: 0; border: 0; border-radius: 1px; background: var(--caution-dot); cursor: pointer; }
-.change-bar:hover, .change-bar:focus-visible { width: 5px; right: -11px; outline: none; }
+/* Sanity's change bar: a 1 px line in the caution colour 4 px past the field, at half strength
+   until the field has focus or the bar is pointed at. */
+.change-bar { position: absolute; top: 34px; bottom: 0; right: -5px; width: 1px; padding: 0; border: 0; border-radius: .5px; background: var(--caution-dot); opacity: .5; cursor: pointer; }
+.change-bar:hover, .change-bar:focus-visible, .field:focus-within > .change-bar { opacity: 1; outline: none; }
+.change-bar::before { content: ''; position: absolute; top: 0; bottom: 0; left: -7px; width: 15px; } /* Sanity's 15 px button over it */
 /* J68: Sanity's "Inline changes": the input's text with the diff since publish, over the
    input (which takes the click); removed struck on red, added on yellow. */
 .inline-diff { position: relative; }
@@ -1560,14 +1568,14 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .dialog-backdrop.nested { z-index: 70; }
 /* J68: Compare versions, over the whole studio as Sanity's (12 px from each edge). */
 .dialog-backdrop.compare-backdrop { position: fixed; z-index: 80; }
-.dialog.compare { width: calc(100vw - 24px); height: calc(100vh - 24px); max-height: none; font-size: 15px; }
+.dialog.compare { width: calc(100vw - 24px); height: calc(100vh - 40px); max-height: none; font-size: 15px; border-radius: 9px; } /* Sanity's: 12 px in at the sides, 20 at top and bottom */
 .dialog.compare > header { position: relative; padding: 12px 12px 12px 20px; border-bottom: 1px solid var(--border); }
 .dialog.compare h2 { font-size: 13px; font-weight: 400; color: var(--muted); }
 .compare-sides { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .compare-sides svg { width: 19px; height: 19px; }
-.compare-sides .chip { box-shadow: none; }
-.compare-sides .chip[data-version=published] { background: var(--badge-positive-bg); color: var(--positive-fg); }
-.compare-sides .chip[data-version=draft] { background: var(--warn-bg); color: var(--fg); }
+.compare-sides .chip { box-shadow: none; padding: 3px 18px; line-height: 19px; } /* Sanity's: 25 px high, Published 110 wide */
+.compare-sides .chip[data-version=published] { background: var(--compare-published-bg); color: var(--positive-fg); }
+.compare-sides .chip[data-version=draft] { background: var(--compare-draft-bg); color: var(--fg); }
 .compare-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; }
 .compare-side.doc-form { max-width: none; margin: 0; overflow-y: auto; padding: 20px 54px 40px; }
 .compare-side + .compare-side { border-left: 1px solid var(--border); }
