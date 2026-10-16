@@ -62,6 +62,24 @@ test('live: a draft discarded elsewhere leaves the open document', async ({page}
 })
 
 
+// A dropped network that sends no reset (a Wi-Fi switch, a sleep): the page's stream stays
+// open and hears nothing, and a write never came (task-be55a4dfb930fd8c: 90 s and still
+// stale, no "Trying to connect…"). The page now reopens a stream quiet past its pings.
+test('live: a stream gone quiet without closing is reopened, and the missed write comes', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'our listen stream')
+  await page.goto(t.docPath('post', ID))
+  await t.settle(page)
+  await expect(t.field(page, 'title')).toHaveValue(TITLE)
+  try {
+    await page.evaluate(() => (window as {__muteLive?: (ms: number) => void}).__muteLive!(1500))
+    await t.patch(ID, {title: `${TITLE} while quiet`})
+    await expect(t.field(page, 'title'), 'reopened at its last frame').toHaveValue(`${TITLE} while quiet`, {timeout: 6_000})
+  } finally {
+    await t.restore(ID, {title: TITLE})
+  }
+})
+
 // The hub's own upstream (server/listen.ts), cut or gone deaf while another client writes.
 // Levers: POST /api/e2e-listen (the studio server runs with STUDIO_E2E_HOOKS=1).
 const lever = (page: import('@playwright/test').Page, action: 'deaf' | 'cut' | 'flip', ms?: number) =>

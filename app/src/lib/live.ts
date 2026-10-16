@@ -31,6 +31,12 @@ export function resumeLive(mark: number | null | undefined) {
   else (lastSeen = String(mark)), (fromRender = true)
 }
 
+// A stream can die without a word (a Wi-Fi switch, a sleep, a proxy dropping an idle
+// connection): EventSource stays open and hears nothing, so no write arrives and nothing
+// says so. The server pings every 15 s; this long with no event at all, the stream is
+// reopened where the page left off (and "Trying to connect…" shows if that fails too).
+let silentMs = 35_000
+
 export function useLive(ids: string[], types: string[]) {
   const qc = useQueryClient()
   const key = `ids=${[...new Set(ids)].sort().join(',')}&types=${[...new Set(types)].sort().join(',')}`
@@ -40,9 +46,14 @@ export function useLive(ids: string[], types: string[]) {
     let es: EventSource
     let stopped = false
     let retry: ReturnType<typeof setTimeout> | undefined
+    let heard = Date.now()
+    let muted: EventSource | null = null // e2e: __muteLive
+    const beat = (e: Event) => e.target !== muted && (heard = Date.now())
     const open = () => {
       es = new EventSource(`/api/listen?${key}${lastSeen ? `&since=${lastSeen}` : ''}${fromRender ? '&resumed=1' : ''}`)
       fromRender = false
+      heard = Date.now()
+      for (const name of ['ping', 'welcome', 'mutation', 'reset']) es.addEventListener(name, beat)
       // EventSource retries a dropped stream by itself (sending Last-Event-ID); one
       // it gave up on (CLOSED) is reopened here with ?since=.
       es.onerror = () => {
@@ -58,6 +69,19 @@ export function useLive(ids: string[], types: string[]) {
       })
       es.addEventListener('mutation', onFrame)
     }
+    const reopen = () => {
+      if (stopped) return
+      es.close()
+      clearTimeout(retry)
+      setLiveDown(true)
+      open()
+    }
+    const watchdog = setInterval(() => Date.now() - heard > silentMs && reopen(), 1000)
+    // Back on a network: the open stream may be one that died with the old one.
+    addEventListener('online', reopen)
+    // e2e probe: the stream goes quiet without closing (what a dropped network does), and
+    // the page calls it dead after `ms` of nothing.
+    ;(window as {__muteLive?: (ms: number) => void}).__muteLive = (ms) => ((muted = es), (silentMs = ms))
     // e2e probe: cut the stream for `ms`, as a dead network would.
     ;(window as {__dropLive?: (ms: number) => void}).__dropLive = (ms) => (es.close(), (retry = setTimeout(open, ms)))
     // e2e probe: read everything again, as a reconnect that lost its place does.
@@ -68,6 +92,7 @@ export function useLive(ids: string[], types: string[]) {
       if (!on) undrawn.splice(0).forEach((cb) => cb())
     }
     const onFrame = (e: Event) => {
+      if (e.target === muted) return
       if ((e as MessageEvent).lastEventId) lastSeen = (e as MessageEvent).lastEventId
       const f = JSON.parse((e as MessageEvent).data) as Frame
       ;(window as {__liveFrames?: string[]}).__liveFrames?.push(`${lastSeen}|${f.documentId}`) // e2e probe
@@ -103,6 +128,8 @@ export function useLive(ids: string[], types: string[]) {
       stopped = true
       setLiveDown(false)
       clearTimeout(retry)
+      clearInterval(watchdog)
+      removeEventListener('online', reopen)
       es.close()
     }
   }, [key, empty, qc])
