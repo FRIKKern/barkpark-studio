@@ -69,7 +69,7 @@ export function FieldComments({path, title, titleId}: {path: string; title: stri
           <CommentIcon /> {open.length}
         </SpanButton>
       ) : (
-        <SpanButton ref={opener} className="icon-btn comment-add" aria-label={t('Add comment')} aria-describedby={titleId} data-tip={t('Add comment')} title={commentReason} disabled={!!commentReason} aria-expanded={composing} onPress={() => setComposing(true)}>
+        <SpanButton ref={opener} className="icon-btn comment-add" aria-label={t('Add comment')} aria-describedby={titleId} data-tip={t('Add comment')} data-tip-side="top" title={commentReason} disabled={!!commentReason} aria-expanded={composing} onPress={() => setComposing(true)}>
           <AddComment />
         </SpanButton>
       )}

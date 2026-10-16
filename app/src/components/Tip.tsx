@@ -9,7 +9,8 @@ import {createPortal} from 'react-dom'
  * Spread `anchor` on the element it describes and render `tip` anywhere.
  */
 /**
- * Sanity's placement: centred on the anchor, 4 px under it (over it near the bottom),
+ * Sanity's placement: centred on the anchor, 4 px under it (over it near the bottom;
+ * over it always for a field's ⋯ and Add comment, `data-tip-side="top"`, unless at the top),
  * shifted only as far as it must to stay 4 px inside the anchor's pane (else the
  * window), measured once drawn.
  */
@@ -22,7 +23,8 @@ const fit = (el: HTMLElement | null) => {
 const placed = (at: DOMRect, anchor?: Element | null) => {
   const centre = at.left + at.width / 2
   const pane = anchor?.closest('.pane')?.getBoundingClientRect()
-  return {ref: fit, 'data-centre': centre, 'data-bounds': pane ? `${pane.left} ${pane.right}` : undefined, style: {left: centre, ...(at.bottom + 80 < innerHeight ? {top: at.bottom + 4} : {bottom: innerHeight - at.top + 4})}}
+  const above = anchor?.getAttribute('data-tip-side') === 'top' ? at.top > 80 : at.bottom + 80 >= innerHeight
+  return {ref: fit, 'data-centre': centre, 'data-bounds': pane ? `${pane.left} ${pane.right}` : undefined, style: {left: centre, ...(above ? {bottom: innerHeight - at.top + 4} : {top: at.bottom + 4})}}
 }
 
 export function useTip(content: () => ReactNode) {
