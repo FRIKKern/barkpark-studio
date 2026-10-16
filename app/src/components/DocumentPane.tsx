@@ -40,6 +40,7 @@ import {PaperSidebar} from './PaperSidebar'
 import {PAPER_TYPES} from '../lib/paper'
 import {ActorAvatar, AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
+import {useFocusRescue} from '../lib/focus-rescue'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
 import {cancelSchedule, pauseSchedule, resumeSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
@@ -443,6 +444,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // field as soon as the caret enters one (inputs carry id = the field path).
   const here = useDocPresence(pane.id)
   const body = useRef<HTMLDivElement>(null)
+  // Focus taken away with an element (an array item removed, a reference picked) goes back to its field.
+  const [formEl, formRef] = useState<HTMLDivElement | null>(null)
+  useFocusRescue(formEl)
   const isLast = index === panes.length - 1
   useEffect(() => {
     if (isLast) reportFocus(pane.id, null)
@@ -749,6 +753,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {doc && schema && view === 'classic' && (!pane.rev || revision) && (
           <div
             className="doc-form"
+            ref={formRef}
             onBlur={() => flush(qc, pane.id)}
             onFocus={(e) => keepPathInUrl((e.target as HTMLElement).id)}
             onPointerDown={() => (userMoved.current = Date.now())}
