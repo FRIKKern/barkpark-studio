@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 144 changes, 4 tasks closed
+- **Today** · 145 changes, 4 tasks closed
+  - fix(ci): a created dataset lease is kept only if no racing create landed over it ([#792](https://github.com/FRIKKern/barkpark-studio/pull/792))
   - ci(e2e): re-record durations.json after #774 and #779 ([#789](https://github.com/FRIKKern/barkpark-studio/pull/789))
-  - Reduced motion: comment and presence jumps scroll at once ([#791](https://github.com/FRIKKern/barkpark-studio/pull/791))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
