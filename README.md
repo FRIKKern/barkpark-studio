@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 152 changes, 4 tasks closed
+- **Today** · 153 changes, 4 tasks closed
+  - The nb date picker starts its week on Monday ([#800](https://github.com/FRIKKern/barkpark-studio/pull/800))
   - Array item dialog over the pane's card area, its breadcrumb and close as Sanity's ([#798](https://github.com/FRIKKern/barkpark-studio/pull/798))
-  - Sorting in an nb workspace: Z, Æ, Ø, Å; list search counts æøå as letters ([#799](https://github.com/FRIKKern/barkpark-studio/pull/799))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
