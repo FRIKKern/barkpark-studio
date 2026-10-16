@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 24 changes, 4 tasks closed
+- **Today** · 25 changes, 4 tasks closed
+  - e2e(J10): wait out ProseMirror's after-focus selection timer before Shift+Arrow ([#670](https://github.com/FRIKKern/barkpark-studio/pull/670))
   - List "…" menu as Sanity's: place, weight, icons, pale defaults with tooltips, focus on open ([#669](https://github.com/FRIKKern/barkpark-studio/pull/669))
-  - Stats as the reference tool: 20 px rows, no gap after the last column ([#667](https://github.com/FRIKKern/barkpark-studio/pull/667))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
