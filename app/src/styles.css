@@ -1396,13 +1396,16 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .dialog.item-dialog { width: min(640px, calc(100% - 64px)); min-height: min(597px, 100%); border-radius: 9px; }
 .item-dialog .dialog-body { padding: 34px 32px 20px 20px; }
 /* Centred in the pane's card area under its tabs, as Sanity's (and Inspect's): 200-839 px at 900. */
-@media (min-width: 600px) { :is(.item-backdrop, .delete-backdrop) { grid-template-rows: minmax(0, 1fr); padding: 149px 12px 61px; } }
-/* Sanity's delete dialog, measured at 1440 (post-29): 9 px corners, text in the body colour, the
-   question 49 px under the title, Cancel and Delete as 25 px buttons 8 px in, 12 px apart. */
-.dialog.delete-dialog { border-radius: 9px; color: var(--fg); }
+@media (min-width: 600px) { :is(.item-backdrop, .delete-backdrop), .pane .pane-confirm-backdrop { grid-template-rows: minmax(0, 1fr); padding: 149px 12px 61px; } }
+/* Sanity's delete dialog and confirms (Discard changes, …), measured at 1440 (post-29, post-24):
+   9 px corners, text in the body colour, the question 49 px under the title, Cancel and the
+   action as 25 px buttons 8 px in, 12 px apart. */
+.dialog:is(.delete-dialog, .pane-confirm) { border-radius: 9px; color: var(--fg); }
 .delete-dialog .dialog-body { padding-top: 14px; padding-bottom: 20px; }
-.delete-dialog footer { gap: 12px; }
-.delete-dialog footer .btn { padding: 3px 8px; line-height: 19px; }
+.pane-confirm header { padding-top: 15px; }
+.pane-confirm .dialog-body { padding-top: 19px; padding-bottom: 2px; }
+:is(.delete-dialog, .pane-confirm) footer { gap: 12px; }
+:is(.delete-dialog, .pane-confirm) footer .btn { padding: 3px 8px; line-height: 19px; }
 .item-dialog header { padding: 16px 16px 8px 20px; }
 .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .crumb { font: inherit; border: 0; background: none; padding: 2px 4px; border-radius: 3px; color: var(--muted); cursor: pointer; }
