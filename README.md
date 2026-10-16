@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 31 changes, 4 tasks closed
+- **Today** · 32 changes, 4 tasks closed
+  - People: one way to name a person everywhere, ready for Barkpark's display names ([#677](https://github.com/FRIKKern/barkpark-studio/pull/677))
   - Task form: Sanity's people picker for Assign to, its date field for Deadline, the target's publish dot ([#676](https://github.com/FRIKKern/barkpark-studio/pull/676))
-  - Tasks panel as Sanity's: header, tabs, empty states, create form, crumbs, pressed button ([#675](https://github.com/FRIKKern/barkpark-studio/pull/675))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
