@@ -199,6 +199,8 @@ function DatePicker({value, dateOnly, timeStep = 1, onPick, onClose}: {value?: D
           )
         })}
       </div>
+      {/* Sanity's date picker ends with a rule and an empty strip; a datetime's holds the time. */}
+      {dateOnly && <div className="dp-foot" />}
       {!dateOnly && <div className="dp-foot">
         <span className="dp-time">
           <input
