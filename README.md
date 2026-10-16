@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 39 changes, 4 tasks closed
+- **Today** · 40 changes, 4 tasks closed
+  - Array item dialog as Sanity's: 597 px in the pane's card area, 9 px corners, fields 20 px in with 32 on the right ([#684](https://github.com/FRIKKern/barkpark-studio/pull/684))
   - fix(review): the body diff draws chips and says which link or document changed ([#685](https://github.com/FRIKKern/barkpark-studio/pull/685))
-  - Presentation parity: one URL field, header gaps, shown location, wrapping 404 banner, narrow footer ([#683](https://github.com/FRIKKern/barkpark-studio/pull/683))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
