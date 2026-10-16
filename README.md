@@ -18,7 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change
+- **Today** · 2 changes
+  - View tabs' hover words as Sanity's: an unselected tab darkens under the pointer ([#873](https://github.com/FRIKKern/barkpark-studio/pull/873))
   - Body toolbar's Show more menu as Sanity's: centred, as wide as its rows, a rule between groups ([#872](https://github.com/FRIKKern/barkpark-studio/pull/872))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
