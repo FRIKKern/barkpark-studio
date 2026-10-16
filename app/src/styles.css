@@ -2917,3 +2917,29 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
 @media (prefers-reduced-motion: reduce) {
   .preview, .type-row, .icon-btn, .btn, .menu-item, .chip, .body-style, .body-insert, .review-pick { transition: none; }
 }
+
+/* Forced colors (Windows High Contrast): the system palette drops box-shadows and
+   backgrounds, so boxes, rings, dots and checked states drawn with them vanish
+   (Sanity loses most of them too). Outlines and system colours bring them back. */
+@media (forced-colors: active) {
+  /* Fields, buttons and the cards that float over the page keep an edge. */
+  :is(.input, .ref-box, .image-empty, .image-empty-box, .file-box, .review-pick, .history-note, .chip, .perspective-picker, .tags-box, .tags-box .tag, .btn-square, .btn-create, .select-box select, .dp-month select, .pd-editor .bp-canvas-field .bp-canvas-field-control),
+  html body .bp-inline-object-dialog :is(select, textarea, input:not([type=checkbox], [type=radio])) { outline: 1px solid CanvasText; outline-offset: -1px; }
+  :is(.popover, .filter-ref-box, .search-dialog, .dialog, .toast, .help .tip, .hover-tip, .nav-drawer, .task-target-hits, .inline-comment-add, .presence-hint, .login .card),
+  html body .bp-inline-object-dialog { outline: 1px solid CanvasText; }
+  /* Every keyboard focus shows, box-shadow rings included (inputs, group tabs, date cells). */
+  :focus-visible, .switch input:focus-visible + span { outline: 2px solid Highlight !important; outline-offset: -2px !important; }
+  :is(input.checkbox, .radio input):focus-visible { outline-offset: 1px !important; }
+  /* What is chosen: the open row, the selected tab or chip, a pressed button. */
+  :is(.preview[aria-current='true'], [role=tab][aria-selected='true'], .chip[data-selected], [aria-pressed='true'], .navbar [aria-current='page']):not(:focus-visible) { outline: 2px solid Highlight; outline-offset: -2px; }
+  /* Checkbox, radio and switch: drawn by us, in system colours, so box and state show. */
+  input.checkbox, .radio input, .switch span, .task-more input[role=switch] { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+  input.checkbox:checked { background: CanvasText; box-shadow: inset 0 0 0 1px CanvasText, inset 0 0 0 4px Canvas; }
+  .radio input:checked { background: radial-gradient(circle, CanvasText 0 4.5px, Canvas 5px); }
+  .switch span::after, .task-more input[role=switch]::after { background: CanvasText; }
+  .switch input:checked + span, .task-more input[role=switch]:checked { background: Highlight; box-shadow: none; }
+  .switch input:checked + span::after, .task-more input[role=switch]:checked::after { background: HighlightText; }
+  :is(input.checkbox, .radio input):disabled, .switch input:disabled + span { box-shadow: inset 0 0 0 1px GrayText; }
+  /* Status dots keep their colours, as Sanity's do. */
+  .dot, .ring, .who-dot, .update-dot, .pane-header .validation-btn::after, .history-list .badge { forced-color-adjust: none; }
+}
