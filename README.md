@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 185 changes, 4 tasks closed
+- **Today** · 186 changes, 4 tasks closed
+  - Presentation: the overlay keys work with the focus in the page; values at depth on the reference site ([#834](https://github.com/FRIKKern/barkpark-studio/pull/834))
   - Room under a document's last field as Sanity's: 220 px ([#833](https://github.com/FRIKKern/barkpark-studio/pull/833))
-  - Number fields read a decimal comma in a comma-decimal language (nb); English 1,500 is never 1.5 ([#829](https://github.com/FRIKKern/barkpark-studio/pull/829))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
