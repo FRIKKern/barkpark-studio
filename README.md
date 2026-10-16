@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 190 changes, 4 tasks closed
+- **Today** · 191 changes, 4 tasks closed
+  - Asset dialog tiles as Sanity's: 132 px, the image 2 px in, grey fill and hover, 8 px apart ([#840](https://github.com/FRIKKern/barkpark-studio/pull/840))
   - Inline comments in CI: comment a body span, reload, still painted on its words (2 s) ([#838](https://github.com/FRIKKern/barkpark-studio/pull/838))
-  - List search placeholder in Sanity's placeholder grey ([#837](https://github.com/FRIKKern/barkpark-studio/pull/837))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
