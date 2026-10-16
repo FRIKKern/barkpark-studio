@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 118 changes, 4 tasks closed
+- **Today** · 119 changes, 4 tasks closed
+  - Focused inputs in Sanity's focus ring: #556bfc (dark #596ffc), not the selected blue ([#766](https://github.com/FRIKKern/barkpark-studio/pull/766))
   - feat(edits): field patches ask to be fenced on the fields they set ([#765](https://github.com/FRIKKern/barkpark-studio/pull/765))
-  - Tab past the last pane's list starts again at the page's top, as Sanity's ([#764](https://github.com/FRIKKern/barkpark-studio/pull/764))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
