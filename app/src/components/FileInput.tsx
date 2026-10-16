@@ -11,6 +11,7 @@ import {assetUrl} from '../lib/image'
 import {useLocale, useT} from '../lib/i18n'
 import {accepts, ago, formatBytes, humanBytes, mayAccept, mimeTitle, type FileAsset} from '../lib/files'
 import {uploadFile, UploadError} from '../lib/upload'
+import type {ImageMeta} from '../lib/image-meta'
 import {UploadProgress} from './UploadProgress'
 
 // J54, after Sanity's file input: an empty box ("Drag or paste file here",
@@ -30,12 +31,13 @@ const filesOf = (list: FileList | DataTransferItemList | undefined | null): File
   })
 const carriesFiles = (e: DragEvent<HTMLElement>) => [...e.dataTransfer.types].includes('Files')
 
+/** An asset's name, size and type; for an image also its pixel size and blur placeholder (lib/image-meta.ts). */
 export const useFileInfo = (ref: string | undefined) =>
   useQuery({
     queryKey: ['media-info', ref],
     enabled: !!ref,
     staleTime: Infinity,
-    queryFn: () => fetch(`/api/media/${encodeURIComponent(ref!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<FileAsset>) : Promise.reject(new Error(`file → ${r.status}`)))),
+    queryFn: () => fetch(`/api/media/${encodeURIComponent(ref!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<FileAsset & ImageMeta>) : Promise.reject(new Error(`file → ${r.status}`)))),
   })
 
 export function FileInput({id, field, value, onChange, readOnly, openRef}: Props) {
