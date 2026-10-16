@@ -276,12 +276,14 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
   const t = useT()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
-  const doCopy = () => copy({kind: 'field', field: {name: field.name, sig: signature(field), value}})
-  const doPaste = () => {
-    const clip = read()
+  const doc = {id: useContext(DocIdContext) ?? undefined, type: useContext(DocTypeContext) ?? undefined}
+  const doCopy = () => void copy({kind: 'field', field: {name: field.name, sig: signature(field), value}}, doc)
+  // What the system clipboard holds now: anything but a copied field is nothing to paste (Sanity's info toast).
+  const doPaste = async () => {
+    const clip = await read()
     const item = clip?.kind === 'field' ? clip.field : undefined
-    // An empty copy (kept by an older studio) pastes nothing rather than clearing the field.
-    if (!item || isEmpty(item.value)) return toast({tone: 'critical', title: tBrowser('Nothing to paste'), description: tBrowser('Copy a field first')})
+    // Nothing copied, something else copied since, or an empty copy (kept by an older studio): nothing to paste.
+    if (!item || isEmpty(item.value)) return toast({title: tBrowser('Nothing to paste')})
     if (!fits(item.sig, item.value, field))
       return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: tBrowser('Source and target schema types are not compatible')})
     onChange(item.append ? [...(Array.isArray(value) ? value : []), ...rekeyed(item.value as unknown[])] : item.value)
