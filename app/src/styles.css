@@ -9,6 +9,10 @@
   --upload-fill: #f6f6f8; /* Sanity's empty image/file box (measured); its tag chips too */
   --tag-x: #666a79; /* a tag chip's remove x (measured) */
   --upload-ring: #dbdce2;
+  --note-ring: #dbdce2; /* the history note's border and words (measured) */
+  --note-fg: #666a79;
+  --history-title: #353a4d; /* a history row's event and time (measured) */
+  --history-time: #636776;
   --asset-tile: #f6f6f8; /* a filled file's tile, its ring and icon (measured) */
   --asset-tile-ring: rgba(110, 116, 142, 0.3);
   --asset-icon: #4e556d;
@@ -183,6 +187,10 @@
   --upload-fill: #0d0e12;
   --tag-x: #90919b;
   --upload-ring: #252837;
+  --note-ring: #303346;
+  --note-fg: #9597a3;
+  --history-title: #c1c3d0;
+  --history-time: #999ba8;
   --asset-tile: #0d0e12;
   --asset-tile-ring: rgba(114, 120, 146, 0.4);
   --asset-icon: #9499ad;
@@ -1391,8 +1399,9 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .history-list .badge:is([data-kind=published], [data-kind=created]) { background: var(--avatar-green); }
 .history-list .badge:is([data-kind=unpublished], [data-kind=discarded], [data-kind=deleted]) { background: var(--avatar-orange); }
 .history-list .badge[data-kind=edited] { background: var(--avatar-yellow); }
-.history-text { display: flex; flex-direction: column; font-size: 13px; line-height: 17px; font-weight: 500; }
-.history-text time { font-weight: 400; color: var(--muted); }
+.history-text { display: flex; flex-direction: column; font-size: 13px; line-height: 17px; font-weight: 500; color: var(--history-title); }
+.history-text > span { padding-top: 1px; margin-bottom: -1px; } /* Sanity's event sits 17 px over its time, not 18 */
+.history-text time { font-weight: 400; color: var(--history-time); }
 .revision-footer { background: var(--warn-bg); }
 .revision-footer .save-state { color: var(--warn-fg); }
 .publish.caution { background: var(--caution-btn-bg); color: var(--caution-btn-fg); }
@@ -1416,13 +1425,13 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .inline-diff-view[data-multiline] { white-space: pre-wrap; word-break: break-word; }
 .inline-diff-view del { color: var(--muted); text-decoration: line-through; background: var(--inline-removed-bg); }
 .inline-diff-view ins { text-decoration: none; background: var(--inline-added-bg); }
-.history-note { display: flex; align-items: center; gap: 3px; margin: 0 0 12px; padding: 4px 8px 4px 4px; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--line); font-size: 10px; line-height: 15px; color: var(--muted); }
-.history-note strong { color: var(--fg); font-weight: 600; }
+.history-note { display: flex; align-items: center; gap: 3px; margin: -1px 0 12px; padding: 4px 8px 3px 4px; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--note-ring); font-size: 10px; line-height: 15px; color: var(--note-fg); }
+.history-note strong { font-weight: 700; }
 .history-note svg { flex: none; width: 17px; height: 17px; }
 /* Sanity's Review changes body, measured at 1440: 20 px in from the inspector's edges, From
    and To in a 48 px column, its selects Sanity's secondary buttons, 19 px lines. */
 .review { margin: 0 8px; line-height: 19px; }
-.review-range { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 4px; margin: 22px 0 16px; }
+.review-range { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 4px; margin: 24px 0 16px; }
 .review-range > div { display: contents; }
 .review-range dt { color: var(--muted); }
 .review-range dd { margin: 0; min-width: 0; }
