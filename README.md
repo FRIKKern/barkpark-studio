@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 212 changes, 4 tasks closed
+- **Today** · 213 changes, 4 tasks closed
+  - Empty image and file box as Sanity's: stacked under 440 px, the hint icon 11 px in ([#858](https://github.com/FRIKKern/barkpark-studio/pull/858))
   - Delete dialog: Retry keeps its focus through a re-read behind the error (J17 on #829's CI) ([#861](https://github.com/FRIKKern/barkpark-studio/pull/861))
-  - fix(refs): a reference filter in Sanity's form, GROQ string + filterParams; post.reviewer uses it ([#860](https://github.com/FRIKKern/barkpark-studio/pull/860))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
