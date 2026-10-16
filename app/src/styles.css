@@ -1060,7 +1060,8 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .paper-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
 .paper-facts dt { color: var(--muted); }
 .paper-facts dd { margin: 0; color: var(--fg); }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* margin -1px: the announcer ends the body at 900 px, not 901, so the page itself never scrolls (Sanity's doesn't). */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .paper-fb, .paper-note { margin: 0; font-size: 12px; }
 .paper-fb[data-tone=ok] { color: var(--muted); }
 .paper-fb[data-tone=warn] { color: var(--warn-fg); }
