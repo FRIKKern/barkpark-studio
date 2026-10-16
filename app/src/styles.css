@@ -687,6 +687,7 @@ textarea.input { resize: vertical; }
 /* With a Create beside it Sanity's results span the whole row, Create included (post Related, 600 px at 1440). */
 .ref-search:has(> .btn-create, > .menu-wrap) > .popover.options { right: 0; }
 .popover.options [role=option] { border-radius: 3px; cursor: pointer; }
+.popover.options [role=option]:hover .preview { background: var(--card-hover); } /* the pointer greys a result; the arrow keys light one (Sanity's) */
 .popover.options [role=option][aria-selected='true'] .preview { background: var(--selected); color: var(--on-selected); }
 .popover.options [role=option][aria-selected='true'] .s { color: var(--on-selected-soft); }
 .menu-wrap { position: relative; }
