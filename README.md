@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 5 changes, 3 tasks closed
+- **Today** · 6 changes, 3 tasks closed
+  - Vision at 1440 as Sanity's: labels over full-height gutters, half-height query, Saved queries header, footer rule ([#651](https://github.com/FRIKKern/barkpark-studio/pull/651))
   - J40: Pause to edit pauses the schedule, as Sanity's; Schedule reactivates it ([#573](https://github.com/FRIKKern/barkpark-studio/pull/573))
-  - e2e(field-types): put back the document-fieldset check now that Barkpark keeps top-level fieldsets ([#650](https://github.com/FRIKKern/barkpark-studio/pull/650))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
