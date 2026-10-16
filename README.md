@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 55 changes, 4 tasks closed
+- **Today** · 56 changes, 4 tasks closed
+  - Vision as Sanity's: Fetch's tinted 21 px icon, Listen its secondary button, saved-query tabs in #383d51; dark muted text #979cb0 ([#701](https://github.com/FRIKKern/barkpark-studio/pull/701))
   - Reference results as Sanity's: the whole row wide when a Create sits beside the search ([#700](https://github.com/FRIKKern/barkpark-studio/pull/700))
-  - Review changes list as Sanity's: names at 500, diffs 8 px in, the slug on one line in plain chips, its spacing and Revert all ([#699](https://github.com/FRIKKern/barkpark-studio/pull/699))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
