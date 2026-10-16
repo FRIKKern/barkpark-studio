@@ -281,7 +281,8 @@ const fetchTextSearch = createServerFn({method: 'GET'})
   .validator((d: {q: string; asked: {type: string; filter: RefFilter}[]; order: string; limit: number}) => d)
   .handler(async ({data}) => {
     const types = data.asked.map((a) => a.type)
-    const search = (q: string) => bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&limit=200&q=${encodeURIComponent(q)}&types=${types.map(encodeURIComponent).join(',')}`)
+    // match=any: Sanity ORs the words; Barkpark's default (#23174) keeps only docs with all of them.
+    const search = (q: string) => bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&match=any&limit=200&q=${encodeURIComponent(q)}&types=${types.map(encodeURIComponent).join(',')}`)
     const found = await search(data.q)
     // An id with a dot ("drafts.sq-fox"): Barkpark's search misses some of its docs, so its
     // words are asked too; textScore then matches the id as Sanity does.
@@ -338,7 +339,7 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
       const f = schema?.fields.find((x) => x.name === field)
       if (!rest.length || f?.type !== 'reference') continue
       for (const target of refTypesOf(f)) {
-        const found = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&limit=50&q=${encodeURIComponent(raw)}&types=${encodeURIComponent(target)}`)
+        const found = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&match=any&limit=50&q=${encodeURIComponent(raw)}&types=${encodeURIComponent(target)}`)
         // The referenced doc must match on the previewed field itself.
         const ids = found.documents.filter((d) => textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId)
         if (!ids.length) continue

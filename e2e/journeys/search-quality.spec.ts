@@ -91,6 +91,8 @@ const FOLDS: [string, string[], string][] = [
 const IDS: [string, string[], string][] = [
   ['drafts.sq-fox', ['The quick brown fox', 'Fox brown quick'], ''],
   ['sq-fox', [], ''],
+  // Any word, as Sanity (Barkpark's own default since #23174 is every word).
+  ['fox dog', ['The quick brown fox', 'Fox brown quick'], ''],
 ]
 // One search dialog for all of them (CI's budget: a page load each was 11 s).
 test('a search folds æøå in titles, the exact spelling first, and matches ids as Sanity does', async ({page, context}, info) => {
