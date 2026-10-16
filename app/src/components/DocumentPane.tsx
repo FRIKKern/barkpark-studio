@@ -1,7 +1,7 @@
 import {announce} from '../lib/announce'
 import {GroupIcon} from './GroupIcon'
 import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
-import {NarrowContext} from '../lib/layout'
+import {NarrowContext, OpenedPanesContext} from '../lib/layout'
 import {AnchoredLayer, DialogBox, MenuPopover} from './FocusScopes'
 import {useSlugInUse} from '../lib/slug-unique'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
@@ -11,7 +11,7 @@ import {advisoryProblems} from '../lib/findings'
 import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, flush, publish, reasonOf, recoverPending, restorePending, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
-import {openAfter, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
+import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
@@ -41,6 +41,7 @@ import {PAPER_TYPES} from '../lib/paper'
 import {ActorAvatar, AvatarStack, PresenceHints, useDocPresence} from './Presence'
 import {toast} from './Toasts'
 import {useFocusRescue} from '../lib/focus-rescue'
+import {focusIntoForm} from '../lib/focus'
 import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
 import {cancelSchedule, pauseSchedule, resumeSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
@@ -194,6 +195,18 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const {canWrite, editReason, signedOut} = useCanWrite()
   const boundElsewhere = useBoundElsewhere()
   const studioTokenRefused = useStudioTokenRefused()
+
+  // Opening a document (a row, a reference, a split, a link, a reload) moves focus into
+  // its form once it is drawn, as Sanity's does; `path=` focuses its field instead.
+  const openedPanes = useContext(OpenedPanesContext)
+  const opening = useRef(!openedPanes || openedPanes.current.has(paneKey(pane) + index))
+  const hasDoc = !!doc
+  useEffect(() => {
+    if (!hasDoc || pane.path || !opening.current || !paneRoot.current) return
+    return focusIntoForm(paneRoot.current, pane.id)
+    // Once per pane: a later edit, view or group change is not an open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasDoc])
 
   // J52: the focused field lives in the URL (Sanity's `path=`): a reload or a copied
   // link opens on it. Opening: focus the named field (showing all groups if it sits

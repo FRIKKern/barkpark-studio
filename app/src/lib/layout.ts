@@ -33,3 +33,10 @@ export function collapsed(kinds: LayoutKind[], width: number, focus = kinds.leng
  */
 export const NARROW = 600
 export const NarrowContext = createContext(false)
+/**
+ * The panes (paneKey + index) that came with the current URL: opened, not a strip
+ * expanded or a pane shown again at another width. Only these move focus into their
+ * form (lib/focus.ts focusIntoForm); Sanity's collapsed panes stay mounted, so
+ * expanding one doesn't. Empty once that URL has painted.
+ */
+export const OpenedPanesContext = createContext<{current: Set<string>} | null>(null)
