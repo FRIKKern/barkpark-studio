@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 123 changes, 4 tasks closed
+- **Today** · 124 changes, 4 tasks closed
+  - Search filter field icons as Sanity's, and its calendar, document, image and chevron paths ([#771](https://github.com/FRIKKern/barkpark-studio/pull/771))
   - Freeform chrome as LiveView's: + Add block, the words and blocks, a paper's Undo/Redo, and the sidebar's Context and Relations ([#770](https://github.com/FRIKKern/barkpark-studio/pull/770))
-  - Boolean card 51 px as Sanity's: the box and words a px lower, the fields under it 2 px lower ([#769](https://github.com/FRIKKern/barkpark-studio/pull/769))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
