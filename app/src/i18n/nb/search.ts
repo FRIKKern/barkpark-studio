@@ -142,6 +142,7 @@ export default {
   'The listener closed': 'Lytteren ble lukket',
   Result: 'Resultat',
   'Barkpark answered {status}': 'Barkpark svarte {status}',
+  'A GROQ query, like *[_type == "post"][0...10]{title}.': 'En GROQ-spørring, som *[_type == "post"][0...10]{title}.',
   Line: 'Linje',
   Column: 'Kolonne',
   'Execution: {time}': 'Utførelsestid: {time}',

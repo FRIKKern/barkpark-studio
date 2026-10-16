@@ -15,10 +15,14 @@ export const Route = createFileRoute('/api/vision-listen')({
     handlers: {
       GET: async ({request}) => {
         const q = new URL(request.url).searchParams
-        const target = await visionTarget({query: q.get('query') ?? '', perspective: (q.get('perspective') ?? 'drafts') as Perspective, dataset: q.get('dataset') ?? undefined, params: q.get('params') ?? undefined})
+        const target = await visionTarget({query: q.get('query') ?? '', perspective: (q.get('perspective') ?? 'drafts') as Perspective, dataset: q.get('dataset') ?? undefined, params: q.get('params') ?? undefined, version: q.get('version') ?? undefined})
         if ('error' in target) return Response.json({error: {message: target.error}}, {status: 400})
-        const params = new URLSearchParams({types: target.type})
-        for (const [k, v] of target.params) if (k === 'perspective' || k.startsWith('filter[')) params.append(k, v)
+        // GROQ: Barkpark's listen stream narrows by type, so Listen follows the types the
+        // query names (`_type == "post"`), in its perspective; a query naming none is refused.
+        if (target.kind === 'groq' && !target.types.length) return Response.json({error: {message: 'Listen follows the document types a query names: add a _type filter, like _type == "post"'}}, {status: 400})
+        const params = new URLSearchParams({types: target.kind === 'groq' ? target.types.join(',') : target.type})
+        if (target.kind === 'groq') params.set('perspective', target.perspective)
+        else for (const [k, v] of target.params) if (k === 'perspective' || k.startsWith('filter[')) params.append(k, v)
         const gone = clientGone(request)
         const upstream = new AbortController()
         gone.addEventListener('abort', () => upstream.abort())

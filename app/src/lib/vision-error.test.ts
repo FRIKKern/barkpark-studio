@@ -25,3 +25,12 @@ test('B01: Barkpark refusals Vision meets are told in the studio words; an unkno
   assert.match(localQueryError(err({code: 'validation_failed', message: 'x', details: {order: ['unrecognised order spec "title:up"; expected']}}), t)!.message, /<title:up>/)
   assert.equal(localQueryError(err({code: 'not_found', message: 'document not found'}), t), null)
 })
+
+test('a GROQ parse error points at its byte range, on its own line', () => {
+  const query = '*[_type == "post"]\n{title, nope(}'
+  const body = JSON.stringify({error: {code: 'malformed', type: 'queryParseError', message: 'GROQ syntax error at byte 32: expected an expression', description: 'expected an expression', start: 32, end: 33, hint: 'Send a well-formed JSON body'}})
+  const e = queryError(query, body)!
+  assert.equal(e.message, 'expected an expression')
+  assert.equal(e.hint, undefined)
+  assert.deepEqual(e.spot, {line: '{title, nope(}', lineNumber: 2, column: 13, columnEnd: 14})
+})

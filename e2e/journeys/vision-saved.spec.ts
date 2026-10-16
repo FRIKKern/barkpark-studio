@@ -115,6 +115,12 @@ test('J37: Vision points at the bad part of a refused query', async ({page, cont
   await expect(error).toContainText('unknown filter operator "bogus"')
   await expect(error).toContainText(`-----${'^'.repeat(22)}`)
   await expect(error).toContainText('Column: 6')
+  // A GROQ query Barkpark refuses: its parse error, at the byte it names (task-8919d95d9e581c6b).
+  await query.fill('*[_type ==]')
+  await query.press('ControlOrMeta+Enter')
+  await expect(error).toContainText('expected an expression')
+  await expect(error).toContainText(`${'-'.repeat(10)}^`)
+  await expect(error).toContainText('Column: 11')
 })
 
 test('@evidence J37: Vision saved queries and dataset, side by side', async ({page, context}, info) => {
@@ -193,4 +199,32 @@ test('J37: Vision puts Params into the query', async ({page, context}, info) => 
   await expect(page.getByRole('complementary', {name: 'Saved queries'})).toBeHidden()
   await page.getByRole('button', {name: 'Show saved queries'}).click()
   await expect(page.getByRole('complementary', {name: 'Saved queries'})).toBeVisible()
+})
+
+// task-8919d95d9e581c6b: Vision speaks GROQ, as Sanity's, through Barkpark's GROQ read: a
+// query with a $param from Params, its result (not the {query, result, ms} wrapper) and
+// the Query URL naming the GROQ address. Both studios, the same query.
+test('@local J37: Vision runs GROQ with params, as Sanity\'s', async ({page, context}, info) => {
+  const t = target(info)
+  await t.prepare(context)
+  await page.goto('/vision')
+  await signInIfAsked(page)
+  if (t.name === 'studio') await expect(page.getByRole('combobox', {name: 'Dataset', exact: true})).toBeEnabled()
+  const editors = page.locator('.cm-content')
+  const put = async (i: number, text: string) => {
+    await editors.nth(i).click()
+    await page.keyboard.press('ControlOrMeta+a')
+    await page.keyboard.insertText(text) // no auto-closed brackets
+  }
+  await put(0, '*[_type == "post" && title match $t] | order(title asc)[0...2]{title}')
+  await put(1, '{"t": "Fixture post 0*"}')
+  await page.waitForTimeout(500) // Sanity reads its params a beat after the last key
+  await page.getByRole('button', {name: 'Fetch', exact: true}).click()
+  const result = page.getByRole('region', {name: 'Result'}).or(page.locator('[data-testid="vision-result"]')).first()
+  await expect(page.getByText('Fixture post 01').first()).toBeVisible({timeout: 15_000})
+  await expect(page.getByText('Fixture post 02').first()).toBeVisible()
+  if (t.name === 'studio') {
+    await expect(page.locator('#vision-url')).toHaveValue(/\/v\d{4}-\d{2}-\d{2}\/data\/query\/[^/?]+\?query=/)
+    await expect(result).not.toContainText('syncTags')
+  }
 })
