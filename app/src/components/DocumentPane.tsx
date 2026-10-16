@@ -1252,14 +1252,17 @@ async function publishAndTell(qc: QueryClient, doc: Doc) {
 
 /** J65: the studio config's badges, beside the save state, Sanity's colors. */
 /**
- * J40: the document's pending scheduled publish, if any. Read again when the draft
- * changes (the scheduled publish lands as a new revision) and while one waits, so the
- * chip goes once Barkpark has published it.
+ * J40: the document's pending scheduled publish, if any. While one waits it is read
+ * every 30 s and again when the draft changes (the scheduled publish lands as a new
+ * revision), so the chip goes once Barkpark has published it. With none waiting, a new
+ * revision cannot bring one (scheduling goes through this pane's own actions, which read
+ * it again): five editors typing made every tab read it on every keystroke's frame.
  */
 function useSchedule(id: string, type: string, rev: string | undefined): Schedule | null {
   const qc = useQueryClient()
   const {data} = useQuery({...scheduleQuery(id, type), refetchInterval: (q) => (q.state.data?.schedule ? 30_000 : false)})
-  useEffect(() => void qc.invalidateQueries({queryKey: ['schedule', id]}), [rev])
+  const pending = !!data?.schedule
+  useEffect(() => void (pending && qc.invalidateQueries({queryKey: ['schedule', id]})), [rev])
   return data?.schedule ?? null
 }
 

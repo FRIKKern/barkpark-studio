@@ -3,6 +3,8 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
 import {loadCanvas} from '../lib/canvas-bundle'
 import {applyBlockOps, readBlocks, type Block, type BlockOp, type Blocks, type OpsResult, type Rev} from '../lib/blocks'
+import {paceMs, paced} from '../lib/write-pace'
+
 import {toast} from './Toasts'
 import {setCanvasProblem, unsavedElsewhere} from '../lib/edits'
 import {existingAsset} from '../lib/upload'
@@ -20,6 +22,7 @@ import {editedBy} from '../lib/history'
 import {useRouter} from '@tanstack/react-router'
 import {FindBar, findKey, type FindCanvas} from './FindBar'
 import {InlineComments} from './InlineComments'
+
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
 // EMBED-CONTRACT "HTTP host" recipe (paper-editor/EMBED-CONTRACT.md @cad5a11f7).
@@ -152,7 +155,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   remoteRef.current = remote
   const remoteKey = JSON.stringify(remote)
   useEffect(() => canvas.current?.setRemoteSelections(remoteRef.current), [remoteKey])
-  const loop = useRef<{rev: Rev; saving: number; requests: number; merge?: boolean}>({rev: '', saving: 0, requests: 0})
+  const loop = useRef<{rev: Rev; saving: number; requests: number; lastSent: number; merge?: boolean}>({rev: '', saving: 0, requests: 0, lastSent: 0})
   const [save, setSave] = useState<Save>({state: 'idle'})
   const [problem, setProblem] = useState<Problem | null>(null)
   // D22: the server's blocks as this canvas last read them, and the other writer's
@@ -216,7 +219,24 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       l.saving++
       setSave({state: 'saving'})
       try {
+        // While Barkpark's write budget runs out, a batch waits its turn (lib/write-pace.ts);
+        // the canvas gathers what is typed meanwhile into its next one.
+        const hold = l.lastSent + paceMs() - Date.now()
+        if (hold > 0) await new Promise((done) => setTimeout(done, hold))
+        if (gone) return
+        l.lastSent = Date.now()
         let r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+        paced(!!r.throttled || (!r.ok && r.status === 429))
+        // Barkpark's write budget ran out (429) on a batch that never landed: it waits its turn
+        // and goes again, instead of "Could not save" (five editors on one document,
+        // task-86f75846c256e3b4).
+        for (let tries = 0; !r.ok && r.status === 429 && tries < 6; tries++) {
+          await new Promise((done) => setTimeout(done, Math.max(paceMs(), 500) * (0.5 + Math.random())))
+          if (gone) return
+          l.lastSent = Date.now()
+          r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+          paced(!!r.throttled || (!r.ok && r.status === 429))
+        }
         // Collaboration hour: the other writer changed a block this batch rewrites (both typed
         // in one paragraph). Resending on their rev would silently put ours over theirs, so ask
         // instead (D20), with both versions kept. Separate blocks still resend (D05).
