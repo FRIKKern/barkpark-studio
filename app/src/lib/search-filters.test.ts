@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Schema} from './data.ts'
-import {allFields, BUILTINS, filterLabel, filterMenu, labelText, operatorsFor, toRefFilter, type SearchFilter} from './search-filters.ts'
+import {allFields, BUILTINS, filterLabel, filterMenu, labelText, newFilter, operatorsFor, toRefFilter, type SearchFilter} from './search-filters.ts'
 
 const post: Schema = {
   name: 'post',
@@ -52,6 +52,11 @@ test('chip wording is Sanity\'s', () => {
   assert.equal(label({...f('_updatedAt', 'last', '7'), unit: 'days'}), 'Edited at is in the last 7 days')
   assert.equal(label(f('stage:select', 'notDefined')), 'Stage is empty')
   assert.equal(label(f('title:string', 'contains')), 'Title')
+})
+
+test('a new boolean filter is "is True" at once, a new date "in the last 7 days" (Sanity\'s)', () => {
+  assert.deepEqual(newFilter({key: 'agree:boolean', path: 'agree', title: 'Agree', kind: 'boolean', types: ['post']}, 'x'), {id: 'x', field: 'agree:boolean', op: 'eq', value: 'true'})
+  assert.deepEqual(newFilter(fields.get('_updatedAt')!, 'x'), {id: 'x', field: '_updatedAt', op: 'last', value: '7', unit: 'days'})
 })
 
 test('the operators barkpark#22106 added: does not contain, includes, counts, a date is not', () => {

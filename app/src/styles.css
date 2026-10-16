@@ -76,6 +76,8 @@
   --menu-active-fg: #242736; /* Sanity's command row under the keys: its text (measured) */
   --input-fg: #0d0e12; /* Sanity's text typed in a command menu's find box (measured) */
   --find-rule: rgba(148, 153, 173, 0.25); /* the rule under that box */
+  /* Sanity's search filter chip, measured: unset (fill, text, close) and set (its text; fill and close are the info tone). */
+  --filter-chip-bg: #f6f6f8; --filter-chip-fg: #4a5068; --filter-chip-icon: #666a79; --filter-chip-set-fg: #4a516a;
   /* Sanity's pinned search filters (Edited at, Created at, Contains): text, icon, and the active row (measured). */
   --pinned-fg: #2927aa; --pinned-icon: #5f5dbf; --pinned-active-bg: #f5f8ff; --pinned-active-fg: #192357; --pinned-active-icon: #5b6389;
   --info-bg: #eef3ff;
@@ -236,6 +238,7 @@
   --menu-active-fg: #e5e6eb;
   --input-fg: #e4e5e9;
   --find-rule: rgba(81, 88, 112, 0.25);
+  --filter-chip-bg: #0d0e12; --filter-chip-fg: #9a9fb4; --filter-chip-icon: #90919b; --filter-chip-set-fg: #9ea3be;
   --pinned-fg: #aac1ff; --pinned-icon: #8496c6; --pinned-active-bg: #1c2048; --pinned-active-fg: #dde7ff; --pinned-active-icon: #8293c8;
   --info-bg: #1d2540;
   --info-fg: #9db6ff;
@@ -687,11 +690,13 @@ a.menu-item { display: block; text-decoration: none; }
 .search-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 42px; padding: 7px 8px; border-bottom: 1px solid var(--border); }
 .search-order { display: flex; align-items: center; min-height: 42px; padding: 7px 8px; border-bottom: 1px solid var(--border); }
 .search-dialog .menu-wrap { position: relative; display: flex; }
-.chip-btn { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 4px 0 8px; border: 0; border-radius: 3px; background: var(--hover); font: inherit; font-size: 13px; color: var(--fg); cursor: pointer; white-space: nowrap; }
+/* All types and an operator: Sanity's secondary button, its chevron 21 px 2 px from the edge; Add filter: menu text, the icon 2 px in. */
+.chip-btn { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 2px 0 8px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); font: inherit; font-size: 13px; font-weight: 500; color: var(--btn-secondary-fg); cursor: pointer; white-space: nowrap; }
 .chip-btn:hover, .chip-btn[aria-expanded='true'] { background: var(--hover-strong); }
 .chip-btn:focus-visible { outline: 1px solid var(--selected); outline-offset: 0; }
-.chip-btn svg { width: 19px; height: 19px; }
-.chip-btn.plain { background: none; padding: 0 8px 0 4px; font-weight: 500; }
+.chip-btn svg { width: 21px; height: 21px; color: var(--btn-secondary-icon); }
+.chip-btn.plain { background: none; box-shadow: none; padding: 0 8px 0 2px; color: var(--menu-fg); }
+.chip-btn.plain svg { color: var(--icon-muted); }
 .chip-btn.plain:hover, .chip-btn.plain[aria-expanded='true'] { background: var(--hover); }
 /* The Comments panel's Open / Resolved menu and close, as Sanity's (measured at 1440). */
 .inspector.comments header .chip-btn.plain { padding: 0 2px 0 8px; margin-right: 4px; color: var(--fg-header); }
@@ -700,13 +705,15 @@ a.menu-item { display: block; text-decoration: none; }
 .link-btn { font: inherit; font-size: 13px; border: 0; background: none; color: var(--selected); cursor: pointer; padding: 4px 8px; border-radius: 3px; }
 .link-btn:hover { background: var(--hover); }
 .link-btn.danger { color: var(--danger-text); font-weight: 500; }
-.clear-filters { margin-left: auto; }
-.filter-chip { display: inline-flex; align-items: center; height: 25px; border-radius: 3px; background: var(--hover); font-size: 13px; color: var(--fg); }
-.filter-chip.set { background: var(--info-bg); color: var(--selected); }
-.filter-chip-label { font: inherit; border: 0; background: none; color: inherit; padding: 0 4px 0 8px; height: 100%; cursor: pointer; white-space: nowrap; }
-.filter-chip-label .op { color: var(--muted); }
-.filter-chip .icon-btn { width: 25px; height: 25px; color: inherit; }
-.filter-chip .icon-btn svg { width: 19px; height: 19px; }
+.clear-filters { margin-left: auto; padding: 3px 8px; }
+.link-btn.danger.clear-filters { color: var(--menu-danger); }
+/* A filter chip, Sanity's: the words 8 px in, the close 7 px after them; "is" is 400 in the same colour. */
+.filter-chip { display: inline-flex; align-items: center; height: 25px; border-radius: 3px; background: var(--filter-chip-bg); font-size: 13px; color: var(--filter-chip-fg); --chip-icon: var(--filter-chip-icon); }
+.filter-chip.set { background: var(--tone-info-bg); color: var(--filter-chip-set-fg); --chip-icon: var(--tone-info-muted); }
+.filter-chip-label { display: inline-flex; align-items: center; gap: 4px; font: inherit; font-weight: 500; border: 0; background: none; color: inherit; padding: 0 7px 0 8px; height: 100%; cursor: pointer; white-space: nowrap; }
+.filter-chip-label .op { font-weight: 400; }
+.filter-chip .icon-btn { width: 25px; height: 25px; color: var(--chip-icon); }
+.filter-chip .icon-btn svg { width: 21px; height: 21px; }
 .search-dialog .popover { top: calc(100% + 9px); left: 0; right: auto; z-index: 20; }
 .popover.command { width: 250px; padding: 0; display: flex; flex-direction: column; max-height: 500px; }
 .popover.command.filter-menu { width: 300px; }
@@ -720,7 +727,7 @@ a.menu-item { display: block; text-decoration: none; }
 .command-list, .command-list > [role=listbox] { display: flex; flex-direction: column; gap: 4px; }
 .command-list { overflow: auto; padding: 4px; }
 /* All fields: 34 px, 8 px under the row above, the next row flush under its rule. */
-.command-header { flex-shrink: 0; margin: 4px 0 -4px; padding: 7px 8px; font-size: 13px; line-height: 19px; color: var(--muted); border-bottom: 1px solid var(--hairline); }
+.command-header { flex-shrink: 0; margin: 4px 0 -4px; padding: 7px 8px; font-size: 13px; line-height: 19px; color: var(--muted); border-bottom: 1px solid var(--border); }
 .command-item { display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-height: 33px; padding: 0 12px; border-radius: 3px; font-size: 13px; color: var(--menu-fg); cursor: default; }
 .command-item[aria-selected='true'] { background: var(--icon-btn-hover); color: var(--menu-active-fg); }
 .command-item[aria-checked='true'] { color: var(--selected); }
@@ -741,10 +748,19 @@ a.menu-item { display: block; text-decoration: none; }
 .command-item[aria-selected='true'] .field-choice.builtin .field-icon { color: var(--pinned-active-icon); }
 .field-icon .glyph { font-size: 9px; text-decoration: underline; }
 .popover.filter-editor { min-width: 196px; padding: 0; }
-.filter-editor-head { padding: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.filter-editor-field { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--fg); }
+.filter-editor-head { padding: 10px 12px 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+/* Sanity's, measured at 1440: the field's icon 21 px, 10 px in and down, its title 6 px after, the operator 10 px
+   under; the value under a hairline, 400, with Sanity's focus ring. */
+.filter-editor-field { margin: 0 0 0 -2px; min-height: 21px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--fg); }
+.filter-editor-field .field-icon { width: 21px; }
+.filter-editor-field .field-icon svg { width: 21px; height: 21px; }
 .filter-editor-value { padding: 12px; border-top: 1px solid var(--border); }
-.filter-editor .input { width: 172px; height: 33px; font-size: 13px; padding: 0 8px; }
+.filter-editor .input { width: 172px; height: 33px; font-size: 13px; font-weight: 400; padding: 0 8px; }
+.filter-editor .input:focus { box-shadow: inset 0 0 0 1px var(--focus-ring); }
+/* A boolean's True / False: Sanity's Select, 126 px, its chevron 21 px 6 px from the edge; the card shrinks to it (150). */
+.popover.filter-editor:has(.filter-bool) { min-width: 0; }
+.filter-editor .filter-bool .input { width: 126px; padding: 0 33px 0 12px; }
+.filter-editor .filter-bool svg { right: 6px; width: 21px; height: 21px; }
 .filter-pair .input { width: auto; }
 .filter-pair { display: flex; gap: 8px; align-items: center; }
 .filter-pair .input { flex: 1; min-width: 0; }
