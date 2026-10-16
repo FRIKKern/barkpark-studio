@@ -588,6 +588,7 @@ a.preview:hover, [data-lit] > a.preview:not([data-selected], [aria-current='true
 /* Sanity's view tabs (Editor | JSON, measured at 1440 light and dark): medium weight, muted words. */
 .view-tabs [role=tab] { font: inherit; font-size: 13px; font-weight: 500; padding: 3px 8px; border: 0; border-radius: 3px; background: none; color: var(--icon-muted); cursor: pointer; }
 .view-tabs [role=tab]:hover { background: var(--icon-btn-hover); }
+.view-tabs [role=tab]:not([aria-selected='true']):hover { color: var(--recent-active-fg); } /* Sanity's muted words under the pointer, #666a79 / dark #999ba8 */
 .view-tabs [role=tab][aria-selected='true'] { background: var(--selected-fill); color: var(--tab-selected-fg); }
 .json-view { margin: 0; padding: 16px; font-size: 13px; }
 .view-tabs [role=tab]:has(svg) { display: inline-flex; align-items: center; gap: 2px; padding-left: 4px; }
