@@ -362,6 +362,12 @@ export const PublishIcon = () => (
     <path d="M7.5 14L12.5 9L17.5 14" strokeLinejoin="round" />
   </svg>
 )
+/** Sanity's EditIcon (a history entry's "Edited" badge). */
+export const EditIcon = () => (
+  <svg {...s} strokeLinejoin="round">
+    <path d="M15 7L18 10M6 19L7 15L17 5L20 8L10 18L6 19Z" />
+  </svg>
+)
 /** Sanity's UnpublishIcon (the Published view's red Unpublish). */
 export const UnpublishIcon = () => (
   <svg {...s}>
