@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 35 changes, 4 tasks closed
+- **Today** · 36 changes, 4 tasks closed
+  - Screen-reader semantics: bulk ticks inert, main landmark, field button context ([#681](https://github.com/FRIKKern/barkpark-studio/pull/681))
   - perf(live): five editors on one doc: schedule reads only while one is set, writes pace on the room's 429s, body batches wait out a 429 ([#679](https://github.com/FRIKKern/barkpark-studio/pull/679))
-  - Comments: after sending a field comment, focus goes back to the field's comment button ([#680](https://github.com/FRIKKern/barkpark-studio/pull/680))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
