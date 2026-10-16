@@ -5,8 +5,9 @@ import {useT} from '../lib/i18n'
 // Sanity-style toasts, bottom right: a title, a line of detail, gone after a few
 // seconds. `toast()` works from anywhere; <ToastHost/> sits once in the root layout.
 
-/** A title may carry markup (Sanity bolds the document's name: "<b>Post</b> was published"). */
-type Toast = {id: number; title: ReactNode; description?: string; tone: 'critical' | 'caution' | 'positive' | 'default'; key?: string; ms?: number}
+/** A title may carry markup (Sanity bolds the document's name: "<b>Post</b> was published").
+ *  `details`: the server's reason behind a collapsed "Details", as Sanity's failed-operation toast. */
+type Toast = {id: number; title: ReactNode; description?: string; details?: string; tone: 'critical' | 'caution' | 'positive' | 'default'; key?: string; ms?: number}
 
 let toasts: Toast[] = []
 const listeners = new Set<() => void>()
@@ -27,7 +28,7 @@ const drop = (id: number) => {
  * again) is one toast, as Sanity's. Up 5 s, Sanity's default.
  */
 export function toast(t: Omit<Toast, 'id' | 'tone'> & {tone?: Toast['tone']}, ms = 5000) {
-  const key = t.key ?? (typeof t.title === 'string' ? `text:${t.tone ?? 'default'}:${t.title}:${t.description ?? ''}` : undefined)
+  const key = t.key ?? (typeof t.title === 'string' ? `text:${t.tone ?? 'default'}:${t.title}:${t.description ?? ''}:${t.details ?? ''}` : undefined)
   if (key) t = {...t, key}
   const same = key ? toasts.find((x) => x.key === key) : undefined
   if (same) drop(same.id)
@@ -64,6 +65,12 @@ export function ToastHost() {
         <div key={x.id} className="toast" data-tone={x.tone} data-timed={x.ms ? '' : undefined} style={x.ms ? ({'--toast-ms': `${x.ms}ms`} as CSSProperties) : undefined} role={x.tone === 'critical' ? 'alert' : 'status'}>
           {typeof x.title === 'string' ? <strong>{x.title}</strong> : <span className="toast-title">{x.title}</span>}
           {x.description && <span>{x.description}</span>}
+          {x.details && (
+            <details className="toast-details">
+              <summary>{t('Details')}</summary>
+              {x.details}
+            </details>
+          )}
           {/* Sanity's toasts are closable. */}
           <button type="button" className="icon-btn toast-close" aria-label={t('Close')} onClick={() => drop(x.id)}>
             <Close />

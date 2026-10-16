@@ -112,7 +112,7 @@ export default {
   'Could not duplicate the document': 'Kunne ikke duplisere dokumentet',
   'Could not load the document': 'Kunne ikke laste dokumentet',
   'Could not load the history: {error}': 'Kunne ikke laste historikken: {error}',
-  'Could not publish': 'Kunne ikke publisere',
+  'An error occurred during publish': 'En feil oppstod under publisering',
   'Could not render the document editor': 'Kunne ikke vise dokumentredigereren',
   'Could not render the document list': 'Kunne ikke vise dokumentlisten',
   'Could not restore the document': 'Kunne ikke gjenopprette dokumentet',

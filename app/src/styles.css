@@ -976,6 +976,10 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .toast[data-tone=positive] .toast-title { color: var(--ok-fg); }
 .toast[data-tone=critical] { background: var(--danger-bg); box-shadow: inset 0 0 0 1px var(--danger-line); }
 .toast[data-tone=critical] strong, .toast[data-tone=critical] span { color: var(--danger-fg); }
+/* A failed operation's reason, collapsed under Details (Sanity's toast description). */
+.toast .toast-details { color: var(--muted); overflow-wrap: anywhere; }
+.toast[data-tone=critical] .toast-details { color: var(--danger-fg); }
+.toast .toast-details summary { cursor: pointer; }
 .toast[data-tone=caution] { background: var(--warn-bg); box-shadow: inset 0 0 0 1px var(--ring); }
 .toast[data-tone=caution] strong { font-weight: 400; color: var(--warn-fg); }
 
