@@ -18,8 +18,8 @@ export function ScheduleDialog({initial, run, onClose}: {initial?: Date; run: (p
   const at = value ? new Date(value) : null
   const future = !!at && !Number.isNaN(at.getTime()) && at.getTime() > Date.now()
   return (
-    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <DialogBox className="dialog schedule-dialog" aria-modal="true" aria-labelledby="schedule-title" onClose={onClose}>
+    <div className="dialog-backdrop pane-confirm-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <DialogBox className="dialog pane-confirm schedule-dialog" aria-modal="true" aria-labelledby="schedule-title" onClose={onClose}>
         <header>
           <h2 id="schedule-title">{t('Schedule draft for publishing')}</h2>
           <button type="button" className="icon-btn" aria-label={t('Close')} onClick={onClose}>

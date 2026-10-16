@@ -57,6 +57,7 @@
   --revert-all-bg: #fff6f5; /* Sanity's Revert all, measured (light) */
   --revert-all-ring: #ffdfdc;
   --revert-all-fg: #cc2719;
+  --schedule-warning-fg: #4d1714; /* Sanity's critical card text (Schedule's warning), measured */
   --ok-bg: #e5f8ee;
   --ok-fg: #0d5c34;
   --danger-line: #f5c4bf;
@@ -201,6 +202,7 @@
   --revert-all-bg: #24161b;
   --revert-all-ring: #451e1e;
   --revert-all-fg: #f87c6f;
+  --schedule-warning-fg: #ffdfdd;
   --ok-bg: #16301f;
   --ok-fg: #8ee2b0;
   --danger-line: #6b2a28;
@@ -1662,8 +1664,15 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .pane-banner .btn.pane-banner-primary { padding: 3px 8px; font-size: 13px; background: var(--scheduled-fg); color: var(--scheduled-banner-bg); box-shadow: none; }
 .dialog.schedule-dialog { width: min(320px, calc(100vw - 32px)); }
 .schedule-dialog .btn-primary:disabled { background: var(--publish-disabled-bg); color: var(--publish-disabled-fg); }
-.schedule-field { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; font-weight: 500; }
-.schedule-warning { margin: 12px 0 0; padding: 4px 8px; border-radius: 3px; background: var(--danger-bg); color: var(--danger-fg); }
+/* Sanity's Schedule dialog, measured at 1440 (post-24 with a draft): the question muted 33 px under
+   the title, "Publish on" at 600 10 px under it, the input 7 px below, the warning a 25 px
+   critical card 20 px under the input. */
+.schedule-dialog header { padding-top: 11px; }
+.schedule-dialog .dialog-body { padding-top: 0; padding-bottom: 23px; }
+.schedule-dialog .dialog-body > p:first-child { margin: 13px 0 10px; color: var(--muted); }
+.schedule-field { display: flex; flex-direction: column; gap: 7px; margin-top: 0; font-weight: 600; line-height: 19px; }
+.schedule-field .input { height: 35px; font-weight: 400; }
+.schedule-warning { margin: 20px 0 0; padding: 3px 8px; line-height: 19px; border-radius: 3px; background: var(--revert-all-bg); color: var(--schedule-warning-fg); }
 .pane-banners > .pane-banner[data-tone=transparent] { justify-content: flex-start; padding: 8px 16px; background: none; color: var(--fg-strong); font-weight: 500; }
 .pane-banner[data-tone=transparent] > svg { flex: none; width: 17px; height: 17px; margin: -2px -4px -2px -2px; }
 .pane-banner .btn { flex: none; color: inherit; box-shadow: inset 0 0 0 1px currentColor; }
