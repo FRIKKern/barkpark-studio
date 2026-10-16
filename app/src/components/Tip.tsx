@@ -8,15 +8,34 @@ import {createPortal} from 'react-dom'
  * relative times are fresh and nothing differs between server and client render.
  * Spread `anchor` on the element it describes and render `tip` anywhere.
  */
+/**
+ * Sanity's placement: centred on the anchor, 4 px under it (over it near the bottom),
+ * shifted only as far as it must to stay 4 px inside the anchor's pane (else the
+ * window), measured once drawn.
+ */
+const fit = (el: HTMLElement | null) => {
+  if (!el) return
+  const half = el.offsetWidth / 2
+  const [lo, hi] = (el.dataset.bounds ?? `0 ${innerWidth}`).split(' ').map(Number)
+  el.style.left = `${Math.min(Math.max(Number(el.dataset.centre), lo! + half + 4), hi! - half - 4)}px`
+}
+const placed = (at: DOMRect, anchor?: Element | null) => {
+  const centre = at.left + at.width / 2
+  const pane = anchor?.closest('.pane')?.getBoundingClientRect()
+  return {ref: fit, 'data-centre': centre, 'data-bounds': pane ? `${pane.left} ${pane.right}` : undefined, style: {left: centre, ...(at.bottom + 80 < innerHeight ? {top: at.bottom + 4} : {bottom: innerHeight - at.top + 4})}}
+}
+
 export function useTip(content: () => ReactNode) {
   const id = useId()
   const [at, setAt] = useState<DOMRect | null>(null)
+  const anchorEl = useRef<Element | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const show = (e: {currentTarget: Element; type: string}) => {
     const el = e.currentTarget
     // Focus from a click is not keyboard focus: the click already hid it (Sanity's).
     if (e.type === 'focus' && !el.matches(':focus-visible')) return
     clearTimeout(timer.current)
+    anchorEl.current = el
     timer.current = setTimeout(() => setAt(el.getBoundingClientRect()), 300)
   }
   const hide = () => (clearTimeout(timer.current), setAt(null))
@@ -28,16 +47,10 @@ export function useTip(content: () => ReactNode) {
     return () => window.removeEventListener('keydown', esc)
   }, [at])
   const anchor = {onMouseEnter: show, onMouseLeave: hide, onFocus: show, onBlur: hide, 'aria-describedby': at ? id : undefined}
-  const below = at && at.bottom + 80 < innerHeight
   const tip =
     at &&
     createPortal(
-      <span
-        role="tooltip"
-        id={id}
-        className="hover-tip"
-        style={{left: Math.min(Math.max(at.left + at.width / 2, 150), innerWidth - 150), ...(below ? {top: at.bottom + 6} : {bottom: innerHeight - at.top + 6})}}
-      >
+      <span role="tooltip" id={id} className="hover-tip" {...placed(at, anchorEl.current)}>
         {content()}
       </span>,
       document.body,
@@ -55,7 +68,7 @@ export const modKey = () => (typeof navigator !== 'undefined' && /Mac|iPhone|iPa
  * leave, blur, Escape or a click. A disabled button keeps its `title` with the reason.
  */
 export function IconTips() {
-  const [shown, setShown] = useState<{rect: DOMRect; text: string; keys?: string[]} | null>(null)
+  const [shown, setShown] = useState<{el: Element; rect: DOMRect; text: string; keys?: string[]} | null>(null)
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
     let current: Element | null = null
@@ -69,7 +82,7 @@ export function IconTips() {
       current = el
       timer = setTimeout(() => {
         const keys = el.getAttribute('data-tip-keys')
-        setShown({rect: el.getBoundingClientRect(), text: el.getAttribute('data-tip') ?? '', keys: keys ? keys.split('+') : undefined})
+        setShown({el, rect: el.getBoundingClientRect(), text: el.getAttribute('data-tip') ?? '', keys: keys ? keys.split('+') : undefined})
       }, 300)
     }
     const leave = (e: Event) => {
@@ -96,14 +109,9 @@ export function IconTips() {
     }
   }, [])
   if (!shown) return null
-  const {rect, text, keys} = shown
-  const below = rect.bottom + 80 < innerHeight
+  const {el, rect, text, keys} = shown
   return createPortal(
-    <span
-      role="tooltip"
-      className="hover-tip icon-tip"
-      style={{left: Math.min(Math.max(rect.left + rect.width / 2, 100), innerWidth - 100), ...(below ? {top: rect.bottom + 6} : {bottom: innerHeight - rect.top + 6})}}
-    >
+    <span role="tooltip" className="hover-tip icon-tip" {...placed(rect, el)}>
       <span className="tip-line">
         {text}
         {keys && (

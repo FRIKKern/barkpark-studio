@@ -2342,7 +2342,8 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
    around the 33x19 track. */
 @media (max-width: 768px) { .switch input { inset: -14px -10px; } }
 /* Hover tooltips (J35 hotkey, J56 status dates), as Sanity's: a small card under the target. */
-.hover-tip { position: fixed; z-index: 300; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; max-width: 280px; padding: 6px 10px; border-radius: 4px; background: var(--bg); color: var(--fg); box-shadow: 0 0 0 1px var(--line), 0 6px 16px var(--shadow); font-size: 13px; line-height: 1.4; pointer-events: none; white-space: nowrap; }
+/* Sanity's tooltip (measured at 1440): 25 px for a line, the words 8 px in on 19 px, 3 px corners, its popover shadow. */
+.hover-tip { position: fixed; z-index: 300; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; max-width: 280px; padding: 3px 8px; border-radius: 3px; background: var(--bg); color: var(--fg); box-shadow: var(--popover-shadow); font-size: 13px; line-height: 19px; pointer-events: none; white-space: nowrap; }
 .hover-tip .tip-line { display: flex; gap: 8px; }
 /* A sentence (J13: why Publish is blocked) wraps inside the tip, as Sanity's, instead of running off the window. */
 .hover-tip .tip-text { white-space: normal; width: max-content; max-width: 100%; }
