@@ -20,6 +20,8 @@ export type FilterField = {
   types: string[]
   options?: {value: string; title: string}[]
   refTypes?: string[]
+  /** The schema type (image, file, richText…), for its icon. */
+  type?: string
   builtin?: boolean
 }
 export type OpName =
@@ -119,7 +121,7 @@ export function schemaFields(s: Schema): FilterField[] {
       const kind: Kind = base === 'array' && of?.type === 'reference' ? 'arrayRef' : base
       const path = prefix + f.name
       out.push({
-        key: `${path}:${kind}`, path, title: titleOf(f), parent, kind, types: [s.name],
+        key: `${path}:${kind}`, path, title: titleOf(f), parent, kind, types: [s.name], type: f.type,
         ...(kind === 'select' && {options: selectOptions(f)}),
         ...(kind === 'reference' && {refTypes: f.to?.map((t) => t.type) ?? (f.refType ? [f.refType] : [])}),
         ...(kind === 'arrayRef' && {refTypes: of?.to?.map((t) => t.type) ?? (of?.refType ? [of.refType] : [])}),
