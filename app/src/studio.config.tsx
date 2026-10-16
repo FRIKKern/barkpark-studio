@@ -58,6 +58,20 @@ export default defineStudio({
         typeName: 'author',
         child: {typeName: 'post', title: 'Posts', field: 'author', template: {id: 'post-by-author', param: 'authorId'}},
       },
+      // The reference's nested list (reference/sanity/structure.ts): filtered post lists, a
+      // titled divider and a type list.
+      {id: 'd-editorial', type: 'divider'},
+      {
+        id: 'editorial',
+        type: 'list',
+        title: 'Editorial',
+        items: [
+          {id: 'featured-posts', type: 'document_type_list', title: 'Featured posts', typeName: 'post', filter: {featured: {eq: true}}},
+          {id: 'top-rated', type: 'document_type_list', title: 'Top rated', typeName: 'post', filter: {rating: {gte: 4}}},
+          {id: 'd-taxonomy', type: 'divider', title: 'Taxonomy'},
+          {id: 'category', type: 'document_type_list', title: 'Category', typeName: 'category'},
+        ],
+      },
     ],
   },
   document: {

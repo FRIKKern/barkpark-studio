@@ -12,6 +12,7 @@ const BODIES: Record<string, string> = {
   "image": "<path d=\"M5.5 15.5L8.79289 12.2071C9.18342 11.8166 9.81658 11.8166 10.2071 12.2071L12.8867 14.8867C13.2386 15.2386 13.7957 15.2782 14.1938 14.9796L15.1192 14.2856C15.3601 14.1049 15.6696 14.0424 15.9618 14.1154L19.5 15M5.5 6.5H19.5V18.5H5.5V6.5ZM15.5 10.5C15.5 11.0523 15.0523 11.5 14.5 11.5C13.9477 11.5 13.5 11.0523 13.5 10.5C13.5 9.94772 13.9477 9.5 14.5 9.5C15.0523 9.5 15.5 9.94772 15.5 10.5Z\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"></path>",
   "warning-outline": "<path d=\"M12.5 9V13M12.5 16V14.5M14.2239 5.43058L20.727 16.486C21.5113 17.8192 20.55 19.5 19.0032 19.5H5.99683C4.45 19.5 3.48869 17.8192 4.27297 16.486L10.7761 5.43058C11.5494 4.11596 13.4506 4.11596 14.2239 5.43058Z\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"></path>",
   "error-outline": "<path d=\"M12.5 16V14.5M12.5 9V13M20.5 12.5C20.5 16.9183 16.9183 20.5 12.5 20.5C8.08172 20.5 4.5 16.9183 4.5 12.5C4.5 8.08172 8.08172 4.5 12.5 4.5C16.9183 4.5 20.5 8.08172 20.5 12.5Z\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"></path>",
+  "folder": "<path d=\"M11.5 8.5H19.5V18.5H5.5V5.5H10.5L11.5 8.5ZM11.5 8.5H5.5\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"></path>",
   "schema": "<path d=\"M12.5 9.5V12.5M12.5 12.5H8.5V15.5M12.5 12.5H16.5V15.5M10.5 5.5H14.5V9.5H10.5V5.5ZM6.5 15.5H10.5V19.5H6.5V15.5ZM14.5 15.5H18.5V19.5H14.5V15.5Z\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"></path>",
 }
 
