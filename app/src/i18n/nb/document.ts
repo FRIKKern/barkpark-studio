@@ -45,6 +45,8 @@ export default {
   'Crop': 'Beskjæring',
   'Formatting changed': 'Formatering endret',
   'Formatting changed by {author}': 'Formatering endret av {author}',
+  'Links to': 'Lenker til',
+  'What changed': 'Hva som er endret',
   'Loading history…': 'Laster historikk …',
   'Moved': 'Flyttet',
   'Classic': 'Klassisk',

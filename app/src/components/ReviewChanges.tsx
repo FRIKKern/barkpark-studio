@@ -4,8 +4,8 @@ import {useInfiniteQuery, useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
 import {historyPagesQuery, revisionQuery, type HistoryEntry, type Revision} from '../lib/history'
 import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
-import {docDiff, type AttrChange, type DocBlock, type Piece} from '../lib/doc-diff'
-import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
+import {docDiff, type AttrChange, type DocBlock, type DocInline, type Piece} from '../lib/doc-diff'
+import {anyDocQuery, docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
 import {arrayDiff} from '../lib/array-diff'
 import {useItemPreview} from './ObjectArrayInput'
 import {rangeDate, Row} from './HistoryPanel'
@@ -229,12 +229,16 @@ const MARK_TAGS: Record<string, string> = {strong: 'strong', em: 'em', code: 'co
 function BlocksDiff({before, after, author, t}: {before?: DocBlock[]; after?: DocBlock[]; author?: string; t: T}) {
   const by = (what: string) => (author ? t(`${what} by {author}`, {author}) : t(what))
   const piece = (x: Piece, i: number) => {
-    let node: ReactNode = x.text
+    // An inline object (a chip) is drawn as itself, as Sanity's InlineObjectWithDiff.
+    let node: ReactNode = x.object ? <span className="inline-object" data-type={x.object.type}>{x.object.text}</span> : x.text
     for (const m of [...x.marks].reverse()) {
       const Tag = (MARK_TAGS[m] ?? 'span') as 'span'
       node = <Tag>{node}</Tag>
     }
     if (x.href) node = <a href={x.href} target="_blank" rel="noopener noreferrer">{node}</a>
+    else if (x.ref) node = <span className="wikilink">{node}</span>
+    // A changed chip, link or internal link opens what changed in it (Sanity's AnnotationDiff).
+    if (x.change !== 'same' && (x.object || x.href || x.ref || x.was?.object || x.was?.href || x.was?.ref)) node = <InlineChange piece={x}>{node}</InlineChange>
     if (x.change === 'formatted') return <span key={i} className="review-formatted" title={author ? t('Formatting changed by {author}', {author}) : t('Formatting changed')}>{node}</span>
     return x.change === 'removed' ? <del key={i} title={by('Removed')}>{node}</del> : x.change === 'added' ? <ins key={i} title={by('Added')}>{node}</ins> : <span key={i}>{node}</span>
   }
@@ -288,6 +292,58 @@ function BlocksDiff({before, after, author, t}: {before?: DocBlock[]; after?: Do
             return <p key={k} data-change={kind}>{body}</p>
         }
   }
+}
+
+/**
+ * A changed chip, link or internal link in the body diff: a click says what changed in it
+ * (Sanity's AnnotationDiff / InlineObjectWithDiff): the link's address, the document it
+ * points to, the chip's words and settings, before → after.
+ */
+function InlineChange({piece: x, children}: {piece: Piece; children: ReactNode}) {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLSpanElement>(null)
+  // A click anywhere else closes it, as Sanity's diff popovers.
+  useEffect(() => {
+    if (!open) return
+    const away = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('pointerdown', away)
+    return () => document.removeEventListener('pointerdown', away)
+  }, [open])
+  const was = x.change === 'added' ? undefined : x.change === 'removed' ? x : x.was
+  const now = x.change === 'removed' ? undefined : x
+  const rows: [string, ReactNode, ReactNode][] = []
+  if (was?.href !== now?.href) rows.push([t('Link'), was?.href ?? '—', now?.href ?? '—'])
+  else if (now?.href) rows.push([t('Link'), now.href, now.href])
+  if (was?.ref !== now?.ref) rows.push([t('Links to'), was?.ref ? <DocTitle id={was.ref} /> : '—', now?.ref ? <DocTitle id={now.ref} /> : '—'])
+  for (const k of objectKeys(was?.object, now?.object)) rows.push([k === 'text' ? t('Text') : k, show(was?.object?.[k]), show(now?.object?.[k])])
+  return (
+    <span className="review-inline" ref={box}>
+      <span role="button" tabIndex={0} aria-expanded={open} onClick={() => setOpen(!open)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setOpen(!open))}>
+        {children}
+      </span>
+      {open && (
+        <span className="popover review-inline-pop" role="dialog" aria-label={t('What changed')}>
+          {rows.map(([name, before, after]) => (
+            <span key={name} className="review-inline-row">
+              <b>{name}</b> {before === after ? after : <>{x.change !== 'added' && <del>{before}</del>}{x.change === 'formatted' && <span aria-hidden="true"> → </span>}{x.change !== 'removed' && <ins>{after}</ins>}</>}
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
+  )
+}
+const show = (v: unknown) => (v === undefined || v === null || v === '' ? '—' : String(v))
+/** A chip's own fields that differ (its words and settings), or all of them when one side has none. */
+const objectKeys = (a?: DocInline, b?: DocInline) =>
+  a || b ? [...new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})])].filter((k) => k !== 'type' && k !== '_key' && (!a || !b || show(a[k]) !== show(b[k]))).sort((x, y) => (x === 'text' ? -1 : y === 'text' ? 1 : x.localeCompare(y))) : []
+/** An internal link's document, by its preview title. */
+function DocTitle({id}: {id: string}) {
+  const t = useT()
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const {data: doc} = useQuery(anyDocQuery(id))
+  return <>{doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : id}</>
 }
 
 /** A block's or an image's other properties that changed: name, then before → after. */
