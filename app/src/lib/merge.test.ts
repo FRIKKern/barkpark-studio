@@ -1,7 +1,7 @@
 // J06's text merge and caret mapping (node --test).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {mapCaret, merge3, mergeList3, unapply} from './merge.ts'
+import {mapCaret, merge3, mergeList3, onto, unapply} from './merge.ts'
 
 test('merge3 keeps both edits', () => {
   assert.equal(merge3('Fixture post', 'bbb Fixture post', 'Fixture post aaa'), 'bbb Fixture post aaa')
@@ -49,4 +49,11 @@ test('mergeList3 keeps their reorder while I edit an item', () => {
 
 test('mergeList3: I moved an item while they typed in another', () => {
   assert.deepEqual(mergeList3(['one', 'two', 'three'], ['two', 'one', 'three'], ['one', 'two-by-A', 'three']), ['two-by-A', 'one', 'three'])
+})
+
+test('onto: a change made from an older drawing goes onto what came in since', () => {
+  // B dropped "one" below "two" on a list drawn before A's words arrived.
+  assert.deepEqual(onto(['one', 'two', 'three'], ['two', 'one', 'three'], ['one', 'two-by-A', 'three']), ['two-by-A', 'one', 'three'])
+  assert.deepEqual(onto(['a'], ['b'], ['a']), ['b'])
+  assert.equal(onto(1, 2, 3), 2)
 })

@@ -1,5 +1,5 @@
 import {useEffect} from 'react'
-import {useQueryClient} from '@tanstack/react-query'
+import {notifyManager, useQueryClient} from '@tanstack/react-query'
 import type {Doc} from './data'
 import {applyServer} from './edits'
 import {setLiveDown} from './connection'
@@ -16,6 +16,7 @@ type Frame = {documentId: string; type: string; mutation: string; result: Doc | 
 let lastSeen: string | null = null
 let fleetTimer: ReturnType<typeof setTimeout> | undefined
 let backlinksTimer: ReturnType<typeof setTimeout> | undefined
+const undrawn: (() => void)[] = [] // e2e: __holdRenders
 
 // A page rendered on the server read its data before its stream opened. The
 // server says where to resume from (its listen position as of that read); when it
@@ -61,6 +62,11 @@ export function useLive(ids: string[], types: string[]) {
     ;(window as {__dropLive?: (ms: number) => void}).__dropLive = (ms) => (es.close(), (retry = setTimeout(open, ms)))
     // e2e probe: read everything again, as a reconnect that lost its place does.
     ;(window as {__readAll?: () => void}).__readAll = () => void qc.invalidateQueries()
+    // e2e probe: what reaches the cache stays off the screen until released, as on a busy machine.
+    ;(window as {__holdRenders?: (on: boolean) => void}).__holdRenders = (on) => {
+      notifyManager.setScheduler(on ? (cb) => void undrawn.push(cb) : (cb) => setTimeout(cb, 0))
+      if (!on) undrawn.splice(0).forEach((cb) => cb())
+    }
     const onFrame = (e: Event) => {
       if ((e as MessageEvent).lastEventId) lastSeen = (e as MessageEvent).lastEventId
       const f = JSON.parse((e as MessageEvent).data) as Frame

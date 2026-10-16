@@ -9,7 +9,7 @@ import {advisoryFindings, findingsOf, findingsReason, type Finding} from './find
 import {t} from './i18n'
 import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
-import {merge3, mergeList3, unapply} from './merge'
+import {merge3, mergeList3, onto, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {writeBudget} from './write-budget'
@@ -107,6 +107,8 @@ type DocEdits = {
    * was made, so a retry is refused (412) rather than saved over theirs.
    */
   missed?: Doc
+  /** The last value this editor gave each field: a cache still holding it has nothing new of anyone else's. */
+  typed: Map<string, unknown>
   /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
   undo: Change[]
   redo: Change[]
@@ -218,7 +220,7 @@ const setState = (e: DocEdits, state: SaveState, error?: string) => {
 
 const entry = (id: string, type: string) => {
   let e = docs.get(id)
-  if (!e) docs.set(id, (e = {type, dirty: new Map(), inflight: null, snap: SAVED, lastSent: 0, base: new Map(), conflicts: 0, undo: [], redo: []}))
+  if (!e) docs.set(id, (e = {type, dirty: new Map(), inflight: null, snap: SAVED, lastSent: 0, base: new Map(), conflicts: 0, typed: new Map(), undo: [], redo: []}))
   return e
 }
 
@@ -338,6 +340,14 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
   const id = doc._publishedId
   const e = entry(id, doc._type)
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
+  // `value` was made from `doc`, what the pane last drew. Someone else's version that came
+  // in since and is not drawn yet is in `held`: the change goes onto it, or it would go out
+  // against held's rev and undo theirs unseen (live-list race, task-8cc2a447b03bf599). A
+  // field still holding what this editor last gave it changed by our own hand only: a key
+  // not drawn yet is in `value` already, and merging it again would type it twice.
+  const now = getPath(held, field)
+  if (held !== doc && held._rev !== doc._rev && !same(now, e.typed.get(field))) value = onto(getPath(doc, field), value, now)
+  e.typed.set(field, value)
   if (record) {
     const step = {before: getPath(held, field), after: value}
     const last = e.undo.at(-1)
