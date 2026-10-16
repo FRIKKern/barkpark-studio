@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 97 changes, 4 tasks closed
+- **Today** · 98 changes, 4 tasks closed
+  - fix(edits): a refusal folds in the frame it held, and a merge shows on screen; live deploy-flip can't leave the server deaf ([#744](https://github.com/FRIKKern/barkpark-studio/pull/744))
   - Vision: Ctrl+Enter runs the text in the editor, not the last render's query (J37 refused-query flake) ([#743](https://github.com/FRIKKern/barkpark-studio/pull/743))
-  - Vision saved queries as Sanity's QueryRecall: + saves personal, Update on an edited query, the card, menu icons and share dialog ([#742](https://github.com/FRIKKern/barkpark-studio/pull/742))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
