@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 173 changes, 4 tasks closed
+- **Today** · 174 changes, 4 tasks closed
+  - Touch-only tap targets in the form and its dialogs: Sanity's sizes in a narrow desktop window ([#821](https://github.com/FRIKKern/barkpark-studio/pull/821))
   - CI: re-record e2e durations after schedule.spec grew ([#820](https://github.com/FRIKKern/barkpark-studio/pull/820))
-  - Body text as Sanity's: headings in the body colour, 12 px inside the field's ring ([#818](https://github.com/FRIKKern/barkpark-studio/pull/818))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
