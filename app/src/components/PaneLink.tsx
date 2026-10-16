@@ -50,7 +50,17 @@ export function PaneLink({href: paneHref, ...rest}: AnchorHTMLAttributes<HTMLAnc
       onClick={(e) => {
         if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
         e.preventDefault()
-        navigate({href})
+        // Keyboard: Enter on a desk row re-draws its pane, and the row the focus was on went
+        // with it (focus fell to the page). The same row in the new pane takes it back.
+        const link = e.currentTarget
+        const had = document.activeElement === link
+        void navigate({href}).then(() =>
+          requestAnimationFrame(() => {
+            if (!had || link.isConnected) return
+            const again = [...document.querySelectorAll<HTMLAnchorElement>('a[href]')].find((a) => a.getAttribute('href') === link.getAttribute('href'))
+            if (again && (document.activeElement === document.body || !document.activeElement)) again.focus()
+          }),
+        )
       }}
       {...rest}
     />
