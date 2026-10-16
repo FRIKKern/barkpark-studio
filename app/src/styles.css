@@ -585,10 +585,10 @@ textarea.input { resize: vertical; }
 .fieldset, .image-input[data-fields] { border-left: 1px solid var(--border); padding-left: 12px; }
 /* Sanity's object body: 12 px in, a 7 px band above the first field, no margin after the last
    (measured at 1440 on post-01's Call to action). */
-.fieldset:not([style*=grid]) > .field:first-child, .fieldset:not([style*=grid]) > fieldset.object-field:first-child { padding-top: 7px; }
+.fieldset:not([style*=grid]) > .field:first-child, .fieldset:not([style*=grid]) > fieldset.object-field:first-child { --band: 7px; padding-top: var(--band); }
 .fieldset > .field:last-child, .fieldset > fieldset.object-field:last-child { margin-bottom: 0; }
 /* An image's own fields (alt text…) under its box: the same 7 px band above each, as Sanity's. */
-.image-input > .field { padding-top: 7px; }
+.image-input > .field { --band: 7px; padding-top: var(--band); }
 .rich p, .rich h2 { margin: 0 0 8px; }
 .callout { padding: 8px 12px; border-radius: 3px; background: var(--info-bg); font-size: 14px; }
 .image-empty { height: 43px; display: flex; align-items: center; padding: 0 16px; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); }
@@ -1166,7 +1166,7 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 /* Date-time (J31): the field with a calendar button, and Sanity's picker popover */
 .datetime { position: relative; }
 /* Sanity's datetime fields (not date-only ones) start 8 px lower than the others (measured at 1440). */
-.field:has(> .datetime:not([data-date-only])) { padding-top: 8px; }
+.field:has(> .datetime:not([data-date-only])) { --band: 8px; padding-top: var(--band); }
 .datetime-box { position: relative; }
 .datetime-box .input { padding-right: 40px; }
 .datetime-box .icon-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 34px; height: auto; /* Sanity's 35 px segment, its rule included */ border-radius: 0 3px 3px 0; box-shadow: inset 1px 0 0 var(--line); }
@@ -1214,10 +1214,15 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 
 
 /* Field "…" menu (J29): top right of the field, on hover or focus; placed absolutely so the form never moves */
-.field { position: relative; }
+.field { position: relative; --band: 0px; --lift: 0px; }
 .field-actions { position: absolute; top: 0; right: 25px; z-index: 2; opacity: 0; }
-/* A fieldset's box starts below its legend: lift its actions back up beside the legend. */
-fieldset.object-field > .field-actions { top: -38px; }
+/* Sanity's ⋯ and Add comment sit 1 px above the title's top, 5 px above for a fieldset (object, image, file, array,
+   text block); a band above the title (a nested field's 7 px, a date-time's 8) carries them down with it. */
+.field > :is(.field-actions, .field-comments) { top: calc(var(--band) + var(--lift)); }
+.field:has(> .file-input, > .array-field, > .tags-box, > .body-canvas, > .checkbox-list) { --lift: -4px; }
+fieldset.object-field { --lift: -34px; } /* a fieldset's box starts below its legend */
+fieldset.object-field[data-collapsible] { --lift: -26px; } /* its legend is a 25 px toggle row */
+.field:has(> .bool-box) { --lift: 16px; } /* the title sits inside the box */
 /* Only the field under the pointer or focus, not the object or image around it (Sanity's: Main image's ⋯ stays hidden over its Alternative text). */
 .field:is(:hover, :focus-within):not(:has(.field:is(:hover, :focus-within))) > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
 .field-actions .icon-btn { width: 25px; height: 25px; } /* Sanity's: level with the label, touching Add comment */
@@ -2289,7 +2294,6 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 /* J40: field comments (Sanity's) — the button at a field's top right (after "…"),
    the composer under it, and the Comments inspector. */
 .field-comments { position: absolute; top: 0; right: 0; z-index: 2; }
-fieldset.object-field > .field-comments { top: -38px; }
 .field-comments .comment-add { width: 25px; height: 25px; opacity: 0; }
 .field:is(:hover, :focus-within):not(:has(.field:is(:hover, :focus-within))) > .field-comments .comment-add, .field-comments:focus-within .comment-add, .comment-add[aria-expanded='true'] { opacity: 1; }
 .field-comments[data-has] ~ .field-actions, .field-comments[data-has] + .field-actions { right: 52px; }
@@ -2442,7 +2446,7 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
   .doc-footer .publish, .doc-footer .save-state-btn { position: relative; }
   .doc-footer .publish::after, .doc-footer .save-state-btn::after { content: ''; position: absolute; z-index: 1; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
   button.icon-btn[aria-label='Field actions'] { min-width: 44px; min-height: 44px; }
-  .field > .field-actions, .field > .field-comments { top: -10px; } /* their 44 px end where the input begins */
+  .field > :is(.field-actions, .field-comments) { top: calc(var(--band) + var(--lift) - 10px); } /* their 44 px centred where the 25 px ones sit */
   .btn-create { min-height: 44px; }
   .locations-toggle, .group-select select { min-height: 44px; }
 }
