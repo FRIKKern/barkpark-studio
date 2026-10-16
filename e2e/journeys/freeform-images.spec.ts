@@ -51,7 +51,7 @@ test('@local D07: paste or drop a picture into the canvas — uploaded to Barkpa
   const [pasted] = await images()
   expect(pasted!.src).toMatch(/^\/w\/[^/]+\/p\/[^/]+\/media\/files\//)
   const img = canvas.locator(`img[src="${pasted!.src}"]`)
-  await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth), {timeout: 10_000}).toBe(640)
+  await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth), {intervals: [50], timeout: 10_000}).toBe(640)
   await page.screenshot({path: 'evidence/D07-1-pasted-studio.png'})
 
   // Drop on the last paragraph.

@@ -66,7 +66,7 @@ test('@evidence J32: deleted doc, reference changed, reference removed', async (
   await page.screenshot({path: shot(t.name, '3-ref-changed')})
   if (sawChanged) {
     await page.getByRole('button', {name: 'Reload reference'}).click()
-    await expect.poll(() => decodeURIComponent(page.url())).toContain('author-grace')
+    await expect.poll(() => decodeURIComponent(page.url()), {intervals: [50]}).toContain('author-grace')
     note('after reload', decodeURIComponent(new URL(page.url()).pathname))
   }
   if (t.name === 'studio') expect(sawChanged).toBe(true)

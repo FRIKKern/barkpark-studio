@@ -97,7 +97,7 @@ test('@evidence J36: drop, paste, upload error + retry, select from library + us
   await expect(tiles.first()).toBeVisible({timeout: 15_000})
   note('library tiles', await tiles.count())
   // Stills once the visible thumbnails have loaded.
-  await expect.poll(() => library.locator('img').evaluateAll((xs) => xs.slice(0, 5).every((x) => (x as HTMLImageElement).complete && (x as HTMLImageElement).naturalWidth > 0)), {timeout: 10_000}).toBe(true)
+  await expect.poll(() => library.locator('img').evaluateAll((xs) => xs.slice(0, 5).every((x) => (x as HTMLImageElement).complete && (x as HTMLImageElement).naturalWidth > 0)), {intervals: [50], timeout: 10_000}).toBe(true)
   await page.screenshot({path: shot(t.name, '4-library')})
   await tiles.first().hover()
   const more = t.name === 'sanity' ? library.locator('button').filter({hasNot: page.locator('img')}).filter({hasNot: page.locator('[data-sanity-icon="close"]')}).first() : library.getByRole('button', {name: /: more$/}).first()

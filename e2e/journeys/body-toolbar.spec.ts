@@ -83,5 +83,5 @@ test('J10: the body toolbar marks, sets a style, and refuses a script link', asy
       const edge = b.closest('.body-canvas')!.getBoundingClientRect().right
       return [...b.querySelectorAll('button')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > edge).length
     })
-  await expect.poll(spill, {timeout: 3000}).toBe(0)
+  await expect.poll(spill, {intervals: [50], timeout: 3000}).toBe(0)
 })

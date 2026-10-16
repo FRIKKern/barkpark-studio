@@ -54,7 +54,7 @@ test('J15: the footer status opens Review changes', async ({page}, info) => {
   // The inspector takes a third of the document pane, as Sanity's: 345 px at 1440, 320 at 1024.
   const inspector = page.getByRole('complementary', {name: 'History'})
   const width = async () => Math.round((await inspector.boundingBox())!.width)
-  await expect.poll(width).toBeGreaterThan(340)
+  await expect.poll(width, {intervals: [50]}).toBeGreaterThan(340)
   await page.setViewportSize({width: 1024, height: 900})
-  await expect.poll(width).toBe(320)
+  await expect.poll(width, {intervals: [50]}).toBe(320)
 })

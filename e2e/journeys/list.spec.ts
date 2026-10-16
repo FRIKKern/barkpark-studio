@@ -20,7 +20,7 @@ test("@local J24 J25 J55: list search, empty state, the type's own sort that sti
   await expect(firstRow(page)).toBeVisible()
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.type('post 1')
-  await expect.poll(() => firstTitle(page)).toMatch(/^Fixture post 1\d$/)
+  await expect.poll(() => firstTitle(page), {intervals: [50]}).toMatch(/^Fixture post 1\d$/)
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.type('zzzz')
   await expect(list.getByText('No results found')).toBeVisible()
@@ -34,10 +34,10 @@ test("@local J24 J25 J55: list search, empty state, the type's own sort that sti
   try {
     await t.listMenu(list).click()
     await page.getByText('Sort by Rating, highest').click()
-    await expect.poll(() => firstTitle(page)).toBe('Fixture post 05')
+    await expect.poll(() => firstTitle(page), {intervals: [50]}).toBe('Fixture post 05')
     await page.reload()
     await t.settle(page)
-    await expect.poll(() => firstTitle(page)).toBe('Fixture post 05')
+    await expect.poll(() => firstTitle(page), {intervals: [50]}).toBe('Fixture post 05')
   } finally {
     await t.listMenu(t.pane(page, 1)).click()
     await page.getByText('Default sort').click()

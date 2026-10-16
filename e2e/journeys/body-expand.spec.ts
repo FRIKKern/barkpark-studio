@@ -104,7 +104,7 @@ test('@evidence J35: expand and back keeps the caret; paste keeps structure', as
     await body.getByText(run).click()
     await page.keyboard.press('End')
     for (let i = 0; i < 'after'.length; i++) await page.keyboard.press('Shift+ArrowLeft')
-    await expect.poll(() => page.evaluate(() => (document.querySelector('bp-paper-canvas') as unknown as {state(): {selection: {empty: boolean}}}).state().selection.empty)).toBe(false)
+    await expect.poll(() => page.evaluate(() => (document.querySelector('bp-paper-canvas') as unknown as {state(): {selection: {empty: boolean}}}).state().selection.empty), {intervals: [50]}).toBe(false)
     await bar.getByRole('button', {name: 'Internal link'}).click()
     await page.getByRole('combobox', {name: 'Internal link'}).fill('Ada')
     await expect(page.getByRole('option').first()).toBeVisible({timeout: 10_000})

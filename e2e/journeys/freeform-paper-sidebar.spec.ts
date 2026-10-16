@@ -78,7 +78,7 @@ test('@local D12: paper sidebar — slug, description, weighted tags; the wall s
 
   // Phone: the sidebar covers the doc; Close gives focus back to the header button.
   await page.setViewportSize({width: 390, height: 844})
-  await expect.poll(async () => (await side.boundingBox())?.width).toBeGreaterThan(380)
+  await expect.poll(async () => (await side.boundingBox())?.width, {intervals: [50]}).toBeGreaterThan(380)
   await page.screenshot({path: 'evidence/D12-3-phone-studio.png'})
   await side.getByRole('button', {name: 'Close document metadata'}).click()
   await expect(side).toBeHidden()

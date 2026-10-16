@@ -66,7 +66,7 @@ test('live: a reorder dropped before the typing is drawn keeps the typed words',
     await a.keyboard.press('End')
     await a.keyboard.insertText('-by-A')
     // A's words are saved and in B's cache, not drawn (an unrelated redraw, e.g. A's presence, may draw them: then the drop is plain).
-    await expect.poll(() => b.evaluate(() => (window as {__liveFrames?: string[]}).__liveFrames?.length ?? 0)).toBeGreaterThan(0)
+    await expect.poll(() => b.evaluate(() => (window as {__liveFrames?: string[]}).__liveFrames?.length ?? 0), {intervals: [50]}).toBeGreaterThan(0)
     await b.getByRole('button', {name: 'Move item 1'}).focus()
     await b.keyboard.press('Space')
     await b.keyboard.press('ArrowDown')

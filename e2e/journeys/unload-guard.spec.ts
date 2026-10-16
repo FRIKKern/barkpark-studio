@@ -22,7 +22,7 @@ async function closeAsks(page: Page) {
   let asked = false
   page.once('dialog', (d) => ((asked = d.type() === 'beforeunload'), void d.dismiss()))
   await page.close({runBeforeUnload: true})
-  await expect.poll(() => asked || page.isClosed()).toBe(true)
+  await expect.poll(() => asked || page.isClosed(), {intervals: [50]}).toBe(true)
   return asked
 }
 async function open(ctx: BrowserContext, path: string, settle: (p: Page) => Promise<void>) {

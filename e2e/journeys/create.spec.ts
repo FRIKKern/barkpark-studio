@@ -72,7 +72,7 @@ test('@local J18: a parameterised template from a structure item — Posts by au
   await t.settle(page)
   await page.getByText('Posts by author', {exact: true}).click()
   await page.getByText('Alan Turing', {exact: true}).first().click()
-  await expect.poll(() => decodeURIComponent(page.url())).toContain('/structure/posts-by-author;author-alan')
+  await expect.poll(() => decodeURIComponent(page.url()), {intervals: [50]}).toContain('/structure/posts-by-author;author-alan')
   await expect(page.getByText('Fixture post 07', {exact: true}).first()).toBeVisible()
   // With no doc open, the lists take their full 350 px (the rest stays empty), as Sanity's;
   // the posts are an S.documentList(): its "+" only, no "…" (the authors' list keeps its).

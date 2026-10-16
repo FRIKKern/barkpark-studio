@@ -179,7 +179,7 @@ test('J59: clicking a value opens its field in the panel; Edit turns the overlay
   await expect(page.locator('.presentation-panel [id="excerpt"]')).toBeFocused()
   // A body paragraph opens that block, the caret in it (Sanity's body[_key=="p1"]), not just the body field.
   await site.locator('#b').click()
-  await expect.poll(() => page.evaluate(() => getSelection()?.focusNode?.parentElement?.closest('[data-bp-id]')?.getAttribute('data-bp-id')), {timeout: 15_000}).toBe('p1')
+  await expect.poll(() => page.evaluate(() => getSelection()?.focusNode?.parentElement?.closest('[data-bp-id]')?.getAttribute('data-bp-id')), {intervals: [50], timeout: 15_000}).toBe('p1')
 
   const edit = page.getByRole('switch', {name: 'Edit'})
   await edit.click()

@@ -19,7 +19,7 @@ test('@evidence J52: the focused field lives in the URL', async ({page, context}
     await page.goto(`${t.docPath('post', ID)}${t.name === 'sanity' ? '%2C' : ','}path=${path}`)
     await signInIfAsked(page)
     await t.settle(page)
-    await expect.poll(() => focusedId(page), {timeout: 15_000}).toBe(path)
+    await expect.poll(() => focusedId(page), {intervals: [50], timeout: 15_000}).toBe(path)
     await page.screenshot({path: shot(t.name, `1-opened-${path}`)})
   }
 
@@ -36,17 +36,17 @@ test('@evidence J52: the focused field lives in the URL', async ({page, context}
   expect(url).toContain('path=excerpt')
   await page.reload()
   await t.settle(page)
-  await expect.poll(() => focusedId(page), {timeout: 15_000}).toBe('excerpt')
+  await expect.poll(() => focusedId(page), {intervals: [50], timeout: 15_000}).toBe('excerpt')
 
   // A nested field in another group, then the URL copied into a fresh tab.
   await page.getByRole('tab', {name: 'Meta'}).click()
   await page.getByText(/^(SEO|Seo)$/).first().click() // collapsed by default (J13/J14)
   await t.field(page, 'seo.metaTitle').click()
-  await expect.poll(() => decodeURIComponent(page.url())).toContain('path=seo.metaTitle')
+  await expect.poll(() => decodeURIComponent(page.url()), {intervals: [50]}).toContain('path=seo.metaTitle')
   const copied = page.url()
   const fresh = await context.newPage()
   await fresh.goto(copied)
   await t.settle(fresh)
-  await expect.poll(() => focusedId(fresh), {timeout: 15_000}).toBe('seo.metaTitle')
+  await expect.poll(() => focusedId(fresh), {intervals: [50], timeout: 15_000}).toBe('seo.metaTitle')
   await fresh.screenshot({path: shot(t.name, '2-copied-link')})
 })

@@ -112,7 +112,7 @@ test('@local D15: tables — slash insert, Tab/Shift+Tab, Tab adds a row, add/re
   await page.keyboard.type('/table')
   await page.waitForTimeout(400)
   await page.keyboard.press('Enter')
-  await expect.poll(async () => (await grids(page)).length).toBe(1)
+  await expect.poll(async () => (await grids(page)).length, {intervals: [50]}).toBe(1)
   expect((await grids(page))[0]![0]!.every((c) => c.startsWith('#'))).toBe(true)
   // Settle as Barkdown's probe does: the new table is node-selected for a moment, and a
   // click that lands before it lays out leaves that selection (typing would replace it).
@@ -129,13 +129,13 @@ test('@local D15: tables — slash insert, Tab/Shift+Tab, Tab adds a row, add/re
   await page.keyboard.type('3')
   await page.keyboard.press('Shift+Tab')
   await page.keyboard.type('Pear')
-  await expect.poll(async () => (await grids(page))[0]).toEqual([['#Name', '#Qty'], ['Pear', '3']])
+  await expect.poll(async () => (await grids(page))[0], {intervals: [50]}).toEqual([['#Name', '#Qty'], ['Pear', '3']])
   await agree()
 
   // Tab in the last cell adds a row.
   await caretInCell(page, -1)
   await page.keyboard.press('Tab')
-  await expect.poll(async () => (await grids(page))[0]!.length).toBe(3)
+  await expect.poll(async () => (await grids(page))[0]!.length, {intervals: [50]}).toBe(3)
   await page.keyboard.type('Plum')
   expect((await agree())[0]![2]![0]).toBe('Plum')
 
@@ -143,12 +143,12 @@ test('@local D15: tables — slash insert, Tab/Shift+Tab, Tab adds a row, add/re
   await caretInCell(page, 0)
   await (await chrome(page, 'add column')).click()
   await (await chrome(page, 'add row')).click()
-  await expect.poll(async () => (await grids(page))[0]!.every((r) => r.length === 3)).toBe(true)
+  await expect.poll(async () => (await grids(page))[0]!.every((r) => r.length === 3), {intervals: [50]}).toBe(true)
   expect((await agree())[0]!.length).toBe(4)
   await caretInCell(page, 0)
   await (await chrome(page, 'remove column')).click()
   await (await chrome(page, 'remove row')).click()
-  await expect.poll(async () => (await grids(page))[0]!.every((r) => r.length === 2)).toBe(true)
+  await expect.poll(async () => (await grids(page))[0]!.every((r) => r.length === 2), {intervals: [50]}).toBe(true)
   await agree()
 
   // Undo a cell edit; the server follows.
@@ -156,13 +156,13 @@ test('@local D15: tables — slash insert, Tab/Shift+Tab, Tab adds a row, add/re
   await page.keyboard.type('XYZ')
   await agree()
   await page.keyboard.press(`${MOD}+z`)
-  await expect.poll(async () => JSON.stringify(await grids(page))).not.toContain('XYZ')
+  await expect.poll(async () => JSON.stringify(await grids(page)), {intervals: [50]}).not.toContain('XYZ')
   await agree()
 
   // A pasted GFM pipe table becomes a table block.
   await startParagraph(page)
   await paste(page, '| City | Pop |\n|---|---|\n| Oslo | 700k |\n| Bergen | 290k |')
-  await expect.poll(async () => (await grids(page)).find((g) => g[0]?.[0] === '#City')).toEqual([['#City', '#Pop'], ['Oslo', '700k'], ['Bergen', '290k']])
+  await expect.poll(async () => (await grids(page)).find((g) => g[0]?.[0] === '#City'), {intervals: [50]}).toEqual([['#City', '#Pop'], ['Oslo', '700k'], ['Bergen', '290k']])
   await agree()
 
   // Enter inside a cell does not split the table.
@@ -179,6 +179,6 @@ test('@local D15: tables — slash insert, Tab/Shift+Tab, Tab adds a row, add/re
   await page.reload()
   await t.settle(page)
   await expect(pm).toBeVisible({timeout: 20_000})
-  await expect.poll(() => grids(page), {timeout: 10_000}).toEqual(shown)
+  await expect.poll(() => grids(page), {intervals: [50], timeout: 10_000}).toEqual(shown)
   await page.screenshot({path: 'evidence/D15-studio.png'})
 })
