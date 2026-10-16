@@ -1492,7 +1492,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .body-more-item[aria-checked='true'] { background: var(--hover); }
 .body-more-wrap > .body-link { left: auto; right: 0; }
 .body-link { position: absolute; top: 100%; left: 0; z-index: 30; padding: 4px; width: 260px; }
-.body-doclink { width: 300px; }
+.body-doclink { width: 340px; }
 .body-doclink-list { list-style: none; margin: 4px 0 0; padding: 0; max-height: 240px; overflow-y: auto; }
 .body-doclink-list [aria-selected='true'] { background: var(--hover); }
 .body-link-refused { margin: 4px 2px 0; font-size: 12px; line-height: 16px; color: var(--critical-icon); }

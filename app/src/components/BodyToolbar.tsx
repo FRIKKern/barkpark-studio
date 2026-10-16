@@ -4,6 +4,9 @@ import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, DocLinkIcon, Ellipsis, Image
 import {useT} from '../lib/i18n'
 import {loadCanvas} from '../lib/canvas-bundle'
 import {linkHref} from '../lib/link-href'
+import {useQuery} from '@tanstack/react-query'
+import {DocPreview} from './Preview'
+import {schemaOf, schemasQuery, type Doc} from '../lib/data'
 
 // J10, Sanity's Portable Text toolbar over the rich text field: block style, marks,
 // link, lists and the field's insertable blocks, from the field's vocabulary (its
@@ -14,7 +17,8 @@ import {linkHref} from '../lib/link-href'
 
 type Command = 'toggleMark' | 'setBlockStyle' | 'toggleList' | 'insertBlock' | 'insertInline'
 type ToolbarState = {marks: string[]; blockStyle: string | null; list: string | null; link: {href: string} | null; wikilink?: {target: string; docId: string | null} | null}
-type DocHit = {title: string; id: string; type: string}
+/** A `[[`/internal-link hit; `doc` (the studio's own search) draws it as a document row. */
+type DocHit = {title: string; id: string; type: string; doc?: Doc}
 type Canvas = HTMLElement & {
   /** The canvas's own `[[` document search, which the studio sets (PortableDocEditor). */
   wikilinkSource?: ((query: string) => Promise<DocHit[]>) | null
@@ -302,6 +306,7 @@ function ToolButton({label, pressed, disabled, onClick, children}: {label: strin
  *  searches (its wikilinkSource): Up/Down and Enter or a click pick, Escape cancels. */
 function DocLinkInput({search, types, onDone}: {search: (query: string) => Promise<DocHit[]>; types: string[]; onDone: (hit: DocHit | null) => void}) {
   const t = useT()
+  const {data: schemas = []} = useQuery(schemasQuery)
   const input = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<DocHit[]>([])
@@ -339,8 +344,10 @@ function DocLinkInput({search, types, onDone}: {search: (query: string) => Promi
       />
       <ul className="body-doclink-list" id="body-doclink-list" role="listbox" aria-label={t('Documents')}>
         {hits.map((h, i) => (
-          <li key={h.id} id={`body-doclink-${i}`} role="option" aria-selected={i === active} className="menu-item" onMouseDown={(e) => (e.preventDefault(), onDone(h))}>
-            {h.title}
+          // As the reference picker's rows (Sanity's): icon, title, subtitle, the type and the
+          // draft/published dots, so an author and a post with the same words tell apart.
+          <li key={h.id} id={`body-doclink-${i}`} role="option" aria-selected={i === active} className={h.doc ? undefined : 'menu-item'} onMouseDown={(e) => (e.preventDefault(), onDone(h))} onMouseEnter={() => setActive(i)}>
+            {h.doc ? <DocPreview doc={h.doc} selected={false} badge={schemaOf(schemas, h.type)?.title ?? h.type} /> : h.title}
           </li>
         ))}
       </ul>

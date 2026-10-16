@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Schema} from '../lib/data'
+import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Doc, type Schema} from '../lib/data'
 import {loadCanvas} from '../lib/canvas-bundle'
 import {applyBlockOps, readBlocks, type Block, type BlockOp, type Blocks, type OpsResult, type Rev} from '../lib/blocks'
 import {paceMs, paced} from '../lib/write-pace'
@@ -42,8 +42,8 @@ type Canvas = HTMLElement & {
   applyServerBlocks(blocks: Block[], echo?: {mode?: 'own' | 'own-stale'; requestId?: string}): void
   applyServerBlocksIfIdle(blocks: Block[]): boolean
   resolveConflictWithServerBlocks(blocks: Block[]): void
-  linkPreviewSource: ((t: LinkTarget) => Promise<{title?: string; excerpt?: string; href?: string} | null>) | null
-  wikilinkSource: ((query: string) => Promise<{title: string; id: string; type: string}[]>) | null
+  linkPreviewSource: ((t: LinkTarget) => Promise<{title?: string; excerpt?: string; href?: string; subtitle?: string; badge?: string} | null>) | null
+  wikilinkSource: ((query: string) => Promise<{title: string; id: string; type: string; doc?: Doc}[]>) | null
   mediaUploader: ((file: File) => Promise<{src?: string; url?: string; alt?: string}>) | null
   /** J11: the studio's own image dialog for the canvas's Image insert and an image's Select (Barkpark contract 1.4). */
   mediaPicker?: ((request: {kind: 'insert' | 'replace'; current: {src: string; alt: string | null} | null}) => Promise<{src: string; alt?: string} | null>) | null
@@ -416,13 +416,16 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
               doc ? openDocRef.current?.(docId, doc._type) : toast({tone: 'critical', title: t('This link points to a document that does not exist'), description: docId}),
             )
         })
-        // The hover card: a wikilink shows its doc's title and excerpt.
+        // The hover card: a wikilink shows its doc as Sanity's preview does: the title, its
+        // subtitle in place of the [[target]] markup, and the type (canvas 1.9's `subtitle`,
+        // `badge`; an older canvas shows the title and the excerpt).
         el.linkPreviewSource = async ({kind, docId}) => {
           if (kind !== 'wikilink' || !docId) return null
           const doc = await qc.fetchQuery(anyDocQuery(docId))
           if (!doc) return {title: t('Document not found'), excerpt: docId}
           const schema = schemaOf(qc.getQueryData<Schema[]>(['schemas']) ?? [], doc._type)
-          return {title: previewTitle(doc, schema, t), excerpt: doc.preview?.description ?? schema?.title}
+          const subtitle = doc.preview?.description
+          return {title: previewTitle(doc, schema, t), excerpt: subtitle ?? schema?.title, subtitle: subtitle ?? '', badge: schema?.title ?? doc._type}
         }
         // D07: a dropped or pasted picture uploads to Barkpark's media; the block stores the
         // file's Barkpark path. The canvas shows "uploading" and any failure on the block.
@@ -445,7 +448,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // The `[[` menu: documents of any type.
         el.wikilinkSource = async (query) => {
           const schemas = qc.getQueryData<Schema[]>(['schemas']) ?? []
-          return (await searchAllDocs(query)).map((d) => ({title: previewTitle(d, schemaOf(schemas, d._type), t), id: d._publishedId, type: d._type}))
+          return (await searchAllDocs(query)).map((d) => ({title: previewTitle(d, schemaOf(schemas, d._type), t), id: d._publishedId, type: d._type, doc: d}))
         }
         // The canvas's ProseMirror area carries no name of its own (axe aria-input-field-name).
         el.addEventListener(
