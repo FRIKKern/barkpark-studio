@@ -66,6 +66,11 @@
   --menu-danger: #8b2018; /* Sanity's critical menu item: text and icon (measured, light) */
   --menu-danger-icon: #a85852;
   --menu-fg: #383d51;
+  --menu-active-fg: #242736; /* Sanity's command row under the keys: its text (measured) */
+  --input-fg: #0d0e12; /* Sanity's text typed in a command menu's find box (measured) */
+  --find-rule: rgba(148, 153, 173, 0.25); /* the rule under that box */
+  /* Sanity's pinned search filters (Edited at, Created at, Contains): text, icon, and the active row (measured). */
+  --pinned-fg: #2927aa; --pinned-icon: #5f5dbf; --pinned-active-bg: #f5f8ff; --pinned-active-fg: #192357; --pinned-active-icon: #5b6389;
   --info-bg: #eef3ff;
   --info-fg: #2550c7;
   --scheduled-bg: #f1ebff; /* J40: Sanity's scheduled-publish chip and banner, measured on reference/sanity */
@@ -211,6 +216,10 @@
   --menu-danger: #fdafa8;
   --menu-danger-icon: #c38885;
   --menu-fg: #bdbfcb; /* Sanity's dark menu text, a shade under the header's */
+  --menu-active-fg: #e5e6eb;
+  --input-fg: #e4e5e9;
+  --find-rule: rgba(81, 88, 112, 0.25);
+  --pinned-fg: #aac1ff; --pinned-icon: #8496c6; --pinned-active-bg: #1c2048; --pinned-active-fg: #dde7ff; --pinned-active-icon: #8293c8;
   --info-bg: #1d2540;
   --info-fg: #9db6ff;
   --scheduled-bg: #2c2245;
@@ -649,7 +658,7 @@ a.menu-item { display: block; text-decoration: none; }
 /* Sanity's three header rows are 41 px each under a 1 px rule. */
 .search-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 42px; padding: 7px 8px; border-bottom: 1px solid var(--border); }
 .search-order { display: flex; align-items: center; min-height: 42px; padding: 7px 8px; border-bottom: 1px solid var(--border); }
-.search-dialog .menu-wrap { position: relative; }
+.search-dialog .menu-wrap { position: relative; display: flex; }
 .chip-btn { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 4px 0 8px; border: 0; border-radius: 3px; background: var(--hover); font: inherit; font-size: 13px; color: var(--fg); cursor: pointer; white-space: nowrap; }
 .chip-btn:hover, .chip-btn[aria-expanded='true'] { background: var(--hover-strong); }
 .chip-btn:focus-visible { outline: 1px solid var(--selected); outline-offset: 0; }
@@ -670,27 +679,38 @@ a.menu-item { display: block; text-decoration: none; }
 .filter-chip-label .op { color: var(--muted); }
 .filter-chip .icon-btn { width: 25px; height: 25px; color: inherit; }
 .filter-chip .icon-btn svg { width: 19px; height: 19px; }
-.search-dialog .popover { top: calc(100% + 4px); left: 0; right: auto; z-index: 20; }
+.search-dialog .popover { top: calc(100% + 9px); left: 0; right: auto; z-index: 20; }
 .popover.command { width: 250px; padding: 0; display: flex; flex-direction: column; max-height: 500px; }
 .popover.command.filter-menu { width: 300px; }
-.command-find { display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
-.command-find svg { width: 19px; height: 19px; flex-shrink: 0; }
-.command-find input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: inherit; font-size: 13px; color: var(--fg); height: 32px; }
+/* Sanity's command menus, measured at 1440 (search's All types and Add filter, the navbar +): the find box
+   42 px under a soft rule, its icon 21 px 10 px in; rows 33 px, 4 px apart, menu text, grey under the keys. */
+.command-find { display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border-bottom: 1px solid var(--find-rule); color: var(--muted); }
+.command-find svg { width: 21px; height: 21px; flex-shrink: 0; }
+.command-find input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: inherit; font-size: 13px; font-weight: 400; color: var(--input-fg); height: 33px; }
+.command-find input::placeholder { color: var(--placeholder); }
 .command-find .icon-btn { width: 25px; height: 25px; }
+.command-list, .command-list > [role=listbox] { display: flex; flex-direction: column; gap: 4px; }
 .command-list { overflow: auto; padding: 4px; }
-.command-header { margin: 8px 0 0; padding: 8px 8px 6px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--border); }
-.command-item { display: flex; align-items: center; gap: 6px; min-height: 37px; padding: 0 12px; border-radius: 3px; font-size: 13px; color: var(--fg); cursor: default; }
-.command-item[aria-selected='true'] { background: var(--info-bg); }
+/* All fields: 34 px, 8 px under the row above, the next row flush under its rule. */
+.command-header { flex-shrink: 0; margin: 4px 0 -4px; padding: 7px 8px; font-size: 13px; line-height: 19px; color: var(--muted); border-bottom: 1px solid var(--hairline); }
+.command-item { display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-height: 33px; padding: 0 12px; border-radius: 3px; font-size: 13px; color: var(--menu-fg); cursor: default; }
+.command-item[aria-selected='true'] { background: var(--icon-btn-hover); color: var(--menu-active-fg); }
 .command-item[aria-checked='true'] { color: var(--selected); }
 .command-item > svg { width: 19px; height: 19px; }
 .command-empty { margin: 0; padding: 12px; font-size: 13px; color: var(--muted); }
 .command-footer { display: flex; justify-content: center; border-top: 1px solid var(--border); padding: 4px; }
-.field-choice { display: flex; align-items: center; gap: 8px; }
-.field-choice.builtin { color: var(--selected); }
+.field-choice { display: flex; align-items: center; gap: 6px; margin-left: -6px; }
+.field-choice.builtin { color: var(--pinned-fg); }
+.command-item[aria-selected='true']:has(> .field-choice.builtin) { background: var(--pinned-active-bg); }
+.command-item[aria-selected='true'] > .field-choice.builtin { color: var(--pinned-active-fg); }
 .field-choice small, .filter-editor-field small { display: block; font-size: 10px; color: var(--muted); }
 .field-icon { display: inline-flex; width: 17px; justify-content: center; color: var(--muted); }
-.field-choice.builtin .field-icon { color: inherit; }
 .field-icon svg { width: 17px; height: 17px; }
+.command-item .field-icon { width: 21px; color: var(--icon-muted); }
+.command-item .field-icon svg { width: 21px; height: 21px; }
+.command-item[aria-selected='true'] .field-icon { color: var(--icon-btn-hover-fg); }
+.field-choice.builtin .field-icon { color: var(--pinned-icon); }
+.command-item[aria-selected='true'] .field-choice.builtin .field-icon { color: var(--pinned-active-icon); }
 .field-icon .glyph { font-size: 9px; text-decoration: underline; }
 .popover.filter-editor { min-width: 196px; padding: 0; }
 .filter-editor-head { padding: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
@@ -2197,14 +2217,9 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 @media (max-width: 480px) { .scope-popover { position: fixed; top: 52px; left: 8px; right: 8px; width: auto; } }
 /* J37: the navbar "+" (Create new document), Sanity's type picker under it. */
 .menu-wrap.new-doc { position: relative; display: inline-flex; }
-/* Sanity's, measured at 1440: centred under the "+", the search icon 21 px at 10 and its
-   text at 37, rows 33 px tall 4 px apart. */
+/* Sanity's, measured at 1440: centred under the "+" (its find box and rows are the command menu's). */
 .popover.new-doc-popover { top: calc(100% + 4px); left: 50%; translate: -50%; width: 320px; max-width: calc(100vw - 32px); padding: 0; display: flex; flex-direction: column; max-height: 420px; font-weight: 400; z-index: 60; }
-.new-doc-popover .command-find { padding-left: 10px; }
-.new-doc-popover .command-find svg { width: 21px; height: 21px; }
-.new-doc-popover .command-find input { height: 33px; }
-.new-doc-popover .command-list { display: flex; flex-direction: column; gap: 4px; }
-.new-doc-popover .command-item { min-height: 33px; }
+.new-doc-popover .command-item { color: var(--fg); } /* Sanity's type picker rows keep the body text */
 .new-doc-popover .command-item[aria-selected='true'] { background: var(--bg-soft); } /* Sanity's row under the pointer: #f6f6f8, dark #191a24 */
 @media (max-width: 599px) {
   .popover.new-doc-popover { position: fixed; top: calc(var(--nav-h) + 4px); left: 16px; right: 16px; width: auto; translate: none; }
