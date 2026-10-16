@@ -1,6 +1,6 @@
 import {Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, DocLinkIcon, Ellipsis, ImageIcon, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
+import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, DocLinkIcon, Ellipsis, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
 import {useT} from '../lib/i18n'
 import {loadCanvas} from '../lib/canvas-bundle'
 import {linkHref} from '../lib/link-href'
@@ -201,7 +201,8 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
     )}
   }
   const insertTools = [
-    ...inserts.map(({name, title}) => insertTool(name, title, 'block', name === 'image' ? <ImageIcon /> : <BlockIcon />)),
+    // Sanity draws every block insert, an image too, with its block icon.
+    ...inserts.map(({name, title}) => insertTool(name, title, 'block', <BlockIcon />)),
     ...inlines.map(({name, title}) => insertTool(name, title, 'inline', <InlineIcon />)),
   ]
 
@@ -210,31 +211,26 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   const toolKeys = [...actions, ...insertTools].map((x) => x.key).join()
   // Everything shown again when the tools change, to measure them.
   useLayoutEffect(() => setFolded([0, 0]), [toolKeys])
-  const SEP = 8 // a separator: 1 px, its 6 px margin and the 1 px gap after it
+  // Sanity's spacing: 4 px between tools, a separator 1 px and the gap after it.
+  const GAP = 4
+  const SEP = 1 + GAP
   useLayoutEffect(() => {
     const el = bar.current
     if (!el) return
     const fit = () => {
-      for (const tool of el.querySelectorAll<HTMLElement>('[data-tool]')) widths.current.set(tool.dataset.tool!, tool.offsetWidth + 1)
+      for (const tool of el.querySelectorAll<HTMLElement>('[data-tool]')) widths.current.set(tool.dataset.tool!, tool.offsetWidth + GAP)
       const width = (tools: Tool[]) => tools.reduce((sum, x) => sum + (widths.current.get(x.key) ?? 25) + (x.sep ? SEP : 0), 0)
-      // Each part counts its width and the 1 px gap after it. Fixed: the style menu and the groups' separators.
-      const style = el.querySelector<HTMLElement>('.body-style-wrap')
-      let fixed = style ? style.offsetWidth + 1 : 0
-      if (actions.length && styles.length) fixed += SEP
-      if (insertTools.length) fixed += SEP
-      const more = 26
-      // The last tool has no gap after it: that 1 px is kept for rounding.
-      const room = el.clientWidth - fixed
-      const shown = [actions.length, insertTools.length]
-      const need = () => width(actions.slice(0, shown[0])) + width(insertTools.slice(0, shown[1])) + (shown[0] < actions.length ? more : 0) + (shown[1] < insertTools.length ? more : 0)
-      // Fold one at a time from the end of the wider group, as Sanity's two menus share the room.
-      while (need() > room && shown[0] + shown[1] > 0) {
-        const a = width(actions.slice(0, shown[0]))
-        const b = width(insertTools.slice(0, shown[1]))
-        if ((a >= b && shown[0] > 0) || shown[1] === 0) shown[0]--
-        else shown[1]--
+      // Sanity's two menus each take half the room after the style menu: each folds what doesn't fit
+      // in its own half into its Show more, which sits at the half's end.
+      const more = 25
+      const fold = (tools: Tool[], group: number) => {
+        const room = el.querySelector<HTMLElement>(`.body-tool-group[data-group="${group}"]`)?.clientWidth ?? 0
+        let shown = tools.length
+        // Each tool counts its width and the gap after it; the last one has no gap after.
+        while (shown > 0 && width(tools.slice(0, shown)) - GAP + (shown < tools.length ? GAP + more : 0) > room) shown--
+        return tools.length - shown
       }
-      const next: [number, number] = [actions.length - shown[0], insertTools.length - shown[1]]
+      const next: [number, number] = [fold(actions, 0), fold(insertTools, 1)]
       setFolded((f) => (f[0] === next[0] && f[1] === next[1] ? f : next))
     }
     fit()
@@ -247,7 +243,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
     const shown = tools.slice(0, tools.length - fold)
     const rest = tools.slice(tools.length - fold)
     return (
-      <>
+      <div className="body-tool-group" data-group={which}>
         {shown.map((tool) => (
           <Fragment key={tool.key}>
             {tool.sep && <span className="body-toolbar-sep" />}
@@ -273,7 +269,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
             {which === 0 && rest.some((x) => x.key === 'wikilink') && docPopover}
           </div>
         )}
-      </>
+      </div>
     )
   }
 
@@ -300,10 +296,10 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
           )}
         </div>
       )}
-      {actions.length > 0 && styles.length > 0 && <span className="body-toolbar-sep" />}
-      {group(actions, folded[0], 0)}
-      {insertTools.length > 0 && <span className="body-toolbar-sep" />}
-      {group(insertTools, folded[1], 1)}
+      {actions.length > 0 && styles.length > 0 && <span className="body-toolbar-sep body-group-sep" />}
+      {actions.length > 0 && group(actions, folded[0], 0)}
+      {insertTools.length > 0 && <span className="body-toolbar-sep body-group-sep" />}
+      {insertTools.length > 0 && group(insertTools, folded[1], 1)}
       </fieldset>
     </div>
   )
