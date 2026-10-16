@@ -127,7 +127,10 @@
   --critical-icon: #ef3d2f;
   --caution-icon: #cf8212;
   --primary-icon: #4d64fc;
-  --primary-btn-icon: #bfcbfe; /* the icon on Sanity's primary button (Vision's Fetch), measured */
+  --primary-btn-icon: #bfcbfe; /* the icon on Sanity's primary button (Vision's Fetch), measured; a menu item's under the pointer */
+  --menu-hover-fg: #fff; /* Sanity's menu item under the pointer or focus: our --selected fill (AA, F13), its text */
+  --menu-danger-hover: #d63a2c; /* a critical item's: Sanity's #ef4434 darkened to AA (4.7:1) */
+  --menu-danger-hover-icon: #fabab3;
   --btn-secondary-icon: #838693; /* the icon on its secondary button (Listen) */
   --tab-strong-fg: #232635; /* Vision's selected saved-queries tab */
   --danger-btn-bg: #d83d35;
@@ -279,6 +282,9 @@
   --caution-icon: #da951b;
   --primary-icon: #6076fd;
   --primary-btn-icon: #303c7a;
+  --menu-hover-fg: #0d0e12;
+  --menu-danger-hover: #f77a6f;
+  --menu-danger-hover-icon: #6c312f;
   --btn-secondary-icon: #7c7e89;
   --tab-strong-fg: #e6e7ec;
   --danger-btn-bg: #f87c6f;
@@ -631,6 +637,13 @@ textarea.input { resize: vertical; }
 .popover.menu .menu-label { font-size: 9.5px; line-height: 11px; letter-spacing: .5px; color: var(--fg); padding: 10px 12px 6px; }
 .menu-item { font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; text-align: left; padding: 7px 12px; border: 0; background: none; border-radius: 3px; cursor: pointer; color: var(--menu-fg); }
 .menu-item:hover, .menu-item:focus { background: var(--hover); outline: none; }
+/* Sanity's menus fill the item under the pointer or focus in its tone: blue, red for a critical one (measured at 1440). */
+/* One lit item: the pointer's while it is in the menu, else the focused one. */
+:is([role=menu] .menu-item:hover, [role=menu]:not(:hover) .menu-item:focus):not(:disabled, [aria-disabled='true']) { background: var(--selected); color: var(--menu-hover-fg); }
+:is([role=menu] .menu-item:hover, [role=menu]:not(:hover) .menu-item:focus):not(:disabled, [aria-disabled='true']) svg { color: var(--primary-btn-icon); }
+:is([role=menu] .menu-item.danger:hover, [role=menu]:not(:hover) .menu-item.danger:focus):not(:disabled, [aria-disabled='true']) { background: var(--menu-danger-hover); }
+:is([role=menu] .menu-item.danger:hover, [role=menu]:not(:hover) .menu-item.danger:focus):not(:disabled, [aria-disabled='true']) svg { color: var(--menu-danger-hover-icon); }
+[role=menu]:hover .menu-item:focus:not(:hover) { background: none; }
 .menu-item.danger { color: var(--menu-danger); }
 a.menu-item { display: block; text-decoration: none; }
 .menu-item[aria-disabled] { opacity: 0.5; cursor: default; }
