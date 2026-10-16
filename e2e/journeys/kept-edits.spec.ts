@@ -1,7 +1,7 @@
 import {expect, test, type BrowserContext, type Page} from '@playwright/test'
 import {readFileSync} from 'node:fs'
 import type {Route} from '@playwright/test'
-import {bpMutate, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {bpMutate, signInIfAsked, target, type Target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // B11 widen (task-89fecb4915b2f30d): form edits Barkpark never acknowledged survive the
 // tab dying. Saves are cut off (every mutate fails as a network error; a crash sends no
@@ -43,6 +43,7 @@ test('body words typed offline are saved once back, with a field typed meanwhile
     await expect(page.locator('.pd-status')).toHaveText(/^Offline/)
     await t.field(page, 'title').click()
     await context.setOffline(false)
+    await savesLanded(page)
     await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 15_000}).toContain(' kept words')
     await expect(para).toContainText(' kept words')
     await expect.poll(() => t.docValue(ID, 'title'), {timeout: 15_000}).toBe(`${TITLE} off`)
@@ -75,6 +76,7 @@ test('a body batch answered 404 by a publish race goes again', async ({page}, in
     await para.click()
     await page.keyboard.press('End')
     await page.keyboard.type(' raced words')
+    await savesLanded(page)
     await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 10_000}).toContain(' raced words')
     expect(raced, 'the first batch was answered 404').toBe(true)
     await expect(page.locator('.pd-conflict')).toHaveCount(0)
@@ -118,6 +120,7 @@ test('kept form edits over a newer save are offered: Restore merges', async ({co
   await page.screenshot({path: 'evidence/B11-kept-edits-offer.png'})
   await card.getByRole('button', {name: 'Restore'}).click()
   await expect(card).toBeHidden()
+  await savesLanded(page)
   await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`Theirs. ${EXCERPT} mine`)
 })
 
@@ -290,9 +293,12 @@ test('a re-read while typing is unsent keeps the typing', async ({page}, info) =
   const title = t.field(page, 'title')
   let release!: () => void
   const held = new Promise<void>((r) => (release = r))
+  let sent!: () => void
+  const inFlight = new Promise<void>((r) => (sent = r))
   // The first save is held in flight; what is typed after it waits unsent.
   await page.route('**/_serverFn/**', async (route) => {
     if (!(route.request().postData() ?? '').includes('mutations')) return route.continue()
+    sent()
     await held
     await route.continue()
   })
@@ -300,7 +306,7 @@ test('a re-read while typing is unsent keeps the typing', async ({page}, info) =
     await title.click()
     await title.press('End')
     await page.keyboard.type(' xy')
-    await page.waitForTimeout(1000)
+    await inFlight // the save of ' xy' is on its way (held): 'z' waits unsent behind it
     await page.keyboard.type('z')
     await page.evaluate(() => (window as unknown as {__readAll: () => void}).__readAll())
     await expect(title).toHaveValue('Fixture post 05 xyz')
@@ -310,6 +316,7 @@ test('a re-read while typing is unsent keeps the typing', async ({page}, info) =
     await expect(title).toHaveValue('Fixture post 05 xyzQ')
     release()
     await page.unrouteAll({behavior: 'wait'})
+    await savesLanded(page)
     await expect.poll(() => t.docValue('post-05', 'title'), {timeout: 10_000}).toBe('Fixture post 05 xyzQ')
   } finally {
     release()

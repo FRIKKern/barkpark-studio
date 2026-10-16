@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {bpMutate, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {bpMutate, signInIfAsked, target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // The form's twin of collab.spec's D11 (#373): a save Barkpark refuses (403, 500, or a
 // 409 that keeps coming) while someone else's write arrives on the live stream. The
@@ -201,12 +201,14 @@ test('a clash shows both versions on the field: Take theirs, then Keep mine', as
   await expect(card).toHaveCount(0)
   await expect(excerpt).toHaveValue('Completely rewritten elsewhere.')
   await expect(footer).not.toContainText('Not saved')
-  await page.waitForTimeout(1500)
+  // Nothing of mine is on its way (a send would be pending until it landed): theirs stands.
+  await savesLanded(page)
   expect((await bpDoc(ID))?.excerpt).toBe('Completely rewritten elsewhere.')
   // Keep mine: mine is saved over theirs.
   const mine = await clashOn('Another rewrite, again.')
   await card.getByRole('button', {name: 'Keep mine'}).click()
   await expect(card).toHaveCount(0)
+  await savesLanded(page)
   await expect.poll(async () => (await bpDoc(ID))?.excerpt, {timeout: 15_000}).toBe(mine)
   await expect(footer).not.toContainText('Not saved')
 })

@@ -101,6 +101,17 @@ export async function closeAndSettle(page: Page) {
 }
 
 /**
+ * Ours: until no save of this page is on its way (lib/edits.ts), checked every 50 ms, so
+ * the Barkpark read that follows finds the value at its first try instead of waiting out
+ * expect.poll's backoff (up to 1 s past the moment it landed; Barkpark reads stay slow, the
+ * rig's read bucket is 300/min). It asserts nothing: the read after it does. No wait on
+ * Sanity's page, or if the page never settles (the read's own timeout says so).
+ */
+export async function savesLanded(page: Page, timeout = 15_000) {
+  await page.waitForFunction(() => !(window as unknown as {__savesPending?: () => boolean}).__savesPending?.(), null, {timeout, polling: 50}).catch(() => {})
+}
+
+/**
  * Before keys that move the selection in a canvas that just took focus. ProseMirror's
  * focus handler puts its own selection back on the page 20 ms after focus when the page's
  * differs from the one it last read (prosemirror-view, `handlers.focus`). An End or
