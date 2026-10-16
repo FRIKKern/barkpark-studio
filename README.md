@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 193 changes, 4 tasks closed
+- **Today** · 194 changes, 4 tasks closed
+  - e2e: page-only polls check every 50 ms (70 polls in 34 specs) ([#831](https://github.com/FRIKKern/barkpark-studio/pull/831))
   - Narrow desktop navbar and drawer as Sanity's: Tasks in the drawer, Help in the bar, 33 px rows ([#841](https://github.com/FRIKKern/barkpark-studio/pull/841))
-  - A collapsed pane strip keeps no hover fill or hand, as Sanity's ([#839](https://github.com/FRIKKern/barkpark-studio/pull/839))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
