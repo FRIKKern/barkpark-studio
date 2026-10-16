@@ -99,14 +99,17 @@ export const HelpCircle = () => (
     <path d="M10.5 10.5a2 2 0 1 1 2.75 1.85c-.5.2-.75.6-.75 1.15v.5M12.5 15.5v1" />
   </svg>
 )
+/** Sanity's SplitVerticalIcon (Split pane right). */
 export const SplitVertical = () => (
-  <svg {...s}>
-    <path d="M5.5 6.5h14v12h-14zM12.5 6.5v12M15 11h2.5M16.25 9.75v2.5" />
+  <svg {...s} strokeLinejoin="round">
+    <path d="M10.5 5.5V19.5M13 12.5H15.5M18 12.5H15.5M15.5 12.5V15M15.5 12.5V10M4.5 5.5H20.5V19.5H4.5V5.5Z" />
   </svg>
 )
+/** Sanity's ShareIcon. */
 export const Share = () => (
-  <svg {...s}>
-    <path d="M12.5 15.5v-11M8.5 8.5l4-4 4 4M6.5 12.5v7h12v-7" />
+  <svg {...s} strokeLinejoin="round">
+    <path d="M15 10.5H18.5V19.5H6.5L6.5 10.5H10M12.5 16V3.5" />
+    <path d="M9 7L12.5 3.5L16 7" />
   </svg>
 )
 export const DragHandle = () => (
@@ -174,14 +177,18 @@ export const UserCircle = () => (
     <path d="M7.5 18.5c1.2-2 2.9-3 5-3s3.8 1 5 3" />
   </svg>
 )
+/** Sanity's ExpandIcon (focus mode). */
 export const Expand = () => (
-  <svg {...s}>
-    <path d="M14.5 5.5h5v5M19.5 5.5l-6 6M10.5 19.5h-5v-5M5.5 19.5l6-6" />
+  <svg {...s} strokeLinejoin="round">
+    <path d="M14 6.5H18.5V11M11 18.5H6.5V14" />
+    <path d="M18.5 6.5L14 11M6.5 18.5L11 14" />
   </svg>
 )
+/** Sanity's CollapseIcon (leave focus mode). */
 export const Collapse = () => (
-  <svg {...s}>
-    <path d="M13.5 6.5v5h5M13.5 11.5l6-6M11.5 18.5v-5h-5M11.5 13.5l-6 6" />
+  <svg {...s} strokeLinejoin="round">
+    <path d="M6 14.5L10.5 14.5V19M19 10.5H14.5L14.5 6" />
+    <path d="M10.5 14.5L6 19M14.5 10.5L19 6" />
   </svg>
 )
 export const Sync = () => (
@@ -299,9 +306,10 @@ export const BugIcon = () => (
     <path d="M12.5 12v6.5M6 13.5h2.5M16.5 13.5H19M7 9l1.8 1.8M18 9l-1.8 1.8M7 18.5l1.9-1.4M18 18.5l-1.9-1.4" />
   </svg>
 )
+/** Sanity's CommentIcon. */
 export const CommentIcon = () => (
-  <svg {...s}>
-    <path d="M6.5 7.5h12v8h-7l-3 3v-3h-2z" strokeLinejoin="round" />
+  <svg {...s} strokeLinejoin="round">
+    <path d="M7.5 16.5H9.5V20.5L13.5 16.5H17.5C18.6046 16.5 19.5 15.6046 19.5 14.5V8.5C19.5 7.39543 18.6046 6.5 17.5 6.5H7.5C6.39543 6.5 5.5 7.39543 5.5 8.5V14.5C5.5 15.6046 6.39543 16.5 7.5 16.5Z" />
   </svg>
 )
 /** Sanity's AddCommentIcon: a speech bubble with a plus. */
@@ -344,9 +352,8 @@ export const ClipboardIcon = () => (
 )
 /** Sanity's CheckmarkCircleIcon (the validation button when only infos are left). */
 export const CheckmarkCircle = () => (
-  <svg {...s}>
-    <circle cx="12.5" cy="12.5" r="7" />
-    <path d="M9.5 12.5l2 2 4-4" />
+  <svg {...s} strokeLinejoin="round">
+    <path d="M9.5 12.1316L11.7414 14.5L16 10M20.5 12.5C20.5 16.9183 16.9183 20.5 12.5 20.5C8.08172 20.5 4.5 16.9183 4.5 12.5C4.5 8.08172 8.08172 4.5 12.5 4.5C16.9183 4.5 20.5 8.08172 20.5 12.5Z" />
   </svg>
 )
 /** Sanity's ReadOnlyIcon (the permission banner, J49). */
