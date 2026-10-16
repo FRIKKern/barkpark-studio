@@ -885,6 +885,16 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .list-rows.detailed .preview { min-height: 73px; padding-block: 0; gap: 12px; contain-intrinsic-size: auto 73px; }
 .list-rows.detailed .preview .media { width: 73px; height: 73px; }
 .pane.list .pane-header .popover.menu { top: calc(100% + 4px); font-weight: 400; }
+/* The list's "…" menu, as Sanity's at 1440 (post list): it hangs 8 px past its button's right
+   edge, its items are medium weight with 21 px icons 6 px in and the words 6 px after, and
+   "Default sort / view" when already in use are pale (#e3e4e8) with a tooltip saying why. */
+.pane.list .pane-header .popover.menu { right: -8px; }
+/* Its button stays pressed while the menu is open, as Sanity's. */
+.pane.list .pane-header .menu-wrap > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); }
+.pane.list .pane-header .popover.menu .menu-item { font-weight: 500; }
+.pane.list .pane-header .popover.menu .menu-item-label { gap: 6px; }
+.pane.list .pane-header .popover.menu .menu-item-label svg { width: 21px; height: 21px; margin: -4px 0 -4px -6px; }
+.pane.list .pane-header .popover.menu .menu-item[aria-disabled='true'] { opacity: 1; background: none; cursor: default; color: color-mix(in srgb, var(--fg-header) 14%, var(--bg)); }
 @media (max-width: 768px) { .pane.list .pane-header .menu-item { min-height: 44px; } }
 .search .search-clear { position: absolute; right: 2px; top: 0; }
 .sorted-by { margin: 0 20px 4px; font-size: 12px; color: var(--muted); }

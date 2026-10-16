@@ -17,11 +17,13 @@ type Options = {
   trap?: boolean
   /** A menu: arrow keys move between its items; Tab closes it via `onDismiss`. */
   menu?: boolean
+  /** A menu that takes focus itself on open, as Sanity's list menu: no item lit by a click, the first arrow picks one. */
+  focusMenu?: boolean
   /** Close it (menus on Tab; anything on Escape when given). */
   onDismiss?: () => void
 }
 
-export function useFocusScope<T extends HTMLElement>({trap = false, menu = false, onDismiss}: Options = {}) {
+export function useFocusScope<T extends HTMLElement>({trap = false, menu = false, focusMenu = false, onDismiss}: Options = {}) {
   // Whoever had focus when this opened (the opener). Read during the first
   // render, before an autoFocus inside moves focus.
   const [opener] = useState(() => (typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)))
@@ -41,13 +43,14 @@ export function useFocusScope<T extends HTMLElement>({trap = false, menu = false
         return
       }
       if (menu && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
-        const items = [...root.querySelectorAll<HTMLElement>('[role^=menuitem]:not([disabled])')]
+        const items = [...root.querySelectorAll<HTMLElement>('[role^=menuitem]:not([disabled], [aria-disabled=true])')]
         if (!items.length) return
         // Handled here: an outer handler (a menu-wrap's own arrow keys) must not move focus again.
         e.preventDefault()
         e.stopPropagation()
         const i = items.indexOf(document.activeElement as HTMLElement)
-        const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
+        // From the menu itself (nothing picked yet), Up goes to the last item, as Sanity's.
+        const next = e.key === 'Home' ? 0 : e.key === 'End' || (i < 0 && e.key === 'ArrowUp') ? items.length - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
         items[next]!.focus()
         return
       }
@@ -74,7 +77,7 @@ export function useFocusScope<T extends HTMLElement>({trap = false, menu = false
     const root = node.current
     // Nothing to focus yet (a control still loading, disabled): the dialog itself, so a
     // screen reader says where it is (J47).
-    if (root && !root.contains(document.activeElement)) ((menu ? root.querySelector<HTMLElement>('[role^=menuitem]:not([disabled])') : focusables(root)[0]) ?? ((root.tabIndex = -1), root)).focus()
+    if (root && !root.contains(document.activeElement)) ((menu && !focusMenu ? root.querySelector<HTMLElement>('[role^=menuitem]:not([disabled])') : menu ? null : focusables(root)[0]) ?? ((root.tabIndex = -1), root)).focus()
     return () => {
       const active = document.activeElement
       const lost = !active || active === document.body || (root && root.contains(active)) || !active.isConnected
@@ -82,7 +85,7 @@ export function useFocusScope<T extends HTMLElement>({trap = false, menu = false
       const target = opener?.isConnected ? opener : openerScope && openers.get(openerScope)
       if (target?.isConnected) target.focus()
     }
-  }, [menu, opener, openerScope])
+  }, [menu, focusMenu, opener, openerScope])
 
   return useCallback(
     (el: T | null) => {
