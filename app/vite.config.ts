@@ -23,6 +23,36 @@ const immutableAssets = (): Plugin => ({
   },
 })
 
+// task-5bc1c714ee502b84: a fresh server's first page paid the cold costs: its server chunks
+// evaluated on first use (the event loop blocked ~300 ms) and a new TLS connection to Barkpark
+// per parallel read (40-55 ms each). So the first editor after a deploy waited twice as long
+// as the next (0.24 s against 0.12 s locally, ~1 s on a CI runner). At boot the server renders
+// one page of each kind for itself and opens a few Barkpark connections (the first page reads
+// about four at once; barkpark.ts keeps them 60 s), and /health waits for that, so whoever
+// waits for /health (CI, a deploy's switch) starts on a warm server.
+const POOL = 6
+const warmAtBoot = (): Plugin => ({
+  name: 'warm-at-boot',
+  configurePreviewServer(server) {
+    let ready: Promise<unknown> | undefined
+    server.httpServer?.once('listening', () => {
+      const at = server.httpServer!.address()
+      const base = `http://localhost:${typeof at === 'object' && at ? at.port : 3000}`
+      // Each step gives up after 10 s: a Barkpark that is down must not hold /health forever.
+      const page = (p: string) => fetch(base + p, {redirect: 'manual', signal: AbortSignal.timeout(10_000)}).then((r) => r.arrayBuffer(), () => undefined)
+      ready = (async () => {
+        // Signed in or not, these load the structure, document and sign-in code (a page
+        // that needs a session answers with the sign-in screen's redirect, no data).
+        for (const p of ['/structure/post', '/structure/post;warm-up', '/login']) await page(p)
+        // The Barkpark connection pool, on the dispatcher barkpark.ts set while rendering.
+        const url = process.env.BARKPARK_URL
+        if (url) await Promise.all(Array.from({length: POOL}, () => fetch(`${url}/v1/version`, {signal: AbortSignal.timeout(10_000)}).then((r) => r.arrayBuffer(), () => undefined)))
+      })()
+    })
+    server.middlewares.use((req, _res, next) => (ready && req.url?.startsWith('/health') ? void ready.finally(() => next()) : next()))
+  },
+})
+
 // task-e290a2a48bef759a: Start's preview handler marks every HTML response `content-encoding:
 // identity`, which keeps Vite's compression middleware off it, so a document page's HTML
 // (markup plus the router's dehydrated data) went out as ~135 KB instead of ~22 KB gzipped:
@@ -104,6 +134,6 @@ export default defineConfig(({mode}) => {
     environments: {client: {build: {manifest: true}}},
     define: {__STUDIO_BUILD__: JSON.stringify(build), __STUDIO_CHANGES__: JSON.stringify(changes)},
     // Server-only modules (src/server) imported into client code fail the build, not mock silently.
-    plugins: [immutableAssets(), compressHtml(), preloadEditors(), tanstackStart({importProtection: {behavior: 'error', client: {files: ['**/src/server/**']}}}), viteReact()],
+    plugins: [warmAtBoot(), immutableAssets(), compressHtml(), preloadEditors(), tanstackStart({importProtection: {behavior: 'error', client: {files: ['**/src/server/**']}}}), viteReact()],
   }
 })
