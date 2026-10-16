@@ -10,7 +10,7 @@ import {focusFirstField} from '../lib/focus'
 import {useT} from '../lib/i18n'
 import {Add, ChevronDown, Close, Ellipsis, HelpCircle, LaunchIcon, SyncIcon, Trash} from './icons'
 import {DocPreview} from './Preview'
-import {DocIdContext} from './Fields'
+import {DocIdContext} from './doc-ids'
 import {valueAtRefPath} from './PaneBanners'
 
 // Survives collapsed parent panes. Only the latest creation for a field may set

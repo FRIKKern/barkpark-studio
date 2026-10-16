@@ -57,10 +57,8 @@ export const ChangesContext = createContext<{changed: Set<string>; review: () =>
 export const DocContext = createContext<Doc | null>(null)
 /** The object or array item the fields inside it belong to (a condition's `scope: "parent"`). */
 export const ParentContext = createContext<Record<string, unknown> | undefined>(undefined)
-/** The doc's id: steady while typing, for what only needs to know which doc. */
-export const DocIdContext = createContext<string | null>(null)
-/** The doc's type, steady too (a richText field's canvas saves to its own doc). */
-export const DocTypeContext = createContext<string | null>(null)
+import {DocIdContext, DocTypeContext} from './doc-ids'
+export {DocIdContext, DocTypeContext}
 /** J52: the field path the URL asks for (`path=`), so an array can open the item it sits in. */
 export const UrlPathContext = createContext<string | undefined>(undefined)
 /** The form is shut (the published version, a revision, a seat that may not write): its fieldset is disabled. */

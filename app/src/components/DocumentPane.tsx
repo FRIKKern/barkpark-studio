@@ -8,7 +8,7 @@ import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
-import {docQuery, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
+import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, flush, publish, reasonOf, recoverPending, restorePending, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
@@ -42,7 +42,7 @@ import {ActorAvatar, AvatarStack, PresenceHints, useDocPresence} from './Presenc
 import {toast} from './Toasts'
 import {useFocusRescue} from '../lib/focus-rescue'
 import {focusIntoForm} from '../lib/focus'
-import {intlTag, t as tt, translate, useLocale, useT, type Locale, type T} from '../lib/i18n'
+import {intlTag, t as tt, useLocale, useT, type Locale} from '../lib/i18n'
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
 import {cancelSchedule, pauseSchedule, resumeSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
 import {ScheduleDialog} from './ScheduleDialog'
@@ -991,20 +991,6 @@ function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: 
       </div>
     </div>
   )
-}
-
-/**
- * Sanity names a new untitled doc "New <Type>" in its own pane until it exists (its first
- * edit saves a draft); anything else untitled, a draft too, is "Untitled". `t`: the
- * render's translate (English when not given).
- */
-export const docTitle = (doc: Doc, schema: Schema, t: T = (en, vars) => translate('en', en, vars)) => {
-  const title = previewTitle(doc, schema)
-  if (title !== 'Untitled') return title
-  // A singleton without a title field is named by its type, as Sanity's fixed
-  // preview titles do ("Forside", "Nettstedsinnstillinger").
-  if (schema.singleton) return schema.title
-  return !doc._rev ? t('New {type}', {type: schema.title}) : t('Untitled')
 }
 
 /** A translated sentence with one `{id}` set as code. */

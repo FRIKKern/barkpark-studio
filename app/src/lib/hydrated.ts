@@ -9,11 +9,28 @@ import {useEffect} from 'react'
  */
 export function useHydratedMark() {
   useEffect(() => {
-    document.documentElement.dataset.hydrated = ''
-    releaseEarlyClicks()
-    return () => void delete document.documentElement.dataset.hydrated
+    let gone = false
+    const mark = () => {
+      if (gone) return
+      document.documentElement.dataset.hydrated = ''
+      releaseEarlyClicks()
+    }
+    if (markAfter) void markAfter.then(mark)
+    else mark()
+    return () => ((gone = true), void delete document.documentElement.dataset.hydrated)
   }, [])
 }
+
+let markAfter: Promise<unknown> | null = null
+/**
+ * A document page is interactive once its pane is live (components/DocPane.tsx), not when
+ * its route mounts: the pane's chunk can land later, and until React hydrates it the form is
+ * the server's inert HTML. At most MARK_WAIT_MS (a chunk that never comes), as before.
+ */
+export function holdMarkUntil(until: Promise<unknown>) {
+  markAfter = Promise.race([until, new Promise((r) => setTimeout(r, MARK_WAIT_MS))])
+}
+const MARK_WAIT_MS = 15_000
 
 /**
  * J51, inline in <head>: on a slow network the server-rendered page shows a while

@@ -91,8 +91,9 @@ const preloadEditors = (): Plugin => ({
         return out
       }
       const page = closure(Object.keys(manifest).filter((key) => manifest[key]!.isEntry || /routes\/(?:structure\/|presentation).*tsr-split/.test(key)))
-      const entry = 'src/components/doc-editors.ts'
-      files.push(...[...closure([entry])].filter((key) => key === entry || !page.has(key)).map((key) => manifest[key]!.file))
+      // The editors' chunk and the document pane's (task-a8874d0ebb2baa5c), with what they import.
+      const entries = ['src/components/doc-editors.ts', 'src/components/doc-pane.ts']
+      files.push(...[...closure(entries)].filter((key) => entries.includes(key) || !page.has(key)).map((key) => manifest[key]!.file))
     } catch {
       return // no manifest: nothing to name
     }
@@ -103,6 +104,32 @@ const preloadEditors = (): Plugin => ({
     })
   },
 })
+
+// task-2556adc3b100be57: the document pane is a chunk of its own (components/DocPane.tsx), and
+// the bundler cut what it shares with the desk into many small chunks: a document page asked
+// for 20 files where main asks for 15, each a round trip (vite preview speaks HTTP/1.1). Chunks
+// by route instead: what only a document page draws (the pane and what only it and the editors
+// use) is one chunk; what it shares with the rest of the studio (the entry, the routes) is another.
+const DOC_ROOTS = /src[\\/]components[\\/]doc-(?:pane|editors)\.ts$/
+type Info = {isEntry: boolean; importers: readonly string[]; dynamicImporters: readonly string[]}
+const rootsOf = (id: string, info: (id: string) => Info | null, seen = new Map<string, Set<string>>()): Set<string> => {
+  const known = seen.get(id)
+  if (known) return known
+  const out = new Set<string>()
+  seen.set(id, out)
+  const m = info(id)
+  if (!m) return out
+  if (m.isEntry || m.dynamicImporters.length || !m.importers.length) out.add(id)
+  else for (const by of m.importers) for (const r of rootsOf(by, info, seen)) out.add(r)
+  return out
+}
+const routeChunk = (id: string, ctx: {getModuleInfo: (id: string) => Info | null}) => {
+  const roots = [...rootsOf(id, (x) => ctx.getModuleInfo(x))]
+  if (!roots.length) return null
+  const doc = roots.filter((r) => DOC_ROOTS.test(r))
+  if (!doc.some((r) => /doc-pane\.ts$/.test(r))) return null
+  return doc.length === roots.length ? 'doc-pane' : 'desk-shared'
+}
 
 export default defineConfig(({mode}) => {
   // Server-only secrets from the repo-root .env. Not VITE_-prefixed, so they never reach the client bundle.
@@ -131,7 +158,7 @@ export default defineConfig(({mode}) => {
   })()
   return {
     server: {port: 3000},
-    environments: {client: {build: {manifest: true}}},
+    environments: {client: {build: {manifest: true, rolldownOptions: {output: {codeSplitting: {groups: [{name: routeChunk, includeDependenciesRecursively: false}]}}}}}},
     define: {__STUDIO_BUILD__: JSON.stringify(build), __STUDIO_CHANGES__: JSON.stringify(changes)},
     // Server-only modules (src/server) imported into client code fail the build, not mock silently.
     plugins: [warmAtBoot(), immutableAssets(), compressHtml(), preloadEditors(), tanstackStart({importProtection: {behavior: 'error', client: {files: ['**/src/server/**']}}}), viteReact()],

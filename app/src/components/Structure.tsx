@@ -2,7 +2,7 @@ import {Fragment, useContext, useId, type ReactNode, useEffect, useLayoutEffect,
 import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
-import {deskQuery, restQuery, docQuery, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {deskQuery, restQuery, docQuery, docTitle, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {deskIndex, deskSort, listFilter, rootDesk, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
 import {announce} from '../lib/announce'
@@ -16,7 +16,7 @@ import {toast} from './Toasts'
 import {useCanWrite} from '../lib/session'
 import {focusFirstField} from '../lib/focus'
 import {closeFrom, closeSplit, isSplit, openAfter, paneKey, panesPath, type Pane} from '../lib/panes'
-import {DocumentPane, docTitle} from './DocumentPane'
+import {DocumentPane, usePrefetchDocPane} from './DocPane'
 import {FocusModeContext, useFocusMode} from './FocusMode'
 import {DeskIcon} from './DeskIcon'
 import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search, Sort as SortIcon, Stack, StackCompact, WarningOutline} from './icons'
@@ -56,6 +56,7 @@ const MOUNT_STEP = 60
 export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}) {
   const [ref, width] = usePaneWidth(widthHint)
   usePrefetchDocEditors()
+  usePrefetchDocPane()
   useEffect(() => {
     addEventListener('pagehide', flushOnUnload)
     return () => removeEventListener('pagehide', flushOnUnload)
