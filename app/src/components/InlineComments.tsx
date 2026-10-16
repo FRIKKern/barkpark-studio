@@ -28,12 +28,12 @@ const DRAFT = '__draft'
 // Moved spans are saved once the edits around them settle.
 const SAVE_AFTER_MS = 1200
 
-/** Where the selection is on screen, or null when it is not in `el`. */
+/** Where the selection is on screen (its whole box: Sanity places the offer under its start), or null when it is not in `el`. */
 function selectionBox(el: HTMLElement) {
   const sel = getSelection()
   if (!sel?.rangeCount || sel.isCollapsed || !el.contains(sel.anchorNode)) return null
-  const rects = sel.getRangeAt(0).getClientRects()
-  return rects.length ? rects[rects.length - 1]! : null
+  const range = sel.getRangeAt(0)
+  return range.getClientRects().length ? range.getBoundingClientRect() : null
 }
 
 export function InlineComments({canvas, field, title}: {canvas: HTMLElement | null; field: string; title: string}) {
@@ -55,7 +55,8 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
   const apiRef = useRef(api)
   apiRef.current = api
 
-  const ranges: CommentRange[] = [...commentRangesOf(threads, field, api?.active, live.current), ...(draft ? [{id: DRAFT, ...draft.selection, active: true}] : [])]
+  // The span being written about is in the plain tone, as Sanity's (the picked tone is an open thread's).
+  const ranges: CommentRange[] = [...commentRangesOf(threads, field, api?.active, live.current), ...(draft ? [{id: DRAFT, ...draft.selection}] : [])]
   const rangesRef = useRef(ranges)
   rangesRef.current = ranges
   // Handed over when a thread comes or goes or another is picked, not on every save of
@@ -132,7 +133,8 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
           className="inline-comment-add"
           aria-disabled={offer.overlap || undefined}
           title={offer.overlap ? t('Comments cannot overlap') : undefined}
-          style={{top: offer.box.bottom + 6, left: Math.max(8, Math.min(offer.box.right - 16, innerWidth - 150))}}
+          // Sanity's: 8 px under the selection, 24 px left of its start.
+          style={{top: offer.box.bottom + 8, left: Math.max(8, Math.min(offer.box.left - 24, innerWidth - 128))}}
           // Keeps the selection: a press elsewhere would collapse it.
           onMouseDown={(e) => e.preventDefault()}
           onClick={start}
@@ -141,10 +143,11 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
         </button>
       )}
       {draft && (
-        <div className="popover comment-popover" style={{position: 'fixed', top: draft.box.bottom + 6, left: Math.max(8, Math.min(draft.box.right - 160, innerWidth - 328))}}>
+        // Sanity's: 250 px, 6 px under the selection, 49.5 px left of its start; "Create a new comment".
+        <div className="popover comment-popover inline" style={{position: 'fixed', top: draft.box.bottom + 6, left: Math.max(8, Math.min(draft.box.left - 49.5, innerWidth - 258))}}>
           <Composer
             label={t('Add comment to {field}', {field: title})}
-            placeholder={<>{t('Add comment to')} <strong>{title}</strong></>}
+            placeholder={t('Create a new comment')}
             autoFocus
             onSend={async (message) => {
               const id = newId()
