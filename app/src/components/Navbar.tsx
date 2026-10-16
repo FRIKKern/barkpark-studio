@@ -52,8 +52,9 @@ export function Navbar() {
       </div>
       <div className="nav-right">
         <PerspectivePicker />
-        <WhoIsOnline />
+        {/* Sanity's order: Tasks, presence, help, the user. */}
         <TasksButton />
+        <WhoIsOnline />
         <Help />
         <Editor />
       </div>
