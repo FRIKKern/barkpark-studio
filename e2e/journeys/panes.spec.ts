@@ -72,6 +72,13 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
     const {violations} = await new AxeBuilder({page}).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`), 'F13 axe').toEqual([])
   }
+
+  // A link in Sanity's own form opens the same in both: a followed doc without type=,
+  // and an inspector by Sanity's name (History, on its Review changes tab).
+  await page.goto('/structure/post;post-02;author-alan')
+  await expect(page).toHaveTitle(/^Alan Turing \| /)
+  await page.goto('/structure/post;post-02,since=@lastPublished,changesInspectorTab=review,inspect=sanity%2Fstructure%2Fhistory')
+  await expect(page.getByRole('tab', {name: 'Review changes'})).toHaveAttribute('aria-selected', 'true')
 })
 
 test('J21: endless pane chain — strips, URL round-trip, back/forward, close', async ({page}, info) => {
