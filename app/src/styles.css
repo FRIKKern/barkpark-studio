@@ -435,6 +435,9 @@ a { color: inherit; text-decoration: none; }
 }
 .panes[data-narrow] .doc-form { padding-left: 20px; padding-right: 20px; }
 .back-link { flex: none; margin-left: -8px; }
+/* In a document's title row (a narrow window): the title 16 px after the arrow, the row as tall as the title (Sanity's at 390). */
+.doc-title-bar .title-row:has(> .back-link) { gap: 16px; }
+.doc-title-bar .title-row > .back-link { margin-block: -3px; }
 .title-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .strip-title {
   writing-mode: vertical-rl; padding: 19px 16px; font-size: 13px; line-height: 19px;
@@ -577,7 +580,7 @@ a.preview:hover, [data-lit] > a.preview:not([data-selected], [aria-current='true
 /* Document form */
 .doc-title-bar { height: 50px; flex: none; display: flex; align-items: center; padding: 0 20px; font-size: 13px; line-height: 19px; font-weight: 600; color: var(--fg-header); }
 /* J26: the views row under the title (Sanity: Editor | JSON). */
-.doc-title-bar:has(.view-tabs) { height: 87px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 15px; padding: 0 12px 0 20px; }
+.doc-title-bar:has(.view-tabs) { height: 87px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 15px; padding: 2px 12px 0 20px; } /* 2 px down: the title at 118, the tabs at 155, as Sanity's */
 /* A long title stays one line with an ellipsis, as Sanity's title bar. */
 .doc-title-bar > .title-row { max-width: 100%; }
 .doc-title-bar .title-row > .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
