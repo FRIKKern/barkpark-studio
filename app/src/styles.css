@@ -717,6 +717,8 @@ a.menu-item { display: block; text-decoration: none; }
 .filter-chip .icon-btn { width: 25px; height: 25px; color: var(--chip-icon); }
 .filter-chip .icon-btn svg { width: 21px; height: 21px; }
 .search-dialog .popover { top: calc(100% + 9px); left: 0; right: auto; z-index: 20; }
+/* The order menu (Best match): Sanity's menu, 4 px under its button and as wide as its items. */
+.search-order .popover.menu { top: calc(100% + 4px); min-width: 0; }
 .popover.command { width: 250px; padding: 0; display: flex; flex-direction: column; max-height: 500px; }
 .popover.command.filter-menu { width: 300px; }
 /* Sanity's command menus, measured at 1440 (search's All types and Add filter, the navbar +): the find box
