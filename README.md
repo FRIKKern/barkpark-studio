@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 109 changes, 4 tasks closed
+- **Today** · 110 changes, 4 tasks closed
+  - List pane create menu as Sanity's: centred on the + inside the pane, as wide as its choices, each with its + icon ([#756](https://github.com/FRIKKern/barkpark-studio/pull/756))
   - Footer menu button filled while open, body inserts in Sanity's 500 and colours; J10 waits for the toolbar's refold ([#755](https://github.com/FRIKKern/barkpark-studio/pull/755))
-  - List pane menu icons and tick in Sanity's icon grey ([#754](https://github.com/FRIKKern/barkpark-studio/pull/754))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
