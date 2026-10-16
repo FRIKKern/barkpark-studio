@@ -28,11 +28,22 @@ async function readAllSchemas(): Promise<RawSchema[]> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') {
     const dir = resolve(process.cwd(), '../fixtures/barkpark-schema')
     const files = (await readdir(dir)).filter((f) => f.endsWith('.json'))
-    return Promise.all(files.map(async (f) => JSON.parse(await readFile(join(dir, f), 'utf8')) as RawSchema))
+    return Promise.all(files.map(async (f) => asBarkparkServes(JSON.parse(await readFile(join(dir, f), 'utf8')) as RawSchema)))
   }
   const res = await bpFetch(`/v1/schemas/${dataset()}`, {}, await serviceToken())
   if (!res.ok) throw new Error(`Barkpark /v1/schemas/${dataset()} → ${res.status}`)
   return ((await res.json()) as {schemas: RawSchema[]}).schemas
+}
+
+/**
+ * A fixture file in the shape Barkpark's /v1/schemas answers: it spells `list_preview` and
+ * `initial_values` as written, and serves them as `listPreview` and `initialValues`. Server
+ * code reads the served names (the reference search's preview hits read `listPreview`), so a
+ * PR that changed the fixtures, and so read them from the checkout, lost "lovelace" finding
+ * Ada's posts (J08 on studio #824).
+ */
+function asBarkparkServes({list_preview, initial_values, ...schema}: RawSchema): RawSchema {
+  return {...schema, ...(list_preview !== undefined && {listPreview: list_preview}), ...(initial_values !== undefined && {initialValues: initial_values})}
 }
 
 // B12: the declared desk, when the workspace has one. Barkpark resolves a
