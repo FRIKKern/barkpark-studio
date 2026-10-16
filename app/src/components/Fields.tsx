@@ -28,8 +28,9 @@ import {BodyToolbar} from './BodyToolbar'
 import {PortableDocView} from './PortableDocView'
 import {keptFor} from '../lib/kept-words'
 import {slugify} from '../lib/slug'
+import {decimalSeparator, parseNumber, typingNumber} from '../lib/number'
 import {modKey, useTip} from './Tip'
-import {t as tBrowser, useT} from '../lib/i18n'
+import {intlTag, t as tBrowser, useLocale, useT} from '../lib/i18n'
 import studio from '../studio.config'
 
 // Field rendering for the document form: one component per Barkpark field type.
@@ -702,15 +703,13 @@ function SelectInput({id, field, value, onChange}: {id: string; field: Field; va
 }
 
 /** Keeps what the user typed ("1.", "-") while the stored value stays a number. */
-// A typed number: a decimal comma reads as the point (Sanity's number input takes "1,5" on a
-// comma-locale machine and stores 1.5).
-const parseNumber = (s: string) => Number(s.trim().replace(',', '.'))
-// What is typed on the way to a number ("-", ",", "1,") stays in the field until it is one.
-const typingNumber = (s: string) => /^-?[.,]?$/.test(s.trim())
-
 function NumberInput({id, value, onChange, integer}: {id: string; value: number | undefined; onChange: (v: unknown) => void; integer?: boolean}) {
   const [text, setText] = useState<string | null>(null)
-  const shown = text !== null && (parseNumber(text) === value || (typingNumber(text) && value == null)) ? text : value == null ? '' : String(value)
+  // The studio's language decides the decimal separator (lib/number.ts): "1,5" is 1.5 in nb;
+  // in English "1,500" is not a number, so the field is unset and keeps what was typed.
+  const decimal = decimalSeparator(intlTag(useLocale()))
+  const parse = (s: string) => parseNumber(s, decimal)
+  const shown = text !== null && (parse(text) === value || (value == null && !Number.isFinite(parse(text)))) ? text : value == null ? '' : String(value)
   return (
     <input
       id={id}
@@ -720,10 +719,11 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
       value={shown}
       onChange={(e) => {
         setText(e.target.value)
-        const n = parseNumber(e.target.value)
-        // Empty, or only a sign or a separator so far: no number yet (the field is unset, as Sanity's).
-        if (e.target.value === '' || typingNumber(e.target.value)) onChange(undefined)
-        else if (Number.isFinite(n) && (!integer || Number.isInteger(n))) onChange(n)
+        const n = parse(e.target.value)
+        // Not a number (yet): a sign or a separator so far, or "1,500" in English. The field is
+        // unset, as Sanity's number input leaves it, and the text stays.
+        if (e.target.value === '' || typingNumber(e.target.value, decimal) || !Number.isFinite(n)) onChange(undefined)
+        else if (!integer || Number.isInteger(n)) onChange(n)
       }}
     />
   )
