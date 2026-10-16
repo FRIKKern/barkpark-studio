@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 12 changes, 4 tasks closed
+- **Today** · 13 changes, 4 tasks closed
+  - Image library dialog as Sanity's: 12 px from the pane (max 960), 9 px corners, grid 42 px in, 12 px gaps ([#659](https://github.com/FRIKKern/barkpark-studio/pull/659))
   - Create new document menu as Sanity's: centred under the +, 21 px search icon, 33 px rows 4 px apart ([#657](https://github.com/FRIKKern/barkpark-studio/pull/657))
-  - Done: [Barkpark: rate budget for a studio's shared server token (writes 60/min)](https://github.com/FRIKKern/barkpark/issues/21708)
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
