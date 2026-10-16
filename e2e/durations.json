@@ -61,6 +61,7 @@
   "history.spec.ts": 0,
   "image-actions.spec.ts": 0,
   "image.spec.ts": 0,
+  "inline-comments.spec.ts": 6.5,
   "intent.spec.ts": 0,
   "kept-edits-deleted.spec.ts": 9.2,
   "kept-edits.spec.ts": 16.5,
