@@ -6,6 +6,6 @@
   "fields": [
     {"name": "title", "title": "Title", "type": "string", "validation": {"required": true}},
     {"name": "description", "title": "Description", "type": "text", "rows": 2},
-    {"name": "featuredPost", "title": "Featured post", "type": "reference", "refType": "post"}
+    {"name": "featuredPost", "title": "Featured Post", "type": "reference", "refType": "post"}
   ]
 }
