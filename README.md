@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 135 changes, 4 tasks closed
+- **Today** · 136 changes, 4 tasks closed
+  - Cold load: the document pane is a chunk of its own, and chunks follow routes ([#774](https://github.com/FRIKKern/barkpark-studio/pull/774))
   - Comments onboarding as Sanity's: the first time the panel opens, a 280 px hint beside it; Got it puts it away for good ([#783](https://github.com/FRIKKern/barkpark-studio/pull/783))
-  - Field actions menu as Sanity's: to the right of the ⋯, centred on it, as wide as its items; above it when the pane has no room ([#782](https://github.com/FRIKKern/barkpark-studio/pull/782))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
