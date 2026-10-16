@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 208 changes, 4 tasks closed
+- **Today** · 209 changes, 4 tasks closed
+  - List search at phone width as Sanity's: 15 px words, a 27 px box, a 25 px icon ([#857](https://github.com/FRIKKern/barkpark-studio/pull/857))
   - Field groups select at phone width as Sanity's: 32 px under the banner, the first field 80 px under it ([#854](https://github.com/FRIKKern/barkpark-studio/pull/854))
-  - Jumping to a field in another group selects that field's group, as Sanity's ([#855](https://github.com/FRIKKern/barkpark-studio/pull/855))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
