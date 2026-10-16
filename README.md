@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 26 changes, 4 tasks closed
+- **Today** · 27 changes, 4 tasks closed
+  - perf(images): a doc open with an image goes from 509 KB to 25 KB (images at their shown size, AVIF/WebP) ([#671](https://github.com/FRIKKern/barkpark-studio/pull/671))
   - Document header as Sanity's: chips 12 px in, view tabs, header icons and the validation dot ([#672](https://github.com/FRIKKern/barkpark-studio/pull/672))
-  - e2e(J10): wait out ProseMirror's after-focus selection timer before Shift+Arrow ([#670](https://github.com/FRIKKern/barkpark-studio/pull/670))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
