@@ -136,7 +136,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
             role="menuitem"
             className="menu-item"
             onClick={() => {
-              copy({kind: 'document', docType: schema.name, fields: schema.fields.map((f) => ({name: f.name, sig: signature(f), value: doc[f.name]}))})
+              void copy({kind: 'document', docType: schema.name, fields: schema.fields.map((f) => ({name: f.name, sig: signature(f), value: doc[f.name]}))}, {id: doc._publishedId, type: doc._type})
               close()
             }}
           >
@@ -149,10 +149,10 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
             role="menuitem"
             className="menu-item"
             disabled={readOnly}
-            onClick={() => {
+            onClick={async () => {
               close()
-              const clip = read()
-              if (clip?.kind !== 'document') return toast({tone: 'critical', title: tt('Nothing to paste'), description: tt('Copy a document first')})
+              const clip = await read()
+              if (clip?.kind !== 'document') return toast({title: tt('Nothing to paste')})
               const matching = schema.fields.flatMap((f) => {
                 const from = clip.fields.find((c) => c.name === f.name)
                 return from && !isEmpty(from.value) && fits(from.sig, from.value, f) ? [[f.name, from.value] as const] : []
