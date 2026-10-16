@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 163 changes, 4 tasks closed
+- **Today** · 164 changes, 4 tasks closed
+  - A nested structure list opens its own pane, as Sanity's: its rows, icons and divider; its row marked ([#811](https://github.com/FRIKKern/barkpark-studio/pull/811))
   - Releases tool: the month calendar and time zone as Sanity's ([#810](https://github.com/FRIKKern/barkpark-studio/pull/810))
-  - Panes keep Sanity's widths inside the 1 px line after each ([#809](https://github.com/FRIKKern/barkpark-studio/pull/809))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
