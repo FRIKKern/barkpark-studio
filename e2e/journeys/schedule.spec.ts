@@ -73,7 +73,11 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
 // Sanity's Releases tool, its Scheduled drafts view (task-ad9c942d7d48c887): every scheduled
 // draft in the dataset, Active / Paused / Archived; a row opens its document, and its menu
 // pauses or deletes the schedule. The perspective menu's View Scheduled Drafts opens it.
-test('Releases tool: scheduled drafts, Active / Paused / Archived, row actions', async ({page, context}, info) => {
+// Its month calendar and time zone, as Sanity's (task-f8d14f136de4ed6d): the day with a
+// schedule is bold, a click shows that day's schedules (again: all), and a picked zone
+// changes only how the time reads; Barkpark keeps it in UTC. One draft and one page load for
+// both (CI's budget: each was its own seed, schedule and studio load).
+test('Releases tool: scheduled drafts, calendar day filter and time zone, Active / Paused / Archived, row actions', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours; Sanity's is measured by hand (plan-gated releases)")
   const api = `${bpBase()}/v1/data/schedules/${bpDataset()}`
@@ -81,9 +85,11 @@ test('Releases tool: scheduled drafts, Active / Paused / Archived, row actions',
   test.skip((await fetch(api, {headers})).status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   const id = `post-releases-${Date.now().toString(36)}`
   const title = `Releases probe ${id.slice(-6)}`
+  const at = new Date(Date.now() + 2 * 86_400_000)
+  at.setUTCHours(8, 0, 0, 0)
   await t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}})
   try {
-    const made = await fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: new Date(Date.now() + 2 * 86_400_000).toISOString()})})
+    const made = await fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: at.toISOString()})})
     expect(made.ok, await made.clone().text()).toBe(true)
     await t.prepare(context)
     await page.goto(t.docPath('post', id))
@@ -97,6 +103,29 @@ test('Releases tool: scheduled drafts, Active / Paused / Archived, row actions',
     await expect(row).toContainText('Scheduled ·')
     const {violations} = await new AxeBuilder({page}).include('.releases').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
+    // The calendar: the browser runs in UTC or not, so the day is the one its own clock says.
+    const label = await page.evaluate((iso) => new Date(new Date(iso).toLocaleDateString('en-CA') + 'T12:00:00Z').toDateString(), at.toISOString())
+    const calendar = page.getByRole('complementary', {name: 'Calendar'})
+    if (!(await calendar.getByLabel(label).count())) await calendar.getByRole('button', {name: 'Next month'}).click()
+    const day = calendar.getByLabel(label)
+    await expect(day).toHaveAttribute('data-marked')
+    await day.click()
+    await expect(page.locator('.releases-day')).toBeVisible()
+    await expect(row).toBeVisible()
+    await expect(page.getByRole('button', {name: 'Active', exact: true})).toHaveCount(0)
+    await day.click()
+    await expect(page.getByRole('button', {name: 'Active', exact: true})).toBeVisible()
+    // New York: the same instant, read there and named.
+    await page.locator('.releases-zone').click()
+    const zone = page.getByRole('dialog', {name: 'Select time zone'})
+    await zone.getByRole('combobox').fill('New York')
+    await zone.getByRole('option', {name: /New York/}).click()
+    await zone.getByRole('button', {name: 'Update time zone'}).click()
+    await expect(page.locator('.releases-zone')).toContainText('(America/New York)')
+    await expect(page.getByText('Time zone updated')).toBeVisible()
+    const ny = at.toLocaleString('en-US', {timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', second: '2-digit'})
+    await expect(row).toContainText(new RegExp(`${ny} \\((EDT|EST)\\)`))
+    expect((await (await fetch(`${api}?id=${id}&type=post&status=all`, {headers})).json()).result.schedules[0].publishAt).toMatch(/T08:00:00/)
     // Pause to edit: the row moves to Paused.
     await row.getByRole('button', {name: 'Scheduled draft actions'}).click()
     await page.getByRole('menuitem', {name: 'Pause to edit'}).click()
@@ -115,59 +144,6 @@ test('Releases tool: scheduled drafts, Active / Paused / Archived, row actions',
     await expect(t.field(page, 'title')).toHaveValue(title)
   } finally {
     // A schedule left behind would stay Active with its document gone.
-    const list = (await (await fetch(`${api}?id=${id}&type=post&status=all`, {headers})).json()) as {result: {schedules: {_id: string; status: string}[]}}
-    for (const s of list.result.schedules.filter((x) => x.status === 'scheduled' || x.status === 'paused')) await fetch(`${api}/${s._id}`, {method: 'DELETE', headers})
-    await t.deleteDoc(id, 'post')
-  }
-})
-
-// Its month calendar and time zone, as Sanity's (task-f8d14f136de4ed6d): the day with a
-// schedule is bold, a click shows that day's schedules (again: all), and a picked zone
-// changes only how the time reads; Barkpark keeps it in UTC.
-test('Releases tool: calendar day filter and time zone', async ({page, context}, info) => {
-  const t = target(info)
-  test.skip(t.name === 'sanity', "ours; Sanity's is measured by hand")
-  const api = `${bpBase()}/v1/data/schedules/${bpDataset()}`
-  const headers = {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`, 'content-type': 'application/json'}
-  test.skip((await fetch(api, {headers})).status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
-  const id = `post-releases-cal-${Date.now().toString(36)}`
-  const title = `Calendar probe ${id.slice(-6)}`
-  const at = new Date(Date.now() + 2 * 86_400_000)
-  at.setUTCHours(8, 0, 0, 0)
-  await t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}})
-  try {
-    const made = await fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: at.toISOString()})})
-    expect(made.ok, await made.clone().text()).toBe(true)
-    await t.prepare(context)
-    await page.goto('/releases')
-    await signInIfAsked(page)
-    await t.settle(page)
-    const row = page.getByRole('row').filter({hasText: title})
-    await expect(row).toBeVisible()
-    // The browser runs in UTC or not: the day is the one its own clock says.
-    const label = await page.evaluate((iso) => new Date(new Date(iso).toLocaleDateString('en-CA') + 'T12:00:00Z').toDateString(), at.toISOString())
-    const calendar = page.getByRole('complementary', {name: 'Calendar'})
-    if (!(await calendar.getByLabel(label).count())) await calendar.getByRole('button', {name: 'Next month'}).click()
-    const day = calendar.getByLabel(label)
-    await expect(day).toHaveAttribute('data-marked')
-    await day.click()
-    await expect(page.locator('.releases-day')).toBeVisible()
-    await expect(row).toBeVisible()
-    await expect(page.getByRole('button', {name: 'Active', exact: true})).toHaveCount(0)
-    await day.click()
-    await expect(page.getByRole('button', {name: 'Active', exact: true})).toBeVisible()
-    // New York: the same instant, read there and named.
-    await page.locator('.releases-zone').click()
-    const dialog = page.getByRole('dialog', {name: 'Select time zone'})
-    await dialog.getByRole('combobox').fill('New York')
-    await dialog.getByRole('option', {name: /New York/}).click()
-    await dialog.getByRole('button', {name: 'Update time zone'}).click()
-    await expect(page.locator('.releases-zone')).toContainText('(America/New York)')
-    await expect(page.getByText('Time zone updated')).toBeVisible()
-    const ny = at.toLocaleString('en-US', {timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', second: '2-digit'})
-    await expect(row).toContainText(new RegExp(`${ny} \\((EDT|EST)\\)`))
-    expect((await (await fetch(`${api}?id=${id}&type=post&status=all`, {headers})).json()).result.schedules[0].publishAt).toMatch(/T08:00:00/)
-  } finally {
     const list = (await (await fetch(`${api}?id=${id}&type=post&status=all`, {headers})).json()) as {result: {schedules: {_id: string; status: string}[]}}
     for (const s of list.result.schedules.filter((x) => x.status === 'scheduled' || x.status === 'paused')) await fetch(`${api}/${s._id}`, {method: 'DELETE', headers})
     await t.deleteDoc(id, 'post')

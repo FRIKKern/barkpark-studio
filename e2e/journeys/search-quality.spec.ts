@@ -114,8 +114,10 @@ test('a search folds æøå in titles, the exact spelling first, and matches ids
   // older (main's ci-3, after #523), so for them only which docs come back counts.
   for (const [q, want, none, ordered] of [...FOLDS.map((c) => [...c, true] as const), ...IDS.map((c) => [...c, false] as const)]) {
     await page.getByRole('combobox').first().fill(q)
-    if (!want.length) await expect(dialog(page).getByText('No results found'), q).toBeVisible({timeout: 10_000})
-    else await expect.poll(async () => (await dialog(page).getByRole('option').allInnerTexts()).map((s) => s.split('\n')[0].trim()).filter((s) => want.includes(s)).sort((a, b) => (ordered ? 0 : a.localeCompare(b))), {message: q, timeout: 10_000}).toEqual(ordered ? want : [...want].sort((a, b) => a.localeCompare(b)))
+    // Every 100 ms, not the default backoff: a list that settles just after a 1 s check
+    // waited out the next one (about 0.5 s a query).
+    if (!want.length) await expect.poll(() => dialog(page).getByText('No results found').isVisible(), {message: q, timeout: 10_000, intervals: [100]}).toBe(true)
+    else await expect.poll(async () => (await dialog(page).getByRole('option').allInnerTexts()).map((s) => s.split('\n')[0].trim()).filter((s) => want.includes(s)).sort((a, b) => (ordered ? 0 : a.localeCompare(b))), {message: q, timeout: 10_000, intervals: [100]}).toEqual(ordered ? want : [...want].sort((a, b) => a.localeCompare(b)))
     if (none) await expect(dialog(page).getByRole('option').filter({hasText: none}), q).toHaveCount(0)
   }
 })
