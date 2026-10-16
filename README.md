@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 121 changes, 4 tasks closed
+- **Today** · 122 changes, 4 tasks closed
+  - Boolean card 51 px as Sanity's: the box and words a px lower, the fields under it 2 px lower ([#769](https://github.com/FRIKKern/barkpark-studio/pull/769))
   - History panel note, rows and info icon as Sanity's ([#768](https://github.com/FRIKKern/barkpark-studio/pull/768))
-  - List search keys as Sanity's: the first result lit, ArrowDown/ArrowUp move it, Enter opens it ([#767](https://github.com/FRIKKern/barkpark-studio/pull/767))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
