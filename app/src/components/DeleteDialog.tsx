@@ -43,8 +43,20 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
         </header>
         <div className="dialog-body">
           <p>{t('Are you sure you want to delete this document?')}</p>
-          <div className="ref-box">
+          {/* Sanity's card names the version with its status badge, as the header's chips do. */}
+          <div className="ref-box delete-preview">
             <DocPreview doc={doc} selected={false} />
+            {doc._hasPublished === false ? (
+              <span className="chip">
+                <span className="dot draft" />
+                <span className="chip-label">{t('Draft')}</span>
+              </span>
+            ) : (
+              <span className="chip" data-tone="positive">
+                <span className="dot published" />
+                <span className="chip-label">{t('Published')}</span>
+              </span>
+            )}
           </div>
           {(checking || fetchStatus === 'paused') && <p className="muted" role="status">
             {fetchStatus === 'paused' ? t("You're offline. Reconnect to check where this document is used.") : t('Looking for documents that refer to it…')}
