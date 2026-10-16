@@ -3,7 +3,8 @@ import {MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
-import {usePresences, type Presence} from '../lib/presence'
+import {lastMoved, usePresences, type Presence} from '../lib/presence'
+import {people as byPerson, stack} from '../lib/presence-people'
 import {USER_HUES, userHue} from '../lib/user-colors'
 import {Users} from './icons'
 import {useT} from '../lib/i18n'
@@ -22,14 +23,28 @@ export function Avatar({p}: {p: Presence}) {
   )
 }
 
-export function AvatarStack({people, max = 3}: {people: Presence[]; max?: number}) {
-  if (!people.length) return null
+/**
+ * Sanity's avatar stack: one avatar per person (several tabs are one), up to `max`; past
+ * that, a counter of the rest (a bare number) before the last `max - 1`. `editing` says
+ * on hover who is editing the document, as Sanity's list rows do.
+ */
+export function AvatarStack({people, max = 3, editing = false}: {people: Presence[]; max?: number; editing?: boolean}) {
+  const t = useT()
+  const all = byPerson(people)
+  const one = usePersonName(all[0]?.name) ?? all[0]?.name
+  if (!all.length) return null
+  const {hidden, shown} = stack(all, max)
+  const label = !editing ? undefined : all.length === 1 ? t('{name} is editing this document right now', {name: one}) : t('{count} people are editing this document right now', {count: all.length})
   return (
-    <span className="p-avatars" data-testid="presence">
-      {people.slice(0, max).map((p) => (
+    <span className="p-avatars" data-testid="presence" title={label} aria-label={label} role={label ? 'img' : undefined}>
+      {hidden > 0 && (
+        <span className="p-avatar more" title={all.slice(0, hidden).map((p) => p.name).join(', ')}>
+          {hidden}
+        </span>
+      )}
+      {shown.map((p) => (
         <Avatar key={p.sessionId} p={p} />
       ))}
-      {people.length > max && <span className="p-avatar more">+{people.length - max}</span>}
     </span>
   )
 }
@@ -152,7 +167,8 @@ export function PresenceHints({docId, scroller}: {docId: string; scroller: RefOb
 /** Navbar: who else is in the studio; pick one to open the doc and field they are on. */
 export function WhoIsOnline() {
   const t = useT()
-  const people = usePresences()
+  // Sanity's: a row per person (their tabs are one), at the place they moved to last.
+  const people = byPerson(usePresences(), lastMoved)
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -165,12 +181,16 @@ export function WhoIsOnline() {
     <div className="menu-wrap" ref={ref} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
       <button type="button" className="icon-btn who" aria-label={t("Who's online")} data-tip={t('Who is here')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Users />
-        {people.length > 0 && <span className="count">{people.length}</span>}
+        {/* Sanity's: a positive dot when anyone else is here, not a count. */}
+        {people.length > 0 && <span className="who-dot" aria-hidden="true" />}
       </button>
       {open && (
         <MenuPopover className="popover menu who-menu" onClose={() => setOpen(false)}>
           {people.length === 0 ? (
-            <p className="menu-empty">{t('No one else is here')}</p>
+            <div className="menu-empty who-empty">
+              <p>{t('No one else is here')}</p>
+              <p className="muted">{t('Invite people to the project to see their online status.')}</p>
+            </div>
           ) : (
             people.map((p) => <OnlineRow key={p.sessionId} p={p} onDone={() => setOpen(false)} />)
           )}
@@ -193,6 +213,7 @@ function OnlineRow({p, onDone}: {p: Presence; onDone: () => void}) {
       role="menuitem"
       className="menu-item who-row"
       disabled={!p.documentId}
+      title={p.documentId ? undefined : t('Not in a document')}
       onClick={async () => {
         const d = doc ?? (await qc.fetchQuery(docQuery(schemas.map((s) => s.name), p.documentId!)))
         onDone()

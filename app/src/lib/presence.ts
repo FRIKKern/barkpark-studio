@@ -10,6 +10,8 @@ export type CaretSelection = {anchor: CaretPoint; head: CaretPoint}
 export type Presence = {sessionId: string; name: string; color: string; documentId: string | null; field: string | null; selection?: CaretSelection | null}
 
 let others: Presence[] = []
+/** When each session last moved (joined, or changed document or field): where a person is now (presence-people.ts). */
+const moved = new Map<string, number>()
 let self: string | null = null
 let focus: {documentId: string | null; field: string | null; selection: CaretSelection | null} = {documentId: null, field: null, selection: null}
 const listeners = new Set<() => void>()
@@ -79,7 +81,13 @@ export function usePresenceStream() {
       es.addEventListener('presence', (e) => {
         if (e.target === muted) return
         const all = (JSON.parse((e as MessageEvent).data) as {presences: Presence[]}).presences
+        const before = new Map(others.map((p) => [p.sessionId, p]))
         others = all.filter((p) => p.sessionId !== self)
+        const now = Date.now()
+        for (const p of others) {
+          const was = before.get(p.sessionId)
+          if (!was || was.documentId !== p.documentId || was.field !== p.field) moved.set(p.sessionId, now)
+        }
         // e2e probe: this tab's session and the ones it sees (a spec tells one tab from another).
         Object.assign(window, {__presence: {self, others: others.map((p) => p.sessionId)}})
         emit()
@@ -127,3 +135,5 @@ export function usePresenceStream() {
 const subscribe = (l: () => void) => (listeners.add(l), () => void listeners.delete(l))
 /** Everyone else in the room. */
 export const usePresences = () => useSyncExternalStore(subscribe, () => others, () => others)
+/** When each session last moved, for picking where a person with several tabs is now. */
+export const lastMoved: ReadonlyMap<string, number> = moved
