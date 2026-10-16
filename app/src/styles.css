@@ -1153,7 +1153,7 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .popover.menu { white-space: nowrap; min-width: 200px; }
 
 /* Select lists (J31), after Sanity's: radios in a box with a clear button; a native dropdown with a chevron */
-.radio-box { display: flex; align-items: center; min-height: 43px; padding: 0 4px 0 13px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
+.radio-box { display: flex; align-items: center; min-height: 43px; padding: 0 13px; /* the clear button 13 px in, as the first option (post-01 Stage at 1440, 1100, 700) */ border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
 .radio-box [role=group] { flex: 1; display: flex; flex-wrap: wrap; gap: 8px 12px; } /* Sanity's options 12 px apart */
 .radio-box[data-direction=vertical] { padding: 13px 13px 13px 13px; }
 .radio-box[data-direction=vertical] [role=group] { flex-direction: column; gap: 10px; }
