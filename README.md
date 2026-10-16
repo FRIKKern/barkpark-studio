@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 116 changes, 4 tasks closed
+- **Today** · 117 changes, 4 tasks closed
+  - Tab past the last pane's list starts again at the page's top, as Sanity's ([#764](https://github.com/FRIKKern/barkpark-studio/pull/764))
   - Image asset metadata in the studio: blur placeholder while the picture loads, file name and size in the image diff, options.metadata as the upload's meta ([#763](https://github.com/FRIKKern/barkpark-studio/pull/763))
-  - Menu key chips as Sanity's: a critical item's in its red, and under the pointer the item's fill and words ([#761](https://github.com/FRIKKern/barkpark-studio/pull/761))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
