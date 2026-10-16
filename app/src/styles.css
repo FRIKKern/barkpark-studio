@@ -506,6 +506,8 @@ textarea.input { resize: vertical; }
 /* Sanity's menus, measured at 1440 (document actions, list options, Create): 33 px items 4 px apart, #383d51 text. */
 .popover.menu { right: 0; top: 30px; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
 .popover.menu hr { border: 0; border-top: 1px solid var(--border); margin: 0; width: 100%; }
+/* A menu's group label (Actions, Layout), Sanity's: 9.5 px caps in #252837, the group's first item 31 px under its top. */
+.popover.menu .menu-label { font-size: 9.5px; line-height: 11px; letter-spacing: .5px; color: var(--fg); padding: 10px 12px 6px; }
 .menu-item { font: inherit; font-size: 13px; font-weight: 400; line-height: 19px; text-align: left; padding: 7px 12px; border: 0; background: none; border-radius: 3px; cursor: pointer; color: var(--fg-header); }
 .menu-item:hover, .menu-item:focus { background: var(--hover); outline: none; }
 .menu-item.danger { color: var(--danger-text); }
