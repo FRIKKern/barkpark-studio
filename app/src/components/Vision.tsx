@@ -1,4 +1,4 @@
-import {lazy, Suspense, useEffect, useState} from 'react'
+import {lazy, Suspense, useEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
@@ -45,6 +45,13 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const [query, setQuery] = useState(EXAMPLE)
   // Sanity's Params: JSON whose keys the query names as $key (lib/vision-params.ts).
   const [params, setParams] = useState(NO_PARAMS)
+  // What the editors hold right now. Ctrl+Enter can arrive between an edit and the render it
+  // schedules (the browser runs input before React's task), so a run reads these, not the
+  // render's state (J37 ran the previous query on CI).
+  const edits = useRef({query, params})
+  edits.current = {query, params}
+  const editQuery = (v: string) => ((edits.current.query = v), setQuery(v))
+  const editParams = (v: string) => ((edits.current.params = v), setParams(v))
   const [perspective, setPerspective] = useState<Perspective>('drafts')
   const [dataset, setDataset] = useState(pageDataset)
   const [result, setResult] = useState<VisionResult & {total?: number; query?: string}>()
@@ -94,16 +101,19 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const csv = parsed === undefined ? null : toCsv(parsed)
   const remember = () => {
     try {
-      localStorage.setItem(KEY, JSON.stringify({query, perspective, dataset, params}))
+      localStorage.setItem(KEY, JSON.stringify({...edits.current, perspective, dataset}))
     } catch {}
   }
   useEffect(() => () => listening?.stop.abort(), [listening?.stop])
-  const fetchIt = async () => {
+  // `typed` (the editor's own text on Ctrl+Enter) wins over what the last render saw.
+  const fetchIt = async (typed?: Partial<{query: string; params: string}>) => {
+    if (typed) Object.assign(edits.current, typed)
     listening?.stop.abort()
     setListening(undefined)
     setBusy(true)
     remember()
     const t0 = performance.now()
+    const {query, params} = edits.current
     const r = await runVisionQuery({data: {query, perspective, dataset, params}}).catch((e: Error) => ({ok: false, status: 0, url: '', ms: 0, body: '', error: e.message}))
     setResult({...r, query, total: Math.round(performance.now() - t0)})
     setBusy(false)
@@ -117,7 +127,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     setListening({stop, open: false, events: []})
     const update = (f: (l: NonNullable<typeof listening>) => NonNullable<typeof listening>) => setListening((l) => (l?.stop === stop ? f(l) : l))
     void listen(
-      {query, perspective, dataset, params},
+      {...edits.current, perspective, dataset},
       stop.signal,
       (e) => update((l) => ({...l, events: [e, ...l.events].slice(0, LISTEN_KEEP)})),
       () => update((l) => ({...l, open: true})),
@@ -205,12 +215,12 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
                   className="vision-code"
                   spellCheck={false}
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => editQuery(e.target.value)}
                   onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
                 />
               }
             >
-              <VisionEditor id="vision-query" label={t('Query')} language="query" value={query} onChange={setQuery} onRun={() => void fetchIt()} />
+              <VisionEditor id="vision-query" label={t('Query')} language="query" value={query} onChange={editQuery} onRun={(text) => void fetchIt({query: text})} />
             </Suspense>
           </div>
           <div className="vision-pane vision-params">
@@ -224,12 +234,12 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
                   className="vision-code"
                   spellCheck={false}
                   value={params}
-                  onChange={(e) => setParams(e.target.value)}
+                  onChange={(e) => editParams(e.target.value)}
                   onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
                 />
               }
             >
-              <VisionEditor id="vision-params" label={t('Params')} language="json" value={params} onChange={setParams} onRun={() => void fetchIt()} />
+              <VisionEditor id="vision-params" label={t('Params')} language="json" value={params} onChange={editParams} onRun={(text) => void fetchIt({params: text})} />
             </Suspense>
           </div>
           <div className="vision-actions">
