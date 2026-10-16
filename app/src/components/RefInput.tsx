@@ -1,4 +1,4 @@
-import {useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {rankRefs} from '../lib/ref-rank'
 import {usePaneNavigate} from './PaneLink'
 import {MenuPopover} from './FocusScopes'
@@ -8,7 +8,7 @@ import {createDoc} from '../lib/edits'
 import {choicesFor, type Choice} from '../lib/templates'
 import {focusFirstField} from '../lib/focus'
 import {useT} from '../lib/i18n'
-import {Add, ChevronDown, Close, Ellipsis, HelpCircle} from './icons'
+import {Add, ChevronDown, Close, Ellipsis, HelpCircle, LaunchIcon, SyncIcon, Trash} from './icons'
 import {DocPreview} from './Preview'
 import {DocIdContext} from './Fields'
 import {valueAtRefPath} from './PaneBanners'
@@ -362,14 +362,23 @@ function RefMenu({onClear, onReplace, newTabHref}: {onClear: () => void; onRepla
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    ref.current?.querySelector<HTMLElement>('[role=menuitem]')?.focus()
     const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [open])
-  const item = (label: string, run: () => void, cls = '') => (
+  // Sanity's menu is centred under its button; a narrow pane shifts it back inside.
+  useLayoutEffect(() => {
+    const menu = ref.current?.querySelector<HTMLElement>('.popover')
+    const pane = ref.current?.closest('.pane')
+    if (!open || !menu || !pane) return
+    const over = menu.getBoundingClientRect().right - pane.getBoundingClientRect().right + 8
+    if (over > 0) menu.style.translate = `${-over}px`
+  }, [open])
+  const item = (label: string, icon: ReactNode, run: () => void, cls = '') => (
     <button type="button" role="menuitem" className={`menu-item ${cls}`} onClick={() => (setOpen(false), run())}>
-      {t(label)}
+      <span className="menu-icon-text">
+        {icon} {t(label)}
+      </span>
     </button>
   )
   return (
@@ -388,11 +397,17 @@ function RefMenu({onClear, onReplace, newTabHref}: {onClear: () => void; onRepla
         <Ellipsis />
       </button>
       {open && (
-        <MenuPopover onClose={() => setOpen(false)}>
-          {item('Clear', onClear, 'danger')}
-          {item('Replace', onReplace)}
+        // Sanity's: the menu takes focus (no item lit by a click); the first arrow picks one.
+        <MenuPopover focusMenu className="popover menu ref-menu" onClose={() => setOpen(false)}>
+          {item('Clear', <Trash />, onClear, 'danger')}
+          {item('Replace', <SyncIcon />, onReplace)}
           <hr />
-          {item('Open in new tab', () => window.open(newTabHref, '_blank'))}
+          {/* A link, as Sanity's: the browser's own new-tab handling. */}
+          <a role="menuitem" className="menu-item" href={newTabHref} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+            <span className="menu-icon-text">
+              <LaunchIcon /> {t('Open in new tab')}
+            </span>
+          </a>
         </MenuPopover>
       )}
     </div>

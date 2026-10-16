@@ -271,9 +271,10 @@ export const Controls = () => (
     <path d="M7.5 5.5v14M12.5 5.5v14M17.5 5.5v14M5.5 9.5h4M10.5 15.5h4M15.5 11.5h4" />
   </svg>
 )
+/** Sanity's TrashIcon. */
 export const Trash = () => (
   <svg {...s}>
-    <path d="M6.5 7.5h12M10.5 7.5v-2h4v2M8 7.5l.8 12h7.4l.8-12M11 10.5v6M14 10.5v6" />
+    <path d="M5 6.5H20M10 6.5V4.5C10 3.95 10.45 3.5 11 3.5H14C14.55 3.5 15 3.95 15 4.5V6.5M12.5 9V17M15.5 9L15 17M9.5 9L10 17M18.5 6.5L17.57 18.58C17.53 19.1 17.1 19.5 16.57 19.5H8.43C7.9 19.5 7.47 19.1 7.43 18.58L6.5 6.5H18.5Z" strokeLinejoin="round" />
   </svg>
 )
 /** Sanity's StackCompactIcon (list layout: compact). */
@@ -414,9 +415,11 @@ export const Mobile = () => (
     <path d="M11.5 17.5h2" />
   </svg>
 )
+/** Sanity's LaunchIcon. */
 export const LaunchIcon = () => (
   <svg {...s}>
-    <path d="M13.5 6.5h5v5M18.5 6.5l-7 7M11.5 7.5h-5v11h11v-5" />
+    <path d="M12 7.5H6.5V18.5H17.5V13M19.5 5.5L10.5 14.5" />
+    <path d="M14 5.5H19.5V11" />
   </svg>
 )
 /** Sanity's TransferIcon: Compare versions (J68). */
