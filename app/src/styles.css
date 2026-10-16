@@ -2102,6 +2102,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .doc-footer .save-state[data-state=saving] svg { animation: spin 1s linear infinite; }
 /* Who published (or edited) last, as Sanity's footer: its smallest avatar (19px), no ring. */
 .doc-footer .save-state > .p-avatar { width: 19px; height: 19px; margin: -2px 1px -2px 0; box-shadow: none; font-size: 9px; flex: none; }
+.doc-footer .save-state > .actor-slot { background: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .publish svg { width: 17px; height: 17px; margin: -2px 0 -2px -4px; }
 /* B05: codelist fields, as Barkpark's Studio: a select, a search over a long flat list,
