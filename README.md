@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 67 changes, 4 tasks closed
+- **Today** · 68 changes, 4 tasks closed
+  - Field group tabs as Sanity's: muted words, the shown tab's fill and words, 8 px apart, 21 px level icons; the locations text at 500 ([#713](https://github.com/FRIKKern/barkpark-studio/pull/713))
   - Schedule publish dialog as Sanity's: in the card area, its type and spacing, the critical warning card ([#711](https://github.com/FRIKKern/barkpark-studio/pull/711))
-  - Body headings as Sanity's: h1 to h6 at 38 to 13 px on its lines, an h2's room around it; the style menu draws each style ([#712](https://github.com/FRIKKern/barkpark-studio/pull/712))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
