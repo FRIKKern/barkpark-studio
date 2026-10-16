@@ -1218,7 +1218,8 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .field-actions { position: absolute; top: 0; right: 25px; z-index: 2; opacity: 0; }
 /* A fieldset's box starts below its legend: lift its actions back up beside the legend. */
 fieldset.object-field > .field-actions { top: -38px; }
-.field:is(:hover, :focus-within) > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
+/* Only the field under the pointer or focus, not the object or image around it (Sanity's: Main image's ⋯ stays hidden over its Alternative text). */
+.field:is(:hover, :focus-within):not(:has(.field:is(:hover, :focus-within))) > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
 .field-actions .icon-btn { width: 25px; height: 25px; } /* Sanity's: level with the label, touching Add comment */
 /* Sanity's: to the right of the ⋯, centred on it, as wide as its items (116 px for Copy / Paste field at 1440). */
 .field-actions .popover.menu { top: 50%; left: calc(100% + 4px); right: auto; translate: 0 -50%; min-width: 0; }
@@ -2287,7 +2288,7 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .field-comments { position: absolute; top: 0; right: 0; z-index: 2; }
 fieldset.object-field > .field-comments { top: -38px; }
 .field-comments .comment-add { width: 25px; height: 25px; opacity: 0; }
-.field:is(:hover, :focus-within) > .field-comments .comment-add, .field-comments:focus-within .comment-add, .comment-add[aria-expanded='true'] { opacity: 1; }
+.field:is(:hover, :focus-within):not(:has(.field:is(:hover, :focus-within))) > .field-comments .comment-add, .field-comments:focus-within .comment-add, .comment-add[aria-expanded='true'] { opacity: 1; }
 .field-comments[data-has] ~ .field-actions, .field-comments[data-has] + .field-actions { right: 52px; }
 .comment-count { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 6px 0 2px; border: 0; border-radius: 3px; background: var(--hover); font: inherit; font-size: 12px; font-weight: 500; color: var(--fg); cursor: pointer; }
 .comment-count svg, .field-comments svg { width: 21px; height: 21px; }

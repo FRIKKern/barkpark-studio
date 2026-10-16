@@ -41,6 +41,11 @@ test('@evidence J12: image upload, alt text, hotspot and crop by mouse and keybo
   // Alt text, a field of the image.
   await field.getByRole('textbox', {name: 'Alternative text'}).fill('A sun over a field')
   await expect.poll(async () => (await value()).alt, {timeout: 10_000}).toBe('A sun over a field')
+  if (t.name === 'studio') {
+    // Only the focused field's actions show, not the image's around it (Sanity's).
+    const shown = await field.evaluate((el) => [...el.querySelectorAll('.field-actions')].map((a) => getComputedStyle(a).opacity))
+    expect(shown).toEqual(['0', '1'])
+  }
 
   // Hotspot and crop, by mouse.
   const edit = field.getByRole('button', {name: 'Open image edit dialog'})
