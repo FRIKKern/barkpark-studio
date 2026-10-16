@@ -4,7 +4,7 @@ import {useInfiniteQuery, useQuery, useQueryClient} from '@tanstack/react-query'
 import {historyPagesQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
 import {applyServer} from '../lib/edits'
 import type {Doc} from '../lib/data'
-import {ChevronDown, ChevronLeft, Close as CloseIcon, InfoOutline} from './icons'
+import {Add, ChevronDown, ChevronLeft, Close as CloseIcon, EditIcon, InfoOutline, PublishIcon, Trash, UnpublishIcon} from './icons'
 import {toast} from './Toasts'
 import {ago, intlTag, t as tt, useLocale, useT, type Locale} from '../lib/i18n'
 
@@ -12,7 +12,10 @@ import {ago, intlTag, t as tt, useLocale, useT, type Locale} from '../lib/i18n'
 // happened, who did it and when; picking an entry shows the document as it was
 // then, read-only, at a deep URL (`rev=<id>`), with "Revert to revision" in the footer.
 
-const BADGE: Record<string, string> = {Published: 'published', Unpublished: 'unpublished', 'Discarded draft': 'discarded', Deleted: 'discarded', Restored: 'edited', Edited: 'edited', 'Draft created': 'created'}
+// Sanity's badge: the event's icon on its tone (publish and create green, edit yellow,
+// discard, unpublish and delete orange).
+const BADGE_ICON = {published: PublishIcon, unpublished: UnpublishIcon, discarded: CloseIcon, deleted: Trash, edited: EditIcon, created: Add} as const
+const BADGE: Record<string, keyof typeof BADGE_ICON> = {Published: 'published', Unpublished: 'unpublished', 'Discarded draft': 'discarded', Deleted: 'deleted', Restored: 'edited', Edited: 'edited', 'Draft created': 'created'}
 
 export {ago}
 const initials = (name: string) => {
@@ -112,6 +115,15 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
   )
 }
 
+function Badge({kind}: {kind: keyof typeof BADGE_ICON}) {
+  const Icon = BADGE_ICON[kind]
+  return (
+    <span className="badge" data-kind={kind}>
+      <Icon />
+    </span>
+  )
+}
+
 /** One timeline entry: avatar with what-happened badge, the label and when; the shown one aria-current. */
 export function Row({e, selected, child, onPick, children}: {e: HistoryEntry; selected: boolean; child?: boolean; onPick: () => void; children?: ReactNode}) {
   const t = useT()
@@ -122,7 +134,7 @@ export function Row({e, selected, child, onPick, children}: {e: HistoryEntry; se
       <button type="button" onClick={onPick} aria-label={`${e.revision.author} ${t(e.label)} ${when}`} aria-current={selected ? 'true' : undefined}>
         <span className="avatar" title={e.revision.author}>
           {initials(e.revision.author)}
-          <span className="badge" data-kind={BADGE[e.label] ?? 'edited'} />
+          <Badge kind={BADGE[e.label] ?? 'edited'} />
         </span>
         <span className="history-text">
           <span>{t(e.label)}</span>
