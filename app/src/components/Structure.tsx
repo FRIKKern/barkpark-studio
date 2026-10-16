@@ -335,8 +335,10 @@ function RootPane({panes, index}: {panes: Pane[]; index: number}) {
   const pane = panes[index]
   const menu = useDeskNode(pane.kind === 'menu' ? pane.node : undefined)
   const next = panes[index + 1]
-  if (!desk) return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.node ?? next.type : next?.kind === 'doc' ? next.id : undefined} />
-  return <DeskPane panes={panes} index={index} node={pane.kind === 'menu' ? menu : desk} />
+  // Without a declared desk the first pane is the type list; a nested list of the studio's
+  // own structure items (J18, Sanity's S.list() under an S.listItem()) is its own pane.
+  if (!desk && pane.kind !== 'menu') return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.node ?? next.type : next?.kind === 'menu' ? next.node : next?.kind === 'doc' ? next.id : undefined} />
+  return <DeskPane panes={panes} index={index} node={pane.kind === 'menu' ? menu : desk ?? undefined} />
 }
 
 /** Barkpark's "…Rest" row for a type with no schema (orphaned): a count, nothing to open. */
@@ -370,7 +372,9 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
           if (!target) return orphan(item) ? <RestOrphan key={item.id} item={item} /> : null
           return (
             <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, target)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined} data-desk-node={item.id}>
-              <DeskIcon name={item.icon} />
+              {/* A nested list shows every row's icon, Sanity's FolderIcon where none is named
+                  (its showIcons default); the first pane's rows only the named ones. */}
+              <DeskIcon name={item.icon ?? (isRoot ? undefined : 'folder')} />
               {item.title ?? item.id}
               <span className="chev">
                 <ChevronRight />

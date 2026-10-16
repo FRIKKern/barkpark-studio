@@ -34,4 +34,21 @@ export const structure: StructureResolver = (S) =>
                 .initialValueTemplates([S.initialValueTemplateItem('post-by-author', {authorId})]),
             ),
         ),
+      // A nested list (S.list() under an S.listItem()): two filtered post lists, a titled
+      // divider and a type list. Its rows show icons (Sanity's FolderIcon, none being named).
+      S.divider(),
+      S.listItem()
+        .id('editorial')
+        .title('Editorial')
+        .child(
+          S.list()
+            .id('editorial')
+            .title('Editorial')
+            .items([
+              S.listItem().id('featured-posts').title('Featured posts').child(S.documentTypeList('post').id('featured-posts').title('Featured posts').filter('_type == "post" && featured == true')),
+              S.listItem().id('top-rated').title('Top rated').child(S.documentTypeList('post').id('top-rated').title('Top rated').filter('_type == "post" && rating >= $min').params({min: 4})),
+              S.divider().title('Taxonomy'),
+              S.documentTypeListItem('category'),
+            ]),
+        ),
     ])

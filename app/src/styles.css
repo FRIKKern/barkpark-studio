@@ -9,6 +9,8 @@
   --upload-fill: #f6f6f8; /* Sanity's empty image/file box (measured); its tag chips too */
   --tag-x: #666a79; /* a tag chip's remove x (measured) */
   --upload-ring: #dbdce2;
+  --row-chain-bg: #eeeef1; /* a desk row open further along the chain, and its words */
+  --row-chain-fg: #353a4d;
   --banner-neutral-bg: #f6f6f8; /* the deleted-document banner, its icon and button (measured) */
   --chip-off-fg: #8f94a8;
   --banner-neutral-icon: #4e556d;
@@ -195,6 +197,8 @@
   --upload-fill: #0d0e12;
   --tag-x: #90919b;
   --upload-ring: #252837;
+  --row-chain-bg: #21232f;
+  --row-chain-fg: #c1c3d0;
   --banner-neutral-bg: #0d0e12;
   --chip-off-fg: #5a607b;
   --banner-neutral-icon: #949aad;
@@ -478,7 +482,7 @@ a { color: inherit; text-decoration: none; }
 .type-row-static:hover { background: none; }
 .type-row .chev { margin-left: auto; margin-right: -2px; color: var(--muted); } /* 6 px from the edge, as Sanity's */
 .type-row .chev > svg { width: 21px; height: 21px; }
-.type-row[data-selected] { background: var(--hover-strong); }
+.type-row[data-selected] { background: var(--row-chain-bg); color: var(--row-chain-fg); } /* a row whose pane is open further right: Sanity's, measured */
 .type-row[aria-current='true'] { background: var(--selected); color: var(--on-selected); }
 .type-row[aria-current='true'] .chev { color: var(--on-selected); }
 
@@ -2135,7 +2139,8 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
    line 6 px under the title and 8 px over the next row; a plain one is its line, 4 px apart. */
 .desk-divider { margin: 4px 12px 8px; padding: 7px 8px 6px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 19px; font-weight: 600; color: var(--muted); }
 /* A desk row's icon, Sanity's 25 px glyph left of the title. */
-.type-row .desk-icon { flex: none; margin: -3px 10px -3px -4px; color: inherit; }
+.type-row .desk-icon { flex: none; margin: -3px 8px -3px -3px; color: var(--muted); } /* Sanity's list icons: muted, 25 px, the title 8 px after */
+.type-row[aria-current='true'] .desk-icon { color: var(--primary-btn-icon); } /* the open row's, Sanity's tint (#bfcbfe, dark #303c7a) */
 hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid var(--border); }
 /* D11: the honest co-editing note above the canvas. */
 .pd-hint { margin: 12px 20px 0; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); color: var(--fg); font-size: 13px; line-height: 19px; }
