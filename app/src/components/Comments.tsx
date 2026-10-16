@@ -39,7 +39,7 @@ const PersonInitial = ({who}: {who: string | null | undefined}) => <>{usePersonN
 export const newId = () => `comment-${crypto.randomUUID()}`
 
 /** The field's comment button and its composer (Sanity's CommentsField). */
-export function FieldComments({path, title}: {path: string; title: string}) {
+export function FieldComments({path, title, titleId}: {path: string; title: string; titleId?: string}) {
   const {canWrite, commentReason: lockedReason} = useCanWrite()
   // J49: Sanity's Viewer comments; ours may when the comment schema lets read seats write.
   const {data: readers} = useQuery({...readerCommentsQuery, enabled: !canWrite})
@@ -64,11 +64,11 @@ export function FieldComments({path, title}: {path: string; title: string}) {
       {/* J49: not <button>s, and the composer in a layer of its own: a Viewer's form is a
           disabled fieldset, which would disable them too, and a Viewer may comment. */}
       {open.length ? (
-        <SpanButton ref={opener} className="comment-count" aria-label={t('Open comments')} title={open.length === 1 ? t('View comment') : t('View comments')} onPress={() => api.open(path)}>
+        <SpanButton ref={opener} className="comment-count" aria-label={t('Open comments')} aria-describedby={titleId} title={open.length === 1 ? t('View comment') : t('View comments')} onPress={() => api.open(path)}>
           <CommentIcon /> {open.length}
         </SpanButton>
       ) : (
-        <SpanButton ref={opener} className="icon-btn comment-add" aria-label={t('Add comment')} data-tip={t('Add comment')} title={commentReason} disabled={!!commentReason} aria-expanded={composing} onPress={() => setComposing(true)}>
+        <SpanButton ref={opener} className="icon-btn comment-add" aria-label={t('Add comment')} aria-describedby={titleId} data-tip={t('Add comment')} title={commentReason} disabled={!!commentReason} aria-expanded={composing} onPress={() => setComposing(true)}>
           <AddComment />
         </SpanButton>
       )}

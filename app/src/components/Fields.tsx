@@ -1,4 +1,4 @@
-import {createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
+import {createContext, memo, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
 import {isHidden, isReadOnly} from '../lib/conditions'
@@ -130,16 +130,16 @@ function useSteadyFocus(hidden: boolean) {
 }
 
 /** An object (or an image): a fieldset, its title the legend. Collapsible ones fold, like Sanity's. */
-function ObjectField(props: FieldProps & {label: string; changed: boolean; review?: () => void}) {
-  const {label, changed, review, ...field} = props
+function ObjectField(props: FieldProps & {label: string; titleId: string; changed: boolean; review?: () => void}) {
+  const {label, titleId, changed, review, ...field} = props
   const options = (Array.isArray(field.field.options) ? {} : field.field.options ?? {}) as {collapsible?: boolean; collapsed?: boolean}
   const opened = useContext(OpenObjectsContext)
   const collapsible = !!options.collapsible || !!options.collapsed
   const open = !collapsible || (opened ? opened.isOpen(field.path, !options.collapsed) : !options.collapsed)
   return (
     <fieldset className="field object-field" data-collapsible={collapsible || undefined} data-open={collapsible ? open : undefined}>
-      <FieldActions {...field} />
-      <FieldComments path={field.path} title={label} />
+      <FieldActions {...field} titleId={titleId} />
+      <FieldComments path={field.path} title={label} titleId={titleId} />
       {changed && review && <ChangeBar onClick={review} />}
       <legend>
         {collapsible ? (
@@ -147,10 +147,10 @@ function ObjectField(props: FieldProps & {label: string; changed: boolean; revie
             <span className="toggle-arrow" data-open={open}>
               <ToggleArrowRight />
             </span>
-            {label}
+            <span id={titleId}>{label}</span>
           </button>
         ) : (
-          label
+          <span id={titleId}>{label}</span>
         )}
         <ProblemMark path={field.path} within={!open} />
         <FieldPresenceHere path={field.path} />
@@ -165,29 +165,31 @@ function FieldBody(props: FieldProps) {
   if (props.field.readOnly === true) props = {...props, readOnly: true}
   const changes = useContext(ChangesContext)
   const label = props.field.title ?? props.field.name
+  // The field's visible title: it describes the field's action and comment buttons (one per field, same names).
+  const titleId = useId()
   const invalid = useContext(ProblemsContext).some((p) => p.path === props.path && p.level === 'error') || undefined
   // Sanity: a boolean is a switch with its label beside it, in a box.
   if (props.field.type === 'boolean' && !invalidValue(props.field, props.value))
     return (
       <div className="field">
-        <FieldActions {...props} />
-        <FieldComments path={props.path} title={label} />
+        <FieldActions {...props} titleId={titleId} />
+        <FieldComments path={props.path} title={label} titleId={titleId} />
         {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
         <label className="bool-box">
           <FieldInput {...props} />
-          <span>{label}</span>
+          <span id={titleId}>{label}</span>
         </label>
       </div>
     )
   // An object (or an image, with its own fields below it): a fieldset with its title as the legend.
   if (props.field.type === 'composite' || props.field.type === 'image' || props.field.type === 'geopoint')
     return (
-      <ObjectField {...props} label={label} changed={!!changes?.changed.has(props.path)} review={changes?.review} />
+      <ObjectField {...props} label={label} titleId={titleId} changed={!!changes?.changed.has(props.path)} review={changes?.review} />
     )
   return (
     <div className="field" data-invalid={invalid} data-readonly={props.readOnly || undefined}>
-      <FieldActions {...props} />
-        <FieldComments path={props.path} title={label} />
+      <FieldActions {...props} titleId={titleId} />
+      <FieldComments path={props.path} title={label} titleId={titleId} />
       {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
       <label htmlFor={props.path} id={`${props.path}-label`} onClick={(e) => {
         // Split panes repeat field paths. Native label lookup finds the first copy.
@@ -198,7 +200,7 @@ function FieldBody(props: FieldProps) {
           control.focus()
         }
       }}>
-        {label}
+        <span id={titleId}>{label}</span>
         <ProblemMark path={props.path} />
         <FieldPresenceHere path={props.path} />
       </label>
@@ -265,7 +267,7 @@ function ChangeBar({onClick}: {onClick: () => void}) {
  */
 export const fieldClipboard = new WeakMap<Element, {copy: () => void; paste?: () => void}>()
 
-function FieldActions({field, value, onChange, readOnly}: FieldProps) {
+function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & {titleId: string}) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
@@ -286,7 +288,7 @@ function FieldActions({field, value, onChange, readOnly}: FieldProps) {
   }
   return (
     <div ref={register} className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label={t('Field actions')} data-tip={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={t('Field actions')} aria-describedby={titleId} data-tip={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
