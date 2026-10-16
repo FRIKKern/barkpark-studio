@@ -1,6 +1,8 @@
-import {Fragment, Suspense, use, useEffect, type ComponentProps} from 'react'
+import {Fragment, Suspense, use, useContext, useEffect, useRef, type ComponentProps} from 'react'
 import {useT} from '../lib/i18n'
 import {holdMarkUntil} from '../lib/hydrated'
+import {OpenedPanesContext} from '../lib/layout'
+import {paneKey} from '../lib/panes'
 import {untilLoaded} from './DocEditors'
 
 // Cold load (task-a8874d0ebb2baa5c): the document pane (its form, fields, history, comments)
@@ -42,6 +44,13 @@ function Pane(props: ComponentProps<Mod['DocumentPane']>) {
 /** Opened before the chunk lands (a click on the desk before its idle fetch): the pane's title and "Loading document…", never a blank pane. */
 export function DocumentPane(props: ComponentProps<Mod['DocumentPane']>) {
   holdForPane()
+  // Opening a document moves focus into its form (#779) when the pane came with this URL,
+  // which Structure knows only until its commit's effects. The pane mounts when its chunk
+  // lands, later: what was true at this first render is handed on (J01 J02's reload on #774).
+  const openedPanes = useContext(OpenedPanesContext)
+  const key = paneKey(props.panes[props.index]!) + props.index
+  const opened = useRef<{current: Set<string>} | null>(null)
+  opened.current ??= {current: new Set(!openedPanes || openedPanes.current.has(key) ? [key] : [])}
   const t = useT()
   const loading = (
     <section className="pane doc" data-pane-index={props.index} aria-label={t('Document')} aria-busy="true">
@@ -52,9 +61,11 @@ export function DocumentPane(props: ComponentProps<Mod['DocumentPane']>) {
     </section>
   )
   return (
-    <Suspense fallback={loading}>
-      <Pane {...props} />
-    </Suspense>
+    <OpenedPanesContext.Provider value={opened.current}>
+      <Suspense fallback={loading}>
+        <Pane {...props} />
+      </Suspense>
+    </OpenedPanesContext.Provider>
   )
 }
 
