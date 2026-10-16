@@ -556,3 +556,41 @@ export const UserIcon = () => (
     <path d="M8 14.5C7 15 5.5 16 5.5 19.5H19.5C19.5 16 18.3416 15.1708 17 14.5C16 14 14 14 14 12.5C14 11 15 10.25 15 8.25C15 6.25 14 5.25 12.5 5.25C11 5.25 10 6.25 10 8.25C10 10.25 11 11 11 12.5C11 14 9 14 8 14.5Z" />
   </svg>
 )
+/** Sanity's TaskIcon (Create new task). */
+export const TaskIcon = () => (
+  <svg {...solid}>
+    <path d="M20.5 10.75V19.75H4.5V10.75M20.5 10.75V5.75H17.5M20.5 10.75H4.5M4.5 10.75V5.75H7.5M7.5 5.75H17.5M7.5 5.75V8.25M7.5 5.75V3.25M17.5 5.75V8.25M17.5 5.75V3.25M9.7002 14.7358L11.7002 16.7358L15.3002 13.1758" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+  </svg>
+)
+/** Sanity's RestoreIcon (History). */
+export const RestoreIcon = () => (
+  <svg {...solid}>
+    <path d="M5.88468 17C7.32466 19.1128 9.75033 20.5 12.5 20.5C16.9183 20.5 20.5 16.9183 20.5 12.5C20.5 8.08172 16.9183 4.5 12.5 4.5C8.08172 4.5 4.5 8.08172 4.5 12.5V13.5M12.5 8V12.5L15.5 15.5" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+    <path d="M7 11L4.5 13.5L2 11" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+  </svg>
+)
+/** Sanity's JsonIcon (Inspect). */
+export const JsonIcon = () => (
+  <svg {...solid}>
+    <path d="M11 5.5H9.5C8.39543 5.5 7.5 6.39543 7.5 7.5V12.5M7.5 12.5H4M7.5 12.5V17.5C7.5 18.6046 8.39543 19.5 9.5 19.5H11M14 5.5H15.5C16.6046 5.5 17.5 6.39543 17.5 7.5V12.5M17.5 12.5H21M17.5 12.5V17.5C17.5 18.6046 16.6046 19.5 15.5 19.5H14" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+  </svg>
+)
+/** Sanity's EarthAmericasIcon (Open preview). */
+export const EarthAmericas = () => (
+  <svg {...solid}>
+    <path d="M7 13L5.5 9L10 5H15V10L14 9H11L9.5 11L10.5 12H12V13L13 14.5H15.5L18.5 17L15.5 19.5L10.5 20V17L12.5 15L9 13L7 10.5V13Z" fill="currentColor" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+    <circle cx={12.5} cy={12.5} r={8} stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+  </svg>
+)
+/** Sanity's FeedbackIcon (Help, Send feedback). */
+export const FeedbackIcon = () => (
+  <svg {...solid}>
+    <path d="M10 11.5V12H9.5L9.5 11.5H10Z" fill="currentColor" />
+    <path d="M13 11.5V12H12.5V11.5H13Z" fill="currentColor" />
+    <path d="M16 11.5V12H15.5V11.5H16Z" fill="currentColor" />
+    <path d="M10 11.5V12H9.5L9.5 11.5H10Z" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+    <path d="M13 11.5V12H12.5V11.5H13Z" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+    <path d="M16 11.5V12H15.5V11.5H16Z" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+    <path d="M7.5 16.5H9.5V20.5L13.5 16.5H17.5C18.6046 16.5 19.5 15.6046 19.5 14.5V8.5C19.5 7.39543 18.6046 6.5 17.5 6.5H7.5C6.39543 6.5 5.5 7.39543 5.5 8.5V14.5C5.5 15.6046 6.39543 16.5 7.5 16.5Z" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+  </svg>
+)

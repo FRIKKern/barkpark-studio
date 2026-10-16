@@ -10,7 +10,7 @@ import {TasksPanel} from './TasksPanel'
 import {Diagnostics} from './Diagnostics'
 import {showTasks, useTasksView} from '../lib/tasks-ui'
 import {DialogBox, MenuPopover} from './FocusScopes'
-import {CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon, BugIcon, CommentIcon} from './icons'
+import {CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon, BugIcon, FeedbackIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
 import {useEffect, useState} from 'react'
 import {createPortal} from 'react-dom'
@@ -240,7 +240,7 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
           {/* Sanity's first two, with their icons: Send feedback (ours: report a problem) and Diagnostics. */}
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio/issues/new/choose" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
             <span className="menu-icon-text">
-              <CommentIcon /> {t('Report a problem')}
+              <FeedbackIcon /> {t('Report a problem')}
             </span>
           </a>
           {/* J69: Sanity's Diagnostics: what a bug report needs, copyable. */}
