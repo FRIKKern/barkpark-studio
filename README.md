@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 28 changes, 4 tasks closed
+- **Today** · 29 changes, 4 tasks closed
+  - J17: a lane whose link index is stale says so, and how to fix it ([#674](https://github.com/FRIKKern/barkpark-studio/pull/674))
   - Footer: hold the avatar's box while the history loads, so "Last published" never moves ([#673](https://github.com/FRIKKern/barkpark-studio/pull/673))
-  - perf(images): a doc open with an image goes from 509 KB to 25 KB (images at their shown size, AVIF/WebP) ([#671](https://github.com/FRIKKern/barkpark-studio/pull/671))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
