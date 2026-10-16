@@ -77,6 +77,7 @@
   --danger-text: #bd3328;
   --menu-danger: #8b2018; /* Sanity's critical menu item: text and icon (measured, light) */
   --menu-danger-icon: #a85852;
+  --menu-danger-ring: #ffdedc; /* a critical item's key chips: Sanity's ring (measured) */
   --menu-fg: #383d51;
   --menu-active-fg: #242736; /* Sanity's command row under the keys: its text (measured) */
   --input-fg: #0d0e12; /* Sanity's text typed in a command menu's find box (measured) */
@@ -245,6 +246,7 @@
   --danger-text: #ff7b72;
   --menu-danger: #fdafa8;
   --menu-danger-icon: #c38885;
+  --menu-danger-ring: #511d1d;
   --menu-fg: #bdbfcb; /* Sanity's dark menu text, a shade under the header's */
   --menu-active-fg: #e5e6eb;
   --input-fg: #e4e5e9;
@@ -1284,6 +1286,9 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 /* J28: Sanity's shortcut chips, one box per key, tinted like their item. */
 .menu-item .keys { margin-left: auto; padding: 0 1px 0 21px; display: inline-flex; gap: 2px; } /* Sanity's: 20 px after the words, in a 1 px frame */
 .menu-item .keys kbd { margin: 0; padding: 0 4px; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); font-size: 10px; font-weight: 600; line-height: 15px; color: var(--muted); } /* Sanity's: a white chip in the border grey, 10 px 600 */
+.menu-item.danger .keys kbd { box-shadow: inset 0 0 0 1px var(--menu-danger-ring); color: var(--menu-danger); } /* Sanity's critical chips: the item's red */
+/* Under the pointer or focus Sanity's chips take the item's fill and words, ringed a shade off it. */
+:is([role=menu] .menu-item:hover, [role=menu]:not(:hover) .menu-item:focus-visible):not(:disabled, [aria-disabled='true']) .keys kbd { background: transparent; color: inherit; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 6%, transparent); }
 .menu-icon-text svg { width: 21px; height: 21px; margin: -1px 0 -1px -6px; color: var(--icon-muted); } /* Sanity's 21 px icon 6 px in, the text at 33 */
 .menu-item.danger .menu-icon-text svg { color: var(--menu-danger-icon); }
 /* J68: a menu toggle's check, its space kept when off (Sanity's). */
