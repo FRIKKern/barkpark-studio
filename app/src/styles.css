@@ -49,6 +49,9 @@
   --danger-line: #f5c4bf;
   --danger-fg: #a12a22;
   --danger-text: #bd3328;
+  --menu-danger: #8b2018; /* Sanity's critical menu item: text and icon (measured, light) */
+  --menu-danger-icon: #a85852;
+  --menu-fg: #383d51;
   --info-bg: #eef3ff;
   --info-fg: #2550c7;
   --scheduled-bg: #f1ebff; /* J40: Sanity's scheduled-publish chip and banner, measured on reference/sanity */
@@ -174,6 +177,9 @@
   --danger-line: #6b2a28;
   --danger-fg: #ffb4ab;
   --danger-text: #ff7b72;
+  --menu-danger: #fdafa8;
+  --menu-danger-icon: #c38885;
+  --menu-fg: #bdbfcb; /* Sanity's dark menu text, a shade under the header's */
   --info-bg: #1d2540;
   --info-fg: #9db6ff;
   --scheduled-bg: #2c2245;
@@ -537,6 +543,13 @@ textarea.input { resize: vertical; }
 
 /* Reference input */
 .ref-row { display: flex; align-items: center; gap: 4px; padding: 4px 8px 4px 4px; }
+/* Sanity's filled reference, measured at 1440: 59 px, the card 5 px in, the status centred 15.5 px from its end,
+   the muted … 5 px from the edge; its menu centred under the button, sized to its items. */
+.ref-box.ref-row { padding: 5px; }
+.ref-box .preview .status { margin-right: -3px; }
+.ref-row > .menu-wrap > .icon-btn { color: var(--icon-muted); }
+.ref-row > .menu-wrap > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); }
+.popover.menu.ref-menu { min-width: 0; width: max-content; top: 29px; right: auto; left: 50%; transform: translateX(-50%); }
 .ref-preview { flex: 1; min-width: 0; }
 .ref-preview .preview { margin: 0; }
 .ref-search { position: relative; display: flex; gap: 4px; }
@@ -549,14 +562,15 @@ textarea.input { resize: vertical; }
 .popover.options [role=option][aria-selected='true'] .preview { background: var(--selected); color: var(--on-selected); }
 .popover.options [role=option][aria-selected='true'] .s { color: var(--on-selected-soft); }
 .menu-wrap { position: relative; }
-/* Sanity's menus, measured at 1440 (document actions, list options, Create): 33 px items 4 px apart, #383d51 text. */
+/* Sanity's menus, measured at 1440 (document actions, list options, Create, a reference's): 33 px items 4 px apart, #383d51 text in weight 500, icons in the muted grey. */
 .popover.menu { right: 0; top: 30px; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
 .popover.menu hr { border: 0; border-top: 1px solid var(--border); margin: 0; width: 100%; }
 /* A menu's group label (Actions, Layout), Sanity's: 9.5 px caps in #252837, the group's first item 31 px under its top. */
 .popover.menu .menu-label { font-size: 9.5px; line-height: 11px; letter-spacing: .5px; color: var(--fg); padding: 10px 12px 6px; }
-.menu-item { font: inherit; font-size: 13px; font-weight: 400; line-height: 19px; text-align: left; padding: 7px 12px; border: 0; background: none; border-radius: 3px; cursor: pointer; color: var(--fg-header); }
+.menu-item { font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; text-align: left; padding: 7px 12px; border: 0; background: none; border-radius: 3px; cursor: pointer; color: var(--menu-fg); }
 .menu-item:hover, .menu-item:focus { background: var(--hover); outline: none; }
-.menu-item.danger { color: var(--danger-text); }
+.menu-item.danger { color: var(--menu-danger); }
+a.menu-item { display: block; text-decoration: none; }
 .menu-item[aria-disabled] { opacity: 0.5; cursor: default; }
 .btn-create.btn-generate { padding: 0 12px; font-weight: 500; } /* Generate: Sanity's text button, 500, 12 px each side */
 .btn-create { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 4px; height: 35px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); font: inherit; font-size: 13px; font-weight: 400; cursor: pointer; }
@@ -941,7 +955,6 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .pane.list .pane-header .popover.menu { right: -8px; }
 /* Its button stays pressed while the menu is open, as Sanity's. */
 .pane.list .pane-header .menu-wrap > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); }
-.pane.list .pane-header .popover.menu .menu-item { font-weight: 500; }
 .pane.list .pane-header .popover.menu .menu-item-label { gap: 6px; }
 .pane.list .pane-header .popover.menu .menu-item-label svg { width: 21px; height: 21px; margin: -4px 0 -4px -6px; }
 .pane.list .pane-header .popover.menu .menu-item[aria-disabled='true'] { opacity: 1; background: none; cursor: default; color: color-mix(in srgb, var(--fg-header) 14%, var(--bg)); }
@@ -1089,7 +1102,8 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 /* J28: Sanity's shortcut chips, one box per key, tinted like their item. */
 .menu-item .keys { margin-left: auto; padding-left: 16px; display: inline-flex; gap: 2px; }
 .menu-item .keys kbd { margin: 0; padding: 0 3px; border-radius: 2px; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent); font-size: 10px; line-height: 15px; color: inherit; }
-.menu-icon-text svg { width: 21px; height: 21px; margin: -1px 0 -1px -6px; } /* Sanity's 21 px icon 6 px in, the text at 33 */
+.menu-icon-text svg { width: 21px; height: 21px; margin: -1px 0 -1px -6px; color: var(--icon-muted); } /* Sanity's 21 px icon 6 px in, the text at 33 */
+.menu-item.danger .menu-icon-text svg { color: var(--menu-danger-icon); }
 /* J68: a menu toggle's check, its space kept when off (Sanity's). */
 .menu-check { display: inline-flex; }
 .menu-check:not([data-on]) svg { visibility: hidden; }
@@ -1784,7 +1798,7 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .file-size { color: var(--muted); font-size: 12px; }
 .file-box .menu-wrap .popover.menu { right: 0; top: calc(100% + 4px); }
 .popover.menu.file-menu { min-width: 0; }
-.image-menu .menu-item.danger { color: var(--danger-text); }
+.image-menu .menu-item.danger { color: var(--menu-danger); }
 .file-icon { background: var(--bg-soft); }
 .drop-overlay[data-rejected] { color: var(--danger-text); }
 .dialog.asset-dialog.file-dialog { min-height: 0; }
