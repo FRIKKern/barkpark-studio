@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 148 changes, 4 tasks closed
+- **Today** · 149 changes, 4 tasks closed
+  - Body: a wake by keyboard or below the text types at the end at once again ([#797](https://github.com/FRIKKern/barkpark-studio/pull/797))
   - Checkbox grid and grid arrays as Sanity's: option rows 27 px, square tiles 9 px in, a handle chip ([#796](https://github.com/FRIKKern/barkpark-studio/pull/796))
-  - Radios as Sanity's: options 12 px apart, the chosen one 500, body colour; the note at 0.7 ([#794](https://github.com/FRIKKern/barkpark-studio/pull/794))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
