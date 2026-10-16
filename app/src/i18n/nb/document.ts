@@ -272,6 +272,7 @@ export default {
   'You\'re offline. Reconnect to check where this document is used.': 'Du er frakoblet. Koble til igjen for å sjekke hvor dette dokumentet brukes.',
   'You\'re offline. Reconnect to check which documents refer to them.': 'Du er frakoblet. Koble til igjen for å sjekke hvilke dokumenter som refererer til dem.',
   'You\'ve been logged out': 'Du har blitt logget ut',
+  'Sign in to continue.': 'Logg inn for å fortsette.',
   'You\'ve been logged out — not saving. Sign in to save your edits.': 'Du har blitt logget ut — lagrer ikke. Logg inn for å lagre endringene dine.',
   'You\'ve been logged out. Your edits are kept here and saved once you sign in again.': 'Du har blitt logget ut. Endringene dine er tatt vare på her og lagres når du logger inn igjen.',
   'Your email': 'E-postadressen din',

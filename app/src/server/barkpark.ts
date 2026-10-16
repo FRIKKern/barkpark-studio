@@ -2,8 +2,9 @@
 // code fails the build. Calls go out with the signed-in editor's own token
 // (server/auth.ts), else the studio's BARKPARK_TOKEN.
 import '@tanstack/react-start/server-only'
+import {contentModelCredential} from '../lib/content-model-credential'
 import {getRequestHeader, getRequestUrl} from '@tanstack/react-start/server'
-import {currentEditor, describeToken, signInRequired} from './auth'
+import {currentEditor, describeToken, signInMode, signInRequired} from './auth'
 import {serviceAccess} from '../lib/token-self'
 import {parseScope, type Scope} from '../lib/scope'
 import {Agent, setGlobalDispatcher, type Dispatcher} from 'undici'
@@ -68,9 +69,9 @@ const config = (at: Scope = scope()) => ({
 const studioToken = () => process.env.BARKPARK_SERVICE_TOKEN || env('BARKPARK_TOKEN')
 
 /**
- * The studio's own token, for what isn't any one editor's business (the content model, the
- * people pickers). A local e2e lane runs on its own member token (scripts/lane-token.mjs) and
- * keeps the .env token here, since member tokens can't read schemas yet (task-23c4ac86976c46a9).
+ * The studio's own token, for the declared Structure navigation and people pickers.
+ * Shared/dev content-model reads keep this path; account schema reads use the editor's
+ * session (contentModelToken below). A local e2e lane keeps its .env token here.
  * It reads more than any one editor may, and a request's workspace is only what the request
  * says (its Referer), so with sign-in on it is lent only to a signed-in editor whose own seat
  * is in this workspace; anyone else is refused (task-73a9f8eafae5fbf1: signed out, a forged
@@ -84,6 +85,10 @@ export async function serviceToken(): Promise<string> {
   }
   return studioToken()
 }
+
+/** Account schema/document reads never fall back to the service identity. The backend
+ *  checks this editor's session and seat on each read, including after revocation. */
+export const contentModelToken = () => contentModelCredential(signInMode(), requestToken, serviceToken)
 
 /**
  * The workspace's locale (its language), with the studio's token: the sign-in screen is in
