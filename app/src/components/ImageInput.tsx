@@ -8,7 +8,7 @@ import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, 
 import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
-import {assetUrl, dragCrop, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
+import {assetUrl, dragCrop, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 import {uploadFile, UploadError} from '../lib/upload'
 import {UploadProgress} from './UploadProgress'
 
@@ -136,7 +136,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       ) : (
         <div className="image-preview" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste an image to replace it', {title})} data-over={over || undefined} {...target}>
           {overlay}
-          <img src={url} alt={t('Preview of uploaded image')} />
+          <img src={imageSrc(ref, 1200, 540)} alt={t('Preview of uploaded image')} decoding="async" />
           <div className="image-actions">
             {hotspot && (
               <button type="button" className="icon-btn" aria-label={t('Open image edit dialog')} title={t('Edit hotspot and crop')} disabled={readOnly} onClick={() => setEditing(true)}>
@@ -183,7 +183,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       {editing && url && (
         <HotspotDialog
           title={title}
-          url={url}
+          url={imageSrc(ref!, 1600)}
           hotspot={image.hotspot ?? NO_HOTSPOT}
           crop={image.crop ?? NO_CROP}
           onChange={(h, c) => (setPart('hotspot', h), setPart('crop', c))}
@@ -234,7 +234,7 @@ export function AssetPicker({title, path, openRef, onPick, onClose}: {title: str
               {assets?.map((a) => (
                 <div key={a.id} className="asset-tile">
                   <button type="button" className="asset-pick" aria-label={a.name} title={a.name} onClick={() => onPick(`asset-${a.id}`)}>
-                    <img src={`${assetUrl(a.id)}?size=thumb`} alt={a.name} />
+                    <img src={imageSrc(a.id, TILE_PX)} alt={a.name} loading="lazy" decoding="async" />
                   </button>
                   <div className="menu-wrap asset-more" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenuFor(null)}>
                     <button id={`asset-${a.id}-menuButton`} type="button" className="icon-btn" aria-label={t('{name}: more', {name: a.name})} aria-haspopup="menu" aria-expanded={menuFor === a.id} onClick={() => setMenuFor(menuFor === a.id ? null : a.id)}>

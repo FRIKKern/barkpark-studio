@@ -1,5 +1,5 @@
 import {memo, useState, type ReactNode} from 'react'
-import {assetUrl, frame, imageRef, NO_CROP, NO_HOTSPOT, type ImageValue} from '../lib/image'
+import {frame, imageRef, imageSrc, NO_CROP, NO_HOTSPOT, THUMB_PX, type ImageValue} from '../lib/image'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {formatPreview, previewRefs, previewMedia} from '../lib/preview'
@@ -92,8 +92,9 @@ export function Thumb({value}: {value: ImageValue}) {
       // A server-rendered thumbnail can load before hydration, and its load event
       // is then missed: measure it as it mounts, or it stays hidden (blank row).
       ref={(img) => void (img?.complete && img.naturalWidth && !natural && measure(img))}
-      src={`${assetUrl(ref)}?size=thumb`}
+      src={imageSrc(ref, THUMB_PX)}
       alt=""
+      decoding="async"
       onLoad={(e) => measure(e.currentTarget)}
       style={f ? {width: `${100 / f.width}%`, height: `${100 / f.height}%`, left: `${(-f.left / f.width) * 100}%`, top: `${(-f.top / f.height) * 100}%`} : {opacity: 0}}
     />

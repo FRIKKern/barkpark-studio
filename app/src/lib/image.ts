@@ -37,6 +37,18 @@ export function pickedImage(prev: Record<string, unknown>, ref: string, url?: st
 
 export const assetUrl = (ref: string) => `/api/media/${encodeURIComponent(ref.replace(/^asset-/, ''))}`
 
+/**
+ * An image at the size it shows (CSS px times 2 for a sharp screen), as AVIF or WebP when
+ * the browser takes it: Barkpark's transform, fit inside w x h, never scaled up past the
+ * original. A row thumbnail was the 320 px JPEG preset and a field preview the original
+ * (510 KB for an 1800 px PNG shown at 324 px).
+ */
+export const imageSrc = (ref: string, w: number, h = w) => `${assetUrl(ref)}?w=${w}&h=${h}&fit=max&auto=format`
+/** A row's 33 px (73 px detailed) square, cut from the image in CSS around the hotspot. */
+export const THUMB_PX = 240
+/** A media tile (about 150 x 110 px) or the image picker's grid. */
+export const TILE_PX = 320
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const round = (v: number) => Math.round(v * 1e6) / 1e6
 /** The smallest hotspot or crop side, as a fraction of the image. */
