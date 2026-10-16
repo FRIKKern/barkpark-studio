@@ -46,7 +46,7 @@
   --toast-fg: #242736;
   --toast-bar: #6e748e;
   --toast-shadow: 0 0 0 0.5px rgba(110, 116, 142, 0.3), 0 3px 5px -2px rgba(114, 120, 146, 0.1), 0 6px 10px 0 rgba(114, 120, 146, 0.07), 0 1px 18px 1px rgba(114, 120, 146, 0.06);
-  --backdrop: rgba(240, 241, 245, 0.6);
+  --backdrop: rgba(227, 228, 232, 0.5); /* Sanity's dialog and search layer: its hairline at half (dark: its background at half), measured */
   --studio-primary: #1f2230;
   --studio-on-primary: #fff;
   --disabled: #b0b4c0;
@@ -211,7 +211,7 @@
   --toast-fg: #e4e5ea;
   --toast-bar: #999eb3;
   --toast-shadow: 0 0 0 0.5px rgba(121, 127, 154, 0.4), 0 3px 5px -2px rgba(0, 0, 0, 0.2), 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 1px rgba(0, 0, 0, 0.12);
-  --backdrop: rgba(13, 14, 18, 0.6);
+  --backdrop: rgba(19, 20, 27, 0.5);
   --studio-primary: #e4e5e9;
   --studio-on-primary: #13141b;
   --disabled: #5c6175;
