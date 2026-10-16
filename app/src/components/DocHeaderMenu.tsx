@@ -4,7 +4,7 @@ import {useQueryClient} from '@tanstack/react-query'
 import {copy, fits, read, signature} from '../lib/clipboard'
 import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
-import {Braces, Calendar, Check, ClipboardIcon, Clock, Copy, EarthGlobe, Ellipsis, Share, LinkIcon, TargetIcon, Transfer} from './icons'
+import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
 import studio from '../studio.config'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
@@ -75,24 +75,24 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
           {/* J66: Sanity lists "Create new task" first; it opens the Tasks sidebar on this document. */}
           <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (close(), showTasks({kind: 'create', target: {id: doc._publishedId, type: doc._type}}))}>
             <span className="menu-icon-text">
-              <Calendar /> {t('Create new task')}
+              <TaskIcon /> {t('Create new task')}
             </span>
           </button>
           <hr />
           <button type="button" role="menuitem" className="menu-item" onClick={() => (close(), onHistory())}>
             <span className="menu-icon-text">
-              <Clock /> {t('History')}
+              <RestoreIcon /> {t('History')}
             </span>
           </button>
           {/* J17 widen: Sanity's "Incoming references", next after History as there. */}
           <button type="button" role="menuitem" className="menu-item" onClick={() => (close(), onIncoming())}>
             <span className="menu-icon-text">
-              <LinkIcon /> {t('Incoming references')}
+              <SyncIcon /> {t('Incoming references')}
             </span>
           </button>
           <button type="button" role="menuitem" className="menu-item" aria-keyshortcuts="Control+Alt+I" onClick={() => (close(), onInspect())}>
             <span className="menu-icon-text">
-              <Braces /> {t('Inspect')}
+              <JsonIcon /> {t('Inspect')}
             </span>
             <Keys keys={['Ctrl', alt, 'I']} />
           </button>
@@ -124,7 +124,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
             <>
               <button type="button" role="menuitem" className="menu-item" aria-keyshortcuts="Control+Alt+O" onClick={() => (close(), openPreview(previewUrl))}>
                 <span className="menu-icon-text">
-                  <EarthGlobe /> {t('Open preview')}
+                  <EarthAmericas /> {t('Open preview')}
                 </span>
                 <Keys keys={['Ctrl', alt, 'O']} />
               </button>
