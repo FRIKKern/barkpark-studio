@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes, 3 tasks closed
+- **Today** · 8 changes, 3 tasks closed
+  - Fieldsets: Size's fields and Where's title sit where Sanity's do (field-types-01, 1440) ([#653](https://github.com/FRIKKern/barkpark-studio/pull/653))
   - Presentation as Sanity's: the panel a quarter of the window (min 325), the divider inside it, its title colour and By appearance / Last edited ([#652](https://github.com/FRIKKern/barkpark-studio/pull/652))
-  - Vision at 1440 as Sanity's: labels over full-height gutters, half-height query, Saved queries header, footer rule ([#651](https://github.com/FRIKKern/barkpark-studio/pull/651))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
