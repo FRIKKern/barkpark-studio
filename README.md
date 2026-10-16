@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 103 changes, 4 tasks closed
+- **Today** · 104 changes, 4 tasks closed
+  - Tasks panel empty state as Sanity's: the hint and Create new task on its rows ([#750](https://github.com/FRIKKern/barkpark-studio/pull/750))
   - Who's online, nobody else here, as Sanity's: 260 px, 4 px from the window's edge, the hint 400 wrapping 21 px under the title ([#748](https://github.com/FRIKKern/barkpark-studio/pull/748))
-  - Body toolbar as Sanity's: disabled until focus is in the field, its 120 px style button in 500 with a muted chevron, the current style left enabled ([#749](https://github.com/FRIKKern/barkpark-studio/pull/749))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
