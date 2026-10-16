@@ -23,7 +23,7 @@ import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {InPresentationContext, PaneLink, usePaneNavigate, useStructureNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
-import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
+import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FormDisabledContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
@@ -409,10 +409,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     <EditPathContext.Provider value={onEdit}>
     <ProblemsContext.Provider value={o.problems}>
     <OpenObjectsContext.Provider value={openObjects}>
+    <FormDisabledContext.Provider value={o.disabled}>
     <fieldset className="form-fields" disabled={o.disabled} title={editReason}>
       {inFieldsets(o.fields, schema?.fieldsets).map((g) => ('set' in g ? <Fieldset key={`fs:${g.set.name}`} path={`fieldset:${g.set.name}`} fieldset={g.set}>{g.fields.map((f) => fieldView(f, o.values))}</Fieldset> : fieldView(g, o.values)))}
       {o.unknown && <UnknownFields doc={o.shown} names={unknownFields(schema!, o.shown)} onRemove={(name) => onEdit(name, undefined)} />}
     </fieldset>
+    </FormDisabledContext.Provider>
     </OpenObjectsContext.Provider>
     </ProblemsContext.Provider>
     </EditPathContext.Provider>

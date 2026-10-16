@@ -1,6 +1,8 @@
-import {createContext, memo, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
+import {createContext, memo, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
+import {anyDocQuery, refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
+import {useQueryClient} from '@tanstack/react-query'
+import {usePaneNavigate} from './PaneLink'
 import {isHidden, isReadOnly} from '../lib/conditions'
 import {mapCaret} from '../lib/merge'
 import {textDiff} from '../lib/changes'
@@ -60,6 +62,8 @@ export const DocIdContext = createContext<string | null>(null)
 export const DocTypeContext = createContext<string | null>(null)
 /** J52: the field path the URL asks for (`path=`), so an array can open the item it sits in. */
 export const UrlPathContext = createContext<string | undefined>(undefined)
+/** The form is shut (the published version, a revision, a seat that may not write): its fieldset is disabled. */
+export const FormDisabledContext = createContext(false)
 
 const LEVEL_ICON: Record<Level, () => ReactElement> = {error: ErrorOutline, warning: WarningOutline, info: InfoOutline}
 const LEVEL_WORD: Record<Level, string> = {error: 'Validation error', warning: 'Validation warning', info: 'Validation info'}
@@ -473,7 +477,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       const broken = richTextProblem(value)
       if (broken) return <RichTextCard problem={broken} onChange={onChange} />
       // J10: a block-editor field is Barkpark's canvas (decision 0004), scoped to the field.
-      return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} title={field.title ?? field.name} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} /> : <RichText id={path} value={value} />
+      return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} title={field.title ?? field.name} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} openRef={openRef} /> : <RichText id={path} value={value} />
     }
     case 'image':
       return <ImageInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
@@ -745,10 +749,19 @@ export function RichText({id, value}: {id: string; value: unknown}) {
  * with a body costs nothing extra (no canvas bundle, no block reads), and a remote
  * edit to the body just redraws.
  */
-function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string; title: string; value: unknown; vocabulary?: unknown; readOnly?: boolean}) {
+function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field: string; title: string; value: unknown; vocabulary?: unknown; readOnly?: boolean; openRef: OpenRef}) {
   const t = useT()
   const id = useContext(DocIdContext)
   const type = useContext(DocTypeContext)
+  // D06, as Sanity's: an internal link opens its document in the next pane, from the
+  // canvas's link card (Open) and, in a read-only body, from the link itself.
+  const qc = useQueryClient()
+  const navigate = usePaneNavigate()
+  const openDoc = useCallback((docId: string, docType: string) => void navigate({href: openRef(docType, docId, '').href}), [navigate, openRef])
+  // A body that can't be edited (read-only, or a shut form) follows its internal links itself.
+  const linksOpen = useContext(FormDisabledContext) || !!readOnly
+  const follow = (docId: string) =>
+    void qc.fetchQuery(anyDocQuery(docId)).then((doc) => (doc ? openDoc(docId, doc._type) : toast({tone: 'critical', title: t('This link points to a document that does not exist'), description: docId})))
   const [active, setActive] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const box = useRef<HTMLDivElement>(null)
@@ -837,6 +850,8 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
         tabIndex={0}
         onClick={(e) => {
           if ((e.target as HTMLElement).closest('a')) return
+          const link = linksOpen ? (e.target as HTMLElement).closest<HTMLElement>('[data-wikilink][data-doc-id]') : null
+          if (link) return follow(link.dataset.docId!)
           const spot = clickedAt(e.clientX, e.clientY)
           scrolled.current.height = staticBody.current?.style.height ?? ''
           pickComment(spot)
@@ -844,6 +859,8 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
         }}
         // Keys on the box itself; Enter or Space on the expand button is that button's own click.
         onKeyDown={(e) => {
+          const link = linksOpen && e.key === 'Enter' ? (e.target as HTMLElement).closest<HTMLElement>('[data-wikilink][data-doc-id]') : null
+          if (link) return e.preventDefault(), follow(link.dataset.docId!)
           if (readOnly || e.target !== e.currentTarget) return
           // J35: Cmd/Ctrl+Enter opens it expanded, as Sanity's hotkey.
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) return e.preventDefault(), setActive(true), setExpanded(true)
@@ -858,7 +875,7 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
           {!readOnly && <BodyToolbar host={box} vocabulary={vocabulary} onWake={() => setActive(true)} />}
           {!readOnly && <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />}
         </div>
-        <div className="bp-paper-editor-body" ref={staticBody} onScroll={(e) => (scrolled.current.top = e.currentTarget.scrollTop)}>{blocks.length ? <PortableDocView blocks={blocks} /> : <p className="muted">{t('Empty')}</p>}</div>
+        <div className="bp-paper-editor-body" ref={staticBody} onScroll={(e) => (scrolled.current.top = e.currentTarget.scrollTop)}>{blocks.length ? <PortableDocView blocks={blocks} linksOpen={linksOpen} /> : <p className="muted">{t('Empty')}</p>}</div>
         {id && <BlockPresence docId={id} field={field} />}
       </div>
     )
@@ -894,7 +911,7 @@ function BodyCanvas({field, title, value, vocabulary, readOnly}: {field: string;
         {!readOnly && <BodyToolbar host={box} vocabulary={vocabulary} />}
         <ExpandButton expanded={expanded} aria-pressed={expanded} onMouseDown={(e) => e.preventDefault()} onClick={toggle} />
       </div>
-      <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} commentsTitle={title} />
+      <PortableDocEditor type={type} id={id} field={field} vocabulary={vocabulary} labelledBy={`${field}-label`} editable={!readOnly} commentsTitle={title} openDoc={openDoc} />
       {id && <BlockPresence docId={id} field={field} />}
     </div>
   )

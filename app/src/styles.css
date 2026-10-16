@@ -507,6 +507,9 @@ textarea.input { resize: vertical; }
 .inline-object { padding: 0 6px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--border); }
 /* A document link in a body at rest, as the canvas draws one (underlined, not colour alone). */
 .wikilink { color: var(--primary-icon); text-decoration: underline; text-underline-offset: 2px; }
+/* A read-only body's internal link opens its document (Sanity's, task-398773ee95fad121). */
+.wikilink[role=link] { cursor: pointer; }
+.wikilink[role=link]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-radius: 1px; }
 .chip[data-tone=positive] { color: var(--positive-fg); }
 .chip[data-tone=scheduled] { gap: 4px; background: var(--scheduled-bg); color: var(--scheduled-fg); box-shadow: none; }
 .chip[data-tone=scheduled] svg { width: 17px; height: 17px; }
