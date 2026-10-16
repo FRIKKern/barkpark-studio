@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 216 changes, 4 tasks closed
+- **Today** · 217 changes, 4 tasks closed
+  - Array item dialog 12 px inside a narrow pane, as Sanity's ([#864](https://github.com/FRIKKern/barkpark-studio/pull/864))
   - Server: Barkpark streams on connections of their own, and twelve warm at boot, so reads stop paying new handshakes ([#863](https://github.com/FRIKKern/barkpark-studio/pull/863))
-  - A jump to a field in a collapsed fieldset opens the fieldset, as Sanity's ([#859](https://github.com/FRIKKern/barkpark-studio/pull/859))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
