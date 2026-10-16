@@ -3155,7 +3155,10 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
 /* An array with options.layout 'grid' (Sanity's, field-types-01's Cards at 1440): tiles 9 px inside a box with 1 px corners;
    each a square picture or icon over a 33 px strip with the item menu; the title is for screen readers only; the handle
    a 25 px chip top left. */
-.array-box[data-layout=grid] { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; padding: 9px; border-radius: 1px; }
+.array-box[data-layout=grid] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 9px; border-radius: 1px; }
+/* Sanity's columns by the window: 2 under 360 px, 3 to 599, 4 from 600 (field-types-01's Cards). */
+@media (min-width: 360px) { .array-box[data-layout=grid] { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 600px) { .array-box[data-layout=grid] { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .array-box[data-layout=grid] > .array-row { position: relative; flex-direction: column; align-items: stretch; padding: 1px 1px 34px; box-shadow: inset 0 0 0 1px var(--line); }
 .array-box[data-layout=grid] > .array-row > .drag-handle { position: absolute; top: 5px; left: 5px; z-index: 1; height: 25px; opacity: 0; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); }
 .array-box[data-layout=grid] > .array-row:hover > .drag-handle, .array-box[data-layout=grid] > .array-row > .drag-handle:focus-visible, .array-box[data-layout=grid] > .array-row[data-moving] > .drag-handle { opacity: 1; }
