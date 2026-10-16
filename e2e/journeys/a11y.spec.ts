@@ -72,3 +72,19 @@ test('@local J47: the list, a list search and validation are announced', async (
     await t.restore(ID, {title: TITLE})
   }
 })
+
+test('@local forced colors: fields keep a box, the checkbox its state, focus a ring', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'Sanity loses its field boxes and radio dots in forced colors; the check runs on ours')
+  await page.emulateMedia({forcedColors: 'active'})
+  await t.prepare(page.context())
+  await page.goto(t.docPath('fieldTypes', 'field-types-01'))
+  await signInIfAsked(page)
+  await t.settle(page)
+  const style = (sel: string, prop: string) => page.locator(sel).first().evaluate((e, p) => getComputedStyle(e).getPropertyValue(p), prop)
+  // Box-shadow edges and fills are dropped in forced colors: an outline, or our own system colours.
+  expect(await style('[id="title"]', 'outline-style')).toBe('solid')
+  expect(await style('input.checkbox', 'forced-color-adjust')).toBe('none')
+  await page.locator('[id="title"]').focus()
+  expect(await style('[id="title"]', 'outline-width')).toBe('2px')
+})
