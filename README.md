@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 214 changes, 4 tasks closed
+- **Today** · 215 changes, 4 tasks closed
+  - A jump to a field in a collapsed fieldset opens the fieldset, as Sanity's ([#859](https://github.com/FRIKKern/barkpark-studio/pull/859))
   - Grid arrays in Sanity's column counts: 2, 3 from 360 px, 4 from 600 ([#862](https://github.com/FRIKKern/barkpark-studio/pull/862))
-  - Empty image and file box as Sanity's: stacked under 440 px, the hint icon 11 px in ([#858](https://github.com/FRIKKern/barkpark-studio/pull/858))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
