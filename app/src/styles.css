@@ -647,7 +647,7 @@ textarea.input { resize: vertical; }
 .chip .dot { width: 5px; height: 5px; border-radius: 50%; }
 .dot.published { background: var(--published); }
 .dot.draft { background: var(--caution-dot); }
-.doc-footer { min-height: 51px; flex: none; display: flex; align-items: flex-start; gap: 8px; padding: 13px 16px; font-size: 13px; color: var(--muted); }
+.doc-footer { min-height: 49px; flex: none; display: flex; align-items: flex-start; gap: 8px; padding: 12px 16px; font-size: 13px; color: var(--muted); } /* Sanity's 49 px bar, Publish 12 px down (post-01 at 1440) */
 /* Sanity's status bar: status and badges wrap as one group, 12 px apart (8 in a pane under 480 px). */
 .doc-footer-status { flex: 1 1 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 @container document-pane (max-width: 480px) { .doc-footer-status { gap: 8px; } }
@@ -656,7 +656,7 @@ textarea.input { resize: vertical; }
 .doc-footer .publish { min-height: 25px; padding: 2px 8px 2px 2px; gap: 2px; }
 .doc-footer .publish > svg { width: 21px; height: 21px; margin: 0; }
 .doc-footer .publish-tip + *, .doc-footer .publish + * { margin-left: 4px; }
-.doc-footer .save-state-btn { color: var(--footer-meta); margin: 0; padding: 3px 6px; border: 0; border-radius: 3px; background: none; font: inherit; cursor: pointer; min-width: 0; text-align: left; }
+.doc-footer .save-state-btn { color: var(--footer-meta); margin: 0; padding: 3px 8px 3px 4px; border: 0; border-radius: 3px; background: none; font: inherit; cursor: pointer; min-width: 0; text-align: left; } /* Sanity's: its avatar 4 px in */
 .doc-footer .save-state-btn:hover:not(:disabled) { background: var(--hover); }
 .doc-footer .save-state-btn:disabled { cursor: default; }
 .publish { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
