@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 189 changes, 4 tasks closed
+- **Today** · 190 changes, 4 tasks closed
+  - Inline comments in CI: comment a body span, reload, still painted on its words (2 s) ([#838](https://github.com/FRIKKern/barkpark-studio/pull/838))
   - List search placeholder in Sanity's placeholder grey ([#837](https://github.com/FRIKKern/barkpark-studio/pull/837))
-  - Inline comments as Sanity's while writing: the offer under the selection's start, the plain tone, a 250 px composer ([#836](https://github.com/FRIKKern/barkpark-studio/pull/836))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
