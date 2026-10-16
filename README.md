@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 70 changes, 4 tasks closed
+- **Today** · 71 changes, 4 tasks closed
+  - Sanity's one light hairline (#e3e4e8) for borders and input rings; typed text #e4e5e9 in dark ([#716](https://github.com/FRIKKern/barkpark-studio/pull/716))
   - Tags as Sanity's: 27 px chips in its fill, 4 px in and apart, a 25 px remove with a 21 px x ([#715](https://github.com/FRIKKern/barkpark-studio/pull/715))
-  - Object array rows as Sanity's: 59 px, 4 apart, a 33 px tile and 13 px title; its 25 x 33 handle; Add item its secondary button ([#714](https://github.com/FRIKKern/barkpark-studio/pull/714))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
