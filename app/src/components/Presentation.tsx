@@ -7,7 +7,7 @@ import {useT} from '../lib/i18n'
 import {deskQuery, docQuery, listQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
 import type {Pane} from '../lib/panes'
 import type {MainDocument} from '../lib/plugins'
-import {Close, Desktop, Ellipsis, LaunchIcon, Mobile, Search, Share, SyncIcon, WarningOutline} from './icons'
+import {Close, Desktop, Ellipsis, LaunchIcon, Mobile, RefreshIcon, Search, Share, WarningOutline} from './icons'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {InPresentationContext, PaneHrefContext} from './PaneLink'
 import {RefPreview} from './Preview'
@@ -342,23 +342,26 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
             </span>
             {t('Edit')}
           </label>
-          <button type="button" className="icon-btn" aria-label={t('Refresh preview')} data-tip={status ?? t('Refresh preview')} aria-busy={s.refreshing || s.load === 'loading'} onClick={refresh}>
-            <SyncIcon />
-          </button>
-          <input
-            className="input presentation-url"
-            aria-label="URL"
-            value={typed ?? url}
-            onChange={(e) => setTyped(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') go(e.currentTarget.value)
-              if (e.key === 'Escape') setTyped(null)
-            }}
-            onBlur={() => setTyped(null)}
-          />
-          <a className="icon-btn" href={url} target="_blank" rel="noopener" aria-label={t('Open preview')} data-tip={t('Open preview')}>
-            <LaunchIcon />
-          </a>
+          {/* Sanity's: refresh, the URL and Open preview share one bordered field. */}
+          <div className="presentation-url-group">
+            <button type="button" className="icon-btn" aria-label={t('Refresh preview')} data-tip={status ?? t('Refresh preview')} aria-busy={s.refreshing || s.load === 'loading'} onClick={refresh}>
+              <RefreshIcon />
+            </button>
+            <input
+              className="input presentation-url"
+              aria-label="URL"
+              value={typed ?? url}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') go(e.currentTarget.value)
+                if (e.key === 'Escape') setTyped(null)
+              }}
+              onBlur={() => setTyped(null)}
+            />
+            <a className="icon-btn" href={url} target="_blank" rel="noopener" aria-label={t('Open preview')} data-tip={t('Open preview')}>
+              <LaunchIcon />
+            </a>
+          </div>
           {/* J64: Sanity's viewport toggle, kept in the URL (?viewport=mobile). */}
           <button
             type="button"

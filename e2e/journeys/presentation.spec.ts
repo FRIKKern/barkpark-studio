@@ -275,6 +275,11 @@ test('J62: "Used on N pages", and a location opens Presentation with the documen
   await expect(banner.getByRole('button')).toHaveText('Used on 2 pages')
   await banner.getByRole('button').click()
   await expect(banner.getByRole('link')).toHaveText([/Fixture post 01\s*\/posts\/fixture-post-01/, /All posts\s*\//])
+  await expect(banner.locator('.location[data-shown]')).toHaveCount(0)
+  // In Presentation the page the preview shows is marked (Sanity's pressed card).
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await banner.getByRole('button').click()
+  await expect(banner.locator('.location[data-shown]')).toHaveText(/Fixture post 01\s*\/posts\/fixture-post-01/)
 
   await page.goto(t.docPath('author', 'author-alan'))
   await expect(banner.getByRole('button')).toHaveText(/^Used on \d+ pages$/)

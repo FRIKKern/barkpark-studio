@@ -105,6 +105,19 @@ export const SplitVertical = () => (
     <path d="M10.5 5.5V19.5M13 12.5H15.5M18 12.5H15.5M15.5 12.5V15M15.5 12.5V10M4.5 5.5H20.5V19.5H4.5V5.5Z" />
   </svg>
 )
+/** Sanity's MasterDetailIcon: the Structure tool's, on Presentation's "Open in Structure". */
+export const MasterDetail = () => (
+  <svg {...s} strokeLinejoin="round">
+    <path d="M9.5 6.5V10.5M9.5 10.5V14.5M9.5 10.5H5.5M9.5 14.5V18.5M9.5 14.5H5.5M5.5 6.5H19.5V18.5H5.5V6.5Z" />
+  </svg>
+)
+/** Sanity's RefreshIcon (Presentation's "Refresh preview"). */
+export const RefreshIcon = () => (
+  <svg {...s} strokeLinejoin="round">
+    <path d="M19.5 13.5C19.5 17.366 16.366 20.5 12.5 20.5C8.63401 20.5 5.5 17.366 5.5 13.5C5.5 9.63401 8.63401 6.5 12.5 6.5H15.5" />
+    <path d="M11.5 10.5L15.5 6.5L11.5 2.5" />
+  </svg>
+)
 /** Sanity's ShareIcon. */
 export const Share = () => (
   <svg {...s} strokeLinejoin="round">
