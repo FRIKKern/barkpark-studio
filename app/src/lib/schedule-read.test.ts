@@ -1,7 +1,7 @@
 // J40: the schedules list as the studio reads it.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {localInput, readSchedules} from './schedule-read.ts'
+import {readSchedules} from './schedule-read.ts'
 
 const row = (status: string) => ({_id: `s-${status}`, documentId: 'post-01', type: 'post', publishAt: '2026-10-20T08:00:00Z', status})
 
@@ -14,5 +14,4 @@ test('schedules: a Barkpark without the route offers no Schedule; with it, the p
   assert.equal(readSchedules(200, {result: {schedules: [row('paused'), row('scheduled')]}}).schedule?.status, 'scheduled')
   assert.equal(readSchedules(200, {result: {schedules: [row('cancelled'), row('missed')]}}).schedule, null)
   assert.throws(() => readSchedules(500, null), /Could not read the schedule \(500\)/)
-  assert.match(localInput(new Date()), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
 })

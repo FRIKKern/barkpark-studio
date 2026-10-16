@@ -1212,6 +1212,11 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .dp-grid button[data-today] { background: var(--today-bg); color: var(--today-fg); }
 .dp-grid button[data-selected] { background: var(--selected); color: var(--on-selected); }
 .dp-grid button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--selected); }
+/* Sanity's schedule dialog (task-7821e8da66b7d5a9): past days can't be picked, and a red note heads the calendar. */
+.dp-grid button:disabled { font-weight: 400; color: var(--disabled); background: none; cursor: default; }
+.dp-notice { margin: 0 0 8px; padding: 3px 8px; line-height: 19px; border-radius: 3px; background: var(--revert-all-bg); color: var(--schedule-warning-fg); }
+.schedule-dialog .dialog-body { overflow: visible; }
+.schedule-dialog .datepicker { top: auto; bottom: calc(100% + 4px); } /* above the field, as Sanity's: the dialog is short */
 .dp-foot { display: flex; align-items: center; gap: 8px; margin: 16px -8px -8px; padding: 8px; border-top: 1px solid var(--border); } /* a date's is empty: the rule and 16 px */
 .dp-time { position: relative; display: inline-flex; align-items: center; }
 .dp-time input { width: 99px; height: 34px; font: inherit; font-size: 15px; line-height: 22px; padding: 6px 12px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg); color: var(--input-fg); }

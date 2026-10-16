@@ -31,7 +31,11 @@ const dayLabel = (d: Date, locale: Locale) =>
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, d.getHours(), d.getMinutes())
 
-export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, options = {}, placeholder, calendarLabel}: {id: string; value: string | undefined; onChange: (v: unknown) => void; readOnly?: boolean; dateOnly?: boolean; options?: DateOptions; placeholder?: string; calendarLabel?: string}) {
+/**
+ * `min`, `notice`: Sanity's schedule dialog (task-7821e8da66b7d5a9): the days before `min`
+ * can't be picked, and `notice` heads the open calendar ("Select a date in the future.").
+ */
+export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, options = {}, placeholder, calendarLabel, min, notice, autoFocus}: {id: string; value: string | undefined; onChange: (v: unknown) => void; readOnly?: boolean; dateOnly?: boolean; options?: DateOptions; placeholder?: string; calendarLabel?: string; min?: Date; notice?: string; autoFocus?: boolean}) {
   const t = useT()
   const format = dateOnly ? (options.dateFormat ?? STORED_DATE) : `${options.dateFormat ?? STORED_DATE} ${options.timeFormat ?? 'HH:mm'}`
   const formatLocal = (d: Date) => formatDate(d, format)
@@ -71,6 +75,7 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
           placeholder={placeholder ?? t('e.g. {example}', {example: formatLocal(new Date())})}
           value={text}
           readOnly={readOnly}
+          autoFocus={autoFocus}
           aria-invalid={invalid || undefined}
           onChange={(e) => setText(e.target.value)}
           onBlur={() => typed()}
@@ -90,6 +95,8 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
           value={stored}
           dateOnly={dateOnly}
           timeStep={options.timeStep}
+          min={min}
+          notice={notice}
           onPick={(d) => commit(d)}
           onClose={() => (setOpen(false), button.current?.focus())}
         />
@@ -98,7 +105,7 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
   )
 }
 
-function DatePicker({value, dateOnly, timeStep = 1, onPick, onClose}: {value?: Date; dateOnly: boolean; timeStep?: number; onPick: (d: Date) => void; onClose: () => void}) {
+function DatePicker({value, dateOnly, timeStep = 1, min, notice, onPick, onClose}: {value?: Date; dateOnly: boolean; timeStep?: number; min?: Date; notice?: string; onPick: (d: Date) => void; onClose: () => void}) {
   const t = useT()
   const locale = useLocale()
   const [focused, setFocused] = useState(() => value ?? new Date())
@@ -137,7 +144,7 @@ function DatePicker({value, dateOnly, timeStep = 1, onPick, onClose}: {value?: D
   const onGridKey = (e: KeyboardEvent) => {
     const step = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7}[e.key]
     if (step) (e.preventDefault(), setFocused(addDays(focused, step)))
-    else if (e.key === 'Enter' || e.key === ' ') (e.preventDefault(), pick(focused))
+    else if (e.key === 'Enter' || e.key === ' ') (e.preventDefault(), !(min && focused < new Date(min.getFullYear(), min.getMonth(), min.getDate())) && pick(focused))
   }
 
   return (
@@ -147,6 +154,11 @@ function DatePicker({value, dateOnly, timeStep = 1, onPick, onClose}: {value?: D
       role="dialog"
       aria-label={t('Select date')}
     >
+      {notice && (
+        <p className="dp-notice" role="alert">
+          {notice}
+        </p>
+      )}
       <div className="dp-head">
         <span className="dp-month">
           <select aria-label={t('Month')} value={focused.getMonth()} onChange={(e) => setFocused(new Date(focused.getFullYear(), Number(e.target.value), Math.min(focused.getDate(), 28)))}>
@@ -185,6 +197,7 @@ function DatePicker({value, dateOnly, timeStep = 1, onPick, onClose}: {value?: D
         {days.map((d) => {
           const selected = !!value && sameDay(d, value)
           const isFocused = sameDay(d, focused)
+          const before = !!min && d < new Date(min.getFullYear(), min.getMonth(), min.getDate())
           return (
             <button
               key={d.toDateString()}
@@ -197,6 +210,7 @@ function DatePicker({value, dateOnly, timeStep = 1, onPick, onClose}: {value?: D
               data-selected={selected || undefined}
               data-focused={isFocused}
               tabIndex={isFocused ? 0 : -1}
+              disabled={before}
               onClick={() => pick(d)}
             >
               {d.getDate()}

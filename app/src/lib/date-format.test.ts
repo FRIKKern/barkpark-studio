@@ -9,6 +9,10 @@ test('formats and reads back Sanity formats', () => {
   for (const f of ['YYYY-MM-DD HH:mm', 'DD.MM.YYYY HH:mm', 'D/M/YY h:mm A', '[at] HH:mm [on] DD.MM.YYYY'])
     assert.equal(parseDate(formatDate(d, f), f)?.getTime(), d.getTime(), f)
   assert.equal(formatDate(d, 'DD.MM.YYYY'), '13.10.2026')
+  // Sanity's schedule dialog (task-7821e8da66b7d5a9).
+  assert.equal(formatDate(new Date(2026, 9, 16, 18, 47), 'MMM D, YYYY HH:mm'), 'Oct 16, 2026 18:47')
+  assert.equal(parseDate('oct 16, 2026 18:47', 'MMM D, YYYY HH:mm')?.getTime(), new Date(2026, 9, 16, 18, 47).getTime())
+  assert.equal(parseDate('Okt 16, 2026 18:47', 'MMM D, YYYY HH:mm'), undefined)
   assert.equal(formatDate(new Date(2026, 9, 13, 15, 30), 'h:mm a'), '3:30 pm')
 })
 

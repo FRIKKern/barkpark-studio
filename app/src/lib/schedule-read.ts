@@ -14,6 +14,3 @@ export function readSchedules(status: number, body: unknown): ScheduleState {
   const schedules = (body as {result?: {schedules?: Schedule[]}} | null)?.result?.schedules ?? []
   return {supported: true, schedule: schedules.find((s) => s.status === 'scheduled') ?? [...schedules].reverse().find((s) => s.status === 'paused') ?? null}
 }
-
-/** `datetime-local` wants the local time, minute precision: 2026-10-20T10:00. */
-export const localInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)

@@ -2,14 +2,16 @@
 // options.dateFormat (default YYYY-MM-DD) and options.timeFormat (default HH:mm).
 // Only the tokens a date or a time of day needs; anything else, and [bracketed] text, is literal.
 
-const TOKENS = /\[[^\]]*\]|YYYY|YY|MM|M|DD|D|HH|H|hh|h|mm|m|A|a/g
+const TOKENS = /\[[^\]]*\]|YYYY|YY|MMM|MM|M|DD|D|HH|H|hh|h|mm|m|A|a/g
+// MMM: the month's short English name, as Sanity's schedule dialog writes it (Oct 16, 2026).
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const pad = (n: number, w = 2) => String(n).padStart(w, '0')
 
 /** `d` (local time) in `format`. */
 export function formatDate(d: Date, format: string): string {
   const h12 = d.getHours() % 12 || 12
   const parts: Record<string, string> = {
-    YYYY: String(d.getFullYear()), YY: pad(d.getFullYear() % 100), MM: pad(d.getMonth() + 1), M: String(d.getMonth() + 1),
+    YYYY: String(d.getFullYear()), YY: pad(d.getFullYear() % 100), MMM: MONTHS[d.getMonth()]!, MM: pad(d.getMonth() + 1), M: String(d.getMonth() + 1),
     DD: pad(d.getDate()), D: String(d.getDate()), HH: pad(d.getHours()), H: String(d.getHours()), hh: pad(h12), h: String(h12),
     mm: pad(d.getMinutes()), m: String(d.getMinutes()), A: d.getHours() < 12 ? 'AM' : 'PM', a: d.getHours() < 12 ? 'am' : 'pm',
   }
@@ -19,10 +21,10 @@ export function formatDate(d: Date, format: string): string {
 /** `text` read in `format` (local time); undefined if it isn't one, or names a day that doesn't exist. */
 export function parseDate(text: string, format: string): Date | undefined {
   const fields: string[] = []
-  const source = format.replace(/[.*+?^${}()|\\]/g, '\\$&').replace(/\\\[[^\]]*\]|\[[^\]]*\]|YYYY|YY|MM|M|DD|D|HH|H|hh|h|mm|m|A|a/g, (t) => {
+  const source = format.replace(/[.*+?^${}()|\\]/g, '\\$&').replace(/\\\[[^\]]*\]|\[[^\]]*\]|YYYY|YY|MMM|MM|M|DD|D|HH|H|hh|h|mm|m|A|a/g, (t) => {
     if (t.startsWith('[') || t.startsWith('\\[')) return t.replace(/^\\?\[|\]$/g, '').replace(/[.*+?^${}()|\\]/g, '\\$&')
     fields.push(t)
-    return t === 'YYYY' ? '(\\d{4})' : t === 'A' || t === 'a' ? '([AaPp][Mm])' : '(\\d{1,2})'
+    return t === 'YYYY' ? '(\\d{4})' : t === 'MMM' ? '([A-Za-z]{3})' : t === 'A' || t === 'a' ? '([AaPp][Mm])' : '(\\d{1,2})'
   })
   const m = new RegExp(`^\\s*${source}\\s*$`).exec(text)
   if (!m) return undefined
@@ -32,6 +34,7 @@ export function parseDate(text: string, format: string): Date | undefined {
     const n = Number(v)
     if (f === 'YYYY') y = n
     else if (f === 'YY') y = 2000 + n
+    else if (f === 'MMM') mo = MONTHS.findIndex((x) => x.toLowerCase() === v.toLowerCase()) + 1
     else if (f === 'MM' || f === 'M') mo = n
     else if (f === 'DD' || f === 'D') d = n
     else if (f === 'HH' || f === 'H' || f === 'hh' || f === 'h') h = n
