@@ -1038,7 +1038,9 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
   }, [])
   const saved = state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !!doc._draft && (justSaved || !doc._updatedAt)
   // "Last published …" / "Edited …": Sanity puts who did it beside the words.
-  const actor = useLastActor(doc, state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !saved)
+  const wantsActor = state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !saved
+  const actor = useLastActor(doc, wantsActor)
+  const actorPending = useActorPending(doc, wantsActor)
   const label =
     state === 'refused'
       ? t('Not saved: {reason}', {reason: error ?? t('Barkpark refused the change')})
@@ -1058,7 +1060,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
         {/* "N sec. ago" differs between the server render and hydration: not an error. */}
         <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
           {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
-          {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : actor ? <ActorAvatar actor={actor} /> : null}
+          {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : <FooterActor actor={actor} pending={actorPending} />}
           <span className="save-state-text">{label}</span>
         </span>
       </button>
@@ -1275,6 +1277,14 @@ function useLastActor(doc: Doc, enabled: boolean) {
   const {data} = useQuery({...historyQuery(doc._type, doc._publishedId), enabled})
   return enabled ? data?.find((r) => (doc._draft ? r.status === 'draft' : r.action === 'publish'))?.actor : undefined
 }
+/** Whether the footer's avatar is still on its way (the history is loading): its box is held meanwhile. */
+function useActorPending(doc: Doc, enabled: boolean) {
+  const {isPending} = useQuery({...historyQuery(doc._type, doc._publishedId), enabled})
+  return enabled && isPending
+}
+/** Who did it, beside the footer's words; while the history loads, an empty avatar-sized box (holding a space, so its
+ *  baseline is the avatar's), so the words never move (J21 F2). */
+const FooterActor = ({actor, pending}: {actor?: string; pending: boolean}) => (actor ? <ActorAvatar actor={actor} /> : pending ? <span className="p-avatar actor-slot" aria-hidden="true">{'\u00a0'}</span> : null)
 
 /** The Published perspective: read-only, and the way to take a document down. */
 function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
@@ -1287,6 +1297,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   // history, when an unpublish was the last publish-or-unpublish; else nothing.
   const none = !doc._rev
   const actor = useLastActor(doc, !none)
+  const actorPending = useActorPending(doc, true)
   const {data: revisions} = useQuery({...historyQuery(doc._type, doc._publishedId), enabled: none})
   const last = none ? revisions?.find((r) => r.action === 'publish' || r.action === 'unpublish') : undefined
   const gone = last?.action === 'unpublish' ? last : undefined
@@ -1295,7 +1306,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   return (
     <footer className="doc-footer">
       <span className="save-state" role="status" suppressHydrationWarning>
-        {none ? gone?.actor && <ActorAvatar actor={gone.actor} /> : actor && <ActorAvatar actor={actor} />}
+        <FooterActor actor={none ? gone?.actor : actor} pending={actorPending} />
         <span className="save-state-text">{none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}</span>
       </span>
       <DocBadges doc={doc} />
