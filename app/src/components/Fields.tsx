@@ -10,7 +10,7 @@ import {FieldClashCard} from './FieldClash'
 import {worst, type Level, type Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
 import {ChevronDown, ResetCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
-import {copy, fits, read, signature} from '../lib/clipboard'
+import {copy, fits, isEmpty, read, signature} from '../lib/clipboard'
 import {toast} from './Toasts'
 import {BlockPresence, FieldPresence} from './Presence'
 import {DateTimeInput, type DateOptions} from './DateTimeInput'
@@ -280,7 +280,8 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
   const doPaste = () => {
     const clip = read()
     const item = clip?.kind === 'field' ? clip.field : undefined
-    if (!item) return toast({tone: 'critical', title: tBrowser('Nothing to paste'), description: tBrowser('Copy a field first')})
+    // An empty copy (kept by an older studio) pastes nothing rather than clearing the field.
+    if (!item || isEmpty(item.value)) return toast({tone: 'critical', title: tBrowser('Nothing to paste'), description: tBrowser('Copy a field first')})
     if (!fits(item.sig, item.value, field))
       return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: tBrowser('Source and target schema types are not compatible')})
     onChange(item.value)
