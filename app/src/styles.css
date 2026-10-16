@@ -1110,12 +1110,14 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 
 /* Inspect (J28), after Sanity's: a dialog over the pane, Parsed tree or Raw JSON; centred
    in the pane while it is short, as Sanity's. */
-.inspect-backdrop { place-items: center stretch; grid-template-rows: minmax(0, 1fr); padding: 149px 12px 61px; /* Sanity's card area: under the tabs, 12 px in (200-939 px at 1000) */ }
+/* Sanity's layer is the pane's card area, under the tabs and over the footer: only that dims,
+   and the card sits 12 px in (200-839 px at 900). Header, tabs and footer stay as they are. */
+.inspect-backdrop { inset: 137px 0 49px; place-items: center stretch; grid-template-rows: minmax(0, 1fr); padding: 12px; }
 /* Sanity's Inspect stays inside its pane and scrolls the document within (a single auto
    row would grow with the JSON and run off the window). */
 .dialog.inspect { width: auto; max-height: 100%; min-height: 0; }
 /* Below 600 px Sanity's Inspect takes the whole screen, the card 12 px in (J46). */
-@media (max-width: 599px) { .inspect-backdrop { position: fixed; padding: 12px; } }
+@media (max-width: 599px) { .inspect-backdrop { position: fixed; inset: 0; padding: 12px; } }
 .dialog.inspect .inspect-body { flex: 1 1 auto; min-height: 0; }
 .dialog.inspect h2 em { font-style: italic; }
 /* Sanity's, measured at 1440: Parsed / Raw JSON 12 px in and 49 px down the card, 25 px tabs
