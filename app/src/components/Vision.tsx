@@ -189,46 +189,49 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
       </div>
       <div className="vision-body" data-saved={savedOpen ? undefined : 'off'}>
         <section className="vision-query">
-          <label htmlFor="vision-query" className="menu-label">
-            {t('Query')}
-          </label>
-          {/* Sanity's code editor (CodeMirror, loaded with Vision only); a plain box until it arrives. */}
-          <Suspense
-            fallback={
-              <textarea
-                id="vision-query"
-                className="vision-code"
-                spellCheck={false}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
-              />
-            }
-          >
-            <VisionEditor id="vision-query" label={t('Query')} language="query" value={query} onChange={setQuery} onRun={() => void fetchIt()} />
-          </Suspense>
-          <p className="vision-hint">
-            {t("A type, then Barkpark's query string:")} <code>filter[field][op]=value</code>, <code>order</code>, <code>limit</code>. {t('$name takes its value from Params.')}
-          </p>
-          <label htmlFor="vision-params" className="menu-label">
-            {t('Params')}
-          </label>
-          <Suspense
-            fallback={
-              <textarea
-                id="vision-params"
-                className="vision-code vision-params"
-                spellCheck={false}
-                value={params}
-                onChange={(e) => setParams(e.target.value)}
-                onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
-              />
-            }
-          >
-            <div className="vision-params">
+          {/* Sanity's: each label sits in its editor's top left, over a gutter that runs the full height. */}
+          <div className="vision-pane">
+            <label htmlFor="vision-query" className="menu-label vision-label-help">
+              {t('Query')}
+              <span className="vision-help" role="img" aria-label={t('About queries')} title={`${t("A type, then Barkpark's query string:")} filter[field][op]=value, order, limit. ${t('$name takes its value from Params.')}`}>
+                <HelpCircle />
+              </span>
+            </label>
+            {/* Sanity's code editor (CodeMirror, loaded with Vision only); a plain box until it arrives. */}
+            <Suspense
+              fallback={
+                <textarea
+                  id="vision-query"
+                  className="vision-code"
+                  spellCheck={false}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
+                />
+              }
+            >
+              <VisionEditor id="vision-query" label={t('Query')} language="query" value={query} onChange={setQuery} onRun={() => void fetchIt()} />
+            </Suspense>
+          </div>
+          <div className="vision-pane vision-params">
+            <label htmlFor="vision-params" className="menu-label">
+              {t('Params')}
+            </label>
+            <Suspense
+              fallback={
+                <textarea
+                  id="vision-params"
+                  className="vision-code"
+                  spellCheck={false}
+                  value={params}
+                  onChange={(e) => setParams(e.target.value)}
+                  onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && (e.preventDefault(), void fetchIt())}
+                />
+              }
+            >
               <VisionEditor id="vision-params" label={t('Params')} language="json" value={params} onChange={setParams} onRun={() => void fetchIt()} />
-            </div>
-          </Suspense>
+            </Suspense>
+          </div>
           <div className="vision-actions">
             <button type="button" className="btn btn-primary vision-fetch" disabled={busy} aria-keyshortcuts="Control+Enter Meta+Enter" onClick={() => void fetchIt()}>
               <PlayIcon /> {t('Fetch')}
