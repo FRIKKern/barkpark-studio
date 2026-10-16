@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Field} from './data.ts'
-import {isHidden} from './conditions.ts'
+import {groupShows, isHidden} from './conditions.ts'
 
 test('scope "parent" reads the enclosing object, the default reads the document', () => {
   const url = {name: 'url', type: 'url', visibleWhen: {field: 'kind', operator: 'eq', value: 'url', scope: 'parent'}} as unknown as Field
@@ -12,4 +12,14 @@ test('scope "parent" reads the enclosing object, the default reads the document'
   assert.equal(isHidden(url, doc), true) // no parent: the document's kind
   const top = {...url, visibleWhen: {field: 'kind', operator: 'eq', value: 'url'}} as unknown as Field
   assert.equal(isHidden(top, doc, doc.cta), true) // the default scope ignores the parent
+})
+
+test("a group shows while one of its fields does (Sanity's visibleGroups)", () => {
+  const fields = [
+    {name: 'featured', type: 'boolean', group: 'meta'},
+    {name: 'promoLine', type: 'string', group: 'promo', visibleWhen: {field: 'featured', operator: 'eq', value: true}},
+  ] as unknown as Field[]
+  assert.equal(groupShows(fields, 'promo', {featured: false}), false)
+  assert.equal(groupShows(fields, 'promo', {featured: true}), true)
+  assert.equal(groupShows(fields, 'meta', {}), true)
 })

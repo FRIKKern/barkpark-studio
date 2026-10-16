@@ -14,6 +14,7 @@ import {createDoc, discardDraft, discardPending, draftNew, edit, flush, publish,
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
+import {groupShows} from '../lib/conditions'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
@@ -821,7 +822,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             {pane.id !== pane.type && <div className="kind">{schema.title}</div>}
             <h1 data-off={gone || undefined}>{gone ? t('Untitled') : docTitle(doc, schema, t)}</h1>
             {!revision && <LocationsBanner doc={doc} />}
-            <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
+            <GroupTabs schema={schema} doc={revision ? ({...doc, ...revision.content} as Doc) : doc} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
             {formBody({
               shown: revision ? ({...doc, ...revision.content} as Doc) : doc,
@@ -896,14 +897,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           published={
             <>
               <LocationsBanner doc={publishedQ.data} />
-              <GroupTabs schema={schema} value={group} onChange={setGroup} problems={NO_PROBLEMS} />
+              <GroupTabs schema={schema} doc={publishedQ.data} value={group} onChange={setGroup} problems={NO_PROBLEMS} />
               {formBody({shown: publishedQ.data, values: publishedQ.data, changes: null, problems: NO_PROBLEMS, disabled: true, fields: formFields, unknown: false})}
             </>
           }
           draft={
             <>
               <LocationsBanner doc={doc} />
-              <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
+              <GroupTabs schema={schema} doc={doc} value={group} onChange={setGroup} problems={problems} />
               {formBody({shown: doc, values: doc, changes: {...changes, inline: true}, problems: quiet ? quietProblems : steadyProblems, disabled: !canWrite || scheduleLocked, fields: formFields, unknown: false})}
             </>
           }
@@ -959,10 +960,10 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
  * pane under 360 px (Presentation's panel) they are a select instead, as Sanity's
  * (its ElementQuery: `data-eq-max~='0'` shows the Select); CSS picks which.
  */
-function GroupTabs({schema, value, onChange, problems}: {schema: Schema; value: string; onChange: (g: string) => void; problems: Problem[]}) {
+function GroupTabs({schema, doc, value, onChange, problems}: {schema: Schema; doc: Record<string, unknown>; value: string; onChange: (g: string) => void; problems: Problem[]}) {
   const t = useT()
   if (!schema.groups?.length) return null
-  const tabs = [{name: '', title: t('All fields')}, ...schema.groups]
+  const tabs = [{name: '', title: t('All fields')}, ...schema.groups.filter((g) => groupShows(schema.fields, g.name, doc))]
   return (
     <div className="group-tabs-root">
       <span className="select-box group-select">

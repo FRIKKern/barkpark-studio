@@ -56,3 +56,6 @@ const base = (c: Condition, doc: Record<string, unknown>, parent?: Record<string
 export const isHidden = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => !!f.visibleWhen && !matches(f.visibleWhen, base(f.visibleWhen, doc, parent))
 export const isReadOnly = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) =>
   f.readOnly === true || (typeof f.readOnly === 'object' && f.readOnly !== null && matches(f.readOnly, base(f.readOnly, doc, parent)))
+
+/** Sanity shows a group's tab only while some field in it shows (`visibleGroups`): one whose fields are all hidden has none. */
+export const groupShows = (fields: Field[], group: string, doc: Record<string, unknown>) => fields.some((f) => f.group === group && !isHidden(f, doc))
