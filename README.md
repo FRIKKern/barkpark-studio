@@ -18,13 +18,12 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 224 changes, 4 tasks closed
+- **Today** · 1 change
+  - Body toolbar's Show more menu as Sanity's: centred, as wide as its rows, a rule between groups ([#872](https://github.com/FRIKKern/barkpark-studio/pull/872))
+- **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
-  - Desk and list rows start where Sanity's do: a 50 px list header ([#869](https://github.com/FRIKKern/barkpark-studio/pull/869))
-- **Yesterday** · 91 changes
+- **This week** · 134 changes, 83 tasks closed
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
-- **This week** · 43 changes, 83 tasks closed
-  - housekeeping: list fewer items per period so the README stays under 80 lines ([#554](https://github.com/FRIKKern/barkpark-studio/pull/554))
 - **Last week** · 499 changes, 84 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
 <!-- timeline:end -->
