@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 19 changes, 4 tasks closed
+- **Today** · 20 changes, 4 tasks closed
+  - Sign-in: Forgot password?, as Sanity's link under the password ([#665](https://github.com/FRIKKern/barkpark-studio/pull/665))
   - Menus as Sanity's: 33 px items 4 px apart in #383d51, 21 px icons 6 px in, its group labels ([#664](https://github.com/FRIKKern/barkpark-studio/pull/664))
-  - Inspect as Sanity's: Parsed / Raw JSON 12 px in at 500, 25 px tabs, the search 20 px under the rule in the UI font ([#662](https://github.com/FRIKKern/barkpark-studio/pull/662))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
