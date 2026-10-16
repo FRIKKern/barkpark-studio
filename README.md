@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 112 changes, 4 tasks closed
+- **Today** · 113 changes, 4 tasks closed
+  - Array item menu as Sanity's: centred on the ⋯, every item with its icon, a rule before Open in new tab, the ⋯ filled while open ([#759](https://github.com/FRIKKern/barkpark-studio/pull/759))
   - fix(body): a batch answered 404 by a publish race goes again on the server's rev ([#758](https://github.com/FRIKKern/barkpark-studio/pull/758))
-  - The chosen Published chip filled green with Sanity's dark green words ([#757](https://github.com/FRIKKern/barkpark-studio/pull/757))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
