@@ -12,6 +12,8 @@
   --muted: #515870;
   --border: #e6e8ec;
   --hover: #f2f3f5;
+  --icon-btn-hover: #f6f6f8; /* Sanity's icon button under the pointer: fill and glyph (measured) */
+  --icon-btn-hover-fg: #636570;
   --hover-strong: #e9eaee;
   --selected-fill: #eeeef1; /* Sanity's selected tab and chip fill (measured, light) */
   --fill-soft: #eeeef1; /* Sanity's soft fill: the History entry shown, a type badge (measured) */
@@ -145,6 +147,8 @@
   --muted: #9ea3b5;
   --border: #2a2d3f;
   --hover: #21232f;
+  --icon-btn-hover: #21232f;
+  --icon-btn-hover-fg: #9193a0;
   --hover-strong: #2a2d3f;
   --selected-fill: #2a2d3f;
   --fill-soft: #21232f;
@@ -351,9 +355,11 @@ a { color: inherit; text-decoration: none; }
 .pane-not-found .btn { display: inline-flex; align-items: center; min-height: 44px; }
 .icon-btn {
   border: 0; background: none; padding: 0; cursor: pointer;
-  width: 25px; height: 25px; display: grid; place-items: center; border-radius: 3px; color: var(--muted);
+  width: 25px; height: 25px; display: grid; place-items: center; border-radius: 3px; color: var(--icon-muted);
 }
-.icon-btn:hover { background: var(--hover); color: var(--fg); }
+/* Sanity's icon buttons (navbar, pane header, field and item menus, footer): the glyph in its muted grey,
+   a shade darker on a #f6f6f8 fill under the pointer (measured at 1440, light and dark). */
+.icon-btn:hover { background: var(--icon-btn-hover); color: var(--icon-btn-hover-fg); }
 /* Sanity draws every icon button's icon at 21 px (its 25 px grid scaled), measured across the
    document page: navbar, field and item menus, Expand editor, document actions. */
 .icon-btn > svg { width: 21px; height: 21px; }
@@ -525,7 +531,6 @@ textarea.input { resize: vertical; }
 .doc-footer .publish { min-height: 25px; padding: 2px 8px 2px 2px; gap: 2px; }
 .doc-footer .publish > svg { width: 21px; height: 21px; margin: 0; }
 .doc-footer .publish-tip + *, .doc-footer .publish + * { margin-left: 4px; }
-.doc-footer > .icon-btn, .doc-footer .menu-wrap > .icon-btn { color: var(--fg-header); }
 .doc-footer .save-state-btn { color: var(--footer-meta); margin: 0; padding: 3px 6px; border: 0; border-radius: 3px; background: none; font: inherit; cursor: pointer; min-width: 0; text-align: left; }
 .doc-footer .save-state-btn:hover:not(:disabled) { background: var(--hover); }
 .doc-footer .save-state-btn:disabled { cursor: default; }
@@ -550,7 +555,6 @@ textarea.input { resize: vertical; }
    the muted … 5 px from the edge; its menu centred under the button, sized to its items. */
 .ref-box.ref-row { padding: 5px; }
 .ref-box .preview .status { margin-right: -3px; }
-.ref-row > .menu-wrap > .icon-btn { color: var(--icon-muted); }
 .ref-row > .menu-wrap > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); }
 .popover.menu.ref-menu { min-width: 0; width: max-content; top: 29px; right: auto; left: 50%; transform: translateX(-50%); }
 .ref-preview { flex: 1; min-width: 0; }
@@ -1037,7 +1041,7 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 /* A fieldset's box starts below its legend: lift its actions back up beside the legend. */
 fieldset.object-field > .field-actions { top: -38px; }
 .field:is(:hover, :focus-within) > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
-.field-actions .icon-btn { width: 25px; height: 25px; color: var(--fg-header); } /* Sanity's: level with the label, touching Add comment, #383d51 */
+.field-actions .icon-btn { width: 25px; height: 25px; } /* Sanity's: level with the label, touching Add comment */
 .field-actions .popover.menu { top: 29px; right: 0; min-width: 160px; }
 
 /* Toasts, after Sanity's: bottom right, title + one line */
@@ -1949,7 +1953,7 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
    the composer under it, and the Comments inspector. */
 .field-comments { position: absolute; top: 0; right: 0; z-index: 2; }
 fieldset.object-field > .field-comments { top: -38px; }
-.field-comments .comment-add { width: 25px; height: 25px; opacity: 0; color: var(--fg-header); }
+.field-comments .comment-add { width: 25px; height: 25px; opacity: 0; }
 .field:is(:hover, :focus-within) > .field-comments .comment-add, .field-comments:focus-within .comment-add, .comment-add[aria-expanded='true'] { opacity: 1; }
 .field-comments[data-has] ~ .field-actions, .field-comments[data-has] + .field-actions { right: 52px; }
 .comment-count { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 6px 0 2px; border: 0; border-radius: 3px; background: var(--hover); font: inherit; font-size: 12px; font-weight: 500; color: var(--fg); cursor: pointer; }
