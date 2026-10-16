@@ -31,6 +31,12 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   await page.goto('/media')
   await t.settle(page)
   await expect(page.locator('.media-tile').first()).toBeVisible()
+  // WCAG reflow (320 px): the bar wraps under its search, Upload included, no sideways page.
+  const size = page.viewportSize()!
+  await page.setViewportSize({width: 320, height: 640})
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
+  await expect(page.locator('.media-upload')).toBeInViewport()
+  await page.setViewportSize(size)
   // The count, as LiveView's "Showing 50 of 124 assets".
   const count = page.locator('.media-count')
   await expect(count).toHaveText(/^(Showing \d+ of \d+|\d+) assets$/)
