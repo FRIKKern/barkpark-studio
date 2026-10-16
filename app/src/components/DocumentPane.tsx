@@ -111,7 +111,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // happened. A stub with no fields stands in for the published version.
   const noPublished = viewingPublished && publishedQ.data === null && !!draftQ.data
   const stub = useMemo(() => ({_id: pane.id, _publishedId: pane.id, _type: pane.type, _draft: false, _rev: '', _updatedAt: ''}) as Doc, [pane.id, pane.type])
-  const doc = noPublished ? stub : shown
+  // J32: a doc someone deleted keeps its pane, as Sanity's: the banner on top, "Untitled",
+  // the form empty and read-only, its footer; the same stub stands in for it.
+  const deleted = useDeleted(pane.type, pane.id, draftQ.data === null && !viewingPublished)
+  // Not a singleton's one doc: that opens empty and is created on its first edit (B13).
+  const gone = deleted === true && !viewingPublished && !(pane.id === pane.type && isSingleton(schemas, pane.type))
+  const doc = noPublished || gone ? stub : shown
   // J16: an old revision (rev=… in the URL) shows in the form's place, read-only.
   const revQ = useQuery({...revisionQuery(pane.rev ?? ''), enabled: !!pane.rev})
   const revision = pane.rev ? revQ.data : undefined
@@ -145,13 +150,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const quiet = made?.id === pane.id && !made.acted
   // After the keystroke lands: re-rendering the form inside its input event drops it.
   const acted = () => quiet && setTimeout(() => setMade((m) => (m?.id === pane.id ? {...m, acted: true} : m)))
-  const checked = doc && schemaForPane && !viewingPublished && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
+  const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
   // J28: a slug another document of this type has (a duplicate's copied slug) is taken, as Sanity says.
-  const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !pristine, t)
+  const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine, t)
   const own = slugTaken.length ? [...checked, ...slugTaken] : checked
   // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
   const advisories = useAdvisories(pane.id)
-  const extra = advisories.length && schemaForPane && !viewingPublished ? advisoryProblems(advisories, schemaForPane, own, t) : []
+  const extra = advisories.length && schemaForPane && !viewingPublished && !gone ? advisoryProblems(advisories, schemaForPane, own, t) : []
   // In the form's order, as Sanity lists them (a field's own problems stay in theirs).
   const order = (p: Problem) => (schemaForPane?.fields ?? []).findIndex((f) => f.name === p.path.split(/[.[]/)[0])
   const problems = extra.length ? [...own, ...extra].map((p, i) => [p, i] as const).sort(([a, i], [b, j]) => order(a) - order(b) || i - j).map(([p]) => p) : own
@@ -294,8 +299,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const next = panes[index + 1]
   const qc = useQueryClient()
   // Creation actions seed their draft explicitly. A missing deep link must not
-  // silently become a new document; keep the deleted-document recovery (J32).
-  const deleted = useDeleted(pane.type, pane.id, draftQ.data === null && !viewingPublished)
+  // silently become a new document; keep the deleted-document recovery (J32, above).
   // B13: a singleton's one document (id = its type) that does not exist opens empty and
   // is created on its first edit, like a new doc; never "not found" nor "deleted" (it
   // can't be deleted here; History still restores an old version).
@@ -381,7 +385,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const docShortcut = (e: Pick<KeyboardEvent, 'ctrlKey' | 'altKey' | 'code' | 'preventDefault'>) => {
     // Sanity's publish shortcut, also mid-edit (publish flushes first). Like its
     // button, a no-op with nothing to publish or while a publish is running.
-    if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !errors.length) {
+    if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !gone && !errors.length) {
       e.preventDefault()
       if (!publishingKey.current && !pristine && (doc._draft || saveState !== 'saved')) {
         publishingKey.current = true
@@ -529,7 +533,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       <header className="pane-header">
         <AvatarStack people={here} />
         <span className="title chips">
-          {draftQ.data?._hasPublished === false ? (
+          {draftQ.data?._hasPublished === false || gone ? (
             <span className="chip" data-off="" aria-disabled="true" title={t('Not published')}>
               <span className="dot published" />
               <span className="chip-label">{t('Published')}</span>
@@ -568,7 +572,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             </span>
           )}
         </span>
-        {doc && !pristine && <DocShareMenu doc={doc} />}
+        {doc && !pristine && !gone && <DocShareMenu doc={doc} />}
         {/* Sanity shows it only when there is something to show (an info alone: a check). */}
         {!viewingPublished && (problems.length > 0 || inspecting) && (
           <button
@@ -654,6 +658,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       <div className="doc-column">
       {/* Sanity's banners sit right under the pane header, above the title bar and the scrolling form: always in view. */}
       <div className="pane-banners">
+        {gone && <DeletedBanner type={pane.type} id={pane.id} />}
         <ReferenceBanner panes={panes} index={index} closeHref={closeHref} />
         {loggedOut && doc && (
           // J48: the session is gone — said where you are editing, with the way back.
@@ -745,7 +750,6 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           ) : (
             <ReadErrorCard title={t('Could not load the document')} error={error} failures={docQ.failureCount} retrying={docQ.fetchStatus !== 'idle'} onRetry={() => void docQ.refetch()} />
           ))}
-        {deleted && !doc && <DeletedBanner type={pane.type} id={pane.id} />}
         {doc === null && !error && !viewingPublished && !deleted && (
           <div className="pane-not-found">
             {/* J02: Sanity's title, its text with our known type. */}
@@ -802,7 +806,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           >
             {/* The type's name above the title, but not on a singleton: Sanity's FormHeader hides it when the doc's id is its type. */}
             {pane.id !== pane.type && <div className="kind">{schema.title}</div>}
-            <h1>{docTitle(doc, schema, t)}</h1>
+            <h1 data-off={gone || undefined}>{gone ? t('Untitled') : docTitle(doc, schema, t)}</h1>
             {!revision && <LocationsBanner doc={doc} />}
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
@@ -811,7 +815,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               values: revision ? revision.content : doc,
               changes,
               problems: revision ? NO_PROBLEMS : quiet ? quietProblems : steadyProblems,
-              disabled: viewingPublished || !!revision || !canWrite || scheduleLocked,
+              disabled: viewingPublished || gone || !!revision || !canWrite || scheduleLocked,
               fields: formFields.slice(0, revealed),
               unknown: !revision && revealed >= formFields.length,
             })}
@@ -832,6 +836,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         ? <RevisionFooter type={pane.type} revisionId={pane.rev} timestamp={revision?.timestamp} onRestored={() => navigate({href: withParams(panes, index, {rev: undefined})})} />
         : viewingPublished
         ? doc && <PublishedFooter doc={doc} single={single} />
+        : gone
+        ? <GoneFooter type={pane.type} id={pane.id} />
         : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} onReview={() => navigate({href: withParams(panes, index, {inspect: 'review', rev: undefined})})} />}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => void toggleValidation()} />}
@@ -1323,6 +1329,28 @@ function useActorPending(doc: Doc, enabled: boolean) {
 const FooterActor = ({actor, pending}: {actor?: string; pending: boolean}) => (actor ? <ActorAvatar actor={actor} /> : pending ? <span className="p-avatar actor-slot" aria-hidden="true">{'\u00a0'}</span> : null)
 
 /** The Published perspective: read-only, and the way to take a document down. */
+/** J32: a deleted doc's footer, as Sanity's: who deleted it and when, Publish off. */
+function GoneFooter({type, id}: {type: string; id: string}) {
+  const t = useT()
+  const locale = useLocale()
+  const {data: revisions} = useQuery(historyQuery(type, id))
+  const removal = revisions?.[0]?.action === 'delete' ? revisions[0] : undefined
+  return (
+    <footer className="doc-footer">
+      <div className="doc-footer-status">
+        <span className="save-state" role="status" suppressHydrationWarning>
+          <FooterActor actor={removal?.actor} pending={!revisions} />
+          <span className="save-state-text">{removal && t('Deleted {ago}', {ago: ago(removal.timestamp, locale)})}</span>
+        </span>
+      </div>
+      <button type="button" className="publish" disabled>
+        <PublishIcon />
+        {t('Publish')}
+      </button>
+    </footer>
+  )
+}
+
 function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const t = useT()
   const locale = useLocale()

@@ -8,6 +8,7 @@ import {applyServer, reapply, unsavedFor, useSaveState} from '../lib/edits'
 import {keptAt} from '../lib/kept-words'
 import {openAfter, type Pane} from '../lib/panes'
 import {toast} from './Toasts'
+import {ReadOnlyIcon} from './icons'
 import {intlTag, t as tt, useLocale, useT} from '../lib/i18n'
 
 // J32, Sanity's document banners for what someone else did to what you have open:
@@ -73,8 +74,10 @@ export function DeletedBanner({type, id}: {type: string; id: string}) {
     }
   }
   return (
-    <div className="pane-banner" role="alert">
-      <span>
+    // Sanity's: neutral, the read-only icon, on top of the pane (DocumentPane's banners).
+    <div className="pane-banner" data-tone="neutral" role="alert">
+      <span className="pane-banner-text">
+        <ReadOnlyIcon />
         {t('This document has been deleted.')}
         {keptSince > 0 && <> {t('Your unsaved edits from {date} are kept in this browser and come back with it.', {date: new Date(keptSince).toLocaleTimeString(intlTag(locale), {hour: 'numeric', minute: '2-digit'})})}</>}
       </span>

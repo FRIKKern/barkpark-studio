@@ -9,6 +9,12 @@
   --upload-fill: #f6f6f8; /* Sanity's empty image/file box (measured); its tag chips too */
   --tag-x: #666a79; /* a tag chip's remove x (measured) */
   --upload-ring: #dbdce2;
+  --banner-neutral-bg: #f6f6f8; /* the deleted-document banner, its icon and button (measured) */
+  --chip-off-fg: #8f94a8;
+  --banner-neutral-icon: #4e556d;
+  --banner-btn-bg: #ededf1;
+  --banner-btn-ring: #dddde4;
+  --banner-btn-fg: #4c526a;
   --note-ring: #dbdce2; /* the history note's border and words (measured) */
   --note-fg: #666a79;
   --history-title: #353a4d; /* a history row's event and time (measured) */
@@ -189,6 +195,12 @@
   --upload-fill: #0d0e12;
   --tag-x: #90919b;
   --upload-ring: #252837;
+  --banner-neutral-bg: #0d0e12;
+  --chip-off-fg: #5a607b;
+  --banner-neutral-icon: #949aad;
+  --banner-btn-bg: #13141b;
+  --banner-btn-ring: #21232f;
+  --banner-btn-fg: #979cb0;
   --note-ring: #303346;
   --note-fg: #9597a3;
   --history-title: #c1c3d0;
@@ -706,7 +718,7 @@ a.menu-item { display: block; text-decoration: none; }
 /* width, not flex-basis: a whole line in a wrapping row, and in a column (the task form) not the
    column's whole height, which squeezed the Task title to half a line. */
 .field-error { width: 100%; margin: 4px 0 0; font-size: 13px; color: var(--danger-text); }
-.chip[data-off] { color: var(--disabled); }
+.chip[data-off] { color: var(--chip-off-fg); background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); } /* Sanity's disabled Published chip (no published version, or deleted), measured */
 .chip[data-off] .dot { background: var(--line-strong); }
 
 /* Global search */
@@ -990,8 +1002,8 @@ a.version-badge:hover { color: var(--fg-strong); }
 /* Perspectives (J04) */
 /* The version chips, as Sanity's (measured light and dark): filled and ringed, weight 500. */
 button.chip { font: inherit; font-size: 13px; font-weight: 500; border: 0; background: var(--bg); cursor: pointer; }
-.pane-header button.chip { gap: 11px; padding: 3px 12px 3px 10px; }
-.pane-header button.chip .dot { width: 4px; height: 4px; margin-top: -2px; }
+.pane-header :is(button.chip, .chip[data-off]) { gap: 11px; padding: 3px 12px 3px 10px; }
+.pane-header :is(button.chip, .chip[data-off]) .dot { width: 4px; height: 4px; margin-top: -2px; }
 button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .chip[data-selected]:not([data-active]) { background: var(--selected-fill); box-shadow: none; }
 /* Sanity's chosen Published chip is filled green, its words the badge's dark green. */
@@ -1865,6 +1877,12 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .pane-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 8px 8px 8px 12px; border-radius: 3px; background: var(--warn-bg); color: var(--warn-fg); font-size: 13px; }
 .pane-banner-actions { display: flex; flex: none; gap: 4px; }
 .pane-banner[data-tone=scheduled] { background: var(--scheduled-banner-bg); color: var(--scheduled-fg); }
+/* J32, Sanity's deleted-document banner: neutral, the read-only icon, 500 words, a quiet button. */
+.pane-banner[data-tone=neutral] { background: var(--banner-neutral-bg); color: var(--fg); font-weight: 500; line-height: 19px; }
+.pane-banner[data-tone=neutral] .pane-banner-text > svg { color: var(--banner-neutral-icon); }
+.pane-banners > .pane-banner[data-tone=neutral] { margin: 4px 4px; padding-top: 8px; padding-bottom: 8px; }
+.pane-banner[data-tone=neutral] .pane-banner-text { gap: 7px; }
+.pane-banner[data-tone=neutral] .btn { margin-right: 8px; padding: 3px 8px; line-height: 19px; background: var(--banner-btn-bg); box-shadow: inset 0 0 0 1px var(--banner-btn-ring); color: var(--banner-btn-fg); font-weight: 400; }
 .pane-banner-text { display: flex; align-items: center; gap: 6px; }
 .pane-banner-text > svg, .chip[data-tone=scheduled] > svg:last-child { flex: none; width: 17px; height: 17px; }
 /* J40: Sanity's "Pause to edit", a filled button in the banner's tone. */
@@ -2674,6 +2692,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 /* J30: Sanity's gaps round the banner: 49 px title to banner, 37 px banner to the group
    tabs (the tabs' root is a container, so the banner's 8 px adds to their margin). */
 .doc-form h1:has(+ .locations-banner) { margin-bottom: 49px; }
+.doc-form h1[data-off] { color: var(--muted); } /* a deleted document's "Untitled", Sanity's muted */
 .locations-banner + .group-tabs-root .group-tabs { margin-top: 29px; }
 .locations-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 8px 8px 6px; border: 0; border-radius: 3px; background: none; font: inherit; font-weight: 500; color: var(--fg); text-align: left; cursor: pointer; }
 /* Sanity's toggle fills only under the pointer, open or closed. */

@@ -40,6 +40,11 @@ test(`keystrokes typed as the doc is deleted come back with Restore (${frames})`
   const banner = page.getByRole('alert').filter({hasText: 'This document has been deleted.'})
   await expect(banner).toContainText('Your unsaved edits from', {timeout: 15_000})
   await page.screenshot({path: 'evidence/J32-kept-edits-deleted.png'})
+  // The pane stays, as Sanity's: "Untitled", the form empty and read-only, Published off.
+  await expect(page.locator('.title-row')).toHaveText('Untitled')
+  await expect(t.field(page, 'name')).toHaveValue('')
+  await expect(t.field(page, 'name')).toBeDisabled()
+  await expect(page.locator('.pane-header .chip[data-off]')).toHaveText('Published')
   await banner.getByRole('button', {name: 'Restore most recent revision'}).click()
   await expect(t.field(page, 'name')).toHaveValue('Kept Author typed', {timeout: 15_000})
   await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author typed')
