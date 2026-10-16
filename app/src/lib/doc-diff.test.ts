@@ -43,3 +43,27 @@ test('J15 widen: a word made bold is "formatted"; a callout tone and an image bl
   assert.deepEqual(c!.attrs, [{name: 'tone', before: 'info', after: 'warning'}])
   assert.deepEqual(i!.attrs!.map((a) => a.name), ['alt', 'url'])
 })
+
+test('task-07a49820d19a94c3: an inline chip is in the diff, and a changed link or internal link says what it points to', () => {
+  const t = (value: string) => ({type: 'text', value})
+  const chip = (text: string, tone = 'positive') => ({type: 'chip', text, tone})
+  const link = (href: string, words: string) => ({type: 'link', href, children: [t(words)]})
+  const wiki = (docId: string, words: string) => ({type: 'wikilink', docId, children: [t(words)]})
+  const before = [{id: 'p', type: 'paragraph', content: [t('A '), chip('Old'), t(' see '), link('https://a.test', 'here'), t(' and '), wiki('author-ada', 'Ada')]}]
+  const after = [{id: 'p', type: 'paragraph', content: [t('A '), chip('Hot'), t(' see '), link('https://b.test', 'here'), t(' and '), wiki('author-grace', 'Ada'), t(' '), chip('New', 'neutral')]}]
+  const [d] = docDiff(before, after)
+  const changed = d!.pieces.filter((x) => x.change !== 'same')
+  // The edited chip, the relinked words and the retargeted internal link: each "formatted", with what it was.
+  const edited = changed.find((x) => x.object?.text === 'Hot')!
+  assert.equal(edited.change, 'formatted')
+  assert.equal(edited.was?.object?.text, 'Old')
+  const relinked = changed.find((x) => x.href === 'https://b.test')!
+  assert.deepEqual([relinked.change, relinked.text, relinked.was?.href], ['formatted', 'here', 'https://a.test'])
+  const retargeted = changed.find((x) => x.ref === 'author-grace')!
+  assert.deepEqual([retargeted.change, retargeted.was?.ref], ['formatted', 'author-ada'])
+  // The added chip is drawn, not dropped.
+  assert.deepEqual(changed.filter((x) => x.change === 'added' && x.object).map((x) => x.object!.text), ['New'])
+  // A removed chip.
+  const [r] = docDiff(after, before)
+  assert.deepEqual(r!.pieces.filter((x) => x.change === 'removed' && x.object).map((x) => x.object!.text), ['New'])
+})

@@ -1192,6 +1192,10 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .review-pick:hover:not(:disabled), .review-pick[aria-expanded=true] { background: var(--hover); }
 .review-pick:disabled { cursor: default; }
 .review-pick-menu { position: absolute; top: calc(100% + 2px); right: 0; left: 0; z-index: 5; max-height: 320px; overflow: auto; padding: 4px; }
+.review-inline { position: relative; }
+.review-inline > [role='button'] { cursor: pointer; }
+.review-inline-pop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 5; display: grid; gap: 4px; min-width: 200px; max-width: 360px; padding: 8px 10px; font-size: 13px; line-height: 19px; white-space: normal; overflow-wrap: anywhere; }
+.review-inline-row b { font-weight: 500; margin-right: 4px; }
 .review-empty, .review-loading { padding: 32px 8px; text-align: center; }
 .review-empty { padding: 15px 0 32px; text-align: left; }
 .review-empty h3 { margin: 0 0 2px; font-size: 13px; font-weight: 500; }

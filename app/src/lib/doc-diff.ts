@@ -3,25 +3,40 @@
 // the text diff inside it with the marks (bold, links, …) kept.
 import {textDiff} from './changes.ts'
 
-export type DocInline = {type: string; value?: string; href?: string; children?: DocInline[]}
+export type DocInline = {type: string; value?: string; text?: string; href?: string; docId?: string; target?: string; children?: DocInline[]} & Record<string, unknown>
 export type DocBlock = {id: string; type: string; level?: number; tone?: string; text?: string; content?: DocInline[]; items?: DocInline[][]; ordered?: boolean} & Record<string, unknown>
 
-/** A run of text with the marks around it (outermost first) and its link, if any. */
-export type Run = {text: string; marks: string[]; href?: string}
-// 'formatted': the same text, its marks changed (made bold, a link added), as Sanity marks it.
-export type Piece = Run & {change: 'same' | 'added' | 'removed' | 'formatted'}
+/**
+ * A run of text with the marks around it (outermost first), its link (`href`), the
+ * document it links to (`ref`, a wikilink's id), or the inline object it is (`object`: a
+ * chip, one character in the diff, as Sanity draws InlineObjectWithDiff).
+ */
+export type Run = {text: string; marks: string[]; href?: string; ref?: string; object?: DocInline}
+// 'formatted': the same text, its marks changed (made bold, a link added), as Sanity marks
+// it. `was`: what the run was before (its link, target or object), to say what changed.
+export type Piece = Run & {change: 'same' | 'added' | 'removed' | 'formatted'; was?: Run}
+
+/** One inline object stands as this character in the text diff (Unicode's object replacement). */
+export const OBJECT = '\uFFFC'
 /** A block's other properties that changed (a callout's tone, a heading's level, an image's picture or alt). */
 export type AttrChange = {name: string; before: unknown; after: unknown}
 export type BlockChange = {kind: 'added' | 'removed' | 'changed'; block: DocBlock; was?: DocBlock; pieces: Piece[]; items?: Piece[][]; attrs?: AttrChange[]}
 
 /** Inline nodes as flat runs. */
-export function runs(nodes: DocInline[] = [], marks: string[] = [], href?: string): Run[] {
-  return nodes.flatMap((n) => {
-    if (n.type === 'text' || n.value !== undefined) return n.value ? [{text: n.value, marks, href}] : []
-    if (n.type === 'link') return runs(n.children, marks, n.href ?? href)
-    return runs(n.children, [...marks, n.type], href)
+export function runs(nodes: DocInline[] = [], marks: string[] = [], href?: string, ref?: string): Run[] {
+  return nodes.flatMap((n): Run[] => {
+    if (n.type === 'text' || n.value !== undefined) return n.value ? [{text: n.value, marks, href, ref}] : []
+    // An inline object (a chip) carries its words in `text` and has no children.
+    if (!n.children && typeof n.text === 'string') return [{text: OBJECT, marks, href, ref, object: n}]
+    if (n.type === 'link') return runs(n.children, marks, n.href ?? href, ref)
+    // A link to a document (Sanity's internal link): the run keeps which one.
+    if (n.type === 'wikilink') return runs(n.children ?? (n.target ? [{type: 'text', value: n.target}] : []), marks, href, n.docId ?? n.target)
+    return runs(n.children, [...marks, n.type], href, ref)
   })
 }
+
+/** What else a run is beyond its text: a change here is a "formatted" change. */
+const shape = (r: Run) => `${r.marks.join()}|${r.href ?? ''}|${r.ref ?? ''}|${r.object ? JSON.stringify(r.object) : ''}`
 
 const textOf = (rs: Run[]) => rs.map((r) => r.text).join('')
 
@@ -50,14 +65,16 @@ export function diffRuns(before: Run[], after: Run[]): Piece[] {
     else {
       // The same text: marked 'formatted' where its marks differ from before's.
       const was = take(before, b, n, 'same')
-      const markAt = (ps: Piece[], i: number) => {
-        for (const p of ps) if (i < p.text.length) return `${p.marks.join()}|${p.href ?? ''}`; else i -= p.text.length
-        return ''
+      const pieceAt = (ps: Piece[], i: number) => {
+        for (const p of ps) if (i < p.text.length) return p; else i -= p.text.length
+        return undefined
       }
       let at = 0
       for (const p of take(after, a, n, 'same')) {
-        const differs = [...p.text].some((_, i) => markAt(was, at + i) !== `${p.marks.join()}|${p.href ?? ''}`)
-        out.push(differs ? {...p, change: 'formatted'} : p)
+        const olds = [...p.text].map((_, i) => pieceAt(was, at + i))
+        const old = olds.find((w) => w && shape(w) !== shape(p))
+        if (olds.some((w) => !w || shape(w) !== shape(p))) out.push({...p, change: 'formatted', ...(old && {was: {text: old.text, marks: old.marks, href: old.href, ref: old.ref, object: old.object}})})
+        else out.push(p)
         at += p.text.length
       }
       ;(a += n), (b += n)
