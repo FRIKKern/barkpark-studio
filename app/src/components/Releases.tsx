@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {docQuery, type Doc} from '../lib/data'
 import {panesPath} from '../lib/panes'
@@ -6,10 +6,12 @@ import {pauseSchedule, schedulesQuery, type Schedule} from '../lib/schedules'
 import {deleteSchedule, publishScheduledNow} from '../lib/schedule-actions'
 import {intlTag, useLocale, useT} from '../lib/i18n'
 import {DocPreview} from './Preview'
+import {ReleasesCalendar, ZonePicker} from './ReleasesCalendar'
+import {dayKey, localZone, storedZone, zoneShort} from '../lib/timezone'
 import {ConfirmDialog} from './DocumentPane'
 import {MenuPopover} from './FocusScopes'
 import {toast} from './Toasts'
-import {ArrowLeft, Calendar, Ellipsis, LockIcon, PublishIcon, Trash, EditIcon} from './icons'
+import {ArrowLeft, Calendar, Close, Ellipsis, LockIcon, PublishIcon, Trash, EditIcon} from './icons'
 
 // Sanity's Releases tool, its Scheduled drafts view (task-ad9c942d7d48c887): every draft
 // scheduled to publish (J40), Active, Paused or Archived, from Barkpark's schedules. Content
@@ -35,15 +37,32 @@ export function Releases() {
   const [tab, setTab] = useState<Tab>('active')
   // Sanity's "Scheduled for" sorts soonest first; a click turns it.
   const [soonest, setSoonest] = useState(true)
+  // The zone times are shown in (stored in UTC, as Barkpark keeps them); this browser's
+  // own until it has read the one picked here (task-f8d14f136de4ed6d).
+  const [zone, setZone] = useState(localZone)
+  useEffect(() => setZone(storedZone()), [])
+  // A day picked in the calendar: what is set to publish that day (Active and Paused).
+  const [day, setDay] = useState<string | null>(null)
   const all = data?.schedules ?? []
-  const rows = all.filter((s) => IN[tab](s.status)).sort((a, b) => (soonest ? 1 : -1) * a.publishAt.localeCompare(b.publishAt))
+  const marked = new Set(all.filter((s) => s.status === 'scheduled' || s.status === 'paused').map((s) => dayKey(new Date(s.publishAt), zone)))
+  const rows = all.filter((s) => (day ? !IN.archived(s.status) && dayKey(new Date(s.publishAt), zone) === day : IN[tab](s.status))).sort((a, b) => (soonest ? 1 : -1) * a.publishAt.localeCompare(b.publishAt))
+  const locale = useLocale()
   return (
-    <main className="releases" aria-label={t('Releases')}>
+    <div className="releases">
+    <ReleasesCalendar zone={zone} marked={marked} picked={day} onPick={setDay} />
+    <main className="releases-main" aria-label={t('Releases')}>
       <header className="releases-bar">
         <span className="releases-view">
           <Calendar /> {t('Scheduled drafts')}
         </span>
-        {all.length > 0 && (
+        {day ? (
+          <span className="releases-day">
+            {dayTitle(day, intlTag(locale))}
+            <button type="button" className="icon-btn" aria-label={t('Clear')} onClick={() => setDay(null)}>
+              <Close />
+            </button>
+          </span>
+        ) : all.length > 0 && (
           <div className="releases-tabs" role="group" aria-label={t('Scheduled drafts')}>
             {TABS.map(([key, label]) => (
               <button key={key} type="button" className="releases-tab" aria-pressed={tab === key} onClick={() => setTab(key)}>
@@ -52,6 +71,7 @@ export function Releases() {
             ))}
           </div>
         )}
+        <ZonePicker zone={zone} onChange={setZone} />
       </header>
       {error ? (
         <p className="releases-empty" role="alert">
@@ -78,12 +98,12 @@ export function Releases() {
           </thead>
           <tbody>
             {rows.map((s) => (
-              <Row key={s._id} schedule={s} tab={tab} />
+              <Row key={s._id} schedule={s} tab={IN.active(s.status) ? 'active' : IN.paused(s.status) ? 'paused' : 'archived'} zone={zone} />
             ))}
             {!rows.length && (
               <tr>
                 <td colSpan={3} className="releases-none">
-                  {t(NONE[tab])}
+                  {t(day ? NONE.active : NONE[tab])}
                 </td>
               </tr>
             )}
@@ -91,7 +111,17 @@ export function Releases() {
         </table>
       )}
     </main>
+    </div>
   )
+}
+
+/** Sanity's chip for a picked day: "October 19th, 2026" (its own date format elsewhere). */
+function dayTitle(day: string, tag: string) {
+  const at = new Date(`${day}T12:00:00Z`)
+  if (!tag.startsWith('en')) return at.toLocaleDateString(tag, {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'})
+  const n = at.getUTCDate()
+  const th = n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'
+  return `${at.toLocaleDateString('en-US', {month: 'long', timeZone: 'UTC'})} ${n}${th}, ${at.getUTCFullYear()}`
 }
 
 function Empty({text}: {text: string}) {
@@ -106,14 +136,16 @@ function Empty({text}: {text: string}) {
 
 const STATUS: Record<string, string> = {scheduled: 'Scheduled', paused: 'Paused', completed: 'Published', published: 'Published', cancelled: 'Deleted', failed: 'Failed'}
 
-function Row({schedule, tab}: {schedule: Schedule; tab: Tab}) {
+function Row({schedule, tab, zone}: {schedule: Schedule; tab: Tab; zone: string}) {
   const t = useT()
   const locale = useLocale()
   const qc = useQueryClient()
   const {data: doc} = useQuery(docQuery(schedule.type, schedule.documentId))
   const [menu, setMenu] = useState(false)
   const [asking, setAsking] = useState<'publish' | 'delete' | null>(null)
-  const when = new Date(schedule.publishAt).toLocaleString(intlTag(locale), {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit'})
+  // In the picked zone; named when it is not this computer's, as Sanity's "(EDT)".
+  const at = new Date(schedule.publishAt)
+  const when = at.toLocaleString(intlTag(locale), {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: zone}) + (zone === localZone() ? '' : ` (${zoneShort(zone, at)})`)
   const href = panesPath([{kind: 'types'}, {kind: 'list', type: schedule.type}, {kind: 'doc', id: schedule.documentId, type: schedule.type}])
   const pause = () =>
     pauseSchedule({data: {scheduleId: schedule._id}})
