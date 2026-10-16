@@ -28,6 +28,8 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
   // An array of objects with layout 'grid' is tiles; a tile opens its item.
   const cards = page.locator('[id="cards"] .array-box')
   await expect(cards).toHaveAttribute('data-layout', 'grid')
+  const tile = (await cards.getByRole('button', {name: 'One'}).boundingBox())!
+  expect(Math.round(tile.height)).toBe(Math.round(tile.width)) // Sanity's square tile, its title for screen readers only
   await cards.getByRole('button', {name: 'One'}).click()
   await expect(page.getByRole('dialog', {name: /Cards \/ One/})).toBeVisible()
   await page.keyboard.press('Escape')

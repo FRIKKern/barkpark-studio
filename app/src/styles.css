@@ -22,6 +22,7 @@
   --hover: #f2f3f5;
   --icon-btn-hover: #f6f6f8; /* Sanity's icon button under the pointer: fill and glyph (measured); its tabs' fill too */
   --card-hover: #f6f6f8; /* a row, desk item or Locations page under the pointer (Sanity's, measured) */
+  --tile-hover: #eaeaec; /* a grid array's tile under the pointer (Sanity's, measured) */
   --icon-btn-hover-fg: #636570;
   --icon-btn-open-fg: #60626d; /* its glyph while its menu is open, on --selected-fill (measured) */
   --hover-strong: #e9eaee;
@@ -200,6 +201,7 @@
   --hover: #21232f;
   --icon-btn-hover: #21232f;
   --card-hover: #191a24;
+  --tile-hover: #181922;
   --icon-btn-hover-fg: #9193a0;
   --icon-btn-open-fg: #aeafb8;
   --hover-strong: #2a2d3f;
@@ -568,10 +570,10 @@ a.preview:hover, [data-lit] > a.preview:not([data-selected], [aria-current='true
 .field > label, .field > .label { display: block; font-size: 13px; line-height: 19px; font-weight: 500; margin-bottom: 15px; }
 /* Sanity draws objects, images, files and arrays as fieldsets: 4 px nearer the field above,
    the control 30 px under the label top instead of 34 (measured at 1440, author-ada and post-01). */
-.field:has(> .file-input, > .array-field, > .tags-box, > .body-canvas) { margin-top: -4px; }
+.field:has(> .file-input, > .array-field, > .tags-box, > .body-canvas, > .checkbox-list) { margin-top: -4px; }
 /* A boolean has no label above it: Sanity's 51 px box starts 7 px nearer the field above. */
 .field:has(> .bool-box) { margin-top: -7px; }
-.field:has(> .file-input, > .array-field, > .tags-box, > .body-canvas) > label { margin-bottom: 11px; }
+.field:has(> .file-input, > .array-field, > .tags-box, > .body-canvas, > .checkbox-list) > label { margin-bottom: 11px; }
 /* Sanity: the description sits 6px under the label, 11px above the input. */
 .field-desc { margin: -9px 0 11px; font-size: 13px; line-height: 19px; color: var(--muted); }
 .input {
@@ -1570,7 +1572,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .array-item-preview .title { font-weight: 500; }
 .array-item-preview .subtitle { margin-top: -2px; color: var(--muted); }
 .array-row:has(> .array-item-preview) { padding: 5px 4px 5px 7px; }
-.array-box:has(> .array-row > .array-item-preview) { padding: 5px 4px 3px; }
+.array-box:not([data-layout=grid]):has(> .array-row > .array-item-preview) { padding: 5px 4px 3px; }
 .array-box:not([data-layout=grid]) > .array-row:is(:has(> .array-item-preview), :has(> .ref-row-preview)) + .array-row { margin-top: 4px; } /* Sanity's rows 4 px apart */
 .array-item-preview .media.has-image { position: relative; overflow: hidden; }
 .array-item-preview .media.has-image img { position: absolute; max-width: none; }
@@ -2898,7 +2900,8 @@ input.checkbox:checked { background: var(--checkbox-on) var(--checkbox-tick) cen
 input.checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 input.checkbox:disabled { cursor: default; opacity: .5; }
 .checkbox-list { display: flex; flex-direction: column; gap: 12px; padding-left: 12px; border-left: 1px solid var(--border); }
-.checkbox-list[data-grid] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.checkbox-list[data-grid] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.checkbox-list[data-grid] > .checkbox-item { padding: 4px 0; } /* Sanity's 27 px rows, 8 px apart (field-types-01's Colours, 1440) */
 .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 .fieldset-group > .fieldset > .field { margin-bottom: 32px; }
 /* None after the last field, and in columns the 32 px is between rows only: Sanity's 'Where' is
@@ -2915,18 +2918,19 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
 .fieldset-group[data-collapsible][data-open=true] > legend { margin-bottom: 9px; }
 .fieldset-group[data-collapsible] > legend .object-toggle { margin-left: -7px; }
 
-/* An array with options.layout 'grid' (Sanity's): tiles, the picture or icon in the middle,
-   the handle top left and the item menu bottom right. */
-.array-box[data-layout=grid] { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; padding: 8px; }
-.array-box[data-layout=grid] > .array-row { position: relative; flex-direction: column; align-items: stretch; aspect-ratio: 4 / 5; padding: 0; box-shadow: inset 0 0 0 1px var(--line); }
-.array-box[data-layout=grid] > .array-row > .drag-handle { position: absolute; top: 4px; left: 4px; z-index: 1; opacity: 0; }
+/* An array with options.layout 'grid' (Sanity's, field-types-01's Cards at 1440): tiles 9 px inside a box with 1 px corners;
+   each a square picture or icon over a 33 px strip with the item menu; the title is for screen readers only; the handle
+   a 25 px chip top left. */
+.array-box[data-layout=grid] { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; padding: 9px; border-radius: 1px; }
+.array-box[data-layout=grid] > .array-row { position: relative; flex-direction: column; align-items: stretch; padding: 1px 1px 34px; box-shadow: inset 0 0 0 1px var(--line); }
+.array-box[data-layout=grid] > .array-row > .drag-handle { position: absolute; top: 5px; left: 5px; z-index: 1; height: 25px; opacity: 0; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); }
 .array-box[data-layout=grid] > .array-row:hover > .drag-handle, .array-box[data-layout=grid] > .array-row > .drag-handle:focus-visible, .array-box[data-layout=grid] > .array-row[data-moving] > .drag-handle { opacity: 1; }
-.array-box[data-layout=grid] > .array-row > .menu-wrap { position: absolute; right: 4px; bottom: 4px; }
-.array-box[data-layout=grid] .array-item-preview { flex-direction: column; justify-content: center; gap: 8px; height: 100%; padding: 8px 8px 32px; }
-.array-box[data-layout=grid] .array-item-preview .media { width: 100%; height: auto; flex: 1; box-shadow: none; }
+.array-box[data-layout=grid] > .array-row > .menu-wrap { position: absolute; right: 5px; bottom: 6px; }
+.array-box[data-layout=grid] .array-item-preview { aspect-ratio: 1; padding: 8px; border-radius: 3px 3px 0 0; }
+.array-box[data-layout=grid] .array-item-preview:hover { background: var(--tile-hover); }
+.array-box[data-layout=grid] .array-item-preview .media { width: 100%; height: 100%; flex: 1; background: none; box-shadow: none; }
 .array-box[data-layout=grid] .array-item-preview .media.has-image { overflow: hidden; }
-.array-box[data-layout=grid] .array-item-preview .text { align-items: center; text-align: center; max-width: 100%; }
-.array-box[data-layout=grid] .array-item-preview .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.array-box[data-layout=grid] .array-item-preview .text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* Sanity's insert menu with many types: a search box above them. */
 .menu-search { padding: 4px 4px 6px; }
 .menu-search .input { width: 100%; }
