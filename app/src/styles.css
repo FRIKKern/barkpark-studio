@@ -723,6 +723,9 @@ a.menu-item { display: block; text-decoration: none; }
 .pane.doc { position: relative; }
 /* Like Sanity, a document's dialog sits over its own pane. */
 .dialog-backdrop { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; background: var(--backdrop); }
+/* A dialog over a document's form fits inside it, 12 px clear (Sanity's), its body scrolling. */
+.doc-main > .dialog-backdrop { grid-template-rows: minmax(0, 1fr); }
+.doc-main > .dialog-backdrop > .dialog { max-height: calc(100% - 24px); }
 .dialog { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 64px); display: flex; flex-direction: column; background: var(--bg); border-radius: 6px; box-shadow: 0 0 0 1px var(--ring), 0 16px 40px var(--shadow); font-size: 13px; }
 .dialog header { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 0 20px; }
 .dialog h2 { margin: 0; font-size: 13px; font-weight: 600; }
@@ -1420,25 +1423,38 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .image-menu .menu-item { display: flex; align-items: center; gap: 6px; text-decoration: none; color: inherit; }
 .dialog.hotspot-dialog { width: min(640px, calc(100% - 64px)); }
 .hotspot-dialog h2 { font-size: 13px; font-weight: 600; margin: 0; }
-.hotspot-dialog .label { font-weight: 500; margin: 12px 0 4px; }
+.hotspot-dialog .label { font-weight: 500; margin: 32px 0 4px; }
+/* Sanity's description wraps at 464 px. */
+.hotspot-dialog .label + .muted { max-width: 464px; }
 .hotspot-tool { position: relative; margin: 12px 0 28px; display: flex; justify-content: center; background: repeating-conic-gradient(var(--bg-soft) 0 25%, var(--bg) 0 50%) 0 0 / 16px 16px; box-shadow: inset 0 0 0 1px var(--line); padding: 12px; }
 .hotspot-tool > svg { max-width: 100%; height: auto; overflow: visible; user-select: none; }
-/* The crop and hotspot tool is drawn over the photo: the same colours in both modes. */
-.hotspot-tool .crop-rect { fill: transparent; stroke: #2276fc; stroke-width: 1.5; cursor: move; }
-.hotspot-tool .hotspot { fill: rgba(255,255,255,.25); stroke: #fff; stroke-width: 1.5; cursor: move; }
-.hotspot-tool .hotspot-handle { fill: #fff; stroke: #101112; cursor: nwse-resize; }
-.hotspot-tool .crop-handle { fill: #fff; stroke: #2276fc; }
+/* Sanity's ImageTool: white outlines at half strength (full on hover, the focus ring when focused),
+   white handles drawn in black, faint dashed guidelines through the hotspot. */
+.hotspot-tool .crop-area { fill: transparent; cursor: move; }
+.hotspot-tool .crop-rect { fill: none; stroke: rgba(255,255,255,.5); stroke-width: 1; pointer-events: none; outline: none; }
+.hotspot-tool .hotspot { fill: transparent; stroke: rgba(255,255,255,.5); stroke-width: 1; cursor: move; outline: none; }
+.hotspot-tool:is(:has(.crop-area:hover), :has(.handle-hit[data-handle^=crop]:hover), [data-dragging=crop]) .crop-rect,
+.hotspot-tool:is(:has(.hotspot:hover), :has(.handle-hit[data-handle=hotspotHandle]:hover), [data-dragging=hotspot]) .hotspot { stroke: #fff; }
+.hotspot-tool .crop-rect:focus-visible { stroke: var(--focus-ring); stroke-width: 2; filter: drop-shadow(0 0 2px rgba(0,0,0,.3)); }
+.hotspot-tool .hotspot:focus-visible { stroke: var(--focus-ring); stroke-width: 2; }
+.hotspot-tool .hotspot-handle, .hotspot-tool .crop-handle { fill: #fff; stroke: #000; stroke-width: 1; }
+.hotspot-tool:has(.hotspot:focus-visible) .hotspot-handle, .hotspot-tool:has(.crop-rect:focus-visible) .crop-handle { stroke: var(--focus-ring); }
+.hotspot-tool .handle-hit { fill: transparent; }
+.hotspot-tool .hotspot-guides { stroke: var(--fg); stroke-opacity: .2; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
 .hotspot-tool .handle-grab { display: none; fill: transparent; }
+.hotspot-tool [data-handle="hotspotHandle"] { cursor: nwse-resize; }
 .hotspot-tool [data-handle="crop-top"], .hotspot-tool [data-handle="crop-bottom"] { cursor: ns-resize; }
 .hotspot-tool [data-handle="crop-left"], .hotspot-tool [data-handle="crop-right"] { cursor: ew-resize; }
 .hotspot-tool [data-handle="crop-topLeft"], .hotspot-tool [data-handle="crop-bottomRight"] { cursor: nwse-resize; }
 .hotspot-tool [data-handle="crop-topRight"], .hotspot-tool [data-handle="crop-bottomLeft"] { cursor: nesw-resize; }
-.hotspot-tool .crop-rect:focus-visible, .hotspot-tool .hotspot:focus-visible { outline: none; stroke: #2276fc; stroke-width: 3; }
-.hotspot-tool .crop-size { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); padding: 2px 8px; border-radius: 3px; background: #1f6ae6; color: #fff; font-size: 11px; }
+.hotspot-tool .crop-size { opacity: 0; transition: opacity .15s; }
+.hotspot-tool:is(:has(.crop-area:hover), :has(.handle-hit[data-handle^=crop]:hover), :has(.crop-rect:focus-visible), [data-dragging=crop]) .crop-size { opacity: 1; }
+.hotspot-tool .crop-size rect { fill: var(--focus-ring); }
+.hotspot-tool .crop-size text { fill: #fff; font-size: 10px; font-weight: 500; }
 .crop-previews { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; align-items: start; }
 .crop-previews figure { margin: 0; }
 .crop-previews figcaption { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-.crop-preview { position: relative; overflow: hidden; background: var(--bg-soft); }
+.crop-preview { position: relative; overflow: hidden; background: repeating-conic-gradient(var(--bg-soft) 0 25%, var(--bg) 0 50%) 0 0 / 16px 16px; outline: 1px solid var(--line); outline-offset: -1px; }
 .crop-preview img { position: absolute; max-width: none; }
 /* Big lists (J41): rows off screen skip layout and paint; Sanity's "max items" note. */
 .list-rows > .preview, .rows-item > .preview { content-visibility: auto; contain-intrinsic-size: auto 49px; }

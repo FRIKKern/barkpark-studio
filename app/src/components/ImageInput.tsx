@@ -337,6 +337,9 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
   const maskId = useId()
   const H = natural ? (W * natural.height) / natural.width : 350
   const svg = useRef<SVGSVGElement>(null)
+  const cropRef = useRef<SVGRectElement>(null)
+  // What a pointer is dragging: the crop's size badge shows while it is the crop (Sanity's).
+  const [dragging, setDragging] = useState<'crop' | 'hotspot' | null>(null)
   // SVG units per screen pixel: the handles' grab circles stay 44 px wide however
   // small the tool is drawn (phone width, F12; shown only there, in CSS).
   // (A callback ref: the dialog mounts through a portal, after this component's effects.)
@@ -352,10 +355,11 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
     const r = svg.current!.getBoundingClientRect()
     return {x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height}
   }
-  const drag = (apply: (p: {x: number; y: number}, start: {x: number; y: number}, from: {h: Hotspot; c: Crop}) => {h: Hotspot; c: Crop}) => (e: ReactPointerEvent) => {
+  const drag = (apply: (p: {x: number; y: number}, start: {x: number; y: number}, from: {h: Hotspot; c: Crop}) => {h: Hotspot; c: Crop}, what: 'crop' | 'hotspot') => (e: ReactPointerEvent) => {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
+    setDragging(what)
     const start = at(e.nativeEvent)
     const from = latest.current
     const move = (ev: PointerEvent) => {
@@ -366,6 +370,7 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
     const up = () => {
       removeEventListener('pointermove', move)
       removeEventListener('pointerup', up)
+      setDragging(null)
       onChange(latest.current.h, latest.current.c)
     }
     addEventListener('pointermove', move)
@@ -409,7 +414,7 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
         <div className="dialog-body">
           <p className="label">{t('Hotspot & Crop')}</p>
           <p className="muted">{t('Adjust the rectangle to crop image. Adjust the circle to specify the area that should always be visible.')}</p>
-          <div className="hotspot-tool" aria-label={t('{title}: hotspot and crop', {title})}>
+          <div className="hotspot-tool" data-dragging={dragging ?? undefined} aria-label={t('{title}: hotspot and crop', {title})}>
             <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{touchAction: 'none'}}>
               <image href={url} width={W} height={H} opacity={0.25} />
               <svg x={crect.x} y={crect.y} width={crect.w} height={crect.h} viewBox={`${crect.x} ${crect.y} ${crect.w} ${crect.h}`} overflow="hidden">
@@ -420,20 +425,21 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
                 <rect width={W} height={H} fill="#fff" />
                 <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="#000" />
               </mask>
-              <rect x={crect.x} y={crect.y} width={crect.w} height={crect.h} fill="rgba(0,0,0,.4)" mask={`url(#${maskId}-m)`} pointerEvents="none" />
+              <rect x={crect.x} y={crect.y} width={crect.w} height={crect.h} fill="rgba(0,0,0,.5)" mask={`url(#${maskId}-m)`} pointerEvents="none" />
+              {/* Sanity's guidelines: through the hotspot's centre and along its edges, across the image. */}
+              <g className="hotspot-guides">
+                {[cx - rx, cx, cx + rx].map((x, i) => <line key={`v${i}`} x1={x} y1={0} x2={x} y2={H} />)}
+                {[cy - ry, cy, cy + ry].map((y, i) => <line key={`h${i}`} x1={0} y1={y} x2={W} y2={y} />)}
+              </g>
+              {/* Dragging inside the crop moves it; the crop's focusable outline is drawn after the
+                  hotspot, so Tab reaches the hotspot first (Sanity's order). */}
               <rect
-                className="crop-rect"
-                data-handle="crop"
-                tabIndex={0}
-                role="slider"
-                aria-label={t('Crop: arrow keys move it')}
-                aria-valuetext={t('left {left}, top {top}, right {right}, bottom {bottom}', {left: pct(c.left), top: pct(c.top), right: pct(c.right), bottom: pct(c.bottom)})}
+                className="crop-area"
                 x={crect.x}
                 y={crect.y}
                 width={crect.w}
                 height={crect.h}
-                onKeyDown={keys('crop')}
-                onPointerDown={drag((p, s, from) => ({h: from.h, c: moveCrop(from.c, p.x - s.x, p.y - s.y)}))}
+                onPointerDown={(e) => (cropRef.current?.focus(), drag((p, s, from) => ({h: from.h, c: moveCrop(from.c, p.x - s.x, p.y - s.y)}), 'crop')(e))}
               />
               <ellipse
                 className="hotspot"
@@ -447,33 +453,64 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
                 rx={rx}
                 ry={ry}
                 onKeyDown={keys('hotspot')}
-                onPointerDown={drag((p, s, from) => ({h: moveHotspot(from.h, p.x - s.x, p.y - s.y), c: from.c}))}
+                onPointerDown={drag((p, s, from) => ({h: moveHotspot(from.h, p.x - s.x, p.y - s.y), c: from.c}), 'hotspot')}
               />
               {(() => {
-                const resize = drag((p, s, from) => ({h: resizeHotspot(from.h, p.x - s.x, p.y - s.y), c: from.c}))
+                const resize = drag((p, s, from) => ({h: resizeHotspot(from.h, p.x - s.x, p.y - s.y), c: from.c}), 'hotspot')
                 const [hx, hy] = [cx + rx * Math.SQRT1_2, cy + ry * Math.SQRT1_2]
                 return (
                   <>
                     <circle className="handle-grab" cx={hx} cy={hy} r={22 * unit} onPointerDown={resize} />
-                    <circle className="hotspot-handle" data-handle="hotspotHandle" cx={hx} cy={hy} r={8} onPointerDown={resize} />
+                    <circle className="hotspot-handle" cx={hx} cy={hy} r={8} pointerEvents="none" />
+                    <circle className="handle-hit" data-handle="hotspotHandle" cx={hx} cy={hy} r={12} onPointerDown={resize} />
                   </>
                 )
               })()}
+              <rect
+                ref={cropRef}
+                className="crop-rect"
+                data-handle="crop"
+                tabIndex={0}
+                role="slider"
+                aria-label={t('Crop: arrow keys move it')}
+                aria-valuetext={t('left {left}, top {top}, right {right}, bottom {bottom}', {left: pct(c.left), top: pct(c.top), right: pct(c.right), bottom: pct(c.bottom)})}
+                x={crect.x}
+                y={crect.y}
+                width={crect.w}
+                height={crect.h}
+                onKeyDown={keys('crop')}
+              />
+              {/* Sanity's crop handles: an L at each corner, a bar at each edge; 24 px to grab. */}
               {handles.map(([side, x, y]) => {
-                const pull = drag((p, _s, from) => ({h: from.h, c: dragCrop(from.c, side, p.x, p.y)}))
+                const pull = drag((p, _s, from) => ({h: from.h, c: dragCrop(from.c, side, p.x, p.y)}), 'crop')
+                const corner = CORNER_TURN[side as keyof typeof CORNER_TURN]
+                const bar = side === 'top' || side === 'bottom' ? {w: 16, h: 8} : {w: 8, h: 16}
                 return (
                   <g key={side}>
                     <circle className="handle-grab" cx={x} cy={y} r={22 * unit} onPointerDown={pull} />
-                    <rect className="crop-handle" data-handle={`crop-${side}`} x={x - 6} y={y - 6} width={12} height={12} onPointerDown={pull} />
+                    {corner !== undefined ? (
+                      <path className="crop-handle" d={CORNER_PATH} transform={`translate(${x} ${y}) rotate(${corner})`} pointerEvents="none" />
+                    ) : (
+                      <rect className="crop-handle" x={x - bar.w / 2} y={y - bar.h / 2} width={bar.w} height={bar.h} pointerEvents="none" />
+                    )}
+                    <rect className="handle-hit" data-handle={`crop-${side}`} x={x - 12} y={y - 12} width={24} height={24} onPointerDown={pull} />
                   </g>
                 )
               })}
+              {/* Sanity's size badge: under the crop, while the crop is hovered, focused or dragged. */}
+              {natural && (() => {
+                const text = `${Math.round((1 - c.left - c.right) * natural.width)} × ${Math.round((1 - c.top - c.bottom) * natural.height)}`
+                // Sanity's measure: 0.6 em a character at 13 px, 6 px either side; 19 px high.
+                const bw = text.length * 7.8 + 12
+                return (
+                  <g className="crop-size" pointerEvents="none">
+                    <title>{t('Cropped image size: {size} pixels', {size: text})}</title>
+                    <rect x={crect.x + crect.w / 2 - bw / 2} y={crect.y + crect.h + 8} width={bw} height={19} rx={3} />
+                    <text x={crect.x + crect.w / 2} y={crect.y + crect.h + 17.5} textAnchor="middle" dominantBaseline="central">{text}</text>
+                  </g>
+                )
+              })()}
             </svg>
-            {natural && (
-              <span className="crop-size">
-                {Math.round((1 - c.left - c.right) * natural.width)} × {Math.round((1 - c.top - c.bottom) * natural.height)}
-              </span>
-            )}
           </div>
           {natural && (
             <div className="crop-previews">
@@ -498,4 +535,7 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
+// Sanity's crop corner handle (8 px thick, 16 long), turned for each corner.
+const CORNER_PATH = 'M -4 12 L -4 -4 L 12 -4 L 12 4 L 4 4 L 4 12 Z'
+const CORNER_TURN = {topLeft: 0, topRight: 90, bottomRight: 180, bottomLeft: 270} as const
 

@@ -51,6 +51,7 @@ export default {
   'Adjust the rectangle to crop image. Adjust the circle to specify the area that should always be visible.': 'Juster rektangelet for å beskjære bildet. Juster sirkelen for å spesifisere området som alltid skal være synlig.',
   '{title}: hotspot and crop': '{title}: fokuspunkt og beskjæring',
   'Crop: arrow keys move it': 'Beskjæring: piltastene flytter den',
+  'Cropped image size: {size} pixels': 'Beskåret bildestørrelse: {size} piksler',
   'left {left}, top {top}, right {right}, bottom {bottom}': 'venstre {left}, topp {top}, høyre {right}, bunn {bottom}',
   'Hotspot: arrow keys move it': 'Fokuspunkt: piltastene flytter det',
   'centre {x} across, {y} down; {width} wide, {height} high': 'midtpunkt {x} bortover, {y} nedover; {width} bredt, {height} høyt',
