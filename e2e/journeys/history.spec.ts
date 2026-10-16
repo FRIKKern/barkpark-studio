@@ -62,7 +62,7 @@ test('@evidence J16: history timeline, an old revision read-only, revert', async
   // The published v4: read-only, at a deep URL.
   await entry(/Published/).click()
   await expect(t.field(page, 'title')).toHaveValue(FIRST, {timeout: 15_000})
-  await expect.poll(() => decodeURIComponent(page.url())).toMatch(/rev=[0-9a-f-]+/)
+  await expect.poll(() => decodeURIComponent(page.url()), {intervals: [50]}).toMatch(/rev=[0-9a-f-]+/)
   const deepUrl = page.url()
   await page.screenshot({path: shot(t.name, '2-old-revision')})
   // The deep URL survives a reload on ours. The reference can only show a revision

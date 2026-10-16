@@ -32,7 +32,7 @@ test('@evidence J59: click-to-edit on a reference item, a number, a date and an 
     await page.waitForTimeout(500)
     await page.screenshot({path: shot(t.name, `${name}-hover`)})
     await el.click()
-    await expect.poll(() => decodeURIComponent(page.url()), {timeout: 10_000}).toMatch(type)
+    await expect.poll(() => decodeURIComponent(page.url()), {intervals: [50], timeout: 10_000}).toMatch(type)
     await page.waitForTimeout(1200)
     info.annotations.push({type: name, description: JSON.stringify({url: decodeURIComponent(page.url()).replace(/^https?:\/\/[^/]+/, '').slice(0, 160), focused: await focused()})})
     if (t.name === 'studio') expect(await focused(), `${name} focuses its field`).toContain(field)

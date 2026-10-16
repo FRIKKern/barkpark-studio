@@ -34,7 +34,7 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   // WCAG reflow (320 px): the bar wraps under its search, Upload included, no sideways page.
   const size = page.viewportSize()!
   await page.setViewportSize({width: 320, height: 640})
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth), {intervals: [50]}).toBe(320)
   await expect(page.locator('.media-upload')).toBeInViewport()
   await page.setViewportSize(size)
   // The count, as LiveView's "Showing 50 of 124 assets".
@@ -76,7 +76,7 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   const tileWidth = () => page.locator('.media-tile').first().evaluate((el) => el.getBoundingClientRect().width)
   const narrow = await tileWidth()
   await page.getByLabel('Size').fill('300')
-  await expect.poll(tileWidth).toBeGreaterThan(narrow * 1.5)
+  await expect.poll(tileWidth, {intervals: [50]}).toBeGreaterThan(narrow * 1.5)
   await page.getByLabel('Size').fill('150')
 
   await page.getByRole('searchbox', {name: 'Search media'}).fill(NAME)

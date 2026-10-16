@@ -99,5 +99,5 @@ test('@evidence J45: dark mode — system, menu choice, reload, no flash, readab
   await menu('Use system appearance')
   expect(await bodyBg()).toBe('rgb(255, 255, 255)')
   await page.emulateMedia({colorScheme: 'dark'})
-  await expect.poll(bodyBg).toBe(DARK_BG)
+  await expect.poll(bodyBg, {intervals: [50]}).toBe(DARK_BG)
 })

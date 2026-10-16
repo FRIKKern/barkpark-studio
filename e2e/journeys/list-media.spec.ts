@@ -26,7 +26,7 @@ test('@evidence list rows show the main image, cropped', async ({page}, info) =>
   const row = t.listItem(page, ID)
   const thumb = row.locator('img').first()
   await expect(thumb).toBeVisible({timeout: 20_000})
-  await expect.poll(() => thumb.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true)
+  await expect.poll(() => thumb.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0), {intervals: [50]}).toBe(true)
   await page.waitForTimeout(500)
   await row.screenshot({path: shot(t.name, '1-row')})
   await page.screenshot({path: shot(t.name, '1-list')})
@@ -35,7 +35,7 @@ test('@evidence list rows show the main image, cropped', async ({page}, info) =>
   // hydration) and still shows, not a blank square.
   await page.reload()
   await t.settle(page)
-  await expect.poll(() => row.locator('img').first().evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0 && getComputedStyle(i).opacity !== '0'), {timeout: 10_000}).toBe(true)
+  await expect.poll(() => row.locator('img').first().evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0 && getComputedStyle(i).opacity !== '0'), {intervals: [50], timeout: 10_000}).toBe(true)
 
   // A crop to the image's left half: the thumbnail follows.
   const value = (await t.docValue(ID, 'mainImage')) as Record<string, unknown>

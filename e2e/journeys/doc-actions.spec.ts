@@ -43,11 +43,11 @@ test('@evidence J28: share, inspect, duplicate', async ({page}, info) => {
   await page.screenshot({path: shot(t.name, '1-share-menu')})
   await menu.getByRole('menuitem', {name: 'Copy document ID'}).click()
   await expect(page.getByText('Document ID copied to clipboard')).toBeVisible()
-  await expect.poll(() => clipboard(page)).toMatch(/^(drafts\.)?post-27$/)
+  await expect.poll(() => clipboard(page), {intervals: [50]}).toMatch(/^(drafts\.)?post-27$/)
   menu = await openMenu(t, page, shareButton(t, page))
   await menu.getByRole('menuitem', {name: 'Copy document URL'}).click()
   await expect(page.getByText('Document URL copied to clipboard')).toBeVisible()
-  await expect.poll(() => clipboard(page)).toContain('post-27')
+  await expect.poll(() => clipboard(page), {intervals: [50]}).toContain('post-27')
 
   // Inspect: Ctrl+Alt+I from inside the form.
   await t.field(page, 'title').click()
@@ -65,7 +65,7 @@ test('@evidence J28: share, inspect, duplicate', async ({page}, info) => {
   // Duplicate: the copy opens in this pane, same content, a new id.
   menu = await openMenu(t, page, t.docMenu(page))
   await menu.getByRole('menuitem', {name: 'Duplicate'}).click()
-  await expect.poll(() => decodeURIComponent(page.url())).toMatch(/\/structure\/post;[0-9a-f-]{36}$/)
+  await expect.poll(() => decodeURIComponent(page.url()), {intervals: [50]}).toMatch(/\/structure\/post;[0-9a-f-]{36}$/)
   duplicated = decodeURIComponent(page.url()).match(/;([0-9a-f-]{36})$/)![1]
   await expect(t.field(page, 'title')).toHaveValue(TITLE)
   await expect(page.getByText('The document was successfully duplicated')).toBeVisible()

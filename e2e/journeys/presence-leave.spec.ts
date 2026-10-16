@@ -20,7 +20,7 @@ test('J07: a closed tab is gone from the other browser within 2 s', async ({brow
     await a.waitForFunction(() => !!(window as unknown as Probe).__presence?.self)
     const id = await a.evaluate(() => (window as unknown as Probe).__presence!.self!)
     const seesA = () => b.evaluate((id) => !!(window as unknown as Probe).__presence?.others.includes(id), id)
-    await expect.poll(seesA, {timeout: 10_000}).toBe(true)
+    await expect.poll(seesA, {intervals: [50], timeout: 10_000}).toBe(true)
     const closed = Date.now()
     await a.close({runBeforeUnload: true})
     await expect.poll(seesA, {timeout: 10_000, intervals: [25]}).toBe(false)
@@ -52,7 +52,7 @@ test('J07: a presence stream gone quiet without closing is reopened, and a newco
     await t.settle(a)
     await a.waitForFunction(() => !!(window as unknown as Probe).__presence?.self)
     const id = await a.evaluate(() => (window as unknown as Probe).__presence!.self!)
-    await expect.poll(() => b.evaluate((id) => !!(window as unknown as Probe).__presence?.others.includes(id), id), {timeout: 8_000}).toBe(true)
+    await expect.poll(() => b.evaluate((id) => !!(window as unknown as Probe).__presence?.others.includes(id), id), {intervals: [50], timeout: 8_000}).toBe(true)
   } finally {
     await Promise.all([ctxA.close(), ctxB.close()])
   }

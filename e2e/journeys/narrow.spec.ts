@@ -23,23 +23,23 @@ test('@local J42: narrow window — one pane with a back link; URL and panes rig
 
   await page.locator('a[href="/structure/post"]').first().click()
   await expect(page).toHaveURL(/\/structure\/post$/)
-  await expect.poll(() => shown(page)).toEqual([1])
+  await expect.poll(() => shown(page), {intervals: [50]}).toEqual([1])
   await page.screenshot({path: shot(t.name, '1-list')})
 
   await (await reveal(t.listItem(page, 'post-02'))).click()
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 02')
-  await expect.poll(() => shown(page)).toEqual([2])
+  await expect.poll(() => shown(page), {intervals: [50]}).toEqual([2])
   await page.screenshot({path: shot(t.name, '2-doc')})
 
   await t.refLink(t.pane(page, 2), 'author').click()
   await expect(t.field(page, 'name')).toHaveValue(/Lovelace|Turing|Hopper/)
-  await expect.poll(() => shown(page)).toEqual([3])
+  await expect.poll(() => shown(page), {intervals: [50]}).toEqual([3])
   await expect(page).toHaveURL(/post-02;author-[a-z]+/)
 
   // Back link: one group back each time.
   await back(page).click()
   await expect(page).toHaveURL(/\/structure\/post;post-02$/)
-  await expect.poll(() => shown(page)).toEqual([2])
+  await expect.poll(() => shown(page), {intervals: [50]}).toEqual([2])
   await back(page).click()
   await expect(page).toHaveURL(/\/structure\/post$/)
   // Browser back/forward walk the same chain.
@@ -51,11 +51,11 @@ test('@local J42: narrow window — one pane with a back link; URL and panes rig
 
   // Wide and narrow again: same URL, the panes it names.
   await page.setViewportSize({width: 1440, height: 900})
-  await expect.poll(() => shown(page)).toEqual([0, 1, 2])
+  await expect.poll(() => shown(page), {intervals: [50]}).toEqual([0, 1, 2])
   await expect(back(page)).toBeHidden()
   await page.screenshot({path: shot(t.name, '3-wide')})
   await page.setViewportSize({width: 500, height: 800})
-  await expect.poll(() => shown(page)).toEqual([2])
+  await expect.poll(() => shown(page), {intervals: [50]}).toEqual([2])
   await expect(page).toHaveURL(/\/structure\/post;post-02$/)
   await page.screenshot({path: shot(t.name, '4-narrow-again')})
   await expect(page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).resolves.toBe(true)
@@ -68,7 +68,7 @@ test('@local J42: an open inspector — earlier panes give way when wide, it tak
   await page.goto(t.docPath('post', 'post-02'))
   await signInIfAsked(page)
   await t.settle(page)
-  await expect.poll(() => shown(page)).toEqual([0, 1, 2])
+  await expect.poll(() => shown(page), {intervals: [50]}).toEqual([0, 1, 2])
   // History from the document "…" menu (Sanity's menus stay mounted: take this button's).
   const menu = t.name === 'sanity' ? t.pane(page, 2).locator('button:has([data-sanity-icon="ellipsis-horizontal"])').first() : page.getByRole('button', {name: 'Show document actions'})
   const id = await menu.getAttribute('id')
@@ -76,7 +76,7 @@ test('@local J42: an open inspector — earlier panes give way when wide, it tak
   await page.waitForTimeout(t.name === 'sanity' ? 300 : 0)
   await (t.name === 'sanity' ? page.locator(`[role=menu][aria-labelledby="${id}"]`) : page.getByRole('menu')).getByRole('menuitem', {name: 'History'}).click()
   // Sanity's document needs 600 + 320 px with an inspector: the type list becomes a strip.
-  await expect.poll(() => shown(page)).toEqual([1, 2])
+  await expect.poll(() => shown(page), {intervals: [50]}).toEqual([1, 2])
   await page.screenshot({path: shot(t.name, '5-inspector-wide')})
 
   // A phone: the inspector takes the whole pane, the header stays one row.

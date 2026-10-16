@@ -63,7 +63,7 @@ test('@evidence J29: copy and paste a field and a document', async ({page}, info
   // Whole document → another post.
   await (await openMenu(t, page, docMenu(t, page))).getByRole('menuitem', {name: 'Copy document'}).click()
   // Both studios put a plain-text copy on the system clipboard.
-  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Fixture SEO.')
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()), {intervals: [50]}).toContain('Fixture SEO.')
   await page.goto(t.docPath('post', TO))
   await t.settle(page)
   const menu = await openMenu(t, page, docMenu(t, page))

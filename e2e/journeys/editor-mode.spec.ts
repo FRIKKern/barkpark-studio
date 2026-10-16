@@ -65,7 +65,7 @@ test('@evidence FF3 D02: per-type editor mode; Classic ⇄ Freeform is lossless 
   await tabs.getByRole('tab', {name: 'Freeform'}).click()
   // Bound blocks draw as field inputs in the canvas: the edit is in one's value.
   const values = () => canvas.locator('input, textarea').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value))
-  await expect.poll(values, {timeout: 20_000}).toContain('Edited in Classic.')
+  await expect.poll(values, {intervals: [50], timeout: 20_000}).toContain('Edited in Classic.')
   await page.waitForTimeout(1500)
   await page.screenshot({path: shot('3-freeform-after-classic-edit')})
   await tabs.getByRole('tab', {name: 'Classic'}).click()

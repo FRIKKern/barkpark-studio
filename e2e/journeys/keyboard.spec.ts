@@ -43,7 +43,7 @@ test('@local J19: search recovery and visible keyboard selection', async ({page}
       const row = el.getBoundingClientRect()
       const list = el.closest('[role="listbox"]')!.getBoundingClientRect()
       return row.top >= list.top && row.bottom <= list.bottom
-    })).toBe(true)
+    }), {intervals: [50]}).toBe(true)
     await expect(page.getByRole('combobox')).toBeFocused()
   }
 })
@@ -60,7 +60,7 @@ test('J19: keyboard only — search, open, edit, publish', async ({page}, info) 
   if (t.name === 'sanity') await page.waitForTimeout(1500) // its results settle after a refetch
   await referenceHold(page, page.getByText('Fixture post 12', {exact: true}).first())
   await page.keyboard.press('Enter') // the first result is active in both studios
-  await expect.poll(() => decodeURIComponent(new URL(page.url()).pathname)).toBe(`/structure/post;${ID}`)
+  await expect.poll(() => decodeURIComponent(new URL(page.url()).pathname), {intervals: [50]}).toBe(`/structure/post;${ID}`)
   await referenceHold(page, t.field(page, 'title'), TITLE)
 
   // Sanity now focuses its field-group tabs; the title is reachable by Tab
@@ -143,9 +143,9 @@ test('@local D: Cmd+Shift+8 makes a bullet list, Cmd+Shift+7 a numbered one, in 
     await expect(page.locator('[id="body"] .ProseMirror')).toBeFocused({timeout: 15_000})
     const list = () => para.evaluate((p) => (p.closest('ul') ? 'ul' : p.closest('ol') ? 'ol' : 'none'))
     await page.keyboard.press('ControlOrMeta+Shift+8')
-    await expect.poll(list).toBe('ul')
+    await expect.poll(list, {intervals: [50]}).toBe('ul')
     await page.keyboard.press('ControlOrMeta+Shift+7')
-    await expect.poll(list).toBe('ol')
+    await expect.poll(list, {intervals: [50]}).toBe('ol')
   } finally {
     // The canvas's last change lands first: a restore before it was overwritten by it.
     await closeAndSettle(page)

@@ -249,7 +249,7 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
   for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight')
   await page.keyboard.type('mine ')
   await expect(footer).toContainText(/Not saved/i, {timeout: 15_000})
-  await expect.poll(() => saves, {timeout: 10_000}).toBeGreaterThanOrEqual(2)
+  await expect.poll(() => saves, {intervals: [50], timeout: 10_000}).toBeGreaterThanOrEqual(2)
   await held
   await expect(card).toBeVisible({timeout: 10_000})
   await expect(card.locator('[data-version="theirs"]')).toHaveText(theirs)

@@ -264,7 +264,7 @@ test('@local the doc deleted while kept edits are replayed: they come back with 
     await page.route('**/_serverFn/**', (route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('mutations') ? void held.push(route) : route.continue()))
     await page.goto(t.docPath('post', ID))
     await t.settle(page)
-    await expect.poll(() => held.length, {timeout: 10_000}).toBeGreaterThan(0)
+    await expect.poll(() => held.length, {intervals: [50], timeout: 10_000}).toBeGreaterThan(0)
     await bpMutate([{delete: {id: ID, type: 'post', force: true}}])
     for (const r of held.splice(0)) await r.continue()
     await page.unroute('**/_serverFn/**')

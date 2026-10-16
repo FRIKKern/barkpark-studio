@@ -17,6 +17,6 @@ test('@local J34: tags typed fast with Enter all land, in order', async ({page},
   for (const tag of ['one', 'two', 'three', 'four']) (await page.keyboard.type(tag), await page.keyboard.press('Enter'))
   const all = ['fixture', 't0', 'one', 'two', 'three', 'four']
   // On screen at once (the lost tag never showed as a chip), then on the server.
-  if (t.name === 'studio') await expect.poll(() => page.locator('.tags-box .tag').allInnerTexts()).toEqual(all)
+  if (t.name === 'studio') await expect.poll(() => page.locator('.tags-box .tag').allInnerTexts(), {intervals: [50]}).toEqual(all)
   await expect.poll(() => t.docValue(ID, 'tags'), {timeout: 10_000}).toEqual(all)
 })

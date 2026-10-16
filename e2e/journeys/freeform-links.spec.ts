@@ -17,7 +17,7 @@ test('@local D06: a wikilink opens its doc in the next pane; hover shows a previ
   const open = page.locator('.bp-link-preview__open').filter({visible: true})
   await expect(open).toBeVisible()
   const [tab] = await Promise.all([context.waitForEvent('page'), open.click()])
-  await expect.poll(() => tab.url()).toContain('example.com')
+  await expect.poll(() => tab.url(), {intervals: [50]}).toContain('example.com')
   await tab.close()
   await page.bringToFront()
   // The card goes when the pointer leaves for a while.

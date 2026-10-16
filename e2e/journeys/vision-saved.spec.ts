@@ -123,7 +123,7 @@ test('J37: Vision points at the bad part of a refused query', async ({page, cont
   await expect(error).toContainText('Column: 11')
   // WCAG reflow (1280 px at 400 %): one column, scrolled down, never the page sideways.
   await page.setViewportSize({width: 320, height: 640})
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth), {intervals: [50]}).toBe(320)
 })
 
 test('@evidence J37: Vision saved queries and dataset, side by side', async ({page, context}, info) => {

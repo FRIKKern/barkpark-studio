@@ -109,7 +109,7 @@ test('@local D16: multi-block edits — merge, paste three, spanning delete, cut
   expect(original).toHaveLength(6)
   const undo = async () => {
     await page.keyboard.press(`${MOD}+z`)
-    await expect.poll(() => canvasShape(page)).toEqual(original)
+    await expect.poll(() => canvasShape(page), {intervals: [50]}).toEqual(original)
     expect(await agree()).toEqual(original)
   }
 
@@ -132,7 +132,7 @@ test('@local D16: multi-block edits — merge, paste three, spanning delete, cut
   expect(now.slice(-3)).toEqual(original.slice(1, 4))
   await page.keyboard.press(`${MOD}+z`)
   await page.keyboard.press(`${MOD}+z`)
-  await expect.poll(() => canvasShape(page)).toEqual(original)
+  await expect.poll(() => canvasShape(page), {intervals: [50]}).toEqual(original)
   await agree()
 
   // Delete a selection spanning a paragraph and a list.
@@ -169,6 +169,6 @@ test('@local D16: multi-block edits — merge, paste three, spanning delete, cut
   await page.reload()
   await t.settle(page)
   await expect(pm).toBeVisible({timeout: 20_000})
-  await expect.poll(() => canvasShape(page), {timeout: 10_000}).toEqual(original)
+  await expect.poll(() => canvasShape(page), {intervals: [50], timeout: 10_000}).toEqual(original)
   await page.screenshot({path: 'evidence/D16-studio.png'})
 })
