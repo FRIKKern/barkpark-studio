@@ -267,10 +267,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const hideJson = import.meta.env.VITE_HIDE_JSON_VIEW === '1'
   // Opt-in: the reference post declares desk.preview too, and its tabs stay as Sanity's.
   const previewTemplate = import.meta.env.VITE_PREVIEW_VIEW === '1' ? schema?.preview : undefined
+  // B13: a singleton opens as Sanity's S.document() child: the form, no JSON view.
+  const single = isSingleton(schemas, pane.type)
   const views: {id: View; title: string; icon?: ReactNode}[] = [
     formTitle && !freeform ? {id: 'classic', title: formTitle, icon: <EditIcon />} : {id: 'classic', title: freeform ? t('Classic') : t('Editor')},
     ...(freeform ? [{id: 'freeform' as View, title: t('Freeform')}] : []),
-    ...(hideJson ? [] : [{id: 'json' as View, title: 'JSON'}]),
+    ...(hideJson || single ? [] : [{id: 'json' as View, title: 'JSON'}]),
     // The schema's desk.preview as a view: the site in an iframe (Agency's "Forhåndsvisning").
     ...(previewTemplate ? [{id: 'preview' as View, title: 'Forhåndsvisning', icon: <EyeOpenIcon />}] : []),
     // B09: the schema's related-document views (desk.views), after the doc's own.
@@ -284,7 +286,6 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // B13: a singleton's one document (id = its type) that does not exist opens empty and
   // is created on its first edit, like a new doc; never "not found" nor "deleted" (it
   // can't be deleted here; History still restores an old version).
-  const single = isSingleton(schemas, pane.type)
   useEffect(() => {
     if (single && pane.id === pane.type && draftQ.data === null && !viewingPublished) draftNew(qc, pane.type, pane.id, schemaOf(schemas, pane.type)?.initialValues ?? {})
   }, [single, pane.id, pane.type, draftQ.data, viewingPublished])
@@ -617,9 +618,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {narrow && !inPresentation && <FocusButton index={index} />}
         {!narrow && !inPresentation && (
           <>
-            <button type="button" className="icon-btn" aria-label={t('Split pane right')} data-tip={t('Split pane right')} onClick={() => navigate({href: splitRight(panes, index)})}>
+            {/* Sanity's: a split shows another view, so one view has no split button. */}
+            {views.length > 1 && <button type="button" className="icon-btn" aria-label={t('Split pane right')} data-tip={t('Split pane right')} onClick={() => navigate({href: splitRight(panes, index)})}>
               <SplitVertical />
-            </button>
+            </button>}
             <FocusButton index={index} />
             {split ? (
               // Like Sanity: closing one side of a split is a button, closing a pane a link.
@@ -785,8 +787,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               copyPasteKey(e)
             }}
           >
-            {/* The type's name above the title, unless it is the title (a singleton named by its type). */}
-            {docTitle(doc, schema, t) !== schema.title && <div className="kind">{schema.title}</div>}
+            {/* The type's name above the title, but not on a singleton: Sanity's FormHeader hides it when the doc's id is its type. */}
+            {pane.id !== pane.type && <div className="kind">{schema.title}</div>}
             <h1>{docTitle(doc, schema, t)}</h1>
             {!revision && <LocationsBanner doc={doc} />}
             <GroupTabs schema={schema} value={group} onChange={setGroup} problems={problems} />
