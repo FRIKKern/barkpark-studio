@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 195 changes, 4 tasks closed
+- **Today** · 196 changes, 4 tasks closed
+  - Date picker stays inside the window at phone width ([#843](https://github.com/FRIKKern/barkpark-studio/pull/843))
   - Array rows inset as Sanity's; string rows 45 px, 4 px apart ([#842](https://github.com/FRIKKern/barkpark-studio/pull/842))
-  - e2e: page-only polls check every 50 ms (70 polls in 34 specs) ([#831](https://github.com/FRIKKern/barkpark-studio/pull/831))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
