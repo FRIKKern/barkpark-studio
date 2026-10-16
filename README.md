@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 80 changes, 4 tasks closed
+- **Today** · 81 changes, 4 tasks closed
+  - Tooltips as Sanity's: 25 px with the words 8 px in, 3 px corners, its popover shadow, centred 4 px under the anchor and kept inside its pane ([#728](https://github.com/FRIKKern/barkpark-studio/pull/728))
   - Search filter row and editor as Sanity's: a boolean starts at True, chips in Sanity's fills, secondary buttons, the editor's 21 px head and 126 px select ([#724](https://github.com/FRIKKern/barkpark-studio/pull/724))
-  - Presence as Sanity's at many viewers: per person, its counter, a dot on Who's online ([#725](https://github.com/FRIKKern/barkpark-studio/pull/725))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
