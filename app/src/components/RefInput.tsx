@@ -191,7 +191,8 @@ export function RefSearch({id, types, filter, current, autoFocus, invalid, onPic
   const {data: currentDoc} = useQuery({...docQuery(types, current ?? ''), enabled: !!current})
   const [q, setQ] = useState(() => (currentDoc ? previewTitle(currentDoc, schemaOf(schemas, currentDoc._type)) : ''))
   const [open, setOpen] = useState(false)
-  const [active, setActive] = useState(0)
+  // Sanity's: nothing lit until the arrow keys move to a result; the pointer only greys one.
+  const [active, setActive] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const listId = useId()
   // One request per pause in typing, not per keystroke (one shared rate bucket).
@@ -249,7 +250,7 @@ export function RefSearch({id, types, filter, current, autoFocus, invalid, onPic
           onChange={(e) => {
             setQ(e.target.value)
             setOpen(true)
-            setActive(0)
+            setActive(-1)
           }}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') (e.preventDefault(), setOpen(true), setActive((a) => Math.max(0, Math.min(a + 1, results.length - 1))))
@@ -271,7 +272,7 @@ export function RefSearch({id, types, filter, current, autoFocus, invalid, onPic
         tabIndex={-1}
         onClick={() => {
           setQ('')
-          setActive(0)
+          setActive(-1)
           setOpen(true)
           inputRef.current?.focus()
         }}
@@ -296,7 +297,6 @@ export function RefSearch({id, types, filter, current, autoFocus, invalid, onPic
               role="option"
               aria-selected={i === active}
               onMouseDown={(e) => (e.preventDefault(), pick(d))}
-              onMouseEnter={() => setActive(i)}
             >
               <DocPreview doc={d} selected={false} badge={(typeBadge ?? types.length > 1) ? typeTitle(d._type) : undefined} />
             </div>
