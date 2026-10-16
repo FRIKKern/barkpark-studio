@@ -33,7 +33,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
   const used = refs?.length ?? 0
 
   return (
-    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="dialog-backdrop delete-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog delete-dialog" aria-modal="true" aria-labelledby="delete-title" onClose={onClose}>
         <header>
           <h2 id="delete-title">{t('Delete document?')}</h2>
@@ -98,7 +98,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
               }
             }}
           >
-            {used > 0 ? t('Delete anyway') : t('Delete now')}
+            {used > 0 ? t('Delete anyway') : t('Delete document')}
           </button>
         </footer>
       </DialogBox>

@@ -256,7 +256,7 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
   const dialog = page.getByRole('dialog').last()
   if (t.name === 'studio') {
     await expect(dialog.getByRole('alert')).toContainText('Could not check where this document is used')
-    await expect(dialog.getByRole('button', {name: 'Delete now'})).toBeDisabled()
+    await expect(dialog.getByRole('button', {name: 'Delete document'})).toBeDisabled()
     await dialog.getByRole('button', {name: 'Retry', exact: true}).focus()
     failReads = false
     await page.keyboard.press('Enter')
