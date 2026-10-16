@@ -5,6 +5,7 @@ import {reasonOf} from '../lib/edits'
 import {Close, DocumentIcon, Search} from './icons'
 import {toast} from './Toasts'
 import {intlTag, useLocale, useT, type T} from '../lib/i18n'
+import {mediaBytes} from '../lib/files'
 import {useCanWrite} from '../lib/session'
 import {uploadFile} from '../lib/upload'
 import {imageSrc, TILE_PX} from '../lib/image'
@@ -17,12 +18,11 @@ const SORT_TITLES: Record<Sort, string> = {'created-desc': 'Newest first', 'crea
 const KIND_TITLES: Record<Kind, string> = {image: 'Images', video: 'Video', audio: 'Audio', document: 'Documents', other: 'Other'}
 /** One asset's kind, as LiveView's list and inspector name it. */
 const KIND_NAMES: Record<Kind, string> = {image: 'image', video: 'video', audio: 'audio', document: 'document', other: 'other'}
-// LiveView's sizes: binary units, one decimal ("9.4 KB").
-const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${(n / 1024).toFixed(1)} KB`)
 const fail = (title: string) => (e: unknown) => toast({tone: 'critical', title, description: reasonOf((e as Error).message) ?? (e as Error).message})
 
 export function MediaLibrary() {
   const t = useT()
+  const locale = useLocale()
   const qc = useQueryClient()
   // One place picked on the left, as LiveView's: the whole library, a kind, or a folder.
   const [folder, setFolderOnly] = useState<string>()
@@ -195,7 +195,7 @@ export function MediaLibrary() {
                     </td>
                     <td>{a.kind ? t(KIND_NAMES[a.kind as Kind] ?? a.kind) : ''}</td>
                     <td className="mono">{a.mimeType}</td>
-                    <td className="num">{size(a.size)}</td>
+                    <td className="num">{mediaBytes(a.size, locale)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -217,11 +217,12 @@ export function MediaLibrary() {
 
 function Tile({asset, picked, onPick}: {asset: LibraryAsset; picked: boolean; onPick: () => void}) {
   const t = useT()
+  const locale = useLocale()
   return (
     <button type="button" className="media-tile" aria-pressed={picked} onClick={onPick} title={asset.name}>
       <span className="media-thumb">{asset.mimeType.startsWith('image/') ? <img src={imageSrc(asset.id, TILE_PX)} alt="" loading="lazy" decoding="async" /> : <DocumentIcon />}</span>
       <span className="media-name">{asset.name}</span>
-      <span className="media-size muted">{size(asset.size)}</span>
+      <span className="media-size muted">{mediaBytes(asset.size, locale)}</span>
       <span className="media-badges">
         {asset.checkedOutBy && <span className="badge" title={checkedOutBy(t, asset.checkedOutBy)}>{t('Locked')}</span>}
         {asset.visibility === 'private' && <span className="badge">{t('Private')}</span>}
@@ -284,7 +285,7 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
         <dt>{t('MIME')}</dt>
         <dd className="mono">{a.mimeType || t('unknown')}</dd>
         <dt>{t('Size')}</dt>
-        <dd>{size(a.size)}</dd>
+        <dd>{mediaBytes(a.size, locale)}</dd>
         {a.updatedAt && (
           <>
             <dt>{t('Updated')}</dt>

@@ -22,12 +22,23 @@ export function mayAccept(accept: string | undefined, type: string): boolean {
 /** A file in the media library, as a file field shows and picks it. */
 export type FileAsset = {id: string; name: string; size: number; mimeType: string; createdAt: string}
 
-/** The field row's size: "99 Bytes", "2.37 MB" (Sanity's formatBytes, 1024-based). */
-export function formatBytes(bytes: number): string {
+// Norwegian decimals take a comma ("2,37"); English keeps Sanity's toFixed text.
+const decimals: Record<string, Intl.NumberFormat> = {}
+const decimal = (n: number, min: number, max: number) => (decimals[`${min} ${max}`] ??= new Intl.NumberFormat('nb-NO', {minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: false})).format(n)
+
+/** The field row's size: "99 Bytes", "2.37 MB" (Sanity's formatBytes, 1024-based); nb "2,37 MB". */
+export function formatBytes(bytes: number, locale: 'en' | 'nb-NO' = 'en'): string {
   if (!bytes) return '0 Bytes'
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1)
-  return `${parseFloat((bytes / 1024 ** i).toFixed(2))} ${sizes[i]}`
+  const n = parseFloat((bytes / 1024 ** i).toFixed(2))
+  return `${locale === 'nb-NO' ? decimal(n, 0, 2) : n} ${sizes[i]}`
+}
+
+/** Media's sizes, as LiveView's: binary units, one decimal ("9.4 KB"; nb "9,4 KB"). */
+export function mediaBytes(bytes: number, locale: 'en' | 'nb-NO' = 'en'): string {
+  const [n, unit] = bytes >= 1024 * 1024 ? [bytes / 1024 / 1024, 'MB'] : [bytes / 1024, 'KB']
+  return `${locale === 'nb-NO' ? decimal(n, 1, 1) : n.toFixed(1)} ${unit}`
 }
 
 /** The picker's size column: "99 byte", "2.48 MB" (Sanity's getHumanFriendlyBytes, 1000-based, Intl units; B01: in the Studio's language). */

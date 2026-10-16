@@ -41,6 +41,7 @@ export const useFileInfo = (ref: string | undefined) =>
   })
 
 export function FileInput({id, field, value, onChange, readOnly, openRef}: Props) {
+  const locale = useLocale()
   const file = (value && typeof value === 'object' ? value : {}) as FileValue
   const ref = file.asset?._ref
   const accept = (field.options as {accept?: string} | undefined)?.accept
@@ -150,7 +151,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
             ) : (
               <>
                 <span className="file-name">{name ?? '…'}</span>
-                {info.data && <span className="file-size">{formatBytes(info.data.size)}</span>}
+                {info.data && <span className="file-size">{formatBytes(info.data.size, locale)}</span>}
               </>
             )}
           </span>
