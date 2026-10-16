@@ -20,8 +20,12 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 // In Norwegian, the names come from Intl (2023-01: a January that starts on a Sunday).
 const monthNames = (locale: Locale) =>
   locale === 'en' ? MONTHS : MONTHS.map((_, i) => new Date(2023, i, 1).toLocaleString(intlTag(locale), {month: 'long'}))
-const dayNames = (locale: Locale) =>
-  locale === 'en' ? DAYS : DAYS.map((_, i) => new Date(2023, 0, 1 + i).toLocaleString(intlTag(locale), {weekday: 'short'}))
+// The week's first day: Sunday in English (Sanity's calendar), Monday in Norwegian.
+const weekStart = (locale: Locale) => (locale === 'nb-NO' ? 1 : 0)
+const dayNames = (locale: Locale) => {
+  const names = locale === 'en' ? DAYS : DAYS.map((_, i) => new Date(2023, 0, 1 + i).toLocaleString(intlTag(locale), {weekday: 'short'}))
+  return [...names.slice(weekStart(locale)), ...names.slice(0, weekStart(locale))]
+}
 const dayLabel = (d: Date, locale: Locale) =>
   locale === 'en' ? d.toDateString() : d.toLocaleDateString(intlTag(locale), {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
@@ -123,11 +127,12 @@ function DatePicker({value, dateOnly, timeStep = 1, onPick, onClose}: {value?: D
   const pick = (d: Date) => (setFocused(d), onPick(withTime(d)))
   const moveMonth = (delta: number) => setFocused(new Date(focused.getFullYear(), focused.getMonth() + delta, Math.min(focused.getDate(), 28)))
 
-  // Whole weeks from the Sunday on or before the 1st, as many as the month needs.
+  // Whole weeks from the week's first day on or before the 1st, as many as the month needs.
   const first = new Date(focused.getFullYear(), focused.getMonth(), 1)
-  const start = addDays(first, -first.getDay())
+  const lead = (first.getDay() - weekStart(locale) + 7) % 7
+  const start = addDays(first, -lead)
   const inMonth = new Date(focused.getFullYear(), focused.getMonth() + 1, 0).getDate()
-  const days = Array.from({length: Math.ceil((first.getDay() + inMonth) / 7) * 7}, (_, i) => addDays(start, i))
+  const days = Array.from({length: Math.ceil((lead + inMonth) / 7) * 7}, (_, i) => addDays(start, i))
 
   const onGridKey = (e: KeyboardEvent) => {
     const step = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7}[e.key]
