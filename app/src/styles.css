@@ -1644,7 +1644,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .array-item-preview .title, .array-item-preview .subtitle { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* Sanity's item dialog, measured at 700, 900 and 1100 tall: 597 px (less when the pane is
    shorter), 9 px corners, the fields 20 px in with 32 px on the right, the first label 83 px down. */
-.dialog.item-dialog { width: min(640px, calc(100% - 64px)); min-height: min(597px, 100%); border-radius: 9px; }
+.dialog.item-dialog { width: min(640px, calc(100% - 24px)); min-height: min(597px, calc(100% - 24px)); border-radius: 9px; } /* 12 px inside a narrow pane, as Sanity's (572 x 583 at 700 x 844) */
 .item-dialog .dialog-body { padding: 34px 32px 20px 20px; }
 /* Centred in the pane's card area under its tabs, as Sanity's (and Inspect's): 200-839 px at 900. */
 /* Only the card area dims, as Sanity's layer (and Inspect's): header, tabs and footer stay as they are. */
