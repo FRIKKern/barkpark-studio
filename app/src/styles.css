@@ -1764,12 +1764,15 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
    many columns as fit at 120 px (5 at 1440, 6 at 1920). */
 .dialog.asset-dialog { width: min(960px, calc(100% - 24px)); min-height: 40%; border-radius: 9px; }
 .asset-dialog h2, .usage-dialog h2 { font-size: 13px; font-weight: 600; margin: 0; }
-.asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; padding: 46px 22px 22px; }
+.asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; padding: 44px 22px 22px 20px; }
 .asset-dialog .load-more { display: block; margin: 0 auto 8px; box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); }
 .asset-tile { position: relative; }
-.asset-pick { display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 0; border-radius: 3px; cursor: pointer; background: repeating-conic-gradient(var(--bg-soft) 0 25%, var(--bg) 0 50%) 0 0 / 16px 16px; box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
-.asset-pick img { width: 100%; height: 100%; object-fit: contain; }
-.asset-pick:hover, .asset-pick:focus-visible { box-shadow: inset 0 0 0 2px var(--focus-ring); outline: none; }
+/* Sanity's tile (task-1a025021a9fd27fd): the image 2 px in over a checkerboard, on a grey
+   card with a 1 px ring; under the pointer the card greys further (its focus ring is blue). */
+.asset-pick { display: block; width: 100%; aspect-ratio: 1; padding: 2px; border: 0; border-radius: 3px; cursor: pointer; background: var(--asset-tile); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.asset-pick img { display: block; width: 100%; height: 100%; object-fit: contain; background: repeating-conic-gradient(var(--bg-soft) 0 25%, var(--bg) 0 50%) 0 0 / 16px 16px; }
+.asset-pick:hover { background: var(--fill-soft); }
+.asset-pick:focus-visible { box-shadow: inset 0 0 0 2px var(--focus-ring); outline: none; }
 .asset-more { position: absolute; top: 4px; right: 4px; opacity: 0; }
 .asset-tile:hover .asset-more, .asset-more:focus-within { opacity: 1; }
 .asset-more .icon-btn { background: var(--bg-glass); box-shadow: inset 0 0 0 1px var(--line); }
