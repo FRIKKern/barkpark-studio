@@ -9,7 +9,7 @@ import {anyDocQuery, previewTitle, schemaOf, schemasQuery, searchAllDocs, type D
 import {meQuery} from '../lib/session'
 import {ago, useLocale, useT} from '../lib/i18n'
 import {toast} from './Toasts'
-import {Add, CheckmarkCircle, ChevronLeft, ChevronRight, Close, DocumentIcon, LinkIcon, Trash} from './icons'
+import {Add, CheckmarkCircle, ChevronLeft, ChevronRight, Close, DocumentIcon, LinkIcon, Trash, UserIcon} from './icons'
 
 /**
  * J66, Sanity's Tasks sidebar: the navbar's Tasks button opens it on the Assigned /
@@ -241,7 +241,8 @@ function TargetField({target, onChange, open}: {target: TaskTarget | null; onCha
     )
   if (!onChange) return null
   return (
-    <div className="task-target-search">
+    <div className="task-target-search task-field-icon">
+      <DocumentIcon />
       <input className="input" placeholder={t('Select target document')} aria-label={t('Target')} value={q} onChange={(e) => setQ(e.target.value)} />
       {hits.length > 0 && (
         <ul className="task-target-hits">
@@ -262,7 +263,9 @@ function AssigneeField({value, onChange, id}: {value: string | null; onChange: (
   const t = useT()
   const {data: people = []} = useQuery(peopleQuery)
   return (
-    <select id={id} className="input" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
+    <span className="task-field-icon">
+      <UserIcon />
+    <select id={id} className="input" data-empty={!value || undefined} value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
       <option value="">{t('Select assignee')}</option>
       {[...new Set([...people, ...(value ? [value] : [])])].map((p) => (
         <option key={p} value={p}>
@@ -270,6 +273,7 @@ function AssigneeField({value, onChange, id}: {value: string | null; onChange: (
         </option>
       ))}
     </select>
+    </span>
   )
 }
 
@@ -323,7 +327,9 @@ function CreateTask({target: initial}: {target: TaskTarget | null}) {
           <button type="button" className="btn-text" onClick={() => showTasks({kind: 'list', tab: 'assigned'})}>
             {t('Tasks')}
           </button>
-          <span aria-hidden="true">›</span>
+          <span className="tasks-crumb-sep" aria-hidden="true">
+            <ChevronRight />
+          </span>
           <h2>{t('Create')}</h2>
         </nav>
       </Header>
@@ -427,7 +433,9 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
           <button type="button" className="btn-text" onClick={() => showTasks({kind: 'list', tab: 'assigned'})}>
             {t('Tasks')}
           </button>
-          <span aria-hidden="true">›</span>
+          <span className="tasks-crumb-sep" aria-hidden="true">
+            <ChevronRight />
+          </span>
           <h2>{task?.title ?? '…'}</h2>
         </nav>
         {/* Sanity's: walk the list this task was opened from, and copy a link that opens it. */}

@@ -14,6 +14,7 @@
   --footer-meta: #6a6e7d; /* Sanity's footer status text (measured, light) */
   --icon-muted: #6a6e7d; /* Sanity's muted icon grey (chevrons, close), measured */
   --tab-selected-fg: #636776; /* Sanity's selected view tab words (Editor), measured */
+  --placeholder: #9499ad; /* Sanity's input placeholder (Tasks form), measured */
   --selected: #465be8; /* F13: white text on it passes AA (5.3:1) */
   --on-selected: #fff;
   --on-selected-soft: rgba(255, 255, 255, 0.9);
@@ -118,6 +119,7 @@
   --footer-meta: #93949f;
   --icon-muted: #93949f;
   --tab-selected-fg: #9d9fae;
+  --placeholder: #555c75;
   --fg: #e4e5e9;
   --fg-strong: #fff;
   --fg-header: #c8cad3;
@@ -2333,6 +2335,48 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 .task-activity h3 { margin: 16px 0 8px; font-size: 13px; font-weight: 600; color: var(--fg-strong); }
 .task-activity p { margin: 0; }
 .task-label { margin-top: 20px; font-size: 13px; font-weight: 500; color: var(--fg-strong); }
+/* The Tasks panel as Sanity's (measured at 1440 on :3334, the reference's Tasks sidebar). */
+.tasks-head { padding: 10px 12px 6px 20px; }
+.tasks-head:has(.tasks-crumbs) { padding-left: 12px; }
+.tasks-head h2 { color: var(--fg); }
+.tasks-head .tasks-new { padding: 3px 8px 3px 4px; line-height: 19px; color: var(--fg-header); }
+.tasks-head .tasks-new svg, .tasks-empty .btn svg, .task-form-foot .btn svg { width: 19px; height: 19px; margin: -3px 0; }
+.tasks-tabs { padding: 3px 12px 12px; }
+.tasks-tabs button { padding: 3px 8px; line-height: 19px; color: var(--fg-header); }
+.tasks-tabs button[aria-selected='true'] { color: var(--fg); }
+.tasks-empty { padding-top: 128px; }
+.tasks-empty h3 { color: var(--fg); margin-bottom: 9px; }
+.tasks-empty p { margin-bottom: 61px; line-height: 19px; }
+.tasks-empty .btn { padding: 3px 8px 3px 4px; line-height: 19px; background: var(--fg); color: var(--bg); }
+.tasks-crumbs .btn-text { padding: 3px 8px; line-height: 19px; color: var(--fg-header); font-weight: 400; }
+.tasks-crumbs { gap: 0; }
+.tasks-crumbs .tasks-crumb-sep { display: inline-grid; place-items: center; width: 24px; color: var(--icon-muted); }
+.tasks-crumbs .tasks-crumb-sep svg { width: 17px; height: 17px; }
+.tasks-crumbs h2 { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A picked target reads as Sanity's preview: its title medium weight. */
+.task-target > span { font-weight: 500; }
+/* The navbar's Tasks button stays pressed while its panel is open, as Sanity's. */
+.navbar .tasks-btn[aria-pressed='true'] { background: var(--selected-fill); }
+.task-form { gap: 0; padding-top: 34px; }
+.task-title-input { padding: 2px 0; }
+.task-form .task-description { resize: none; height: 199px; margin-top: 20px; padding: 13px 8px; }
+.task-label { margin: 20px 0 9px; font-weight: 400; color: var(--fg); line-height: 16px; }
+.task-field-icon { position: relative; display: block; }
+.task-field-icon > svg { position: absolute; left: 8px; top: 50%; width: 21px; height: 21px; margin-top: -10.5px; color: var(--icon-muted); pointer-events: none; }
+.task-field-icon > .input { width: 100%; height: 35px; padding-left: 33px; }
+.task-field-icon > select.input { appearance: none; background-image: none; }
+.task-field-icon > select.input[data-empty] { color: var(--placeholder); }
+.task-form ::placeholder { color: var(--placeholder); opacity: 1; }
+.task-form input[type=date].input { height: 35px; }
+.task-form-foot { margin-top: 36px; gap: 8px; }
+.task-form-foot .btn-primary { padding: 3px 8px; line-height: 19px; background: var(--fg); }
+.task-more { gap: 8px; color: var(--muted); margin-right: 12px; }
+/* Sanity's switch: a 25x17 pill, its knob left when off and right on the primary blue when on. */
+.task-more input[role=switch] { appearance: none; position: relative; width: 25px; height: 17px; margin: 0; border-radius: 9px; background: var(--line-strong); cursor: pointer; transition: background 0.1s; }
+.task-more input[role=switch]::after { content: ''; position: absolute; top: 4px; left: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--bg); transition: left 0.1s; }
+.task-more input[role=switch]:checked { background: var(--selected); }
+.task-more input[role=switch]:checked::after { left: 12px; }
+.task-more input[role=switch]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
 /* D11: a remote caret's name tag in the Studio's face, as the presence avatars (the canvas's text is serif). */
 bp-paper-canvas .bp-remote-caret__label { font-family: 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; font-size: 11px; font-weight: 500; line-height: 16px; border-radius: 3px; }
