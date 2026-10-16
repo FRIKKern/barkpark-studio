@@ -551,7 +551,7 @@ function SlugInput({id, value, onChange, source, maxLength = 200, readOnly}: {id
       {source && (
         <button
           type="button"
-          className="btn-create"
+          className="btn-create btn-generate"
           // Sanity's stays enabled with an empty source; the click then does nothing.
           disabled={readOnly}
           onClick={() => typeof from === 'string' && from && (onChange(slugify(from).slice(0, maxLength)), force((n) => n + 1))}
@@ -604,7 +604,7 @@ export function Fieldset({path, fieldset, children}: {path: string; fieldset: Fi
         )}
       </legend>
       {open && (
-        <div className="fieldset" style={columns && columns > 1 ? {display: 'grid', gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, columnGap: 24} : undefined}>
+        <div className="fieldset" style={columns && columns > 1 ? {display: 'grid', gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, columnGap: 20} : undefined}>
           {children}
         </div>
       )}
