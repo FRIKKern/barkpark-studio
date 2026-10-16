@@ -32,6 +32,8 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
   expect(Math.round(tile.height)).toBe(Math.round(tile.width)) // Sanity's square tile, its title for screen readers only
   await cards.getByRole('button', {name: 'One'}).click()
   await expect(page.getByRole('dialog', {name: /Cards \/ One/})).toBeVisible()
+  // Over the pane's card area (Sanity's), not 137 px down it.
+  expect(await page.locator('.item-backdrop').boundingBox()).toEqual(await page.locator('.doc-main').boundingBox())
   await page.keyboard.press('Escape')
 
   await expect(page.locator('[id="agree"]')).toHaveAttribute('type', 'checkbox')
