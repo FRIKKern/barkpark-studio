@@ -1106,8 +1106,8 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .menu-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-header); padding: 8px 12px 4px; }
 .menu-item.check { display: flex; justify-content: space-between; }
 .menu-item-label { display: inline-flex; align-items: center; gap: 8px; }
-.menu-item-label svg { width: 19px; height: 19px; margin: -3px 0 -3px -4px; }
-.menu-item.check[aria-checked='true']::after { content: '✓'; color: var(--muted); }
+.menu-item-label svg { width: 19px; height: 19px; margin: -3px 0 -3px -4px; color: var(--icon-muted); } /* Sanity's menu icons and tick: the icon grey */
+.menu-item.check[aria-checked='true']::after { content: '✓'; color: var(--icon-muted); }
 .list-rows.detailed .preview { min-height: 73px; padding-block: 0; gap: 12px; contain-intrinsic-size: auto 73px; }
 .list-rows.detailed .preview .media { width: 73px; height: 73px; }
 .pane.list .pane-header .popover.menu { top: calc(100% + 4px); font-weight: 400; }
