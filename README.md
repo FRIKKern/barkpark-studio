@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 220 changes, 4 tasks closed
+- **Today** · 221 changes, 4 tasks closed
+  - CI: a spec not in durations.json counts as the median recorded spec, and the log names it ([#868](https://github.com/FRIKKern/barkpark-studio/pull/868))
   - Document footer 49 px as Sanity's, its status avatar 4 px in ([#867](https://github.com/FRIKKern/barkpark-studio/pull/867))
-  - A group whose fields are all hidden has no tab, as Sanity's ([#865](https://github.com/FRIKKern/barkpark-studio/pull/865))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
