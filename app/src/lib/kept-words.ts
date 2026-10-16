@@ -29,6 +29,18 @@ export function readKept(key: string): Kept | null {
   }
 }
 
+/** Whether this browser keeps words for a doc's canvas (any scope or editor: the canvas checks its own). */
+export function keptFor(type: string, id: string, field?: string) {
+  const end = `|${type}|${id}${field ? `|${field}` : ''}`
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k?.startsWith(KEY) && k.endsWith(end)) return true
+    }
+  } catch {}
+  return false
+}
+
 export function forget(key: string) {
   try {
     localStorage.removeItem(key)

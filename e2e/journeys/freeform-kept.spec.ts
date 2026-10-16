@@ -3,7 +3,7 @@ import {expect, test, type Page} from '@playwright/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // D21, after Barkdown's "Put the words back": a canvas save fails (here the network
-// drops it), the card says the words are kept on this computer, the tab closes; on
+// drops it), the canvas says its edits are kept here, the tab closes; on
 // reopen the document offers them back, and one confirmed write puts them in.
 const ID = 'note-01'
 const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjson', import.meta.url), 'utf8').split('\n').find((l) => l.includes(`"${ID}"`))!) as {
@@ -37,7 +37,7 @@ test('@local D21: a failed save keeps the words; reopening offers them back and 
     // The save never reaches Barkpark.
     await page.route('**/_serverFn/**', (route) => (isOps(route.request().postData()) ? route.abort('internetdisconnected') : route.continue()))
     await fieldBlock(page, 'Label').fill('Words that did not save')
-    await expect(page.locator('.pd-conflict')).toContainText('Your words are kept on this computer.', {timeout: 15_000})
+    await expect(page.locator('.pd-status')).toContainText('Your edits are kept here.', {timeout: 15_000})
     await page.screenshot({path: 'evidence/D21-1-failed.png'})
     await page.close() // the tab goes, the words were never saved
     expect(await t.docValue(ID, 'label', 'note')).toBe(SEED.label)
