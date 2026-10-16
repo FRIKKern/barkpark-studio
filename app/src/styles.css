@@ -1115,6 +1115,8 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
    edge, its items are medium weight with 21 px icons 6 px in and the words 6 px after, and
    "Default sort / view" when already in use are pale (#e3e4e8) with a tooltip saying why. */
 .pane.list .pane-header .popover.menu { right: -8px; }
+.pane.list .pane-header .popover.menu.centered { right: auto; }
+.popover.menu.new-in-list { min-width: 0; } /* as wide as its choices, Sanity's (173.5 px for Post and Post by Alan Turing) */
 /* Its button stays pressed while the menu is open, as Sanity's. */
 /* Sanity's pane header and footer buttons while their menu is open (list and document: Share, …), measured at 1440. */
 :is(.pane-header, .doc-footer) .menu-wrap > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); color: var(--icon-btn-open-fg); }
