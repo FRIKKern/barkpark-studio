@@ -104,23 +104,28 @@ test('live: the upstream cut mid-write; the hub resumes at its last frame and no
 // one, alive and deaf, until it closes (de6987a, 2026-10-09: ~25 s without frames). The
 // re-open resumes at the hub's last event id (Barkpark replays the gap) or, with none yet
 // (no frame since it connected, as on a fresh server here), tells the page to read again.
-test('@local live: a deploy leaves the stream deaf; a new instance re-opens it and the missed change comes', async ({page, context}, info) => {
+test('@local live: a deploy leaves the stream deaf; a new instance re-opens it and the missed change comes', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'our listen hub')
-  await context.addInitScript(() => ((window as {__liveFrames?: string[]}).__liveFrames = []))
-  const framesFor = () => page.evaluate((id) => (window as {__liveFrames?: string[]}).__liveFrames!.filter((f) => f.endsWith(`.${id}`) || f.endsWith(`|${id}`)).length, ID)
   await page.goto(t.docPath('post', ID))
   await t.settle(page)
   await expect(t.field(page, 'title')).toHaveValue(TITLE)
+  // Deaf is the whole server's: a run that fails before the flip leaves every later live
+  // test on it deaf too (they failed in a row after one did). The flip always comes.
+  let flipped = false
   try {
     await lever(page, 'deaf')
-    const before = await framesFor()
     await t.patch(ID, {title: `${TITLE} after the flip`})
     await page.waitForTimeout(1500)
-    expect(await framesFor(), 'deaf: no frame arrives').toBe(before)
+    // What the page shows, not a count of frames: the test before restores this doc, and
+    // its frames may still be replayed into this page's stream (a resume answers a moment
+    // back), which counted as frames heard while deaf.
+    await expect(t.field(page, 'title'), 'deaf: the change does not arrive').toHaveValue(TITLE)
     await lever(page, 'flip')
+    flipped = true
     await expect(t.field(page, 'title')).toHaveValue(`${TITLE} after the flip`, {timeout: 8_000})
   } finally {
+    if (!flipped) await lever(page, 'flip').catch(() => {})
     await t.restore(ID, {title: TITLE})
   }
 })
