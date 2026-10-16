@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 54 changes, 4 tasks closed
+- **Today** · 55 changes, 4 tasks closed
+  - Reference results as Sanity's: the whole row wide when a Create sits beside the search ([#700](https://github.com/FRIKKern/barkpark-studio/pull/700))
   - Review changes list as Sanity's: names at 500, diffs 8 px in, the slug on one line in plain chips, its spacing and Revert all ([#699](https://github.com/FRIKKern/barkpark-studio/pull/699))
-  - Toasts as Sanity's: 34 px with the title on a 19 px line, 12 px apart; its fill, text, ring, shadow and time bar ([#698](https://github.com/FRIKKern/barkpark-studio/pull/698))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
