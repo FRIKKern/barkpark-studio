@@ -1,4 +1,6 @@
 import type {Field} from './data'
+import {toast} from '../components/Toasts'
+import {t} from './i18n'
 
 // Sanity's copy/paste (J29): "Copy field" / "Paste field" on a field's "…" menu,
 // "Copy document" / "Paste document" on the document's. The studio's own clipboard
@@ -42,7 +44,12 @@ export function fits(sig: string, value: unknown, f: Field): boolean {
 const asText = (v: unknown): string =>
   v == null ? '' : typeof v === 'object' ? (Array.isArray(v) ? v.map(asText).filter(Boolean).join(', ') : Object.entries(v).filter(([k]) => !k.startsWith('_')).map(([, x]) => asText(x)).filter(Boolean).join(', ')) : String(v)
 
+/** Sanity's isEmptyValue: nothing, an empty list, or an object holding only its _key. */
+export const isEmpty = (v: unknown) => v == null || (Array.isArray(v) ? v.length === 0 : typeof v === 'object' && Object.keys(v).join() === '_key')
+
+/** An empty value is refused with Sanity's warning and leaves both clipboards as they were, so a later paste can't wipe a field. */
 export function copy(clip: Clip) {
+  if (clip.kind === 'field' ? isEmpty(clip.field.value) : clip.fields.every((f) => isEmpty(f.value))) return void toast({tone: 'caution', title: t('Empty value, nothing to copy')})
   try {
     localStorage.setItem(KEY, JSON.stringify(clip))
   } catch {

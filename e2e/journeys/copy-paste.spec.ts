@@ -9,11 +9,12 @@ import {closeAndSettle, target, type Target} from '../rig/targets'
 const FROM = 'post-22'
 const TO = 'post-23'
 const shot = (name: string, step: string) => `evidence/J29-${name}-${step}.png`
-test.use({video: 'on', permissions: ['clipboard-read', 'clipboard-write']})
+test.use({video: process.env.EVIDENCE ? 'on' : 'off', permissions: ['clipboard-read', 'clipboard-write']}) // clips only for the evidence run
 
 async function fieldMenu(t: Target, page: Page, field: string, item: 'Copy field' | 'Paste field') {
-  const box = t.name === 'sanity' ? page.locator(`[data-testid="field-${field}"]`) : page.locator('.field').filter({has: page.locator(`[id="${field}"]`)}).last()
-  await box.hover()
+  // Sanity's reference fields have no field-<name> box, only their actions menu (under the field's header).
+  const box = t.name === 'sanity' ? page.locator(`[data-testid="field-${field}"], [data-testid="field-actions-menu-${field}"]`).first() : page.locator('.field').filter({has: page.locator(`[id="${field}"]`)}).last()
+  await box.hover({force: t.name === 'sanity'})
   const button =
     t.name === 'sanity'
       ? page.locator(`[data-testid="field-actions-menu-${field}"] button[aria-label="Field actions"]`)
@@ -73,4 +74,19 @@ test('@evidence J29: copy and paste a field and a document', async ({page}, info
   await expect(t.field(page, 'title')).toHaveValue('Short excerpt for post 22.')
   await expect(t.field(page, 'excerpt')).toHaveValue('Short excerpt for post 22.')
   await t.pane(page, 2).screenshot({path: shot(t.name, '4-document-pasted')})
+})
+
+// Sanity refuses to copy an empty field and keeps the earlier copy, so a misclick never wipes the next paste's target.
+test('J29: copying an empty field is refused and the earlier copy still pastes', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', FROM))
+  await t.settle(page)
+  await fieldMenu(t, page, 'excerpt', 'Copy field')
+  await page.getByRole('tab', {name: 'Meta'}).click()
+  await fieldMenu(t, page, 'reviewer', 'Copy field')
+  await expect(page.getByText('Empty value, nothing to copy')).toBeVisible()
+  await page.getByRole('tab', {name: 'All fields'}).click()
+  await fieldMenu(t, page, 'title', 'Paste field')
+  await expect(t.field(page, 'title')).toHaveValue('Short excerpt for post 22.')
 })

@@ -22,6 +22,7 @@ export default {
   'Developer info': 'Utviklerinfo',
   Duplicate: 'Dupliser',
   Empty: 'Tom',
+  'Empty value, nothing to copy': 'Tom verdi, ingenting å kopiere',
   'Encountered a field that is not defined in the schema.': 'Møtte på et felt som ikke er definert i skjemaet.',
   'Encountered {n} fields that are not defined in the schema.': 'Møtte på {n} felt som ikke er definert i skjemaet.',
   'Enter tag and press ENTER…': 'Skriv inn tagg og trykk ENTER…',

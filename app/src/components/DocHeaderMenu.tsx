@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {useQueryClient} from '@tanstack/react-query'
-import {copy, fits, read, signature} from '../lib/clipboard'
+import {copy, fits, isEmpty, read, signature} from '../lib/clipboard'
 import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
 import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
@@ -155,7 +155,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
               if (clip?.kind !== 'document') return toast({tone: 'critical', title: tt('Nothing to paste'), description: tt('Copy a document first')})
               const matching = schema.fields.flatMap((f) => {
                 const from = clip.fields.find((c) => c.name === f.name)
-                return from && from.value !== undefined && fits(from.sig, from.value, f) ? [[f.name, from.value] as const] : []
+                return from && !isEmpty(from.value) && fits(from.sig, from.value, f) ? [[f.name, from.value] as const] : []
               })
               if (!matching.length) return toast({tone: 'critical', title: tt('Invalid clipboard item'), description: tt('Source and target schema types are not compatible')})
               for (const [name, value] of matching) edit(qc, doc, name, value)
