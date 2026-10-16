@@ -1,8 +1,32 @@
 import {readFileSync} from 'node:fs'
 import type {BrowserContext, Locator, Page, TestInfo} from '@playwright/test'
 import {sendBatches} from '../../scripts/lib/batches.mjs'
+import {idempotent, isTransient} from '../../scripts/lib/retry.mjs'
 import {sanityAsset, seedAssets} from '../../scripts/lib/seed-assets.mjs'
 import {toBarkpark} from '../../scripts/lib/seed-map.mjs'
+
+// The rig's own Barkpark and Sanity calls (setup, teardown, reads) go over Node's fetch, which
+// keeps sockets alive between calls: one the far end dropped meanwhile (a Barkpark deploy flip)
+// fails the next call before any answer, "fetch failed / other side closed" or ECONNRESET (three
+// CI runs on 2026-10-16, task-4033f12dd0007724). Asked again once when sending twice is harmless:
+// a read, or a mutate batch scripts/lib/retry.mjs calls idempotent. Every spec loads this file.
+const sameTwice = (init?: RequestInit) => {
+  const method = (init?.method ?? 'GET').toUpperCase()
+  if (method === 'GET' || method === 'HEAD') return true
+  try {
+    const {mutations} = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as {mutations?: unknown}
+    return Array.isArray(mutations) && idempotent(mutations)
+  } catch {
+    return false
+  }
+}
+const nativeFetch = globalThis.fetch as typeof fetch & {rigRetry?: true}
+if (!nativeFetch.rigRetry)
+  globalThis.fetch = Object.assign(
+    (input: Parameters<typeof fetch>[0], init?: RequestInit) =>
+      nativeFetch(input, init).catch((error: unknown) => (isTransient({error}) && sameTwice(init) ? nativeFetch(input, init) : Promise.reject(error))),
+    {rigRetry: true as const},
+  )
 
 // One adapter per backend. Specs talk to the adapter, never to a backend directly,
 // so every spec runs against the reference (the bar) and against ours unchanged.
