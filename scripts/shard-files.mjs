@@ -1,7 +1,8 @@
 // CI's e2e shards by recorded time, not test count (Playwright's --shard): the heavy specs
 // spread over the shards, the same way every run. e2e/durations.json holds each spec's CI
 // seconds (0: it has no CI test, only @local / @evidence ones); a spec not in it yet counts
-// as 3 s until it is recorded.
+// as the median recorded spec until it is recorded (it was 3 s, and new specs on 2026-10-16 ran
+// longer: shard 5 past the 60 s cap on #856 and #863), and the log names it.
 //   node scripts/shard-files.mjs 2 4                    # the spec files for shard 2 of 4
 //   node scripts/shard-files.mjs --update <run> [<run>…] # re-record from CI runs (gh)
 // A spec's time is wall time: from the line before its test's result to that result, so its
@@ -13,7 +14,6 @@ import {execSync} from 'node:child_process'
 import {readdirSync, readFileSync, writeFileSync} from 'node:fs'
 
 const FILE = new URL('../e2e/durations.json', import.meta.url)
-const UNKNOWN = 3
 
 if (process.argv[2] === '--update') {
   const runs = process.argv.slice(3)
@@ -51,6 +51,10 @@ const [n, of] = process.argv.slice(2).map(Number)
 if (!(n >= 1 && n <= of)) throw new Error('usage: shard-files.mjs <shard> <shards> | --update <run id>')
 const secs = JSON.parse(readFileSync(FILE, 'utf8'))
 const specs = readdirSync(new URL('../e2e/journeys/', import.meta.url)).filter((f) => f.endsWith('.spec.ts'))
+const ran = Object.values(secs).filter((v) => v > 0).sort((a, b) => a - b)
+const UNKNOWN = ran.length ? ran[Math.floor(ran.length / 2)] : 3
+const unknown = specs.filter((f) => !(f in secs))
+if (unknown.length) console.error(`shard-files: not in e2e/durations.json yet, counted as ${UNKNOWN} s each: ${unknown.join(', ')}`)
 // Heaviest first, each onto the lightest shard so far (ties: the lower shard, then by name).
 const bins = Array.from({length: of}, () => ({secs: 0, files: []}))
 for (const f of specs.sort((a, b) => (secs[b] ?? UNKNOWN) - (secs[a] ?? UNKNOWN) || a.localeCompare(b))) {
