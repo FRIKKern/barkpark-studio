@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 160 changes, 4 tasks closed
+- **Today** · 161 changes, 4 tasks closed
+  - Releases tool: Scheduled drafts as Sanity's ([#808](https://github.com/FRIKKern/barkpark-studio/pull/808))
   - A deleted document keeps its pane, as Sanity's: Untitled, the banner on top, the form read-only ([#807](https://github.com/FRIKKern/barkpark-studio/pull/807))
-  - Radio list's clear button 13 px inside its box, as Sanity's ([#806](https://github.com/FRIKKern/barkpark-studio/pull/806))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
