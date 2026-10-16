@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 125 changes, 4 tasks closed
+- **Today** · 126 changes, 4 tasks closed
+  - Icons as Sanity's: 34 hand-drawn icons now draw the @sanity/icons 5.2.3 paths ([#773](https://github.com/FRIKKern/barkpark-studio/pull/773))
   - Deep links in Sanity's form: its inspector names, and a followed doc without type= ([#772](https://github.com/FRIKKern/barkpark-studio/pull/772))
-  - Search filter field icons as Sanity's, and its calendar, document, image and chevron paths ([#771](https://github.com/FRIKKern/barkpark-studio/pull/771))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
