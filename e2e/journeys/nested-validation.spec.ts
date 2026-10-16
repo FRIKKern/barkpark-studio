@@ -25,3 +25,23 @@ test('J13: an array item field error is listed and jumped to', async ({page}, in
     await t.deleteDoc(id, 'post')
   }
 })
+
+// Sanity's jump selects the field's own group: from Content, a Meta field's error opens Meta (not All fields).
+test("J13: picking an error in another group selects that field's group", async ({page}, info) => {
+  const t = target(info)
+  const id = `post-group-jump-${Date.now().toString(36)}`
+  await t.draftOnly(id, 'post', {title: 'Group jump', slug: {_type: 'slug', current: id}, rating: 9})
+  try {
+    await t.prepare(page.context())
+    await page.goto(t.docPath('post', id))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await expect(page.getByRole('tab', {name: 'Content'})).toHaveAttribute('aria-selected', 'true')
+    await page.getByRole('button', {name: 'Validation'}).first().click()
+    await page.getByText('Must be lower than or equal to 5').last().click()
+    await expect(page.getByRole('tab', {name: 'Meta'})).toHaveAttribute('aria-selected', 'true')
+    await expect(t.field(page, 'rating')).toBeFocused()
+  } finally {
+    await t.deleteDoc(id, 'post')
+  }
+})

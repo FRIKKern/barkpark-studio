@@ -174,7 +174,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       opened.current = null
       return void navigate({href: withParams(panes, index, {path: p.path}), replace: true})
     }
-    if (group && p.group !== group) setGroup('')
+    // Sanity's: the field's own group (All fields for one in none).
+    if (group && p.group !== group) setGroup(p.group ?? '')
     // A field inside collapsed objects: open each one on the way (Sanity does).
     p.path.split('.').slice(0, -1).forEach((_, i, parts) => openObjects.toggle(parts.slice(0, i + 1).join('.'), true))
     requestAnimationFrame(() => fieldEl(paneRoot.current, p.path)?.focus())
@@ -215,8 +216,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   }, [hasDoc])
 
   // J52: the focused field lives in the URL (Sanity's `path=`): a reload or a copied
-  // link opens on it. Opening: focus the named field (showing all groups if it sits
-  // in another). Editing: the URL follows focus, replaced (no history entries).
+  // link opens on it. Opening: focus the named field (selecting its group if it sits
+  // in another, as Sanity's). Editing: the URL follows focus, replaced (no history entries).
   const schemaHere = schemaOf(schemas, pane.type)
   const opened = useRef<string | null>(null)
   useEffect(() => {
@@ -224,7 +225,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     if (!want || !doc || !schemaHere || opened.current === `${pane.id}|${want}`) return
     opened.current = `${pane.id}|${want}`
     const top = schemaHere.fields.find((f) => f.name === want.split(/[.[]/)[0])
-    if (top?.group && group && top.group !== group) setGroup('')
+    if (top && group && top.group !== group) setGroup(top.group ?? '')
     // A field inside collapsed objects opens them (J13/J14).
     want.split('[')[0]!.split('.').slice(0, -1).forEach((_, i, parts) => openObjects.toggle(parts.slice(0, i + 1).join('.'), true))
     let frames = 90
