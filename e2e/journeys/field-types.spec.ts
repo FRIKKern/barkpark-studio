@@ -44,6 +44,13 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
   await page.getByRole('group').filter({has: page.getByRole('checkbox', {name: 'Green'})}).getByRole('checkbox', {name: 'Green'}).check()
   await expect.poll(() => value('colours'), {timeout: 10_000}).toEqual(['red', 'green', 'blue'])
 
+  // English: "1,500" is one thousand five hundred, never 1.5 (a decimal comma is nb's,
+  // lib/number.ts): not a number, so the field is unset and keeps what was typed.
+  await page.locator('[id="width"]').fill('1,500')
+  await expect.poll(() => value('width'), {timeout: 10_000}).toBeUndefined()
+  await expect(page.locator('[id="width"]')).toHaveValue('1,500')
+  await page.locator('[id="width"]').fill('1200')
+  await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1200)
   await page.locator('[id="place.lat"]').fill('60.5')
   await expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522})
 
