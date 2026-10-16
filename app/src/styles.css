@@ -10,7 +10,7 @@
   --hover: #f2f3f5;
   --hover-strong: #e9eaee;
   --selected-fill: #eeeef1; /* Sanity's selected tab and chip fill (measured, light) */
-  --history-current: #eeeef1; /* the History entry shown (measured) */
+  --fill-soft: #eeeef1; /* Sanity's soft fill: the History entry shown, a type badge (measured) */
   --footer-meta: #6a6e7d; /* Sanity's footer status text (measured, light) */
   --icon-muted: #6a6e7d; /* Sanity's muted icon grey (chevrons, close), measured */
   --selected: #465be8; /* F13: white text on it passes AA (5.3:1) */
@@ -124,7 +124,7 @@
   --hover: #21232f;
   --hover-strong: #2a2d3f;
   --selected-fill: #2a2d3f;
-  --history-current: #21232f;
+  --fill-soft: #21232f;
   --selected: #7898ff;
   --on-selected: #13141b;
   --on-selected-soft: rgba(19, 20, 27, 0.8);
@@ -1096,14 +1096,14 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .history-list .history-expand { flex: none; width: 25px; justify-content: center; padding: 0; color: var(--muted); }
 .history-list .history-expand[aria-expanded=true] { background: var(--hover); }
 /* Sanity's rows, measured at 1440: 49 px cards 4 px apart, the shown one filled. */
-.history-list [data-current] > button:first-child { background: var(--history-current); }
+.history-list [data-current] > button:first-child { background: var(--fill-soft); }
 .history-list .avatar { position: relative; flex: none; display: grid; place-items: center; width: 33px; height: 33px; border-radius: 50%; background: var(--avatar-blue); color: var(--avatar-fg); font-size: 12px; font-weight: 600; }
 /* Sanity's badge, measured at 1440: a 17 px circle 18 px into the avatar, the event's icon
    on its tone (white glyph, dark in dark mode), ringed 1 px in the row's own background. */
 .history-list .badge { position: absolute; left: 18px; top: 18px; display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--muted); color: var(--avatar-fg); box-shadow: 0 0 0 1px var(--history-row, var(--bg)); }
 .history-list .badge svg { width: 17px; height: 17px; }
 .history-list button:hover { --history-row: var(--hover); }
-.history-list [data-current] > button:first-child { --history-row: var(--history-current); }
+.history-list [data-current] > button:first-child { --history-row: var(--fill-soft); }
 .history-list .badge:is([data-kind=published], [data-kind=created]) { background: var(--avatar-green); }
 .history-list .badge:is([data-kind=unpublished], [data-kind=discarded], [data-kind=deleted]) { background: var(--avatar-orange); }
 .history-list .badge[data-kind=edited] { background: var(--avatar-yellow); }
