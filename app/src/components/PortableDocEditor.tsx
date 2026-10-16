@@ -251,9 +251,11 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // in one paragraph). Resending on their rev would silently put ours over theirs, so ask
         // instead (D20), with both versions kept. Separate blocks still resend (D05).
         // Barkpark answers a batch that races the doc's first draft (a field's save making it
-        // at the same moment, as both go out after a reconnect) with 422 invalid_op, not 412.
-        // Same race, same way: on the server's rev, unless the blocks it names changed.
-        const raced = !r.ok && r.code === 'invalid_op'
+        // at the same moment, as both go out after a reconnect) with 422 invalid_op, not 412,
+        // and one aimed at a draft a publish just removed with 404 (five editors on one post,
+        // task-86f75846c256e3b4). Same race, same way: on the server's rev, unless the blocks
+        // it names changed. A document really gone reads as gone, and the batch is refused.
+        const raced = !r.ok && (r.code === 'invalid_op' || r.status === 404)
         if (!r.ok && (r.status === 412 || raced) && base.current) {
           const was = new Map(base.current.blocks.map((b) => [b.id, JSON.stringify(b)]))
           const touched = new Set(ops.flatMap((o) => [o.id, (o.block as Block | undefined)?.id].filter((x): x is string => typeof x === 'string')))
