@@ -7,6 +7,7 @@ import type {Doc} from '../lib/data'
 import {Add, ChevronDown, ChevronLeft, Close as CloseIcon, EditIcon, InfoOutline, PublishIcon, Trash, UnpublishIcon} from './icons'
 import {toast} from './Toasts'
 import {ago, intlTag, t as tt, useLocale, useT, type Locale} from '../lib/i18n'
+import {initialsOf, usePersonName} from '../lib/person'
 
 // Sanity's History inspector (J16), beside the document: a timeline of what
 // happened, who did it and when; picking an entry shows the document as it was
@@ -18,12 +19,8 @@ const BADGE_ICON = {published: PublishIcon, unpublished: UnpublishIcon, discarde
 const BADGE: Record<string, keyof typeof BADGE_ICON> = {Published: 'published', Unpublished: 'unpublished', 'Discarded draft': 'discarded', Deleted: 'deleted', Restored: 'edited', Edited: 'edited', 'Draft created': 'created'}
 
 export {ago}
-const initials = (name: string) => {
-  if (name === 'API token') return '·'
-  // First and last word, as the presence avatars (and Sanity's).
-  const words = name.replace(/@.*/, '').split(/[.\s_-]+/).filter(Boolean)
-  return [words[0], words.length > 1 ? words.at(-1) : undefined].filter((w): w is string => !!w).map((w) => w[0]!.toUpperCase()).join('')
-}
+// First and last word, as the presence avatars (and Sanity's); a service token's row a dot.
+const initials = (name: string) => (name === 'API token' ? '·' : initialsOf(name))
 
 export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'history', onTab, review}: {
   type: string
@@ -129,11 +126,13 @@ export function Row({e, selected, child, onPick, children}: {e: HistoryEntry; se
   const t = useT()
   const locale = useLocale()
   const when = ago(e.revision.timestamp, locale)
+  // Who, by name (lib/person.ts); a service token's row keeps its label.
+  const who = usePersonName(e.revision.author) ?? e.revision.author
   return (
     <li data-current={selected ? '' : undefined} data-child={child || undefined}>
-      <button type="button" onClick={onPick} aria-label={`${e.revision.author} ${t(e.label)} ${when}`} aria-current={selected ? 'true' : undefined}>
-        <span className="avatar" title={e.revision.author}>
-          {initials(e.revision.author)}
+      <button type="button" onClick={onPick} aria-label={`${who} ${t(e.label)} ${when}`} aria-current={selected ? 'true' : undefined}>
+        <span className="avatar" title={who}>
+          {initials(who)}
           <Badge kind={BADGE[e.label] ?? 'edited'} />
         </span>
         <span className="history-text">

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import {readersMayComment, threadsOf, type Comment} from './comment-threads.ts'
-import {workspacePeople} from './members.ts'
+import {workspacePeople, workspaceRoster} from './members.ts'
 
 const c = (id: string, extra: Partial<Comment> = {}): Comment => ({_id: id, documentId: 'post-01', documentType: 'post', fieldPath: 'title', threadId: id, message: id, authorEmail: null, createdAt: '2026-10-08T10:00:00Z', ...extra})
 
@@ -27,6 +27,9 @@ test('mention list: people from every page of members, not only the first', asyn
     {members: [{principal_type: 'user', identity: 'a@example.com'}, {principal_type: 'user', identity: 'gone@example.com', revoked: true}], hasMore: false},
   ]
   assert.deepEqual(await workspacePeople(async (offset) => pages[offset / 2]!), ['a@example.com', 'b@example.com'])
+  // A member's display_name (once Barkpark's roster carries it) names them; none, no entry.
+  const named = {members: [{principal_type: 'user', identity: 'ada@example.com', display_name: ' Ada Lovelace '}, {principal_type: 'user', identity: 'b@example.com', display_name: ''}], hasMore: false}
+  assert.deepEqual((await workspaceRoster(async () => named)).names, {'ada@example.com': 'Ada Lovelace'})
 })
 
 test('J49: viewers comment only where the comment schema lets read seats create and resolve', () => {

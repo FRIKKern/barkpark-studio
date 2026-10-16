@@ -122,9 +122,6 @@ export function insertMention(text: string, start: number, caret: number, email:
   return {text: text.slice(0, start) + chip + text.slice(caret), caret: start + chip.length}
 }
 
-/** A person's name from their email, as the chip shows it. */
-export const personName = (email: string) => email.replace(/@.*/, '')
-
 /**
  * J49, Sanity's Viewer may comment: Barkpark lets a read seat write comments when the
  * comment type's schema opts in (`readerWrites`, Barkpark #22790): create, and resolve

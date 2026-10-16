@@ -3,13 +3,16 @@ import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {commentsQuery, readerCommentsQuery, deleteComment, editComment, postComment, reactToComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
 import {peopleQuery} from '../lib/people'
-import {insertMention, mentionAt, messageParts, personName, REACTIONS, reactionGroups} from '../lib/comment-threads'
+import {insertMention, mentionAt, messageParts, REACTIONS, reactionGroups} from '../lib/comment-threads'
 import {meQuery, useCanWrite} from '../lib/session'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {ago} from './HistoryPanel'
-import {intlTag, useLocale, useT, type T} from '../lib/i18n'
+import {intlTag, useLocale, useT} from '../lib/i18n'
 import {AddComment, Check, ChevronDown, Close, CommentIcon, Ellipsis, LinkRemoved, Mention, Send, Undo} from './icons'
 import {toast} from './Toasts'
+import {PersonName} from './Presence'
+import {localPart, usePersonName} from '../lib/person'
+import {peopleNamesQuery} from '../lib/people'
 
 // J40, Sanity's field comments: a comment button on every field (shown on hover,
 // or always with a count once the field has open threads), a composer under it,
@@ -31,8 +34,8 @@ export const CommentsContext = createContext<Api | null>(null)
 
 // No author email: written in shared-token mode, where nobody is signed in and the
 // studio itself writes. It is named as presence names that session ("Studio").
-const nameOf = (t: T, email: string | null | undefined) => (email ? email.replace(/@.*/, '') : t('Studio'))
-const initialOf = (email: string | null | undefined) => (email ? email[0]!.toUpperCase() : 'S')
+/** A comment avatar's letter: the first of the person's name (lib/person.ts), S for the studio. */
+const PersonInitial = ({who}: {who: string | null | undefined}) => <>{usePersonName(who)?.[0]?.toUpperCase() ?? 'S'}</>
 export const newId = () => `comment-${crypto.randomUUID()}`
 
 /** The field's comment button and its composer (Sanity's CommentsField). */
@@ -148,7 +151,9 @@ export function Composer({label, placeholder, initial = '', autoFocus, onSend, o
   // Asked as the composer opens, so the list is there by the time '@' is typed (it said
   // 'No users found' while still loading).
   const {data: people = [], isPending: peoplePending} = useQuery(peopleQuery)
-  const matches = men ? people.filter((p) => p.toLowerCase().includes(men.query.toLowerCase())).slice(0, 8) : []
+  const {data: known} = useQuery(peopleNamesQuery)
+  // By email or by name (lib/person.ts).
+  const matches = men ? people.filter((p) => `${p} ${known?.[p] ?? ''}`.toLowerCase().includes(men.query.toLowerCase())).slice(0, 8) : []
   const follow = (value: string, caret: number) => (setMen(mentionAt(value, caret)), setActive(0))
   const pick = (email: string) => {
     if (!men) return
@@ -206,7 +211,11 @@ export function Composer({label, placeholder, initial = '', autoFocus, onSend, o
   }
   return (
     <div className={`composer${compact ? ' compact' : ''}`}>
-      {!compact && <span className="avatar">{initialOf(me?.email)}</span>}
+      {!compact && (
+        <span className="avatar">
+          <PersonInitial who={me?.email} />
+        </span>
+      )}
       <div className="composer-box">
         {!text && <span className="composer-placeholder" aria-hidden="true">{placeholder}</span>}
         <textarea
@@ -236,8 +245,12 @@ export function Composer({label, placeholder, initial = '', autoFocus, onSend, o
           ) : matches.length ? (
             matches.map((p, i) => (
               <div key={p} id={`${listId}-${i}`} role="option" aria-selected={i === active} onMouseDown={(e) => (e.preventDefault(), pick(p))} onMouseEnter={() => setActive(i)}>
-                <span className="avatar small">{initialOf(p)}</span>
-                <span className="mention-name">{personName(p)}</span>
+                <span className="avatar small">
+                  <PersonInitial who={p} />
+                </span>
+                <span className="mention-name">
+                  <PersonName who={p} />
+                </span>
                 <span className="muted">{p}</span>
               </div>
             ))
@@ -445,15 +458,17 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const mine = (comment.authorEmail ?? null) === (me?.email ?? null)
+  // The author by name (lib/person.ts); a shared-token comment is the studio's.
+  const author = usePersonName(comment.authorEmail) ?? t('Studio')
   // A read seat writes its comments but never deletes (Barkpark #22790 refuses it).
   const {canWrite} = useCanWrite()
   const thread = head && replyIds.length > 0
   return (
     <div className="comment-item" id={`comment-${comment._id}`}>
-      <span className="avatar">{initialOf(comment.authorEmail)}</span>
+      <span className="avatar">{author[0]!.toUpperCase()}</span>
       <div className="comment-body">
         <div className="comment-meta">
-          <strong>{nameOf(t, comment.authorEmail)}</strong>
+          <strong>{author}</strong>
           <time dateTime={comment.createdAt} title={new Date(comment.createdAt).toLocaleString(intlTag(locale))}>
             {ago(comment.createdAt, locale)}
           </time>
@@ -515,7 +530,7 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
             {messageParts(comment.message).map((part, i) =>
               'mention' in part ? (
                 <span key={i} className="mention-chip" title={part.mention}>
-                  @{personName(part.mention)}
+                  @<PersonName who={part.mention} />
                 </span>
               ) : (
                 part.text
@@ -551,9 +566,10 @@ function Reactions({comment}: {comment: Comment}) {
   const t = useT()
   const qc = useQueryClient()
   const {data: me} = useQuery(meQuery)
+  const {data: known} = useQuery(peopleNamesQuery)
   const groups = reactionGroups(comment.reactions)
   if (!groups.length) return null
-  const names = (users: (string | null)[]) => users.map((u) => (u && u === (me?.email ?? null) ? t('you') : nameOf(t, u))).join(', ')
+  const names = (users: (string | null)[]) => users.map((u) => (u && u === (me?.email ?? null) ? t('you') : u ? (known?.[u] ?? localPart(u)) : t('Studio'))).join(', ')
   return (
     <div className="comment-reactions">
       {groups.map((g) => {
