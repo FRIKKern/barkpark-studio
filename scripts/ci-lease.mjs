@@ -12,6 +12,7 @@
 //   node scripts/ci-lease.mjs release [dataset]             # frees it if this holder still holds it
 // Env: BARKPARK_URL, BARKPARK_WORKSPACE, BARKPARK_PROJECT, BARKPARK_TOKEN; CI_LEASE_HOLDER (default: the run + shard, or this process).
 import {appendFileSync} from 'node:fs'
+import {isTransient} from './lib/retry.mjs'
 
 // One run at a time for now: two at once (ten shards against one Barkpark) slowed every
 // spec enough to push shards past CI's 60 s budget (2026-10-12, three PRs red at 16:09).
@@ -29,14 +30,24 @@ const base = () => `${env('BARKPARK_URL')}/w/${env('BARKPARK_WORKSPACE')}/p/${en
 const headers = () => ({authorization: `Bearer ${env('BARKPARK_TOKEN')}`, 'content-type': 'application/json'})
 // Every call shares the CI token's rate budget with the running shards: a 429 waits the
 // Retry-After and asks again, never fails the job.
+// A connection dropped before the answer (a Barkpark deploy flip: ECONNRESET freeing a dataset,
+// 2026-10-16) is asked again when sending twice is harmless: a read, or a delete. A lease create
+// is not: its lost answer and a second create would look like someone else's lease.
 async function call(url, init) {
-  for (;;) {
-    const res = await fetch(url, {...init, headers: headers()})
+  for (let dropped = 0; ; ) {
+    let res
+    try {
+      res = await fetch(url, {...init, headers: headers()})
+    } catch (error) {
+      if (dropped++ < 2 && isTransient({error}) && sameTwice(init)) continue
+      throw error
+    }
     if (res.status !== 429) return res
     const wait = Number(res.headers.get('retry-after')) || 2
     await new Promise((r) => setTimeout(r, (wait + Math.random()) * 1000))
   }
 }
+const sameTwice = (init = {}) => !init.method || init.method === 'GET' || (init.body && JSON.parse(init.body).mutations.every((m) => 'delete' in m))
 const mutate = (mutation) => call(`${base()}/mutate/${LOCKS}`, {method: 'POST', body: JSON.stringify({mutations: [mutation]})})
 const read = async (dataset) => {
   const res = await call(`${base()}/doc/${LOCKS}/ciLease/drafts.lease-${dataset}`)
