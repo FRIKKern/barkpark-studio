@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 37 changes, 4 tasks closed
+- **Today** · 38 changes, 4 tasks closed
+  - Presentation parity: one URL field, header gaps, shown location, wrapping 404 banner, narrow footer ([#683](https://github.com/FRIKKern/barkpark-studio/pull/683))
   - Field types as Sanity's: ringed 17 px checkboxes, a 35 px calendar segment, an 81 px Generate, 20 px column gaps ([#682](https://github.com/FRIKKern/barkpark-studio/pull/682))
-  - Screen-reader semantics: bulk ticks inert, main landmark, field button context ([#681](https://github.com/FRIKKern/barkpark-studio/pull/681))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
