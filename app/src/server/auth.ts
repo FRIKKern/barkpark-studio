@@ -78,6 +78,13 @@ const writeSession = ({email, token, session}: Editor) =>
  */
 export const editorKey = (email: string) => createHash('sha256').update(email.trim().toLowerCase()).digest('base64url').slice(0, 16)
 
+/**
+ * The name a signed-in editor joins the presence room with (J07): their email, whole, so
+ * two people sharing a local part (ada@a.com, ada@b.com) stay two, and the studio can tell
+ * its own tabs (Sanity hides them). Shown, it reads as their name (lib/person.ts).
+ */
+export const presenceName = (email: string) => email.trim().toLowerCase()
+
 /** The signed-in editor for this request, if any. */
 export function currentEditor(): Editor | undefined {
   if (!signInRequired()) return undefined

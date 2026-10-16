@@ -1,6 +1,6 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {accountRequestReset, accountSignIn, currentEditor, describeToken, displayName, editorKey, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
+import {accountRequestReset, accountSignIn, currentEditor, describeToken, displayName, editorKey, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {requestToken} from '../server/barkpark'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
@@ -29,6 +29,8 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     role: ended || !editor ? null : self?.role ?? null,
     /** Help > Diagnostics: the Barkpark user behind a login session. */
     userId: ended || !editor ? null : self?.userId ?? null,
+    /** J07: the name this editor's presence goes by, so their own tabs can be left out (Sanity's). Shared sign-in: none. */
+    presenceName: ended || !editor ? null : presenceName(editor.email),
     /** The editor in browser storage keys: a digest, never the email. */
     editorKey: ended || !editor ? null : editorKey(editor.email),
     canWrite: self && !ended ? self.permissions.includes('write') : true,

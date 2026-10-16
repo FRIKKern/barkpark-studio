@@ -1,4 +1,5 @@
 import {useEffect, useSyncExternalStore} from 'react'
+import {withoutSelf} from './presence-people'
 
 // Who else is here (J07). One stream per tab into Barkpark's presence room (via
 // /api/presence); this tab's own entry is left out. Focus follows the caret: the doc
@@ -10,6 +11,16 @@ export type CaretSelection = {anchor: CaretPoint; head: CaretPoint}
 export type Presence = {sessionId: string; name: string; color: string; documentId: string | null; field: string | null; selection?: CaretSelection | null}
 
 let others: Presence[] = []
+/** What the page shows: `others` less this editor's own tabs once their presence name is known. */
+let shown: Presence[] = []
+let selfName: string | null = null
+/** J07, as Sanity's: the signed-in editor's own presence (all their tabs) is not shown. */
+export function setPresenceSelf(name: string | null) {
+  if (name === selfName) return
+  selfName = name
+  shown = withoutSelf(others, selfName)
+  emit()
+}
 /** When each session last moved (joined, or changed document or field): where a person is now (presence-people.ts). */
 const moved = new Map<string, number>()
 let self: string | null = null
@@ -88,6 +99,7 @@ export function usePresenceStream() {
           const was = before.get(p.sessionId)
           if (!was || was.documentId !== p.documentId || was.field !== p.field) moved.set(p.sessionId, now)
         }
+        shown = withoutSelf(others, selfName)
         // e2e probe: this tab's session and the ones it sees (a spec tells one tab from another).
         Object.assign(window, {__presence: {self, others: others.map((p) => p.sessionId)}})
         emit()
@@ -134,6 +146,6 @@ export function usePresenceStream() {
 
 const subscribe = (l: () => void) => (listeners.add(l), () => void listeners.delete(l))
 /** Everyone else in the room. */
-export const usePresences = () => useSyncExternalStore(subscribe, () => others, () => others)
+export const usePresences = () => useSyncExternalStore(subscribe, () => shown, () => shown)
 /** When each session last moved, for picking where a person with several tabs is now. */
 export const lastMoved: ReadonlyMap<string, number> = moved

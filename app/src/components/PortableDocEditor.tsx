@@ -7,6 +7,7 @@ import {paceMs, paced} from '../lib/write-pace'
 
 import {toast} from './Toasts'
 import {bodyHistory, registerBody, setCanvasProblem, unsavedElsewhere} from '../lib/edits'
+import {usePersonNamer} from '../lib/person'
 import {existingAsset} from '../lib/upload'
 import {assetUrl} from '../lib/image'
 import {AssetPicker} from './ImageInput'
@@ -151,9 +152,10 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // D11, shared carets: everyone else's caret in this document, in their presence color.
   // A caret in another canvas of the same document names blocks this one hasn't, and
   // the canvas drops it.
+  const nameOf = usePersonNamer()
   const remote = usePresences()
     .filter((p) => p.documentId === id && p.selection)
-    .map((p) => ({id: p.sessionId, name: p.name, color: p.color, ...p.selection!}))
+    .map((p) => ({id: p.sessionId, name: nameOf(p.name) ?? p.name, color: p.color, ...p.selection!}))
   const remoteRef = useRef(remote)
   remoteRef.current = remote
   const remoteKey = JSON.stringify(remote)

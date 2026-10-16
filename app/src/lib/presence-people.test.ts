@@ -1,7 +1,7 @@
 // J07: presence per person, and Sanity's avatar stack overflow.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {people, stack} from './presence-people.ts'
+import {people, stack, withoutSelf} from './presence-people.ts'
 
 const s = (sessionId: string, name: string, documentId: string | null = null, field: string | null = null) => ({sessionId, name, color: `c-${sessionId}`, documentId, field})
 
@@ -14,6 +14,13 @@ test('one person per name, in the first session colour, at the place they moved 
   ])
   // A later move to no document still shows the last document the person is in.
   assert.equal(people([s('1', 'Ada', 'post-01'), s('3', 'Ada')], new Map([['3', 30]]))[0]!.documentId, 'post-01')
+})
+
+test('signed in, your own tabs are left out (by your whole email); shared sign-in leaves everyone in', () => {
+  const all = [s('1', 'ada@a.com'), s('2', 'grace@a.com'), s('3', 'ada@a.com'), s('4', 'ada@b.com')]
+  assert.deepEqual(withoutSelf(all, 'ada@a.com').map((p) => p.sessionId), ['2', '4'], 'ada@b.com is someone else')
+  assert.deepEqual(withoutSelf(all, null).map((p) => p.sessionId), ['1', '2', '3', '4'])
+  assert.equal(people(all).length, 3, 'two people sharing a local part stay two')
 })
 
 test('the stack shows up to max, then max - 1 and a counter of the rest (never a counter of 1)', () => {
