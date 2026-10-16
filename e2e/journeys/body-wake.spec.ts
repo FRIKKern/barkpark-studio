@@ -58,3 +58,40 @@ test('@local J10: Enter while the body wakes is a paragraph break, and another f
   expect(JSON.stringify(await t.docValue(ID, 'body'))).not.toContain('Zq')
   await t.restore(ID, {title: 'Fixture post 29'})
 })
+
+// task-6a29d198c08c9123: on a slow computer the canvas took the focus before the caret
+// was where the click put it, so End + Enter + text typed at once after the first click
+// went in at the canvas's own first caret (before the clicked line). The CPU at 6x
+// slower; WAKE_RUNS=20 for the full proof (the suite runs two).
+const LINE_END = process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End'
+const para = (id: string, value: string) => ({id, type: 'paragraph', content: [{type: 'text', value}]})
+test('@local J10: on a slow computer, End, Enter and text right after the first click go after the clicked line', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours: the wake-up is our read-only body')
+  const runs = Number(process.env.WAKE_RUNS ?? 2)
+  test.setTimeout(runs * 30_000 + 30_000)
+  await t.prepare(page.context())
+  before = await t.docValue(ID, 'body')
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setCPUThrottlingRate', {rate: 6})
+  const lines = async () => (((await t.docValue(ID, 'body')) as {blocks?: {content?: {value?: string}[]}[]} | undefined)?.blocks ?? []).map((b) => (b.content ?? []).map((c) => c.value ?? '').join(''))
+  const misses: string[] = []
+  for (let i = 0; i < runs; i++) {
+    await t.restore(ID, {body: {blocks: [para('wa', 'Alpha line.'), para('wb', 'Beta line.'), para('wc', 'Gamma line.')]}})
+    await page.goto(t.docPath('post', ID))
+    await t.settle(page)
+    const body = page.locator('[id="body"]')
+    await body.scrollIntoViewIfNeeded()
+    await body.locator('[data-bp-id="wb"]').click()
+    await page.keyboard.press(LINE_END)
+    await page.keyboard.press('Enter')
+    await page.keyboard.type(`Mark${i}`)
+    // Gently: a refused read (the suite's shared rate budget) reads as no blocks.
+    await expect.poll(async () => (await lines()).join('|').includes(`Mark${i}`), {timeout: 15_000, intervals: [500]}).toBe(true)
+    await page.waitForTimeout(500)
+    let got = ''
+    await expect.poll(async () => (got = (await lines()).join(' | ')), {timeout: 10_000, intervals: [500]}).not.toBe('')
+    if (got !== `Alpha line. | Beta line. | Mark${i} | Gamma line.`) misses.push(`run ${i}: ${got}`)
+  }
+  expect(misses, `${misses.length} of ${runs} misplaced`).toEqual([])
+})

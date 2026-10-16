@@ -785,7 +785,8 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
   // F8: what is typed between the activating click (or key) and the canvas taking the
   // caret (its bundle and the blocks are still loading) is kept here and typed in once
   // it can take it — never dropped (it was, on a fresh page load: task-1dd00fd2a0dc1c60).
-  // Text, and Enter as a paragraph break, in the order typed.
+  // Text, Enter as a paragraph break, and the caret moves an author makes before typing
+  // (line start and end, the arrows, Backspace: task-6a29d198c08c9123), in the order typed.
   const typed = useRef<string[]>([])
   // The read-only body scrolls inside its box: the canvas opens scrolled (and sized,
   // when its corner was dragged) the same.
@@ -810,48 +811,69 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
   useEffect(() => {
     if (!active) return
     const wokeFrom = document.activeElement
-    const ready = () => !!box.current?.querySelector('.ProseMirror')?.contains(document.activeElement)
+    // Until the caret is where the click put it, every key is kept here: before, one could
+    // reach the canvas the moment it took focus, at its own first caret (task-6a29d198c08c9123).
+    let placed = false
     const keep = (e: KeyboardEvent) => {
-      if (ready() || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return
+      if (placed || e.altKey || e.isComposing) return
       // Keys for another field the author went to meanwhile are that field's, not the body's.
       const at = document.activeElement
       if (at && at !== document.body && !box.current?.contains(at)) return
+      const move = caretMove(e)
+      if ((e.metaKey || e.ctrlKey) && !move) return
       const last = typed.current.length - 1
-      if (e.key.length === 1) typed.current[last] !== undefined && typed.current[last] !== '\n' ? (typed.current[last] += e.key) : typed.current.push(e.key)
+      const text = (s: string | undefined) => s !== undefined && !s.startsWith(MOVE) && s !== '\n'
+      if (move) typed.current.push(move)
+      else if (e.key.length === 1) text(typed.current[last]) ? (typed.current[last] += e.key) : typed.current.push(e.key)
       else if (e.key === 'Enter') typed.current.push('\n')
-      else if (e.key === 'Backspace') typed.current[last] === '\n' || typed.current[last]?.length === 1 ? typed.current.pop() : last >= 0 && (typed.current[last] = typed.current[last]!.slice(0, -1))
+      else if (e.key === 'Backspace') typed.current[last] === '\n' || (text(typed.current[last]) && typed.current[last]!.length === 1) ? typed.current.pop() : text(typed.current[last]) ? (typed.current[last] = typed.current[last]!.slice(0, -1)) : typed.current.push(BACKSPACE)
       else return
       e.preventDefault()
     }
     addEventListener('keydown', keep, true)
+    let gone = false
     const timer = setInterval(() => {
       const pm = box.current?.querySelector<HTMLElement>('.ProseMirror')
       if (!pm) return
       clearInterval(timer)
-      removeEventListener('keydown', keep, true)
-      if (quiet.current && !typed.current.length) return void (quiet.current = false)
+      const done = () => ((placed = true), removeEventListener('keydown', keep, true))
+      if (quiet.current && !typed.current.length) return void (done(), (quiet.current = false))
       quiet.current = false
       // The author went to another field while it woke (J10): the caret stays there. What
       // was typed for the body before that still goes in, and the focus goes back. A wake
       // from elsewhere (J59: Presentation's click on a paragraph) still takes the caret.
       const now = document.activeElement as HTMLElement | null
       const elsewhere = !!now && now !== wokeFrom && now !== document.body && !box.current?.contains(now)
-      if (elsewhere && !typed.current.length) return
+      if (elsewhere && !typed.current.length) return done()
+      const sel = getSelection()
       if (!pm.contains(document.activeElement)) {
         const scroller = box.current?.querySelector<HTMLElement>('.pd-canvas')
         if (scroller) (scroller.style.height = scrolled.current.height), (scroller.scrollTop = scrolled.current.top)
         pm.focus({preventScroll: !!scrolled.current.top})
-        const sel = getSelection()
-        const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
-        if (sel && target) sel.collapse(target.node, target.offset)
-        else if (sel) (sel.selectAllChildren(pm), sel.collapseToEnd())
       }
-      // The canvas reads it as typed input (beforeinput), so it saves and undoes as typing does.
-      for (const run of typed.current) document.execCommand(run === '\n' ? 'insertParagraph' : 'insertText', false, run === '\n' ? undefined : run)
-      typed.current = []
-      if (elsewhere) now.focus()
+      // A caret the script moves reaches the canvas with the selectionchange after it; a key
+      // replayed before that acts on the canvas's own caret (at the start, when it took the
+      // focus itself as it came up: task-6a29d198c08c9123). Back in another field, at once.
+      const read = () =>
+        elsewhere ? Promise.resolve() : new Promise<void>((r) => (document.addEventListener('selectionchange', () => r(), {once: true}), setTimeout(r, 150)))
+      void (async () => {
+        // The click's spot (by keyboard, or below the text: the end), even when the canvas
+        // took the focus itself.
+        const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
+        if (sel) target ? sel.collapse(target.node, target.offset) : (sel.selectAllChildren(pm), sel.collapseToEnd()), await read()
+        // The canvas reads it as typed input (beforeinput), so it saves and undoes as typing
+        // does. Keys typed meanwhile join the queue, in order.
+        for (let run = typed.current.shift(); run !== undefined && !gone; run = typed.current.shift()) {
+          const move = MOVES[run]
+          if (move) sel?.modify('move', ...move), await read()
+          else if (run === BACKSPACE) document.execCommand('delete')
+          else document.execCommand(run === '\n' ? 'insertParagraph' : 'insertText', false, run === '\n' ? undefined : run)
+        }
+        done()
+        if (elsewhere && !gone) now.focus()
+      })()
     }, 30)
-    return () => (clearInterval(timer), removeEventListener('keydown', keep, true))
+    return () => ((gone = true), clearInterval(timer), removeEventListener('keydown', keep, true))
   }, [active])
   if (!id || !type) return null
   const blocks = ((value as {blocks?: unknown[]} | undefined)?.blocks ?? []) as Parameters<typeof PortableDocView>[0]['blocks']
@@ -967,6 +989,29 @@ function ExpandButton({expanded, ...rest}: {expanded: boolean} & React.ButtonHTM
       {tip}
     </button>
   )
+}
+
+// Caret moves kept while the body wakes (they start with MOVE, which no typed text can):
+// as Selection.modify takes them.
+const MOVE = '\u0000'
+const BACKSPACE = `${MOVE}backspace`
+const MOVES: Record<string, [direction: 'forward' | 'backward', unit: 'character' | 'line' | 'lineboundary']> = {
+  [`${MOVE}end`]: ['forward', 'lineboundary'],
+  [`${MOVE}home`]: ['backward', 'lineboundary'],
+  [`${MOVE}right`]: ['forward', 'character'],
+  [`${MOVE}left`]: ['backward', 'character'],
+  [`${MOVE}down`]: ['forward', 'line'],
+  [`${MOVE}up`]: ['backward', 'line'],
+}
+/** The kept caret move for a key: End and Home (Cmd+Right and Cmd+Left on a Mac), the arrows. */
+function caretMove(e: KeyboardEvent) {
+  if (e.shiftKey) return null
+  const line = e.metaKey && !e.ctrlKey
+  if (e.key === 'End' || (line && e.key === 'ArrowRight')) return `${MOVE}end`
+  if (e.key === 'Home' || (line && e.key === 'ArrowLeft')) return `${MOVE}home`
+  if (e.metaKey || e.ctrlKey) return null
+  const arrow = {ArrowRight: 'right', ArrowLeft: 'left', ArrowDown: 'down', ArrowUp: 'up'}[e.key]
+  return arrow ? `${MOVE}${arrow}` : null
 }
 
 /** The block (data-bp-id) and text offset under a point in the read-only body. */
