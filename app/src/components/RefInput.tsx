@@ -3,7 +3,7 @@ import {rankRefs} from '../lib/ref-rank'
 import {usePaneNavigate} from './PaneLink'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
-import {docQuery, isSingleton, previewTitle, refId, schemaOf, schemasQuery, searchQuery, type Doc, type RefFilter} from '../lib/data'
+import {docQuery, isSingleton, previewTitle, refId, schemaOf, schemasQuery, searchQuery, textSearchQuery, type Doc, type RefFilter} from '../lib/data'
 import {createDoc} from '../lib/edits'
 import {choicesFor, type Choice} from '../lib/templates'
 import {focusFirstField} from '../lib/focus'
@@ -196,7 +196,11 @@ function RefSearch({id, types, filter, current, autoFocus, invalid, onPick, onCa
     const timer = setTimeout(() => setQuery(q.trim()), 120)
     return () => clearTimeout(timer)
   }, [q])
-  const search = useQuery({...searchQuery(types, query, filter, undefined, query ? REF_SEARCH_LIMIT : undefined), enabled: open, placeholderData: keepPreviousData})
+  // A typed search is global search's, as Sanity's: every field and the preview's
+  // references ("ada" finds Ada's posts), any word; without one, the recent docs.
+  const recent = useQuery({...searchQuery(types, '', filter), enabled: open && !query, placeholderData: keepPreviousData})
+  const found = useQuery({...textSearchQuery(query, types.map((type) => ({type, filter: filter ?? {}})), '_score:desc', REF_SEARCH_LIMIT), enabled: open && !!query, placeholderData: keepPreviousData})
+  const search = query ? found : recent
   // J18: each type's ways to start it (its templates too).
   const creatable = disableNew ? [] : types.filter((t) => !isSingleton(schemas, t)).flatMap((t) => choicesFor(schemas, t))
   const waiting = q.trim() !== query || search.isPending || search.isPlaceholderData

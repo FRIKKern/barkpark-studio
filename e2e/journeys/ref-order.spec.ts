@@ -20,6 +20,10 @@ test('J08: reference search lists "Fixture post" in title order', async ({page},
     await expect(options.first()).toContainText('Fixture post 01')
     await expect(options.nth(1)).toContainText('Fixture post 02')
     await expect(options.nth(2)).toContainText('Fixture post 03')
+    // Every field and the preview's author, as global search: "lovelace" finds Ada's posts.
+    await combo.fill('lovelace')
+    await expect(options.first()).toContainText('Ada Lovelace')
+    await expect(options.filter({hasText: 'Fixture post 03'})).toHaveCount(1)
   } finally {
     await t.deleteDoc(id, 'post')
   }
