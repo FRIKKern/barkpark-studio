@@ -47,9 +47,16 @@ export function FieldComments({path, title}: {path: string; title: string}) {
   const api = useContext(CommentsContext)
   const t = useT()
   const [composing, setComposing] = useState(false)
-  // J43: closing the composer hands focus back to the button that opened it.
+  // J43: closing the composer hands focus back to the button that opened it (or, once the field
+  // has a comment, the count that takes its place).
   const opener = useRef<HTMLSpanElement>(null)
-  const close = () => (setComposing(false), requestAnimationFrame(() => opener.current?.focus()))
+  const close = () => (setComposing(false), requestAnimationFrame(() => requestAnimationFrame(() => opener.current?.focus())))
+  // After a send the add button turns into the count when the new thread arrives: it takes the focus.
+  const refocus = useRef(false)
+  const count = api ? api.threads.filter((th) => th.root.fieldPath === path && th.status === 'open').length : 0
+  useEffect(() => {
+    if (refocus.current && count) (refocus.current = false), opener.current?.focus()
+  }, [count])
   if (!api) return null
   const open = api.threads.filter((th) => th.root.fieldPath === path && th.status === 'open')
   return (
@@ -57,7 +64,7 @@ export function FieldComments({path, title}: {path: string; title: string}) {
       {/* J49: not <button>s, and the composer in a layer of its own: a Viewer's form is a
           disabled fieldset, which would disable them too, and a Viewer may comment. */}
       {open.length ? (
-        <SpanButton className="comment-count" aria-label={t('Open comments')} title={open.length === 1 ? t('View comment') : t('View comments')} onPress={() => api.open(path)}>
+        <SpanButton ref={opener} className="comment-count" aria-label={t('Open comments')} title={open.length === 1 ? t('View comment') : t('View comments')} onPress={() => api.open(path)}>
           <CommentIcon /> {open.length}
         </SpanButton>
       ) : (
@@ -73,7 +80,10 @@ export function FieldComments({path, title}: {path: string; title: string}) {
             autoFocus
             onSend={async (message) => {
               await postComment({data: {id: newId(), documentId: api.docId, documentType: api.docType, fieldPath: path, message}})
-              setComposing(false)
+              // Sanity's: the composer closes and focus goes back to the field's comment button
+              // (now its count), while the panel shows the new thread.
+              refocus.current = true
+              close()
               api.open(path)
             }}
             onCancel={close}
