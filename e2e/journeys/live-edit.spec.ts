@@ -105,3 +105,41 @@ test('@local F7: undo with the focus outside the form is the document\'s, across
     await t.restore(ID, SEED)
   }
 })
+
+// F7, as Sanity's: the document's undo walks from the form into the body and back.
+// Needs Barkpark's canvas 1.10.0 (undo/redo and bp-canvas-history); an older canvas
+// keeps its undo to itself, and this skips.
+test('@local F7: undo walks from the form into the body; redo walks back', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours')
+  await t.prepare(page.context())
+  try {
+    await page.goto(t.docPath('post', ID))
+    await t.settle(page)
+    const body = page.locator('[data-pane="doc:post-14"] .body-canvas')
+    await body.getByText('Body paragraph for post 14.').click()
+    const pm = body.locator('.ProseMirror')
+    await expect(pm).toBeVisible({timeout: 15_000})
+    test.skip(!(await page.evaluate(() => typeof (customElements.get('bp-paper-canvas')?.prototype as {undo?: unknown} | undefined)?.undo === 'function')), 'this Barkpark canvas has no undo() (1.10.0)')
+    await pm.getByText('Body paragraph for post 14.').click()
+    await page.keyboard.press('End')
+    await page.keyboard.type(' X')
+    await expect(pm).toContainText('post 14. X')
+    await page.waitForTimeout(700) // the canvas's step closes
+    await t.field(page, 'title').click()
+    await page.keyboard.press('End')
+    await page.keyboard.type(' T')
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(t.field(page, 'title')).toHaveValue(SEED.title)
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(pm).not.toContainText('post 14. X')
+    await expect(pm).toBeFocused()
+    await page.keyboard.press('Shift+ControlOrMeta+z')
+    await expect(pm).toContainText('post 14. X')
+    await page.keyboard.press('Shift+ControlOrMeta+z')
+    await expect(t.field(page, 'title')).toHaveValue(`${SEED.title} T`)
+    await expect(t.field(page, 'title')).toBeFocused()
+  } finally {
+    await t.resetDoc(ID, 'post')
+  }
+})
