@@ -2468,6 +2468,7 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .comment-count { display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 6px 0 2px; border: 0; border-radius: 3px; background: var(--hover); font: inherit; font-size: 12px; font-weight: 500; color: var(--fg); cursor: pointer; }
 .comment-count svg, .field-comments svg { width: 21px; height: 21px; }
 .popover.comment-popover { top: 29px; right: 0; width: 320px; padding: 8px; }
+.popover.comment-popover.inline { width: 250px; } /* Sanity's inline composer */
 /* J49: the composer layer sits on the page (FollowLayer), above the form. */
 body > .popover.comment-popover { right: auto; z-index: 60; }
 .field-comments [role=button] { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -2540,7 +2541,8 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .commented-text[data-gone] { border-left-color: var(--comment-quote-gone); }
 .commented-gone { display: inline-block; margin: 0 8px 0 4px; vertical-align: top; }
 .commented-gone svg { display: block; width: 25px; height: 25px; margin: -3px -6px; }
-.inline-comment-add { position: fixed; z-index: 60; display: inline-flex; align-items: center; gap: 4px; height: 29px; padding: 0 8px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 4px 12px var(--shadow); font: inherit; font-size: 13px; color: var(--fg); cursor: pointer; }
+.inline-comment-add { position: fixed; z-index: 60; display: inline-flex; align-items: center; gap: 2px; height: 25px; padding: 0 8px 0 2px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 4px 12px var(--shadow); font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; color: var(--menu-fg); cursor: pointer; } /* Sanity's: 25 px, the icon 2 px in, the words 500 */
+.inline-comment-add svg { color: var(--icon-muted); }
 .inline-comment-add:hover:not([aria-disabled=true]) { background: var(--hover); }
 .inline-comment-add[aria-disabled=true] { color: var(--disabled); cursor: default; }
 .inline-comment-add svg { width: 21px; height: 21px; }
