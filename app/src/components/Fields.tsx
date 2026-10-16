@@ -1,6 +1,7 @@
 import {createContext, memo, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {anyDocQuery, refId, refTypesOf, type Doc, type Field, type RefFilter} from '../lib/data'
+import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
+import {refFilterOf} from '../lib/ref-filter'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
 import {isHidden, isReadOnly} from '../lib/conditions'
@@ -422,7 +423,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         <RefInput
           id={path}
           types={refTypesOf(field)}
-          filter={field.options?.filter as RefFilter | undefined}
+          filter={refFilterOf(field.options)}
           disableNew={!!(field.options as {disableNew?: boolean} | undefined)?.disableNew}
           // A Sanity-shaped reference ({_ref}, as an import from Sanity holds it) reads as its id.
           value={refId(value)}

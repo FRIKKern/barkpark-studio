@@ -1,4 +1,5 @@
-import type {Field, RefFilter, Schema} from './data'
+import type {Field, Schema} from './data'
+import type {QueryRefFilter} from './ref-filter'
 
 // J38, Sanity's search filters (sanity 6.17 `defineSearchFilter` + operators):
 // every filterable field of the types in play, each with Sanity's operators and
@@ -234,8 +235,8 @@ function ago(n: number, unit: Unit, now: Date) {
  */
 // "In the last N days" counts from the current minute, so the query (and its cache key) holds still between renders.
 const thisMinute = () => new Date(Math.floor(Date.now() / 60_000) * 60_000)
-export function toRefFilter(schema: Schema, filters: SearchFilter[], fields: Map<string, FilterField>, now = thisMinute()): RefFilter | null {
-  const out: RefFilter = {}
+export function toRefFilter(schema: Schema, filters: SearchFilter[], fields: Map<string, FilterField>, now = thisMinute()): QueryRefFilter | null {
+  const out: QueryRefFilter = {}
   const own = new Set(schemaFields(schema).map((f) => f.key))
   for (const f of filters) {
     const field = fields.get(f.field)
