@@ -113,6 +113,22 @@ export class SignInRefused extends Error {
 }
 
 /**
+ * Forgot password (Sanity's, under the password; Barkpark's own /login/reset): Barkpark
+ * mails the account a reset link, to its own reset page. Barkpark answers the same for
+ * any address (no telling who has an account), so this only says whether it was asked.
+ */
+export async function accountRequestReset(email: string) {
+  if (signInMode() !== 'account') throw new Error('account sign-in is off')
+  const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/request-reset`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({email: email.trim()}),
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (!res.ok) throw new SignInRefused(`http_${res.status}`, `Barkpark answered ${res.status}`)
+}
+
+/**
  * J67: sign in with a Barkpark account. The password goes to Barkpark's login and is
  * never kept. `code` is the account's TOTP code, asked for when Barkpark answers
  * mfa_required. The login session is the editor's token: Barkpark accepts it on the

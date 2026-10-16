@@ -106,3 +106,26 @@ test('@local J67: sign in with a Barkpark account, work as yourself, sign out', 
   await page.goto(t.docPath('post', 'post-01'))
   await page.waitForURL(/\/login\?redirect=/)
 })
+
+// Forgot password, as Sanity's link under the password: Barkpark mails a reset link and
+// says the same for any address, so the check uses one with no account (nothing is mailed,
+// no password changes) and stops at "on its way". Back returns to the sign-in fields.
+test('@local J67: Forgot password asks Barkpark for a reset link', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours')
+  await page.goto(t.docPath('post', 'post-01'))
+  await page.waitForURL(/\/login\?redirect=/)
+  await page.locator('html[data-hydrated]').waitFor({state: 'attached'})
+  const nobody = `nobody-${Date.now().toString(36)}@example.invalid`
+  await page.getByLabel('Your email').fill(nobody)
+  await page.screenshot({path: 'evidence/J67-3-forgot-link-studio.png'})
+  await page.getByRole('button', {name: 'Forgot password?'}).click()
+  await expect(page.getByRole('heading', {name: 'Reset your password'})).toBeVisible()
+  await expect(page.getByLabel('Your email')).toHaveValue(nobody)
+  await page.getByRole('button', {name: 'Send reset link'}).click()
+  await expect(page.getByRole('status').filter({hasText: 'a link to reset its password is on its way'})).toContainText(nobody)
+  await page.screenshot({path: 'evidence/J67-4-reset-sent-studio.png'})
+  await page.getByRole('button', {name: 'Back to sign in'}).click()
+  await expect(page.getByLabel('Password')).toBeVisible()
+  await expect(page).toHaveURL(/\/login\?redirect=/)
+})

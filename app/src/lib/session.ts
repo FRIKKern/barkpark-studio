@@ -1,6 +1,6 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {accountSignIn, currentEditor, describeToken, displayName, editorKey, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
+import {accountRequestReset, accountSignIn, currentEditor, describeToken, displayName, editorKey, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {requestToken} from '../server/barkpark'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
@@ -63,6 +63,18 @@ export const signInWithAccount = createServerFn({method: 'POST'})
     } catch (e) {
       if (e instanceof SignInRefused) return {ok: false, code: e.code, message: e.message}
       return {ok: false, code: 'unreachable', message: 'Barkpark could not be reached. Try again.'}
+    }
+  })
+
+/** Forgot password: Barkpark mails a reset link (server/auth.ts accountRequestReset). */
+export const requestPasswordReset = createServerFn({method: 'POST'})
+  .validator((d: {email: string}) => d)
+  .handler(async ({data}): Promise<{ok: boolean}> => {
+    try {
+      await accountRequestReset(data.email)
+      return {ok: true}
+    } catch {
+      return {ok: false}
     }
   })
 

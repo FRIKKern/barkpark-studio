@@ -1,6 +1,6 @@
 import {useState, type ReactNode} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {devSignIn, meQuery, signInWithAccount} from '../lib/session'
+import {devSignIn, meQuery, requestPasswordReset, signInWithAccount} from '../lib/session'
 import {useT} from '../lib/i18n'
 import {announceSession} from '../lib/session-channel'
 
@@ -20,7 +20,56 @@ export function SignInForm({idPrefix, className, heading, autoFocus, onSignedIn,
   const [askCode, setAskCode] = useState(false)
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
+  // Forgot password (Sanity's link under the password): 'ask' for the address, 'sent' after.
+  const [reset, setReset] = useState<'ask' | 'sent'>()
   const id = (name: string) => (idPrefix ? `${idPrefix}-${name}` : name)
+  const sendReset = async () => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      const r = await requestPasswordReset({data: {email}})
+      if (r.ok) setReset('sent')
+      else setError(t('Barkpark could not be reached. Try again.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+  const back = () => (setReset(undefined), setError(undefined))
+  if (reset)
+    return (
+      <form
+        className={className}
+        onSubmit={(e) => {
+          e.preventDefault()
+          void sendReset()
+        }}
+      >
+        {heading}
+        <h2 className="sign-in-sub">{t('Reset your password')}</h2>
+        {reset === 'ask' ? (
+          <>
+            <p className="sign-in-note">{t('We will email you a link to set a new password.')}</p>
+            <label htmlFor={id('reset-email')}>{t('Your email')}</label>
+            <input id={id('reset-email')} className="input" type="email" autoComplete="username" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} />
+            {error && (
+              <p className="field-error" role="alert">
+                {error}
+              </p>
+            )}
+            <button className="publish" disabled={busy}>
+              {busy ? t('Sending…') : t('Send reset link')}
+            </button>
+          </>
+        ) : (
+          <p className="sign-in-note" role="status">
+            {t('If {email} has an account, a link to reset its password is on its way. Set a new password there, then sign in here with it.', {email: email.trim()})}
+          </p>
+        )}
+        <button type="button" className="btn-text sign-in-back" onClick={back}>
+          {t('Back to sign in')}
+        </button>
+      </form>
+    )
   const submit = async () => {
     setBusy(true)
     setError(undefined)
@@ -67,6 +116,9 @@ export function SignInForm({idPrefix, className, heading, autoFocus, onSignedIn,
         <>
           <label htmlFor={id('password')}>{t('Password')}</label>
           <input id={id('password')} className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <button type="button" className="btn-text sign-in-forgot" onClick={() => (setReset('ask'), setError(undefined), setPassword(''))}>
+            {t('Forgot password?')}
+          </button>
         </>
       )}
       {askCode && (
