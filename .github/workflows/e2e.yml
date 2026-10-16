@@ -89,6 +89,9 @@ jobs:
         # cost is the runner's cold first round trip, not Barkpark. One page here takes it.
         run: |
           curl -s -o /dev/null -w 'first page %{http_code} in %{time_total}s\n' --max-time 30 http://localhost:3100/structure/post || true
+          # task-5bc1c714ee502b84: two pages the boot warm-up didn't render, first and second.
+          curl -s -o /dev/null -w 'author-ada %{http_code} in %{time_total}s\n' --max-time 30 'http://localhost:3100/structure/author;author-ada' || true
+          curl -s -o /dev/null -w 'author-alan %{http_code} in %{time_total}s\n' --max-time 30 'http://localhost:3100/structure/author;author-alan' || true
           echo "preview.log lines before the specs: $(wc -l < preview.log)"
       - name: Journeys (ours)
         working-directory: e2e
