@@ -4,16 +4,15 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useRouter} from '@tanstack/react-router'
 import {createTask, deleteTask, tasksQuery, updateTask, type Task, type TaskState} from '../lib/tasks'
 import {showTasks, useActiveDocument, useTasksView, type TaskTarget, type TasksTab} from '../lib/tasks-ui'
-import {peopleQuery} from '../lib/people'
+import {peopleNamesQuery, peopleQuery} from '../lib/people'
 import {anyDocQuery, previewTitle, schemaOf, schemasQuery, searchAllDocs, type Doc} from '../lib/data'
 import {meQuery} from '../lib/session'
 import {ago, useLocale, useT} from '../lib/i18n'
 import {toast} from './Toasts'
 import {MenuPopover} from './FocusScopes'
-import {ActorAvatar} from './Presence'
+import {ActorAvatar, PersonName} from './Presence'
 import {Status} from './Preview'
 import {DateTimeInput} from './DateTimeInput'
-import {personName} from '../lib/comment-threads'
 import {Add, CheckmarkCircle, ChevronLeft, ChevronRight, Close, DocumentIcon, LinkIcon, Trash, UserIcon} from './icons'
 
 /**
@@ -283,13 +282,14 @@ function AssigneeField({value, onChange, id}: {value: string | null; onChange: (
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const all = [...new Set([...people, ...(value ? [value] : [])])]
-  const shown = q.trim() ? all.filter((p) => p.toLowerCase().includes(q.trim().toLowerCase())) : all
+  const {data: known} = useQuery(peopleNamesQuery)
+  const shown = q.trim() ? all.filter((p) => `${p} ${known?.[p] ?? ''}`.toLowerCase().includes(q.trim().toLowerCase())) : all
   const pick = (email: string | null) => (onChange(email), setOpen(false), setQ(''))
   return (
     <div className="menu-wrap task-assignee-field">
       <button id={id} type="button" className="input task-field-btn" aria-haspopup="menu" aria-expanded={open} data-empty={!value || undefined} onClick={() => setOpen((o) => !o)}>
         {value ? <ActorAvatar actor={value} /> : <UserIcon />}
-        <span>{value ? personName(value) : t('Select assignee')}</span>
+        <span>{value ? <PersonName who={value} /> : t('Select assignee')}</span>
       </button>
       {open && (
         <MenuPopover className="popover menu task-assignee-menu" aria-label={t('Assign to')} onClose={() => (setOpen(false), setQ(''))}>
@@ -306,7 +306,7 @@ function AssigneeField({value, onChange, id}: {value: string | null; onChange: (
           {shown.map((p) => (
             <button key={p} type="button" role="menuitem" className="menu-item task-person" aria-current={p === value || undefined} title={p} onClick={() => pick(p)}>
               <ActorAvatar actor={p} />
-              {personName(p)}
+              <PersonName who={p} />
             </button>
           ))}
           {!shown.length && <p className="muted task-person-empty">{t('No users found')}</p>}
@@ -539,7 +539,7 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
             <section className="task-activity" aria-label={t('Activity')}>
               <h3>{t('Activity')}</h3>
               <p>
-                <b>{task.createdBy ?? t('Unknown user')}</b> {t('created this task')} <span className="muted">{ago(task.createdAt, locale)}</span>
+                <b>{task.createdBy ? <PersonName who={task.createdBy} /> : t('Unknown user')}</b> {t('created this task')} <span className="muted">{ago(task.createdAt, locale)}</span>
               </p>
             </section>
             <div className="task-form-foot">

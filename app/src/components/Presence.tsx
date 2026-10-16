@@ -7,21 +7,17 @@ import {usePresences, type Presence} from '../lib/presence'
 import {USER_HUES, userHue} from '../lib/user-colors'
 import {Users} from './icons'
 import {useT} from '../lib/i18n'
+import {initialsOf, usePersonName} from '../lib/person'
 
 // J07: other editors, where Sanity shows them — on the field they are in, on the
 // list row and pane of the doc they have open, and in the navbar's "who's online".
 
-// First and last word, as Sanity's avatars: "studio-editor-a" and "studio-editor-b" read
-// SA and SB, not SE twice (collaboration hour).
-const initials = (name: string) => {
-  const words = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean)
-  return [words[0], words.length > 1 ? words.at(-1) : undefined].filter((w): w is string => !!w).map((w) => w[0]!.toUpperCase()).join('')
-}
-
 export function Avatar({p}: {p: Presence}) {
+  // An editor named by email reads as their name (lib/person.ts), first and last initials.
+  const name = usePersonName(p.name) ?? p.name
   return (
-    <span className="p-avatar" style={{background: p.color}} title={p.name} aria-label={p.name} role="img">
-      {initials(p.name)}
+    <span className="p-avatar" style={{background: p.color}} title={name} aria-label={name} role="img">
+      {initialsOf(name)}
     </span>
   )
 }
@@ -46,6 +42,11 @@ export function AvatarStack({people, max = 3}: {people: Presence[]; max?: number
  */
 export function ActorAvatar({actor}: {actor: string}) {
   return <Avatar p={{sessionId: actor, name: actor, color: USER_HUES[userHue(actor)][700], documentId: null, field: null}} />
+}
+
+/** A person's name as the studio shows it everywhere (lib/person.ts): Barkpark's name, else the email's local part. */
+export function PersonName({who, fallback = ''}: {who: string | null | undefined; fallback?: string}) {
+  return <>{usePersonName(who) ?? fallback}</>
 }
 
 /** Everyone with this doc open. */
