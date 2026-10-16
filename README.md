@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 162 changes, 4 tasks closed
+- **Today** · 163 changes, 4 tasks closed
+  - Releases tool: the month calendar and time zone as Sanity's ([#810](https://github.com/FRIKKern/barkpark-studio/pull/810))
   - Panes keep Sanity's widths inside the 1 px line after each ([#809](https://github.com/FRIKKern/barkpark-studio/pull/809))
-  - Releases tool: Scheduled drafts as Sanity's ([#808](https://github.com/FRIKKern/barkpark-studio/pull/808))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
