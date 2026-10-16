@@ -9,6 +9,7 @@ import {advisoryFindings, findingsOf, findingsReason, type Finding} from './find
 import {t} from './i18n'
 import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
+import {plainReason} from './plain-reason'
 import {merge3, mergeList3, onto, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
@@ -516,6 +517,9 @@ export function reasonOf(msg: string): string | undefined {
       const {kind, max} = body.error.details ?? {}
       return kind === 'delete' ? t('Too many deletions at once (at most {limit}). Try fewer.', {limit: max ?? 500}) : t('Too many changes at once. Try fewer.')
     }
+    // A fault on Barkpark's side (a 500, a lost race, a busy database) in plain words.
+    const plain = plainReason(body.error?.code, t)
+    if (plain) return plain
     // A publish wall says which rule broke and how to fix it (D12).
     const {rule, fix} = body.error?.details ?? {}
     return body.error?.message && [body.error.message, rule, fix].filter((s): s is string => typeof s === 'string').map((s) => (/[.!?]$/.test(s) ? s : `${s}.`)).join(' ')
