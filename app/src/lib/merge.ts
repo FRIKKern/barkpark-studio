@@ -94,3 +94,16 @@ export function mergeList3(base: unknown[], mine: unknown[], theirs: unknown[]):
   }
   return out
 }
+
+/**
+ * A change made from `seen` (what the pane last drew) to `mine`, put onto `now` (what the
+ * cache holds, a live frame newer than that drawing): text merges, lists item by item,
+ * anything else is mine. A drop or keystroke in the gap before a frame is drawn otherwise
+ * goes out against the newer version and silently undoes it (task-8cc2a447b03bf599).
+ */
+export function onto(seen: unknown, mine: unknown, now: unknown): unknown {
+  if (same(seen, now)) return mine
+  if (typeof seen === 'string' && typeof mine === 'string' && typeof now === 'string') return merge3(seen, mine, now) ?? mine
+  if (Array.isArray(seen) && Array.isArray(mine) && Array.isArray(now)) return mergeList3(seen, mine, now) ?? mine
+  return mine
+}
