@@ -44,6 +44,28 @@ test("@local J24 J25 J55: list search, empty state, the type's own sort that sti
   }
 })
 
+// The search box is a combobox over the rows, as Sanity's: typing lights the first
+// result, ArrowDown moves the light, Enter opens the lit document; the box names it.
+test('@local J24: list search keys — the first result lit, ArrowDown moves it, Enter opens it', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto(t.listPath('post'))
+  await t.settle(page)
+  const box = page.getByRole('combobox', {name: 'Search list'})
+  await box.click()
+  await page.keyboard.type('fixture post')
+  await expect(box).toHaveAttribute('aria-activedescendant', /-item-0$/)
+  await page.keyboard.press('ArrowDown')
+  await expect(box).toHaveAttribute('aria-activedescendant', /-item-1$/)
+  const id = (await box.getAttribute('aria-activedescendant'))!
+  const lit = page.locator(`[id="${id}"]`)
+  // Lit as a row under the pointer is, in Sanity's hover fill.
+  await expect(lit.locator('a').first()).toHaveCSS('background-color', 'rgb(246, 246, 248)')
+  const title = (await lit.innerText()).split('\n')[0]!
+  await page.keyboard.press('Enter')
+  await expect(t.field(page, 'title')).toHaveValue(title)
+})
+
 // First run: a dataset with no schema says so (Sanity's "No document types" card) instead of
 // an empty desk, and lists none of the studio's own items (their types are not there).
 // A dataset nobody writes to; read only.
@@ -81,7 +103,7 @@ test('J19: a list is one Tab stop; rows move by arrow keys, Home and End; Enter 
   await page.keyboard.press('End')
   expect(await focused()).toBe(await href((await rows.count()) - 1))
   // One Tab stop, as Sanity's: from the search box Tab enters the list, the next Tab leaves it.
-  await page.getByRole('searchbox', {name: 'Search list'}).focus()
+  await page.getByRole('combobox', {name: 'Search list'}).focus()
   await page.keyboard.press('Tab')
   expect(await focused()).toBe(await href(0))
   await page.keyboard.press('Tab')

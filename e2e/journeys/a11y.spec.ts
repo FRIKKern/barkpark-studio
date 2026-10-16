@@ -60,9 +60,9 @@ test('@local J47: the list, a list search and validation are announced', async (
   await page.locator('a[href="/structure/post"]').click()
   await expect(heard).toHaveText(`Post, ${await seededCount(t, 'post')} documents`)
   await expect(page.getByRole('region', {name: 'Post'})).toBeVisible()
-  await page.getByRole('searchbox', {name: 'Search list'}).fill('zzzz')
+  await page.getByRole('combobox', {name: 'Search list'}).fill('zzzz')
   await expect(heard).toHaveText('No results found')
-  await page.getByRole('searchbox', {name: 'Search list'}).fill('')
+  await page.getByRole('combobox', {name: 'Search list'}).fill('')
   await t.listItem(page, ID).click()
   await expect(page.getByRole('region', {name: TITLE})).toBeVisible()
   try {
