@@ -6,7 +6,7 @@ import {getRequestHeader, getRequestUrl} from '@tanstack/react-start/server'
 import {currentEditor, describeToken, signInRequired} from './auth'
 import {serviceAccess} from '../lib/token-self'
 import {parseScope, type Scope} from '../lib/scope'
-import {Agent, setGlobalDispatcher, type Dispatcher} from 'undici'
+import {Agent, Client, setGlobalDispatcher, type Dispatcher} from 'undici'
 
 // Keep Barkpark connections open between page opens. Node's fetch drops an idle
 // connection after 4 s, so a doc opened after a pause paid a new TCP + TLS handshake
@@ -14,11 +14,28 @@ import {Agent, setGlobalDispatcher, type Dispatcher} from 'undici'
 // on guerrilla, task-2b605087a5f00278). 60 s stays well under Caddy's 5 min idle close.
 setGlobalDispatcher(new Agent({keepAliveTimeout: 60_000, keepAliveMaxTimeout: 600_000}))
 // Streams (listen, presence) on connections of their own (task-dbd164306efdcde9). A stream
-// holds its connection while open and destroys it when it closes (a body abandoned mid-way
-// can't be reused), so on the shared pool every tab's presence stream used up one of the
-// warm connections: a CI slice of 24 specs opened 52 new ones after the boot warm-up, each a
-// new handshake whose lost first SYN costs 1 or 3 s (studio CI's slow first calls).
+// destroys its connection when it closes (a body abandoned mid-way can't be reused), and the
+// shared pool hands the next read to that client first, which connects again: 46 of 779 reads
+// in a 24-spec CI slice went out on a new connection, each a handshake whose lost first SYN
+// costs 1 or 3 s on CI (its slow calls). Reads now never meet a stream's dead connection.
 const streams = new Agent({keepAliveTimeout: 1_000})
+// Nor does a stream wait on a handshake: it takes a connection opened beforehand (one of
+// SPARE_STREAMS, open since boot), and a new one is opened beside it, off its path. They
+// close themselves after 4 min idle, under Caddy's 5.
+const SPARE_STREAMS = 3
+const spares: Client[] = []
+function spareStream() {
+  const url = process.env.BARKPARK_URL
+  if (!url) return
+  const client = new Client(new URL(url).origin, {keepAliveTimeout: 240_000, keepAliveMaxTimeout: 240_000})
+  client.request({path: '/v1/version', method: 'GET'}).then((r) => r.body.dump()).then(() => void spares.push(client), () => void client.destroy())
+}
+for (let i = 0; i < SPARE_STREAMS; i++) spareStream()
+function streamDispatcher(): Dispatcher {
+  const client = spares.shift()
+  spareStream()
+  return client ?? streams
+}
 
 function env(key: string): string {
   const v = process.env[key]
@@ -179,7 +196,7 @@ async function send(base: string, path: string, init: RequestInit, token: string
     const blip = read && Date.now() < readBlipUntil ? Promise.reject(new TypeError('fetch failed (e2e blip)')) : null
     const started = Date.now()
     const stream = headers.get('accept') === 'text/event-stream'
-    const res = await (blip ?? fetch(`${base}${path}`, {...init, headers, ...(stream && {dispatcher: streams})} as RequestInit & {dispatcher?: Dispatcher})).catch((err: unknown) => {
+    const res = await (blip ?? fetch(`${base}${path}`, {...init, headers, ...(stream && {dispatcher: streamDispatcher()})} as RequestInit & {dispatcher?: Dispatcher})).catch((err: unknown) => {
       if (!read || Date.now() - blipStart >= BLIP_BUDGET_MS || init.signal?.aborted) throw err
       return null
     })
