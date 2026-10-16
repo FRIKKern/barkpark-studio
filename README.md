@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 100 changes, 4 tasks closed
+- **Today** · 101 changes, 4 tasks closed
+  - Barkpark's server faults in plain words, not "unknown error (Postgrex.Error)" ([#747](https://github.com/FRIKKern/barkpark-studio/pull/747))
   - fix(edits): long typing's first minute stays at 80 writes (gap 834 ms); a short edit still goes at once ([#746](https://github.com/FRIKKern/barkpark-studio/pull/746))
-  - Search reference filter as Sanity's: its reference search, 420 px with the menu button, inline previews with the type, the picked one on a card with a critical Clear ([#745](https://github.com/FRIKKern/barkpark-studio/pull/745))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
