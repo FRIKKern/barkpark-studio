@@ -857,10 +857,12 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
       const read = () =>
         elsewhere ? Promise.resolve() : new Promise<void>((r) => (document.addEventListener('selectionchange', () => r(), {once: true}), setTimeout(r, 150)))
       void (async () => {
-        // The click's spot (by keyboard, or below the text: the end), even when the canvas
-        // took the focus itself.
+        // The click's spot, even when the canvas took the focus itself. By keyboard, or
+        // below the text: the end, typed at once as before; read first, the canvas puts an
+        // Enter there inside the last block's trailing break ("Two\n", J10).
         const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
-        if (sel) target ? sel.collapse(target.node, target.offset) : (sel.selectAllChildren(pm), sel.collapseToEnd()), await read()
+        if (sel && target) sel.collapse(target.node, target.offset), await read()
+        else if (sel) sel.selectAllChildren(pm), sel.collapseToEnd()
         // The canvas reads it as typed input (beforeinput), so it saves and undoes as typing
         // does. Keys typed meanwhile join the queue, in order.
         for (let run = typed.current.shift(); run !== undefined && !gone; run = typed.current.shift()) {
