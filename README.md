@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 204 changes, 4 tasks closed
+- **Today** · 205 changes, 4 tasks closed
+  - Paste field transfers and refuses as Sanity's ([#852](https://github.com/FRIKKern/barkpark-studio/pull/852))
   - Releases: the zone named in the browser's own language, as Sanity's (CEST on en-GB) ([#850](https://github.com/FRIKKern/barkpark-studio/pull/850))
-  - Phone-width navbar with a mouse as Sanity's: 12 px ends, its gaps, the name giving way first ([#851](https://github.com/FRIKKern/barkpark-studio/pull/851))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
