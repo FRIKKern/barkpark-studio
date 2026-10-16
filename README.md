@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 66 changes, 4 tasks closed
+- **Today** · 67 changes, 4 tasks closed
+  - Schedule publish dialog as Sanity's: in the card area, its type and spacing, the critical warning card ([#711](https://github.com/FRIKKern/barkpark-studio/pull/711))
   - Body headings as Sanity's: h1 to h6 at 38 to 13 px on its lines, an h2's room around it; the style menu draws each style ([#712](https://github.com/FRIKKern/barkpark-studio/pull/712))
-  - F7: the browser's own undo outside the form is the document's undo ([#710](https://github.com/FRIKKern/barkpark-studio/pull/710))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
