@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 71 changes, 4 tasks closed
+- **Today** · 72 changes, 4 tasks closed
+  - F7: the document's undo walks from the form into the body and back ([#717](https://github.com/FRIKKern/barkpark-studio/pull/717))
   - Sanity's one light hairline (#e3e4e8) for borders and input rings; typed text #e4e5e9 in dark ([#716](https://github.com/FRIKKern/barkpark-studio/pull/716))
-  - Tags as Sanity's: 27 px chips in its fill, 4 px in and apart, a 25 px remove with a 21 px x ([#715](https://github.com/FRIKKern/barkpark-studio/pull/715))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
