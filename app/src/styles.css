@@ -424,7 +424,7 @@ a { color: inherit; text-decoration: none; }
 .pane-header .validation-btn::after { content: ''; position: absolute; top: calc(50% - 6.5px); left: calc(50% + 2.5px); width: 4px; height: 4px; border-radius: 3px; box-shadow: 0 0 0 1px var(--bg); background: var(--published); }
 .pane-header .validation-btn[data-level=warning]::after { background: var(--caution-dot); }
 .pane-header .validation-btn[data-level=error]::after { background: var(--critical-icon); }
-.pane-header .validation-btn[aria-pressed='true']::after { box-shadow: 0 0 0 1px var(--hover-strong); }
+.pane-header .validation-btn[aria-pressed='true']::after { box-shadow: 0 0 0 1px var(--selected-fill); }
 .pane-body { flex: 1; overflow: auto; }
 .pane-not-found { padding: 24px; }
 .pane-not-found h2 { font-size: 18px; }
@@ -1021,7 +1021,9 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .error-icon svg { width: 19px; height: 19px; }
 .field[data-invalid] > .input, .field[data-invalid] > textarea.input, .field[data-invalid] > .slug-row > .input { background: var(--danger-bg); }
 .validation-btn[data-problems] { color: var(--critical-icon); position: relative; }
-.validation-btn[aria-pressed='true'] { background: var(--hover-strong); }
+.validation-btn[aria-pressed='true'] { background: var(--selected-fill); }
+/* Open inspector: its button filled and its glyph darker, as Sanity's (measured); warning and error glyphs keep their tone. */
+.pane-header :is(.comments-btn, .validation-btn[data-level=info])[aria-pressed='true'] { background: var(--selected-fill); color: var(--icon-btn-open-fg); }
 .doc-split { flex: 1; display: flex; min-height: 0; }
 .doc-column { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .doc-main { flex: 1; display: flex; min-height: 0; }
@@ -2276,9 +2278,9 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .inspector.comments .popover.menu { right: 0; left: auto; top: calc(100% + 4px); }
 .comments-list { display: flex; flex-direction: column; gap: 16px; }
 .inspector.comments { display: flex; flex-direction: column; }
-.comments-list:has(> .comments-empty) { flex: 1; justify-content: center; }
-.comments-empty { margin: 0; padding: 0 20px; text-align: center; }
-.comments-empty .title { margin: 0 0 8px; color: var(--muted); font-weight: 500; }
+.comments-list:has(> .comments-empty) { flex: 1; justify-content: center; padding-top: 12px; } /* centred down to the pane's foot, as Sanity's */
+.comments-empty { margin: 0; padding: 0 20px; text-align: center; line-height: 19.5px; }
+.comments-empty .title { margin: 0 0 2px; color: var(--muted); font-weight: 500; }
 .comments-empty .muted { margin: 0; color: var(--muted); }
 .comment-group { display: flex; flex-direction: column; gap: 8px; }
 .comment-group[data-focused] .comment-thread { box-shadow: inset 0 0 0 1px var(--selected); }
