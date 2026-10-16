@@ -168,7 +168,7 @@ test('@local J46: on a touch phone, what hover reveals is there, and the documen
 
 // A narrow desktop window keeps Sanity's 25 px header buttons (44 px taps are a touch
 // screen's, pointer: coarse); on a touch tablet the chips give way, so Share never covers Draft.
-test('@local J46: at 620 px the header buttons are 25 px on a desktop, 44 px on touch, and Draft stays clear', async ({browser}, info) => {
+test('@local J46: at 620 px the header and form taps are 25 px on a desktop, 44 px on touch, and Draft stays clear', async ({browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Sanity is 25 px at every width; this guards ours')
   for (const touch of [false, true]) {
@@ -184,6 +184,10 @@ test('@local J46: at 620 px the header buttons are 25 px on a desktop, 44 px on 
       const draft = (await header.locator('.chip').nth(1).boundingBox())!
       expect(share.width, touch ? 'touch tap target' : 'desktop button').toBe(touch ? 44 : 25)
       expect(draft.x + draft.width, 'Draft ends before Share').toBeLessThanOrEqual(share.x)
+      // The form's own taps follow the pointer too (a field's actions, the footer's menu).
+      const fieldActions = (await page.getByRole('button', {name: 'Field actions'}).first().boundingBox())!
+      const footerMenu = (await page.locator('.doc-footer .menu-wrap > .icon-btn').first().boundingBox())!
+      expect([fieldActions.height, footerMenu.height], 'form taps').toEqual(touch ? [44, 44] : [25, 25])
     } finally {
       await context.close()
     }

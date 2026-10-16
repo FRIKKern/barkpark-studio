@@ -554,7 +554,7 @@ a.preview:hover, [data-lit] > a.preview:not([data-selected], [aria-current='true
 .bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg); font-size: 13px; }
 .bulk-count { flex: 1; color: var(--fg); font-weight: 500; }
 .bulk-actions { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
-@media (max-width: 768px) { .bulk-bar button { min-height: 44px; } }
+@media (max-width: 768px) and (pointer: coarse) { .bulk-bar button { min-height: 44px; } }
 .search { margin: -1px 12px 7px; position: relative; }
 .pane.list > .search { margin-bottom: 12px; } /* Sanity's list: the first row 12 px under the box (138, measured at 1440) */
 /* Sanity's list search: 25 px tall, a 21 px icon 2 px in (measured at 1440; the rows below stay put). */
@@ -718,7 +718,7 @@ a.menu-item { display: block; text-decoration: none; }
 .btn-create { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 4px; height: 35px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); font: inherit; font-size: 13px; font-weight: 400; cursor: pointer; }
 .btn-create:hover, .btn-square:hover { background: var(--hover); }
 .ref-search { flex-wrap: wrap; }
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   .doc-form input.input { min-height: 44px; }
   .ref-row .icon-btn, .ref-search .icon-btn, .ref-search .btn-square { width: 44px; height: 44px; flex-shrink: 0; }
   .ref-search .input, .ref-search .btn, .ref-search .btn-create, .ref-row .menu-item, .ref-search .menu-item { min-height: 44px; }
@@ -984,7 +984,7 @@ a.version-badge:hover { color: var(--fg-strong); }
 .warning { padding: 8px 12px; border-radius: 3px; background: var(--warn-bg); }
 .used-in { list-style: none; margin: 0; padding: 4px 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
 .used-in li .preview { margin: 0 4px; min-height: 41px; }
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   /* Phone: one row, centred on the 44 px taps; a long status ellipsizes. */
   .doc-footer { height: 51px; align-items: center; padding: 0 16px; }
   .doc-footer-status { flex-wrap: nowrap; }
@@ -1151,7 +1151,7 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 /* No results found, Sanity's: 15 px on a 23 px line in a 310 px column. */
 .list-empty.list-none { max-width: 310px; margin: 32px 20px; font-size: 15px; line-height: 23px; }
 .list-search-error { margin: 16px 8px; font-size: 13px; }
-@media (max-width: 768px) { .list-search-error .btn { min-height: 44px; } }
+@media (max-width: 768px) and (pointer: coarse) { .list-search-error .btn { min-height: 44px; } }
 .menu-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-header); padding: 8px 12px 4px; }
 .menu-item.check { display: flex; justify-content: space-between; }
 .menu-item-label { display: inline-flex; align-items: center; gap: 8px; }
@@ -1251,8 +1251,10 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .help:focus-visible { outline: 2px solid var(--selected); outline-offset: 2px; }
 @media (max-width: 768px) {
   .preview.unavailable { position: relative; }
-  .preview.unavailable .help { position: static; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
   .preview.unavailable .tip { left: 0; width: min(420px, 100%); overflow-wrap: anywhere; }
+}
+@media (max-width: 768px) and (pointer: coarse) {
+  .preview.unavailable .help { position: static; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
 }
 .popover.options.empty { padding: 16px; text-align: center; color: var(--muted); }
 
@@ -1945,7 +1947,7 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .list-rows > .pane-error { padding: 20px 8px; }
 .pane-error h3 { margin: 0; font-size: 21px; line-height: 27px; font-weight: 700; }
 .pane-error p { margin: 0; }
-@media (max-width: 768px) { .pane-error .btn { min-height: 44px; } }
+@media (max-width: 768px) and (pointer: coarse) { .pane-error .btn { min-height: 44px; } }
 .pane-error code { font-family: ui-monospace, Menlo, monospace; font-size: 14px; background: var(--hover); padding: 0 2px; }
 .pane-error .muted { font-size: 13px; color: var(--muted); }
 .pane-error .error-detail { margin: 0; padding: 12px; border-radius: 3px; background: var(--danger-bg); color: var(--danger-fg); font-size: 12px; white-space: pre-wrap; overflow: auto; }
@@ -1998,7 +2000,7 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .broken-pt { margin: 8px 0; padding: 8px 12px; font-size: 14px; line-height: 1.5; background: var(--bg); border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); color: var(--fg); }
 .broken-head .broken-pt p { margin: 4px 0; }
 .broken-actions { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 12px; }
-@media (max-width: 768px) { .broken-btn { min-height: 44px; } }
+@media (max-width: 768px) and (pointer: coarse) { .broken-btn { min-height: 44px; } }
 .broken-btn { width: 100%; }
 .broken-btn.warn { background: var(--caution-btn-bg); color: var(--caution-btn-fg); }
 .broken-btn.warn:hover { background: var(--caution-btn-hover); }
@@ -2218,8 +2220,10 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .file-table .menu-wrap { position: relative; display: flex; justify-content: flex-end; }
 .file-table .popover.menu { right: 0; top: 100%; }
 @media (max-width: 768px) {
-  .file-actions .btn, .file-box .icon-btn, .file-pick { min-height: 44px; }
   .file-box.empty { flex-wrap: wrap; }
+}
+@media (max-width: 768px) and (pointer: coarse) {
+  .file-actions .btn, .file-box .icon-btn, .file-pick { min-height: 44px; }
 }
 /* J53: Sanity's help menu — the update dot, the Studio item with its version badge. */
 .menu-wrap.help { position: relative; }
@@ -2378,11 +2382,13 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
   .media-tool { flex-direction: column; height: auto; }
   .media-folders { width: auto; flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); }
   .media-folders h1, .media-folders .desk-divider { display: none; }
-  .media-folders .type-row, .media-tile, .media-bar .input, .media-section .btn { min-height: 44px; }
   /* WCAG reflow (320 px): the search takes its own line and the controls wrap under it. */
   .media-bar { flex-wrap: wrap; }
   .media-bar .search { flex: 1 1 100%; }
   .media-inspector { position: fixed; inset: 51px 0 0; z-index: 3; width: auto; background: var(--bg); }
+}
+@media (max-width: 768px) and (pointer: coarse) {
+  .media-folders .type-row, .media-tile, .media-bar .input, .media-section .btn { min-height: 44px; }
   .media-inspector .icon-btn { width: 44px; height: 44px; }
 }
 /* J47: list semantics around the rows without changing the layout. */
@@ -2528,11 +2534,11 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .comment-message { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg); }
 .confirm-dialog { width: min(360px, calc(100vw - 32px)); }
 .confirm-dialog .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; }
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   .field-comments .comment-add, .comment-count, .comment-actions .icon-btn, .composer-box .send, .composer-box .mention, .inline-comment-add { min-width: 44px; min-height: 44px; }
   .field-actions { right: 44px; }
-  .popover.comment-popover { width: min(320px, calc(100vw - 48px)); }
 }
+@media (max-width: 768px) { .popover.comment-popover { width: min(320px, calc(100vw - 48px)); } }
 
 /* B02: the workspace / project / dataset switcher beside the brand. */
 .scope-button { display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 4px 3px 8px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); cursor: pointer; }
@@ -2591,7 +2597,7 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
    perspective chips sit in a clipping title, so a clear border grows their box (the inset
    ring and background keep their drawn size); Publish and the save state get an invisible hit area; the field
    menu and Generate, stacked close together, take real size so their taps don't overlap. */
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   button.chip, button.chip[data-active], button.chip[data-selected]:not([data-active]), button.chip:hover { border-style: solid; border-color: transparent; border-width: 10px 0; background-clip: padding-box; }
   .doc-footer .publish, .doc-footer .save-state-btn { position: relative; }
   .doc-footer .publish::after, .doc-footer .save-state-btn::after { content: ''; position: absolute; z-index: 1; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
@@ -2603,11 +2609,13 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 /* J10: the canvas's format bubble at phone width: 44 px buttons, wrapping inside the screen (F12). */
 @media (max-width: 768px) {
   .bp-paper-format { flex-wrap: wrap; max-width: calc(100vw - 16px); }
+}
+@media (max-width: 768px) and (pointer: coarse) {
   .bp-paper-format button { min-width: 44px; min-height: 44px; }
 }
 /* J12: image field and dialog controls at phone width (F12). #1f6ae6 above: the crop
    size label's white 11 px text at 4.9:1 (axe color-contrast; #2276fc is 4.2). */
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   .image-actions .icon-btn, .dialog > header .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
   .image-empty-box .btn { min-height: 44px; }
   .hotspot-tool .handle-grab { display: inline; }
@@ -2619,10 +2627,10 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
    color-contrast). Items are 44 px tall at phone width (F12). */
 html[data-theme='light'] body .bp-slash-menu { --paper-ink-faint: #665e55; }
 html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
-@media (max-width: 768px) { body .bp-slash-item { min-height: 44px; } }
+@media (max-width: 768px) and (pointer: coarse) { body .bp-slash-item { min-height: 44px; } }
 /* J15 at phone width (F12): the change bar takes a 44 px tap, centred on its 2 px
    line; Revert buttons and the confirm's buttons are 44 px tall. */
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   .change-bar::after { content: ''; position: absolute; top: 0; bottom: 0; left: -21px; width: 44px; }
   .revert-one, .revert-all, .popover.confirm .btn { min-height: 44px; }
   .revert-one { min-width: 44px; }
@@ -2638,18 +2646,18 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 /* J37: Vision's selects and Fetch on a touch phone (F12); a desktop window keeps Sanity's. */
 @media (max-width: 768px) and (pointer: coarse) { .vision select, .vision .btn { min-height: 44px; } }
 /* J09: array rows at phone width (F12): handle, item "…" and its menu, Add item. */
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   .array-row > .drag-handle, .array-row .menu-wrap > .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
   .array-row [role='menu'] .menu-item, .add-item { min-height: 44px; }
 }
 /* J33: object array rows and the item dialog's breadcrumb at phone width (F12). */
-@media (max-width: 768px) { .item-dialog button.crumb, .array-item-preview { min-height: 44px; } .item-dialog button.crumb { min-width: 44px; } }
+@media (max-width: 768px) and (pointer: coarse) { .item-dialog button.crumb, .array-item-preview { min-height: 44px; } .item-dialog button.crumb { min-width: 44px; } }
 /* J34: a tag's × at phone width (F12). The button itself grows: a wider invisible
    hit area would reach over the next tag's text and remove the wrong one. */
-@media (max-width: 768px) { .tags-box .tag button { width: 44px; height: 44px; } }
+@media (max-width: 768px) and (pointer: coarse) { .tags-box .tag button { width: 44px; height: 44px; } }
 /* J44: a boolean switch at phone width (F12): its invisible input reaches 45x45
    around the 33x19 track. */
-@media (max-width: 768px) { .switch input { inset: -14px -10px; } }
+@media (max-width: 768px) and (pointer: coarse) { .switch input { inset: -14px -10px; } }
 /* Hover tooltips (J35 hotkey, J56 status dates), as Sanity's: a small card under the target. */
 /* Sanity's tooltip (measured at 1440): 25 px for a line, the words 8 px in on 19 px, 3 px corners, its popover shadow. */
 .hover-tip { position: fixed; z-index: 300; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; max-width: 280px; padding: 3px 8px; border-radius: 3px; background: var(--bg); color: var(--fg); box-shadow: var(--popover-shadow); font-size: 13px; line-height: 19px; pointer-events: none; white-space: nowrap; }
@@ -2693,7 +2701,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .codelist-toggle { display: inline-grid; place-items: center; width: 16px; flex-shrink: 0; font-size: 10px; color: var(--muted); }
 .codelist-tree .mono { color: var(--muted); }
 .codelist-empty { margin: 4px 0 0; font-size: 13px; }
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   .codelist-tree [role='treeitem'] { min-height: 44px; align-items: center; }
   .codelist-toggle { width: 44px; height: 44px; }
   .codelist-current .icon-btn, .codelist-search .btn { min-width: 44px; min-height: 44px; }
@@ -2705,7 +2713,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .pd-linked { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
 .pd-linked-title { font-weight: 600; }
 .pd-linked-note { flex: 1 1 260px; color: var(--muted); }
-@media (max-width: 768px) { .pd-linked .btn { min-height: 44px; } }
+@media (max-width: 768px) and (pointer: coarse) { .pd-linked .btn { min-height: 44px; } }
 
 /* J65: plugin surface — a config tool's page, a custom input's note, document badges. */
 .tool-page { padding: 24px; }
