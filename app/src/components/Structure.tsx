@@ -437,6 +437,9 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
         {singletons.map((s) => (
           <PaneLink key={s.name} className="type-row" href={openAfter(panes, index, {kind: 'doc', id: s.name, type: s.name, node: s.name})} aria-current={selected === s.name && index === panes.length - 2} data-selected={selected === s.name ? '' : undefined}>
             {s.title}
+            <span className="chev">
+              <ChevronRight />
+            </span>
           </PaneLink>
         ))}
         {/* J18: the studio config's own structure items, after a divider (Sanity's S.divider()). */}
