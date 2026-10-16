@@ -185,18 +185,20 @@ export const BrokenImageIcon = () => (
   </svg>
 )
 export const Crop = () => (
-  <svg {...s}>
-    <path d="M8.5 4.5v12h12M4.5 8.5h12v12" />
+  <svg {...solid}>
+    <path d="M9.5 5V15.5H20M5 9.5H15.5V20" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 export const Upload = () => (
-  <svg {...s}>
-    <path d="M12.5 15.5v-10M8 10l4.5-4.5L17 10M5.5 15.5v4h14v-4" />
+  <svg {...solid}>
+    <path d="M12.5 6V15.5M5.5 15.5H19.5V19.5H5.5V15.5Z" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+    <path d="M7.5 11L12.5 6L17.5 11" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 export const Download = () => (
-  <svg {...s}>
-    <path d="M12.5 5.5v10M8 11l4.5 4.5L17 11M5.5 15.5v4h14v-4" />
+  <svg {...solid}>
+    <path d="M19.5 17V19.5H5.5V17M12.5 16L12.5 5" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+    <path d="M17.5 11L12.5 16L7.5 11" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 /** Sanity's LinkIcon. */
@@ -207,13 +209,14 @@ export const LinkIcon = () => (
 )
 /** Sanity's TargetIcon (Copy document ID). */
 export const TargetIcon = () => (
-  <svg {...s}>
-    <path d="M12.5 3V10M22 12.5H15M12.5 22V15M3 12.5H10M19 12.5C19 16.09 16.09 19 12.5 19C8.91 19 6 16.09 6 12.5C6 8.91 8.91 6 12.5 6C16.09 6 19 8.91 19 12.5Z" />
+  <svg {...solid}>
+    <path d="M12.5 3V10M22 12.5H15M12.5 22V15M3 12.5H10M19 12.5C19 16.0899 16.0899 19 12.5 19C8.91015 19 6 16.0899 6 12.5C6 8.91015 8.91015 6 12.5 6C16.0899 6 19 8.91015 19 12.5Z" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 export const Reset = () => (
-  <svg {...s}>
-    <path d="M6.5 8.5h12M10.5 8.5v-2h4v2M8 8.5l1 11h7l1-11" />
+  <svg {...solid}>
+    <path d="M7 11L4.56189 13.5L2 11" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+    <path d="M9.50001 15.5L15.5 9.5M9.5 9.5L15.5 15.5M4.56189 13.5C4.52104 13.1724 4.5 12.8387 4.5 12.5C4.5 8.08172 8.08172 4.5 12.5 4.5C16.9183 4.5 20.5 8.08172 20.5 12.5C20.5 16.9183 16.9183 20.5 12.5 20.5C9.75033 20.5 7.32466 19.1128 5.88468 17" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 export const UserCircle = () => (
@@ -359,8 +362,8 @@ export const CommentIcon = () => (
 /** Sanity's AddCommentIcon: a speech bubble with a plus. */
 /** Sanity's AddCommentIcon. */
 export const AddComment = () => (
-  <svg {...s}>
-    <path d="M13 6.5H7.5C6.4 6.5 5.5 7.4 5.5 8.5V14.5C5.5 15.6 6.4 16.5 7.5 16.5H9.5V20.5L13.5 16.5H16.5C17.6 16.5 18.5 15.6 18.5 14.5V12M15 6.5H22M18.5 10V3" strokeLinejoin="round" />
+  <svg {...solid}>
+    <path d="M13 6.5H7.5C6.39543 6.5 5.5 7.39543 5.5 8.5V14.5C5.5 15.6046 6.39543 16.5 7.5 16.5H9.5V20.5L13.5 16.5H16.5C17.6046 16.5 18.5 15.6046 18.5 14.5V12M15 6.5H22M18.5 10V3" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 /** Sanity's ArrowRightIcon-like send arrow (the comment Send button). */
@@ -378,8 +381,8 @@ export const Send = () => (
 )
 /** Sanity's ToggleArrowRightIcon: the filled triangle on a collapsible object (J14). */
 export const ToggleArrowRight = () => (
-  <svg {...s}>
-    <path d="M10.5 16.5V8.5L15.5 12.5L10.5 16.5Z" fill="currentColor" stroke="none" />
+  <svg {...solid}>
+    <path d="M10.5 16V9L16 12.5L10.5 16Z" fill="currentColor" stroke="currentColor" strokeLinejoin="round" />
   </svg>
 )
 /** Sanity's CodeBlockIcon-like braces (Inspect). */
@@ -434,9 +437,9 @@ export const SyncIcon = () => (
   </svg>
 )
 export const EarthGlobe = () => (
-  <svg {...s}>
-    <circle cx="12.5" cy="12.5" r="7" />
-    <path d="M5.5 12.5h14M12.5 5.5c-2.5 2.5-2.5 11.5 0 14M12.5 5.5c2.5 2.5 2.5 11.5 0 14" />
+  <svg {...solid}>
+    <path d="M20.5 12.5C20.5 16.9183 16.9183 20.5 12.5 20.5C8.08172 20.5 4.5 16.9183 4.5 12.5C4.5 8.08172 8.08172 4.5 12.5 4.5C16.9183 4.5 20.5 8.08172 20.5 12.5Z" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
+    <path d="M20.5 12.5H4.5M12.5 20.5C12.5 20.5 9.5 17.5 9.5 12.5C9.5 7.5 12.5 4.5 12.5 4.5C12.5 4.5 15.5 7.5 15.5 12.5C15.5 17.5 12.5 20.5 12.5 20.5Z" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 export const Mobile = () => (
@@ -522,8 +525,8 @@ export const OlistIcon = () => (
 )
 /** Sanity's InlineElementIcon: an inline object in the text (a chip). */
 export const InlineIcon = () => (
-  <svg {...s}>
-    <path d="M5 7.5V17.5M20 7.5V17.5M8.5 9.5H16.5V15.5H8.5V9.5Z" />
+  <svg {...solid}>
+    <path d="M12.5 6.5H19.5V18.5H12.5M12.5 6.5H5.5V18.5H12.5M12.5 6.5V18.5" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 /** A link to a document (Sanity's internal link annotation): a page with a link. */
@@ -541,13 +544,13 @@ export const BlockIcon = () => (
 // Sanity's Play and Stop (Vision's Fetch and Listen), filled.
 /** Sanity's PlayIcon: filled and stroked, round corners. */
 export const PlayIcon = () => (
-  <svg {...s}>
-    <path d="M7.5 18.5v-12l10 6-10 6z" fill="currentColor" strokeLinejoin="round" />
+  <svg {...solid}>
+    <path d="M7.5 18.5V6.5L17.5 12.5L7.5 18.5Z" fill="currentColor" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 export const StopIcon = () => (
-  <svg {...s} fill="currentColor" stroke="none">
-    <path d="M7.5 7.5h10v10h-10z" />
+  <svg {...solid}>
+    <rect x={7.5} y={7.5} width={10} height={10} fill="currentColor" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
   </svg>
 )
 /** Sanity's UserIcon (a task's Assign to). */
