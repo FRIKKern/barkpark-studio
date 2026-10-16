@@ -103,11 +103,13 @@ test('@local J53: a newer build on the server shows the update dot and "Reload t
   await expect(page.getByRole('menuitem', {name: /Reload to update to abc1234/})).toBeEnabled()
 })
 
-test('@local J46: phone width — tools in a drawer, search an icon, 44 px targets', async ({page, context}, info) => {
+test('@local J46: phone width — tools in a drawer, search an icon, 44 px targets', async ({browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Sanity is the evidence clip; its navbar targets are 25 px')
-  await page.setViewportSize({width: 390, height: 844})
+  // A phone is a touch screen: the 44 px taps are (pointer: coarse)'s; a desktop window this narrow keeps 25 px.
+  const context = await browser.newContext({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true})
   await t.prepare(context)
+  const page = await context.newPage()
   await page.goto('/structure')
   await signInIfAsked(page)
   await t.settle(page)
@@ -129,6 +131,7 @@ test('@local J46: phone width — tools in a drawer, search an icon, 44 px targe
   await drawer.getByRole('link', {name: 'Vision'}).click()
   await expect(page).toHaveURL(/\/vision$/)
   await expect(drawer).toBeHidden()
+  await context.close()
 })
 
 test('@local J46: on a touch phone, what hover reveals is there, and the document header is one row', async ({browser}, info) => {

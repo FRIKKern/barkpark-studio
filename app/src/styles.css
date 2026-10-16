@@ -882,10 +882,13 @@ a.menu-item { display: block; text-decoration: none; }
   .filter-chip-label { padding-right: 8px; }
 }
 @media (max-width: 768px) {
+  .popover.command, .popover.filter-editor { width: min(300px, calc(100vw - 48px)); }
+}
+/* 44 px taps on a touch screen; a narrow desktop window keeps Sanity's 25 px. */
+@media (max-width: 768px) and (pointer: coarse) {
   .search-dialog .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
   .search-dialog .chip-btn, .search-dialog .menu-item, .search-dialog .btn, .search-dialog .link-btn, .search-dialog .filter-chip, .search-recent, .command-item { min-height: 44px; }
   .search-bar input, .command-find input { min-width: 0; min-height: 44px; }
-  .popover.command, .popover.filter-editor { width: min(300px, calc(100vw - 48px)); }
 }
 /* Sanity's type badge: a 17 px pill, 13 px text 4 px in. */
 .preview .badge { font-size: 13px; font-weight: 400; line-height: 17px; padding: 0 4px; border-radius: 9999px; background: var(--fill-soft); color: var(--muted); }
@@ -1888,8 +1891,8 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 
 /* J35: the body expanded over its pane (same canvas, its frame moved). */
 .body-expand { width: 25px; height: 25px; }
-/* F12: a 44 px tap target on phones and tablets (Sanity's is 25 px; the bar is ours). */
-@media (max-width: 768px) { .body-bar { height: 44px; padding: 0; } .body-expand { width: 44px; height: 44px; } .body-toolbar + .body-expand::before { top: 0; bottom: 0; } }
+/* F12: a 44 px tap target on touch phones and tablets (Sanity's is 25 px; the bar is ours). */
+@media (max-width: 768px) and (pointer: coarse) { .body-bar { height: 44px; padding: 0; } .body-expand { width: 44px; height: 44px; } .body-toolbar + .body-expand::before { top: 0; bottom: 0; } }
 /* Flush over the pane's card area, no frame, its bar 41 px (8 px round the buttons), as Sanity's. */
 .body-canvas[data-expanded] { background: var(--bg); box-shadow: none; border-radius: 1px; display: flex; flex-direction: column; }
 .body-canvas[data-expanded] .body-bar { height: 41px; padding: 0 8px; }
@@ -2406,10 +2409,14 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
   .navbar .tools, .navbar .editor .menu-wrap { display: none; }
 }
 @media (max-width: 768px) {
-  .navbar .icon-btn { width: 44px; height: 44px; }
-  .navbar .perspective-picker { min-height: 44px; }
   .navbar .brand { gap: 4px; }
   .nav-right { gap: 0; }
+}
+/* 44 px taps on a touch screen (the search dialog's icons are the navbar's too); a narrow
+   desktop window keeps Sanity's 25 px. */
+@media (max-width: 768px) and (pointer: coarse) {
+  .navbar .icon-btn { width: 44px; height: 44px; }
+  .navbar .perspective-picker { min-height: 44px; }
 }
 @media (max-width: 599px) {
   .navbar { display: flex; padding: 0 4px; }
@@ -2567,7 +2574,8 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .scope-place svg { flex: none; width: 21px; height: 21px; margin-right: 2px; }
 .scope-note { margin: 0; padding: 4px 20px; font-size: 12px; color: var(--muted); }
 .scope-places .field-error { padding: 4px 20px; }
-@media (max-width: 768px) { .scope-ws { display: none; } .scope-button { min-height: 44px; max-width: 120px; } .scope-place { min-height: 44px; } }
+@media (max-width: 768px) { .scope-ws { display: none; } .scope-button { max-width: 120px; } }
+@media (max-width: 768px) and (pointer: coarse) { .scope-button, .scope-place { min-height: 44px; } }
 @media (max-width: 480px) { .scope-popover { position: fixed; top: 52px; left: 8px; right: 8px; width: auto; } }
 /* J37: the navbar "+" (Create new document), Sanity's type picker under it. */
 .menu-wrap.new-doc { position: relative; display: inline-flex; }
@@ -2604,8 +2612,8 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
   .image-empty-box .btn { min-height: 44px; }
   .hotspot-tool .handle-grab { display: inline; }
 }
-/* J35: the body's expand button at phone width (F12). */
-@media (max-width: 768px) { .body-expand { width: 44px; height: 44px; } }
+/* J35: the body's expand button on a touch phone (F12). */
+@media (max-width: 768px) and (pointer: coarse) { .body-expand { width: 44px; height: 44px; } }
 /* J11: the canvas's slash menu (Barkpark's shell CSS). Its faint text (group labels,
    hints) is 3.7:1 in both themes: re-bound to >= 4.5:1 on the active row too (axe
    color-contrast). Items are 44 px tall at phone width (F12). */
@@ -2627,8 +2635,8 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .review-img-side { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 96px; }
 .review-img-meta { display: flex; flex-direction: column; font-size: 12px; line-height: 17px; color: var(--muted); }
 .review-img-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
-/* J37: Vision's selects and Fetch at phone width (F12). */
-@media (max-width: 768px) { .vision select, .vision .btn { min-height: 44px; } }
+/* J37: Vision's selects and Fetch on a touch phone (F12); a desktop window keeps Sanity's. */
+@media (max-width: 768px) and (pointer: coarse) { .vision select, .vision .btn { min-height: 44px; } }
 /* J09: array rows at phone width (F12): handle, item "…" and its menu, Add item. */
 @media (max-width: 768px) {
   .array-row > .drag-handle, .array-row .menu-wrap > .icon-btn { width: 44px; height: 44px; flex-shrink: 0; }
