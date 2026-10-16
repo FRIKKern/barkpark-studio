@@ -150,5 +150,7 @@ test('J28: Inspect fits the window on a long document and scrolls inside', async
   await dialog.getByRole('tab', {name: 'Raw JSON'}).click()
   expect((await dialog.boundingBox())!.y + (await dialog.boundingBox())!.height).toBeLessThanOrEqual(900)
   expect(await dialog.locator('.inspect-body').evaluate((b) => b.scrollHeight > b.clientHeight)).toBe(true)
+  // Sanity's Raw JSON: the dialog's mono (not the browser's <pre> default), long values on one line.
+  expect(await dialog.locator('pre').evaluate((e) => [getComputedStyle(e).fontFamily.startsWith('ui-monospace'), getComputedStyle(e).whiteSpace])).toEqual([true, 'pre'])
   await page.keyboard.press('Escape')
 })
