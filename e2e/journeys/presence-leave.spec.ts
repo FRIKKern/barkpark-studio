@@ -99,3 +99,37 @@ test('@local J07: someone typing in the body far below shows as a hint', async (
     await Promise.all([ctxA.close(), ctxB.close()])
   }
 })
+
+// J07 at many viewers, as Sanity's: one avatar and one row per person (a person's tabs
+// are one), past the limit a counter of the rest (a bare number) before the last few,
+// and a positive dot on the navbar's button. The room is answered here: six people,
+// one of them in two tabs, one in no document.
+test('J07: many viewers: one per person, the counter, the menu', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "Barkpark's presence room")
+  const P = (sessionId: string, name: string, documentId: string | null, field: string | null) => ({sessionId, name, color: '#556bfc', documentId, field, client: 'studio'})
+  const room = [P('s1', 'Ada Lovelace', 'post-05', 'title'), P('s2', 'Ada Lovelace', 'post-05', 'excerpt'), P('s3', 'Grace Hopper', 'post-05', 'title'), P('s4', 'Alan Turing', 'post-05', 'title'), P('s5', 'Barbara Liskov', 'post-05', 'title'), P('s6', 'Edsger Dijkstra', 'post-05', 'title'), P('s7', 'Linus Torvalds', null, null)]
+  await t.prepare(context)
+  await context.route('**/api/presence**', (r) =>
+    r.request().method() === 'GET'
+      ? r.fulfill({status: 200, headers: {'content-type': 'text/event-stream'}, body: `retry: 600000\n\nevent: session\ndata: {"sessionId":"me"}\n\nevent: presence\ndata: ${JSON.stringify({presences: room})}\n\n`})
+      : r.fulfill({status: 204, body: ''}),
+  )
+  await page.goto(t.listPath('post'))
+  await t.settle(page)
+  // The list row: 5 people, at most 2: a counter of 4, then the last one; its hover says how many.
+  const row = page.locator('a[href$=";post-05"]').first().locator('[data-testid="presence"]')
+  await expect(row).toHaveAttribute('title', '5 people are editing this document right now')
+  await expect(row.locator('.p-avatar')).toHaveText(['4', 'ED'])
+  // The navbar: a dot, not a count; a row per person, the one in no document disabled.
+  const who = page.getByRole('button', {name: "Who's online"})
+  await expect(who.locator('.who-dot')).toBeVisible()
+  await who.click()
+  await expect(page.locator('.who-menu .who-name')).toHaveText(['Ada Lovelace', 'Grace Hopper', 'Alan Turing', 'Barbara Liskov', 'Edsger Dijkstra', 'Linus Torvalds'])
+  await expect(page.locator('.who-menu [role=menuitem]').last()).toBeDisabled()
+  await page.keyboard.press('Escape')
+  // A field: 5 people, at most 3: a counter of 3, then the last two.
+  await page.goto(t.docPath('post', 'post-05'))
+  await t.settle(page)
+  await expect(page.locator('.field').filter({has: page.locator('[id="title"]')}).locator('[data-testid="presence"] .p-avatar').first()).toHaveText('3')
+})

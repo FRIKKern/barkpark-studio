@@ -743,7 +743,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               selected={selected === d._publishedId}
               active={index === panes.length - 2}
               testId="pane-item"
-              extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} /> : undefined}
+              extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} max={2} editing /> : undefined}
             />
           )
           if (!selectable) return <div key={d._publishedId} role="listitem" className="rows-item">{row}</div>

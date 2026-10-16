@@ -121,6 +121,9 @@ export default {
   "Who's online": 'Hvem er pålogget',
   'Who is here': 'Hvem er her',
   'No one else is here': 'Ingen andre er her',
+  'Invite people to the project to see their online status.': 'Inviter folk til prosjektet for å se om de er pålogget.',
+  '{name} is editing this document right now': '{name} redigerer dette dokumentet nå',
+  '{count} people are editing this document right now': '{count} personer redigerer dette dokumentet nå',
   'Not in a document': 'Ikke i et dokument',
 
   // New document (navbar "+" and a list's "+")
