@@ -486,7 +486,7 @@ textarea.input { resize: vertical; }
 .ref-box { border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); padding: 4px; }
 .tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { font-size: 13px; padding: 2px 8px; border-radius: 3px; background: var(--hover); }
-.fieldset { border-left: 1px solid var(--border); padding-left: 12px; }
+.fieldset, .image-input[data-fields] { border-left: 1px solid var(--border); padding-left: 12px; }
 /* Sanity's object body: 12 px in, a 7 px band above the first field, no margin after the last
    (measured at 1440 on post-01's Call to action). */
 .fieldset:not([style*=grid]) > .field:first-child, .fieldset:not([style*=grid]) > fieldset.object-field:first-child { padding-top: 7px; }
