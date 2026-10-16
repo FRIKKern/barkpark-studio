@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 49 changes, 4 tasks closed
+- **Today** · 50 changes, 4 tasks closed
+  - Radio ring as Sanity's: the line colour, light and dark ([#695](https://github.com/FRIKKern/barkpark-studio/pull/695))
   - File field with a file as Sanity's: 53 px in a 1 px ring, a 25 px icon on its tile, name 500 and size 13 px, both muted ([#694](https://github.com/FRIKKern/barkpark-studio/pull/694))
-  - Image with fields as Sanity's: drawn as an object, a rule on the left and all 13 px in ([#693](https://github.com/FRIKKern/barkpark-studio/pull/693))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
