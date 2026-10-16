@@ -1181,10 +1181,12 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 /* Sanity's date picker (measured at 1440): 362 px, centred under the input (not its calendar button), 46 x 25 days 4 px apart. */
 .datepicker { top: calc(100% + 4px); left: max(0px, calc((100% - 35px) / 2 - 181px)); width: 362px; padding: 8px; font-size: 13px; }
 .dp-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
-.dp-month { position: relative; flex: 1; }
-.dp-month select { width: 100%; appearance: none; font: inherit; font-size: 13px; padding: 4px 28px 4px 8px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg); color: var(--fg-strong); }
-.dp-month svg { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); pointer-events: none; }
-.dp-year { width: 52px; font: inherit; font-size: 13px; text-align: center; padding: 4px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
+/* Sanity's rows (field-types-01's At, 1440, light and dark): 25 px controls, the select 8 px before the year's arrows,
+   its chevron 21 px and muted; the time a 99 x 34 box, Set to current time a 25 px button 8 px after it. */
+.dp-month { position: relative; flex: 1; margin-right: 4px; }
+.dp-month select { width: 100%; appearance: none; font: inherit; font-size: 13px; line-height: 19px; padding: 3px 29px 3px 8px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg); color: var(--input-fg); }
+.dp-month svg { position: absolute; right: 2px; top: 50%; width: 21px; height: 21px; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.dp-year { width: 48px; font: inherit; font-size: 13px; line-height: 19px; text-align: center; padding: 3px 8px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg); color: var(--input-fg); }
 .dp-grid { display: grid; grid-template-columns: repeat(7, 46px); grid-auto-rows: 25px; gap: 4px; }
 .dp-weekday { display: grid; place-items: center; font-weight: 500; line-height: 19px; color: var(--fg); }
 .dp-grid button { font: inherit; font-size: 13px; font-weight: 500; height: 25px; border: 0; border-radius: 3px; background: none; color: var(--fg); cursor: pointer; }
@@ -1193,9 +1195,10 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .dp-grid button[data-today] { background: var(--today-bg); color: var(--today-fg); }
 .dp-grid button[data-selected] { background: var(--selected); color: var(--on-selected); }
 .dp-grid button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--selected); }
-.dp-foot { display: flex; align-items: center; gap: 16px; margin: 16px -8px -8px; padding: 8px; border-top: 1px solid var(--border); } /* a date's is empty: the rule and 16 px */
+.dp-foot { display: flex; align-items: center; gap: 8px; margin: 16px -8px -8px; padding: 8px; border-top: 1px solid var(--border); } /* a date's is empty: the rule and 16 px */
 .dp-time { position: relative; display: inline-flex; align-items: center; }
-.dp-time input { width: 110px; font: inherit; font-size: 15px; padding: 5px 8px 5px 10px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
+.dp-time input { width: 99px; height: 34px; font: inherit; font-size: 15px; line-height: 22px; padding: 6px 12px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg); color: var(--input-fg); }
+.dp-foot .btn-text { padding: 3px 8px; line-height: 19px; color: var(--menu-fg); }
 .btn-text { font: inherit; font-size: 13px; font-weight: 500; border: 0; background: none; color: var(--fg-strong); padding: 6px 8px; border-radius: 3px; cursor: pointer; }
 .btn-text:disabled { color: var(--disabled); cursor: default; }
 .btn-text:hover { background: var(--hover); }
