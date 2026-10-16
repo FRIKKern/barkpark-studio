@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 170 changes, 4 tasks closed
+- **Today** · 171 changes, 4 tasks closed
+  - Search, the body bar, Vision and the navbar: Sanity's sizes in a narrow desktop window, 44 px taps on touch ([#819](https://github.com/FRIKKern/barkpark-studio/pull/819))
   - Presence: re-send focus every 30 s and ask Barkpark for staleAfter=90, so a sleeping laptop leaves the room ([#817](https://github.com/FRIKKern/barkpark-studio/pull/817))
-  - Body toolbar spaced and folded as Sanity's ([#816](https://github.com/FRIKKern/barkpark-studio/pull/816))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
