@@ -32,6 +32,12 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   const onServer = typeof window === 'undefined'
   // Before any read: frames after this point reach the page once its stream opens.
   const resume = onServer ? await fetchResumeMark() : undefined
+  // The list prefs and the width hint need nothing below: asked for now, they ride the
+  // desk + schemas round trip instead of adding one of their own (fetchListPrefs never throws).
+  const hints = Promise.all([
+    onServer ? fetchViewportHint() : document.querySelector('[data-testid=panes]')?.clientWidth ?? window.innerWidth,
+    onServer ? (fetchListPrefs() as Promise<ListPrefs>) : readListPrefsCookie(),
+  ])
   // B12: a declared desk decides what the URL's segments name.
   // B13: without a desk, a singleton type's segment is its one doc, so schemas come first too.
   const [desk, schemas] = await Promise.all([queryClient.ensureQueryData(deskQuery), queryClient.ensureQueryData(schemasQuery)])
@@ -40,10 +46,7 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   const panes = desk ? parseDeskPanes(splat, desk) : own && startsAtStudioItem(splat) ? parseDeskPanes(splat, own) : parseSingletonPanes(splat, new Set(schemas.filter((s) => s.singleton).map((s) => s.name)))
   const root = rootDesk(desk, own)
   const nodes = root ? deskIndex(root) : undefined
-  const [widthHint, listPrefs] = await Promise.all([
-    onServer ? fetchViewportHint() : document.querySelector('[data-testid=panes]')?.clientWidth ?? window.innerWidth,
-    onServer ? (fetchListPrefs() as Promise<ListPrefs>) : readListPrefsCookie(),
-  ])
+  const [widthHint, listPrefs] = await hints
   // The list and the open docs don't depend on each other: one round trip, not two.
   // J50: a read that fails is that pane's to show (error card, Retry), not the route's.
   // J51: in the browser a click never waits on the network: what is cached paints at

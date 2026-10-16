@@ -27,7 +27,8 @@
     "@tanstack/react-start": "1.168.60",
     "qrcode": "1.5.4",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "undici": "6.23.0"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
