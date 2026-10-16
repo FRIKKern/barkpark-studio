@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {addQuery, deleteQuery, findSaved, readQueries, renameQuery, searchQueries, type SavedQuery} from './vision-queries.ts'
+import {addQuery, deleteQuery, findSaved, readQueries, renameQuery, searchQueries, updateQuery, type SavedQuery} from './vision-queries.ts'
 
 const q = (key: string, title: string, query = 'post?limit=5'): SavedQuery => ({key, title, query, perspective: 'drafts', dataset: 'ci', savedAt: '2026-10-10T20:00:00Z'})
 
@@ -16,5 +16,8 @@ test('saved queries: read, add, find, rename, search, delete', () => {
   assert.equal(list[1]!.title, 'Latest posts')
   assert.equal(renameQuery(list, 'a', '  ')[1]!.title, 'Latest posts')
   assert.deepEqual(searchQueries(list, 'latest').map((s) => s.key), ['a'])
+  // Update: the query being edited replaces the saved one's, its title stays.
+  const updated = updateQuery(list, 'a', {query: 'post?limit=9', perspective: 'published', dataset: 'ci'}, '2026-10-16T12:00:00Z')[1]!
+  assert.deepEqual([updated.title, updated.query, updated.perspective, updated.savedAt], ['Latest posts', 'post?limit=9', 'published', '2026-10-16T12:00:00Z'])
   assert.deepEqual(deleteQuery(list, 'a').map((s) => s.key), ['b'])
 })

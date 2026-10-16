@@ -54,11 +54,16 @@ async function own(id: string) {
   if ((((await res.json()) as {result: Doc}).result.authorEmail ?? null) !== me()) throw new Error('Only the author can change a shared query.')
 }
 
-export const renameSharedQuery = createServerFn({method: 'POST'})
-  .validator((d: {key: string; title: string}) => d)
+type Change = Partial<Pick<SharedQuery, 'title' | 'query' | 'perspective' | 'dataset' | 'savedAt'>>
+const CHANGEABLE = ['title', 'query', 'perspective', 'dataset', 'savedAt'] as const
+
+/** Rename, or Sanity's "Update" (the query being edited, saved now). Never the author. */
+export const updateSharedQuery = createServerFn({method: 'POST'})
+  .validator((d: {key: string; set: Change}) => d)
   .handler(async ({data}) => {
     await own(data.key)
-    await write([{patch: {id: data.key, type: SHARED_TYPE, set: {title: data.title.trim()}}}, {publish: {id: data.key, type: SHARED_TYPE}}])
+    const set = Object.fromEntries(CHANGEABLE.filter((k) => typeof data.set[k] === 'string').map((k) => [k, k === 'title' ? data.set[k]!.trim() : data.set[k]]))
+    await write([{patch: {id: data.key, type: SHARED_TYPE, set}}, {publish: {id: data.key, type: SHARED_TYPE}}])
     return {ok: true}
   })
 

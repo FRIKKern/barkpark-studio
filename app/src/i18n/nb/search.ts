@@ -178,6 +178,7 @@ export default {
   'Shared queries are stored as documents in this dataset, and everyone in the workspace sees them.': 'Delte spørringer lagres som dokumenter i dette datasettet, og alle i arbeidsområdet ser dem.',
   'Error saving query': 'Feil ved lagring av spørring',
   'Query actions': 'Spørringshandlinger',
+  Update: 'Oppdater',
   'Load query {title}': 'Last spørring {title}',
   Rename: 'Gi nytt navn',
   // Vision's refused queries, Barkpark's English told again (lib/vision-error.ts)
