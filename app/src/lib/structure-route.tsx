@@ -2,7 +2,7 @@ import {useQuery, type QueryClient} from '@tanstack/react-query'
 import {setPresenceSelf, usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
-import {deskQuery, docQuery, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
+import {anyDocQuery, deskQuery, docQuery, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {deskIndex, deskSort, listFilter, parseDeskPanes, rootDesk, unsupportedOps} from './desk'
 import {parseSingletonPanes, type Pane} from './panes'
 import {startsAtStudioItem, studioDesk} from './structure-config'
@@ -43,7 +43,8 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   const [desk, schemas] = await Promise.all([queryClient.ensureQueryData(deskQuery), queryClient.ensureQueryData(schemasQuery)])
   // J18: without one, the studio's own structure items still name their segments.
   const own = desk ? null : studioDesk()
-  const panes = desk ? parseDeskPanes(splat, desk) : own && startsAtStudioItem(splat) ? parseDeskPanes(splat, own) : parseSingletonPanes(splat, new Set(schemas.filter((s) => s.singleton).map((s) => s.name)))
+  const parsed = desk ? parseDeskPanes(splat, desk) : own && startsAtStudioItem(splat) ? parseDeskPanes(splat, own) : parseSingletonPanes(splat, new Set(schemas.filter((s) => s.singleton).map((s) => s.name)))
+  const panes = await Promise.all(parsed.map((p) => (p.kind === 'doc' && p.untyped ? typeOf(queryClient, p) : p)))
   const root = rootDesk(desk, own)
   const nodes = root ? deskIndex(root) : undefined
   const [widthHint, listPrefs] = await hints
@@ -73,6 +74,22 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   const refs = followRefs(queryClient, schemas, listed, open)
   if (onServer) await refs
   return {panes, widthHint, listPrefs, resume}
+}
+
+/**
+ * A followed doc with no `type=` (`post;post-01;author-alan`) takes the list's type
+ * until read; as in Sanity, its real type is looked up when it is not that. A cached
+ * doc (a reference the pane before it showed) answers without a request.
+ */
+async function typeOf(qc: QueryClient, p: Extract<Pane, {kind: 'doc'}>): Promise<Pane> {
+  const {untyped: _, ...pane} = p
+  const known = qc.getQueryData<Doc | null>(['doc', p.id]) ?? (await qc.ensureQueryData(docQuery(p.type, p.id)).catch(() => undefined))
+  if (known !== null) return known && known._type !== p.type ? {...pane, type: known._type} : pane
+  const doc = await qc.fetchQuery(anyDocQuery(p.id)).catch(() => null)
+  if (!doc || doc._type === p.type) return pane
+  // The miss under the list's type is cached under the same key: read it again as its own type.
+  qc.removeQueries({queryKey: ['doc', p.id], exact: true})
+  return {...pane, type: doc._type}
 }
 
 /** The docs open docs reference, and what every visible preview needs; a preview that fails shows its own state. */

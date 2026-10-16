@@ -13,7 +13,21 @@ export type Pane =
   | {kind: 'types'}
   | {kind: 'menu'; node: string}
   | {kind: 'list'; type: string; node?: string; treeParent?: string}
-  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean; inspect?: string; rev?: string; path?: string; node?: string}
+  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean; inspect?: string; rev?: string; path?: string; node?: string; untyped?: boolean}
+
+// Sanity's inspector names (`inspect=sanity/structure/validation`), so a link copied
+// from either studio opens the same inspector in the other. History is one inspector
+// in Sanity, its tab in `changesInspectorTab`; ours names the tab (history | review).
+const SANITY_INSPECT: Record<string, string> = {validation: 'sanity/structure/validation', comments: 'sanity/comments'}
+const HISTORY = 'sanity/structure/history'
+const inspectIn = (inspect?: string, tab?: string) =>
+  inspect === HISTORY ? (tab === 'review' ? 'review' : 'history') : (Object.keys(SANITY_INSPECT).find((k) => SANITY_INSPECT[k] === inspect) ?? inspect)
+const inspectOut = (inspect: string) =>
+  inspect === 'review'
+    ? `,since=@lastPublished,changesInspectorTab=review,inspect=${encodeURIComponent(HISTORY)}`
+    : inspect === 'history'
+      ? `,changesInspectorTab=history,inspect=${encodeURIComponent(HISTORY)}`
+      : `,inspect=${encodeURIComponent(SANITY_INSPECT[inspect] ?? inspect)}`
 
 export function parsePanes(splat: string | undefined): Pane[] {
   const panes: Pane[] = [{kind: 'types'}]
@@ -28,7 +42,7 @@ export function parsePanes(splat: string | undefined): Pane[] {
 /** Doc segments (one doc, or split siblings joined by "|") after a list of `listType`. */
 export function parseDocSegments(segs: string[], listType: string): Extract<Pane, {kind: 'doc'}>[] {
   const panes: Extract<Pane, {kind: 'doc'}>[] = []
-  for (const seg of segs) {
+  for (const [k, seg] of segs.entries()) {
     let first: Extract<Pane, {kind: 'doc'}> | undefined
     for (const part of seg.split('|')) {
       const [id, ...params] = part.split(',')
@@ -43,12 +57,14 @@ export function parseDocSegments(segs: string[], listType: string): Extract<Pane
         view: p.view,
         // J16: an inspector open beside the doc (Sanity's `inspect=…/history`), and an
         // old revision shown read-only in its place (`rev=<revision id>`).
-        inspect: p.inspect,
+        inspect: inspectIn(p.inspect, p.changesInspectorTab),
         rev: p.rev,
         // J52: the focused field (Sanity's `path=seo.metaTitle`): a reload or a copied
         // link opens on it.
         path: p.path,
         sibling: !!first || undefined,
+        // A followed doc with no `type=` (a hand-trimmed link): its type is looked up, as Sanity does.
+        ...(k > 0 && !p.type && !first && {untyped: true}),
       }
       first ??= pane
       panes.push(pane)
@@ -86,7 +102,7 @@ export function panesPath(panes: Pane[]): string {
           ? ''
           : `,type=${encodeURIComponent(p.type)}`
       if (p.view) params += `,view=${encodeURIComponent(p.view)}`
-      if (p.inspect) params += `,inspect=${encodeURIComponent(p.inspect)}`
+      if (p.inspect) params += inspectOut(p.inspect)
       if (p.rev) params += `,rev=${encodeURIComponent(p.rev)}`
       if (p.path) params += `,path=${encodeURIComponent(p.path)}`
       // A sibling of the same doc carries only its own params, like Sanity's "|,".

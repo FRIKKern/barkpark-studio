@@ -49,7 +49,7 @@ test('J15: the footer status opens Review changes', async ({page}, info) => {
   await signInIfAsked(page)
   await t.settle(page)
   await page.locator('.doc-footer').getByRole('button', {name: /Last published/}).click()
-  await expect(page).toHaveURL(/inspect=review/)
+  await expect(page).toHaveURL(/changesInspectorTab=review/)
   await expect(page.getByRole('tab', {name: 'Review changes'})).toHaveAttribute('aria-selected', 'true')
   // The inspector takes a third of the document pane, as Sanity's: 345 px at 1440, 320 at 1024.
   const inspector = page.getByRole('complementary', {name: 'History'})
