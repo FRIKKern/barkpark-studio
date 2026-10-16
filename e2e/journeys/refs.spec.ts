@@ -1,6 +1,6 @@
 import {expect, test} from '@playwright/test'
 import {installProbes, networkBudget, recordFeel, timeToReady} from '../rig/feel'
-import {bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
+import {bpBase, bpDataset, bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
 // Crown references, same steps on both studios: J08 (pick by search, open in the
@@ -333,6 +333,13 @@ test('J17: a doc that refers only from its body (an internal link) is used in, a
   const t = target(info)
   // post-11 and post-13 name Ada only in a body paragraph's internal link (Sanity counts
   // the annotation's reference; Barkpark the wikilink since #22593), never in a field.
+  // Barkpark indexes a doc's links when the doc is written, against the schema it has then:
+  // a lane whose docs predate its schema has none for them. Say so, not a missing row.
+  if (t.name === 'studio') {
+    const res = await fetch(`${bpBase()}/v1/data/backlinks/${bpDataset()}/author-ada`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
+    const from = ((await res.json()) as {result: {backlinks: {from_doc_id: string}[]}}).result.backlinks.map((b) => b.from_doc_id)
+    expect(from, `${bpDataset()}'s link index is stale (written before its schema): reset the lane with \`node run.mjs reset\``).toEqual(expect.arrayContaining(['post-11', 'post-13']))
+  }
   await page.goto(t.docPath('author', 'author-ada'))
   await t.settle(page)
   await expect(t.field(page, 'name')).toHaveValue('Ada Lovelace', {timeout: 15_000})
