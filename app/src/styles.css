@@ -55,6 +55,7 @@
   --shadow: rgba(0, 0, 0, 0.12);
   --popover-shadow: 0 0 0 0.5px rgba(114, 120, 146, 0.3), 0 7px 8px -4px rgba(114, 120, 146, 0.1), 0 12px 17px 2px rgba(114, 120, 146, 0.07), 0 5px 22px 4px rgba(114, 120, 146, 0.06); /* Sanity's menus and pickers, measured */
   --today-bg: #f5f8ff; /* the date picker's today (measured) */
+  --card-selected-ring: #5268fc; --card-selected-icon: #2826aa; /* a selected body image card's ring and "…" (Sanity's, measured) */
   --status-badge-fg: #0d311f; /* a Published status badge's words (Sanity's delete card, measured) */
   --positive-chip-on: #c5fce8; /* the chosen Published chip's fill (measured) */
   --draft-ring-on: #e3bbfc; /* Drafts' ring on the perspective menu's blue (measured) */
@@ -240,6 +241,7 @@
   --shadow: rgba(0, 0, 0, 0.5);
   --popover-shadow: 0 0 0 0.5px rgba(117, 123, 150, 0.4), 0 7px 8px -4px rgba(0, 0, 0, 0.2), 0 12px 17px 2px rgba(0, 0, 0, 0.14), 0 5px 22px 4px rgba(0, 0, 0, 0.12);
   --today-bg: #161830;
+  --card-selected-ring: #5b71fc; --card-selected-icon: #abc2ff;
   --status-badge-fg: #abf9de;
   --positive-chip-on: #133628;
   --draft-ring-on: #635112;
@@ -1826,6 +1828,37 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
    on hover and in focus (the read-only body and the live canvas share these numbers, so
    clicking in moves nothing). Focus only turns the border blue. */
 .body-canvas bp-paper-canvas { padding-left: 0; }
+/* A body image is a card, as Sanity's image block object (Barkpark canvas 1.11.0 block-cards),
+   measured at 1440 light and dark: a 1 px ring on the page colour, darker under the pointer,
+   blue on the info fill when selected; a 33 px head with the file name (13/19 px, 500) and
+   its "…", whose menu offers Edit and Remove. Only on a canvas that draws the head (an
+   older one ignores block-cards and keeps its own look). */
+.body-canvas bp-paper-canvas[block-cards] .bp-canvas-image:has(> .bp-canvas-image-head) { margin-top: 18px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); }
+.body-canvas bp-paper-canvas[block-cards] .bp-canvas-image:has(> .bp-canvas-image-head):hover { box-shadow: 0 0 0 1px var(--tool-disabled); }
+.body-canvas bp-paper-canvas[block-cards] .ProseMirror-selectednode.bp-canvas-image:has(> .bp-canvas-image-head) { background: var(--tone-info-bg); box-shadow: 0 0 0 1px var(--card-selected-ring); }
+.body-canvas .bp-canvas-image-name { font-family: 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; color: var(--fg); }
+.body-canvas .ProseMirror-selectednode .bp-canvas-image-name { color: var(--tone-info-fg); }
+.body-canvas .bp-canvas-image-more { color: var(--fg-header); }
+.body-canvas .bp-canvas-image-more:hover, .body-canvas .bp-canvas-image-more[aria-expanded='true'] { background: var(--icon-btn-hover); color: var(--fg-header); }
+.body-canvas .ProseMirror-selectednode .bp-canvas-image-more { color: var(--card-selected-icon); }
+/* The body before it wakes (PortableDocView) draws the same card, so nothing moves when it does. */
+.pd-image { margin: 18px 0 0; border-radius: 1px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); }
+.pd-image:hover { box-shadow: 0 0 0 1px var(--tool-disabled); }
+.pd-image-head { display: flex; align-items: flex-start; gap: 8px; height: 33px; box-sizing: border-box; padding: 3px 4px 0 8px; }
+.pd-image-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 13px/19px 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; color: var(--fg); }
+.pd-image-more { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; margin-top: -3px; color: var(--fg-header); }
+.pd-image-more svg { width: 21px; height: 21px; }
+.pd-image img { display: block; width: 100%; height: auto; }
+/* Its menu (in <body>), as Sanity's menus: 33 px items 4 px apart, icons in the muted grey. */
+body > .bp-canvas-image-menu { display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: var(--popover-shadow); }
+body > .bp-canvas-image-menu .bp-block-menu__item { padding: 6px 12px 6px 6px; border-radius: 3px; font: 500 13px/19px 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; color: var(--menu-fg); }
+body > .bp-canvas-image-menu .bp-block-menu__item svg { color: var(--icon-muted); }
+body > .bp-canvas-image-menu .bp-block-menu__item--danger { color: var(--menu-danger); }
+body > .bp-canvas-image-menu .bp-block-menu__item--danger svg { color: var(--menu-danger-icon); }
+:is(body > .bp-canvas-image-menu:hover .bp-block-menu__item:hover, body > .bp-canvas-image-menu:not(:hover) .bp-block-menu__item:focus-visible) { background: var(--selected); color: var(--menu-hover-fg); }
+:is(body > .bp-canvas-image-menu:hover .bp-block-menu__item:hover, body > .bp-canvas-image-menu:not(:hover) .bp-block-menu__item:focus-visible) svg { color: var(--primary-btn-icon); }
+:is(body > .bp-canvas-image-menu:hover .bp-block-menu__item--danger:hover, body > .bp-canvas-image-menu:not(:hover) .bp-block-menu__item--danger:focus-visible) { background: var(--menu-danger-hover); }
+:is(body > .bp-canvas-image-menu:hover .bp-block-menu__item--danger:hover, body > .bp-canvas-image-menu:not(:hover) .bp-block-menu__item--danger:focus-visible) svg { color: var(--menu-danger-hover-icon); }
 .body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 23px; padding: 12px 13px 20px; min-height: 120px; } /* 12 px inside the 1 px ring, as Sanity's */
 /* The canvas's paper type (0.005em tracking, old-style figures) rewraps lines on click; Sanity's input has neither. */
 .body-canvas .bp-paper-editor-body, .body-canvas .bp-paper-editor-body * { letter-spacing: normal; font-feature-settings: normal; text-rendering: optimizeLegibility; font-variant-ligatures: none; }

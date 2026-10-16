@@ -1,4 +1,7 @@
 import type {ReactNode} from 'react'
+import {useT} from '../lib/i18n'
+import {imageFileName} from '../lib/image'
+import {Ellipsis} from './icons'
 
 // A PortableDoc block list drawn read-only (J10): the body field before its canvas
 // is activated, and anywhere a body is only shown. Covers what the post vocabulary
@@ -7,7 +10,7 @@ import type {ReactNode} from 'react'
 // data-bp-id like the canvas's, so a caret maps from one to the other.
 
 type Inline = {type: string; value?: string; text?: string; href?: string; docId?: string; target?: string; children?: Inline[]}
-type Block = {id: string; type: string; level?: number; tone?: string; text?: string; content?: Inline[]; items?: Inline[][]; ordered?: boolean; url?: string; alt?: string}
+type Block = {id: string; type: string; level?: number; tone?: string; text?: string; content?: Inline[]; items?: Inline[][]; ordered?: boolean; src?: string; url?: string; alt?: string}
 
 const MARKS: Record<string, string> = {strong: 'strong', em: 'em', code: 'code', underline: 'u', strikethrough: 's', highlight: 'mark', sub: 'sub', sup: 'sup'}
 
@@ -34,6 +37,7 @@ function inline(nodes: Inline[] = [], key = '', linksOpen = false): ReactNode[] 
 }
 
 export function PortableDocView({blocks, linksOpen = false}: {blocks: Block[]; linksOpen?: boolean}) {
+  const t = useT()
   return (
     <>
       {blocks.map((b) => {
@@ -52,8 +56,23 @@ export function PortableDocView({blocks, linksOpen = false}: {blocks: Block[]; l
             return <blockquote key={b.id} data-bp-id={b.id}>{body}</blockquote>
           case 'callout':
             return <div key={b.id} className="callout" data-tone={b.tone} data-bp-id={b.id}>{body}</div>
-          case 'image':
-            return b.url ? <img key={b.id} src={b.url} alt={b.alt ?? ''} /> : null
+          case 'image': {
+            // Barkpark's image block keeps its picture in `src` (the canvas writes it; an
+            // older import may say `url`). Drawn as the canvas's card, as Sanity's at rest.
+            const src = b.src ?? b.url
+            if (!src) return null
+            return (
+              <figure key={b.id} className="pd-image" data-bp-id={b.id}>
+                <div className="pd-image-head">
+                  <span className="pd-image-name">{imageFileName(src, b.alt, t('Image'))}</span>
+                  <span className="pd-image-more" aria-hidden="true">
+                    <Ellipsis />
+                  </span>
+                </div>
+                <img src={src} alt={b.alt ?? ''} />
+              </figure>
+            )
+          }
           default:
             return <p key={b.id} data-bp-id={b.id}>{body}</p>
         }

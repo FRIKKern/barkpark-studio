@@ -24,6 +24,23 @@ export const imageRef = (v: unknown): string | undefined => {
 export const LEGACY_IMAGE_KEYS = ['assetId', 'url', 'lqip', 'width', 'height', 'focalX', 'focalY'] as const
 
 /**
+ * The name a body image card shows (Sanity: its asset's file name), as Barkpark's canvas
+ * names it (image-node.js imageFileName): a Barkpark media URL loses the 8 hex its stored
+ * name carries (`<slug>-<8 hex>.<ext>`), any other URL shows its last segment.
+ */
+export function imageFileName(src: string | undefined, alt: string | undefined, fallback: string): string {
+  let name = ''
+  if (src && !/^(data|blob):/i.test(src)) {
+    name = src.split(/[?#]/)[0]!.split('/').pop() ?? ''
+    try {
+      name = decodeURIComponent(name)
+    } catch {}
+    if (/\/media\/files\//.test(src)) name = name.replace(/-[0-9a-f]{8}(\.[A-Za-z0-9]{1,16})?$/, '$1')
+  }
+  return name || alt || fallback
+}
+
+/**
  * The value to store for a newly picked asset. Content in the legacy shape (migrated
  * twins read `url` on their site) keeps that shape alongside the canonical ref, so the
  * site still finds the file; canonical content stays canonical.
