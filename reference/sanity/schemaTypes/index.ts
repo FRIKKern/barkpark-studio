@@ -4,5 +4,6 @@ import {category} from './category'
 import {fieldTypes} from './fieldTypes'
 import {longform} from './longform'
 import {post} from './post'
+import {siteSettings} from './siteSettings'
 
-export const schemaTypes = [post, author, category, longform, bulk, fieldTypes]
+export const schemaTypes = [post, author, category, longform, bulk, fieldTypes, siteSettings]
