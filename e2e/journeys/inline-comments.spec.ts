@@ -29,6 +29,28 @@ test.afterEach(async () => {
   await bpMutate([...ids.map((id) => ({delete: {id, type: 'studioComment'}})), {delete: {id: ID, type: 'post'}}]).catch(() => {})
 })
 
+// The CI core (J10's lesson: a save path only @local lets data loss through): a span
+// commented on is saved there and is still painted after a reload.
+test('J40: a comment on a span of the body is saved on its words', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "the reference can't save a comment")
+  await t.draftOnly(ID, 'post', {title: 'Inline comments', body: {blocks: [{id: 'p1', type: 'paragraph', content: [{type: 'text', value: 'Alpha beta gamma delta.'}]}]}})
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.locator('[id="body"]').getByText(/Alpha beta/).click()
+  await expect(page.locator('[id="body"] .ProseMirror')).toBeFocused({timeout: 10_000})
+  await select(page, 'gamma')
+  await page.locator('.inline-comment-add').click()
+  await page.keyboard.type('On gamma')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.inspector.comments')).toContainText('On gamma')
+  await page.reload()
+  await t.settle(page)
+  await page.locator('[id="body"]').getByText(/Alpha beta/).click()
+  await expect.poll(() => spans(page), {timeout: 10_000}).toEqual(['gamma'])
+})
+
 test('@local J40: a comment on a span of the body follows its words, and outlives them', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "the reference can't save a comment")
