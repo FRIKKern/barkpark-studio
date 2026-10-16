@@ -55,10 +55,14 @@ test('@local J37: tool switcher, Vision query, user menu', async ({page, context
   await expect(page.getByText('The URL is copied to the clipboard')).toBeVisible()
   await expect(page.getByRole('link', {name: 'JSON'})).toHaveAttribute('download', /\.json$/)
   expect(await page.evaluate(() => scrollY), 'the page itself never scrolls').toBe(0)
-  // Anything but a type and a query string never reaches Barkpark.
+  // Anything but a type and a query string never reaches Barkpark as a path: since GROQ
+  // (#780) it is read as a GROQ query, and refused as one.
+  const paths: string[] = []
+  page.on('request', (r) => paths.push(decodeURIComponent(new URL(r.url()).pathname)))
   await query.fill('../../v1/tasks')
   await page.getByRole('button', {name: 'Fetch'}).click()
-  await expect(page.getByRole('alert')).toContainText('A query is a type')
+  await expect(page.getByRole('alert')).toContainText('expected an expression')
+  expect(paths.filter((p) => p.includes('/v1/tasks'))).toEqual([])
 
   // The user menu: appearance as radios with icons (J45 checks the switching).
   await page.locator('#user-menu').click()

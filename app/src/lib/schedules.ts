@@ -20,6 +20,16 @@ const fetchSchedule = createServerFn({method: 'GET'})
 export const scheduleQuery = (id: string, type: string) =>
   queryOptions({queryKey: ['schedule', id], staleTime: 10_000, queryFn: () => fetchSchedule({data: {id, type}})})
 
+// The Releases tool's Scheduled drafts (Sanity's): every schedule in the dataset, any status.
+const fetchAllSchedules = createServerFn({method: 'GET'}).handler(async () => {
+  const res = await bpFetch(`/v1/data/schedules/${dataset()}?status=all`)
+  if (res.status === 404) return {supported: false, schedules: [] as Schedule[]}
+  if (!res.ok) throw new Error(`Could not read the schedules (${res.status})`)
+  return {supported: true, schedules: ((await res.json()) as {result?: {schedules?: Schedule[]}}).result?.schedules ?? []}
+})
+
+export const schedulesQuery = queryOptions({queryKey: ['schedules'], staleTime: 0, queryFn: () => fetchAllSchedules()})
+
 /** Why Barkpark refused, in its words (422 "publishAt must be in the future", 409 one is already set). */
 async function refusal(res: Response, what: string) {
   const body = (await res.json().catch(() => null)) as {error?: {message?: string}} | null

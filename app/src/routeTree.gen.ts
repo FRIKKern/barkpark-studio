@@ -15,6 +15,7 @@ import { Route as HealthRouteImport } from './routes/health'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MediaRouteImport } from './routes/media'
 import { Route as PresentationRouteImport } from './routes/presentation'
+import { Route as ReleasesRouteImport } from './routes/releases'
 import { Route as VisionRouteImport } from './routes/vision'
 import { Route as ApiE2eListenRouteImport } from './routes/api/e2e-listen'
 import { Route as ApiListenRouteImport } from './routes/api/listen'
@@ -69,6 +70,11 @@ const MediaRoute = MediaRouteImport.update({
 const PresentationRoute = PresentationRouteImport.update({
   id: '/presentation',
   path: '/presentation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReleasesRoute = ReleasesRouteImport.update({
+  id: '/releases',
+  path: '/releases',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VisionRoute = VisionRouteImport.update({
@@ -204,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
   '/presentation': typeof PresentationRoute
+  '/releases': typeof ReleasesRoute
   '/vision': typeof VisionRoute
   '/api/e2e-listen': typeof ApiE2eListenRoute
   '/api/listen': typeof ApiListenRoute
@@ -237,6 +244,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
   '/presentation': typeof PresentationRoute
+  '/releases': typeof ReleasesRoute
   '/vision': typeof VisionRoute
   '/api/e2e-listen': typeof ApiE2eListenRoute
   '/api/listen': typeof ApiListenRoute
@@ -271,6 +279,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
   '/presentation': typeof PresentationRoute
+  '/releases': typeof ReleasesRoute
   '/vision': typeof VisionRoute
   '/api/e2e-listen': typeof ApiE2eListenRoute
   '/api/listen': typeof ApiListenRoute
@@ -306,6 +315,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/media'
     | '/presentation'
+    | '/releases'
     | '/vision'
     | '/api/e2e-listen'
     | '/api/listen'
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/media'
     | '/presentation'
+    | '/releases'
     | '/vision'
     | '/api/e2e-listen'
     | '/api/listen'
@@ -372,6 +383,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/media'
     | '/presentation'
+    | '/releases'
     | '/vision'
     | '/api/e2e-listen'
     | '/api/listen'
@@ -406,6 +418,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MediaRoute: typeof MediaRoute
   PresentationRoute: typeof PresentationRoute
+  ReleasesRoute: typeof ReleasesRoute
   VisionRoute: typeof VisionRoute
   ApiE2eListenRoute: typeof ApiE2eListenRoute
   ApiListenRoute: typeof ApiListenRoute
@@ -475,6 +488,13 @@ declare module '@tanstack/react-router' {
       path: '/presentation'
       fullPath: '/presentation'
       preLoaderRoute: typeof PresentationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/releases': {
+      id: '/releases'
+      path: '/releases'
+      fullPath: '/releases'
+      preLoaderRoute: typeof ReleasesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/vision': {
@@ -662,6 +682,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MediaRoute: MediaRoute,
   PresentationRoute: PresentationRoute,
+  ReleasesRoute: ReleasesRoute,
   VisionRoute: VisionRoute,
   ApiE2eListenRoute: ApiE2eListenRoute,
   ApiListenRoute: ApiListenRoute,
