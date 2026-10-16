@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 140 changes, 4 tasks closed
+- **Today** · 141 changes, 4 tasks closed
+  - Media at 320 px: the toolbar wraps under its search, Upload in reach ([#788](https://github.com/FRIKKern/barkpark-studio/pull/788))
   - Body: keys typed right after the first click go where the click put the caret ([#787](https://github.com/FRIKKern/barkpark-studio/pull/787))
-  - Vision at 320 px: one column scrolled down, not the page sideways ([#786](https://github.com/FRIKKern/barkpark-studio/pull/786))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
