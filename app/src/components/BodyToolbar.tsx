@@ -256,12 +256,16 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
               <Ellipsis />
             </button>
             {moreMenu === which && (
-              <MenuPopover onClose={() => setMoreMenu(null)}>
-                {rest.map((tool) => (
-                  <button key={tool.key} type="button" role={tool.pressed === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={tool.pressed} className="menu-item body-more-item" disabled={tool.disabled} onClick={() => (setMoreMenu(null), tool.run())}>
-                    {tool.icon}
-                    <span>{tool.label}</span>
-                  </button>
+              <MenuPopover centered onClose={() => setMoreMenu(null)}>
+                {rest.map((tool, i) => (
+                  <Fragment key={tool.key}>
+                    {/* Sanity's: a rule between the groups (lists | links) */}
+                    {tool.sep && i > 0 && <hr />}
+                    <button type="button" role={tool.pressed === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={tool.pressed} className="menu-item body-more-item" disabled={tool.disabled} onClick={() => (setMoreMenu(null), tool.run())}>
+                      {tool.icon}
+                      <span>{tool.label}</span>
+                    </button>
+                  </Fragment>
                 ))}
               </MenuPopover>
             )}

@@ -1902,8 +1902,10 @@ body > .bp-canvas-image-menu .bp-block-menu__item--danger svg { color: var(--men
 .body-insert { font-weight: 500; color: var(--menu-fg); } /* Sanity's: 500, #383d51, its icon muted */
 .body-tool-slot { display: inline-flex; flex: none; }
 /* Sanity's fold: the tools that don't fit sit in a "Show more" menu at their group's end. */
-.body-more-item { display: flex; align-items: center; gap: 8px; }
-.body-more-item svg { width: 21px; height: 21px; flex: none; }
+/* Sanity's Show more: as wide as its rows, 33 px each, the icon 6 px in and the words 33 (post-01 Body at 1440). */
+.body-more-wrap .popover.menu { min-width: 0; }
+.body-more-item { display: flex; align-items: center; gap: 6px; padding-left: 6px; }
+.body-more-item svg { width: 21px; height: 21px; flex: none; margin: -1px 0; }
 .body-more-item[aria-checked='true'] { background: var(--hover); }
 .body-more-wrap > .body-link { left: auto; right: 0; }
 .body-link { position: absolute; top: 100%; left: 0; z-index: 30; padding: 4px; width: 260px; }
