@@ -1609,7 +1609,8 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
   content: ''; width: 25px; height: 25px; background: currentColor;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25'%3E%3Cpath d='M6.5 11a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z'/%3E%3C/svg%3E") center / 25px 25px no-repeat;
 }
-.body-canvas[data-expanded] bp-paper-canvas { padding-left: 40px; }
+/* Sanity's expanded body (measured at 1440): its text in a centred 640 px column, 32 px in, the first block 43 px under the bar. */
+.body-canvas[data-expanded] bp-paper-canvas { display: block; box-sizing: border-box; max-width: 640px; margin: 0 auto; padding: 31px 20px 0; } /* + the editor's own 12 px */
 .body-canvas .bp-paper-editor-body :is(h1, h2, h3, h4, h5, h6) { font-family: inherit; font-weight: 700; color: var(--fg-strong); line-height: 1.25; margin: 16px 0 8px; }
 .body-canvas .bp-paper-editor-body h1 { font-size: 28px; }
 .body-canvas .bp-paper-editor-body h2 { font-size: 22px; }
@@ -1625,7 +1626,9 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .body-expand { width: 25px; height: 25px; }
 /* F12: a 44 px tap target on phones and tablets (Sanity's is 25 px; the bar is ours). */
 @media (max-width: 768px) { .body-bar { height: 44px; padding: 0; } .body-expand { width: 44px; height: 44px; } }
-.body-canvas[data-expanded] { background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 16px 40px var(--shadow); display: flex; flex-direction: column; }
+/* Flush over the pane's card area, no frame, its bar 41 px (8 px round the buttons), as Sanity's. */
+.body-canvas[data-expanded] { background: var(--bg); box-shadow: none; border-radius: 1px; display: flex; flex-direction: column; }
+.body-canvas[data-expanded] .body-bar { height: 41px; padding: 0 8px; }
 .body-canvas[data-expanded] .pd-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .body-canvas[data-expanded] .pd-canvas { flex: 1; min-height: 0; overflow: auto; }
 

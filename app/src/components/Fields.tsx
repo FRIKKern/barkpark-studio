@@ -977,7 +977,7 @@ function caretIn(el: HTMLElement | null, offset: number): {node: Node; offset: n
   return last ? {node: last, offset: last.length} : {node: el, offset: 0}
 }
 
-/** Where an expanded body sits: over its document pane's body, kept in step as it resizes. */
+/** Where an expanded body sits: flush over its document pane's body (Sanity's), kept in step as it resizes. */
 function useExpandArea(box: RefObject<HTMLDivElement | null>, on: boolean) {
   const [area, setArea] = useState<CSSProperties>()
   useLayoutEffect(() => {
@@ -986,7 +986,7 @@ function useExpandArea(box: RefObject<HTMLDivElement | null>, on: boolean) {
     if (!pane) return
     const place = () => {
       const r = pane.getBoundingClientRect()
-      setArea({position: 'fixed', top: r.top + 8, left: r.left + 8, width: r.width - 16, height: r.height - 16, zIndex: 40})
+      setArea({position: 'fixed', top: r.top, left: r.left, width: r.width, height: r.height, zIndex: 40})
     }
     place()
     const ro = new ResizeObserver(place)
