@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 133 changes, 4 tasks closed
+- **Today** · 134 changes, 4 tasks closed
+  - Field actions menu as Sanity's: to the right of the ⋯, centred on it, as wide as its items; above it when the pane has no room ([#782](https://github.com/FRIKKern/barkpark-studio/pull/782))
   - Document and Help menu icons as Sanity's: task, restore, sync, json, earth-americas and feedback ([#781](https://github.com/FRIKKern/barkpark-studio/pull/781))
-  - Vision runs GROQ, as Sanity's, through Barkpark's GROQ read ([#780](https://github.com/FRIKKern/barkpark-studio/pull/780))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
