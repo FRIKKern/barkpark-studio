@@ -1,8 +1,9 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useFocusScope} from '../lib/focus-scope'
-import {Calendar, ChevronLeft, ChevronRight, ChevronDown} from './icons'
+import {Calendar, ChevronLeft, ChevronRight, ChevronDown, EarthGlobe} from './icons'
 import {intlTag, useLocale, useT, type Locale} from '../lib/i18n'
 import {formatDate, parseDate} from '../lib/date-format'
+import {localZone, zoneLongName, zoneShort} from '../lib/timezone'
 
 // Sanity's date-time input (J31): a text field in local time ("2026-09-06 11:00")
 // that commits on blur or Enter when it parses (half-typed dates never land), plus a calendar popover — month select, year
@@ -35,7 +36,7 @@ const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), 
  * `min`, `notice`: Sanity's schedule dialog (task-7821e8da66b7d5a9): the days before `min`
  * can't be picked, and `notice` heads the open calendar ("Select a date in the future.").
  */
-export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, options = {}, placeholder, calendarLabel, min, notice, autoFocus}: {id: string; value: string | undefined; onChange: (v: unknown) => void; readOnly?: boolean; dateOnly?: boolean; options?: DateOptions; placeholder?: string; calendarLabel?: string; min?: Date; notice?: string; autoFocus?: boolean}) {
+export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, options = {}, placeholder, calendarLabel, min, notice, autoFocus, showZone}: {id: string; value: string | undefined; onChange: (v: unknown) => void; readOnly?: boolean; dateOnly?: boolean; options?: DateOptions; placeholder?: string; calendarLabel?: string; min?: Date; notice?: string; autoFocus?: boolean; showZone?: boolean}) {
   const t = useT()
   const format = dateOnly ? (options.dateFormat ?? STORED_DATE) : `${options.dateFormat ?? STORED_DATE} ${options.timeFormat ?? 'HH:mm'}`
   const formatLocal = (d: Date) => formatDate(d, format)
@@ -97,6 +98,7 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
           timeStep={options.timeStep}
           min={min}
           notice={notice}
+          showZone={showZone}
           onPick={(d) => commit(d)}
           onClose={() => (setOpen(false), button.current?.focus())}
         />
@@ -105,7 +107,7 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
   )
 }
 
-function DatePicker({value, dateOnly, timeStep = 1, min, notice, onPick, onClose}: {value?: Date; dateOnly: boolean; timeStep?: number; min?: Date; notice?: string; onPick: (d: Date) => void; onClose: () => void}) {
+function DatePicker({value, dateOnly, timeStep = 1, min, notice, showZone, onPick, onClose}: {value?: Date; dateOnly: boolean; timeStep?: number; min?: Date; notice?: string; showZone?: boolean; onPick: (d: Date) => void; onClose: () => void}) {
   const t = useT()
   const locale = useLocale()
   const [focused, setFocused] = useState(() => value ?? new Date())
@@ -249,6 +251,12 @@ function DatePicker({value, dateOnly, timeStep = 1, min, notice, onPick, onClose
         >
           {t('Set to current time')}
         </button>
+        {/* Sanity's schedule calendar names the zone its times are in: this computer's. */}
+        {showZone && (
+          <span className="dp-zone" title={zoneLongName(localZone())}>
+            <EarthGlobe /> {zoneShort(localZone())}
+          </span>
+        )}
       </div>}
     </div>
   )

@@ -31,6 +31,7 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
     await dialog.getByRole('button', {name: 'Select date'}).click()
     const calendar = page.getByRole('dialog', {name: 'Select date'})
     await expect(calendar.getByRole('alert')).toHaveText('Select a date in the future.')
+    await expect(calendar.locator('.dp-zone')).toHaveText(/^\s*(GMT([+-]\d+)?|UTC|[A-Z]{3,5})$/)
     const yesterday = new Date(Date.now() - 86_400_000)
     if (yesterday.getMonth() === new Date().getMonth()) await expect(calendar.getByLabel(yesterday.toDateString())).toBeDisabled()
     await page.keyboard.press('Escape')
