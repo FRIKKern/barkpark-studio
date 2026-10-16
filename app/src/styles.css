@@ -16,7 +16,8 @@
   --muted: #515870;
   --border: #e3e4e8; /* Sanity's one light hairline, measured: navbar, pane header, chips, the perspective pill, a filled file, an array, the quote rule */
   --hover: #f2f3f5;
-  --icon-btn-hover: #f6f6f8; /* Sanity's icon button under the pointer: fill and glyph (measured) */
+  --icon-btn-hover: #f6f6f8; /* Sanity's icon button under the pointer: fill and glyph (measured); its tabs' fill too */
+  --card-hover: #f6f6f8; /* a row, desk item or Locations page under the pointer (Sanity's, measured) */
   --icon-btn-hover-fg: #636570;
   --hover-strong: #e9eaee;
   --selected-fill: #eeeef1; /* Sanity's selected tab and chip fill (measured, light) */
@@ -176,6 +177,7 @@
   --border: #2a2d3f;
   --hover: #21232f;
   --icon-btn-hover: #21232f;
+  --card-hover: #191a24;
   --icon-btn-hover-fg: #9193a0;
   --hover-strong: #2a2d3f;
   --selected-fill: #2a2d3f;
@@ -416,7 +418,7 @@ a { color: inherit; text-decoration: none; }
   display: flex; align-items: center; margin: 0 12px 4px; padding: 7px 8px; border-radius: 3px;
   font-size: 13px; line-height: 19px; font-weight: 500; height: 33px;
 }
-.type-row:hover { background: var(--hover); }
+.type-row:hover { background: var(--card-hover); }
 .type-row-static { color: var(--muted); cursor: default; }
 .type-row-static:hover { background: none; }
 .type-row .chev { margin-left: auto; margin-right: -2px; color: var(--muted); } /* 6 px from the edge, as Sanity's */
@@ -443,7 +445,7 @@ a { color: inherit; text-decoration: none; }
   display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 3px; min-height: 49px; margin-bottom: 4px;
   font-size: 13px; line-height: 19px;
 }
-a.preview:hover { background: var(--hover); }
+a.preview:hover { background: var(--card-hover); }
 .preview[data-selected], a.preview[data-selected]:hover { background: var(--hover-strong); }
 .preview[aria-current='true'], a.preview[aria-current='true']:hover { background: var(--selected); color: var(--on-selected); }
 .preview .media {
@@ -506,7 +508,7 @@ a.preview:hover { background: var(--hover); }
 .view-tabs { display: flex; gap: 4px; margin-left: -8px; }
 /* Sanity's view tabs (Editor | JSON, measured at 1440 light and dark): medium weight, muted words. */
 .view-tabs [role=tab] { font: inherit; font-size: 13px; font-weight: 500; padding: 3px 8px; border: 0; border-radius: 3px; background: none; color: var(--icon-muted); cursor: pointer; }
-.view-tabs [role=tab]:hover { background: var(--hover); }
+.view-tabs [role=tab]:hover { background: var(--icon-btn-hover); }
 .view-tabs [role=tab][aria-selected='true'] { background: var(--selected-fill); color: var(--tab-selected-fg); }
 .json-view { margin: 0; padding: 16px; font-size: 13px; }
 .view-tabs [role=tab]:has(svg) { display: inline-flex; align-items: center; gap: 2px; padding-left: 4px; }
@@ -917,7 +919,7 @@ button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .group-tabs [role=tab] { display: inline-flex; align-items: center; font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; padding: 3px 8px; border: 0; border-radius: 3px; background: none; color: var(--icon-muted); cursor: pointer; }
 .group-tabs [role=tab] .error-icon { margin: -1px -6px -1px 6px; }
 .group-tabs [role=tab] .error-icon svg { width: 21px; height: 21px; }
-.group-tabs [role=tab]:hover { background: var(--hover); }
+.group-tabs [role=tab]:hover { background: var(--icon-btn-hover); }
 .group-tabs [role=tab][aria-selected='true'] { background: var(--selected-fill); color: var(--tab-selected-fg); }
 .group-tabs .group-icon { margin: -3px 4px -3px 0; vertical-align: middle; }
 .group-tabs [role=tab]:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--selected); }
@@ -1416,7 +1418,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 /* Object arrays (J33), after Sanity's: preview rows that open an item dialog over the pane. Rows as a
    reference array's (measured at 1440): 59 px, the preview 49 px with 8 px round a 33 px tile, a 13 px title. */
 .array-item-preview { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 0; border-radius: 3px; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg); }
-.array-item-preview:hover { background: var(--hover); }
+.array-item-preview:hover { background: var(--card-hover); }
 .array-item-preview .media { flex: none; display: grid; place-items: center; width: 33px; height: 33px; border-radius: 2px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); color: var(--muted); }
 .array-item-preview .media > svg { width: 21px; height: 21px; }
 .array-item-preview .text { display: flex; flex-direction: column; min-width: 0; margin: -1.5px 0; font-size: 13px; line-height: 19px; } /* two lines overhang the tile, as Sanity's */
@@ -2456,12 +2458,13 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .doc-form h1:has(+ .locations-banner) { margin-bottom: 49px; }
 .locations-banner + .group-tabs-root .group-tabs { margin-top: 29px; }
 .locations-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 8px 8px 6px; border: 0; border-radius: 3px; background: none; font: inherit; font-weight: 500; color: var(--fg); text-align: left; cursor: pointer; }
-.locations-banner[data-open] .locations-toggle { background: var(--hover); }
+/* Sanity's toggle fills only under the pointer, open or closed. */
+.locations-toggle:hover:not(:disabled) { background: var(--card-hover); }
 .locations-toggle:disabled { cursor: default; }
 .locations-banner ul { list-style: none; margin: 0; padding: 4px 0 0; display: grid; gap: 4px; }
 /* Sanity's location card: 50 px, its 21 px icon 6 px in, the title medium over the path. */
 .locations-banner .location { display: flex; gap: 6px; padding: 7px 6px; border-radius: 3px; color: var(--fg); text-decoration: none; line-height: 19px; }
-.locations-banner .location:hover { background: var(--hover); }
+.locations-banner .location:hover { background: var(--card-hover); }
 /* In Presentation: the page the preview shows (Sanity's pressed card). */
 .locations-banner .location[data-shown] { background: var(--pressed-card); }
 .locations-banner .location svg { flex: none; width: 21px; height: 21px; margin-top: -1px; }

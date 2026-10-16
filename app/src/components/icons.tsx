@@ -226,10 +226,10 @@ export const WarningOutline = () => (
     <path d="M12.5 10.5v4M12.5 16v1" />
   </svg>
 )
+/** Sanity's DesktopIcon. */
 export const Desktop = () => (
   <svg {...s}>
-    <rect x="5.5" y="6.5" width="14" height="9" rx="1" />
-    <path d="M10 19.5h5M12.5 15.5v4" />
+    <path d="M4.5 13.5V15.5C4.5 16.05 4.95 16.5 5.5 16.5H12.5M4.5 13.5V6.5C4.5 5.95 4.95 5.5 5.5 5.5H19.5C20.05 5.5 20.5 5.95 20.5 6.5V13.5M4.5 13.5H20.5M20.5 13.5V15.5C20.5 16.05 20.05 16.5 19.5 16.5H12.5M12.5 16.5V19.5M12.5 19.5H8M12.5 19.5H17" />
   </svg>
 )
 export const Moon = () => (
