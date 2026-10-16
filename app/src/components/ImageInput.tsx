@@ -102,7 +102,8 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   )
 
   return (
-    <div className="image-input" id={id}>
+    // With fields of its own (alt, caption) Sanity draws the image as an object: a rule on the left, all inside it.
+    <div className="image-input" id={id} data-fields={field.fields?.length ? '' : undefined}>
       <input ref={file} type="file" accept="image/*" hidden onChange={(e) => (e.target.files?.[0] && upload(e.target.files[0]), (e.target.value = ''))} />
       {uploading ? (
         <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />
