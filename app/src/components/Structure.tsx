@@ -7,7 +7,7 @@ import {deskIndex, deskSort, listFilter, rootDesk, unsupportedOps, type DeskNode
 import {usePublishedPerspective} from '../lib/perspective'
 import {announce} from '../lib/announce'
 import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
-import {collapsed, NARROW, NarrowContext} from '../lib/layout'
+import {collapsed, NARROW, NarrowContext, OpenedPanesContext} from '../lib/layout'
 import {useLive} from '../lib/live'
 import {flushOnUnload} from '../lib/edits'
 import {choicesFor, startNew, templateChoice, type Choice} from '../lib/templates'
@@ -92,6 +92,14 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
     width,
     focusIndex,
   )
+  const chain = useRef({path: '', keys: [] as string[]})
+  const opened = useRef(new Set<string>())
+  if (chain.current.path !== path) {
+    const keys = panes.map((p, i) => paneKey(p) + i)
+    opened.current = new Set(keys.filter((k) => !chain.current.keys.includes(k)))
+    chain.current = {path, keys}
+  }
+  useEffect(() => void (opened.current = new Set()), [path])
   const previousPath = useRef(path)
   useIsoLayoutEffect(() => {
     const moved = previousPath.current !== path
@@ -121,6 +129,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
   const focusCtx = useMemo(() => ({focused, toggle: (i: number) => setFocusMode(focused === i ? null : {path, index: i})}), [focused, path])
   return (
     <NarrowContext.Provider value={narrow}>
+      <OpenedPanesContext.Provider value={opened}>
       <FocusModeContext.Provider value={focusCtx}>
       <main className="panes" ref={ref} data-testid="panes" data-narrow={narrow ? '' : undefined} data-focus-mode={focused !== null ? '' : undefined}>
         <TabTitle pane={panes[panes.length - 1]} />
@@ -145,6 +154,7 @@ export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}
         {!narrow && focused === null && panes[panes.length - 1].kind !== 'doc' && <div className="pane filler" />}
       </main>
       </FocusModeContext.Provider>
+      </OpenedPanesContext.Provider>
     </NarrowContext.Provider>
   )
 }

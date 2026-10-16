@@ -1,3 +1,6 @@
+// Docs whose first field focusFirstField is placing the caret in: their pane leaves focus to it.
+const placing = new Set<string>()
+
 /**
  * Put the caret in a doc pane's first field once that pane has mounted: the Classic
  * form's first input, or the canvas's first block (D04; the canvas mounts after the
@@ -14,7 +17,8 @@ export function focusFirstField(id: string, ms = 30_000) {
   const takeOver = () => (took = true)
   addEventListener('keydown', takeOver, {capture: true, once: true})
   addEventListener('pointerdown', takeOver, {capture: true, once: true})
-  const done = () => (removeEventListener('keydown', takeOver, {capture: true}), removeEventListener('pointerdown', takeOver, {capture: true}))
+  placing.add(id)
+  const done = () => (placing.delete(id), removeEventListener('keydown', takeOver, {capture: true}), removeEventListener('pointerdown', takeOver, {capture: true}))
   const place = (pane: Element): boolean => {
     // The first field's, not the field-group select (J14) above the fields.
     const input = pane.querySelector<HTMLElement>('.doc-form .input:not(.group-select .input)')
@@ -40,4 +44,51 @@ export function focusFirstField(id: string, ms = 30_000) {
     requestAnimationFrame(tick)
   }
   tick()
+}
+
+const TABBABLE = 'a[href], button, input, select, textarea, [tabindex], [contenteditable=true]'
+/**
+ * Sanity moves focus into a document's form as it becomes ready (its FormView's
+ * focusFirstDescendant): the first thing in it that takes focus, "All fields" (a group
+ * tab Tab itself skips) or the first field's actions. Not the "Used on N pages" banner: Sanity's arrives after its focus
+ * moved. Focus that is already in the pane (a field from `path=`, focusFirstField),
+ * in a box being typed in (the list search), or in a dialog or menu stays; a key or a
+ * click, or focus going elsewhere, while the form is still drawing cancels it.
+ * Returns the cleanup.
+ */
+export function focusIntoForm(pane: HTMLElement, id: string, ms = 5_000): () => void {
+  const first = () =>
+    [...pane.querySelectorAll<HTMLElement>(`.doc-form :is(${TABBABLE})`)].find(
+      (e) => (e.tabIndex >= 0 || e.matches('a[href], button, input, select, textarea')) && !(e as HTMLButtonElement).disabled && !e.closest('.locations-banner, [hidden]') && e.getClientRects().length > 0,
+    )
+  const stays = () => {
+    if (placing.has(id)) return true
+    const a = document.activeElement as HTMLElement | null
+    if (!a || a === document.body || a === pane) return false
+    return pane.contains(a) || a.matches('input, textarea, select') || a.isContentEditable || !!a.closest('[role=dialog], [role=menu], [role=listbox]')
+  }
+  const place = () => {
+    if (stays()) return true
+    const el = first()
+    el?.focus({preventScroll: true})
+    return !!el
+  }
+  if (place()) return () => {}
+  let cancelled = false
+  const cancel = () => (cancelled = true)
+  const left = (e: FocusEvent) => !pane.contains(e.target as Node) && cancel()
+  addEventListener('keydown', cancel, {capture: true})
+  addEventListener('pointerdown', cancel, {capture: true})
+  addEventListener('focusin', left, {capture: true})
+  const observer = new MutationObserver(() => (cancelled || place()) && stop())
+  const timer = setTimeout(() => stop(), ms)
+  const stop = () => {
+    observer.disconnect()
+    clearTimeout(timer)
+    removeEventListener('keydown', cancel, {capture: true})
+    removeEventListener('pointerdown', cancel, {capture: true})
+    removeEventListener('focusin', left, {capture: true})
+  }
+  observer.observe(pane, {childList: true, subtree: true})
+  return stop
 }

@@ -62,6 +62,11 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 02')
   await expect(page).toHaveTitle(/^Fixture post 02 \| /)
   expect(await strips(page)).toEqual([false, false, false])
+  // The opened doc takes focus, as Sanity's does once its form is ready: its first
+  // group tab, four Tabs from the title.
+  await expect(page.getByRole('tab', {name: 'All fields'})).toBeFocused()
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Tab')
+  await expect(t.field(page, 'title')).toBeFocused()
   await referenceHold(page, t.field(page, 'title'), 'Fixture post 02')
 
   if (t.name === 'studio') {
