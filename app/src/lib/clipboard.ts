@@ -33,12 +33,33 @@ export function signature(f: Field): string {
   }
 }
 
-/** Does `value` (copied as `sig`) fit field `f`? Select lists also need the value to be one of their options. */
-export function fits(sig: string, value: unknown, f: Field): boolean {
-  if (sig !== signature(f)) return false
-  if (f.type !== 'select' || value == null) return true
-  const raw = (Array.isArray(f.options) ? f.options : (f.options as {list?: unknown[]})?.list) ?? []
-  return raw.some((o) => (o && typeof o === 'object' ? (o as {value: unknown}).value : o) === value)
+/**
+ * What a copied `item` pastes as in field `f` (now holding `current`), as Sanity's transferValue,
+ * or why it can't, in Sanity's words. A number goes into text as its digits (Count 3 -> Title '3'),
+ * and a number or text into a list of strings as one more item; a select takes only its options.
+ */
+export function transfer(item: ClipField, f: Field, current: unknown): {value: unknown} | {why: string} {
+  const target = signature(f)
+  let {sig, value, append} = item
+  if (['number', 'integer', 'float'].includes(sig) && (target === 'string' || target === 'array:string')) (sig = 'string'), (value = String(value))
+  if (sig === 'string' && target === 'array:string') (sig = target), (value = [value]), (append = true)
+  if (sig !== target) return {why: mismatch(sig, value, target)}
+  const raw = f.type === 'select' ? ((Array.isArray(f.options) ? f.options : (f.options as {list?: unknown[]})?.list) ?? []) : []
+  const allowed = raw.map((o) => (o && typeof o === 'object' ? (o as {value: unknown}).value : o))
+  if (f.type === 'select' && value != null && !allowed.includes(value)) return {why: t('Value "{value}" is not allowed in "{list}"', {value: String(value), list: allowed.join(',')})}
+  return {value: append ? [...(Array.isArray(current) ? current : []), ...rekeyed(value as unknown[])] : value}
+}
+
+function mismatch(sig: string, value: unknown, target: string): string {
+  const [from, to] = [sig.split(':'), target.split(':')]
+  if (from[0] === 'reference' && to[0] === 'reference')
+    return t('References of type "{source}" is not allowed in reference field that accepts types "{target}"', {source: from[1]!.split(',').join(', '), target: to[1]!.split(',').join(', ')})
+  if (from[0] === 'array' && to[0] === 'array') {
+    const first = (value as unknown[])[0]
+    const type = first && typeof first === 'object' ? ((first as {_type?: string})._type ?? 'object') : typeof first
+    return t('Value of type "{type}" is not allowed in this array field', {type})
+  }
+  return t('Source and target schema types are not compatible')
 }
 
 const asText = (v: unknown): string =>

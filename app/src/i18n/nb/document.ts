@@ -100,7 +100,6 @@ export default {
   'No preview': 'Ingen forhåndsvisning',
   '{action} failed': '{action} feilet',
   '{action} started': '{action} er startet',
-  'Copy a document first': 'Kopier et dokument først',
   'Copy document': 'Kopier dokument',
   'Copy document ID': 'Kopier dokument-ID',
   'Copy document URL': 'Kopier dokumentets URL',

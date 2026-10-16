@@ -110,3 +110,23 @@ test('J29: a copied array item pastes onto the end of a Links array', async ({pa
     await t.deleteDoc(id, 'post')
   }
 })
+
+// Sanity's transferValue: a number pastes into text as its digits; a select refuses a value off its list, saying so.
+test('J29: a copied number pastes into a text field; a select names the value it refuses', async ({page}, info) => {
+  const t = target(info)
+  const id = `ft-paste-${Date.now().toString(36)}`
+  await t.draftOnly(id, 'fieldTypes', {title: 'Paste probe', count: 3})
+  try {
+    await t.prepare(page.context())
+    await page.goto(t.docPath('fieldTypes', id))
+    await t.settle(page)
+    await fieldMenu(t, page, 'count', 'Copy field')
+    await fieldMenu(t, page, 'title', 'Paste field')
+    await expect(t.field(page, 'title')).toHaveValue('3')
+    await fieldMenu(t, page, 'title', 'Copy field')
+    await fieldMenu(t, page, 'choice', 'Paste field')
+    await expect(page.getByText('Value "3" is not allowed in "a,b,c"')).toBeVisible()
+  } finally {
+    await t.deleteDoc(id, 'fieldTypes')
+  }
+})
