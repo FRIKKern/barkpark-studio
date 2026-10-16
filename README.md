@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 101 changes, 4 tasks closed
+- **Today** · 102 changes, 4 tasks closed
+  - Body toolbar as Sanity's: disabled until focus is in the field, its 120 px style button in 500 with a muted chevron, the current style left enabled ([#749](https://github.com/FRIKKern/barkpark-studio/pull/749))
   - Barkpark's server faults in plain words, not "unknown error (Postgrex.Error)" ([#747](https://github.com/FRIKKern/barkpark-studio/pull/747))
-  - fix(edits): long typing's first minute stays at 80 writes (gap 834 ms); a short edit still goes at once ([#746](https://github.com/FRIKKern/barkpark-studio/pull/746))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
