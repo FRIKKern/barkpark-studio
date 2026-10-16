@@ -57,6 +57,8 @@ test('@local J47: the list, a list search and validation are announced', async (
   await signInIfAsked(page)
   await t.settle(page)
   const heard = page.getByTestId('announcer')
+  // The announcer sits inside the page: the page itself never scrolls, as Sanity's.
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(await page.evaluate(() => innerHeight))
   await page.locator('a[href="/structure/post"]').click()
   await expect(heard).toHaveText(`Post, ${await seededCount(t, 'post')} documents`)
   await expect(page.getByRole('region', {name: 'Post'})).toBeVisible()
