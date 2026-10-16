@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 3 changes, 3 tasks closed
-  - perf(server): keep Barkpark connections alive between page opens; list prefs ride the schemas round trip ([#649](https://github.com/FRIKKern/barkpark-studio/pull/649))
-  - Rich text body: Sanity's fixed 306 px box that scrolls inside and drags to resize ([#648](https://github.com/FRIKKern/barkpark-studio/pull/648))
+- **Today** · 5 changes, 3 tasks closed
+  - J40: Pause to edit pauses the schedule, as Sanity's; Schedule reactivates it ([#573](https://github.com/FRIKKern/barkpark-studio/pull/573))
+  - e2e(field-types): put back the document-fieldset check now that Barkpark keeps top-level fieldsets ([#650](https://github.com/FRIKKern/barkpark-studio/pull/650))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
