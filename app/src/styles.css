@@ -1220,7 +1220,9 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 fieldset.object-field > .field-actions { top: -38px; }
 .field:is(:hover, :focus-within) > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
 .field-actions .icon-btn { width: 25px; height: 25px; } /* Sanity's: level with the label, touching Add comment */
-.field-actions .popover.menu { top: 29px; right: 0; min-width: 160px; }
+/* Sanity's: to the right of the ⋯, centred on it, as wide as its items (116 px for Copy / Paste field at 1440). */
+.field-actions .popover.menu { top: 50%; left: calc(100% + 4px); right: auto; translate: 0 -50%; min-width: 0; }
+.field-actions .popover.menu[data-side='top'] { top: auto; bottom: calc(100% + 4px); left: 50%; translate: -50% 0; } /* no room on the right (1100 px wide): above, centred */
 
 /* Toasts, after Sanity's: bottom right, title + one line */
 /* Sanity's stack and toast (measured at 1440): 12 px apart; a title-only toast 34 px, the title 12, 7 in on a 19 px line, the time bar its last 2 px. */
