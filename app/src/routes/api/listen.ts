@@ -28,7 +28,9 @@ export const Route = createFileRoute('/api/listen')({
             // resumed=1: the first stream of a server-rendered page (not a reconnect, which sends Last-Event-ID).
             const resumed = q.get('resumed') === '1' && !request.headers.get('last-event-id')
             const unsubscribe = subscribe(token, ids, types, send, Number.isFinite(since) ? since : undefined, resumed)
-            const ping = setInterval(() => send(': ping\n\n'), 15_000)
+            // A named event, not a comment: EventSource hands comments to no one, and the
+            // page needs to hear the stream is alive (lib/live.ts reopens a quiet one).
+            const ping = setInterval(() => send('event: ping\ndata: {}\n\n'), 15_000)
             cleanup = () => {
               clearInterval(ping)
               unsubscribe()
