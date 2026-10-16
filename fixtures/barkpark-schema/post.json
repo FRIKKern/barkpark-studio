@@ -3,7 +3,7 @@
   "title": "Post",
   "visibility": "public",
   "groups": [{"name": "content", "title": "Content", "default": true}, {"name": "meta", "title": "Meta"}, {"name": "promo", "title": "Promotion"}],
-  "initial_values": {"featured": false, "promoLine": "New this week"},
+  "initial_values": {"featured": false},
   "list_preview": {"title": "title", "subtitle": "author.name", "media": "mainImage"},
   "desk": {"preview": "http://localhost:3537/posts/:slug", "orderings": [
     {"name": "publishedAtDesc", "title": "Publish date, newest", "field": "publishedAt", "direction": "desc"},

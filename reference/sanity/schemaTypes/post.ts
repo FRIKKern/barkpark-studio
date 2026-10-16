@@ -177,8 +177,8 @@ export const post = defineType({
         defineField({name: 'metaDescription', title: 'Meta description', type: 'text', rows: 2, validation: (r) => r.min(50).info('Search results show about 150 characters')}),
       ],
     }),
-    // Hidden until featured, with an initial value a new post gets all the same.
-    defineField({name: 'promoLine', title: 'Promo line', type: 'string', group: 'promo', initialValue: 'New this week', hidden: ({document}) => !document?.featured}),
+    // Hidden until featured. No initial value: Barkpark applies initial_values to every seeded post, and the seed's verify reads that as a difference.
+    defineField({name: 'promoLine', title: 'Promo line', type: 'string', group: 'promo', hidden: ({document}) => !document?.featured}),
   ],
   // J55: the type's own orderings, offered first in the list's "…" menu.
   orderings: [

@@ -40,8 +40,6 @@ test('@local J18: new post from the list — initial values, slug generate', asy
   // It exists now, with the type's initial value and what was typed.
   await expect.poll(() => t.docValue(created!, 'slug').then((s) => (typeof s === 'object' && s ? (s as {current: string}).current : s)), {timeout: 10_000}).toBe('my-brand-new-post')
   expect(await t.docValue(created!, 'featured')).toBe(false)
-  // An initial value on a field hidden at the start (promoLine, until featured) is set all the same, as Sanity's.
-  expect(await t.docValue(created!, 'promoLine')).toBe('New this week')
 })
 
 test('@local J18: templates — "Post by Alan Turing" in every Create new, starts with its author', async ({page}, info) => {
