@@ -5,6 +5,7 @@ import {docQuery, type Doc} from '../lib/data'
 import {historyQuery, restoreRevision} from '../lib/history'
 import {deletedPoll, deletedState} from '../lib/deleted'
 import {applyServer, reapply, unsavedFor, useSaveState} from '../lib/edits'
+import {keptAt} from '../lib/kept-words'
 import {openAfter, type Pane} from '../lib/panes'
 import {toast} from './Toasts'
 import {intlTag, t as tt, useLocale, useT} from '../lib/i18n'
@@ -44,11 +45,16 @@ export function DeletedBanner({type, id}: {type: string; id: string}) {
   // J32 widen: what was typed as it was deleted (or kept in this browser since) goes
   // back on top of the restored revision; Sanity loses it.
   const [unsaved, setUnsaved] = useState<Awaited<ReturnType<typeof unsavedFor>>>(null)
+  // A canvas's words (the body) are kept on their own (D21), and its "Put the words back"
+  // offers them once the doc is back (task-89b5c425ca8b4506).
+  const [words, setWords] = useState<number | null>(null)
   useEffect(() => {
     let live = true
     void unsavedFor(id).then((u) => live && setUnsaved(u))
+    setWords(keptAt(type, id))
     return () => void (live = false)
-  }, [id])
+  }, [type, id])
+  const keptSince = Math.max(unsaved?.at ?? 0, words ?? 0)
   // The newest snapshot that is the doc itself, not the delete.
   const last = revisions?.find((r) => r.action !== 'delete')
   const restore = async () => {
@@ -70,7 +76,7 @@ export function DeletedBanner({type, id}: {type: string; id: string}) {
     <div className="pane-banner" role="alert">
       <span>
         {t('This document has been deleted.')}
-        {unsaved && <> {t('Your unsaved edits from {date} are kept in this browser and come back with it.', {date: new Date(unsaved.at).toLocaleTimeString(intlTag(locale), {hour: 'numeric', minute: '2-digit'})})}</>}
+        {keptSince > 0 && <> {t('Your unsaved edits from {date} are kept in this browser and come back with it.', {date: new Date(keptSince).toLocaleTimeString(intlTag(locale), {hour: 'numeric', minute: '2-digit'})})}</>}
       </span>
       {last && (
         <button type="button" className="btn" disabled={busy} onClick={restore}>

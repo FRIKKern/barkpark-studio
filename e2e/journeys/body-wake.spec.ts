@@ -25,10 +25,15 @@ test('J10: keys typed while the body wakes up are all kept', async ({page}, info
   const height = async () => Math.round((await body.boundingBox())!.height)
   expect(await height()).toBe(306)
   await body.click()
-  await page.keyboard.type('XYZZY', {delay: 20}) // at once, before the canvas is up
-  await expect(body.locator('.ProseMirror')).toContainText('XYZZY', {timeout: 15_000})
+  // At once, before the canvas is up; Enter too, which once left a stray line break in
+  // the new paragraph ("Plugh\n": #797, caught only by the @local test below).
+  await page.keyboard.type('XYZZY', {delay: 20})
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Plugh', {delay: 20})
+  await expect(body.locator('.ProseMirror')).toContainText('Plugh', {timeout: 15_000})
   expect(await height()).toBe(306)
-  await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 15_000}).toContain('XYZZY')
+  const lines = async () => (((await t.docValue(ID, 'body')) as {blocks?: {content?: {value?: string}[]}[]} | undefined)?.blocks ?? []).map((b) => (b.content ?? []).map((c) => c.value ?? '').join(''))
+  await expect.poll(async () => (await lines()).join('|'), {timeout: 15_000}).toMatch(/XYZZY\|Plugh(\||$)/)
 })
 
 test('@local J10: Enter while the body wakes is a paragraph break, and another field keeps its own keys', async ({page}, info) => {
@@ -69,7 +74,7 @@ test('@local J10: on a slow computer, End, Enter and text right after the first 
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the wake-up is our read-only body')
   const runs = Number(process.env.WAKE_RUNS ?? 2)
-  test.setTimeout(runs * 30_000 + 30_000)
+  test.setTimeout(runs * 45_000 + 30_000) // a page load at 6x on a busy machine can take 20 s
   await t.prepare(page.context())
   before = await t.docValue(ID, 'body')
   const cdp = await page.context().newCDPSession(page)

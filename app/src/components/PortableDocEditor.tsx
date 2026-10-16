@@ -552,6 +552,10 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       if (caret) reportSelection(id, null)
       unregisterBody?.()
       if (field) bodyHistory(id, type, field, 'clear')
+      // D21: a canvas taken away with words not yet saved keeps them, as leaving the page
+      // does (the document deleted under it takes the form away: task-89b5c425ca8b4506).
+      // The leave effect below runs after this one, when the canvas is already gone.
+      if (refused.current || offline.current || l.saving || canvas.current?.hasPendingChanges()) keepNow()
       canvas.current?.remove()
       canvas.current = null
       setMounted(null)

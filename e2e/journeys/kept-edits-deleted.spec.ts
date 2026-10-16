@@ -1,16 +1,17 @@
 import {expect, test, type Route} from '@playwright/test'
-import {bpMutate, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {bpMutate, canvasFocusSettled, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J32 widen (task-6612fd882f8b8b63): someone deletes the doc while you type. The save
 // that was on its way meets the delete (404); every keystroke is kept, the deleted
 // banner says so, and Restore brings the doc back with them on top. Ours only: Sanity
 // loses them.
 const ID = 'author-kept-at-delete'
+const POST = 'post-kept-at-delete'
 test.setTimeout(60_000)
 
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
-  if (target(info).name === 'studio') await bpMutate([{delete: {id: ID, type: 'author', force: true}}]).catch(() => {})
+  if (target(info).name === 'studio') await bpMutate([{delete: {id: ID, type: 'author', force: true}}, {delete: {id: POST, type: 'post', force: true}}]).catch(() => {})
 })
 
 for (const frames of ['live', 'no live frame'] as const)
@@ -80,4 +81,41 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
   await page.unrouteAll({behavior: 'wait'})
   await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author typed')
   await expect(t.field(page, 'name')).toHaveValue('Kept Author typed')
+})
+
+// The same for the body (task-89b5c425ca8b4506): its canvas goes with the deleted form, and
+// the words it had not saved went with it. Now they are kept (D21), the banner says so, and
+// after Restore the body offers them back.
+test('@local body words typed as the doc is deleted are offered back after Restore', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours only: Sanity loses them')
+  await t.prepare(page.context())
+  const body = {blocks: [{id: 'p1', type: 'paragraph', content: [{type: 'text', value: 'First line.'}]}]}
+  await bpMutate([{createOrReplace: {_id: POST, _type: 'post', title: 'Kept body', slug: {_type: 'slug', current: POST}, body}}, {publish: {id: POST, type: 'post'}}])
+  await page.goto(t.docPath('post', POST))
+  await signInIfAsked(page)
+  await t.settle(page)
+  const field = page.locator('[id="body"]')
+  await field.scrollIntoViewIfNeeded()
+  await field.getByText('First line.').click()
+  await expect(field.locator('.ProseMirror')).toBeFocused({timeout: 15_000})
+  await canvasFocusSettled(page)
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
+  // The body's save is held on its way while the delete lands.
+  const held: Route[] = []
+  await page.route('**/_serverFn/**', (route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('"ops"') ? void held.push(route) : route.continue()))
+  await page.keyboard.type(' Kept words.')
+  await expect.poll(() => held.length).toBeGreaterThan(0)
+  await bpMutate([{delete: {id: POST, type: 'post', force: true}}])
+  const banner = page.getByRole('alert').filter({hasText: 'This document has been deleted.'})
+  await expect(banner).toContainText('Your unsaved edits from', {timeout: 15_000})
+  for (const r of held.splice(0)) await r.continue()
+  await page.unroute('**/_serverFn/**')
+  await banner.getByRole('button', {name: 'Restore most recent revision'}).click()
+  const offer = page.locator('[data-kept-words]')
+  await expect(offer).toContainText('Words were not saved:', {timeout: 20_000})
+  await offer.getByRole('button', {name: 'Put the words back'}).click()
+  await offer.getByRole('button', {name: 'Confirm: replace this text with the kept words'}).click()
+  const text = async () => JSON.stringify(await t.docValue(POST, 'body'))
+  await expect.poll(text, {timeout: 15_000}).toContain('First line. Kept words.')
 })
