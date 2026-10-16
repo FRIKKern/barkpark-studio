@@ -64,14 +64,20 @@ export function usePresenceStream() {
     let es: EventSource | null = null
     let retry: ReturnType<typeof setTimeout> | undefined
     let stopped = false
+    let heard = Date.now()
+    let muted: EventSource | null = null // e2e: __mutePresence
     const open = () => {
-      es = new EventSource(`/api/presence${self ? `?sessionId=${encodeURIComponent(self)}` : ''}`)
+      const stream = (es = new EventSource(`/api/presence${self ? `?sessionId=${encodeURIComponent(self)}` : ''}`))
+      heard = Date.now()
+      for (const name of ['ping', 'session', 'presence']) stream.addEventListener(name, (e) => e.target !== muted && (heard = Date.now()))
       es.addEventListener('session', (e) => {
+        if (e.target === muted) return
         self = (JSON.parse((e as MessageEvent).data) as {sessionId: string}).sessionId
         sent = focus.documentId ? JSON.stringify(focus) : ''
         sendFocus()
       })
       es.addEventListener('presence', (e) => {
+        if (e.target === muted) return
         const all = (JSON.parse((e as MessageEvent).data) as {presences: Presence[]}).presences
         others = all.filter((p) => p.sessionId !== self)
         // e2e probe: this tab's session and the ones it sees (a spec tells one tab from another).
@@ -83,6 +89,20 @@ export function usePresenceStream() {
         retry = setTimeout(open, 2000)
       }
     }
+    // A stream that died without a word (a Wi-Fi switch, a sleep) stays open and hears
+    // nothing: the room freezes as it was. Barkpark pings every 5 s; this long with no
+    // event at all, or back on a network, the stream is reopened with the same session.
+    let silentMs = 15_000
+    const reopen = () => {
+      if (stopped) return
+      clearTimeout(retry)
+      es?.close()
+      open()
+    }
+    const watchdog = setInterval(() => Date.now() - heard > silentMs && reopen(), 1000)
+    addEventListener('online', reopen)
+    // e2e probe: the stream goes quiet without closing, and the tab calls it dead after `ms`.
+    ;(window as {__mutePresence?: (ms: number) => void}).__mutePresence = (ms) => ((muted = es), (silentMs = ms))
     // Leaving (the tab goes, or the room's last view unmounts): out of the room at once
     // (Barkpark #22563's leave), not when its stream's next keepalive fails. keepalive:
     // the request outlives a closing page. One stream per tab, so a document switch is a
@@ -95,6 +115,8 @@ export function usePresenceStream() {
     return () => {
       stopped = true
       clearTimeout(retry)
+      clearInterval(watchdog)
+      removeEventListener('online', reopen)
       removeEventListener('pagehide', leave)
       leave()
       es?.close()

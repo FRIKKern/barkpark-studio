@@ -26,6 +26,7 @@ export const Route = createFileRoute('/api/presence')({
         const reader = res.body.getReader()
         let off = () => {}
         const opened = Date.now() // e2e: a stream opened before the deaf lever stays deaf
+        const dec = new TextDecoder()
         const stream = new ReadableStream<Uint8Array>({
           start(c) {
             c.enqueue(new TextEncoder().encode('retry: 500\n\n')) // back within half a second
@@ -43,7 +44,10 @@ export const Route = createFileRoute('/api/presence')({
           async pull(c) {
             const r = await reader.read().catch(() => null)
             if (!r || r.done) (off(), c.close())
-            else if (opened > presenceDeafSince) c.enqueue(r.value)
+            else if (opened <= presenceDeafSince) return
+            // Barkpark's keepalive (every 5 s) is a comment, which EventSource hands to no one;
+            // as a named event the page hears the stream is alive (lib/presence.ts reopens a quiet one).
+            else c.enqueue(dec.decode(r.value) === KEEPALIVE ? PING : r.value)
           },
           cancel: () => (off(), upstream.abort()),
         })
@@ -65,6 +69,9 @@ export const Route = createFileRoute('/api/presence')({
     },
   },
 })
+
+const KEEPALIVE = ': keepalive\n\n'
+const PING = new TextEncoder().encode('event: ping\ndata: {}\n\n')
 
 // Focus moves have a budget of their own on Barkpark, 600/min per token (barkpark#22283),
 // apart from content writes. Coalesced per token to that pace: the latest per tab, sent
