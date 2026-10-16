@@ -1,4 +1,4 @@
-import {useMemo, useState, type KeyboardEvent} from 'react'
+import {useEffect, useMemo, useState, type KeyboardEvent} from 'react'
 import {DialogBox} from './FocusScopes'
 import {ChevronDown, ChevronLeft, ChevronRight, Close, EarthGlobe, Search} from './icons'
 import {toast} from './Toasts'
@@ -92,10 +92,14 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
 export function ZonePicker({zone, onChange}: {zone: string; onChange: (zone: string) => void}) {
   const t = useT()
   const [open, setOpen] = useState(false)
+  // Named in the browser's language (task-556f6d421d271155), so only once in the browser: the
+  // server's language and zone would draw a different label than the page hydrates to.
+  const [named, setNamed] = useState(false)
+  useEffect(() => setNamed(true), [])
   return (
     <>
       <button type="button" className="releases-zone" aria-haspopup="dialog" onClick={() => setOpen(true)}>
-        <EarthGlobe /> {zoneLabel(zone)} <ChevronDown />
+        <EarthGlobe /> {named && zoneLabel(zone)} <ChevronDown />
       </button>
       {open && (
         <ZoneDialog
