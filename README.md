@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 57 changes, 4 tasks closed
+- **Today** · 58 changes, 4 tasks closed
+  - Delete dialog as Sanity's: in the pane's card area, 9 px corners, body text, 25 px buttons, Delete document ([#704](https://github.com/FRIKKern/barkpark-studio/pull/704))
   - Select file list: Sanity's header and columns ([#702](https://github.com/FRIKKern/barkpark-studio/pull/702))
-  - Vision as Sanity's: Fetch's tinted 21 px icon, Listen its secondary button, saved-query tabs in #383d51; dark muted text #979cb0 ([#701](https://github.com/FRIKKern/barkpark-studio/pull/701))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
