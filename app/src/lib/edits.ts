@@ -336,6 +336,9 @@ function afterInflight(qc: QueryClient, id: string, e: DocEdits): boolean {
   e.missed = undefined
   const clashed = d ? rebase(e, d) : []
   if (d && clashed.length) clash(qc, id, e, clashed, d)
+  // Merged: the field shows it too, or the next keystroke sends the field as it was on
+  // screen, over theirs, on the rev that now says it saw them.
+  else if (d) writeCache(qc, id, e.type, overlay(id, d))
   return clashed.length > 0
 }
 
@@ -625,9 +628,11 @@ async function send(qc: QueryClient, id: string) {
       e.inflight = null
       return setState(e, 'signedOut', "You've been logged out")
     }
+    // A refusal still folds in a frame that came while it was on its way (rebase kept it
+    // for afterInflight): a text of ours rewrote meanwhile is said, not hidden behind the
+    // refusal until the next save 412s (the form-refused flake on a cold server).
     if (/^mutate 403\b/.test(msg)) {
-      e.dirty = new Map([...e.inflight!, ...e.dirty])
-      e.inflight = null
+      if (afterInflight(qc, id, e)) return
       return setState(e, 'refused', reasonOf(msg) ?? 'Barkpark refused the change')
     }
     // J32 widen: the doc was deleted (by someone else) under these edits. Keep every value,
@@ -646,8 +651,7 @@ async function send(qc: QueryClient, id: string) {
     // in the editor's words; sending it again would only be refused again.
     const findings = findingsOf(msg)
     if (findings) {
-      e.dirty = new Map([...e.inflight!, ...e.dirty])
-      e.inflight = null
+      if (afterInflight(qc, id, e)) return
       const fields = qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === e.type)?.fields ?? []
       return setState(e, 'refused', findingsReason(findings, (path) => fieldTitle(fields, path), t))
     }
