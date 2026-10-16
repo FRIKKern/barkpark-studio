@@ -327,10 +327,10 @@ export const CommentIcon = () => (
   </svg>
 )
 /** Sanity's AddCommentIcon: a speech bubble with a plus. */
+/** Sanity's AddCommentIcon. */
 export const AddComment = () => (
   <svg {...s}>
-    <path d="M13.5 7.5h-7v8h2v3l3-3h7v-4" strokeLinejoin="round" />
-    <path d="M18.5 4.5v6M15.5 7.5h6" />
+    <path d="M13 6.5H7.5C6.4 6.5 5.5 7.4 5.5 8.5V14.5C5.5 15.6 6.4 16.5 7.5 16.5H9.5V20.5L13.5 16.5H16.5C17.6 16.5 18.5 15.6 18.5 14.5V12M15 6.5H22M18.5 10V3" strokeLinejoin="round" />
   </svg>
 )
 /** Sanity's ArrowRightIcon-like send arrow (the comment Send button). */
