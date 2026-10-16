@@ -1084,6 +1084,9 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 
 /* History (J16), after Sanity's: timeline of revisions with author, action badge and time */
 .inspector.history header { padding-left: 0; }
+/* Sanity's History / Review changes tabs, measured at 1440: 12 px in from the inspector's edge, 25 px tall, 500. */
+.inspector.history header .view-tabs { margin-left: 0; }
+.inspector.history header .view-tabs [role=tab] { font-weight: 500; line-height: 19px; }
 /* Sanity's Incoming references, measured on reference/sanity: the card in line with the
    heading, its type label 8 px in, rows of title and subtitle with no icon, 2 px apart. */
 .inspector .incoming-card { margin: 0 8px; padding: 4px; border: 1px solid var(--border); border-radius: 4px; }
@@ -1136,24 +1139,28 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .inline-diff-view[data-multiline] { white-space: pre-wrap; word-break: break-word; }
 .inline-diff-view del { color: var(--muted); text-decoration: line-through; background: var(--inline-removed-bg); }
 .inline-diff-view ins { text-decoration: none; background: var(--inline-added-bg); }
-.history-note { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; padding: 4px 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); font-size: 10px; line-height: 14px; color: var(--muted); }
+.history-note { display: flex; align-items: center; gap: 3px; margin: 0 0 12px; padding: 4px 8px 4px 4px; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--line); font-size: 10px; line-height: 15px; color: var(--muted); }
 .history-note strong { color: var(--fg); font-weight: 600; }
-.history-note svg { flex: none; width: 13px; height: 13px; }
-.review-range { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 12px; margin: 0 0 16px; }
+.history-note svg { flex: none; width: 17px; height: 17px; }
+/* Sanity's Review changes body, measured at 1440: 20 px in from the inspector's edges, From
+   and To in a 48 px column, its selects Sanity's secondary buttons, 19 px lines. */
+.review { margin: 0 8px; line-height: 19px; }
+.review-range { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 4px; margin: 22px 0 16px; }
 .review-range > div { display: contents; }
 .review-range dt { color: var(--muted); }
 .review-range dd { margin: 0; min-width: 0; }
 .review-range .menu-wrap { display: block; position: relative; }
 /* Sanity's From / To: a select-like button; open, the timeline under it. */
-.review-pick { display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 100%; padding: 4px 4px 4px 8px; border: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); font: inherit; font-size: 13px; font-weight: 500; color: var(--fg-strong); text-align: left; cursor: pointer; }
+.review-pick { display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 100%; padding: 3px 2px 3px 8px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; text-align: left; cursor: pointer; }
 .review-pick > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.review-pick svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
+.review-pick svg { flex: none; width: 21px; height: 21px; margin: -1px 0; color: var(--icon-muted); }
 .review-pick:hover:not(:disabled), .review-pick[aria-expanded=true] { background: var(--hover); }
 .review-pick:disabled { cursor: default; }
 .review-pick-menu { position: absolute; top: calc(100% + 2px); right: 0; left: 0; z-index: 5; max-height: 320px; overflow: auto; padding: 4px; }
 .review-empty, .review-loading { padding: 32px 8px; text-align: center; }
-.review-empty { padding: 32px 0; text-align: left; }
-.review-empty h3 { margin: 0 0 4px; font-size: 13px; font-weight: 500; }
+.review-empty { padding: 15px 0 32px; text-align: left; }
+.review-empty h3 { margin: 0 0 2px; font-size: 13px; font-weight: 500; }
+.review-empty p { margin: 0; }
 .inspector .review-list { gap: 12px; }
 .review-list li { padding: 4px 0; }
 .review-body { margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--border); }
