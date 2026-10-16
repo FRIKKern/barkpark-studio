@@ -12,7 +12,7 @@ import {heldFor} from './held-for'
 import {merge3, mergeList3, onto, unapply} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
-import {writeBudget} from './write-budget'
+import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {paceMs, paced} from './write-pace'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
@@ -166,12 +166,7 @@ export function bodyHistory(id: string, type: string, field: string, kind: 'step
   else (e.undo = e.undo.filter((c) => !mine(c))), (e.redo = e.redo.filter((c) => !mine(c)))
 }
 
-export const WRITE_GAP_MS = 750
-// F4 (a live edit seen by the other browser): with one write per WRITE_GAP_MS, the second
-// key of " A" waited 750 ms, and the other browser saw it ~810 ms after typing, where
-// the write, Barkpark and the live frame take ~70 ms (task-d22fd88c4694877a).
 const MIN_GAP_MS = 100
-const WRITE_BURST = 8
 const budget = writeBudget(WRITE_BURST, WRITE_GAP_MS)
 const STALL_MS = 4000
 export const OFFLINE_RETRY_MS = 5000
