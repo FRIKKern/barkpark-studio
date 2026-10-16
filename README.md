@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 182 changes, 4 tasks closed
+- **Today** · 183 changes, 4 tasks closed
+  - An opened collapsible object as Sanity's; a folding title keeps its line ([#832](https://github.com/FRIKKern/barkpark-studio/pull/832))
   - Reference search as Sanity's: the chevron joined to the input, Create's icon and word ([#822](https://github.com/FRIKKern/barkpark-studio/pull/822))
-  - CI: re-record e2e durations after the spec trims (#823, #827) ([#830](https://github.com/FRIKKern/barkpark-studio/pull/830))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
