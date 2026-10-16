@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1544" viewBox="0 0 1200 1544" role="img" aria-labelledby="t d">
 <title id="t">Barkpark Studio roadmap</title>
-<desc id="d">48 of 66 journeys signed off side by side by the quality owner; 0 more built, awaiting sign-off. Phase 0 Foundation: done. Phase 1 Panes + Refs ★: now. Phase 2 Forms: next. Phase 3 Live: done. Phase 4 Arrays: done. Phase 5 Rich text + media: done. Phase 6 History: done. Phase after Plugins + Presentation: later. Freeform track: 22 of 22 signed off, 0 built. Barkpark-native track: 13 of 14 signed off, 0 built.</desc>
+<desc id="d">51 of 66 journeys signed off side by side by the quality owner; 0 more built, awaiting sign-off. Phase 0 Foundation: done. Phase 1 Panes + Refs ★: now. Phase 2 Forms: next. Phase 3 Live: done. Phase 4 Arrays: done. Phase 5 Rich text + media: done. Phase 6 History: done. Phase after Plugins + Presentation: later. Freeform track: 22 of 22 signed off, 0 built. Barkpark-native track: 13 of 14 signed off, 0 built.</desc>
 <style>
   svg { --bg:#fbfaf7; --card:#ffffff; --line:#e3e0d6; --ink:#1f1e1b; --muted:#6c6a63; --done:#2c7a4b; --now:#b26b00; --todo:#a3a097; --nowbg:#fff6e5; --built:#3f6fb5; }
   @media (prefers-color-scheme: dark) {
@@ -14,10 +14,10 @@
 <rect class="bg" width="1200" height="1544" rx="16"/>
 <text x="40" y="70" font-size="36" font-weight="700" letter-spacing="-0.8">Barkpark Studio</text>
 <text x="40" y="102" font-size="19" class="muted">Sanity-quality editing on Barkpark, one journey at a time.</text>
-<text x="1160" y="70" font-size="40" font-weight="700" text-anchor="end">48<tspan class="muted" font-weight="400"> / 66</tspan></text>
+<text x="1160" y="70" font-size="40" font-weight="700" text-anchor="end">51<tspan class="muted" font-weight="400"> / 66</tspan></text>
 <text x="1160" y="102" font-size="16" text-anchor="end" class="muted">journeys signed off side by side · <tspan class="built">0 built, awaiting sign-off</tspan></text>
 <rect x="40" y="124" width="1120" height="8" rx="4" class="track"/>
-<rect x="40" y="124" width="814.5454545454545" height="8" rx="4" class="bar"/>
+<rect x="40" y="124" width="865.4545454545455" height="8" rx="4" class="bar"/>
 <text x="40" y="168" font-size="16"><tspan class="done">✓ signed off</tspan><tspan class="built" dx="24">◆ built, awaiting sign-off</tspan><tspan class="now" dx="24">◐ in progress</tspan><tspan class="todo" dx="24">○ to do</tspan><tspan class="muted" dx="24">★ crown phase, built first</tspan></text>
 <text x="1160" y="168" font-size="16" text-anchor="end" class="muted">Barkpark server gaps closed: 36 / 40</text>
 <g data-phase="0">
@@ -76,7 +76,7 @@
 <text x="628" y="370" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J29</tspan></text>
 <text x="702" y="370" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J30</tspan></text>
 <text x="776" y="370" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J31</tspan></text>
-<text x="628" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J49</tspan></text>
+<text x="628" y="398" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J49</tspan></text>
 <text x="702" y="398" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J54</tspan></text>
 </g>
 <g data-phase="3">
@@ -133,9 +133,9 @@
 <text x="912" y="694" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J37</tspan></text>
 <text x="986" y="694" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J38</tspan></text>
 <text x="1060" y="694" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J39</tspan></text>
-<text x="912" y="722" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J40</tspan></text>
+<text x="912" y="722" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J40</tspan></text>
 <text x="986" y="722" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J45</tspan></text>
-<text x="1060" y="722" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J46</tspan></text>
+<text x="1060" y="722" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J46</tspan></text>
 <text x="912" y="750" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J47</tspan></text>
 <text x="986" y="750" font-size="15"><tspan class="done">✓</tspan><tspan dx="5">J53</tspan></text>
 <text x="1060" y="750" font-size="15"><tspan class="todo">○</tspan><tspan dx="5">J58</tspan></text>
