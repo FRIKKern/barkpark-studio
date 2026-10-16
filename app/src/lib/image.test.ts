@@ -2,7 +2,7 @@
 // moves (measured 2026-10-06 on reference/sanity, e2e/journeys/image.spec.ts).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {dragCrop, frame, imageRef, pickedImage, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
+import {dragCrop, frame, imageFileName, imageRef, pickedImage, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≉ ${b}`)
 
@@ -44,4 +44,10 @@ test('a picked asset keeps the legacy shape only where the content uses it', () 
   assert.deepEqual(pickedImage(legacy, 'asset-new', '/media/files/new.jpg'), {alt: 'A', asset: {_ref: 'asset-new'}, assetId: 'new', url: '/media/files/new.jpg'})
   assert.deepEqual(pickedImage(legacy, 'asset-new'), {alt: 'A', asset: {_ref: 'asset-new'}})
   assert.deepEqual(pickedImage({asset: {_ref: 'asset-a'}, alt: 'B'}, 'asset-b', '/x.jpg'), {alt: 'B', asset: {_ref: 'asset-b'}})
+})
+
+test("a body image card names the file as Barkpark's canvas does", () => {
+  assert.equal(imageFileName('/w/a/p/default/media/files/d/ds/2026/10/fixture-image-cbf5348f.png', 'x', 'Image'), 'fixture-image.png')
+  assert.equal(imageFileName('https://example.com/pics/My%20photo-cbf5348f.jpg?w=200', undefined, 'Image'), 'My photo-cbf5348f.jpg')
+  assert.equal(imageFileName(undefined, 'paste-image', 'Image'), 'paste-image')
 })

@@ -977,7 +977,9 @@ function markObjectHover(field: HTMLElement, target: Element) {
   const doc = target.closest('.ProseMirror')
   let block: Element | null = doc ? target : null
   while (block && block.parentElement !== doc) block = block.parentElement
-  field.toggleAttribute('data-hover-object', !!block && !/^(P|H[1-6]|UL|OL|BLOCKQUOTE)$/.test(block.tagName))
+  // An image card (canvas 1.11.0) carries its own "…" (Edit, Remove), as Sanity's: no second one.
+  const ownMenu = !!block?.querySelector(':scope > .bp-canvas-image-head')
+  field.toggleAttribute('data-hover-object', !!block && !ownMenu && !/^(P|H[1-6]|UL|OL|BLOCKQUOTE)$/.test(block.tagName))
 }
 
 /** The body's expand button; its tooltip names the hotkey (J35, Sanity's "Expand editor ⌘ Enter"). */

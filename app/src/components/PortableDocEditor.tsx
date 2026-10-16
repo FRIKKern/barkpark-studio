@@ -396,6 +396,9 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         el.blocks = first.blocks
         el.setAttribute('editable', String(editable))
         if (vocabulary) el.setAttribute('data-vocabulary', JSON.stringify(vocabulary))
+        // A field's image is a card, as Sanity's block object: its file name and a "…" with Edit
+        // and Remove (Barkpark canvas 1.11.0; an older canvas ignores it).
+        if (field) el.setAttribute('block-cards', '')
         el.setRemoteSelections(remoteRef.current)
         // D11: our caret goes out with our presence focus (lib/presence.ts).
         el.addEventListener('bp-canvas-selection', (e) => {
