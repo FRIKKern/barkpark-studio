@@ -39,6 +39,7 @@
   --shadow: rgba(0, 0, 0, 0.12);
   --popover-shadow: 0 0 0 0.5px rgba(114, 120, 146, 0.3), 0 7px 8px -4px rgba(114, 120, 146, 0.1), 0 12px 17px 2px rgba(114, 120, 146, 0.07), 0 5px 22px 4px rgba(114, 120, 146, 0.06); /* Sanity's menus and pickers, measured */
   --today-bg: #f5f8ff; /* the date picker's today (measured) */
+  --status-badge-fg: #0d311f; /* a Published status badge's words (Sanity's delete card, measured) */
   --draft-ring-on: #e3bbfc; /* Drafts' ring on the perspective menu's blue (measured) */
   --today-fg: #192357;
   --toast-bg: #f6f6f8; /* Sanity's default toast (measured): fill, title, time bar, ring and shadow */
@@ -203,6 +204,7 @@
   --shadow: rgba(0, 0, 0, 0.5);
   --popover-shadow: 0 0 0 0.5px rgba(117, 123, 150, 0.4), 0 7px 8px -4px rgba(0, 0, 0, 0.2), 0 12px 17px 2px rgba(0, 0, 0, 0.14), 0 5px 22px 4px rgba(0, 0, 0, 0.12);
   --today-bg: #161830;
+  --status-badge-fg: #abf9de;
   --draft-ring-on: #635112;
   --today-fg: #dce6ff;
   --toast-bg: #191a24;
@@ -1482,7 +1484,14 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .dialog.item-dialog { width: min(640px, calc(100% - 64px)); min-height: min(597px, 100%); border-radius: 9px; }
 .item-dialog .dialog-body { padding: 34px 32px 20px 20px; }
 /* Centred in the pane's card area under its tabs, as Sanity's (and Inspect's): 200-839 px at 900. */
-@media (min-width: 600px) { :is(.item-backdrop, .delete-backdrop), .pane .pane-confirm-backdrop { grid-template-rows: minmax(0, 1fr); padding: 149px 12px 61px; } }
+/* Only the card area dims, as Sanity's layer (and Inspect's): header, tabs and footer stay as they are. */
+@media (min-width: 600px) { :is(.item-backdrop, .delete-backdrop), .pane .pane-confirm-backdrop { inset: 137px 0 49px; grid-template-rows: minmax(0, 1fr); padding: 12px; } }
+.delete-preview { display: flex; align-items: center; gap: 8px; padding-right: 18px; }
+/* Sanity's status badge here: 25 px, the words 12 px from its end, #0d311f (dark #abf9de) when published. */
+.delete-preview > .chip { padding: 3px 12px 3px 10px; line-height: 19px; }
+.delete-preview > .chip[data-tone=positive] { color: var(--status-badge-fg); }
+.delete-preview > .preview { flex: 1; min-width: 0; }
+.delete-preview > .preview .status { display: none; }
 /* Sanity's delete dialog and confirms (Discard changes, …), measured at 1440 (post-29, post-24):
    9 px corners, text in the body colour, the question 49 px under the title, Cancel and the
    action as 25 px buttons 8 px in, 12 px apart. */
@@ -1492,6 +1501,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .pane-confirm .dialog-body { padding-top: 19px; padding-bottom: 2px; }
 :is(.delete-dialog, .pane-confirm) footer { gap: 12px; }
 :is(.delete-dialog, .pane-confirm) footer .btn { padding: 3px 8px; line-height: 19px; }
+:is(.delete-dialog, .pane-confirm) footer .btn:not(.danger, .btn-primary) { color: var(--menu-fg); } /* Sanity's Cancel: #383d51, dark #bdbfcb */
 .item-dialog header { padding: 16px 16px 8px 20px; }
 .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .crumb { font: inherit; border: 0; background: none; padding: 2px 4px; border-radius: 3px; color: var(--muted); cursor: pointer; }
