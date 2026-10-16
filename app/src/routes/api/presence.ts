@@ -18,6 +18,8 @@ export const Route = createFileRoute('/api/presence')({
         const params = new URLSearchParams({name: editor ? presenceName(editor.email) : 'Studio'})
         const sessionId = q.get('sessionId')
         if (sessionId) params.set('sessionId', sessionId)
+        // Out of the room after this long with no focus: a tab asleep stops beating (lib/presence.ts).
+        params.set('staleAfter', String(PRESENCE_STALE_S))
         const upstream = new AbortController()
         clientGone(request).addEventListener('abort', () => upstream.abort())
         const res = await bpFetch(`/v1/data/presence/${dataset()}?${params}`, {headers: {accept: 'text/event-stream'}, signal: upstream.signal})
@@ -72,6 +74,7 @@ export const Route = createFileRoute('/api/presence')({
 })
 
 const KEEPALIVE = ': keepalive\n\n'
+const PRESENCE_STALE_S = 90
 const PING = new TextEncoder().encode('event: ping\ndata: {}\n\n')
 
 // Focus moves have a budget of their own on Barkpark, 600/min per token (barkpark#22283),

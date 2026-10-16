@@ -28,8 +28,8 @@ let focus: {documentId: string | null; field: string | null; selection: CaretSel
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
-function sendFocus() {
-  if (!self || !focus.documentId) return
+function sendFocus(beat = false) {
+  if (!self || !(focus.documentId || beat)) return
   void fetch('/api/presence', {
     method: 'POST',
     headers: {'content-type': 'application/json'},
@@ -120,6 +120,11 @@ export function usePresenceStream() {
       open()
     }
     const watchdog = setInterval(() => Date.now() - heard > silentMs && reopen(), 1000)
+    // A sleeping laptop keeps its socket, so Barkpark would show this tab for ~15 min after
+    // it went to sleep. The room drops a session that sends no focus for PRESENCE_STALE_S
+    // (api/presence.ts), so the tab re-sends its focus every BEAT_MS (Sanity reports every
+    // 30 s); a hidden tab's timers run once a minute, still inside the window.
+    const beat = setInterval(() => sendFocus(true), BEAT_MS)
     addEventListener('online', reopen)
     // e2e probe: the stream goes quiet without closing, and the tab calls it dead after `ms`.
     ;(window as {__mutePresence?: (ms: number) => void}).__mutePresence = (ms) => ((muted = es), (silentMs = ms))
@@ -136,6 +141,7 @@ export function usePresenceStream() {
       stopped = true
       clearTimeout(retry)
       clearInterval(watchdog)
+      clearInterval(beat)
       removeEventListener('online', reopen)
       removeEventListener('pagehide', leave)
       leave()
@@ -143,6 +149,8 @@ export function usePresenceStream() {
     }
   }, [])
 }
+
+const BEAT_MS = 30_000
 
 const subscribe = (l: () => void) => (listeners.add(l), () => void listeners.delete(l))
 /** Everyone else in the room. */
