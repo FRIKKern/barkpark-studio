@@ -10,7 +10,7 @@ import {TasksPanel} from './TasksPanel'
 import {Diagnostics} from './Diagnostics'
 import {showTasks, useTasksView} from '../lib/tasks-ui'
 import {DialogBox, MenuPopover} from './FocusScopes'
-import {CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon, BugIcon, FeedbackIcon} from './icons'
+import {Calendar, CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon, BugIcon, FeedbackIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
 import {useEffect, useState} from 'react'
 import {createPortal} from 'react-dom'
@@ -448,6 +448,8 @@ const ALL_TOOLS: (readonly [string, string])[] = [
   ['/vision', 'Vision'],
   ['/media', 'Media'],
   ...(studio.tools ?? []).map((tool) => [`/${tool.name}`, tool.title] as const),
+  // Sanity's Releases tool after the config's, its Scheduled drafts view (task-ad9c942d7d48c887).
+  ['/releases', 'Releases'],
 ]
 const TOOLS = studio.navbarTools
   ? studio.navbarTools.flatMap((name) => ALL_TOOLS.filter(([to]) => to === `/${name}`))
@@ -498,6 +500,14 @@ function PerspectivePicker() {
           <button type="button" role="menuitemradio" aria-checked={!published} className="menu-item" autoFocus={!published} onClick={() => pick('drafts')}>
             <span className="menu-icon-text">
               <span className="dot draft-ring" aria-hidden="true" /> {t('Drafts')}
+            </span>
+          </button>
+          {/* Sanity's next entry: the Releases tool's Scheduled drafts (task-6e26cfea53b6354f). Its
+              View Content Releases and New release are plan-gated on the reference. */}
+          <hr />
+          <button type="button" role="menuitem" className="menu-item" onClick={() => (close(), void navigate({to: '/releases'}))}>
+            <span className="menu-icon-text">
+              <Calendar /> {t('View Scheduled Drafts')}
             </span>
           </button>
         </MenuPopover>

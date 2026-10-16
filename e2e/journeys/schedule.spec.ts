@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import {expect, test} from '@playwright/test'
 import {bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
 
@@ -52,6 +53,54 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
     await expect(page.locator('.chip[data-tone=scheduled]')).toBeHidden()
     await expect(page.getByRole('button', {name: /^Published/}).first()).toBeEnabled()
     await expect.poll(() => t.publishedTitle(id)).toBe('Schedule probe')
+  } finally {
+    await t.deleteDoc(id, 'post')
+  }
+})
+
+// Sanity's Releases tool, its Scheduled drafts view (task-ad9c942d7d48c887): every scheduled
+// draft in the dataset, Active / Paused / Archived; a row opens its document, and its menu
+// pauses or deletes the schedule. The perspective menu's View Scheduled Drafts opens it.
+test('Releases tool: scheduled drafts, Active / Paused / Archived, row actions', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours; Sanity's is measured by hand (plan-gated releases)")
+  const api = `${bpBase()}/v1/data/schedules/${bpDataset()}`
+  const headers = {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`, 'content-type': 'application/json'}
+  test.skip((await fetch(api, {headers})).status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
+  const id = `post-releases-${Date.now().toString(36)}`
+  const title = `Releases probe ${id.slice(-6)}`
+  await t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}})
+  try {
+    const made = await fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: new Date(Date.now() + 2 * 86_400_000).toISOString()})})
+    expect(made.ok, await made.clone().text()).toBe(true)
+    await t.prepare(context)
+    await page.goto(t.docPath('post', id))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await page.getByRole('button', {name: 'Perspective'}).click()
+    await page.getByRole('menuitem', {name: 'View Scheduled Drafts'}).click()
+    await expect(page).toHaveURL(/\/releases/)
+    await expect(page.locator('.navbar .tool.tab')).toHaveText('Releases')
+    const row = page.getByRole('row').filter({hasText: title})
+    await expect(row).toContainText('Scheduled ·')
+    const {violations} = await new AxeBuilder({page}).include('.releases').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+    expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
+    // Pause to edit: the row moves to Paused.
+    await row.getByRole('button', {name: 'Scheduled draft actions'}).click()
+    await page.getByRole('menuitem', {name: 'Pause to edit'}).click()
+    await expect(row).toHaveCount(0)
+    await page.getByRole('button', {name: 'Paused', exact: true}).click()
+    await expect(row).toContainText('Paused ·')
+    // Delete schedule: archived, and the draft stays.
+    await row.getByRole('button', {name: 'Scheduled draft actions'}).click()
+    await page.getByRole('menuitem', {name: 'Delete schedule'}).click()
+    await page.getByRole('dialog', {name: 'Delete scheduled draft'}).getByRole('button', {name: 'Yes, delete schedule'}).click()
+    await expect(row).toHaveCount(0)
+    await page.getByRole('button', {name: 'Archived', exact: true}).click()
+    await expect(row.first()).toContainText('Deleted ·')
+    // The row opens its document.
+    await row.first().getByRole('link', {name: title}).click()
+    await expect(t.field(page, 'title')).toHaveValue(title)
   } finally {
     await t.deleteDoc(id, 'post')
   }

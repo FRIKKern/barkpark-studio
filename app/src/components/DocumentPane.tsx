@@ -46,6 +46,7 @@ import {intlTag, t as tt, useLocale, useT, type Locale} from '../lib/i18n'
 import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
 import {cancelSchedule, pauseSchedule, resumeSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
 import {ScheduleDialog} from './ScheduleDialog'
+import {deleteSchedule, publishScheduledNow} from '../lib/schedule-actions'
 import {ChevronDown, CheckmarkCircle, Clock, LockIcon, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse, MasterDetail} from './icons'
 import {useFocusMode} from './FocusMode'
 import studio from '../studio.config'
@@ -1221,21 +1222,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
           title={t('Publish draft now')}
           body={t('Are you sure you want to publish this scheduled draft immediately?')}
           action={t('Yes, run now')}
-          run={async () => {
-            // The schedule goes first (a refusal says why, and nothing is published), then the
-            // draft is published; a failed publish puts the schedule back at its time.
-            await cancelSchedule({data: {scheduleId: schedule._id}})
-            try {
-              await publish(qc, doc)
-            } catch (e) {
-              if (new Date(schedule.publishAt).getTime() > Date.now())
-                await schedulePublish({data: {id: doc._publishedId, type: doc._type, publishAt: schedule.publishAt}}).catch(() => {})
-              throw e
-            } finally {
-              await qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
-            }
-            toast({tone: 'positive', title: tt('The scheduled draft document {title} has been published.', {title: previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type), tt)})})
-          }}
+          run={() => publishScheduledNow(qc, doc, schedule)}
           onClose={() => setPublishingNow(false)}
         />
       )}
@@ -1244,12 +1231,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
           title={t('Delete scheduled draft')}
           body={t('Delete this scheduled draft? Your draft is already up to date.')}
           action={t('Yes, delete schedule')}
-          run={() =>
-            cancelSchedule({data: {scheduleId: schedule._id}}).then(() => {
-              toast({tone: 'positive', title: tt('The scheduled draft document {title} has been deleted.', {title: previewTitle(doc, schemaOf(qc.getQueryData<Schema[]>(schemasQuery.queryKey) ?? [], doc._type), tt)})})
-              return qc.invalidateQueries({queryKey: ['schedule', doc._publishedId]})
-            })
-          }
+          run={() => deleteSchedule(qc, doc, schedule)}
           onClose={() => setUnscheduling(false)}
         />
       )}

@@ -2190,6 +2190,47 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .version-badge { padding: 1px 5px; border-radius: 3px; background: var(--hover); color: var(--muted); font-size: 12px; }
 .studio-version[data-update] .version-badge { background: var(--warn-bg); color: var(--warn-fg); }
 
+/* The Releases tool's Scheduled drafts, as Sanity's (measured at 1440, task-ad9c942d7d48c887):
+   a 62 px bar with the view and Active / Paused / Archived, then a table: 49 px header, 59 px
+   rows, "Scheduled for" 390 px from the right. Sanity's calendar column is task-f8d14f136de4ed6d. */
+.releases { min-height: calc(100vh - var(--nav-h)); background: var(--bg); }
+.releases-bar { display: flex; align-items: flex-start; gap: 16px; height: 62px; padding: 12px 16px 0; box-sizing: border-box; }
+.releases-view { display: inline-flex; align-items: center; gap: 6px; height: 25px; font-size: 13px; line-height: 19px; font-weight: 500; color: var(--fg); }
+.releases-view svg { width: 17px; height: 17px; color: var(--icon-muted); }
+.releases-tabs { display: flex; gap: 4px; }
+.releases-tab { height: 25px; padding: 0 8px; border: 0; border-radius: 3px; background: none; font: inherit; font-size: 13px; line-height: 19px; font-weight: 500; color: var(--muted); cursor: pointer; } /* Sanity's #9499ad fails AA (F13) */
+.releases-tab:hover { color: var(--fg); }
+.releases-tab[aria-pressed='true'] { background: var(--hover); color: var(--fg-strong); }
+.releases-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.releases-table th { height: 49px; padding: 0 16px; text-align: left; font-size: 13px; line-height: 19px; font-weight: 600; color: var(--muted); }
+.releases-table th:nth-child(2) { width: 352px; }
+.releases-table th:nth-child(3) { width: 38px; }
+.releases-sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; font: inherit; color: var(--fg); cursor: pointer; }
+.releases-sort svg { width: 15px; height: 15px; }
+.releases-table td { height: 59px; padding: 0 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.releases-table td:first-child { padding: 0 8px; }
+.releases-table td:last-child { padding: 0 13px 0 0; }
+.releases-table .preview { margin: 0; }
+.releases-table .preview .status { display: none; } /* Sanity's rows have no status dots */
+.releases-sort .up, .releases-sort .down { display: inline-flex; }
+.releases-sort .up { transform: rotate(90deg); }
+.releases-sort .down { transform: rotate(-90deg); }
+.releases-when { display: flex; flex-direction: column; font-size: 13px; line-height: 19px; font-weight: 500; color: var(--fg); }
+.releases-state { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; color: var(--muted); }
+.releases-state svg { width: 15px; height: 15px; }
+.releases-actions .menu-wrap { position: relative; display: flex; justify-content: flex-end; }
+.releases-actions .icon-btn { width: 25px; height: 25px; }
+.releases-menu { right: 0; top: 100%; }
+.releases-gone { font-size: 13px; color: var(--muted); padding-left: 8px; }
+.releases-none { text-align: center; font-size: 13px; color: var(--muted); }
+.releases-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 25vh auto 0; max-width: 260px; text-align: center; font-size: 13px; line-height: 19px; color: var(--muted); }
+.releases-empty strong { color: var(--fg-strong); font-weight: 600; }
+.releases-empty p { margin: 0; }
+@media (max-width: 700px) {
+  .releases-table th:nth-child(2) { width: 150px; }
+  .releases-table th, .releases-table td:not(:first-child):not(:last-child) { padding: 0 8px; }
+}
+
 /* B08: the Media tool — folders, tiles, the picked asset's inspector. */
 .media-tool { display: flex; height: calc(100vh - 51px); min-height: 0; background: var(--bg); }
 .media-folders { width: 240px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 12px; border-right: 1px solid var(--border); overflow: auto; }
