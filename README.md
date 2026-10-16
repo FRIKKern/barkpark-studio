@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 187 changes, 4 tasks closed
+- **Today** · 188 changes, 4 tasks closed
+  - Inline comments as Sanity's while writing: the offer under the selection's start, the plain tone, a 250 px composer ([#836](https://github.com/FRIKKern/barkpark-studio/pull/836))
   - Field actions and Add comment tooltips open above the button, as Sanity's ([#835](https://github.com/FRIKKern/barkpark-studio/pull/835))
-  - Presentation: the overlay keys work with the focus in the page; values at depth on the reference site ([#834](https://github.com/FRIKKern/barkpark-studio/pull/834))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
