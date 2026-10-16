@@ -61,6 +61,9 @@ type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; 
 // JSON; plus Freeform where the type's editor mode offers it (FF3, lib/editor-mode.ts).
 
 const NO_PROBLEMS: Problem[] = []
+/** A failed publish, as Sanity's: "An error occurred during publish", the server's reason under a
+ *  collapsed Details, up 30 s. D12's "say why" stays: the reason is one click away (owner, 2026-10-16). */
+const failedPublish = (err: Error) => toast({tone: 'critical', title: tt('An error occurred during publish'), details: reasonOf(err.message) ?? err.message}, 30_000)
 /** J44: fields drawn in the first frame; a longer form gets the rest right after. */
 const FIRST_FIELDS = 40
 // A field by its path: the element itself, or, when that is a wrapper (an image's), the
@@ -368,7 +371,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       if (!publishingKey.current && !pristine && (doc._draft || saveState !== 'saved')) {
         publishingKey.current = true
         void publishAndTell(qc, doc)
-          .catch((err: Error) => toast({tone: 'critical', title: tt('Could not publish'), description: reasonOf(err.message) ?? err.message}))
+          .catch((err: Error) => failedPublish(err))
           .finally(() => (publishingKey.current = false))
       }
     }
@@ -1086,8 +1089,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
           try {
             await publishAndTell(qc, doc)
           } catch (e) {
-            // D12: a refusal (a paper's publish wall, say) says why, never silently.
-            toast({tone: 'critical', title: tt('Could not publish'), description: reasonOf((e as Error).message) ?? (e as Error).message})
+            failedPublish(e as Error)
           } finally {
             setPublishing(false)
           }

@@ -6,8 +6,8 @@ import {target, closeAndSettle} from '../rig/targets'
 // LiveView Studio. Open it from the pane header (URL keeps it, focus moves in); slug
 // format feedback; the description and the weighted tags (strongest first, main tag
 // marked; add with the publish wall's rules, remove) save as doc fields and never touch
-// a block; a publish the wall refuses says which rule broke; on a phone it covers the
-// doc; Close hands focus back. Stills in e2e/evidence/D12-*.
+// a block; a publish the wall refuses says which rule broke (under Details, as Sanity's
+// failed publish); on a phone it covers the doc; Close hands focus back. Stills in e2e/evidence/D12-*.
 const ID = 'paper-01'
 const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjson', import.meta.url), 'utf8').split('\n').find((l) => l.includes(`"${ID}"`))!) as Record<string, unknown>
 type Tag = {tag: string; strength: number; rationale: string}
@@ -64,7 +64,11 @@ test('@local D12: paper sidebar — slug, description, weighted tags; the wall s
   expect(JSON.stringify(await value('blocks')), 'no sidebar edit touches a block').toBe(blocks)
   await page.screenshot({path: 'evidence/D12-1-sidebar-studio.png'})
   await page.locator('button.publish').click()
-  await expect(page.locator('.toast')).toContainText('A description must be non-trivial (at least 20 characters).')
+  // Sanity's failed-publish toast: the title, and the wall's reason one click away under Details.
+  const failed = page.locator('.toast').filter({hasText: 'An error occurred during publish'})
+  await expect(failed.getByText('A description must be non-trivial (at least 20 characters).')).toBeHidden()
+  await failed.getByText('Details', {exact: true}).click()
+  await expect(failed.getByText('A description must be non-trivial (at least 20 characters).')).toBeVisible()
   await page.screenshot({path: 'evidence/D12-2-wall-studio.png'})
 
   // Phone: the sidebar covers the doc; Close gives focus back to the header button.
