@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 157 changes, 4 tasks closed
+- **Today** · 158 changes, 4 tasks closed
+  - Date picker's month, year and time rows as Sanity's ([#805](https://github.com/FRIKKern/barkpark-studio/pull/805))
   - Body words typed as the document is deleted are kept and offered back; J10 Enter on CI ([#804](https://github.com/FRIKKern/barkpark-studio/pull/804))
-  - Collapsible titles as Sanity's: a 21 px muted arrow in a 9 px slot, the title 12 px in ([#803](https://github.com/FRIKKern/barkpark-studio/pull/803))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
