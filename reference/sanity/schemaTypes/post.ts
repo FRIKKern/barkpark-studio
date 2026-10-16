@@ -10,6 +10,8 @@ export const post = defineType({
   groups: [
     {name: 'content', title: 'Content', default: true},
     {name: 'meta', title: 'Meta'},
+    // A group whose only field is hidden until featured: Sanity drops its tab meanwhile.
+    {name: 'promo', title: 'Promotion'},
   ],
   fields: [
     defineField({name: 'title', type: 'string', group: 'content', validation: (r) => r.required().max(120)}),
@@ -175,6 +177,8 @@ export const post = defineType({
         defineField({name: 'metaDescription', title: 'Meta description', type: 'text', rows: 2, validation: (r) => r.min(50).info('Search results show about 150 characters')}),
       ],
     }),
+    // Hidden until featured, with an initial value a new post gets all the same.
+    defineField({name: 'promoLine', title: 'Promo line', type: 'string', group: 'promo', initialValue: 'New this week', hidden: ({document}) => !document?.featured}),
   ],
   // J55: the type's own orderings, offered first in the list's "…" menu.
   orderings: [

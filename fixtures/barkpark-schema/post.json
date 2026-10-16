@@ -2,8 +2,8 @@
   "name": "post",
   "title": "Post",
   "visibility": "public",
-  "groups": [{"name": "content", "title": "Content", "default": true}, {"name": "meta", "title": "Meta"}],
-  "initial_values": {"featured": false},
+  "groups": [{"name": "content", "title": "Content", "default": true}, {"name": "meta", "title": "Meta"}, {"name": "promo", "title": "Promotion"}],
+  "initial_values": {"featured": false, "promoLine": "New this week"},
   "list_preview": {"title": "title", "subtitle": "author.name", "media": "mainImage"},
   "desk": {"preview": "http://localhost:3537/posts/:slug", "orderings": [
     {"name": "publishedAtDesc", "title": "Publish date, newest", "field": "publishedAt", "direction": "desc"},
@@ -55,6 +55,8 @@
     {"name": "seo", "title": "SEO", "type": "composite", "group": "meta", "options": {"collapsible": true, "collapsed": true}, "fields": [
       {"name": "metaTitle", "title": "Meta title", "type": "string", "validation": {"max": 60}},
       {"name": "metaDescription", "title": "Meta description", "type": "text", "rows": 2, "validation": {"min": 50, "level": "info", "message": "Search results show about 150 characters"}}
-    ]}
+    ]},
+    {"name": "promoLine", "title": "Promo line", "type": "string", "group": "promo",
+     "visibleWhen": {"field": "featured", "operator": "eq", "value": true}}
   ]
 }
