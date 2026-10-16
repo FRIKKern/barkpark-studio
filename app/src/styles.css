@@ -1341,7 +1341,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .inspect .json-value[data-type=string], .syntax-string { color: var(--syntax-string); }
 .syntax-operator { color: var(--syntax-operator); }
 .json-raw, .syntax-punctuation { color: var(--syntax-punctuation); }
-.json-raw { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.json-raw { margin: -6px 0 0; font: inherit; white-space: pre; overflow-x: auto; } /* Sanity's Raw JSON: the dialog's mono (a bare <pre> took the browser's), long values on one line, scrolled */
 .menu-item kbd { margin-left: auto; padding-left: 16px; font: inherit; font-size: 11px; color: var(--muted); }
 .menu-item:has(kbd) { display: flex; align-items: center; }
 /* J28: Sanity's shortcut chips, one box per key, tinted like their item. */
