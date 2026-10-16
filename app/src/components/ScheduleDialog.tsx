@@ -44,6 +44,7 @@ export function ScheduleDialog({initial, run, onClose}: {initial?: Date; run: (p
               min={new Date()}
               notice={future ? undefined : t('Select a date in the future.')}
               autoFocus
+              showZone
             />
           </div>
           {!future && (
