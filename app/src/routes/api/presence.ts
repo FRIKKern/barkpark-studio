@@ -1,6 +1,6 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, dataset, requestToken} from '../../server/barkpark'
-import {currentEditor} from '../../server/auth'
+import {currentEditor, presenceName} from '../../server/auth'
 import {clientGone} from '../../server/client-gone'
 import {onNewBoot, presenceDeafSince} from '../../server/listen'
 
@@ -14,7 +14,8 @@ export const Route = createFileRoute('/api/presence')({
     handlers: {
       GET: async ({request}) => {
         const q = new URL(request.url).searchParams
-        const params = new URLSearchParams({name: currentEditor()?.email.split('@')[0] ?? 'Studio'})
+        const editor = currentEditor()
+        const params = new URLSearchParams({name: editor ? presenceName(editor.email) : 'Studio'})
         const sessionId = q.get('sessionId')
         if (sessionId) params.set('sessionId', sessionId)
         const upstream = new AbortController()

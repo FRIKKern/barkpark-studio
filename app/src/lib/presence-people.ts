@@ -19,6 +19,15 @@ export function people<P extends Session>(sessions: P[], seen: ReadonlyMap<strin
 }
 
 /**
+ * Sanity hides the current user's presence, all their tabs. With account (or dev) sign-in
+ * the studio knows their presence name; with shared sign-in every tab is one identity
+ * and none is left out.
+ */
+export function withoutSelf<P extends Session>(sessions: P[], self: string | null | undefined): P[] {
+  return self ? sessions.filter((s) => s.name !== self) : sessions
+}
+
+/**
  * Sanity's avatar stack: up to `max` people show; past that, `max - 1` of them (the last)
  * and a counter of the rest before them. A counter is never 1: then all `max` show.
  */

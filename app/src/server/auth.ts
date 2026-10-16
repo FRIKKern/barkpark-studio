@@ -78,6 +78,9 @@ const writeSession = ({email, token, session}: Editor) =>
  */
 export const editorKey = (email: string) => createHash('sha256').update(email.trim().toLowerCase()).digest('base64url').slice(0, 16)
 
+/** The name the presence room shows for a signed-in editor (J07): their email's local part. */
+export const presenceName = (email: string) => email.split('@')[0]!
+
 /** The signed-in editor for this request, if any. */
 export function currentEditor(): Editor | undefined {
   if (!signInRequired()) return undefined

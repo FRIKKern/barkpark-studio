@@ -1,5 +1,5 @@
-import type {QueryClient} from '@tanstack/react-query'
-import {usePresenceStream} from './presence'
+import {useQuery, type QueryClient} from '@tanstack/react-query'
+import {setPresenceSelf, usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
 import {deskQuery, docQuery, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
@@ -9,7 +9,7 @@ import {startsAtStudioItem, studioDesk} from './structure-config'
 import {previewRefs} from './preview'
 import {meQuery} from './session'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useReconnectingToast} from './connection'
 import {resumeLive} from './live'
 import {redirect} from '@tanstack/react-router'
@@ -135,6 +135,9 @@ export function StructureView({panes, widthHint, listPrefs, resume}: {panes: Pan
 /** One presence stream for the tab (J07). */
 function PresenceStream() {
   usePresenceStream()
+  // Signed in, the editor's own tabs are left out of the room (Sanity's); shared, no one is.
+  const self = useQuery(meQuery).data?.presenceName ?? null
+  useEffect(() => setPresenceSelf(self), [self])
   return null
 }
 
