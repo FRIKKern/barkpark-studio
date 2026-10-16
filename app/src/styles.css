@@ -8,6 +8,11 @@
   --checkbox-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25' fill='none' stroke='%23fff' stroke-width='1.2'%3E%3Cpath d='M5.5 11.5L10.5 16.5L19.5 7.5'/%3E%3C/svg%3E");
   --upload-fill: #f6f6f8; /* Sanity's empty image/file box (measured) */
   --upload-ring: #dbdce2;
+  --asset-ring: #e3e4e8; /* Sanity's file field with a file: its ring, tile, icon and text (measured) */
+  --asset-tile: #f6f6f8;
+  --asset-tile-ring: rgba(110, 116, 142, 0.3);
+  --asset-icon: #4e556d;
+  --asset-text: #515870;
   --fg-header: #383d51;
   --muted: #515870;
   --border: #e6e8ec;
@@ -143,6 +148,11 @@
   --checkbox-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25' fill='none' stroke='%2313141b' stroke-width='1.2'%3E%3Cpath d='M5.5 11.5L10.5 16.5L19.5 7.5'/%3E%3C/svg%3E");
   --upload-fill: #0d0e12;
   --upload-ring: #252837;
+  --asset-ring: #2a2d3f;
+  --asset-tile: #0d0e12;
+  --asset-tile-ring: rgba(114, 120, 146, 0.4);
+  --asset-icon: #9499ad;
+  --asset-text: #979cb0;
   --fg-header: #c8cad3;
   --muted: #9ea3b5;
   --border: #2a2d3f;
@@ -1792,6 +1802,9 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
   .image-empty-box .btn { box-shadow: none; }
 }
 .file-box { position: relative; display: flex; align-items: center; gap: 12px; min-height: 51px; padding: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
+/* Sanity's, with a file (measured at 1440): 53 px in a 1 px ring with 1 px corners, the tile 9 px in with a 25 px icon,
+   name (500) and size on 19 px lines 17 apart, both muted. */
+.file-box:not(.empty) { min-height: 53px; padding: 9px; border-radius: 1px; box-shadow: inset 0 0 0 1px var(--asset-ring); }
 .file-box.empty { margin: 1px; justify-content: space-between; min-height: 43px; padding: 8px 12px; background: var(--upload-fill); box-shadow: inset 0 0 0 1px var(--upload-ring); color: var(--muted); }
 .file-box:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .file-box .hint { display: inline-flex; align-items: center; gap: 6px; }
@@ -1800,14 +1813,15 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .file-actions { display: inline-flex; gap: 4px; }
 .file-actions .btn { display: inline-flex; align-items: center; gap: 0; padding: 2px 8px 2px 4px; line-height: 19px; background: none; color: var(--fg-header); }
 .file-actions .btn:hover { background: var(--hover-strong); }
-.file-icon { display: inline-flex; align-items: center; justify-content: center; width: 35px; height: 35px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
-.file-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.file-name { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-size { color: var(--muted); font-size: 12px; }
+.file-icon { display: inline-flex; align-items: center; justify-content: center; width: 35px; height: 35px; flex: none; border-radius: 1px; box-shadow: 0 0 0 0.5px var(--asset-tile-ring); color: var(--asset-icon); }
+.file-box .file-icon svg { width: 25px; height: 25px; }
+.file-text { flex: 1; min-width: 0; margin: -0.5px 0; display: flex; flex-direction: column; line-height: 19px; color: var(--asset-text); }
+.file-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { margin-top: -2px; }
 .file-box .menu-wrap .popover.menu { right: 0; top: calc(100% + 4px); }
 .popover.menu.file-menu { min-width: 0; }
 .image-menu .menu-item.danger { color: var(--menu-danger); }
-.file-icon { background: var(--bg-soft); }
+.file-icon { background: var(--asset-tile); }
 .drop-overlay[data-rejected] { color: var(--danger-text); }
 .dialog.asset-dialog.file-dialog { min-height: 0; }
 .accept-note { display: flex; align-items: center; gap: 6px; margin: 0 0 16px; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--selected) 20%, transparent); font-size: 13px; color: var(--fg); }
