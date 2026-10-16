@@ -3,6 +3,10 @@ import {installProbes, networkBudget, recordFeel, timeToReady} from '../rig/feel
 import {bpBase, bpDataset, bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
+// The URL and the test's own flags cost nothing to read: every 50 ms, not the default
+// backoff (up to 1 s past the moment they change).
+const PAGE_POLL = {intervals: [50]}
+
 // Crown references, same steps on both studios: J08 (pick by search, open in the
 // next pane), J22 (create a new doc from the field), J23 (edit the referenced doc;
 // parents follow, live, in a second browser). Budgets apply to ours.
@@ -49,12 +53,12 @@ test('J08: replace the author by search, open it in the next pane; then the same
   await grace.click()
   await expect(t.refLink(pane, 'author')).toContainText('Grace Hopper')
   const documentPath = () => decodeURIComponent(new URL(page.url()).pathname).split(';').map((part) => part.split(',')[0]).join(';')
-  await expect.poll(documentPath).toBe(t.docPath('post', ID))
+  await expect.poll(documentPath, PAGE_POLL).toBe(t.docPath('post', ID))
   await referenceHold(page, t.refLink(pane, 'author'))
 
   const opened = await timeToReady(page, t.refLink(pane, 'author'), `() => location.pathname.includes('author-grace')`, null)
   await expect(t.field(page, 'name')).toHaveValue('Grace Hopper')
-  await expect.poll(documentPath).toBe(`${t.docPath('post', ID)};author-grace`)
+  await expect.poll(documentPath, PAGE_POLL).toBe(`${t.docPath('post', ID)};author-grace`)
   await referenceHold(page, t.field(page, 'name'), 'Grace Hopper')
   if (t.name === 'studio') {
     expect(opened.ms, 'F2 open picked ref').toBeLessThan(100)
@@ -80,7 +84,7 @@ test('J08: replace the author by search, open it in the next pane; then the same
   try {
     await page.keyboard.press('ControlOrMeta+a')
     await page.keyboard.type('ada')
-    await expect.poll(() => held).toBe(true)
+    await expect.poll(() => held, PAGE_POLL).toBe(true)
     await expect(page.getByRole('status').filter({hasText: 'Searching…'})).toBeVisible()
     await expect(page.getByRole('option')).toHaveCount(0)
     await page.keyboard.press('ArrowDown')
@@ -94,7 +98,7 @@ test('J08: replace the author by search, open it in the next pane; then the same
   await page.keyboard.press('Enter') // pick; focus lands on the new preview
   await page.keyboard.press('Enter') // open it
   await expect(t.field(page, 'name')).toHaveValue('Ada Lovelace')
-  await expect.poll(() => decodeURIComponent(page.url())).toContain(';author-ada,type=author,parentRefPath=author')
+  await expect.poll(() => decodeURIComponent(page.url()), PAGE_POLL).toContain(';author-ada,type=author,parentRefPath=author')
   await referenceHold(page, t.field(page, 'name'), 'Ada Lovelace')
 })
 
@@ -139,7 +143,7 @@ test('J22: create a new author from the reference field, edit it in the next pan
     if (t.name === 'studio') {
       expect(opened.ms, 'F2 new doc pane').toBeLessThan(100)
       expect(opened.cls, 'F2 no late layout shift').toBe(0)
-      await expect.poll(() => held).toBe(true)
+      await expect.poll(() => held, PAGE_POLL).toBe(true)
       await page.context().setOffline(true)
       release!()
       await page.unrouteAll({behavior: 'wait'})
@@ -326,7 +330,7 @@ test('J17: Incoming references from the document menu, any time: opens the refer
   await expect(page.getByText('Incoming references', {exact: true}).first()).toBeVisible() // still the panel, not a strip
   // A row opens the referring doc in the next pane, at the field that refers.
   await row('post-01', 'Fixture post 01').click()
-  await expect.poll(() => decodeURIComponent(page.url())).toMatch(/author-alan.*incoming-references.*;post-01.*path=author/)
+  await expect.poll(() => decodeURIComponent(page.url()), PAGE_POLL).toMatch(/author-alan.*incoming-references.*;post-01.*path=author/)
 })
 
 test('J17: a doc that refers only from its body (an internal link) is used in, and listed', async ({page}, info) => {
