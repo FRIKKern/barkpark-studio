@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 138 changes, 4 tasks closed
+- **Today** · 139 changes, 4 tasks closed
+  - Vision at 320 px: one column scrolled down, not the page sideways ([#786](https://github.com/FRIKKern/barkpark-studio/pull/786))
   - More icons as Sanity's: Upload, Download, Crop, Reset, Play, Stop, Inline, ToggleArrowRight, EarthGlobe, AddComment and Target from @sanity/icons 5.2.3 ([#785](https://github.com/FRIKKern/barkpark-studio/pull/785))
-  - Forced colors: fields keep a box, controls their state, focus a ring, dots their colour ([#784](https://github.com/FRIKKern/barkpark-studio/pull/784))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
