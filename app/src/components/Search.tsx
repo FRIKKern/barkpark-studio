@@ -237,6 +237,8 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
             aria-controls={rows > 0 ? listId : undefined}
             aria-activedescendant={active < rows ? `${listId}-${active}` : undefined}
             placeholder={t('Search')}
+            spellCheck={false}
+            autoComplete="off"
             value={q}
             onChange={(e) => { setPendingEnter(false); setQ(e.target.value) }}
             onKeyDown={(e) => {
@@ -256,7 +258,8 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
           </button>
         </div>
         {filtersShown && <SearchFilters schemas={schemas} fields={fields} types={types} onTypes={setTypes} filters={filters} onFilters={setFilters} />}
-        {filtersShown && searching && <SearchOrdering sort={sort} onSort={setSort} />}
+        {/* Sanity drops the order row when nothing matches. */}
+        {filtersShown && searching && !(results.length === 0 && settled) && <SearchOrdering sort={sort} onSort={setSort} />}
         {searching && (offline ? <p className="search-empty" role="status">{t("You're offline. Reconnect to search.")}</p> : failed ? (
           <div className="search-empty" role="alert">
             <p>{t('Could not fetch search results. Please retry.')}</p>
