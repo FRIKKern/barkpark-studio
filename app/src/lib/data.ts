@@ -11,6 +11,7 @@ import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
 import type {PreviewMediaSpec, PreviewText} from './preview'
 import {excluded, parseTextQuery, textScore} from './text-search'
+import {groqKeepPath, isGroqFilter, refFilterParams, type RefFilter} from './ref-filter'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -251,12 +252,14 @@ export async function ensureDocs(client: QueryClient, types: string[], ids: stri
   for (const id of missing) if (client.getQueryData(['doc', id]) === undefined) client.setQueryData(['doc', id], null)
 }
 
-/** A reference field's filter, in Barkpark's query terms: {field: {op: value}}; op '' is `filter[field]=value` (`_references`). */
-export type RefFilter = Record<string, Record<string, string>>
-const refFilterParams = (filter: RefFilter | undefined) =>
-  Object.entries(filter ?? {})
-    .flatMap(([field, ops]) => Object.entries(ops).map(([op, v]) => `&filter[${encodeURIComponent(field)}]${op ? `[${encodeURIComponent(op)}]` : ''}=${encodeURIComponent(v)}`))
-    .join('')
+export type {RefFilter} from './ref-filter'
+/** A GROQ filter (Sanity's form) keeps only the docs it matches: one read over their ids. */
+async function groqKept<D extends {_id: string; _publishedId?: string}>(filter: RefFilter | undefined, docs: D[]): Promise<D[]> {
+  if (!isGroqFilter(filter) || !docs.length) return docs
+  const ids = [...new Set(docs.map((d) => d._id))]
+  const keep = new Set((await bpJson<{result: string[]}>(groqKeepPath(dataset(), filter, ids))).result)
+  return docs.filter((d) => keep.has(d._id))
+}
 
 const fetchSearch = createServerFn({method: 'GET'})
   .validator((d: {type: string; q: string; filter?: RefFilter; order?: string; limit?: number}) => d)
@@ -264,10 +267,12 @@ const fetchSearch = createServerFn({method: 'GET'})
     // `contains` is case-insensitive; `title` is the row's preview title for every type.
     // `order` (J38): `_updatedAt:desc` (default) or `_createdAt:desc`.
     const filter = (data.q ? `&filter[title][contains]=${encodeURIComponent(data.q)}` : '') + refFilterParams(data.filter)
+    // A GROQ filter runs after the search (groqKept): ask for more, so the list stays full.
+    const limit = Math.min(data.limit ?? 20, 100)
     const r = await bpJson<{result: {documents: Doc[]}}>(
-      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&order=${encodeURIComponent(data.order ?? '_updatedAt:desc')}&limit=${Math.min(data.limit ?? 20, 100)}${filter}`,
+      `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&order=${encodeURIComponent(data.order ?? '_updatedAt:desc')}&limit=${isGroqFilter(data.filter) ? 100 : limit}${filter}`,
     )
-    return r.result.documents as unknown as Json
+    return (await groqKept(data.filter, r.result.documents)).slice(0, limit) as unknown as Json
   })
 
 /**
@@ -304,6 +309,7 @@ const fetchTextSearch = createServerFn({method: 'GET'})
       data.asked.map(async ({type, filter}) => {
         const ids = hits.filter((d) => d._type === type).flatMap((d) => [d._id, d._publishedId])
         if (!ids.length || !Object.keys(filter).length) return ids
+        if (isGroqFilter(filter)) return (await groqKept(filter, hits.filter((d) => d._type === type))).flatMap((d) => [d._id, d._publishedId])
         const f = `&filter[_id][in]=${[...new Set(ids)].map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
         const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${f}`)
         return r.result.documents.flatMap((d) => [d._id, d._publishedId])
@@ -345,7 +351,7 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
         if (!ids.length) continue
         const fq = `&filter[${encodeURIComponent(field!)}][in]=${ids.map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
         const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${fq}`)
-        out.push(...r.result.documents.filter((d) => !excluded(d, q, schema)))
+        out.push(...(await groqKept(filter, r.result.documents)).filter((d) => !excluded(d, q, schema)))
       }
     }
   }

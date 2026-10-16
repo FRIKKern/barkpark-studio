@@ -1,5 +1,6 @@
 import {useContext, useEffect, useRef} from 'react'
-import {itemPath, refId, refTypesOf, type Field, type RefFilter} from '../lib/data'
+import {itemPath, refId, refTypesOf, type Field} from '../lib/data'
+import {refFilterOf} from '../lib/ref-filter'
 import {copyItem, signature} from '../lib/clipboard'
 import {ProblemMark, ProblemsContext, type OpenRef} from './Fields'
 import {RefPreview} from './Preview'
@@ -66,7 +67,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
               invalid={problems.some((p) => p.path === itemPath(id, it, i) && p.level === 'error') || undefined}
               id={itemPath(id, it, i)}
               types={types}
-              filter={field.of?.options && !Array.isArray(field.of.options) ? (field.of.options.filter as RefFilter | undefined) : undefined}
+              filter={refFilterOf(field.of?.options)}
               value={undefined}
               onChange={(v) => v && set(items.map((x, j) => (j === i ? {...x, _type: 'reference', _ref: v} : x)))}
               linkFor={(target, type) => link(target, type)}
