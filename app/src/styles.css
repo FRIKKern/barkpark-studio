@@ -563,6 +563,12 @@ a.preview:hover, [data-lit] > a.preview:not([data-selected], [aria-current='true
 .search input::placeholder { color: var(--placeholder); } /* Sanity's placeholder grey (measured on a list, light and dark) */
 .search input:focus-visible { box-shadow: inset 0 0 0 1px var(--focus-ring); }
 .search input::-webkit-search-cancel-button { display: none; }
+/* Below 600 px Sanity's list search takes its phone size: 15 px words in a 27 px box, a 25 px icon (/structure/post at 390). */
+@media (max-width: 599px) {
+  .pane.list > .search input { font-size: 15px; line-height: 23px; padding-top: 2px; padding-bottom: 2px; padding-left: 31px; } /* the right end stays the clear button's */
+  .pane.list > .search .search-icon { left: 1px; top: 1px; }
+  .pane.list > .search .search-icon > svg { width: 25px; height: 25px; }
+}
 
 /* Document form */
 .doc-title-bar { height: 50px; flex: none; display: flex; align-items: center; padding: 0 20px; font-size: 13px; line-height: 19px; font-weight: 600; color: var(--fg-header); }
