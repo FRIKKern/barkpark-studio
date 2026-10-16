@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 198 changes, 4 tasks closed
+- **Today** · 199 changes, 4 tasks closed
+  - A reference array row's status dot 3 px nearer the end, as Sanity's ([#846](https://github.com/FRIKKern/barkpark-studio/pull/846))
   - Copy field refuses an empty value, as Sanity does ([#845](https://github.com/FRIKKern/barkpark-studio/pull/845))
-  - Reference search results as Sanity's: none lit until the arrow keys, the pointer greys one ([#844](https://github.com/FRIKKern/barkpark-studio/pull/844))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
