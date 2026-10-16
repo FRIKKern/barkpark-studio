@@ -9,6 +9,10 @@ test('schedules: a Barkpark without the route offers no Schedule; with it, the p
   assert.deepEqual(readSchedules(404, {error: {code: 'not_found'}}), {supported: false, schedule: null})
   assert.deepEqual(readSchedules(200, {result: {schedules: []}}), {supported: true, schedule: null})
   assert.equal(readSchedules(200, {result: {schedules: [row('cancelled'), row('scheduled')]}}).schedule?._id, 's-scheduled')
+  // Paused (Pause to edit) counts when nothing is pending; cancelled and finished ones never do.
+  assert.equal(readSchedules(200, {result: {schedules: [row('paused'), row('published')]}}).schedule?.status, 'paused')
+  assert.equal(readSchedules(200, {result: {schedules: [row('paused'), row('scheduled')]}}).schedule?.status, 'scheduled')
+  assert.equal(readSchedules(200, {result: {schedules: [row('cancelled'), row('missed')]}}).schedule, null)
   assert.throws(() => readSchedules(500, null), /Could not read the schedule \(500\)/)
   assert.match(localInput(new Date()), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
 })

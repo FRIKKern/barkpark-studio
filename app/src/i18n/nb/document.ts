@@ -320,6 +320,8 @@ export default {
   'Cannot schedule draft due to validation issues in the current draft.': 'Kan ikke planlegge utkast på grunn av valideringsfeil i gjeldende utkast.',
   'Delete schedule': 'Slett tidsplan',
   'Pause to edit': 'Sett på pause for å redigere',
+  'Could not pause the schedule': 'Kunne ikke sette tidsplanen på pause',
+  'Schedule paused while editing. Press Schedule to reactivate or pick a new date.': 'Tidsplanen er satt på pause mens du redigerer. Trykk Planlegg publisering for å aktivere den igjen eller velge en ny dato.',
   'Publish now': 'Publiser nå',
   'Publish draft now': 'Publiser utkastet nå',
   'Are you sure you want to publish this scheduled draft immediately?': 'Er du sikker på at du vil publisere dette planlagte utkastet med en gang?',

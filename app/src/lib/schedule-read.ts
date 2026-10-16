@@ -5,13 +5,14 @@ export type ScheduleState = {supported: boolean; schedule: Schedule | null}
 
 /**
  * A 404 is a Barkpark without /v1/data/schedules: no Schedule action. Otherwise the
- * document's pending schedule (Barkpark keeps at most one), if any.
+ * document's pending schedule (Barkpark keeps at most one), else its paused one (Sanity's
+ * "Pause to edit", barkpark#23198), if any. The list is read with every status.
  */
 export function readSchedules(status: number, body: unknown): ScheduleState {
   if (status === 404) return {supported: false, schedule: null}
   if (status < 200 || status >= 300) throw new Error(`Could not read the schedule (${status})`)
   const schedules = (body as {result?: {schedules?: Schedule[]}} | null)?.result?.schedules ?? []
-  return {supported: true, schedule: schedules.find((s) => s.status === 'scheduled') ?? null}
+  return {supported: true, schedule: schedules.find((s) => s.status === 'scheduled') ?? [...schedules].reverse().find((s) => s.status === 'paused') ?? null}
 }
 
 /** `datetime-local` wants the local time, minute precision: 2026-10-20T10:00. */
