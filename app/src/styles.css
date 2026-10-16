@@ -2473,6 +2473,15 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
   .navbar .scope-button { max-width: 100%; min-width: 44px; }
   .navbar .scope-ds { min-width: 0; }
 }
+/* A narrow desktop window keeps Sanity's 12 px ends (its phone bar at 390 with a mouse); a finger's 44 px buttons take the room. */
+@media (max-width: 599px) and (pointer: fine) {
+  .navbar { padding: 0 12px; }
+  .navbar .logo { margin: 0 4px 0 8px; }
+  .navbar .brand > .logo + * { margin-left: 0; }
+  .navbar .scope-switcher { flex: 0 1000 auto; margin-right: 8px; } /* the name gives way first (Sanity: "barkpa…" before the Drafts label), then +, then room */
+  .nav-right { padding-left: 11px; }
+  .nav-search { margin-left: 4px; }
+}
 /* J40: field comments (Sanity's) — the button at a field's top right (after "…"),
    the composer under it, and the Comments inspector. */
 .field-comments { position: absolute; top: 0; right: 0; z-index: 2; }
