@@ -111,7 +111,7 @@ export function RefPreview({type, id, href, selected, active}: {type: string; id
  * A row's status dots with Sanity's tooltip (J56): "Published 3 hr. ago" or "Not
  * published", then "Edited just now" or "No unpublished edits".
  */
-function Status({doc}: {doc: Doc}) {
+export function Status({doc}: {doc: Doc}) {
   const t = useT()
   const locale = useLocale()
   const published = doc._hasPublished !== false

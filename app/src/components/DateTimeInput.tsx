@@ -27,7 +27,7 @@ const dayLabel = (d: Date, locale: Locale) =>
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, d.getHours(), d.getMinutes())
 
-export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, options = {}}: {id: string; value: string | undefined; onChange: (v: unknown) => void; readOnly?: boolean; dateOnly?: boolean; options?: DateOptions}) {
+export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, options = {}, placeholder, calendarLabel}: {id: string; value: string | undefined; onChange: (v: unknown) => void; readOnly?: boolean; dateOnly?: boolean; options?: DateOptions; placeholder?: string; calendarLabel?: string}) {
   const t = useT()
   const format = dateOnly ? (options.dateFormat ?? STORED_DATE) : `${options.dateFormat ?? STORED_DATE} ${options.timeFormat ?? 'HH:mm'}`
   const formatLocal = (d: Date) => formatDate(d, format)
@@ -64,7 +64,7 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
           id={id}
           className="input"
           autoComplete="off"
-          placeholder={t('e.g. {example}', {example: formatLocal(new Date())})}
+          placeholder={placeholder ?? t('e.g. {example}', {example: formatLocal(new Date())})}
           value={text}
           readOnly={readOnly}
           aria-invalid={invalid || undefined}
@@ -72,7 +72,7 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
           onBlur={() => typed()}
           onKeyDown={(e) => e.key === 'Enter' && typed()}
         />
-        <button ref={button} type="button" className="icon-btn" aria-label={t('Select date')} title={t('Select date')} disabled={readOnly} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <button ref={button} type="button" className="icon-btn" aria-label={calendarLabel ?? t('Select date')} title={calendarLabel ?? t('Select date')} disabled={readOnly} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           <Calendar />
         </button>
       </div>
