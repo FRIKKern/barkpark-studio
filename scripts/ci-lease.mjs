@@ -4,9 +4,12 @@
 // cancels the one before it, so a third PR in flight cancelled the second's shards.
 // Now a shard takes any free dataset of the pool (its own first) and waits in the job
 // for one to free; nothing is cancelled. Leases live in Barkpark's `ci-locks` dataset as
-// `lease-<dataset>` documents: `create` refuses one that exists (409), so taking is atomic;
-// a lease past its `until` (a job killed before releasing) is taken over with a fenced
-// delete (ifRevisionID). Only these non-production datasets are ever leased.
+// `lease-<dataset>` documents: `create` refuses one that exists (409), and a lease past its
+// `until` (a job killed before releasing) is taken over with a fenced delete (ifRevisionID).
+// Two creates a few ms apart can both answer 200 (Barkpark applied the second as an update:
+// two shards both took ci-6 and seeded it at once, run 38917974630, 2026-10-16), so a taken
+// lease is ours only if its rev is still our create's a moment later.
+// Only these non-production datasets are ever leased.
 //
 //   node scripts/ci-lease.mjs acquire <preferred dataset>   # prints the dataset; in Actions also sets BARKPARK_DATASET
 //   node scripts/ci-lease.mjs release [dataset]             # frees it if this holder still holds it
@@ -68,6 +71,15 @@ export const holderOf = () =>
   process.env.CI_LEASE_HOLDER ?? (process.env.GITHUB_RUN_ID ? `run ${process.env.GITHUB_RUN_ID}.${process.env.GITHUB_RUN_ATTEMPT} ${process.env.GITHUB_JOB}` : `local ${process.pid}`)
 
 /** Take one dataset of the pool, `prefer` first; wait (up to `waitMs`) while all are held. */
+const CONFIRM_MS = Number(process.env.CI_LEASE_CONFIRM_MS ?? 1500)
+/** A create that answered 200: still ours once any create racing it has landed (same rev, same holder). */
+async function stillOurs(dataset, holder, res) {
+  const rev = ((await res.json().catch(() => ({}))).results ?? [])[0]?.document?._rev
+  await new Promise((r) => setTimeout(r, CONFIRM_MS))
+  const now = await read(dataset)
+  return !!now && now.holder === holder && (!rev || now._rev === rev)
+}
+
 export async function acquire({prefer, holder = holderOf(), waitMs = 25 * 60_000}) {
   const order = [prefer, ...POOL.filter((d) => d !== prefer)].filter((d) => POOL.includes(d))
   const deadline = Date.now() + waitMs
@@ -79,7 +91,8 @@ export async function acquire({prefer, holder = holderOf(), waitMs = 25 * 60_000
       if (lease && Number(lease.until) >= Date.now()) continue
       if (lease) await mutate({delete: {id: `lease-${dataset}`, type: 'ciLease', ifRevisionID: lease._rev}}) // lapsed: a job that died
       const res = await mutate({create: {_id: `lease-${dataset}`, _type: 'ciLease', holder, until: Date.now() + TTL_MS}})
-      if (res.ok) return (lease && console.error(`ci-lease: took over ${dataset} from a lapsed lease (${lease.holder})`), dataset)
+      if (res.ok && (await stillOurs(dataset, holder, res))) return (lease && console.error(`ci-lease: took over ${dataset} from a lapsed lease (${lease.holder})`), dataset)
+      if (res.ok) continue // another shard's create landed over ours: theirs
       // Taken meanwhile: 409, or 422 "doc_id has already been taken" when two creates race.
       const body = await res.text()
       if (res.status !== 409 && !(res.status === 422 && body.includes('already been taken'))) fail(`lease ${dataset}: Barkpark answered ${res.status} ${body.slice(0, 200)}`)
