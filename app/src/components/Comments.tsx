@@ -312,6 +312,56 @@ function ConfirmDialog({title, body, confirm, onConfirm, onClose}: {title: strin
   )
 }
 
+const ONBOARDED = 'bp-comments-onboarded'
+const seen = () => {
+  try {
+    return localStorage.getItem(ONBOARDED) === '1'
+  } catch {
+    return true
+  }
+}
+
+/**
+ * Sanity's first-time hint beside the Comments panel: a 280 px card 4 px left of it, level
+ * with its top; Got it puts it away for good. Drawn in the pane (the panel scrolls, and
+ * would clip it), placed from the panel's own box.
+ */
+function CommentsOnboarding({panel}: {panel: React.RefObject<HTMLElement | null>}) {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  useEffect(() => setOpen(!seen()), [])
+  const [place, setPlace] = useState<{top: number; right: number} | null>(null)
+  const titleId = useId()
+  useLayoutEffect(() => {
+    const aside = panel.current
+    const pane = aside?.closest<HTMLElement>('.pane.doc')
+    if (!open || !aside || !pane) return
+    const a = aside.getBoundingClientRect()
+    const p = pane.getBoundingClientRect()
+    setPlace({top: a.top - p.top, right: p.right - a.left + 4})
+  }, [open, panel])
+  if (!open || !place) return null
+  const done = () => {
+    try {
+      localStorage.setItem(ONBOARDED, '1')
+    } catch {
+      // Private mode: it shows again next time.
+    }
+    setOpen(false)
+  }
+  return (
+    <PaneOverlay whole>
+      <section className="comments-onboarding" aria-labelledby={titleId} style={{top: place.top, right: place.right}}>
+        <h3 id={titleId}>{t('Document fields now have comments')}</h3>
+        <p>{t("You can add comments to any field in a document. They'll show up here, grouped by field.")}</p>
+        <button type="button" className="btn btn-primary" onClick={done}>
+          {t('Got it')}
+        </button>
+      </section>
+    </PaneOverlay>
+  )
+}
+
 /** Sanity's Comments inspector. */
 export function CommentsPanel({docId, docType, fieldTitle, focusField, active, onSelect, onGoToField, onClose}: {
   docId: string
@@ -348,8 +398,10 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, active, o
     if (activeThread && activeThread.status !== status) setStatus(activeThread.status)
     if (active) list.current?.querySelector(`[data-thread="${CSS.escape(active)}"]`)?.scrollIntoView({block: 'nearest'})
   }, [active, activeThread?.status, data])
+  const panel = useRef<HTMLElement>(null)
   return (
-    <aside className="inspector comments" aria-label={t('Comments')}>
+    <aside ref={panel} className="inspector comments" aria-label={t('Comments')}>
+      <CommentsOnboarding panel={panel} />
       <header>
         <h2>{t('Comments')}</h2>
         <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}>
