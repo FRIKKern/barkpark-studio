@@ -182,7 +182,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
   return (
     <DialogCrumbsContext.Provider value={[...outer, here]}>
     <PaneOverlay>
-    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="dialog-backdrop item-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog item-dialog" aria-modal="true" aria-label={`${parentTitle} / ${title}`} onClose={onClose}>
         <header>
           <nav className="crumbs" aria-label={t('Breadcrumb')}>
