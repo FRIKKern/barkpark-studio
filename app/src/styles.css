@@ -8,8 +8,8 @@
   --checkbox-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25' fill='none' stroke='%23fff' stroke-width='1.2'%3E%3Cpath d='M5.5 11.5L10.5 16.5L19.5 7.5'/%3E%3C/svg%3E");
   --upload-fill: #f6f6f8; /* Sanity's empty image/file box (measured) */
   --upload-ring: #dbdce2;
-  --asset-ring: #e3e4e8; /* Sanity's file field with a file: its ring, tile and icon (measured); the ring is its quote rule too */
-  --asset-tile: #f6f6f8;
+  --hairline: #e3e4e8; /* Sanity's hairline (measured): a filled file's ring, an array's border, the quote rule */
+  --asset-tile: #f6f6f8; /* a filled file's tile, its ring and icon (measured) */
   --asset-tile-ring: rgba(110, 116, 142, 0.3);
   --asset-icon: #4e556d;
   --fg-header: #383d51;
@@ -158,7 +158,7 @@
   --checkbox-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 25 25' fill='none' stroke='%2313141b' stroke-width='1.2'%3E%3Cpath d='M5.5 11.5L10.5 16.5L19.5 7.5'/%3E%3C/svg%3E");
   --upload-fill: #0d0e12;
   --upload-ring: #252837;
-  --asset-ring: #2a2d3f;
+  --hairline: #2a2d3f;
   --asset-tile: #0d0e12;
   --asset-tile-ring: rgba(114, 120, 146, 0.4);
   --asset-icon: #9499ad;
@@ -1165,7 +1165,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .tags-box .tag button:hover { background: var(--hover-strong); color: var(--fg-strong); }
 .tags-box .tag button svg { width: 19px; height: 19px; }
 .tags-input { flex: 1; min-width: 120px; font: inherit; font-size: 15px; line-height: 23px; padding: 3px 6px; border: 0; outline: none; background: none; color: var(--fg-strong); }
-.array-box { border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); padding: 4px; }
+.array-box { border-radius: 3px; box-shadow: inset 0 0 0 1px var(--hairline); padding: 4px; } /* Sanity's #e3e4e8 (dark #2a2d3f) */
 .array-row { display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 3px; background: var(--bg); }
 /* A reference row as Sanity's: 5 px around its 49 px preview, which drops the list's 4 px gap here. */
 .array-row:has(> .ref-row-preview) { padding: 5px 4px 5px 7px; }
@@ -1173,15 +1173,17 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .ref-row-preview > .preview { margin-bottom: 0; }
 .array-row[data-moving] { box-shadow: 0 0 0 1px var(--selected), 0 6px 16px var(--shadow); position: relative; z-index: 1; }
 .array-row .input { flex: 1; }
-.drag-handle { cursor: grab; touch-action: none; color: var(--muted); }
+.drag-handle { cursor: grab; touch-action: none; color: var(--icon-muted); }
+.array-row > .drag-handle { height: 33px; } /* Sanity's handle: 25 x 33, its dots muted */
 .drag-handle > svg { width: 21px; height: 21px; } /* Sanity draws its handle at 21 px */
 .drag-handle[aria-pressed=true] { cursor: grabbing; color: var(--selected); }
 .array-empty { padding: 8px; text-align: center; font-size: 13px; line-height: 19px; color: var(--muted); }
 /* Sanity's empty array: the 'No items' card 35 px, Add item (33 px) 8 px below. */
 .array-box:has(> .array-empty) { padding: 0; }
-.add-item { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 8px; padding: 7px 4px; font: inherit; font-size: 13px; font-weight: 500; border: 0; border-radius: 3px; background: var(--hover); color: var(--fg); cursor: pointer; }
-.add-item:hover { background: var(--hover-strong); }
-.add-item svg { width: 19px; height: 19px; }
+/* Add item: Sanity's secondary button (fill, ring, muted words, its + 21 px), its content 3 px left of centre, measured at 1440. */
+.add-item { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 8px; padding: 6px 10px 6px 4px; font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); cursor: pointer; }
+.add-item:hover { background: var(--hover); }
+.add-item svg { width: 21px; height: 21px; color: var(--btn-secondary-icon); }
 /* J33: the insert menu of a several-type array, centred under Add item as Sanity's. */
 .menu-wrap.add-item-wrap { display: block; position: relative; }
 .add-item-wrap > .popover.menu { left: 50%; right: auto; top: calc(100% + 4px); transform: translateX(-50%); min-width: 120px; }
@@ -1345,13 +1347,6 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .review .popover.confirm { top: calc(100% + 4px); bottom: auto; left: 0; right: auto; }
 .revert-all svg { width: 19px; height: 19px; }
 
-/* Object arrays (J33), after Sanity's: preview rows that open an item dialog over the pane */
-.array-item-preview { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px; border: 0; border-radius: 3px; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg-strong); }
-.array-item-preview:hover { background: var(--hover); }
-.array-item-preview .media { flex: none; display: grid; place-items: center; width: 35px; height: 35px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); color: var(--muted); }
-.array-item-preview .text { display: flex; flex-direction: column; min-width: 0; }
-.array-item-preview .title { font-size: 14px; font-weight: 500; line-height: 19px; }
-.array-item-preview .subtitle { font-size: 13px; line-height: 17px; color: var(--muted); }
 .dialog.item-dialog { width: min(640px, calc(100% - 64px)); min-height: 60%; }
 .item-dialog header { padding: 16px 16px 8px 20px; }
 .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; }
@@ -1383,13 +1378,18 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 
 
 
-/* Object arrays (J33), after Sanity's: preview rows that open an item dialog over the pane */
-.array-item-preview { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px; border: 0; border-radius: 3px; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg-strong); }
+/* Object arrays (J33), after Sanity's: preview rows that open an item dialog over the pane. Rows as a
+   reference array's (measured at 1440): 59 px, the preview 49 px with 8 px round a 33 px tile, a 13 px title. */
+.array-item-preview { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 0; border-radius: 3px; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg); }
 .array-item-preview:hover { background: var(--hover); }
-.array-item-preview .media { flex: none; display: grid; place-items: center; width: 35px; height: 35px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); color: var(--muted); }
-.array-item-preview .text { display: flex; flex-direction: column; min-width: 0; }
-.array-item-preview .title { font-size: 14px; font-weight: 500; line-height: 19px; }
-.array-item-preview .subtitle { font-size: 13px; line-height: 17px; color: var(--muted); }
+.array-item-preview .media { flex: none; display: grid; place-items: center; width: 33px; height: 33px; border-radius: 2px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); color: var(--muted); }
+.array-item-preview .media > svg { width: 21px; height: 21px; }
+.array-item-preview .text { display: flex; flex-direction: column; min-width: 0; margin: -1.5px 0; font-size: 13px; line-height: 19px; } /* two lines overhang the tile, as Sanity's */
+.array-item-preview .title { font-weight: 500; }
+.array-item-preview .subtitle { margin-top: -2px; color: var(--muted); }
+.array-row:has(> .array-item-preview) { padding: 5px 4px 5px 7px; }
+.array-box:has(> .array-row > .array-item-preview) { padding: 5px 4px 3px; }
+.array-box:not([data-layout=grid]) > .array-row:is(:has(> .array-item-preview), :has(> .ref-row-preview)) + .array-row { margin-top: 4px; } /* Sanity's rows 4 px apart */
 .array-item-preview .media.has-image { position: relative; overflow: hidden; }
 .array-item-preview .media.has-image img { position: absolute; max-width: none; }
 .array-item-preview .title, .array-item-preview .subtitle { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -1640,7 +1640,7 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .body-style-wrap .body-style-h5 { min-height: 35px; font-size: 16px; line-height: 23px; }
 .body-style-wrap .body-style-h6 { min-height: 33px; font-size: 13px; line-height: 19px; }
 .body-style-wrap .body-style-blockquote { position: relative; padding-left: 24px; }
-.body-style-wrap .body-style-blockquote::before { content: ''; position: absolute; left: 12px; top: 9px; bottom: 9px; width: 3px; background: var(--asset-ring); }
+.body-style-wrap .body-style-blockquote::before { content: ''; position: absolute; left: 12px; top: 9px; bottom: 9px; width: 3px; background: var(--hairline); }
 
 /* J35: the body expanded over its pane (same canvas, its frame moved). */
 .body-expand { width: 25px; height: 25px; }
@@ -1891,7 +1891,7 @@ hr.desk-divider { margin: 8px 12px; border: 0; border-top: 1px solid var(--borde
 .file-box { position: relative; display: flex; align-items: center; gap: 12px; min-height: 51px; padding: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; }
 /* Sanity's, with a file (measured at 1440): 53 px in a 1 px ring with 1 px corners, the tile 9 px in with a 25 px icon,
    name (500) and size on 19 px lines 17 apart, both muted. */
-.file-box:not(.empty) { min-height: 53px; padding: 9px; border-radius: 1px; box-shadow: inset 0 0 0 1px var(--asset-ring); }
+.file-box:not(.empty) { min-height: 53px; padding: 9px; border-radius: 1px; box-shadow: inset 0 0 0 1px var(--hairline); }
 .file-box.empty { margin: 1px; justify-content: space-between; min-height: 43px; padding: 8px 12px; background: var(--upload-fill); box-shadow: inset 0 0 0 1px var(--upload-ring); color: var(--muted); }
 .file-box:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .file-box .hint { display: inline-flex; align-items: center; gap: 6px; }
