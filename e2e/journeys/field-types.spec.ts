@@ -45,7 +45,8 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
 
   await page.locator('[id="title"]').fill('A title far longer than twenty characters')
   await page.getByRole('button', {name: 'Generate'}).click()
-  await expect(page.locator('[id="handle"]')).toHaveValue('a-title-far-longer-t')
+  // maxLength 20, cut on a word as Sanity's speakingurl cuts it (not mid-word).
+  await expect(page.locator('[id="handle"]')).toHaveValue('a-title-far-longer')
 
   await page.getByRole('button', {name: 'Where'}).click()
   await expect(page.locator('[id="address.street"]')).toHaveCount(0)

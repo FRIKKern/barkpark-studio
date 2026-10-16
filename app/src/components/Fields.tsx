@@ -27,6 +27,7 @@ import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
 import {BodyToolbar} from './BodyToolbar'
 import {PortableDocView} from './PortableDocView'
 import {keptFor} from '../lib/kept-words'
+import {slugify} from '../lib/slug'
 import {modKey, useTip} from './Tip'
 import {t as tBrowser, useT} from '../lib/i18n'
 import studio from '../studio.config'
@@ -546,10 +547,6 @@ function keepPaneStill(e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElem
   if ((e.key === 'End' && atEnd) || (e.key === 'Home' && atStart)) e.preventDefault()
 }
 
-// Sanity's slugify: lowercase, accents dropped, runs of anything else become '-'.
-const slugify = (s: string) =>
-  s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 200)
-
 /** A slug: a text input plus Sanity's Generate, from the field named in options.source. */
 // `maxLength`: Sanity's slug option, cutting a generated slug (its default is 200).
 function SlugInput({id, value, onChange, source, maxLength = 200, readOnly}: {id: string; value: string; onChange: (v: unknown) => void; source?: string; maxLength?: number; readOnly?: boolean}) {
@@ -566,7 +563,7 @@ function SlugInput({id, value, onChange, source, maxLength = 200, readOnly}: {id
           className="btn-create btn-generate"
           // Sanity's stays enabled with an empty source; the click then does nothing.
           disabled={readOnly}
-          onClick={() => typeof from === 'string' && from && (onChange(slugify(from).slice(0, maxLength)), force((n) => n + 1))}
+          onClick={() => typeof from === 'string' && from && void slugify(from, maxLength).then((slug) => (onChange(slug), force((n) => n + 1)))}
         >
           {t('Generate')}
         </button>
