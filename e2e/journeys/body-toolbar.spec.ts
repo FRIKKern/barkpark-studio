@@ -56,7 +56,13 @@ test('J10: the body toolbar marks, sets a style, and refuses a script link', asy
   await expect(bar.getByRole('button', {name: 'Strong'})).toHaveAttribute('aria-pressed', 'true')
   await expect(field.locator('.ProseMirror strong')).toHaveText('1.')
   // A script address stays out: the input says so and nothing is linked.
-  await bar.getByRole('button', {name: 'Link', exact: true}).click()
+  // As Sanity's, a 600 px field folds the links into the marks' "Show more".
+  const link = bar.getByRole('button', {name: 'Link', exact: true})
+  if (await link.isVisible()) await link.click()
+  else {
+    await bar.getByRole('button', {name: 'Show more'}).first().click()
+    await page.getByRole('menuitemcheckbox', {name: 'Link', exact: true}).click()
+  }
   await page.getByRole('textbox', {name: 'Link'}).fill(' JAVASCRIPT:alert(1)')
   await page.keyboard.press('Enter')
   await expect(page.locator('.body-link-refused')).toBeVisible()

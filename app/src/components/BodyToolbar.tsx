@@ -115,8 +115,21 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   // J47: one Tab stop, as a WAI-ARIA toolbar: arrow keys, Home and End move along its
   // buttons (a screen reader announces it as a toolbar, so its users press those).
   const bar = useRef<HTMLDivElement>(null)
+  // Sanity's tools wake with the editor: until focus is in the field (the canvas, this bar or
+  // its popovers) they are drawn disabled.
+  const [inside, setInside] = useState(false)
+  useEffect(() => {
+    const box = host.current ?? bar.current?.closest<HTMLElement>('.body-canvas')
+    if (!box) return
+    const sync = () => setInside(box.contains(document.activeElement))
+    const out = () => requestAnimationFrame(sync) // focus has not landed yet on focusout
+    sync()
+    box.addEventListener('focusin', sync)
+    box.addEventListener('focusout', out)
+    return () => (box.removeEventListener('focusin', sync), box.removeEventListener('focusout', out))
+  }, [host, supported])
   const at = useRef(0)
-  const tools = () => [...(bar.current?.querySelectorAll<HTMLButtonElement>(':scope > .menu-wrap > button, :scope > .body-tool-slot > button, :scope > .body-tool-slot > .menu-wrap > button') ?? [])].filter((b) => !b.disabled)
+  const tools = () => [...(bar.current?.querySelectorAll<HTMLButtonElement>(':scope > fieldset > .menu-wrap > button, :scope > fieldset > .body-tool-slot > button, :scope > fieldset > .body-tool-slot > .menu-wrap > button') ?? [])].filter((b) => !b.matches(':disabled'))
   const roveTo = (list: HTMLButtonElement[], i: number) => {
     at.current = i
     list.forEach((b, j) => (b.tabIndex = j === i ? 0 : -1))
@@ -205,7 +218,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
       for (const tool of el.querySelectorAll<HTMLElement>('[data-tool]')) widths.current.set(tool.dataset.tool!, tool.offsetWidth + 1)
       const width = (tools: Tool[]) => tools.reduce((sum, x) => sum + (widths.current.get(x.key) ?? 25) + (x.sep ? SEP : 0), 0)
       // Each part counts its width and the 1 px gap after it. Fixed: the style menu and the groups' separators.
-      const style = el.querySelector<HTMLElement>(':scope > .body-style-wrap')
+      const style = el.querySelector<HTMLElement>('.body-style-wrap')
       let fixed = style ? style.offsetWidth + 1 : 0
       if (actions.length && styles.length) fixed += SEP
       if (insertTools.length) fixed += SEP
@@ -267,6 +280,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   if (!supported) return <span className="body-toolbar" />
   return (
     <div ref={bar} className="body-toolbar" role="toolbar" aria-label={t('Formatting')} onMouseDown={keepSelection} onKeyDown={rove} onFocus={focused}>
+      <fieldset className="body-toolbar-tools" disabled={!inside}>
       {styles.length > 0 && (
         // The style button takes focus (the canvas keeps its selection), so the menu returns
         // focus to it, inside this wrap, and leaving the wrap closes the menu.
@@ -278,7 +292,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
           {styleMenu && (
             <MenuPopover onClose={() => setStyleMenu(false)}>
               {styles.map((style) => (
-                <button key={style} type="button" role="menuitemradio" aria-checked={state.blockStyle === style} className={`menu-item body-style-${style}`} disabled={!can('setBlockStyle', {style})} onClick={() => (setStyleMenu(false), act('setBlockStyle', {style}))}>
+                <button key={style} type="button" role="menuitemradio" aria-checked={state.blockStyle === style} className={`menu-item body-style-${style}`} disabled={state.blockStyle !== style && !can('setBlockStyle', {style})} onClick={() => (setStyleMenu(false), act('setBlockStyle', {style}))}>
                   {t(STYLE_LABEL[style]!)}
                 </button>
               ))}
@@ -290,6 +304,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
       {group(actions, folded[0], 0)}
       {insertTools.length > 0 && <span className="body-toolbar-sep" />}
       {group(insertTools, folded[1], 1)}
+      </fieldset>
     </div>
   )
 }
