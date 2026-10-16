@@ -21,6 +21,9 @@ export const findSaved = (list: SavedQuery[], q: Pick<SavedQuery, 'query' | 'per
 /** Newest first, as Sanity lists them. */
 export const addQuery = (list: SavedQuery[], q: SavedQuery) => [q, ...list]
 export const renameQuery = (list: SavedQuery[], key: string, title: string) => list.map((q) => (q.key === key ? {...q, title: title.trim() || q.title} : q))
+/** Sanity's "Update": the saved one takes the query being edited, saved now. */
+export const updateQuery = (list: SavedQuery[], key: string, q: Pick<SavedQuery, 'query' | 'perspective' | 'dataset'>, savedAt: string) =>
+  list.map((s) => (s.key === key ? {...s, query: q.query, perspective: q.perspective, dataset: q.dataset, savedAt} : s))
 export const deleteQuery = (list: SavedQuery[], key: string) => list.filter((q) => q.key !== key)
 /** A search over titles (Sanity's "Search queries"). */
 export const searchQueries = (list: SavedQuery[], text: string) => list.filter((q) => q.title.toLowerCase().includes(text.trim().toLowerCase()))

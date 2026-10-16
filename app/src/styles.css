@@ -1904,26 +1904,45 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 /* Save result as: Sanity's outlined buttons with a file icon. */
 .vision-save .vision-save-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px 5px 6px; box-shadow: inset 0 0 0 1px var(--line); }
 .vision-save-btn svg { width: 21px; height: 21px; }
-.vision-saved header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 0 12px; }
-.vision-saved h2 { margin: 0; padding: 0; }
+.vision-saved > header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 0 12px; }
+.vision-saved > header h2 { margin: 0; padding: 0; }
 .vision-saved-filter { margin: 0 12px 8px; }
 .vision-saved-filter [role=tab] { font-weight: 500; line-height: 19px; color: var(--menu-fg); }
 .vision-saved-filter [role=tab][aria-selected='true'] { color: var(--tab-strong-fg); } /* Sanity's: words darker than the document's view tabs */
 .vision-saved-search { position: relative; display: flex; align-items: center; margin: 16px 12px 24px; }
 .vision-saved-search svg { position: absolute; left: 5px; color: var(--muted); pointer-events: none; }
 .vision-saved .vision-saved-search .input { flex: 1; padding-left: 35px; }
-.vision-saved ul { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--border); }
+.vision-saved ul { flex: 1; min-height: 0; overflow: auto; margin: 12px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--border); }
 .vision-saved ul:empty { border-top: 0; } /* Sanity draws no rule under the tabs when nothing is saved */
-.vision-saved li { padding: 12px 12px 12px 14px; border-bottom: 1px solid var(--border); border-left: 2px solid transparent; }
+/* Sanity's QueryRecall card (measured at 1440): 20 px in, the title 18 px bold, the query
+   13 px muted, then a lock or the author's avatar, the badge, a dot and the date. */
+.vision-saved li { position: relative; padding: 19px 20px 20px; border-bottom: 1px solid var(--border); border-left: 2px solid transparent; }
 .vision-saved li[data-selected] { border-left-color: var(--muted); }
-.vision-saved-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 25px; }
+.vision-saved-head { display: flex; align-items: center; gap: 8px; min-height: 25px; }
+.vision-saved-head > .menu-wrap { margin-left: auto; }
+.vision-saved .popover.menu { min-width: 0; }
+/* Sanity's "edited" mark: a 6 px dot in the focus colour after the title. */
+.vision-saved-edited { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--focus-ring); }
+/* Sanity's ghost "Update": 24 px, a soft fill in a hairline ring, 16 px from the card's corner. */
+.vision-saved-update { position: absolute; right: 16px; bottom: 16px; height: 24px; padding: 0 7px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg-soft); color: var(--btn-secondary-fg); line-height: 24px; }
 .vision-saved-head .input { height: 24px; max-width: 170px; }
-.vision-saved-title { all: unset; cursor: pointer; font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vision-saved-title { all: unset; cursor: pointer; max-width: 220px; font-weight: 700; font-size: 18px; line-height: 27px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vision-saved-title:focus-visible, .vision-saved-load:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.vision-saved-load { all: unset; display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 8px; cursor: pointer; }
-.vision-saved-load code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vision-saved-meta { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
-.vision-saved-meta .badge { padding: 1px 6px; border-radius: 3px; background: var(--hover); }
+.vision-saved-load { all: unset; display: flex; flex-direction: column; gap: 9px; width: 100%; margin-top: 5px; cursor: pointer; }
+.vision-saved-load code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 19px; color: var(--muted); }
+.vision-saved-meta { display: flex; align-items: center; gap: 8px; min-height: 20px; margin-right: -1px; padding-top: 1px; color: var(--muted); font-size: 13px; line-height: 19px; }
+.vision-saved-meta > svg { flex: none; width: 17px; height: 17px; }
+.vision-saved-meta .p-avatar { flex: none; width: 19px; height: 19px; margin: -1px; box-shadow: none; font-size: 9px; }
+/* Sanity's words here are trimmed to their letters: a line counts 9 px in the row, not 19. */
+.vision-saved-meta > :is(time, [aria-hidden]) { margin: -5px 0; }
+.vision-saved-meta .badge { flex: none; padding: 0 4px; border-radius: 9999px; background: var(--fill-soft); line-height: 17px; white-space: nowrap; }
+.vision-saved-meta .badge.shared { background: var(--badge-primary-bg); color: var(--badge-primary-fg); }
+/* Sanity's share dialog: its words at 15/23, the action primary. */
+.vision-share-dialog .dialog-body p { margin: 0; font-size: 15px; line-height: 23px; }
+.vision-share-dialog .dialog-body { padding: 26px 20px 14px; }
+.vision-share-dialog footer { gap: 12px; }
+.vision-share-dialog footer .btn { padding: 3px 8px; line-height: 19px; }
+.vision-share-dialog footer .btn:not(.btn-primary) { color: var(--menu-fg); } /* Sanity's Cancel */
 /* Sanity keeps its three columns (301 | result | 275, rules included) at laptop widths; only a phone or tablet stacks them. */
 @media (max-width: 768px) { .vision-body { grid-template-columns: minmax(240px, 301px) 1fr; } .vision-saved { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border); max-height: 40vh; } }
 .vision-query { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg); }

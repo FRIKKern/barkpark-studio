@@ -20,7 +20,6 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
   const row = saved.getByRole('listitem').filter({hasText: marker})
   await query.fill(text)
   await saved.getByRole('button', {name: 'Save query'}).click()
-  await page.getByRole('menuitem', {name: 'Save as personal'}).click()
   await expect(page.getByText('Query saved')).toBeVisible()
   await row.getByRole('button', {name: 'Untitled', exact: true}).click()
   await row.getByLabel('Title', {exact: true}).fill(`Mine ${marker}`)
@@ -38,8 +37,13 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
   await row.getByRole('button', {name: `Load query Mine ${marker}`}).click()
   await expect(query).toHaveText(text) // the code editor (contenteditable) shows the loaded query
   await saved.getByRole('button', {name: 'Save query'}).click()
-  await page.getByRole('menuitem', {name: 'Save as personal'}).click()
   await expect(page.getByText('Query already saved')).toBeVisible()
+  // Sanity's Update: the loaded query, changed, marks the row (a dot) and saves over it.
+  await query.fill(`${text}&offset=1`)
+  await expect(row.getByRole('img', {name: 'Edited'})).toBeVisible()
+  await row.getByRole('button', {name: 'Update', exact: true}).click()
+  await expect(row.getByRole('img', {name: 'Edited'})).toHaveCount(0)
+  await expect(row.getByRole('button', {name: `Load query Mine ${marker}`})).toHaveAttribute('title', new RegExp(`${marker}&limit=3&offset=1$`))
   // Shared: Share moves it to the team (a document in the dataset), Unshare brings it back.
   await row.getByRole('button', {name: 'Query actions'}).click()
   await page.getByRole('menuitem', {name: 'Share'}).click()
@@ -149,7 +153,8 @@ test('@local J37: a query shared in one browser shows in another at once', async
     const rowOn = (p: typeof a) => p.getByRole('complementary', {name: 'Saved queries'}).getByRole('listitem').filter({hasText: marker})
     await b.getByLabel('Query', {exact: true}).fill(`post?filter[title][contains]=${marker}`)
     await b.getByRole('complementary', {name: 'Saved queries'}).getByRole('button', {name: 'Save query'}).click()
-    await b.getByRole('menuitem', {name: 'Save as shared'}).click()
+    await rowOn(b).getByRole('button', {name: 'Query actions'}).click()
+    await b.getByRole('menuitem', {name: 'Share'}).click()
     await b.getByRole('dialog').getByRole('button', {name: 'Save as shared'}).click()
     await expect(rowOn(a)).toBeVisible()
     await rowOn(b).getByRole('button', {name: 'Query actions'}).click()
