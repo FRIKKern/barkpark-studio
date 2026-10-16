@@ -41,6 +41,7 @@
   --popover-shadow: 0 0 0 0.5px rgba(114, 120, 146, 0.3), 0 7px 8px -4px rgba(114, 120, 146, 0.1), 0 12px 17px 2px rgba(114, 120, 146, 0.07), 0 5px 22px 4px rgba(114, 120, 146, 0.06); /* Sanity's menus and pickers, measured */
   --today-bg: #f5f8ff; /* the date picker's today (measured) */
   --status-badge-fg: #0d311f; /* a Published status badge's words (Sanity's delete card, measured) */
+  --positive-chip-on: #c5fce8; /* the chosen Published chip's fill (measured) */
   --draft-ring-on: #e3bbfc; /* Drafts' ring on the perspective menu's blue (measured) */
   --today-fg: #192357;
   --toast-bg: #f6f6f8; /* Sanity's default toast (measured): fill, title, time bar, ring and shadow */
@@ -209,6 +210,7 @@
   --popover-shadow: 0 0 0 0.5px rgba(117, 123, 150, 0.4), 0 7px 8px -4px rgba(0, 0, 0, 0.2), 0 12px 17px 2px rgba(0, 0, 0, 0.14), 0 5px 22px 4px rgba(0, 0, 0, 0.12);
   --today-bg: #161830;
   --status-badge-fg: #abf9de;
+  --positive-chip-on: #133628;
   --draft-ring-on: #635112;
   --today-fg: #dce6ff;
   --toast-bg: #191a24;
@@ -978,6 +980,8 @@ button.chip { font: inherit; font-size: 13px; font-weight: 500; border: 0; backg
 .pane-header button.chip .dot { width: 4px; height: 4px; margin-top: -2px; }
 button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .chip[data-selected]:not([data-active]) { background: var(--selected-fill); box-shadow: none; }
+/* Sanity's chosen Published chip is filled green, its words the badge's dark green. */
+.chip[data-tone=positive][data-selected]:not([data-active]) { background: var(--positive-chip-on); color: var(--status-badge-fg); }
 .form-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
 /* Sanity 6.17's read-only inputs keep the text colour (published view, compare's left side). */
 .form-fields:disabled .input { background: var(--bg-soft); color: var(--fg); }
