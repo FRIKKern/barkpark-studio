@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 15 changes, 4 tasks closed
+- **Today** · 16 changes, 4 tasks closed
+  - Locations banner as Sanity's: an info icon when not used on any page, 21 px icons 10 px in ([#661](https://github.com/FRIKKern/barkpark-studio/pull/661))
   - History / Review changes as Sanity's: tabs 12 px in at 500, the filled note, From/To 20 px in as secondary buttons, 19 px lines ([#660](https://github.com/FRIKKern/barkpark-studio/pull/660))
-  - A failed publish reads as Sanity's: "An error occurred during publish", the reason under Details ([#658](https://github.com/FRIKKern/barkpark-studio/pull/658))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
