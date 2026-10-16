@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 154 changes, 4 tasks closed
+- **Today** · 155 changes, 4 tasks closed
+  - File sizes in an nb workspace take the decimal comma ([#802](https://github.com/FRIKKern/barkpark-studio/pull/802))
   - The page never scrolls: the announcer ends at the window's bottom, not 1 px past it ([#801](https://github.com/FRIKKern/barkpark-studio/pull/801))
-  - The nb date picker starts its week on Monday ([#800](https://github.com/FRIKKern/barkpark-studio/pull/800))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
