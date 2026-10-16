@@ -287,17 +287,26 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
   }
   const latest = useRef({doCopy, doPaste, readOnly})
   latest.current = {doCopy, doPaste, readOnly}
+  const wrap = useRef<HTMLDivElement | null>(null)
   const register = (el: HTMLDivElement | null) => {
+    wrap.current = el
     const host = el?.parentElement
     if (host) fieldClipboard.set(host, {copy: () => latest.current.doCopy(), paste: () => !latest.current.readOnly && latest.current.doPaste()})
   }
+  // Sanity's opens to the right of the button; with no room before the pane's edge (ours clips), above it.
+  useLayoutEffect(() => {
+    const menu = wrap.current?.querySelector<HTMLElement>('.field-menu')
+    if (!menu) return
+    const edge = Math.min(document.documentElement.clientWidth, menu.closest('.pane')?.getBoundingClientRect().right ?? Infinity)
+    if (menu.getBoundingClientRect().right > edge) menu.dataset.side = 'top'
+  }, [open])
   return (
     <div ref={register} className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
       <button type="button" className="icon-btn" aria-label={t('Field actions')} aria-describedby={titleId} data-tip={t('Field actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
-        <MenuPopover onClose={close} aria-label={t('Field actions')}>
+        <MenuPopover className="popover menu field-menu" onClose={close} aria-label={t('Field actions')}>
           <button
             type="button"
             role="menuitem"
