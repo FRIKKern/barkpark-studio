@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 177 changes, 4 tasks closed
+- **Today** · 178 changes, 4 tasks closed
+  - Object arrays: an item added and typed into at once keeps the typing ([#826](https://github.com/FRIKKern/barkpark-studio/pull/826))
   - e2e: trim kept-edits and form-refused (wait for the page's saves, not a fixed time or the poll backoff) ([#827](https://github.com/FRIKKern/barkpark-studio/pull/827))
-  - Inspect's Raw JSON as Sanity's: the dialog's mono, long values on one line, 18 px under the tabs ([#825](https://github.com/FRIKKern/barkpark-studio/pull/825))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
