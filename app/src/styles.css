@@ -609,7 +609,7 @@ a.preview:hover, [data-lit] > a.preview:not([data-selected], [aria-current='true
 textarea.input { resize: vertical; }
 .ref-box { border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); padding: 4px; }
 .tags { display: flex; gap: 6px; flex-wrap: wrap; }
-.tag { font-size: 13px; padding: 2px 8px; border-radius: 3px; background: var(--hover); }
+.tag { font-size: 13px; padding: 2px 8px; border-radius: 3px; background: var(--icon-btn-hover); }
 .fieldset, .image-input[data-fields] { border-left: 1px solid var(--border); padding-left: 12px; }
 /* Sanity's object body: 12 px in, a 7 px band above the first field, no margin after the last
    (measured at 1440 on post-01's Call to action). */
@@ -715,9 +715,17 @@ a.menu-item { display: block; text-decoration: none; }
 .popover.menu.item-menu { min-width: 0; } /* an array item's: as wide as its items (Sanity's 153.8 px) */
 .doc-actions > .icon-btn[aria-expanded='true'], .item-actions > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); color: var(--fg); } /* Sanity's open menu button */
 .btn-create.btn-generate { padding: 0 12px; font-weight: 500; } /* Generate: Sanity's text button, 500, 12 px each side */
-.btn-create { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 4px; height: 35px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); font: inherit; font-size: 13px; font-weight: 400; cursor: pointer; }
+/* Sanity's Create beside a reference search (post-01 Reviewer, Related; 1440): a 21 px muted icon 6 px in, the word 6 px after it in 500, 12 px after. */
+.btn-create { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 6px; height: 35px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.btn-create > svg { width: 21px; height: 21px; color: var(--btn-secondary-icon); }
 .btn-create:hover, .btn-square:hover { background: var(--hover); }
 .ref-search { flex-wrap: wrap; }
+/* Sanity's: the chevron joins the input as one box (34 px, its 27 px button 3 px in), not a square of its own. */
+.field .ref-search > .combo .input { border-radius: 3px 0 0 3px; }
+.field .ref-search > .btn-square { position: relative; width: 34px; margin-left: -4px; border-radius: 0 3px 3px 0; box-shadow: inset 0 1px 0 var(--line), inset -1px 0 0 var(--line), inset 0 -1px 0 var(--line); }
+.field .ref-search > .btn-square:hover { background: var(--bg); }
+.field .ref-search > .btn-square:hover::before { content: ''; position: absolute; inset: 4px 4px 4px 3px; border-radius: 3px; background: var(--icon-btn-hover); }
+.field .ref-search > .btn-square > svg { position: relative; }
 @media (max-width: 768px) and (pointer: coarse) {
   .doc-form input.input { min-height: 44px; }
   .ref-row .icon-btn, .ref-search .icon-btn, .ref-search .btn-square { width: 44px; height: 44px; flex-shrink: 0; }
@@ -869,7 +877,7 @@ a.menu-item { display: block; text-decoration: none; }
 .search-none p { margin: 0; }
 .search-none .muted { font-weight: 400; }
 .search-skeleton { display: flex; flex-direction: column; gap: 10px; padding: 8px; }
-.search-skeleton span { height: 37px; border-radius: 3px; background: var(--hover); }
+.search-skeleton span { height: 37px; border-radius: 3px; background: var(--icon-btn-hover); }
 .search-back, .search-toggle, .filter-trash { display: none; }
 .filter-editor-field { width: 100%; }
 .search-toggle.on { background: var(--hover-strong); }
@@ -934,7 +942,7 @@ a.version-badge { text-decoration: none; }
 a.version-badge:hover { color: var(--fg-strong); }
 .version-state { color: var(--muted); }
 .version-dialog footer .publish { flex: 1; justify-content: center; text-align: center; }
-.diagnostics-run { grid-column: 1 / -1; display: flex; align-items: center; gap: 24px; padding: 16px 20px; border-radius: 3px; background: var(--hover); }
+.diagnostics-run { grid-column: 1 / -1; display: flex; align-items: center; gap: 24px; padding: 16px 20px; border-radius: 3px; background: var(--icon-btn-hover); }
 .diagnostics-run dl { flex: 1; display: flex; gap: 48px; margin: 0; }
 .diagnostics-run dt { color: var(--muted); }
 .diagnostics-run dd { margin: 0; font-weight: 600; }
@@ -1541,7 +1549,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .review-blocks h5, .review-blocks h6 { font-size: 16px; line-height: 22px; font-weight: 700; }
 .review-blocks ul, .review-blocks ol { padding-left: 20px; }
 .review-blocks blockquote { padding-left: 12px; border-left: 2px solid var(--border); }
-.review-blocks .callout { padding: 8px 12px; border-radius: 3px; background: var(--hover); }
+.review-blocks .callout { padding: 8px 12px; border-radius: 3px; background: var(--icon-btn-hover); }
 .review-blocks [data-change=removed] { opacity: 0.7; }
 .review-diff ins { text-decoration: none; }
 /* J15: a slug's change from → to, each side a tinted chip (Sanity's slug diff). */
