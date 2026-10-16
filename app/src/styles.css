@@ -783,7 +783,6 @@ a.menu-item { display: block; text-decoration: none; }
 .command-item[aria-selected='true'] .field-icon { color: var(--icon-btn-hover-fg); }
 .field-choice.builtin .field-icon { color: var(--pinned-icon); }
 .command-item[aria-selected='true'] .field-choice.builtin .field-icon { color: var(--pinned-active-icon); }
-.field-icon .glyph { font-size: 9px; text-decoration: underline; }
 .popover.filter-editor { min-width: 196px; padding: 0; }
 .filter-editor-head { padding: 10px 12px 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 /* Sanity's, measured at 1440: the field's icon 21 px, 10 px in and down, its title 6 px after, the operator 10 px

@@ -22,7 +22,7 @@ import {
 } from '../lib/search-filters'
 import {DocPreview} from './Preview'
 import {RefSearch} from './RefInput'
-import {Add, Calendar, ListIcon, Check, ChevronDown, Close, DocumentIcon, ImageIcon, LinkIcon, Search as SearchIcon, Sort, Trash} from './icons'
+import {Add, BlockContentIcon, Calendar, CheckmarkCircle, ListIcon, Check, ChevronDown, Close, DocumentIcon, ImageIcon, LinkIcon, NumberIcon, Search as SearchIcon, Sort, StringIcon, Trash} from './icons'
 
 // J38, Sanity's search filters, side by side with sanity 6.17: the type picker
 // ("All types", or the picked types as "Author, Post"), one chip per field filter
@@ -49,11 +49,12 @@ export function typesLabel(schemas: Schema[], types: string[], t: T = english, c
   return more ? t('{types} +{count} more', {types: shown.join(', '), count: more}) : shown.join(', ')
 }
 
+// Sanity's icon per field kind (its data-sanity-icon on :3334): string, number, checkmark-circle, calendar, link, ulist, document.
 const ICON: Record<Kind, () => ReactNode> = {
-  string: () => <span className="glyph">Aa</span>,
+  string: () => <StringIcon />,
   select: () => <ChevronDown />,
-  number: () => <span className="glyph">123</span>,
-  boolean: () => <Check />,
+  number: () => <NumberIcon />,
+  boolean: () => <CheckmarkCircle />,
   date: () => <Calendar />,
   datetime: () => <Calendar />,
   reference: () => <LinkIcon />,
@@ -62,7 +63,7 @@ const ICON: Record<Kind, () => ReactNode> = {
   refs: () => <LinkIcon />,
   presence: () => <DocumentIcon />,
 }
-const fieldIcon = (f: FilterField) => (f.path === 'image' || f.path === 'mainImage' ? <ImageIcon /> : ICON[f.kind]())
+const fieldIcon = (f: FilterField) => (f.type === 'image' ? <ImageIcon /> : f.type === 'richText' ? <BlockContentIcon /> : f.type === 'localizedText' ? <StringIcon /> : ICON[f.kind]())
 
 
 /** Sanity's popovers shift to stay 8 px inside the viewport (a phone); ours hang from their button, so nudge one left when it would run off. */
