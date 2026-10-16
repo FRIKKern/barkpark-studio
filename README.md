@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 165 changes, 4 tasks closed
+- **Today** · 166 changes, 4 tasks closed
+  - Schedule calendar: the time row names its zone, as Sanity's (GMT+2) ([#813](https://github.com/FRIKKern/barkpark-studio/pull/813))
   - Schedule dialog: the date as Sanity's text field with its calendar ([#812](https://github.com/FRIKKern/barkpark-studio/pull/812))
-  - A nested structure list opens its own pane, as Sanity's: its rows, icons and divider; its row marked ([#811](https://github.com/FRIKKern/barkpark-studio/pull/811))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
