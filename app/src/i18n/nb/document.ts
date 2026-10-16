@@ -325,6 +325,7 @@ export default {
   // J40: scheduled publish (from Sanity's nb-NO pack where it has the string).
   'Cannot schedule draft due to validation issues in the current draft.': 'Kan ikke planlegge utkast på grunn av valideringsfeil i gjeldende utkast.',
   'Delete schedule': 'Slett tidsplan',
+  'Select a date in the future.': 'Velg en dato i fremtiden.',
   'Pause to edit': 'Sett på pause for å redigere',
   'Could not pause the schedule': 'Kunne ikke sette tidsplanen på pause',
   'Schedule paused while editing. Press Schedule to reactivate or pick a new date.': 'Tidsplanen er satt på pause mens du redigerer. Trykk Planlegg publisering for å aktivere den igjen eller velge en ny dato.',

@@ -2,7 +2,7 @@ import {useState} from 'react'
 import {DialogBox} from './FocusScopes'
 import {Close} from './icons'
 import {useT} from '../lib/i18n'
-import {localInput} from '../lib/schedule-read'
+import {DateTimeInput} from './DateTimeInput'
 
 
 /**
@@ -12,7 +12,13 @@ import {localInput} from '../lib/schedule-read'
  */
 export function ScheduleDialog({initial, run, onClose}: {initial?: Date; run: (publishAt: string) => Promise<unknown>; onClose: () => void}) {
   const t = useT()
-  const [value, setValue] = useState(() => localInput(initial ?? new Date()))
+  // An instant, sent as UTC; shown in this computer's time, as Sanity's text field with its
+  // calendar (task-7821e8da66b7d5a9).
+  const [value, setValue] = useState<string | undefined>(() => {
+    const d = new Date(initial ?? Date.now())
+    d.setSeconds(0, 0)
+    return d.toISOString()
+  })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const at = value ? new Date(value) : null
@@ -28,10 +34,18 @@ export function ScheduleDialog({initial, run, onClose}: {initial?: Date; run: (p
         </header>
         <div className="dialog-body">
           <p>{t('Select when this document should be published.')}</p>
-          <label className="schedule-field">
-            <span>{t('Publish on')}</span>
-            <input type="datetime-local" className="input" value={value} autoFocus onChange={(e) => setValue(e.target.value)} />
-          </label>
+          <div className="schedule-field">
+            <label htmlFor="schedule-at">{t('Publish on')}</label>
+            <DateTimeInput
+              id="schedule-at"
+              value={value}
+              onChange={(v) => setValue(v as string | undefined)}
+              options={{dateFormat: 'MMM D, YYYY', timeFormat: 'HH:mm'}}
+              min={new Date()}
+              notice={future ? undefined : t('Select a date in the future.')}
+              autoFocus
+            />
+          </div>
           {!future && (
             <p className="schedule-warning" role="alert">
               {t('Schedule for a future time and date.')}
