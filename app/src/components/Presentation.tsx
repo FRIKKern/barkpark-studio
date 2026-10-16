@@ -174,6 +174,9 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
       // J59: a click on an outlined value opens its field in the panel.
       if (e.data.type === 'edit' && typeof e.data.doc?.type === 'string' && typeof e.data.doc?.id === 'string' && typeof e.data.path === 'string')
         void navigate({to: '/presentation', search: (prev: Record<string, unknown>) => ({...prev, pane: `${e.data.doc.type};${e.data.doc.id},path=${e.data.path}`})})
+      // Sanity's overlay keys while the page has the focus: Cmd/Ctrl+\ and a held Alt.
+      if (e.data.type === 'overlays-toggle') setOverlays((o) => !o)
+      if (e.data.type === 'alt' && typeof e.data.held === 'boolean') setAltHeld(e.data.held)
       if (e.data.type === 'documents' && Array.isArray(e.data.documents)) setDocs(e.data.documents.filter((d: PageDoc) => typeof d?._id === 'string' && typeof d?._type === 'string'))
     }
     window.addEventListener('message', onMessage)

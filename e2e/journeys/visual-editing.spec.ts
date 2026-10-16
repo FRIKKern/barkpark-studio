@@ -163,6 +163,9 @@ const clickSite = `<!doctype html><h1>Fixture post 01</h1><p id="x">Short excerp
   document.getElementById('x').onclick = () => post({type: 'edit', doc: {type: 'post', id: 'post-01'}, path: 'excerpt'})
   document.getElementById('b').onclick = () => post({type: 'edit', doc: {type: 'post', id: 'post-01'}, path: 'body[_key=="p1"]'})
   addEventListener('message', (e) => e.data?.bp === 'studio' && e.data.type === 'overlays' && (document.getElementById('o').textContent = e.data.enabled ? 'on' : 'off'))
+  // The overlay keys while the page has the focus go to the studio, as the Barkpark site's overlay sends them.
+  addEventListener('keydown', (e) => (e.key === 'Alt' && !e.repeat && post({type: 'alt', held: true}), (e.metaKey || e.ctrlKey) && e.key === '\\\\' && post({type: 'overlays-toggle'})))
+  addEventListener('keyup', (e) => e.key === 'Alt' && post({type: 'alt', held: false}))
 </script>`
 
 test('J59: clicking a value opens its field in the panel; Edit turns the overlay off', async ({page, context}, info) => {
@@ -188,6 +191,15 @@ test('J59: clicking a value opens its field in the panel; Edit turns the overlay
   await expect(site.locator('#o')).toHaveText('on')
   await page.keyboard.up('Alt')
   await expect(site.locator('#o')).toHaveText('off')
+  // The same keys with the focus in the page (task-416ec0131bb0f911): Sanity's overlay takes them there too.
+  await site.locator('#o').click()
+  await page.keyboard.press(`${process.platform === 'darwin' ? 'Meta' : 'Control'}+Backslash`)
+  await expect(site.locator('#o')).toHaveText('on')
+  await expect(edit).toBeChecked()
+  await page.keyboard.down('Alt')
+  await expect(site.locator('#o')).toHaveText('off')
+  await page.keyboard.up('Alt')
+  await expect(site.locator('#o')).toHaveText('on')
 })
 
 test('@local J59: the Barkpark page outlines its values; a click edits that field', async ({page, context}, info) => {
@@ -212,6 +224,20 @@ test('@local J59: the Barkpark page outlines its values; a click edits that fiel
   await author.click()
   await expect(page).toHaveURL(/pane=author%3Bauthor-alan%2Cpath%3Dname/)
   await expect(page.locator('.presentation-panel [id="name"]')).toBeFocused()
+  // At depth (task-416ec0131bb0f911's scout): a nested field and an object array's item.
+  await page.goto('/presentation?preview=/posts/fixture-post-03')
+  await site.getByRole('heading', {name: 'Fixture post 03', level: 1}).waitFor()
+  const seo = site.getByText('Post 3', {exact: true})
+  await expect(seo).toHaveAttribute('data-bp-edit', 'post:post-03:seo.metaTitle')
+  await seo.click()
+  await expect(page.locator('.presentation-panel [id="seo.metaTitle"]')).toBeFocused()
+  const link = site.locator('ul.links span', {hasText: 'Sanity docs'})
+  await expect(link).toHaveAttribute('data-bp-edit', 'post:post-03:links[_key=="l1"].title')
+  await link.click()
+  await expect(page.getByRole('dialog').last().getByRole('textbox', {name: 'Title'})).toBeFocused()
+  await page.keyboard.press('Escape')
+  await page.goto('/presentation?preview=/posts/fixture-post-01')
+  await site.getByRole('heading', {name: 'Fixture post 01', level: 1}).waitFor()
   // Edit off: the page is a page again.
   await page.getByRole('switch', {name: 'Edit'}).click()
   await site.getByRole('link', {name: 'Reference site'}).click()

@@ -10,6 +10,20 @@ const useOverlays = () => useSyncExternalStore((l) => (studio.listeners.add(l), 
 export function EditOverlays() {
   const on = useOverlays()
   const [hover, setHover] = useState<{el: HTMLElement; box: DOMRect} | null>(null)
+  // Sanity's overlay keys in the page too: Cmd/Ctrl+\ toggles Edit, a held Alt flips it.
+  // The studio holds the state, so the keys go there (with the overlays on or off).
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'Alt' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.shiftKey) tellStudio({type: 'alt', held: true})
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') (e.preventDefault(), tellStudio({type: 'overlays-toggle'}))
+    }
+    const up = (e: KeyboardEvent) => e.key === 'Alt' && tellStudio({type: 'alt', held: false})
+    const blur = () => tellStudio({type: 'alt', held: false})
+    addEventListener('keydown', down)
+    addEventListener('keyup', up)
+    addEventListener('blur', blur)
+    return () => (removeEventListener('keydown', down), removeEventListener('keyup', up), removeEventListener('blur', blur))
+  }, [])
   useEffect(() => {
     if (!on) return setHover(null)
     const target = (e: Event) => (e.target as Element | null)?.closest?.<HTMLElement>('[data-bp-edit]') ?? null
