@@ -874,7 +874,7 @@ button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .menu-item:disabled { color: var(--disabled); cursor: default; background: none; }
 
 /* Field groups + objects + booleans (J14), after Sanity's */
-.group-tabs { display: flex; gap: 4px; margin: -7px 0 78px; }
+.group-tabs { display: flex; gap: 8px; margin: -7px 0 78px; }
 /* J14: under 360 px of pane the groups are a select, as Sanity's (gaps measured side by side). */
 .group-tabs-root { container-type: inline-size; }
 .group-tabs-root .group-select { display: none; margin: 22px 0 71px; }
@@ -883,9 +883,14 @@ button.chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
   .group-tabs-root .group-tabs { display: none; }
   .group-tabs-root .group-select { display: block; }
 }
-.group-tabs [role=tab] { font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; padding: 3px 8px; border: 0; border-radius: 3px; background: none; color: var(--fg-header); cursor: pointer; }
+/* Sanity's field group tabs, measured at 1440 (post-01), light and dark: 8 px apart, the words in its
+   muted icon grey, the shown tab filled with the view tabs' words; a 21 px level icon 6 px after
+   the title, 2 px from the edge. */
+.group-tabs [role=tab] { display: inline-flex; align-items: center; font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; padding: 3px 8px; border: 0; border-radius: 3px; background: none; color: var(--icon-muted); cursor: pointer; }
+.group-tabs [role=tab] .error-icon { margin: -1px -6px -1px 6px; }
+.group-tabs [role=tab] .error-icon svg { width: 21px; height: 21px; }
 .group-tabs [role=tab]:hover { background: var(--hover); }
-.group-tabs [role=tab][aria-selected='true'] { background: var(--hover-strong); color: var(--fg); }
+.group-tabs [role=tab][aria-selected='true'] { background: var(--selected-fill); color: var(--tab-selected-fg); }
 .group-tabs .group-icon { margin: -3px 4px -3px 0; vertical-align: middle; }
 .group-tabs [role=tab]:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--selected); }
 /* Sanity's boolean card: the switch 9 px in, its label 8 px after at 500 (post Featured, 1440). */
@@ -2425,7 +2430,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
    tabs (the tabs' root is a container, so the banner's 8 px adds to their margin). */
 .doc-form h1:has(+ .locations-banner) { margin-bottom: 49px; }
 .locations-banner + .group-tabs-root .group-tabs { margin-top: 29px; }
-.locations-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 8px 8px 6px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
+.locations-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 8px 8px 6px; border: 0; border-radius: 3px; background: none; font: inherit; font-weight: 500; color: var(--fg); text-align: left; cursor: pointer; }
 .locations-banner[data-open] .locations-toggle { background: var(--hover); }
 .locations-toggle:disabled { cursor: default; }
 .locations-banner ul { list-style: none; margin: 0; padding: 4px 0 0; display: grid; gap: 4px; }
