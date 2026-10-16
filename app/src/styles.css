@@ -2228,6 +2228,9 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
   .media-folders { width: auto; flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); }
   .media-folders h1, .media-folders .desk-divider { display: none; }
   .media-folders .type-row, .media-tile, .media-bar .input, .media-section .btn { min-height: 44px; }
+  /* WCAG reflow (320 px): the search takes its own line and the controls wrap under it. */
+  .media-bar { flex-wrap: wrap; }
+  .media-bar .search { flex: 1 1 100%; }
   .media-inspector { position: fixed; inset: 51px 0 0; z-index: 3; width: auto; background: var(--bg); }
   .media-inspector .icon-btn { width: 44px; height: 44px; }
 }
