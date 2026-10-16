@@ -6,7 +6,7 @@ import {resumeMark} from '../server/listen'
 import {readDesk, readRest, readSchemas, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
-import type {T} from './i18n'
+import {translate, type T} from './i18n'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
 import type {PreviewMediaSpec, PreviewText} from './preview'
@@ -551,3 +551,17 @@ export function previewTitle(doc: Doc | null | undefined, schema?: Schema, t?: T
 }
 
 export type {QueryClient}
+
+/**
+ * Sanity names a new untitled doc "New <Type>" in its own pane until it exists (its first
+ * edit saves a draft); anything else untitled, a draft too, is "Untitled". `t`: the
+ * render's translate (English when not given).
+ */
+export const docTitle = (doc: Doc, schema: Schema, t: T = (en, vars) => translate('en', en, vars)) => {
+  const title = previewTitle(doc, schema)
+  if (title !== 'Untitled') return title
+  // A singleton without a title field is named by its type, as Sanity's fixed
+  // preview titles do ("Forside", "Nettstedsinnstillinger").
+  if (schema.singleton) return schema.title
+  return !doc._rev ? t('New {type}', {type: schema.title}) : t('Untitled')
+}

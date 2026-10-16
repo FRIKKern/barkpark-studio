@@ -9,7 +9,7 @@ type Mod = typeof import('./doc-editors')
 let mod: Mod | undefined
 // Marked fulfilled when it lands (React's thenable fields), so use() reads it at once.
 let pending: (Promise<Mod> & {status?: string; value?: Mod}) | undefined
-export const loadDocEditors = () => (pending ??= untilLoaded().then((m) => (Object.assign(pending!, {status: 'fulfilled', value: m}), (mod = m))))
+export const loadDocEditors = () => (pending ??= untilLoaded(() => import('./doc-editors')).then((m) => (Object.assign(pending!, {status: 'fulfilled', value: m}), (mod = m))))
 
 // J20: offline before the chunk lands must not take the pane down (a rejected import
 // here reached the pane's error card, and stayed cached until a reload). It never
@@ -17,12 +17,12 @@ export const loadDocEditors = () => (pending ??= untilLoaded().then((m) => (Obje
 // if it never noticed going offline); the editors in it wait, the rest of the form types on.
 // The browser keeps a failed module fetch failed, so a retry asks for the same file
 // under a fresh URL (the one the error names).
-function untilLoaded(attempt: () => Promise<Mod> = () => import('./doc-editors')): Promise<Mod> {
+export function untilLoaded<M>(attempt: () => Promise<M>): Promise<M> {
   return attempt().catch(
     (err: unknown) =>
-      new Promise<Mod>((resolve) => {
+      new Promise<M>((resolve) => {
         const url = /https?:\/\/[^\s'"]+/.exec(String((err as Error)?.message))?.[0]?.replace(/[?&]retry=\d+$/, '')
-        const next = url ? () => import(/* @vite-ignore */ `${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`) as Promise<Mod> : attempt
+        const next = url ? () => import(/* @vite-ignore */ `${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`) as Promise<M> : attempt
         const again = () => resolve(untilLoaded(next))
         if (navigator.onLine) setTimeout(again, RETRY_MS)
         else addEventListener('online', again, {once: true})
