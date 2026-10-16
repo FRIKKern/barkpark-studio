@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 59 changes, 4 tasks closed
+- **Today** · 60 changes, 4 tasks closed
+  - J17: count what the lane refers with, not the seed's 12 ([#705](https://github.com/FRIKKern/barkpark-studio/pull/705))
   - Sign in again keeps the whole pane under its dialog ([#703](https://github.com/FRIKKern/barkpark-studio/pull/703))
-  - Delete dialog as Sanity's: in the pane's card area, 9 px corners, body text, 25 px buttons, Delete document ([#704](https://github.com/FRIKKern/barkpark-studio/pull/704))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
