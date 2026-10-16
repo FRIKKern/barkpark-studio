@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 75 changes, 4 tasks closed
+- **Today** · 76 changes, 4 tasks closed
+  - Hover fills as Sanity's: rows, desk items and Locations #f6f6f8 (dark #191a24), tabs #f6f6f8 (dark #21232f); the open Locations toggle unfilled ([#721](https://github.com/FRIKKern/barkpark-studio/pull/721))
   - Compare versions and Inline changes: Sanity's change bar, read-only text, dialog and chips ([#720](https://github.com/FRIKKern/barkpark-studio/pull/720))
-  - Search filter menus as Sanity's: 33 px rows 4 px apart, 21 px icons, menu text, grey active row, pinned filters in their blue, 9 px under the button ([#719](https://github.com/FRIKKern/barkpark-studio/pull/719))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
