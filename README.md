@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 86 changes, 4 tasks closed
+- **Today** · 87 changes, 4 tasks closed
+  - Dialog cards wear Sanity's popover shadow, the search card its smaller one; dialog titles on a 19 px line ([#734](https://github.com/FRIKKern/barkpark-studio/pull/734))
   - Reference: the siteSettings singleton, as Sanity's singleton recipe ([#731](https://github.com/FRIKKern/barkpark-studio/pull/731))
-  - Dialog and search backdrop as Sanity's: its hairline at half in light, its background at half in dark ([#732](https://github.com/FRIKKern/barkpark-studio/pull/732))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
