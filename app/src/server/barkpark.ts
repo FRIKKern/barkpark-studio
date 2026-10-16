@@ -194,8 +194,8 @@ export function bpRaw(path: string): Promise<Response> {
 }
 
 /** A media file by the path an asset record gives (`/w/<ws>/p/<project>/media/files/...`), with the token. */
-export function bpFile(path: string): Promise<Response> {
-  return fetch(`${env('BARKPARK_URL')}${path}`, {headers: {authorization: `Bearer ${requestToken()}`}})
+export function bpFile(path: string, headers: Record<string, string> = {}): Promise<Response> {
+  return fetch(`${env('BARKPARK_URL')}${path}`, {headers: {...headers, authorization: `Bearer ${requestToken()}`}})
 }
 
 /** Pass a Barkpark response through to the browser: status + body + content type, nothing else. */
