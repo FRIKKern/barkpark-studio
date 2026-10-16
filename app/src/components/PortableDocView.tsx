@@ -11,27 +11,33 @@ type Block = {id: string; type: string; level?: number; tone?: string; text?: st
 
 const MARKS: Record<string, string> = {strong: 'strong', em: 'em', code: 'code', underline: 'u', strikethrough: 's', highlight: 'mark', sub: 'sub', sup: 'sup'}
 
-function inline(nodes: Inline[] = [], key = ''): ReactNode[] {
+function inline(nodes: Inline[] = [], key = '', linksOpen = false): ReactNode[] {
   return nodes.map((n, i) => {
     const k = `${key}${i}`
     if (n.type === 'text' || n.value !== undefined) return n.value ?? ''
     // An inline object (J11, post-11's chip): its words, as a chip.
     if (!n.children && typeof n.text === 'string') return <span key={k} className="inline-object" data-type={n.type}>{n.text}</span>
-    const kids = inline(n.children, `${k}.`)
+    const kids = inline(n.children, `${k}.`, linksOpen)
     if (n.type === 'link' && n.href) return <a key={k} href={n.href} target="_blank" rel="noopener noreferrer">{kids}</a>
     // A link to a document (Sanity's internal link; portable-doc's wikilink): drawn as a
     // link, as the canvas draws it, so the body reads the same before it is clicked.
-    if (n.type === 'wikilink') return <span key={k} className="wikilink" data-wikilink="" data-doc-id={n.docId ?? undefined}>{kids.length ? kids : n.target}</span>
+    // `linksOpen` (a read-only body): it is a link the reader follows, by click or Enter.
+    if (n.type === 'wikilink')
+      return (
+        <span key={k} className="wikilink" data-wikilink="" data-doc-id={n.docId ?? undefined} {...(linksOpen && n.docId ? {role: 'link', tabIndex: 0} : {})}>
+          {kids.length ? kids : n.target}
+        </span>
+      )
     const Tag = (MARKS[n.type] ?? 'span') as 'span'
     return <Tag key={k}>{kids}</Tag>
   })
 }
 
-export function PortableDocView({blocks}: {blocks: Block[]}) {
+export function PortableDocView({blocks, linksOpen = false}: {blocks: Block[]; linksOpen?: boolean}) {
   return (
     <>
       {blocks.map((b) => {
-        const body = b.content ? inline(b.content) : b.text
+        const body = b.content ? inline(b.content, '', linksOpen) : b.text
         switch (b.type) {
           case 'heading': {
             const H = `h${Math.min(6, Math.max(1, b.level ?? 2))}` as 'h2'
@@ -39,7 +45,7 @@ export function PortableDocView({blocks}: {blocks: Block[]}) {
           }
           case 'list': {
             const L = b.ordered ? 'ol' : 'ul'
-            return <L key={b.id} data-bp-id={b.id}>{(b.items ?? []).map((item, i) => <li key={i}>{inline(item)}</li>)}</L>
+            return <L key={b.id} data-bp-id={b.id}>{(b.items ?? []).map((item, i) => <li key={i}>{inline(item, '', linksOpen)}</li>)}</L>
           }
           case 'pullquote':
           case 'blockquote':

@@ -39,6 +39,37 @@ test('@local D06: a wikilink opens its doc in the next pane; hover shows a previ
 
 })
 
+// task-398773ee95fad121, as Sanity's: in a post's Body field (not only a Freeform doc) an
+// internal link's Open opens its document in the next pane; a read-only body follows the
+// link itself (click or Enter). post-11's second paragraph links "Ada" to author-ada.
+test('@local D06: an internal link in a body field opens its document; a read-only body follows it', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the check runs on ours; Sanity opens it the same (scout 2026-10-16)')
+  await page.goto(t.docPath('post', 'post-11'))
+  await t.settle(page)
+  const body = page.locator('[data-pane="doc:post-11"] .body-canvas')
+  await body.getByText('Body paragraph for post 11.').click()
+  await expect(body.locator('.ProseMirror')).toBeVisible({timeout: 15_000})
+  await body.locator('.ProseMirror').getByText('Ada', {exact: true}).hover()
+  const open = page.locator('.bp-link-preview__open').filter({visible: true})
+  await expect(open).toBeVisible()
+  await open.click()
+  await expect(page).toHaveURL(/\/structure\/post;post-11[^;]*;author-ada,type=author$/, {timeout: 15_000}) // after the target's type is read
+  await expect(page.locator('[data-pane="doc:author-ada"] [id="name"]')).toHaveValue('Ada Lovelace')
+
+  await page.goto(`${t.docPath('post', 'post-11')}?perspective=published`)
+  await t.settle(page)
+  const link = page.locator('[data-pane="doc:post-11"] .body-static [data-wikilink][role=link]')
+  await expect(link).toHaveText('Ada')
+  await link.click()
+  await expect(page).toHaveURL(/\/structure\/post;post-11[^;]*;author-ada,type=author\?perspective=published$/)
+  await expect(page.locator('[data-pane="doc:author-ada"] [id="name"]')).toHaveValue('Ada Lovelace')
+  await page.goBack()
+  await link.focus()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/author-ada,type=author/)
+})
+
 // Barkdown's EDITOR-PARITY row 2: Cmd/Ctrl+K on a selection in the canvas opens its link
 // row, and the Studio's own Cmd/Ctrl+K search stays shut (J19 holds the search key elsewhere).
 test('@local D18: Cmd/Ctrl+K on a selection is the canvas link row, not search', async ({page}, info) => {
