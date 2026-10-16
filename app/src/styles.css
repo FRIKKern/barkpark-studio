@@ -2705,8 +2705,8 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 .tasks-tabs button { padding: 3px 8px; line-height: 19px; color: var(--fg-header); }
 .tasks-tabs button[aria-selected='true'] { color: var(--fg); }
 .tasks-empty { padding-top: 128px; }
-.tasks-empty h3 { color: var(--fg); margin-bottom: 9px; }
-.tasks-empty p { margin-bottom: 61px; line-height: 19px; }
+.tasks-empty h3 { color: var(--fg); margin-bottom: 8px; }
+.tasks-empty p { margin-bottom: 58px; line-height: 19px; } /* the button 61 px under the hint's last line, as Sanity's (405.5 at 1440) */
 .tasks-empty .btn { padding: 3px 8px 3px 4px; line-height: 19px; background: var(--fg); color: var(--bg); }
 .tasks-crumbs .btn-text { padding: 3px 8px; line-height: 19px; color: var(--fg-header); font-weight: 400; }
 .tasks-crumbs { gap: 0; }
