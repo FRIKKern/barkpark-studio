@@ -36,6 +36,9 @@
   --line-strong: #c7cad3;
   --ring: rgba(0, 0, 0, 0.06);
   --shadow: rgba(0, 0, 0, 0.12);
+  --popover-shadow: 0 0 0 0.5px rgba(114, 120, 146, 0.3), 0 7px 8px -4px rgba(114, 120, 146, 0.1), 0 12px 17px 2px rgba(114, 120, 146, 0.07), 0 5px 22px 4px rgba(114, 120, 146, 0.06); /* Sanity's menus and pickers, measured */
+  --today-bg: #f5f8ff; /* the date picker's today (measured) */
+  --today-fg: #192357;
   --toast-bg: #f6f6f8; /* Sanity's default toast (measured): fill, title, time bar, ring and shadow */
   --toast-fg: #242736;
   --toast-bar: #6e748e;
@@ -183,6 +186,9 @@
   --line-strong: #4d5269;
   --ring: rgba(255, 255, 255, 0.08);
   --shadow: rgba(0, 0, 0, 0.5);
+  --popover-shadow: 0 0 0 0.5px rgba(117, 123, 150, 0.4), 0 7px 8px -4px rgba(0, 0, 0, 0.2), 0 12px 17px 2px rgba(0, 0, 0, 0.14), 0 5px 22px 4px rgba(0, 0, 0, 0.12);
+  --today-bg: #161830;
+  --today-fg: #dce6ff;
   --toast-bg: #191a24;
   --toast-fg: #e4e5ea;
   --toast-bar: #999eb3;
@@ -595,7 +601,7 @@ textarea.input { resize: vertical; }
 .combo { position: relative; flex: 1; }
 .combo .in-input { position: absolute; right: 6px; top: 5px; }
 .btn-square { width: 35px; height: 35px; flex: none; display: grid; place-items: center; border: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); cursor: pointer; }
-.popover { position: absolute; z-index: 10; background: var(--bg); border-radius: 6px; box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); padding: 4px; }
+.popover { position: absolute; z-index: 10; background: var(--bg); border-radius: 6px; box-shadow: var(--popover-shadow); padding: 4px; }
 .popover.options { top: 39px; left: 0; right: 39px; max-height: 320px; overflow: auto; }
 /* With a Create beside it Sanity's results span the whole row, Create included (post Related, 600 px at 1440). */
 .ref-search:has(> .btn-create, > .menu-wrap) > .popover.options { right: 0; }
@@ -1037,21 +1043,22 @@ fieldset.object-field[data-open=false] { margin-top: -7px; }
 .datetime-box .input { padding-right: 40px; }
 .datetime-box .icon-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 34px; height: auto; /* Sanity's 35 px segment, its rule included */ border-radius: 0 3px 3px 0; box-shadow: inset 1px 0 0 var(--line); }
 .datetime[data-invalid] .input { background: var(--danger-bg); }
-.datepicker { top: calc(100% + 4px); left: 0; width: 364px; padding: 8px; font-size: 13px; }
+/* Sanity's date picker (measured at 1440): 362 px, centred under the input (not its calendar button), 46 x 25 days 4 px apart. */
+.datepicker { top: calc(100% + 4px); left: max(0px, calc((100% - 35px) / 2 - 181px)); width: 362px; padding: 8px; font-size: 13px; }
 .dp-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
 .dp-month { position: relative; flex: 1; }
 .dp-month select { width: 100%; appearance: none; font: inherit; font-size: 13px; padding: 4px 28px 4px 8px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg); color: var(--fg-strong); }
 .dp-month svg { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .dp-year { width: 52px; font: inherit; font-size: 13px; text-align: center; padding: 4px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
-.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
-.dp-weekday { text-align: center; font-weight: 500; padding: 6px 0; color: var(--fg-strong); }
-.dp-grid button { font: inherit; font-size: 13px; height: 29px; border: 0; border-radius: 3px; background: none; color: var(--fg-strong); cursor: pointer; }
+.dp-grid { display: grid; grid-template-columns: repeat(7, 46px); grid-auto-rows: 25px; gap: 4px; }
+.dp-weekday { display: grid; place-items: center; font-weight: 500; line-height: 19px; color: var(--fg); }
+.dp-grid button { font: inherit; font-size: 13px; font-weight: 500; height: 25px; border: 0; border-radius: 3px; background: none; color: var(--fg); cursor: pointer; }
 .dp-grid button:hover { background: var(--hover); }
-.dp-grid button[data-outside] { color: var(--muted); }
-.dp-grid button[data-today] { box-shadow: inset 0 0 0 1px var(--line); }
+.dp-grid button[data-outside] { font-weight: 400; color: var(--muted); }
+.dp-grid button[data-today] { background: var(--today-bg); color: var(--today-fg); }
 .dp-grid button[data-selected] { background: var(--selected); color: var(--on-selected); }
 .dp-grid button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--selected); }
-.dp-foot { display: flex; align-items: center; gap: 16px; margin: 8px -8px -8px; padding: 8px; border-top: 1px solid var(--border); }
+.dp-foot { display: flex; align-items: center; gap: 16px; margin: 16px -8px -8px; padding: 8px; border-top: 1px solid var(--border); } /* a date's is empty: the rule and 16 px */
 .dp-time { position: relative; display: inline-flex; align-items: center; }
 .dp-time input { width: 110px; font: inherit; font-size: 15px; padding: 5px 8px 5px 10px; border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
 .btn-text { font: inherit; font-size: 13px; font-weight: 500; border: 0; background: none; color: var(--fg-strong); padding: 6px 8px; border-radius: 3px; cursor: pointer; }
