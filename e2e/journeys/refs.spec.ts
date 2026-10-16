@@ -335,10 +335,15 @@ test('J17: a doc that refers only from its body (an internal link) is used in, a
   // the annotation's reference; Barkpark the wikilink since #22593), never in a field.
   // Barkpark indexes a doc's links when the doc is written, against the schema it has then:
   // a lane whose docs predate its schema has none for them. Say so, not a missing row.
+  // The seed's 12 (Sanity's count). A lane can also hold docs of a type the seed doesn't
+  // know (e2e-local's `article`, which a reset leaves): Delete counts those too, so ours
+  // expects what the lane's own index holds.
+  let referring = 12
   if (t.name === 'studio') {
     const res = await fetch(`${bpBase()}/v1/data/backlinks/${bpDataset()}/author-ada`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
     const from = ((await res.json()) as {result: {backlinks: {from_doc_id: string}[]}}).result.backlinks.map((b) => b.from_doc_id)
     expect(from, `${bpDataset()}'s link index is stale (written before its schema): reset the lane with \`node run.mjs reset\``).toEqual(expect.arrayContaining(['post-11', 'post-13']))
+    referring = new Set(from).size
   }
   await page.goto(t.docPath('author', 'author-ada'))
   await t.settle(page)
@@ -355,7 +360,7 @@ test('J17: a doc that refers only from its body (an internal link) is used in, a
   await t.docMenu(page).click()
   await page.getByRole('menuitem', {name: 'Delete'}).click()
   const dialog = page.getByRole('dialog').last()
-  await expect(dialog).toContainText('12 documents refer to “Ada Lovelace”', {timeout: 15_000})
+  await expect(dialog).toContainText(`${referring} documents refer to “Ada Lovelace”`, {timeout: 15_000})
   await dialog.getByRole('button', {name: 'Cancel'}).click()
 })
 
