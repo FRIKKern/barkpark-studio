@@ -7,8 +7,8 @@ import {useT} from '../lib/i18n'
 import {deskQuery, docQuery, listQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
 import type {Pane} from '../lib/panes'
 import type {MainDocument} from '../lib/plugins'
-import {Close, Desktop, LaunchIcon, Mobile, Search, Share, SyncIcon, WarningOutline} from './icons'
-import {DialogBox} from './FocusScopes'
+import {Close, Desktop, Ellipsis, LaunchIcon, Mobile, Search, Share, SyncIcon, WarningOutline} from './icons'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {InPresentationContext, PaneHrefContext} from './PaneLink'
 import {RefPreview} from './Preview'
 import {iconBody} from './DeskIcon'
@@ -119,8 +119,14 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   // Sanity's "Search list" over the documents on the page: by their preview titles.
   const [docsQuery, setDocsQuery] = useState('')
   const {data: schemas = []} = useQuery(schemasQuery)
-  const docTitles = useQueries({queries: docs.map((d) => docQuery(d._type, d._id))}).map((q) => (q.data ? previewTitle(q.data, schemaOf(schemas, q.data._type), t) : ''))
-  const shownDocs = docsQuery.trim() ? docs.filter((_, i) => docTitles[i]!.toLowerCase().includes(docsQuery.trim().toLowerCase())) : docs
+  const docData = useQueries({queries: docs.map((d) => docQuery(d._type, d._id))}).map((q) => q.data)
+  const docTitles = docData.map((d) => (d ? previewTitle(d, schemaOf(schemas, d._type), t) : ''))
+  // Sanity's "…" menu: by appearance on the page (as the site reported them), or last edited first.
+  const [docsOrder, setDocsOrder] = useState<'appearance' | 'edited'>('appearance')
+  const edited = (i: number) => docData[i]?._updatedAt ?? ''
+  const order = docs.map((_, i) => i)
+  if (docsOrder === 'edited') order.sort((a, b) => edited(b).localeCompare(edited(a)))
+  const shownDocs = order.filter((i) => !docsQuery.trim() || docTitles[i]!.toLowerCase().includes(docsQuery.trim().toLowerCase())).map((i) => docs[i]!)
   const [missing, setMissing] = useState<string | null>(null)
   const previewRef = useRef(preview)
   previewRef.current = preview
@@ -417,7 +423,10 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
                 <WarningOutline /> <span>{t('Missing a main document for')} <code>{missing}</code></span>
               </p>
             )}
-            <h2>{t('Documents on this page')}</h2>
+            <div className="presentation-panel-head">
+              <h2>{t('Documents on this page')}</h2>
+              <DocsOrderMenu order={docsOrder} onOrder={setDocsOrder} />
+            </div>
             <PageDocsSearch query={docsQuery} onQuery={setDocsQuery} />
             {shownDocs.length ? (
               <div className="presentation-docs">
@@ -568,9 +577,31 @@ function PageDocsSearch({query, onQuery}: {query: string; onQuery: (q: string) =
   )
 }
 
+function DocsOrderMenu({order, onOrder}: {order: 'appearance' | 'edited'; onOrder: (o: 'appearance' | 'edited') => void}) {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <button type="button" className="icon-btn" aria-label={t('Sort documents')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Ellipsis />
+      </button>
+      {open && (
+        <MenuPopover className="popover menu presentation-order" onClose={() => setOpen(false)}>
+          {(['appearance', 'edited'] as const).map((o) => (
+            <button key={o} type="button" role="menuitemradio" aria-checked={order === o} className="menu-item check" onClick={() => (onOrder(o), setOpen(false))}>
+              {o === 'appearance' ? t('By appearance') : t('Last edited')}
+            </button>
+          ))}
+        </MenuPopover>
+      )}
+    </div>
+  )
+}
+
 // Sanity's Presentation: the divider between the preview and the panel drags, and the
-// split holds across reloads (it keeps it in localStorage too). The panel is 325 px by
-// default (Sanity's), never narrower; the preview keeps at least 360 px.
+// split holds across reloads (it keeps it in localStorage too). The panel starts at a
+// quarter of the window, never narrower than 325 px (Sanity's: 325 at 1024 and 1300,
+// 360 at 1440, 480 at 1920); the preview keeps at least 360 px.
 const PANEL_KEY = 'presentation/panel-width'
 const PANEL_MIN = 325
 const PREVIEW_MIN = 360
@@ -578,10 +609,11 @@ const clampPanel = (w: number, total: number) => Math.round(Math.max(PANEL_MIN, 
 function usePanelWidth(): [number, (w: number) => void] {
   const [width, setWidth] = useState(PANEL_MIN)
   useEffect(() => {
+    let saved = 0
     try {
-      const saved = Number(localStorage.getItem(PANEL_KEY))
-      if (saved > 0) setWidth(clampPanel(saved, window.innerWidth))
+      saved = Number(localStorage.getItem(PANEL_KEY))
     } catch {}
+    setWidth(clampPanel(saved > 0 ? saved : window.innerWidth / 4, window.innerWidth))
   }, [])
   const set = useCallback((w: number) => {
     setWidth(w)
