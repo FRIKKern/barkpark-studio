@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 210 changes, 4 tasks closed
+- **Today** · 211 changes, 4 tasks closed
+  - fix(refs): a reference filter in Sanity's form, GROQ string + filterParams; post.reviewer uses it ([#860](https://github.com/FRIKKern/barkpark-studio/pull/860))
   - feat(body): image card as Sanity's block object; the body at rest shows its images ([#856](https://github.com/FRIKKern/barkpark-studio/pull/856))
-  - List search at phone width as Sanity's: 15 px words, a 27 px box, a 25 px icon ([#857](https://github.com/FRIKKern/barkpark-studio/pull/857))
 - **Yesterday** · 91 changes
   - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **This week** · 43 changes, 83 tasks closed
