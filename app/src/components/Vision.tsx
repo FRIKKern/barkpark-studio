@@ -409,8 +409,10 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
   const [menu, setMenu] = useState<string>()
   const [sharing, setSharing] = useState<SavedQuery>()
   const reloadShared = () => listSharedQueries().then(setShared).catch(() => {})
+  // A write since: the list on screen is the newer one.
+  const wrote = useRef(false)
   useEffect(() => {
-    void getPref({data: QUERIES_PREF}).then((v) => setList(readQueries(v))).catch(() => {})
+    void getPref({data: QUERIES_PREF}).then((v) => wrote.current || setList(readQueries(v))).catch(() => {})
     void reloadShared()
     // As Sanity's: a shared query someone else saves, renames or removes shows at once
     // (the studio's listen stream, narrowed to the type), and again when the tab comes back.
@@ -419,13 +421,18 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
     window.addEventListener('focus', reloadShared)
     return () => (es.close(), window.removeEventListener('focus', reloadShared))
   }, [])
-  const store = async (next: SavedQuery[], done?: string) => {
+  // A change goes onto the list as the server has it now, not the one on screen: that may
+  // not have come in yet (a save the moment Vision opened wrote a list of only the new
+  // query, and the others were gone: task-43e67c21db51a69f), or another tab wrote since.
+  const store = async (change: (list: SavedQuery[]) => SavedQuery[], done?: string) => {
     const before = list
-    setList(next)
+    wrote.current = true
+    setList(change(list))
+    const next = await getPref({data: QUERIES_PREF}).then((v) => change(readQueries(v)), () => null)
     // The last one gone: no pref left behind, not an empty list.
-    const ok = await (next.length ? putPref({data: {key: QUERIES_PREF, value: {queries: next}}}) : deletePref({data: QUERIES_PREF})).catch(() => false)
+    const ok = !!next && (await (next.length ? putPref({data: {key: QUERIES_PREF, value: {queries: next}}}) : deletePref({data: QUERIES_PREF})).catch(() => false))
     if (!ok) (setList(before), toast({title: t('Error saving query'), tone: 'critical'}))
-    else if (done) toast({title: done, tone: 'positive'})
+    else (setList(next), done && toast({title: done, tone: 'positive'}))
     return ok
   }
   const fail = () => toast({title: t('Error saving query'), tone: 'critical'})
@@ -441,14 +448,14 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
     if (already()) return
     const q: SavedQuery = {key: crypto.randomUUID(), title: t('Untitled'), ...current, savedAt: new Date().toISOString()}
     setSelected(q.key)
-    void store(addQuery(list, q), t('Query saved'))
+    void store((l) => addQuery(l, q), t('Query saved'))
   }
   // Share: a personal one (its menu's Share) moves to the team, as Sanity's.
   const share = async (q: SavedQuery) => {
     setSharing(undefined)
     const res = await shareQuery({data: {title: q.title, query: q.query, perspective: q.perspective, dataset: q.dataset}}).catch(() => null)
     if (!res) return fail()
-    await store(deleteQuery(list, q.key))
+    await store((l) => deleteQuery(l, q.key))
     setSelected(res.key)
     await reloadShared()
     toast({title: t('Shared query saved'), tone: 'positive'})
@@ -456,21 +463,24 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
   const unshare = async (q: SharedQuery) => {
     if (already(q)) return
     const mine: SavedQuery = {key: crypto.randomUUID(), title: q.title, query: q.query, perspective: q.perspective, dataset: q.dataset, savedAt: new Date().toISOString()}
-    if (!(await store(addQuery(list, mine)))) return
+    if (!(await store((l) => addQuery(l, mine)))) return
     if (!(await deleteSharedQuery({data: q.key}).catch(() => null))) return fail()
     await reloadShared()
     toast({title: t('Query moved to personal'), tone: 'positive'})
   }
-  const copy = (q: SharedQuery) => void store(addQuery(list, {key: crypto.randomUUID(), title: q.title, query: q.query, perspective: q.perspective, dataset: q.dataset, savedAt: new Date().toISOString()}), t('Personal copy saved'))
+  const copy = (q: SharedQuery) => {
+    const mine: SavedQuery = {key: crypto.randomUUID(), title: q.title, query: q.query, perspective: q.perspective, dataset: q.dataset, savedAt: new Date().toISOString()}
+    void store((l) => addQuery(l, mine), t('Personal copy saved'))
+  }
   const remove = async (item: Item) => {
-    if (!item.shared) return void store(deleteQuery(list, item.key))
+    if (!item.shared) return void store((l) => deleteQuery(l, item.key))
     if (!(await deleteSharedQuery({data: item.key}).catch(() => null))) return fail()
     await reloadShared()
   }
   const rename = async (item: Item, title: string) => {
     setEditing(undefined)
     if (!title.trim() || title.trim() === item.title) return
-    if (!item.shared) return void store(renameQuery(list, item.key, title))
+    if (!item.shared) return void store((l) => renameQuery(l, item.key, title))
     if (!(await updateSharedQuery({data: {key: item.key, set: {title}}}).catch(() => null))) return fail()
     await reloadShared()
   }
@@ -479,7 +489,7 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
     const dup = [...list, ...shared].find((s) => s.key !== item.key && findSaved([s], current))
     if (dup) return warnSaved(dup)
     const savedAt = new Date().toISOString()
-    if (!item.shared) return void store(updateQuery(list, item.key, current, savedAt), t('Query saved'))
+    if (!item.shared) return void store((l) => updateQuery(l, item.key, current, savedAt), t('Query saved'))
     if (!(await updateSharedQuery({data: {key: item.key, set: {...current, savedAt}}}).catch(() => null))) return fail()
     await reloadShared()
     toast({title: t('Query saved'), tone: 'positive'})
