@@ -2,6 +2,7 @@ import {createContext, memo, useCallback, useContext, useEffect, useId, useLayou
 import {MenuPopover} from './FocusScopes'
 import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
+import {objectKinds} from '../lib/object-block'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
 import {isHidden, isReadOnly} from '../lib/conditions'
@@ -924,7 +925,7 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
           {!readOnly && <BodyToolbar host={box} vocabulary={vocabulary} onWake={() => setActive(true)} />}
           {!readOnly && <ExpandButton expanded={false} onClick={(e) => (e.stopPropagation(), setActive(true), setExpanded(true))} />}
         </div>
-        <div className="bp-paper-editor-body" ref={staticBody} onScroll={(e) => (scrolled.current.top = e.currentTarget.scrollTop)}>{blocks.length ? <PortableDocView blocks={blocks} linksOpen={linksOpen} /> : <p className="muted">{t('Empty')}</p>}</div>
+        <div className="bp-paper-editor-body" ref={staticBody} onScroll={(e) => (scrolled.current.top = e.currentTarget.scrollTop)}>{blocks.length ? <PortableDocView blocks={blocks} linksOpen={linksOpen} objects={objectKinds(vocabulary)} /> : <p className="muted">{t('Empty')}</p>}</div>
         {id && <BlockPresence docId={id} field={field} />}
       </div>
     )
@@ -978,8 +979,8 @@ function markObjectHover(field: HTMLElement, target: Element) {
   const doc = target.closest('.ProseMirror')
   let block: Element | null = doc ? target : null
   while (block && block.parentElement !== doc) block = block.parentElement
-  // An image card (canvas 1.11.0) carries its own "…" (Edit, Remove), as Sanity's: no second one.
-  const ownMenu = !!block?.querySelector(':scope > .bp-canvas-image-head')
+  // An image or object card (canvas 1.11.0, 1.12.0) carries its own "…" (Edit, Remove), as Sanity's: no second one.
+  const ownMenu = !!block?.querySelector(':scope > .bp-canvas-image-head, :scope > .bp-canvas-object-more')
   field.toggleAttribute('data-hover-object', !!block && !ownMenu && !/^(P|H[1-6]|UL|OL|BLOCKQUOTE)$/.test(block.tagName))
 }
 
