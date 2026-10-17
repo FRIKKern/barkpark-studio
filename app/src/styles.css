@@ -494,7 +494,7 @@ a { color: inherit; text-decoration: none; }
 .type-row:hover { background: var(--card-hover); }
 .type-row-static { color: var(--muted); cursor: default; }
 .type-row-static:hover { background: none; }
-.type-row .chev { margin-left: auto; margin-right: -2px; color: var(--muted); } /* 6 px from the edge, as Sanity's */
+.type-row .chev { display: flex; margin-left: auto; margin-right: -2px; color: var(--muted); } /* 6 px from the edge, as Sanity's */
 .type-row .chev > svg { width: 21px; height: 21px; }
 .type-row[data-selected] { background: var(--row-chain-bg); color: var(--row-chain-fg); } /* a row whose pane is open further right: Sanity's, measured */
 .type-row[aria-current='true'] { background: var(--selected); color: var(--on-selected); }
@@ -1116,7 +1116,7 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .doc-column { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .doc-main { flex: 1; display: flex; min-height: 0; }
 .doc-main > .pane-body { flex: 1; }
-.inspector { width: 345px; flex: none; border-left: 1px solid var(--border); padding: 12px; overflow: auto; font-size: 13px; }
+.inspector { width: 345px; flex: none; border-left: 1px solid var(--border); padding: 11px 12px 12px; overflow: auto; font-size: 13px; } /* its header 114 px down under the 52 px navbar, as Sanity's */
 /* Sanity's split: the inspector takes a third of the document pane, never under 320 px (345 at 1440, 320 at 1024). */
 .doc-split > .inspector { flex: 0 0 max(320px, 33.333%); width: auto; }
 .inspector header { display: flex; align-items: center; justify-content: space-between; padding: 0 0 12px 8px; }
