@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 28 changes, 11 tasks closed
+- **Today** · 29 changes, 11 tasks closed
+  - Footer menu 4 px over its button, empty image buttons 13 px in, reference titles end before Sanity's slot ([#900](https://github.com/FRIKKern/barkpark-studio/pull/900))
   - Phone Create new document as Sanity's: a dialog over the window; no row lit until the keys move ([#899](https://github.com/FRIKKern/barkpark-studio/pull/899))
-  - Desk row chevrons centred; the inspector panels where Sanity's are under the 52 px navbar ([#897](https://github.com/FRIKKern/barkpark-studio/pull/897))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
