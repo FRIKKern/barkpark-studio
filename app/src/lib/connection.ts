@@ -46,10 +46,22 @@ export function useReconnectingToast() {
     const cache = qc.getQueryCache()
     // The cache reports while other components render (a useQuery registering its
     // query): look after that render, never set state inside it.
+    // Each event updates only its own query's entry: scanning the whole cache per event cost
+    // ~180 ms of main thread while a list grew to 2,000 rows.
     let gone = false
-    const check = () => queueMicrotask(() => !gone && setReads(cache.getAll().some(struggling)))
-    check()
-    const unsubscribe = cache.subscribe(check)
+    let queued = false
+    const failing = new Set(cache.getAll().filter(struggling).map((q) => q.queryHash))
+    const report = () => {
+      if (queued) return
+      queued = true
+      queueMicrotask(() => ((queued = false), !gone && setReads(failing.size > 0)))
+    }
+    report()
+    const unsubscribe = cache.subscribe(({type, query}) => {
+      if (type !== 'removed' && struggling(query)) failing.add(query.queryHash)
+      else failing.delete(query.queryHash)
+      report()
+    })
     return () => ((gone = true), unsubscribe())
   }, [qc])
   // A bound token in another dataset: nothing will connect, and the pane says why.

@@ -546,6 +546,9 @@ a.preview:hover, [data-lit] > a.preview:not([data-selected], [aria-current='true
 .preview[aria-current='true'] .dot { background: var(--dot-on-selected); } /* the open row's published dot: Sanity's tint, no ring (#55d8fd, dark #0d6e70) */
 .preview[aria-current='true'] .media { background: transparent; color: var(--on-selected); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-selected) 30%, transparent); }
 .list-rows { padding: 0 12px 12px; }
+/* A long list draws only the rows near the view (RowWindow): rows mounting below and the
+   spacers changing must not move what is on screen, so no scroll anchoring there. */
+.list-rows[data-windowed] { overflow-anchor: none; }
 /* B03: a row's tick sits where its icon is. It shows only while selecting (list menu
    "Select documents", a Cmd/Ctrl- or Shift-click, or a ticked row) and when the tick has
    keyboard focus; a plain hover keeps Sanity's row and its image, on touch too. */
