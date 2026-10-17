@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes
-  - Body toolbar collapses under Sanity's 400 px: every tool behind its two Show mores ([#878](https://github.com/FRIKKern/barkpark-studio/pull/878))
-  - Server log: Barkpark's slow, failed and 429 lines carry the time, and a slow warm-up connection is logged ([#876](https://github.com/FRIKKern/barkpark-studio/pull/876))
+- **Today** · 9 changes, 1 task closed
+  - Array item dialog at phone width over the whole window, as Sanity's ([#880](https://github.com/FRIKKern/barkpark-studio/pull/880))
+  - Freeform D08 and D22 pass on a freshly seeded e2e-local ([#879](https://github.com/FRIKKern/barkpark-studio/pull/879))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
