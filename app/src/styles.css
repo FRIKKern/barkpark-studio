@@ -124,15 +124,16 @@
   --comment-range-active-line: #f9bc15;
   --drop-bg: rgba(240, 245, 255, 0.92);
   --drop-fg: #1f3a7a;
-  --code-key: #2f3f9e;
-  --code-summary: #8d3fc2;
-  --code-string: #a0522d;
-  --code-number: #1e7889; /* AA on the code background (#f2f3f5) */
   --syntax-property: #4043e7; /* Inspect's syntax colours, measured on reference/sanity (light) */
   --syntax-string: #965912;
   --syntax-constant: #721fe5;
   --syntax-operator: #b11651;
   --syntax-punctuation: #515870;
+  --syntax-function: #0d794f; /* Vision's GROQ (measured, light): functions, brackets, comments */
+  --syntax-bracket: #383d51;
+  --syntax-comment: #9499ad;
+  --vision-error-bg: #fff6f5; /* Vision's refused query: the result column and its words */
+  --vision-error-fg: #a8554f;
   --code-active-line: rgba(204, 238, 255, 0.27); /* Vision's current line, measured on reference/sanity */
   --code-active-gutter: #e2f2ff;
   --code-gutter-bg: #f5f5f5; /* Vision's line numbers, measured on reference/sanity */
@@ -307,15 +308,16 @@
   --comment-range-active-line: #965908;
   --drop-bg: rgba(29, 37, 64, 0.92);
   --drop-fg: #b7c8ff;
-  --code-key: #9fb0ff;
-  --code-summary: #c99bf0;
-  --code-string: #f0a875;
-  --code-number: #6cc4d4;
   --syntax-property: #7898ff; /* measured on reference/sanity (dark) */
   --syntax-string: #f9be1e;
   --syntax-constant: #b28af7;
   --syntax-operator: #f0749f;
   --syntax-punctuation: #979cb0;
+  --syntax-function: #15f0a5;
+  --syntax-bracket: #bdbfcb;
+  --syntax-comment: #555c75;
+  --vision-error-bg: #24161b;
+  --vision-error-fg: #c78a85;
   --code-active-line: rgba(153, 238, 255, 0.2);
   --code-active-gutter: #222227;
   --code-gutter-bg: #333338;
@@ -2278,9 +2280,16 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 .vision-label-help { display: inline-flex; align-items: center; gap: 4px; }
 .vision-help { display: inline-flex; color: var(--muted); cursor: help; }
 .vision-help svg { width: 17px; height: 17px; margin: -3px 0; }
-/* A refused query fills the result with Sanity's red. */
-.vision-out-wrap[data-error] { margin: 0 -12px; padding: 8px 12px; background: var(--danger-bg); }
-.vision-out-wrap[data-error] .vision-error pre { background: none; padding: 0; }
+/* A refused query: Sanity tints the whole result column, its label too, and tells it in 13 px code:
+   the message, 22 px on where it went wrong, 10 px on its line and column (measured at 1440, light and dark). */
+.vision-result:has(> .vision-out-wrap[data-error]) { background: var(--vision-error-bg); }
+.vision-result:has(> .vision-out-wrap[data-error]) > .menu-label { color: var(--vision-error-fg); }
+.vision-result:has(> .vision-out-wrap[data-error]) .vision-foot { background: var(--bg); } /* the timings below keep the page's own */
+.vision-out-wrap[data-error] { padding-top: 4px; }
+.vision-out-wrap[data-error] .vision-error { gap: 0; }
+.vision-out-wrap[data-error] .vision-error :is(p, pre) { margin: 0; padding: 0; background: none; font: 13px/19px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--vision-error-fg); white-space: pre-wrap; }
+.vision-out-wrap[data-error] .vision-error pre { margin-top: 22px; white-space: pre; }
+.vision-out-wrap[data-error] .vision-error pre + pre { margin-top: 10px; }
 .vision-result { display: flex; flex-direction: column; min-width: 0; padding: 12px 12px 0; }
 .vision-out-wrap { flex: 1; min-height: 0; overflow: auto; }
 .vision-error { display: flex; flex-direction: column; gap: 8px; }
