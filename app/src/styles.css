@@ -578,7 +578,7 @@ a.preview:hover, [data-lit] > a.preview:not([data-selected], [aria-current='true
 /* Below 600 px Sanity's list search takes its phone size: 15 px words in a 27 px box, a 25 px icon (/structure/post at 390). */
 @media (max-width: 599px) {
   .pane.list > .search input { font-size: 15px; line-height: 23px; padding-top: 2px; padding-bottom: 2px; padding-left: 31px; } /* the right end stays the clear button's */
-  .pane.list > .search .search-icon { left: 1px; top: 1px; }
+  .pane.list > .search .search-icon { left: 1px; top: 50%; transform: translateY(-50%); } /* centred: on a touch screen the box is 44 px (and top: 1px with the touch rule's translate put the icon above the words) */
   .pane.list > .search .search-icon > svg { width: 25px; height: 25px; }
 }
 

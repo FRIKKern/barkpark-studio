@@ -101,8 +101,9 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
           ]
         })}
         {pages.hasNextPage && (
-          <li ref={end} className="history-more muted" role="status">
-            {t('Loading history…')}
+          // A list item still (a role on the li made axe's list rule fail): the status is inside it.
+          <li ref={end} className="history-more muted">
+            <span role="status">{t('Loading history…')}</span>
           </li>
         )}
       </ul>
