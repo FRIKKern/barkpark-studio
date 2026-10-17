@@ -2294,18 +2294,22 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 .vision-url-row { display: flex; gap: 6px; }
 .vision-url-row .input { flex: 1; min-width: 0; }
 .vision-save { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* Sanity Vision's result (measured at 1440, light and dark): 20 px a level, the root 2 px down and with no arrow,
+   the others' arrows in the indent; keys in its property blue, strings brown, the rest (braces, counts, numbers,
+   true, null) its constant violet: Inspect's syntax colours, AA on the white. */
 .json-tree, .json-tree ul { list-style: none; margin: 0; padding: 0; }
+.json-tree { margin-top: 2px; }
 .json-tree ul { padding-left: 20px; }
-.json-toggle { display: inline-flex; gap: 4px; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.json-tree li { position: relative; }
+.json-toggle { display: inline-flex; gap: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
 .json-toggle:disabled { cursor: default; }
-.json-arrow { width: 12px; color: var(--muted); }
-.json-leaf { padding-left: 16px; }
-/* J45: the code tokens, light and dark (#5a4fcf keys were 3.0:1 on the dark background). */
-.json-key { color: var(--code-key); }
-.json-count { color: var(--muted); }
-.json-string { color: var(--code-string); }
-.json-number, .json-boolean { color: var(--code-number); }
-.json-null { color: var(--muted); }
+.json-arrow { position: absolute; left: -16px; width: 12px; color: var(--muted); }
+.json-key { color: var(--syntax-property); }
+.json-brace, .json-count, .json-number, .json-boolean, .json-null { color: var(--syntax-constant); }
+.json-count { margin-left: 1ch; } /* the toggle is a flex row: its space between them goes */
+.json-string { color: var(--syntax-string); }
+.json-id-link { display: inline-flex; vertical-align: -2px; color: #0000ee; } /* Sanity leaves it the browser's link blue */
+.json-id-link svg { width: 16px; height: 16px; }
 /* D07: figures and images pull wider than the reading column; in a pane they keep to it. */
 .pd-editor { --bp-evidence-pull: 0px; --bp-evidence-width: 100%; }
 

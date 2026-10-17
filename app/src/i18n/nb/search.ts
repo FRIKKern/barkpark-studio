@@ -158,6 +158,7 @@ export default {
   'Result cannot be encoded as CSV': 'Resultatet kan ikke lagres som CSV',
   '{count} items': '{count} elementer',
   '{count} properties': '{count} egenskaper',
+  'Open {id}': 'Åpne {id}',
   // Vision's saved queries (Sanity's nb-NO words; ours where Sanity has none)
   'Saved queries': 'Lagrede spørringer',
   'Save query': 'Lagre spørring',
