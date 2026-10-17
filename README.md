@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 21 changes, 10 tasks closed
+- **Today** · 22 changes, 10 tasks closed
+  - P1: words kept at a delete are offered back after Restore (the body loads again when its document returns) ([#895](https://github.com/FRIKKern/barkpark-studio/pull/895))
   - feat(freeform): bound field blocks show their n/max badge and an unbind ×, as LiveView Beta's ([#892](https://github.com/FRIKKern/barkpark-studio/pull/892))
-  - Done: [Build: Media sizes under 1 KB in bytes (31 B), not 0.0 KB](https://github.com/FRIKKern/barkpark/issues/23651)
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
