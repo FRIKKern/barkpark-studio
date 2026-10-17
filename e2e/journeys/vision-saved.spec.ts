@@ -14,11 +14,18 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
   const marker = `j37-${Date.now().toString(36)}`
   const text = `post?filter[title][contains]=${marker}&limit=3`
   const query = page.getByLabel('Query', {exact: true})
-  // Hydrated (the remembered query is in) once the project's datasets are listed.
-  await expect(page.getByRole('combobox', {name: 'Dataset', exact: true})).toBeEnabled()
+  // Hydrated (the remembered query is in) once the project's datasets are listed, and typed
+  // into once the code editor is in: on a cold server a stand-in textarea comes first. On CI
+  // the query was once the example at Save (run 39029913389, task-b8c8c5cbb3342cc6).
+  const ready = async () => {
+    await expect(page.getByRole('combobox', {name: 'Dataset', exact: true})).toBeEnabled()
+    await expect(page.locator('.cm-content[aria-label="Query"]')).toBeVisible()
+  }
+  await ready()
   const saved = page.getByRole('complementary', {name: 'Saved queries'})
   const row = saved.getByRole('listitem').filter({hasText: marker})
   await query.fill(text)
+  await expect(query).toHaveText(text)
   await saved.getByRole('button', {name: 'Save query'}).click()
   await expect(page.getByText('Query saved')).toBeVisible()
   await row.getByRole('button', {name: 'Untitled', exact: true}).click()
@@ -31,7 +38,7 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
 
   // On the server: still there after a reload; loading it fills the query.
   await page.reload()
-  await expect(page.getByRole('combobox', {name: 'Dataset', exact: true})).toBeEnabled()
+  await ready()
   await query.fill('author')
   await saved.getByRole('searchbox', {name: 'Search queries'}).fill(marker)
   await row.getByRole('button', {name: `Load query Mine ${marker}`}).click()
