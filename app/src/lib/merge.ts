@@ -7,15 +7,18 @@ import {applyPatches, makePatches} from '@sanity/diff-match-patch'
 /**
  * Three-way text merge: the edits base → mine, applied onto theirs. Null when some of
  * mine has nowhere to go (they rewrote the text it was in): applied anyway, those words
- * would just be gone.
+ * would just be gone. `mayHaveLanded`: mine was sent and its answer never came, so theirs
+ * may hold it already.
  */
-export function merge3(base: string, mine: string, theirs: string): string | null {
+export function merge3(base: string, mine: string, theirs: string, mayHaveLanded = false): string | null {
   if (mine === base || theirs === mine) return theirs
   if (theirs === base) return mine
   // Mine already landed and they wrote on top (a save whose answer was lost, a kept edit
   // the unload beacon delivered): taking mine back out of theirs works, so it is in there,
-  // and applying it again would type it twice (adversarial review, 2026-10-09).
-  const [without, undone] = applyPatches(makePatches(mine, base), theirs)
+  // and applying it again would type it twice (adversarial review, 2026-10-09). Only then:
+  // in a run of one letter ("aaaa") taking a fresh keystroke out of theirs works too, and
+  // two tabs typing at once lost 2-8 of 30 keys (task-510e753bc62a59f0).
+  const [without, undone] = mayHaveLanded ? applyPatches(makePatches(mine, base), theirs) : [theirs, []]
   if (without !== theirs && undone.every(Boolean) && applyPatches(makePatches(base, mine), without)[0] === theirs) return theirs
   const [merged, applied] = applyPatches(makePatches(base, mine), theirs)
   return applied.every(Boolean) ? merged : null

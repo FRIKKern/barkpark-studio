@@ -111,6 +111,8 @@ type DocEdits = {
    * was made, so a retry is refused (412) rather than saved over theirs.
    */
   missed?: Doc
+  /** Fields whose last write got no answer (a network failure): Barkpark may hold it already. */
+  unsure?: Set<string>
   /** The last value this editor gave each field: a cache still holding it has nothing new of anyone else's. */
   typed: Map<string, unknown>
   /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
@@ -303,16 +305,19 @@ function rebase(e: DocEdits, d: Doc): string[] {
       e.base.set(f, theirs)
       continue
     }
-    // An inflight-only field merges when its write comes back (afterInflight); a dirty one
-    // merges now. Advancing `rev` past theirs here let a retry of that write save over
-    // theirs, unseen (the form-refused clash flake, task-41ba9f3dc3fd81e2).
-    if (!e.dirty.has(f)) {
+    // A field with a write in flight merges when that write comes back (afterInflight, or
+    // the save's answer): until then theirs may or may not hold it, and a merge from the
+    // base before it either typed it twice or, in a run of one letter, dropped keys
+    // (task-510e753bc62a59f0). A dirty-only one merges now. Advancing `rev` past theirs
+    // here let a retry of that write save over theirs, unseen (task-41ba9f3dc3fd81e2).
+    if (!e.dirty.has(f) || e.inflight?.has(f)) {
       missed = true
       continue
     }
     const mine = e.dirty.get(f)
     if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') {
-      const merged = merge3(base, mine, theirs)
+      const merged = merge3(base, mine, theirs, !!e.unsure?.has(f))
+      e.unsure?.delete(f)
       if (merged === null) clashed.push(f)
       else e.dirty.set(f, merged)
     } else if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(theirs)) {
@@ -613,13 +618,18 @@ async function send(qc: QueryClient, id: string) {
     for (const f of e.inflight.keys()) {
       if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
       else e.base.delete(f)
+      e.unsure?.delete(f)
     }
     e.inflight = null
-    e.missed = undefined // the save went through: what it answered is newer
+    // The save went through: what it answered is newer than a frame held for it, unless that
+    // frame came from a write after ours (it holds ours and theirs): that one folds in next.
+    const later = e.missed && e.missed._updatedAt > saved._updatedAt ? e.missed : undefined
+    e.missed = undefined
     e.conflicts = 0
     clearTimeout(stall)
     keepUnsaved(id, e)
     applyServer(qc, saved)
+    if (later) applyServer(qc, later)
     setState(e, e.dirty.size ? 'saving' : 'saved')
   } catch (err) {
     clearTimeout(stall)
@@ -663,8 +673,10 @@ async function send(qc: QueryClient, id: string) {
       const fields = qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === e.type)?.fields ?? []
       return setState(e, 'refused', findingsReason(findings, (path) => fieldTitle(fields, path), t))
     }
-    // No network: keep every value and wait for it, no error, no retry storm.
+    // No network: keep every value and wait for it, no error, no retry storm. The write may
+    // have landed with its answer lost: a frame holding it is not theirs to merge in again.
     if (isNetworkError(err)) {
+      for (const f of e.inflight!.keys()) (e.unsure ??= new Set()).add(f)
       e.dirty = new Map([...e.inflight!, ...e.dirty])
       e.inflight = null
       return waitForNetwork(qc, id, e)
@@ -706,7 +718,9 @@ async function send(qc: QueryClient, id: string) {
         // fall through: a plain failure, retried below
       }
     }
-    // Keep every value: put the failed batch back under anything typed since, retry.
+    // Keep every value: put the failed batch back under anything typed since, retry. A
+    // failure with no clear refusal may still have saved it.
+    for (const f of e.inflight!.keys()) (e.unsure ??= new Set()).add(f)
     if (afterInflight(qc, id, e)) return
     setState(e, 'error', (err as Error).message)
     setTimeout(() => void send(qc, id), 2000)

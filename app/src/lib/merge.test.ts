@@ -20,11 +20,20 @@ test('unapply undoes my step, keeps text merged in since', () => {
 })
 
 test('mine already in theirs (an answer lost, a beacon delivered) is not typed twice', () => {
-  assert.equal(merge3('A day in the life', 'A day in the life of an editor', 'A day in the life of an editor, told twice'), 'A day in the life of an editor, told twice')
-  assert.equal(merge3('Short excerpt', 'Short excerpt kept', 'Short excerpt kept, and more from someone else'), 'Short excerpt kept, and more from someone else')
-  assert.equal(merge3('one two three', 'one three', 'one three four'), 'one three four') // a deletion already made
+  assert.equal(merge3('A day in the life', 'A day in the life of an editor', 'A day in the life of an editor, told twice', true), 'A day in the life of an editor, told twice')
+  assert.equal(merge3('Short excerpt', 'Short excerpt kept', 'Short excerpt kept, and more from someone else', true), 'Short excerpt kept, and more from someone else')
+  assert.equal(merge3('one two three', 'one three', 'one three four', true), 'one three four') // a deletion already made
   // A real concurrent edit still merges.
   assert.equal(merge3('Hello', 'Hello world', 'Oh Hello'), 'Oh Hello world')
+})
+
+test('a fresh keystroke in a run of one letter is kept, not taken for one already sent', () => {
+  // Tab A types at the end of 'tabsaaaa' while tab B's 'b' lands at the start (two tabs, 30 keys each).
+  for (const [base, mine, theirs, want] of [
+    ['tabsaaaa', 'tabsaaaaa', 'btabsaaaa', 'btabsaaaaa'],
+    ['tabs....', 'tabs.....', 'xtabs....', 'xtabs.....'],
+    ['0000', '00000', '10000', '100000'],
+  ]) assert.equal(merge3(base!, mine!, theirs!), want)
 })
 
 test('mine with nowhere to go (they rewrote the text it was in) is no merge, not a silent drop', () => {
