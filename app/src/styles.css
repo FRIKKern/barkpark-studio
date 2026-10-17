@@ -179,7 +179,7 @@
   --avatar-yellow: #d28a12;
   --avatar-orange: #fa6412;
   --avatar-fg: #fff;
-  --nav-h: 51px;
+  --nav-h: 52px; /* Sanity's navbar, measured at 390, 700 and 1440 */
   --strip: 51px;
   font-family: 'Inter Variable', Inter, -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--fg);
@@ -2397,7 +2397,7 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 }
 
 /* B08: the Media tool — folders, tiles, the picked asset's inspector. */
-.media-tool { display: flex; height: calc(100vh - 51px); min-height: 0; background: var(--bg); }
+.media-tool { display: flex; height: calc(100vh - var(--nav-h)); min-height: 0; background: var(--bg); }
 .media-folders { width: 240px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 12px; border-right: 1px solid var(--border); overflow: auto; }
 .media-folders h1 { margin: 4px 8px 8px; font-size: 13px; font-weight: 600; }
 .media-folders .type-row { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
@@ -2455,7 +2455,7 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
   /* WCAG reflow (320 px): the search takes its own line and the controls wrap under it. */
   .media-bar { flex-wrap: wrap; }
   .media-bar .search { flex: 1 1 100%; }
-  .media-inspector { position: fixed; inset: 51px 0 0; z-index: 3; width: auto; background: var(--bg); }
+  .media-inspector { position: fixed; inset: var(--nav-h) 0 0; z-index: 3; width: auto; background: var(--bg); }
 }
 @media (max-width: 768px) and (pointer: coarse) {
   .media-folders .type-row, .media-tile, .media-bar .input, .media-section .btn { min-height: 44px; }
@@ -3104,7 +3104,7 @@ bp-paper-canvas .bp-remote-caret__label { font-family: 'Inter Variable', Inter, 
    studio follows the viewport as it is now. */
 @supports (height: 100dvh) {
   .panes, .vision, .presentation { height: calc(100dvh - var(--nav-h)); }
-  .media-tool { height: calc(100dvh - 51px); }
+  .media-tool { height: calc(100dvh - var(--nav-h)); }
   @media (min-width: 600px) { .search-dialog { max-height: min(735px, calc(88dvh - 20px)); } } /* a phone's is full screen */
   .dialog { max-height: calc(100dvh - 64px); }
   .login { height: 100dvh; }

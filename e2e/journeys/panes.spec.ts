@@ -115,7 +115,8 @@ test('J21: endless pane chain — strips, URL round-trip, back/forward, close', 
   expect(path(page)).toBe(chainUrl(6))
   // Sanity's layout at 1440 px: only the focused (last) pane stays open.
   expect(await strips(page)).toEqual([true, true, true, true, true, true, true, true, false])
-  if (t.name === 'studio') await expect(page, 'F10 visual').toHaveScreenshot('j21-chain.png', {maxDiffPixelRatio: 0.01})
+  // The footer's "Last published 56 sec. ago" and its avatar change from run to run.
+  if (t.name === 'studio') await expect(page, 'F10 visual').toHaveScreenshot('j21-chain.png', {maxDiffPixelRatio: 0.01, mask: [page.locator('.save-state-btn')]})
 
   // URL round-trips: back, forward, reload.
   await page.goBack()
