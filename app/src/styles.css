@@ -74,6 +74,7 @@
   /* Sanity's caution card (Presentation's "Missing a main document"), measured */
   --caution-card-bg: #fefae1;
   --caution-card-fg: #3b2212;
+  --card-ring: rgba(114, 120, 146, 0.3); /* Sanity's raised card: a 0.5 px ring */
   --caution-code-fg: #955712;
   --caution-code-bg: #fdf5c7;
   --pressed-card: #eeeef1; /* Sanity's pressed card: the location the preview shows, measured */
@@ -259,6 +260,7 @@
   --warn-fg: #f2d36b;
   --caution-card-bg: #1e1a1b;
   --caution-card-fg: #f9ea98;
+  --card-ring: rgba(117, 123, 150, 0.4);
   --caution-code-fg: #f9bf1e;
   --caution-code-bg: #28201b;
   --pressed-card: #21232f;
@@ -1031,6 +1033,17 @@ a.version-badge:hover { color: var(--fg-strong); }
 .warning { padding: 8px 12px; border-radius: 3px; background: var(--warn-bg); }
 .used-in { list-style: none; margin: 0; padding: 4px 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
 .used-in li .preview { margin: 0 4px; min-height: 41px; }
+/* Sanity's delete dialog when documents refer to it (1440, light and dark): a rule 20 px under the card, the
+   caution card 8 px under it with its ⚠, the referring documents as 33 px rows in a 0.5 px ring, a closing line. */
+.delete-used > hr { margin: 20px 0 8px; border: 0; border-top: 1px solid var(--border); }
+.delete-used > .caution-card { display: flex; align-items: center; gap: 6px; min-height: 33px; margin: 0; padding: 0 6px; border-radius: 3px; background: var(--caution-card-bg); color: var(--caution-card-fg); }
+.delete-used > .caution-card svg { width: 21px; height: 21px; flex: none; color: var(--caution-code-fg); }
+.delete-used > p:not(.caution-card) { margin: 15px 0; }
+.delete-used > p:last-child { margin-bottom: -5px; } /* the buttons 45 px under its line, as Sanity's */
+.used-in.compact { padding: 4px; box-shadow: 0 0 0 0.5px var(--card-ring); }
+.used-in.compact li .preview { min-height: 33px; margin: 0; padding: 0 4px; }
+.used-in.compact .preview .media { width: 25px; height: 21px; box-shadow: none; background: none; }
+.used-in.compact .preview .dot { margin-right: 12px; }
 @media (max-width: 768px) and (pointer: coarse) {
   /* Phone: one row, centred on the 44 px taps; a long status ellipsizes. */
   .doc-footer { height: 51px; align-items: center; padding: 0 16px; }
@@ -1681,11 +1694,11 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 /* Centred in the pane's card area under its tabs, as Sanity's (and Inspect's): 200-839 px at 900. */
 /* Only the card area dims, as Sanity's layer (and Inspect's): header, tabs and footer stay as they are. */
 @media (min-width: 600px) { .delete-backdrop, .pane .pane-confirm-backdrop { inset: 136px 0 49px; grid-template-rows: minmax(0, 1fr); padding: 12px; } }
-.delete-preview { display: flex; align-items: center; gap: 8px; padding-right: 18px; }
+.delete-preview { display: flex; align-items: center; gap: 8px; min-height: 59px; margin-top: 15px; padding: 0 18px 0 5px; box-sizing: border-box; } /* Sanity's card: 59 px, 15 px under the question, its icon 13 px in */
 /* Sanity's status badge here: 25 px, the words 12 px from its end, #0d311f (dark #abf9de) when published. */
 .delete-preview > .chip { padding: 3px 12px 3px 10px; line-height: 19px; }
 .delete-preview > .chip[data-tone=positive] { color: var(--status-badge-fg); }
-.delete-preview > .preview { flex: 1; min-width: 0; }
+.delete-preview > .preview { flex: 1; min-width: 0; margin: 0; }
 .delete-preview > .preview .status { display: none; }
 /* Sanity's delete dialog and confirms (Discard changes, …), measured at 1440 (post-29, post-24):
    9 px corners, text in the body colour, the question 49 px under the title, Cancel and the
