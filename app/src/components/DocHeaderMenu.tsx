@@ -1,15 +1,18 @@
 import {useEffect, useState} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {useQueryClient} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
 import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
-import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
+import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, LaunchIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
 import studio from '../studio.config'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
 import {t as tt, useT} from '../lib/i18n'
 import {showTasks} from '../lib/tasks-ui'
+import {barkparkInfoQuery} from '../lib/diagnostics'
+import {currentScopeQuery} from '../lib/scope-switch'
+import {PAPER_TYPES} from '../lib/paper'
 
 /** Sanity names the Alt key "Option" on a Mac in its shortcut chips; known only in the browser. */
 export function useAltName() {
@@ -65,6 +68,10 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
   const close = () => setOpen(false)
   const alt = useAltName()
   const previewUrl = studio.document?.productionUrl?.(doc)
+  // LiveView's paper header: "Open standalone", Barkpark's reader for the paper (its slug is its id).
+  const barkpark = useQuery({...barkparkInfoQuery, enabled: PAPER_TYPES.has(doc._type)}).data?.url
+  const scope = useQuery({...currentScopeQuery, enabled: PAPER_TYPES.has(doc._type)}).data
+  const standalone = PAPER_TYPES.has(doc._type) && barkpark && scope ? `${barkpark}/w/${scope.workspace}/p/${scope.project}/papers/${encodeURIComponent(doc._publishedId)}` : undefined
   return (
     <div className="menu-wrap doc-actions" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
       <button type="button" className="icon-btn" aria-label={t('Show document actions')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
@@ -119,6 +126,16 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
             </span>
           </button>
           <hr />
+          {standalone && (
+            <>
+              <button type="button" role="menuitem" className="menu-item" onClick={() => (close(), window.open(standalone, '_blank', 'noopener'))}>
+                <span className="menu-icon-text">
+                  <LaunchIcon /> {t('Open standalone')}
+                </span>
+              </button>
+              <hr />
+            </>
+          )}
           {/* J65: the studio config's preview URL, opened in a new tab. */}
           {previewUrl && (
             <>

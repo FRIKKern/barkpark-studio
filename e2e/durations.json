@@ -90,6 +90,7 @@
   "odd-refs.spec.ts": 0,
   "pane-errors.spec.ts": 0,
   "panes.spec.ts": 10.9,
+  "paper-standalone.spec.ts": 2,
   "paste.spec.ts": 0,
   "plugins.spec.ts": 0,
   "presence-leave.spec.ts": 9.6,
