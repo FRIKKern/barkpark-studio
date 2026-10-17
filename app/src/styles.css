@@ -890,6 +890,8 @@ a.menu-item { display: block; text-decoration: none; }
 .recent-pill.filter { background: var(--info-bg); color: var(--selected); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--selected) 25%, transparent); }
 .search-recent .recent-remove { margin-left: auto; width: 25px; height: 25px; color: inherit; }
 .search-recent .recent-remove svg { width: 21px; height: 21px; }
+/* Sanity's remove shows under the pointer only, not on the row the keys light (or on a touch screen, always). */
+@media (hover: hover) { .search-recent:not(:hover) .recent-remove:not(:focus-visible) { opacity: 0; } }
 .search-recent[aria-selected='true'] { background: var(--icon-btn-hover); color: var(--recent-active-fg); }
 .search-recent[aria-selected='true'] svg { color: var(--icon-btn-hover-fg); }
 .search-clear-recent { align-self: flex-start; margin: 12px 0 0; padding: 3px 8px; color: var(--icon-muted); font-weight: 500; }
