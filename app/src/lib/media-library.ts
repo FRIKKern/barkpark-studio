@@ -77,7 +77,16 @@ export const collectionsQuery = queryOptions({queryKey: ['media', 'collections']
 /** LiveView's orderings (Barkpark's search sort keys). */
 export const SORTS = ['created-desc', 'created-asc', 'updated-desc'] as const
 export type Sort = (typeof SORTS)[number]
-type Filter = {collection?: string; q?: string; visibility?: Visibility; kind?: Kind; sort?: Sort}
+/** LiveView's Refine facets (Barkpark's search): one value picked per field, or none. */
+export const REFINE = ['mimeType', 'processing', 'status'] as const
+export type Refine = Partial<Record<(typeof REFINE)[number], string>>
+type Filter = {collection?: string; q?: string; visibility?: Visibility; kind?: Kind; sort?: Sort; refine?: Refine}
+/** A filter's facet picks as Barkpark's `facet.<field>` params. */
+const facetParams = (params: URLSearchParams, data: Pick<Filter, 'visibility' | 'refine'>) => {
+  // The search's visibility facet (#22127: an asset with none stored is public).
+  if (data.visibility) params.set('facet.visibility', data.visibility)
+  for (const field of REFINE) if (data.refine?.[field]) params.set(`facet.${field}`, data.refine[field]!)
+}
 /** A page: LiveView's 50 (Barkpark's search time grows with the page: 200 took 3-4 s). */
 const PAGE = 50
 /** Where the next page starts: Barkpark's cursor where the sort has one, else an offset. */
@@ -93,26 +102,31 @@ const fetchAssets = createServerFn({method: 'GET'})
     // A folder is one more filter on the same search (Barkpark's collection=), so it sorts,
     // filters by kind and counts as the whole library does.
     if (data.collection) params.set('collection', data.collection)
-    // The search's visibility facet (#22127: an asset with none stored is public).
-    if (data.visibility) params.set('facet.visibility', data.visibility)
+    facetParams(params, data)
     if (data.kind) params.set('kind', data.kind)
     const r = await read<{hits: RawAsset[]; hasMore?: boolean; total?: number; nextCursor?: string | null}>(`${base()}/search?${params}`)
     const next = !r.hasMore ? null : r.nextCursor ? {cursor: r.nextCursor} : {offset: (data.from?.offset ?? 0) + r.hits.length}
     const page: Page = {assets: r.hits.map(toAsset), more: !!r.hasMore, total: r.total ?? null, next}
     return page as unknown as Json
   })
-/** How many assets of each kind the library holds under this search and visibility (Barkpark's kind facet). */
+type Count = {value: string; count: number}
+export type Counts = {total: number; kinds: Record<string, number>; refine: Record<(typeof REFINE)[number], Count[]>}
+/**
+ * How many assets of each kind, format, processing state and status the library holds under
+ * this search and its picks (Barkpark's facets: each field counted without its own pick).
+ */
 const fetchKindCounts = createServerFn({method: 'GET'})
   .validator((d: Omit<Filter, 'kind' | 'collection'>) => d)
   .handler(async ({data}) => {
-    const params = new URLSearchParams({limit: '1', facets: 'kind'})
+    const params = new URLSearchParams({limit: '1', facets: ['kind', ...REFINE].join(',')})
     if (data.q) params.set('q', data.q)
-    if (data.visibility) params.set('facet.visibility', data.visibility)
-    const r = await read<{total?: number; facets?: {kind?: {value: string; count: number}[]}}>(`${base()}/search?${params}`)
-    return {total: r.total ?? 0, kinds: Object.fromEntries((r.facets?.kind ?? []).map((k) => [k.value, k.count]))} as unknown as Json
+    facetParams(params, data)
+    const r = await read<{total?: number; facets?: Record<string, Count[] | undefined>}>(`${base()}/search?${params}`)
+    const counts: Counts = {total: r.total ?? 0, kinds: Object.fromEntries((r.facets?.kind ?? []).map((k) => [k.value, k.count])), refine: {mimeType: r.facets?.mimeType ?? [], processing: r.facets?.processing ?? [], status: r.facets?.status ?? []}}
+    return counts as unknown as Json
   })
 export const kindCountsQuery = (f: Omit<Filter, 'kind' | 'collection'>) =>
-  queryOptions({queryKey: ['media', 'assets', 'kinds', f], queryFn: async () => (await fetchKindCounts({data: f})) as unknown as {total: number; kinds: Record<string, number>}})
+  queryOptions({queryKey: ['media', 'assets', 'kinds', f], queryFn: async () => (await fetchKindCounts({data: f})) as unknown as Counts})
 
 export const assetsQuery = (f: Filter) =>
   infiniteQueryOptions({

@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type FormEvent} from 'react'
 import {useInfiniteQuery, useQuery, useQueryClient} from '@tanstack/react-query'
-import {assetQuery, assetsQuery, collectionsQuery, createFolder, KINDS, kindCountsQuery, saveAssetMeta, SORTS, type Sort, setCheckout, setMember, type Kind, type LibraryAsset, type Visibility} from '../lib/media-library'
+import {assetQuery, assetsQuery, collectionsQuery, createFolder, KINDS, kindCountsQuery, REFINE, type Refine, saveAssetMeta, SORTS, type Sort, setCheckout, setMember, type Kind, type LibraryAsset, type Visibility} from '../lib/media-library'
 import {reasonOf} from '../lib/edits'
 import {Close, DocumentIcon, Search} from './icons'
 import {toast} from './Toasts'
@@ -16,6 +16,7 @@ import {imageSrc, TILE_PX} from '../lib/image'
 
 const SORT_TITLES: Record<Sort, string> = {'created-desc': 'Newest first', 'created-asc': 'Oldest first', 'updated-desc': 'Recently updated'}
 const KIND_TITLES: Record<Kind, string> = {image: 'Images', video: 'Video', audio: 'Audio', document: 'Documents', other: 'Other'}
+const REFINE_TITLES: Record<(typeof REFINE)[number], string> = {mimeType: 'Format', processing: 'Processing', status: 'Status'}
 /** One asset's kind, as LiveView's list and inspector name it. */
 const KIND_NAMES: Record<Kind, string> = {image: 'image', video: 'video', audio: 'audio', document: 'document', other: 'other'}
 const fail = (title: string) => (e: unknown) => toast({tone: 'critical', title, description: reasonOf((e as Error).message) ?? (e as Error).message})
@@ -32,6 +33,8 @@ export function MediaLibrary() {
   const [q, setQ] = useState('')
   const [query, setQuery] = useState('')
   const [visibility, setVisibility] = useState<Visibility | ''>('')
+  // LiveView's Refine column: a format, processing state or status, each picked or not.
+  const [refine, setRefine] = useState<Refine>({})
   const [sort, setSort] = useState<Sort>('created-desc')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   // LiveView's Size slider: how wide a grid tile is.
@@ -42,10 +45,10 @@ export function MediaLibrary() {
     return () => clearTimeout(timer)
   }, [q])
   const folders = useQuery(collectionsQuery)
-  const filter = {collection: folder, kind, q: query || undefined, visibility: visibility || undefined, sort}
+  const filter = {collection: folder, kind, q: query || undefined, visibility: visibility || undefined, sort, refine}
   const pages = useInfiniteQuery(assetsQuery(filter))
   const list = pages.data?.pages.flatMap((p) => p.assets)
-  const counts = useQuery(kindCountsQuery({q: filter.q, visibility: filter.visibility})).data
+  const counts = useQuery(kindCountsQuery({q: filter.q, visibility: filter.visibility, refine})).data
   const [naming, setNaming] = useState<string | null>(null)
   const {canWrite, createReason} = useCanWrite()
   const newFolder = async (e: FormEvent) => {
@@ -96,6 +99,19 @@ export function MediaLibrary() {
             {counts && <span className="media-kind-count">{counts.kinds[k] ?? 0}</span>}
           </button>
         ))}
+        {counts && REFINE.some((f) => counts.refine[f].length) && <div className="desk-divider media-refine-head">{t('Refine')}</div>}
+        {counts &&
+          REFINE.filter((f) => counts.refine[f].length).map((f) => (
+            <div key={f} className="media-refine" role="group" aria-label={t(REFINE_TITLES[f])}>
+              <h2>{t(REFINE_TITLES[f])}</h2>
+              {counts.refine[f].map((c) => (
+                <button key={c.value} type="button" className="type-row" aria-pressed={refine[f] === c.value} onClick={() => setRefine({...refine, [f]: refine[f] === c.value ? undefined : c.value})}>
+                  {c.value}
+                  <span className="media-kind-count">{c.count}</span>
+                </button>
+              ))}
+            </div>
+          ))}
         <div className="desk-divider media-collections-head">
           {t('Collections')}
           <button type="button" className="icon-btn" aria-label={t('New collection')} data-tip={t('New collection')} disabled={!canWrite || naming !== null} title={createReason} onClick={() => setNaming('')}>
@@ -163,7 +179,7 @@ export function MediaLibrary() {
             <button type="button" className="btn" onClick={() => void pages.refetch()}>{t('Retry')}</button>
           </div>
         )}
-        {list?.length === 0 && <p className="list-empty" role="status">{query || visibility || kind ? t('No matching media') : folder ? t('This collection is empty') : t('No media yet')}</p>}
+        {list?.length === 0 && <p className="list-empty" role="status">{query || visibility || kind || Object.values(refine).some(Boolean) ? t('No matching media') : folder ? t('This collection is empty') : t('No media yet')}</p>}
         {view === 'grid' ? (
           <ul className="media-grid" style={{gridTemplateColumns: `repeat(auto-fill, minmax(${tile}px, 1fr))`}}>
             {list?.map((a) => (
