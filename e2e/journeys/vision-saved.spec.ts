@@ -263,5 +263,13 @@ test('@local J37: Vision runs GROQ with params, as Sanity\'s', async ({page, con
   if (t.name === 'studio') {
     await expect(page.locator('#vision-url')).toHaveValue(/\/v\d{4}-\d{2}-\d{2}\/data\/query\/[^/?]+\?query=/)
     await expect(result).not.toContainText('syncTags')
+    // Sanity's "Other": a version typed beside it, sent once it reads as one.
+    await page.getByRole('combobox', {name: 'API version'}).selectOption({label: 'Other'})
+    const custom = page.getByRole('textbox', {name: 'Custom API version'})
+    await expect(custom).toHaveAttribute('aria-invalid', 'true')
+    await custom.fill('v2024-01-01')
+    await expect(custom).toHaveAttribute('aria-invalid', 'false')
+    await page.getByRole('button', {name: 'Fetch', exact: true}).click()
+    await expect(page.locator('#vision-url')).toHaveValue(/\/v2024-01-01\/data\/query\//)
   }
 })

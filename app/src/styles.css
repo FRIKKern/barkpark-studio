@@ -133,6 +133,7 @@
   --syntax-bracket: #383d51;
   --syntax-comment: #9499ad;
   --vision-error-bg: #fff6f5; /* Vision's refused query: the result column and its words */
+  --input-invalid-bg: #ffe7e5; --input-invalid-ring: #ffc9c6; --input-invalid-fg: var(--input-fg); /* Sanity's critical TextInput (Vision's custom API version) */
   --vision-error-fg: #a8554f;
   --code-active-line: rgba(204, 238, 255, 0.27); /* Vision's current line, measured on reference/sanity */
   --code-active-gutter: #e2f2ff;
@@ -317,6 +318,7 @@
   --syntax-bracket: #bdbfcb;
   --syntax-comment: #555c75;
   --vision-error-bg: #24161b;
+  --input-invalid-bg: #24161b; --input-invalid-ring: #962721; --input-invalid-fg: #ffdfdd;
   --vision-error-fg: #c78a85;
   --code-active-line: rgba(153, 238, 255, 0.2);
   --code-active-gutter: #222227;
@@ -2183,6 +2185,8 @@ body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu 
 .vision-top > label { display: flex; flex-direction: column; flex: 0 1 228px; min-width: 0; }
 .vision-url-field .menu-label { display: flex; flex-wrap: wrap; column-gap: 4px; }
 .vision-top .menu-label { padding: 7px 0 10px; color: var(--fg); }
+/* Sanity's custom API version until it reads as one: its critical tone (measured light and dark). */
+.vision-top .input[aria-invalid='true'] { background: var(--input-invalid-bg); box-shadow: inset 0 0 0 1px var(--input-invalid-ring); color: var(--input-invalid-fg); }
 .vision-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(240px, 301px) 1fr 275px; grid-template-rows: minmax(0, 1fr); }
 /* Saved queries (Sanity Vision's right-hand panel). */
 .vision-saved { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--border); }

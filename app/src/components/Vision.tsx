@@ -2,7 +2,7 @@ import {lazy, Suspense, useEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
-import {apiVersions} from '../lib/vision-groq'
+import {apiVersions, customApiVersion} from '../lib/vision-groq'
 import {useNow} from '../lib/now'
 import {dashLine, localQueryError, queryError} from '../lib/vision-error'
 import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
@@ -61,6 +61,8 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const now = useNow()
   const [versions] = useState(() => apiVersions(now))
   const [version, setVersion] = useState(versions.at(-1)!)
+  // Sanity's "Other": a version typed in a field beside it; until it reads as one, the last that did.
+  const [custom, setCustom] = useState<string | null>(null)
   const [dataset, setDataset] = useState(pageDataset)
   const [result, setResult] = useState<VisionResult & {total?: number; query?: string}>()
   const [busy, setBusy] = useState(false)
@@ -96,6 +98,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     setPerspective(saved.perspective)
     if (saved.dataset) setDataset(saved.dataset)
     if (saved.version && versions.includes(saved.version)) setVersion(saved.version)
+    else if (saved.version && customApiVersion(saved.version)) (setVersion(saved.version), setCustom(saved.version))
     let kept = false
     try {
       kept = localStorage.getItem(KEY) !== null && saved.query.trim() !== '' && (JSON.parse((saved.params ?? '').trim() || '{}'), true)
@@ -180,16 +183,33 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
         <label>
           <span className="menu-label">{t('API version')}</span>
           <span className="select-box">
-            <select className="input" value={version} onChange={(e) => setVersion(e.target.value)}>
+            <select className="input" value={custom === null ? version : 'other'} onChange={(e) => (e.target.value === 'other' ? setCustom('v') : (setCustom(null), setVersion(e.target.value)))}>
               {versions.map((v) => (
                 <option key={v} value={v}>
                   {v}
                 </option>
               ))}
+              <option value="other">{t('Other')}</option>
             </select>
             <ChevronDown />
           </span>
         </label>
+        {custom !== null && (
+          <label>
+            <span className="menu-label">{t('Custom API version')}</span>
+            <input
+              className="input"
+              value={custom}
+              aria-invalid={!customApiVersion(custom)}
+              spellCheck={false}
+              onChange={(e) => {
+                setCustom(e.target.value)
+                const v = customApiVersion(e.target.value)
+                if (v) setVersion(v)
+              }}
+            />
+          </label>
+        )}
         <label>
           <span className="menu-label vision-label-help">
             {t('Perspective')}

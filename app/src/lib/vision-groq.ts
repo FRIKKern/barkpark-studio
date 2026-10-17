@@ -15,6 +15,13 @@ import type {Params} from './vision-params'
 export const apiVersions = (now: number) => ['v1', 'vX', 'v2021-03-25', 'v2021-10-21', 'v2022-03-07', 'v2025-02-19', `v${new Date(now).toISOString().split('T')[0]}`]
 const VERSION = /^v(1|X|\d{4}-\d{2}-\d{2})$/
 
+/** An API version typed under Sanity's "Other" (its validateApiVersion): the "v" optional, 1, X or a date. As sent, or null. */
+export function customApiVersion(text: string): string | null {
+  const v = text.replace(/^v/, '').trim().toUpperCase()
+  if (v === '1' || v === 'X') return `v${v}`
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) ? `v${v}` : null
+}
+
 /** Barkpark's query-string form: a type, then an optional ?query string. Anything else is GROQ. */
 export const isQueryString = (query: string) => /^[A-Za-z0-9_-]+(\?[^#\n]*)?$/.test(query.trim())
 
