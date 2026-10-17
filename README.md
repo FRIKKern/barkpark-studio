@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 41 changes, 11 tasks closed
+- **Today** · 42 changes, 11 tasks closed
+  - fix(vision): a kept query runs again when Vision opens, as Sanity's ([#912](https://github.com/FRIKKern/barkpark-studio/pull/912))
   - Presence: your other tab shows on the field, the header and the row, as Sanity's ([#916](https://github.com/FRIKKern/barkpark-studio/pull/916))
-  - Two tabs typing in one field keep every keystroke, repeated letters too ([#915](https://github.com/FRIKKern/barkpark-studio/pull/915))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
