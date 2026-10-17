@@ -7,9 +7,12 @@
 
 import type {Params} from './vision-params'
 
-/** Sanity Vision's API versions (apiVersions.ts), today's date last and the default. */
-export const API_VERSIONS = ['v1', 'vX', 'v2021-03-25', 'v2021-10-21', 'v2022-03-07', 'v2025-02-19', `v${new Date().toISOString().split('T')[0]}`]
-export const DEFAULT_API_VERSION = API_VERSIONS.at(-1)!
+/**
+ * Sanity Vision's API versions (apiVersions.ts), today's date (UTC) last and the default.
+ * Today as of `now`: a page reads it at the server's render time (lib/now.ts), so the server
+ * and the hydrating render agree across midnight (a module-level date differed, React #418).
+ */
+export const apiVersions = (now: number) => ['v1', 'vX', 'v2021-03-25', 'v2021-10-21', 'v2022-03-07', 'v2025-02-19', `v${new Date(now).toISOString().split('T')[0]}`]
 const VERSION = /^v(1|X|\d{4}-\d{2}-\d{2})$/
 
 /** Barkpark's query-string form: a type, then an optional ?query string. Anything else is GROQ. */
@@ -17,7 +20,7 @@ export const isQueryString = (query: string) => /^[A-Za-z0-9_-]+(\?[^#\n]*)?$/.t
 
 /** The GROQ read's path under the project (`/v2025-02-19/data/query/e2e-local?query=…`); params as Sanity sends them, `$name` = JSON. */
 export function groqPath(dataset: string, version: string, query: string, params: Params, perspective: string): string {
-  const v = VERSION.test(version) ? version : DEFAULT_API_VERSION
+  const v = VERSION.test(version) ? version : apiVersions(Date.now()).at(-1)!
   const qs = new URLSearchParams({query: query.trim()})
   for (const [k, value] of Object.entries(params)) qs.set(`$${k}`, JSON.stringify(value))
   qs.set('perspective', perspective)

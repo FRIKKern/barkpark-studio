@@ -4,6 +4,7 @@ import {ChevronDown, ChevronLeft, ChevronRight, Close, EarthGlobe, Search} from 
 import {toast} from './Toasts'
 import {intlTag, useLocale, useT} from '../lib/i18n'
 import {dayKey, localZone, storeZone, zoneLabel, zoneLongName, zoneOption, zones} from '../lib/timezone'
+import {useNow} from '../lib/now'
 
 // The Releases tool's month calendar and time zone, as Sanity's (task-f8d14f136de4ed6d):
 // days with a schedule in bold, today tinted, a click filters the list to that day (again:
@@ -23,11 +24,26 @@ function grid(year: number, month: number) {
 }
 const keyOf = (d: Date) => d.toISOString().slice(0, 10)
 
+// A day's button name, as Date#toDateString ("Mon Sep 28 2026") but of the day itself: read in
+// UTC, not this computer's zone (UTC+14 named the 27th "Mon Sep 28", and the server another).
+const DAY_NAME = new Intl.DateTimeFormat('en-US', {weekday: 'short', month: 'short', day: '2-digit', year: 'numeric', timeZone: 'UTC'})
+const dayLabel = (key: string) => {
+  const p = Object.fromEntries(DAY_NAME.formatToParts(new Date(`${key}T12:00:00Z`)).map((x) => [x.type, x.value]))
+  return `${p.weekday} ${p.month} ${p.day} ${p.year}`
+}
+
 export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; marked: Set<string>; picked: string | null; onPick: (day: string | null) => void}) {
   const t = useT()
   const locale = useLocale()
-  const today = dayKey(new Date(), zone)
-  const [shown, setShown] = useState(() => ({year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1}))
+  // The month opens on the day the server rendered (lib/now.ts), so hydration draws the same
+  // month; today's tint, in this browser's clock and zone, only once in the browser.
+  const now = useNow()
+  const [today, setToday] = useState<string>()
+  useEffect(() => setToday(dayKey(new Date(), zone)), [zone, now])
+  const [shown, setShown] = useState(() => {
+    const day = dayKey(new Date(now), zone)
+    return {year: Number(day.slice(0, 4)), month: Number(day.slice(5, 7)) - 1}
+  })
   const move = (by: number) => setShown(({year, month}) => ({year: year + Math.floor((month + by) / 12), month: (month + by + 12) % 12}))
   const title = new Date(Date.UTC(shown.year, shown.month, 1)).toLocaleDateString(intlTag(locale), {month: 'long', year: 'numeric', timeZone: 'UTC'})
   return (
@@ -61,7 +77,7 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
                     <button
                       type="button"
                       className="cal-day"
-                      aria-label={new Date(`${key}T12:00:00Z`).toDateString()}
+                      aria-label={dayLabel(key)}
                       aria-pressed={on}
                       data-other={d.getUTCMonth() !== shown.month || undefined}
                       data-today={key === today || undefined}
@@ -80,7 +96,11 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
         type="button"
         className="cal-today"
         aria-label={t('Go to today')}
-        onClick={() => (setShown({year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1}), onPick(today))}
+        onClick={() => {
+          const day = today ?? dayKey(new Date(), zone)
+          setShown({year: Number(day.slice(0, 4)), month: Number(day.slice(5, 7)) - 1})
+          onPick(day)
+        }}
       >
         {t('Today')}
       </button>

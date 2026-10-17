@@ -2,7 +2,8 @@ import {lazy, Suspense, useEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
-import {API_VERSIONS, DEFAULT_API_VERSION} from '../lib/vision-groq'
+import {apiVersions} from '../lib/vision-groq'
+import {useNow} from '../lib/now'
 import {dashLine, localQueryError, queryError} from '../lib/vision-error'
 import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
 import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, updateQuery, type SavedQuery} from '../lib/vision-queries'
@@ -55,8 +56,11 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const editQuery = (v: string) => ((edits.current.query = v), setQuery(v))
   const editParams = (v: string) => ((edits.current.params = v), setParams(v))
   const [perspective, setPerspective] = useState<Perspective>('drafts')
-  // Sanity's API version: the GROQ read's dated version (Barkpark answers each), today's by default.
-  const [version, setVersion] = useState(DEFAULT_API_VERSION)
+  // Sanity's API version: the GROQ read's dated version (Barkpark answers each), today's by default
+  // (today as the server rendered the page, so hydration reads the same list).
+  const now = useNow()
+  const [versions] = useState(() => apiVersions(now))
+  const [version, setVersion] = useState(versions.at(-1)!)
   const [dataset, setDataset] = useState(pageDataset)
   const [result, setResult] = useState<VisionResult & {total?: number; query?: string}>()
   const [busy, setBusy] = useState(false)
@@ -87,7 +91,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     if (saved.params !== undefined) setParams(saved.params)
     setPerspective(saved.perspective)
     if (saved.dataset) setDataset(saved.dataset)
-    if (saved.version && API_VERSIONS.includes(saved.version)) setVersion(saved.version)
+    if (saved.version && versions.includes(saved.version)) setVersion(saved.version)
   }, [])
   // A remembered dataset this token can't read (it is bound to another): the page's.
   useEffect(() => {
@@ -164,7 +168,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
           <span className="menu-label">{t('API version')}</span>
           <span className="select-box">
             <select className="input" value={version} onChange={(e) => setVersion(e.target.value)}>
-              {API_VERSIONS.map((v) => (
+              {versions.map((v) => (
                 <option key={v} value={v}>
                   {v}
                 </option>
