@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 35 changes, 11 tasks closed
+- **Today** · 36 changes, 11 tasks closed
+  - Releases calendar: one Tab stop, arrow keys between days ([#907](https://github.com/FRIKKern/barkpark-studio/pull/907))
   - Perspective menu as Sanity's: 42 px down, words 8 px into their rows, View Scheduled Drafts a 33 px row ([#906](https://github.com/FRIKKern/barkpark-studio/pull/906))
-  - Big forms: a keystroke no longer walks the whole form, re-scans the list or forces a layout ([#903](https://github.com/FRIKKern/barkpark-studio/pull/903))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
