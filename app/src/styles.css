@@ -750,6 +750,12 @@ a.menu-item { display: block; text-decoration: none; }
 .field .ref-search > .btn-square:hover { background: var(--bg); }
 .field .ref-search > .btn-square:hover::before { content: ''; position: absolute; inset: 4px 4px 4px 3px; border-radius: 3px; background: var(--icon-btn-hover); }
 .field .ref-search > .btn-square > svg { position: relative; }
+/* A narrow field (Sanity's under 480 px) puts Create on its own row under the search: full width, 33 px, 4 px under it. */
+.field .ref-search { container-type: inline-size; }
+@container (max-width: 479px) {
+  .field .ref-search > :is(.btn-create, .menu-wrap) { flex: 1 0 100%; }
+  .field .ref-search > .btn-create, .field .ref-search > .menu-wrap > .btn-create { width: 100%; height: 33px; justify-content: center; }
+}
 @media (max-width: 768px) and (pointer: coarse) {
   .doc-form input.input { min-height: 44px; }
   .ref-row .icon-btn, .ref-search .icon-btn, .ref-search .btn-square { width: 44px; height: 44px; flex-shrink: 0; }
@@ -3245,6 +3251,8 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
    fields where they were (field-types-01, 1440). */
 .fieldset-group[data-collapsible] > legend { padding-top: 5px; }
 .fieldset-group[data-collapsible][data-open=true] > legend { margin-bottom: 9px; }
+/* Folded, it sits 4 px higher than when open, and the next field 77 px under its title (field-types-01's 'More', 1440). */
+.fieldset-group[data-collapsible]:not([data-open=true]) > legend { padding-top: 1px; padding-bottom: 1px; }
 
 /* An array with options.layout 'grid' (Sanity's, field-types-01's Cards at 1440): tiles 9 px inside a box with 1 px corners;
    each a square picture or icon over a 33 px strip with the item menu; the title is for screen readers only; the handle
