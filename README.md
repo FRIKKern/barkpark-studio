@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 47 changes, 11 tasks closed
+- **Today** · 48 changes, 11 tasks closed
+  - Tooltips by the window edge, the date button, the Tasks panel and two 1 px nits as Sanity's ([#920](https://github.com/FRIKKern/barkpark-studio/pull/920))
   - Vision: a big result draws its first items at once and the rest as they scroll near ([#918](https://github.com/FRIKKern/barkpark-studio/pull/918))
-  - Field buttons as Sanity's: Add comment 1 px under the actions; a boolean card's buttons 48 px inside it ([#911](https://github.com/FRIKKern/barkpark-studio/pull/911))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
