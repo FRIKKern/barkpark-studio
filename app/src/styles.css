@@ -1336,10 +1336,14 @@ fieldset.object-field[data-collapsible][data-open=true]:not(.fieldset-group) { -
 /* Sanity's ⋯ and Add comment sit 1 px above the title's top, 5 px above for a fieldset (object, image, file, array,
    text block); a band above the title (a nested field's 7 px, a date-time's 8) carries them down with it. */
 .field > :is(.field-actions, .field-comments) { top: calc(var(--band) + var(--lift)); }
+.field > .field-comments { margin-top: 1px; } /* Sanity's Add comment sits 1 px under the field actions */
 .field:has(> .file-input, > .array-field, > .tags-box, > .body-canvas, > .checkbox-list) { --lift: -4px; }
 fieldset.object-field { --lift: -34px; } /* a fieldset's box starts below its legend */
 fieldset.object-field[data-collapsible] { --lift: -26px; } /* its legend is a 25 px toggle row */
 .field:has(> .bool-box) { --lift: 16px; } /* the title sits inside the box */
+.field:has(> .bool-box) > .field-comments { right: 48px; } /* and its buttons 48 px inside it, as Sanity's (390 and 1440) */
+.field:has(> .bool-box) > .field-actions { right: 73px; }
+.field:has(> .bool-box) > .field-comments[data-has] ~ .field-actions { right: 100px; }
 /* Only the field under the pointer or focus, not the object or image around it (Sanity's: Main image's ⋯ stays hidden over its Alternative text). */
 .field:is(:hover, :focus-within):not(:has(.field:is(:hover, :focus-within))) > .field-actions, .field-actions:focus-within, .field-actions[data-open] { opacity: 1; }
 .field-actions .icon-btn { width: 25px; height: 25px; } /* Sanity's: level with the label, touching Add comment */
@@ -2703,6 +2707,7 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 @media (max-width: 768px) and (pointer: coarse) {
   .field-comments .comment-add, .comment-count, .comment-actions .icon-btn, .composer-box .send, .composer-box .mention, .inline-comment-add { min-width: 44px; min-height: 44px; }
   .field-actions { right: 44px; }
+  .field:has(> .bool-box) > .field-actions { right: 92px; }
 }
 @media (max-width: 768px) { .popover.comment-popover { width: min(320px, calc(100vw - 48px)); } }
 
