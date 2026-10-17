@@ -77,3 +77,4 @@ pnpm --dir ../app serve                         # production build: editors sign
 J19/J21/J22/J23 with two-second holds after content is ready. Reports and WebM clips
 live under `e2e/evidence/{reference,studio}/<run>/`. Install dependencies and `pnpm --dir e2e exec playwright install ffmpeg`. Reference auth uses `pnpm --dir reference/sanity exec sanity login` or `SANITY_TOKEN`; credentials stay in memory.
 Link reviewed clips to tasks; recording alone is not sign-off.
+Locally with no lane token in `.e2e-lane-tokens.json`, studio and rig share one token: refs.spec skips its live-edit timing budgets (values still checked; `sharedLocalToken`).
