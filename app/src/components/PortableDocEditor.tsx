@@ -640,6 +640,14 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // the first block (task-f24549dea0618da2).
   const {data: doc} = useQuery(docQuery(type, id))
   const seenRev = doc?._rev
+  // A body that could not load because its document was gone (deleted under it: the held
+  // save's re-read got 404) loads again when the document comes back with a new rev
+  // (Restore), so the words kept at the delete are offered then (D21). Not a loop: a
+  // failure with the document unchanged waits for the next rev.
+  useEffect(() => {
+    if (seenRev && failed) (setFailed(undefined), setMountTry((n) => n + 1))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seenRev])
   useEffect(() => {
     const l = loop.current
     const el = canvas.current
