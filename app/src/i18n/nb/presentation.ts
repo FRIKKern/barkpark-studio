@@ -12,6 +12,7 @@ export default {
   'Missing a main document for': 'Mangler et hoveddokument for',
   'No matching documents': 'Ingen dokumenter funnet som samsvarer',
   'Open preview': 'Åpne forhåndsvisning',
+  'Open standalone': 'Åpne frittstående',
   'Toggle viewport size': 'Bytt visningsportstørrelse',
   'Switch to full viewport': 'Bytt til full visningsport',
   'Switch to narrow viewport': 'Bytt til smal visningsport',
