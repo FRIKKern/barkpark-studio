@@ -9,9 +9,9 @@ import {DocPreview} from './Preview'
 import {ReleasesCalendar, ZonePicker} from './ReleasesCalendar'
 import {dayKey, localZone, storedZone, zoneShort} from '../lib/timezone'
 import {ConfirmDialog} from './DocumentPane'
-import {MenuPopover} from './FocusScopes'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {toast} from './Toasts'
-import {ArrowLeft, Calendar, Close, Ellipsis, LockIcon, PublishIcon, ReleaseIllustration, Trash, EditIcon} from './icons'
+import {ArrowLeft, Calendar, Close, Ellipsis, FilterLines, LockIcon, PublishIcon, ReleaseIllustration, Trash, EditIcon} from './icons'
 
 // Sanity's Releases tool, its Scheduled drafts view (task-ad9c942d7d48c887): every draft
 // scheduled to publish (J40), Active, Paused or Archived, from Barkpark's schedules. Content
@@ -43,6 +43,15 @@ export function Releases() {
   useEffect(() => setZone(storedZone()), [])
   // A day picked in the calendar: what is set to publish that day (Active and Paused).
   const [day, setDay] = useState<string | null>(null)
+  // Under 900 px Sanity folds the calendar column behind a button: a card over the list's top
+  // left, under 600 px a "View calendar" dialog. Closed again once the column is back.
+  const [calOpen, setCalOpen] = useState(false)
+  useEffect(() => {
+    const wide = matchMedia('(min-width: 900px)')
+    const close = () => wide.matches && setCalOpen(false)
+    wide.addEventListener('change', close)
+    return () => wide.removeEventListener('change', close)
+  }, [])
   const all = data?.schedules ?? []
   const marked = new Set(all.filter((s) => s.status === 'scheduled' || s.status === 'paused').map((s) => dayKey(new Date(s.publishAt), zone)))
   const rows = all.filter((s) => (day ? !IN.archived(s.status) && dayKey(new Date(s.publishAt), zone) === day : IN[tab](s.status))).sort((a, b) => (soonest ? 1 : -1) * a.publishAt.localeCompare(b.publishAt))
@@ -51,8 +60,24 @@ export function Releases() {
     <div className="releases">
     {/* Nothing scheduled at all: Sanity's calendar has nothing to pick, so it is greyed out. */}
     <ReleasesCalendar zone={zone} marked={marked} picked={day} onPick={setDay} disabled={!!data && !all.length} />
+    {calOpen && (
+      <div className="releases-cal-layer" onMouseDown={(e) => e.target === e.currentTarget && setCalOpen(false)}>
+        <DialogBox className="dialog cal-dialog" aria-modal="true" aria-labelledby="cal-title" onClose={() => setCalOpen(false)}>
+          <header>
+            <h2 id="cal-title">{t('View calendar')}</h2>
+            <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={() => setCalOpen(false)}>
+              <Close />
+            </button>
+          </header>
+          <ReleasesCalendar zone={zone} marked={marked} picked={day} onPick={(d) => (setDay(d), setCalOpen(false))} disabled={!!data && !all.length} />
+        </DialogBox>
+      </div>
+    )}
     <main className="releases-main" aria-label={t('Releases')}>
       <header className="releases-bar">
+        <button type="button" className="icon-btn releases-cal-toggle" aria-label={t('View calendar')} aria-haspopup="dialog" aria-expanded={calOpen} onClick={() => setCalOpen(true)}>
+          <FilterLines />
+        </button>
         <span className="releases-view">
           <Calendar /> {t('Scheduled drafts')}
         </span>

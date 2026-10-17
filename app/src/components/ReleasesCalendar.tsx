@@ -148,7 +148,7 @@ export function ZonePicker({zone, onChange}: {zone: string; onChange: (zone: str
   return (
     <>
       <button type="button" className="releases-zone" aria-haspopup="dialog" onClick={() => setOpen(true)}>
-        <EarthGlobe /> {named && zoneLabel(zone)} <ChevronDown />
+        <EarthGlobe /> <span className="releases-zone-name">{named && zoneLabel(zone)}</span> <ChevronDown />
       </button>
       {open && (
         <ZoneDialog

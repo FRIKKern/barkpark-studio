@@ -399,6 +399,7 @@ export default {
   'No paused scheduled drafts': 'Ingen planlagte utkast på pause',
   'No archived releases': 'Ingen arkiverte utgivelser',
   Calendar: 'Kalender',
+  'View calendar': 'Vis kalender',
   'Previous month': 'Forrige måned',
   'Next month': 'Neste måned',
   'Go to today': 'Gå til i dag',
