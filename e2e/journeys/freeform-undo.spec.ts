@@ -9,23 +9,26 @@ const ID = 'note-01'
 const SEED = JSON.parse(readFileSync(new URL('../../fixtures/barkpark-only.ndjson', import.meta.url), 'utf8').split('\n').find((l) => l.includes(`"${ID}"`))!) as {title: string; label: string; body: unknown}
 const P = 'A note opens in the canvas; its title and label are field blocks.'
 type Block = {id: string; content?: {value?: string}[]}
+// A freshly seeded note has no stored `blocks` (Barkpark builds them on its first edit): restored as it was.
 let before: Block[] | undefined
+let seen = false
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
-  if (target(info).name === 'studio' && before) await target(info).restore(ID, {title: SEED.title, label: SEED.label, body: SEED.body, blocks: before}, 'note')
+  if (target(info).name === 'studio' && seen) await target(info).restore(ID, {title: SEED.title, label: SEED.label, body: SEED.body, ...(before && {blocks: before})}, 'note', before ? [] : ['blocks'])
 })
 
 test('@local D08: undo and redo, a paste included; the server holds the undone state', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-only: Sanity has no Freeform')
   const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
-  const blocks = async () => (await t.docValue(ID, 'blocks', 'note')) as Block[]
+  const blocks = async () => ((await t.docValue(ID, 'blocks', 'note')) as Block[] | undefined) ?? []
   const text = async () => {
     const b = await blocks()
     return b.filter((x) => x.content).map((x) => x.content!.map((c) => c.value ?? '').join('')).join(' | ')
   }
   const saved = (want: RegExp | string) => expect.poll(text, {timeout: 10_000}).toMatch(want)
-  before = await blocks()
+  before = (await t.docValue(ID, 'blocks', 'note')) as Block[] | undefined
+  seen = true
   await page.goto(t.docPath('note', ID))
   await t.settle(page)
   const canvas = page.locator('bp-paper-canvas')
@@ -34,6 +37,7 @@ test('@local D08: undo and redo, a paste included; the server holds the undone s
   await page.keyboard.press('End')
   await page.keyboard.type(' Typed.')
   await saved(`${P} Typed.`)
+  const ids = (await blocks()).map((b) => b.id)
 
   // Paste a line at the caret (a moment later, so undo takes it apart from the typing).
   await page.waitForTimeout(800)
@@ -57,5 +61,5 @@ test('@local D08: undo and redo, a paste included; the server holds the undone s
   await page.keyboard.press(`${mod}+Shift+z`)
   await saved(`${P} Typed.`)
   expect(await text()).not.toContain('Pasted')
-  expect((await blocks()).map((b) => b.id), 'no block lost or added').toEqual(before.map((b) => b.id))
+  expect((await blocks()).map((b) => b.id), 'no block lost or added').toEqual(ids)
 })

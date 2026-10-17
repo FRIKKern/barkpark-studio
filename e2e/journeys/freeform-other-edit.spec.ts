@@ -36,7 +36,7 @@ test("@local D22: another writer's edit to an open doc is shown, and Undo takes 
   await page.screenshot({path: 'evidence/D22-edited-studio.png'})
 
   await row.getByRole('button', {name: 'Undo'}).click()
-  await expect.poll(async () => (await server()).blocks.map((b) => b.id), {timeout: 10_000}).toEqual(seeded)
+  await expect.poll(async () => (await server())?.blocks?.map((b) => b.id), {timeout: 10_000}).toEqual(seeded)
   await expect(canvas).not.toContainText('Added by the agent.')
   await expect(row).toHaveCount(0)
   await expect(page.locator('.pd-status')).toHaveText('Saved')
@@ -62,6 +62,6 @@ test("@local D22: on a paper too, the other writer is named, and Undo takes thei
   const row = page.locator('[data-other-edit]')
   await expect(row).toContainText(/Edited by \S+/)
   await row.getByRole('button', {name: 'Undo'}).click()
-  await expect.poll(async () => (await read()).blocks.map((b) => b.id), {timeout: 10_000}).toEqual(seeded)
+  await expect.poll(async () => (await read())?.blocks?.map((b) => b.id), {timeout: 10_000}).toEqual(seeded)
   await expect(canvas).not.toContainText('An agent added this.')
 })
