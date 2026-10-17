@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 25 changes, 11 tasks closed
+- **Today** · 26 changes, 11 tasks closed
+  - Footer relative times hydrate as the server rendered them ([#898](https://github.com/FRIKKern/barkpark-studio/pull/898))
   - Search: a row lit by the pointer does not scroll the results, as Sanity's ([#896](https://github.com/FRIKKern/barkpark-studio/pull/896))
-  - Done: [Build: / focuses the Media search, as LiveView's](https://github.com/FRIKKern/barkpark/issues/23653)
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
