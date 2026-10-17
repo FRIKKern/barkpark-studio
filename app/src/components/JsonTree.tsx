@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from 'react'
 import {useT} from '../lib/i18n'
 
 /**
@@ -37,13 +37,46 @@ function Node({name, value, depth, open}: {name?: string; value: unknown; depth:
         {label}
         <span className="json-brace">{array ? (entries.length ? '[…]' : '[]') : entries.length ? '{…}' : '{}'}</span> <span className="json-count">{count}</span>
       </button>
-      {expanded && entries.length > 0 && (
-        <ul role="group">
-          {entries.map(([k, v]) => (
-            <Node key={k} name={k} value={v} depth={depth + 1} open={open} />
-          ))}
-        </ul>
-      )}
+      {expanded && entries.length > 0 && <Children entries={entries} depth={depth + 1} open={open} />}
     </li>
   )
+}
+
+/**
+ * A big array or object draws CHUNK entries at once and the rest as they scroll near, as
+ * Sanity's Vision does (it keeps item 2,000 of a result out of the page until it is near):
+ * a 2,000-doc result drew 56,000 nodes at once, 0.5 s at 1x CPU and 22 MB, against Sanity's
+ * 0.33 s and 10 MB. A group not drawn yet holds its place at the height the first one took.
+ */
+const CHUNK = 25
+function Children({entries, depth, open}: {entries: (readonly [string, unknown])[]; depth: number; open: number}) {
+  const list = useRef<HTMLUListElement>(null)
+  const [perEntry, setPerEntry] = useState(0)
+  const big = entries.length > CHUNK
+  // The first group's height per entry, once drawn: what a group not drawn yet takes.
+  useLayoutEffect(() => {
+    if (big && !perEntry && list.current) setPerEntry(list.current.getBoundingClientRect().height / CHUNK || 1)
+  }, [big, perEntry])
+  const node = ([k, v]: readonly [string, unknown]) => <Node key={k} name={k} value={v} depth={depth} open={open} />
+  if (!big) return <ul role="group">{entries.map(node)}</ul>
+  const groups: (readonly [string, unknown])[][] = []
+  for (let i = 0; i < entries.length; i += CHUNK) groups.push(entries.slice(i, i + CHUNK))
+  return (
+    <ul role="group" ref={list}>
+      {groups.map((g, i) => (i === 0 ? g.map(node) : <Later key={g[0]![0]} entries={g} height={perEntry * g.length} node={node} />))}
+    </ul>
+  )
+}
+
+function Later({entries, height, node}: {entries: (readonly [string, unknown])[]; height: number; node: (e: readonly [string, unknown]) => ReactNode}) {
+  const [drawn, setDrawn] = useState(false)
+  const spot = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    const el = spot.current
+    if (drawn || !el || !height) return
+    const seen = new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && setDrawn(true), {rootMargin: '800px 0px'})
+    seen.observe(el)
+    return () => seen.disconnect()
+  }, [drawn, height])
+  return drawn ? <>{entries.map(node)}</> : <li ref={spot} role="none" aria-hidden className="json-later" style={{height}} />
 }
