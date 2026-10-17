@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 38 changes, 11 tasks closed
+- **Today** · 39 changes, 11 tasks closed
+  - Undo never leaves a fragment of a burst another tab typed after ([#914](https://github.com/FRIKKern/barkpark-studio/pull/914))
   - 390 on touch: the list search icon on its line; History's list passes axe ([#910](https://github.com/FRIKKern/barkpark-studio/pull/910))
-  - A folded fieldset's title and a narrow reference field's Create as Sanity's ([#908](https://github.com/FRIKKern/barkpark-studio/pull/908))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
