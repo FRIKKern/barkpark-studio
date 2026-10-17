@@ -9,7 +9,8 @@ export const fieldTypes = defineType({
   type: 'document',
   // More: a fieldset folded until opened, with a rule inside (a jump to its error opens it).
   fieldsets: [{name: 'size', title: 'Size', options: {columns: 2}}, {name: 'more', title: 'More', options: {collapsible: true, collapsed: true}}],
-  initialValue: () => ({count: 3}),
+  // hiddenNote's starts hidden (until Agree): a new doc gets it all the same. field-types-01 sets both, so the seed's verify holds.
+  initialValue: () => ({count: 3, hiddenNote: 'Read the terms'}),
   fields: [
     defineField({name: 'title', type: 'string', validation: (r) => r.required()}),
     defineField({name: 'choice', type: 'string', options: {list: [{title: 'Alpha', value: 'a'}, {title: 'Beta', value: 'b'}, {title: 'Gamma', value: 'c'}], layout: 'dropdown'}}),

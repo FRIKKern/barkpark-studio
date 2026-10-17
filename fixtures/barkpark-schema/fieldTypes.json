@@ -20,7 +20,8 @@
     }
   ],
   "initial_values": {
-    "count": 3
+    "count": 3,
+    "hiddenNote": "Read the terms"
   },
   "fields": [
     {
