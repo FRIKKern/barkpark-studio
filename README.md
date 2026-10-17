@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 48 changes, 11 tasks closed
+- **Today** · 49 changes, 11 tasks closed
+  - Number fields show a stored decimal in the studio language's way: 59,9139 in nb ([#922](https://github.com/FRIKKern/barkpark-studio/pull/922))
   - Tooltips by the window edge, the date button, the Tasks panel and two 1 px nits as Sanity's ([#920](https://github.com/FRIKKern/barkpark-studio/pull/920))
-  - Vision: a big result draws its first items at once and the rest as they scroll near ([#918](https://github.com/FRIKKern/barkpark-studio/pull/918))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
