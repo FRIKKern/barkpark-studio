@@ -86,7 +86,7 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
           onBlur={() => typed()}
           onKeyDown={(e) => e.key === 'Enter' && typed()}
         />
-        <button ref={button} type="button" className="icon-btn" aria-label={calendarLabel ?? t('Select date')} title={calendarLabel ?? t('Select date')} disabled={readOnly} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <button ref={button} type="button" className="icon-btn" aria-label={calendarLabel ?? t('Select date')} data-tip={calendarLabel ?? t('Select date')} disabled={readOnly} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           <Calendar />
         </button>
       </div>

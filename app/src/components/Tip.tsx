@@ -10,21 +10,26 @@ import {createPortal} from 'react-dom'
  */
 /**
  * Sanity's placement: centred on the anchor, 4 px under it (over it near the bottom;
- * over it always for a field's ⋯ and Add comment, `data-tip-side="top"`, unless at the top),
- * shifted only as far as it must to stay 4 px inside the anchor's pane (else the
- * window), measured once drawn.
+ * over it always for a field's ⋯ and Add comment, `data-tip-side="top"`, unless at the top).
+ * One that would leave the window lines up with the anchor's nearer edge instead (Sanity's
+ * last header buttons); then it is shifted only as far as it must to stay 4 px inside the
+ * anchor's pane (else the window). Measured once drawn.
  */
 const fit = (el: HTMLElement | null) => {
   if (!el) return
   const half = el.offsetWidth / 2
   const [lo, hi] = (el.dataset.bounds ?? `0 ${innerWidth}`).split(' ').map(Number)
-  el.style.left = `${Math.min(Math.max(Number(el.dataset.centre), lo! + half + 4), hi! - half - 4)}px`
+  const [start, end] = (el.dataset.edges ?? '').split(' ').map(Number)
+  let centre = Number(el.dataset.centre)
+  if (centre + half > innerWidth - 4 && end) centre = end - half
+  else if (centre - half < 4 && start) centre = start + half
+  el.style.left = `${Math.min(Math.max(centre, lo! + half + 4), hi! - half - 4)}px`
 }
 const placed = (at: DOMRect, anchor?: Element | null) => {
   const centre = at.left + at.width / 2
   const pane = anchor?.closest('.pane')?.getBoundingClientRect()
   const above = anchor?.getAttribute('data-tip-side') === 'top' ? at.top > 80 : at.bottom + 80 >= innerHeight
-  return {ref: fit, 'data-centre': centre, 'data-bounds': pane ? `${pane.left} ${pane.right}` : undefined, style: {left: centre, ...(above ? {bottom: innerHeight - at.top + 4} : {top: at.bottom + 4})}}
+  return {ref: fit, 'data-centre': centre, 'data-edges': `${at.left} ${at.right}`, 'data-bounds': pane ? `${pane.left} ${pane.right}` : undefined, style: {left: centre, ...(above ? {bottom: innerHeight - at.top + 4} : {top: at.bottom + 4})}}
 }
 
 export function useTip(content: () => ReactNode) {
