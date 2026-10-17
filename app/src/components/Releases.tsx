@@ -11,7 +11,7 @@ import {dayKey, localZone, storedZone, zoneShort} from '../lib/timezone'
 import {ConfirmDialog} from './DocumentPane'
 import {MenuPopover} from './FocusScopes'
 import {toast} from './Toasts'
-import {ArrowLeft, Calendar, Close, Ellipsis, LockIcon, PublishIcon, Trash, EditIcon} from './icons'
+import {ArrowLeft, Calendar, Close, Ellipsis, LockIcon, PublishIcon, ReleaseIllustration, Trash, EditIcon} from './icons'
 
 // Sanity's Releases tool, its Scheduled drafts view (task-ad9c942d7d48c887): every draft
 // scheduled to publish (J40), Active, Paused or Archived, from Barkpark's schedules. Content
@@ -49,7 +49,8 @@ export function Releases() {
   const locale = useLocale()
   return (
     <div className="releases">
-    <ReleasesCalendar zone={zone} marked={marked} picked={day} onPick={setDay} />
+    {/* Nothing scheduled at all: Sanity's calendar has nothing to pick, so it is greyed out. */}
+    <ReleasesCalendar zone={zone} marked={marked} picked={day} onPick={setDay} disabled={!!data && !all.length} />
     <main className="releases-main" aria-label={t('Releases')}>
       <header className="releases-bar">
         <span className="releases-view">
@@ -128,6 +129,7 @@ function Empty({text}: {text: string}) {
   const t = useT()
   return (
     <div className="releases-empty">
+      <ReleaseIllustration />
       <strong>{t('Scheduled Drafts')}</strong>
       <p>{text}</p>
     </div>
