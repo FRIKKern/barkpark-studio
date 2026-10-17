@@ -3,7 +3,7 @@ import {MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {docQuery, previewTitle, schemaOf, schemasQuery} from '../lib/data'
-import {lastMoved, usePresences, type Presence} from '../lib/presence'
+import {lastMoved, useOtherPeople, usePresences, type Presence} from '../lib/presence'
 import {people as byPerson, stack} from '../lib/presence-people'
 import {USER_HUES, userHue} from '../lib/user-colors'
 import {Users} from './icons'
@@ -173,8 +173,8 @@ export const PresenceHints = memo(function PresenceHints({docId, scroller}: {doc
 /** Navbar: who else is in the studio; pick one to open the doc and field they are on. */
 export function WhoIsOnline() {
   const t = useT()
-  // Sanity's: a row per person (their tabs are one), at the place they moved to last.
-  const people = byPerson(usePresences(), lastMoved)
+  // Sanity's: a row per person (their tabs are one), at the place they moved to last; not you.
+  const people = byPerson(useOtherPeople(), lastMoved)
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {

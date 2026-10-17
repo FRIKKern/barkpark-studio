@@ -11,10 +11,14 @@ export type CaretSelection = {anchor: CaretPoint; head: CaretPoint}
 export type Presence = {sessionId: string; name: string; color: string; documentId: string | null; field: string | null; selection?: CaretSelection | null}
 
 let others: Presence[] = []
-/** What the page shows: `others` less this editor's own tabs once their presence name is known. */
+/** The navbar's people: `others` less this editor's own tabs once their presence name is known. */
 let shown: Presence[] = []
 let selfName: string | null = null
-/** J07, as Sanity's: the signed-in editor's own presence (all their tabs) is not shown. */
+/**
+ * J07, as Sanity's: the navbar's Who's online leaves the signed-in editor out, all their tabs.
+ * Document, field and list presence leave out only this tab: your other tab shows where it is
+ * (task-0d75ccc71054620a).
+ */
 export function setPresenceSelf(name: string | null) {
   if (name === selfName) return
   selfName = name
@@ -153,7 +157,9 @@ export function usePresenceStream() {
 const BEAT_MS = 30_000
 
 const subscribe = (l: () => void) => (listeners.add(l), () => void listeners.delete(l))
-/** Everyone else in the room. */
-export const usePresences = () => useSyncExternalStore(subscribe, () => shown, () => shown)
+/** Every other session in the room, this editor's other tabs too: for documents, fields and rows. */
+export const usePresences = () => useSyncExternalStore(subscribe, () => others, () => others)
+/** Everyone else in the studio, this editor's own tabs left out: for the navbar's Who's online. */
+export const useOtherPeople = () => useSyncExternalStore(subscribe, () => shown, () => shown)
 /** When each session last moved, for picking where a person with several tabs is now. */
 export const lastMoved: ReadonlyMap<string, number> = moved
