@@ -437,6 +437,7 @@ a { color: inherit; text-decoration: none; }
 .back-link { flex: none; margin-left: -8px; }
 /* In a document's title row (a narrow window): the title 16 px after the arrow, the row as tall as the title (Sanity's at 390). */
 .doc-title-bar .title-row:has(> .back-link) { gap: 16px; }
+.pane-header > .back-link { margin-right: 12px; } /* a narrow list's title 16 px after its arrow, as Sanity's */
 .doc-title-bar .title-row > .back-link { margin-block: -3px; }
 .title-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .strip-title {
@@ -2550,9 +2551,11 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
   .navbar .logo { margin: 0 4px 0 8px; }
   .navbar .brand > .logo + * { margin-left: 0; }
   .navbar .scope-switcher { flex: 0 1000 auto; margin-right: 8px; } /* the name gives way first (Sanity: "barkpa…" before the Drafts label), then +, then room */
-  .nav-right { padding-left: 11px; }
+  .nav-right { padding-left: 8px; } /* 8 px after +, as Sanity's */
   .nav-search { margin-left: 4px; }
 }
+/* While the name still has letters to give, "Drafts" keeps all of its own: a sub-pixel share of the squeeze put it in an ellipsis at 390. */
+@media (min-width: 370px) and (max-width: 599px) and (pointer: fine) { .navbar .nav-right > .menu-wrap.perspective { flex-shrink: 0; } }
 /* J40: field comments (Sanity's) — the button at a field's top right (after "…"),
    the composer under it, and the Comments inspector. */
 .field-comments { position: absolute; top: 0; right: 0; z-index: 2; }
