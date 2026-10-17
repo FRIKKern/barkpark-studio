@@ -22,6 +22,14 @@ const select = (page: Page, word: string) =>
       return
     }
   }, word)
+// Selects only once the body has its own caret: ProseMirror writes that caret back to the
+// page 20 ms after it takes the focus (prosemirror-view's focus handler), over words a
+// script selected sooner. A person can't select that fast; a test can (J40's offer never
+// came at 4x CPU, task-227bb03f6b76281c). A timer set after the focus, 25 ms, runs after it.
+const focused = async (page: Page, timeout: number) => {
+  await expect(page.locator('[id="body"] .ProseMirror')).toBeFocused({timeout})
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 25)))
+}
 
 test.afterEach(async () => {
   const r = await fetch(`${bpBase()}/v1/data/query/${bpDataset()}/studioComment?perspective=drafts&limit=50&filter[documentId][eq]=${ID}`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
@@ -39,7 +47,7 @@ test('J40: a comment on a span of the body is saved on its words', async ({page}
   await signInIfAsked(page)
   await t.settle(page)
   await page.locator('[id="body"]').getByText(/Alpha beta/).click()
-  await expect(page.locator('[id="body"] .ProseMirror')).toBeFocused({timeout: 10_000})
+  await focused(page, 10_000)
   await select(page, 'gamma')
   await page.locator('.inline-comment-add').click()
   await page.keyboard.type('On gamma')
@@ -59,7 +67,7 @@ test('@local J40: a comment on a span of the body follows its words, and outlive
   await signInIfAsked(page)
   await t.settle(page)
   await page.locator('[id="body"]').getByText(/Alpha beta/).click()
-  await expect(page.locator('[id="body"] .ProseMirror')).toBeFocused({timeout: 15_000})
+  await focused(page, 15_000)
 
   await select(page, 'gamma')
   const offer = page.locator('.inline-comment-add')
@@ -90,6 +98,7 @@ test('@local J40: a comment on a span of the body follows its words, and outlive
   await t.settle(page)
   await page.locator('[id="body"]').getByText(/Zero Alpha/).click()
   await expect.poll(() => spans(page), {timeout: 10_000}).toEqual([moved])
+  await focused(page, 15_000)
 
   // Its words deleted: the span goes, the thread stays with its quote unlinked.
   await select(page, moved)
