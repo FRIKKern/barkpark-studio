@@ -89,3 +89,23 @@ test('@local J18: a parameterised template from a structure item — Posts by au
   await expect.poll(() => t.docValue(created!, 'author').then((a) => (a && typeof a === 'object' ? (a as {_ref: string})._ref : a)), {timeout: 10_000}).toBe('author-alan')
   await page.screenshot({path: `evidence/J18-${t.name}-param-template.png`})
 })
+
+// An initial value on a field hidden at the start (fieldTypes' hiddenNote, until Agree) is set all the same, as Sanity's.
+test('@local J18: a field hidden at the start still gets its initial value', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto(t.listPath('fieldTypes'))
+  await t.settle(page)
+  await t.newDocButton(t.pane(page, 1)).click()
+  const item = page.getByRole('menuitem', {name: 'Field types', exact: true})
+  if (await item.waitFor({timeout: 1_000}).then(() => true, () => false)) await item.click()
+  await expect.poll(() => decodeURIComponent(page.url()).match(/;([0-9a-f-]{36})/)?.[1]).toBeTruthy()
+  const id = decodeURIComponent(page.url()).match(/;([0-9a-f-]{36})/)![1]!
+  try {
+    await t.field(page, 'title').fill('Hidden initial probe')
+    await expect(t.field(page, 'hiddenNote')).toHaveCount(0)
+    await expect.poll(() => t.docValue(id, 'hiddenNote', 'fieldTypes'), {timeout: 10_000}).toBe('Read the terms')
+  } finally {
+    await t.deleteDoc(id, 'fieldTypes')
+  }
+})
