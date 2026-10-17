@@ -12,11 +12,10 @@ test('footer: the relative publish time hydrates as the server rendered it', asy
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
   page.on('pageerror', (e) => errors.push(e.message))
   await page.clock.install({time: new Date(Date.now() + 3 * 86_400_000)})
-  const path = t.docPath('post', 'post-01')
-  const html = await (await page.request.get(path)).text()
+  // The words this very page load's HTML carries (a second request would be seconds later).
+  const html = await (await page.goto(t.docPath('post', 'post-01')))!.text()
   const ssr = /class="save-state-text"[^>]*>([^<]*)</.exec(html)?.[1]
   expect(ssr, 'the server rendered the footer').toMatch(/^Last published /)
-  await page.goto(path)
   await t.settle(page)
   await expect(page.locator('.doc-footer .save-state-text').first()).toHaveText(ssr!)
   expect(errors.filter((e) => /hydrat|react\.dev\/errors\/4(18|19|20|21|22|23|24|25)/i.test(e))).toEqual([])
