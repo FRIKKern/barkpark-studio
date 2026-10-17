@@ -21,6 +21,7 @@ test('sizes and types read as Sanity writes them', () => {
   assert.equal(formatBytes(2483770, 'nb-NO'), '2,37 MB')
   assert.equal(mediaBytes(9626), '9.4 KB')
   assert.equal(mediaBytes(9626, 'nb-NO'), '9,4 KB')
+  assert.equal(mediaBytes(31), '31 B') // under a kilobyte, as LiveView's: not 0.0 KB
   assert.equal(mimeTitle('application/pdf'), 'PDF Document')
   assert.equal(mimeTitle('application/x-yaml'), 'Yaml')
   const now = Date.parse('2026-10-08T12:00:00Z')
