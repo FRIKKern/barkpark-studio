@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 23 changes, 10 tasks closed
+- **Today** · 24 changes, 10 tasks closed
+  - Media: / puts the caret in the search, as LiveView's ([#894](https://github.com/FRIKKern/barkpark-studio/pull/894))
   - Phone search with a mouse as Sanity's: 33 px buttons, a 35 px field with 15 px words, filters on rows of their own ([#893](https://github.com/FRIKKern/barkpark-studio/pull/893))
-  - P1: words kept at a delete are offered back after Restore (the body loads again when its document returns) ([#895](https://github.com/FRIKKern/barkpark-studio/pull/895))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
