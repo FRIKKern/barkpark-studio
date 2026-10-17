@@ -79,7 +79,9 @@ export async function readRest(): Promise<unknown[]> {
   const res = await serviceToken().then((token) => bpFetch(`/v1/structure/${dataset()}`, {}, token)).catch(() => null)
   if (!res?.ok) return []
   const tree = ((await res.json()) as {structure?: {items?: {id?: string; items?: unknown[]}[]}}).structure
-  return tree?.items?.find((i) => i.id === 'rest')?.items ?? []
+  const rest = (tree?.items?.find((i) => i.id === 'rest')?.items ?? []) as {typeName?: string}[]
+  // The studio's own records are never "…Rest" content, even in a dataset whose schema list lacks them.
+  return rest.filter((i) => !STUDIO_TYPES.includes(i.typeName ?? ''))
 }
 
 /**
