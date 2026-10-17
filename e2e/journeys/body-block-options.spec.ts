@@ -7,7 +7,7 @@ import {signInIfAsked, target} from '../rig/targets'
 // (lead's call, 2026-10-17, task-e4d09605e39ef6be); an older canvas moves the block
 // handle there (Duplicate, Move, Delete). Either way Duplicate stays reachable from the
 // expanded body's gutter. Nothing is written: every menu closes unpicked.
-test('J11: inline, a block object offers its menu at its right edge; text shows no gutter', async ({page}, info) => {
+test('@local J11: inline, a block object offers its menu at its right edge; text shows no gutter', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "Barkpark's canvas: Sanity's block menu is on the block itself")
   await page.goto(t.docPath('post', 'post-01'))

@@ -60,7 +60,7 @@ test('J07: a presence stream gone quiet without closing is reopened, and a newco
 
 // Who's online (J07): picking someone opens their document at the field they are in, as
 // Sanity's presence menu does (it opened the document at its top).
-test('J07: who\'s online opens the other editor\'s document at their field', async ({browser}, info) => {
+test('@local J07: who\'s online opens the other editor\'s document at their field', async ({browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "Barkpark's presence room")
   const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])
@@ -104,7 +104,7 @@ test('@local J07: someone typing in the body far below shows as a hint', async (
 // are one), past the limit a counter of the rest (a bare number) before the last few,
 // and a positive dot on the navbar's button. The room is answered here: six people,
 // one of them in two tabs, one in no document.
-test('J07: many viewers: one per person, the counter, the menu', async ({page, context}, info) => {
+test('@local J07: many viewers: one per person, the counter, the menu', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "Barkpark's presence room")
   const P = (sessionId: string, name: string, documentId: string | null, field: string | null) => ({sessionId, name, color: '#556bfc', documentId, field, client: 'studio'})

@@ -3,7 +3,7 @@ import {target} from '../rig/targets'
 
 // Sanity's visibleGroups: post's Promotion group holds only promoLine, hidden until featured,
 // so its tab is gone until Featured is on.
-test('J30: a group whose fields are all hidden has no tab until one shows', async ({page}, info) => {
+test('@local J30: a group whose fields are all hidden has no tab until one shows', async ({page}, info) => {
   const t = target(info)
   const id = `post-promo-${Date.now().toString(36)}`
   await t.draftOnly(id, 'post', {title: 'Promo probe', slug: {_type: 'slug', current: id}, featured: false})

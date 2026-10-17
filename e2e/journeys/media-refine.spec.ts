@@ -4,7 +4,7 @@ import {target} from '../rig/targets'
 // Barkpark-native track, after LiveView's media Refine column: each format the library holds
 // is a row with its count (Barkpark's mimeType facet); picking one filters the grid to it,
 // picking it again lets go. Read-only, on whatever the dataset holds (a CI dataset: one text file).
-test('B08: Refine by format lists the formats with their counts and filters by one', async ({page}, info) => {
+test('@local B08: Refine by format lists the formats with their counts and filters by one', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-native')
   await t.prepare(page.context())
@@ -21,7 +21,7 @@ test('B08: Refine by format lists the formats with their counts and filters by o
 })
 
 // LiveView's "/ to focus": / anywhere outside a text field puts the caret in the media search.
-test('B08: / puts the caret in the media search', async ({page}, info) => {
+test('@local B08: / puts the caret in the media search', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-native')
   await t.prepare(page.context())

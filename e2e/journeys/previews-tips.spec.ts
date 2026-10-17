@@ -7,7 +7,7 @@ import {signInIfAsked, target} from '../rig/targets'
 // dates; an icon button loses its tooltip or its shortcut; a repeated toast stacks.
 const tooltip = (page: Page) => page.getByRole('tooltip')
 
-test('J56: previews — reference subtitle, untitled fallback, status tooltips with dates', async ({page}, info) => {
+test('@local J56: previews — reference subtitle, untitled fallback, status tooltips with dates', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'the check runs on ours')
   await t.draftOnly('post-untitled-j56', 'post', {excerpt: 'No title here.'})
@@ -36,7 +36,7 @@ test('J56: previews — reference subtitle, untitled fallback, status tooltips w
   }
 })
 
-test('J57: every icon button has a tooltip, shortcuts show; a repeated toast replaces itself and closes', async ({page}, info) => {
+test('@local J57: every icon button has a tooltip, shortcuts show; a repeated toast replaces itself and closes', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'the check runs on ours')
   await page.goto(t.docPath('post', 'post-01'))

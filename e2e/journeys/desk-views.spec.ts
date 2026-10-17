@@ -4,7 +4,7 @@ import {signInIfAsked, target} from '../rig/targets'
 // B09, ours: the author schema's desk.views ({id: posts, type: post, by: author, title
 // order}) opens as a view of the author: the posts that name them, in that order. What
 // can break silently: the view disappears, lists other posts, or loses its order.
-test('B09: an author\'s "Posts" view lists the posts by them, by title', async ({page}, info) => {
+test('@local B09: an author\'s "Posts" view lists the posts by them, by title', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "Barkpark-native: Sanity's equivalent is a structure view")
   await page.goto(t.docPath('author', 'author-ada'))
@@ -22,7 +22,7 @@ test('B09: an author\'s "Posts" view lists the posts by them, by title', async (
 // J18, both studios: a nested list of the studio's own structure (Sanity's S.list() under an
 // S.listItem(), reference/sanity/structure.ts): its own rows, each with its icon, its titled
 // divider, and a filtered type list under it. Ours used to show the first pane again.
-test('J18: a nested structure list opens its own rows, and a filtered list under it', async ({page}, info) => {
+test('@local J18: a nested structure list opens its own rows, and a filtered list under it', async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
   await page.goto('/structure/editorial')

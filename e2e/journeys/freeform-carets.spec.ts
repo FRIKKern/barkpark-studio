@@ -5,7 +5,7 @@ import {target} from '../rig/targets'
 // its caret in a paragraph and B's canvas draws it (a bar with A's name, in A's presence
 // color) without moving B's own caret; A selects a range and B shows it; A leaves the
 // canvas and B's copy goes. Nothing is written.
-test('D11: a caret in Freeform shows in a 2nd browser, with its range, and goes when it leaves', async ({browser}, info) => {
+test('@local D11: a caret in Freeform shows in a 2nd browser, with its range, and goes when it leaves', async ({browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-only: Sanity has no Freeform')
   const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])

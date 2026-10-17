@@ -5,7 +5,7 @@ import {target} from '../rig/targets'
 // A phone (390, touch), light: the list search's icon sits on its words' line (the phone and
 // touch rules once stacked into an icon above them), and the History panel passes axe.
 test.use({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true, colorScheme: 'light'})
-test('390 touch: list search icon on its line; History passes axe', async ({page}, info) => {
+test('@local 390 touch: list search icon on its line; History passes axe', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours')
   await t.prepare(page.context())

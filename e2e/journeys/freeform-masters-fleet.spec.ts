@@ -8,7 +8,7 @@ import {bpBase, bpDataset, closeAndSettle, resetNative, target} from '../rig/tar
 const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
 const canvas = (page: Page) => page.locator('bp-paper-canvas')
 
-test('D14: a paper\'s task block shows its tasks and follows a change live', async ({page}, info) => {
+test('@local D14: a paper\'s task block shows its tasks and follows a change live', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-only: Sanity has no Freeform')
   const task = `task-d14-1-${bpDataset()}`
