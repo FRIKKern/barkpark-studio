@@ -139,7 +139,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
             <button type="button" className="btn" disabled={readOnly} onClick={pick}>
               <Upload /> {t('Upload')}
             </button>
-            <button type="button" className="btn" disabled={readOnly} onClick={() => setBrowsing(true)}>
+            <button type="button" className="btn" disabled={readOnly} onPointerEnter={warmMediaList} onFocus={warmMediaList} onClick={() => setBrowsing(true)}>
               <SearchIcon /> {t('Select')}
             </button>
           </span>
@@ -163,7 +163,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
                   <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), pick())}>
                     <Upload /> {t('Upload')}
                   </button>
-                  <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), setBrowsing(true))}>
+                  <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onPointerEnter={warmMediaList} onFocus={warmMediaList} onClick={() => (setMenu(false), setBrowsing(true))}>
                     <SearchIcon /> {t('Select')}
                   </button>
                   <a role="menuitem" className="menu-item" href={url} download onClick={() => setMenu(false)}>
@@ -208,6 +208,25 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
 
 type Asset = {id: string; name: string}
 type Use = {_id: string; _type: string; title?: string}
+type MediaPage = {images: Asset[]; nextOffset: number | null}
+
+const mediaPage = (offset: number) => fetch(`/api/media/?offset=${offset}`).then((r) => (r.ok ? (r.json() as Promise<MediaPage>) : Promise.reject(new Error(`media list → ${r.status}`))))
+
+// The first page takes 0.1-0.45 s, nearly all of it Barkpark's; Select asks for it when
+// the pointer or focus reaches it, so the wait runs under the hover-to-click. A request
+// older than 5 s is dropped and the dialog asks again, so a fresh upload still shows.
+let early: {at: number; page: Promise<MediaPage>} | null = null
+const warmMediaList = () => {
+  if (early && Date.now() - early.at < 5000) return
+  const page = mediaPage(0)
+  page.catch(() => {})
+  early = {at: Date.now(), page}
+}
+const firstPage = () => {
+  const warm = early && Date.now() - early.at < 5000 ? early.page : null
+  early = null
+  return warm ?? mediaPage(0)
+}
 
 /** Sanity's "Select image for <field>": the library as tiles; each tile's "…" shows where it is used. */
 export function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; path: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
@@ -219,7 +238,7 @@ export function AssetPicker({title, path, openRef, onPick, onClose}: {title: str
     queryKey: ['media'],
     gcTime: 0,
     initialPageParam: 0,
-    queryFn: ({pageParam}) => fetch(`/api/media/?offset=${pageParam}`).then((r) => (r.ok ? (r.json() as Promise<{images: Asset[]; nextOffset: number | null}>) : Promise.reject(new Error(`media list → ${r.status}`)))),
+    queryFn: ({pageParam}) => (pageParam === 0 ? firstPage() : mediaPage(pageParam)),
     getNextPageParam: (last) => last.nextOffset ?? undefined,
   })
   const assets = data?.pages.flatMap((p) => p.images)
