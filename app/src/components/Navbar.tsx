@@ -81,7 +81,7 @@ function NavDrawer() {
   const close = () => setOpen(false)
   return (
     <>
-      <button type="button" className="icon-btn nav-drawer-btn" aria-label={t('Open menu')} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+      <button type="button" className="icon-btn nav-drawer-btn" aria-label={t('Open menu')} data-tip={t('Open menu')} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
         <MenuIcon />
       </button>
       {open && (

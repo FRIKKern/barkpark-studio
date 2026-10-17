@@ -1275,6 +1275,10 @@ fieldset.object-field[data-collapsible][data-open=true]:not(.fieldset-group) { -
 .datetime-box { position: relative; }
 .datetime-box .input { padding-right: 40px; }
 .datetime-box .icon-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 34px; height: auto; /* Sanity's 35 px segment, its rule included */ border-radius: 0 3px 3px 0; box-shadow: inset 1px 0 0 var(--line); }
+/* Under the pointer Sanity fills a 25 px button inside the segment, not the segment. */
+.datetime-box .icon-btn:hover { background: none; }
+.datetime-box .icon-btn:hover::before { content: ''; position: absolute; inset: 4px 4px 4px 5px; border-radius: 3px; background: var(--icon-btn-hover); }
+.datetime-box .icon-btn > svg { position: relative; }
 .datetime[data-invalid] .input { background: var(--danger-bg); }
 /* Sanity's date picker (measured at 1440): 362 px, centred under the input (not its calendar button), 46 x 25 days 4 px apart. */
 .datepicker { top: calc(100% + 4px); left: max(0px, calc((100% - 35px) / 2 - 181px)); width: 362px; padding: 8px; font-size: 13px; }
@@ -1549,7 +1553,6 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .history-list .badge:is([data-kind=unpublished], [data-kind=discarded], [data-kind=deleted]) { background: var(--avatar-orange); }
 .history-list .badge[data-kind=edited] { background: var(--avatar-yellow); }
 .history-text { display: flex; flex-direction: column; font-size: 13px; line-height: 17px; font-weight: 500; color: var(--history-title); }
-.history-text > span { padding-top: 1px; margin-bottom: -1px; } /* Sanity's event sits 17 px over its time, not 18 */
 .history-text time { font-weight: 400; color: var(--history-time); }
 .revision-footer { background: var(--warn-bg); }
 .revision-footer .save-state { color: var(--warn-fg); }
@@ -3005,7 +3008,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 /* Sanity's toggle fills only under the pointer, open or closed. */
 .locations-toggle:hover:not(:disabled) { background: var(--card-hover); }
 .locations-toggle:disabled { cursor: default; }
-.locations-banner ul { list-style: none; margin: 0; padding: 4px 0 0; display: grid; gap: 4px; }
+.locations-banner ul { list-style: none; margin: 0 0 -1px; padding: 4px 0 0; display: grid; gap: 4px; } /* opened, the fields 1 px nearer, as Sanity's */
 /* Sanity's location card: 50 px, its 21 px icon 6 px in, the title medium over the path. */
 .locations-banner .location { display: flex; gap: 6px; padding: 7px 6px; border-radius: 3px; color: var(--fg); text-decoration: none; line-height: 19px; }
 .locations-banner .location:hover { background: var(--card-hover); }
@@ -3063,6 +3066,7 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .tasks-panel { position: fixed; top: var(--nav-h); right: 0; bottom: 0; width: 360px; max-width: 100vw; display: flex; flex-direction: column; background: var(--bg); border-left: 1px solid var(--border); z-index: 30; color: var(--fg); font-size: 13px; }
 body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-open] .presentation { margin-right: 360px; }
 @media (max-width: 900px) { body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-open] .presentation { margin-right: 0; } }
+@media (max-width: 600px) { .tasks-panel { width: auto; left: 0; border-left: 0; } } /* Sanity's takes the whole window up to 600 px */
 .tasks-head { display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 20px; min-height: 49px; }
 .tasks-crumbs, .task-form { border-top: 0; }
 .tasks-panel > .tasks-head:has(.tasks-crumbs) { border-bottom: 1px solid var(--border); }
@@ -3116,17 +3120,17 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 .task-activity p { margin: 0; }
 .task-label { margin-top: 20px; font-size: 13px; font-weight: 500; color: var(--fg-strong); }
 /* The Tasks panel as Sanity's (measured at 1440 on :3334, the reference's Tasks sidebar). */
-.tasks-head { padding: 10px 12px 6px 20px; }
+.tasks-head { padding: 9px 12px 7px 20px; } /* the title at 68, as Sanity's */
 .tasks-head:has(.tasks-crumbs) { padding-left: 12px; }
 .tasks-head h2 { color: var(--fg); }
 .tasks-head .tasks-new { padding: 3px 8px 3px 4px; line-height: 19px; color: var(--fg-header); }
 .tasks-head .tasks-new svg, .tasks-empty .btn svg, .task-form-foot .btn svg { width: 19px; height: 19px; margin: -3px 0; }
-.tasks-tabs { padding: 3px 12px 12px; }
+.tasks-tabs { padding: 2px 12px 13px; } /* the tabs' words at 107, as Sanity's */
 .tasks-tabs button { padding: 3px 8px; line-height: 19px; color: var(--fg-header); }
 .tasks-tabs button[aria-selected='true'] { color: var(--fg); }
-.tasks-empty { padding-top: 128px; }
+.tasks-empty { padding-top: 127px; }
 .tasks-empty h3 { color: var(--fg); margin-bottom: 8px; }
-.tasks-empty p { margin-bottom: 58px; line-height: 19px; } /* the button 61 px under the hint's last line, as Sanity's (405.5 at 1440) */
+.tasks-empty p { margin-bottom: 59px; line-height: 19px; } /* the button 62 px under the hint's last line, as Sanity's (410 at 800) */
 .tasks-empty .btn { padding: 3px 8px 3px 4px; line-height: 19px; background: var(--fg); color: var(--bg); }
 .tasks-crumbs .btn-text { padding: 3px 8px; line-height: 19px; color: var(--fg-header); font-weight: 400; }
 .tasks-crumbs { gap: 0; }
