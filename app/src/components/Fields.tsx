@@ -530,7 +530,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
  * tick later, and a controlled input re-rendered with that older value drops the
  * keystrokes typed in between. A new value from outside (remote edit) still wins.
  */
-export function TextInput({id, value, onChange, rows, readOnly}: {id: string; value: string; onChange: (v: unknown) => void; rows?: number; readOnly?: boolean}) {
+export function TextInput({id, value, onChange, rows, readOnly, label}: {id: string; value: string; onChange: (v: unknown) => void; rows?: number; readOnly?: boolean; label?: string}) {
   const [local, setLocal] = useState(value)
   const [seen, setSeen] = useState(value)
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
@@ -552,9 +552,9 @@ export function TextInput({id, value, onChange, rows, readOnly}: {id: string; va
     onChange(v)
   }
   return rows ? (
-    <textarea ref={ref} id={id} className="input" rows={rows} value={local} readOnly={readOnly} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
+    <textarea ref={ref} id={id} className="input" rows={rows} value={local} readOnly={readOnly} aria-label={label} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
   ) : (
-    <input ref={ref} id={id} className="input" value={local} readOnly={readOnly} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
+    <input ref={ref} id={id} className="input" value={local} readOnly={readOnly} aria-label={label} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
   )
 }
 

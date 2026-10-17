@@ -104,3 +104,28 @@ test('live: a reorder dropped before the typing is drawn keeps the typed words',
     await t.deleteDoc(id, 'post')
   }
 })
+
+// Keys typed faster than the list redraws all land: an item's input was put back to the list's
+// last drawn value after every key (a controlled input), so the next key built on that and
+// dropped the one before ("two-A-yz--23" for "two-by-A-x-y-z-1-2-3"; task-03691f23ebb60c5c).
+test('a list item keeps every key typed fast', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: the item input')
+  const id = `post-list-${Date.now().toString(36)}`
+  await t.draftOnly(id, 'post', {title: 'List probe', slug: {_type: 'slug', current: id}, highlights: ['one', 'two', 'three']})
+  try {
+    await t.prepare(page.context())
+    await page.goto(t.docPath('post', id))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await page.getByRole('tab', {name: 'Meta'}).click()
+    const item = page.locator('[id="highlights[1]"]')
+    await item.click()
+    await page.keyboard.press('End')
+    await page.keyboard.type('-by-A-x-y-z-1-2-3', {delay: 5})
+    await expect(item).toHaveValue('two-by-A-x-y-z-1-2-3')
+    await expect.poll(() => t.docValue(id, 'highlights'), {timeout: 10_000}).toEqual(['one', 'two-by-A-x-y-z-1-2-3', 'three'])
+  } finally {
+    await t.deleteDoc(id, 'post')
+  }
+})
