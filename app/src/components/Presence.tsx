@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, type RefObject} from 'react'
+import {memo, useEffect, useRef, useState, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
@@ -131,7 +131,8 @@ export const placeOf = (root: ParentNode, field: string): Element | null =>
  * Sanity's above/below hints: someone is in a field scrolled out of view in this
  * pane; a pill at the top or bottom edge says who, and scrolls to them.
  */
-export function PresenceHints({docId, scroller}: {docId: string; scroller: RefObject<HTMLElement | null>}) {
+// Memo: the doc pane re-renders on every key, and this read the layout each time.
+export const PresenceHints = memo(function PresenceHints({docId, scroller}: {docId: string; scroller: RefObject<HTMLElement | null>}) {
   const people = usePresences().filter((p) => p.documentId === docId && p.field)
   const [, tick] = useState(0)
   useEffect(() => {
@@ -141,6 +142,9 @@ export function PresenceHints({docId, scroller}: {docId: string; scroller: RefOb
     el.addEventListener('scroll', on, {passive: true})
     return () => el.removeEventListener('scroll', on)
   }, [scroller])
+  // No one else on a field here: nothing to place, and no layout read (one per render forced
+  // a layout of the whole form, ~2 ms a key at 4x CPU on a 200-field doc).
+  if (!people.length) return null
   const box = scroller.current?.getBoundingClientRect()
   if (!box) return null
   const where = (p: Presence) => {
@@ -164,7 +168,7 @@ export function PresenceHints({docId, scroller}: {docId: string; scroller: RefOb
       )}
     </>
   )
-}
+})
 
 /** Navbar: who else is in the studio; pick one to open the doc and field they are on. */
 export function WhoIsOnline() {

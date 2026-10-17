@@ -24,7 +24,7 @@ import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {InPresentationContext, PaneLink, usePaneNavigate, useStructureNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
-import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FormDisabledContext, FreeformBodyContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
+import {ChangesContext, DocProvider, DocIdContext, DocTypeContext, EditPathContext, FormDisabledContext, FreeformBodyContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
@@ -443,7 +443,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     <ChangesContext.Provider value={o.changes}>
     <DocIdContext.Provider value={o.shown._publishedId}>
     <DocTypeContext.Provider value={pane.type}>
-    <DocContext.Provider value={o.shown}>
+    <DocProvider doc={o.shown}>
     <UrlPathContext.Provider value={pane.path}>
     <EditPathContext.Provider value={onEdit}>
     <ProblemsContext.Provider value={o.problems}>
@@ -460,7 +460,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     </ProblemsContext.Provider>
     </EditPathContext.Provider>
     </UrlPathContext.Provider>
-    </DocContext.Provider>
+    </DocProvider>
     </DocTypeContext.Provider>
     </DocIdContext.Provider>
     </ChangesContext.Provider>

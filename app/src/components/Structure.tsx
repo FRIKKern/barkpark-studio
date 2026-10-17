@@ -492,6 +492,16 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
   )
 }
 
+// A doc's search text, once per version: typing in a doc gives the list a new array on every
+// key, and walking every doc again (a 200-row one too) was ~1.5 ms a key at 4x CPU, with no
+// search typed. Only while one is, and only for the docs that changed.
+const searchTexts = new WeakMap<Doc, string>()
+const searchText = (doc: Doc) => {
+  let text = searchTexts.get(doc)
+  if (text === undefined) searchTexts.set(doc, (text = listSearchText(doc)))
+  return text
+}
+
 // Search text in nested fields and rich-text blocks as well as scalar fields.
 // System metadata (ids, revisions and block keys) is not editor content.
 function listSearchText(value: unknown): string {
@@ -620,10 +630,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   }, [people])
   // J24: filter as you type, on the list already here (no request per key). Every
   // word must appear in one of the doc's text values, Sanity-style.
-  const indexed = useMemo(() => (docs ?? []).map((doc) => ({doc, text: listSearchText(doc)})), [docs])
   const shown = useMemo(() => {
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
-    const hits = indexed.filter(({text}) => terms.every((w) => text.includes(w))).map(({doc}) => doc)
+    const hits = terms.length ? (docs ?? []).filter((doc) => terms.every((w) => searchText(doc).includes(w))) : (docs ?? [])
     if (terms.length) {
       // Sorted by relevance, like Sanity: words of the title that start with a
       // search term count most, then the list's own order.
@@ -640,7 +649,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
       created: (a, b) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')),
     }
     return [...hits].sort(builtIn[order] ?? byOrder(order, locale))
-  }, [indexed, query, order, schemas, type, locale])
+  }, [docs, query, order, schemas, type, locale])
   // F11: growing to LIST_MAX mounts ~1,900 rows; done at once it stalled a frame for
   // ~350 ms mid-scroll. They mount MOUNT_STEP at a time instead, a task apart, so the
   // list keeps scrolling at 60 fps while the rest arrives.
