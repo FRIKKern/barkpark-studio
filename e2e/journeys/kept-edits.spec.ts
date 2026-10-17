@@ -26,12 +26,10 @@ test.afterEach(async ({page}, info) => {
 test('body words typed offline are saved once back, with a field typed meanwhile', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the Freeform canvas body')
-  // The body to put back, read while the page loads; in hand before the first edit.
-  const body = t.docValue(ID, 'body')
+  const body = await t.docValue(ID, 'body')
   try {
     await page.goto(t.docPath('post', ID))
     await t.settle(page)
-    await body
     await page.locator('.body-canvas').first().click()
     const para = page.locator('.body-canvas .ProseMirror p').first()
     await para.waitFor()
@@ -50,7 +48,7 @@ test('body words typed offline are saved once back, with a field typed meanwhile
     await expect(para).toContainText(' kept words')
     await expect.poll(() => t.docValue(ID, 'title'), {timeout: 15_000}).toBe(`${TITLE} off`)
   } finally {
-    await t.restore(ID, {body: await body})
+    await t.restore(ID, {body})
   }
 })
 
@@ -60,8 +58,7 @@ test('body words typed offline are saved once back, with a field typed meanwhile
 test('a body batch answered 404 by a publish race goes again', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the Freeform canvas body')
-  // The body to put back, read while the page loads; in hand before the first edit.
-  const body = t.docValue(ID, 'body')
+  const body = await t.docValue(ID, 'body')
   let raced = false
   await page.route('**/_serverFn/**', (route) => {
     if (raced || route.request().method() !== 'POST' || !(route.request().postData() ?? '').includes('ifRev')) return route.continue()
@@ -73,7 +70,6 @@ test('a body batch answered 404 by a publish race goes again', async ({page}, in
   try {
     await page.goto(t.docPath('post', ID))
     await t.settle(page)
-    await body
     await page.locator('.body-canvas').first().click()
     const para = page.locator('.body-canvas .ProseMirror p').first()
     await para.waitFor()
@@ -86,7 +82,7 @@ test('a body batch answered 404 by a publish race goes again', async ({page}, in
     await expect(page.locator('.pd-conflict')).toHaveCount(0)
   } finally {
     await page.unrouteAll({behavior: 'ignoreErrors'})
-    await t.restore(ID, {body: await body})
+    await t.restore(ID, {body})
   }
 })
 
