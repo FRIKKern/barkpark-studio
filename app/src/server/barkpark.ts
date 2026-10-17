@@ -118,7 +118,7 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
   // told to sign in again; their unsent edits wait.
   if (method !== 'GET' && !stream && signInRequired() && !currentEditor())
     return Response.json({error: {code: 'session_lost', message: "You've been logged out"}}, {status: 401})
-  if (method !== 'GET') recent.clear() // a write: no read may answer from before it
+  if (method !== 'GET') forgetReads() // a write: no read may answer from before it
   const base = config(at ?? scope()).base
   if (method !== 'GET' || stream) return send(base, path, init, token, retry)
   // Identical reads within READ_DEDUPE_MS share one request: a reload's loader,
@@ -127,7 +127,11 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
   const key = `${token.slice(-12)} ${base}${path}`
   let hit = recent.get(key)
   if (!hit || hit.expires < Date.now()) {
-    hit = {expires: Date.now() + READ_DEDUPE_MS, res: send(base, path, init, token).then(async (r) => ({status: r.status, type: r.headers.get('content-type'), body: await r.text()}))}
+    const entry: Shared = {expires: Date.now() + (SETTLED.test(path) ? SETTLED_MS : READ_DEDUPE_MS), res: send(base, path, init, token).then(async (r) => {
+      if (!r.ok && r.status !== 404) entry.expires = Math.min(entry.expires, Date.now() + READ_DEDUPE_MS) // a refusal isn't kept
+      return {status: r.status, type: r.headers.get('content-type'), body: await r.text()}
+    })}
+    hit = entry
     if (recent.size > 500) for (const [k, v] of recent) if (v.expires < Date.now()) recent.delete(k)
     recent.set(key, hit)
   }
@@ -136,8 +140,18 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
 }
 
 export const READ_DEDUPE_MS = 500
-/** Drop the shared reads: none may answer for a point after this one. */
-export const forgetReads = () => recent.clear()
+// The content model, the desk, the workspace's language and its members change only when
+// someone edits them, and a page load asked for them up to seven times (two schema reads,
+// two member pages, the desk doc and tree, the language). Shared for SETTLED_MS, so a change
+// shows on the next page loaded 5 s after it. A CI shard made ~650 reads in under a minute
+// against Barkpark's 300 a minute (plus 5 a second) per token and dataset, and its last specs
+// waited out 429s (task-0fbe272a366541f4); these were ~200 of them.
+const SETTLED = /^\/v1\/(schemas\/|structure\/|workspace\/locale|members\?)|\/deskStructure\/deskStructure\?/
+const SETTLED_MS = 5_000
+/** Drop the shared reads: none may answer for a point after this one. Writes don't move the settled ones. */
+export const forgetReads = () => {
+  for (const key of recent.keys()) if (!SETTLED.test(key.slice(key.indexOf('/v1/')))) recent.delete(key)
+}
 /**
  * Someone (anyone) wrote this doc: no read of it may answer from before that. Nor may any
  * "used in" read: the write can add or drop an edge to any doc (J17; Barkpark's edges are
@@ -147,7 +161,8 @@ export const forgetReadsOf = (docId: string) => {
   const needle = `/${encodeURIComponent(docId)}`
   for (const key of recent.keys()) if (key.includes(needle) || key.includes('/v1/data/backlinks/')) recent.delete(key)
 }
-const recent = new Map<string, {expires: number; res: Promise<{status: number; type: string | null; body: string}>}>()
+type Shared = {expires: number; res: Promise<{status: number; type: string | null; body: string}>}
+const recent = new Map<string, Shared>()
 
 /** e2e (STUDIO_E2E_HOOKS=1): reads fail as a deploy's reset would, until this time. */
 let readBlipUntil = 0
