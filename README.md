@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 64 changes, 11 tasks closed
+- **Today** · 65 changes, 11 tasks closed
+  - fix(vision): a saved query goes onto the server's list, not the one on screen ([#938](https://github.com/FRIKKern/barkpark-studio/pull/938))
   - e2e: refs seeds and cleans up alongside the page load (CI −1.9 s) ([#935](https://github.com/FRIKKern/barkpark-studio/pull/935))
-  - Vision: API version Other, as Sanity's, with a custom version field ([#937](https://github.com/FRIKKern/barkpark-studio/pull/937))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
