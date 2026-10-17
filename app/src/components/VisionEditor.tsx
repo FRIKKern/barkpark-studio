@@ -2,9 +2,9 @@ import {useEffect, useRef} from 'react'
 import {Compartment, EditorState} from '@codemirror/state'
 import {EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, placeholder as placeholderText} from '@codemirror/view'
 import {defaultKeymap, history, historyKeymap} from '@codemirror/commands'
-import {HighlightStyle, StreamLanguage, syntaxHighlighting} from '@codemirror/language'
-import {json} from '@codemirror/lang-json'
-import {tags} from '@lezer/highlight'
+import {bracketMatching, HighlightStyle, LanguageSupport, StreamLanguage, syntaxHighlighting} from '@codemirror/language'
+import {jsonLanguage} from '@codemirror/lang-json'
+import {styleTags, tags} from '@lezer/highlight'
 import {isQueryString} from '../lib/vision-groq'
 
 // J37: Sanity's Vision edits its query and params in a code editor (line numbers, the
@@ -41,15 +41,18 @@ const groq = StreamLanguage.define<null>({
     if (stream.match(/^(true|false|null)\b/)) return 'bool'
     if (stream.match(/^(in|match|asc|desc)\b/)) return 'keyword'
     if (stream.match(/^[A-Za-z_][\w:]*(?=\s*\()/)) return 'macroName'
-    if (stream.match(/^[A-Za-z_@^]\w*/)) return 'propertyName'
-    if (stream.eat('*')) return 'atom'
-    if (stream.match(/^(->|==|!=|<=|>=|&&|\|\||\.\.\.|\.\.|[|=<>!+\-/%])/)) return 'operator'
+    if (stream.match(/^[A-Za-z_]\w*/)) return 'propertyName'
+    if (stream.eat('*') || stream.eat('^') || stream.eat('@')) return 'atom'
+    if (stream.match(/^(->|==|!=|<=|>=|&&|\|\||\.\.\.|\.\.|[.|=<>!+\-/%])/)) return 'operator'
     if (stream.match(/^[[\](){}]/)) return 'bracket'
     stream.next()
     return 'separator'
   },
 })
 const languageOf = (text: string) => (isQueryString(text) ? barkparkQuery : groq)
+
+/** Params as Sanity's colours them: keys in the string brown, `:` a bracket, null an operator. */
+const params = new LanguageSupport(jsonLanguage.configure({props: [styleTags({PropertyName: tags.special(tags.string), ':': tags.special(tags.bracket), Null: tags.special(tags.null)})]}))
 
 const colours = HighlightStyle.define([
   {tag: tags.typeName, color: 'var(--syntax-constant)'},
@@ -61,6 +64,9 @@ const colours = HighlightStyle.define([
   {tag: tags.macroName, color: 'var(--syntax-function)'},
   {tag: [tags.bracket, tags.punctuation, tags.brace], color: 'var(--syntax-bracket)'},
   {tag: tags.comment, color: 'var(--syntax-comment)'},
+  {tag: tags.special(tags.string), color: 'var(--syntax-string)'},
+  {tag: tags.special(tags.bracket), color: 'var(--syntax-bracket)'},
+  {tag: tags.special(tags.null), color: 'var(--syntax-operator)'},
 ])
 
 const theme = EditorView.theme({
@@ -94,12 +100,12 @@ export default function VisionEditor({id, label, value, language, placeholder, o
           lineNumbers(),
           highlightActiveLine(),
           highlightActiveLineGutter(),
+          bracketMatching(),
           history(),
           keymap.of([{key: 'Mod-Enter', preventDefault: true, run: (v) => (calls.current.onRun(v.state.doc.toString()), true)}, ...defaultKeymap, ...historyKeymap]),
-          mode.current.of(language === 'json' ? json() : languageOf(value)),
+          mode.current.of(language === 'json' ? params : languageOf(value)),
           syntaxHighlighting(colours),
           theme,
-          EditorView.lineWrapping,
           EditorView.contentAttributes.of({id, 'aria-label': label}),
           ...(placeholder ? [placeholderText(placeholder)] : []),
           EditorView.updateListener.of((u) => {
