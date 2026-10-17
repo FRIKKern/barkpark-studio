@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {apiVersions, groqPath, groqTypes, isQueryString} from './vision-groq.ts'
+import {apiVersions, customApiVersion, groqPath, groqTypes, isQueryString} from './vision-groq.ts'
 
 test("GROQ as Sanity's Vision sends it; Barkpark's query string still told apart", () => {
   assert.equal(isQueryString('post?filter[title][contains]=x&limit=5'), true)
@@ -15,4 +15,5 @@ test("GROQ as Sanity's Vision sends it; Barkpark's query string still told apart
   assert.ok(groqPath('e2e-local', 'v99', 'count(*)', {}, 'raw').startsWith(`/${apiVersions(Date.now()).at(-1)}/`))
   assert.deepEqual(groqTypes('*[_type == "post" || _type in ["author", \'category\']]'), ['post', 'author', 'category'])
   assert.deepEqual(groqTypes('*[defined(title)]'), [])
+  assert.deepEqual(['v', 'v2024-01-01', '2024-01-01', 'vx', '1', 'v2024-13-01', 'v2024-1-1'].map(customApiVersion), [null, 'v2024-01-01', 'v2024-01-01', 'vX', 'v1', null, null])
 })

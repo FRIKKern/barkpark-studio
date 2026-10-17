@@ -111,6 +111,7 @@ export default {
   Total: 'Totalt',
   // J37: Vision's API version, perspective help and Params.
   'API version': 'API-versjon',
+  'Custom API version': 'Egendefinert API-versjon',
   "Barkpark's query API has one version": 'Barkparks spørre-API har én versjon',
   'About perspectives': 'Om perspektiver',
   'About queries': 'Om spørringer',
