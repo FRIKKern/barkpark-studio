@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 44 changes, 11 tasks closed
+- **Today** · 45 changes, 11 tasks closed
+  - CI shard budget: UI-only journeys run locally (QUALITY rule 5), data steps stay; shards plan ~36 s ([#919](https://github.com/FRIKKern/barkpark-studio/pull/919))
   - A list item keeps every key typed faster than the list redraws ([#909](https://github.com/FRIKKern/barkpark-studio/pull/909))
-  - Signed out in another tab mid-word: the sign-in form doesn't take the rest ([#917](https://github.com/FRIKKern/barkpark-studio/pull/917))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
