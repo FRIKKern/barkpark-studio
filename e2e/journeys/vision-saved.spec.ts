@@ -204,6 +204,33 @@ test('J37: Vision puts Params into the query', async ({page, context}, info) => 
   await expect(page.getByRole('complementary', {name: 'Saved queries'})).toBeVisible()
 })
 
+// task-721a16dd6310edba, as Sanity's (scout 4, 2026-10-17): a kept query runs again when
+// Vision opens, after another tool, a reload or in a second tab: its result shows, never a
+// blank "Execution: n/a".
+test('J37: Vision runs its kept query again when it opens', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours; Sanity's does the same (scout 4)")
+  await t.prepare(context)
+  await page.goto('/vision')
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.getByRole('textbox', {name: 'Query', exact: true}).fill('*[_type == "post" && _id == $id]{_id, title}')
+  await page.getByRole('textbox', {name: 'Params', exact: true}).fill('{"id": "post-01"}')
+  await page.getByRole('button', {name: 'Fetch'}).click()
+  const result = (p = page) => p.getByRole('region', {name: 'Result'})
+  await expect(result()).toContainText('Fixture post 01')
+  await page.getByRole('link', {name: 'Structure', exact: true}).click()
+  await page.getByRole('link', {name: 'Vision', exact: true}).click()
+  await expect(result()).toContainText('Fixture post 01')
+  await page.reload()
+  await t.settle(page)
+  await expect(result()).toContainText('Fixture post 01')
+  const second = await context.newPage()
+  await second.goto('/vision')
+  await expect(result(second)).toContainText('Fixture post 01')
+  await second.close()
+})
+
 // task-8919d95d9e581c6b: Vision speaks GROQ, as Sanity's, through Barkpark's GROQ read: a
 // query with a $param from Params, its result (not the {query, result, ms} wrapper) and
 // the Query URL naming the GROQ address. Both studios, the same query.

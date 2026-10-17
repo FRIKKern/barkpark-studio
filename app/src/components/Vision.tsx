@@ -85,6 +85,10 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const {data: scope} = useQuery(currentScopeQuery)
   const datasets = useQuery({...scopeOptionsQuery(scope ?? {workspace: '', project: ''}), enabled: !!scope}).data?.datasets
   const readable = (ds: string) => !bound || ds === bound
+  // A query kept from before (another tool, Back, a reload, another tab) runs once when
+  // Vision opens, as Sanity's: its result shows again, not a blank "Execution: n/a". Once
+  // the kept state has rendered (rerun), through Fetch. A Listen is never restarted on its own.
+  const [rerun, setRerun] = useState(false)
   useEffect(() => {
     const saved = load()
     setQuery(saved.query)
@@ -92,6 +96,11 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     setPerspective(saved.perspective)
     if (saved.dataset) setDataset(saved.dataset)
     if (saved.version && versions.includes(saved.version)) setVersion(saved.version)
+    let kept = false
+    try {
+      kept = localStorage.getItem(KEY) !== null && saved.query.trim() !== '' && (JSON.parse((saved.params ?? '').trim() || '{}'), true)
+    } catch {}
+    if (kept) setRerun(true)
   }, [])
   // A remembered dataset this token can't read (it is bound to another): the page's.
   useEffect(() => {
@@ -117,6 +126,10 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     } catch {}
   }
   useEffect(() => () => listening?.stop.abort(), [listening?.stop])
+  useEffect(() => {
+    if (rerun) (setRerun(false), void fetchIt())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rerun])
   // `typed` (the editor's own text on Ctrl+Enter) wins over what the last render saw.
   const fetchIt = async (typed?: Partial<{query: string; params: string}>) => {
     if (typed) Object.assign(edits.current, typed)
