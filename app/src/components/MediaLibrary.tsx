@@ -21,22 +21,37 @@ const REFINE_TITLES: Record<(typeof REFINE)[number], string> = {mimeType: 'Forma
 const KIND_NAMES: Record<Kind, string> = {image: 'image', video: 'video', audio: 'audio', document: 'document', other: 'other'}
 const fail = (title: string) => (e: unknown) => toast({tone: 'critical', title, description: reasonOf((e as Error).message) ?? (e as Error).message})
 
-export function MediaLibrary() {
+/** What the URL keeps of the tool (routes/media.tsx): defaults are left out. */
+export type MediaSearch = {kind?: Kind; folder?: string; q?: string; visibility?: Visibility; sort?: Sort; view?: 'list'}
+
+export function MediaLibrary({search: kept, onSearch}: {search: MediaSearch; onSearch: (patch: Partial<MediaSearch>) => void}) {
   const t = useT()
   const locale = useLocale()
   const qc = useQueryClient()
-  // One place picked on the left, as LiveView's: the whole library, a kind, or a folder.
-  const [folder, setFolderOnly] = useState<string>()
-  const [kind, setKindOnly] = useState<Kind>()
-  const setFolder = (f: string | undefined) => (setFolderOnly(f), setKindOnly(undefined))
-  const setKind = (k: Kind | undefined) => (setKindOnly(k), setFolderOnly(undefined))
-  const [q, setQ] = useState('')
-  const [query, setQuery] = useState('')
-  const [visibility, setVisibility] = useState<Visibility | ''>('')
+  // One place picked on the left, as LiveView's: the whole library, a kind, or a folder. It,
+  // the search, visibility, sort and view are the URL's (Back, a reload, a shared link).
+  const {folder, kind} = kept
+  const setFolder = (f: string | undefined) => onSearch({folder: f, kind: undefined})
+  const setKind = (k: Kind | undefined) => onSearch({kind: k, folder: undefined})
+  const [q, setQ] = useState(kept.q ?? '')
+  const [query, setQuery] = useState(kept.q ?? '')
+  const visibility = kept.visibility ?? ''
+  const setVisibility = (v: Visibility | '') => onSearch({visibility: v || undefined})
   // LiveView's Refine column: a format, processing state or status, each picked or not.
   const [refine, setRefine] = useState<Refine>({})
-  const [sort, setSort] = useState<Sort>('created-desc')
-  const [view, setView] = useState<'grid' | 'list'>('grid')
+  const sort = kept.sort ?? 'created-desc'
+  const setSort = (s: Sort) => onSearch({sort: s === 'created-desc' ? undefined : s})
+  const view = kept.view ?? 'grid'
+  const setView = (v: 'grid' | 'list') => onSearch({view: v === 'list' ? 'list' : undefined})
+  // The search as typed goes to the URL once it settles; a URL that moves (Back) brings it here.
+  useEffect(() => {
+    if ((kept.q ?? '') !== query) onSearch({q: query || undefined})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query])
+  useEffect(() => {
+    if ((kept.q ?? '') !== query) (setQ(kept.q ?? ''), setQuery(kept.q ?? ''))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kept.q])
   // LiveView's Size slider: how wide a grid tile is.
   const [tile, setTile] = useState(150)
   const [picked, setPicked] = useState<string>()
