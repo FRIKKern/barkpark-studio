@@ -12,6 +12,23 @@ test('live: a reorder by one editor survives the other typing in an item', async
   const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])
   await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
   const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
+  // Flight recorder (task-03691f23ebb60c5c: CI once lost a typed "-", "two-byA", and the run
+  // left nothing to tell which write carried it): both pages' saves of the list, their answers,
+  // and the doc's frames on A, printed only when the test fails.
+  const t0 = Date.now()
+  const log: string[] = []
+  const note = (s: string) => log.push(`${String(Date.now() - t0).padStart(6)} ${s}`)
+  const list = (body: string) => body.match(/highlights"\],"v":\[\{"t":9,"i":\d+,"a":(\[[^\]]*\])/)?.[1]?.replace(/\{"t":1,"s":("[^"]*")\}/g, '$1') ?? ''
+  for (const [n, p] of [['A', a], ['B', b]] as const)
+    p.on('requestfinished', async (r) => {
+      const body = r.postData() ?? ''
+      if (r.method() !== 'POST' || !body.includes('mutations') || !body.includes('highlights')) return
+      const res = await r.response()
+      note(`${n} save ${list(body)} -> ${(await res?.text().catch(() => ''))?.match(/mutate \d+/)?.[0] ?? res?.status()}`)
+    })
+  const cdp = await ctxA.newCDPSession(a)
+  await cdp.send('Network.enable')
+  cdp.on('Network.eventSourceMessageReceived', (e) => e.eventName === 'mutation' && e.data.includes(id) && note(`A frame ${e.data.match(/"highlights":(\[[^\]]*\])/)?.[1] ?? '(no list)'}`))
   try {
     for (const p of [a, b]) {
       await p.goto(t.docPath('post', id))
@@ -23,6 +40,7 @@ test('live: a reorder by one editor survives the other typing in an item', async
     await expect(item(b, 1)).toHaveValue('two')
     await item(a, 1).click()
     await a.keyboard.press('End')
+    note('A types, B moves "one" down')
     const typing = a.keyboard.type('-by-A', {delay: 90})
     // B picks up "one" by keyboard and drops it one lower, while A types.
     await b.getByRole('button', {name: 'Move item 1'}).focus()
@@ -30,11 +48,15 @@ test('live: a reorder by one editor survives the other typing in an item', async
     await b.keyboard.press('ArrowDown')
     await b.keyboard.press('Space')
     await typing
+    note('A done')
     for (const p of [a, b]) {
       await expect(item(p, 0)).toHaveValue('two-by-A', {timeout: 10_000})
       await expect(item(p, 1)).toHaveValue('one')
       await expect(item(p, 2)).toHaveValue('three')
     }
+  } catch (err) {
+    console.log(`live-list sequence (${id}):\n${log.join('\n')}`)
+    throw err
   } finally {
     await Promise.all([ctxA.close(), ctxB.close()])
     await t.deleteDoc(id, 'post')
