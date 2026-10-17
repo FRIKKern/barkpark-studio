@@ -176,9 +176,11 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
           .slice(0, 50)
   const rows = showRecent ? recent.length : results.length
   useEffect(() => setActive(0), [query, types, filters, sort, showRecent])
-  // Keep keyboard selection visible without moving the caret out of search.
+  // Keep keyboard selection visible without moving the caret out of search. A row lit by
+  // the pointer stays where it is, as Sanity's: one half in view must not scroll the list.
+  const byPointer = useRef(false)
   useEffect(() => {
-    document.getElementById(`${listId}-${active}`)?.scrollIntoView({block: 'nearest'})
+    if (!byPointer.current) document.getElementById(`${listId}-${active}`)?.scrollIntoView({block: 'nearest'})
   }, [active, listId, rows])
   // Enter pressed before the results for what is typed have arrived opens the
   // first of THOSE results, not a stale row from the previous query.
@@ -242,6 +244,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
             value={q}
             onChange={(e) => { setPendingEnter(false); setQ(e.target.value) }}
             onKeyDown={(e) => {
+              byPointer.current = false
               if (e.key === 'ArrowDown') (e.preventDefault(), setActive((a) => Math.max(0, Math.min(a + 1, rows - 1))))
               else if (e.key === 'ArrowUp') (e.preventDefault(), setActive((a) => Math.max(a - 1, 0)))
               else if (e.key === 'Enter' && showRecent) (e.preventDefault(), recent[active] && applyRecent(recent[active]))
@@ -284,7 +287,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
                   aria-selected={i === active}
                   aria-label={[r.query, r.types.length ? typesLabel(schemas, r.types, t) : '', ...r.filters.map((f) => labelText(filterLabel({...f, id: ''}, fields.get(f.field), t, tag)))].filter(Boolean).join(', ')}
                   className="search-recent"
-                  onMouseEnter={() => setActive(i)}
+                  onMouseEnter={() => ((byPointer.current = true), setActive(i))}
                   onMouseDown={(e) => (e.preventDefault(), applyRecent(r))}
                 >
                   <Clock />
@@ -310,7 +313,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
                 id={`${listId}-${i}`}
                 role="option"
                 aria-selected={i === active}
-                onMouseEnter={() => setActive(i)}
+                onMouseEnter={() => ((byPointer.current = true), setActive(i))}
                 onMouseDown={(e) => (e.preventDefault(), openDoc(d))}
               >
                 <DocPreview doc={d} selected={false} badge={schemaOf(schemas, d._type)?.title} />
