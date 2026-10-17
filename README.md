@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes, 1 task closed
-  - Array item dialog at phone width over the whole window, as Sanity's ([#880](https://github.com/FRIKKern/barkpark-studio/pull/880))
-  - Freeform D08 and D22 pass on a freshly seeded e2e-local ([#879](https://github.com/FRIKKern/barkpark-studio/pull/879))
+- **Today** · 10 changes, 3 tasks closed
+  - feat(body): the callout as Sanity's block object card, at rest and awake ([#881](https://github.com/FRIKKern/barkpark-studio/pull/881))
+  - Dropped: [Intended difference (D01): bound field blocks stay Classic inputs, not a PROPERTIES group](https://github.com/FRIKKern/barkpark/issues/23640)
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
