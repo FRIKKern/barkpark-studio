@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 20 changes, 9 tasks closed
-  - Media sizes under a kilobyte read in bytes (31 B), as LiveView's ([#888](https://github.com/FRIKKern/barkpark-studio/pull/888))
-  - e2e: live-list's reorder-while-typing test prints its sequence when it fails ([#891](https://github.com/FRIKKern/barkpark-studio/pull/891))
+- **Today** · 21 changes, 10 tasks closed
+  - feat(freeform): bound field blocks show their n/max badge and an unbind ×, as LiveView Beta's ([#892](https://github.com/FRIKKern/barkpark-studio/pull/892))
+  - Done: [Build: Media sizes under 1 KB in bytes (31 B), not 0.0 KB](https://github.com/FRIKKern/barkpark/issues/23651)
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
