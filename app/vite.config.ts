@@ -48,7 +48,13 @@ const warmAtBoot = (): Plugin => ({
         for (const p of ['/structure/post', '/structure/post;warm-up', '/login']) await page(p)
         // The Barkpark connection pool, on the dispatcher barkpark.ts set while rendering.
         const url = process.env.BARKPARK_URL
-        if (url) await Promise.all(Array.from({length: POOL}, () => fetch(`${url}/v1/version`, {signal: AbortSignal.timeout(10_000)}).then((r) => r.arrayBuffer(), () => undefined)))
+        // A warm-up read over 2 s is a lost first SYN (task-0fbe272a366541f4): CI's log says so.
+        const warm = async () => {
+          const at = Date.now()
+          await fetch(`${url}/v1/version`, {signal: AbortSignal.timeout(10_000)}).then((r) => r.arrayBuffer(), () => undefined)
+          if (Date.now() - at > 2_000) console.warn(`${new Date().toISOString()} [barkpark] slow warm-up connection: ${Date.now() - at} ms`)
+        }
+        if (url) await Promise.all(Array.from({length: POOL}, warm))
       })()
     })
     server.middlewares.use((req, _res, next) => (ready && req.url?.startsWith('/health') ? void ready.finally(() => next()) : next()))
