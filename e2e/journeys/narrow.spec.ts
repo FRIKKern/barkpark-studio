@@ -30,6 +30,11 @@ test('@local J42: narrow window — one pane with a back link; URL and panes rig
   await expect(t.field(page, 'title')).toHaveValue('Fixture post 02')
   await expect.poll(() => shown(page), {intervals: [50]}).toEqual([2])
   await page.screenshot({path: shot(t.name, '2-doc')})
+  // Sanity's phone header (chips, buttons) scrolls away with the form; the title stays.
+  if (t.name === 'studio') {
+    await page.locator('.pane.doc .pane-body').evaluate((b) => b.scrollBy(0, 200))
+    await expect.poll(() => page.locator('.pane.doc > .pane-header').evaluate((h) => h.getBoundingClientRect().bottom), {intervals: [50]}).toBeLessThanOrEqual(53)
+  }
 
   await t.refLink(t.pane(page, 2), 'author').click()
   await expect(t.field(page, 'name')).toHaveValue(/Lovelace|Turing|Hopper/)
