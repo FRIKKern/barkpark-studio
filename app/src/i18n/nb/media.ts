@@ -274,6 +274,8 @@ export default {
   Name: 'Navn',
   Kind: 'Type',
   Format: 'Format',
+  Refine: 'Avgrens',
+  Processing: 'Behandling',
   video: 'video',
   audio: 'lyd',
   other: 'annet',
