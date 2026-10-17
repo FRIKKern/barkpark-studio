@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState, type KeyboardEvent} from 'react'
+import {useEffect, useMemo, useRef, useState, type KeyboardEvent} from 'react'
 import {DialogBox} from './FocusScopes'
 import {ChevronDown, ChevronLeft, ChevronRight, Close, EarthGlobe, Search} from './icons'
 import {toast} from './Toasts'
@@ -44,6 +44,30 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
     const day = dayKey(new Date(now), zone)
     return {year: Number(day.slice(0, 4)), month: Number(day.slice(5, 7)) - 1}
   })
+  // One Tab stop for the month, as a WAI-ARIA grid (and Sanity's date picker): the picked
+  // day, else today, else the 1st; arrow keys move it a day or a week, into the next month.
+  const cells = grid(shown.year, shown.month)
+  const keys = cells.map(keyOf)
+  const [focusKey, setFocusKey] = useState<string>()
+  const stop = [focusKey, picked ?? undefined, today].find((k) => k && keys.includes(k)) ?? keys[cells.findIndex((d) => d.getUTCMonth() === shown.month)]
+  const days = useRef<HTMLDivElement>(null)
+  const moved = useRef(false)
+  useEffect(() => {
+    if (!moved.current) return
+    moved.current = false
+    days.current?.querySelector<HTMLButtonElement>(`[data-key="${stop}"]`)?.focus()
+  })
+  const onDayKey = (e: KeyboardEvent) => {
+    const step = ({ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7} as Record<string, number>)[e.key]
+    const from = (e.target as HTMLElement).closest<HTMLElement>('[data-key]')?.dataset.key
+    if (!step || !from) return
+    e.preventDefault()
+    const [y, m, d] = from.split('-').map(Number)
+    const next = new Date(Date.UTC(y!, m! - 1, d! + step))
+    if (!keys.includes(keyOf(next))) setShown({year: next.getUTCFullYear(), month: next.getUTCMonth()})
+    setFocusKey(keyOf(next))
+    moved.current = true
+  }
   const move = (by: number) => setShown(({year, month}) => ({year: year + Math.floor((month + by) / 12), month: (month + by + 12) % 12}))
   const title = new Date(Date.UTC(shown.year, shown.month, 1)).toLocaleDateString(intlTag(locale), {month: 'long', year: 'numeric', timeZone: 'UTC'})
   return (
@@ -57,7 +81,7 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
           <ChevronRight />
         </button>
       </div>
-      <div className="cal-grid" role="grid" aria-label={title}>
+      <div className="cal-grid" role="grid" aria-label={title} ref={days} onKeyDown={onDayKey}>
         <div role="row" className="cal-weekdays">
           {WEEKDAYS.map((d, i) => (
             <span key={i} role="columnheader" aria-label={new Date(Date.UTC(2026, 9, 4 + i)).toLocaleDateString(intlTag(locale), {weekday: 'long', timeZone: 'UTC'})}>
@@ -65,9 +89,9 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
             </span>
           ))}
         </div>
-        {Array.from({length: grid(shown.year, shown.month).length / 7}, (_, w) => (
+        {Array.from({length: cells.length / 7}, (_, w) => (
           <div role="row" key={w} className="cal-week">
-            {grid(shown.year, shown.month)
+            {cells
               .slice(w * 7, w * 7 + 7)
               .map((d) => {
                 const key = keyOf(d)
@@ -79,6 +103,9 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
                       className="cal-day"
                       aria-label={dayLabel(key)}
                       aria-pressed={on}
+                      data-key={key}
+                      tabIndex={key === stop ? 0 : -1}
+                      onFocus={() => setFocusKey(key)}
                       data-other={d.getUTCMonth() !== shown.month || undefined}
                       data-today={key === today || undefined}
                       data-marked={marked.has(key) || undefined}
