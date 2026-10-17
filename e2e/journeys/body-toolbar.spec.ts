@@ -84,4 +84,7 @@ test('J10: the body toolbar marks, sets a style, and refuses a script link', asy
       return [...b.querySelectorAll('button')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > edge).length
     })
   await expect.poll(spill, {intervals: [50], timeout: 3000}).toBe(0)
+  // Under Sanity's 400 px toolbar every tool waits behind the two Show mores.
+  await expect(bar.getByRole('button', {name: 'Show more'})).toHaveCount(2)
+  await expect(bar.getByRole('button', {name: 'Strong'})).toHaveCount(0)
 })

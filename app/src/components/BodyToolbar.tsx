@@ -208,6 +208,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
 
   const widths = useRef(new Map<string, number>())
   const [folded, setFolded] = useState<[number, number]>([0, 0])
+  const [collapsed, setCollapsed] = useState(false)
   const toolKeys = [...actions, ...insertTools].map((x) => x.key).join()
   // Everything shown again when the tools change, to measure them.
   useLayoutEffect(() => setFolded([0, 0]), [toolKeys])
@@ -230,7 +231,11 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
         while (shown > 0 && width(tools.slice(0, shown)) - GAP + (shown < tools.length ? GAP + more : 0) > room) shown--
         return tools.length - shown
       }
-      const next: [number, number] = [fold(actions, 0), fold(insertTools, 1)]
+      // Sanity's whole toolbar (ours, its 4 px ends and the expand button: 42 px more) under
+      // 400 px puts every tool of each menu behind its Show more.
+      const narrow = el.clientWidth + 42 < 400
+      setCollapsed(narrow)
+      const next: [number, number] = narrow ? [actions.length, insertTools.length] : [fold(actions, 0), fold(insertTools, 1)]
       setFolded((f) => (f[0] === next[0] && f[1] === next[1] ? f : next))
     }
     fit()
@@ -279,7 +284,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
 
   if (!supported) return <span className="body-toolbar" />
   return (
-    <div ref={bar} className="body-toolbar" role="toolbar" aria-label={t('Formatting')} onMouseDown={keepSelection} onKeyDown={rove} onFocus={focused}>
+    <div ref={bar} className="body-toolbar" data-collapsed={collapsed || undefined} role="toolbar" aria-label={t('Formatting')} onMouseDown={keepSelection} onKeyDown={rove} onFocus={focused}>
       <fieldset className="body-toolbar-tools" disabled={!inside}>
       {styles.length > 0 && (
         // The style button takes focus (the canvas keeps its selection), so the menu returns

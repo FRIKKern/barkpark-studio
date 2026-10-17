@@ -1889,6 +1889,10 @@ body > .bp-canvas-image-menu .bp-block-menu__item--danger svg { color: var(--men
 .body-group-sep { align-self: stretch; height: auto; }
 .body-tool-group { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 4px; } /* Sanity's two menus: half the room each */
 .body-tool-group > .body-more-wrap { margin-left: auto; } /* at the end of its half */
+/* Collapsed (Sanity's under 400 px): the style menu takes half, both Show mores follow it. */
+.body-toolbar[data-collapsed] .body-style-wrap { flex: 0 0 calc(50% - 4.5px); }
+.body-toolbar[data-collapsed] .body-tool-group[data-group='0'] { flex: none; }
+.body-toolbar[data-collapsed] .body-tool-group > .body-more-wrap { margin-left: 0; }
 .body-toolbar + .body-expand { position: relative; margin-left: 9px; }
 .body-toolbar + .body-expand::before { content: ''; position: absolute; left: -5px; top: -4px; bottom: -4px; width: 1px; background: var(--line); }
 .body-toolbar-tools { display: contents; } /* a fieldset only to disable the tools at once */
