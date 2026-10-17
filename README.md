@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 11 changes, 3 tasks closed
+- **Today** · 12 changes, 3 tasks closed
+  - fix(body): a click on a card at rest wakes the body with that card selected, not a gap cursor ([#883](https://github.com/FRIKKern/barkpark-studio/pull/883))
   - Pane headers where Sanity's are under the 52 px navbar ([#884](https://github.com/FRIKKern/barkpark-studio/pull/884))
-  - feat(body): the callout as Sanity's block object card, at rest and awake ([#881](https://github.com/FRIKKern/barkpark-studio/pull/881))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
