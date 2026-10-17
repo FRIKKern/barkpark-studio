@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 56 changes, 11 tasks closed
+- **Today** · 57 changes, 11 tasks closed
+  - Vision result tree as Sanity's: its three syntax colours, no root arrow, arrows in the indent, a link on document ids ([#928](https://github.com/FRIKKern/barkpark-studio/pull/928))
   - e2e: J40 selects after ProseMirror's focus write-back ([#927](https://github.com/FRIKKern/barkpark-studio/pull/927))
-  - List search: keys show at once with 2,000 rows loaded; the rows follow ([#926](https://github.com/FRIKKern/barkpark-studio/pull/926))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
