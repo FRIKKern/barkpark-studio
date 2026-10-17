@@ -2,6 +2,7 @@ import {useRef, useState} from 'react'
 import {copyItem} from '../lib/clipboard'
 import {Close as CloseIcon} from './icons'
 import {SortableRows} from './SortableRows'
+import {TextInput} from './Fields'
 import {useT} from '../lib/i18n'
 import {sent, settle, shown, type Pending} from '../lib/pending-list'
 
@@ -62,7 +63,10 @@ export function StringArrayInput({id, value, onChange, readOnly}: Props) {
       readOnly={readOnly}
       blank={() => ''}
       onCopy={(v, i) => copyItem(id, i, 'array:string', v)}
-      renderItem={(v, i) => <input id={`${id}[${i}]`} className="input" aria-label={t('Item {n}', {n: i + 1})} value={v} readOnly={readOnly} onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))} />}
+      // TextInput keeps what is typed until the list draws it: a bare input bound to the list
+      // was put back to its last drawn value after every key (React's controlled input), so
+      // keys typed faster than the list redrew were lost ("two-A-yz--23" for "two-by-A-x-y-z-1-2-3").
+      renderItem={(v, i) => <TextInput id={`${id}[${i}]`} label={t('Item {n}', {n: i + 1})} value={v} readOnly={readOnly} onChange={(x) => onChange(items.map((y, j) => (j === i ? x : y)))} />}
     />
   )
 }
