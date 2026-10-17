@@ -1,4 +1,4 @@
-import {useEffect, type ReactNode} from 'react'
+import {useEffect, useMemo, type ReactNode} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate, useRouterState} from '@tanstack/react-router'
 import {SignInForm} from './SignInForm'
@@ -7,6 +7,7 @@ import {useT} from '../lib/i18n'
 import {meQuery} from '../lib/session'
 import {onSessionChange} from '../lib/session-channel'
 import {signOutHere} from '../lib/sign-out'
+import {typedWithin} from '../lib/typing'
 
 // What stays cached while signed out: who is signed in, and what the sign-in screen needs.
 const KEEP = ['me', 'locale', 'scope']
@@ -28,11 +29,14 @@ export function SessionGate({children}: {children: ReactNode}) {
   useEffect(() => onSessionChange(() => void qc.invalidateQueries({queryKey: ['me']})), [qc])
   useEffect(() => void (signedOut && qc.removeQueries({predicate: (q) => !KEEP.includes(String(q.queryKey[0]))})), [qc, signedOut])
   useEffect(() => void (email && editorIs(email) && resumeSaving(qc)), [qc, email])
+  // Signed out under the editor's fingers (another tab signed out mid-word): Email waits for
+  // a click, as Sanity's provider buttons take no keys, or the rest of the words went into it.
+  const focusEmail = useMemo(() => signedOut && !typedWithin(1500), [signedOut])
   if (me?.noSeat && !atLogin) return <NoAccess email={me.email!} />
   if (!signedOut || atLogin) return children
   return (
     <main className="login">
-      <SignInForm heading={<h1>Barkpark Studio</h1>} autoFocus onSignedIn={() => qc.invalidateQueries({queryKey: ['me']})}>
+      <SignInForm heading={<h1>Barkpark Studio</h1>} autoFocus={focusEmail} onSignedIn={() => qc.invalidateQueries({queryKey: ['me']})}>
         {(busy) => (
           <button className="publish" disabled={busy}>
             {busy ? t('Signing in…') : t('Sign in')}
