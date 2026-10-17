@@ -23,8 +23,9 @@ async function frames(page: Page, steps: number) {
     }
     requestAnimationFrame(tick)
   })
-  const position = () => page.locator('a[href^="/structure/bulk;"]').first().evaluate((row) => {
-    for (let el = row.parentElement; el; el = el.parentElement)
+  // From the list (role=list), not a row: the rows near the view are drawn as it scrolls, so a row may be gone.
+  const position = () => page.locator('[role="list"]').filter({has: page.locator('a[href^="/structure/bulk;"]')}).first().evaluate((list) => {
+    for (let el = list.parentElement; el; el = el.parentElement)
       if (el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY)) return el.scrollTop
     throw new Error('No scrollable list ancestor')
   })

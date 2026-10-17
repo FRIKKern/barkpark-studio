@@ -1,4 +1,4 @@
-import {Fragment, useContext, useDeferredValue, useId, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {Fragment, useCallback, useContext, useDeferredValue, useId, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
@@ -51,8 +51,95 @@ function usePaneWidth(hint: number) {
   return [ref, width] as const
 }
 
-/** F11: how many list rows mount per task while a big page arrives. */
-const MOUNT_STEP = 60
+/** A list longer than this draws only the rows near the view (RowWindow); a first page (LIST_PAGE) draws all. */
+const WINDOW_FROM = 150
+/** Rows drawn past each edge of the view. */
+const OVERSCAN = 30
+/** rowKeys → RowWindow: Home / End in a windowed list (detail 'first' or 'last'). */
+const GO_END = 'rowwindow-go'
+
+/**
+ * A long list's rows, drawn only near the view as Sanity's are, between two spacers that
+ * keep the scroll height: with 2,000 rows drawn, a list search key waited 200-290 ms at 4x
+ * CPU for React to remove a thousand of them (Sanity: 30-50). The window follows the pane's
+ * scroll; its row height is the drawn rows' average. A new search (`top`) starts at the top.
+ */
+function RowWindow({rows, renderRow, top}: {rows: Doc[]; renderRow: (d: Doc, i: number) => ReactNode; top: string}) {
+  const before = useRef<HTMLDivElement>(null)
+  const after = useRef<HTMLDivElement>(null)
+  const rowH = useRef(49)
+  const [win, setWin] = useState({start: 0, end: Math.min(rows.length, 2 * OVERSCAN)})
+  const n = rows.length
+  const start = Math.min(win.start, n)
+  const end = Math.min(win.end, n)
+  useLayoutEffect(() => {
+    const a = before.current
+    const b = after.current
+    const list = a?.closest<HTMLElement>('.list-rows')
+    if (!a || !b || !list) return
+    let frame = 0
+    const place = () => {
+      frame = 0
+      const top = a.getBoundingClientRect().bottom
+      const drawn = end - start
+      if (drawn > 0) rowH.current = Math.max(20, (b.getBoundingClientRect().top - top) / drawn)
+      const from = top - list.getBoundingClientRect().top + list.scrollTop - start * rowH.current
+      const first = Math.floor((list.scrollTop - from) / rowH.current)
+      const last = Math.ceil((list.scrollTop - from + list.clientHeight) / rowH.current)
+      // Redrawn only once the view comes within half the overscan of an edge: a few frames
+      // mount a batch of rows instead of every frame mounting one or two.
+      const near = (first - start < OVERSCAN / 2 && start > 0) || (end - last < OVERSCAN / 2 && end < n) || first >= end || last <= start
+      if (near || end > n) setWin({start: Math.max(0, first - OVERSCAN), end: Math.min(n, Math.max(0, last) + OVERSCAN)})
+    }
+    const onScroll = () => (frame ||= requestAnimationFrame(place))
+    place()
+    list.addEventListener('scroll', onScroll, {passive: true})
+    const ro = new ResizeObserver(onScroll)
+    ro.observe(list)
+    return () => {
+      list.removeEventListener('scroll', onScroll)
+      ro.disconnect()
+      cancelAnimationFrame(frame)
+    }
+  }, [n, start, end])
+  // Home / End: scroll there, and focus that row once the window has drawn it.
+  const focusEnd = useRef<'first' | 'last' | null>(null)
+  const [, redraw] = useState(0)
+  useLayoutEffect(() => {
+    const list = before.current?.closest<HTMLElement>('.list-rows')
+    if (!list) return
+    const go = (e: Event) => {
+      focusEnd.current = (e as CustomEvent<'first' | 'last'>).detail
+      list.scrollTop = focusEnd.current === 'first' ? 0 : list.scrollHeight
+      redraw((k) => k + 1) // already drawn there: focus it now
+    }
+    list.addEventListener(GO_END, go)
+    return () => list.removeEventListener(GO_END, go)
+  }, [])
+  useLayoutEffect(() => {
+    const want = focusEnd.current
+    if (!want || (want === 'first' ? start > 0 : end < n)) return
+    focusEnd.current = null
+    const links = [...before.current!.parentElement!.querySelectorAll<HTMLAnchorElement>('[role="listitem"] a[href]')]
+    const row = want === 'first' ? links[0] : links.at(-1)
+    row?.focus()
+    row?.scrollIntoView({block: 'nearest'})
+  })
+  const lastTop = useRef(top)
+  useLayoutEffect(() => {
+    if (lastTop.current === top) return
+    lastTop.current = top
+    const list = before.current?.closest<HTMLElement>('.list-rows')
+    if (list) list.scrollTop = 0
+  }, [top])
+  return (
+    <>
+      <div ref={before} role="none" style={{height: start * rowH.current}} />
+      {rows.slice(start, end).map((d, k) => renderRow(d, start + k))}
+      <div ref={after} role="none" style={{height: (n - end) * rowH.current}} />
+    </>
+  )
+}
 
 export function Structure({panes, widthHint}: {panes: Pane[]; widthHint: number}) {
   const [ref, width] = usePaneWidth(widthHint)
@@ -523,9 +610,16 @@ function rowKeys(e: React.KeyboardEvent<HTMLElement>) {
   if (e.key === 'Tab' && from && !e.currentTarget.hasAttribute('data-selecting') && !e.altKey && !e.metaKey && !e.ctrlKey) return leaveList(e, e.currentTarget)
   const step = ({ArrowDown: 1, ArrowUp: -1, Home: -Infinity, End: Infinity} as Record<string, number>)[e.key]
   if (step === undefined || !from || e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return
-  const rows = [...e.currentTarget.querySelectorAll<HTMLAnchorElement>('a[href]')].filter((a) => a.offsetParent)
+  const list = e.currentTarget
+  const rows = [...list.querySelectorAll<HTMLAnchorElement>('a[href]')].filter((a) => a.offsetParent)
   const at = rows.indexOf(from as HTMLAnchorElement)
   if (at < 0) return
+  if (Math.abs(step) === Infinity && list.hasAttribute('data-windowed')) {
+    // A long list draws only the rows near the view: RowWindow goes to the end and focuses its row once drawn.
+    e.preventDefault()
+    list.dispatchEvent(new CustomEvent(GO_END, {detail: step < 0 ? 'first' : 'last'}))
+    return
+  }
   const next = rows[Math.min(rows.length - 1, Math.max(0, step === -Infinity ? 0 : step === Infinity ? rows.length - 1 : at + step))]
   e.preventDefault()
   next?.focus()
@@ -663,16 +757,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     }
     return [...hits].sort(builtIn[order] ?? byOrder(order, locale))
   }, [docs, shownQuery, order, schemas, type, locale])
-  // F11: growing to LIST_MAX mounts ~1,900 rows; done at once it stalled a frame for
-  // ~350 ms mid-scroll. They mount MOUNT_STEP at a time instead, a task apart, so the
-  // list keeps scrolling at 60 fps while the rest arrives.
-  const [mounted, setMounted] = useState(LIST_PAGE)
-  useEffect(() => {
-    if (shown.length <= mounted) return
-    const id = setTimeout(() => setMounted((m) => m + MOUNT_STEP), 0)
-    return () => clearTimeout(id)
-  }, [shown.length, mounted])
-  const rows = useMemo(() => (shown.length > mounted ? shown.slice(0, mounted) : shown), [shown, mounted])
+  // F11: growing to LIST_MAX once mounted ~1,900 rows (a 350 ms frame, then 60 a task
+  // apart); a list that long now draws only the rows near the view (RowWindow).
+  const rows = shown
   const searching = !!shownQuery.trim() && rows.length > 0 // as drawn: the first key leaves the rows to the deferred redraw
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
   const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())
@@ -715,10 +802,10 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     if (text !== heard.current) (heard.current = text, announce(text))
   }, [isLastPane, docs, shown.length, searchComplete, shownQuery, listTitle, page?.hasMore])
   // Typing in the search box re-renders this pane; the rows are only redrawn when what they show changes.
-  const rowEls = useMemo(
-    () =>
-      rows.map((d, i) => {
-        const lightProps = {id: `${listId}-item-${i}`, 'data-lit': searching && i === lit ? '' : undefined}
+  const renderRow = useCallback(
+    (d: Doc, i: number) => {
+        // Drawn a window at a time (RowWindow), a row still says where it is: "3 of 2,000".
+        const lightProps = {id: `${listId}-item-${i}`, 'data-lit': searching && i === lit ? '' : undefined, ...(rows.length > WINDOW_FROM && {'aria-setsize': rows.length, 'aria-posinset': i + 1})}
         const row = (
           <DocPreview
             key={d._publishedId}
@@ -762,10 +849,11 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             {row}
           </div>
         )
-      }),
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- pick() reads picked and t, both listed
     [rows, shown, searching, lit, listId, selectable, selecting, picked, open, selected, panes, index, tree, child, nodeId, type, schemas, t],
   )
+  const rowEls = useMemo(() => (rows.length > WINDOW_FROM ? null : rows.map(renderRow)), [rows, renderRow])
   return (
     <section className="pane list" aria-label={listTitle} aria-busy={!page || sortBusy || undefined} data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
       <header className="pane-header">
@@ -844,6 +932,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
       )}
       <div
         className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}
+        data-windowed={rowEls ? undefined : ''}
         data-selecting={selectable && (selecting || picked.size > 0) ? '' : undefined}
         onKeyDown={(e) => (e.key === 'Escape' && (selecting || picked.size > 0) ? stopSelecting() : rowKeys(e))}
       >
@@ -869,7 +958,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className={`list-empty${query.trim() ? ' list-none' : ''}`}>{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" id={listId} aria-label={listTitle} className="rows-list">
-        {rowEls}
+        {rowEls ?? <RowWindow rows={rows} renderRow={renderRow} top={shownQuery} />}
         </div>}
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
         {!query && page?.hasMore && limit >= LIST_MAX && (
