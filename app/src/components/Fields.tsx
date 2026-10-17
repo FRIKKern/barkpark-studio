@@ -888,7 +888,13 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
         // below the text: the end, typed at once as before; read first, the canvas puts an
         // Enter there inside the last block's trailing break ("Two\n", J10).
         const target = at.current && caretIn(pm.querySelector<HTMLElement>(`[data-bp-id="${CSS.escape(at.current.block)}"]`), at.current.offset)
-        if (sel && target) sel.collapse(target.node, target.offset), await read()
+        // A click on an image or object card selects that card, as Sanity's (canvas 1.12.0
+        // selectBlock): never a caret past it, the gap cursor under a trailing card. Not when
+        // keys were typed meanwhile: typed onto the card they would have nowhere to go.
+        const canvas = box.current?.querySelector('bp-paper-canvas') as (HTMLElement & {selectBlock?: (id: string) => boolean}) | null
+        const card = !target && !typed.current.length && !!at.current && !!canvas?.selectBlock?.(at.current.block)
+        if (card) await read()
+        else if (sel && target) sel.collapse(target.node, target.offset), await read()
         else if (sel) sel.selectAllChildren(pm), sel.collapseToEnd()
         // The canvas reads it as typed input (beforeinput), so it saves and undoes as typing
         // does. Keys typed meanwhile join the queue, in order.
