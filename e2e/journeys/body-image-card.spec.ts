@@ -4,7 +4,8 @@ import {bpBase, bpDataset, bpMutate, target} from '../rig/targets'
 // J11, as Sanity's image block object (scout 2026-10-16, measured light and dark): a body
 // image is a card, its file name and a "…" over the picture. The body before it wakes
 // draws the same card; the canvas draws it from Barkpark 1.11.0 (block-cards), whose "…"
-// offers Edit and Remove. Stills in e2e/evidence/J11-image-card-*.
+// offers Edit and Remove; from 1.12.0 a click on the card at rest wakes the body with it
+// selected. Stills in e2e/evidence/J11-image-card-*.
 const ID = 'image-card-j11'
 
 test.afterAll(async ({}, info) => {
@@ -46,4 +47,13 @@ test('@local J11: a body image is a card with its file name and a menu', async (
   await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText(['Edit', 'Remove'])
   await page.screenshot({path: 'evidence/J11-image-card-menu.png'})
   await page.keyboard.press('Escape')
+  // A click on the card at rest wakes the body with that card selected (canvas 1.12.0
+  // selectBlock), as Sanity selects a clicked block object: no caret past it, no gap cursor.
+  const selects = await page.evaluate(() => typeof (customElements.get('bp-paper-canvas')?.prototype as {selectBlock?: unknown} | undefined)?.selectBlock === 'function')
+  if (!selects) return
+  await page.reload()
+  await t.settle(page)
+  await still.locator('.pd-image-name').click()
+  await expect(card).toHaveClass(/ProseMirror-selectednode/, {timeout: 15_000})
+  await expect(body.locator('.ProseMirror-gapcursor')).toHaveCount(0)
 })
