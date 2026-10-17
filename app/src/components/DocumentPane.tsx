@@ -24,7 +24,7 @@ import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {InPresentationContext, PaneLink, usePaneNavigate, useStructureNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
-import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FormDisabledContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
+import {ChangesContext, DocContext, DocIdContext, DocTypeContext, EditPathContext, FormDisabledContext, FreeformBodyContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
@@ -291,6 +291,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Published is read in Classic: the canvas edits the draft.
   const view: View = viewOf(pane.view, mode) === 'freeform' && !freeform ? 'classic' : viewOf(pane.view, mode)
   const [canvasSeen, setCanvasSeen] = useState<string | null>(null)
+  // D02: in Classic, the layout's body regions say they are edited in Freeform, with a button there (LiveView's).
+  const layout = schemaOf(schemas, pane.type)?.layout
+  const classicBody = useMemo(
+    () => (freeform && view === 'classic' ? {regions: new Set((layout ?? []).filter((l) => l.kind === 'region').map((l) => l.name)), open: () => navigate({href: withView(panes, index, viewParam('freeform', mode))})} : null),
+    [freeform, view, layout, navigate, panes, index, mode],
+  )
   if (freeform && view === 'freeform' && canvasSeen !== pane.id) setCanvasSeen(pane.id)
   // Agency parity (demo): VITE_FORM_VIEW_TITLE names the form tab with Sanity's edit icon
   // ("Felt", as the Agency's default-document-node.ts does); VITE_HIDE_JSON_VIEW=1 drops
@@ -442,10 +448,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     <ProblemsContext.Provider value={o.problems}>
     <OpenObjectsContext.Provider value={openObjects}>
     <FormDisabledContext.Provider value={o.disabled}>
+    <FreeformBodyContext.Provider value={classicBody}>
     <fieldset className="form-fields" disabled={o.disabled} title={editReason}>
       {inFieldsets(o.fields, schema?.fieldsets).map((g) => ('set' in g ? <Fieldset key={`fs:${g.set.name}`} path={`fieldset:${g.set.name}`} fieldset={g.set}>{g.fields.map((f) => fieldView(f, o.values))}</Fieldset> : fieldView(g, o.values)))}
       {o.unknown && <UnknownFields doc={o.shown} names={unknownFields(schema!, o.shown)} onRemove={(name) => onEdit(name, undefined)} />}
     </fieldset>
+    </FreeformBodyContext.Provider>
     </FormDisabledContext.Provider>
     </OpenObjectsContext.Provider>
     </ProblemsContext.Provider>

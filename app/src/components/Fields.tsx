@@ -66,6 +66,8 @@ export {DocIdContext, DocTypeContext}
 export const UrlPathContext = createContext<string | undefined>(undefined)
 /** The form is shut (the published version, a revision, a seat that may not write): its fieldset is disabled. */
 export const FormDisabledContext = createContext(false)
+/** D02, LiveView's Classic: a Freeform type's body regions are read here and edited in Freeform, which `open` switches to. */
+export const FreeformBodyContext = createContext<{regions: Set<string>; open: () => void} | null>(null)
 
 const LEVEL_ICON: Record<Level, () => ReactElement> = {error: ErrorOutline, warning: WarningOutline, info: InfoOutline}
 const LEVEL_WORD: Record<Level, string> = {error: 'Validation error', warning: 'Validation warning', info: 'Validation info'}
@@ -491,7 +493,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       const broken = richTextProblem(value)
       if (broken) return <RichTextCard problem={broken} onChange={onChange} />
       // J10: a block-editor field is Barkpark's canvas (decision 0004), scoped to the field.
-      return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} title={field.title ?? field.name} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} openRef={openRef} /> : <RichText id={path} value={value} />
+      return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} title={field.title ?? field.name} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} openRef={openRef} /> : <ClassicBody id={path} value={value} />
     }
     case 'image':
       return <ImageInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
@@ -737,6 +739,22 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
 type Inline = {type: string; value?: string; text?: string; children?: Inline[]}
 type Block = {id: string; type: string; level?: number; tone?: string; content?: Inline[]}
 const text = (nodes: Inline[] = []): string => nodes.map((n) => n.value ?? n.text ?? text(n.children)).join('')
+
+/** A body the Classic form shows but can't save (a Freeform type's region): LiveView's note under it, and the way to Freeform. */
+function ClassicBody({id, value}: {id: string; value: unknown}) {
+  const t = useT()
+  const freeform = useContext(FreeformBodyContext)
+  if (!freeform?.regions.has(id)) return <RichText id={id} value={value} />
+  return (
+    <>
+      <RichText id={id} value={value} />
+      <p className="classic-body-note">{t('This body is written in blocks, which the Classic form cannot save. Edit it in Freeform.')}</p>
+      <button type="button" className="btn-create classic-body-open" onClick={freeform.open}>
+        {t('Edit the body in Freeform')}
+      </button>
+    </>
+  )
+}
 
 export function RichText({id, value}: {id: string; value: unknown}) {
   const blocks = ((value as {blocks?: Block[]})?.blocks ?? []) as Block[]

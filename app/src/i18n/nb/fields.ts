@@ -21,6 +21,7 @@ export default {
   'Developer info': 'Utviklerinfo',
   Duplicate: 'Dupliser',
   Empty: 'Tom',
+  'Edit the body in Freeform': 'Rediger brødteksten i Fritt',
   'Empty value, nothing to copy': 'Tom verdi, ingenting å kopiere',
   'Encountered a field that is not defined in the schema.': 'Møtte på et felt som ikke er definert i skjemaet.',
   'Encountered {n} fields that are not defined in the schema.': 'Møtte på {n} felt som ikke er definert i skjemaet.',
@@ -97,6 +98,7 @@ export default {
   'The value of this property must be of type {type} according to the schema.': 'Verdien av dette feltet må være av typen {type} i henhold til skjemaet.',
   'These fields are not defined in the schema, which could mean that the field definition has been removed or that someone else has added it to their own local project and have not deployed their changes yet.':
     'Disse feltene er ikke definert i dokumentets skjema, noe som kan bety at feltdefinisjonene har blitt fjernet eller at noen andre har lagt dem til i sitt eget lokale prosjekt og ennå ikke har distribuert endringene sine.',
+  'This body is written in blocks, which the Classic form cannot save. Edit it in Freeform.': 'Denne brødteksten er skrevet i blokker, som det klassiske skjemaet ikke kan lagre. Rediger den i Fritt.',
   'This field is not defined in the schema, which could mean that the field definition has been removed or that someone else has added it to their own local project and have not deployed their changes yet.':
     'Dette feltet er ikke definert i dokumentets skjema, noe som kan bety at feltdefinisjonen har blitt fjernet eller at noen andre har lagt det til i sitt eget lokale prosjekt og ennå ikke har distribuert endringene sine.',
   'This usually happens when items are copied with an API client and their {key} kept.': 'Dette kan skje når elementer er kopiert gjennom en API-klient og {key} er beholdt.',
