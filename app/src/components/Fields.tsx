@@ -74,7 +74,9 @@ export function DocProvider({doc, children}: {doc: Doc | null; children: ReactNo
 export function useDocSelect<T>(select: (doc: Doc | null) => T): T {
   const store = useContext(DocContext)
   const subscribe = useCallback((f: () => void) => (store.subs.add(f), () => void store.subs.delete(f)), [store])
-  return useSyncExternalStore(subscribe, () => select(store.doc))
+  const snapshot = () => select(store.doc)
+  // The same on the server: the form renders there too (a missing one threw, and the pane fell back to the browser).
+  return useSyncExternalStore(subscribe, snapshot, snapshot)
 }
 /** The object or array item the fields inside it belong to (a condition's `scope: "parent"`). */
 export const ParentContext = createContext<Record<string, unknown> | undefined>(undefined)
