@@ -3,7 +3,7 @@ import {target} from '../rig/targets'
 
 // Barkpark-native track, as LiveView's paper header: the document menu's "Open standalone"
 // opens Barkpark's reader for the paper (/w/<workspace>/p/<project>/papers/<slug>) in a new tab.
-test('B: a paper opens standalone in Barkpark’s reader from the document menu', async ({page, context}, info) => {
+test('@local B: a paper opens standalone in Barkpark’s reader from the document menu', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'Barkpark-native')
   await t.prepare(context)

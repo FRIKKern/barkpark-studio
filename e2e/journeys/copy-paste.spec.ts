@@ -92,7 +92,7 @@ test('J29: copying an empty field is refused and the earlier copy still pastes',
 })
 
 // Sanity's item Copy: a one-item list under its array's type, which Paste field on an array of that type appends with a new key.
-test('J29: a copied array item pastes onto the end of a Links array', async ({page}, info) => {
+test('@local J29: a copied array item pastes onto the end of a Links array', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's is the scout's (task-85b17b03db53daf5)")
   const id = `post-item-copy-${Date.now().toString(36)}`
@@ -112,7 +112,7 @@ test('J29: a copied array item pastes onto the end of a Links array', async ({pa
 })
 
 // Sanity's transferValue: a number pastes into text as its digits; a select refuses a value off its list, saying so.
-test('J29: a copied number pastes into a text field; a select names the value it refuses', async ({page}, info) => {
+test('@local J29: a copied number pastes into a text field; a select names the value it refuses', async ({page}, info) => {
   const t = target(info)
   const id = `ft-paste-${Date.now().toString(36)}`
   await t.draftOnly(id, 'fieldTypes', {title: 'Paste probe', count: 3})
