@@ -23,12 +23,15 @@ test.afterEach(async ({page}, info) => {
   // A save the page still has on its way (a replaced author, a new author's name) would
   // land after the restore and leave a draft behind for the next run.
   await closeAndSettle(page)
-  await t.restore(ID, {author: t.ref('author-alan')})
-  if (alanEdited) await t.restore('author-alan', {bio: 'Alan Turing writes fixture posts.'}, 'author')
-  if (post02Moved) await t.restore('post-02', {author: t.ref('author-grace')})
+  // Each a different doc: all at once.
+  await Promise.all([
+    t.restore(ID, {author: t.ref('author-alan')}),
+    alanEdited && t.restore('author-alan', {bio: 'Alan Turing writes fixture posts.'}, 'author'),
+    post02Moved && t.restore('post-02', {author: t.ref('author-grace')}),
+    ...created.splice(0).map((id) => t.deleteDoc(id, 'author')),
+  ])
   post02Moved = false
   alanEdited = false
-  for (const id of created.splice(0)) await t.deleteDoc(id, 'author')
 })
 
 test('J08: replace the author by search, open it in the next pane; then the same by keyboard (F5)', async ({page}, info) => {
@@ -326,10 +329,12 @@ test('J17: Incoming references from the document menu, any time: opens the refer
   const t = target(info)
   // post-07 as the seed writes it (createOrReplace): Barkpark then keeps its edge to Alan
   // some seconds after it points away (task-3fd3c0c53d08a6bd), the case that flaked.
-  await t.resetDoc(ID, 'post')
+  // Reset while Alan's page loads; done before the panel reads his references.
+  const reset = t.resetDoc(ID, 'post')
   await page.goto(t.docPath('author', 'author-alan'))
   await t.settle(page)
   await expect(t.field(page, 'name')).toHaveValue('Alan Turing', {timeout: 15_000})
+  await reset
   const menu = t.name === 'sanity' ? page.locator('[data-testid="document-pane"] [data-testid="pane-context-menu-button"]').first() : page.getByRole('button', {name: 'Show document actions'})
   await menu.click()
   await page.getByRole('menuitem', {name: 'Incoming references'}).click()
@@ -361,16 +366,19 @@ test('J17: a doc that refers only from its body (an internal link) is used in, a
   // a lane whose docs predate its schema has none for them. Say so, not a missing row.
   // The seed's 12 (Sanity's count). A lane can also hold docs of a type the seed doesn't
   // know (e2e-local's `article`, which a reset leaves): Delete counts those too, so ours
-  // expects what the lane's own index holds.
+  // expects what the lane's own index holds (read while Ada's page loads).
   let referring = 12
-  if (t.name === 'studio') {
-    const res = await fetch(`${bpBase()}/v1/data/backlinks/${bpDataset()}/author-ada`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
-    const from = ((await res.json()) as {result: {backlinks: {from_doc_id: string}[]}}).result.backlinks.map((b) => b.from_doc_id)
+  const index =
+    t.name === 'studio'
+      ? fetch(`${bpBase()}/v1/data/backlinks/${bpDataset()}/author-ada`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}}).then(async (res) => ((await res.json()) as {result: {backlinks: {from_doc_id: string}[]}}).result.backlinks.map((b) => b.from_doc_id))
+      : null
+  await page.goto(t.docPath('author', 'author-ada'))
+  await t.settle(page)
+  if (index) {
+    const from = await index
     expect(from, `${bpDataset()}'s link index is stale (written before its schema): reset the lane with \`node run.mjs reset\``).toEqual(expect.arrayContaining(['post-11', 'post-13']))
     referring = new Set(from).size
   }
-  await page.goto(t.docPath('author', 'author-ada'))
-  await t.settle(page)
   await expect(t.field(page, 'name')).toHaveValue('Ada Lovelace', {timeout: 15_000})
   const menu = t.name === 'sanity' ? page.locator('[data-testid="document-pane"] [data-testid="pane-context-menu-button"]').first() : page.getByRole('button', {name: 'Show document actions'})
   await menu.click()
