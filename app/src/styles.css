@@ -3018,10 +3018,13 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 .navbar .perspective-picker > svg { width: 21px; height: 21px; margin-left: 12px; }
 .perspective-picker .dot, .perspective-menu .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .dot.draft-ring { background: none; box-shadow: inset 0 0 0 1.5px var(--caution-dot); }
-.perspective-menu { right: 0; top: 40px; min-width: 200px; }
+.popover.menu.perspective-menu { right: 0; top: 33px; min-width: 200px; } /* 42 px down, as Sanity's */
 /* Sanity's (measured at 1440): 35 px items, each mark centred in a 25 px slot 9 px in, the word at 43,
    and a hairline joining Published's mark to Drafts' below it (a timeline). */
-.perspective-menu .menu-item { position: relative; min-height: 35px; padding-top: 8px; padding-bottom: 8px; }
+.perspective-menu .menu-item { position: relative; min-height: 35px; padding-top: 7px; padding-bottom: 9px; }
+/* Its tool links under the rule: 33 px, 4 px further in, as Sanity's. */
+.popover.menu.perspective-menu > hr { margin-top: 1px; }
+.perspective-menu [role=menuitem] { min-height: 33px; margin: 0 4px; width: auto; padding-top: 7px; padding-bottom: 7px; }
 .perspective-menu .menu-icon-text .dot { margin: 0 12px 0 6px; }
 .perspective-menu .menu-item:first-child::after { content: ''; position: absolute; left: 20px; top: 28px; bottom: -11px; width: 1px; background: var(--border); }
 .navbar[data-perspective=published] { background: color-mix(in srgb, var(--published) 10%, var(--bg)); }
