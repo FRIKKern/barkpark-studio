@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 31 changes, 11 tasks closed
+- **Today** · 32 changes, 11 tasks closed
+  - Delete dialog with references as Sanity's: a rule, the caution card, 33 px referring rows, the closing line ([#905](https://github.com/FRIKKern/barkpark-studio/pull/905))
   - Hydration sweep: Vision, date fields and the Releases calendar hydrate as rendered ([#902](https://github.com/FRIKKern/barkpark-studio/pull/902))
-  - Document card area from 188 as Sanity's: dialogs, Inspect and JSON 2 px higher; the form stays ([#901](https://github.com/FRIKKern/barkpark-studio/pull/901))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
