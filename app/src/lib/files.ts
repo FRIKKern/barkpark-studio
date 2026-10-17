@@ -35,8 +35,9 @@ export function formatBytes(bytes: number, locale: 'en' | 'nb-NO' = 'en'): strin
   return `${locale === 'nb-NO' ? decimal(n, 0, 2) : n} ${sizes[i]}`
 }
 
-/** Media's sizes, as LiveView's: binary units, one decimal ("9.4 KB"; nb "9,4 KB"). */
+/** Media's sizes, as LiveView's: binary units, one decimal ("9.4 KB"; nb "9,4 KB"), and bytes under a kilobyte ("31 B"). */
 export function mediaBytes(bytes: number, locale: 'en' | 'nb-NO' = 'en'): string {
+  if (bytes < 1024) return `${bytes} B`
   const [n, unit] = bytes >= 1024 * 1024 ? [bytes / 1024 / 1024, 'MB'] : [bytes / 1024, 'KB']
   return `${locale === 'nb-NO' ? decimal(n, 1, 1) : n.toFixed(1)} ${unit}`
 }
