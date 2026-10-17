@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 3 changes
+- **Today** · 4 changes
+  - Guard: a field hidden at the start still gets its initial value ([#875](https://github.com/FRIKKern/barkpark-studio/pull/875))
   - Navbar 52 px as Sanity's; J21 masks the footer's save state ([#874](https://github.com/FRIKKern/barkpark-studio/pull/874))
-  - View tabs' hover words as Sanity's: an unselected tab darkens under the pointer ([#873](https://github.com/FRIKKern/barkpark-studio/pull/873))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
