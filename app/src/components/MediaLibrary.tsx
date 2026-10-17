@@ -44,6 +44,18 @@ export function MediaLibrary() {
     const timer = setTimeout(() => setQuery(q.trim()), 200)
     return () => clearTimeout(timer)
   }, [q])
+  // LiveView's "/ to focus": / outside a text field puts the caret in the search.
+  const search = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return
+      if ((e.target as Element | null)?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"], [role=dialog]')) return
+      e.preventDefault()
+      search.current?.focus()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const folders = useQuery(collectionsQuery)
   const filter = {collection: folder, kind, q: query || undefined, visibility: visibility || undefined, sort, refine}
   const pages = useInfiniteQuery(assetsQuery(filter))
@@ -140,7 +152,7 @@ export function MediaLibrary() {
         <header className="media-bar">
           <div className="search">
             <span className="search-icon"><Search /></span>
-            <input type="search" aria-label={t('Search media')} placeholder={t('Search media')} value={q} onChange={(e) => setQ(e.target.value)} />
+            <input ref={search} type="search" aria-label={t('Search media')} aria-keyshortcuts="/" placeholder={t('Search media')} value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <select className="input media-visibility" aria-label={t('Visibility')} value={visibility} onChange={(e) => setVisibility(e.target.value as Visibility | '')}>
             <option value="">{t('Any visibility')}</option>
