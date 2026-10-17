@@ -1,4 +1,4 @@
-import {Fragment, useContext, useId, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
+import {Fragment, useContext, useDeferredValue, useId, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
@@ -588,12 +588,24 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const sortBusy = listQ.isPlaceholderData && !!page?.hasMore && resolvedSort.current !== sort
   const order = sortBusy ? resolvedSort.current : sort
   const [query, setQuery] = useState('')
+  // With 2,000 rows here, filtering and redrawing them on every key held that key's frame
+  // 75-290 ms at 4x CPU (Sanity: 8-50). The box shows each key at once; the rows follow
+  // when React has time, and a newer key drops a redraw still under way.
+  const shownQuery = useDeferredValue(query)
   const searchInput = useRef<HTMLInputElement>(null)
   // Sanity's list search is a combobox over its rows: typing lights the first result,
   // ArrowDown/ArrowUp move the light, Enter opens it; the box names it (aria-activedescendant).
   const listId = useId()
   const [lit, setLit] = useState(0)
-  useEffect(() => setLit(0), [query])
+  const enterWhenDrawn = useRef(false)
+  useEffect(() => {
+    setLit(0)
+    enterWhenDrawn.current = false
+  }, [query])
+  const openLit = () => document.getElementById(`${listId}-item-${lit}`)?.querySelector<HTMLAnchorElement>('a[href]')?.click()
+  useEffect(() => {
+    if (enterWhenDrawn.current && shownQuery === query) (enterWhenDrawn.current = false), openLit()
+  })
   // A list with more on the server is searched there too, so search reaches every doc.
   const [q, setQ] = useState('')
   useEffect(() => {
@@ -631,17 +643,18 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   // J24: filter as you type, on the list already here (no request per key). Every
   // word must appear in one of the doc's text values, Sanity-style.
   const shown = useMemo(() => {
-    const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
+    const terms = shownQuery.toLowerCase().split(/\s+/).filter(Boolean)
     const hits = terms.length ? (docs ?? []).filter((doc) => terms.every((w) => searchText(doc).includes(w))) : (docs ?? [])
     if (terms.length) {
       // Sorted by relevance, like Sanity: words of the title that start with a
-      // search term count most, then the list's own order.
-      const score = (d: Doc) => {
+      // search term count most, then the list's own order. Scored once per row, not per comparison.
+      const scores = new Map<Doc, number>()
+      for (const d of hits) {
         // Words are letters and digits in any script: æøå are letters, not separators.
         const words = previewTitle(d, schemaOf(schemas, type)).toLowerCase().split(/[^\p{L}\p{N}]+/u)
-        return terms.filter((t) => words.some((w) => w.startsWith(t))).length
+        scores.set(d, terms.filter((t) => words.some((w) => w.startsWith(t))).length)
       }
-      return [...hits].sort((a, b) => score(b) - score(a) || b._updatedAt.localeCompare(a._updatedAt))
+      return [...hits].sort((a, b) => scores.get(b)! - scores.get(a)! || b._updatedAt.localeCompare(a._updatedAt))
     }
     const builtIn: Record<string, (a: Doc, b: Doc) => number> = {
       title: (a, b) => collate(previewTitle(a, schemaOf(schemas, type)), previewTitle(b, schemaOf(schemas, type)), locale),
@@ -649,7 +662,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
       created: (a, b) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')),
     }
     return [...hits].sort(builtIn[order] ?? byOrder(order, locale))
-  }, [docs, query, order, schemas, type, locale])
+  }, [docs, shownQuery, order, schemas, type, locale])
   // F11: growing to LIST_MAX mounts ~1,900 rows; done at once it stalled a frame for
   // ~350 ms mid-scroll. They mount MOUNT_STEP at a time instead, a task apart, so the
   // list keeps scrolling at 60 fps while the rest arrives.
@@ -659,8 +672,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     const id = setTimeout(() => setMounted((m) => m + MOUNT_STEP), 0)
     return () => clearTimeout(id)
   }, [shown.length, mounted])
-  const rows = shown.length > mounted ? shown.slice(0, mounted) : shown
-  const searching = !!query.trim() && rows.length > 0
+  const rows = useMemo(() => (shown.length > mounted ? shown.slice(0, mounted) : shown), [shown, mounted])
+  const searching = !!shownQuery.trim() && rows.length > 0 // as drawn: the first key leaves the rows to the deferred redraw
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
   const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())
   // Ticks show only while selecting: after "Select documents" in the list menu, a Cmd/Ctrl- or
@@ -687,7 +700,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const heard = useRef('')
   useEffect(() => {
     if (!isLastPane || !docs || !searchComplete) return
-    const q = query.trim()
+    const q = shownQuery.trim()
     const text = q
       ? shown.length
         ? shown.length === 1
@@ -700,7 +713,59 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           ? t('{title}, 1 document', {title: listTitle})
           : t('{title}, {n} documents', {title: listTitle, n: docs.length})
     if (text !== heard.current) (heard.current = text, announce(text))
-  }, [isLastPane, docs, shown.length, searchComplete, query, listTitle, page?.hasMore])
+  }, [isLastPane, docs, shown.length, searchComplete, shownQuery, listTitle, page?.hasMore])
+  // Typing in the search box re-renders this pane; the rows are only redrawn when what they show changes.
+  const rowEls = useMemo(
+    () =>
+      rows.map((d, i) => {
+        const lightProps = {id: `${listId}-item-${i}`, 'data-lit': searching && i === lit ? '' : undefined}
+        const row = (
+          <DocPreview
+            key={d._publishedId}
+            doc={d}
+            href={openAfter(panes, index, tree ? {kind: 'list', type, node: nodeId, treeParent: d._publishedId} : child ? {kind: 'list', type: child.typeName, node: nodeId, treeParent: d._publishedId} : {kind: 'doc', id: d._publishedId, type})}
+            selected={selected === d._publishedId}
+            active={index === panes.length - 2}
+            testId="pane-item"
+            extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} max={2} editing /> : undefined}
+          />
+        )
+        if (!selectable) return <div key={d._publishedId} role="listitem" className="rows-item" {...lightProps}>{row}</div>
+        return (
+          <div
+            key={d._publishedId}
+            role="listitem"
+            className="bulk-row"
+            {...lightProps}
+            data-picked={picked.has(d._publishedId) || undefined}
+            onClickCapture={(e) => {
+              // Cmd/Ctrl-click ticks one row; Shift-click ticks the run from the last tick (Finder's way).
+              if (!(e.metaKey || e.ctrlKey || e.shiftKey) || (e.target as HTMLElement).closest('.bulk-check')) return
+              e.preventDefault()
+              e.stopPropagation()
+              const from = e.shiftKey && lastPick.current ? shown.findIndex((x) => x._publishedId === lastPick.current) : -1
+              const to = shown.findIndex((x) => x._publishedId === d._publishedId)
+              if (from < 0 || to < 0) return pick(d)
+              const run = shown.slice(Math.min(from, to), Math.max(from, to) + 1)
+              setPicked((m) => {
+                const next = new Map(m)
+                for (const x of run) if (next.size < MAX_SELECTED) next.set(x._publishedId, x)
+                return next
+              })
+              lastPick.current = d._publishedId
+            }}
+          >
+            {/* Out of the tab order and the accessibility tree until selecting: hidden ticks read as 31 stray checkboxes. */}
+            <label className="bulk-check" inert={!(selecting || picked.size > 0)}>
+              <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type), t)})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
+            </label>
+            {row}
+          </div>
+        )
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pick() reads picked and t, both listed
+    [rows, shown, searching, lit, listId, selectable, selecting, picked, open, selected, panes, index, tree, child, nodeId, type, schemas, t],
+  )
   return (
     <section className="pane list" aria-label={listTitle} aria-busy={!page || sortBusy || undefined} data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
       <header className="pane-header">
@@ -755,7 +820,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               document.getElementById(`${listId}-item-${next}`)?.scrollIntoView({block: 'nearest'})
             } else if (e.key === 'Enter') {
               e.preventDefault()
-              document.getElementById(`${listId}-item-${lit}`)?.querySelector<HTMLAnchorElement>('a[href]')?.click()
+              if (shownQuery !== query) enterWhenDrawn.current = true // the rows still show an older search
+              else openLit()
             }
           }}
         />
@@ -803,52 +869,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className={`list-empty${query.trim() ? ' list-none' : ''}`}>{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" id={listId} aria-label={listTitle} className="rows-list">
-        {rows.map((d, i) => {
-          const lightProps = {id: `${listId}-item-${i}`, 'data-lit': searching && i === lit ? '' : undefined}
-          const row = (
-            <DocPreview
-              key={d._publishedId}
-              doc={d}
-              href={openAfter(panes, index, tree ? {kind: 'list', type, node: nodeId, treeParent: d._publishedId} : child ? {kind: 'list', type: child.typeName, node: nodeId, treeParent: d._publishedId} : {kind: 'doc', id: d._publishedId, type})}
-              selected={selected === d._publishedId}
-              active={index === panes.length - 2}
-              testId="pane-item"
-              extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} max={2} editing /> : undefined}
-            />
-          )
-          if (!selectable) return <div key={d._publishedId} role="listitem" className="rows-item" {...lightProps}>{row}</div>
-          return (
-            <div
-              key={d._publishedId}
-              role="listitem"
-              className="bulk-row"
-              {...lightProps}
-              data-picked={picked.has(d._publishedId) || undefined}
-              onClickCapture={(e) => {
-                // Cmd/Ctrl-click ticks one row; Shift-click ticks the run from the last tick (Finder's way).
-                if (!(e.metaKey || e.ctrlKey || e.shiftKey) || (e.target as HTMLElement).closest('.bulk-check')) return
-                e.preventDefault()
-                e.stopPropagation()
-                const from = e.shiftKey && lastPick.current ? shown.findIndex((x) => x._publishedId === lastPick.current) : -1
-                const to = shown.findIndex((x) => x._publishedId === d._publishedId)
-                if (from < 0 || to < 0) return pick(d)
-                const run = shown.slice(Math.min(from, to), Math.max(from, to) + 1)
-                setPicked((m) => {
-                  const next = new Map(m)
-                  for (const x of run) if (next.size < MAX_SELECTED) next.set(x._publishedId, x)
-                  return next
-                })
-                lastPick.current = d._publishedId
-              }}
-            >
-              {/* Out of the tab order and the accessibility tree until selecting: hidden ticks read as 31 stray checkboxes. */}
-              <label className="bulk-check" inert={!(selecting || picked.size > 0)}>
-                <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type), t)})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
-              </label>
-              {row}
-            </div>
-          )
-        })}
+        {rowEls}
         </div>}
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
         {!query && page?.hasMore && limit >= LIST_MAX && (
