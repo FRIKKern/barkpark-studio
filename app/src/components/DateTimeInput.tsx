@@ -47,6 +47,10 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
   // Like TextInput: the box owns what is typed; a new value from outside wins.
   const [text, setText] = useState(shown)
   const [seen, setSeen] = useState(shown)
+  // The example is today in this browser's zone: drawn once in the browser, as the server's
+  // clock and zone would draw another and the page would hydrate to a mismatch.
+  const [example, setExample] = useState<string>()
+  useEffect(() => setExample(formatLocal(new Date())), [format])
   if (shown !== seen) (setSeen(shown), setText(shown))
   const [open, setOpen] = useState(false)
   const invalid = text.trim() !== '' && !parseLocal(text)
@@ -73,7 +77,7 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
           id={id}
           className="input"
           autoComplete="off"
-          placeholder={placeholder ?? t('e.g. {example}', {example: formatLocal(new Date())})}
+          placeholder={placeholder ?? (example && t('e.g. {example}', {example}))}
           value={text}
           readOnly={readOnly}
           autoFocus={autoFocus}
