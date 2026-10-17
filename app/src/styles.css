@@ -42,6 +42,7 @@
   --icon-muted: #6a6e7d; /* Sanity's muted icon grey (chevrons, close), measured */
   --tab-selected-fg: #636776; /* Sanity's selected view tab words (Editor), measured */
   --placeholder: #9499ad; /* Sanity's input placeholder (Tasks form), measured */
+  --today-disabled-fg: #dadee8; /* a greyed-out calendar's today (Releases, nothing scheduled) */
   --selected: #465be8; /* F13: white text on it passes AA (5.3:1) */
   --on-selected: #fff;
   --on-selected-soft: rgba(255, 255, 255, 0.9);
@@ -195,6 +196,7 @@
   --icon-muted: #93949f;
   --tab-selected-fg: #9d9fae;
   --placeholder: #555c75;
+  --today-disabled-fg: #2d3150;
   --fg: #e4e5e9;
   --fg-strong: #fff;
   --checkbox-on: #e4e5e9;
@@ -2436,6 +2438,12 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .cal-day svg { width: 17px; height: 17px; }
 .cal-today { display: block; width: 100%; height: 26px; margin-top: 4px; padding: 0; border: 0; border-bottom: 1px solid var(--border); background: none; font: inherit; font-size: 13px; color: var(--fg); cursor: pointer; }
 .cal-today:hover { background: var(--hover); }
+/* Nothing scheduled: Sanity greys the whole calendar out (measured at 1440, light and dark). */
+.releases-calendar :is(.cal-day, .cal-today, .icon-btn):disabled { background: none; cursor: default; }
+.releases-calendar .cal-day:disabled { color: var(--border); }
+.releases-calendar .cal-day[data-today]:disabled { background: var(--today-bg); color: var(--today-disabled-fg); }
+.releases-calendar .cal-today:disabled { color: var(--placeholder); }
+.releases-calendar .icon-btn:disabled svg { color: var(--tool-disabled); }
 .releases-day { display: inline-flex; align-items: center; gap: 4px; height: 25px; padding: 0 2px 0 8px; border-radius: 3px; background: var(--hover); font-size: 13px; line-height: 19px; font-weight: 500; color: var(--fg-strong); }
 .releases-day .icon-btn { width: 21px; height: 21px; }
 .releases-zone { display: inline-flex; align-items: center; gap: 6px; height: 25px; margin-left: auto; padding: 0 2px; border: 0; border-radius: 3px; background: none; font: inherit; font-size: 13px; line-height: 19px; font-weight: 500; color: var(--fg); cursor: pointer; }
@@ -2495,8 +2503,10 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .releases-menu { right: 0; top: 100%; }
 .releases-gone { font-size: 13px; color: var(--muted); padding-left: 8px; }
 .releases-none { text-align: center; font-size: 13px; color: var(--muted); }
-.releases-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 25vh auto 0; max-width: 260px; text-align: center; font-size: 13px; line-height: 19px; color: var(--muted); }
-.releases-empty strong { color: var(--fg-strong); font-weight: 600; }
+.releases-empty { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: calc(50vh - 213px) auto 0; max-width: 300px; text-align: center; font-size: 13px; line-height: 19px; color: var(--muted); } /* Sanity's: the picture 99 px over the window's middle, the words under it */
+.releases-empty > svg { flex: none; margin-bottom: 4px; }
+@media (max-width: 599px) { .releases-empty { margin-top: calc(50vh - 207px); } } /* 6 px lower on a phone, as Sanity's at 390 */
+.releases-empty strong { color: var(--fg); font-weight: 600; }
 .releases-empty p { margin: 0; }
 @media (max-width: 700px) {
   .releases-table th:nth-child(2) { width: 150px; }

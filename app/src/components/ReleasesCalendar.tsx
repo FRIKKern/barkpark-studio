@@ -32,7 +32,7 @@ const dayLabel = (key: string) => {
   return `${p.weekday} ${p.month} ${p.day} ${p.year}`
 }
 
-export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; marked: Set<string>; picked: string | null; onPick: (day: string | null) => void}) {
+export function ReleasesCalendar({zone, marked, picked, onPick, disabled}: {zone: string; marked: Set<string>; picked: string | null; onPick: (day: string | null) => void; disabled?: boolean}) {
   const t = useT()
   const locale = useLocale()
   // The month opens on the day the server rendered (lib/now.ts), so hydration draws the same
@@ -74,10 +74,10 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
     <aside className="releases-calendar" aria-label={t('Calendar')}>
       <div className="cal-head">
         <span className="cal-title">{title}</span>
-        <button type="button" className="icon-btn" aria-label={t('Previous month')} onClick={() => move(-1)}>
+        <button type="button" className="icon-btn" aria-label={t('Previous month')} disabled={disabled} onClick={() => move(-1)}>
           <ChevronLeft />
         </button>
-        <button type="button" className="icon-btn" aria-label={t('Next month')} onClick={() => move(1)}>
+        <button type="button" className="icon-btn" aria-label={t('Next month')} disabled={disabled} onClick={() => move(1)}>
           <ChevronRight />
         </button>
       </div>
@@ -103,6 +103,7 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
                       className="cal-day"
                       aria-label={dayLabel(key)}
                       aria-pressed={on}
+                      disabled={disabled}
                       data-key={key}
                       tabIndex={key === stop ? 0 : -1}
                       onFocus={() => setFocusKey(key)}
@@ -123,6 +124,7 @@ export function ReleasesCalendar({zone, marked, picked, onPick}: {zone: string; 
         type="button"
         className="cal-today"
         aria-label={t('Go to today')}
+        disabled={disabled}
         onClick={() => {
           const day = today ?? dayKey(new Date(), zone)
           setShown({year: Number(day.slice(0, 4)), month: Number(day.slice(5, 7)) - 1})
