@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 53 changes, 11 tasks closed
+- **Today** · 54 changes, 11 tasks closed
+  - feat(media): the Media tool keeps its kind, search, sort and view in the URL ([#913](https://github.com/FRIKKern/barkpark-studio/pull/913))
   - Image Select: ask for the first page of images when the pointer or focus reaches Select ([#925](https://github.com/FRIKKern/barkpark-studio/pull/925))
-  - Studio server: share the content model, desk, language and member reads for 5 s ([#924](https://github.com/FRIKKern/barkpark-studio/pull/924))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
