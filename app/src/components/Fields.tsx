@@ -30,7 +30,7 @@ import {BodyToolbar} from './BodyToolbar'
 import {PortableDocView} from './PortableDocView'
 import {keptFor} from '../lib/kept-words'
 import {slugify} from '../lib/slug'
-import {decimalSeparator, parseNumber, typingNumber} from '../lib/number'
+import {decimalSeparator, formatNumber, parseNumber, typingNumber} from '../lib/number'
 import {modKey, useTip} from './Tip'
 import {intlTag, t as tBrowser, useLocale, useT} from '../lib/i18n'
 import studio from '../studio.config'
@@ -734,7 +734,9 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
   // in English "1,500" is not a number, so the field is unset and keeps what was typed.
   const decimal = decimalSeparator(intlTag(useLocale()))
   const parse = (s: string) => parseNumber(s, decimal)
-  const shown = text !== null && (parse(text) === value || (value == null && !Number.isFinite(parse(text)))) ? text : value == null ? '' : String(value)
+  // What was typed stays as typed while it means the stored value (never reformatted under the
+  // caret); otherwise the stored number in the language's own way: "59,9139" in nb, as Sanity's.
+  const shown = text !== null && (parse(text) === value || (value == null && !Number.isFinite(parse(text)))) ? text : value == null ? '' : formatNumber(value, decimal)
   return (
     <input
       id={id}
@@ -750,6 +752,8 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
         if (e.target.value === '' || typingNumber(e.target.value, decimal) || !Number.isFinite(n)) onChange(undefined)
         else if (!integer || Number.isInteger(n)) onChange(n)
       }}
+      // Left, a number typed in the other way ("59.9" in nb) shows in the language's way.
+      onBlur={() => text !== null && Number.isFinite(parse(text)) && setText(null)}
     />
   )
 }

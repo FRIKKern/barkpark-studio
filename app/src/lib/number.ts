@@ -15,5 +15,8 @@ export function parseNumber(text: string, decimal: string): number {
   return Number(s)
 }
 
+/** A stored number as the field shows it: the language's decimal separator ("59,9139" in nb), never grouped, as Sanity's. */
+export const formatNumber = (n: number, decimal: string) => (decimal === '.' ? String(n) : String(n).replace('.', decimal))
+
 /** What is typed on the way to a number ("-", "1," in a comma locale): kept in the field until it is one. */
 export const typingNumber = (text: string, decimal: string) => new RegExp(`^-?[.${decimal === ',' ? ',' : ''}]?$`).test(text.trim())
