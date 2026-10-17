@@ -1,7 +1,7 @@
 // J06's text merge and caret mapping (node --test).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {mapCaret, merge3, mergeList3, onto, revert, unapply} from './merge.ts'
+import {mapCaret, merge3, mergeList3, onto, revert, revertSteps, unapply} from './merge.ts'
 
 test('merge3 keeps both edits', () => {
   assert.equal(merge3('Fixture post', 'bbb Fixture post', 'Fixture post aaa'), 'bbb Fixture post aaa')
@@ -77,4 +77,16 @@ test('revert undoes my step, never what another editor set since', () => {
   // I added Three; they added Remote: undo drops Three only.
   const three = {_key: '3', t: 'Three'}
   assert.deepEqual(revert([one, three], [one], [one, three, remote]), [one, remote])
+})
+
+test('revertSteps undoes a typed burst whole, or not at all when it was typed on', () => {
+  // ' Bravo' typed a key at a time onto 'Scout4 tabs' (each key its own step), undone last key first.
+  const steps: [string, string][] = []
+  let text = 'Scout4 tabs'
+  for (const key of ' Bravo') steps.push([text, (text += key)])
+  const undo = steps.reverse().map(([before, after]) => [after, before] as const)
+  assert.equal(revertSteps(undo, 'Scout4 tabs Bravo'), 'Scout4 tabs')
+  assert.equal(revertSteps(undo, 'X Scout4 tabs Bravo'), 'X Scout4 tabs') // theirs before it stays
+  // Another tab typed ' Ay' right after it: Sanity's undo leaves it; never 'Scout4 tabso Ay'.
+  assert.equal(revertSteps(undo, 'Scout4 tabs Bravo Ay'), 'Scout4 tabs Bravo Ay')
 })

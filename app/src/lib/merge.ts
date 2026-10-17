@@ -118,6 +118,22 @@ export function revert(from: unknown, to: unknown, now: unknown): unknown {
 }
 
 /**
+ * Undo (or redo) a change's steps on `now`, in order, all or nothing: a text step that no longer
+ * reverts cleanly (another editor typed right after it) leaves the whole change as it is, as
+ * Sanity's undo does nothing there; reverting the steps that still applied left a stray letter
+ * ("tabs Bravo Ay" undone to "tabso Ay", task-2868ac741f5cc197).
+ */
+export function revertSteps(steps: readonly (readonly [from: unknown, to: unknown])[], now: unknown): unknown {
+  let v = now
+  for (const [from, to] of steps) {
+    const next = revert(from, to, v)
+    if (typeof from === 'string' && typeof to === 'string' && from !== to && typeof v === 'string' && next === v) return now
+    v = next
+  }
+  return v
+}
+
+/**
  * A change made from `seen` (what the pane last drew) to `mine`, put onto `now` (what the
  * cache holds, a live frame newer than that drawing): text merges, lists item by item,
  * anything else is mine. A drop or keystroke in the gap before a frame is drawn otherwise
