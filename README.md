@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 14 changes, 3 tasks closed
-  - Media: Refine by format, processing and status, with counts, as LiveView's ([#882](https://github.com/FRIKKern/barkpark-studio/pull/882))
-  - Phone bar with a mouse as Sanity's: Drafts whole at 390, 8 px after +; a narrow list's title 16 px after its arrow ([#885](https://github.com/FRIKKern/barkpark-studio/pull/885))
+- **Today** · 14 changes, 8 tasks closed
+  - Done: [Intended difference: the API tool and the Tasks board stay in Barkpark](https://github.com/FRIKKern/barkpark/issues/23657)
+  - Done: [Intended difference: Share access to a type, Review scoped access grants](https://github.com/FRIKKern/barkpark/issues/23656)
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
