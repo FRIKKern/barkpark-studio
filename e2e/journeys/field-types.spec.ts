@@ -9,7 +9,8 @@ import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 const ID = 'field-types-01'
 test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'fieldTypes')))
 
-test("field types: Sanity's options for lists, geopoints, references, slugs, booleans and fieldsets", async ({page, context}, info) => {
+// CI: what is stored, as Sanity stores it (data; the rest of the matrix is drawn, @local below).
+test('field types store as Sanity: a dateFormat date, a list in its order, "1,500" never 1.5, a geopoint', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours; Sanity is the reference stills')
   await t.prepare(context)
@@ -17,14 +18,34 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
   await signInIfAsked(page)
   await t.settle(page)
   const value = (field: string) => t.docValue(ID, field, 'fieldTypes')
-
-  // dateFormat / timeFormat (DD.MM.YYYY, HH:mm): shown in them, typed in them, stored as Sanity stores.
-  await expect(page.locator('[id="day"]')).toHaveValue('13.10.2026')
-  await expect(page.locator('[id="at"]')).toHaveValue(/^13\.10\.2026 \d\d:15$/)
+  // dateFormat (DD.MM.YYYY): typed in it, stored as Sanity stores it.
   await page.locator('[id="day"]').fill('14.10.2026')
   await page.keyboard.press('Enter')
   await expect.poll(() => value('day'), {timeout: 10_000}).toBe('2026-10-14')
+  // An array of strings from a list keeps the list's order, whatever order it was ticked in.
+  await page.getByRole('group').filter({has: page.getByRole('checkbox', {name: 'Green'})}).getByRole('checkbox', {name: 'Green'}).check()
+  await expect.poll(() => value('colours'), {timeout: 10_000}).toEqual(['red', 'green', 'blue'])
+  // English: "1,500" is one thousand five hundred, never 1.5 (a decimal comma is nb's,
+  // lib/number.ts): not a number, so the field is unset and keeps what was typed.
+  await page.locator('[id="width"]').fill('1,500')
+  await expect.poll(() => value('width'), {timeout: 10_000}).toBeUndefined()
+  await expect(page.locator('[id="width"]')).toHaveValue('1,500')
+  await page.locator('[id="width"]').fill('1200')
+  await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1200)
+  // A geopoint stays a geopoint.
+  await page.locator('[id="place.lat"]').fill('60.5')
+  await expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522})
+})
 
+test("@local field types: Sanity's options drawn: dates, grid tiles, a checkbox, Add item, slugs, fieldsets, a reference without Create", async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours; Sanity is the reference stills')
+  await t.prepare(context)
+  await page.goto(t.docPath('fieldTypes', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await expect(page.locator('[id="day"]')).toHaveValue('13.10.2026')
+  await expect(page.locator('[id="at"]')).toHaveValue(/^13\.10\.2026 \d\d:15$/)
   // An array of objects with layout 'grid' is tiles; a tile opens its item.
   const cards = page.locator('[id="cards"] .array-box')
   await expect(cards).toHaveAttribute('data-layout', 'grid')
@@ -35,34 +56,17 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
   // Over the pane's card area (Sanity's), not 137 px down it.
   expect(await page.locator('.item-backdrop').boundingBox()).toEqual(await page.locator('.doc-main').boundingBox())
   await page.keyboard.press('Escape')
-
   await expect(page.locator('[id="agree"]')).toHaveAttribute('type', 'checkbox')
   await expect(page.locator('[id="agree"]')).not.toHaveAttribute('role', 'switch')
   // One member type: Sanity's plain "Add item" (the "…" menu is for several).
   await expect(page.locator('[id="cards"]').getByRole('button', {name: 'Add item', exact: true})).toBeVisible()
-
-  await page.getByRole('group').filter({has: page.getByRole('checkbox', {name: 'Green'})}).getByRole('checkbox', {name: 'Green'}).check()
-  await expect.poll(() => value('colours'), {timeout: 10_000}).toEqual(['red', 'green', 'blue'])
-
-  // English: "1,500" is one thousand five hundred, never 1.5 (a decimal comma is nb's,
-  // lib/number.ts): not a number, so the field is unset and keeps what was typed.
-  await page.locator('[id="width"]').fill('1,500')
-  await expect.poll(() => value('width'), {timeout: 10_000}).toBeUndefined()
-  await expect(page.locator('[id="width"]')).toHaveValue('1,500')
-  await page.locator('[id="width"]').fill('1200')
-  await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1200)
-  await page.locator('[id="place.lat"]').fill('60.5')
-  await expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522})
-
   await page.locator('[id="title"]').fill('A title far longer than twenty characters')
   await page.getByRole('button', {name: 'Generate'}).click()
-  // maxLength 20, cut on a word as Sanity's speakingurl cuts it (not mid-word).
+  // maxLength 20, cut on a word as Sanity's speakingurl cuts it (not mid-word; lib/slug.test.ts in CI).
   await expect(page.locator('[id="handle"]')).toHaveValue('a-title-far-longer')
-
   await page.getByRole('button', {name: 'Where'}).click()
   await expect(page.locator('[id="address.street"]')).toHaveCount(0)
   await expect(page.getByRole('group', {name: 'Size'}).locator('[id="width"], [id="height"]')).toHaveCount(2)
-
   await page.getByRole('button', {name: 'Reference actions'}).click()
   await page.getByRole('menuitem', {name: /Replace/}).click()
   await expect(page.locator('[id="weakRef"]')).toBeFocused()
@@ -70,8 +74,7 @@ test("field types: Sanity's options for lists, geopoints, references, slugs, boo
   await expect(refField.getByRole('button', {name: /^Create/})).toHaveCount(0)
 })
 
-// A checkbox boolean not set yet is indeterminate, Sanity's dash (a new document; no write).
-test('field types: an unset checkbox boolean shows indeterminate', async ({page, context}, info) => {
+test('@local field types: an unset checkbox boolean shows indeterminate', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours; Sanity is the reference stills')
   await t.prepare(context)

@@ -21,7 +21,7 @@ test('@evidence J58: the site in Presentation, side by side', async ({page, cont
 // Sanity's timings, on a fake clock: a site that loads but never connects shows
 // "Loading.", then "Connecting." at 5 s, then gives up at 8 s with "Continue anyway";
 // one that never loads gets the error card at 15 s with Retry.
-test('J58: connecting, unable to connect, could not connect', async ({page, context}, info) => {
+test('@local J58: connecting, unable to connect, could not connect', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)
@@ -126,7 +126,7 @@ const standIn = (path: string) => `<!doctype html><title>${path}</title>
   addEventListener('message', (e) => e.data?.bp === 'studio' && e.data.type === 'navigate' && location.assign(e.data.url))
 </script>`
 
-test('J61: links and the URL bar move the page; the panel follows it', async ({page, context}, info) => {
+test('@local J61: links and the URL bar move the page; the panel follows it', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)
@@ -263,7 +263,7 @@ test('@evidence J64: phone viewport and share menu, side by side', async ({page,
 // J62: the locations banner. A post's own pages (the studio config); an author's own
 // page plus the pages of the posts that reference it (Barkpark's locations, from the
 // post schema's desk.preview). A location opens Presentation there, the document kept.
-test('J62: "Used on N pages", and a location opens Presentation with the document', async ({page, context}, info) => {
+test('@local J62: "Used on N pages", and a location opens Presentation with the document', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)
@@ -320,7 +320,7 @@ test('@evidence J62: the locations banner, side by side', async ({page, context}
 })
 
 // J59, keyboard: Cmd/Ctrl+\ toggles the Edit overlay, as Sanity's Presentation does.
-test('J59: Cmd/Ctrl+\\ toggles the Edit overlay', async ({page, context}, info) => {
+test('@local J59: Cmd/Ctrl+\\ toggles the Edit overlay', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours; Sanity reads the key the same way')
   await t.prepare(context)

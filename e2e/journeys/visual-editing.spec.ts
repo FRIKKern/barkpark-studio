@@ -41,7 +41,7 @@ const echoSite = `<!doctype html><h1 id="t">Fixture post 01</h1><p id="p">drafts
   })
 </script>`
 
-test('J60 + J63: typing reaches the page at once, focus stays; the page shows the perspective the panel does', async ({page, context}, info) => {
+test('@local J60 + J63: typing reaches the page at once, focus stays; the page shows the perspective the panel does', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)
@@ -168,7 +168,7 @@ const clickSite = `<!doctype html><h1>Fixture post 01</h1><p id="x">Short excerp
   addEventListener('keyup', (e) => e.key === 'Alt' && post({type: 'alt', held: false}))
 </script>`
 
-test('J59: clicking a value opens its field in the panel; Edit turns the overlay off', async ({page, context}, info) => {
+test('@local J59: clicking a value opens its field in the panel; Edit turns the overlay off', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)
@@ -311,7 +311,7 @@ test('@local J60 F4: a remote edit reaches the preview page within F4', async ({
 
 // J63, the navbar's perspective picker: Published for the whole studio (list,
 // document read-only, Presentation's preview), kept across links; Drafts clears it.
-test('J63: the navbar picker switches the studio to Published and back', async ({page, context}, info) => {
+test('@local J63: the navbar picker switches the studio to Published and back', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)

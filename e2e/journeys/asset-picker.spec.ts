@@ -6,7 +6,7 @@ import {target, closeAndSettle} from '../rig/targets'
 // files) 138 showed and the rest could never be picked. The pages are answered here.
 test.afterEach(async ({page}) => (await page.unrouteAll({behavior: 'ignoreErrors'}), await closeAndSettle(page)))
 
-test('J36: the image picker pages with Load more until the last image', async ({page}, info) => {
+test('@local J36: the image picker pages with Load more until the last image', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'our picker')
   await t.prepare(page.context())
@@ -32,7 +32,7 @@ test('J36: the image picker pages with Load more until the last image', async ({
 
 // The file picker too: files are what a field accepts among every kind of media, newest
 // first; the studio server reads batches and answers a page at a time (nextOffset).
-test('J54: the file picker pages with Load more until the last file', async ({page}, info) => {
+test('@local J54: the file picker pages with Load more until the last file', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'our picker')
   await t.prepare(page.context())

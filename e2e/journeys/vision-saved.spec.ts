@@ -76,7 +76,7 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
 
 // Listen: the query's changes as they happen (Barkpark's listen stream, narrowed by the
 // query's type and equality filter), newest first, until Stop.
-test('J37: Vision listens to a query and shows its changes', async ({page, context}, info) => {
+test('@local J37: Vision listens to a query and shows its changes', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   const id = `post-listen-${Date.now().toString(36)}`
@@ -101,7 +101,7 @@ test('J37: Vision listens to a query and shows its changes', async ({page, conte
 
 // A refused query: Barkpark's message, and the bad part of the query marked (Sanity's
 // dash line and carets, line and column).
-test('J37: Vision points at the bad part of a refused query', async ({page, context}, info) => {
+test('@local J37: Vision points at the bad part of a refused query', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)
@@ -176,7 +176,7 @@ test('@local J37: a query shared in one browser shows in another at once', async
 
 // J37, Sanity's Params: $name in the query takes its value from the Params JSON, as the
 // Query URL shows; a name Params don't have is said, not sent. Nothing is written.
-test('J37: Vision puts Params into the query', async ({page, context}, info) => {
+test('@local J37: Vision puts Params into the query', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's Params editor is the evidence still")
   await t.prepare(context)
@@ -207,7 +207,7 @@ test('J37: Vision puts Params into the query', async ({page, context}, info) => 
 // task-721a16dd6310edba, as Sanity's (scout 4, 2026-10-17): a kept query runs again when
 // Vision opens, after another tool, a reload or in a second tab: its result shows, never a
 // blank "Execution: n/a".
-test('J37: Vision runs its kept query again when it opens', async ({page, context}, info) => {
+test('@local J37: Vision runs its kept query again when it opens', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours; Sanity's does the same (scout 4)")
   await t.prepare(context)

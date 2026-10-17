@@ -18,7 +18,7 @@ test.afterEach(async ({page}, info) => {
   await target(info).restore(ID, {title: TITLE})
 })
 
-test('J68: Inline changes and Compare versions', async ({page}, info) => {
+test('@local J68: Inline changes and Compare versions', async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
   await page.goto(t.docPath('post', ID))
