@@ -927,7 +927,8 @@ a.menu-item { display: block; text-decoration: none; }
   .command-find input { height: 35px; font-size: 15px; }
 }
 @media (max-width: 768px) {
-  .popover.command, .popover.filter-editor { width: min(300px, calc(100vw - 48px)); }
+  .popover.command { max-width: calc(100vw - 48px); } /* each its own width (types 250, filters 300), as Sanity's at 390 */
+  .popover.filter-editor { width: min(300px, calc(100vw - 48px)); }
 }
 /* 44 px taps on a touch screen; a narrow desktop window keeps Sanity's 25 px. */
 @media (max-width: 768px) and (pointer: coarse) {
