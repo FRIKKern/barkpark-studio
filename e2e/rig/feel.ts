@@ -160,3 +160,11 @@ export function seenAt(page: Page, selector: string, value: string): Promise<num
  * and sets BUDGET_NETWORK_SCALE to stretch them. In-browser budgets (F1, F2) don't scale.
  */
 export const networkBudget = (ms: number) => ms * Number(process.env.BUDGET_NETWORK_SCALE || 1)
+
+/**
+ * A local run with no lane token (.e2e-lane-tokens.json): the studio and the rig write as
+ * one token, and its 429s slow the studio's writes (app lib/write-pace.ts), so a live-edit
+ * budget measures the rig's load, not the studio. Those budgets skip; values are still
+ * checked. CI has a token of its own (task-6c2eddd0bb977fe5: real fix, lane tokens).
+ */
+export const sharedLocalToken = () => !process.env.CI && !process.env.BARKPARK_APP_TOKEN

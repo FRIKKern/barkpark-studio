@@ -1,5 +1,5 @@
 import {expect, test, type Route} from '@playwright/test'
-import {installProbes, networkBudget, recordFeel, timeToReady} from '../rig/feel'
+import {installProbes, networkBudget, recordFeel, sharedLocalToken, timeToReady} from '../rig/feel'
 import {bpBase, bpDataset, bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
@@ -211,7 +211,8 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
     // QUALITY F4 is p95 < 300 ms. Writes are coalesced to one per 750 ms while the
     // shared token's write budget is 60/min (task-2c31de0cf6597d32), so the last
     // keystroke of a burst can wait one gap. Back to 300 when that lands.
-    if (t.name === 'studio') expect(ms, 'F4 edit seen in 2nd browser').toBeLessThan(networkBudget(1000))
+    // Local, one token for studio and rig: no budget (sharedLocalToken).
+    if (t.name === 'studio' && !sharedLocalToken()) expect(ms, 'F4 edit seen in 2nd browser').toBeLessThan(networkBudget(1000))
     console.log(`[J23 ${t.name}] A's edit seen in B after ${Math.round(ms)} ms`)
     await Promise.all([referenceHold(a, t.field(a, 'name'), 'Grace Hopper X'), referenceHold(b, bRef)])
     // The list's author subtitle must remain live after B closes its post pane;
@@ -347,11 +348,13 @@ test('J17: Incoming references from the document menu, any time: opens the refer
   // comes), and post-07 is pointed elsewhere (its row goes).
   post02Moved = true
   await t.patch('post-02', {author: t.ref('author-alan')})
-  // Ours: one read after the frame, and Barkpark's edges are right by then (#22591).
-  await expect(row('post-02', 'Fixture post 02')).toBeVisible({timeout: t.name === 'studio' ? 2_000 : 15_000})
+  // Ours: one read after the frame, and Barkpark's edges are right by then (#22591). Local,
+  // one token for studio and rig: no budget, only that it comes (sharedLocalToken).
+  const live = t.name === 'studio' && sharedLocalToken() ? 15_000 : undefined
+  await expect(row('post-02', 'Fixture post 02')).toBeVisible({timeout: live ?? (t.name === 'studio' ? 2_000 : 15_000)})
   await t.patch(ID, {author: t.ref('author-grace')})
   // At once, from the doc the frame brings: not when Barkpark's backlinks catch up.
-  await expect(row('post-07', 'Fixture post 07')).toHaveCount(0, {timeout: 3_000})
+  await expect(row('post-07', 'Fixture post 07')).toHaveCount(0, {timeout: live ?? 3_000})
   await expect(page.getByText('Incoming references', {exact: true}).first()).toBeVisible() // still the panel, not a strip
   // A row opens the referring doc in the next pane, at the field that refers.
   await row('post-01', 'Fixture post 01').click()
