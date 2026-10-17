@@ -40,6 +40,7 @@
   "forms.spec.ts": 3.3,
   "freeform-blocks.spec.ts": 0,
   "freeform-carets.spec.ts": 3.6,
+  "freeform-classic.spec.ts": 2,
   "freeform-conflict.spec.ts": 0,
   "freeform-find.spec.ts": 0,
   "freeform-images.spec.ts": 0,

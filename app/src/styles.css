@@ -3213,3 +3213,6 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
   /* Status dots keep their colours, as Sanity's do. */
   .dot, .ring, .who-dot, .update-dot, .pane-header .validation-btn::after, .history-list .badge { forced-color-adjust: none; }
 }
+/* D02, LiveView's Classic form of a Freeform type: under the read-only body, why it is read-only and the way to Freeform. */
+.classic-body-note { margin: 8px 0 0; font-size: 13px; line-height: 19px; color: var(--fg); }
+.btn-create.classic-body-open { margin-top: 8px; padding: 0 12px; }
