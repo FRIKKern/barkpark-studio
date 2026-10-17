@@ -83,6 +83,7 @@
   "long-title.spec.ts": 0,
   "media-library.spec.ts": 0,
   "media-refine.spec.ts": 1.6,
+  "narrow-touch.spec.ts": 2,
   "narrow.spec.ts": 0,
   "native-fields.spec.ts": 0,
   "navbar.spec.ts": 0,
