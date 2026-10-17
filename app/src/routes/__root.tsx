@@ -11,6 +11,7 @@ import {useAnnouncer} from '../lib/announce'
 import {THEME_BOOT} from '../lib/theme'
 import {EARLY_CLICKS, releaseEarlyClicks} from '../lib/hydrated'
 import {currentScopeQuery} from '../lib/scope-switch'
+import {serverNowQuery} from '../lib/now'
 import {LocaleProvider, localeQuery} from '../lib/i18n'
 import {useQuery} from '@tanstack/react-query'
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url'
@@ -19,8 +20,9 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
   // The navbar's workspace / dataset label, in the server render: fetched in the
   // browser it arrived late and pushed the buttons after it 209 px (a layout shift, J21 F2).
   // B01: the workspace's language too, so the server render is already in it.
+  // The server's render time too, for relative times that hydrate as rendered (lib/now.ts).
   // Nothing is returned: a fresh value on every navigation re-rendered the whole app (F2).
-  loader: async ({context}) => void (await Promise.all([context.queryClient.ensureQueryData(currentScopeQuery), context.queryClient.ensureQueryData(localeQuery)])),
+  loader: async ({context}) => void (await Promise.all([context.queryClient.ensureQueryData(currentScopeQuery), context.queryClient.ensureQueryData(localeQuery), context.queryClient.ensureQueryData(serverNowQuery)])),
   head: () => ({
     meta: [
       {charSet: 'utf-8'},

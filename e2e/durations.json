@@ -36,6 +36,7 @@
   "file-field.spec.ts": 0,
   "focus-mode.spec.ts": 1.3,
   "focus.spec.ts": 3,
+  "footer-hydration.spec.ts": 3,
   "form-refused.spec.ts": 10.3,
   "forms.spec.ts": 3.3,
   "freeform-blocks.spec.ts": 0,
