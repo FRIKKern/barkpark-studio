@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 16 changes, 8 tasks closed
-  - Phone document header scrolls away with the form, as Sanity's; the title and tabs stay ([#887](https://github.com/FRIKKern/barkpark-studio/pull/887))
-  - A paper's document menu has Open standalone, as LiveView's paper header ([#886](https://github.com/FRIKKern/barkpark-studio/pull/886))
+- **Today** · 17 changes, 9 tasks closed
+  - Document form where Sanity's is under the 52 px navbar; the footer's status 25 px, its avatar 3 px in ([#889](https://github.com/FRIKKern/barkpark-studio/pull/889))
+  - Done: [Build: Open standalone for a paper, from the document menu](https://github.com/FRIKKern/barkpark/issues/23652)
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
