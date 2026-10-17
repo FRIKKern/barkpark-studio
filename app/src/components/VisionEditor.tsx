@@ -28,7 +28,8 @@ const barkparkQuery = StreamLanguage.define<{part: 'type' | 'key' | 'value'}>({
   },
 })
 
-/** GROQ, coloured as Sanity's Vision colours it: strings, numbers, $params, functions and keywords, fields. */
+/** GROQ, coloured as Sanity's Vision colours it (measured at 1440, light and dark): fields, strings,
+ * constants (`*`, numbers, true, `,` and `:`), operators and `asc`/`desc`, functions, brackets, comments. */
 const groq = StreamLanguage.define<null>({
   startState: () => null,
   token(stream) {
@@ -39,23 +40,27 @@ const groq = StreamLanguage.define<null>({
     if (stream.match(/^\$[A-Za-z_]\w*/)) return 'variableName'
     if (stream.match(/^(true|false|null)\b/)) return 'bool'
     if (stream.match(/^(in|match|asc|desc)\b/)) return 'keyword'
-    if (stream.match(/^[A-Za-z_][\w:]*(?=\s*\()/)) return 'keyword'
+    if (stream.match(/^[A-Za-z_][\w:]*(?=\s*\()/)) return 'macroName'
     if (stream.match(/^[A-Za-z_@^]\w*/)) return 'propertyName'
-    if (stream.match(/^(->|==|!=|<=|>=|&&|\|\||\.\.\.|\.\.|[*|=<>!+\-/%])/)) return 'operator'
+    if (stream.eat('*')) return 'atom'
+    if (stream.match(/^(->|==|!=|<=|>=|&&|\|\||\.\.\.|\.\.|[|=<>!+\-/%])/)) return 'operator'
+    if (stream.match(/^[[\](){}]/)) return 'bracket'
     stream.next()
-    return 'punctuation'
+    return 'separator'
   },
 })
 const languageOf = (text: string) => (isQueryString(text) ? barkparkQuery : groq)
 
 const colours = HighlightStyle.define([
-  {tag: tags.typeName, color: 'var(--code-number)'},
-  {tag: [tags.propertyName], color: 'var(--code-key)'},
-  {tag: [tags.keyword], color: 'var(--code-number)'},
-  {tag: [tags.string], color: 'var(--code-string)'},
-  {tag: [tags.variableName], color: 'var(--code-key)', fontWeight: '600'},
-  {tag: [tags.number, tags.bool, tags.null], color: 'var(--code-number)'},
-  {tag: [tags.operator, tags.punctuation, tags.brace, tags.separator, tags.comment], color: 'var(--muted)'},
+  {tag: tags.typeName, color: 'var(--syntax-constant)'},
+  {tag: [tags.propertyName], color: 'var(--syntax-property)'},
+  {tag: [tags.keyword, tags.operator], color: 'var(--syntax-operator)'},
+  {tag: [tags.string], color: 'var(--syntax-string)'},
+  {tag: [tags.variableName], color: 'var(--syntax-property)', fontWeight: '600'},
+  {tag: [tags.number, tags.bool, tags.null, tags.atom, tags.separator], color: 'var(--syntax-constant)'},
+  {tag: tags.macroName, color: 'var(--syntax-function)'},
+  {tag: [tags.bracket, tags.punctuation, tags.brace], color: 'var(--syntax-bracket)'},
+  {tag: tags.comment, color: 'var(--syntax-comment)'},
 ])
 
 const theme = EditorView.theme({
