@@ -6,7 +6,7 @@ import {choicesFor, startNew, type Choice} from '../lib/templates'
 import {focusFirstField} from '../lib/focus'
 import {useFocusScope} from '../lib/focus-scope'
 import {useCanWrite} from '../lib/session'
-import {Add, Search} from './icons'
+import {Add, Close, Search} from './icons'
 import {toast} from './Toasts'
 import {collate, t as tBrowser, useT} from '../lib/i18n'
 
@@ -47,24 +47,35 @@ function TypePicker({choices, onPick, onClose}: {choices: Choice[]; onPick: (cho
   const tr = useT()
   const scope = useFocusScope<HTMLDivElement>({onDismiss: onClose})
   const [find, setFind] = useState('')
-  const [active, setActive] = useState(0)
+  // As Sanity's, nothing is lit until the arrow keys move (Enter then opens nothing by accident).
+  const [active, setActive] = useState(-1)
   const id = useId()
   const shown = choices.filter((t) => t.title.toLowerCase().includes(find.trim().toLowerCase()))
   const at = Math.min(active, shown.length - 1)
   return (
+    <>
+    {/* Under 600 px Sanity's picker is a dialog: a layer over the window, a title and a close. */}
+    <div className="new-doc-backdrop" onMouseDown={onClose} />
     <div ref={scope} className="popover new-doc-popover" onBlur={(e) => !e.currentTarget.parentElement?.contains(e.relatedTarget) && onClose()}>
+      <header className="new-doc-head">
+        <h2>{tr('Create new document')}</h2>
+        <button type="button" className="icon-btn" aria-label={tr('Close dialog')} onClick={onClose}>
+          <Close />
+        </button>
+      </header>
       <div className="command-find">
         <Search />
         <input
           autoFocus
+          data-autofocus
           role="combobox"
           aria-label={tr('Search document types')}
           placeholder={tr('Search document types')}
           aria-expanded={shown.length > 0}
           aria-controls={shown.length ? id : undefined}
-          aria-activedescendant={shown.length ? `${id}-${at}` : undefined}
+          aria-activedescendant={at >= 0 ? `${id}-${at}` : undefined}
           value={find}
-          onChange={(e) => (setFind(e.target.value), setActive(0))}
+          onChange={(e) => (setFind(e.target.value), setActive(-1))}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') (e.preventDefault(), setActive(Math.min(at + 1, shown.length - 1)))
             else if (e.key === 'ArrowUp') (e.preventDefault(), setActive(Math.max(at - 1, 0)))
@@ -86,5 +97,6 @@ function TypePicker({choices, onPick, onClose}: {choices: Choice[]; onPick: (cho
         </p>
       )}
     </div>
+    </>
   )
 }

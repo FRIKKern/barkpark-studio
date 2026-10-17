@@ -2735,8 +2735,17 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .popover.new-doc-popover { top: calc(100% + 4px); left: 50%; translate: -50%; width: 320px; max-width: calc(100vw - 32px); padding: 0; display: flex; flex-direction: column; max-height: 420px; font-weight: 400; z-index: 60; }
 .new-doc-popover .command-item { color: var(--fg); } /* Sanity's type picker rows keep the body text */
 .new-doc-popover .command-item[aria-selected='true'] { background: var(--bg-soft); } /* Sanity's row under the pointer: #f6f6f8, dark #191a24 */
+.new-doc-backdrop, .new-doc-head { display: none; }
+/* Under 600 px, Sanity's "Create new document" dialog (390 and 599 measured): 12 px from the window over its
+   layer, 9 px corners, the title and close 12 px down, the find box 32 px under them, 51 px rows in 15 px words. */
 @media (max-width: 599px) {
-  .popover.new-doc-popover { position: fixed; top: calc(var(--nav-h) + 4px); left: 16px; right: 16px; width: auto; translate: none; }
+  .new-doc-backdrop { display: block; position: fixed; inset: 0; z-index: 59; background: var(--backdrop); }
+  .popover.new-doc-popover { position: fixed; top: 12px; left: 12px; right: 12px; width: auto; max-width: none; max-height: calc(100dvh - 24px); translate: none; padding: 0 20px 16px; border-radius: 9px; box-shadow: var(--popover-shadow); }
+  .new-doc-head { display: flex; flex: none; align-items: center; justify-content: space-between; height: 25px; margin: 12px -8px 32px 0; }
+  .new-doc-head h2 { margin: 0; font-size: 13px; line-height: 19px; font-weight: 600; color: var(--fg); }
+  .new-doc-popover .command-find { flex: none; padding: 8px 8px 8px 13px; border-bottom-color: var(--border); }
+  .new-doc-popover .command-list { padding: 8px; }
+  .new-doc-popover .command-item { min-height: 51px; padding: 0 20px; font-size: 15px; }
 }
 
 /* J42/F12: on a touch-size screen every control in a doc pane is a 44 px tap. The
