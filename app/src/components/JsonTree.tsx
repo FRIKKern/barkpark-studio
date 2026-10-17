@@ -1,5 +1,6 @@
 import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from 'react'
 import {useT} from '../lib/i18n'
+import {LinkIcon} from './icons'
 
 /**
  * Sanity Vision's result view: a JSON tree whose objects and arrays fold, each saying
@@ -23,6 +24,12 @@ function Node({name, value, depth, open}: {name?: string; value: unknown; depth:
       <li role="treeitem" className="json-leaf">
         {label}
         <span className={`json-${value === null ? 'null' : typeof value}`}>{typeof value === 'string' ? value : String(value)}</span>
+        {/* Sanity's: a document id links to it (its edit intent). */}
+        {name === '_id' && typeof value === 'string' && (
+          <a className="json-id-link" href={`/intent/edit/id=${encodeURIComponent(value)}/`} aria-label={t('Open {id}', {id: value})}>
+            <LinkIcon />
+          </a>
+        )}
       </li>
     )
   const array = Array.isArray(value)
@@ -33,7 +40,8 @@ function Node({name, value, depth, open}: {name?: string; value: unknown; depth:
   return (
     <li role="treeitem" aria-expanded={entries.length ? expanded : undefined}>
       <button type="button" className="json-toggle" disabled={!entries.length} onClick={() => setExpanded((x) => !x)}>
-        <span className="json-arrow" aria-hidden>{entries.length ? (expanded ? '▾' : '▸') : ''}</span>
+        {/* Sanity's result has no arrow at its root; the others sit in the indent, left of the key. */}
+        {depth > 0 && <span className="json-arrow" aria-hidden>{entries.length ? (expanded ? '▾' : '▸') : ''}</span>}
         {label}
         <span className="json-brace">{array ? (entries.length ? '[…]' : '[]') : entries.length ? '{…}' : '{}'}</span> <span className="json-count">{count}</span>
       </button>
