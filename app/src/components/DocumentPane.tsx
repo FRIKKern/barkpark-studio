@@ -512,6 +512,21 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     root.addEventListener('beforeinput', onBeforeInput, true)
     return () => root.removeEventListener('beforeinput', onBeforeInput, true)
   }, [qc, pane.id])
+  // Sanity's phone document: its header (the chips and buttons) scrolls away with the form while
+  // the title and tabs stay. Under 600 px the form's scroll lifts the header out of view (all but
+  // 1 px: Sanity's title stops 15 px under the navbar).
+  useEffect(() => {
+    const root = paneRoot.current
+    const scroller = body.current
+    if (!root || !scroller) return
+    const phone = matchMedia('(max-width: 599px)')
+    const header = root.querySelector<HTMLElement>(':scope > .pane-header')
+    const sync = () => root.style.setProperty('--header-lift', `${phone.matches && header ? Math.min(scroller.scrollTop, header.offsetHeight - 1) : 0}px`)
+    scroller.addEventListener('scroll', sync, {passive: true})
+    phone.addEventListener('change', sync)
+    sync()
+    return () => (scroller.removeEventListener('scroll', sync), phone.removeEventListener('change', sync))
+  }, [])
   // J66: the last pane's document is the Tasks sidebar's "Active Document".
   useEffect(() => {
     if (!isLast) return
