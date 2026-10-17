@@ -81,6 +81,60 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
   await expect(page.getByRole('region', {name: 'Result'})).toContainText('documents')
 })
 
+// Saved before the saved queries came in (task-43e67c21db51a69f): the save wrote a list of
+// only the new query, and the editor's others were gone on the server.
+test('@local J37: a query saved before the saved list loads keeps the others', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: saved queries in Barkpark prefs')
+  await t.prepare(context)
+  const marker = `j37-early-${Date.now().toString(36)}`
+  const query = page.getByLabel('Query', {exact: true})
+  const saved = page.getByRole('complementary', {name: 'Saved queries'})
+  const rows = saved.getByRole('listitem').filter({hasText: marker})
+  const ready = async () => {
+    await expect(page.getByRole('combobox', {name: 'Dataset', exact: true})).toBeEnabled()
+    await expect(page.locator('.cm-content[aria-label="Query"]')).toBeVisible()
+  }
+  // A save is stored once its POST to the prefs server function is answered.
+  const save = async () => {
+    const stored = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('_serverFn'))
+    await saved.getByRole('button', {name: 'Save query'}).click()
+    await stored
+  }
+  await page.goto('/vision')
+  await signInIfAsked(page)
+  await ready()
+  await query.fill(`post?filter[title][contains]=${marker}-a`)
+  await save()
+  try {
+    // The saved list's first read held back: the second save goes before it lands.
+    let release!: () => void
+    const held = new Promise<void>((r) => (release = r))
+    let first = true
+    await page.route('**/_serverFn/**', async (route) => {
+      if (first && route.request().method() === 'GET' && route.request().url().includes('vision-queries')) (first = false), await held
+      return route.continue()
+    })
+    await page.reload()
+    await ready()
+    await query.fill(`post?filter[title][contains]=${marker}-b`)
+    await save()
+    release()
+    await page.unrouteAll({behavior: 'wait'})
+    await page.reload()
+    await ready()
+    await expect(rows).toHaveCount(2)
+  } finally {
+    await page.unrouteAll({behavior: 'ignoreErrors'})
+    if (!page.url().includes('/vision')) await page.goto('/vision')
+    for (let n = await rows.count(); n > 0; n--) {
+      await rows.first().getByRole('button', {name: 'Query actions'}).click()
+      await page.getByRole('menuitem', {name: 'Delete'}).click()
+      await expect(rows).toHaveCount(n - 1)
+    }
+  }
+})
+
 // Listen: the query's changes as they happen (Barkpark's listen stream, narrowed by the
 // query's type and equality filter), newest first, until Stop.
 test('@local J37: Vision listens to a query and shows its changes', async ({page, context}, info) => {
