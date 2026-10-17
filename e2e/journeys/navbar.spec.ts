@@ -131,6 +131,12 @@ test('@local J46: phone width — tools in a drawer, search an icon, 44 px targe
   await drawer.getByRole('link', {name: 'Vision'}).click()
   await expect(page).toHaveURL(/\/vision$/)
   await expect(drawer).toBeHidden()
+  // Under 600 px "+" is Sanity's "Create new document" dialog, its find box focused.
+  await page.getByRole('button', {name: 'Create new document'}).click()
+  await expect(page.getByRole('heading', {name: 'Create new document'})).toBeVisible()
+  await expect(page.getByRole('combobox', {name: 'Search document types'})).toBeFocused()
+  await page.getByRole('button', {name: 'Close dialog'}).click()
+  await expect(page.getByRole('heading', {name: 'Create new document'})).toBeHidden()
   await context.close()
 })
 
