@@ -186,16 +186,16 @@ async function send(base: string, path: string, init: RequestInit, token: string
     // A slow answer goes in the server's log (CI keeps it as preview.log): J37's share once
     // took over 5 s on CI with no 429 logged, and nothing said where the time went.
     const took = Date.now() - started
-    if (took > SLOW_MS && headers.get('accept') !== 'text/event-stream') console.warn(`[barkpark] slow ${(init.method ?? 'GET').toUpperCase()} ${path.split('?')[0]}: ${took} ms → ${res?.status ?? 'failed'}`)
+    if (took > SLOW_MS && headers.get('accept') !== 'text/event-stream') console.warn(`${new Date().toISOString()} [barkpark] slow ${(init.method ?? 'GET').toUpperCase()} ${path.split('?')[0]}: ${took} ms → ${res?.status ?? 'failed'}`)
     if (!res || (read && Date.now() - blipStart < BLIP_BUDGET_MS && [502, 503, 504].includes(res.status))) {
-      if (!blips) console.warn(`[barkpark] ${res?.status ?? 'failed'} on GET ${path.split('?')[0]}, asking again`)
+      if (!blips) console.warn(`${new Date().toISOString()} [barkpark] ${res?.status ?? 'failed'} on GET ${path.split('?')[0]}, asking again`)
       await new Promise((r) => setTimeout(r, Math.min(300 * 2 ** blips++, 1_500)))
       continue
     }
     if (res.status === 429 && !read) limitedAt.set(token.slice(-12), Date.now())
     if (res.status !== 429 || !retry || attempt === 3 || headers.get('accept') === 'text/event-stream') return res
     const wait = Math.min(Number(res.headers.get('retry-after')) || 1, 5)
-    console.warn(`[barkpark] 429 on ${path}, retrying in ${wait}s`)
+    console.warn(`${new Date().toISOString()} [barkpark] 429 on ${path}, retrying in ${wait}s`)
     await new Promise((r) => setTimeout(r, wait * 1000 + Math.random() * 250))
   }
 }
