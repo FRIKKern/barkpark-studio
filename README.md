@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 61 changes, 11 tasks closed
+- **Today** · 62 changes, 11 tasks closed
+  - Long lists draw only the rows near the view, as Sanity's do ([#931](https://github.com/FRIKKern/barkpark-studio/pull/931))
   - Releases: time zone dialog as Sanity's, its size, field and buttons ([#934](https://github.com/FRIKKern/barkpark-studio/pull/934))
-  - e2e: J37 types into Vision's code editor, and checks the query before Save ([#933](https://github.com/FRIKKern/barkpark-studio/pull/933))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
