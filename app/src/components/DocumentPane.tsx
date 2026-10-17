@@ -33,6 +33,7 @@ import {DocHeaderMenu, DocShareMenu, Keys, openPreview, useAltName} from './DocH
 import {InspectDialog, storedValue} from './InspectDialog'
 import {CompareVersions, useCompareVersions} from './CompareVersions'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
+import {useNow} from '../lib/now'
 import {CommentsContext, CommentsPanel} from './Comments'
 import {commentsQuery, threadsOf} from '../lib/comments'
 import {historyQuery, revisionQuery} from '../lib/history'
@@ -1092,9 +1093,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
     if (askDelete && !single && canDelete) setDeleting(true)
   }, [askDelete])
   // J04: Sanity says "Saved" for about 3 s after a save, then "Edited N ago" (a
-  // draft opened later says "Edited" at once). The 30 s tick keeps "ago" current.
+  // draft opened later says "Edited" at once). The clock's 30 s tick keeps "ago" current,
+  // and the hydrating render reads the server's time (lib/now.ts).
   const [justSaved, setJustSaved] = useState(false)
-  const [, tick] = useState(0)
+  const now = useNow()
   const was = useRef(state)
   useEffect(() => {
     const before = was.current
@@ -1104,10 +1106,6 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
     const timer = setTimeout(() => setJustSaved(false), 3000)
     return () => clearTimeout(timer)
   }, [state])
-  useEffect(() => {
-    const timer = setInterval(() => tick((n) => n + 1), 30_000)
-    return () => clearInterval(timer)
-  }, [])
   const saved = state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !!doc._draft && (justSaved || !doc._updatedAt)
   // "Last published …" / "Edited …": Sanity puts who did it beside the words.
   const wantsActor = state !== 'refused' && !(state in STATE_LABELS) && !isPristine(doc, state) && !saved
@@ -1121,10 +1119,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
         : isPristine(doc, state)
           ? ''
           : !doc._draft
-            ? t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})
+            ? t('Last published {ago}', {ago: ago(doc._updatedAt, locale, now)})
             : saved
               ? t('Saved')
-              : t('Edited {ago}', {ago: ago(doc._updatedAt, locale)})
+              : t('Edited {ago}', {ago: ago(doc._updatedAt, locale, now)})
   return (
     <footer className="doc-footer">
       {/* Sanity's status bar: the status and the badges wrap as one group (a narrow pane puts the
@@ -1132,8 +1130,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       <div className="doc-footer-status">
         {/* Sanity's status is a button: it opens History on Review changes (the keyboard reaches it too). */}
         <button type="button" className="save-state-btn" aria-label={label || undefined} onClick={onReview} disabled={!label}>
-          {/* "N sec. ago" differs between the server render and hydration: not an error. */}
-          <span className="save-state" data-state={state} title={error} role="status" suppressHydrationWarning>
+          <span className="save-state" data-state={state} title={error} role="status">
             {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
             {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : <FooterActor actor={actor} pending={actorPending} />}
             <span className="save-state-text">{label}</span>
@@ -1351,14 +1348,15 @@ const FooterActor = ({actor, pending}: {actor?: string; pending: boolean}) => (a
 function GoneFooter({type, id}: {type: string; id: string}) {
   const t = useT()
   const locale = useLocale()
+  const now = useNow()
   const {data: revisions} = useQuery(historyQuery(type, id))
   const removal = revisions?.[0]?.action === 'delete' ? revisions[0] : undefined
   return (
     <footer className="doc-footer">
       <div className="doc-footer-status">
-        <span className="save-state" role="status" suppressHydrationWarning>
+        <span className="save-state" role="status">
           <FooterActor actor={removal?.actor} pending={!revisions} />
-          <span className="save-state-text">{removal && t('Deleted {ago}', {ago: ago(removal.timestamp, locale)})}</span>
+          <span className="save-state-text">{removal && t('Deleted {ago}', {ago: ago(removal.timestamp, locale, now)})}</span>
         </span>
       </div>
       <button type="button" className="publish" disabled>
@@ -1372,6 +1370,7 @@ function GoneFooter({type, id}: {type: string; id: string}) {
 function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const t = useT()
   const locale = useLocale()
+  const now = useNow()
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const {canPublish, unpublishReason} = useCanWrite()
@@ -1388,9 +1387,9 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   return (
     <footer className="doc-footer">
       <div className="doc-footer-status">
-        <span className="save-state" role="status" suppressHydrationWarning>
+        <span className="save-state" role="status">
           <FooterActor actor={none ? gone?.actor : actor} pending={actorPending} />
-          <span className="save-state-text">{none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale)})}</span>
+          <span className="save-state-text">{none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale, now)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale, now)})}</span>
         </span>
         <DocBadges doc={doc} />
       </div>
