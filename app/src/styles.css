@@ -1856,6 +1856,17 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .body-canvas .bp-canvas-image-more { color: var(--fg-header); }
 .body-canvas .bp-canvas-image-more:hover, .body-canvas .bp-canvas-image-more[aria-expanded='true'] { background: var(--icon-btn-hover); color: var(--fg-header); }
 .body-canvas .ProseMirror-selectednode .bp-canvas-image-more { color: var(--card-selected-icon); }
+/* A declared object block (the callout) is the same card (canvas 1.12.0): a 33 px tile ringed
+   in the text colour at 10 % (measured: #e9e9eb on white), the preview title in 13/19 px. */
+.body-canvas bp-paper-canvas[block-cards] .bp-canvas-object-row:has(> .bp-canvas-object-more) { margin-top: 18px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); }
+.body-canvas bp-paper-canvas[block-cards] .bp-canvas-object-row:has(> .bp-canvas-object-more):hover { box-shadow: 0 0 0 1px var(--tool-disabled); }
+.body-canvas bp-paper-canvas[block-cards] .ProseMirror-selectednode.bp-canvas-object-row:has(> .bp-canvas-object-more) { background: var(--tone-info-bg); box-shadow: 0 0 0 1px var(--card-selected-ring); }
+.body-canvas bp-paper-canvas[block-cards] .bp-canvas-object-media { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 10%, transparent); color: var(--fg); }
+.body-canvas bp-paper-canvas[block-cards] :is(.bp-canvas-object-title, .bp-canvas-object-preview) { font-family: 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; color: var(--fg); }
+.body-canvas bp-paper-canvas[block-cards] .ProseMirror-selectednode :is(.bp-canvas-object-title, .bp-canvas-object-preview) { color: var(--tone-info-fg); }
+.body-canvas .bp-canvas-object-more { color: var(--fg-header); }
+.body-canvas .bp-canvas-object-more:hover, .body-canvas .bp-canvas-object-more[aria-expanded='true'] { background: var(--icon-btn-hover); color: var(--fg-header); }
+.body-canvas .ProseMirror-selectednode .bp-canvas-object-more { color: var(--card-selected-icon); }
 /* The body before it wakes (PortableDocView) draws the same card, so nothing moves when it does. */
 .pd-image { margin: 18px 0 0; border-radius: 1px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); }
 .pd-image:hover { box-shadow: 0 0 0 1px var(--tool-disabled); }
@@ -1864,16 +1875,21 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .pd-image-more { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; margin-top: -3px; color: var(--fg-header); }
 .pd-image-more svg { width: 21px; height: 21px; }
 .pd-image img { display: block; width: 100%; height: auto; }
+.pd-object { display: flex; align-items: center; gap: 4px; margin: 18px 0 0; padding: 4px; border-radius: 1px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); }
+.pd-object:hover { box-shadow: 0 0 0 1px var(--tool-disabled); }
+.pd-object-media { display: flex; flex: none; width: 33px; height: 33px; align-items: center; justify-content: center; border-radius: 1px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 10%, transparent); color: var(--fg); }
+.pd-object-title { flex: 1; min-width: 0; margin-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 13px/19px 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; color: var(--fg); }
+.pd-object .pd-image-more { margin-top: 0; height: 33px; }
 /* Its menu (in <body>), as Sanity's menus: 33 px items 4 px apart, icons in the muted grey. */
-body > .bp-canvas-image-menu { display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: var(--popover-shadow); }
-body > .bp-canvas-image-menu .bp-block-menu__item { padding: 6px 12px 6px 6px; border-radius: 3px; font: 500 13px/19px 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; color: var(--menu-fg); }
-body > .bp-canvas-image-menu .bp-block-menu__item svg { color: var(--icon-muted); }
-body > .bp-canvas-image-menu .bp-block-menu__item--danger { color: var(--menu-danger); }
-body > .bp-canvas-image-menu .bp-block-menu__item--danger svg { color: var(--menu-danger-icon); }
-:is(body > .bp-canvas-image-menu:hover .bp-block-menu__item:hover, body > .bp-canvas-image-menu:not(:hover) .bp-block-menu__item:focus-visible) { background: var(--selected); color: var(--menu-hover-fg); }
-:is(body > .bp-canvas-image-menu:hover .bp-block-menu__item:hover, body > .bp-canvas-image-menu:not(:hover) .bp-block-menu__item:focus-visible) svg { color: var(--primary-btn-icon); }
-:is(body > .bp-canvas-image-menu:hover .bp-block-menu__item--danger:hover, body > .bp-canvas-image-menu:not(:hover) .bp-block-menu__item--danger:focus-visible) { background: var(--menu-danger-hover); }
-:is(body > .bp-canvas-image-menu:hover .bp-block-menu__item--danger:hover, body > .bp-canvas-image-menu:not(:hover) .bp-block-menu__item--danger:focus-visible) svg { color: var(--menu-danger-hover-icon); }
+body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu) { display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: var(--popover-shadow); }
+body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu) .bp-block-menu__item { padding: 6px 12px 6px 6px; border-radius: 3px; font: 500 13px/19px 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; color: var(--menu-fg); }
+body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu) .bp-block-menu__item svg { color: var(--icon-muted); }
+body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu) .bp-block-menu__item--danger { color: var(--menu-danger); }
+body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu) .bp-block-menu__item--danger svg { color: var(--menu-danger-icon); }
+:is(body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):hover .bp-block-menu__item:hover, body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):not(:hover) .bp-block-menu__item:focus-visible) { background: var(--selected); color: var(--menu-hover-fg); }
+:is(body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):hover .bp-block-menu__item:hover, body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):not(:hover) .bp-block-menu__item:focus-visible) svg { color: var(--primary-btn-icon); }
+:is(body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):hover .bp-block-menu__item--danger:hover, body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):not(:hover) .bp-block-menu__item--danger:focus-visible) { background: var(--menu-danger-hover); }
+:is(body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):hover .bp-block-menu__item--danger:hover, body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):not(:hover) .bp-block-menu__item--danger:focus-visible) svg { color: var(--menu-danger-hover-icon); }
 .body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 23px; padding: 12px 13px 20px; min-height: 120px; } /* 12 px inside the 1 px ring, as Sanity's */
 /* The canvas's paper type (0.005em tracking, old-style figures) rewraps lines on click; Sanity's input has neither. */
 .body-canvas .bp-paper-editor-body, .body-canvas .bp-paper-editor-body * { letter-spacing: normal; font-feature-settings: normal; text-rendering: optimizeLegibility; font-variant-ligatures: none; }

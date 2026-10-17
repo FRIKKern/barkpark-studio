@@ -1,7 +1,8 @@
 import type {ReactNode} from 'react'
 import {useT} from '../lib/i18n'
 import {imageFileName} from '../lib/image'
-import {Ellipsis} from './icons'
+import {DocumentIcon, Ellipsis} from './icons'
+import {objectBlockTitle, type ObjectKind} from '../lib/object-block'
 
 // A PortableDoc block list drawn read-only (J10): the body field before its canvas
 // is activated, and anywhere a body is only shown. Covers what the post vocabulary
@@ -36,12 +37,28 @@ function inline(nodes: Inline[] = [], key = '', linksOpen = false): ReactNode[] 
   })
 }
 
-export function PortableDocView({blocks, linksOpen = false}: {blocks: Block[]; linksOpen?: boolean}) {
+/** `objects`: the body field's declared object kinds (`blocks.of`): those draw as the canvas's card. */
+export function PortableDocView({blocks, linksOpen = false, objects = []}: {blocks: Block[]; linksOpen?: boolean; objects?: ObjectKind[]}) {
   const t = useT()
   return (
     <>
       {blocks.map((b) => {
         const body = b.content ? inline(b.content, '', linksOpen) : b.text
+        // A declared object block (the callout) is Sanity's block object card, as the canvas
+        // draws it (1.12.0): a tile with its icon, its preview title, a "…".
+        const kind = objects.find((k) => k.name === b.type)
+        if (kind)
+          return (
+            <div key={b.id} className="pd-object" data-bp-id={b.id} data-object-type={b.type}>
+              <span className="pd-object-media" aria-hidden="true">
+                <DocumentIcon />
+              </span>
+              <span className="pd-object-title">{objectBlockTitle(kind, b as unknown as Record<string, unknown>, (v) => t(v ? 'Yes' : 'No'))}</span>
+              <span className="pd-image-more" aria-hidden="true">
+                <Ellipsis />
+              </span>
+            </div>
+          )
         switch (b.type) {
           case 'heading': {
             const H = `h${Math.min(6, Math.max(1, b.level ?? 2))}` as 'h2'
