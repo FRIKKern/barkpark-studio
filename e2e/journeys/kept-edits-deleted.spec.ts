@@ -91,7 +91,7 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
 // The same for the body (task-89b5c425ca8b4506): its canvas goes with the deleted form, and
 // the words it had not saved went with it. Now they are kept (D21), the banner says so, and
 // after Restore the body offers them back.
-test('@local body words typed as the doc is deleted are offered back after Restore', async ({page}, info) => {
+test('body words typed as the doc is deleted are offered back after Restore', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours only: Sanity loses them')
   await t.prepare(page.context())
