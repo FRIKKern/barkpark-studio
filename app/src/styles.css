@@ -912,9 +912,23 @@ a.menu-item { display: block; text-decoration: none; }
   .filter-trash { display: inline-flex; margin-left: auto; color: var(--danger-text); }
   .filter-chip > .icon-btn { display: none; }
   .filter-chip-label { padding-right: 8px; }
+  /* Sanity's (390 with a mouse): 33 px buttons and a 35 px field 8 px in, its words 15 px after a 25 px icon;
+     All types and Add filter on rows of their own, 33 px tall and 8 px apart. */
+  .search-bar { gap: 8px; padding: 8px; }
+  .search-bar > .icon-btn { width: 33px; height: 33px; justify-content: center; }
+  .search-bar > svg { width: 25px; height: 25px; margin: 0 -3px 0 5px; }
+  .search-bar input { height: 35px; padding: 0; font-size: 15px; }
+  .search-filter-row { flex: none; flex-flow: column nowrap; align-items: flex-start; padding: 8px; }
+  .search-filter-row .chip-btn { height: 33px; gap: 6px; padding: 0 6px 0 12px; }
+  .search-filter-row .chip-btn.plain { padding: 0 12px 0 6px; }
+  /* Its menus' find field too: 15 px words after a 25 px icon, 35 px tall. */
+  .command-find { gap: 3px; padding-left: 9px; }
+  .command-find svg { width: 25px; height: 25px; }
+  .command-find input { height: 35px; font-size: 15px; }
 }
 @media (max-width: 768px) {
-  .popover.command, .popover.filter-editor { width: min(300px, calc(100vw - 48px)); }
+  .popover.command { max-width: calc(100vw - 48px); } /* each its own width (types 250, filters 300), as Sanity's at 390 */
+  .popover.filter-editor { width: min(300px, calc(100vw - 48px)); }
 }
 /* 44 px taps on a touch screen; a narrow desktop window keeps Sanity's 25 px. */
 @media (max-width: 768px) and (pointer: coarse) {
