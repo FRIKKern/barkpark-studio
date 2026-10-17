@@ -190,6 +190,7 @@ test('@local a kept edit on a field the schema then drops or retypes is neither 
   const putSchema = async (schema: unknown) => {
     const r = await fetch(`${base}/v1/schemas/${process.env.BARKPARK_DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${admin}`, 'content-type': 'application/json'}, body: JSON.stringify(schema)})
     expect(r.ok, `schema write ${r.status}`).toBe(true)
+    await new Promise((done) => setTimeout(done, 5_000)) // the studio shares schema reads for 5 s (SETTLED_MS)
   }
   await t.prepare(context)
   try {
