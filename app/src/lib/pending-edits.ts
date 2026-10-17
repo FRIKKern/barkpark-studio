@@ -148,5 +148,6 @@ export function restoreValue(p: Pending, field: string, mine: unknown, doc: Doc)
   const base = new Map(p.base).get(field)
   const theirs = getPath(doc, field)
   // Restore asked for mine: when it cannot merge, mine stands whole.
-  return typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string' ? (merge3(base, mine, theirs) ?? mine) : mine
+  // Kept edits may have reached Barkpark (the unload beacon): may have landed.
+  return typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string' ? (merge3(base, mine, theirs, true) ?? mine) : mine
 }
