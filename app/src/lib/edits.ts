@@ -10,7 +10,7 @@ import {t} from './i18n'
 import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
 import {plainReason} from './plain-reason'
-import {merge3, mergeList3, onto, revert} from './merge'
+import {merge3, mergeList3, onto, revertSteps} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
@@ -457,7 +457,7 @@ export function undo(qc: QueryClient, id: string, back = true): string | undefin
   if (!e || !doc || !change) return
   const steps = back ? [...change.steps].reverse().map((x) => [x.after, x.before] as const) : change.steps.map((x) => [x.before, x.after] as const)
   const was = getPath(doc, change.field)
-  const now = steps.reduce((v, [from, to]) => revert(from, to, v), was)
+  const now = revertSteps(steps, was)
   // Someone else changed it since and none of it is still ours: theirs stays, and the step is gone.
   if (same(now, was)) return
   edit(qc, doc, change.field, now, false)
