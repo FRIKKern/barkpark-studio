@@ -60,6 +60,7 @@ export default {
   'Preview': 'Forhåndsvisning',
   // J68, Sanity's nb pack.
   'Compare versions': 'Sammenlign versjoner',
+  'If you delete this document, documents that refer to it will no longer be able to access it.': 'Hvis du sletter dette dokumentet, vil dokumentene som refererer til det ikke lenger få tilgang til det.',
   'Inline changes': 'Endringer i teksten',
   'There are no other versions of this document to compare.': 'Det er ingen andre versjoner av dette dokumentet å sammenligne med.',
   'Close validation': 'Lukk validering',

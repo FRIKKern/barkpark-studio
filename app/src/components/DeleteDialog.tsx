@@ -3,7 +3,7 @@ import {DialogBox} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {backlinksQuery, previewTitle, schemaOf, schemasQuery, type Backlink, type Doc} from '../lib/data'
 import {deleteDoc} from '../lib/edits'
-import {Close, DocumentIcon} from './icons'
+import {Close, DocumentIcon, WarningOutline} from './icons'
 import {DocPreview} from './Preview'
 import {useScopedHref, usePaneNavigate} from './PaneLink'
 import {useT} from '../lib/i18n'
@@ -72,12 +72,16 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
             </div>
           )}
           {used > 0 && (
-            <section aria-label={t('Used in')}>
-              <p className="warning" role="status">
+            // Sanity's: a rule, its caution card, the referring documents and what deleting does to them.
+            <section className="delete-used" aria-label={t('Used in')}>
+              <hr />
+              <p className="caution-card" role="status">
+                <WarningOutline />
                 {used === 1 ? t('1 document refers to “{title}”', {title}) : t('{n} documents refer to “{title}”', {n: used, title})}
               </p>
               <p>{t('You may not be able to delete “{title}” because the following documents refer to it:', {title})}</p>
               <UsedInList refs={refs!} />
+              <p>{t('If you delete this document, documents that refer to it will no longer be able to access it.')}</p>
             </section>
           )}
           {error && (
@@ -128,7 +132,7 @@ export function UsedInList({refs, field}: {refs: Backlink[]; field?: boolean}) {
   const {data: schemas = []} = useQuery(schemasQuery)
   const scoped = useScopedHref()
   return (
-    <ul className="used-in">
+    <ul className={field ? 'used-in' : 'used-in compact'}>
       {refs.map((r) => (
         <li key={`${r.type}:${r.from_doc_id}:${r.via_field}`}>
           <a className="preview" href={scoped(`/structure/${r.type};${encodeURIComponent(r.from_doc_id)}`)} target="_blank" rel="noreferrer" title={t('Open in a new tab ({type})', {type: schemaOf(schemas, r.type)?.title ?? r.type})}>
