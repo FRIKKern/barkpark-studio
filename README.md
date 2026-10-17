@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 66 changes, 11 tasks closed
+- **Today** · 67 changes, 11 tasks closed
+  - e2e: refs.spec skips its live-edit budgets locally when studio and rig share a token ([#939](https://github.com/FRIKKern/barkpark-studio/pull/939))
   - Releases: empty Scheduled drafts as Sanity's, illustration and greyed-out calendar ([#932](https://github.com/FRIKKern/barkpark-studio/pull/932))
-  - fix(vision): a saved query goes onto the server's list, not the one on screen ([#938](https://github.com/FRIKKern/barkpark-studio/pull/938))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
