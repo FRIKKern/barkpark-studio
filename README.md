@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 42 changes, 11 tasks closed
+- **Today** · 43 changes, 11 tasks closed
+  - Signed out in another tab mid-word: the sign-in form doesn't take the rest ([#917](https://github.com/FRIKKern/barkpark-studio/pull/917))
   - fix(vision): a kept query runs again when Vision opens, as Sanity's ([#912](https://github.com/FRIKKern/barkpark-studio/pull/912))
-  - Presence: your other tab shows on the field, the header and the row, as Sanity's ([#916](https://github.com/FRIKKern/barkpark-studio/pull/916))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
