@@ -1,4 +1,4 @@
-import {createContext, memo, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
+import {createContext, memo, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
@@ -57,8 +57,25 @@ export const EditPathContext = createContext<((path: string, value: unknown) => 
  */
 export const ChangesContext = createContext<{changed: Set<string>; review: () => void; inline?: boolean; published?: Record<string, unknown> | null} | null>(null)
 /** The doc being edited, for inputs that read a sibling field (slug's source,
- *  conditional fields). It changes on every keystroke, so only those read it. */
-export const DocContext = createContext<Doc | null>(null)
+ *  conditional fields). The doc changes on every keystroke; the context holds a store that
+ *  doesn't, so a keystroke no longer has React walk the whole form for the two readers (a
+ *  200-field, 200-row form: ~5 ms a key at 4x CPU). Read it with useDocSelect. */
+type DocStore = {doc: Doc | null; subs: Set<() => void>}
+const DocContext = createContext<DocStore>({doc: null, subs: new Set()})
+export function DocProvider({doc, children}: {doc: Doc | null; children: ReactNode}) {
+  const [store] = useState<DocStore>(() => ({doc, subs: new Set()}))
+  // Set while rendering, so a reader rendering in this pass sees it; the readers that don't
+  // render (memo) hear it once committed.
+  store.doc = doc
+  useLayoutEffect(() => store.subs.forEach((f) => f()), [store, doc])
+  return <DocContext.Provider value={store}>{children}</DocContext.Provider>
+}
+/** What `select` picks from the doc being edited; re-renders only when that changes (compared with Object.is). */
+export function useDocSelect<T>(select: (doc: Doc | null) => T): T {
+  const store = useContext(DocContext)
+  const subscribe = useCallback((f: () => void) => (store.subs.add(f), () => void store.subs.delete(f)), [store])
+  return useSyncExternalStore(subscribe, () => select(store.doc))
+}
 /** The object or array item the fields inside it belong to (a condition's `scope: "parent"`). */
 export const ParentContext = createContext<Record<string, unknown> | undefined>(undefined)
 import {DocIdContext, DocTypeContext} from './doc-ids'
@@ -106,12 +123,12 @@ export const FieldView = memo(function FieldView(props: FieldProps) {
 })
 
 function ConditionalField(props: FieldProps) {
-  const doc = useContext(DocContext)
   const parent = useContext(ParentContext)
-  const hidden = !!doc && isHidden(props.field, doc, parent)
+  const hidden = useDocSelect((doc) => !!doc && isHidden(props.field, doc, parent))
+  const readOnly = useDocSelect((doc) => (doc ? isReadOnly(props.field, doc, parent) : false))
   useSteadyFocus(hidden)
   if (hidden) return null
-  return <FieldBody {...props} readOnly={props.readOnly || (doc ? isReadOnly(props.field, doc, parent) : false)} />
+  return <FieldBody {...props} readOnly={props.readOnly || readOnly} />
 }
 
 /**
@@ -559,8 +576,7 @@ function keepPaneStill(e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElem
 // `maxLength`: Sanity's slug option, cutting a generated slug (its default is 200).
 function SlugInput({id, value, onChange, source, maxLength = 200, readOnly}: {id: string; value: string; onChange: (v: unknown) => void; source?: string; maxLength?: number; readOnly?: boolean}) {
   const t = useT()
-  const doc = useContext(DocContext)
-  const from = source && doc ? doc[source] : undefined
+  const from = useDocSelect((doc) => (source && doc ? doc[source] : undefined))
   const [, force] = useState(0)
   return (
     <div className="slug-row">
