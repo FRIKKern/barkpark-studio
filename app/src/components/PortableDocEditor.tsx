@@ -399,6 +399,11 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         // A field's image is a card, as Sanity's block object: its file name and a "…" with Edit
         // and Remove (Barkpark canvas 1.11.0; an older canvas ignores it).
         if (field) el.setAttribute('block-cards', '')
+        // A Freeform document's bound field blocks show their n/max badge and an unbind ×, as
+        // LiveView Beta's Properties row (Barkpark canvas 1.13.0; D01 keeps them Classic inputs).
+        const layout = field ? undefined : schemaOf(qc.getQueryData<Schema[]>(['schemas']) ?? [], type)?.layout
+        const caps = (layout ?? []).filter((l) => l.kind === 'field').map((l) => [l.name, l.max ?? null] as const)
+        if (caps.length) el.setAttribute('data-field-caps', JSON.stringify(Object.fromEntries(caps)))
         el.setRemoteSelections(remoteRef.current)
         // D11: our caret goes out with our presence focus (lib/presence.ts).
         el.addEventListener('bp-canvas-selection', (e) => {
