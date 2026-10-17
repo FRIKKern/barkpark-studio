@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 33 changes, 11 tasks closed
+- **Today** · 34 changes, 11 tasks closed
+  - Big forms: a keystroke no longer walks the whole form, re-scans the list or forces a layout ([#903](https://github.com/FRIKKern/barkpark-studio/pull/903))
   - J21 darwin baseline refresh; e2e durations re-recorded (shard 2 ran past 60 s) ([#904](https://github.com/FRIKKern/barkpark-studio/pull/904))
-  - Delete dialog with references as Sanity's: a rule, the caution card, 33 px referring rows, the closing line ([#905](https://github.com/FRIKKern/barkpark-studio/pull/905))
 - **Yesterday** · 224 changes, 4 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
 - **This week** · 134 changes, 83 tasks closed
