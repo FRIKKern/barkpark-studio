@@ -10,10 +10,11 @@ import {bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
 test('J40: schedule a draft for publishing; it is locked until Pause to edit; Publish now publishes it', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "the check runs on ours; Sanity's dialog is the evidence clip")
-  const route = await fetch(`${bpBase()}/v1/data/schedules/${bpDataset()}`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
-  test.skip(route.status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   const id = `post-schedule-${Date.now().toString(36)}`
-  await t.draftOnly(id, 'post', {title: 'Schedule probe', slug: {_type: 'slug', current: id}})
+  // The route asked while the draft is written (no route: the draft is removed, and the test skips).
+  const [route] = await Promise.all([fetch(`${bpBase()}/v1/data/schedules/${bpDataset()}`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}}), t.draftOnly(id, 'post', {title: 'Schedule probe', slug: {_type: 'slug', current: id}})])
+  if (route.status === 404) await t.deleteDoc(id, 'post')
+  test.skip(route.status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   try {
     await t.prepare(context)
     await page.goto(t.docPath('post', id))
@@ -82,12 +83,14 @@ test('Releases tool: scheduled drafts, calendar day filter and time zone, Active
   test.skip(t.name === 'sanity', "ours; Sanity's is measured by hand (plan-gated releases)")
   const api = `${bpBase()}/v1/data/schedules/${bpDataset()}`
   const headers = {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`, 'content-type': 'application/json'}
-  test.skip((await fetch(api, {headers})).status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   const id = `post-releases-${Date.now().toString(36)}`
   const title = `Releases probe ${id.slice(-6)}`
   const at = new Date(Date.now() + 2 * 86_400_000)
   at.setUTCHours(8, 0, 0, 0)
-  await t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}})
+  // The route asked while the draft is written (no route: the draft is removed, and the test skips).
+  const [route] = await Promise.all([fetch(api, {headers}), t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}})])
+  if (route.status === 404) await t.deleteDoc(id, 'post')
+  test.skip(route.status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   try {
     const made = await fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: at.toISOString()})})
     expect(made.ok, await made.clone().text()).toBe(true)
