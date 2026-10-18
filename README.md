@@ -18,7 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change
+- **Today** · 2 changes
+  - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
   - J41 B03: a range ticked across rows not drawn is kept and published whole ([#936](https://github.com/FRIKKern/barkpark-studio/pull/936))
 - **Yesterday** · 67 changes, 11 tasks closed
   - e2e: refs.spec skips its live-edit budgets locally when studio and rig share a token ([#939](https://github.com/FRIKKern/barkpark-studio/pull/939))
