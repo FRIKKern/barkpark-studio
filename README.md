@@ -18,13 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 67 changes, 11 tasks closed
+- **Yesterday** · 67 changes, 11 tasks closed
   - e2e: refs.spec skips its live-edit budgets locally when studio and rig share a token ([#939](https://github.com/FRIKKern/barkpark-studio/pull/939))
-  - Releases: empty Scheduled drafts as Sanity's, illustration and greyed-out calendar ([#932](https://github.com/FRIKKern/barkpark-studio/pull/932))
-- **Yesterday** · 224 changes, 4 tasks closed
+- **This week** · 358 changes, 87 tasks closed
   - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
-- **This week** · 134 changes, 83 tasks closed
-  - fix(inspectors): close icons in Sanity's muted grey (J40) ([#646](https://github.com/FRIKKern/barkpark-studio/pull/646))
 - **Last week** · 499 changes, 84 tasks closed
   - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
 <!-- timeline:end -->
