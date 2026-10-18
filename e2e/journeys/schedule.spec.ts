@@ -115,6 +115,18 @@ test('Releases tool: scheduled drafts, calendar day filter and time zone, Active
     await expect(page.getByRole('button', {name: 'Active', exact: true})).toHaveCount(0)
     await day.click()
     await expect(page.getByRole('button', {name: 'Active', exact: true})).toBeVisible()
+    // A phone: Sanity's calendar is behind a button, in a "View calendar" dialog; a pick closes it.
+    const wide = page.viewportSize()!
+    await page.setViewportSize({width: 390, height: 844})
+    await expect(calendar).toBeHidden()
+    await page.getByRole('button', {name: 'View calendar'}).click()
+    const sheet = page.getByRole('dialog', {name: 'View calendar'})
+    if (!(await sheet.getByLabel(label).count())) await sheet.getByRole('button', {name: 'Next month'}).click()
+    await sheet.getByLabel(label).click()
+    await expect(sheet).toHaveCount(0)
+    await expect(row).toBeVisible()
+    await page.locator('.releases-day').getByRole('button', {name: 'Clear'}).click()
+    await page.setViewportSize(wide)
     // New York: the same instant, read there and named.
     await page.locator('.releases-zone').click()
     const zone = page.getByRole('dialog', {name: 'Select time zone'})

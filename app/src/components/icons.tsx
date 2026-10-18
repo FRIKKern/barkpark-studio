@@ -102,6 +102,12 @@ export const Calendar = () => (
     <path d="M16.5 8V4M8.5 8V4M8 12.5H10M8 15.5H10M11.5 12.5H13.5M11.5 15.5H13.5M15 12.5H17M15 15.5H17M12.5 8V4M5.5 9.5H19.5" />
   </svg>
 )
+// Sanity's `filter`: its Releases tool's calendar button on a narrow window.
+export const FilterLines = () => (
+  <svg {...s} strokeLinejoin="round">
+    <path d="M6 7.5H19M8 12.5H17M10 17.5H15" />
+  </svg>
+)
 export const Clock = () => (
   <svg {...solid}>
     <path d="M12.5 8V12.5L15.5 15.5M20.5 12.5C20.5 16.9183 16.9183 20.5 12.5 20.5C8.08172 20.5 4.5 16.9183 4.5 12.5C4.5 8.08172 8.08172 4.5 12.5 4.5C16.9183 4.5 20.5 8.08172 20.5 12.5Z" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" />
