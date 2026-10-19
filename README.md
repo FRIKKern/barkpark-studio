@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 26 changes, 1 task closed
+- **Today** · 27 changes, 1 task closed
+  - An empty list for one parent says No documents of this type, at Sanity's 15 px ([#967](https://github.com/FRIKKern/barkpark-studio/pull/967))
   - Error toasts as Sanity's critical toast ([#966](https://github.com/FRIKKern/barkpark-studio/pull/966))
-  - Inspect lives in the URL (inspect=on), as Sanity's; footer menu icons as Sanity's ([#965](https://github.com/FRIKKern/barkpark-studio/pull/965))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
