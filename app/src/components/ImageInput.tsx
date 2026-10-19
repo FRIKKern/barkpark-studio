@@ -13,6 +13,7 @@ import {uploadFile, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
 import {useFileInfo} from './FileInput'
 import {UploadProgress} from './UploadProgress'
+import {usePrimed} from '../lib/prime'
 
 // J12, after Sanity's image input: upload; the image with an "Edit hotspot and
 // crop" button (when the schema asks for options.hotspot) and an options menu;
@@ -302,6 +303,8 @@ export function AssetPicker({title, path, openRef, onPick, onClose}: {title: str
 function UsageDialog({asset, path, openRef, onClose, onOpen}: {asset: Asset; path: string; openRef: OpenRef; onClose: () => void; onOpen: () => void}) {
   const t = useT()
   const {data: uses, isPending} = useQuery({queryKey: ['media-usage', asset.id], queryFn: () => fetch(`/api/media/${encodeURIComponent(asset.id)}/usage`).then((r) => r.json() as Promise<Use[]>)})
+  // One read per using document was an N+1 (task-3cd385d88d90944e): read in batches.
+  const primedUse = usePrimed((uses ?? []).map((u) => ({types: [u._type], id: u._id})))
   return (
     <div className="dialog-backdrop nested" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog usage-dialog" aria-modal="true" aria-label={t('Documents using file')} onClose={onClose}>
@@ -327,7 +330,7 @@ function UsageDialog({asset, path, openRef, onClose, onOpen}: {asset: Asset; pat
               <ul className="usage-list">
                 {uses.map((u) => (
                   <li key={u._id} onClick={onOpen}>
-                    <RefPreview type={u._type} id={u._id} href={openRef(u._type, u._id, path).href} selected={false} />
+                    <RefPreview type={u._type} id={u._id} href={openRef(u._type, u._id, path).href} selected={false} primed={primedUse(u._id)} />
                   </li>
                 ))}
               </ul>

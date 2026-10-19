@@ -11,6 +11,7 @@ import {uploadFile} from '../lib/upload'
 import {imageSrc, TILE_PX} from '../lib/image'
 import {AssetDeleteDialog} from './AssetDelete'
 import {RefPreview} from './Preview'
+import {usePrimed} from '../lib/prime'
 
 // B08: the Media tool, after Barkpark's LiveView media library: folders, a visibility
 // filter, and the checkout lock on an asset's edits. Laid out like Sanity's media
@@ -288,6 +289,8 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
   const [busy, setBusy] = useState(false)
   // Where it is used, as the image field's "Show usage" (Sanity's "Documents using file").
   const {data: uses} = useQuery({queryKey: ['media-usage', id], queryFn: () => fetch(`/api/media/${encodeURIComponent(id)}/usage`).then((r) => r.json() as Promise<{_id: string; _type: string}[]>)})
+  // One read per using document was an N+1 (task-3cd385d88d90944e): read in batches.
+  const primedUse = usePrimed((uses ?? []).map((u) => ({types: [u._type], id: u._id})))
   const [deleting, setDeleting] = useState(false)
   useEffect(() => setMeta({title: a?.title ?? '', altText: a?.altText ?? ''}), [a?.id, a?.title, a?.altText])
   const refresh = () => Promise.all([qc.invalidateQueries({queryKey: ['media', 'asset', id]}), qc.invalidateQueries({queryKey: ['media', 'assets']})])
@@ -415,7 +418,7 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
           <ul className="usage-list">
             {uses.map((u) => (
               <li key={u._id}>
-                <RefPreview type={u._type} id={u._id} href={`/structure/${u._type};${u._id}`} selected={false} />
+                <RefPreview type={u._type} id={u._id} href={`/structure/${u._type};${u._id}`} selected={false} primed={primedUse(u._id)} />
               </li>
             ))}
           </ul>
