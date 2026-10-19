@@ -3010,6 +3010,10 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 /* A narrow pane keeps the status on one line, clipped with an ellipsis (Sanity's stays one line too). */
 .doc-footer .save-state-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .doc-footer .save-state svg { width: 19px; height: 19px; flex: none; }
+.doc-footer .save-state { vertical-align: top; } /* the button stays 25 px whatever its mark (a 28 px row lengthened the footer) */
+/* Sanity's "Saved": a 21 px mark 2 px from the word, in the muted words' colour (measured at 768). */
+.doc-footer .save-state[data-saved] { gap: 2px; color: var(--muted); }
+.doc-footer .save-state[data-saved] svg { width: 21px; height: 21px; margin: -1px 0 -1px -1px; }
 .doc-footer .save-state[data-state=saving] svg { animation: spin 1s linear infinite; }
 /* Who published (or edited) last, as Sanity's footer: its smallest avatar (19px), no ring. */
 .doc-footer .save-state > .p-avatar { width: 19px; height: 19px; margin: -2px 1px -2px 0; box-shadow: none; font-size: 9px; flex: none; }

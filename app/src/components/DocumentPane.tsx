@@ -1150,7 +1150,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       <div className="doc-footer-status">
         {/* Sanity's status is a button: it opens History on Review changes (the keyboard reaches it too). */}
         <button type="button" className="save-state-btn" aria-label={label || undefined} onClick={onReview} disabled={!label}>
-          <span className="save-state" data-state={state} title={error} role="status">
+          <span className="save-state" data-state={state} data-saved={saved || undefined} title={error} role="status">
             {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
             {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : <FooterActor actor={actor} pending={actorPending} />}
             <span className="save-state-text">{label}</span>
