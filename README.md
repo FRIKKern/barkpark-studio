@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 14 changes
+- **Today** · 15 changes
+  - fix(search): result rows in the list row's tones, as Sanity's ([#990](https://github.com/FRIKKern/barkpark-studio/pull/990))
   - An array item opened by hand names itself in the URL, as Sanity's: a reload brings it back ([#992](https://github.com/FRIKKern/barkpark-studio/pull/992))
-  - fix(studio): read the documents a list's rows show in batches, not one per row ([#991](https://github.com/FRIKKern/barkpark-studio/pull/991))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
