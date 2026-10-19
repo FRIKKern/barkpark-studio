@@ -55,6 +55,24 @@ function usePaneWidth(hint: number) {
 const WINDOW_FROM = 150
 /** Rows drawn past each edge of the view. */
 const OVERSCAN = 30
+/**
+ * ArrowDown steps rowKeys kept while more rows were loading (the list's data-pending): once
+ * they are drawn, focus goes on by that many from the row that has it. Run by ListPane after
+ * a render and by RowWindow once it has given focus back.
+ */
+function takePendingSteps(list: HTMLElement | null) {
+  const n = Number(list?.dataset.pending) || 0
+  if (!list || !n || list.hasAttribute('data-more')) return
+  if (document.activeElement === document.body) return // RowWindow is still giving focus back
+  const from = (document.activeElement as HTMLElement | null)?.closest?.('a[href]')
+  delete list.dataset.pending
+  if (!from || !list.contains(from)) return // the editor went elsewhere: the steps are dropped
+  const links = [...list.querySelectorAll<HTMLAnchorElement>('[role="listitem"] a[href]')]
+  const to = links[Math.min(links.length - 1, links.indexOf(from as HTMLAnchorElement) + n)]
+  to?.focus()
+  to?.scrollIntoView({block: 'nearest'})
+}
+
 /** rowKeys → RowWindow: Home / End in a windowed list (detail 'first' or 'last'). */
 const GO_END = 'rowwindow-go'
 
@@ -64,8 +82,21 @@ const GO_END = 'rowwindow-go'
  * CPU for React to remove a thousand of them (Sanity: 30-50). The window follows the pane's
  * scroll; its row height is the drawn rows' average. A new search (`top`) starts at the top.
  */
-function RowWindow({rows, renderRow, top}: {rows: Doc[]; renderRow: (d: Doc, i: number) => ReactNode; top: string}) {
+function RowWindow({rows, renderRow, top, focused}: {rows: Doc[]; renderRow: (d: Doc, i: number) => ReactNode; top: string; focused: {current: string | null}}) {
   const before = useRef<HTMLDivElement>(null)
+  // The list grew into its window (past WINDOW_FROM): every row was drawn anew, and the one
+  // that had focus (a keyboard walk down the first page) lost it to the page. It gets it back
+  // once the window draws it.
+  const refocus = useRef<string | null | undefined>(undefined)
+  useLayoutEffect(() => {
+    // On mount (the old rows are gone by now): was focus in one of them?
+    if (refocus.current === undefined) refocus.current = document.activeElement === document.body ? focused.current : null
+    const href = refocus.current
+    if (!href) return
+    if (document.activeElement !== document.body) return void (refocus.current = null)
+    const link = before.current?.parentElement?.querySelector<HTMLAnchorElement>(`[role="listitem"] a[href="${CSS.escape(href)}"]`)
+    if (link) (refocus.current = null), link.focus({preventScroll: true}), takePendingSteps(link.closest('.list-rows'))
+  })
   const after = useRef<HTMLDivElement>(null)
   const rowH = useRef(49)
   const [win, setWin] = useState({start: 0, end: Math.min(rows.length, 2 * OVERSCAN)})
@@ -614,6 +645,13 @@ function rowKeys(e: React.KeyboardEvent<HTMLElement>) {
   const rows = [...list.querySelectorAll<HTMLAnchorElement>('a[href]')].filter((a) => a.offsetParent)
   const at = rows.indexOf(from as HTMLAnchorElement)
   if (at < 0) return
+  // Past the last row while the rest is still loading: the step waits and is taken once the
+  // rows are there (ListPane), so a held key ends where it would on a loaded list.
+  if (step === 1 && at === rows.length - 1 && list.hasAttribute('data-more')) {
+    e.preventDefault()
+    list.dataset.pending = String((Number(list.dataset.pending) || 0) + 1)
+    return
+  }
   if (Math.abs(step) === Infinity && list.hasAttribute('data-windowed')) {
     // A long list draws only the rows near the view: RowWindow goes to the end and focuses its row once drawn.
     e.preventDefault()
@@ -719,6 +757,12 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     return [...page.docs, ...found.filter((d) => !seen.has(d._publishedId))]
   }, [page, found, q])
   const sentinel = useRef<HTMLDivElement>(null)
+  // The row link that last had focus (RowWindow gives it back when the rows are drawn anew).
+  const focusedRow = useRef<string | null>(null)
+  // ArrowDown steps taken past the last row while more were loading (rowKeys): once the rows
+  // are drawn, focus goes on by that many.
+  const listBody = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => takePendingSteps(listBody.current))
   const canGrow = !!page?.hasMore && limit < LIST_MAX && !query
   useEffect(() => {
     const el = sentinel.current
@@ -931,10 +975,13 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         </p>
       )}
       <div
+        ref={listBody}
         className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}
+        data-more={canGrow || (listQ.isPlaceholderData && listQ.isFetching) ? '' : undefined}
         data-windowed={rowEls ? undefined : ''}
         data-selecting={selectable && (selecting || picked.size > 0) ? '' : undefined}
         onKeyDown={(e) => (e.key === 'Escape' && (selecting || picked.size > 0) ? stopSelecting() : rowKeys(e))}
+        onFocus={(e) => void (focusedRow.current = (e.target as HTMLElement).closest('[role="listitem"] a[href]')?.getAttribute('href') ?? null)}
       >
         {!readable && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: missingOps.join(', ')})}</p>}
         {tree && treeParent && parentDoc && (
@@ -959,7 +1006,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {docs && shown.length === 0 && searchComplete && (!(tree && treeParent) || query.trim()) && <p className={`list-empty${query.trim() ? ' list-none' : ''}`}>{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" id={listId} aria-label={listTitle} className="rows-list">
-        {rowEls ?? <RowWindow rows={rows} renderRow={renderRow} top={shownQuery} />}
+        {rowEls ?? <RowWindow rows={rows} renderRow={renderRow} top={shownQuery} focused={focusedRow} />}
         </div>}
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
         {!query && page?.hasMore && limit >= LIST_MAX && (
