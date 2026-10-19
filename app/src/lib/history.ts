@@ -1,4 +1,5 @@
-import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query'
+import {useMemo, useState} from 'react'
+import {infiniteQueryOptions, queryOptions, useInfiniteQuery, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import type {Doc} from './data'
@@ -73,18 +74,52 @@ export const editedBy = createServerFn({method: 'GET'})
 export const historyQuery = (type: string, id: string) =>
   queryOptions({queryKey: ['history', id], staleTime: 5_000, queryFn: async () => ((await fetchHistoryPage({data: {type, id, offset: 0}})) as unknown as HistoryPage).revisions})
 
+const PAGE = 100 // fetchHistoryPage's limit
+
 /**
  * The whole timeline, a page at a time (task-2502560b41be3217): the History panel loads
  * older pages as it scrolls to the end, as Sanity's ("Loading history…"), down to Created.
+ * Only the newest page is read again (every save, and the panel's 10 s look): one infinite
+ * query of them all re-read every loaded page each time, 20 pages in a row every 10 s and
+ * after every save with post-01's history scrolled through (task-f63f6ebce06d87cc). Older
+ * revisions never change; new ones push them down, so an older page read later can repeat
+ * a few rows (dropped here) but never skips one.
  */
-export const historyPagesQuery = (type: string, id: string) =>
-  infiniteQueryOptions({
-    queryKey: ['history', id, 'pages'], // under ['history', id]: every invalidation of it reaches this too
-    initialPageParam: 0,
+export function useTimeline(type: string, id: string, {live = false}: {live?: boolean} = {}) {
+  const head = useQuery({
+    queryKey: ['history', id, 'head'], // under ['history', id]: every save's invalidation reaches it
     staleTime: 5_000,
-    queryFn: async ({pageParam}) => (await fetchHistoryPage({data: {type, id, offset: pageParam}})) as unknown as HistoryPage,
-    getNextPageParam: (last) => last.next ?? undefined,
+    queryFn: async () => (await fetchHistoryPage({data: {type, id, offset: 0}})) as unknown as HistoryPage,
+    ...(live && {refetchInterval: 10_000, refetchOnMount: 'always' as const}),
   })
+  const [deep, setDeep] = useState(false)
+  const older = useInfiniteQuery(
+    infiniteQueryOptions({
+      queryKey: ['history-older', id],
+      initialPageParam: PAGE,
+      staleTime: Infinity,
+      enabled: deep,
+      queryFn: async ({pageParam}) => (await fetchHistoryPage({data: {type, id, offset: pageParam}})) as unknown as HistoryPage,
+      getNextPageParam: (last) => last.next ?? undefined,
+    }),
+  )
+  const revisions = useMemo(() => {
+    if (!head.data) return undefined
+    const seen = new Set(head.data.revisions.map((r) => r.id))
+    const rest = (older.data?.pages ?? []).flatMap((p) => p.revisions).filter((r) => !seen.has(r.id) && !!seen.add(r.id))
+    return rest.length ? [...head.data.revisions, ...rest] : head.data.revisions
+  }, [head.data, older.data])
+  return {
+    revisions,
+    error: head.error ?? older.error,
+    dataUpdatedAt: head.dataUpdatedAt,
+    isPending: head.isPending,
+    isFetching: head.isFetching,
+    hasMore: deep ? older.hasNextPage || older.isPending : head.data?.next != null,
+    loadingMore: deep && older.isFetching,
+    loadMore: () => (deep ? void older.fetchNextPage() : setDeep(true)),
+  }
+}
 
 export type RevisionDoc = {id: string; timestamp: string; action: string; content: Record<string, unknown>}
 export const revisionQuery = (id: string) =>

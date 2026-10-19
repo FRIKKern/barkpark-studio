@@ -1,8 +1,8 @@
 import {Fragment, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
-import {useInfiniteQuery, useQueries, useQuery} from '@tanstack/react-query'
+import {useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
-import {historyPagesQuery, revisionQuery, type HistoryEntry, type Revision} from '../lib/history'
+import {revisionQuery, useTimeline, type HistoryEntry, type Revision} from '../lib/history'
 import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
 import {docDiff, type AttrChange, type DocBlock, type DocInline, type Piece} from '../lib/doc-diff'
 import {anyDocQuery, docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
@@ -26,10 +26,10 @@ export function ReviewChanges({schema, draft, published, onRevert}: {schema: Sch
   const t = useT()
   const locale = useLocale()
   // The whole timeline, a page at a time: the From picker reaches past the newest 100 (Sanity's loads as it scrolls).
-  const pages = useInfiniteQuery(historyPagesQuery(draft._type, draft._publishedId))
-  const {isPending, isFetching} = pages
-  const revisions = useMemo(() => pages.data?.pages.flatMap((p) => p.revisions) ?? [], [pages.data])
-  const more = pages.hasNextPage ? {loading: pages.isFetchingNextPage, load: () => void pages.fetchNextPage()} : undefined
+  const history = useTimeline(draft._type, draft._publishedId)
+  const {isPending, isFetching} = history
+  const revisions = useMemo(() => history.revisions ?? [], [history.revisions])
+  const more = history.hasMore ? {loading: history.loadingMore, load: history.loadMore} : undefined
   const {draft: drafts, publish} = sinceLastPublish(revisions)
   // A cached history from before this draft's edits lists none of them: until it is
   // fetched again the range is unknown ("…"), never the last publish's (J15).
