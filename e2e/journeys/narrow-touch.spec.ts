@@ -14,10 +14,9 @@ test('@local 390 touch: list search icon on its line; History passes axe', async
   const box = await page.locator('.pane.list > .search input').boundingBox()
   const icon = await page.locator('.pane.list > .search .search-icon').boundingBox()
   expect(Math.abs(icon!.y + icon!.height / 2 - (box!.y + box!.height / 2)), 'icon centred on the field').toBeLessThan(2)
-  await page.goto(t.docPath('post', 'post-01'))
+  // Under 600 px the menu has no History, as Sanity's: a link still opens it.
+  await page.goto(`${t.docPath('post', 'post-01')},changesInspectorTab=history,inspect=sanity/structure/history`)
   await t.settle(page)
-  await page.getByRole('button', {name: 'Show document actions'}).click()
-  await page.getByRole('menuitem', {name: 'History'}).click()
   await expect(page.getByRole('list', {name: 'Document revisions'})).toBeVisible()
   const {violations} = await new AxeBuilder({page}).include('.history-list').withTags(['wcag2a', 'wcag2aa']).analyze()
   expect(violations.map((v) => v.id)).toEqual([])
