@@ -1901,6 +1901,11 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .image-empty-box .hint.failed svg { color: var(--danger-text); }
 .drop-overlay { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 3px; background: var(--drop-bg); box-shadow: inset 0 0 0 1px var(--focus-ring); color: var(--drop-fg); font-size: 16px; pointer-events: none; }
 .drop-overlay svg { width: 25px; height: 25px; }
+/* An array of images takes dropped files (ObjectArrayInput): the overlay over the whole array; an uploading row shows its picture, progress and Cancel. */
+.array-drop { position: relative; }
+.array-item-uploading { display: flex; align-items: center; gap: 12px; cursor: default; }
+.array-item-uploading .media img { width: 100%; height: 100%; object-fit: cover; }
+.array-item-uploading .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 /* Sanity's asset dialog, measured at 1200, 1440 and 1920: 12 px in from its pane, at most
    960 wide, 9 px corners; the grid 42 px in and 91 down, square tiles 12 px apart, as
    many columns as fit at 120 px (5 at 1440, 6 at 1920). */

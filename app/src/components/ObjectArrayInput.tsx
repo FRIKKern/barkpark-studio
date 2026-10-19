@@ -1,14 +1,17 @@
-import {createContext, Fragment, useCallback, useContext, useEffect, useRef, useState} from 'react'
+import {createContext, Fragment, useCallback, useContext, useEffect, useRef, useState, type DragEvent} from 'react'
 import {DialogBox, PaneOverlay} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Field} from '../lib/data'
 import {firstMedia, formatPreview, previewRefs, type PreviewText} from '../lib/preview'
-import {imageRef, type ImageValue} from '../lib/image'
+import {imageRef, pickedImage, type ImageValue} from '../lib/image'
+import {uploadFile, UploadError} from '../lib/upload'
+import {uploadMeta} from '../lib/image-meta'
+import {toast} from './Toasts'
 import {Thumb} from './Preview'
 import {copyItem, signature} from '../lib/clipboard'
-import {FieldView, UrlPathContext, type OpenRef, ParentContext} from './Fields'
+import {EditPathContext, FieldView, UrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
-import {Close as CloseIcon, DocumentIcon} from './icons'
+import {Close as CloseIcon, DocumentIcon, Upload} from './icons'
 import {translate, useLocale, useT} from '../lib/i18n'
 
 // Arrays of objects (J33), after Sanity's: each item a row with a preview (the
@@ -23,6 +26,15 @@ type Crumb = {label: string; position: number; title: string; close: () => void}
 /** The item dialogs open around this one, outermost first (an array inside an item). */
 const DialogCrumbsContext = createContext<Crumb[]>([])
 const newKey = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+
+// An array of images takes several files dropped on it at once, as Sanity's: one item per
+// file, uploaded UPLOAD_LANES at a time, each row its picture (from the file, at once), its
+// progress and Cancel. A cancelled or failed upload takes its empty item away.
+type Uploading = {name: string; progress: number; preview: string; cancel: () => void}
+const UploadsContext = createContext<ReadonlyMap<string, Uploading>>(new Map())
+const UPLOAD_LANES = 3
+const imageFiles = (list: FileList) => [...list].filter((f) => f.type.startsWith('image/'))
+const carriesFiles = (e: DragEvent<HTMLElement>) => [...e.dataTransfer.types].includes('Files')
 
 export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}) {
   const items = (Array.isArray(value) ? value : []) as Item[]
@@ -45,10 +57,71 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
     // Only when the URL names another item, not on every edit of this one.
   }, [wantKey])
   const set = (next: Item[]) => onChange(next)
+  const t = useT()
+  const editPath = useContext(EditPathContext)
+  const latest = useRef(items)
+  latest.current = items
+  const [uploads, setUploads] = useState<ReadonlyMap<string, Uploading>>(() => new Map())
+  const [over, setOver] = useState(false)
+  const track = (key: string, change: ((u: Uploading) => Uploading) | null) =>
+    setUploads((m) => {
+      const u = m.get(key)
+      const next = new Map(m)
+      if (change && u) next.set(key, change(u))
+      else next.delete(key)
+      return next
+    })
+  const dropImages = (files: File[]) => {
+    const queued = files.map((file) => ({file, key: newKey(), stop: new AbortController(), preview: URL.createObjectURL(file)}))
+    setUploads((m) => new Map([...m, ...queued.map((q) => [q.key, {name: q.file.name, progress: 0, preview: q.preview, cancel: () => q.stop.abort()}] as const)]))
+    onChange([...latest.current, ...queued.map((q) => ({_type: 'image', _key: q.key}))])
+    const one = async ({file, key, stop, preview}: (typeof queued)[number]) => {
+      try {
+        if (stop.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError')
+        const ref = await uploadFile(file, (progress) => track(key, (u) => ({...u, progress})), stop.signal, uploadMeta(of.options))
+        // Into its own item, by path: uploads finishing together never undo one another.
+        if (editPath) editPath(`${id}[_key=="${key}"].asset`, {_ref: ref})
+        else onChange(latest.current.map((it) => (it._key === key ? {...pickedImage(it, ref), _type: 'image', _key: key} : it)))
+      } catch (err) {
+        onChange(latest.current.filter((it) => it._key !== key))
+        if ((err as Error).name !== 'AbortError')
+          toast({tone: 'critical', title: t('Could not upload {name}', {name: file.name}), description: err instanceof UploadError && err.network ? t('The network is unreachable.') : (err as Error).message})
+      } finally {
+        URL.revokeObjectURL(preview)
+        track(key, null)
+      }
+    }
+    let next = 0
+    const lane = async () => {
+      while (next < queued.length) await one(queued[next++]!)
+    }
+    for (let i = 0; i < Math.min(UPLOAD_LANES, queued.length); i++) void lane()
+  }
+  const dropTarget =
+    of.type === 'image' && !readOnly
+      ? {
+          onDragEnter: (e: DragEvent<HTMLElement>) => carriesFiles(e) && (e.preventDefault(), setOver(true)),
+          onDragOver: (e: DragEvent<HTMLElement>) => carriesFiles(e) && e.preventDefault(),
+          onDragLeave: (e: DragEvent<HTMLElement>) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setOver(false),
+          onDrop: (e: DragEvent<HTMLElement>) => {
+            if (!carriesFiles(e)) return
+            e.preventDefault()
+            setOver(false)
+            const files = imageFiles(e.dataTransfer.files)
+            if (files.length) dropImages(files)
+          },
+        }
+      : {}
   // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
   const renderItem = useCallback((it: Item) => <ItemRow item={it} of={of} onOpen={() => setEditing(it._key ?? null)} />, [of])
   return (
-    <>
+    <UploadsContext.Provider value={uploads}>
+      <div className="array-drop" data-over={over || undefined} {...dropTarget}>
+      {over && (
+        <div className="drop-overlay" aria-live="polite">
+          <Upload /> {t('Drop to upload')}
+        </div>
+      )}
       <SortableRows
         id={id}
         items={items}
@@ -79,7 +152,8 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
           onClose={() => setEditing(null)}
         />
       )}
-    </>
+      </div>
+    </UploadsContext.Provider>
   )
 }
 
@@ -150,6 +224,27 @@ export function useItemPreview(item: Item, of: Field) {
 
 function ItemRow({item, of, onOpen}: {item: Item; of: Field; onOpen: () => void}) {
   const {title, subtitle, media} = useItemPreview(item, of)
+  const t = useT()
+  const up = useContext(UploadsContext).get(item._key ?? '')
+  if (up) {
+    const percent = Math.round(up.progress * 100)
+    return (
+      <div className="array-item-preview array-item-uploading" role="status" aria-label={t('Uploading {name}', {name: up.name})}>
+        <span className="media has-image">
+          <img src={up.preview} alt="" decoding="async" />
+        </span>
+        <span className="text">
+          <span className="title">{up.name}</span>
+          <span className="upload-progress-bar" role="progressbar" aria-label={t('Uploading')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+            <span style={{width: `${percent}%`}} />
+          </span>
+        </span>
+        <button type="button" className="btn upload-cancel" onClick={up.cancel}>
+          {t('Cancel')}
+        </button>
+      </div>
+    )
+  }
   return (
     <button type="button" className="array-item-preview" onClick={onOpen}>
       <span className={media ? 'media has-image' : 'media'}>{media ? <Thumb value={media} /> : <DocumentIcon />}</span>
