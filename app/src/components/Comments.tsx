@@ -331,7 +331,7 @@ function CommentsOnboarding({panel}: {panel: React.RefObject<HTMLElement | null>
   const t = useT()
   const [open, setOpen] = useState(false)
   useEffect(() => setOpen(!seen()), [])
-  const [place, setPlace] = useState<{top: number; right: number} | null>(null)
+  const [place, setPlace] = useState<{top: number; right?: number; left?: number} | null>(null)
   const titleId = useId()
   useLayoutEffect(() => {
     const aside = panel.current
@@ -339,7 +339,9 @@ function CommentsOnboarding({panel}: {panel: React.RefObject<HTMLElement | null>
     if (!open || !aside || !pane) return
     const a = aside.getBoundingClientRect()
     const p = pane.getBoundingClientRect()
-    setPlace({top: a.top - p.top, right: p.right - a.left + 4})
+    // No room beside it (a phone: the panel takes the pane): inside it, 4 px in, under its
+    // header, as Sanity's at 390.
+    setPlace(a.left - p.left >= 284 ? {top: a.top - p.top, right: p.right - a.left + 4} : {top: a.top - p.top + 53, left: 4})
   }, [open, panel])
   if (!open || !place) return null
   const done = () => {
@@ -352,7 +354,7 @@ function CommentsOnboarding({panel}: {panel: React.RefObject<HTMLElement | null>
   }
   return (
     <PaneOverlay whole>
-      <section className="comments-onboarding" aria-labelledby={titleId} style={{top: place.top, right: place.right}}>
+      <section className="comments-onboarding" aria-labelledby={titleId} style={place}>
         <h3 id={titleId}>{t('Document fields now have comments')}</h3>
         <p>{t("You can add comments to any field in a document. They'll show up here, grouped by field.")}</p>
         <button type="button" className="btn btn-primary" onClick={done}>
