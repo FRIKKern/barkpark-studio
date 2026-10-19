@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 8 changes
+- **Today** · 9 changes
+  - feat(releases): Archived loads more past the first 500 (Barkpark schedules paging) ([#985](https://github.com/FRIKKern/barkpark-studio/pull/985))
   - String arrays as Sanity's: Add item puts the caret in the new item; Tags ignores an IME's committing Enter ([#984](https://github.com/FRIKKern/barkpark-studio/pull/984))
-  - fix(refs): Create new leaves no path=<field> on the parent pane ([#981](https://github.com/FRIKKern/barkpark-studio/pull/981))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
