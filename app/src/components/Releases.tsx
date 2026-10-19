@@ -1,6 +1,6 @@
 import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {docQuery, type Doc} from '../lib/data'
+import {docQuery, ensureDocs, type Doc} from '../lib/data'
 import {panesPath} from '../lib/panes'
 import {fetchMoreSchedules, pauseSchedule, schedulesQuery, type Schedule} from '../lib/schedules'
 import {mergeSchedules} from '../lib/schedule-read'
@@ -17,6 +17,9 @@ import {ArrowLeft, Calendar, Close, Ellipsis, FilterLines, LockIcon, PublishIcon
 // Sanity's Releases tool, its Scheduled drafts view (task-ad9c942d7d48c887): every draft
 // scheduled to publish (J40), Active, Paused or Archived, from Barkpark's schedules. Content
 // releases themselves are plan-gated on the reference and Barkpark has none (task-501a3f96aaec72ec).
+
+// Ids per preview read: twice as many in the query (each id and its draft), within its limit of 400.
+const PRIME_BATCH = 100
 
 type Tab = 'active' | 'paused' | 'archived'
 const IN: Record<Tab, (status: string) => boolean> = {
@@ -74,6 +77,28 @@ export function Releases() {
   const marked = new Set(all.filter((s) => s.status === 'scheduled' || s.status === 'paused').map((s) => dayKey(new Date(s.publishAt), zone)))
   const rows = all.filter((s) => (day ? !IN.archived(s.status) && dayKey(new Date(s.publishAt), zone) === day : IN[tab](s.status))).sort((a, b) => (soonest ? 1 : -1) * a.publishAt.localeCompare(b.publishAt))
   const locale = useLocale()
+  // Each row previews its document. Read one by one, 500 Archived rows were 500 reads at
+  // once on the studio's token, past Barkpark's budget (300 a minute, 5 a second): 65 s of
+  // 429s that every other call, Load more included, waited behind. They are read in
+  // batches of PRIME_BATCH per type (ensureDocs), and a row reads alone only after that.
+  const qc = useQueryClient()
+  const [primed, setPrimed] = useState<ReadonlySet<string>>(() => new Set())
+  const rowKey = rows.map((s) => s.documentId).join(',')
+  useEffect(() => {
+    const byType = new Map<string, string[]>()
+    for (const s of rows) if (!primed.has(s.documentId)) byType.set(s.type, [...(byType.get(s.type) ?? []), s.documentId])
+    if (!byType.size) return
+    let live = true
+    const batches = [...byType].flatMap(([type, ids]) => Array.from({length: Math.ceil(ids.length / PRIME_BATCH)}, (_, i) => [type, ids.slice(i * PRIME_BATCH, (i + 1) * PRIME_BATCH)] as const))
+    void (async () => {
+      for (const [type, ids] of batches) {
+        await ensureDocs(qc, [type], ids).catch(() => {})
+        if (!live) return
+        setPrimed((p) => new Set([...p, ...ids]))
+      }
+    })()
+    return () => void (live = false)
+  }, [rowKey]) // the rows, by identity
   return (
     <div className="releases">
     {/* Nothing scheduled at all: Sanity's calendar has nothing to pick, so it is greyed out. */}
@@ -142,7 +167,7 @@ export function Releases() {
           </thead>
           <tbody>
             {rows.map((s) => (
-              <Row key={s._id} schedule={s} tab={IN.active(s.status) ? 'active' : IN.paused(s.status) ? 'paused' : 'archived'} zone={zone} />
+              <Row key={s._id} schedule={s} tab={IN.active(s.status) ? 'active' : IN.paused(s.status) ? 'paused' : 'archived'} zone={zone} primed={primed.has(s.documentId)} />
             ))}
             {!rows.length && (
               <tr>
@@ -186,11 +211,11 @@ function Empty({text}: {text: string}) {
 
 const STATUS: Record<string, string> = {scheduled: 'Scheduled', paused: 'Paused', completed: 'Published', published: 'Published', cancelled: 'Deleted', failed: 'Failed'}
 
-function Row({schedule, tab, zone}: {schedule: Schedule; tab: Tab; zone: string}) {
+function Row({schedule, tab, zone, primed}: {schedule: Schedule; tab: Tab; zone: string; primed: boolean}) {
   const t = useT()
   const locale = useLocale()
   const qc = useQueryClient()
-  const {data: doc} = useQuery(docQuery(schedule.type, schedule.documentId))
+  const {data: doc} = useQuery({...docQuery(schedule.type, schedule.documentId), enabled: primed})
   const [menu, setMenu] = useState(false)
   const [asking, setAsking] = useState<'publish' | 'delete' | null>(null)
   // In the picked zone; named when it is not this computer's, as Sanity's "(EDT)".
