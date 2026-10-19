@@ -1744,6 +1744,8 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 /* Centred in the pane's card area under its tabs, as Sanity's (and Inspect's): 200-839 px at 900. */
 /* Only the card area dims, as Sanity's layer (and Inspect's): header, tabs and footer stay as they are. */
 @media (min-width: 600px) { .delete-backdrop, .pane .pane-confirm-backdrop { inset: 136px 0 49px; grid-template-rows: minmax(0, 1fr); padding: 12px; } }
+/* On a phone Sanity's delete dialog is centred on the whole window, 12 px in (366 x 445 at 12,200 on a 390 x 844 phone, measured). */
+@media (max-width: 599px) { .delete-backdrop { position: fixed; inset: 0; } .dialog.delete-dialog { width: calc(100vw - 24px); } }
 .delete-preview { display: flex; align-items: center; gap: 8px; min-height: 59px; margin-top: 15px; padding: 0 18px 0 5px; box-sizing: border-box; } /* Sanity's card: 59 px, 15 px under the question, its icon 13 px in */
 /* Sanity's status badge here: 25 px, the words 12 px from its end, #0d311f (dark #abf9de) when published. */
 .delete-preview > .chip { padding: 3px 12px 3px 10px; line-height: 19px; }
