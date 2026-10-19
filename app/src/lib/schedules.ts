@@ -21,11 +21,12 @@ export const scheduleQuery = (id: string, type: string) =>
   queryOptions({queryKey: ['schedule', id], staleTime: 10_000, queryFn: () => fetchSchedule({data: {id, type}})})
 
 // The Releases tool's Scheduled drafts (Sanity's): every schedule in the dataset, any status.
-// Barkpark's list stops at 500 rows, so pending and paused are read apart (mergeSchedules).
+// Barkpark's list stops at 500 rows, so pending and paused are read apart (mergeSchedules),
+// and each read keeps the latest 500 (order=desc, barkpark#23799; an older Barkpark ignores it).
 const fetchAllSchedules = createServerFn({method: 'GET'}).handler(async () => {
   const lists = await Promise.all(
     ['scheduled', 'paused', 'all'].map(async (status) => {
-      const res = await bpFetch(`/v1/data/schedules/${dataset()}?status=${status}`)
+      const res = await bpFetch(`/v1/data/schedules/${dataset()}?status=${status}&order=desc`)
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`Could not read the schedules (${res.status})`)
       return ((await res.json()) as {result?: {schedules?: Schedule[]}}).result?.schedules ?? []
