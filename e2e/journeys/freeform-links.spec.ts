@@ -28,7 +28,7 @@ test('@local D06: a wikilink opens its doc in the next pane; hover shows a previ
   // A wikilink.
   await canvas.getByText('the second note').hover()
   await expect(page.locator('.bp-link-preview__title').filter({visible: true})).toHaveText('Fixture note 02')
-  await expect(page.locator('.bp-link-preview__excerpt').filter({visible: true})).toHaveText('Second note.')
+  await expect(page.locator('.bp-link-preview__addr--subtitle').filter({visible: true})).toHaveText('Second note.')
   await page.screenshot({path: 'evidence/D06-1-hover-studio.png'})
   await page.locator('.bp-link-preview__open').filter({visible: true}).click()
   await expect(page).toHaveURL(/\/structure\/note;note-01;note-02$/)
@@ -68,6 +68,46 @@ test('@local D06: an internal link in a body field opens its document; a read-on
   await link.focus()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/author-ada,type=author/)
+})
+
+// task-4427f3dacf001bfa, task-bf274820b1c5e9e5 (canvas 1.9): a body link's card has Remove,
+// which drops the whole link (here across bold and plain) in one click, as Sanity's Remove
+// annotation; a document link's card is Sanity's preview: title, subtitle and type, once each.
+test('@local D06: a body link card has Remove; a document link shows its preview', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the card is the canvas; Sanity checked by hand (scout 2026-10-16)')
+  const id = `post-linkcard-${Date.now().toString(36)}`
+  const text = (value: string) => ({type: 'text', value})
+  const content = [text('See '), {type: 'link', href: 'https://example.com/', children: [{type: 'strong', children: [text('the out')]}, text('side page')]}, text(' and '), {type: 'wikilink', target: 'post-02', docId: 'post-02', children: [text('post two')]}, text('.')]
+  await t.draftOnly(id, 'post', {title: `Link card ${id.slice(-6)}`, slug: {_type: 'slug', current: id}, body: {blocks: [{id: 'b1', type: 'paragraph', content}]}})
+  try {
+    await page.goto(t.docPath('post', id))
+    await t.settle(page)
+    const body = page.locator(`[data-pane="doc:${id}"] .body-canvas`)
+    await body.getByText('post two').click()
+    const pm = body.locator('.ProseMirror')
+    await expect(pm).toBeVisible({timeout: 15_000})
+    const card = page.locator('.bp-link-preview').filter({visible: true})
+    await pm.getByText('post two').hover()
+    await expect(card.locator('.bp-link-preview__title')).toHaveText('Fixture post 02')
+    await expect(card.locator('.bp-link-preview__badge')).toHaveText('Post')
+    await expect(card.locator('.bp-link-preview__addr')).toHaveText('Grace Hopper')
+    await expect(card.locator('.bp-link-preview__excerpt')).toBeHidden()
+    await page.mouse.move(5, 5)
+    await expect(card).toHaveCount(0, {timeout: 5000})
+    await page.waitForTimeout(1000) // the canvas's hover intent
+    await pm.getByText('side page').hover()
+    await card.getByRole('button', {name: 'Remove'}).click()
+    await expect(pm).toContainText('See the outside page and post two.')
+    // Stored: the link gone, its bold kept, the document link untouched.
+    const kinds = (nodes: {type: string; children?: unknown[]}[]): string[] => nodes.flatMap((n) => [n.type, ...kinds((n.children ?? []) as never)])
+    await expect.poll(async () => {
+      const doc = (await t.docValue(id, 'body')) as {blocks?: {content: {type: string}[]}[]} | undefined
+      return doc?.blocks?.[0] ? kinds(doc.blocks[0].content).filter((k) => k !== 'text') : null
+    }, {timeout: 15_000}).toEqual(['strong', 'wikilink'])
+  } finally {
+    await t.deleteDoc(id, 'post')
+  }
 })
 
 // Barkdown's EDITOR-PARITY row 2: Cmd/Ctrl+K on a selection in the canvas opens its link

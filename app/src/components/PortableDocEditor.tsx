@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Doc, type Schema} from '../lib/data'
-import {loadCanvas} from '../lib/canvas-bundle'
+import {canvasAtLeast, loadCanvas} from '../lib/canvas-bundle'
 import {applyBlockOps, readBlocks, type Block, type BlockOp, type Blocks, type OpsResult, type Rev} from '../lib/blocks'
 import {paceMs, paced} from '../lib/write-pace'
 
@@ -11,6 +11,7 @@ import {usePersonNamer} from '../lib/person'
 import {existingAsset} from '../lib/upload'
 import {assetUrl} from '../lib/image'
 import {AssetPicker} from './ImageInput'
+import {previewSubtitle} from './Preview'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {fleetQuery, paintFleet, type FleetBlocks} from '../lib/fleet'
 import {useLive} from '../lib/live'
@@ -481,14 +482,17 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         })
         // The hover card: a wikilink shows its doc as Sanity's preview does: the title, its
         // subtitle in place of the [[target]] markup, and the type (canvas 1.9's `subtitle`,
-        // `badge`; an older canvas shows the title and the excerpt).
+        // `badge`). Not the excerpt too: under them it said the subtitle, or the type, twice
+        // ("Ada Lovelace · Author / Author"). An older canvas has only the title and excerpt.
         el.linkPreviewSource = async ({kind, docId}) => {
           if (kind !== 'wikilink' || !docId) return null
           const doc = await qc.fetchQuery(anyDocQuery(docId))
           if (!doc) return {title: t('Document not found'), excerpt: docId}
           const schema = schemaOf(qc.getQueryData<Schema[]>(['schemas']) ?? [], doc._type)
-          const subtitle = doc.preview?.description
-          return {title: previewTitle(doc, schema, t), excerpt: subtitle ?? schema?.title, subtitle: subtitle ?? '', badge: schema?.title ?? doc._type}
+          // As the list's row: the schema's subtitle (a post's author's name), else Barkpark's.
+          const subtitle = (await previewSubtitle(qc, doc, schema)) || doc.preview?.description
+          const title = previewTitle(doc, schema, t)
+          return canvasAtLeast(1, 9) ? {title, subtitle: subtitle ?? '', badge: schema?.title ?? doc._type} : {title, excerpt: subtitle ?? schema?.title}
         }
         // D07: a dropped or pasted picture uploads to Barkpark's media; the block stores the
         // file's Barkpark path. The canvas shows "uploading" and any failure on the block.

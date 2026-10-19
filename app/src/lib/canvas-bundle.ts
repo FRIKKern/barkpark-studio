@@ -34,3 +34,10 @@ export function loadCanvas(): Promise<void> {
   })
   return bundle
 }
+
+/** The loaded canvas's EMBED-CONTRACT version (bp-paper-editor's CONTRACT_VERSION) is at least major.minor. */
+export function canvasAtLeast(major: number, minor: number): boolean {
+  const v = (customElements.get('bp-paper-editor') as {CONTRACT_VERSION?: string} | undefined)?.CONTRACT_VERSION ?? ''
+  const [a = 0, b = 0] = v.split('.').map(Number)
+  return a > major || (a === major && b >= minor)
+}
