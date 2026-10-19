@@ -134,7 +134,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Field groups (Sanity's tabs): the schema's default group first; '' = all fields.
   const defaultGroup = schemaOf(schemas, pane.type)?.groups?.find((g) => g.default)?.name ?? ''
   const [chosenGroup, setGroup] = useState<string | null>(null)
-  const group = chosenGroup ?? defaultGroup
+  // Sanity's: while History or Review changes is open the form shows all its fields (every
+  // change in view) and the tabs wait; closed, the group chosen before is back.
+  const reviewing = pane.inspect === 'history' || pane.inspect === 'review'
+  const group = reviewing ? '' : (chosenGroup ?? defaultGroup)
   // J13: the schema's rules, checked as you type (the draft only; published is what it is).
   const schemaForPane = schemaOf(schemas, pane.type)
   // The docs this one's reference fields point at (cached already for their previews).
@@ -846,7 +849,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             {pane.id !== pane.type && <div className="kind">{schema.title}</div>}
             <h1 data-off={gone || undefined}>{gone ? t('Untitled') : docTitle(doc, schema, t)}</h1>
             {!revision && <LocationsBanner doc={doc} />}
-            <GroupTabs schema={schema} doc={revision ? ({...doc, ...revision.content} as Doc) : doc} value={group} onChange={setGroup} problems={problems} />
+            <GroupTabs schema={schema} doc={revision ? ({...doc, ...revision.content} as Doc) : doc} value={group} onChange={setGroup} problems={problems} disabled={reviewing} />
             {/* The published version is read-only: a disabled fieldset disables every control in it. */}
             {formBody({
               shown: revision ? ({...doc, ...revision.content} as Doc) : doc,
@@ -921,14 +924,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           published={
             <>
               <LocationsBanner doc={publishedQ.data} />
-              <GroupTabs schema={schema} doc={publishedQ.data} value={group} onChange={setGroup} problems={NO_PROBLEMS} />
+              <GroupTabs schema={schema} doc={publishedQ.data} value={group} onChange={setGroup} problems={NO_PROBLEMS} disabled={reviewing} />
               {formBody({shown: publishedQ.data, values: publishedQ.data, changes: null, problems: NO_PROBLEMS, disabled: true, fields: formFields, unknown: false})}
             </>
           }
           draft={
             <>
               <LocationsBanner doc={doc} />
-              <GroupTabs schema={schema} doc={doc} value={group} onChange={setGroup} problems={problems} />
+              <GroupTabs schema={schema} doc={doc} value={group} onChange={setGroup} problems={problems} disabled={reviewing} />
               {formBody({shown: doc, values: doc, changes: {...changes, inline: true}, problems: quiet ? quietProblems : steadyProblems, disabled: !canWrite || scheduleLocked, fields: formFields, unknown: false})}
             </>
           }
@@ -987,14 +990,14 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
 /** The word for a group's worst problem in the select (Sanity's field-group-tabs.validation-*). */
 const LEVEL_WORD = {error: 'error', warning: 'warning', info: 'info'} as const
 
-function GroupTabs({schema, doc, value, onChange, problems}: {schema: Schema; doc: Record<string, unknown>; value: string; onChange: (g: string) => void; problems: Problem[]}) {
+function GroupTabs({schema, doc, value, onChange, problems, disabled}: {schema: Schema; doc: Record<string, unknown>; value: string; onChange: (g: string) => void; problems: Problem[]; disabled?: boolean}) {
   const t = useT()
   if (!schema.groups?.length) return null
   const tabs = [{name: '', title: t('All fields')}, ...schema.groups.filter((g) => groupShows(schema.fields, g.name, doc))]
   return (
     <div className="group-tabs-root">
       <span className="select-box group-select">
-        <select className="input" aria-label={t('Field groups')} value={value} onChange={(e) => onChange(e.target.value)}>
+        <select className="input" aria-label={t('Field groups')} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
           {tabs.map((g) => {
             // Sanity's select names a group's worst problem after its title: "Meta (info)".
             const level = worst(problems.filter((p) => !g.name || p.group === g.name))
@@ -1028,6 +1031,7 @@ function GroupTabs({schema, doc, value, onChange, problems}: {schema: Schema; do
             id={`group-tab-${g.name || 'all-fields'}`}
             aria-selected={value === g.name}
             tabIndex={value === g.name ? 0 : -1}
+            disabled={disabled}
             onClick={() => onChange(g.name)}
           >
             {/* A group's `icon` (a Sanity icon name) before its title, as Sanity's tabs. */}

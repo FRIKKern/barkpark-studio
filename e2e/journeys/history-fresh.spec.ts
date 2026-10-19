@@ -51,6 +51,9 @@ test('J15: the footer status opens Review changes', async ({page}, info) => {
   await page.locator('.doc-footer').getByRole('button', {name: /Last published/}).click()
   await expect(page).toHaveURL(/changesInspectorTab=review/)
   await expect(page.getByRole('tab', {name: 'Review changes'})).toHaveAttribute('aria-selected', 'true')
+  // As Sanity's: meanwhile the form shows all its fields, the group tabs waiting.
+  await expect(page.getByRole('tab', {name: 'All fields'})).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', {name: /^Meta/})).toBeDisabled()
   // The inspector takes a third of the document pane, as Sanity's: 345 px at 1440, 320 at 1024.
   const inspector = page.getByRole('complementary', {name: 'History'})
   const width = async () => Math.round((await inspector.boundingBox())!.width)
