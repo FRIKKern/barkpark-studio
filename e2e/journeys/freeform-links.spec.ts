@@ -70,8 +70,8 @@ test('@local D06: an internal link in a body field opens its document; a read-on
   await expect(page).toHaveURL(/author-ada,type=author/)
 })
 
-// task-4427f3dacf001bfa, task-bf274820b1c5e9e5 (canvas 1.9): a body link's card has Remove,
-// which drops the whole link (here across bold and plain) in one click, as Sanity's Remove
+// task-4427f3dacf001bfa, task-bf274820b1c5e9e5 (canvas 1.9): a link's card has Remove, which
+// drops the whole link (here across bold and plain), or a document link, in one click, as Sanity's Remove
 // annotation; a document link's card is Sanity's preview: title, subtitle and type, once each.
 test('@local D06: a body link card has Remove; a document link shows its preview', async ({page}, info) => {
   const t = target(info)
@@ -105,6 +105,17 @@ test('@local D06: a body link card has Remove; a document link shows its preview
       const doc = (await t.docValue(id, 'body')) as {blocks?: {content: {type: string}[]}[]} | undefined
       return doc?.blocks?.[0] ? kinds(doc.blocks[0].content).filter((k) => k !== 'text') : null
     }, {timeout: 15_000}).toEqual(['strong', 'wikilink'])
+    // And a document link's Remove (task-7b0601d04fdc4bdb).
+    await page.mouse.move(5, 5)
+    await expect(card).toHaveCount(0, {timeout: 5000})
+    await page.waitForTimeout(1000)
+    await pm.getByText('post two').hover()
+    await card.getByRole('button', {name: 'Remove'}).click()
+    await expect.poll(async () => {
+      const doc = (await t.docValue(id, 'body')) as {blocks?: {content: {type: string}[]}[]} | undefined
+      return doc?.blocks?.[0] ? kinds(doc.blocks[0].content).filter((k) => k !== 'text') : null
+    }, {timeout: 15_000}).toEqual(['strong'])
+    await expect(pm).toContainText('See the outside page and post two.')
   } finally {
     await t.deleteDoc(id, 'post')
   }
