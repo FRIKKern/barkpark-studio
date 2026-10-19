@@ -1,8 +1,8 @@
 import {memo, useState, type ReactNode} from 'react'
 import {frame, imageRef, imageSrc, NO_CROP, NO_HOTSPOT, THUMB_PX, type ImageValue} from '../lib/image'
-import {useQueries, useQuery} from '@tanstack/react-query'
-import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
-import {formatPreview, previewRefs, previewMedia} from '../lib/preview'
+import {useQueries, useQuery, type QueryClient} from '@tanstack/react-query'
+import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {formatPreview, previewRefs, previewMedia, type PreviewText} from '../lib/preview'
 import {DocumentIcon, BrokenImageIcon} from './icons'
 import {PaneLink} from './PaneLink'
 import {ago, useLocale, useT} from '../lib/i18n'
@@ -22,12 +22,32 @@ function useSubtitle(doc: Doc | null | undefined) {
   })
   const targets = useQueries({queries: refs.map((r) => ({...docQuery(r.types, r.id ?? ''), enabled: !!r.id && r.types.length > 0}))})
   if (!spec || !doc) return undefined
+  return subtitleOf(spec, doc, (name) => targets[refs.findIndex((r) => r.name === name)]?.data)
+}
+
+/** The subtitle from its spec: a field of the doc, or one of a document its reference names. */
+function subtitleOf(spec: PreviewText, doc: Doc, target: (name: string) => unknown) {
   return formatPreview(spec, (path) => {
     const [head, ...rest] = path.split('.')
     if (!rest.length) return doc[head!]
-    const target = targets[refs.findIndex((r) => r.name === head)]?.data
-    return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], target)
+    return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], target(head!))
   })
+}
+
+/** The same subtitle outside React (the canvas's link card), its references read through `qc`. */
+export async function previewSubtitle(qc: QueryClient, doc: Doc, schema: Schema | undefined) {
+  const spec = schema?.listPreview?.subtitle
+  if (!spec) return undefined
+  const targets = new Map(
+    await Promise.all(
+      previewRefs(spec).map(async (name) => {
+        const id = refId(doc[name])
+        const types = refTypesOf(schema!.fields.find((f) => f.name === name))
+        return [name, id && types.length ? await qc.fetchQuery(docQuery(types, id)).catch(() => undefined) : undefined] as const
+      }),
+    ),
+  )
+  return subtitleOf(spec, doc, (name) => targets.get(name))
 }
 
 // Like Sanity: the item whose pane is open next is grey; blue only when that pane is the last one.
