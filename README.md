@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 10 changes
+- **Today** · 11 changes
+  - fix(refs): path=<field> on a filled reference focuses its card, as Sanity's ([#987](https://github.com/FRIKKern/barkpark-studio/pull/987))
   - Gallery item dialog as Sanity's: the image input straight under the header, without an "Image" title ([#986](https://github.com/FRIKKern/barkpark-studio/pull/986))
-  - feat(releases): Archived loads more past the first 500 (Barkpark schedules paging) ([#985](https://github.com/FRIKKern/barkpark-studio/pull/985))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
