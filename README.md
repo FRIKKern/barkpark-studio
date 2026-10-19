@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 31 changes, 1 task closed
+- **Today** · 32 changes, 1 task closed
+  - Comments at 390 and in dark as Sanity's: the hint in reach, the composer's inset, the empty state's width ([#972](https://github.com/FRIKKern/barkpark-studio/pull/972))
   - A field label's validation mark as Sanity's: 21 px, 10 px after the words ([#971](https://github.com/FRIKKern/barkpark-studio/pull/971))
-  - Document unavailable reference card as Sanity's ([#970](https://github.com/FRIKKern/barkpark-studio/pull/970))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
