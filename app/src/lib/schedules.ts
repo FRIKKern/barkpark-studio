@@ -1,7 +1,7 @@
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
-import {readSchedules, type Schedule} from './schedule-read'
+import {mergeSchedules, readSchedules, type Schedule} from './schedule-read'
 
 // J40, Sanity's "Schedule publish": the draft publishes at a set time, run on the
 // server as the editor who scheduled it (Barkpark /v1/data/schedules, task-8e88b5539acafdae).
@@ -21,11 +21,18 @@ export const scheduleQuery = (id: string, type: string) =>
   queryOptions({queryKey: ['schedule', id], staleTime: 10_000, queryFn: () => fetchSchedule({data: {id, type}})})
 
 // The Releases tool's Scheduled drafts (Sanity's): every schedule in the dataset, any status.
+// Barkpark's list stops at 500 rows, so pending and paused are read apart (mergeSchedules).
 const fetchAllSchedules = createServerFn({method: 'GET'}).handler(async () => {
-  const res = await bpFetch(`/v1/data/schedules/${dataset()}?status=all`)
-  if (res.status === 404) return {supported: false, schedules: [] as Schedule[]}
-  if (!res.ok) throw new Error(`Could not read the schedules (${res.status})`)
-  return {supported: true, schedules: ((await res.json()) as {result?: {schedules?: Schedule[]}}).result?.schedules ?? []}
+  const lists = await Promise.all(
+    ['scheduled', 'paused', 'all'].map(async (status) => {
+      const res = await bpFetch(`/v1/data/schedules/${dataset()}?status=${status}`)
+      if (res.status === 404) return null
+      if (!res.ok) throw new Error(`Could not read the schedules (${res.status})`)
+      return ((await res.json()) as {result?: {schedules?: Schedule[]}}).result?.schedules ?? []
+    }),
+  )
+  if (lists.includes(null)) return {supported: false, schedules: [] as Schedule[]}
+  return {supported: true, schedules: mergeSchedules(...(lists as Schedule[][]))}
 })
 
 export const schedulesQuery = queryOptions({queryKey: ['schedules'], staleTime: 0, queryFn: () => fetchAllSchedules()})

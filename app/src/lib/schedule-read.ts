@@ -14,3 +14,15 @@ export function readSchedules(status: number, body: unknown): ScheduleState {
   const schedules = (body as {result?: {schedules?: Schedule[]}} | null)?.result?.schedules ?? []
   return {supported: true, schedule: schedules.find((s) => s.status === 'scheduled') ?? [...schedules].reverse().find((s) => s.status === 'paused') ?? null}
 }
+
+/**
+ * The Releases list, from several reads of Barkpark's list: it answers at most 500 rows
+ * and does not page, so a dataset with 500 cancelled or finished schedules pushes the
+ * pending ones off `status=all` (task-3799d35d4e2c2911). Pending and paused are read on
+ * their own and come first; each schedule once.
+ */
+export function mergeSchedules(...lists: Schedule[][]): Schedule[] {
+  const byId = new Map<string, Schedule>()
+  for (const s of lists.flat()) if (!byId.has(s._id)) byId.set(s._id, s)
+  return [...byId.values()]
+}
