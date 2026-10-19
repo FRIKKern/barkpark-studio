@@ -2822,7 +2822,7 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 .scope-place svg { flex: none; width: 21px; height: 21px; margin-right: 2px; }
 .scope-note { margin: 0; padding: 4px 20px; font-size: 12px; color: var(--muted); }
 .scope-places .field-error { padding: 4px 20px; }
-@media (max-width: 768px) { .scope-ws { display: none; } .scope-button { max-width: 120px; } }
+@media (max-width: 768px) { .scope-ws { display: none; } } /* the name keeps its width at 600-768, as Sanity's ("barkpark-studio-reference" whole at 768); under 600 the bar's flex gives it what is left */
 @media (max-width: 768px) and (pointer: coarse) { .scope-button, .scope-place { min-height: 44px; } }
 @media (max-width: 480px) { .scope-popover { position: fixed; top: 52px; left: 8px; right: 8px; width: auto; } }
 /* J37: the navbar "+" (Create new document), Sanity's type picker under it. */
