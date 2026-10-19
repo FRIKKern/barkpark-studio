@@ -574,7 +574,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       <header className="pane-header">
         <AvatarStack people={here} />
         <span className="title chips">
-          {draftQ.data?._hasPublished === false || gone ? (
+          {/* No published version, the doc gone, or none by this id at all (not found): Sanity's greyed Published. */}
+          {draftQ.data?._hasPublished === false || draftQ.data === null || gone ? (
             <span className="chip" data-off="" aria-disabled="true" title={t('Not published')}>
               <span className="dot published" />
               <span className="chip-label">{t('Published')}</span>
