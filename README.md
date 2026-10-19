@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 6 changes
+- **Today** · 7 changes
+  - fix(refs): Create new leaves no path=<field> on the parent pane ([#981](https://github.com/FRIKKern/barkpark-studio/pull/981))
   - Nested dialogs as Sanity's: Escape closes a reference search's results first, and a reopened item leaves its inner item shut ([#982](https://github.com/FRIKKern/barkpark-studio/pull/982))
-  - An array of images takes several files dropped at once, as Sanity's ([#983](https://github.com/FRIKKern/barkpark-studio/pull/983))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
