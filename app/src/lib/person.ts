@@ -5,8 +5,8 @@ import {meQuery} from './session'
 // One way to name a person everywhere the studio shows one (presence avatars, comment
 // authors and mentions, task assignees and creators, the footer's last actor, history
 // authors, the user menu): the name Barkpark gives them, else their email's local part.
-// Barkpark names you yourself (/v1/auth/me, #622); the workspace roster carries no names
-// yet (Barkpark board ask task-2eae7f4056c3a970; members' display_name is read as soon as it lands).
+// Barkpark names you yourself (/v1/auth/me, #622) and everyone else in the workspace roster
+// (members' display_name, Barkpark #23490; null until a person sets one).
 
 /** An email's local part ("ada@x.io" reads "ada"); anything else (an API token's label) as it is. */
 export const localPart = (who: string) => who.replace(/@.*/, '')

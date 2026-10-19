@@ -3,8 +3,8 @@
 // far outnumber people (studio-parity, 2026-10-11: 252 tokens, 17 people), so a picker
 // that listed members as they come showed tokens and missed people past the first page.
 
-// `display_name`: what Barkpark calls the person, once its roster carries it (Barkpark board
-// ask task-2eae7f4056c3a970); until then the people are named by their email's local part.
+// `display_name`: what Barkpark calls the person (its roster carries it since Barkpark #23490,
+// null until they set one); without it a person is named by their email's local part.
 type Member = {identity?: string; principal_type: string; revoked?: boolean | null; display_name?: string | null}
 type MembersPage = {members: Member[]; hasMore?: boolean; nextOffset?: number}
 
