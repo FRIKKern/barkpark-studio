@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 33 changes, 1 task closed
+- **Today** · 34 changes, 1 task closed
+  - feat(studio): the link pill as Sanity's annotation toolbar; D06 body-link tests follow the canvas version ([#980](https://github.com/FRIKKern/barkpark-studio/pull/980))
   - Releases: pending and paused schedules survive Barkpark's 500-row list ([#979](https://github.com/FRIKKern/barkpark-studio/pull/979))
-  - Comments at 390 and in dark as Sanity's: the hint in reach, the composer's inset, the empty state's width ([#972](https://github.com/FRIKKern/barkpark-studio/pull/972))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
