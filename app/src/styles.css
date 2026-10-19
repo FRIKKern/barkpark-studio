@@ -110,6 +110,7 @@
   /* Sanity's pinned search filters (Edited at, Created at, Contains): text, icon, and the active row (measured). */
   --pinned-fg: #2927aa; --pinned-icon: #5f5dbf; --pinned-active-bg: #f5f8ff; --pinned-active-fg: #192357; --pinned-active-icon: #5b6389;
   --info-bg: #eef3ff;
+  --accept-note-bg: #f5f8ff; --accept-note-line: #d2dfff; --accept-note-fg: #192357; --accept-note-icon: #3e41e7; /* Sanity's primary-tone card: the file browser's accepted types (measured) */
   --info-fg: #2550c7;
   --scheduled-bg: #f1ebff; /* J40: Sanity's scheduled-publish chip and banner, measured on reference/sanity */
   --scheduled-banner-bg: #f8f5ff;
@@ -302,6 +303,7 @@
   --filter-chip-bg: #0d0e12; --filter-chip-fg: #9a9fb4; --filter-chip-icon: #90919b; --filter-chip-set-fg: #9ea3be;
   --pinned-fg: #aac1ff; --pinned-icon: #8496c6; --pinned-active-bg: #1c2048; --pinned-active-fg: #dde7ff; --pinned-active-icon: #8293c8;
   --info-bg: #1d2540;
+  --accept-note-bg: #161830; --accept-note-line: #222d6c; --accept-note-fg: #dce6ff; --accept-note-icon: #7a99ff;
   --info-fg: #9db6ff;
   --scheduled-bg: #2c2245;
   --scheduled-banner-bg: #231c38;
@@ -1739,7 +1741,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
    shorter), 9 px corners, the fields 20 px in with 32 px on the right, the first label 83 px down. */
 .dialog.item-dialog { width: min(640px, calc(100% - 24px)); min-height: min(597px, calc(100% - 24px)); border-radius: 9px; } /* 12 px inside a narrow pane, as Sanity's (572 x 583 at 700 x 844) */
 /* At phone width Sanity's layer is the whole window: it dims the navbar too, the dialog centred on it. */
-@media (max-width: 599px) { .doc-main > .dialog-backdrop.item-backdrop { position: fixed; } }
+@media (max-width: 599px) { .doc-main > .dialog-backdrop:is(.item-backdrop, :has(> .asset-dialog)) { position: fixed; } } /* the asset browser too (12 px in, at 390) */
 .item-dialog .dialog-body { padding: 34px 32px 20px 20px; }
 /* Centred in the pane's card area under its tabs, as Sanity's (and Inspect's): 200-839 px at 900. */
 /* Only the card area dims, as Sanity's layer (and Inspect's): header, tabs and footer stay as they are. */
@@ -2405,10 +2407,14 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .file-icon { background: var(--asset-tile); }
 .drop-overlay[data-rejected] { color: var(--danger-text); }
 .dialog.asset-dialog.file-dialog { min-height: 0; }
-.accept-note { display: flex; align-items: center; gap: 6px; margin: 0 0 16px; padding: 8px 12px; border-radius: 3px; background: var(--info-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--selected) 20%, transparent); font-size: 13px; color: var(--fg); }
-.accept-note svg { width: 19px; height: 19px; color: var(--selected); }
+/* Sanity's file browser, measured at 1440 (light and dark): its note 53 px under the title, a
+   primary-tone card with a 21 px icon 7 px in; the column heads 28 px under it, their rule
+   50 px under it; 24 px below that rule when there are no files. */
+.file-dialog .dialog-body { padding-top: 32px; padding-bottom: 23px; }
+.accept-note { display: flex; align-items: center; gap: 6px; margin: 0 0 16px; padding: 7px 12px 7px 6px; border: 1px solid var(--accept-note-line); border-radius: 3px; background: var(--accept-note-bg); font-size: 13px; line-height: 19px; color: var(--accept-note-fg); }
+.accept-note svg { flex: none; width: 21px; height: 21px; margin: -1px 0; color: var(--accept-note-icon); }
 .file-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.file-table th { text-align: left; font-weight: 500; line-height: 19px; color: var(--muted); padding: 8px; border-bottom: 1px solid var(--border); }
+.file-table th { text-align: left; font-weight: 500; line-height: 19px; color: var(--muted); padding: 11px 8px 4px; border-bottom: 1px solid var(--border); }
 /* Sanity's file list (1440): "Filename" over the names, past their icon; Size, Type and
    Date added start 973, 1075 and 1177 (Size and Type 102 px, Date added 198 before the menu). */
 .file-table th:first-child { padding-left: 36px; }
@@ -2416,6 +2422,14 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .file-table th:nth-child(4) { width: 198px; }
 .file-table th:nth-child(5) { width: 41px; }
 .file-table { table-layout: fixed; }
+/* In a narrower dialog Sanity's columns share the width 3 : 1 : 1 : 2 beside a 30 px menu, 4 px
+   apart (Size at 377, Type 461, Date added 544 at 768); under 600 only the names show. */
+@media (max-width: 768px) {
+  .file-table th:nth-child(2), .file-table th:nth-child(3) { width: 14%; }
+  .file-table th:nth-child(4) { width: 27%; }
+  .file-table th:nth-child(5) { width: 34px; }
+}
+@media (max-width: 599px) { .file-table :is(th, td):is(:nth-child(2), :nth-child(3), :nth-child(4)) { display: none; } }
 .file-table .file-pick { max-width: 100%; }
 .file-pick-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-table td { padding: 4px 8px; color: var(--fg); }

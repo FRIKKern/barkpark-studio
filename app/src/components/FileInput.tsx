@@ -225,7 +225,10 @@ function FilePicker({title, path, accept, current, openRef, onPick, onClose}: {t
           <div className="dialog-body">
             {accept && (
               <p className="accept-note">
-                <InfoOutline /> {t('Only showing assets of accepted types:')} <strong>{accept}</strong>
+                <InfoOutline />
+                <span>
+                  {t('Only showing assets of accepted types:')} <strong>{accept}</strong>
+                </span>
               </p>
             )}
             {isPending && <p className="muted">{t('Loading files…')}</p>}
