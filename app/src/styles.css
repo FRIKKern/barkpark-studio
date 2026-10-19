@@ -31,6 +31,7 @@
   --hover: #f2f3f5;
   --icon-btn-hover: #f6f6f8; /* Sanity's icon button under the pointer: fill and glyph (measured); its tabs' fill too */
   --card-hover: #f6f6f8; /* a row, desk item or Locations page under the pointer (Sanity's, measured) */
+  --badge-fg: #4c536a; --badge-lit-bg: #e6e6ea; --badge-lit-fg: #4a5068; /* a type badge, and on a search's lit row (Sanity's, measured) */
   --tile-hover: #eaeaec; /* a grid array's tile under the pointer (Sanity's, measured) */
   --icon-btn-hover-fg: #636570;
   --icon-btn-open-fg: #60626d; /* its glyph while its menu is open, on --selected-fill (measured) */
@@ -226,6 +227,7 @@
   --hover: #21232f;
   --icon-btn-hover: #21232f;
   --card-hover: #191a24;
+  --badge-fg: #9da2b7; --badge-lit-bg: #262837; --badge-lit-fg: #9fa4ba;
   --tile-hover: #181922;
   --icon-btn-hover-fg: #9193a0;
   --icon-btn-open-fg: #aeafb8;
@@ -794,7 +796,8 @@ a.menu-item { display: block; text-decoration: none; }
 .search-results > * { flex: none; }
 .search-results > [role=listbox] { flex: 0 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 4px; } /* Sanity's cards: 57 px apart, 49 tall */
 .search-results [role=option] { border-radius: 3px; cursor: pointer; }
-.search-results [role=option][aria-selected='true'] .preview { background: var(--hover); }
+.search-results [role=option][aria-selected='true'] .preview { background: var(--card-hover); } /* Sanity's lit result: #f6f6f8, dark #191a24 (measured at 768 and 1440) */
+.search-results [role=option][aria-selected='true'] .preview .badge { background: var(--badge-lit-bg); color: var(--badge-lit-fg); }
 .search-empty { margin: 12px; font-size: 13px; color: var(--muted); }
 /* J38: Sanity's filter row (types, chips, Add filter, Clear filters), order row and command popovers */
 /* Sanity's three header rows are 41 px each under a 1 px rule. */
@@ -955,7 +958,7 @@ a.menu-item { display: block; text-decoration: none; }
   .search-bar input, .command-find input { min-width: 0; min-height: 44px; }
 }
 /* Sanity's type badge: a 17 px pill, 13 px text 4 px in. */
-.preview .badge { font-size: 13px; font-weight: 400; line-height: 17px; padding: 0 4px; border-radius: 9999px; background: var(--fill-soft); color: var(--muted); }
+.preview .badge { margin-right: -3px; font-size: 13px; font-weight: 400; line-height: 17px; padding: 0 4px; border-radius: 9999px; background: var(--fill-soft); color: var(--badge-fg); } /* Sanity's sits 3 px nearer its status dot */
 
 /* Dialogs (delete) */
 .popover.menu.up { top: auto; bottom: 29px; } /* 4 px over its 25 px button, as Sanity's footer menu */
