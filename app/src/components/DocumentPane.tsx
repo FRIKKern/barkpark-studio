@@ -984,6 +984,9 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
  * pane under 360 px (Presentation's panel) they are a select instead, as Sanity's
  * (its ElementQuery: `data-eq-max~='0'` shows the Select); CSS picks which.
  */
+/** The word for a group's worst problem in the select (Sanity's field-group-tabs.validation-*). */
+const LEVEL_WORD = {error: 'error', warning: 'warning', info: 'info'} as const
+
 function GroupTabs({schema, doc, value, onChange, problems}: {schema: Schema; doc: Record<string, unknown>; value: string; onChange: (g: string) => void; problems: Problem[]}) {
   const t = useT()
   if (!schema.groups?.length) return null
@@ -992,11 +995,16 @@ function GroupTabs({schema, doc, value, onChange, problems}: {schema: Schema; do
     <div className="group-tabs-root">
       <span className="select-box group-select">
         <select className="input" aria-label={t('Field groups')} value={value} onChange={(e) => onChange(e.target.value)}>
-          {tabs.map((g) => (
-            <option key={g.name} value={g.name}>
-              {g.title ?? g.name}
-            </option>
-          ))}
+          {tabs.map((g) => {
+            // Sanity's select names a group's worst problem after its title: "Meta (info)".
+            const level = worst(problems.filter((p) => !g.name || p.group === g.name))
+            return (
+              <option key={g.name} value={g.name}>
+                {g.title ?? g.name}
+                {level && ` (${t(LEVEL_WORD[level])})`}
+              </option>
+            )
+          })}
         </select>
         <ChevronDown />
       </span>
