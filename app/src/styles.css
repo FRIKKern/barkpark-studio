@@ -1058,7 +1058,9 @@ a.version-badge:hover { color: var(--fg-strong); }
 .diagnostics-summary td { text-align: right; padding: 2px 0; font-variant-numeric: tabular-nums; }
 .diagnostics-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
 .btn { font: inherit; font-size: 13px; font-weight: 500; padding: 6px 12px; border: 0; border-radius: 3px; background: none; color: var(--fg); cursor: pointer; }
-.btn:hover { background: var(--hover); }
+/* Sanity's plain button under the pointer (Cancel, the workspace and zone buttons; measured light and dark): #f6f6f8 / #21232f, its words a step darker (lighter). */
+.btn:hover { background: var(--icon-btn-hover); }
+.btn:not(.btn-primary, .danger):hover:not(:disabled) { color: var(--menu-active-fg); }
 .btn:disabled { color: var(--disabled); cursor: default; }
 .btn:not(.danger):disabled:hover { background: none; }
 .btn.danger { background: var(--danger-btn-bg); color: var(--danger-btn-fg); }
@@ -2474,7 +2476,7 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .releases-day { display: inline-flex; align-items: center; gap: 4px; height: 25px; padding: 0 2px 0 8px; border-radius: 3px; background: var(--hover); font-size: 13px; line-height: 19px; font-weight: 500; color: var(--fg-strong); }
 .releases-day .icon-btn { width: 21px; height: 21px; }
 .releases-zone { display: inline-flex; align-items: center; gap: 2px; height: 25px; margin-left: auto; padding: 0 2px; border: 0; border-radius: 3px; background: none; font: inherit; font-size: 13px; line-height: 19px; font-weight: 500; color: var(--menu-fg); cursor: pointer; }
-.releases-zone:hover { background: var(--hover); }
+.releases-zone:hover { background: var(--icon-btn-hover); color: var(--menu-active-fg); }
 .releases-zone svg { width: 21px; height: 21px; color: var(--icon-muted); }
 .dialog.zone-dialog { width: min(640px, calc(100vw - 32px)); overflow: visible; border-radius: 9px; }
 .zone-dialog .dialog-body { overflow: visible; padding: 47px 40px 40px; } /* Sanity's: 640 x 291 at 1440 (measured) */
@@ -2802,7 +2804,7 @@ body > .popover.comment-popover { right: auto; z-index: 60; }
 
 /* B02: the workspace / project / dataset switcher beside the brand. */
 .scope-button { display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 4px 3px 8px; border: 0; border-radius: 3px; background: none; font: inherit; color: var(--fg); cursor: pointer; }
-.scope-button:hover, .scope-button[aria-expanded='true'] { background: var(--hover); }
+.scope-button:hover, .scope-button[aria-expanded='true'] { background: var(--icon-btn-hover); color: var(--menu-active-fg); }
 .scope-button svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
 .scope-ws { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scope-ds { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
