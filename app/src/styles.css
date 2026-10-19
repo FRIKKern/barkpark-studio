@@ -1254,7 +1254,7 @@ fieldset.object-field[data-collapsible][data-open=true]:not(.fieldset-group) { -
 .btn-create:disabled { color: var(--disabled); cursor: default; }
 
 /* List search, empty states, menu (J24/J25) */
-.list-empty { margin: 16px 8px; font-size: 13px; color: var(--muted); text-align: center; }
+.list-empty { margin: 16px 8px; font-size: 15px; line-height: 23px; color: var(--muted); text-align: center; } /* Sanity's "No documents of this type": 15 px (measured at 390 and 768) */
 .list-rows:has(> .list-empty:only-child) { display: grid; place-items: center; padding-bottom: 0; } /* centred in the whole list area, as Sanity's */
 /* No results found, Sanity's: 15 px on a 23 px line in a 310 px column. */
 .list-empty.list-none { max-width: 310px; margin: 32px 20px; font-size: 15px; line-height: 23px; }
