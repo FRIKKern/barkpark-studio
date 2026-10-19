@@ -9,7 +9,8 @@ import {closeAndSettle, target, type Target} from '../rig/targets'
 const ID = 'post-20'
 const HL = ['Point one of post 20', 'Point two of post 20', 'Point three of post 20']
 const shot = (name: string, step: string) => `evidence/J34-${name}-${step}.png`
-test.use({video: 'on'})
+// The clip is the evidence test's (CI skips it; its runner has no ffmpeg for the two CI tests below).
+test.use({video: process.env.CI ? 'off' : 'on'})
 
 const values = (page: Page) => page.locator('input[id^="highlights["]').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value))
 const handles = (t: Target, page: Page) =>
