@@ -752,6 +752,16 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
         if (e.target.value === '' || typingNumber(e.target.value, decimal) || !Number.isFinite(n)) onChange(undefined)
         else if (!integer || Number.isInteger(n)) onChange(n)
       }}
+      // Sanity's is an <input type="number">: Up and Down step it by 1 (from 0 when empty),
+      // keeping its decimals ("1.5" Up is 2.5, not 2.5000000000000004).
+      onKeyDown={(e) => {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+        e.preventDefault()
+        const now = text !== null && Number.isFinite(parse(text)) ? parse(text) : (value ?? 0)
+        const places = (String(now).split('.')[1] ?? '').length
+        setText(null)
+        onChange(Number((now + (e.key === 'ArrowUp' ? 1 : -1)).toFixed(places)))
+      }}
       // Left, a number typed in the other way ("59.9" in nb) shows in the language's way.
       onBlur={() => text !== null && Number.isFinite(parse(text)) && setText(null)}
     />

@@ -32,6 +32,9 @@ test('field types store as Sanity: a dateFormat date, a list in its order, "1,50
   await expect(page.locator('[id="width"]')).toHaveValue('1,500')
   await page.locator('[id="width"]').fill('1200')
   await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1200)
+  // Up steps a number, as Sanity's <input type="number"> does.
+  await page.locator('[id="width"]').press('ArrowUp')
+  await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1201)
   // A geopoint stays a geopoint.
   await page.locator('[id="place.lat"]').fill('60.5')
   await expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522})
