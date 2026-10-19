@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 16 changes, 1 task closed
+- **Today** · 17 changes, 1 task closed
+  - Hidden tabs let go of their streams, so a third tab no longer stalls every save ([#957](https://github.com/FRIKKern/barkpark-studio/pull/957))
   - Media: an asset's documents and Delete (in use: refused, says where); Best match sort ([#955](https://github.com/FRIKKern/barkpark-studio/pull/955))
-  - Tool tabs, list rows and the Published chip as Sanity's, at rest and under the pointer ([#956](https://github.com/FRIKKern/barkpark-studio/pull/956))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
