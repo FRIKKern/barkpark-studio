@@ -492,7 +492,9 @@ export function flushOnUnload() {
     // A save on its way goes again too: the page's own request dies with it (the studio's
     // server stops forwarding it), so the last word typed before closing was lost when
     // nothing followed it (3 of 24 closes in the unsaved-changes sweep). Sent twice, it
-    // sets the same value. A create on its way is left to its own request.
+    // sets the same value, and the latest wins in either order: the beacon is unfenced and
+    // newest; the save on its way is fenced on its rev, so landing second it is refused (412).
+    // A create on its way is left to its own request.
     const going = e.pendingCreate ? [] : [...(e.inflight ?? [])].filter(([f]) => ![...e.dirty.keys()].some((k) => within(f, k) || within(k, f)))
     const fields = new Map([...going, ...e.dirty])
     if (fields.size === 0 && (!e.createRequested || e.inflight)) return []
