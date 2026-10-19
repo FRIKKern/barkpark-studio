@@ -222,7 +222,7 @@ test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd
     let release = () => {}
     if (t.name === 'studio') {
       const held = new Promise<void>((r) => (release = r))
-      await b.route('**/api/listen?**', async (route) => (await held, route.continue()))
+      await b.route('**/api/stream?**', async (route) => (await held, route.continue())) // the tab's one stream (lib/stream.ts)
     }
     await b.goto(t.listPath('post'))
     const row = await reveal(t.listItem(b, 'post-08'))

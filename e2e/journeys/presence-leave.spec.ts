@@ -110,11 +110,13 @@ test('@local J07: many viewers: one per person, the counter, the menu', async ({
   const P = (sessionId: string, name: string, documentId: string | null, field: string | null) => ({sessionId, name, color: '#556bfc', documentId, field, client: 'studio'})
   const room = [P('s1', 'Ada Lovelace', 'post-05', 'title'), P('s2', 'Ada Lovelace', 'post-05', 'excerpt'), P('s3', 'Grace Hopper', 'post-05', 'title'), P('s4', 'Alan Turing', 'post-05', 'title'), P('s5', 'Barbara Liskov', 'post-05', 'title'), P('s6', 'Edsger Dijkstra', 'post-05', 'title'), P('s7', 'Linus Torvalds', null, null)]
   await t.prepare(context)
-  await context.route('**/api/presence**', (r) =>
+  // The tab's one stream (/api/stream) carries the room; focus moves and leaves answer 204.
+  await context.route('**/api/stream**', (r) =>
     r.request().method() === 'GET'
-      ? r.fulfill({status: 200, headers: {'content-type': 'text/event-stream'}, body: `retry: 600000\n\nevent: session\ndata: {"sessionId":"me"}\n\nevent: presence\ndata: ${JSON.stringify({presences: room})}\n\n`})
+      ? r.fulfill({status: 200, headers: {'content-type': 'text/event-stream'}, body: `retry: 600000\n\nevent: stream\ndata: {"id":"fake"}\n\nevent: session\ndata: {"sessionId":"me"}\n\nevent: presence\ndata: ${JSON.stringify({presences: room})}\n\n`})
       : r.fulfill({status: 204, body: ''}),
   )
+  await context.route('**/api/presence**', (r) => r.fulfill({status: 204, body: ''}))
   await page.goto(t.listPath('post'))
   await t.settle(page)
   // The list row: 5 people, at most 2: a counter of 4, then the last one; its hover says how many.

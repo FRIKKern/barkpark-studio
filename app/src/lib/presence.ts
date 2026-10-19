@@ -1,6 +1,6 @@
 import {useEffect, useSyncExternalStore} from 'react'
 import {withoutSelf} from './presence-people'
-import {onLongHidden} from './hidden'
+import {isParked, onPark, onStream, presenceSession} from './stream'
 
 // Who else is here (J07). One stream per tab into Barkpark's presence room (via
 // /api/presence); this tab's own entry is left out. Focus follows the caret: the doc
@@ -76,28 +76,17 @@ export function reportSelection(documentId: string, selection: CaretSelection | 
 }
 const CARET_FLUSH_MS = 100
 
-/** Mount once: keeps this tab in the room, reconnecting with the same session. */
+/** Mount once: keeps this tab in the room, on the tab's one stream (lib/stream.ts), rejoining with the same session. */
 export function usePresenceStream() {
   useEffect(() => {
-    let es: EventSource | null = null
-    let retry: ReturnType<typeof setTimeout> | undefined
-    let stopped = false
-    let parked = false // hidden a while: out of the room, the stream let go (lib/hidden.ts)
-    let heard = Date.now()
-    let muted: EventSource | null = null // e2e: __mutePresence
-    const open = () => {
-      const stream = (es = new EventSource(`/api/presence${self ? `?sessionId=${encodeURIComponent(self)}` : ''}`))
-      heard = Date.now()
-      for (const name of ['ping', 'session', 'presence']) stream.addEventListener(name, (e) => e.target !== muted && (heard = Date.now()))
-      es.addEventListener('session', (e) => {
-        if (e.target === muted) return
-        self = (JSON.parse((e as MessageEvent).data) as {sessionId: string}).sessionId
+    const offs = [
+      onStream('session', (e) => {
+        self = (JSON.parse(e.data) as {sessionId: string}).sessionId
         sent = focus.documentId ? JSON.stringify(focus) : ''
         sendFocus()
-      })
-      es.addEventListener('presence', (e) => {
-        if (e.target === muted) return
-        const all = (JSON.parse((e as MessageEvent).data) as {presences: Presence[]}).presences
+      }),
+      onStream('presence', (e) => {
+        const all = (JSON.parse(e.data) as {presences: Presence[]}).presences
         const before = new Map(others.map((p) => [p.sessionId, p]))
         others = all.filter((p) => p.sessionId !== self)
         const now = Date.now()
@@ -109,55 +98,31 @@ export function usePresenceStream() {
         // e2e probe: this tab's session and the ones it sees (a spec tells one tab from another).
         Object.assign(window, {__presence: {self, others: others.map((p) => p.sessionId)}})
         emit()
-      })
-      es.onerror = () => {
-        if (stopped || parked || es?.readyState !== EventSource.CLOSED) return
-        retry = setTimeout(open, 2000)
-      }
-    }
-    // A stream that died without a word (a Wi-Fi switch, a sleep) stays open and hears
-    // nothing: the room freezes as it was. Barkpark pings every 5 s; this long with no
-    // event at all, or back on a network, the stream is reopened with the same session.
-    let silentMs = 15_000
-    const reopen = () => {
-      if (stopped || parked) return
-      clearTimeout(retry)
-      es?.close()
-      open()
-    }
-    const watchdog = setInterval(() => Date.now() - heard > silentMs && reopen(), 1000)
-    // A sleeping laptop keeps its socket, so Barkpark would show this tab for ~15 min after
-    // it went to sleep. The room drops a session that sends no focus for PRESENCE_STALE_S
-    // (api/presence.ts), so the tab re-sends its focus every BEAT_MS (Sanity reports every
-    // 30 s); a hidden tab's timers run once a minute, still inside the window.
-    const beat = setInterval(() => !parked && sendFocus(true), BEAT_MS)
-    addEventListener('online', reopen)
-    // e2e probe: the stream goes quiet without closing, and the tab calls it dead after `ms`.
-    ;(window as {__mutePresence?: (ms: number) => void}).__mutePresence = (ms) => ((muted = es), (silentMs = ms))
+      }),
+    ]
     // Leaving (the tab goes, or the room's last view unmounts): out of the room at once
     // (Barkpark #22563's leave), not when its stream's next keepalive fails. keepalive:
-    // the request outlives a closing page. One stream per tab, so a document switch is a
+    // the request outlives a closing page. One session per tab, so a document switch is a
     // focus move, not a leave.
     const leave = () => {
       if (self) void fetch(`/api/presence?sessionId=${encodeURIComponent(self)}`, {method: 'DELETE', keepalive: true}).catch(() => {})
     }
+    // Hidden a while, the tab let its stream go: out of the room now (shown again, the
+    // stream rejoins with the same session and the 'session' event re-sends the focus).
+    offs.push(onPark((parked) => parked && leave()))
+    // A sleeping laptop keeps its socket, so Barkpark would show this tab for ~15 min after
+    // it went to sleep. The room drops a session that sends no focus for 90 s
+    // (server/presence-pipe.ts), so the tab re-sends its focus every BEAT_MS (Sanity
+    // reports every 30 s); a hidden tab's timers run once a minute, still inside the window.
+    const beat = setInterval(() => !isParked() && sendFocus(true), BEAT_MS)
     addEventListener('pagehide', leave)
-    // Shown again, the tab rejoins with its session and re-sends its focus (the 'session' event).
-    const unhide = onLongHidden(
-      () => ((parked = true), clearTimeout(retry), leave(), es?.close(), (es = null)),
-      () => ((parked = false), open()),
-    )
-    open()
+    const release = presenceSession(() => self)
     return () => {
-      stopped = true
-      clearTimeout(retry)
-      clearInterval(watchdog)
       clearInterval(beat)
-      unhide()
-      removeEventListener('online', reopen)
       removeEventListener('pagehide', leave)
+      offs.forEach((off) => off())
       leave()
-      es?.close()
+      release()
     }
   }, [])
 }
