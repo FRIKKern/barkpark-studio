@@ -172,6 +172,36 @@ test('J19: Ctrl+Alt+I right after opening a document from the list', async ({pag
   await expect(page.getByRole('dialog').filter({hasText: 'Inspecting'})).toBeVisible()
 })
 
+// Publish and Delete act only from inside the document pane, as Sanity's: with a list row
+// focused, Ctrl+Alt+P published the open document and Ctrl+Alt+D offered to delete it. A
+// scratch draft, removed after.
+test('J19: Ctrl+Alt+P and Ctrl+Alt+D do nothing from the list; Delete from the pane', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours (Sanity scouted: neither acts from a list row)')
+  const id = `post-scope-${Date.now().toString(36)}`
+  await t.draftOnly(id, 'post', {title: 'Scope probe'})
+  try {
+    await t.prepare(context)
+    await page.goto(t.docPath('post', id))
+    await t.settle(page)
+    await expect(t.field(page, 'title')).toHaveValue('Scope probe')
+    const row = t.listItem(page, id).first()
+    await row.focus()
+    await page.keyboard.press('Control+Alt+KeyP')
+    await page.keyboard.press('Control+Alt+KeyD')
+    // An absence: give a publish its time to land, then look.
+    await page.waitForTimeout(1500)
+    await expect(page.getByRole('dialog').filter({hasText: 'Delete'})).toHaveCount(0)
+    expect(await t.versions(id)).toEqual({draft: 'Scope probe', published: undefined})
+    await t.field(page, 'title').click()
+    await page.keyboard.press('Control+Alt+KeyD')
+    await expect(page.getByRole('dialog').filter({hasText: 'Delete'})).toBeVisible()
+    await page.keyboard.press('Escape')
+  } finally {
+    await t.deleteDoc(id, 'post')
+  }
+})
+
 // At 768, as Sanity's: a document opened by its URL has focus on "All fields". Its pane
 // starts narrow (the group select shows) and widens as the panes beside it fold; the
 // select it first took focus on hides, and focus fell to the page.

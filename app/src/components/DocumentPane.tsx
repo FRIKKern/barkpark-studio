@@ -430,7 +430,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   }
   // Sanity moves focus into a document as it opens, so its shortcuts work at once. Ours
   // stays where it was (the list row clicked, or the page): the last document pane
-  // takes them from there too, but never from inside another pane, a dialog or a menu.
+  // takes Inspect and Open preview from there too, but never from inside another pane,
+  // a dialog or a menu. Publish and Delete only from inside the pane, as Sanity's: from a
+  // list row they published or offered to delete the open document unseen.
   const shortcut = useRef(docShortcut)
   shortcut.current = docShortcut
   const lastDoc = panes.slice(index + 1).every((p) => p.kind !== 'doc')
@@ -439,6 +441,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || !(e.ctrlKey && e.altKey)) return
       if ((e.target as Element | null)?.closest?.('.pane.doc, [role=dialog], [role=menu], [role=listbox]')) return
+      if (e.code !== 'KeyI' && e.code !== 'KeyO') return
       shortcut.current(e)
     }
     window.addEventListener('keydown', onKey)
