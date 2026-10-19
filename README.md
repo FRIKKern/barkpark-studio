@@ -18,13 +18,12 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 36 changes, 1 task closed
+- **Today** · 1 change
+  - Date picker placement as Sanity's: above a field near the bottom, up to 4 px from a narrow pane's edge ([#977](https://github.com/FRIKKern/barkpark-studio/pull/977))
+- **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
-  - Tooltips as Sanity's: 400 ms pause, its shadow and hotkey caps, body tools above, menus on reference and array rows ([#973](https://github.com/FRIKKern/barkpark-studio/pull/973))
-- **Yesterday** · 2 changes
+- **Last week** · 427 changes, 98 tasks closed
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
-- **Last week** · 425 changes, 98 tasks closed
-  - e2e: refs.spec skips its live-edit budgets locally when studio and rig share a token ([#939](https://github.com/FRIKKern/barkpark-studio/pull/939))
 - **This month** · 499 changes, 84 tasks closed
 <!-- timeline:end -->
 
