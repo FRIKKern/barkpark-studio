@@ -1,5 +1,14 @@
-import {expect, test} from '@playwright/test'
+import {expect, test, type Page} from '@playwright/test'
 import {target} from '../rig/targets'
+
+// Canvas 1.14.0 shows a block-cards body's link as Sanity's annotation pill, at the caret,
+// in place of the hover card (Freeform keeps the card). These checks follow the deployed canvas.
+const pillCanvas = (page: Page) =>
+  page.evaluate(() => {
+    const v = (customElements.get('bp-paper-editor') as {CONTRACT_VERSION?: string} | undefined)?.CONTRACT_VERSION ?? ''
+    const [a = 0, b = 0] = v.split('.').map(Number)
+    return a > 1 || (a === 1 && b >= 14)
+  })
 
 // D06 (Freeform side track, ours only): note-01's last paragraph holds a wikilink to
 // note-02 and a link to example.com. Hovering the wikilink shows note-02's title and
@@ -50,7 +59,9 @@ test('@local D06: an internal link in a body field opens its document; a read-on
   const body = page.locator('[data-pane="doc:post-11"] .body-canvas')
   await body.getByText('Body paragraph for post 11.').click()
   await expect(body.locator('.ProseMirror')).toBeVisible({timeout: 15_000})
-  await body.locator('.ProseMirror').getByText('Ada', {exact: true}).hover()
+  const ada = body.locator('.ProseMirror').getByText('Ada', {exact: true})
+  if (await pillCanvas(page)) await ada.click()
+  else await ada.hover()
   const open = page.locator('.bp-link-preview__open').filter({visible: true})
   await expect(open).toBeVisible()
   await open.click()
@@ -87,6 +98,31 @@ test('@local D06: a body link card has Remove; a document link shows its preview
     await body.getByText('post two').click()
     const pm = body.locator('.ProseMirror')
     await expect(pm).toBeVisible({timeout: 15_000})
+    const kinds = (nodes: {type: string; children?: unknown[]}[]): string[] => nodes.flatMap((n) => [n.type, ...kinds((n.children ?? []) as never)])
+    const stored = async () => {
+      const doc = (await t.docValue(id, 'body')) as {blocks?: {content: {type: string}[]}[]} | undefined
+      return doc?.blocks?.[0] ? kinds(doc.blocks[0].content).filter((k) => k !== 'text') : null
+    }
+    if (await pillCanvas(page)) {
+      // The pill: named by the annotation type (Sanity's start-cased name, no schema title
+      // here), Open only on the document link, Edit and Remove as Sanity's.
+      const pill = page.locator('.bp-link-pill').filter({visible: true})
+      await pm.getByText('post two').click()
+      await expect(pill.locator('.bp-link-pill__label')).toHaveText('Internal Link')
+      await expect(pill.getByRole('button', {name: 'Open'})).toBeVisible()
+      await expect(pill.getByRole('button', {name: 'Edit annotation'})).toBeVisible()
+      await pm.getByText('side page').click()
+      await expect(pill.locator('.bp-link-pill__label')).toHaveText('Link')
+      await expect(pill.getByRole('button', {name: 'Open'})).toBeHidden()
+      await pill.getByRole('button', {name: 'Remove annotation'}).click()
+      await expect(pm).toContainText('See the outside page and post two.')
+      await expect.poll(stored, {timeout: 15_000}).toEqual(['strong', 'wikilink'])
+      await pm.getByText('post two').click()
+      await pill.getByRole('button', {name: 'Remove annotation'}).click()
+      await expect.poll(stored, {timeout: 15_000}).toEqual(['strong'])
+      await expect(pm).toContainText('See the outside page and post two.')
+      return
+    }
     const card = page.locator('.bp-link-preview').filter({visible: true})
     await pm.getByText('post two').hover()
     await expect(card.locator('.bp-link-preview__title')).toHaveText('Fixture post 02')
@@ -100,7 +136,6 @@ test('@local D06: a body link card has Remove; a document link shows its preview
     await card.getByRole('button', {name: 'Remove'}).click()
     await expect(pm).toContainText('See the outside page and post two.')
     // Stored: the link gone, its bold kept, the document link untouched.
-    const kinds = (nodes: {type: string; children?: unknown[]}[]): string[] => nodes.flatMap((n) => [n.type, ...kinds((n.children ?? []) as never)])
     await expect.poll(async () => {
       const doc = (await t.docValue(id, 'body')) as {blocks?: {content: {type: string}[]}[]} | undefined
       return doc?.blocks?.[0] ? kinds(doc.blocks[0].content).filter((k) => k !== 'text') : null

@@ -2002,6 +2002,14 @@ body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu) .bp-block-menu__item--
 :is(body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):hover .bp-block-menu__item:hover, body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):not(:hover) .bp-block-menu__item:focus-visible) svg { color: var(--primary-btn-icon); }
 :is(body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):hover .bp-block-menu__item--danger:hover, body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):not(:hover) .bp-block-menu__item--danger:focus-visible) { background: var(--menu-danger-hover); }
 :is(body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):hover .bp-block-menu__item--danger:hover, body > :is(.bp-canvas-image-menu, .bp-canvas-object-menu):not(:hover) .bp-block-menu__item--danger:focus-visible) svg { color: var(--menu-danger-hover-icon); }
+/* The link pill (canvas 1.14.0, block-cards), as Sanity's annotation toolbar (measured 2026-10-19):
+   inverted, 33 px, 6 px corners, the label 500 13/19, Edit and Remove 25 px with their own tints. */
+body > .bp-link-pill { background: #13141b; color: #e4e5e9; box-shadow: var(--popover-shadow); font-family: 'Inter Variable', Inter, -apple-system, system-ui, sans-serif; }
+body > .bp-link-pill :is(.bp-link-preview__open, .bp-link-preview__edit) { color: #bdbfcb; }
+body > .bp-link-pill .bp-link-preview__remove { color: #fdafa8; }
+html[data-theme='dark'] body > .bp-link-pill { background: #fff; color: #252837; }
+html[data-theme='dark'] body > .bp-link-pill :is(.bp-link-preview__open, .bp-link-preview__edit) { color: #383d51; }
+html[data-theme='dark'] body > .bp-link-pill .bp-link-preview__remove { color: #8b2018; }
 .body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 23px; padding: 12px 13px 20px; min-height: 120px; } /* 12 px inside the 1 px ring, as Sanity's */
 /* The canvas's paper type (0.005em tracking, old-style figures) rewraps lines on click; Sanity's input has neither. */
 .body-canvas .bp-paper-editor-body, .body-canvas .bp-paper-editor-body * { letter-spacing: normal; font-feature-settings: normal; text-rendering: optimizeLegibility; font-variant-ligatures: none; }
