@@ -64,8 +64,21 @@ const GO_END = 'rowwindow-go'
  * CPU for React to remove a thousand of them (Sanity: 30-50). The window follows the pane's
  * scroll; its row height is the drawn rows' average. A new search (`top`) starts at the top.
  */
-function RowWindow({rows, renderRow, top}: {rows: Doc[]; renderRow: (d: Doc, i: number) => ReactNode; top: string}) {
+function RowWindow({rows, renderRow, top, focused}: {rows: Doc[]; renderRow: (d: Doc, i: number) => ReactNode; top: string; focused: {current: string | null}}) {
   const before = useRef<HTMLDivElement>(null)
+  // The list grew into its window (past WINDOW_FROM): every row was drawn anew, and the one
+  // that had focus (a keyboard walk down the first page) lost it to the page. It gets it back
+  // once the window draws it.
+  const refocus = useRef<string | null | undefined>(undefined)
+  useLayoutEffect(() => {
+    // On mount (the old rows are gone by now): was focus in one of them?
+    if (refocus.current === undefined) refocus.current = document.activeElement === document.body ? focused.current : null
+    const href = refocus.current
+    if (!href) return
+    if (document.activeElement !== document.body) return void (refocus.current = null)
+    const link = before.current?.parentElement?.querySelector<HTMLAnchorElement>(`[role="listitem"] a[href="${CSS.escape(href)}"]`)
+    if (link) (refocus.current = null), link.focus({preventScroll: true})
+  })
   const after = useRef<HTMLDivElement>(null)
   const rowH = useRef(49)
   const [win, setWin] = useState({start: 0, end: Math.min(rows.length, 2 * OVERSCAN)})
@@ -719,6 +732,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     return [...page.docs, ...found.filter((d) => !seen.has(d._publishedId))]
   }, [page, found, q])
   const sentinel = useRef<HTMLDivElement>(null)
+  // The row link that last had focus (RowWindow gives it back when the rows are drawn anew).
+  const focusedRow = useRef<string | null>(null)
   const canGrow = !!page?.hasMore && limit < LIST_MAX && !query
   useEffect(() => {
     const el = sentinel.current
@@ -935,6 +950,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         data-windowed={rowEls ? undefined : ''}
         data-selecting={selectable && (selecting || picked.size > 0) ? '' : undefined}
         onKeyDown={(e) => (e.key === 'Escape' && (selecting || picked.size > 0) ? stopSelecting() : rowKeys(e))}
+        onFocus={(e) => void (focusedRow.current = (e.target as HTMLElement).closest('[role="listitem"] a[href]')?.getAttribute('href') ?? null)}
       >
         {!readable && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: missingOps.join(', ')})}</p>}
         {tree && treeParent && parentDoc && (
@@ -959,7 +975,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {docs && shown.length === 0 && searchComplete && (!(tree && treeParent) || query.trim()) && <p className={`list-empty${query.trim() ? ' list-none' : ''}`}>{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" id={listId} aria-label={listTitle} className="rows-list">
-        {rowEls ?? <RowWindow rows={rows} renderRow={renderRow} top={shownQuery} />}
+        {rowEls ?? <RowWindow rows={rows} renderRow={renderRow} top={shownQuery} focused={focusedRow} />}
         </div>}
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
         {!query && page?.hasMore && limit >= LIST_MAX && (
