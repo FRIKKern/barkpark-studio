@@ -251,7 +251,7 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
   const dots = props.types ? '...' : ''
   return (
     <div className="menu-wrap item-actions" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button id={props.id} type="button" className="icon-btn" aria-label={t('Item actions')} aria-haspopup="menu" aria-expanded={open} disabled={props.disabled} onClick={() => (open ? close() : setOpen(true))}>
+      <button id={props.id} type="button" className="icon-btn" aria-label={t('Item actions')} data-tip={t('Show more')} data-tip-side="right" aria-haspopup="menu" aria-expanded={open} disabled={props.disabled} onClick={() => (open ? close() : setOpen(true))}>
         <Ellipsis />
       </button>
       {open && choosing && props.types && (

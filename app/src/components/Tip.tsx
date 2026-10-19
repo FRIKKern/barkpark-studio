@@ -26,11 +26,16 @@ const fit = (el: HTMLElement | null) => {
   el.style.left = `${Math.min(Math.max(centre, lo! + half + 4), hi! - half - 4)}px`
 }
 const placed = (at: DOMRect, anchor?: Element | null) => {
+  // An array item's ⋯: Sanity's tip sits 4 px to its right, centred on it.
+  if (anchor?.getAttribute('data-tip-side') === 'right') return {style: {left: at.right + 4, top: at.top + at.height / 2, transform: 'translateY(-50%)'}}
   const centre = at.left + at.width / 2
   const pane = anchor?.closest('.pane')?.getBoundingClientRect()
   const above = anchor?.getAttribute('data-tip-side') === 'top' ? at.top > 80 : at.bottom + 80 >= innerHeight
   return {ref: fit, 'data-centre': centre, 'data-edges': `${at.left} ${at.right}`, 'data-bounds': pane ? `${pane.left} ${pane.right}` : undefined, style: {left: centre, ...(above ? {bottom: innerHeight - at.top + 4} : {top: at.bottom + 4})}}
 }
+
+/** Sanity's tooltip pause: about 400 ms from the pointer arriving to the tip (measured). */
+const DELAY = 400
 
 export function useTip(content: () => ReactNode) {
   const id = useId()
@@ -43,7 +48,7 @@ export function useTip(content: () => ReactNode) {
     if (e.type === 'focus' && !el.matches(':focus-visible')) return
     clearTimeout(timer.current)
     anchorEl.current = el
-    timer.current = setTimeout(() => setAt(el.getBoundingClientRect()), 300)
+    timer.current = setTimeout(() => setAt(el.getBoundingClientRect()), DELAY)
   }
   const hide = () => (clearTimeout(timer.current), setAt(null))
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -83,6 +88,8 @@ export function IconTips() {
     const show = (e: Event) => {
       const el = (e.target as Element | null)?.closest?.('[data-tip]')
       if (!el || el === current) return
+      // Sanity's body tools have no tooltip while the editor is asleep (they are disabled then).
+      if (el.matches('.body-tool:disabled')) return
       // The focus a click gives is not keyboard focus: the click hid the tip, it stays hidden.
       if (e.type === 'focusin' && !el.matches(':focus-visible')) return
       hide()
@@ -90,7 +97,7 @@ export function IconTips() {
       timer = setTimeout(() => {
         const keys = el.getAttribute('data-tip-keys')
         setShown({el, rect: el.getBoundingClientRect(), text: el.getAttribute('data-tip') ?? '', keys: keys ? keys.split('+') : undefined})
-      }, 300)
+      }, DELAY)
     }
     const leave = (e: Event) => {
       const to = (e as PointerEvent | FocusEvent).relatedTarget as Node | null

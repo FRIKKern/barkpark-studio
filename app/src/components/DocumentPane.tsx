@@ -690,11 +690,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <FocusButton index={index} />
             {split ? (
               // Like Sanity: closing one side of a split is a button, closing a pane a link.
-              <button type="button" className="icon-btn" aria-label={t('Close split pane')} data-tip={t('Close pane')} data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
+              <button type="button" className="icon-btn" aria-label={t('Close split pane')} data-tip={t('Close split pane')} data-testid="pane-close" onClick={() => navigate({href: closeHref})}>
                 {closeIcon}
               </button>
             ) : (
-              <PaneLink href={closeHref} className="icon-btn" aria-label={t('Close pane')} data-tip={t('Close pane')} data-testid="pane-close">
+              // Sanity's tooltip names what this closes: the document's pane group.
+              <PaneLink href={closeHref} className="icon-btn" aria-label={t('Close pane')} data-tip={t('Close pane group')} data-testid="pane-close">
                 {closeIcon}
               </PaneLink>
             )}

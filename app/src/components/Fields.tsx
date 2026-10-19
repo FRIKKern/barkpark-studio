@@ -1047,13 +1047,14 @@ function ExpandButton({expanded, ...rest}: {expanded: boolean} & React.ButtonHTM
   const {anchor, tip} = useTip(() => (
     <span className="tip-line">
       {label}
-      <span>
-        <kbd>{modKey()}</kbd> <kbd>Enter</kbd>
+      <span className="keys">
+        <kbd>{modKey()}</kbd>
+        <kbd>Enter</kbd>
       </span>
     </span>
   ))
   return (
-    <button type="button" className="icon-btn body-expand" aria-label={label} aria-keyshortcuts="Control+Enter Meta+Enter" {...rest} {...anchor}>
+    <button type="button" className="icon-btn body-expand" aria-label={label} aria-keyshortcuts="Control+Enter Meta+Enter" data-tip-side="top" {...rest} {...anchor}>
       {expanded ? <Collapse /> : <Expand />}
       {tip}
     </button>

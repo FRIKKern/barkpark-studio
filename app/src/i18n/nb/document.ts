@@ -53,6 +53,7 @@ export default {
   'Close': 'Lukk',
   'Close history': 'Lukk historikk',
   'Close pane': 'Lukk panel',
+  'Close pane group': 'Lukk panelgruppe',
   'Close reference': 'Lukk referansen',
   'Close split pane': 'Lukk delt panel',
   // The Agency preview view (B09), its own Norwegian until now.

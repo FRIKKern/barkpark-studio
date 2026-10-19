@@ -398,7 +398,7 @@ function RefMenu({onClear, onReplace, newTabHref}: {onClear: () => void; onRepla
         if (e.key === 'ArrowUp' && open) (e.preventDefault(), items[(i - 1 + items.length) % items.length]?.focus())
       }}
     >
-      <button type="button" className="icon-btn" aria-label={t('Reference actions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={t('Reference actions')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
