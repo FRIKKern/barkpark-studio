@@ -380,9 +380,11 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     )
   }
   // Keyed by `base`, the pane chain as a string: a new array each render, the same chain.
+  // The field it opens from leaves this pane's `path=` (Sanity's Create new does): a reload
+  // focused nothing on a filled reference and kept the form from taking focus.
   const openRef = useCallback(
     (type: string, id: string, parentRefPath: string) => ({
-      href: openAfter(panes, index, {kind: 'doc', id, type, parentRefPath}),
+      href: openAfter(pane.path === parentRefPath ? panes.map((p, i) => (i === index ? {...pane, path: undefined} : p)) : panes, index, {kind: 'doc', id, type, parentRefPath}),
       selected: next?.kind === 'doc' && next.id === id && next.parentRefPath === parentRefPath,
       active: index === panes.length - 2,
     }),
