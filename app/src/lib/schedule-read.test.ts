@@ -1,7 +1,7 @@
 // J40: the schedules list as the studio reads it.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {mergeSchedules, readSchedules} from './schedule-read.ts'
+import {mergeSchedules, readPage, readSchedules} from './schedule-read.ts'
 
 const row = (status: string) => ({_id: `s-${status}`, documentId: 'post-01', type: 'post', publishAt: '2026-10-20T08:00:00Z', status})
 
@@ -21,4 +21,13 @@ test('schedules: the Releases list keeps pending and paused ones when status=all
   const merged = mergeSchedules([row('scheduled')], [row('paused')], [...full, row('scheduled')])
   assert.equal(merged.length, 502)
   assert.deepEqual(merged.slice(0, 2).map((s) => s.status), ['scheduled', 'paused'])
+})
+
+test('schedules: a paging Barkpark names the next page; an older one offers none', () => {
+  const rows = [row('cancelled'), row('published')]
+  assert.deepEqual(readPage({result: {schedules: rows, page: {limit: 500, offset: 0, hasMore: true, nextOffset: 500}}}), {schedules: rows, next: 500})
+  assert.deepEqual(readPage({result: {schedules: rows, page: {limit: 500, offset: 500, hasMore: false, nextOffset: null}}}), {schedules: rows, next: null})
+  // Before barkpark#23803: no page, no Load more.
+  assert.deepEqual(readPage({result: {schedules: rows}}), {schedules: rows, next: null})
+  assert.deepEqual(readPage(null), {schedules: [], next: null})
 })

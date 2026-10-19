@@ -1,7 +1,7 @@
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
-import {mergeSchedules, readSchedules, type Schedule} from './schedule-read'
+import {mergeSchedules, readPage, readSchedules, type Schedule} from './schedule-read'
 
 // J40, Sanity's "Schedule publish": the draft publishes at a set time, run on the
 // server as the editor who scheduled it (Barkpark /v1/data/schedules, task-8e88b5539acafdae).
@@ -21,20 +21,32 @@ export const scheduleQuery = (id: string, type: string) =>
   queryOptions({queryKey: ['schedule', id], staleTime: 10_000, queryFn: () => fetchSchedule({data: {id, type}})})
 
 // The Releases tool's Scheduled drafts (Sanity's): every schedule in the dataset, any status.
-// Barkpark's list stops at 500 rows, so pending and paused are read apart (mergeSchedules),
+// Barkpark's list answers 500 rows a page, so pending and paused are read apart (mergeSchedules),
 // and each read keeps the latest 500 (order=desc, barkpark#23799; an older Barkpark ignores it).
+// `more` is where the rest of `status=all` starts (barkpark#23803), for Archived's Load more;
+// null on an older Barkpark, which does not page.
 const fetchAllSchedules = createServerFn({method: 'GET'}).handler(async () => {
-  const lists = await Promise.all(
+  const pages = await Promise.all(
     ['scheduled', 'paused', 'all'].map(async (status) => {
       const res = await bpFetch(`/v1/data/schedules/${dataset()}?status=${status}&order=desc`)
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`Could not read the schedules (${res.status})`)
-      return ((await res.json()) as {result?: {schedules?: Schedule[]}}).result?.schedules ?? []
+      return readPage(await res.json())
     }),
   )
-  if (lists.includes(null)) return {supported: false, schedules: [] as Schedule[]}
-  return {supported: true, schedules: mergeSchedules(...(lists as Schedule[][]))}
+  if (pages.includes(null)) return {supported: false, schedules: [] as Schedule[], more: null}
+  const [pending, paused, all] = pages as {schedules: Schedule[]; next: number | null}[]
+  return {supported: true, schedules: mergeSchedules(pending.schedules, paused.schedules, all.schedules), more: all.next}
 })
+
+/** The next page of `status=all` (latest first), from `offset`: its rows and the page after it. */
+export const fetchMoreSchedules = createServerFn({method: 'GET'})
+  .validator((d: {offset: number}) => d)
+  .handler(async ({data}) => {
+    const res = await bpFetch(`/v1/data/schedules/${dataset()}?status=all&order=desc&offset=${Math.max(0, Math.floor(data.offset))}`)
+    if (!res.ok) throw new Error(`Could not read the schedules (${res.status})`)
+    return readPage(await res.json())
+  })
 
 export const schedulesQuery = queryOptions({queryKey: ['schedules'], staleTime: 0, queryFn: () => fetchAllSchedules()})
 

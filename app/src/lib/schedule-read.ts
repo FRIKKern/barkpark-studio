@@ -26,3 +26,14 @@ export function mergeSchedules(...lists: Schedule[][]): Schedule[] {
   for (const s of lists.flat()) if (!byId.has(s._id)) byId.set(s._id, s)
   return [...byId.values()]
 }
+
+/**
+ * One read of the list: its rows, and where the next page starts. A Barkpark that pages
+ * (barkpark#23803) says `result.page.nextOffset`, null on the last page; an older one has no
+ * `page`, and then there is no next page to offer (it answered its first 500 rows).
+ */
+export function readPage(body: unknown): {schedules: Schedule[]; next: number | null} {
+  const result = (body as {result?: {schedules?: Schedule[]; page?: {nextOffset?: unknown}}} | null)?.result
+  const next = result?.page?.nextOffset
+  return {schedules: result?.schedules ?? [], next: typeof next === 'number' && next > 0 ? next : null}
+}

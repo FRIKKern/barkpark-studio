@@ -2,7 +2,8 @@ import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {docQuery, type Doc} from '../lib/data'
 import {panesPath} from '../lib/panes'
-import {pauseSchedule, schedulesQuery, type Schedule} from '../lib/schedules'
+import {fetchMoreSchedules, pauseSchedule, schedulesQuery, type Schedule} from '../lib/schedules'
+import {mergeSchedules} from '../lib/schedule-read'
 import {deleteSchedule, publishScheduledNow} from '../lib/schedule-actions'
 import {intlTag, useLocale, useT} from '../lib/i18n'
 import {DocPreview} from './Preview'
@@ -52,7 +53,24 @@ export function Releases() {
     wide.addEventListener('change', close)
     return () => wide.removeEventListener('change', close)
   }, [])
-  const all = data?.schedules ?? []
+  // Archived past the first page (barkpark#23803): Load more reads the next page of the
+  // latest-first list; an older Barkpark says no next page, and none is offered.
+  const [older, setOlder] = useState<{schedules: Schedule[]; next: number | null; loaded: boolean}>({schedules: [], next: null, loaded: false})
+  const [loadingMore, setLoadingMore] = useState(false)
+  const more = older.loaded ? older.next : (data?.more ?? null)
+  const loadMore = async () => {
+    if (more == null) return
+    setLoadingMore(true)
+    try {
+      const page = await fetchMoreSchedules({data: {offset: more}})
+      setOlder((o) => ({schedules: mergeSchedules(o.schedules, page.schedules), next: page.next, loaded: true}))
+    } catch (e) {
+      toast({tone: 'critical', title: t('Could not read the schedules'), description: (e as Error).message})
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+  const all = older.schedules.length ? mergeSchedules(data?.schedules ?? [], older.schedules) : (data?.schedules ?? [])
   const marked = new Set(all.filter((s) => s.status === 'scheduled' || s.status === 'paused').map((s) => dayKey(new Date(s.publishAt), zone)))
   const rows = all.filter((s) => (day ? !IN.archived(s.status) && dayKey(new Date(s.publishAt), zone) === day : IN[tab](s.status))).sort((a, b) => (soonest ? 1 : -1) * a.publishAt.localeCompare(b.publishAt))
   const locale = useLocale()
@@ -135,6 +153,11 @@ export function Releases() {
             )}
           </tbody>
         </table>
+      )}
+      {tab === 'archived' && !day && more != null && data?.supported && (
+        <button type="button" className="btn load-more releases-more" disabled={loadingMore} onClick={() => void loadMore()}>
+          {loadingMore ? t('Loading…') : t('Load more')}
+        </button>
       )}
     </main>
     </div>
