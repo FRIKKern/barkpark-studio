@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 2 changes
+- **Today** · 3 changes
+  - Presentation's panel keeps its share of the window, as Sanity's ([#976](https://github.com/FRIKKern/barkpark-studio/pull/976))
   - Footer Saved state as Sanity's: a 21 px mark 2 px from the word, muted words, a 49 px footer ([#978](https://github.com/FRIKKern/barkpark-studio/pull/978))
-  - Date picker placement as Sanity's: above a field near the bottom, up to 4 px from a narrow pane's edge ([#977](https://github.com/FRIKKern/barkpark-studio/pull/977))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
