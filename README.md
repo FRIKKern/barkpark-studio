@@ -18,15 +18,11 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 2 changes
+- **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
-  - J41 B03: a range ticked across rows not drawn is kept and published whole ([#936](https://github.com/FRIKKern/barkpark-studio/pull/936))
-- **Yesterday** · 67 changes, 11 tasks closed
+- **Last week** · 425 changes, 98 tasks closed
   - e2e: refs.spec skips its live-edit budgets locally when studio and rig share a token ([#939](https://github.com/FRIKKern/barkpark-studio/pull/939))
-- **This week** · 358 changes, 87 tasks closed
-  - A document's title and tabs 1 px lower, the narrow title 16 px after its arrow, as Sanity's ([#871](https://github.com/FRIKKern/barkpark-studio/pull/871))
-- **Last week** · 499 changes, 84 tasks closed
-  - QUALITY: F2 and F3 baselines measured on production builds (speed scout) ([#513](https://github.com/FRIKKern/barkpark-studio/pull/513))
+- **This month** · 499 changes, 84 tasks closed
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
