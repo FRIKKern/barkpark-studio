@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 13 changes, 1 task closed
+- **Today** · 14 changes, 1 task closed
+  - Secondary buttons under the pointer as Sanity's ([#954](https://github.com/FRIKKern/barkpark-studio/pull/954))
   - Fields under the pointer get Sanity's darker ring ([#952](https://github.com/FRIKKern/barkpark-studio/pull/952))
-  - History open: all fields, group tabs wait, as Sanity's ([#953](https://github.com/FRIKKern/barkpark-studio/pull/953))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
