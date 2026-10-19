@@ -49,7 +49,7 @@ import {BoundDatasetCard, ReadErrorCard, RefusedTokenCard} from './PaneError'
 import {cancelSchedule, pauseSchedule, resumeSchedule, schedulePublish, scheduleQuery, type Schedule} from '../lib/schedules'
 import {ScheduleDialog} from './ScheduleDialog'
 import {deleteSchedule, publishScheduledNow} from '../lib/schedule-actions'
-import {ChevronDown, CheckmarkCircle, Clock, LockIcon, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Collapse, MasterDetail} from './icons'
+import {ChevronDown, CheckmarkCircle, Clock, LockIcon, PublishIcon, SyncIcon, UnpublishIcon, Close as CloseIcon, ReadOnlyIcon, CommentIcon, Ellipsis, ErrorOutline, SplitVertical, TagIcon, WarningOutline, Copy, Trash, Undo, Expand, Calendar, Reset, Collapse, MasterDetail} from './icons'
 import {useFocusMode} from './FocusMode'
 import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
@@ -363,7 +363,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     return () => void (live = false)
   }, [keepScope, pane.id, editable, !!schema])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
-  const [inspectOpen, setInspectOpen] = useState(false)
+  // Sanity's Inspect is in the URL (`inspect=on`): Back closes and reopens it, a link or a
+  // reload opens it, and it takes the inspector's place (History closes), as there.
+  const inspectOpen = pane.inspect === 'on'
+  const setInspectOpen = (open: boolean) => navigate({href: withParams(panes, index, open ? {inspect: 'on', rev: undefined} : {inspect: undefined})})
   const [askDelete, setAskDelete] = useState(0)
   const metaButton = useRef<HTMLButtonElement>(null)
   const duplicate = (from: Doc) => {
@@ -1200,7 +1203,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
             {!single && scheduleQ.data?.supported && (!schedule || paused) && doc._draft && (
               <button type="button" role="menuitem" className="menu-item" disabled={!canWrite || !!publishReason || blocked > 0} title={publishReason ?? (blocked > 0 ? t('Cannot schedule draft due to validation issues in the current draft.') : undefined)} onClick={() => (setMenu(false), setScheduling(true))}>
                 <span className="menu-icon-text">
-                  <Clock /> {t('Schedule publish')}
+                  <Calendar /> {t('Schedule publish')}
                 </span>
               </button>
             )}
@@ -1230,7 +1233,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
             {canDiscard && (
               <button type="button" role="menuitem" className="menu-item danger" autoFocus={single} disabled={!canWrite} title={editReason} onClick={() => (setMenu(false), setDiscarding(true))}>
                 <span className="menu-icon-text">
-                  <Undo /> {t('Discard changes')}
+                  <Reset /> {t('Discard changes')}
                 </span>
               </button>
             )}
