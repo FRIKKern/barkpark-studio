@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 10 changes, 1 task closed
+- **Today** · 11 changes, 1 task closed
+  - Field-group select names each group's worst problem, as Sanity's ([#951](https://github.com/FRIKKern/barkpark-studio/pull/951))
   - Navbar at 600-768: the studio name whole, as Sanity's ([#950](https://github.com/FRIKKern/barkpark-studio/pull/950))
-  - Review changes: numbers, yes/no, dates, options and objects from → to, as Sanity's ([#949](https://github.com/FRIKKern/barkpark-studio/pull/949))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
