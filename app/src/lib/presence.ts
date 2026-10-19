@@ -1,5 +1,6 @@
 import {useEffect, useSyncExternalStore} from 'react'
 import {withoutSelf} from './presence-people'
+import {onLongHidden} from './hidden'
 
 // Who else is here (J07). One stream per tab into Barkpark's presence room (via
 // /api/presence); this tab's own entry is left out. Focus follows the caret: the doc
@@ -81,6 +82,7 @@ export function usePresenceStream() {
     let es: EventSource | null = null
     let retry: ReturnType<typeof setTimeout> | undefined
     let stopped = false
+    let parked = false // hidden a while: out of the room, the stream let go (lib/hidden.ts)
     let heard = Date.now()
     let muted: EventSource | null = null // e2e: __mutePresence
     const open = () => {
@@ -109,7 +111,7 @@ export function usePresenceStream() {
         emit()
       })
       es.onerror = () => {
-        if (stopped || es?.readyState !== EventSource.CLOSED) return
+        if (stopped || parked || es?.readyState !== EventSource.CLOSED) return
         retry = setTimeout(open, 2000)
       }
     }
@@ -118,7 +120,7 @@ export function usePresenceStream() {
     // event at all, or back on a network, the stream is reopened with the same session.
     let silentMs = 15_000
     const reopen = () => {
-      if (stopped) return
+      if (stopped || parked) return
       clearTimeout(retry)
       es?.close()
       open()
@@ -128,7 +130,7 @@ export function usePresenceStream() {
     // it went to sleep. The room drops a session that sends no focus for PRESENCE_STALE_S
     // (api/presence.ts), so the tab re-sends its focus every BEAT_MS (Sanity reports every
     // 30 s); a hidden tab's timers run once a minute, still inside the window.
-    const beat = setInterval(() => sendFocus(true), BEAT_MS)
+    const beat = setInterval(() => !parked && sendFocus(true), BEAT_MS)
     addEventListener('online', reopen)
     // e2e probe: the stream goes quiet without closing, and the tab calls it dead after `ms`.
     ;(window as {__mutePresence?: (ms: number) => void}).__mutePresence = (ms) => ((muted = es), (silentMs = ms))
@@ -140,12 +142,18 @@ export function usePresenceStream() {
       if (self) void fetch(`/api/presence?sessionId=${encodeURIComponent(self)}`, {method: 'DELETE', keepalive: true}).catch(() => {})
     }
     addEventListener('pagehide', leave)
+    // Shown again, the tab rejoins with its session and re-sends its focus (the 'session' event).
+    const unhide = onLongHidden(
+      () => ((parked = true), clearTimeout(retry), leave(), es?.close(), (es = null)),
+      () => ((parked = false), open()),
+    )
     open()
     return () => {
       stopped = true
       clearTimeout(retry)
       clearInterval(watchdog)
       clearInterval(beat)
+      unhide()
       removeEventListener('online', reopen)
       removeEventListener('pagehide', leave)
       leave()
