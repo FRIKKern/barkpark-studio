@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 2 changes
-  - History and Inspect details as Sanity's: revision card, arrow keys, no _publishedAt ([#941](https://github.com/FRIKKern/barkpark-studio/pull/941))
-  - Body link card: a document link's subtitle as its list row, once, with its type ([#942](https://github.com/FRIKKern/barkpark-studio/pull/942))
+- **Today** · 3 changes, 1 task closed
+  - At 768 an opened document keeps focus on All fields, as Sanity's ([#943](https://github.com/FRIKKern/barkpark-studio/pull/943))
+  - Done: [Canvas: n/max badge and unbind on bound field blocks (LiveView Beta)](https://github.com/FRIKKern/barkpark/issues/23648)
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
