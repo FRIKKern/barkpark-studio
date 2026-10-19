@@ -39,8 +39,9 @@ export function Releases() {
   const t = useT()
   const {data, error, isPending} = useQuery(schedulesQuery)
   const [tab, setTab] = useState<Tab>('active')
-  // Sanity's "Scheduled for" sorts soonest first; a click turns it.
-  const [soonest, setSoonest] = useState(true)
+  // Sanity's "Scheduled for" sorts soonest first; a click turns it. Archived starts latest
+  // first, as Barkpark reads it, so Load more's older rows come below, by the button.
+  const [soonestBy, setSoonestBy] = useState<Record<Tab, boolean>>({active: true, paused: true, archived: false})
   // The zone times are shown in (stored in UTC, as Barkpark keeps them); this browser's
   // own until it has read the one picked here (task-f8d14f136de4ed6d).
   const [zone, setZone] = useState(localZone)
@@ -75,6 +76,8 @@ export function Releases() {
   }
   const all = older.schedules.length ? mergeSchedules(data?.schedules ?? [], older.schedules) : (data?.schedules ?? [])
   const marked = new Set(all.filter((s) => s.status === 'scheduled' || s.status === 'paused').map((s) => dayKey(new Date(s.publishAt), zone)))
+  const soonest = soonestBy[day ? 'active' : tab]
+  const setSoonest = (f: (s: boolean) => boolean) => setSoonestBy((m) => ({...m, [day ? 'active' : tab]: f(m[day ? 'active' : tab])}))
   const rows = all.filter((s) => (day ? !IN.archived(s.status) && dayKey(new Date(s.publishAt), zone) === day : IN[tab](s.status))).sort((a, b) => (soonest ? 1 : -1) * a.publishAt.localeCompare(b.publishAt))
   const locale = useLocale()
   // Each row previews its document. Read one by one, 500 Archived rows were 500 reads at
