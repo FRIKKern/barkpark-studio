@@ -114,6 +114,10 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
 // Sanity's popovers shift to stay 4 px inside the window: at 390 px the 362 px calendar would run off the right.
 function inside(el: HTMLElement) {
   el.style.removeProperty('translate')
+  // No room under the field: above it, as Sanity's (its popover flips), when there is room there.
+  const below = el.getBoundingClientRect()
+  const field = el.parentElement?.getBoundingClientRect()
+  if (field && below.bottom > document.documentElement.clientHeight - 4 && field.top - below.height - 8 >= 0) el.dataset.above = ''
   const r = el.getBoundingClientRect()
   const shift = Math.max(Math.min(0, document.documentElement.clientWidth - 4 - r.right), 4 - r.left)
   if (shift) el.style.translate = `${shift}px 0`

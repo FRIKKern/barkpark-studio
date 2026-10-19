@@ -1323,7 +1323,7 @@ fieldset.object-field[data-collapsible][data-open=true]:not(.fieldset-group) { -
 .datetime-box .icon-btn > svg { position: relative; }
 .datetime[data-invalid] .input { background: var(--danger-bg); }
 /* Sanity's date picker (measured at 1440): 362 px, centred under the input (not its calendar button), 46 x 25 days 4 px apart. */
-.datepicker { top: calc(100% + 4px); left: max(0px, calc((100% - 35px) / 2 - 181px)); width: 362px; padding: 8px; font-size: 13px; }
+.datepicker { top: calc(100% + 4px); left: max(-16px, calc((100% - 35px) / 2 - 181px)); width: 362px; padding: 8px; font-size: 13px; } /* centred under the date words; on a narrow pane up to 4 px from its edge (the form's 20 px in), as Sanity's: 4..366 at 390 */
 .dp-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
 /* Sanity's rows (field-types-01's At, 1440, light and dark): 25 px controls, the select 8 px before the year's arrows,
    its chevron 21 px and muted; the time a 99 x 34 box, Set to current time a 25 px button 8 px after it. */
@@ -1343,6 +1343,7 @@ fieldset.object-field[data-collapsible][data-open=true]:not(.fieldset-group) { -
 .dp-grid button:disabled { font-weight: 400; color: var(--disabled); background: none; cursor: default; }
 .dp-notice { margin: 0 0 8px; padding: 3px 8px; line-height: 19px; border-radius: 3px; background: var(--revert-all-bg); color: var(--schedule-warning-fg); }
 .schedule-dialog .dialog-body { overflow: visible; }
+.datepicker[data-above] { top: auto; bottom: calc(100% + 4px); }
 .schedule-dialog .datepicker { top: auto; bottom: calc(100% + 4px); } /* above the field, as Sanity's: the dialog is short */
 .dp-foot { display: flex; align-items: center; gap: 8px; margin: 16px -8px -8px; padding: 8px; border-top: 1px solid var(--border); } /* a date's is empty: the rule and 16 px */
 .dp-time { position: relative; display: inline-flex; align-items: center; }
