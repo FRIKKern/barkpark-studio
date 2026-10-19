@@ -822,6 +822,11 @@ a.menu-item { display: block; text-decoration: none; }
 .search-results [role=option] { border-radius: 3px; cursor: pointer; }
 .search-results [role=option][aria-selected='true'] .preview { background: var(--card-hover); } /* Sanity's lit result: #f6f6f8, dark #191a24 (measured at 768 and 1440) */
 .search-results [role=option][aria-selected='true'] .preview .badge { background: var(--badge-lit-bg); color: var(--badge-lit-fg); }
+/* The dialog sits in the navbar's brand (500, the header's grey): a result reads as a list row, as Sanity's:
+   the title in the text colour, the subtitle 400; lit, title, subtitle and icon in the row-hover tones. */
+.search-results .preview { color: var(--fg); font-weight: 400; }
+.search-results [role=option][aria-selected='true'] .preview .t { color: var(--row-hover-fg); }
+.search-results [role=option][aria-selected='true'] .preview :is(.s, .media) { color: var(--row-hover-muted); }
 .search-empty { margin: 12px; font-size: 13px; color: var(--muted); }
 /* J38: Sanity's filter row (types, chips, Add filter, Clear filters), order row and command popovers */
 /* Sanity's three header rows are 41 px each under a 1 px rule. */
