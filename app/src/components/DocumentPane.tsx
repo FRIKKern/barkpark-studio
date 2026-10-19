@@ -24,7 +24,7 @@ import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {InPresentationContext, PaneLink, usePaneNavigate, useStructureNavigate} from './PaneLink'
 import {UnknownFields} from './BrokenValues'
 import {unknownFields} from '../lib/broken'
-import {ChangesContext, DocProvider, DocIdContext, DocTypeContext, EditPathContext, FormDisabledContext, FreeformBodyContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
+import {ChangesContext, DocProvider, DocIdContext, DocTypeContext, EditPathContext, WriteUrlPathContext, FormDisabledContext, FreeformBodyContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
 import {UnpublishDialog} from './UnpublishDialog'
@@ -287,6 +287,16 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       void navigate({href: withParams(panes, index, {path: id}), replace: true})
     }, 300)
   }
+  // An array item opened by hand names itself in the URL at once, and closing it goes back to the
+  // item around it, as Sanity's: a reload reopens what is open (task-aa8a7bdb1107c924). Steady,
+  // so the arrays don't redraw with the pane.
+  const writePath = useRef<(path: string | undefined) => void>(() => {})
+  writePath.current = (path) => {
+    clearTimeout(pathTimer.current)
+    opened.current = path ? `${pane.id}|${path}` : null
+    void navigate({href: withParams(panes, index, {path}), replace: true})
+  }
+  const writeUrlPath = useCallback((path: string | undefined) => writePath.current(path), [])
   const saveState = useSaveState(pane.id).state
   const loggedOut = saveState === 'signedOut' || signedOut
   const publishingKey = useRef(false)
@@ -456,6 +466,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     <DocTypeContext.Provider value={pane.type}>
     <DocProvider doc={o.shown}>
     <UrlPathContext.Provider value={pane.path}>
+    <WriteUrlPathContext.Provider value={writeUrlPath}>
     <EditPathContext.Provider value={onEdit}>
     <ProblemsContext.Provider value={o.problems}>
     <OpenObjectsContext.Provider value={openObjects}>
@@ -470,6 +481,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     </OpenObjectsContext.Provider>
     </ProblemsContext.Provider>
     </EditPathContext.Provider>
+    </WriteUrlPathContext.Provider>
     </UrlPathContext.Provider>
     </DocProvider>
     </DocTypeContext.Provider>
