@@ -22,6 +22,8 @@ type Item = {_key?: string} & Record<string, unknown>
 type Crumb = {label: string; position: number; title: string; close: () => void}
 /** The item dialogs open around this one, outermost first (an array inside an item). */
 const DialogCrumbsContext = createContext<Crumb[]>([])
+/** In an item dialog the author opened (not a link): the URL's path is from before, not to follow. */
+const OpenedByHandContext = createContext(false)
 const newKey = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 
 export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}) {
@@ -36,17 +38,22 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   const wantKey = urlPath?.startsWith(`${id}[_key=="`) ? urlPath.slice(id.length + 8).split('"]')[0] : undefined
   // Once per item: closing the dialog puts focus (and so the URL) back on the item's
   // row, which must not open it again. Any open counts, a click's too.
-  const openedFor = useRef<string | undefined>(undefined)
+  // An array in a dialog opened by hand takes the URL's path as done: closing an inner item
+  // left it there, and reopening the outer one by click opened the inner one too (Sanity's doesn't).
+  const openedFor = useRef<string | undefined>(useContext(OpenedByHandContext) ? wantKey : undefined)
+  const [byLink, setByLink] = useState(false)
   useEffect(() => void (editing && (openedFor.current = editing)), [editing])
+  const open = useCallback((key: string | null) => (setEditing(key), setByLink(false)), [])
   useEffect(() => {
     if (!wantKey || wantKey === openedFor.current || !items.some((it) => it._key === wantKey)) return
     openedFor.current = wantKey
     setEditing(wantKey)
+    setByLink(true)
     // Only when the URL names another item, not on every edit of this one.
   }, [wantKey])
   const set = (next: Item[]) => onChange(next)
   // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
-  const renderItem = useCallback((it: Item) => <ItemRow item={it} of={of} onOpen={() => setEditing(it._key ?? null)} />, [of])
+  const renderItem = useCallback((it: Item) => <ItemRow item={it} of={of} onOpen={() => open(it._key ?? null)} />, [of, open])
   return (
     <>
       <SortableRows
@@ -59,14 +66,15 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         blank={(type) => (of.type === 'image' ? {_type: 'image', _key: newKey()} : {...of.initialValue, ...(typing && type ? {[typing.field]: type} : {}), _key: newKey()})}
         types={typing?.types}
         duplicate={(it) => ({...it, _key: newKey()})}
-        onAdded={(i, next) => setEditing(next[i]!._key ?? null)}
-        onDuplicated={(i, next) => setEditing(next[i]!._key ?? null)}
+        onAdded={(i, next) => open(next[i]!._key ?? null)}
+        onDuplicated={(i, next) => open(next[i]!._key ?? null)}
         onCopy={(it, i) => copyItem(id, i, signature(field), it)}
         addLabel={typing ? 'Add item...' : 'Add item'}
         renderItem={renderItem}
         grid={field.layout === 'grid' || (!Array.isArray(field.options) && field.options?.layout === 'grid')}
       />
       {index >= 0 && (
+        <OpenedByHandContext.Provider value={!byLink}>
         <ItemDialog
           parentTitle={field.title ?? field.name}
           position={index + 1}
@@ -78,6 +86,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
           onChange={(next) => set(items.map((it, i) => (i === index ? next : it)))}
           onClose={() => setEditing(null)}
         />
+        </OpenedByHandContext.Provider>
       )}
     </>
   )
