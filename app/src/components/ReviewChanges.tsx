@@ -1,4 +1,4 @@
-import {Fragment, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {Fragment, memo, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
@@ -300,8 +300,12 @@ function ObjectLabel({item, of}: {item: Record<string, unknown>; of: Field}) {
 
 const MARK_TAGS: Record<string, string> = {strong: 'strong', em: 'em', code: 'code', underline: 'u', strikethrough: 's', highlight: 'mark', sub: 'sub', sup: 'sup'}
 
-/** A rich-text change: each changed block drawn as itself, the diff inside it. */
-function BlocksDiff({before, after, author, t}: {before?: DocBlock[]; after?: DocBlock[]; author?: string; t: T}) {
+/**
+ * A rich-text change: each changed block drawn as itself, the diff inside it. Memoized on
+ * the two block lists, which keep their identity while other fields change: typing in the
+ * title with Review changes open diffed a 200-paragraph body on every key (p95 156 ms at 4x CPU).
+ */
+const BlocksDiff = memo(function BlocksDiff({before, after, author, t}: {before?: DocBlock[]; after?: DocBlock[]; author?: string; t: T}) {
   const by = (what: string) => (author ? t(`${what} by {author}`, {author}) : t(what))
   const piece = (x: Piece, i: number) => {
     // An inline object (a chip) is drawn as itself, as Sanity's InlineObjectWithDiff.
@@ -367,7 +371,7 @@ function BlocksDiff({before, after, author, t}: {before?: DocBlock[]; after?: Do
             return <p key={k} data-change={kind}>{body}</p>
         }
   }
-}
+})
 
 /**
  * A changed chip, link or internal link in the body diff: a click says what changed in it
