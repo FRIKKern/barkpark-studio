@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 17 changes
+- **Today** · 18 changes
+  - List keys: a row keeps focus when the list grows into its window ([#993](https://github.com/FRIKKern/barkpark-studio/pull/993))
   - Releases: read the rows' documents in batches, not one per row (the 66 s 429 stall) ([#988](https://github.com/FRIKKern/barkpark-studio/pull/988))
-  - fix(navbar): Who's online and Help open centred and kept in the window ([#994](https://github.com/FRIKKern/barkpark-studio/pull/994))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
