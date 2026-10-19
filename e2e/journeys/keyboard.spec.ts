@@ -166,3 +166,15 @@ test('J19: Ctrl+Alt+I right after opening a document from the list', async ({pag
   await expect(page.getByRole('dialog').filter({hasText: 'Inspecting'})).toContainText(`Inspecting ${TITLE}`)
   await page.keyboard.press('Escape')
 })
+
+// At 768, as Sanity's: a document opened by its URL has focus on "All fields". Its pane
+// starts narrow (the group select shows) and widens as the panes beside it fold; the
+// select it first took focus on hides, and focus fell to the page.
+test('J19: at 768 an opened document has focus on its field groups', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.setViewportSize({width: 768, height: 844})
+  await page.goto(t.docPath('post', 'post-01'))
+  await t.settle(page)
+  await expect(page.getByRole('tab', {name: 'All fields'})).toBeFocused({timeout: 15_000})
+})
