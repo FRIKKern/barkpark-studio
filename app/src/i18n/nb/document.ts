@@ -154,6 +154,10 @@ export default {
   'From': 'Fra',
   'Go back': 'Gå tilbake',
   'has validation errors': 'har valideringsfeil',
+  // A group's worst problem in the field-group select (Sanity's nb-NO).
+  error: 'feil',
+  warning: 'advarsel',
+  info: 'info',
   'has validation info': 'har valideringsinformasjon',
   'has validation warnings': 'har valideringsadvarsler',
   'History': 'Historikk',
