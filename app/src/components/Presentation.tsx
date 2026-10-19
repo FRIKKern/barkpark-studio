@@ -607,27 +607,42 @@ function DocsOrderMenu({order, onOrder}: {order: 'appearance' | 'edited'; onOrde
 // Sanity's Presentation: the divider between the preview and the panel drags, and the
 // split holds across reloads (it keeps it in localStorage too). The panel starts at a
 // quarter of the window, never narrower than 325 px (Sanity's: 325 at 1024 and 1300,
-// 360 at 1440, 480 at 1920); the preview keeps at least 360 px.
-const PANEL_KEY = 'presentation/panel-width'
+// 360 at 1440, 480 at 1920); the preview keeps at least 360 px. Like Sanity's, the split
+// is kept as a share of the window from its first layout on: a wider window, a wider
+// panel (opened at 1024, 325 px; widened to 1280, 406 px), now and after a reload.
+const PANEL_KEY = 'presentation/panel-share'
+const OLD_PANEL_KEY = 'presentation/panel-width' // pixels, before the share
 const PANEL_MIN = 325
 const PREVIEW_MIN = 360
 const clampPanel = (w: number, total: number) => Math.round(Math.max(PANEL_MIN, Math.min(w, total - PREVIEW_MIN)))
+const keepShare = (share: number) => {
+  try {
+    localStorage.setItem(PANEL_KEY, String(share))
+  } catch {}
+}
 function usePanelWidth(): [number, (w: number) => void] {
-  const [width, setWidth] = useState(PANEL_MIN)
+  const [share, setShare] = useState<number | null>(null)
+  const [windowWidth, setWindowWidth] = useState(0)
   useEffect(() => {
-    let saved = 0
+    const measure = () => setWindowWidth(window.innerWidth)
+    measure()
+    addEventListener('resize', measure)
+    const total = window.innerWidth
+    let kept = 0
     try {
-      saved = Number(localStorage.getItem(PANEL_KEY))
+      kept = Number(localStorage.getItem(PANEL_KEY)) || Number(localStorage.getItem(OLD_PANEL_KEY)) / total
     } catch {}
-    setWidth(clampPanel(saved > 0 ? saved : window.innerWidth / 4, window.innerWidth))
+    const first = kept > 0 && kept < 1 ? kept : clampPanel(total / 4, total) / total
+    if (first !== kept) keepShare(first)
+    setShare(first)
+    return () => removeEventListener('resize', measure)
   }, [])
   const set = useCallback((w: number) => {
-    setWidth(w)
-    try {
-      localStorage.setItem(PANEL_KEY, String(w))
-    } catch {}
+    const next = w / window.innerWidth
+    setShare(next)
+    keepShare(next)
   }, [])
-  return [width, set]
+  return [share === null || !windowWidth ? PANEL_MIN : clampPanel(share * windowWidth, windowWidth), set]
 }
 
 function PanelResizer({width, onWidth}: {width: number; onWidth: (w: number) => void}) {
