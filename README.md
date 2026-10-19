@@ -68,7 +68,7 @@ pnpm check                                      # typecheck + build; fails if cl
 cd ../e2e && pnpm install && pnpm test          # journeys on both studios; ours on :3100 against dataset e2e-local
 pnpm reference                                # P0 crown clips, Sanity only; uses the Sanity CLI login
 STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (dev only; app/src/server/auth.ts)
-pnpm --dir ../app serve                         # production build: editors sign in with their Barkpark account; STUDIO_SIGN_IN=shared = one shared token
+pnpm --dir ../app serve                         # production build: editors sign in with their Barkpark account; STUDIO_SIGN_IN=shared = one shared token; put it behind HTTPS with HTTP/2 (plain HTTP/1.1 gives a browser 6 connections, 2 per visible tab)
 ```
 
 `pnpm reference` records Sanity; `pnpm recording` records our built app against

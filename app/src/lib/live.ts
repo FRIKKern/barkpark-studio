@@ -3,6 +3,7 @@ import {notifyManager, useQueryClient} from '@tanstack/react-query'
 import type {Doc} from './data'
 import {applyServer} from './edits'
 import {setLiveDown} from './connection'
+import {onLongHidden} from './hidden'
 
 type Frame = {documentId: string; type: string; mutation: string; result: Doc | null}
 
@@ -45,6 +46,7 @@ export function useLive(ids: string[], types: string[]) {
     if (empty) return
     let es: EventSource
     let stopped = false
+    let parked = false // hidden a while: the stream is let go (lib/hidden.ts)
     let retry: ReturnType<typeof setTimeout> | undefined
     let heard = Date.now()
     let muted: EventSource | null = null // e2e: __muteLive
@@ -58,7 +60,7 @@ export function useLive(ids: string[], types: string[]) {
       // it gave up on (CLOSED) is reopened here with ?since=.
       es.onerror = () => {
         setLiveDown(true) // J50: "Trying to connect…" if it stays down
-        if (es.readyState === EventSource.CLOSED && !stopped) retry = setTimeout(open, 1000)
+        if (es.readyState === EventSource.CLOSED && !stopped && !parked) retry = setTimeout(open, 1000)
       }
       // The server lost track of where we were: refetch what is on screen.
       es.addEventListener('reset', () => void qc.invalidateQueries())
@@ -70,13 +72,18 @@ export function useLive(ids: string[], types: string[]) {
       es.addEventListener('mutation', onFrame)
     }
     const reopen = () => {
-      if (stopped) return
+      if (stopped || parked) return
       es.close()
       clearTimeout(retry)
       setLiveDown(true)
       open()
     }
     const watchdog = setInterval(() => Date.now() - heard > silentMs && reopen(), 1000)
+    // Shown again, the stream opens at lastSeen: the server replays what came meanwhile.
+    const unhide = onLongHidden(
+      () => ((parked = true), clearTimeout(retry), es.close(), setLiveDown(false)),
+      () => ((parked = false), open()),
+    )
     // Back on a network: the open stream may be one that died with the old one.
     addEventListener('online', reopen)
     // e2e probe: the stream goes quiet without closing (what a dropped network does), and
@@ -129,6 +136,7 @@ export function useLive(ids: string[], types: string[]) {
       setLiveDown(false)
       clearTimeout(retry)
       clearInterval(watchdog)
+      unhide()
       removeEventListener('online', reopen)
       es.close()
     }

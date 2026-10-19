@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test, type Page} from '@playwright/test'
 import {bpMutate, target} from '../rig/targets'
 
 // Live stream survives a network blip (task-c1b6d7ed2e05b73a, F8): offline while
@@ -126,6 +126,45 @@ test('@local live: a deploy leaves the stream deaf; a new instance re-opens it a
     await expect(t.field(page, 'title')).toHaveValue(`${TITLE} after the flip`, {timeout: 8_000})
   } finally {
     if (!flipped) await lever(page, 'flip').catch(() => {})
+    await t.restore(ID, {title: TITLE})
+  }
+})
+
+// Over HTTP/1.1 (how `pnpm serve` answers) Chrome gives the studio 6 connections across
+// all its tabs, and each tab held two streams: with three tabs open a save waited for
+// minutes (task-a346be1998fb2f16). A tab hidden a while lets its streams go; shown again,
+// it catches up.
+test('live: three tabs open, a save goes out once the hidden two let go of their streams', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'our streams; Sanity talks HTTP/2 to its API')
+  test.setTimeout(30_000)
+  const ID = 'post-21'
+  const TITLE = 'Fixture post 21'
+  await context.addInitScript(() => ((window as {__hiddenReleaseMs?: number}).__hiddenReleaseMs = 300))
+  // Headless tabs are all visible: a background tab, as the page sees one.
+  const hide = (p: Page, hidden: boolean) =>
+    p.evaluate((h) => {
+      Object.defineProperty(document, 'visibilityState', {configurable: true, get: () => (h ? 'hidden' : 'visible')})
+      Object.defineProperty(document, 'hidden', {configurable: true, get: () => h})
+      document.dispatchEvent(new Event('visibilitychange'))
+    }, hidden)
+  try {
+    const tabs: Page[] = []
+    for (let i = 0; i < 3; i++) {
+      const p = await context.newPage()
+      await p.goto(t.docPath('post', ID))
+      await t.settle(p)
+      tabs.push(p)
+    }
+    for (const p of tabs.slice(0, 2)) await hide(p, true)
+    await tabs[2]!.waitForTimeout(600)
+    await t.field(tabs[2]!, 'title').click()
+    await tabs[2]!.keyboard.press('End')
+    await tabs[2]!.keyboard.type(' tabs')
+    await expect.poll(() => t.docValue(ID, 'title'), {timeout: 10_000, message: 'the save reached the server'}).toBe(`${TITLE} tabs`)
+    await hide(tabs[0]!, false)
+    await expect(t.field(tabs[0]!, 'title'), 'shown again, the tab catches up').toHaveValue(`${TITLE} tabs`, {timeout: 5_000})
+  } finally {
     await t.restore(ID, {title: TITLE})
   }
 })
