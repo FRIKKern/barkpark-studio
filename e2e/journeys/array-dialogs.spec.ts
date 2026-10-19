@@ -5,7 +5,7 @@ import {signInIfAsked, target} from '../rig/targets'
 // inside items; fixtures/barkpark-schema/fieldTypes.json). @local: CI's datasets get the
 // fixture schema only when a PR changes it. Opens a new document (no write until an edit;
 // the add below makes one, removed after).
-test('@local arrays: a six-type insert menu searches; a nested item dialog names the whole way', async ({page}, info) => {
+test('@local arrays: a six-type insert menu searches; a nested item dialog names the whole way and stays shut when its outer one reopens', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's is the scout's still")
   await t.prepare(page.context())
@@ -24,6 +24,16 @@ test('@local arrays: a six-type insert menu searches; a nested item dialog names
     await field('sections').getByRole('button', {name: 'Add item', exact: true}).click()
     await page.getByRole('dialog', {name: /^Sections \//}).getByRole('button', {name: 'Add item', exact: true}).click()
     await expect(page.getByRole('dialog').last().getByRole('navigation', {name: 'Breadcrumb'})).toHaveText(/^Sections\s*\/\s*#1 Untitled\s*\/\s*Items\s*\/\s*#1 Untitled$/)
+    // Closed by Escape with the URL still naming a field in it, the inner item stays closed
+    // when the outer one is opened again by hand, as Sanity's.
+    await page.getByRole('dialog', {name: /^Items \//}).locator('[id$=".label"]').click()
+    await expect(page).toHaveURL(/path=sections.*items.*label/)
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await field('sections').getByText('Untitled', {exact: true}).click()
+    await expect(page.getByRole('dialog', {name: /^Sections \//})).toBeVisible()
+    await expect(page.getByRole('dialog')).toHaveCount(1)
   } finally {
     await t.deleteDoc(id, 'fieldTypes').catch(() => {})
   }

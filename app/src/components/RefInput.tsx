@@ -225,6 +225,16 @@ export function RefSearch({id, types, filter, current, autoFocus, invalid, onPic
   }, [active, open, listId])
 
   const pick = (d: Doc | undefined) => d && onPick(d._publishedId, d)
+  // Escape with the list shown closes the list only, as Sanity's: the item dialog around it
+  // (its own listener, which runs before React's) closes on the next one.
+  const shown = open && (results.length > 0 || waiting || search.isError || (!!query && search.isSuccess))
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el || !shown) return
+    const esc = (e: KeyboardEvent) => void (e.key === 'Escape' && (e.preventDefault(), e.stopPropagation(), setOpen(false)))
+    el.addEventListener('keydown', esc)
+    return () => el.removeEventListener('keydown', esc)
+  }, [shown])
 
   return (
     <div className="ref-search" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false) }}>

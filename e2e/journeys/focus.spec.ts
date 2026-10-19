@@ -136,6 +136,30 @@ test('J43: menu → dialog keeps focus inside, returns it to "…"', async ({pag
   await expect(dots).toBeFocused()
 })
 
+// Escape in a reference search inside an item dialog closes the results only, as Sanity's;
+// the next one closes the dialog (the first closed both: the nested dialogs sweep).
+test('J43: Escape in an item dialog closes its reference results first', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "measured side by side: Sanity's closes its results first too")
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.getByRole('tab', {name: 'Meta'}).click()
+  await page.locator('.field').filter({has: page.locator('[id="links"]')}).last().getByRole('button', {name: /Related post/}).click()
+  const item = page.getByRole('dialog', {name: /^Links \//})
+  await item.getByRole('button', {name: 'Reference actions'}).click()
+  await page.getByRole('menuitem', {name: 'Replace'}).click()
+  const search = item.getByRole('combobox')
+  await search.fill('Fixture')
+  await expect(item.getByRole('listbox')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(item.getByRole('listbox')).toHaveCount(0)
+  await expect(search).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(item).toHaveCount(0)
+})
+
 // Inspect on a document longer than the window stays inside it and scrolls within, as
 // Sanity's (task-f0f926fff6847008: it was 1201 px tall in a 900 px window).
 test('J28: Inspect fits the window on a long document and scrolls inside', async ({page}, info) => {
