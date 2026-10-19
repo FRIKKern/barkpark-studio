@@ -58,3 +58,27 @@ test('@evidence J36: an array of images — add by upload, reorder by keyboard a
   await expect.poll(() => refs(t), {timeout: 10_000}).toEqual([a, b])
   await field.screenshot({path: shot(t.name, '4-reordered')})
 })
+
+// Several images dropped on the array at once, as Sanity's takes them: one item per file,
+// each showing its picture and progress at once, each saved with its own asset.
+test('@local J36: three images dropped on the gallery at once become three items, each with its asset', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: Sanity takes the same drop (measured by hand, task-c5b1cd9ad4a3d0c3)')
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.getByRole('tab', {name: 'Content'}).click()
+  const field = gallery(t, page)
+  await field.scrollIntoViewIfNeeded()
+  const files = ['a', 'b', 'c'].map((n) => ({name: `drop-${n}.png`, b64: file(n).buffer.toString('base64')}))
+  await field.locator('.array-drop').evaluate((el, files) => {
+    const dt = new DataTransfer()
+    for (const f of files) dt.items.add(new File([Uint8Array.from(atob(f.b64), (c) => c.charCodeAt(0))], f.name, {type: 'image/png'}))
+    for (const name of ['dragenter', 'dragover', 'drop']) el.dispatchEvent(new DragEvent(name, {bubbles: true, cancelable: true, dataTransfer: dt}))
+  }, files)
+  await expect(field.locator('.array-item-uploading').first(), 'each row shows its picture and progress at once').toBeVisible()
+  await expect.poll(async () => (await refs(t)).filter(Boolean).length, {timeout: 30_000}).toBe(3)
+  await expect(field.locator('.array-item-uploading')).toHaveCount(0)
+  expect(new Set(await refs(t)).size, 'three different assets').toBe(3)
+})
