@@ -314,7 +314,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
             <CloseIcon />
           </button>
         </header>
-        <div className="dialog-body item-fields">
+        <div className={of.type === 'image' ? 'dialog-body item-fields image-item' : 'dialog-body item-fields'}>
           <fieldset className="form-fields" disabled={readOnly}>
             <ParentContext.Provider value={item}>
               {of.type === 'image' ? (

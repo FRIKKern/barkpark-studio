@@ -1806,6 +1806,8 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .item-dialog .crumb:has(> .muted) { padding-left: 4px; }
 .item-dialog .crumb.current { color: var(--menu-fg); font-weight: 700; }
 .item-fields { padding: 16px 20px 24px; }
+/* An array of images: the item is the image, drawn without its "Image" title, as Sanity's (still its name). */
+.image-item > .form-fields > .object-field > legend { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* Reference arrays (J09): rows of reference previews; a new row searches */
 .ref-row-preview, .ref-row-search { flex: 1; min-width: 0; }
