@@ -191,7 +191,7 @@ export function WhoIsOnline() {
         {people.length > 0 && <span className="who-dot" aria-hidden="true" />}
       </button>
       {open && (
-        <MenuPopover className="popover menu who-menu" onClose={() => setOpen(false)}>
+        <MenuPopover className="popover menu who-menu" centered onClose={() => setOpen(false)}>
           {people.length === 0 ? (
             <div className="menu-empty who-empty">
               <p>{t('No one else is here')}</p>
