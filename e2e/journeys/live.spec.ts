@@ -168,3 +168,29 @@ test('live: three tabs open, a save goes out once the hidden two let go of their
     await t.restore(ID, {title: TITLE})
   }
 })
+
+// One stream per tab (lib/stream.ts): four visible tabs hold four connections of Chrome's
+// six over HTTP/1.1, and a save from the fourth still goes out (with two a tab, none did).
+test('live: four visible tabs, a save from the fourth reaches the server and the first', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'our streams; Sanity talks HTTP/2 to its API')
+  test.setTimeout(30_000)
+  const ID = 'post-21'
+  const TITLE = 'Fixture post 21'
+  try {
+    const tabs: Page[] = []
+    for (let i = 0; i < 4; i++) {
+      const p = await context.newPage()
+      await p.goto(t.docPath('post', ID))
+      await t.settle(p)
+      tabs.push(p)
+    }
+    await t.field(tabs[3]!, 'title').click()
+    await tabs[3]!.keyboard.press('End')
+    await tabs[3]!.keyboard.type(' four')
+    await expect.poll(() => t.docValue(ID, 'title'), {timeout: 10_000, message: 'the save reached the server'}).toBe(`${TITLE} four`)
+    await expect(t.field(tabs[0]!, 'title'), 'and the first tab, live').toHaveValue(`${TITLE} four`, {timeout: 5_000})
+  } finally {
+    await t.restore(ID, {title: TITLE})
+  }
+})

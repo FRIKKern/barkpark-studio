@@ -20,7 +20,7 @@ test(`keystrokes typed as the doc is deleted come back with Restore (${frames})`
   test.skip(t.name !== 'studio', 'ours only: Sanity loses them')
   // CI once missed the delete's live frame and the pane never turned (de6987a, ci-4): the
   // save's 404 alone must show the deleted banner.
-  if (frames !== 'live') await page.route('**/api/listen**', (route) => route.abort('failed'))
+  if (frames !== 'live') await page.route('**/api/stream**', (route) => route.abort('failed')) // the tab's one stream (lib/stream.ts)
   await t.prepare(page.context())
   await bpMutate([{createOrReplace: {_id: ID, _type: 'author', title: 'Kept Author', name: 'Kept Author'}}, {publish: {id: ID, type: 'author'}}])
   await page.goto(t.docPath('author', ID))

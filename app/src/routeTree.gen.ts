@@ -22,6 +22,7 @@ import { Route as ApiListenRouteImport } from './routes/api/listen'
 import { Route as ApiMutateRouteImport } from './routes/api/mutate'
 import { Route as ApiPresenceRouteImport } from './routes/api/presence'
 import { Route as ApiSchemasRouteImport } from './routes/api/schemas'
+import { Route as ApiStreamRouteImport } from './routes/api/stream'
 import { Route as ApiVersionRouteImport } from './routes/api/version'
 import { Route as ApiVisionListenRouteImport } from './routes/api/vision-listen'
 import { Route as DebugLiveRouteImport } from './routes/debug/live'
@@ -105,6 +106,11 @@ const ApiPresenceRoute = ApiPresenceRouteImport.update({
 const ApiSchemasRoute = ApiSchemasRouteImport.update({
   id: '/api/schemas',
   path: '/api/schemas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStreamRoute = ApiStreamRouteImport.update({
+  id: '/api/stream',
+  path: '/api/stream',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiVersionRoute = ApiVersionRouteImport.update({
@@ -217,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/api/mutate': typeof ApiMutateRoute
   '/api/presence': typeof ApiPresenceRoute
   '/api/schemas': typeof ApiSchemasRoute
+  '/api/stream': typeof ApiStreamRoute
   '/api/version': typeof ApiVersionRoute
   '/api/vision-listen': typeof ApiVisionListenRoute
   '/debug/live': typeof DebugLiveRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/api/mutate': typeof ApiMutateRoute
   '/api/presence': typeof ApiPresenceRoute
   '/api/schemas': typeof ApiSchemasRoute
+  '/api/stream': typeof ApiStreamRoute
   '/api/version': typeof ApiVersionRoute
   '/api/vision-listen': typeof ApiVisionListenRoute
   '/debug/live': typeof DebugLiveRoute
@@ -286,6 +294,7 @@ export interface FileRoutesById {
   '/api/mutate': typeof ApiMutateRoute
   '/api/presence': typeof ApiPresenceRoute
   '/api/schemas': typeof ApiSchemasRoute
+  '/api/stream': typeof ApiStreamRoute
   '/api/version': typeof ApiVersionRoute
   '/api/vision-listen': typeof ApiVisionListenRoute
   '/debug/live': typeof DebugLiveRoute
@@ -322,6 +331,7 @@ export interface FileRouteTypes {
     | '/api/mutate'
     | '/api/presence'
     | '/api/schemas'
+    | '/api/stream'
     | '/api/version'
     | '/api/vision-listen'
     | '/debug/live'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/api/mutate'
     | '/api/presence'
     | '/api/schemas'
+    | '/api/stream'
     | '/api/version'
     | '/api/vision-listen'
     | '/debug/live'
@@ -390,6 +401,7 @@ export interface FileRouteTypes {
     | '/api/mutate'
     | '/api/presence'
     | '/api/schemas'
+    | '/api/stream'
     | '/api/version'
     | '/api/vision-listen'
     | '/debug/live'
@@ -425,6 +437,7 @@ export interface RootRouteChildren {
   ApiMutateRoute: typeof ApiMutateRoute
   ApiPresenceRoute: typeof ApiPresenceRoute
   ApiSchemasRoute: typeof ApiSchemasRoute
+  ApiStreamRoute: typeof ApiStreamRoute
   ApiVersionRoute: typeof ApiVersionRoute
   ApiVisionListenRoute: typeof ApiVisionListenRoute
   DebugLiveRoute: typeof DebugLiveRoute
@@ -537,6 +550,13 @@ declare module '@tanstack/react-router' {
       path: '/api/schemas'
       fullPath: '/api/schemas'
       preLoaderRoute: typeof ApiSchemasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stream': {
+      id: '/api/stream'
+      path: '/api/stream'
+      fullPath: '/api/stream'
+      preLoaderRoute: typeof ApiStreamRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/version': {
@@ -689,6 +709,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMutateRoute: ApiMutateRoute,
   ApiPresenceRoute: ApiPresenceRoute,
   ApiSchemasRoute: ApiSchemasRoute,
+  ApiStreamRoute: ApiStreamRoute,
   ApiVersionRoute: ApiVersionRoute,
   ApiVisionListenRoute: ApiVisionListenRoute,
   DebugLiveRoute: DebugLiveRoute,

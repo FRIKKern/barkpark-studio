@@ -1,8 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, dataset, requestToken} from '../../server/barkpark'
-import {currentEditor, presenceName} from '../../server/auth'
 import {clientGone} from '../../server/client-gone'
-import {onNewBoot, presenceDeafSince} from '../../server/listen'
+import {pipePresence} from '../../server/presence-pipe'
 
 // Editor presence (J07): Barkpark's room for this workspace + project + dataset, the
 // same room its LiveView Studio joins. GET streams who is where (SSE, tracked while
@@ -13,48 +12,26 @@ export const Route = createFileRoute('/api/presence')({
   server: {
     handlers: {
       GET: async ({request}) => {
-        const q = new URL(request.url).searchParams
-        const editor = currentEditor()
-        const params = new URLSearchParams({name: editor ? presenceName(editor.email) : 'Studio'})
-        const sessionId = q.get('sessionId')
-        if (sessionId) params.set('sessionId', sessionId)
-        // Out of the room after this long with no focus: a tab asleep stops beating (lib/presence.ts).
-        params.set('staleAfter', String(PRESENCE_STALE_S))
+        let c!: ReadableStreamDefaultController<Uint8Array>
+        const out = new ReadableStream<Uint8Array>({start: (ctrl) => void (c = ctrl), cancel: () => upstream.abort()})
         const upstream = new AbortController()
-        clientGone(request).addEventListener('abort', () => upstream.abort())
-        const res = await bpFetch(`/v1/data/presence/${dataset()}?${params}`, {headers: {accept: 'text/event-stream'}, signal: upstream.signal})
-        if (!res.ok || !res.body) return new Response(await res.text(), {status: res.status})
         // The tab going away must close Barkpark's stream at once: that is what takes
         // this editor out of the room (else it lingers until a keepalive write fails).
-        const reader = res.body.getReader()
-        let off = () => {}
-        const opened = Date.now() // e2e: a stream opened before the deaf lever stays deaf
-        const dec = new TextDecoder()
-        const stream = new ReadableStream<Uint8Array>({
-          start(c) {
-            c.enqueue(new TextEncoder().encode('retry: 500\n\n')) // back within half a second
-            // A Barkpark deploy: this stream stays on the instance being retired, alive and
-            // deaf, while the room moves to the new one (the D11 caret flake, 02:07 UTC
-            // 2026-10-10). A new boot ends it here; the tab's EventSource comes straight back.
-            off = onNewBoot(() => {
-              off()
-              upstream.abort()
-              try {
-                c.close()
-              } catch {}
-            })
-          },
-          async pull(c) {
-            const r = await reader.read().catch(() => null)
-            if (!r || r.done) (off(), c.close())
-            else if (opened <= presenceDeafSince) return
-            // Barkpark's keepalive (every 5 s) is a comment, which EventSource hands to no one;
-            // as a named event the page hears the stream is alive (lib/presence.ts reopens a quiet one).
-            else c.enqueue(dec.decode(r.value) === KEEPALIVE ? PING : r.value)
-          },
-          cancel: () => (off(), upstream.abort()),
-        })
-        return new Response(stream, {headers: {'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive'}})
+        clientGone(request).addEventListener('abort', () => upstream.abort(), {once: true})
+        c.enqueue(new TextEncoder().encode('retry: 500\n\n')) // back within half a second
+        const send = (b: Uint8Array) => {
+          try {
+            c.enqueue(b)
+          } catch {}
+        }
+        const end = () => {
+          try {
+            c.close()
+          } catch {}
+        }
+        const refused = await pipePresence(new URL(request.url).searchParams.get('sessionId'), upstream.signal, send, end)
+        if (refused) return new Response(await refused.text(), {status: refused.status})
+        return new Response(out, {headers: {'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive'}})
       },
       DELETE: async ({request}) => {
         const sessionId = new URL(request.url).searchParams.get('sessionId')
@@ -73,9 +50,6 @@ export const Route = createFileRoute('/api/presence')({
   },
 })
 
-const KEEPALIVE = ': keepalive\n\n'
-const PRESENCE_STALE_S = 90
-const PING = new TextEncoder().encode('event: ping\ndata: {}\n\n')
 
 // Focus moves have a budget of their own on Barkpark, 600/min per token (barkpark#22283),
 // apart from content writes. Coalesced per token to that pace: the latest per tab, sent
