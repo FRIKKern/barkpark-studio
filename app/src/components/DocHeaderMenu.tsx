@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useState, useSyncExternalStore} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
@@ -61,12 +61,23 @@ function useCopyRef(doc: Doc, after: () => void) {
  * copied document's and leaves the rest alone, so pasting a post into an author
  * moves only what fits.
  */
+// Under 600 px wide Sanity's menu has no History (measured at 599 and 600): there the panel
+// covered the whole pane, so a picked revision and its Revert could not be seen.
+const PHONE = '(max-width: 599px)'
+const onPhoneChange = (f: () => void) => {
+  const m = matchMedia(PHONE)
+  m.addEventListener('change', f)
+  return () => m.removeEventListener('change', f)
+}
+const usePhone = () => useSyncExternalStore(onPhoneChange, () => matchMedia(PHONE).matches, () => false)
+
 export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIncoming, onCompare, inline, onInline}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void; onHistory: () => void; onIncoming: () => void; onCompare?: () => void; inline: boolean; onInline: () => void}) {
   const t = useT()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const alt = useAltName()
+  const phone = usePhone()
   const previewUrl = studio.document?.productionUrl?.(doc)
   // LiveView's paper header: "Open standalone", Barkpark's reader for the paper (its slug is its id).
   const barkpark = useQuery({...barkparkInfoQuery, enabled: PAPER_TYPES.has(doc._type)}).data?.url
@@ -86,11 +97,13 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
             </span>
           </button>
           <hr />
-          <button type="button" role="menuitem" className="menu-item" onClick={() => (close(), onHistory())}>
-            <span className="menu-icon-text">
-              <RestoreIcon /> {t('History')}
-            </span>
-          </button>
+          {!phone && (
+            <button type="button" role="menuitem" className="menu-item" onClick={() => (close(), onHistory())}>
+              <span className="menu-icon-text">
+                <RestoreIcon /> {t('History')}
+              </span>
+            </button>
+          )}
           {/* J17 widen: Sanity's "Incoming references", next after History as there. */}
           <button type="button" role="menuitem" className="menu-item" onClick={() => (close(), onIncoming())}>
             <span className="menu-icon-text">
