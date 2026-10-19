@@ -177,8 +177,9 @@ test('@local J41 B03: a range ticked across rows not drawn is kept and published
 })
 
 // A keyboard walk past the first page: the list grows into its window (RowWindow) and draws
-// every row anew; the row with focus keeps it (it fell to the page before).
-test('@local J41 J19: ArrowDown held past the first page keeps focus on a row', async ({page}, info) => {
+// every row anew; the row with focus keeps it (it fell to the page before), and steps taken
+// past the last row while the rest loads are taken once it is there, as on a loaded list.
+test('@local J41 J19: ArrowDown held past the first page keeps focus and ends on the row it should', async ({page}, info) => {
   test.setTimeout(60_000)
   test.skip(!/^e2e-local(-|$)/.test(process.env.BARKPARK_DATASET ?? 'e2e-local'), 'no bulk docs in this dataset (scripts/seed-bulk.mjs)')
   const t = target(info)
@@ -186,13 +187,8 @@ test('@local J41 J19: ArrowDown held past the first page keeps focus on a row', 
   await t.prepare(page.context())
   await page.goto(t.listPath('bulk'))
   await t.settle(page)
-  const rows = page.locator('a[href^="/structure/bulk;"]')
-  await rows.first().focus()
-  for (let i = 0; i < 99; i++) await page.keyboard.press('ArrowDown')
-  // On the last row of the first page the list grows; it is windowed once the rows say "n of 2,000".
-  await expect(page.locator('[role="listitem"][aria-setsize="2000"]').first()).toBeAttached()
-  for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowDown')
-  const at = await page.evaluate(() => ({tag: document.activeElement?.tagName, pos: Number(document.activeElement?.closest('[role="listitem"]')?.getAttribute('aria-posinset') ?? 0)}))
-  expect(at.tag, 'focus stays on a row, not the page').toBe('A')
-  expect(at.pos, 'and on past the first page').toBeGreaterThan(100)
+  await page.locator('a[href^="/structure/bulk;"]').first().focus()
+  for (let i = 0; i < 110; i++) await page.keyboard.press('ArrowDown')
+  const at = () => page.evaluate(() => ({tag: document.activeElement?.tagName, pos: Number(document.activeElement?.closest('[role="listitem"]')?.getAttribute('aria-posinset') ?? 0)}))
+  await expect.poll(at, {message: 'focus on row 111 (110 steps from the first), not the page'}).toEqual({tag: 'A', pos: 111})
 })

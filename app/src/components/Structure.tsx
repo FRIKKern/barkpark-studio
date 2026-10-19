@@ -55,6 +55,24 @@ function usePaneWidth(hint: number) {
 const WINDOW_FROM = 150
 /** Rows drawn past each edge of the view. */
 const OVERSCAN = 30
+/**
+ * ArrowDown steps rowKeys kept while more rows were loading (the list's data-pending): once
+ * they are drawn, focus goes on by that many from the row that has it. Run by ListPane after
+ * a render and by RowWindow once it has given focus back.
+ */
+function takePendingSteps(list: HTMLElement | null) {
+  const n = Number(list?.dataset.pending) || 0
+  if (!list || !n || list.hasAttribute('data-more')) return
+  if (document.activeElement === document.body) return // RowWindow is still giving focus back
+  const from = (document.activeElement as HTMLElement | null)?.closest?.('a[href]')
+  delete list.dataset.pending
+  if (!from || !list.contains(from)) return // the editor went elsewhere: the steps are dropped
+  const links = [...list.querySelectorAll<HTMLAnchorElement>('[role="listitem"] a[href]')]
+  const to = links[Math.min(links.length - 1, links.indexOf(from as HTMLAnchorElement) + n)]
+  to?.focus()
+  to?.scrollIntoView({block: 'nearest'})
+}
+
 /** rowKeys → RowWindow: Home / End in a windowed list (detail 'first' or 'last'). */
 const GO_END = 'rowwindow-go'
 
@@ -77,7 +95,7 @@ function RowWindow({rows, renderRow, top, focused}: {rows: Doc[]; renderRow: (d:
     if (!href) return
     if (document.activeElement !== document.body) return void (refocus.current = null)
     const link = before.current?.parentElement?.querySelector<HTMLAnchorElement>(`[role="listitem"] a[href="${CSS.escape(href)}"]`)
-    if (link) (refocus.current = null), link.focus({preventScroll: true})
+    if (link) (refocus.current = null), link.focus({preventScroll: true}), takePendingSteps(link.closest('.list-rows'))
   })
   const after = useRef<HTMLDivElement>(null)
   const rowH = useRef(49)
@@ -627,6 +645,13 @@ function rowKeys(e: React.KeyboardEvent<HTMLElement>) {
   const rows = [...list.querySelectorAll<HTMLAnchorElement>('a[href]')].filter((a) => a.offsetParent)
   const at = rows.indexOf(from as HTMLAnchorElement)
   if (at < 0) return
+  // Past the last row while the rest is still loading: the step waits and is taken once the
+  // rows are there (ListPane), so a held key ends where it would on a loaded list.
+  if (step === 1 && at === rows.length - 1 && list.hasAttribute('data-more')) {
+    e.preventDefault()
+    list.dataset.pending = String((Number(list.dataset.pending) || 0) + 1)
+    return
+  }
   if (Math.abs(step) === Infinity && list.hasAttribute('data-windowed')) {
     // A long list draws only the rows near the view: RowWindow goes to the end and focuses its row once drawn.
     e.preventDefault()
@@ -734,6 +759,10 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const sentinel = useRef<HTMLDivElement>(null)
   // The row link that last had focus (RowWindow gives it back when the rows are drawn anew).
   const focusedRow = useRef<string | null>(null)
+  // ArrowDown steps taken past the last row while more were loading (rowKeys): once the rows
+  // are drawn, focus goes on by that many.
+  const listBody = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => takePendingSteps(listBody.current))
   const canGrow = !!page?.hasMore && limit < LIST_MAX && !query
   useEffect(() => {
     const el = sentinel.current
@@ -946,7 +975,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         </p>
       )}
       <div
+        ref={listBody}
         className={`pane-body list-rows${view === 'detailed' ? ' detailed' : ''}`}
+        data-more={canGrow || (listQ.isPlaceholderData && listQ.isFetching) ? '' : undefined}
         data-windowed={rowEls ? undefined : ''}
         data-selecting={selectable && (selecting || picked.size > 0) ? '' : undefined}
         onKeyDown={(e) => (e.key === 'Escape' && (selecting || picked.size > 0) ? stopSelecting() : rowKeys(e))}
