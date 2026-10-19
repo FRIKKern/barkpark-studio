@@ -699,7 +699,7 @@ textarea.input { resize: vertical; }
 .doc-footer .publish > svg { width: 21px; height: 21px; margin: 0; }
 .doc-footer .publish-tip + *, .doc-footer .publish + * { margin-left: 4px; }
 .doc-footer .save-state-btn { color: var(--footer-meta); margin: 0; padding: 3px 8px 3px 3px; border: 0; border-radius: 3px; background: none; font: inherit; cursor: pointer; min-width: 0; text-align: left; } /* Sanity's: 25 px, its avatar 3 px in, the words 29 px in */
-.doc-footer .save-state-btn:hover:not(:disabled) { background: var(--hover); }
+.doc-footer .save-state-btn:hover:not(:disabled) { background: var(--icon-btn-hover); color: var(--recent-active-fg); } /* Sanity's: #f6f6f8 and its words #666a79 (dark #21232f, #999ba8), measured */
 .doc-footer .save-state-btn:disabled { cursor: default; }
 .publish { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; padding: 4px 12px; border: 0; border-radius: 3px; background: var(--studio-primary); color: var(--studio-on-primary); cursor: pointer; }
 .publish:disabled { background: var(--publish-disabled-bg); color: var(--publish-disabled-fg); cursor: default; }
