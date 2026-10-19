@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState, type KeyboardEvent, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
-import {useInfiniteQuery, useQuery, useQueryClient} from '@tanstack/react-query'
-import {historyPagesQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {restoreRevision, timeline, useTimeline, type HistoryEntry} from '../lib/history'
 import {applyServer} from '../lib/edits'
 import type {Doc} from '../lib/data'
 import {Add, ChevronDown, ChevronLeft, Close as CloseIcon, EditIcon, InfoOutline, PublishIcon, RestoreIcon, Trash, Undo, UnpublishIcon} from './icons'
@@ -38,14 +38,13 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
   // miss the publish just made, and the list re-drew under the pointer when the fresh
   // read landed (a click opened v3 for v4). List only rows read since the panel opened.
   const [opened] = useState(Date.now)
-  const pages = useInfiniteQuery({...historyPagesQuery(type, id), refetchInterval: 10_000, refetchOnMount: 'always'})
-  const {error, dataUpdatedAt} = pages
-  const revisions = pages.data?.pages.flatMap((p) => p.revisions)
+  const history = useTimeline(type, id, {live: true})
+  const {error, dataUpdatedAt, revisions} = history
   // Sanity's timeline loads older history as you reach its end.
   const end = useRef<HTMLLIElement>(null)
   useEffect(() => {
-    if (!end.current || !pages.hasNextPage) return
-    const seen = new IntersectionObserver(([e]) => e?.isIntersecting && !pages.isFetchingNextPage && void pages.fetchNextPage())
+    if (!end.current || !history.hasMore) return
+    const seen = new IntersectionObserver(([e]) => e?.isIntersecting && !history.loadingMore && history.loadMore())
     seen.observe(end.current)
     return () => seen.disconnect()
   })
@@ -100,7 +99,7 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
             ...(open ? (e.children ?? []).map((c) => <Row key={c.revision.id} e={c} child selected={c.revision.id === selected} onPick={() => onPick(c)} />) : []),
           ]
         })}
-        {pages.hasNextPage && (
+        {history.hasMore && (
           // A list item still (a role on the li made axe's list rule fail): the status is inside it.
           <li ref={end} className="history-more muted">
             <span role="status">{t('Loading history…')}</span>
