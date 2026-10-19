@@ -75,7 +75,7 @@ const fetchCollections = createServerFn({method: 'GET'}).handler(async () => {
 export const collectionsQuery = queryOptions({queryKey: ['media', 'collections'], queryFn: async () => (await fetchCollections()) as unknown as Collection[]})
 
 /** LiveView's orderings (Barkpark's search sort keys). */
-export const SORTS = ['created-desc', 'created-asc', 'updated-desc'] as const
+export const SORTS = ['created-desc', 'created-asc', 'updated-desc', 'relevance'] as const
 export type Sort = (typeof SORTS)[number]
 /** LiveView's Refine facets (Barkpark's search): one value picked per field, or none. */
 export const REFINE = ['mimeType', 'processing', 'status'] as const

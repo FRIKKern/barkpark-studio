@@ -15,7 +15,7 @@ type Use = {_id: string; _type: string; title?: string}
  * deletes the asset and its metadata. Barkpark refuses one in use too (409 with where
  * it is used): that list replaces the lookup's, so a use made since still shows.
  */
-export function AssetDeleteDialog({kind, asset, path, openRef, onClose, onOpen}: {kind: 'image' | 'file'; asset: {id: string; name: string}; path: string; openRef: OpenRef; onClose: () => void; onOpen: () => void}) {
+export function AssetDeleteDialog({kind, asset, path, openRef, onClose, onOpen, onDeleted}: {kind: 'image' | 'file'; asset: {id: string; name: string}; path: string; openRef: OpenRef; onClose: () => void; onOpen: () => void; onDeleted?: () => void}) {
   const t = useT()
   const qc = useQueryClient()
   const [busy, setBusy] = useState(false)
@@ -35,6 +35,7 @@ export function AssetDeleteDialog({kind, asset, path, openRef, onClose, onOpen}:
     toast({tone: 'positive', title: image ? t('Image was deleted') : t('File was deleted')})
     void qc.invalidateQueries({queryKey: ['media']})
     void qc.invalidateQueries({queryKey: ['media-files']})
+    onDeleted?.()
     onClose()
   }
   return (
