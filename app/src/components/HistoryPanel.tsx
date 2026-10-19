@@ -1,10 +1,10 @@
-import {useEffect, useRef, useState, type ReactNode} from 'react'
+import {useEffect, useRef, useState, type KeyboardEvent, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useInfiniteQuery, useQuery, useQueryClient} from '@tanstack/react-query'
 import {historyPagesQuery, restoreRevision, timeline, type HistoryEntry} from '../lib/history'
 import {applyServer} from '../lib/edits'
 import type {Doc} from '../lib/data'
-import {Add, ChevronDown, ChevronLeft, Close as CloseIcon, EditIcon, InfoOutline, PublishIcon, Trash, UnpublishIcon} from './icons'
+import {Add, ChevronDown, ChevronLeft, Close as CloseIcon, EditIcon, InfoOutline, PublishIcon, RestoreIcon, Trash, Undo, UnpublishIcon} from './icons'
 import {toast} from './Toasts'
 import {ago, intlTag, t as tt, useLocale, useT, type Locale} from '../lib/i18n'
 import {initialsOf, usePersonName} from '../lib/person'
@@ -78,7 +78,7 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
       {error && <p role="alert">{t('Could not load the history: {error}', {error: String(error)})}</p>}
       {/* A list of buttons, the shown revision aria-current: a listbox of options holding
           buttons is axe's nested-interactive (F13); Sanity's has that. */}
-      <ul className="history-list" aria-label={t('Document revisions')}>
+      <ul className="history-list" aria-label={t('Document revisions')} onKeyDown={stepRows}>
         {entries.flatMap((e, i) => {
           const open = expanded.has(e.revision.id)
           return [
@@ -111,6 +111,16 @@ export function HistoryPanel({type, id, selected, onPick, onClose, tab = 'histor
       </div>
     </aside>
   )
+}
+
+/** As Sanity's timeline: Up and Down (Home, End) go from one revision to the next; Enter shows it. */
+function stepRows(e: KeyboardEvent<HTMLUListElement>) {
+  const rows = [...e.currentTarget.querySelectorAll<HTMLButtonElement>(':scope > li > button:first-child')]
+  const at = rows.findIndex((b) => b.parentElement!.contains(document.activeElement))
+  const next = {ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: rows.length - 1}[e.key]
+  if (next === undefined || at < 0 || !rows[next]) return
+  e.preventDefault()
+  rows[next].focus()
 }
 
 function Badge({kind}: {kind: keyof typeof BADGE_ICON}) {
@@ -197,11 +207,12 @@ export function RevisionFooter({type, revisionId, timestamp, onRestored}: {type:
   return (
     <footer className="doc-footer revision-footer">
       <span className="save-state" role="status">
+        <RestoreIcon />
         {t('Revision from')} <strong>{timestamp ? revisionDate(timestamp, locale) : '…'}</strong>
       </span>
       <div className="menu-wrap">
         <button className="publish caution" disabled={busy} aria-expanded={asking} onClick={() => setAsking((a) => !a)}>
-          {t('Revert to revision')}
+          <Undo /> {t('Revert to revision')}
         </button>
         {asking && (
           <DialogBox className="popover confirm up" aria-label={t('Restore this document?')} onClose={() => setAsking(false)}>
