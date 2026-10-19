@@ -121,8 +121,8 @@ export function Thumb({value}: {value: ImageValue}) {
 }
 
 /** Preview of a referenced doc, fetched by id (usually already cached). */
-export function RefPreview({type, id, href, selected, active}: {type: string; id: string; href: string} & Sel) {
-  const {data} = useQuery(docQuery(type, id))
+export function RefPreview({type, id, href, selected, active, primed = true}: {type: string; id: string; href: string; primed?: boolean} & Sel) {
+  const {data} = useQuery({...docQuery(type, id), enabled: primed})
   return <DocPreview doc={data} href={href} selected={selected} active={active} />
 }
 

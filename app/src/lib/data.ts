@@ -252,6 +252,31 @@ export async function ensureDocs(client: QueryClient, types: string[], ids: stri
   for (const id of missing) if (client.getQueryData(['doc', id]) === undefined) client.setQueryData(['doc', id], null)
 }
 
+/** The types of `ids` (published or draft spelling), in one read: `{id: type}`. */
+const fetchTypesOf = createServerFn({method: 'GET'})
+  .validator((d: {ids: string[]}) => d)
+  .handler(async ({data}) => {
+    const qs = new URLSearchParams({query: '*[_id in $ids]{_id, _type}', perspective: 'raw'})
+    qs.set('$ids', JSON.stringify(data.ids.flatMap((id) => [id, `drafts.${id}`])))
+    const r = await bpJson<{result: {_id: string; _type: string}[]}>(`/v2025-02-19/data/query/${dataset()}?${qs}`)
+    return Object.fromEntries(r.result.map((d) => [d._id.replace(/^drafts\./, ''), d._type])) as Record<string, string>
+  })
+
+/**
+ * `anyDocQuery`'s cache for `ids`, in batches: their types in one read, then `ensureDocs`
+ * per type. One `anyDocQuery` asks every schema type for its id, so a list of them was a
+ * read per type per row; a missing doc is cached as null, as anyDocQuery answers it.
+ */
+export async function ensureAnyDocs(client: QueryClient, ids: string[]) {
+  const missing = [...new Set(ids)].filter((id) => client.getQueryData(['doc-any', id]) === undefined)
+  if (!missing.length) return
+  const types = await fetchTypesOf({data: {ids: missing}})
+  const byType = new Map<string, string[]>()
+  for (const id of missing) if (types[id]) byType.set(types[id], [...(byType.get(types[id]) ?? []), id])
+  await Promise.all([...byType].map(([type, of]) => ensureDocs(client, [type], of)))
+  for (const id of missing) client.setQueryData(['doc-any', id], client.getQueryData<Doc | null>(['doc', id]) ?? null)
+}
+
 export type {RefFilter} from './ref-filter'
 /** A GROQ filter (Sanity's form) keeps only the docs it matches: one read over their ids. */
 async function groqKept<D extends {_id: string; _publishedId?: string}>(filter: RefFilter | undefined, docs: D[]): Promise<D[]> {

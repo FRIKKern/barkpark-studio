@@ -14,6 +14,7 @@ import {ActorAvatar, PersonName} from './Presence'
 import {Status} from './Preview'
 import {DateTimeInput} from './DateTimeInput'
 import {Add, CheckmarkCircle, ChevronLeft, ChevronRight, Close, DocumentIcon, LinkIcon, Trash, UserIcon} from './icons'
+import {usePrimed} from '../lib/prime'
 
 /**
  * J66, Sanity's Tasks sidebar: the navbar's Tasks button opens it on the Assigned /
@@ -82,6 +83,7 @@ function TaskList({tab}: {tab: TasksTab}) {
   const open = shown.filter((x) => x.state !== 'done')
   const done = shown.filter((x) => x.state === 'done')
   const order = [...open, ...done].map((x) => x._id)
+  const primed = usePrimed(shown.flatMap((x) => (x.target ? [{types: null, id: x.target._ref}] : [])))
   const [heading, text] = tab === 'document' && !active ? ['Open a document to see its task', 'Tasks on your active document will be shown here.'] : EMPTY[tab]
   return (
     <>
@@ -113,7 +115,7 @@ function TaskList({tab}: {tab: TasksTab}) {
           <>
             <ul className="tasks-list" aria-label={t('Open')}>
               {open.map((x) => (
-                <TaskRow key={x._id} task={x} list={order} />
+                <TaskRow key={x._id} task={x} list={order} primed={primed} />
               ))}
             </ul>
             {done.length > 0 && (
@@ -123,7 +125,7 @@ function TaskList({tab}: {tab: TasksTab}) {
                 </summary>
                 <ul className="tasks-list" aria-label={t('Done')}>
                   {done.map((x) => (
-                    <TaskRow key={x._id} task={x} list={order} />
+                    <TaskRow key={x._id} task={x} list={order} primed={primed} />
                   ))}
                 </ul>
               </details>
@@ -172,7 +174,7 @@ function StatusToggle({task}: {task: Task}) {
   )
 }
 
-function TaskRow({task, list}: {task: Task; list: string[]}) {
+function TaskRow({task, list, primed}: {task: Task; list: string[]; primed: (id: string) => boolean}) {
   const t = useT()
   const locale = useLocale()
   return (
@@ -183,7 +185,7 @@ function TaskRow({task, list}: {task: Task; list: string[]}) {
           {task.title}
         </button>
         <span className="task-meta muted">
-          {task.target && <TargetTitle id={task.target._ref} />}
+          {task.target && <TargetTitle id={task.target._ref} primed={primed(task.target._ref)} />}
           {task.dueAt && <span>{new Date(`${task.dueAt}T00:00:00`).toLocaleDateString(locale === 'nb-NO' ? 'nb-NO' : 'en-US', {month: 'short', day: 'numeric'})}</span>}
         </span>
       </div>
@@ -198,9 +200,9 @@ function TaskRow({task, list}: {task: Task; list: string[]}) {
   )
 }
 
-function TargetTitle({id}: {id: string}) {
+function TargetTitle({id, primed = true}: {id: string; primed?: boolean}) {
   const t = useT()
-  const {data: doc} = useQuery(anyDocQuery(id))
+  const {data: doc} = useQuery({...anyDocQuery(id), enabled: primed})
   const {data: schemas = []} = useQuery(schemasQuery)
   return (
     <>

@@ -6,6 +6,7 @@ import {useT} from '../lib/i18n'
 import {openAfter, type Pane} from '../lib/panes'
 import {Close as CloseIcon} from './icons'
 import {DocPreview} from './Preview'
+import {usePrimed} from '../lib/prime'
 
 // J17 widen, Sanity's "Incoming references" (the document menu, `inspect=…/incoming-references`):
 // every document that points at this one, grouped by type, any time (not only when
@@ -25,7 +26,8 @@ export function IncomingReferences({id, panes, index, onClose}: {id: string; pan
   // One row per referring doc (a draft and its published version are one doc; several fields one row).
   const seen = new Set<string>()
   const rows = (links ?? []).map((l) => ({...l, from_doc_id: l.from_doc_id.replace(/^drafts\./, '')})).filter((l) => l.from_doc_id !== id && !seen.has(l.from_doc_id) && seen.add(l.from_doc_id))
-  const docs = useQueries({queries: rows.map((r) => docQuery(r.type, r.from_doc_id))})
+  const primed = usePrimed(rows.map((r) => ({types: [r.type], id: r.from_doc_id})))
+  const docs = useQueries({queries: rows.map((r) => ({...docQuery(r.type, r.from_doc_id), enabled: primed(r.from_doc_id)}))})
   // A draft that points away while its published version still points here still refers
   // (deleting this doc is still blocked by it): then the published version decides.
   const draftAway = rows.map((_, i) => {
@@ -71,7 +73,7 @@ export function IncomingReferences({id, panes, index, onClose}: {id: string; pan
                 .filter((r) => r.type === type)
                 .map((r) => (
                   <li key={r.from_doc_id}>
-                    <Row link={r} href={openAfter(panes, index, {kind: 'doc', id: r.from_doc_id, type: r.type, path: r.via_field || undefined})} selected={next?.kind === 'doc' && next.id === r.from_doc_id} active={index === panes.length - 2} />
+                    <Row link={r} primed={primed(r.from_doc_id)} href={openAfter(panes, index, {kind: 'doc', id: r.from_doc_id, type: r.type, path: r.via_field || undefined})} selected={next?.kind === 'doc' && next.id === r.from_doc_id} active={index === panes.length - 2} />
                   </li>
                 ))}
             </ul>
@@ -83,8 +85,8 @@ export function IncomingReferences({id, panes, index, onClose}: {id: string; pan
 }
 
 /** One referring doc: its own preview once read, its backlink title until then (never a blank row). */
-function Row({link, href, selected, active}: {link: Backlink; href: string; selected: boolean; active: boolean}) {
-  const {data} = useQuery(docQuery(link.type, link.from_doc_id))
+function Row({link, href, selected, active, primed}: {link: Backlink; href: string; selected: boolean; active: boolean; primed: boolean}) {
+  const {data} = useQuery({...docQuery(link.type, link.from_doc_id), enabled: primed})
   const fallback = {_id: link.from_doc_id, _publishedId: link.from_doc_id, _type: link.type, title: link.title} as unknown as Doc
   return <DocPreview doc={data ?? fallback} href={href} selected={selected} active={active} iconless />
 }

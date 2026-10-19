@@ -13,6 +13,7 @@ import {EditPathContext, FieldView, UrlPathContext, type OpenRef, ParentContext}
 import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, DocumentIcon, Upload} from './icons'
 import {translate, useLocale, useT} from '../lib/i18n'
+import {usePrimed} from '../lib/prime'
 
 // Arrays of objects (J33), after Sanity's: each item a row with a preview (the
 // item's preview title/subtitle; a reference subtitle shows the referenced doc's
@@ -34,6 +35,9 @@ const newKey = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 // progress and Cancel. A cancelled or failed upload takes its empty item away.
 type Uploading = {name: string; progress: number; preview: string; cancel: () => void}
 const UploadsContext = createContext<ReadonlyMap<string, Uploading>>(new Map())
+// Whether an item's referenced docs have been read with the rest of the array's
+// (task-3cd385d88d90944e): one read per item was an N+1. Outside an array: always.
+const PrimedContext = createContext<(id: string) => boolean>(() => true)
 const UPLOAD_LANES = 3
 const imageFiles = (list: FileList) => [...list].filter((f) => f.type.startsWith('image/'))
 const carriesFiles = (e: DragEvent<HTMLElement>) => [...e.dataTransfer.types].includes('Files')
@@ -42,6 +46,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   const items = (Array.isArray(value) ? value : []) as Item[]
   const of = field.of!
   const typing = memberTypes(of)
+  const primed = usePrimed(items.flatMap((it) => itemRefs(it, of).flatMap((r) => (r.id && r.types.length ? [{types: r.types, id: r.id}] : []))))
   const [editing, setEditing] = useState<string | null>(null)
   const index = items.findIndex((it) => it._key === editing)
   // J52: a link to a field inside an item (path=links[_key=="l1"].title, or Sanity's
@@ -122,6 +127,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
   const renderItem = useCallback((it: Item) => <ItemRow item={it} of={of} onOpen={() => open(it._key ?? null)} />, [of, open])
   return (
+    <PrimedContext.Provider value={primed}>
     <UploadsContext.Provider value={uploads}>
       <div className="array-drop" data-over={over || undefined} {...dropTarget}>
       {over && (
@@ -163,6 +169,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
       )}
       </div>
     </UploadsContext.Provider>
+    </PrimedContext.Provider>
   )
 }
 
@@ -195,17 +202,26 @@ function fieldsOf(of: Field, item: Item): Field[] {
  * reference ("linkedDocument.title"); a bare reference field reads as the
  * referenced doc's preview title, as Sanity's does.
  */
+const itemTitleSpec = (of: Field): PreviewText | undefined => of.preview?.title ?? of.fields?.find((f) => f.type === 'string')?.name
+
+/** The references an item's preview reads: the preview's ref paths and bare reference fields. */
+function itemRefs(item: Item, of: Field) {
+  const p = of.preview ?? {}
+  const specs = [itemTitleSpec(of), p.subtitle, p.media]
+  const fieldOf = (name: string) => of.fields?.find((f) => f.name === name)
+  const bare = specs.flatMap((s) => (typeof s === 'string' ? [s] : [])).filter((s) => !s.includes('.') && fieldOf(s)?.type === 'reference')
+  return [...new Set([...previewRefs(...specs), ...bare])].map((name) => ({name, id: refId(item[name]), types: refTypesOf(fieldOf(name))}))
+}
+
 export function useItemPreview(item: Item, of: Field) {
   const locale = useLocale()
   const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const p = of.preview ?? {}
-  const titleSpec: PreviewText | undefined = p.title ?? of.fields?.find((f) => f.type === 'string')?.name
-  const specs = [titleSpec, p.subtitle, p.media]
-  const fieldOf = (name: string) => of.fields?.find((f) => f.name === name)
-  const bare = specs.flatMap((s) => (typeof s === 'string' ? [s] : [])).filter((s) => !s.includes('.') && fieldOf(s)?.type === 'reference')
-  const refs = [...new Set([...previewRefs(...specs), ...bare])].map((name) => ({name, id: refId(item[name]), types: refTypesOf(fieldOf(name))}))
-  const targets = useQueries({queries: refs.map((r) => ({...docQuery(r.types, r.id ?? ''), enabled: !!r.id && r.types.length > 0}))})
+  const titleSpec = itemTitleSpec(of)
+  const refs = itemRefs(item, of)
+  const primed = useContext(PrimedContext)
+  const targets = useQueries({queries: refs.map((r) => ({...docQuery(r.types, r.id ?? ''), enabled: !!r.id && r.types.length > 0 && primed(r.id)}))})
   const read = (path: string) => {
     const [head, ...rest] = path.split('.')
     const r = refs.findIndex((x) => x.name === head)

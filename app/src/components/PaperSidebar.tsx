@@ -7,6 +7,7 @@ import {checkLabel, labelEntries, slugFeedback, type WeightedTag} from '../lib/p
 import {TextInput} from './Fields'
 import {ChevronDown, ChevronRight, Close as CloseIcon, Reset} from './icons'
 import {useT} from '../lib/i18n'
+import {usePrimed} from '../lib/prime'
 
 // D12: a paper's metadata beside the canvas, after Barkpark's LiveView Studio sidebar
 // (paper_canvas.ex "t6"): Status (LiveView: Publish; renamed so it never shares a name
@@ -143,7 +144,8 @@ function Relations({doc}: {doc: Doc}) {
   const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
   const out = outboundIds(doc as Record<string, unknown>, doc._publishedId)
-  const outDocs = useQueries({queries: out.map((id) => anyDocQuery(id))})
+  const primed = usePrimed(out.map((id) => ({types: null, id})))
+  const outDocs = useQueries({queries: out.map((id) => ({...anyDocQuery(id), enabled: primed(id)}))})
   const inbound = useQuery(backlinksQuery(doc._publishedId))
   const seen = new Set<string>()
   const usedBy = (inbound.data ?? []).map((b) => ({...b, from_doc_id: b.from_doc_id.replace(/^drafts\./, '')})).filter((b) => b.from_doc_id !== doc._publishedId && !seen.has(b.from_doc_id) && seen.add(b.from_doc_id))

@@ -6,6 +6,7 @@ import {RefPreview} from './Preview'
 import {toast} from './Toasts'
 import {Close as CloseIcon} from './icons'
 import {useT} from '../lib/i18n'
+import {usePrimed} from '../lib/prime'
 
 type Use = {_id: string; _type: string; title?: string}
 
@@ -22,6 +23,8 @@ export function AssetDeleteDialog({kind, asset, path, openRef, onClose, onOpen, 
   const {data: found, isPending} = useQuery({queryKey: ['media-usage', asset.id], staleTime: 0, queryFn: () => fetch(`/api/media/${encodeURIComponent(asset.id)}/usage`).then((r) => r.json() as Promise<Use[]>)})
   const [refused, setRefused] = useState<Use[] | null>(null)
   const uses = refused ?? found
+  // One read per using document was an N+1 (task-3cd385d88d90944e): read in batches.
+  const primedUse = usePrimed((uses ?? []).map((u) => ({types: [u._type], id: u._id})))
   const image = kind === 'image'
   const remove = async () => {
     setBusy(true)
@@ -59,7 +62,7 @@ export function AssetDeleteDialog({kind, asset, path, openRef, onClose, onOpen, 
               <ul className="usage-list">
                 {uses.map((u) => (
                   <li key={u._id} onClick={onOpen}>
-                    <RefPreview type={u._type} id={u._id} href={openRef(u._type, u._id, path).href} selected={false} />
+                    <RefPreview type={u._type} id={u._id} href={openRef(u._type, u._id, path).href} selected={false} primed={primedUse(u._id)} />
                   </li>
                 ))}
               </ul>
