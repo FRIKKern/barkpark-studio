@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 12 changes
+- **Today** · 13 changes
+  - fix(studio): read the documents a list's rows show in batches, not one per row ([#991](https://github.com/FRIKKern/barkpark-studio/pull/991))
   - Review changes: a body diff is drawn again only when the body changes ([#989](https://github.com/FRIKKern/barkpark-studio/pull/989))
-  - fix(refs): path=<field> on a filled reference focuses its card, as Sanity's ([#987](https://github.com/FRIKKern/barkpark-studio/pull/987))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
