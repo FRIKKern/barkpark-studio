@@ -1164,6 +1164,9 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 /* Validation (J13), after Sanity's */
 .error-icon { display: inline-grid; place-items: center; color: var(--critical-icon); margin-left: 4px; vertical-align: middle; }
 .error-icon svg { width: 19px; height: 19px; }
+/* Beside a field's label Sanity's mark is 21 px, 10 px after the words (measured at 1440 on a post with no title). */
+:is(legend, label) > .error-icon { margin: -1px 0 -1px 6px; }
+:is(legend, label) > .error-icon svg { width: 21px; height: 21px; }
 .field[data-invalid] > .input, .field[data-invalid] > textarea.input, .field[data-invalid] > .slug-row > .input { background: var(--danger-bg); }
 .validation-btn[data-problems] { color: var(--critical-icon); position: relative; }
 .validation-btn[aria-pressed='true'] { background: var(--selected-fill); }
