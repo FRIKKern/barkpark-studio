@@ -1428,6 +1428,9 @@ export function ConfirmDialog({title, body, action, run, onClose}: {title: strin
       <DialogBox className="dialog pane-confirm" aria-modal="true" aria-label={title} onClose={onClose}>
         <header>
           <h2>{title}</h2>
+          <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
+            <CloseIcon />
+          </button>
         </header>
         <div className="dialog-body">
           <p>{body}</p>

@@ -1745,7 +1745,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 /* Only the card area dims, as Sanity's layer (and Inspect's): header, tabs and footer stay as they are. */
 @media (min-width: 600px) { .delete-backdrop, .pane .pane-confirm-backdrop { inset: 136px 0 49px; grid-template-rows: minmax(0, 1fr); padding: 12px; } }
 /* On a phone Sanity's delete dialog is centred on the whole window, 12 px in (366 x 445 at 12,200 on a 390 x 844 phone, measured). */
-@media (max-width: 599px) { .delete-backdrop { position: fixed; inset: 0; } .dialog.delete-dialog { width: calc(100vw - 24px); } }
+@media (max-width: 599px) { :is(.delete-backdrop, .pane-confirm-backdrop) { position: fixed; inset: 0; } .dialog:is(.delete-dialog, .pane-confirm) { width: calc(100vw - 24px); } } /* Discard changes too (366 x 166 at 12,339) */
 .delete-preview { display: flex; align-items: center; gap: 8px; min-height: 59px; margin-top: 15px; padding: 0 18px 0 5px; box-sizing: border-box; } /* Sanity's card: 59 px, 15 px under the question, its icon 13 px in */
 /* Sanity's status badge here: 25 px, the words 12 px from its end, #0d311f (dark #abf9de) when published. */
 .delete-preview > .chip { padding: 3px 12px 3px 10px; line-height: 19px; }
@@ -1757,8 +1757,8 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
    action as 25 px buttons 8 px in, 12 px apart. */
 .dialog:is(.delete-dialog, .pane-confirm) { border-radius: 9px; color: var(--fg); }
 .delete-dialog .dialog-body { padding-top: 14px; padding-bottom: 20px; }
-.pane-confirm header { padding-top: 15px; }
-.pane-confirm .dialog-body { padding-top: 19px; padding-bottom: 2px; }
+.pane-confirm header { padding-top: 12px; } /* its 25 px Close, Sanity's, 12 px from the top */
+.pane-confirm .dialog-body { padding-top: 14px; padding-bottom: 2px; }
 :is(.delete-dialog, .pane-confirm) footer { gap: 12px; }
 :is(.delete-dialog, .pane-confirm) footer .btn { padding: 3px 8px; line-height: 19px; }
 :is(.delete-dialog, .pane-confirm) footer .btn:not(.danger, .btn-primary) { color: var(--menu-fg); } /* Sanity's Cancel: #383d51, dark #bdbfcb */
