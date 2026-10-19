@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 15 changes
+- **Today** · 16 changes
+  - fix(navbar): Who's online and Help open centred and kept in the window ([#994](https://github.com/FRIKKern/barkpark-studio/pull/994))
   - fix(search): result rows in the list row's tones, as Sanity's ([#990](https://github.com/FRIKKern/barkpark-studio/pull/990))
-  - An array item opened by hand names itself in the URL, as Sanity's: a reload brings it back ([#992](https://github.com/FRIKKern/barkpark-studio/pull/992))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
