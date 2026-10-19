@@ -5,7 +5,7 @@ import {signInIfAsked, target} from '../rig/targets'
 // inside items; fixtures/barkpark-schema/fieldTypes.json). @local: CI's datasets get the
 // fixture schema only when a PR changes it. Opens a new document (no write until an edit;
 // the add below makes one, removed after).
-test('@local arrays: a six-type insert menu searches; a nested item dialog names the whole way and stays shut when its outer one reopens', async ({page}, info) => {
+test('@local arrays: a six-type insert menu searches; a nested item dialog names the whole way stays shut when its outer one reopens, and survives a reload', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's is the scout's still")
   await t.prepare(page.context())
@@ -34,6 +34,12 @@ test('@local arrays: a six-type insert menu searches; a nested item dialog names
     await field('sections').getByText('Untitled', {exact: true}).click()
     await expect(page.getByRole('dialog', {name: /^Sections \//})).toBeVisible()
     await expect(page.getByRole('dialog')).toHaveCount(1)
+    // Opened by hand, an item names itself in the URL, so a reload brings both back (Sanity's).
+    await page.getByRole('dialog', {name: /^Sections \//}).getByText('Untitled', {exact: true}).click()
+    await expect.poll(() => decodeURIComponent(page.url())).toMatch(/path=sections\[_key=="\w+"\]\.items\[_key=="\w+"\]$/)
+    await page.reload()
+    await signInIfAsked(page)
+    await expect(page.getByRole('dialog')).toHaveCount(2)
   } finally {
     await t.deleteDoc(id, 'fieldTypes').catch(() => {})
   }

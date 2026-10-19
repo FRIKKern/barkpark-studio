@@ -9,7 +9,7 @@ import {uploadMeta} from '../lib/image-meta'
 import {toast} from './Toasts'
 import {Thumb} from './Preview'
 import {copyItem, signature} from '../lib/clipboard'
-import {EditPathContext, FieldView, UrlPathContext, type OpenRef, ParentContext} from './Fields'
+import {EditPathContext, FieldView, UrlPathContext, WriteUrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, DocumentIcon, Upload} from './icons'
 import {translate, useLocale, useT} from '../lib/i18n'
@@ -60,7 +60,14 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   const openedFor = useRef<string | undefined>(useContext(OpenedByHandContext) ? wantKey : undefined)
   const [byLink, setByLink] = useState(false)
   useEffect(() => void (editing && (openedFor.current = editing)), [editing])
-  const open = useCallback((key: string | null) => (setEditing(key), setByLink(false)), [])
+  // Opened by hand, the item names itself in the URL (a reload reopens it); closed, the URL goes
+  // back to the item around this array, or to none (Sanity's: a reload brings back what was open).
+  const writePath = useContext(WriteUrlPathContext)
+  const open = useCallback((key: string | null) => (setEditing(key), setByLink(false), key && writePath?.(`${id}[_key=="${key}"]`)), [id, writePath])
+  const close = () => {
+    if (editing && urlPath?.startsWith(`${id}[_key=="${editing}"]`)) writePath?.(id.match(/^(.*\])\.[^\]]*$/)?.[1])
+    setEditing(null)
+  }
   useEffect(() => {
     if (!wantKey || wantKey === openedFor.current || !items.some((it) => it._key === wantKey)) return
     openedFor.current = wantKey
@@ -163,7 +170,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
           readOnly={readOnly}
           openRef={openRef}
           onChange={(next) => set(items.map((it, i) => (i === index ? next : it)))}
-          onClose={() => setEditing(null)}
+          onClose={close}
         />
         </OpenedByHandContext.Provider>
       )}

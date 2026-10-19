@@ -84,6 +84,8 @@ import {DocIdContext, DocTypeContext} from './doc-ids'
 export {DocIdContext, DocTypeContext}
 /** J52: the field path the URL asks for (`path=`), so an array can open the item it sits in. */
 export const UrlPathContext = createContext<string | undefined>(undefined)
+/** Puts a path in the pane's URL (replaced): an array item opened or closed by hand, as Sanity's. */
+export const WriteUrlPathContext = createContext<((path: string | undefined) => void) | null>(null)
 /** The form is shut (the published version, a revision, a seat that may not write): its fieldset is disabled. */
 export const FormDisabledContext = createContext(false)
 /** D02, LiveView's Classic: a Freeform type's body regions are read here and edited in Freeform, which `open` switches to. */
