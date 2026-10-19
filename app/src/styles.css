@@ -1389,11 +1389,12 @@ fieldset.object-field[data-collapsible] { --lift: -26px; } /* its legend is a 25
 .field-actions .popover.menu[data-side='top'] { top: auto; bottom: calc(100% + 4px); left: 50%; translate: -50% 0; } /* no room on the right (1100 px wide): above, centred */
 
 /* Toasts, after Sanity's: bottom right, title + one line */
-/* Sanity's stack and toast (measured at 1440): 12 px apart; a title-only toast 34 px, the title 12, 7 in on a 19 px line, the time bar its last 2 px. */
+/* Sanity's stack and toast (measured at 1440): 12 px apart; a title-only toast 34 px, the title 12, 7 in on a 19 px line, the time bar its last 2 px.
+   380 wide, 20 px in; on a phone 20 px in from both edges (350 at 390; ours ran 10 px off the left). */
 .toasts { position: fixed; right: 20px; bottom: 84px; z-index: 50; display: flex; flex-direction: column; gap: 12px; }
 /* Over a studio-wide dialog (Diagnostics, version), as Sanity's: its "copied" toast sat under it. Menus still go over toasts (J28). */
 body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
-.toast { position: relative; width: 380px; display: flex; flex-direction: column; gap: 6px; padding: 7px 40px 8px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 19px; color: var(--fg-strong); }
+.toast { position: relative; width: min(380px, calc(100vw - 40px)); display: flex; flex-direction: column; gap: 6px; padding: 7px 40px 8px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 19px; color: var(--fg-strong); }
 .toast strong { font-weight: 500; }
 .toast[data-tone=default] { background: var(--toast-bg); box-shadow: var(--toast-shadow); color: var(--toast-fg); }
 .toast[data-tone=default][data-timed]::after { background: var(--toast-bar); opacity: 1; }
