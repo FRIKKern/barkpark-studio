@@ -63,3 +63,22 @@ test('@local B11: closing the tab with unsaved or failed edits asks first', asyn
   await expect(page.locator('.pd-status')).toHaveText('Saved', {timeout: 10_000})
   expect(await closeAsks(page), 'canvas, saved').toBe(false)
 })
+
+// A save on its way when the tab closes: the page's own request dies with it, so what
+// the page sends as it goes carries that save too (it carried only what was typed after).
+test('B11: closing the tab while a save is on its way still saves it', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's loses it and doesn't ask")
+  const page = await open(context, t.docPath('post', POST), t.settle)
+  // Held: the save stays on its way until the page goes.
+  const ours = (r: {method(): string; postData(): string | null}) => r.method() === 'POST' && (r.postData() ?? '').includes(POST)
+  await page.route('**/_serverFn/**', (r) => (ours(r.request()) ? undefined : r.continue()))
+  const title = t.field(page, 'title')
+  const was = await title.inputValue()
+  const sent = page.waitForRequest((r) => r.url().includes('_serverFn') && ours(r))
+  await title.fill(`${was} kept`)
+  await sent
+  page.once('dialog', (d) => void d.accept())
+  await page.close({runBeforeUnload: true})
+  await expect.poll(() => t.docValue(POST, 'title', 'post'), {timeout: 10_000}).toBe(`${was} kept`)
+})
