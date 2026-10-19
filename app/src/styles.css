@@ -3296,9 +3296,10 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 .tasks-tabs { padding: 2px 12px 13px; } /* the tabs' words at 107, as Sanity's */
 .tasks-tabs button { padding: 3px 8px; line-height: 19px; color: var(--fg-header); }
 .tasks-tabs button[aria-selected='true'] { color: var(--fg); }
-.tasks-empty { padding-top: 127px; }
+.tasks-empty { padding-top: calc(40% - 3.8px); } /* Sanity's empty column sits 40% of the panel's inner width down (127.6 at 768, 140 at 390); ours is 8 px wider */
 .tasks-empty h3 { color: var(--fg); margin-bottom: 8px; }
 .tasks-empty p { margin-bottom: 59px; line-height: 19px; } /* the button 62 px under the hint's last line, as Sanity's (410 at 800) */
+.tasks-empty :is(h3, p) { max-width: 268px; margin-left: auto; margin-right: auto; } /* Sanity's empty column is 268 px: the hint wraps the same at every width (two lines at 390 too) */
 .tasks-empty .btn { padding: 3px 8px 3px 4px; line-height: 19px; background: var(--fg); color: var(--bg); }
 .tasks-crumbs .btn-text { padding: 3px 8px; line-height: 19px; color: var(--fg-header); font-weight: 400; }
 .tasks-crumbs { gap: 0; }
