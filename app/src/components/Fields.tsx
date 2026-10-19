@@ -108,9 +108,33 @@ export function ProblemMark({path, within}: {path: string; within?: boolean}) {
   const t = useT()
   const all = useContext(ProblemsContext).filter((p) => p.path === path || (within && p.path.startsWith(`${path}.`)))
   const level = worst(all)
+  // Sanity's: under the pointer the mark lists every message, each with its level's icon, above it.
+  const {anchor, tip} = useTip(() => (
+    <span className="tip-problems">
+      {all.map((p, i) => {
+        const Icon = LEVEL_ICON[p.level]
+        return (
+          <span key={i} className="tip-problem">
+            <span className="error-icon" data-level={p.level}>
+              <Icon />
+            </span>
+            {p.message}
+          </span>
+        )
+      })}
+    </span>
+  ))
   if (!level) return null
   const problem = all.find((p) => p.level === level)!
-  return <LevelIcon level={level} label={`${t(LEVEL_WORD[level])}: ${problem.message}`} />
+  const Icon = LEVEL_ICON[level]
+  return (
+    <>
+      <span className="error-icon" data-level={level} role="img" aria-label={`${t(LEVEL_WORD[level])}: ${problem.message}`} data-tip-side="top" {...anchor}>
+        <Icon />
+      </span>
+      {tip}
+    </>
+  )
 }
 
 /**
