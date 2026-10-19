@@ -1354,12 +1354,16 @@ fieldset.object-field[data-collapsible][data-open=true]:not(.fieldset-group) { -
 .btn-text:disabled { color: var(--disabled); cursor: default; }
 .btn-text:hover { background: var(--hover); }
 /* J27: odd reference states, as Sanity draws them. */
-.ref-box[data-invalid] { background: var(--danger-bg); box-shadow: inset 0 0 0 1px var(--danger-line); }
+/* An invalid reference (a draft-only target, a missing one): Sanity's critical card, its title in the muted
+   error tone and the document icon in the error icon's (measured light and dark). */
+.ref-box[data-invalid] { background: var(--tone-error-bg); box-shadow: inset 0 0 0 1px var(--tone-error-line); }
+.ref-box[data-invalid] .preview .t { color: var(--tone-error-muted); }
+.ref-box[data-invalid] .preview .media { color: var(--tone-error-icon); }
+.ref-box[data-invalid] .icon-btn { color: var(--tone-error-muted); }
 .ref-search .input[data-invalid] { background: var(--danger-bg); }
 .ref-search .input[data-invalid]::placeholder { color: var(--danger-text); }
 /* Sanity's "Document unavailable" (measured at 390, 768 and 1440, light and dark): a 45 px critical card,
    its words 15 px in the muted error tone, a 25 px help icon, the menu in the same muted tone. */
-.ref-box[data-invalid]:has(> .ref-preview .unavailable, > .unavailable) { background: var(--tone-error-bg); box-shadow: inset 0 0 0 1px var(--tone-error-line); }
 .ref-box:has(.unavailable) .icon-btn { color: var(--tone-error-muted); }
 .preview.unavailable { gap: 6px; min-height: 35px; padding: 5px 4px; font-size: 15px; line-height: 23px; color: var(--tone-error-muted); }
 .preview.unavailable .help { color: var(--tone-error-icon); }
@@ -2981,6 +2985,12 @@ html[data-theme='dark'] body .bp-slash-menu { --paper-ink-faint: #a89d8e; }
 /* Sanity's tooltip (measured at 1440): 25 px for a line, the words 8 px in on 19 px, 3 px corners, its popover shadow. */
 .hover-tip { position: fixed; z-index: 300; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; max-width: 280px; padding: 3px 8px; border-radius: 3px; background: var(--bg); color: var(--fg); box-shadow: var(--tip-shadow); font-size: 13px; line-height: 19px; pointer-events: none; white-space: nowrap; }
 .hover-tip .tip-line { display: flex; gap: 8px; }
+/* A field's validation messages (Sanity's: one row a message, its level's 21 px icon 2 px in, the words at 25). */
+.hover-tip .tip-problems { display: flex; flex-direction: column; gap: 2px; }
+.hover-tip:has(> .tip-problems) { translate: 8px 6px; } /* Sanity anchors it on the mark's words box, 6 px right of and below the icon: centred there, 4 px above */
+.hover-tip .tip-problem { display: flex; align-items: center; gap: 2px; white-space: nowrap; }
+.hover-tip .tip-problem .error-icon { margin: -1px 0 -1px -6px; }
+.hover-tip .tip-problem .error-icon svg { width: 21px; height: 21px; }
 /* A sentence (J13: why Publish is blocked) wraps inside the tip, as Sanity's, instead of running off the window. */
 .hover-tip .tip-text { white-space: normal; width: max-content; max-width: 100%; }
 .hover-tip .tip-line b { font-weight: 500; min-width: 64px; }
