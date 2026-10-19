@@ -73,14 +73,23 @@ export function focusIntoForm(pane: HTMLElement, id: string, ms = 5_000): () => 
     el?.focus({preventScroll: true})
     return !!el
   }
-  if (place()) return () => {}
   let cancelled = false
   const cancel = () => (cancelled = true)
   const left = (e: FocusEvent) => !pane.contains(e.target as Node) && cancel()
+  // A pane still settling its width can hide what took focus: at 768 the field-group select
+  // gives way to the tabs as the panes beside it fold, and focus falls to the page. Place
+  // it again, on what shows now.
+  const dropped = (e: FocusEvent) => {
+    const gone = e.target as HTMLElement
+    if (cancelled || e.relatedTarget || !pane.contains(gone)) return
+    requestAnimationFrame(() => !cancelled && document.activeElement === document.body && !gone.getClientRects().length && place())
+  }
   addEventListener('keydown', cancel, {capture: true})
   addEventListener('pointerdown', cancel, {capture: true})
   addEventListener('focusin', left, {capture: true})
-  const observer = new MutationObserver(() => (cancelled || place()) && stop())
+  addEventListener('focusout', dropped, {capture: true})
+  const placed = place()
+  const observer = new MutationObserver(() => !placed && (cancelled || place()) && observer.disconnect())
   const timer = setTimeout(() => stop(), ms)
   const stop = () => {
     observer.disconnect()
@@ -88,7 +97,8 @@ export function focusIntoForm(pane: HTMLElement, id: string, ms = 5_000): () => 
     removeEventListener('keydown', cancel, {capture: true})
     removeEventListener('pointerdown', cancel, {capture: true})
     removeEventListener('focusin', left, {capture: true})
+    removeEventListener('focusout', dropped, {capture: true})
   }
-  observer.observe(pane, {childList: true, subtree: true})
+  if (!placed) observer.observe(pane, {childList: true, subtree: true})
   return stop
 }
