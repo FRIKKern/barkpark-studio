@@ -42,7 +42,9 @@ export function TagsInput({id, value, onChange, readOnly}: Props) {
         placeholder={tags.length ? undefined : t('Enter tag and press ENTER…')}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key !== 'Enter' || !text.trim()) return
+          // The Enter that commits an IME's word (Japanese, Chinese, Korean) is the IME's, not
+          // ours: it added the half-composed text as a tag (Sanity's does). Safari says 229.
+          if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.keyCode === 229 || !text.trim()) return
           e.preventDefault()
           change([...tags, text.trim()])
           setText('')
@@ -62,6 +64,17 @@ export function StringArrayInput({id, value, onChange, readOnly}: Props) {
       onChange={onChange}
       readOnly={readOnly}
       blank={() => ''}
+      // Sanity's: the caret goes into the new item, so what is typed next lands there (it was
+      // left on Add item, and the empty item saved). The row is drawn a frame or two later.
+      onAdded={(i) => {
+        let frames = 10
+        const focus = () => {
+          const el = document.getElementById(`${id}[${i}]`)
+          if (el) el.focus()
+          else if (frames-- > 0) requestAnimationFrame(focus)
+        }
+        requestAnimationFrame(focus)
+      }}
       onCopy={(v, i) => copyItem(id, i, 'array:string', v)}
       // TextInput keeps what is typed until the list draws it: a bare input bound to the list
       // was put back to its last drawn value after every key (React's controlled input), so
