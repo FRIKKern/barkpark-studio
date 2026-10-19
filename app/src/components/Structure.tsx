@@ -955,7 +955,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           ) : (
             <ListSkeleton />
           ))}
-        {docs && shown.length === 0 && searchComplete && (!treeParent || query.trim()) && <p className={`list-empty${query.trim() ? ' list-none' : ''}`}>{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
+        {/* A tree level with no children says nothing; a list for one parent (Posts by author's author) says, as Sanity's. */}
+        {docs && shown.length === 0 && searchComplete && (!(tree && treeParent) || query.trim()) && <p className={`list-empty${query.trim() ? ' list-none' : ''}`}>{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" id={listId} aria-label={listTitle} className="rows-list">
         {rowEls ?? <RowWindow rows={rows} renderRow={renderRow} top={shownQuery} />}
