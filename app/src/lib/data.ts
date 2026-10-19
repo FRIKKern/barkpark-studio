@@ -419,6 +419,29 @@ export const disconnectReferences = createServerFn({method: 'POST'})
     return null
   })
 
+/** The backlinks of several ids in one read (barkpark#23825); null from a Barkpark without it. */
+const fetchBacklinksMany = createServerFn({method: 'GET'})
+  .validator((d: {ids: string[]}) => d)
+  .handler(async ({data}) => {
+    const res = await bpFetch(`/v1/data/backlinks/${dataset()}?ids=${data.ids.map(encodeURIComponent).join(',')}`)
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error(`Barkpark backlinks → ${res.status}`)
+    const r = (await res.json()) as {result: {byId: Record<string, {backlinks: Backlink[]}>}}
+    return Object.fromEntries(Object.entries(r.result.byId).map(([id, v]) => [id, v.backlinks.map(({from_doc_id, type, title, via_field}) => ({from_doc_id, type, title, via_field}))])) as unknown as Json
+  })
+
+/**
+ * `backlinksQuery`'s cache for `ids`, in one read: true when Barkpark answered it, false
+ * when it has no batch read (then each id reads alone, as before). Several documents' "used
+ * in" (B03's bulk unpublish) was one read per document (task-09a413c1d4d582d3).
+ */
+export async function ensureBacklinks(client: QueryClient, ids: string[]): Promise<boolean> {
+  const byId = (await fetchBacklinksMany({data: {ids}})) as unknown as Record<string, Backlink[]> | null
+  if (!byId) return false
+  for (const id of ids) client.setQueryData(['backlinks', id], byId[id] ?? [])
+  return true
+}
+
 /** Documents that reference `id` ("used in"). Barkpark indexes edges a moment after a write. */
 export const backlinksQuery = (id: string) =>
   queryOptions({queryKey: ['backlinks', id], staleTime: 5_000, queryFn: async () => (await fetchBacklinks({data: {id}})) as unknown as Backlink[]})
