@@ -164,7 +164,12 @@ test('J19: Ctrl+Alt+I right after opening a document from the list', async ({pag
   await expect(t.field(page, 'title')).toHaveValue(TITLE)
   await page.keyboard.press('Control+Alt+i')
   await expect(page.getByRole('dialog').filter({hasText: 'Inspecting'})).toContainText(`Inspecting ${TITLE}`)
+  // In the URL, as Sanity's (inspect=on): Back after closing opens it again.
+  await expect(page).toHaveURL(/,inspect=on/)
   await page.keyboard.press('Escape')
+  await expect(page).not.toHaveURL(/inspect=on/)
+  await page.goBack()
+  await expect(page.getByRole('dialog').filter({hasText: 'Inspecting'})).toBeVisible()
 })
 
 // At 768, as Sanity's: a document opened by its URL has focus on "All fields". Its pane
