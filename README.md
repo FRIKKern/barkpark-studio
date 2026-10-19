@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 6 changes, 1 task closed
+- **Today** · 7 changes, 1 task closed
+  - History: read only the newest page again, not every page the timeline has loaded ([#947](https://github.com/FRIKKern/barkpark-studio/pull/947))
   - Search results: the lit row, type badge colours and badge place as Sanity's ([#946](https://github.com/FRIKKern/barkpark-studio/pull/946))
-  - People: the roster carries names now (Barkpark #23490), say so ([#945](https://github.com/FRIKKern/barkpark-studio/pull/945))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
