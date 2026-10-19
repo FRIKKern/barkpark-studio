@@ -163,6 +163,7 @@
   --menu-danger-hover: #d63a2c; /* a critical item's: Sanity's #ef4434 darkened to AA (4.7:1) */
   --menu-danger-hover-icon: #fabab3;
   --btn-secondary-icon: #838693; /* the icon on its secondary button (Listen) */
+  --btn-secondary-hover-bg: #eeeef1; --btn-secondary-hover-fg: #353a4d; --btn-secondary-hover-ring: #dedee4; --btn-secondary-hover-icon: #7f828f; /* under the pointer (Generate, Add item; Sanity's, measured) */
   --tab-strong-fg: #232635; /* Vision's selected saved-queries tab, the chosen version chip */
   --danger-btn-bg: #d83d35;
   --danger-btn-fg: #fff;
@@ -347,6 +348,7 @@
   --menu-danger-hover: #f77a6f;
   --menu-danger-hover-icon: #6c312f;
   --btn-secondary-icon: #7c7e89;
+  --btn-secondary-hover-bg: #21232f; --btn-secondary-hover-fg: #c1c3d0; --btn-secondary-hover-ring: #2e3141; --btn-secondary-hover-icon: #818390;
   --tab-strong-fg: #e6e7ec;
   --danger-btn-bg: #f87c6f;
   --danger-btn-fg: #0d0e12;
@@ -759,7 +761,7 @@ a.menu-item { display: block; text-decoration: none; }
 /* Sanity's Create beside a reference search (post-01 Reviewer, Related; 1440): a 21 px muted icon 6 px in, the word 6 px after it in 500, 12 px after. */
 .btn-create { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 6px; height: 35px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
 .btn-create > svg { width: 21px; height: 21px; color: var(--btn-secondary-icon); }
-.btn-create:hover, .btn-square:hover { background: var(--hover); }
+.btn-square:hover { background: var(--hover); }
 .ref-search { flex-wrap: wrap; }
 /* Sanity's: the chevron joins the input as one box (34 px, its 27 px button 3 px in), not a square of its own. */
 .field .ref-search > .combo .input { border-radius: 3px 0 0 3px; }
@@ -1486,7 +1488,9 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .array-box:has(> .array-empty) { padding: 0; }
 /* Add item: Sanity's secondary button (fill, ring, muted words, its + 21 px), its content 3 px left of centre, measured at 1440. */
 .add-item { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 8px; padding: 6px 10px 6px 4px; font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); cursor: pointer; }
-.add-item:hover { background: var(--hover); }
+/* Sanity's secondary button under the pointer: fill, words, ring and icon each a step darker (lighter in dark). */
+:is(.btn-create, .add-item, .vision-actions .btn:not(.btn-primary)):hover:not(:disabled) { background: var(--btn-secondary-hover-bg); box-shadow: inset 0 0 0 1px var(--btn-secondary-hover-ring); color: var(--btn-secondary-hover-fg); }
+:is(.btn-create, .add-item, .vision-actions .btn:not(.btn-primary)):hover:not(:disabled) svg { color: var(--btn-secondary-hover-icon); }
 .add-item svg { width: 21px; height: 21px; color: var(--btn-secondary-icon); }
 /* J33: the insert menu of a several-type array, centred under Add item as Sanity's. */
 .menu-wrap.add-item-wrap { display: block; position: relative; }
@@ -2301,7 +2305,6 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 /* Listen is Sanity's secondary button beside the blue Fetch (measured at 1440, light and dark). */
 .vision-actions .btn:not(.btn-primary) { background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); }
 .vision-actions .btn:not(.btn-primary) svg { color: var(--btn-secondary-icon); }
-.vision-actions .btn:not(.btn-primary):hover { background: var(--hover); }
 .vision-label-help { display: inline-flex; align-items: center; gap: 4px; }
 .vision-help { display: inline-flex; color: var(--muted); cursor: help; }
 .vision-help svg { width: 17px; height: 17px; margin: -3px 0; }
