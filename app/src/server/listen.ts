@@ -67,6 +67,9 @@ const hubFor = (token: string): Hub => {
 
 const wants = (sub: Subscriber, docId: string, type?: string) => sub.ids.has(docId) || (!!type && sub.types.has(type))
 
+/** e2e (soak): browser subscriptions and open upstreams across the hubs. */
+export const hubStats = () => ({subscribers: [...hubs.values()].reduce((n, h) => n + h.subscribers.size, 0), upstreams: [...hubs.values()].filter((h) => h.upstream).length})
+
 /** The newest event id the hub holds (-1: none yet). Sent as the welcome's id. */
 export const head = (token: string) => {
   const b = hubFor(token).buffer

@@ -3,6 +3,7 @@ import {requestToken} from '../../server/barkpark'
 import {head, subscribe} from '../../server/listen'
 import {clientGone} from '../../server/client-gone'
 import {pipePresence} from '../../server/presence-pipe'
+import {openStreams as open} from '../../server/stream-registry'
 
 // One stream per tab (lib/stream.ts): the live frames of /api/listen and the presence
 // room of /api/presence on a single SSE. Over HTTP/1.1 Chrome gives a site 6 connections
@@ -10,8 +11,6 @@ import {pipePresence} from '../../server/presence-pipe'
 // (task-a346be1998fb2f16). GET opens it (?ids=&types=&since=&resumed=1 as /api/listen,
 // ?sessionId= as /api/presence) and names it in a `stream` event; POST {stream, ids,
 // types, since} changes what it listens to without reopening it (a pane opened or closed).
-type Open = {token: string; listen: (ids: string[], types: string[], since?: number) => void}
-const open = new Map<string, Open>()
 const enc = new TextEncoder()
 const PING_MS = 10_000
 const PRESENCE_RETRY_MS = 2000

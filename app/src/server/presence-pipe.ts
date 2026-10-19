@@ -12,6 +12,9 @@ const KEEPALIVE = ': keepalive\n\n'
 /** Out of the room after this long with no focus: a tab asleep stops beating (lib/presence.ts). */
 export const PRESENCE_STALE_S = 90
 const PING = new TextEncoder().encode('event: ping\ndata: {}\n\n')
+let piping = 0
+/** e2e (soak): presence streams open to Barkpark now. */
+export const presencePipes = () => piping
 
 /**
  * Opens this editor's presence stream and hands its SSE bytes to `send` until `signal`
@@ -35,9 +38,11 @@ export async function pipePresence(sessionId: string | null, signal: AbortSignal
   const reader = res.body.getReader()
   const dec = new TextDecoder()
   let ended = false
+  piping++
   const end = () => {
     if (ended) return
     ended = true
+    piping--
     off()
     upstream.abort()
     onEnd()

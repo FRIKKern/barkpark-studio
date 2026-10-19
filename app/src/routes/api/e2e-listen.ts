@@ -1,13 +1,17 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {e2eReadBlip} from '../../server/barkpark'
-import {e2eListen} from '../../server/listen'
+import {e2eListen, hubStats} from '../../server/listen'
+import {presencePipes} from '../../server/presence-pipe'
+import {openStreams} from '../../server/stream-registry'
 
 // POST /api/e2e-listen {action: 'deaf' | 'cut' | 'flip' | 'read-blip', ms?}: the e2e rig's
 // levers on the listen hub, presence and reads (live.spec, deploy-flip.spec). Off unless the
-// server runs with STUDIO_E2E_HOOKS=1.
+// server runs with STUDIO_E2E_HOOKS=1. GET: what is open now (the tab-stream soak).
 export const Route = createFileRoute('/api/e2e-listen')({
   server: {
     handlers: {
+      GET: () =>
+        process.env.STUDIO_E2E_HOOKS === '1' ? Response.json({streams: openStreams.size, presencePipes: presencePipes(), ...hubStats()}) : new Response('not found', {status: 404}),
       POST: async ({request}) => {
         if (process.env.STUDIO_E2E_HOOKS !== '1') return new Response('not found', {status: 404})
         const {action, ms} = (await request.json()) as {action: 'deaf' | 'cut' | 'flip' | 'read-blip'; ms?: number}
