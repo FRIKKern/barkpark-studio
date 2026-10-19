@@ -9,12 +9,14 @@ import {mediaBytes} from '../lib/files'
 import {useCanWrite} from '../lib/session'
 import {uploadFile} from '../lib/upload'
 import {imageSrc, TILE_PX} from '../lib/image'
+import {AssetDeleteDialog} from './AssetDelete'
+import {RefPreview} from './Preview'
 
 // B08: the Media tool, after Barkpark's LiveView media library: folders, a visibility
 // filter, and the checkout lock on an asset's edits. Laid out like Sanity's media
 // browser: folders left, tiles in the middle, the picked asset's inspector right.
 
-const SORT_TITLES: Record<Sort, string> = {'created-desc': 'Newest first', 'created-asc': 'Oldest first', 'updated-desc': 'Recently updated'}
+const SORT_TITLES: Record<Sort, string> = {'created-desc': 'Newest first', 'created-asc': 'Oldest first', 'updated-desc': 'Recently updated', relevance: 'Best match'}
 const KIND_TITLES: Record<Kind, string> = {image: 'Images', video: 'Video', audio: 'Audio', document: 'Documents', other: 'Other'}
 const REFINE_TITLES: Record<(typeof REFINE)[number], string> = {mimeType: 'Format', processing: 'Processing', status: 'Status'}
 /** One asset's kind, as LiveView's list and inspector name it. */
@@ -44,8 +46,11 @@ export function MediaLibrary({search: kept, onSearch}: {search: MediaSearch; onS
   const view = kept.view ?? 'grid'
   const setView = (v: 'grid' | 'list') => onSearch({view: v === 'list' ? 'list' : undefined})
   // The search as typed goes to the URL once it settles; a URL that moves (Back) brings it here.
+  // LiveView's: a search sorts by Best match (from Newest first), and cleared, Newest first again.
   useEffect(() => {
-    if ((kept.q ?? '') !== query) onSearch({q: query || undefined})
+    if ((kept.q ?? '') === query) return
+    const resort = query && sort === 'created-desc' ? {sort: 'relevance' as const} : !query && sort === 'relevance' ? {sort: undefined} : {}
+    onSearch({q: query || undefined, ...resort})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
   useEffect(() => {
@@ -281,6 +286,9 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
   const {data: a, isError, refetch} = useQuery(assetQuery(id))
   const [meta, setMeta] = useState({title: '', altText: ''})
   const [busy, setBusy] = useState(false)
+  // Where it is used, as the image field's "Show usage" (Sanity's "Documents using file").
+  const {data: uses} = useQuery({queryKey: ['media-usage', id], queryFn: () => fetch(`/api/media/${encodeURIComponent(id)}/usage`).then((r) => r.json() as Promise<{_id: string; _type: string}[]>)})
+  const [deleting, setDeleting] = useState(false)
   useEffect(() => setMeta({title: a?.title ?? '', altText: a?.altText ?? ''}), [a?.id, a?.title, a?.altText])
   const refresh = () => Promise.all([qc.invalidateQueries({queryKey: ['media', 'asset', id]}), qc.invalidateQueries({queryKey: ['media', 'assets']})])
   /** Run a write, refresh, and say whether it worked (a refusal is shown, never a success). */
@@ -398,6 +406,43 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
           <p className="muted">{t('Folder collections hold curated sets of assets.')}</p>
         )}
       </section>
+      {/* Where it is used; each opens in Structure. One in use can't be deleted (J36's dialog says so). */}
+      <section className="media-section" aria-label={t('Documents using file')}>
+        <h3>{t('Documents using file')}</h3>
+        {uses === undefined ? (
+          <p className="muted">{t('Looking…')}</p>
+        ) : uses.length ? (
+          <ul className="usage-list">
+            {uses.map((u) => (
+              <li key={u._id}>
+                <RefPreview type={u._type} id={u._id} href={`/structure/${u._type};${u._id}`} selected={false} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">
+            {t('No documents are using file')} <code>{a.name}</code>
+          </p>
+        )}
+      </section>
+      <p className="media-file-actions">
+        <button type="button" className="btn danger" disabled={busy || !!editReason} title={editReason} onClick={() => setDeleting(true)}>
+          {t('Delete')}
+        </button>
+      </p>
+      {deleting && (
+        <div className="media-delete-layer">
+          <AssetDeleteDialog
+            kind={a.mimeType.startsWith('image/') ? 'image' : 'file'}
+            asset={{id: a.id, name: a.name}}
+            path="media"
+            openRef={(type, doc) => ({href: `/structure/${type};${doc}`, selected: false, active: false})}
+            onClose={() => setDeleting(false)}
+            onOpen={() => setDeleting(false)}
+            onDeleted={onClose}
+          />
+        </div>
+      )}
     </aside>
   )
 }

@@ -16,6 +16,8 @@ test('B08: Media keeps its kind, search, sort and view across Back and a reload'
   const list = page.getByRole('button', {name: 'List', exact: true})
   await kinds.getByRole('button', {name: /^Images/}).click()
   await searchbox.fill('fixture')
+  // LiveView's: a search sorts by Best match until another order is picked.
+  await expect(sort).toHaveValue('relevance')
   await sort.selectOption('created-asc')
   await list.click()
   await expect(page).toHaveURL(/[?&]kind=image/)

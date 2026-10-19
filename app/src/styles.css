@@ -2598,6 +2598,7 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .media-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 4px 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .media-row .media-thumb { width: 40px; flex: none; }
 .media-inspector { width: 320px; display: flex; flex-direction: column; gap: 12px; }
+.media-delete-layer { position: fixed; inset: 0; z-index: 80; } /* the Delete dialog over the whole tool */
 .media-inspector header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-preview { max-width: 100%; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
 .media-note { margin: 0; font-size: 12px; }
