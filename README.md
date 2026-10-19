@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 35 changes, 1 task closed
+- **Today** · 36 changes, 1 task closed
+  - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
   - Tooltips as Sanity's: 400 ms pause, its shadow and hotkey caps, body tools above, menus on reference and array rows ([#973](https://github.com/FRIKKern/barkpark-studio/pull/973))
-  - feat(studio): the link pill as Sanity's annotation toolbar; D06 body-link tests follow the canvas version ([#980](https://github.com/FRIKKern/barkpark-studio/pull/980))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
