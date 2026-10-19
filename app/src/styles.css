@@ -729,6 +729,7 @@ textarea.input { resize: vertical; }
 /* Sanity's filled reference, measured at 1440: 59 px, the card 5 px in, the status centred 15.5 px from its end,
    the muted … 5 px from the edge; its menu centred under the button, sized to its items. */
 .ref-box.ref-row { padding: 5px; }
+.ref-box.ref-row:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--focus-ring); } /* Sanity's focused reference card: its line turns the 1 px focus ring */
 .ref-box .preview .status, .ref-row-preview .preview .status { margin-right: -3px; } /* Sanity's dot sits 3 px nearer the end, in a reference field and its array rows */
 .ref-row > .menu-wrap > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); }
 /* Sanity's Share menu: as wide as its items, 29 px under the button's top. */

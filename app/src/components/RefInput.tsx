@@ -77,9 +77,11 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
     onChange(v)
   }
 
+  // Filled, the card carries the field's id and takes focus as Sanity's does (tabindex -1):
+  // a `path=` link to the field (an incoming reference's) lands on it, not on <body>.
   if (!searching && value)
     return (
-      <div className="ref-box ref-row" ref={previewRef} data-invalid={invalid || undefined}>
+      <div className="ref-box ref-row" id={id} tabIndex={-1} ref={previewRef} data-invalid={invalid || undefined}>
         <div className="ref-preview">
           {target === null ? <Unavailable id={value} /> : <DocPreview doc={target} {...linkFor(value, targetType)} />}
         </div>
