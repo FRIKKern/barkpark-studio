@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 21 changes, 1 task closed
+- **Today** · 22 changes, 1 task closed
+  - Discard-changes confirm as Sanity's: its Close button, its height, and on a phone the whole window ([#962](https://github.com/FRIKKern/barkpark-studio/pull/962))
   - Asset and file browsers on narrow windows as Sanity's ([#961](https://github.com/FRIKKern/barkpark-studio/pull/961))
-  - Delete dialog on a phone as Sanity's: centred on the window, 12 px in ([#960](https://github.com/FRIKKern/barkpark-studio/pull/960))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
