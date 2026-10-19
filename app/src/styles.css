@@ -1742,7 +1742,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .popover.menu.who-menu .menu-empty.who-empty { margin: 0; padding: 11px 16px; line-height: 19px; }
 .who-empty p { margin: 0; font-weight: 400; }
 .who-empty p:first-child { color: var(--fg); font-weight: 500; }
-.popover.menu.who-menu { right: -70px; left: auto; min-width: 260px; }
+.popover.menu.who-menu { min-width: 260px; } /* centred under its button, kept 4 px inside the window (centre()), as Sanity's at 390, 768 and 1440 */
 .popover.menu.who-menu:has(> .who-empty) { width: 260px; padding: 0; white-space: normal; }
 .who-row { display: flex; align-items: center; gap: 8px; text-align: left; }
 .who-row .who-name { font-weight: 500; }
@@ -2498,7 +2498,7 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .menu-wrap.help .icon-btn { position: relative; }
 .update-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--caution-dot); box-shadow: 0 0 0 1.5px var(--bg); }
 /* Sanity's sits 4 px from the window's edge (the avatar's 33 px and the navbar's 8 px past the button), measured at 1440. */
-.popover.menu.help-menu { right: -41px; left: auto; top: calc(100% + 4px); min-width: 226px; max-width: calc(100vw - 32px); white-space: normal; }
+.popover.menu.help-menu { top: calc(100% + 4px); min-width: 226px; max-width: calc(100vw - 32px); white-space: normal; }
 .help-menu .menu-item { text-decoration: none; }
 .menu-item.studio-version { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .menu-item.studio-version:disabled { color: var(--fg); cursor: default; }

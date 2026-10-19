@@ -236,7 +236,7 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
         )}
       </button>
       {open && (
-        <MenuPopover className="popover menu help-menu" onClose={() => setOpen(false)} aria-labelledby={inDrawer ? 'help-menu-drawer' : 'help-menu'}>
+        <MenuPopover className="popover menu help-menu" centered={!inDrawer} onClose={() => setOpen(false)} aria-labelledby={inDrawer ? 'help-menu-drawer' : 'help-menu'}>
           {/* Sanity's first two, with their icons: Send feedback (ours: report a problem) and Diagnostics. */}
           <a role="menuitem" className="menu-item" href="https://github.com/FRIKKern/barkpark-studio/issues/new/choose" target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
             <span className="menu-icon-text">
