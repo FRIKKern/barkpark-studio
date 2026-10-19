@@ -2610,6 +2610,8 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 .releases-menu { right: 0; top: 100%; }
 .releases-gone { font-size: 13px; color: var(--muted); padding-left: 8px; }
 .releases-none { text-align: center; font-size: 13px; color: var(--muted); }
+/* Archived past the first page (barkpark#23803), as the asset dialogs' Load more. */
+.releases-more { display: block; margin: 16px auto; box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); }
 .releases-empty { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: calc(50vh - 213px) auto 0; max-width: 300px; text-align: center; font-size: 13px; line-height: 19px; color: var(--muted); } /* Sanity's: the picture 99 px over the window's middle, the words under it */
 .releases-empty > svg { flex: none; margin-bottom: 4px; }
 @media (max-width: 599px) { .releases-empty { margin-top: calc(50vh - 207px); } } /* 6 px lower on a phone, as Sanity's at 390 */

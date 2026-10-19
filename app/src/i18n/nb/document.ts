@@ -335,6 +335,7 @@ export default {
   'Select a date in the future.': 'Velg en dato i fremtiden.',
   'Pause to edit': 'Sett på pause for å redigere',
   'Could not pause the schedule': 'Kunne ikke sette tidsplanen på pause',
+  'Could not read the schedules': 'Kunne ikke lese tidsplanene',
   'Schedule paused while editing. Press Schedule to reactivate or pick a new date.': 'Tidsplanen er satt på pause mens du redigerer. Trykk Planlegg publisering for å aktivere den igjen eller velge en ny dato.',
   'Publish now': 'Publiser nå',
   'Publish draft now': 'Publiser utkastet nå',
