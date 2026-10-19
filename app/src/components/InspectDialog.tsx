@@ -6,7 +6,7 @@ import {useT, type T} from '../lib/i18n'
 
 // Sanity's Inspect (J28, Ctrl+Alt+I or the header "…" menu): the document as
 // stored, over its own pane. "Parsed" is a collapsible tree with a filter, "Raw
-// JSON" the text. Client-only bookkeeping (_hasPublished) is left out.
+// JSON" the text. Client-only bookkeeping (_hasPublished, _publishedAt) is left out.
 
 type Json = null | boolean | number | string | Json[] | {[k: string]: Json}
 
@@ -25,10 +25,11 @@ const keepView = (view: 'parsed' | 'raw') => {
   } catch {}
 }
 
-/** The document as stored, keys in order (Sanity's): client-only bookkeeping (_hasPublished) left out. */
+/** The document as stored, keys in order (Sanity's): client-only bookkeeping (_hasPublished, _publishedAt) left out. */
 export function storedValue(doc: Doc): Json {
-  const {_hasPublished, ...stored} = doc
+  const {_hasPublished, _publishedAt, ...stored} = doc
   void _hasPublished
+  void _publishedAt
   return Object.fromEntries(Object.entries(stored).sort(([a], [b]) => a.localeCompare(b))) as Json
 }
 
