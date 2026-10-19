@@ -257,7 +257,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
         ))}
         {rest.length > 0 && (
           <div className="menu-wrap body-more-wrap" onMouseDown={(e) => e.stopPropagation()} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMoreMenu(null)}>
-            <button type="button" className="icon-btn body-tool" aria-label={t('Show more')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={moreMenu === which} onClick={() => (onWake ? onWake() : setMoreMenu((m) => (m === which ? null : which)))}>
+            <button type="button" className="icon-btn body-tool" aria-label={t('Show more')} data-tip={t('Show more')} data-tip-side="top" aria-haspopup="menu" aria-expanded={moreMenu === which} onClick={() => (onWake ? onWake() : setMoreMenu((m) => (m === which ? null : which)))}>
               <Ellipsis />
             </button>
             {moreMenu === which && (
@@ -316,7 +316,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
 
 function ToolButton({label, pressed, disabled, onClick, children}: {label: string; pressed: boolean; disabled: boolean; onClick: () => void; children: ReactNode}) {
   return (
-    <button type="button" className="icon-btn body-tool" aria-label={label} data-tip={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
+    <button type="button" className="icon-btn body-tool" aria-label={label} data-tip={label} data-tip-side="top" aria-pressed={pressed} disabled={disabled} onClick={onClick}>
       {children}
     </button>
   )
