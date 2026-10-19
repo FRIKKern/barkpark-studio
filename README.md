@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 27 changes, 1 task closed
+- **Today** · 28 changes, 1 task closed
+  - Number fields step with Up and Down, as Sanity's <input type="number"> ([#968](https://github.com/FRIKKern/barkpark-studio/pull/968))
   - An empty list for one parent says No documents of this type, at Sanity's 15 px ([#967](https://github.com/FRIKKern/barkpark-studio/pull/967))
-  - Error toasts as Sanity's critical toast ([#966](https://github.com/FRIKKern/barkpark-studio/pull/966))
 - **Yesterday** · 2 changes
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **Last week** · 425 changes, 98 tasks closed
