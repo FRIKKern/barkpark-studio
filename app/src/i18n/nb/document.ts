@@ -205,6 +205,8 @@ export default {
   'Retrying… (#{n}).': 'Prøver på nytt… (#{n}).',
   'Revert all': 'Angre alle',
   'changed to': 'endret til',
+  On: 'På',
+  Off: 'Av',
   'Revert change': 'Angre endring',
   'Revert changes to {field}': 'Angre endringer i {field}',
   'Revert to revision': 'Gjenopprett',

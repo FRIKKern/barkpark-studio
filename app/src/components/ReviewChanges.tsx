@@ -15,6 +15,7 @@ import {assetUrl, imageRef, type ImageValue} from '../lib/image'
 import {sizeLabel} from '../lib/image-meta'
 import {useFileInfo} from './FileInput'
 import {useLocale, useT, type T} from '../lib/i18n'
+import {formatDate, parseDate} from '../lib/date-format'
 
 // Sanity's "Review changes" (J15): every field the draft changed since it was last
 // published, with who changed it, the change itself (text as a word diff), a
@@ -199,6 +200,30 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
       </ul>
     )
   }
+  // A number, a yes/no, a date or a picked option: what it was → what it is, as Sanity's
+  // Number, Boolean, Datetime and option-list String diffs (not a diff of their text).
+  const was = valueLabel(change.field, change.before, t)
+  const now = valueLabel(change.field, change.after, t)
+  if (was !== undefined || now !== undefined)
+    return (
+      <p className="review-diff review-fromto" style={userColorVars(author ?? 'unknown')}>
+        {was !== undefined && <del title={by('Removed')}>{was}</del>}
+        {was !== undefined && now !== undefined && <span className="review-arrow" aria-label={t('changed to')}>→</span>}
+        {now !== undefined && <ins title={by('Added')}>{now}</ins>}
+      </p>
+    )
+  // An object: its fields that changed, each from → to, as Sanity lists an object's changes.
+  const [then, nowObj] = [change.before, change.after]
+  if ((change.field.type === 'object' || change.field.fields?.length) && isRecord(then) && isRecord(nowObj)) {
+    const subs = [...new Set([...Object.keys(then), ...Object.keys(nowObj)])]
+      .filter((k) => !k.startsWith('_') && JSON.stringify(then[k]) !== JSON.stringify(nowObj[k]))
+      .map((name): AttrChange => ({name, before: then[name], after: nowObj[name]}))
+    return (
+      <div className="review-diff" style={userColorVars(author ?? 'unknown')}>
+        <Attrs attrs={subs} fields={change.field.fields} by={by} />
+      </div>
+    )
+  }
   const before = asText(change.before)
   const after = asText(change.after)
   if (before === undefined || after === undefined)
@@ -220,6 +245,37 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
       )}
     </p>
   )
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+
+/** How a from → to field shows one side of its change (undefined: not such a field, or no value). */
+function valueLabel(field: Field, v: unknown, t: T): ReactNode | undefined {
+  if (v === undefined || v === null || v === '') return undefined
+  const options = (field.options ?? {}) as {list?: unknown[]; dateFormat?: string; timeFormat?: string; layout?: string}
+  if (field.type === 'boolean' && typeof v === 'boolean')
+    // Sanity's: the switch as it was and as it is.
+    return (
+      <span className="switch review-switch" role="img" aria-label={v ? t('On') : t('Off')}>
+        <input type="checkbox" checked={v} readOnly tabIndex={-1} aria-hidden="true" />
+        <span />
+      </span>
+    )
+  if (field.type === 'number' && typeof v === 'number') return String(v)
+  // As the date input shows it: options.dateFormat (YYYY-MM-DD) and timeFormat (HH:mm), local time.
+  if (field.type === 'datetime' && typeof v === 'string' && !Number.isNaN(Date.parse(v))) return formatDate(new Date(v), `${options.dateFormat ?? 'YYYY-MM-DD'} ${options.timeFormat ?? 'HH:mm'}`)
+  if (field.type === 'date' && typeof v === 'string') {
+    const d = parseDate(v, 'YYYY-MM-DD')
+    return d ? formatDate(d, options.dateFormat ?? 'YYYY-MM-DD') : v
+  }
+  // A picked option shows its title (Sanity's StringFieldDiff over options.list).
+  const list = Array.isArray(field.options) ? field.options : options.list
+  if (Array.isArray(list) && (typeof v === 'string' || typeof v === 'number')) {
+    const hit = list.find((o) => (o && typeof o === 'object' ? (o as {value?: unknown}).value === v : o === v))
+    if (hit === undefined) return String(v)
+    return hit && typeof hit === 'object' ? String((hit as {title?: string; label?: string}).title ?? (hit as {label?: string}).label ?? v) : String(v)
+  }
+  return undefined
 }
 
 /** A referenced document by its preview title. */
