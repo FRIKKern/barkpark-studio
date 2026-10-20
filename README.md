@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 38 changes
+- **Today** · 39 changes
+  - feat(vision): Params read as JSON5, with Sanity's line:column errors and auto-closed brackets ([#1016](https://github.com/FRIKKern/barkpark-studio/pull/1016))
   - fix(previews): read Barkpark's object list_preview parts instead of throwing ([#1014](https://github.com/FRIKKern/barkpark-studio/pull/1014))
-  - fix(vision): Params that aren't JSON tint their pane and hold Fetch, as Sanity's ([#1013](https://github.com/FRIKKern/barkpark-studio/pull/1013))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
