@@ -1866,7 +1866,7 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .image-actions .icon-btn { background: var(--bg-glass); box-shadow: inset 0 0 0 1px var(--line); }
 .image-actions .popover { right: 0; top: 100%; min-width: 180px; }
 .image-menu .menu-item { display: flex; align-items: center; gap: 6px; text-decoration: none; color: inherit; }
-.dialog.hotspot-dialog { width: min(640px, calc(100% - 64px)); }
+.dialog.hotspot-dialog { width: min(640px, calc(100% - 24px)); } /* Sanity's: 12 px from the pane's sides on a phone */
 .hotspot-dialog h2 { font-size: 13px; font-weight: 600; margin: 0; }
 .hotspot-dialog .label { font-weight: 500; margin: 32px 0 4px; }
 /* Sanity's description wraps at 464 px. */
@@ -1883,6 +1883,8 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .hotspot-tool .crop-rect:focus-visible { stroke: var(--focus-ring); stroke-width: 2; filter: drop-shadow(0 0 2px rgba(0,0,0,.3)); }
 .hotspot-tool .hotspot:focus-visible { stroke: var(--focus-ring); stroke-width: 2; }
 .hotspot-tool .hotspot-handle, .hotspot-tool .crop-handle { fill: #fff; stroke: #000; stroke-width: 1; }
+/* Lines one screen pixel wide however small the tool is drawn. */
+.hotspot-tool :is(.crop-rect, .hotspot, .hotspot-handle, .crop-handle, .hotspot-guides line) { vector-effect: non-scaling-stroke; }
 .hotspot-tool:has(.hotspot:focus-visible) .hotspot-handle, .hotspot-tool:has(.crop-rect:focus-visible) .crop-handle { stroke: var(--focus-ring); }
 .hotspot-tool .handle-hit { fill: transparent; }
 .hotspot-tool .hotspot-guides { stroke: var(--fg); stroke-opacity: .2; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }

@@ -2,7 +2,7 @@
 // moves (measured 2026-10-06 on reference/sanity, e2e/journeys/image.spec.ts).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {dragCrop, frame, imageFileName, imageRef, pickedImage, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
+import {dragCrop, fitHotspot, frame, imageFileName, imageRef, pickedImage, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≉ ${b}`)
 
@@ -23,6 +23,20 @@ test('crop: a side follows the pointer, the window keeps a minimum, moving keeps
   near(moved.left, 0.02)
   near(moved.right, 0.1587)
   near(moveCrop(c, 1, 0).left, c.right) // stops at the right edge
+})
+
+// Sanity's tool keeps the hotspot inside the crop. The same moves on both (2026-10-20, the
+// hotspot/crop sweep): crop's right edge in 20%, the hotspot's corner in 30%; Sanity stored
+// {x 0.4, y 0.5, width 0.2, height 0.4}.
+test('the hotspot stays inside the crop: a crop pulled across it narrows and moves it', () => {
+  const c = dragCrop(NO_CROP, 'right', 0.8, 0.5)
+  const fitted = fitHotspot(NO_HOTSPOT, c)
+  near(fitted.x, 0.4)
+  near(fitted.width, 0.8)
+  const h = fitHotspot(resizeHotspot(fitted, -0.3, -0.3), c)
+  assert.deepEqual(h, {x: 0.4, y: 0.5, width: 0.2, height: 0.4})
+  assert.equal(fitHotspot(h, c), h) // already inside: the same object
+  near(fitHotspot(moveHotspot(h, 0.5, 0), c).x, 0.7) // moved past the crop's edge: back in
 })
 
 test('a preview frame keeps the hotspot centred inside the crop', () => {

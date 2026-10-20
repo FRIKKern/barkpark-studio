@@ -8,7 +8,7 @@ import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, 
 import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
-import {assetUrl, dragCrop, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
+import {assetUrl, dragCrop, fitHotspot, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 import {uploadFile, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
 import {useFileInfo} from './FileInput'
@@ -372,8 +372,9 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
   const cropRef = useRef<SVGRectElement>(null)
   // What a pointer is dragging: the crop's size badge shows while it is the crop (Sanity's).
   const [dragging, setDragging] = useState<'crop' | 'hotspot' | null>(null)
-  // SVG units per screen pixel: the handles' grab circles stay 44 px wide however
-  // small the tool is drawn (phone width, F12; shown only there, in CSS).
+  // SVG units per screen pixel: the handles (24 px to grab, as Sanity's), their grab circles
+  // (44 px, phone width only, in CSS) and the size badge keep their screen size however small
+  // the tool is drawn (at 390 they were 11 px).
   // (A callback ref: the dialog mounts through a portal, after this component's effects.)
   const [unit, setUnit] = useState(1)
   const sized = useRef<ResizeObserver | null>(null)
@@ -396,6 +397,7 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
     const from = latest.current
     const move = (ev: PointerEvent) => {
       const next = apply(at(ev), start, from)
+      next.h = fitHotspot(next.h, next.c)
       setH(next.h)
       setC(next.c)
     }
@@ -413,8 +415,11 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
     const d = {ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step]}[e.key]
     if (!d) return
     e.preventDefault()
-    if (target === 'hotspot') commit(moveHotspot(h, d[0]!, d[1]!), c)
-    else commit(h, moveCrop(c, d[0]!, d[1]!))
+    if (target === 'hotspot') commit(fitHotspot(moveHotspot(h, d[0]!, d[1]!), c), c)
+    else {
+      const nc = moveCrop(c, d[0]!, d[1]!)
+      commit(fitHotspot(h, nc), nc)
+    }
   }
 
   const cx = h.x * W
@@ -493,8 +498,8 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
                 return (
                   <>
                     <circle className="handle-grab" cx={hx} cy={hy} r={22 * unit} onPointerDown={resize} />
-                    <circle className="hotspot-handle" cx={hx} cy={hy} r={8} pointerEvents="none" />
-                    <circle className="handle-hit" data-handle="hotspotHandle" cx={hx} cy={hy} r={12} onPointerDown={resize} />
+                    <circle className="hotspot-handle" cx={hx} cy={hy} r={8 * unit} pointerEvents="none" />
+                    <circle className="handle-hit" data-handle="hotspotHandle" cx={hx} cy={hy} r={12 * unit} onPointerDown={resize} />
                   </>
                 )
               })()}
@@ -516,16 +521,16 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
               {handles.map(([side, x, y]) => {
                 const pull = drag((p, _s, from) => ({h: from.h, c: dragCrop(from.c, side, p.x, p.y)}), 'crop')
                 const corner = CORNER_TURN[side as keyof typeof CORNER_TURN]
-                const bar = side === 'top' || side === 'bottom' ? {w: 16, h: 8} : {w: 8, h: 16}
+                const bar = side === 'top' || side === 'bottom' ? {w: 16 * unit, h: 8 * unit} : {w: 8 * unit, h: 16 * unit}
                 return (
                   <g key={side}>
                     <circle className="handle-grab" cx={x} cy={y} r={22 * unit} onPointerDown={pull} />
                     {corner !== undefined ? (
-                      <path className="crop-handle" d={CORNER_PATH} transform={`translate(${x} ${y}) rotate(${corner})`} pointerEvents="none" />
+                      <path className="crop-handle" d={CORNER_PATH} transform={`translate(${x} ${y}) rotate(${corner}) scale(${unit})`} pointerEvents="none" />
                     ) : (
                       <rect className="crop-handle" x={x - bar.w / 2} y={y - bar.h / 2} width={bar.w} height={bar.h} pointerEvents="none" />
                     )}
-                    <rect className="handle-hit" data-handle={`crop-${side}`} x={x - 12} y={y - 12} width={24} height={24} onPointerDown={pull} />
+                    <rect className="handle-hit" data-handle={`crop-${side}`} x={x - 12 * unit} y={y - 12 * unit} width={24 * unit} height={24 * unit} onPointerDown={pull} />
                   </g>
                 )
               })}
@@ -533,12 +538,12 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
               {natural && (() => {
                 const text = `${Math.round((1 - c.left - c.right) * natural.width)} × ${Math.round((1 - c.top - c.bottom) * natural.height)}`
                 // Sanity's measure: 0.6 em a character at 13 px, 6 px either side; 19 px high.
-                const bw = text.length * 7.8 + 12
+                const bw = (text.length * 7.8 + 12) * unit
                 return (
                   <g className="crop-size" pointerEvents="none">
                     <title>{t('Cropped image size: {size} pixels', {size: text})}</title>
-                    <rect x={crect.x + crect.w / 2 - bw / 2} y={crect.y + crect.h + 8} width={bw} height={19} rx={3} />
-                    <text x={crect.x + crect.w / 2} y={crect.y + crect.h + 17.5} textAnchor="middle" dominantBaseline="central">{text}</text>
+                    <rect x={crect.x + crect.w / 2 - bw / 2} y={crect.y + crect.h + 8 * unit} width={bw} height={19 * unit} rx={3 * unit} />
+                    <text x={crect.x + crect.w / 2} y={crect.y + crect.h + 17.5 * unit} style={{fontSize: 10 * unit}} textAnchor="middle" dominantBaseline="central">{text}</text>
                   </g>
                 )
               })()}
