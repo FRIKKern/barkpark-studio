@@ -3,7 +3,7 @@
 // subfields it declares (alt) beside them.
 export type Hotspot = {x: number; y: number; width: number; height: number}
 export type Crop = {top: number; bottom: number; left: number; right: number}
-export type ImageValue = {asset?: {_ref: string}; hotspot?: Hotspot; crop?: Crop} & Record<string, unknown>
+export type ImageValue = {_type?: string; asset?: {_ref: string; _type?: string}; hotspot?: Hotspot; crop?: Crop} & Record<string, unknown>
 
 // What Sanity writes the first time either is touched: the hotspot covers the
 // whole image, nothing is cropped.
@@ -12,7 +12,9 @@ export const NO_CROP: Crop = {top: 0, bottom: 0, left: 0, right: 0}
 
 /** Where the studio serves an asset's bytes (routes/api/media/$id.ts). */
 /**
- * The image's asset ref. Barkpark's canonical value is {asset: {_ref}}; it still
+ * The image's asset ref, from Sanity's canonical value {_type: 'image', asset: {_type:
+ * 'reference', _ref}} (what a new pick stores) or the bare {asset: {_ref}} older content
+ * holds (read as it is, never rewritten). Barkpark still
  * reads the legacy {assetId, url} shape (docs/contracts/schema-v2.md), which
  * migrated content such as the Agency twin's 955 images carries. So does this.
  */
@@ -41,15 +43,18 @@ export function imageFileName(src: string | undefined, alt: string | undefined, 
 }
 
 /**
- * The value to store for a newly picked asset. Content in the legacy shape (migrated
- * twins read `url` on their site) keeps that shape alongside the canonical ref, so the
- * site still finds the file; canonical content stays canonical.
+ * The value to store for a newly picked asset: Sanity's canonical shape, {_type: 'image',
+ * asset: {_type: 'reference', _ref}}, as our file field stores {_type: 'file', …}. Content
+ * in the legacy shape (migrated twins read `url` on their site) keeps that shape alongside
+ * the ref, so the site still finds the file. Only a pick writes this: an image left alone
+ * keeps whatever shape it has (no rewrite, no surprise diff).
  */
 export function pickedImage(prev: Record<string, unknown>, ref: string, url?: string): Record<string, unknown> {
   const {hotspot: _h, crop: _c, ...keep} = prev
   const legacy = typeof prev.assetId === 'string' || typeof prev.url === 'string'
   for (const k of LEGACY_IMAGE_KEYS) delete keep[k]
-  return legacy && url ? {...keep, asset: {_ref: ref}, assetId: ref.replace(/^asset-/, ''), url} : {...keep, asset: {_ref: ref}}
+  if (legacy) return url ? {...keep, asset: {_ref: ref}, assetId: ref.replace(/^asset-/, ''), url} : {...keep, asset: {_ref: ref}}
+  return {...keep, _type: 'image', asset: {_type: 'reference', _ref: ref}}
 }
 
 export const assetUrl = (ref: string) => `/api/media/${encodeURIComponent(ref.replace(/^asset-/, ''))}`
