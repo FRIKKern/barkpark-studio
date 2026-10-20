@@ -125,3 +125,9 @@ test("a declared list's initialValues go on the document its + starts (Barkpark 
   const root = normalizeDesk({id: 'root', type: 'list', items: [landing]})
   assert.deepEqual(newDocPreset(root.items![0], false), {pageType: 'landingPage'})
 })
+
+test("a desk filter with neqOrMissing (GROQ's !=, Barkpark #23913) can be listed", () => {
+  // «Synlige serier»: isHidden != true keeps the series without the field.
+  assert.deepEqual(unsupportedOps({'content.isHidden': {neqOrMissing: true}}), [])
+  assert.deepEqual(listFilter({id: 'synlige', type: 'document_type_list', typeName: 'series', filter: {'content.isHidden': {neqOrMissing: true}}}), {'content.isHidden': {neqOrMissing: true}})
+})
