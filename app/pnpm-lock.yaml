@@ -44,6 +44,9 @@ importers:
       '@tanstack/react-start':
         specifier: 1.168.60
         version: 1.168.60(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.12)(vite@8.3.2(@types/node@22.20.5)(jiti@2.7.0))
+      json5:
+        specifier: 2.2.3
+        version: 2.2.3
       qrcode:
         specifier: 1.5.4
         version: 1.5.4

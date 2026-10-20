@@ -3,17 +3,23 @@
 // each value in (URL-encoded) before the query reaches Barkpark; the Query URL shows
 // what was sent. A list becomes comma-separated (Barkpark's `in` / `nin`).
 
+import JSON5 from 'json5'
+
 export type Params = Record<string, unknown>
 
-/** The Params box's text as an object, or why it isn't one (Sanity: "Parameters are not valid JSON"). */
-export function parseParams(text: string): {params: Params} | {error: string} {
+/**
+ * The Params box's text as an object, or why it isn't one. JSON5, as Sanity's Vision reads
+ * it (unquoted keys, trailing commas, comments), so params pasted from Sanity's docs work;
+ * `detail` is JSON5's own "invalid character '}' at 1:8", the line and column Sanity shows.
+ */
+export function parseParams(text: string): {params: Params} | {error: string; detail?: string} {
   if (!text.trim()) return {params: {}}
   try {
-    const v = JSON.parse(text) as unknown
+    const v = JSON5.parse(text) as unknown
     if (!v || typeof v !== 'object' || Array.isArray(v)) return {error: 'Params must be a JSON object, like {"title": "post"}'}
     return {params: v as Params}
-  } catch {
-    return {error: 'Params are not valid JSON'}
+  } catch (e) {
+    return {error: 'Params are not valid JSON', detail: (e as Error).message.replace(/^JSON5: /, '')}
   }
 }
 

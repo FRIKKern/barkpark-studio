@@ -84,6 +84,35 @@ const theme = EditorView.theme({
   '.cm-content': {padding: '32px 20px 4px 0'},
 })
 
+// Sanity's Vision editors close brackets and quotes as you type (CodeMirror's closeBrackets,
+// without its package): an opener adds its closer after the caret, a closer typed before its
+// twin steps over it, and Backspace inside an empty pair takes both.
+const PAIRS: Record<string, string> = {'(': ')', '[': ']', '{': '}', '"': '"', "'": "'"}
+const CLOSERS = new Set(Object.values(PAIRS))
+export const autoClose = [
+  EditorView.inputHandler.of((view, from, to, text) => {
+    if (text.length !== 1 || view.composing) return false
+    const next = view.state.sliceDoc(to, to + 1)
+    if (from === to && CLOSERS.has(text) && next === text) return view.dispatch({selection: {anchor: from + 1}, userEvent: 'input.type'}), true
+    const close = PAIRS[text]
+    if (!close || (from === to && /\w/.test(next))) return false
+    if (close === text && /\w/.test(view.state.sliceDoc(from - 1, from))) return false
+    view.dispatch({changes: {from, to, insert: text + view.state.sliceDoc(from, to) + close}, selection: {anchor: from + 1, head: to + 1}, userEvent: 'input.type'})
+    return true
+  }),
+  keymap.of([
+    {
+      key: 'Backspace',
+      run: (view) => {
+        const s = view.state.selection.main
+        if (!s.empty || PAIRS[view.state.sliceDoc(s.from - 1, s.from)] !== view.state.sliceDoc(s.from, s.from + 1)) return false
+        view.dispatch({changes: {from: s.from - 1, to: s.from + 1}, userEvent: 'delete.backward'})
+        return true
+      },
+    },
+  ]),
+]
+
 export default function VisionEditor({id, label, value, language, placeholder, onChange, onRun}: {id: string; label: string; value: string; language: 'query' | 'json'; placeholder?: string; onChange: (v: string) => void; onRun: (text: string) => void}) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
@@ -101,6 +130,7 @@ export default function VisionEditor({id, label, value, language, placeholder, o
           highlightActiveLine(),
           highlightActiveLineGutter(),
           bracketMatching(),
+          autoClose,
           history(),
           keymap.of([{key: 'Mod-Enter', preventDefault: true, run: (v) => (calls.current.onRun(v.state.doc.toString()), true)}, ...defaultKeymap, ...historyKeymap]),
           mode.current.of(language === 'json' ? params : languageOf(value)),
