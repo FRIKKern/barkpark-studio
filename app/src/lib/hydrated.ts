@@ -39,7 +39,7 @@ const MARK_WAIT_MS = 15_000
  * into an input, and a checkbox, radio or select changed, are noted too (window.__earlyTyped)
  * and put in again (typeWhenLive).
  */
-export const EARLY_CLICKS = `window.__earlyTyped=new Map();function __bpEarly(e){var m=window.__earlyTyped,t=e.target;if(!m||!t||!/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.type==='file')return;for(var k in t)if(k.indexOf('__reactProps$')===0)return;var box=t.id?t:t.closest('[id]'),key;if(box)key=t.id?t.id:box.id+'|'+t.tagName+'|'+[].indexOf.call(box.querySelectorAll(t.tagName),t);else{var l=__bpLabel(t);key='~'+t.tagName+'|'+[].filter.call(document.querySelectorAll(t.tagName),function(x){return __bpLabel(x)===l}).indexOf(t)+'|'+l}m.set(key,{el:t,value:t.value,checked:t.checked})}function __bpLabel(e){return e.getAttribute('aria-label')||(e.labels&&e.labels[0]&&e.labels[0].textContent.trim())||e.placeholder||e.name||''}document.addEventListener('input',__bpEarly,true);document.addEventListener('change',__bpEarly,true);window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
+export const EARLY_CLICKS = `window.__earlyTyped=new Map();function __bpEarly(e){var m=window.__earlyTyped,t=e.target;if(!m||!t||!/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.type==='file')return;for(var k in t)if(k.indexOf('__reactProps$')===0)return;var box=t.id?t:t.closest('[id]'),key;if(box)key=t.id?t.id:box.id+'|'+t.tagName+'|'+[].indexOf.call(box.querySelectorAll(t.tagName),t);else{if(t.closest('.doc-form'))return;var l=__bpLabel(t);if(!l||[].filter.call(document.querySelectorAll(t.tagName),function(x){return __bpLabel(x)===l}).length!==1)return;key='~'+t.tagName+'|'+l}m.set(key,{el:t,value:t.value,checked:t.checked})}function __bpLabel(e){return e.getAttribute('aria-label')||(e.labels&&e.labels[0]&&e.labels[0].textContent.trim())||e.placeholder||e.name||''}document.addEventListener('input',__bpEarly,true);document.addEventListener('change',__bpEarly,true);window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
 
 let pending: Promise<unknown> | null = null
 /**
@@ -94,7 +94,7 @@ type Noted = {el: Control; value: string; checked: boolean}
  * server-drawn form takes typing, ticks and picks before React has it, and none of it reached
  * the edit queue (silently lost on a slow load). EARLY_CLICKS notes each control changed while
  * inert, by its id (or its field's id and its place there: a checkbox list's boxes have none;
- * or, with neither, its label and its place among controls so labelled);
+ * or, with neither and outside the document form, its label when no other control has it);
  * once React has the field (the same element, or the one drawn in its place) the change is
  * made again the way the field's own onChange hears it.
  */
@@ -115,16 +115,22 @@ function typeWhenLive(key: string, early: Noted, frames = 180, tries = 3) {
 }
 const holds = (el: Control, early: Noted) => (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio') ? el.checked === early.checked : el.value === early.value)
 function counterpartOf(key: string): Control | null {
-  // A control with no id and no id'd field around it (a select in a tool's toolbar): by its
-  // tag, its label (aria-label, a <label>, placeholder or name) and its place among those.
+  // A control with no id and no id'd field around it (a select in a tool's toolbar), never one
+  // in the document form (its data fields go by their ids): by its tag and its label (aria-label,
+  // a <label>, placeholder or name), only when exactly one live control has them. None or
+  // several (the page drawn differently than the server's): dropped, never guessed.
   if (key.startsWith('~')) {
-    const [tag, at] = key.slice(1).split('|')
-    const label = key.slice(tag!.length + at!.length + 3)
-    return ([...document.querySelectorAll<Control>(tag!)].filter((e) => labelOf(e) === label)[Number(at)] ?? null)
+    const tag = key.slice(1, key.indexOf('|'))
+    return onlyMatch([...document.querySelectorAll<Control>(tag)], key.slice(tag.length + 2), labelOf)
   }
   const [id, tag, at] = key.split('|')
   const box = document.getElementById(id!)
   return (tag ? box?.querySelectorAll(tag)[Number(at)] : box) as Control | null
+}
+/** The one item labelled `label`, or null when none or several are (the ambiguous case). */
+export function onlyMatch<T>(items: T[], label: string, labelOf: (item: T) => string): T | null {
+  const found = items.filter((item) => labelOf(item) === label)
+  return found.length === 1 ? found[0]! : null
 }
 const labelOf = (e: Control) => e.getAttribute('aria-label') || e.labels?.[0]?.textContent?.trim() || ('placeholder' in e ? e.placeholder : '') || e.name || ''
 let redoing = false
