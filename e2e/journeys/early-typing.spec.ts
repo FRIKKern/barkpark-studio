@@ -86,3 +86,24 @@ test('a list search typed before hydration searches once live', async ({page}, i
   await expect(t.listItem(page, 'post-07')).toBeVisible()
   await expect(t.listItem(page, 'post-02')).toHaveCount(0)
 })
+
+// A control with no id and no id'd field around it is found again by its label: the media
+// tool's Sort picked before hydration sorts once live.
+test("a labelled control without an id keeps its early change (media Sort)", async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's media tool is drawn on the client")
+  await t.prepare(page.context())
+  await page.goto('/media')
+  await signInIfAsked(page)
+  await t.settle(page)
+  const held: (() => void)[] = []
+  let holding = true
+  await page.route('**/*', (r) => (holding && r.request().resourceType() === 'script' ? void held.push(() => void r.continue()) : r.continue()))
+  await page.goto('/media', {waitUntil: 'commit'})
+  await page.getByRole('combobox', {name: 'Sort'}).selectOption('created-asc')
+  expect(await page.locator('html[data-hydrated]').count(), 'picked before hydration').toBe(0)
+  holding = false
+  for (const go of held) go()
+  await t.settle(page)
+  await expect(page).toHaveURL(/[?&]sort=created-asc/)
+})
