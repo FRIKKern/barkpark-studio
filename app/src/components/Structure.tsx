@@ -496,7 +496,7 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
             <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, target)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined} data-desk-node={item.id}>
               {/* A nested list shows every row's icon, Sanity's FolderIcon where none is named
                   (its showIcons default); the first pane's rows only the named ones. */}
-              <DeskIcon name={item.icon ?? (isRoot ? undefined : 'folder')} />
+              <DeskIcon name={item.icon ?? (isRoot ? undefined : 'folder')} svg={item.iconSvg} />
               {item.title ?? item.id}
               <span className="chev">
                 <ChevronRight />
@@ -514,7 +514,7 @@ function RestOrphan({item}: {item: DeskNode}) {
   const t = useT()
   return (
     <div className="type-row type-row-static" aria-disabled="true" title={t('No schema for this type')} data-desk-node={item.id}>
-      <DeskIcon name={item.icon} />
+      <DeskIcon name={item.icon} svg={item.iconSvg} />
       {item.title ?? item.id}
     </div>
   )

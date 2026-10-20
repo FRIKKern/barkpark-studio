@@ -264,7 +264,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   useEffect(() => {
     if (!s.connected) return
     const icons: Record<string, string> = {}
-    const walk = (n: DeskNode) => (n.typeName && n.icon && !icons[n.typeName] && (icons[n.typeName] = iconBody(n.icon)), n.items?.forEach(walk))
+    const walk = (n: DeskNode) => (n.typeName && n.icon && !icons[n.typeName] && (icons[n.typeName] = iconBody(n.icon, n.iconSvg)), n.items?.forEach(walk))
     if (desk) walk(desk)
     tell({type: 'icons', icons, fallback: iconBody()})
   }, [s.connected, s.hellos, desk, tell])
