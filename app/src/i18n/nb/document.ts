@@ -133,6 +133,7 @@ export default {
   'Discarded draft': 'Forkastet utkast',
   'Document': 'Dokument',
   'Document actions': 'Dokumenthandlinger',
+  'Open document actions': 'Åpne dokumenthandlinger',
   'Document ID copied to clipboard': 'Dokument-ID kopiert til utklippstavlen',
   'Document metadata': 'Dokumentmetadata',
   'Document revisions': 'Dokumentrevisjoner',

@@ -35,7 +35,7 @@ test('@local B13: a singleton opens from Settings as its one doc; only publish, 
   await expect(page.locator('[data-pane-index]')).toHaveCount(2) // the root and the doc: no list
   await expect(page.locator('[id="tagline"]')).toHaveValue(SEED.tagline as string)
   await page.locator('[id="tagline"]').fill('Edited as a singleton')
-  await page.getByRole('button', {name: 'Document actions', exact: true}).click()
+  await page.getByRole('button', {name: 'Open document actions', exact: true}).click()
   await expect(page.getByRole('menuitem')).toHaveText(['Discard changes'])
   await page.screenshot({path: 'evidence/B13-1-actions-studio.png'})
   await page.keyboard.press('Escape')
