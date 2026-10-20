@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 75 changes
+- **Today** · 76 changes
+  - Media proxy: an uploaded SVG opened from the studio runs no script ([#1052](https://github.com/FRIKKern/barkpark-studio/pull/1052))
   - Slug in use: a slug stored in Sanity's shape ({_type: 'slug', current}) counts too ([#1049](https://github.com/FRIKKern/barkpark-studio/pull/1049))
-  - fix(security): a title's bidi controls never reach the tab title ([#1051](https://github.com/FRIKKern/barkpark-studio/pull/1051))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
