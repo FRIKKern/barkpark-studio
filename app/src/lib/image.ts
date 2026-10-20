@@ -83,6 +83,20 @@ export function resizeHotspot(h: Hotspot, dx: number, dy: number): Hotspot {
   return {...h, width: round(width), height: round(height)}
 }
 
+/**
+ * The hotspot kept inside the crop, as Sanity's tool keeps it: narrowed to the crop's size
+ * and moved in. A crop pulled across it (or a hotspot moved or grown past the crop's edge)
+ * stored a hotspot partly outside what the image shows.
+ */
+export function fitHotspot(h: Hotspot, c: Crop): Hotspot {
+  const [l, r, t, b] = [c.left, 1 - c.right, c.top, 1 - c.bottom]
+  const width = Math.min(h.width, r - l)
+  const height = Math.min(h.height, b - t)
+  const x = clamp(h.x, l + width / 2, r - width / 2)
+  const y = clamp(h.y, t + height / 2, b - height / 2)
+  return x === h.x && y === h.y && width === h.width && height === h.height ? h : {...h, x: round(x), y: round(y), width: round(width), height: round(height)}
+}
+
 /** Move the whole crop window by (dx, dy), keeping its size and staying on the image. */
 export function moveCrop(c: Crop, dx: number, dy: number): Crop {
   const ddx = clamp(dx, -c.left, c.right)
