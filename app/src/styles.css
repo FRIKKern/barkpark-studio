@@ -1806,12 +1806,16 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .item-dialog header:has(> .crumbs) > .icon-btn { color: var(--menu-fg); }
 .crumb { font: inherit; border: 0; background: none; padding: 2px 4px; border-radius: 3px; color: var(--muted); cursor: pointer; }
 .crumb.current { color: var(--fg-strong); font-weight: 600; cursor: default; }
-.item-dialog .crumbs { display: flex; align-items: center; margin-top: 3px; font-size: 13px; line-height: 19px; color: var(--muted); }
+.item-dialog .crumbs { display: flex; align-items: center; min-width: 0; margin-top: 3px; font-size: 13px; line-height: 19px; color: var(--muted); }
 .item-dialog .crumb { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; padding: 3px 8px; color: var(--icon-muted); }
 .item-dialog button.crumb:hover { background: var(--icon-btn-hover); }
-.item-dialog .crumb .muted { padding: 0 4px; border-radius: 9999px; line-height: 17px; background: var(--fill-soft); color: var(--crumb-place-fg); font-weight: 400; }
+.item-dialog .crumb .muted { flex: none; padding: 0 4px; border-radius: 9999px; line-height: 17px; background: var(--fill-soft); color: var(--crumb-place-fg); font-weight: 400; }
 .item-dialog .crumb:has(> .muted) { padding-left: 4px; }
 .item-dialog .crumb.current { color: var(--menu-fg); font-weight: 700; }
+/* A long item title stays on one line, cut with an ellipsis: Sanity's crumb is at most 250 px
+   (a long title wrapped to three lines and pushed Close out of the dialog). */
+.item-dialog .crumb { max-width: 250px; min-width: 0; white-space: nowrap; }
+.item-dialog .crumb-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .item-fields { padding: 16px 20px 24px; }
 /* An array of images: the item is the image, drawn without its "Image" title, as Sanity's (still its name). */
 .image-item > .form-fields > .object-field > legend { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

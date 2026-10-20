@@ -35,11 +35,22 @@ test('@local arrays: a six-type insert menu searches; a nested item dialog names
     await expect(page.getByRole('dialog', {name: /^Sections \//})).toBeVisible()
     await expect(page.getByRole('dialog')).toHaveCount(1)
     // Opened by hand, an item names itself in the URL, so a reload brings both back (Sanity's).
-    await page.getByRole('dialog', {name: /^Sections \//}).getByText('Untitled', {exact: true}).click()
+    await page.getByRole('dialog', {name: /^Sections \//}).getByRole('button', {name: 'Untitled', exact: true}).click()
     await expect.poll(() => decodeURIComponent(page.url())).toMatch(/path=sections\[_key=="\w+"\]\.items\[_key=="\w+"\]$/)
     await page.reload()
     await signInIfAsked(page)
     await expect(page.getByRole('dialog')).toHaveCount(2)
+    // A long unbroken title stays on one line in the crumb, cut with an ellipsis, and Close stays
+    // in the dialog (Sanity's crumb is at most 250 px; ours wrapped and pushed Close out).
+    const inner = page.getByRole('dialog', {name: /^Items \//})
+    await inner.locator('[id$=".label"]').fill(`Long${'Supercalifragilistic'.repeat(5)}`)
+    const crumb = inner.locator('.crumb.current')
+    await expect(crumb).toContainText('LongSupercalifragilistic')
+    expect((await crumb.boundingBox())!.width).toBeLessThanOrEqual(250)
+    expect((await crumb.boundingBox())!.height).toBeLessThan(30)
+    const box = (await inner.boundingBox())!
+    const close = (await inner.getByRole('button', {name: 'Close dialog'}).boundingBox())!
+    expect(close.x + close.width).toBeLessThanOrEqual(box.x + box.width)
   } finally {
     await t.deleteDoc(id, 'fieldTypes').catch(() => {})
   }
