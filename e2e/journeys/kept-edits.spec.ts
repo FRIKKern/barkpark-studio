@@ -96,7 +96,8 @@ async function typeThenCrash(context: BrowserContext, t: Target, text: string) {
   await t.field(page, 'excerpt').click()
   await page.keyboard.press('End')
   await page.keyboard.type(text)
-  await expect(page.locator('.doc-footer').first()).toContainText(/Offline|not saving/i)
+  // The write failed (a network error with the browser online: Not saved — retrying).
+  await expect(page.locator('.doc-footer').first()).toContainText(/Not saved|Offline|not saving/i)
   await page.waitForTimeout(500) // the browser store is written a moment after the last keystroke
   await page.close({runBeforeUnload: false})
 }
@@ -161,7 +162,7 @@ test('@local two tabs, same editor: one dies mid-save while the other saves; its
   await t.field(a, 'excerpt').click()
   await a.keyboard.press('End')
   await a.keyboard.type(' fromA')
-  await expect(a.locator('.doc-footer').first()).toContainText(/Offline|not saving/i)
+  await expect(a.locator('.doc-footer').first()).toContainText(/Not saved|Offline|not saving/i)
   await a.waitForTimeout(500)
   // B edits the title and saves while A is still stuck.
   await t.field(b, 'title').click()
@@ -237,7 +238,8 @@ test('@local offline, then reload: the edits typed offline are replayed once bac
   await t.field(page, 'excerpt').click()
   await page.keyboard.press('End')
   await page.keyboard.type(' offline')
-  await expect(page.locator('.doc-footer').first()).toContainText(/Offline|not saving/i)
+  // The write failed (a network error with the browser online: Not saved — retrying).
+  await expect(page.locator('.doc-footer').first()).toContainText(/Not saved|Offline|not saving/i)
   await page.waitForTimeout(500)
   // The page goes, offline (the unload handlers run). Not page.reload(): Playwright's failed
   // offline reload keeps the old document alive, and it saves once back online.
