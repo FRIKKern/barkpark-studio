@@ -2,6 +2,7 @@ import {useSyncExternalStore} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, requestToken, underPressure} from '../server/barkpark'
+import {writeFaultFor} from '../server/write-faults'
 import {currentEditor, signOut} from '../server/auth'
 import {expectEcho, mutatedIds} from '../server/listen'
 import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type Field, type ListPage, type Schema} from './data'
@@ -40,6 +41,12 @@ const throwLost = (): never => {
 export const mutate = createServerFn({method: 'POST'})
   .validator((d: {mutations: Json[]}) => d)
   .handler(async ({data}) => {
+    // e2e only: a fault set for a document this write names (server/write-faults.ts).
+    const fault = writeFaultFor(data.mutations)
+    if (fault?.kind === '500') throw new Error('mutate 500: {"error":{"code":"internal_error","message":"Internal Server Error"}}')
+    if (fault?.kind === '412') throw new Error('mutate 412: {"error":{"code":"precondition_failed","message":"document revision mismatch"}}')
+    if (fault?.kind === '413') throw new Error('mutate 413: {"error":{"code":"payload_too_large","message":"The request body is larger than the limit"}}')
+    if (fault?.kind === 'hang') await new Promise((go) => setTimeout(go, fault.ms ?? 0))
     const res = await bpFetch(`/v1/data/mutate/${dataset()}`, {
       method: 'POST',
       headers: {'content-type': 'application/json'},
@@ -65,6 +72,8 @@ export const mutate = createServerFn({method: 'POST'})
       if (Array.isArray(short.findings)) throw new Error(`mutate ${res.status}: ${JSON.stringify({error: {code: short.code, message: short.message, findings: short.findings}}).slice(0, 8000)}`)
       throw new Error(`mutate ${res.status}: ${JSON.stringify(error ? {error: short} : body).slice(0, 600)}`)
     }
+    // e2e 'reset': the write landed, its answer is lost on the way back (a network error here).
+    if (fault?.kind === 'reset') throw new Error('fetch failed (e2e: the answer was lost)')
     expectEcho(requestToken(), mutatedIds(data.mutations))
     return body
   })
@@ -594,9 +603,14 @@ export function forgetEdits() {
 
 /** Offline: hold everything, send again when the network is back (or try every few seconds). */
 function waitForNetwork(qc: QueryClient, id: string, e: DocEdits) {
-  setState(e, 'offline')
+  // Offline only when the browser is: a write whose answer was lost on a live connection (a
+  // reset mid-request) said "Offline — not saving" with the network up (save fault sweep).
+  // That one is "Not saved — retrying".
+  const up = online()
+  setState(e, up ? 'error' : 'offline')
   waiting.set(id, () => void send(qc, id))
-  setTimeout(() => waiting.has(id) && online() && (waiting.delete(id), void send(qc, id)), OFFLINE_RETRY_MS)
+  // On a live connection, again as soon as any failed write is (2 s), not after the offline wait.
+  setTimeout(() => waiting.has(id) && online() && (waiting.delete(id), void send(qc, id)), up ? 2000 : OFFLINE_RETRY_MS)
 }
 
 async function send(qc: QueryClient, id: string) {
