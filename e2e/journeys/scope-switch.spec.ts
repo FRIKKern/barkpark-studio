@@ -52,3 +52,23 @@ test('@local B02: switch dataset; the URL carries it through links and a reload'
   await t.settle(page)
   await expect(button).toHaveAttribute('aria-label', new RegExp(`dataset ${here}\\.`))
 })
+
+// The list's scroll-to-current effect returned scrollIntoView's Promise (Chrome now returns
+// one), which React called as the cleanup on close: "destroy is not a function", the error screen.
+test('B02: the switcher opens on its list and closes without an error', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'Barkpark-native: Sanity switches workspaces, not datasets')
+  const bad: string[] = []
+  page.on('pageerror', (e) => bad.push(e.message))
+  page.on('console', (m) => m.type() === 'error' && /must not return anything besides a function/.test(m.text()) && bad.push(m.text()))
+  await page.goto(t.listPath('post'))
+  await t.settle(page)
+  const button = page.getByRole('button', {name: /^Workspace .* Switch$/})
+  const dialog = page.getByRole('dialog', {name: 'Switch workspace, project or dataset'})
+  await button.click()
+  await expect(dialog.locator('.scope-place[aria-current="true"]')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByRole('heading', {name: 'An error occurred'})).toHaveCount(0)
+  expect(bad).toEqual([])
+})

@@ -67,7 +67,9 @@ function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; o
   const places = useQuery(placesQuery)
   // The current row in view when the list opens (it scrolls past 40% of the window).
   const list = useRef<HTMLDivElement>(null)
-  useEffect(() => list.current?.querySelector('[aria-current]')?.scrollIntoView({block: 'center'}), [!!places.data])
+  // void: Chrome's scrollIntoView now returns a Promise, which React took for the effect's
+  // cleanup and called on close ("destroy is not a function": the studio's error screen).
+  useEffect(() => void list.current?.querySelector('[aria-current]')?.scrollIntoView({block: 'center'}), [!!places.data])
   const adminUrl = useQuery(barkparkInfoQuery).data?.adminUrl
   const key = (p: Scope) => `${p.workspace}/${p.project}/${p.dataset}`
   const here = key(current)
