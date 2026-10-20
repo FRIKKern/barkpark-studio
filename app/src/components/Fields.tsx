@@ -106,7 +106,7 @@ export function LevelIcon({level, label}: {level: Level; label?: string}) {
 }
 
 /** The mark beside a field label; `within`: also what a collapsed object hides. */
-export function ProblemMark({path, within}: {path: string; within?: boolean}) {
+export function ProblemMark({path, within, id}: {path: string; within?: boolean; id?: string}) {
   const t = useT()
   const all = useContext(ProblemsContext).filter((p) => p.path === path || (within && p.path.startsWith(`${path}.`)))
   const level = worst(all)
@@ -131,7 +131,7 @@ export function ProblemMark({path, within}: {path: string; within?: boolean}) {
   const Icon = LEVEL_ICON[level]
   return (
     <>
-      <span className="error-icon" data-level={level} role="img" aria-label={`${t(LEVEL_WORD[level])}: ${problem.message}`} data-tip-side="top" {...anchor}>
+      <span className="error-icon" id={id} data-level={level} role="img" aria-label={`${t(LEVEL_WORD[level])}: ${problem.message}`} data-tip-side="top" {...anchor}>
         <Icon />
       </span>
       {tip}
@@ -222,6 +222,8 @@ function FieldBody(props: FieldProps) {
   // The field's visible title: it describes the field's action and comment buttons (one per field, same names).
   const titleId = useId()
   const invalid = useContext(ProblemsContext).some((p) => p.path === props.path && p.level === 'error') || undefined
+  const box = useRef<HTMLDivElement>(null)
+  useFieldAria(box, props.path, titleId, !!invalid, !!props.field.description)
   // Sanity: a boolean is a switch with its label beside it, in a box.
   if (props.field.type === 'boolean' && !invalidValue(props.field, props.value))
     return (
@@ -241,7 +243,7 @@ function FieldBody(props: FieldProps) {
       <ObjectField {...props} label={label} titleId={titleId} changed={!!changes?.changed.has(props.path)} review={changes?.review} />
     )
   return (
-    <div className="field" data-invalid={invalid} data-readonly={props.readOnly || undefined}>
+    <div ref={box} className="field" data-invalid={invalid} data-readonly={props.readOnly || undefined}>
       <FieldActions {...props} titleId={titleId} />
       <FieldComments path={props.path} title={label} titleId={titleId} />
       {changes?.changed.has(props.path) && <ChangeBar onClick={changes.review} />}
@@ -255,7 +257,7 @@ function FieldBody(props: FieldProps) {
         }
       }}>
         <span id={titleId}>{label}</span>
-        <ProblemMark path={props.path} />
+        <ProblemMark path={props.path} id={`${props.path}-problem`} />
         <FieldPresenceHere path={props.path} />
       </label>
       {props.field.description && <p className="field-desc" id={`${props.path}-desc`}>{props.field.description}</p>}
@@ -269,6 +271,35 @@ function FieldBody(props: FieldProps) {
       )}
     </div>
   )
+}
+
+/**
+ * What a screen reader needs on a field's control (scout-6): aria-invalid while it has an
+ * error, the problem and the description as its description, and its name the title alone
+ * (the label also holds the mark, whose words read as part of the name). Set on whichever
+ * control carries the field's id, for every input kind at once, again when it is redrawn
+ * (a reference turning from its preview to its search). A control's own invalid (a date
+ * typed wrong) is left as it is.
+ */
+function useFieldAria(box: RefObject<HTMLElement | null>, path: string, titleId: string, invalid: boolean, described: boolean) {
+  useLayoutEffect(() => {
+    const root = box.current
+    if (!root) return
+    const apply = () => {
+      const c = root.querySelector<HTMLElement>(`[id="${CSS.escape(path)}"]`)
+      if (!c?.matches('input, textarea, select, [role=combobox], [role=group], [role=radiogroup]')) return
+      const by = [invalid && `${path}-problem`, described && `${path}-desc`].filter(Boolean).join(' ')
+      if (by) c.setAttribute('aria-describedby', by)
+      else c.removeAttribute('aria-describedby')
+      if (invalid) (c.setAttribute('aria-invalid', 'true'), (c.dataset.fieldInvalid = ''))
+      else if ('fieldInvalid' in c.dataset) (c.removeAttribute('aria-invalid'), delete c.dataset.fieldInvalid)
+      if (!c.hasAttribute('aria-label') && c.getAttribute('aria-labelledby') !== titleId) c.setAttribute('aria-labelledby', titleId)
+    }
+    apply()
+    const redrawn = new MutationObserver(apply)
+    redrawn.observe(root, {childList: true, subtree: true})
+    return () => redrawn.disconnect()
+  }, [box, path, titleId, invalid, described])
 }
 
 /** J68: the plain-text inputs Sanity's "Inline changes" marks in place. */

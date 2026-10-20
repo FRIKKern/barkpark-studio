@@ -92,3 +92,25 @@ test('@local forced colors: fields keep a box, the checkbox its state, focus a r
   // And axe finds nothing in that mode either.
   expect(await scan(page)).toEqual([])
 })
+
+// A field with an error says so to a screen reader (scout-6): aria-invalid on its input, the
+// problem as its description, and its name the title alone (the mark's words once read as
+// part of it). Fixed, it is valid again.
+test('a11y: an errored field is aria-invalid, its problem the description, its name the title', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's input carries none of these")
+  await t.prepare(page.context())
+  await page.goto(t.docPath('post', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  const title = t.field(page, 'title')
+  await expect(title).not.toHaveAttribute('aria-invalid', 'true')
+  await title.fill('')
+  await expect(title).toHaveAttribute('aria-invalid', 'true')
+  await expect(title).toHaveAccessibleName('Title')
+  await expect(title).toHaveAccessibleDescription('Validation error: Required')
+  await title.fill(TITLE)
+  await expect(title).not.toHaveAttribute('aria-invalid', 'true')
+  await expect(title).toHaveAccessibleDescription('')
+  await expect(title).toHaveAccessibleName('Title')
+})
