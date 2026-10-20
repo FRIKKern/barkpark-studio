@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 34 changes
+- **Today** · 35 changes
+  - e2e: re-record durations from the four main runs since #1007 ([#1011](https://github.com/FRIKKern/barkpark-studio/pull/1011))
   - fix(freeform): tables start at the text's left edge in the studio's column ([#1010](https://github.com/FRIKKern/barkpark-studio/pull/1010))
-  - test(e2e): J11 evidence on canvas 1.13+: the callout card's menu, keys for duplicate and move ([#1009](https://github.com/FRIKKern/barkpark-studio/pull/1009))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
