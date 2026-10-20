@@ -5,13 +5,11 @@ import {bpFetch, dataset} from '../server/barkpark'
 import type {Doc, Schema} from './data'
 import type {Problem} from './validation'
 import type {T} from './i18n'
-import {slugQueries, takenByOther} from './slug-shape'
+import {bulkSlugAsks, slugInQueries, slugQueries, slugText, takenAmong, takenByOther} from './slug-shape'
 
 // J28, Sanity's slug rule: a slug another document of the same type already has is an
 // error ("Slug is already in use"), so a duplicate shows its copied slug as taken. Asked
 // of Barkpark (drafts and published, `perspective=raw`) a moment after the typing stops.
-
-const slugText = (v: unknown) => (typeof v === 'string' ? v : typeof (v as {current?: unknown})?.current === 'string' ? (v as {current: string}).current : '')
 
 const fetchTaken = createServerFn({method: 'GET'})
   .validator((d: {type: string; field: string; value: string; id: string; fresh?: boolean}) => d)
@@ -64,4 +62,32 @@ export async function slugsTakenNow(qc: QueryClient, doc: Doc, schema: Schema | 
     }),
   )
   return taken.filter((x): x is string => !!x)
+}
+
+const fetchTakenAmong = createServerFn({method: 'POST'})
+  .validator((d: {type: string; field: string; picked: {id: string; value: string}[]}) => d)
+  .handler(async ({data}) => {
+    const found: Record<string, unknown>[] = []
+    // One after another: a few reads, never a burst.
+    for (const q of slugInQueries(data.field, data.picked.map((p) => p.value))) {
+      const res = await bpFetch(`/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?${q}`, {}, undefined, {fresh: true})
+      if (!res.ok) return [] // can't tell: say nothing rather than a false error
+      found.push(...(((await res.json()) as {result?: {documents?: Record<string, unknown>[]}}).result?.documents ?? []))
+    }
+    return [...takenAmong(found as {_id: string}[], data.field, data.picked)]
+  })
+
+/** A bulk publish's check, every picked doc at once (bulkSlugAsks): doc id → the slug fields taken. */
+export async function slugsTakenAmong(qc: QueryClient, docs: Doc[], schemaOf: (type: string) => Schema | undefined): Promise<Map<string, string[]>> {
+  const slugFields = (type: string) => (schemaOf(type)?.fields ?? []).filter((f) => f.type === 'slug')
+  const out = new Map<string, string[]>()
+  for (const ask of bulkSlugAsks(docs, (type) => slugFields(type).map((f) => f.name))) {
+    const taken = new Set(await fetchTakenAmong({data: ask}))
+    const title = slugFields(ask.type).find((f) => f.name === ask.field)?.title ?? ask.field
+    for (const p of ask.picked) {
+      qc.setQueryData(['slug-in-use', ask.type, ask.field, p.value, p.id], taken.has(p.id))
+      if (taken.has(p.id)) out.set(p.id, [...(out.get(p.id) ?? []), title])
+    }
+  }
+  return out
 }
