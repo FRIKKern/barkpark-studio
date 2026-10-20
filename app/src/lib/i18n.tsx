@@ -1,3 +1,4 @@
+import {relativeTime} from './relative-time'
 import {createContext, useContext, type ReactNode} from 'react'
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
@@ -129,27 +130,10 @@ const collators: Partial<Record<Locale, Intl.Collator>> = {}
 export const collate = (a: string, b: string, locale: Locale = browserLocale) => (collators[locale] ??= new Intl.Collator(intlTag(locale))).compare(a, b)
 
 /**
- * "just now", "29 sec. ago", "12 min. ago", "3 hr. ago", "2 days ago" (Sanity's short
- * relative times, which are Intl's) and in Norwegian "akkurat nå", "for 12 min siden".
+ * "just now", "29 sec. ago", "12 min. ago", "3 hr. ago", "yesterday", "2 days ago", "last week",
+ * "2 wk. ago", then "Sep 5" (Sanity's, lib/relative-time.ts); in Norwegian "akkurat nå",
+ * "for 12 min siden", "i går", "forrige uke", "5. sep.".
  */
-// One formatter per locale: building one per call cost every list row (F2).
-const shortRtf: Partial<Record<Locale, Intl.RelativeTimeFormat>> = {}
-
 export function ago(iso: string, locale: Locale = browserLocale, now = Date.now()): string {
-  const s = Math.max(0, (now - new Date(iso).getTime()) / 1000)
-  if (s < 10) return translate(locale, 'just now')
-  // English by plain arithmetic, as before i18n (the same strings as Intl's, cheaper on
-  // every list row); other locales through Intl.
-  if (locale === 'en') {
-    if (s < 60) return `${Math.floor(s)} sec. ago`
-    if (s < 3600) return `${Math.floor(s / 60)} min. ago`
-    if (s < 86_400) return `${Math.floor(s / 3600)} hr. ago`
-    const d = Math.floor(s / 86_400)
-    return `${d} ${d === 1 ? 'day' : 'days'} ago`
-  }
-  const rtf = (shortRtf[locale] ??= new Intl.RelativeTimeFormat(intlTag(locale), {style: 'short', numeric: 'always'}))
-  if (s < 60) return rtf.format(-Math.floor(s), 'second')
-  if (s < 3600) return rtf.format(-Math.floor(s / 60), 'minute')
-  if (s < 86_400) return rtf.format(-Math.floor(s / 3600), 'hour')
-  return rtf.format(-Math.floor(s / 86_400), 'day')
+  return relativeTime(iso, intlTag(locale), now) ?? translate(locale, 'just now')
 }
