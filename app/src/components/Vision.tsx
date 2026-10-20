@@ -17,6 +17,7 @@ import {JsonTree} from './JsonTree'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {Add, ChevronDown, ChevronLeft, ChevronRight, Close, Copy, DocumentIcon, Ellipsis, HelpCircle, LockIcon, PlayIcon, Search, StopIcon, Trash, UnpublishIcon, Users} from './icons'
 import {toast} from './Toasts'
+import {announce} from '../lib/announce'
 
 // J37, Vision: Sanity's layout (dataset, perspective and the query URL with Copy on top,
 // the query on the left, the result as a folding JSON tree on the right, timings and
@@ -130,11 +131,11 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   }
   useEffect(() => () => listening?.stop.abort(), [listening?.stop])
   useEffect(() => {
-    if (rerun) (setRerun(false), void fetchIt())
+    if (rerun) (setRerun(false), void fetchIt(undefined, true))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rerun])
   // `typed` (the editor's own text on Ctrl+Enter) wins over what the last render saw.
-  const fetchIt = async (typed?: Partial<{query: string; params: string}>) => {
+  const fetchIt = async (typed?: Partial<{query: string; params: string}>, quiet = false) => {
     if (typed) Object.assign(edits.current, typed)
     listening?.stop.abort()
     setListening(undefined)
@@ -145,6 +146,20 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     const r = await runVisionQuery({data: {query, perspective, dataset, params, version}}).catch((e: Error) => ({ok: false, status: 0, url: '', ms: 0, body: '', error: e.message}))
     setResult({...r, query, total: Math.round(performance.now() - t0)})
     setBusy(false)
+    if (!quiet) say(r, query)
+  }
+  // scout-6 (WCAG 4.1.3): a run's outcome is said, not only drawn. The result region is busy
+  // while it runs, and what changes inside a busy region is not read. Not the rerun on open.
+  const say = (r: VisionResult, sent: string) => {
+    if (r.error) return announce(t('Query failed: {error}', {error: r.error}))
+    if (!r.ok) return announce(t('Query error: {error}', {error: queryError(r.sent ?? sent, r.body)?.message ?? String(r.status)}))
+    let body: unknown
+    try {
+      body = JSON.parse(r.body)
+    } catch {}
+    const rows = r.groq && body && typeof body === 'object' && 'result' in body ? (body as {result: unknown}).result : body
+    if (!Array.isArray(rows)) return announce(t('Query done in {ms} ms', {ms: r.ms}))
+    announce(rows.length === 1 ? t('1 result in {ms} ms', {ms: r.ms}) : t('{count} results in {ms} ms', {count: rows.length, ms: r.ms}))
   }
   // Sanity's Listen: the query's changes as they happen, until Stop.
   const listenIt = () => {
@@ -165,6 +180,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   const copyUrl = () => result?.url && void navigator.clipboard.writeText(result.href ?? result.url).then(() => toast({title: t('The URL is copied to the clipboard')}))
   return (
     <main className="vision">
+      <h1 className="sr-only">{t('Vision')}</h1>
       <div className="vision-top">
         <label>
           <span className="menu-label">{t('Dataset')}</span>

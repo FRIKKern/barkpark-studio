@@ -146,6 +146,11 @@ export default {
   Line: 'Linje',
   Column: 'Kolonne',
   'Execution: {time}': 'Utførelsestid: {time}',
+  'Query failed: {error}': 'Spørringen feilet: {error}',
+  'Query error: {error}': 'Feil i spørringen: {error}',
+  'Query done in {ms} ms': 'Spørringen er ferdig på {ms} ms',
+  '1 result in {ms} ms': '1 treff på {ms} ms',
+  '{count} results in {ms} ms': '{count} treff på {ms} ms',
   'End-to-end: {time}': 'Ende-til-ende: {time}',
   'n/a': '-',
   // Vision's query URL, result tree and save (Sanity's nb-NO words)
