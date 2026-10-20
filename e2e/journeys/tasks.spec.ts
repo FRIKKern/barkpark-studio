@@ -32,10 +32,10 @@ test('J66: create a task on a document, see it under Active Document, mark it do
     await expect(panel.getByRole('heading', {name: title})).toBeVisible()
     await panel.getByRole('button', {name: 'Tasks', exact: true}).click()
     await panel.getByRole('tab', {name: 'Active Document'}).click()
-    const open = panel.getByRole('list', {name: 'Open'})
+    const open = panel.getByRole('list', {name: 'To Do'})
     await expect(open.getByText(title)).toBeVisible()
     await open.getByRole('listitem').filter({hasText: title}).getByRole('checkbox', {name: 'Change status'}).click()
-    await panel.locator('summary').click()
+    await panel.locator('summary', {hasText: 'Done'}).click()
     await expect(panel.getByRole('list', {name: 'Done'}).getByText(title)).toBeVisible()
     // Not content: global search does not find a task (as Sanity's tasks).
     await page.keyboard.press('ControlOrMeta+k')
