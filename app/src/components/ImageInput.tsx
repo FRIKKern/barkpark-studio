@@ -9,7 +9,7 @@ import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
 import {assetUrl, dragCrop, fitHotspot, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
-import {uploadFile, UploadError} from '../lib/upload'
+import {uploadFile, uploadReason, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
 import {useFileInfo} from './FileInput'
 import {UploadProgress} from './UploadProgress'
@@ -80,11 +80,19 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       use(await uploadFile(f, (progress) => setUploading((u) => (u && u.stop === stop ? {...u, progress} : u)), stop.signal, uploadMeta(field.options)))
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
-      setFailed(f)
-      toast({tone: 'critical', title: t('Upload failed'), description: err instanceof UploadError && err.network ? t('The network is unreachable.') : (err as Error).message})
+      // Too large goes no better a second time: no Retry for it. The reason in the editor's words.
+      if (!(err instanceof UploadError && err.tooLarge)) setFailed(f)
+      toast({tone: 'critical', title: t('Upload failed'), description: uploadReason(err, t)})
     } finally {
       setUploading((u) => (u?.stop === stop ? null : u))
     }
+  }
+  // Only an image goes up: a file the chooser let through ("All files") or a dropped one that is
+  // not an image is refused and said, as Sanity's refuses it (it was uploaded and stored as the image).
+  const take = (list: FileList | DataTransferItemList | null) => {
+    const f = imageOf(list)
+    if (f) void upload(f)
+    else if (list?.length) toast({tone: 'critical', title: t("Can't upload this file here")})
   }
   const pick = () => file.current?.click()
   const url = ref ? assetUrl(ref) : undefined
@@ -98,8 +106,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
         onDrop: (e: DragEvent<HTMLElement>) => {
           e.preventDefault()
           setOver(false)
-          const f = imageOf(e.dataTransfer.files)
-          if (f) void upload(f)
+          take(e.dataTransfer.files)
         },
         onPaste: (e: ClipboardEvent<HTMLElement>) => {
           const f = imageOf(e.clipboardData.files) ?? imageOf(e.clipboardData.items)
@@ -115,7 +122,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   return (
     // With fields of its own (alt, caption) Sanity draws the image as an object: a rule on the left, all inside it.
     <div className="image-input" id={id} data-fields={field.fields?.length ? '' : undefined}>
-      <input ref={file} type="file" accept="image/*" hidden onChange={(e) => (e.target.files?.[0] && upload(e.target.files[0]), (e.target.value = ''))} />
+      <input ref={file} type="file" accept="image/*" hidden onChange={(e) => (take(e.target.files), (e.target.value = ''))} />
       {uploading ? (
         <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />
       ) : !ref ? (

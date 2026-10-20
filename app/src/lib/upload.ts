@@ -4,7 +4,7 @@
 // library already holds (same SHA-1) are not sent: their asset is used.
 
 export class UploadError extends Error {
-  constructor(message: string, readonly network = false) {
+  constructor(message: string, readonly network = false, readonly tooLarge = false) {
     super(message)
   }
 }
@@ -64,6 +64,7 @@ function send(file: File, onProgress: (fraction: number) => void, signal: AbortS
     xhr.upload.onload = () => clearTimeout(stall)
     xhr.onload = () => {
       done()
+      if (xhr.status === 413) return reject(new UploadError('The file is too large to upload.', false, true))
       if (xhr.status < 200 || xhr.status >= 300) return reject(new UploadError(`The server answered ${xhr.status}.`))
       try {
         resolve((JSON.parse(xhr.responseText) as {ref: string}).ref)
@@ -84,3 +85,7 @@ function send(file: File, onProgress: (fraction: number) => void, signal: AbortS
     moved()
   })
 }
+
+/** Why an upload failed, in the editor's words: the network, a file over the limit, or neither. */
+export const uploadReason = (err: unknown, t: (s: string) => string) =>
+  err instanceof UploadError && err.network ? t('The network is unreachable.') : err instanceof UploadError && err.tooLarge ? t('The file is too large to upload.') : t('The upload could not be completed at this time.')
