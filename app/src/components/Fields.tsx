@@ -1,5 +1,6 @@
 import {createContext, memo, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
+import {descId, fieldAria, problemId} from '../lib/field-aria'
 import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
 import {objectKinds} from '../lib/object-block'
@@ -223,7 +224,7 @@ function FieldBody(props: FieldProps) {
   const titleId = useId()
   const invalid = useContext(ProblemsContext).some((p) => p.path === props.path && p.level === 'error') || undefined
   const box = useRef<HTMLDivElement>(null)
-  useFieldAria(box, props.path, titleId, !!invalid, !!props.field.description)
+  useFieldAria(box, props.path, titleId, fieldAria(props.path, props.field, !!invalid))
   // Sanity: a boolean is a switch with its label beside it, in a box.
   if (props.field.type === 'boolean' && !invalidValue(props.field, props.value))
     return (
@@ -257,10 +258,10 @@ function FieldBody(props: FieldProps) {
         }
       }}>
         <span id={titleId}>{label}</span>
-        <ProblemMark path={props.path} id={`${props.path}-problem`} />
+        <ProblemMark path={props.path} id={problemId(props.path)} />
         <FieldPresenceHere path={props.path} />
       </label>
-      {props.field.description && <p className="field-desc" id={`${props.path}-desc`}>{props.field.description}</p>}
+      {props.field.description && <p className="field-desc" id={descId(props.path)}>{props.field.description}</p>}
       <FieldClashCard path={props.path} />
       {changes?.inline && changes.changed.has(props.path) && INLINE_DIFF_TYPES.has(props.field.type) ? (
         <InlineDiff before={changes.published?.[props.path]} after={props.value} multiline={props.field.type === 'text' || props.field.type === 'markdown'}>
@@ -281,14 +282,15 @@ function FieldBody(props: FieldProps) {
  * (a reference turning from its preview to its search). A control's own invalid (a date
  * typed wrong) is left as it is.
  */
-function useFieldAria(box: RefObject<HTMLElement | null>, path: string, titleId: string, invalid: boolean, described: boolean) {
+function useFieldAria(box: RefObject<HTMLElement | null>, path: string, titleId: string, aria: ReturnType<typeof fieldAria>) {
+  const by = aria['aria-describedby']
+  const invalid = !!aria['aria-invalid']
   useLayoutEffect(() => {
     const root = box.current
     if (!root) return
     const apply = () => {
       const c = root.querySelector<HTMLElement>(`[id="${CSS.escape(path)}"]`)
       if (!c?.matches('input, textarea, select, [role=combobox], [role=group], [role=radiogroup]')) return
-      const by = [invalid && `${path}-problem`, described && `${path}-desc`].filter(Boolean).join(' ')
       if (by) c.setAttribute('aria-describedby', by)
       else c.removeAttribute('aria-describedby')
       if (invalid) (c.setAttribute('aria-invalid', 'true'), (c.dataset.fieldInvalid = ''))
@@ -299,7 +301,7 @@ function useFieldAria(box: RefObject<HTMLElement | null>, path: string, titleId:
     const redrawn = new MutationObserver(apply)
     redrawn.observe(root, {childList: true, subtree: true})
     return () => redrawn.disconnect()
-  }, [box, path, titleId, invalid, described])
+  }, [box, path, titleId, by, invalid])
 }
 
 /** J68: the plain-text inputs Sanity's "Inline changes" marks in place. */
