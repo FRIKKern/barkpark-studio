@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {BACKEND_POLL, closeAndSettle, target, type Target} from '../rig/targets'
+import {closeAndSettle, target, type Target} from '../rig/targets'
 
 // J33 evidence, both studios, on post-03's links (an external link and a doc
 // link): preview rows; open an item, edit it in the dialog; add an item; move it
@@ -41,7 +41,7 @@ test('@evidence J33: object array — previews, edit in a dialog, add, reorder',
   await page.keyboard.type('Sanity docs v2')
   await dialog.getByRole('button', {name: 'Close dialog'}).click()
   await expect(links.getByRole('button', {name: /Sanity docs v2/})).toBeVisible()
-  await expect.poll(() => titles(t, page), BACKEND_POLL).toEqual(['Sanity docs v2', 'Related post'])
+  await expect.poll(() => titles(t, page), {timeout: 10_000}).toEqual(['Sanity docs v2', 'Related post'])
 
   // Add an item: both ask which type, and the new item shows that type's fields only.
   await links.getByRole('button', {name: /Add item/}).click()
@@ -53,12 +53,12 @@ test('@evidence J33: object array — previews, edit in a dialog, add, reorder',
   await page.waitForTimeout(t.name === 'sanity' ? 800 : 300)
   await page.screenshot({path: shot(t.name, '3-new-item')})
   await added.getByRole('button', {name: 'Close dialog'}).click()
-  await expect.poll(() => titles(t, page), BACKEND_POLL).toEqual(['Sanity docs v2', 'Related post', 'Barkpark'])
+  await expect.poll(() => titles(t, page), {timeout: 10_000}).toEqual(['Sanity docs v2', 'Related post', 'Barkpark'])
 
   // Keyboard: pick up the new last row, two up, drop.
   const press = async (key: string) => (await page.keyboard.press(key), t.name === 'sanity' && (await page.waitForTimeout(200)))
   await links.locator('button[aria-roledescription="sortable"]').last().focus()
   for (const key of ['Space', 'ArrowUp', 'ArrowUp', 'Space']) await press(key)
-  await expect.poll(() => titles(t, page), BACKEND_POLL).toEqual(['Barkpark', 'Sanity docs v2', 'Related post'])
+  await expect.poll(() => titles(t, page), {timeout: 10_000}).toEqual(['Barkpark', 'Sanity docs v2', 'Related post'])
   await links.screenshot({path: shot(t.name, '4-reordered')})
 })

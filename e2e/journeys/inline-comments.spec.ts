@@ -56,7 +56,7 @@ test('J40: a comment on a span of the body is saved on its words', async ({page}
   await page.reload()
   await t.settle(page)
   await page.locator('[id="body"]').getByText(/Alpha beta/).click()
-  await expect.poll(() => spans(page), {timeout: 10_000, intervals: [50]}).toEqual(['gamma'])
+  await expect.poll(() => spans(page), {timeout: 10_000}).toEqual(['gamma'])
 })
 
 test('@local J40: a comment on a span of the body follows its words, and outlives them', async ({page}, info) => {

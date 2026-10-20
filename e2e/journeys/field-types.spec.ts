@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {BACKEND_POLL, closeAndSettle, signInIfAsked, target} from '../rig/targets'
+import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 
 // The field-type matrix (2026-10-13), ours: what Sanity draws for these options and we
 // didn't. An array of strings from a list is checkboxes and keeps the list's order; a
@@ -21,23 +21,23 @@ test('field types store as Sanity: a dateFormat date, a list in its order, "1,50
   // dateFormat (DD.MM.YYYY): typed in it, stored as Sanity stores it.
   await page.locator('[id="day"]').fill('14.10.2026')
   await page.keyboard.press('Enter')
-  await expect.poll(() => value('day'), BACKEND_POLL).toBe('2026-10-14')
+  await expect.poll(() => value('day'), {timeout: 10_000}).toBe('2026-10-14')
   // An array of strings from a list keeps the list's order, whatever order it was ticked in.
   await page.getByRole('group').filter({has: page.getByRole('checkbox', {name: 'Green'})}).getByRole('checkbox', {name: 'Green'}).check()
-  await expect.poll(() => value('colours'), BACKEND_POLL).toEqual(['red', 'green', 'blue'])
+  await expect.poll(() => value('colours'), {timeout: 10_000}).toEqual(['red', 'green', 'blue'])
   // English: "1,500" is one thousand five hundred, never 1.5 (a decimal comma is nb's,
   // lib/number.ts): not a number, so the field is unset and keeps what was typed.
   await page.locator('[id="width"]').fill('1,500')
-  await expect.poll(() => value('width'), BACKEND_POLL).toBeUndefined()
+  await expect.poll(() => value('width'), {timeout: 10_000}).toBeUndefined()
   await expect(page.locator('[id="width"]')).toHaveValue('1,500')
   await page.locator('[id="width"]').fill('1200')
-  await expect.poll(() => value('width'), BACKEND_POLL).toBe(1200)
+  await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1200)
   // Up steps a number, as Sanity's <input type="number"> does.
   await page.locator('[id="width"]').press('ArrowUp')
-  await expect.poll(() => value('width'), BACKEND_POLL).toBe(1201)
+  await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1201)
   // A geopoint stays a geopoint.
   await page.locator('[id="place.lat"]').fill('60.5')
-  await expect.poll(() => value('place'), BACKEND_POLL).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522})
+  await expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522})
 })
 
 test("@local field types: Sanity's options drawn: dates, grid tiles, a checkbox, Add item, slugs, fieldsets, a reference without Create", async ({page, context}, info) => {

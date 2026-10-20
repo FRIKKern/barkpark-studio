@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {BACKEND_POLL, closeAndSettle, target, type Target} from '../rig/targets'
+import {closeAndSettle, target, type Target} from '../rig/targets'
 
 // J34 evidence, both studios: tags (Enter adds, × removes) and a plain string
 // array (reorder by keyboard and by mouse, item "…" menu). Stills + clips go to
@@ -34,10 +34,10 @@ test('@evidence J34: tags and a reorderable string array', async ({page}, info) 
   await t.field(page, 'tags').click()
   await page.keyboard.type('alpha')
   await page.keyboard.press('Enter')
-  await expect.poll(() => t.docValue(ID, 'tags'), BACKEND_POLL).toEqual(['fixture', 't0', 'alpha'])
+  await expect.poll(() => t.docValue(ID, 'tags'), {timeout: 10_000}).toEqual(['fixture', 't0', 'alpha'])
   if (t.name === 'sanity') await field(t, page, 'tags').locator('[data-testid="change-bar__field-wrapper"] button').first().click()
   else await page.getByRole('button', {name: 'Remove fixture'}).click()
-  await expect.poll(() => t.docValue(ID, 'tags'), BACKEND_POLL).toEqual(['t0', 'alpha'])
+  await expect.poll(() => t.docValue(ID, 'tags'), {timeout: 10_000}).toEqual(['t0', 'alpha'])
 
   // Keyboard: pick up the first row, one down, drop.
   // Sanity's drag library reacts on the next frames: give each key a moment there.
@@ -54,7 +54,7 @@ test('@evidence J34: tags and a reorderable string array', async ({page}, info) 
   await page.mouse.move(to!.x + to!.width / 2, to!.y - 4, {steps: 12})
   await page.mouse.up()
   await expect.poll(() => values(page), {intervals: [50]}).toEqual([HL[2], HL[1], HL[0]])
-  await expect.poll(() => t.docValue(ID, 'highlights'), BACKEND_POLL).toEqual([HL[2], HL[1], HL[0]])
+  await expect.poll(() => t.docValue(ID, 'highlights'), {timeout: 10_000}).toEqual([HL[2], HL[1], HL[0]])
 
   // Item menu: Remove the middle row.
   await page.locator('[id="highlights[1]-menuButton"]').click()
@@ -74,7 +74,7 @@ test('J34: Add item on a string array focuses the new item', async ({page}, info
   await field(t, page, 'highlights').getByRole('button', {name: 'Add item', exact: true}).click()
   await expect(page.locator('[id="highlights[3]"]')).toBeFocused()
   await page.keyboard.type('Point four')
-  await expect.poll(() => t.docValue(ID, 'highlights'), BACKEND_POLL).toEqual([...HL, 'Point four'])
+  await expect.poll(() => t.docValue(ID, 'highlights'), {timeout: 10_000}).toEqual([...HL, 'Point four'])
 })
 
 // Where ours beats Sanity's: the Enter that commits an IME's word is not a new tag (both
@@ -92,8 +92,8 @@ test('J34: the Enter an IME commits with adds no tag; the last tag removed unset
   await expect(field(t, page, 'tags').locator('.tag')).toHaveText(['fixture', 't0'])
   await expect(input).toHaveValue('かんじ')
   await input.press('Enter')
-  await expect.poll(() => t.docValue(ID, 'tags'), BACKEND_POLL).toEqual(['fixture', 't0', 'かんじ'])
+  await expect.poll(() => t.docValue(ID, 'tags'), {timeout: 10_000}).toEqual(['fixture', 't0', 'かんじ'])
   // The last tag removed unsets the field, as Sanity's (it was left as []).
   for (const tag of ['fixture', 't0', 'かんじ']) await page.getByRole('button', {name: `Remove ${tag}`}).click()
-  await expect.poll(() => t.docValue(ID, 'tags'), BACKEND_POLL).toBeUndefined()
+  await expect.poll(() => t.docValue(ID, 'tags'), {timeout: 10_000}).toBeUndefined()
 })

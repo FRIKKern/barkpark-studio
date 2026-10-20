@@ -1,5 +1,5 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {BACKEND_POLL, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J54, both studios, on post-03's attachment (the seed's fixture-attachment.txt, a real
 // file on both sides: barkpark#22289): its name and size; Clear field empties it; a PDF
@@ -53,6 +53,6 @@ test('@evidence J54: a seeded file shows name and size; clear; upload a PDF; can
   await field.screenshot({path: shot(t.name, '3-uploaded')})
 
   // 4. Stored as the canonical file value.
-  await expect.poll(() => t.docValue(ID, 'attachment'), BACKEND_POLL).toMatchObject({_type: 'file', asset: {_type: 'reference', _ref: expect.any(String)}})
+  await expect.poll(() => t.docValue(ID, 'attachment'), {timeout: 10_000}).toMatchObject({_type: 'file', asset: {_type: 'reference', _ref: expect.any(String)}})
   info.annotations.push({type: 'stored', description: JSON.stringify(await t.docValue(ID, 'attachment'))})
 })

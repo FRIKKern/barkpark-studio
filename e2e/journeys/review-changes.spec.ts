@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {BACKEND_POLL, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J15 evidence, both studios: change two fields; the change bar beside a field
 // opens Review changes (what changed since publish, word diff, who); revert one
@@ -44,14 +44,14 @@ test('@evidence J15: change bars, review changes, revert one field and all', asy
     await page.keyboard.press('ControlOrMeta+a')
     await page.keyboard.type(text)
   }
-  await expect.poll(() => t.versions(ID), BACKEND_POLL).toMatchObject({draft: 'Post 24 reviewed'})
+  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: 'Post 24 reviewed'})
 
   // The change bar beside Title opens Review changes.
   const bar = t.name === 'sanity' ? page.getByRole('button', {name: 'Review changes'}).first() : page.locator('.field').filter({has: page.locator('[id="title"]')}).locator('.change-bar')
   await expect(bar).toBeVisible({timeout: 10_000})
   // Sanity's Review changes reads its transaction log, which lags the draft: wait until
   // the log has the edits (not a fixed pause), or it opens on "There are no changes".
-  await expect.poll(() => t.historyReady(ID), {...BACKEND_POLL, timeout: 15_000}).toBe(true)
+  await expect.poll(() => t.historyReady(ID), {timeout: 15_000}).toBe(true)
   await bar.click()
   await expect(panel(page)).toContainText('Post 24 reviewed', {timeout: 15_000})
   await expect(panel(page)).toContainText('Changed for review.')
