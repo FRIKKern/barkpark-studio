@@ -320,7 +320,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
                 </button>
                 <span aria-hidden>/</span>
                 <button type="button" className="crumb" onClick={outer[i + 1]?.close ?? onClose}>
-                  <span className="muted">#{c.position}</span> {c.title}
+                  <span className="muted">#{c.position}</span> <span className="crumb-title">{c.title}</span>
                 </button>
                 <span aria-hidden>/</span>
               </Fragment>
@@ -330,7 +330,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
             </button>
             <span aria-hidden>/</span>
             <span className="crumb current">
-              <span className="muted">#{position}</span> {title}
+              <span className="muted">#{position}</span> <span className="crumb-title">{title}</span>
             </span>
           </nav>
           <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
