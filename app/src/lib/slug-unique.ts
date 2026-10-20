@@ -5,6 +5,7 @@ import {bpFetch, dataset} from '../server/barkpark'
 import type {Doc, Schema} from './data'
 import type {Problem} from './validation'
 import type {T} from './i18n'
+import {slugQueries, takenByOther} from './slug-shape'
 
 // J28, Sanity's slug rule: a slug another document of the same type already has is an
 // error ("Slug is already in use"), so a duplicate shows its copied slug as taken. Asked
@@ -15,11 +16,10 @@ const slugText = (v: unknown) => (typeof v === 'string' ? v : typeof (v as {curr
 const fetchTaken = createServerFn({method: 'GET'})
   .validator((d: {type: string; field: string; value: string; id: string}) => d)
   .handler(async ({data}) => {
-    const q = `perspective=raw&limit=5&filter[${encodeURIComponent(data.field)}][eq]=${encodeURIComponent(data.value)}`
-    const res = await bpFetch(`/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?${q}`)
-    if (!res.ok) return false // can't tell: say nothing rather than a false error
-    const {result} = (await res.json()) as {result?: {documents?: {_publishedId?: string; _id: string}[]}}
-    return (result?.documents ?? []).some((d) => (d._publishedId ?? d._id.replace(/^drafts\./, '')) !== data.id)
+    const answers = await Promise.all(slugQueries(data.field, data.value).map((q) => bpFetch(`/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?${q}`)))
+    if (answers.some((res) => !res.ok)) return false // can't tell: say nothing rather than a false error
+    const found = await Promise.all(answers.map(async (res) => ((await res.json()) as {result?: {documents?: {_publishedId?: string; _id: string}[]}}).result?.documents ?? []))
+    return takenByOther(found.flat(), data.id)
   })
 
 /** The slug fields whose value another document of this type has, as errors. */
