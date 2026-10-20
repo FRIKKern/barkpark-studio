@@ -1,5 +1,5 @@
 import {expect, test, type Route} from '@playwright/test'
-import {bpMutate, canvasFocusSettled, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, bpMutate, canvasFocusSettled, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J32 widen (task-6612fd882f8b8b63): someone deletes the doc while you type. The save
 // that was on its way meets the delete (404); every keystroke is kept, the deleted
@@ -47,7 +47,7 @@ test(`keystrokes typed as the doc is deleted come back with Restore (${frames})`
   await expect(page.locator('.pane-header .chip[data-off]')).toHaveText('Published')
   await banner.getByRole('button', {name: 'Restore most recent revision'}).click()
   await expect(t.field(page, 'name')).toHaveValue('Kept Author typed', {timeout: 15_000})
-  await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author typed')
+  await expect.poll(() => t.docValue(ID, 'name', 'author'), {...BACKEND_POLL, timeout: 15_000}).toBe('Kept Author typed')
 })
 
 // The CI flake behind this (#446's first run, ci-5: "Kept Author", not "Kept Author typed"):
@@ -79,12 +79,12 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
   await banner.getByRole('button', {name: 'Restore most recent revision'}).click()
   await expect.poll(() => held.length, {intervals: [50], timeout: 15_000}).toBeGreaterThan(0)
   // The restore has landed on Barkpark (the kept edits' save is still held).
-  await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author')
+  await expect.poll(() => t.docValue(ID, 'name', 'author'), {...BACKEND_POLL, timeout: 15_000}).toBe('Kept Author')
   await bpMutate([{patch: {id: ID, type: 'author', set: {title: 'Kept Author, touched'}}}])
   await page.waitForTimeout(800) // its live frame arrives
   for (const r of held.splice(0)) await r.continue()
   await page.unrouteAll({behavior: 'wait'})
-  await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author typed')
+  await expect.poll(() => t.docValue(ID, 'name', 'author'), {...BACKEND_POLL, timeout: 15_000}).toBe('Kept Author typed')
   await expect(t.field(page, 'name')).toHaveValue('Kept Author typed')
 })
 
@@ -121,5 +121,5 @@ test('body words typed as the doc is deleted are offered back after Restore', as
   await offer.getByRole('button', {name: 'Put the words back'}).click()
   await offer.getByRole('button', {name: 'Confirm: replace this text with the kept words'}).click()
   const text = async () => JSON.stringify(await t.docValue(POST, 'body'))
-  await expect.poll(text, {timeout: 15_000}).toContain('First line. Kept words.')
+  await expect.poll(text, {...BACKEND_POLL, timeout: 15_000}).toContain('First line. Kept words.')
 })

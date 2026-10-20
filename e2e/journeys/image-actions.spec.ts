@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J36 evidence, both studios, on post-06's main image: drag a file over ("Drop
 // to upload") and drop it; clear; paste one; clear; an upload that fails (the
@@ -113,11 +113,11 @@ test('@evidence J36: drop, paste, upload error + retry, select from library + us
   const before = JSON.stringify(await t.docValue(ID, 'mainImage'))
   await tiles.nth(1).click()
   await expect(library).toHaveCount(0)
-  await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'mainImage')), {timeout: 10_000}).not.toBe(before)
+  await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'mainImage')), BACKEND_POLL).not.toBe(before)
   await field.screenshot({path: shot(t.name, '6-replaced')})
 
   // 5. Remove.
   await menuItem(t, page, field, 'Clear field')
   await expect(hint).toBeVisible()
-  await expect.poll(() => t.docValue(ID, 'mainImage'), {timeout: 10_000}).toBeFalsy()
+  await expect.poll(() => t.docValue(ID, 'mainImage'), BACKEND_POLL).toBeFalsy()
 })

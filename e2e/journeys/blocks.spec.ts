@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J11 evidence, both studios, in post-11's body: insert a callout and edit it
 // (Sanity: in a dialog; ours: inline in the canvas), the block "…" menu (Sanity:
@@ -84,16 +84,16 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     await dialog.getByRole('button', {name: 'Close dialog'}).click()
   }
   // Sanity's block preview shows the type, not the text: count callouts on the server.
-  await expect.poll(async () => (await blockKinds(t)).filter((k) => k === 'callout').length, {timeout: 10_000}).toBe(2)
+  await expect.poll(async () => (await blockKinds(t)).filter((k) => k === 'callout').length, BACKEND_POLL).toBe(2)
   // Ours: its tone changes in the same dialog (double-click the block).
   if (t.name === 'studio') {
     const tones = async () => (((await t.docValue(ID, 'body')) as {blocks?: {type: string; text?: string; tone?: string}[]})?.blocks ?? []).filter((b) => b.text === 'Callout from J11').map((b) => b.tone)
-    await expect.poll(tones, {timeout: 10_000}).toEqual(['warning'])
+    await expect.poll(tones, BACKEND_POLL).toEqual(['warning'])
     await ourCallout(page).dblclick()
     const dialog = page.getByRole('dialog', {name: 'Callout'})
     await dialog.getByRole('combobox').first().selectOption({label: 'Danger'})
     await dialog.getByRole('button', {name: 'Close dialog'}).click()
-    await expect.poll(tones, {timeout: 10_000}).toEqual(['danger'])
+    await expect.poll(tones, BACKEND_POLL).toEqual(['danger'])
     note('callout tone edit', await tones())
     await expect(ourCallout(page)).toHaveText('Callout · Callout from J11')
     // The command palette's Insert Callout opens the same dialog (#22861), by keyboard
@@ -149,7 +149,7 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     const at = await ours()
     await callout.click({position: {x: 8, y: 8}})
     await page.keyboard.press(`${MOD}+Shift+ArrowUp`)
-    await expect.poll(ours, {timeout: 10_000}).toBe(at - 1)
+    await expect.poll(ours, BACKEND_POLL).toBe(at - 1)
   } else {
     const handle = callout.locator('[data-drag-handle], [data-ui="DragHandle"]').first()
     const above = await para.boundingBox({timeout: 3_000}).catch(() => null)
@@ -183,7 +183,7 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     await dlg.locator('select').first().selectOption({label: 'Caution'}, {timeout: 3_000}).catch(() => note('inline tone', 'no Tone control'))
     await page.screenshot({path: shot(t.name, '4-inline')})
     await page.keyboard.press('Escape')
-    await expect.poll(() => chips(t), {timeout: 10_000}).toContain('Draft/caution').catch(() => {})
+    await expect.poll(() => chips(t), BACKEND_POLL).toContain('Draft/caution').catch(() => {})
     note('inline object', await chips(t))
   } else {
     // The caret must be in that paragraph, not left in the callout typed above
@@ -215,10 +215,10 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     const real = await tiles.evaluateAll((els) => els.findIndex((el) => { const img = el.querySelector('img'); return !!img && img.naturalWidth > 64 }))
     await tiles.nth(Math.max(real, 0)).click()
     // The picture itself in the block, loaded.
-    await expect.poll(() => page.locator('bp-paper-canvas .bp-canvas-image-img[src]').last().evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0), {timeout: 10_000}).toBe(true)
+    await expect.poll(() => page.locator('bp-paper-canvas .bp-canvas-image-img[src]').last().evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0), {timeout: 10_000, intervals: [50]}).toBe(true)
     await expect(library).toHaveCount(0)
     // Saved with the next batch, a moment after the pick.
-    const saved = await expect.poll(async () => (await blockKinds(t)).includes('image'), {timeout: 10_000}).toBe(true).then(() => true, () => false)
+    const saved = await expect.poll(async () => (await blockKinds(t)).includes('image'), BACKEND_POLL).toBe(true).then(() => true, () => false)
     note('image block', saved ? 'inserted' : 'not inserted (no / menu: see caret after Enter)')
     await page.screenshot({path: shot(t.name, '4-image')})
     // 5. A chip, from the slash menu: our modal over the pane, as Sanity's inline
@@ -234,7 +234,7 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
     await toneSelect.selectOption({label: await toneSelect.locator('option', {hasText: /^caution$/i}).innerText()})
     await page.screenshot({path: shot(t.name, '4-inline')})
     await dlg.getByRole('button', {name: 'Close dialog'}).click()
-    await expect.poll(() => chips(t), {timeout: 10_000}).toContain('Draft/caution')
+    await expect.poll(() => chips(t), BACKEND_POLL).toContain('Draft/caution')
     await expect(page.locator('bp-paper-canvas [aria-label="Chip: Draft"]')).toBeVisible()
     note('inline object', await chips(t))
   }

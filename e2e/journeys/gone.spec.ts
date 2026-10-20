@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {sanityMutate, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, sanityMutate, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J32 evidence, both studios: someone else (an API write, as another editor would)
 // (1) deletes the doc you have open → "This document has been deleted." + Restore
@@ -50,7 +50,7 @@ test('@evidence J32: deleted doc, reference changed, reference removed', async (
     expect(sawDeleted).toBe(true)
     await page.getByRole('button', {name: 'Restore most recent revision'}).click()
     await expect(t.field(page, 'name')).toHaveValue('J32 Author', {timeout: 15_000})
-    await expect.poll(() => t.docValue(AUTHOR, 'name', 'author'), {timeout: 10_000}).toBe('J32 Author')
+    await expect.poll(() => t.docValue(AUTHOR, 'name', 'author'), BACKEND_POLL).toBe('J32 Author')
     await page.screenshot({path: shot(t.name, '2-restored')})
   }
 

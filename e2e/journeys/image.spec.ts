@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J12 evidence, both studios, on post-05's main image: upload, alt text, then
 // hotspot and crop in the "Edit hotspot and crop" dialog — by mouse (resize the
@@ -40,7 +40,7 @@ test('@evidence J12: image upload, alt text, hotspot and crop by mouse and keybo
 
   // Alt text, a field of the image.
   await field.getByRole('textbox', {name: 'Alternative text'}).fill('A sun over a field')
-  await expect.poll(async () => (await value()).alt, {timeout: 10_000}).toBe('A sun over a field')
+  await expect.poll(async () => (await value()).alt, BACKEND_POLL).toBe('A sun over a field')
   if (t.name === 'studio') {
     // Only the focused field's actions show, not the image's around it (Sanity's).
     const shown = await field.evaluate((el) => [...el.querySelectorAll('.field-actions')].map((a) => getComputedStyle(a).opacity))
@@ -63,7 +63,7 @@ test('@evidence J12: image upload, alt text, hotspot and crop by mouse and keybo
   await drag('hotspotHandle', -180, -110)
   await drag('crop-right', -100, 0)
   await drag('hotspot', -40, 20)
-  await expect.poll(async () => (await value()).hotspot?.x ?? 0.5, {timeout: 10_000}).toBeLessThan(0.45)
+  await expect.poll(async () => (await value()).hotspot?.x ?? 0.5, BACKEND_POLL).toBeLessThan(0.45)
   if (t.name === 'sanity') await page.waitForTimeout(2000) // its writes land late; read the settled value
   const byMouse = await value()
   note('after mouse', {hotspot: byMouse.hotspot, crop: byMouse.crop})
@@ -89,7 +89,7 @@ test('@evidence J12: image upload, alt text, hotspot and crop by mouse and keybo
   for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight')
   // Read until the keyed value shows (Sanity's query API can answer from before its last write).
   let byKeys: Img = {}
-  await expect.poll(async () => ((byKeys = await value()).crop?.left ?? 0) > 0 && byKeys.hotspot!.y < byMouse.hotspot!.y - 0.05, {timeout: 10_000}).toBe(true)
+  await expect.poll(async () => ((byKeys = await value()).crop?.left ?? 0) > 0 && byKeys.hotspot!.y < byMouse.hotspot!.y - 0.05, BACKEND_POLL).toBe(true)
   note('after keys', {hotspot: byKeys.hotspot, crop: byKeys.crop})
   expect(byKeys.hotspot!.x).toBeCloseTo(byMouse.hotspot!.x - 0.025, 4)
   expect(byKeys.hotspot!.y).toBeCloseTo(byMouse.hotspot!.y - 0.075, 4)

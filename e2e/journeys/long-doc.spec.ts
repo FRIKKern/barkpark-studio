@@ -1,6 +1,6 @@
 import {expect, test, type Page} from '@playwright/test'
 import {installProbes, stats, timeToReady, typeAndMeasure} from '../rig/feel'
-import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J44 evidence, both studios, CPU throttled 4×: longform-1 has 200 fields and a
 // 300-item array (scripts/gen-longform.mjs). F2: open it warm from the list.
@@ -96,7 +96,7 @@ test('@evidence J44: 200 fields + 300 rows keep F1 and F2 (4× CPU throttle)', a
   await page.keyboard.press('Escape')
   await cdp.send('Emulation.setCPUThrottlingRate', {rate: 1})
   // Every edit saved before afterEach restores the seed (a late write would undo it).
-  await expect.poll(() => t.docValue(ID, 'rows', 'longform').then((r) => (r as {title?: string}[] | undefined)?.at(-1)?.title), {timeout: 15_000}).toBe(`Row 300${TEXT}`)
+  await expect.poll(() => t.docValue(ID, 'rows', 'longform').then((r) => (r as {title?: string}[] | undefined)?.at(-1)?.title), {...BACKEND_POLL, timeout: 15_000}).toBe(`Row 300${TEXT}`)
   await page.close()
 
   // Ours keeps the budgets under the throttle: F2 < 100 ms with no shift; F1

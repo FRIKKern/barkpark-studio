@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // List thumbnails, both studios: post's preview selects media: mainImage, so a post
 // with an image shows it in its list row; a crop narrows what the thumbnail shows.
@@ -21,7 +21,7 @@ test('@evidence list rows show the main image, cropped', async ({page}, info) =>
   await page.getByRole('tab', {name: 'Content'}).click()
   const field = imageField(t, page)
   await field.locator('input[type=file]').first().setInputFiles('../fixtures/assets/fixture-image.png')
-  await expect.poll(async () => ((await t.docValue(ID, 'mainImage')) as {asset?: unknown} | undefined)?.asset, {timeout: 20_000}).toBeTruthy()
+  await expect.poll(async () => ((await t.docValue(ID, 'mainImage')) as {asset?: unknown} | undefined)?.asset, {...BACKEND_POLL, timeout: 20_000}).toBeTruthy()
 
   const row = t.listItem(page, ID)
   const thumb = row.locator('img').first()

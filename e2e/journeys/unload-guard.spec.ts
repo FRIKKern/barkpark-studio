@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type BrowserContext, type Page} from '@playwright/test'
-import {target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, target, closeAndSettle} from '../rig/targets'
 
 // B11 (Barkpark-native, ours only): closing the tab asks first while anything typed has
 // not reached Barkpark: a field edit still batching, a Freeform canvas edit not yet
@@ -80,7 +80,7 @@ test('B11: closing the tab while a save is on its way still saves it', async ({c
   await sent
   page.once('dialog', (d) => void d.accept())
   await page.close({runBeforeUnload: true})
-  await expect.poll(() => t.docValue(POST, 'title', 'post'), {timeout: 10_000}).toBe(`${was} kept`)
+  await expect.poll(() => t.docValue(POST, 'title', 'post'), BACKEND_POLL).toBe(`${was} kept`)
 })
 
 // The race itself, 20 times: typed, closed at once, the word lands every time (3 of 24

@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J20 evidence, both studios, on post-17's excerpt: 10 s offline while typing, then
 // back; and (ours) a write that hangs. What the footer says at each step goes to the
@@ -54,7 +54,7 @@ test('@evidence J20: offline while typing, back online, a stalled write — noth
   }
   note('footer after reconnect', [...after])
   const typed = `${EXCERPT}${Array.from({length: 10}, (_, i) => ` o${i}`).join('')}`
-  const kept = await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 20_000}).toBe(typed).then(() => true, () => false)
+  const kept = await expect.poll(() => t.docValue(ID, 'excerpt'), {...BACKEND_POLL, timeout: 20_000}).toBe(typed).then(() => true, () => false)
   note('server holds every keystroke', kept ? true : await t.docValue(ID, 'excerpt'))
   await page.screenshot({path: shot(t.name, '2-recovered')})
   if (t.name === 'studio') expect(kept, 'nothing lost').toBe(true)
@@ -69,7 +69,7 @@ test('@evidence J20: offline while typing, back online, a stalled write — noth
     await page.keyboard.type(' slow')
     await expect(footer(page)).toContainText('Saving is taking longer than usual…', {timeout: 8_000})
     await page.screenshot({path: shot(t.name, '3-stalled')})
-    await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 20_000}).toBe(`${typed} slow`)
+    await expect.poll(() => t.docValue(ID, 'excerpt'), {...BACKEND_POLL, timeout: 20_000}).toBe(`${typed} slow`)
     await expect(footer(page)).toContainText(/Saved|Edited/)
     await page.unroute('**/_serverFn/**')
   }
