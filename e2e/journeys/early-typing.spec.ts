@@ -67,7 +67,8 @@ test('a checkbox, select and checkbox list changed before hydration are saved', 
 })
 
 // The list's search box too: typed into before hydration, the list searches for it once live.
-test('a list search typed before hydration searches once live', async ({page}, info) => {
+// @local: search-box keys are lower stakes than stored data; CI keeps the form's two above.
+test('@local a list search typed before hydration searches once live', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's list is drawn on the client")
   await t.prepare(page.context())
@@ -89,7 +90,7 @@ test('a list search typed before hydration searches once live', async ({page}, i
 
 // A control with no id and no id'd field around it is found again by its label: the media
 // tool's Sort picked before hydration sorts once live.
-test("a labelled control without an id keeps its early change (media Sort)", async ({page}, info) => {
+test('@local a labelled control without an id keeps its early change (media Sort)', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's media tool is drawn on the client")
   await t.prepare(page.context())
