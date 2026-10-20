@@ -24,3 +24,10 @@ test('relative time: just now, Intl short phrases, yesterday and last week, then
     assert.equal(relativeTime(back(sec), 'nb-NO', now), nb, `nb ${sec}s`)
   }
 })
+
+test('relative time: a date reads the given zone (UTC while hydrating, the browser after)', () => {
+  const at = '2026-09-05T20:00:00Z'
+  assert.equal(relativeTime(at, 'en-US', now), 'Sep 5')
+  assert.equal(relativeTime(at, 'en-US', now, 'Pacific/Kiritimati'), 'Sep 6')
+  assert.equal(relativeTime(at, 'nb-NO', now, 'Pacific/Kiritimati'), '6. sep.')
+})

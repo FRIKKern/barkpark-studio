@@ -1,3 +1,4 @@
+import {useZone} from '../lib/now'
 import {createContext, forwardRef, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
@@ -518,6 +519,7 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
   const {data: me} = useQuery(meQuery)
   const t = useT()
   const locale = useLocale()
+  const zone = useZone()
   const qc = useQueryClient()
   const [menu, setMenu] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -535,7 +537,7 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
         <div className="comment-meta">
           <strong>{author}</strong>
           <time dateTime={comment.createdAt} title={new Date(comment.createdAt).toLocaleString(intlTag(locale))}>
-            {ago(comment.createdAt, locale)}
+            {ago(comment.createdAt, locale, undefined, zone)}
           </time>
           {comment.editedAt && <span className="muted">{t('(edited)')}</span>}
           <span className="comment-actions">

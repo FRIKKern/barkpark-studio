@@ -25,6 +25,14 @@ test('hydration: the footer, list, a date field, Vision and Releases hydrate as 
   expect(mismatches()).toEqual([])
   await page.clock.fastForward(31_000)
   await expect(page.locator('.doc-footer .save-state-text').first()).toHaveText(/^Last published 3 days ago$/)
+  // Over a week the words turn: last week, then (from a month) the date, read on this browser's
+  // calendar (UTC+14) once hydrated, and UTC while it hydrates (lib/now.ts useZone): no mismatch.
+  await page.clock.setSystemTime(new Date(Date.now() + 45 * 86_400_000))
+  await page.clock.fastForward(31_000)
+  const published = await page.locator('.doc-footer .save-state-text').first().textContent()
+  const day = /^Last published ([A-Z][a-z]{2} \d{1,2})$/.exec(published ?? '')?.[1]
+  expect(day, `a date, not ${published}`).toBeTruthy()
+  expect(mismatches()).toEqual([])
   for (const path of [t.listPath('post'), t.docPath('fieldTypes', 'field-types-01'), '/vision', '/releases']) {
     await page.goto(path)
     await t.settle(page)

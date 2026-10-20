@@ -132,8 +132,9 @@ export const collate = (a: string, b: string, locale: Locale = browserLocale) =>
 /**
  * "just now", "29 sec. ago", "12 min. ago", "3 hr. ago", "yesterday", "2 days ago", "last week",
  * "2 wk. ago", then "Sep 5" (Sanity's, lib/relative-time.ts); in Norwegian "akkurat nå",
- * "for 12 min siden", "i går", "forrige uke", "5. sep.".
+ * "for 12 min siden", "i går", "forrige uke", "5. sep.". A date reads `zone`'s calendar: pass useZone()
+ * (lib/now.ts), the same on the server and while the page hydrates.
  */
-export function ago(iso: string, locale: Locale = browserLocale, now = Date.now()): string {
-  return relativeTime(iso, intlTag(locale), now) ?? translate(locale, 'just now')
+export function ago(iso: string, locale: Locale = browserLocale, now = Date.now(), zone = 'UTC'): string {
+  return relativeTime(iso, intlTag(locale), now, zone) ?? translate(locale, 'just now')
 }

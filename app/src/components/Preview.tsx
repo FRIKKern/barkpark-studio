@@ -1,3 +1,4 @@
+import {useZone} from '../lib/now'
 import {memo, useState, type ReactNode} from 'react'
 import {frame, imageRef, imageSrc, NO_CROP, NO_HOTSPOT, THUMB_PX, type ImageValue} from '../lib/image'
 import {useQueries, useQuery, type QueryClient} from '@tanstack/react-query'
@@ -133,6 +134,7 @@ export function RefPreview({type, id, href, selected, active, primed = true}: {t
 export function Status({doc}: {doc: Doc}) {
   const t = useT()
   const locale = useLocale()
+  const zone = useZone()
   const published = doc._hasPublished !== false
   const line = (label: string, when: string, dot: string) => (
     <span className="tip-status">
@@ -145,8 +147,8 @@ export function Status({doc}: {doc: Doc}) {
   )
   const {anchor, tip} = useTip(() => (
     <>
-      {line(t('Published'), published ? (doc._publishedAt ? t('Published {ago}', {ago: ago(doc._publishedAt, locale)}) : t('Published')) : t('Not published'), published ? 'dot published' : 'dot off')}
-      {line(t('Draft'), doc._draft ? t('Edited {ago}', {ago: ago(doc._updatedAt, locale)}) : t('No unpublished edits'), doc._draft ? 'dot draft' : 'dot off')}
+      {line(t('Published'), published ? (doc._publishedAt ? t('Published {ago}', {ago: ago(doc._publishedAt, locale, undefined, zone)}) : t('Published')) : t('Not published'), published ? 'dot published' : 'dot off')}
+      {line(t('Draft'), doc._draft ? t('Edited {ago}', {ago: ago(doc._updatedAt, locale, undefined, zone)}) : t('No unpublished edits'), doc._draft ? 'dot draft' : 'dot off')}
     </>
   ))
   return (
