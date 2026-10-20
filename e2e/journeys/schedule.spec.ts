@@ -19,7 +19,7 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
     await page.goto(t.docPath('post', id))
     await signInIfAsked(page)
     await t.settle(page)
-    await page.getByRole('button', {name: 'Document actions', exact: true}).click()
+    await page.getByRole('button', {name: 'Open document actions', exact: true}).click()
     await page.getByRole('menuitem', {name: 'Schedule publish'}).click()
     const dialog = page.getByRole('dialog', {name: 'Schedule draft for publishing'})
     // It opens on now: not in the future, so Schedule waits (Sanity's warning).
@@ -44,7 +44,7 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
     await expect(page.locator('.pane-banner[data-tone=scheduled]')).toContainText('Scheduled to be published on')
     // Locked, as Sanity's scheduled version; the menu still offers Delete schedule.
     await expect(t.field(page, 'title')).toBeDisabled()
-    await page.getByRole('button', {name: 'Document actions', exact: true}).click()
+    await page.getByRole('button', {name: 'Open document actions', exact: true}).click()
     await expect(page.getByRole('menuitem', {name: 'Delete schedule'})).toBeEnabled()
     await page.keyboard.press('Escape')
     // Pause to edit: the draft is editable again and the schedule is paused, not deleted
@@ -59,7 +59,7 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
     await expect(t.field(page, 'title')).toBeDisabled()
     // Publish now: Sanity's confirm, then published at once and the schedule gone.
     await expect(page.locator('.chip[data-tone=scheduled]')).toBeVisible()
-    await page.getByRole('button', {name: 'Document actions', exact: true}).click()
+    await page.getByRole('button', {name: 'Open document actions', exact: true}).click()
     await page.getByRole('menuitem', {name: 'Publish now'}).click()
     await page.getByRole('dialog', {name: 'Publish draft now'}).getByRole('button', {name: 'Yes, run now'}).click()
     await expect(page.locator('.chip[data-tone=scheduled]')).toBeHidden()

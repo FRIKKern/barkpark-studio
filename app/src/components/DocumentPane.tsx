@@ -1230,7 +1230,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       </>
       )}
       {(!single || canDiscard || actions.length > 0) && <div className="menu-wrap">
-        <button ref={actionsButton} type="button" className="icon-btn" aria-label={t('Document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
+        <button ref={actionsButton} type="button" className="icon-btn" aria-label={t('Open document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
         {menu && (
