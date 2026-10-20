@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 29 changes
+- **Today** · 30 changes
+  - fix(tasks): the Done header shows even with nothing done, as Sanity's ([#1006](https://github.com/FRIKKern/barkpark-studio/pull/1006))
   - fix(a11y): a list search's result count is announced once, after typing pauses ([#1005](https://github.com/FRIKKern/barkpark-studio/pull/1005))
-  - Field aria in one tested place: a described field points at its description ([#1004](https://github.com/FRIKKern/barkpark-studio/pull/1004))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
