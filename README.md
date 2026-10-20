@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 25 changes
+- **Today** · 26 changes
+  - Screen reader: an errored field is aria-invalid, its problem its description, its name the title alone ([#1002](https://github.com/FRIKKern/barkpark-studio/pull/1002))
   - a11y: the footer's live region says only save-state changes; a toast is one live region ([#1001](https://github.com/FRIKKern/barkpark-studio/pull/1001))
-  - fix(unpublish): read the documents' backlinks in one batch, not one read per document ([#999](https://github.com/FRIKKern/barkpark-studio/pull/999))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
