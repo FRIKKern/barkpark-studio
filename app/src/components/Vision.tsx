@@ -57,8 +57,8 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   // and Fetch and Listen wait until they are.
   const paramsBad = useMemo(() => {
     const p = parseParams(params)
-    return 'error' in p ? p.error : null
-  }, [params])
+    return 'error' in p ? (p.detail ? `${t('Parameters are not valid JSON')}: ${p.detail}` : p.error === 'Params are not valid JSON' ? t('Parameters are not valid JSON') : p.error) : null
+  }, [params, t])
   const edits = useRef({query, params})
   edits.current = {query, params}
   const editQuery = (v: string) => ((edits.current.query = v), setQuery(v))
@@ -300,7 +300,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
               {t('Params')}
             </label>
             {paramsBad && (
-              <span className="vision-params-error" role="img" aria-label={t('Parameters are not valid JSON')} data-tip-side="top" data-tip={paramsBad === 'Params are not valid JSON' ? t('Parameters are not valid JSON') : paramsBad}>
+              <span className="vision-params-error" role="img" aria-label={t('Parameters are not valid JSON')} data-tip-side="top" data-tip={paramsBad}>
                 <ErrorOutline />
               </span>
             )}

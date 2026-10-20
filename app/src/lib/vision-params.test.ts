@@ -13,3 +13,12 @@ test('params: JSON object in, values encoded into $names, a missing one named', 
   assert.deepEqual(applyParams('post?filter[title][eq]=$x', {}), {error: 'Param $x referenced, but not provided'})
   assert.deepEqual(applyParams('post?limit=5', {unused: 1}), {query: 'post?limit=5'})
 })
+
+test('params: JSON5 as Sanity reads it; its errors say where (line:column)', () => {
+  // The same params give the same object as strict JSON did.
+  assert.deepEqual(parseParams('{"t": "a b", "n": 3, "ids": ["post-01"]}'), {params: {t: 'a b', n: 3, ids: ['post-01']}})
+  // Sanity's docs style: unquoted keys, single quotes, trailing commas, comments.
+  assert.deepEqual(parseParams("{t: 'a b', ids: ['post-01',], // the type\n}"), {params: {t: 'a b', ids: ['post-01']}})
+  assert.deepEqual(parseParams('{ "a": }'), {error: 'Params are not valid JSON', detail: "invalid character '}' at 1:8"})
+  assert.deepEqual(parseParams('{ "a": '), {error: 'Params are not valid JSON', detail: 'invalid end of input at 1:8'})
+})
