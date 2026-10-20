@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 54 changes
+- **Today** · 55 changes
+  - P1: a geopoint's lat, lng and alt edited in quick succession each keep their edit ([#1029](https://github.com/FRIKKern/barkpark-studio/pull/1029))
   - fix(i18n): nb-NO Releases and scheduling words as Sanity's ([#1031](https://github.com/FRIKKern/barkpark-studio/pull/1031))
-  - Desk: a declared list's paneTitle names the pane it opens (Barkpark paneTitle) ([#1030](https://github.com/FRIKKern/barkpark-studio/pull/1030))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
