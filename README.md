@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 30 changes
+- **Today** · 31 changes
+  - e2e: three UI-only tests over 5 s go @local, many-tab tests merge; shards plan 38.7-39.1 s ([#1007](https://github.com/FRIKKern/barkpark-studio/pull/1007))
   - fix(tasks): the Done header shows even with nothing done, as Sanity's ([#1006](https://github.com/FRIKKern/barkpark-studio/pull/1006))
-  - fix(a11y): a list search's result count is announced once, after typing pauses ([#1005](https://github.com/FRIKKern/barkpark-studio/pull/1005))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
