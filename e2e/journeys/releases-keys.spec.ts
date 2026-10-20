@@ -9,7 +9,7 @@ test('@local Releases: the calendar is one Tab stop; arrow keys move between day
   await t.prepare(page.context())
   await page.goto('/releases')
   await page.locator('html[data-hydrated]').waitFor()
-  await page.getByRole('button', {name: 'Next month'}).focus()
+  await page.getByRole('button', {name: 'Go to next month'}).focus()
   await page.keyboard.press('Tab')
   const today = page.locator('.cal-day[data-today]')
   await expect(today).toBeFocused()

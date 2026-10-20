@@ -28,7 +28,7 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
     const at = new Date(Date.now() + 2 * 86_400_000)
     // Sanity's text field and its calendar (task-7821e8da66b7d5a9): today's past days can't be
     // picked and the calendar says why; the field reads "Oct 18, 2026 10:00".
-    await dialog.getByRole('button', {name: 'Select date'}).click()
+    await dialog.getByRole('button', {name: 'Open calendar'}).click()
     const calendar = page.getByRole('dialog', {name: 'Select date'})
     await expect(calendar.getByRole('alert')).toHaveText('Select a date in the future.')
     await expect(calendar.locator('.dp-zone')).toHaveText(/^\s*(GMT([+-]\d+)?|UTC|[A-Z]{3,5})$/)
@@ -108,7 +108,7 @@ test('Releases tool: scheduled drafts, calendar day filter and time zone, Active
     // The calendar: the browser runs in UTC or not, so the day is the one its own clock says.
     const label = await page.evaluate((iso) => new Date(new Date(iso).toLocaleDateString('en-CA') + 'T12:00:00Z').toDateString(), at.toISOString())
     const calendar = page.getByRole('complementary', {name: 'Calendar'})
-    if (!(await calendar.getByLabel(label).count())) await calendar.getByRole('button', {name: 'Next month'}).click()
+    if (!(await calendar.getByLabel(label).count())) await calendar.getByRole('button', {name: 'Go to next month'}).click()
     const day = calendar.getByLabel(label)
     await expect(day).toHaveAttribute('data-marked')
     await day.click()
@@ -123,7 +123,7 @@ test('Releases tool: scheduled drafts, calendar day filter and time zone, Active
     await expect(calendar).toBeHidden()
     await page.getByRole('button', {name: 'View calendar'}).click()
     const sheet = page.getByRole('dialog', {name: 'View calendar'})
-    if (!(await sheet.getByLabel(label).count())) await sheet.getByRole('button', {name: 'Next month'}).click()
+    if (!(await sheet.getByLabel(label).count())) await sheet.getByRole('button', {name: 'Go to next month'}).click()
     await sheet.getByLabel(label).click()
     await expect(sheet).toHaveCount(0)
     await expect(row).toBeVisible()

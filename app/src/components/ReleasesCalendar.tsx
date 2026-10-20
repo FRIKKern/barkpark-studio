@@ -74,10 +74,10 @@ export function ReleasesCalendar({zone, marked, picked, onPick, disabled}: {zone
     <aside className="releases-calendar" aria-label={t('Calendar')}>
       <div className="cal-head">
         <span className="cal-title">{title}</span>
-        <button type="button" className="icon-btn" aria-label={t('Previous month')} disabled={disabled} onClick={() => move(-1)}>
+        <button type="button" className="icon-btn" aria-label={t('Go to previous month')} disabled={disabled} onClick={() => move(-1)}>
           <ChevronLeft />
         </button>
-        <button type="button" className="icon-btn" aria-label={t('Next month')} disabled={disabled} onClick={() => move(1)}>
+        <button type="button" className="icon-btn" aria-label={t('Go to next month')} disabled={disabled} onClick={() => move(1)}>
           <ChevronRight />
         </button>
       </div>
