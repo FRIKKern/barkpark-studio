@@ -156,6 +156,7 @@ export default {
   'Language keys must be text': 'Språknøkler må være tekst',
   'Language "{lang}" is not one of the declared languages': 'Språket «{lang}» er ikke blant de oppgitte språkene',
   'Unknown icon "{icon}": use a Sanity icon name. The item shows without an icon': 'Ukjent ikon «{icon}»: bruk et ikonnavn fra Sanity. Elementet vises uten ikon',
+  "Preset \"{field}\" does not fit {type}: name a field of the type with a value of its kind. The list's + leaves it out": 'Forhåndsverdien «{field}» passer ikke til {type}: bruk et felt i typen, med en verdi av riktig slag. Listens + lar den være ute',
   'Expected rich text': 'Forventet rik tekst',
   'Must be text': 'Må være tekst',
   'Expected an image': 'Forventet et bilde',
