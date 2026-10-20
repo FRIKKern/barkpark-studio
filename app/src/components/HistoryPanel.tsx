@@ -7,7 +7,7 @@ import {applyServer} from '../lib/edits'
 import type {Doc} from '../lib/data'
 import {Add, ChevronDown, ChevronLeft, Close as CloseIcon, EditIcon, InfoOutline, PublishIcon, RestoreIcon, Trash, Undo, UnpublishIcon} from './icons'
 import {toast} from './Toasts'
-import {ago, intlTag, t as tt, useLocale, useT, type Locale} from '../lib/i18n'
+import {ago, dateTitle, intlTag, t as tt, useLocale, useT, type Locale} from '../lib/i18n'
 import {initialsOf, usePersonName} from '../lib/person'
 
 // Sanity's History inspector (J16), beside the document: a timeline of what
@@ -149,7 +149,7 @@ export function Row({e, selected, child, onPick, children}: {e: HistoryEntry; se
         </span>
         <span className="history-text">
           <span>{t(e.label)}</span>
-          <time dateTime={e.revision.timestamp} title={new Date(e.revision.timestamp).toLocaleString(intlTag(locale))}>
+          <time dateTime={e.revision.timestamp} title={dateTitle(e.revision.timestamp, locale, zone)}>
             {when}
           </time>
         </span>
