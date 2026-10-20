@@ -84,6 +84,6 @@ test('@local J26: split pane right, edit both sides, close the split', async ({p
   if (t.name === 'studio') {
     expect(split.ms, 'F2 split opens').toBeLessThan(100)
     expect(split.cls, `F2 zero layout shift (moved: ${split.shifted})`).toBe(0)
-    await page.getByText(/^Saved$/).waitFor() // let the last write land before the reset
+    await page.locator('.save-state-text', {hasText: /^Saved$/}).waitFor() // let the last write land before the reset
   }
 })

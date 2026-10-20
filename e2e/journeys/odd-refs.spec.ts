@@ -69,5 +69,5 @@ test('@local J27: missing doc + Clear, draft-only target, filtered search, creat
   await expect(page.getByRole('menuitem', {name: /^Aut/})).toBeVisible()
   await page.keyboard.press('Escape')
   // Ours coalesces writes: let the Clear land before the reset.
-  if (t.name === 'studio') await page.getByText(/^Saved$/).waitFor()
+  if (t.name === 'studio') await page.locator('.save-state-text', {hasText: /^Saved$/}).waitFor()
 })
