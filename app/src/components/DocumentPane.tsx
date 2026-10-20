@@ -33,7 +33,7 @@ import {DocHeaderMenu, DocShareMenu, Keys, openPreview, useAltName} from './DocH
 import {InspectDialog, storedValue} from './InspectDialog'
 import {CompareVersions, useCompareVersions} from './CompareVersions'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
-import {useNow} from '../lib/now'
+import {useNow, useZone} from '../lib/now'
 import {CommentsContext, CommentsPanel} from './Comments'
 import {commentsQuery, threadsOf} from '../lib/comments'
 import {historyQuery, revisionQuery} from '../lib/history'
@@ -1091,6 +1091,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
   const actionsButton = useRef<HTMLButtonElement>(null)
   const t = useT()
   const locale = useLocale()
+  const zone = useZone()
   const qc = useQueryClient()
   const {state, error} = useSaveState(doc._publishedId)
   const {canWrite, canPublish, editReason, publishReason, createReason, deletePublishedReason} = useCanWrite()
@@ -1120,7 +1121,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
     publishReason ? null : blocked ? <span className="tip-text">{t('There are validation errors that need to be fixed before this document can be published')}</span> : doc._draft && !isPristine(doc, state) ? (
       <Keys keys={['Ctrl', alt, 'P']} />
     ) : doc._hasPublished !== false && doc._updatedAt ? (
-      t('Published {ago}', {ago: ago(doc._updatedAt, locale)})
+      t('Published {ago}', {ago: ago(doc._updatedAt, locale, undefined, zone)})
     ) : (
       t('No unpublished changes')
     ),
@@ -1156,10 +1157,10 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
         : isPristine(doc, state)
           ? ''
           : !doc._draft
-            ? t('Last published {ago}', {ago: ago(doc._updatedAt, locale, now)})
+            ? t('Last published {ago}', {ago: ago(doc._updatedAt, locale, now, zone)})
             : saved
               ? t('Saved')
-              : t('Edited {ago}', {ago: ago(doc._updatedAt, locale, now)})
+              : t('Edited {ago}', {ago: ago(doc._updatedAt, locale, now, zone)})
   // What a screen reader hears (task-439d714d1ef00cec): only a change of state, once, as
   // Sanity's (which says nothing on save or idle). The label above is a relative time
   // ("Edited 7 min. ago") that the clock rewrites every minute, beside the editor's initial:
@@ -1393,6 +1394,7 @@ const FooterActor = ({actor, pending}: {actor?: string; pending: boolean}) => (a
 function GoneFooter({type, id}: {type: string; id: string}) {
   const t = useT()
   const locale = useLocale()
+  const zone = useZone()
   const now = useNow()
   const {data: revisions} = useQuery(historyQuery(type, id))
   const removal = revisions?.[0]?.action === 'delete' ? revisions[0] : undefined
@@ -1401,7 +1403,7 @@ function GoneFooter({type, id}: {type: string; id: string}) {
       <div className="doc-footer-status">
         <span className="save-state" role="status">
           <FooterActor actor={removal?.actor} pending={!revisions} />
-          <span className="save-state-text">{removal && t('Deleted {ago}', {ago: ago(removal.timestamp, locale, now)})}</span>
+          <span className="save-state-text">{removal && t('Deleted {ago}', {ago: ago(removal.timestamp, locale, now, zone)})}</span>
         </span>
       </div>
       <button type="button" className="publish" disabled>
@@ -1415,6 +1417,7 @@ function GoneFooter({type, id}: {type: string; id: string}) {
 function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const t = useT()
   const locale = useLocale()
+  const zone = useZone()
   const now = useNow()
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
@@ -1434,7 +1437,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
       <div className="doc-footer-status">
         <span className="save-state" role="status">
           <FooterActor actor={none ? gone?.actor : actor} pending={actorPending} />
-          <span className="save-state-text">{none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale, now)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale, now)})}</span>
+          <span className="save-state-text">{none ? gone && t('Unpublished {ago}', {ago: ago(gone.timestamp, locale, now, zone)}) : t('Last published {ago}', {ago: ago(doc._updatedAt, locale, now, zone)})}</span>
         </span>
         <DocBadges doc={doc} />
       </div>

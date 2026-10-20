@@ -24,7 +24,7 @@ test('@local J56: previews — reference subtitle, untitled fallback, status too
     await expect(page.locator('.doc-form h1')).toHaveText('Untitled')
     await page.goBack()
     await row.getByTestId('row-status').hover()
-    await expect(tooltip(page)).toContainText(/Published\s*Published (?:\d|a |an |just|yesterday)/)
+    await expect(tooltip(page)).toContainText(/Published\s*Published (?:\d|a |an |just|yesterday|last week|[A-Z][a-z]{2} \d)/) // Sanity's: then last week, then the date
     await expect(tooltip(page)).toContainText(/No unpublished edits|Edited/)
     // The open doc: its reference field shows the title, the header chip a date.
     await row.click()

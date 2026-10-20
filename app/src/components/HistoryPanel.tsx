@@ -1,3 +1,4 @@
+import {useZone} from '../lib/now'
 import {useEffect, useRef, useState, type KeyboardEvent, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
@@ -135,7 +136,8 @@ function Badge({kind}: {kind: keyof typeof BADGE_ICON}) {
 export function Row({e, selected, child, onPick, children}: {e: HistoryEntry; selected: boolean; child?: boolean; onPick: () => void; children?: ReactNode}) {
   const t = useT()
   const locale = useLocale()
-  const when = ago(e.revision.timestamp, locale)
+  const zone = useZone()
+  const when = ago(e.revision.timestamp, locale, undefined, zone)
   // Who, by name (lib/person.ts); a service token's row keeps its label.
   const who = usePersonName(e.revision.author) ?? e.revision.author
   return (

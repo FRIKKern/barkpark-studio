@@ -1,3 +1,4 @@
+import {useZone} from '../lib/now'
 import {useEffect, useId, useRef, useState, type ReactNode} from 'react'
 import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
@@ -438,6 +439,7 @@ function CreateTask({target: initial}: {target: TaskTarget | null}) {
 function TaskView({id, list = []}: {id: string; list?: string[]}) {
   const t = useT()
   const locale = useLocale()
+  const zone = useZone()
   const qc = useQueryClient()
   const ids = useId()
   const {data: tasks, isPending} = useQuery(tasksQuery)
@@ -556,7 +558,7 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
             <section className="task-activity" aria-label={t('Activity')}>
               <h3>{t('Activity')}</h3>
               <p>
-                <b>{task.createdBy ? <PersonName who={task.createdBy} /> : t('Unknown user')}</b> {t('created this task')} <span className="muted">{ago(task.createdAt, locale)}</span>
+                <b>{task.createdBy ? <PersonName who={task.createdBy} /> : t('Unknown user')}</b> {t('created this task')} <span className="muted">{ago(task.createdAt, locale, undefined, zone)}</span>
               </p>
             </section>
             <div className="task-form-foot">

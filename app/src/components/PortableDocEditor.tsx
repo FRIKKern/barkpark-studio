@@ -1,3 +1,4 @@
+import {useZone} from '../lib/now'
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Doc, type Schema} from '../lib/data'
@@ -112,6 +113,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   const host = useRef<HTMLDivElement>(null)
   const t = useT()
   const locale = useLocale()
+  const zone = useZone()
   // The canvas's own words (its chrome: block handle, slash menu, bubble), in the editor's
   // language: Barkpark's map (lib/i18n), read from the nearest data-strings when it mounts.
   const canvasStrings = useCanvasStrings()
@@ -794,7 +796,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       {problem?.conflict && (
         <div className="pd-conflict" role="alert" data-conflict>
           <strong>{problem.conflict.who ? t('{who} changed this document', {who: problem.conflict.who}) : t('Someone else changed this document')}</strong>
-          {problem.conflict.at && <> {ago(problem.conflict.at, locale)}.</>} {t('Your unsaved edits are still on screen.')}
+          {problem.conflict.at && <> {ago(problem.conflict.at, locale, undefined, zone)}.</>} {t('Your unsaved edits are still on screen.')}
           {problem.kept && <> {t('Your words are kept on this computer.')}</>}
           <div>
             <button type="button" className="btn-text" onClick={() => resolveRef.current?.theirs(problem.conflict!.blocks, problem.conflict!.theirs)}>

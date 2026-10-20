@@ -26,3 +26,13 @@ export function useNow(): number {
   const rendered = useQuery(serverNowQuery).data ?? loaded
   return useSyncExternalStore(subscribe, () => clock ?? rendered, () => rendered)
 }
+
+const noChange = () => () => {}
+let browserZone: string | undefined
+/**
+ * The zone a date is read in: UTC on the server and while the page hydrates (both sides draw
+ * the same words, as #898 and #902 keep them), then the browser's own, at once after.
+ */
+export function useZone(): string {
+  return useSyncExternalStore(noChange, () => (browserZone ??= Intl.DateTimeFormat().resolvedOptions().timeZone), () => 'UTC')
+}
