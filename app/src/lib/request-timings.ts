@@ -30,6 +30,27 @@ export function samplesOf(entries: {name: string; startTime: number; duration: n
   return out.sort((a, b) => a.at - b.at)
 }
 
+const seen: Sample[] = []
+let watching = false
+const KEEP = 2_000
+
+/**
+ * From the page's start: every timed request, kept here. The browser's timing buffer holds
+ * 250 entries and drops the rest, and the dev server's modules alone fill it, so Diagnostics
+ * read none of the tab's requests (and in a long session, none of the recent ones).
+ */
+export function watchRequests() {
+  if (watching || typeof PerformanceObserver === 'undefined') return
+  watching = true
+  new PerformanceObserver((list) => {
+    seen.push(...samplesOf(list.getEntries(), location.origin))
+    if (seen.length > KEEP) seen.splice(0, seen.length - KEEP)
+  }).observe({type: 'resource', buffered: true})
+}
+
+/** The tab's timed requests so far, oldest first (watchRequests). */
+export const requestSamples = (): Sample[] => [...seen].sort((a, b) => a.at - b.at)
+
 /** Per series, most requests first: n, and the median, p95 (nearest rank) and max in ms. */
 export function summarize(samples: Sample[]): SeriesSummary[] {
   const by = new Map<string, number[]>()
