@@ -20,6 +20,7 @@
 import '@tanstack/react-start/server-only'
 import {bpFetch, forgetReads, forgetReadsOf, READ_DEDUPE_MS, scope} from './barkpark'
 import type {Scope} from '../lib/scope'
+import {lastPerDoc} from '../lib/replay'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
@@ -103,7 +104,7 @@ export async function resumeMark(token: string): Promise<number | null> {
 
 export const publishedId = (id: string) => (id.startsWith('drafts.') ? id.slice(7) : id)
 
-export function subscribe(token: string, ids: string[], types: string[], send: Subscriber['send'], since?: number, resumed = false): () => void {
+export function subscribe(token: string, ids: string[], types: string[], send: Subscriber['send'], since?: number, resumed = false, latest = false): () => void {
   const hub = hubFor(token)
   const {buffer, subscribers} = hub
   const knownFrom = hub.knownFrom
@@ -112,7 +113,16 @@ export function subscribe(token: string, ids: string[], types: string[], send: S
     // -1: the page had seen nothing yet when it was told the head (welcome) —
     // everything buffered is after that.
     if (since >= 0 && knownFrom !== null && since + 1 < knownFrom) send('event: reset\ndata: {}\n\n')
-    else for (const b of buffer) if (b.id > since && wants(sub, b.docId, b.type)) send(b.frame)
+    else {
+      const frames = buffer.filter((b) => b.id > since && wants(sub, b.docId, b.type))
+      // `latest`: each document's last frame only. A page's first stream and the interests it
+      // adds later (a pane opened) resume from a mark taken before their reads, so older frames
+      // come too, and an update of a doc deleted since put it back on a list read without it
+      // until the delete's frame came: a row slid in under the editor's focus (J19 on CI, after
+      // image-shape.spec deleted its posts). A stream opened again after a gap gets every
+      // frame it missed, in order (F8).
+      for (const b of latest ? lastPerDoc(frames) : frames) send(b.frame)
+    }
   }
   subscribers.add(sub)
   clearTimeout(hub.idleTimer)
