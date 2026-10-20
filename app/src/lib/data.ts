@@ -326,9 +326,10 @@ const fetchSearch = createServerFn({method: 'GET'})
  * by `order` (`_score:desc` is best match) come back with `_score` set.
  */
 const fetchTextSearch = createServerFn({method: 'GET'})
-  .validator((d: {q: string; asked: {type: string; filter: RefFilter}[]; order: string; limit: number}) => d)
+  .validator((d: {q: string; groups: {types: string[]; filter: RefFilter}[]; order: string; limit: number}) => d)
   .handler(async ({data}) => {
-    const types = data.asked.map((a) => a.type)
+    const asked = data.groups.flatMap(({types, filter}) => types.map((type) => ({type, filter})))
+    const types = asked.map((a) => a.type)
     // match=any: Sanity ORs the words; Barkpark's default (#23174) keeps only docs with all of them.
     const search = (q: string) => bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&match=any&limit=200&q=${encodeURIComponent(q)}&types=${types.map(encodeURIComponent).join(',')}`)
     const found = await search(data.q)
@@ -349,7 +350,7 @@ const fetchTextSearch = createServerFn({method: 'GET'})
       .map((d): Doc => ({...d, _score: textScore(d, q, schemas.find((s) => s.name === d._type) as Schema | undefined)}))
       .filter((d) => (d._score as number) > 0 && types.includes(d._type))
     const kept = await Promise.all(
-      data.asked.map(async ({type, filter}) => {
+      asked.map(async ({type, filter}) => {
         const ids = hits.filter((d) => d._type === type).flatMap((d) => [d._id, d._publishedId])
         if (!ids.length || !Object.keys(filter).length) return ids
         if (isGroqFilter(filter)) return (await groqKept(filter, hits.filter((d) => d._type === type))).flatMap((d) => [d._id, d._publishedId])
@@ -360,7 +361,7 @@ const fetchTextSearch = createServerFn({method: 'GET'})
     )
     // Sanity searches each type's preview too (title weight 10, subtitle 5), following
     // references: a post whose author is "Ada Lovelace" is a hit for "Lovelace".
-    const viaRefs = await previewRefHits(data.q, q, data.asked, schemas as unknown as Schema[])
+    const viaRefs = await previewRefHits(data.q, q, asked, schemas as unknown as Schema[])
     for (const d of viaRefs) {
       const had = hits.find((h) => h._id === d._id)
       if (had) had._score = (had._score as number) + 5
@@ -378,27 +379,33 @@ const fetchTextSearch = createServerFn({method: 'GET'})
   })
 /** The docs that match through a reference in their preview (`subtitle: 'author.name'`). */
 async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>, asked: {type: string; filter: RefFilter}[], schemas: Schema[]): Promise<Doc[]> {
-  const out: Doc[] = []
-  for (const {type, filter} of asked) {
+  // Each asked type's preview paths that read through a reference, and the types it points at.
+  const via = asked.flatMap(({type, filter}) => {
     const schema = schemas.find((s) => s.name === type)
     const sub = schema?.listPreview?.subtitle
     const paths = [schema?.listPreview?.title, ...(typeof sub === 'string' ? [sub] : (sub as {parts?: string[]} | undefined)?.parts ?? [])]
-    for (const path of paths) {
+    return paths.flatMap((path) => {
       const [field, ...rest] = (path ?? '').split('|')[0]!.split('.')
       const f = schema?.fields.find((x) => x.name === field)
-      if (!rest.length || f?.type !== 'reference') continue
-      for (const target of refTypesOf(f)) {
-        const found = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&match=any&limit=50&q=${encodeURIComponent(raw)}&types=${encodeURIComponent(target)}`)
-        // The referenced doc must match on the previewed field itself.
-        const ids = found.documents.filter((d) => textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId)
-        if (!ids.length) continue
-        const fq = `&filter[${encodeURIComponent(field!)}][in]=${ids.map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
-        const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${fq}`)
-        out.push(...(await groqKept(filter, r.result.documents)).filter((d) => !excluded(d, q, schema)))
-      }
-    }
-  }
-  return out
+      return rest.length && f?.type === 'reference' ? refTypesOf(f).map((target) => ({type, filter, schema, field: field!, rest, target})) : []
+    })
+  })
+  if (!via.length) return []
+  // One search over every referenced type: a search per type in turn was 50 in a row (2.8 s)
+  // on a 64-type model whose previews all read through a reference.
+  const targets = [...new Set(via.map((v) => v.target))]
+  const found = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&match=any&limit=${Math.min(200, 50 * targets.length)}&q=${encodeURIComponent(raw)}&types=${targets.map(encodeURIComponent).join(',')}`)
+  const hits = await Promise.all(
+    via.map(async ({type, filter, schema, field, rest, target}) => {
+      // The referenced doc must match on the previewed field itself.
+      const ids = found.documents.filter((d) => d._type === target && textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId)
+      if (!ids.length) return []
+      const fq = `&filter[${encodeURIComponent(field)}][in]=${ids.map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
+      const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${fq}`)
+      return (await groqKept(filter, r.result.documents)).filter((d) => !excluded(d, q, schema))
+    }),
+  )
+  return hits.flat()
 }
 const cmp = (a: unknown, b: unknown) => (typeof a === 'number' && typeof b === 'number' ? a - b : collate(String(a ?? ''), String(b ?? '')))
 
@@ -407,7 +414,14 @@ export const textSearchQuery = (q: string, asked: {type: string; filter: RefFilt
     queryKey: ['text-search', q, asked, order, limit],
     staleTime: 10_000,
     queryFn: async ({client}) => {
-      const docs = (await fetchTextSearch({data: {q, asked, order, limit}})) as unknown as Doc[]
+      // The types travel grouped by filter: a {type, filter} each made the GET's URL outgrow
+      // the server's header limit on a 64-type model (431: search failed outright).
+      const groups = new Map<string, {types: string[]; filter: RefFilter}>()
+      for (const {type, filter} of asked) {
+        const key = JSON.stringify(filter)
+        groups.set(key, {types: [...(groups.get(key)?.types ?? []), type], filter})
+      }
+      const docs = (await fetchTextSearch({data: {q, groups: [...groups.values()], order, limit}})) as unknown as Doc[]
       for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
       return docs
     },
