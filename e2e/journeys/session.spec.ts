@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {BACKEND_POLL, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // task-ccd1876176b0fc08 / J48 evidence, ours with dev sign-in (STUDIO_DEV_LOGIN=1 +
 // BARKPARK_ADMIN_TOKEN, dev server): (1) the session is lost mid-edit (cookie gone,
@@ -41,7 +41,7 @@ test('@evidence J48: session lost mid-edit fails closed; signing in again saves 
   await excerpt.click()
   await page.keyboard.press('End')
   await page.keyboard.type(' A1')
-  await expect.poll(() => t.docValue(ID, 'excerpt'), BACKEND_POLL).toBe(`${EXCERPT} A1`)
+  await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 10_000}).toBe(`${EXCERPT} A1`)
   const editorA = await lastAuthor()
   note('author while signed in', editorA)
 
@@ -62,7 +62,7 @@ test('@evidence J48: session lost mid-edit fails closed; signing in again saves 
   await dialog.getByRole('button', {name: 'Sign in'}).click()
   await expect(dialog).toHaveCount(0)
   await expect(excerpt, 'back where they were typing').toBeFocused()
-  await expect.poll(() => t.docValue(ID, 'excerpt'), {...BACKEND_POLL, timeout: 15_000}).toBe(`${EXCERPT} A1 A2 while logged out`)
+  await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`${EXCERPT} A1 A2 while logged out`)
   expect(await lastAuthor(), 'saved as editor A, not the studio').toBe(editorA)
   await page.screenshot({path: shot('2-signed-in-again')})
 

@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {BACKEND_POLL, closeAndSettle, target, type Target} from '../rig/targets'
+import {closeAndSettle, target, type Target} from '../rig/targets'
 
 // J09 evidence, both studios, on post-26's categories (a keyed reference array):
 // add an item by search, move it by keyboard, the item "…" menu (Duplicate,
@@ -44,7 +44,7 @@ test('@evidence J09: reference array — add by search, reorder by keyboard, ite
   await expect(publish).toBeDisabled()
   await page.keyboard.type('News')
   await page.getByRole('option', {name: /News/}).first().click()
-  await expect.poll(() => refs(t), BACKEND_POLL).toEqual(['category-opinion', 'category-news'])
+  await expect.poll(() => refs(t), {timeout: 10_000}).toEqual(['category-opinion', 'category-news'])
   await expect(cats.getByText('Reference to category')).toHaveCount(0)
   await expect(publish).toBeEnabled()
 
@@ -52,16 +52,16 @@ test('@evidence J09: reference array — add by search, reorder by keyboard, ite
   const press = async (key: string) => (await page.keyboard.press(key), t.name === 'sanity' && (await page.waitForTimeout(200)))
   await cats.locator('button[aria-roledescription="sortable"]').last().focus()
   for (const key of ['Space', 'ArrowUp', 'Space']) await press(key)
-  await expect.poll(() => refs(t), BACKEND_POLL).toEqual(['category-news', 'category-opinion'])
+  await expect.poll(() => refs(t), {timeout: 10_000}).toEqual(['category-news', 'category-opinion'])
 
   // Item menu: Duplicate the first, then Remove it.
   await itemMenu(t, page, 0, 'Duplicate')
-  await expect.poll(() => refs(t), BACKEND_POLL).toEqual(['category-news', 'category-news', 'category-opinion'])
+  await expect.poll(() => refs(t), {timeout: 10_000}).toEqual(['category-news', 'category-news', 'category-opinion'])
   await cats.locator('[id$="-menuButton"]').first().click()
   await page.waitForTimeout(t.name === 'sanity' ? 400 : 0)
   await page.screenshot({path: shot(t.name, '2-item-menu')})
   await page.keyboard.press('Escape')
   await itemMenu(t, page, 0, 'Remove')
-  await expect.poll(() => refs(t), BACKEND_POLL).toEqual(['category-news', 'category-opinion'])
+  await expect.poll(() => refs(t), {timeout: 10_000}).toEqual(['category-news', 'category-opinion'])
   await cats.screenshot({path: shot(t.name, '3-after')})
 })

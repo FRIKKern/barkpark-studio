@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import {expect, test, type Page} from '@playwright/test'
-import {BACKEND_POLL, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J45 evidence: dark mode. Both studios with the OS in dark (stills side by side);
 // then ours only: the first painted frame is already dark (no white flash), the
@@ -55,7 +55,7 @@ test('@evidence J45: dark mode — system, menu choice, reload, no flash, readab
   await t.field(page, 'title').click()
   await page.keyboard.press('End')
   await page.keyboard.type(' dark')
-  await expect.poll(() => t.versions(ID), BACKEND_POLL).toMatchObject({draft: 'Fixture post 03 dark'})
+  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: 'Fixture post 03 dark'})
   await page.getByRole('button', {name: /Review changes/}).first().click()
   await page.waitForTimeout(800)
   problems.push(...(await contrast(page)))
