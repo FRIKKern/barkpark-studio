@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 76 changes
+- **Today** · 77 changes
+  - fix(i18n): nb-NO date picker month and day names as Sanity's ([#1054](https://github.com/FRIKKern/barkpark-studio/pull/1054))
   - Media proxy: an uploaded SVG opened from the studio runs no script ([#1052](https://github.com/FRIKKern/barkpark-studio/pull/1052))
-  - Slug in use: a slug stored in Sanity's shape ({_type: 'slug', current}) counts too ([#1049](https://github.com/FRIKKern/barkpark-studio/pull/1049))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
