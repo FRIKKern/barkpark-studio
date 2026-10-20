@@ -34,6 +34,11 @@ export type DeskNode = {
    * `S.listItem().title('Med anmeldelser').child(S.documentTypeList('product').title('Produkter med anmeldelser'))`.
    */
   paneTitle?: string
+  /**
+   * document_type_list: the fields its "+" starts a document with (Barkpark's `initialValues`,
+   * Sanity's initialValueTemplates): «Landingssider» → {pageType: 'landingPage'}.
+   */
+  initialValues?: Record<string, unknown>
   items?: DeskNode[]
 }
 
@@ -74,6 +79,16 @@ export function normalizeDesk(raw: unknown): DeskNode {
 
 /** The title of the pane a desk node opens: its paneTitle, else its row title. */
 export const paneTitleOf = (node: DeskNode | undefined) => node?.paneTitle || node?.title
+
+/**
+ * What a list's "+" puts on the new document: the node's initialValues, so a page made from
+ * «Landingssider» is a landing page and shows in that list. A child list's "+" (J18) starts
+ * its template instead.
+ */
+export function newDocPreset(node: DeskNode | undefined, childTemplate: boolean): Record<string, unknown> {
+  if (childTemplate || !node?.initialValues || typeof node.initialValues !== 'object') return {}
+  return node.initialValues
+}
 
 /** Every desk node by id (ids are unique in Barkpark's tree). */
 export function deskIndex(root: DeskNode): Map<string, DeskNode> {

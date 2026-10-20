@@ -5,7 +5,7 @@ import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {deskQuery, restQuery, docQuery, docTitle, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {historyQuery} from '../lib/history'
-import {deskIndex, deskSort, listFilter, paneTitleOf, rootDesk, unsupportedOps, type DeskNode} from '../lib/desk'
+import {deskIndex, deskSort, listFilter, newDocPreset, paneTitleOf, rootDesk, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
 import {announce} from '../lib/announce'
 import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
@@ -927,7 +927,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               // D04: a type with an Expectation is created at once: Barkpark builds its
               // block list from the schema's layout and fills it from its prefill.
               const id = crypto.randomUUID()
-              startNew(qc, schemas, choice, id).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
+              // A declared list's initialValues go on top (Barkpark's desk initialValues).
+              startNew(qc, schemas, choice, id, newDocPreset(node, !!childTemplate)).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
               // A child list's template opens the new doc under its type's own list, as Sanity's create intent does.
               void navigate({href: childTemplate ? panesPath([{kind: 'types'}, {kind: 'list', type}, {kind: 'doc', id, type}]) : openAfter(panes, index, {kind: 'doc', id, type})})
               focusFirstField(id)
