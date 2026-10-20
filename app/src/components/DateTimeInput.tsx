@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useFocusScope} from '../lib/focus-scope'
 import {Calendar, ChevronLeft, ChevronRight, ChevronDown, EarthGlobe} from './icons'
-import {intlTag, useLocale, useT, type Locale} from '../lib/i18n'
+import {intlTag, translate, useLocale, useT, type Locale} from '../lib/i18n'
 import {formatDate, parseDate} from '../lib/date-format'
 import {localZone, zoneLongName, zoneShort} from '../lib/timezone'
 
@@ -18,13 +18,13 @@ export type DateOptions = {dateFormat?: string; timeFormat?: string; timeStep?: 
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-// In Norwegian, the names come from Intl (2023-01: a January that starts on a Sunday).
-const monthNames = (locale: Locale) =>
-  locale === 'en' ? MONTHS : MONTHS.map((_, i) => new Date(2023, i, 1).toLocaleString(intlTag(locale), {month: 'long'}))
+// The names as Sanity's calendar words them (its nb-NO pack: Januar, Mars; Man, Tir, Søn), by a
+// context key, so "May" and "Sun" stay the calendar's own.
+const monthNames = (locale: Locale) => MONTHS.map((m) => translate(locale, `calendar month\u0004${m}`))
 // The week's first day: Sunday in English (Sanity's calendar), Monday in Norwegian.
 const weekStart = (locale: Locale) => (locale === 'nb-NO' ? 1 : 0)
 const dayNames = (locale: Locale) => {
-  const names = locale === 'en' ? DAYS : DAYS.map((_, i) => new Date(2023, 0, 1 + i).toLocaleString(intlTag(locale), {weekday: 'short'}))
+  const names = DAYS.map((d) => translate(locale, `calendar day\u0004${d}`))
   return [...names.slice(weekStart(locale)), ...names.slice(0, weekStart(locale))]
 }
 const dayLabel = (d: Date, locale: Locale) =>
