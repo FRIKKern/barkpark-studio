@@ -63,3 +63,47 @@ test('@local B11: closing the tab with unsaved or failed edits asks first', asyn
   await expect(page.locator('.pd-status')).toHaveText('Saved', {timeout: 10_000})
   expect(await closeAsks(page), 'canvas, saved').toBe(false)
 })
+
+// A save on its way when the tab closes: the page's own request dies with it, so what
+// the page sends as it goes carries that save too (it carried only what was typed after).
+test('B11: closing the tab while a save is on its way still saves it', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's loses it and doesn't ask")
+  const page = await open(context, t.docPath('post', POST), t.settle)
+  // Held: the save stays on its way until the page goes.
+  const ours = (r: {method(): string; postData(): string | null}) => r.method() === 'POST' && (r.postData() ?? '').includes(POST)
+  await page.route('**/_serverFn/**', (r) => (ours(r.request()) ? undefined : r.continue()))
+  const title = t.field(page, 'title')
+  const was = await title.inputValue()
+  const sent = page.waitForRequest((r) => r.url().includes('_serverFn') && ours(r))
+  await title.fill(`${was} kept`)
+  await sent
+  page.once('dialog', (d) => void d.accept())
+  await page.close({runBeforeUnload: true})
+  await expect.poll(() => t.docValue(POST, 'title', 'post'), {timeout: 10_000}).toBe(`${was} kept`)
+})
+
+// The race itself, 20 times: typed, closed at once, the word lands every time (3 of 24
+// closes lost it before). @local: 20 page loads are over CI's budget; the held-save
+// test above is its CI lock.
+test('@local B11: 20 tab closes right after typing lose nothing', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's loses the last keys on close")
+  test.setTimeout(180_000)
+  // Each request through the test's proxy: a save takes a moment longer on its way, so one
+  // is often still going as the tab closes, and the close kills it.
+  await context.route('**/_serverFn/**', (r) => r.continue())
+  const lost: string[] = []
+  for (let i = 0; i < 20; i++) {
+    const page = await open(context, t.docPath('post', POST), t.settle)
+    await t.field(page, 'title').click()
+    await page.keyboard.press('ControlOrMeta+ArrowRight')
+    const word = ` w${i}`
+    await page.keyboard.type(word, {delay: [10, 20, 30][i % 3]})
+    page.once('dialog', (d) => void d.accept())
+    await page.close({runBeforeUnload: true})
+    const landed = await expect.poll(async () => String(await t.docValue(POST, 'title', 'post')).endsWith(word), {timeout: 8_000}).toBe(true).then(() => true, () => false)
+    if (!landed) lost.push(word)
+  }
+  expect(lost).toEqual([])
+})
