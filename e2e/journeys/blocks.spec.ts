@@ -13,6 +13,7 @@ const shot = (name: string, step: string) => `evidence/J11-${name}-${step}.png`
 test.use({video: 'on'})
 test.setTimeout(180_000)
 
+const MOD = process.platform === 'darwin' ? 'Meta' : 'Control'
 let original: unknown
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
@@ -119,32 +120,36 @@ test('@evidence J11: callout and image blocks, block menu, move, inline object',
   const callout = t.name === 'sanity' ? body.locator('[data-testid="pte-block-object"]').last() : ourCallout(page)
   await callout.hover()
   await page.waitForTimeout(400)
-  if (t.name === 'sanity') {
-    await callout.getByRole('button', {name: 'Open menu'}).click()
-  } else {
-    await page.getByRole('button', {name: 'Block options'}).first().click()
-  }
+  // Both: the block object's own … menu. Ours from canvas 1.13: the callout is a card as
+  // Sanity's (Edit, Remove), and the gutter handle stays off it (task-f0984612d72121cc).
+  await callout.getByRole('button', {name: 'Open menu'}).click()
   await page.waitForTimeout(500)
   const menuItems = await page.evaluate(() =>
     [...document.querySelectorAll('[role=menu] [role=menuitem], .bp-block-menu__item')].filter((m) => (m as HTMLElement).offsetParent !== null).map((m) => (m.textContent ?? '').replace(/[^\w ]/g, '').trim()),
   )
   note('block menu', menuItems)
   await page.screenshot({path: shot(t.name, '2-block-menu')})
-  // Ours: Duplicate (then Delete the copy); Sanity has no duplicate here: close.
+  // Ours: Duplicate is the canvas's key on the selected card (Mod+D), then the copy's card
+  // menu Removes it; Sanity has no duplicate here: close.
+  await page.keyboard.press('Escape')
   if (t.name === 'studio') {
-    await page.locator('.bp-block-menu__item').filter({hasText: 'Duplicate'}).click()
+    await callout.click({position: {x: 8, y: 8}})
+    await page.keyboard.press(`${MOD}+d`)
     await expect(ourCallout(page)).toHaveCount(2)
-    await ourCallout(page).last().hover()
-    await page.getByRole('button', {name: 'Block options'}).first().click()
-    await page.locator('.bp-block-menu__item').filter({hasText: 'Delete'}).click()
+    await ourCallout(page).last().getByRole('button', {name: 'Open menu'}).click()
+    await page.getByRole('menuitem', {name: 'Remove'}).click()
     await expect(ourCallout(page)).toHaveCount(1)
-  } else await page.keyboard.press('Escape')
+  }
 
-  // 3. Move the callout up one block (ours: the menu's Move up; Sanity: drag its handle).
+  // 3. Move the callout up one block (ours: the canvas's Mod+Shift+Up on the selected card;
+  // Sanity: drag its handle).
   if (t.name === 'studio') {
-    await callout.hover()
-    await page.getByRole('button', {name: 'Block options'}).first().click()
-    await page.locator('.bp-block-menu__item').filter({hasText: 'Move up'}).click()
+    // Where J11's own callout sits in the stored body (a palette callout is there too).
+    const ours = async () => (((await t.docValue(ID, 'body')) as {blocks?: unknown[]})?.blocks ?? []).findIndex((b) => JSON.stringify(b).includes('Callout from J11'))
+    const at = await ours()
+    await callout.click({position: {x: 8, y: 8}})
+    await page.keyboard.press(`${MOD}+Shift+ArrowUp`)
+    await expect.poll(ours, {timeout: 10_000}).toBe(at - 1)
   } else {
     const handle = callout.locator('[data-drag-handle], [data-ui="DragHandle"]').first()
     const above = await para.boundingBox({timeout: 3_000}).catch(() => null)
