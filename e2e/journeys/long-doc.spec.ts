@@ -69,20 +69,18 @@ test('@evidence J44: 200 fields + 300 rows keep F1 and F2 (4× CPU throttle)', a
   await page.screenshot({path: shot(t.name, '2-field-200')})
 
   const row = rowsField(t, page).getByRole('button', {name: /Row 300/}).first()
-  // Sanity draws only the array rows in view: wheel down to the last one.
-  if (t.name === 'sanity') {
-    const field = rowsField(t, page)
-    for (let i = 0; i < 60 && !(await row.isVisible()); i++) {
-      await field.evaluate((el) => {
-        let s: HTMLElement | null = el
-        while (s && !(s.scrollHeight > s.clientHeight && getComputedStyle(s).overflowY !== 'visible')) s = s.parentElement
-        s?.scrollBy(0, 2000)
-      })
-      await page.waitForTimeout(250)
-    }
-    // Measured 2026-10-06: its virtual list never drew row 300 here, at 4× or 1×.
-    if (!(await row.isVisible())) return note('F1 row 300 dialog', 'not reached: the virtual list never drew row 300')
+  // Both draw only the array rows in view (ours from 150 items): wheel down to the last one.
+  const field = rowsField(t, page)
+  for (let i = 0; i < 60 && !(await row.isVisible()); i++) {
+    await field.evaluate((el) => {
+      let s: HTMLElement | null = el
+      while (s && !(s.scrollHeight > s.clientHeight && getComputedStyle(s).overflowY !== 'visible')) s = s.parentElement
+      s?.scrollBy(0, 2000)
+    })
+    await page.waitForTimeout(250)
   }
+  // Measured 2026-10-06: Sanity's virtual list never drew row 300 here, at 4× or 1×.
+  if (t.name === 'sanity' && !(await row.isVisible())) return note('F1 row 300 dialog', 'not reached: the virtual list never drew row 300')
   await row.scrollIntoViewIfNeeded()
   await expect(row).toBeVisible()
   await row.click()
