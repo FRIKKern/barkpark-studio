@@ -1,4 +1,4 @@
-import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from 'react'
+import {memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode} from 'react'
 import {useT} from '../lib/i18n'
 import {LinkIcon} from './icons'
 
@@ -7,13 +7,14 @@ import {LinkIcon} from './icons'
  * how much it holds ("{…} 21 properties", "[…] 3 items"). Open to `open` levels deep,
  * as Vision opens a result.
  */
-export function JsonTree({value, open = 3}: {value: unknown; open?: number}) {
+// Memo: Vision draws on every key typed in its query; the tree only when its result changes.
+export const JsonTree = memo(function JsonTree({value, open = 3}: {value: unknown; open?: number}) {
   return (
     <ul className="json-tree" role="tree">
       <Node value={value} depth={0} open={open} />
     </ul>
   )
-}
+})
 
 function Node({name, value, depth, open}: {name?: string; value: unknown; depth: number; open: number}) {
   const t = useT()
