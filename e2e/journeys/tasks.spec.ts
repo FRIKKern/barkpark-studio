@@ -51,3 +51,35 @@ test('J66: create a task on a document, see it under Active Document, mark it do
     await expect(panel.getByRole('button', {name: title})).toBeHidden()
   }
 })
+
+// A task's description typed and not left yet (it saves when the box is left) is unsaved:
+// closing the tab asks first.
+test('a task description typed and not saved yet asks before the tab closes', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the reference refuses writes')
+  await t.prepare(context)
+  const page = await context.newPage()
+  await page.goto(t.docPath('post', 'post-05'))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.getByRole('button', {name: 'Show document actions'}).click()
+  await page.getByRole('menuitem', {name: 'Create new task'}).click()
+  const panel = page.getByRole('complementary', {name: 'Tasks'})
+  const title = `Unsaved ${Date.now().toString(36)}`
+  await panel.getByRole('textbox', {name: 'Task title'}).fill(title)
+  await panel.getByRole('button', {name: 'Create Task'}).click()
+  await expect(panel.getByRole('heading', {name: title})).toBeVisible()
+  try {
+    await panel.getByRole('textbox', {name: 'Add description'}).click()
+    await page.keyboard.type('typed, not left')
+    let asked = false
+    page.once('dialog', (d) => ((asked = d.type() === 'beforeunload'), void d.dismiss()))
+    await page.close({runBeforeUnload: true})
+    await expect.poll(() => asked, {intervals: [50]}).toBe(true)
+    await expect(panel.getByRole('textbox', {name: 'Add description'})).toHaveValue('typed, not left')
+  } finally {
+    await panel.getByRole('textbox', {name: 'Add description'}).blur().catch(() => {})
+    await panel.getByRole('button', {name: 'Delete task'}).click().catch(() => {})
+    await page.close().catch(() => {})
+  }
+})
