@@ -131,3 +131,17 @@ test("a desk filter with neqOrMissing (GROQ's !=, Barkpark #23913) can be listed
   assert.deepEqual(unsupportedOps({'content.isHidden': {neqOrMissing: true}}), [])
   assert.deepEqual(listFilter({id: 'synlige', type: 'document_type_list', typeName: 'series', filter: {'content.isHidden': {neqOrMissing: true}}}), {'content.isHidden': {neqOrMissing: true}})
 })
+
+test("a tree's own filter narrows every level below its root (Barkpark tree.filter)", () => {
+  const tree: DeskNode = {
+    id: 'hierarkisk',
+    type: 'document_type_list',
+    typeName: 'page',
+    filter: {'content.pageType': {eq: 'information'}, 'content.parent': {is: 'null'}},
+    tree: {parent: 'content.parent', filter: {'content.pageType': {eq: 'information'}}},
+  }
+  assert.deepEqual(listFilter(tree), tree.filter)
+  assert.deepEqual(listFilter(tree, 'info-a'), {'content.pageType': {eq: 'information'}, 'content.parent': {eq: 'info-a'}})
+  // A tree without its own filter drills as before.
+  assert.deepEqual(listFilter({...tree, tree: {parent: 'content.parent'}}, 'info-a'), {'content.parent': {eq: 'info-a'}})
+})
