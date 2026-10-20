@@ -10,11 +10,26 @@
 // value shows: ["title", "linkedDocument.title"]), and a part may be a template
 // ('Knapp: "{buttonLabel}"'), shown only when every {path} in it has a value.
 // `|type` shows a type name ("linkedDocument._type|type") as its schema title.
+//
+// Barkpark's list_preview also takes object parts (Barkpark.Content.PreviewText,
+// task-75cb2cac1e875214), read here the same way (task-afbd6fe5a5e2085b): {text}
+// literal text, {when, show} a part shown while a visibleWhen condition holds, {path,
+// map} a stored value by its label, a nested {parts} spec, and {each, show, max, join,
+// more} a part read from each item of a list. `|lower` and `|upper` change the case.
+// An `each` item that is a reference is left out here: the Studio reads one reference
+// hop through `read`, and Barkpark's own row previews follow it.
 
 import {unsupportedAsset} from './broken.ts'
 import {imageRef} from './image.ts'
+import {matches, type Condition} from './conditions.ts'
 
-export type PreviewPart = string | string[]
+type ObjectPart =
+  | {text: string}
+  | {when: Condition; show: PreviewPart}
+  | {path: string; map: Record<string, string>}
+  | {parts: PreviewPart[]; join?: string; empty?: string}
+  | {each: string; show?: PreviewPart; max?: number; join?: string; more?: string}
+export type PreviewPart = string | ObjectPart | PreviewPart[]
 export type PreviewText = string | {parts: PreviewPart[]; join?: string; empty?: string}
 /** An image path, or alternatives in order ("backgroundImage", then "linkedDocument.cover"). */
 export type PreviewMediaSpec = string | string[]
@@ -23,11 +38,23 @@ export type PreviewOptions = {typeTitle?: (type: string) => string | undefined}
 const pathOf = (part: string) => part.split('|')[0]!.trim()
 const TEMPLATE = /\{([^{}]+)\}/g
 
+/** Every path a part reads from the document (an `each` item's own paths are not). */
+function partPaths(part: PreviewPart | undefined): string[] {
+  if (part == null) return []
+  if (typeof part === 'string') return part.includes('{') ? [...part.matchAll(TEMPLATE)].map((m) => pathOf(m[1]!)) : [pathOf(part)]
+  if (Array.isArray(part)) return part.flatMap(partPaths)
+  if (typeof part !== 'object') return []
+  if ('parts' in part && Array.isArray(part.parts)) return part.parts.flatMap(partPaths)
+  if ('when' in part) return partPaths(part.show)
+  if ('map' in part && typeof part.path === 'string') return [pathOf(part.path)]
+  if ('each' in part && typeof part.each === 'string') return [pathOf(part.each)]
+  return []
+}
+
 /** Every path a preview text or media spec reads. */
 function pathsOf(spec: PreviewText | PreviewMediaSpec | undefined): string[] {
   if (!spec) return []
-  const parts = typeof spec === 'string' ? [spec] : Array.isArray(spec) ? spec : spec.parts.flat()
-  return parts.flatMap((p) => (p.includes('{') ? [...p.matchAll(TEMPLATE)].map((m) => pathOf(m[1]!)) : [pathOf(p)]))
+  return typeof spec === 'string' || Array.isArray(spec) ? partPaths(spec) : partPaths(spec.parts)
 }
 
 /** The reference fields a preview text reads through ("featuredPost" for "featuredPost.title"). */
@@ -44,12 +71,20 @@ function day(v: unknown) {
   return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`
 }
 
+/** A value at a dotted path inside `item` (no reference is followed). */
+const within = (item: unknown, path: string): unknown =>
+  path.split('.').reduce<unknown>((v, k) => (v && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined), item)
+
+const isRef = (item: unknown) => typeof item === 'string' || (!!item && typeof item === 'object' && typeof (item as {_ref?: unknown})._ref === 'string')
+
 /** The preview text for a doc; `read` resolves a path (following one reference). */
 export function formatPreview(spec: PreviewText | undefined, read: (path: string) => unknown, opts: PreviewOptions = {}): string | undefined {
   if (!spec) return undefined
   const value = (part: string) => {
     const v = read(pathOf(part))
-    const text = part.includes('|date') ? day(v) : part.includes('|type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : typeof v === 'string' || typeof v === 'number' ? String(v) : undefined
+    const mods = part.split('|').slice(1).map((m) => m.trim())
+    const raw = mods.includes('date') ? day(v) : mods.includes('type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : typeof v === 'string' || typeof v === 'number' ? String(v) : undefined
+    const text = raw && mods.includes('lower') ? raw.toLowerCase() : raw && mods.includes('upper') ? raw.toUpperCase() : raw
     return text?.trim() ? text : undefined
   }
   const template = (part: string) => {
@@ -57,8 +92,39 @@ export function formatPreview(spec: PreviewText | undefined, read: (path: string
     const text = part.replace(TEMPLATE, (_, path: string) => value(path) ?? ((missing = true), ''))
     return missing ? undefined : text
   }
-  const single = (part: string) => (part.includes('{') ? template(part) : value(part))
-  const one = (part: PreviewPart) => (Array.isArray(part) ? part.map(single).find(Boolean) : single(part))
+  // A `when` condition reads its field through `read`, set into a document of that shape.
+  const holds = (c: Condition) => {
+    const doc: Record<string, unknown> = {}
+    const keys = c.field.split('.')
+    keys.reduce<Record<string, unknown>>((o, k, i) => (o[k] = i === keys.length - 1 ? read(c.field) : {}) as Record<string, unknown>, doc)
+    return matches({...c, scope: 'document'}, doc)
+  }
+  const one = (part: PreviewPart | undefined): string | undefined => {
+    if (part == null) return undefined
+    if (typeof part === 'string') return part.includes('{') ? template(part) : value(part)
+    if (Array.isArray(part)) return part.map(one).find(Boolean)
+    if (typeof part !== 'object') return undefined
+    if ('parts' in part && Array.isArray(part.parts)) return formatPreview(part, read, opts)
+    if ('text' in part) return typeof part.text === 'string' && part.text.trim() ? part.text : undefined
+    if ('when' in part) return part.when && holds(part.when) ? one(part.show) : undefined
+    if ('map' in part && typeof part.path === 'string') {
+      const v = read(pathOf(part.path))
+      if (typeof v !== 'string' && typeof v !== 'number') return undefined
+      const label = part.map?.[String(v)] ?? String(v)
+      return label.trim() ? label : undefined
+    }
+    if ('each' in part && typeof part.each === 'string') {
+      const items = read(pathOf(part.each))
+      if (!Array.isArray(items)) return undefined
+      const show = part.show ?? 'title'
+      const texts = items.filter((item) => !isRef(item) && item && typeof item === 'object').map((item) => formatPreview({parts: [show]}, (p) => within(item, p), opts)).filter((t): t is string => !!t)
+      const max = typeof part.max === 'number' && part.max > 0 ? part.max : undefined
+      const shown = max ? texts.slice(0, max) : texts
+      if (!shown.length) return undefined
+      return shown.join(part.join ?? ', ') + (max && items.length > max ? (part.more ?? '') : '')
+    }
+    return undefined
+  }
   if (typeof spec === 'string') return one(spec)
   const shown = spec.parts.map(one).filter(Boolean)
   return shown.length ? shown.join(spec.join ?? ' · ') : spec.empty
