@@ -126,18 +126,17 @@ function TaskList({tab}: {tab: TasksTab}) {
                 </ul>
               </details>
             )}
-            {done.length > 0 && (
-              <details className="tasks-group tasks-done">
-                <summary>
-                  {t('Done')} <ChevronDown />
-                </summary>
-                <ul className="tasks-list" aria-label={t('Done')}>
-                  {done.map((x) => (
-                    <TaskRow key={x._id} task={x} list={order} primed={primed} />
-                  ))}
-                </ul>
-              </details>
-            )}
+            {/* Sanity's Done header shows even with nothing done yet. */}
+            <details className="tasks-group tasks-done">
+              <summary>
+                {t('Done')} <ChevronDown />
+              </summary>
+              <ul className="tasks-list" aria-label={t('Done')}>
+                {done.map((x) => (
+                  <TaskRow key={x._id} task={x} list={order} primed={primed} />
+                ))}
+              </ul>
+            </details>
           </>
         )}
       </div>

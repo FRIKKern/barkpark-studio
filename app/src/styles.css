@@ -3275,9 +3275,9 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 .tasks-group > summary svg { width: 21px; height: 21px; margin-left: -2px; }
 .tasks-body > .tasks-group { margin: 0 4px; } /* the list 20 px in, as Sanity's (the body pads 16) */
 .tasks-body > .tasks-group:first-child { margin-top: 5px; }
+.tasks-body > .tasks-group.tasks-done { margin-top: 40px; } /* Sanity's Done header ~50 px under the last task's target line (299.9 at 768 with one task) */
 .tasks-group > .tasks-list { padding-top: 9px; }
 .tasks-group:not([open]) > summary svg { rotate: -90deg; }
-.tasks-done { margin-top: 16px; }
 .tasks-group .task-row { gap: 12px; padding: 8px 0; border-bottom: 0; }
 .tasks-group .task-check { margin-top: 1px; }
 .tasks-group .task-title { font-weight: 600; line-height: 19px; color: var(--fg-header); }
