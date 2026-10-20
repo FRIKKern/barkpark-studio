@@ -19,9 +19,10 @@ export const Route = createFileRoute('/api/media/$id/')({
     handlers: {
       GET: async ({params, request}) => {
         const query = new URL(request.url).searchParams
+        const dest = request.headers.get('sec-fetch-dest')
         if (query.get('size') === 'thumb') {
           const thumb = await bpRaw(`/media/renditions/${encodeURIComponent(params.id)}/thumb`)
-          return new Response(thumb.body, {status: thumb.status, headers: mediaHeaders(thumb.ok, thumb.headers.get('content-type') ?? 'image/jpeg')})
+          return new Response(thumb.body, {status: thumb.status, headers: mediaHeaders(thumb.ok, thumb.headers.get('content-type') ?? 'image/jpeg', dest)})
         }
         const key = `${apiBase()}|${dataset()}|${params.id}`
         let asset = paths.get(key)
@@ -38,7 +39,7 @@ export const Route = createFileRoute('/api/media/$id/')({
         if (!file || fallsBackToOriginal(file.status)) file = await bpFile(asset.url, accept)
         return new Response(file.body, {
           status: file.status,
-          headers: mediaHeaders(file.ok, file.headers.get('content-type') ?? asset.mimeType ?? 'application/octet-stream'),
+          headers: mediaHeaders(file.ok, file.headers.get('content-type') ?? asset.mimeType ?? 'application/octet-stream', dest),
         })
       },
       // J36: Sanity's asset Delete. Barkpark refuses an asset in use itself (409 with
