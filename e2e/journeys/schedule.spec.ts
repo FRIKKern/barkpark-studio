@@ -77,7 +77,7 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
 // schedule is bold, a click shows that day's schedules (again: all), and a picked zone
 // changes only how the time reads; Barkpark keeps it in UTC. One draft and one page load for
 // both (CI's budget: each was its own seed, schedule and studio load).
-test('@local Releases tool: scheduled drafts, calendar day filter and time zone, Active / Paused / Archived, row actions', async ({page, context}, info) => {
+test('Releases tool: scheduled drafts, calendar day filter and time zone, Active / Paused / Archived, row actions', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours; Sanity's is measured by hand (plan-gated releases)")
   const api = `${bpBase()}/v1/data/schedules/${bpDataset()}`
@@ -87,11 +87,13 @@ test('@local Releases tool: scheduled drafts, calendar day filter and time zone,
   const title = `Releases probe ${id.slice(-6)}`
   const at = new Date(Date.now() + 2 * 86_400_000)
   at.setUTCHours(8, 0, 0, 0)
-  await t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}})
+  // The draft and its schedule are made while the browser gets ready (as refs.spec, #935).
+  const [made] = await Promise.all([
+    t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}}).then(() => fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: at.toISOString()})})),
+    t.prepare(context),
+  ])
   try {
-    const made = await fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: at.toISOString()})})
     expect(made.ok, await made.clone().text()).toBe(true)
-    await t.prepare(context)
     await page.goto(t.docPath('post', id))
     await signInIfAsked(page)
     await t.settle(page)
