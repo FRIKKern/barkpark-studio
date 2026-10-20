@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 82 changes
+- **Today** · 83 changes
+  - fix(a11y): calendar controls named as Sanity's ([#1060](https://github.com/FRIKKern/barkpark-studio/pull/1060))
   - A task's title or description typed and not saved yet asks before the tab closes ([#1058](https://github.com/FRIKKern/barkpark-studio/pull/1058))
-  - fix(live): a fresh page's replay skips frames a later delete makes moot (J19 flake) ([#1056](https://github.com/FRIKKern/barkpark-studio/pull/1056))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
