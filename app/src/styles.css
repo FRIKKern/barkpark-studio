@@ -2368,6 +2368,10 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
   .vision-saved { max-height: none; }
 }
 .vision-pane > .menu-label { position: absolute; z-index: 1; top: 14px; left: 33px; padding: 0; }
+.vision-pane.vision-params[data-invalid] { background: var(--tone-error-bg); } /* Sanity's Params that aren't JSON: the pane in the critical tone */
+.vision-pane.vision-params[data-invalid] > .menu-label { color: var(--tone-error-muted); }
+.vision-params-error { position: absolute; z-index: 1; top: 13px; right: 5px; display: grid; place-items: center; width: 25px; height: 25px; color: var(--tone-error-icon); }
+.vision-params-error svg { width: 25px; height: 25px; }
 .vision-pane > .vision-editor { flex: 1; min-height: 0; overflow: hidden; }
 .vision-editor .cm-editor { height: 100%; }
 .vision-actions { display: flex; gap: 12px; padding: 12px; border-top: 1px solid var(--border); }
@@ -2375,6 +2379,10 @@ textarea.vision-code:focus-visible { box-shadow: inset 0 0 0 1px var(--ring); bo
 /* Listen is Sanity's secondary button beside the blue Fetch (measured at 1440, light and dark). */
 .vision-actions .btn:not(.btn-primary) { background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); }
 .vision-actions .btn:not(.btn-primary) svg { color: var(--btn-secondary-icon); }
+/* Waiting on Params (Sanity's): Fetch greys as a disabled Publish; Listen keeps its box, its word and icon dim. */
+.vision-actions .btn-primary:disabled { background: var(--publish-disabled-bg); color: var(--publish-disabled-fg); }
+.vision-actions .btn-primary:disabled svg, .vision-actions .btn:not(.btn-primary):disabled, .vision-actions .btn:not(.btn-primary):disabled svg { color: var(--chip-off-fg); }
+.vision-actions .btn-primary:disabled svg { color: inherit; }
 .vision-label-help { display: inline-flex; align-items: center; gap: 4px; }
 .vision-help { display: inline-flex; color: var(--muted); cursor: help; }
 .vision-help svg { width: 17px; height: 17px; margin: -3px 0; }

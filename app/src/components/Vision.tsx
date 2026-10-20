@@ -1,10 +1,11 @@
-import {lazy, Suspense, useEffect, useRef, useState} from 'react'
+import {lazy, Suspense, useEffect, useMemo, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
 import {toCsv} from '../lib/vision-csv'
 import {apiVersions, customApiVersion} from '../lib/vision-groq'
 import {useNow} from '../lib/now'
 import {dashLine, localQueryError, queryError} from '../lib/vision-error'
+import {parseParams} from '../lib/vision-params'
 import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
 import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, updateQuery, type SavedQuery} from '../lib/vision-queries'
 import {deleteSharedQuery, listSharedQueries, SHARED_TYPE, shareQuery, updateSharedQuery, type SharedQuery} from '../lib/vision-shared'
@@ -15,7 +16,7 @@ import {meQuery} from '../lib/session'
 import {intlTag, useLocale, useT} from '../lib/i18n'
 import {JsonTree} from './JsonTree'
 import {DialogBox, MenuPopover} from './FocusScopes'
-import {Add, ChevronDown, ChevronLeft, ChevronRight, Close, Copy, DocumentIcon, Ellipsis, HelpCircle, LockIcon, PlayIcon, Search, StopIcon, Trash, UnpublishIcon, Users} from './icons'
+import {Add, ChevronDown, ChevronLeft, ChevronRight, Close, Copy, DocumentIcon, Ellipsis, ErrorOutline, HelpCircle, LockIcon, PlayIcon, Search, StopIcon, Trash, UnpublishIcon, Users} from './icons'
 import {toast} from './Toasts'
 import {announce} from '../lib/announce'
 
@@ -52,6 +53,12 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   // What the editors hold right now. Ctrl+Enter can arrive between an edit and the render it
   // schedules (the browser runs input before React's task), so a run reads these, not the
   // render's state (J37 ran the previous query on CI).
+  // Sanity's: Params that are not a JSON object tint their pane, say why on an error icon,
+  // and Fetch and Listen wait until they are.
+  const paramsBad = useMemo(() => {
+    const p = parseParams(params)
+    return 'error' in p ? p.error : null
+  }, [params])
   const edits = useRef({query, params})
   edits.current = {query, params}
   const editQuery = (v: string) => ((edits.current.query = v), setQuery(v))
@@ -288,10 +295,15 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
               <VisionEditor id="vision-query" label={t('Query')} language="query" value={query} onChange={editQuery} onRun={(text) => void fetchIt({query: text})} />
             </Suspense>
           </div>
-          <div className="vision-pane vision-params">
+          <div className="vision-pane vision-params" data-invalid={paramsBad ? '' : undefined}>
             <label htmlFor="vision-params" className="menu-label">
               {t('Params')}
             </label>
+            {paramsBad && (
+              <span className="vision-params-error" role="img" aria-label={t('Parameters are not valid JSON')} data-tip-side="top" data-tip={paramsBad === 'Params are not valid JSON' ? t('Parameters are not valid JSON') : paramsBad}>
+                <ErrorOutline />
+              </span>
+            )}
             <Suspense
               fallback={
                 <textarea
@@ -308,10 +320,10 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
             </Suspense>
           </div>
           <div className="vision-actions">
-            <button type="button" className="btn btn-primary vision-fetch" disabled={busy} aria-keyshortcuts="Control+Enter Meta+Enter" onClick={() => void fetchIt()}>
+            <button type="button" className="btn btn-primary vision-fetch" disabled={busy || !!paramsBad} aria-keyshortcuts="Control+Enter Meta+Enter" onClick={() => void fetchIt()}>
               <PlayIcon /> {t('Fetch')}
             </button>
-            <button type="button" className="btn vision-fetch" aria-pressed={live} onClick={listenIt}>
+            <button type="button" className="btn vision-fetch" aria-pressed={live} disabled={!live && !!paramsBad} onClick={listenIt}>
               {live ? <StopIcon /> : <PlayIcon />} {live ? t('Stop') : t('Listen')}
             </button>
           </div>
