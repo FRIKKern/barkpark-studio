@@ -19,15 +19,28 @@ function centre(el: HTMLElement) {
   if (shift) el.style.translate = `calc(-50% + ${shift}px) 0`
 }
 
-/** A menu popover: arrow keys move, Escape and Tab close, focus returns to its button. `centered`: under its button's middle, as Sanity's. */
-export function MenuPopover({onClose, focusMenu, centered = false, className = 'popover menu', children, ...rest}: DivProps & {focusMenu?: boolean; centered?: boolean}) {
+/** Centred, would it run past the window or its pane (4 px kept)? */
+const overflows = (el: HTMLElement) => {
+  const r = el.getBoundingClientRect()
+  const right = Math.min(document.documentElement.clientWidth, el.closest('.pane')?.getBoundingClientRect().right ?? Infinity) - 4
+  return r.right > right || r.left < 4
+}
+
+/**
+ * A menu popover: arrow keys move, Escape and Tab close, focus returns to its button. `centered`: under its
+ * button's middle, as Sanity's. `sideways`: where centring won't fit, to the button's left, centred on it
+ * (Sanity's array item and reference menus on a phone); otherwise a centred menu is kept inside.
+ */
+export function MenuPopover({onClose, focusMenu, centered = false, sideways = false, className = 'popover menu', children, ...rest}: DivProps & {focusMenu?: boolean; centered?: boolean; sideways?: boolean}) {
   const scope = useFocusScope<HTMLDivElement>({menu: true, focusMenu, onDismiss: onClose})
   const ref = useCallback(
     (el: HTMLDivElement | null) => {
       scope(el)
-      if (centered && el) centre(el)
+      if (!centered || !el) return
+      if (sideways && overflows(el)) el.dataset.side = 'left'
+      else centre(el)
     },
-    [scope, centered],
+    [scope, centered, sideways],
   )
   // A menu is named after the button that opened it (J47: "Document actions, menu"), unless named here.
   const [named] = useState(() => (rest['aria-label'] || rest['aria-labelledby'] || typeof document === 'undefined' ? undefined : nameOf(document.activeElement)))
