@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 43 changes
+- **Today** · 44 changes
+  - Hotspot and crop as Sanity's: the hotspot stays inside the crop; handles stay 24 px on a phone ([#1020](https://github.com/FRIKKern/barkpark-studio/pull/1020))
   - fix(i18n): nb-NO's change bar says Se endringer, as Sanity's ([#1019](https://github.com/FRIKKern/barkpark-studio/pull/1019))
-  - e2e: shard 4's data specs seed while the browser gets ready ([#1018](https://github.com/FRIKKern/barkpark-studio/pull/1018))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
