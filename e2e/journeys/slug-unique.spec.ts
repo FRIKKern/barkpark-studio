@@ -53,3 +53,31 @@ test("a slug is in use whether it is stored as a string or as Sanity's {current}
     await Promise.all([bpRemove(obj, 'post'), bpRemove(str, 'post')])
   }
 })
+
+// The form's "not in use" answer is kept 10 s; a slug someone else takes inside that window
+// was published as a duplicate. Publish asks again first, as Sanity's does, and refuses.
+test('publish asks again whether the slug is in use, and refuses one taken meanwhile', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's publish validates afresh")
+  const stamp = Date.now().toString(36)
+  const [mine, theirs] = [`post-slugpub-${stamp}`, `post-slugtook-${stamp}`]
+  const slug = `taken-meanwhile-${stamp}`
+  await bpMutate([{createOrReplace: {_id: mine, _type: 'post', title: 'Slug publish', slug}}])
+  try {
+    await t.prepare(page.context())
+    const asked = page.waitForResponse((r) => r.url().includes('/_serverFn/') && r.url().includes(slug))
+    await page.goto(t.docPath('post', mine))
+    await signInIfAsked(page)
+    const publish = page.getByRole('button', {name: 'Publish'}).last()
+    await expect(publish).toBeEnabled()
+    await asked // the form's check: not in use
+    await bpMutate([{createOrReplace: {_id: theirs, _type: 'post', title: 'Took it', slug}}])
+    await publish.click()
+    await expect(page.locator('.field:has([id="slug"])').getByRole('img', {name: /Slug is already in use/})).toHaveCount(1)
+    await expect(publish).toBeDisabled()
+    expect((await t.versions(mine)).published, 'not published').toBeUndefined()
+  } finally {
+    await closeAndSettle(page)
+    await Promise.all([bpRemove(mine, 'post'), bpRemove(theirs, 'post')])
+  }
+})

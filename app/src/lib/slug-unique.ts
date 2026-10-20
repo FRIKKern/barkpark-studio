@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {useQueries} from '@tanstack/react-query'
+import {useQueries, type QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import type {Doc, Schema} from './data'
@@ -46,4 +46,22 @@ export function useSlugInUse(doc: Doc | null | undefined, schema: Schema | undef
       ? [{path: f.name, title: f.title ?? f.name, message: t('Slug is already in use'), level: 'error' as const, group: (f as {group?: string}).group}]
       : [],
   )
+}
+
+/**
+ * Before a publish, Sanity's way: the slug fields another document of this type has, asked
+ * fresh. The form's answer is kept 10 s, and someone may have taken the slug since; a
+ * publish inside that window made a duplicate. Each answer goes to the form too (the mark).
+ */
+export async function slugsTakenNow(qc: QueryClient, doc: Doc, schema: Schema | undefined): Promise<string[]> {
+  const fields = (schema?.fields ?? []).filter((f) => f.type === 'slug' && slugText(doc[f.name]))
+  const taken = await Promise.all(
+    fields.map(async (f) => {
+      const value = slugText(doc[f.name])
+      const yes = await fetchTaken({data: {type: doc._type, field: f.name, value, id: doc._publishedId}})
+      qc.setQueryData(['slug-in-use', doc._type, f.name, value, doc._publishedId], yes)
+      return yes ? (f.title ?? f.name) : null
+    }),
+  )
+  return taken.filter((x): x is string => !!x)
 }
