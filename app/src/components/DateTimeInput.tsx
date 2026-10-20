@@ -3,6 +3,7 @@ import {useFocusScope} from '../lib/focus-scope'
 import {Calendar, ChevronLeft, ChevronRight, ChevronDown, EarthGlobe} from './icons'
 import {intlTag, translate, useLocale, useT, type Locale} from '../lib/i18n'
 import {formatDate, parseDate} from '../lib/date-format'
+import {unsavedElsewhere} from '../lib/edits'
 import {localZone, zoneLongName, zoneShort} from '../lib/timezone'
 
 // Sanity's date-time input (J31): a text field in local time ("2026-09-06 11:00")
@@ -69,6 +70,23 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
     setSeen(next)
     onChange(d ? (dateOnly ? formatDate(d, STORED_DATE) : d.toISOString()) : undefined)
   }
+  // Typed but not committed yet (no Enter, no blur): an unsaved edit. Leaving asks first (B11's
+  // prompt), and the leaving commits it when it parses (as a blur would: beforeunload, or the
+  // page hidden), so the save, the unload send and this browser's kept edits carry it. Sanity's
+  // loses it, unasked.
+  const pending = !readOnly && text !== shown
+  const latest = useRef(typed)
+  latest.current = typed
+  useEffect(() => {
+    if (!pending) return
+    const unsaved = () => true
+    const hidden = () => document.visibilityState === 'hidden' && latest.current()
+    const leaving = () => latest.current()
+    unsavedElsewhere.add(unsaved)
+    document.addEventListener('visibilitychange', hidden)
+    addEventListener('beforeunload', leaving)
+    return () => (unsavedElsewhere.delete(unsaved), document.removeEventListener('visibilitychange', hidden), removeEventListener('beforeunload', leaving))
+  }, [pending])
 
   return (
     <div className="datetime" data-date-only={dateOnly || undefined} data-invalid={invalid || undefined}>

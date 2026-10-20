@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type BrowserContext, type Page} from '@playwright/test'
-import {target, closeAndSettle} from '../rig/targets'
+import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // B11 (Barkpark-native, ours only): closing the tab asks first while anything typed has
 // not reached Barkpark: a field edit still batching, a Freeform canvas edit not yet
@@ -106,4 +106,25 @@ test('@local B11: 20 tab closes right after typing lose nothing', async ({contex
     if (!landed) lost.push(word)
   }
   expect(lost).toEqual([])
+})
+
+// A date typed but not yet committed (no Enter, no blur) is an unsaved edit: closing the tab
+// asks first, and closing anyway saves it (Sanity's drops it, unasked). A scratch doc.
+test('B11: a typed, uncommitted date asks before the tab closes, and is saved if it closes', async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's drops it")
+  const id = `ft-typed-day-${Date.now().toString(36)}`
+  await bpMutate([{createOrReplace: {_id: id, _type: 'fieldTypes', title: 'Typed day'}}])
+  try {
+    const page = await open(context, t.docPath('fieldTypes', id), t.settle)
+    await page.locator('[id="day"]').click()
+    await page.keyboard.type('14.10.2026')
+    let asked = false
+    page.once('dialog', (d) => ((asked = d.type() === 'beforeunload'), void d.accept()))
+    await page.close({runBeforeUnload: true})
+    await expect.poll(() => asked, {intervals: [50]}).toBe(true)
+    await expect.poll(() => t.docValue(id, 'day', 'fieldTypes'), {timeout: 6_000}).toBe('2026-10-14')
+  } finally {
+    await bpMutate([{delete: {id, type: 'fieldTypes', force: true}}]).catch(() => {})
+  }
 })
