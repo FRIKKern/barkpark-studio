@@ -22,6 +22,7 @@ const SENTENCES: Record<string, string> = {
   localized_text_shape: 'Expected a text per language',
   language_key_not_string: 'Language keys must be text',
   language_not_declared: 'Language "{lang}" is not one of the declared languages',
+  unknown_desk_icon: 'Unknown icon "{icon}": use a Sanity icon name. The item shows without an icon',
   rich_text_shape: 'Expected rich text',
   text_not_string: 'Must be text',
   image_shape: 'Expected an image',

@@ -135,6 +135,7 @@ export default {
   'Expected a text per language': 'Forventet en tekst per språk',
   'Language keys must be text': 'Språknøkler må være tekst',
   'Language "{lang}" is not one of the declared languages': 'Språket «{lang}» er ikke blant de oppgitte språkene',
+  'Unknown icon "{icon}": use a Sanity icon name. The item shows without an icon': 'Ukjent ikon «{icon}»: bruk et ikonnavn fra Sanity. Elementet vises uten ikon',
   'Expected rich text': 'Forventet rik tekst',
   'Must be text': 'Må være tekst',
   'Expected an image': 'Forventet et bilde',
