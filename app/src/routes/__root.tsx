@@ -10,6 +10,7 @@ import {SessionGate} from '../components/SessionGate'
 import {useAnnouncer} from '../lib/announce'
 import {THEME_BOOT} from '../lib/theme'
 import {EARLY_CLICKS, releaseEarlyClicks} from '../lib/hydrated'
+import {watchRequests} from '../lib/request-timings'
 import {currentScopeQuery} from '../lib/scope-switch'
 import {serverNowQuery} from '../lib/now'
 import {LocaleProvider, localeQuery} from '../lib/i18n'
@@ -55,6 +56,8 @@ function Announcer() {
 function RootDocument({children}: {children: ReactNode}) {
   // A page that never marks itself hydrated (health, error screens) still gets its held clicks.
   useEffect(() => void setTimeout(releaseEarlyClicks, 1000), [])
+  // Help > Diagnostics' request timings, kept from the start (the browser's buffer drops them).
+  useEffect(watchRequests, [])
   const localeData = useQuery(localeQuery).data ?? {locale: 'en' as const}
   const locale = localeData.locale
   return (
