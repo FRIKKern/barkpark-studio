@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 22 changes
+- **Today** · 23 changes
+  - e2e: re-record spec durations from the last 5 main runs, so the shards balance again ([#1000](https://github.com/FRIKKern/barkpark-studio/pull/1000))
   - fix(tasks): the task list as Sanity's: To Do and Done groups, checkbox rows ([#998](https://github.com/FRIKKern/barkpark-studio/pull/998))
-  - fix(tasks): the create form's title, Target row and assignee as Sanity's ([#997](https://github.com/FRIKKern/barkpark-studio/pull/997))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
