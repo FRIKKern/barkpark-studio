@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 57 changes
+- **Today** · 58 changes
+  - Keys typed into the form before hydration are kept: noted while inert, put in again once live ([#1034](https://github.com/FRIKKern/barkpark-studio/pull/1034))
   - perf: lookups and global search stay flat on a big content model ([#1033](https://github.com/FRIKKern/barkpark-studio/pull/1033))
-  - Empty values as Sanity's: a cleared object or geopoint, and the last tag removed, unset the field ([#1032](https://github.com/FRIKKern/barkpark-studio/pull/1032))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
