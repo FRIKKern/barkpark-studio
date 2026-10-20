@@ -47,9 +47,9 @@ export const Route = createFileRoute('/api/stream')({
               unsubscribe()
               unsubscribe = ids.length + types.length ? subscribe(token, ids, types, send, from, again, latest) : () => {}
             }
-            // A page's first stream after its server render and a change of interests get each
-            // document's last frame (lib/replay.ts); a stream opened again after a gap, every
-            // frame it missed (F8).
+            // A page's first stream after its server render and a change of interests leave out
+            // the frames a later delete makes moot (lib/replay.ts); a stream opened again after a
+            // gap gets every frame it missed (F8).
             listen(list('ids'), list('types'), Number.isFinite(since) ? since : undefined, resumed, resumed)
             open.set(id, {token, listen: (ids, types, from) => listen(ids, types, from)})
             // Presence: Barkpark's room for this tab's session. Refused, it is asked again

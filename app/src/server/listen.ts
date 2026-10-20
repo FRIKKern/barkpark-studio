@@ -20,11 +20,11 @@
 import '@tanstack/react-start/server-only'
 import {bpFetch, forgetReads, forgetReadsOf, READ_DEDUPE_MS, scope} from './barkpark'
 import type {Scope} from '../lib/scope'
-import {lastPerDoc} from '../lib/replay'
+import {withoutDeleted} from '../lib/replay'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
-type Buffered = {id: number; docId: string; type?: string; frame: string; at: number}
+type Buffered = {id: number; docId: string; type?: string; mutation?: string; frame: string; at: number}
 const BUFFER = 2000
 
 // One hub per token and scope: each editor listens as themself (their own access, their
@@ -115,13 +115,13 @@ export function subscribe(token: string, ids: string[], types: string[], send: S
     if (since >= 0 && knownFrom !== null && since + 1 < knownFrom) send('event: reset\ndata: {}\n\n')
     else {
       const frames = buffer.filter((b) => b.id > since && wants(sub, b.docId, b.type))
-      // `latest`: each document's last frame only. A page's first stream and the interests it
-      // adds later (a pane opened) resume from a mark taken before their reads, so older frames
-      // come too, and an update of a doc deleted since put it back on a list read without it
-      // until the delete's frame came: a row slid in under the editor's focus (J19 on CI, after
-      // image-shape.spec deleted its posts). A stream opened again after a gap gets every
-      // frame it missed, in order (F8).
-      for (const b of latest ? lastPerDoc(frames) : frames) send(b.frame)
+      // `latest`: a page's first stream and the interests it adds later (a pane opened) resume
+      // from a mark taken before their reads, so older frames come too: those a later delete
+      // makes moot are left out. An update of a doc deleted since put it back on a list read
+      // without it until the delete's frame came: a row slid in under the editor's focus (J19
+      // on CI, after image-shape.spec deleted its posts). A stream opened again after a gap
+      // gets every frame it missed, in order (F8).
+      for (const b of latest ? withoutDeleted(frames) : frames) send(b.frame)
     }
   }
   subscribers.add(sub)
@@ -289,7 +289,7 @@ function dispatch(hub: Hub, frame: string) {
   }
   if (id) hub.lastEventId = id
   if (event !== 'mutation' || data.length === 0) return
-  const payload = JSON.parse(data.join('\n')) as {documentId?: string; type?: string}
+  const payload = JSON.parse(data.join('\n')) as {documentId?: string; type?: string; mutation?: string}
   if (!payload.documentId || !id) return
   const n = Number(id)
   if (buffer.length && n <= buffer[buffer.length - 1].id) return // replayed by upstream after a reconnect
@@ -300,7 +300,7 @@ function dispatch(hub: Hub, frame: string) {
   hub.lastFrameFor.set(docId, Date.now())
   if (hub.lastFrameFor.size > 5000) hub.lastFrameFor.clear()
   const out = `id: ${id}\nevent: mutation\ndata: ${data.join('\n')}\n\n`
-  buffer.push({id: n, docId, type: payload.type, frame: out, at: Date.now()})
+  buffer.push({id: n, docId, type: payload.type, mutation: payload.mutation, frame: out, at: Date.now()})
   if (buffer.length > BUFFER) {
     buffer.shift()
     hub.knownFrom = buffer[0].id
