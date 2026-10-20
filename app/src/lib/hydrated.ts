@@ -39,7 +39,7 @@ const MARK_WAIT_MS = 15_000
  * into an input, and a checkbox, radio or select changed, are noted too (window.__earlyTyped)
  * and put in again (typeWhenLive).
  */
-export const EARLY_CLICKS = `window.__earlyTyped=new Map();function __bpEarly(e){var m=window.__earlyTyped,t=e.target;if(!m||!t||!/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))return;for(var k in t)if(k.indexOf('__reactProps$')===0)return;var box=t.id?t:t.closest('[id]');if(box)m.set(t.id?t.id:box.id+'|'+t.tagName+'|'+[].indexOf.call(box.querySelectorAll(t.tagName),t),{el:t,value:t.value,checked:t.checked})}document.addEventListener('input',__bpEarly,true);document.addEventListener('change',__bpEarly,true);window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
+export const EARLY_CLICKS = `window.__earlyTyped=new Map();function __bpEarly(e){var m=window.__earlyTyped,t=e.target;if(!m||!t||!/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))return;for(var k in t)if(k.indexOf('__reactProps$')===0)return;var box=t.id?t:t.closest('[id]'),key;if(box)key=t.id?t.id:box.id+'|'+t.tagName+'|'+[].indexOf.call(box.querySelectorAll(t.tagName),t);else{var l=__bpLabel(t);key='~'+t.tagName+'|'+[].filter.call(document.querySelectorAll(t.tagName),function(x){return __bpLabel(x)===l}).indexOf(t)+'|'+l}m.set(key,{el:t,value:t.value,checked:t.checked})}function __bpLabel(e){return e.getAttribute('aria-label')||(e.labels&&e.labels[0]&&e.labels[0].textContent.trim())||e.placeholder||e.name||''}document.addEventListener('input',__bpEarly,true);document.addEventListener('change',__bpEarly,true);window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
 
 let pending: Promise<unknown> | null = null
 /**
@@ -93,7 +93,8 @@ type Noted = {el: Control; value: string; checked: boolean}
  * The same for keys (task-6fe143f72dc55f55) and native controls (task-c044d1ebab1e53dd): the
  * server-drawn form takes typing, ticks and picks before React has it, and none of it reached
  * the edit queue (silently lost on a slow load). EARLY_CLICKS notes each control changed while
- * inert, by its id (or its field's id and its place there: a checkbox list's boxes have none);
+ * inert, by its id (or its field's id and its place there: a checkbox list's boxes have none;
+ * or, with neither, its label and its place among controls so labelled);
  * once React has the field (the same element, or the one drawn in its place) the change is
  * made again the way the field's own onChange hears it.
  */
@@ -114,10 +115,18 @@ function typeWhenLive(key: string, early: Noted, frames = 180, tries = 3) {
 }
 const holds = (el: Control, early: Noted) => (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio') ? el.checked === early.checked : el.value === early.value)
 function counterpartOf(key: string): Control | null {
+  // A control with no id and no id'd field around it (a select in a tool's toolbar): by its
+  // tag, its label (aria-label, a <label>, placeholder or name) and its place among those.
+  if (key.startsWith('~')) {
+    const [tag, at] = key.slice(1).split('|')
+    const label = key.slice(tag!.length + at!.length + 3)
+    return ([...document.querySelectorAll<Control>(tag!)].filter((e) => labelOf(e) === label)[Number(at)] ?? null)
+  }
   const [id, tag, at] = key.split('|')
   const box = document.getElementById(id!)
   return (tag ? box?.querySelectorAll(tag)[Number(at)] : box) as Control | null
 }
+const labelOf = (e: Control) => e.getAttribute('aria-label') || e.labels?.[0]?.textContent?.trim() || ('placeholder' in e ? e.placeholder : '') || e.name || ''
 let redoing = false
 function redo(el: Control, early: Noted) {
   redoing = true
