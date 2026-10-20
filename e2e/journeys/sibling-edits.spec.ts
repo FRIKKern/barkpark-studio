@@ -31,8 +31,9 @@ async function round(page: Page, t: Target, id: string, n: number) {
   await expect.poll(stored('place'), {timeout: 10_000}).toEqual({_type: 'geopoint', lat: Number(`60.${n}23456789`), lng: Number(`8.${n}`), alt: Number(`${n}20`)})
   await expect.poll(stored('address'), {timeout: 10_000}).toEqual({street: `Storgata ${n}`, city: 'Oslo'})
   await typeAll(page, {'place.lat': '', 'place.lng': '', 'place.alt': '', 'address.street': '', 'address.city': ''})
-  await expect.poll(async () => Object.keys(((await stored('place')()) ?? {}) as object).filter((k) => k !== '_type'), {timeout: 10_000}).toEqual([])
-  await expect.poll(async () => Object.keys(((await stored('address')()) ?? {}) as object), {timeout: 10_000}).toEqual([])
+  // All cleared: the field goes, as Sanity's (task-dfb5fcd556879c59), not {} or {_type}.
+  await expect.poll(stored('place'), {timeout: 10_000}).toBeUndefined()
+  await expect.poll(stored('address'), {timeout: 10_000}).toBeUndefined()
   for (const p of ['place.lat', 'place.lng', 'place.alt']) await expect(page.locator(`[id="${p}"]`)).toHaveValue('')
 }
 
@@ -62,7 +63,7 @@ test('@local sibling fields filled and cleared in three rounds keep every edit',
       for (const [p, v] of [['place.lat', `60.${n}23456789`], ['place.lng', `8.${n}`], ['place.alt', `${n}20`]]) await f(p!).fill(v!)
       await expect.poll(stored('place'), {timeout: 10_000}).toEqual({_type: 'geopoint', lat: Number(`60.${n}23456789`), lng: Number(`8.${n}`), alt: Number(`${n}20`)})
       for (const p of ['place.lat', 'place.lng', 'place.alt']) await f(p).fill('')
-      await expect.poll(async () => Object.keys(((await stored('place')()) ?? {}) as object).filter((k) => k !== '_type'), {timeout: 10_000}).toEqual([])
+      await expect.poll(stored('place'), {timeout: 10_000}).toBeUndefined()
       for (const p of ['place.lat', 'place.lng', 'place.alt']) await expect(f(p)).toHaveValue('')
     }
   } finally {
