@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {bpMutate, signInIfAsked, target} from '../rig/targets'
+import {bpMutate, signInIfAsked, target, bpRemove, closeAndSettle} from '../rig/targets'
 
 // Save fault sweep (task-2f360f9920e578b1): a write whose answer is lost on a live connection
 // (a reset mid-request; the server's e2e lever) says "Not saved — retrying", not "Offline", and
@@ -23,7 +23,8 @@ test('a save whose answer is lost says retrying, not offline, and lands once', a
     await expect.poll(() => t.docValue(id, 'title'), {timeout: 6_000}).toBe('Reset typed')
   } finally {
     await fault('none').catch(() => {})
-    await bpMutate([{delete: {id, type: 'post', force: true}}]).catch(() => {})
+    await closeAndSettle(page)
+    await bpRemove(id, 'post')
   }
 })
 
@@ -55,7 +56,8 @@ test('a save refused as too large says why, stops, and goes again on Retry', asy
     await expect.poll(() => t.docValue(id, 'title'), {timeout: 5_000}).toBe('Big typed')
   } finally {
     await fault('none').catch(() => {})
-    await bpMutate([{delete: {id, type: 'post', force: true}}]).catch(() => {})
+    await closeAndSettle(page)
+    await bpRemove(id, 'post')
   }
 })
 
@@ -78,7 +80,7 @@ test('@local five save faults and a reload mid-fault: every key stored exactly o
     await page.keyboard.type(w, {delay: 20})
     expected += w
   }
-  const exact = () => expect.poll(() => t.docValue(id, 'title'), {timeout: 20_000}).toBe(expected)
+  const exact = (timeout = 20_000) => expect.poll(() => t.docValue(id, 'title'), {timeout}).toBe(expected)
   try {
     await t.prepare(page.context())
     await page.goto(t.docPath('post', id))
@@ -94,12 +96,17 @@ test('@local five save faults and a reload mid-fault: every key stored exactly o
     await exact()
     await fault('412', {count: 20})
     for (const w of [' c1', ' c2']) (await type(w), await page.waitForTimeout(2000))
-    await exact()
+    // Five quick rebases, then one try every 2 s: the rest of the twenty take about 30 s.
+    await exact(40_000)
     await fault('reset', {count: 3})
     for (const w of [' d1', ' d2']) (await type(w), await page.waitForTimeout(2000))
     await exact()
     await fault('413', {count: 1})
-    await type(' e1')
+    // One input: a key typed after the refusal is an edit, and an edit tries again by itself.
+    await title().click()
+    await page.keyboard.press('ControlOrMeta+ArrowRight')
+    await page.keyboard.insertText(' e1')
+    expected += ' e1'
     await page.locator('.doc-footer').getByRole('button', {name: 'Retry'}).click()
     await exact()
     await fault('500', {ms: 12_000})
@@ -112,6 +119,7 @@ test('@local five save faults and a reload mid-fault: every key stored exactly o
     await expect(title()).toHaveValue(expected)
   } finally {
     await fault('none').catch(() => {})
-    await bpMutate([{delete: {id, type: 'post', force: true}}]).catch(() => {})
+    await closeAndSettle(page)
+    await bpRemove(id, 'post')
   }
 })

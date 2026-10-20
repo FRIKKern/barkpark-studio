@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {bpMutate, signInIfAsked, target, type Target} from '../rig/targets'
+import {bpMutate, signInIfAsked, target, type Target, bpRemove, closeAndSettle} from '../rig/targets'
 
 // task-90f4187e4b90c2a8 (P1): a geopoint's lat, lng and alt, and an object's subfields, typed
 // and then cleared one after another with no pause each keep exactly their own edit. The
@@ -45,7 +45,8 @@ test('sibling fields typed and cleared with no pause keep every edit', async ({p
     await open(page, t, id)
     await round(page, t, id, 1)
   } finally {
-    await bpMutate([{delete: {id, type: 'fieldTypes', force: true}}]).catch(() => {})
+    await closeAndSettle(page)
+    await bpRemove(id, 'fieldTypes')
   }
 })
 
@@ -67,6 +68,7 @@ test('@local sibling fields filled and cleared in three rounds keep every edit',
       for (const p of ['place.lat', 'place.lng', 'place.alt']) await expect(f(p)).toHaveValue('')
     }
   } finally {
-    await bpMutate([{delete: {id, type: 'fieldTypes', force: true}}]).catch(() => {})
+    await closeAndSettle(page)
+    await bpRemove(id, 'fieldTypes')
   }
 })
