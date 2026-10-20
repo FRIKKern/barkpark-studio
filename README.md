@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 89 changes
+- **Today** · 90 changes
+  - fix(i18n): the schedule action's validation message as Sanity's English ([#1067](https://github.com/FRIKKern/barkpark-studio/pull/1067))
   - ci: a spec recorded 0 s that has a CI test now counts as unrecorded in the shard plan ([#1066](https://github.com/FRIKKern/barkpark-studio/pull/1066))
-  - fix(media): unsaved Title and Alt text ask before leaving ([#1061](https://github.com/FRIKKern/barkpark-studio/pull/1061))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
