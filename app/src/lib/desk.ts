@@ -21,8 +21,11 @@ export type DeskNode = {
   docId?: string
   filter?: DeskFilter
   orderings?: {field: string; direction: 'asc' | 'desc'}[]
-  /** document_type_list: a parent-child tree over this reference field. */
-  tree?: {parent: string}
+  /**
+   * document_type_list: a parent-child tree over this reference field. `filter` (Barkpark's tree
+   * filter) narrows every level, as it narrows the root through `filter`.
+   */
+  tree?: {parent: string; filter?: DeskFilter}
   /**
    * document_type_list (J18, Sanity's `.child((id) => S.documentList()…)`): a row opens the
    * `typeName` docs whose `field` points at it, and that list's "+" starts `template` with
@@ -112,7 +115,7 @@ export function unsupportedOps(filter: DeskFilter | undefined): string[] {
 /** What a list pane reads: the node's filter, or one tree level's children. */
 export function listFilter(node: DeskNode | undefined, treeParent?: string): DeskFilter | undefined {
   if (node?.child && treeParent) return {[node.child.field]: {eq: treeParent}}
-  if (node?.tree && treeParent) return {[node.tree.parent]: {eq: treeParent}}
+  if (node?.tree && treeParent) return {...node.tree.filter, [node.tree.parent]: {eq: treeParent}}
   return node?.filter
 }
 
