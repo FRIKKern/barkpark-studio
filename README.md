@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 49 changes
+- **Today** · 50 changes
+  - A picked image is stored in Sanity's shape; the older bare shape reads the same and is never rewritten ([#1026](https://github.com/FRIKKern/barkpark-studio/pull/1026))
   - Uploads as Sanity's: a file the field doesn't take is refused, not stored; a 413 says the file is too large ([#1024](https://github.com/FRIKKern/barkpark-studio/pull/1024))
-  - fix(arrays): the item menu opens to the ⋯'s left where it can't centre, as Sanity's ([#1025](https://github.com/FRIKKern/barkpark-studio/pull/1025))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
