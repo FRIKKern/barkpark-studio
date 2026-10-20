@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import type {BrowserContext, Locator, Page, TestInfo} from '@playwright/test'
+import {test, type BrowserContext, type Locator, type Page, type TestInfo} from '@playwright/test'
 import {sendBatches} from '../../scripts/lib/batches.mjs'
 import {idempotent, isTransient} from '../../scripts/lib/retry.mjs'
 import {sanityAsset, seedAssets} from '../../scripts/lib/seed-assets.mjs'
@@ -95,9 +95,21 @@ export async function closeAndSettle(page: Page) {
   if (page.isClosed()) return
   if (page.url() === 'about:blank') return void (await page.close())
   const ours = await page.evaluate(() => typeof (window as {__savesPending?: unknown}).__savesPending === 'function').catch(() => false)
-  if (ours) await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending(), null, {timeout: 5_000}).catch(() => {})
-  await page.close()
+  const settled = ours ? await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending(), null, {timeout: 5_000}).then(() => true, () => false) : true
   if (!ours) await new Promise((r) => setTimeout(r, 3000))
+  // A failed test (in its afterEach) keeps the page open for Playwright's page snapshot in
+  // the error context; closed, it had none. Only once its saves have landed: one still on
+  // its way would bring back the doc the cleanup deletes.
+  if (failed() && settled) return
+  await page.close()
+}
+const failed = () => {
+  try {
+    const info = test.info()
+    return info.status !== undefined && info.status !== info.expectedStatus
+  } catch {
+    return false // not inside a test
+  }
 }
 
 /**
