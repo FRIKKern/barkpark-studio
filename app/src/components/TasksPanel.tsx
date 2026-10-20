@@ -10,6 +10,7 @@ import {anyDocQuery, previewTitle, schemaOf, schemasQuery, searchAllDocs, type D
 import {meQuery} from '../lib/session'
 import {ago, useLocale, useT} from '../lib/i18n'
 import {toast} from './Toasts'
+import {unsavedElsewhere} from '../lib/edits'
 import {MenuPopover} from './FocusScopes'
 import {ActorAvatar, PersonName} from './Presence'
 import {Status} from './Preview'
@@ -478,7 +479,22 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
       })
     }
     void qc.invalidateQueries({queryKey: tasksQuery.queryKey})
-  }
+  }  // The title and description save when the box is left. Typed and not left yet, they are
+  // unsaved: leaving the page asks first (B11's prompt), and the leaving tries the save.
+  const titleChanged = !!task && !!title.trim() && title !== task.title
+  const descriptionChanged = !!task && description !== (task.description ?? '')
+  const pending = titleChanged || descriptionChanged
+  const flush = useRef(() => {})
+  flush.current = () => void ((titleChanged || descriptionChanged) && save({...(titleChanged && {title: title.trim()}), ...(descriptionChanged && {description})}))
+  useEffect(() => {
+    if (!pending) return
+    const unsaved = () => true
+    const leaving = () => flush.current()
+    unsavedElsewhere.add(unsaved)
+    addEventListener('beforeunload', leaving)
+    return () => (unsavedElsewhere.delete(unsaved), removeEventListener('beforeunload', leaving))
+  }, [pending])
+
   const remove = async () => {
     await deleteTask({data: {id}})
     void qc.invalidateQueries({queryKey: tasksQuery.queryKey})
