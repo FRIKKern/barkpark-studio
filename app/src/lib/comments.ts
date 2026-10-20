@@ -23,13 +23,21 @@ async function write(mutations: Json[]) {
   if (res && !res.ok) throw new Error(`Could not save the comment (${res.status})`)
 }
 
+const COMMENTS_PAGE = 500
 const fetchComments = createServerFn({method: 'GET'})
   .validator((d: {documentId: string}) => d)
   .handler(async ({data}) => {
-    const q = `perspective=drafts&limit=500&order=_createdAt:asc&filter[documentId][eq]=${encodeURIComponent(data.documentId)}`
-    const res = await bpFetch(`/v1/data/query/${dataset()}/${COMMENT_TYPE}?${q}`)
-    if (!res.ok) throw new Error(`Could not load the comments (${res.status})`)
-    const docs = ((await res.json()) as {result: {documents: (Comment & {_publishedId: string})[]}}).result.documents
+    // Page by page: one read of 500 left a doc's later threads out (200 threads of three
+    // comments showed 167). Twenty pages (10,000 comments) at most.
+    const docs: (Comment & {_publishedId: string})[] = []
+    for (let page = 0; page < 20; page++) {
+      const q = `perspective=drafts&limit=${COMMENTS_PAGE}&offset=${page * COMMENTS_PAGE}&order=_createdAt:asc&filter[documentId][eq]=${encodeURIComponent(data.documentId)}`
+      const res = await bpFetch(`/v1/data/query/${dataset()}/${COMMENT_TYPE}?${q}`)
+      if (!res.ok) throw new Error(`Could not load the comments (${res.status})`)
+      const {documents, hasMore} = ((await res.json()) as {result: {documents: (Comment & {_publishedId: string})[]; hasMore?: boolean}}).result
+      docs.push(...documents)
+      if (!hasMore || documents.length < COMMENTS_PAGE) break
+    }
     return docs.map(({_publishedId, ...c}) => ({...c, _id: _publishedId})) as unknown as Json
   })
 

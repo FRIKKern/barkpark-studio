@@ -57,8 +57,11 @@ export type Thread = {root: Comment; replies: Comment[]; status: CommentStatus}
 
 /** Threads in the order Sanity lists them: by field, then oldest first. */
 export function threadsOf(comments: Comment[]): Thread[] {
-  const roots = comments.filter((c) => !c.parentCommentId)
-  return roots.map((root) => ({root, replies: comments.filter((c) => c.parentCommentId === root._id), status: root.state ?? 'open'}))
+  // Replies by their thread in one pass: per root over every comment was 120,000 steps for
+  // 200 threads of three, each time the doc pane drew.
+  const replies = new Map<string, Comment[]>()
+  for (const c of comments) if (c.parentCommentId) replies.set(c.parentCommentId, [...(replies.get(c.parentCommentId) ?? []), c])
+  return comments.filter((c) => !c.parentCommentId).map((root) => ({root, replies: replies.get(root._id) ?? [], status: root.state ?? 'open'}))
 }
 
 /** Painted in the body: an open thread on a span of text that is still there. */
