@@ -391,6 +391,17 @@ export function applyServer(qc: QueryClient, doc: Doc) {
 
 /** `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. */
 export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, record = true) {
+  // Scout 7: clearing the last field of an object (or of a geopoint, its _type alone left)
+  // unsets the object, as Sanity does: the empty shell ({} or {_type}) read as set to every
+  // defined()/coalesce() and showed in diffs. Not inside an array item (the item stays).
+  // An emptied text input clears with '' (sent as an unset, toPatch).
+  const blank = (v: unknown) => v === undefined || v === null || v === ''
+  if (blank(value) && field.includes('.') && !field.includes('[')) {
+    const parent = field.slice(0, field.lastIndexOf('.'))
+    const own = field.slice(parent.length + 1)
+    const now = getPath(qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc, parent)
+    if (now && typeof now === 'object' && !Array.isArray(now) && Object.entries(now).every(([k, v]) => k === '_type' || k === own || blank(v))) return edit(qc, doc, parent, undefined, record)
+  }
   const id = doc._publishedId
   const e = entry(id, doc._type)
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc

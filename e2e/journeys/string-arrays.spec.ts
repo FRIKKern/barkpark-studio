@@ -79,7 +79,7 @@ test('J34: Add item on a string array focuses the new item', async ({page}, info
 
 // Where ours beats Sanity's: the Enter that commits an IME's word is not a new tag (both
 // studios added the half-composed text). The next, plain Enter adds it.
-test('J34: the Enter an IME commits with adds no tag', async ({page}, info) => {
+test('J34: the Enter an IME commits with adds no tag; the last tag removed unsets the field', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "Sanity's adds it: ours goes beyond")
   await t.prepare(page.context())
@@ -93,4 +93,7 @@ test('J34: the Enter an IME commits with adds no tag', async ({page}, info) => {
   await expect(input).toHaveValue('かんじ')
   await input.press('Enter')
   await expect.poll(() => t.docValue(ID, 'tags'), {timeout: 10_000}).toEqual(['fixture', 't0', 'かんじ'])
+  // The last tag removed unsets the field, as Sanity's (it was left as []).
+  for (const tag of ['fixture', 't0', 'かんじ']) await page.getByRole('button', {name: `Remove ${tag}`}).click()
+  await expect.poll(() => t.docValue(ID, 'tags'), {timeout: 10_000}).toBeUndefined()
 })

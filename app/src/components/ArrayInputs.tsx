@@ -23,7 +23,8 @@ export function TagsInput({id, value, onChange, readOnly}: Props) {
   const pending = useRef<Pending>(null)
   pending.current = settle(pending.current, props)
   const tags = shown(pending.current, props)
-  const change = (next: string[]) => ((pending.current = sent(pending.current, props, next)), onChange(next))
+  // The last tag removed unsets the field, as Sanity does (an empty [] read as set).
+  const change = (next: string[]) => ((pending.current = sent(pending.current, props, next)), onChange(next.length ? next : undefined))
   return (
     <div className="tags-box" onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.focus()}>
       {tags.map((tag, i) => (
