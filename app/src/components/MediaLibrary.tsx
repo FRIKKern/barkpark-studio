@@ -1,7 +1,7 @@
 import {useEffect, useId, useRef, useState, type FormEvent} from 'react'
 import {useInfiniteQuery, useQuery, useQueryClient} from '@tanstack/react-query'
 import {assetQuery, assetsQuery, collectionsQuery, createFolder, KINDS, kindCountsQuery, REFINE, type Refine, saveAssetMeta, SORTS, type Sort, setCheckout, setMember, type Kind, type LibraryAsset, type Visibility} from '../lib/media-library'
-import {reasonOf} from '../lib/edits'
+import {reasonOf, unsavedElsewhere} from '../lib/edits'
 import {Close, DocumentIcon, Search} from './icons'
 import {toast} from './Toasts'
 import {intlTag, useLocale, useT, type T} from '../lib/i18n'
@@ -295,6 +295,15 @@ function Inspector({id, folder, folders, onClose}: {id: string; folder?: string;
   const primedUse = usePrimed((uses ?? []).map((u) => ({types: [u._type], id: u._id})))
   const [deleting, setDeleting] = useState(false)
   useEffect(() => setMeta({title: a?.title ?? '', altText: a?.altText ?? ''}), [a?.id, a?.title, a?.altText])
+  // Details typed and not saved yet (they wait for Save): leaving the page asks first (B11's
+  // prompt); they were lost, unasked.
+  const unsavedMeta = !!a && (meta.title !== (a.title ?? '') || meta.altText !== (a.altText ?? ''))
+  useEffect(() => {
+    if (!unsavedMeta) return
+    const unsaved = () => true
+    unsavedElsewhere.add(unsaved)
+    return () => void unsavedElsewhere.delete(unsaved)
+  }, [unsavedMeta])
   const refresh = () => Promise.all([qc.invalidateQueries({queryKey: ['media', 'asset', id]}), qc.invalidateQueries({queryKey: ['media', 'assets']})])
   /** Run a write, refresh, and say whether it worked (a refusal is shown, never a success). */
   const act = (title: string, run: () => Promise<unknown>) => async () => {
