@@ -82,6 +82,8 @@ export default {
   'Slug is already in use': 'Slugen er allerede i bruk',
   'Reset value': 'Tilbakestill verdi',
   'Review changes': 'Gjennomgå endringer',
+  // Sanity's change bar says Se endringer (changes.change-bar.aria-label); the History tab Gjennomgå endringer.
+  'change bar\u0004Review changes': 'Se endringer',
   'Search codes or labels…': 'Søk i koder eller etiketter…',
   'Search {list}…': 'Søk i {list}…',
   'Select date': 'Velg dato',

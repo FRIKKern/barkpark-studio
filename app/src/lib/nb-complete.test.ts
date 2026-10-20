@@ -25,7 +25,7 @@ test('B01: every t() and translate() literal has Norwegian (an nb-NO workspace s
   const missing = new Set<string>()
   for (const f of files)
     for (const m of readFileSync(f, 'utf8').matchAll(said)) {
-      const en = m[2]!.replace(/\\(['"\\])/g, '$1')
+      const en = m[2]!.replace(/\\(['"\\])/g, '$1').replace(/\\u([0-9a-fA-F]{4})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)))
       if (!(en in NB)) missing.add(`${en}  (${f.slice(src.length)})`)
     }
   assert.deepEqual([...missing], [])
