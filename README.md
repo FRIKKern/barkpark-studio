@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 80 changes
+- **Today** · 81 changes
+  - fix(live): a fresh page's replay skips frames a later delete makes moot (J19 flake) ([#1056](https://github.com/FRIKKern/barkpark-studio/pull/1056))
   - A typed, not yet committed date asks before the tab closes, and is saved if it closes ([#1057](https://github.com/FRIKKern/barkpark-studio/pull/1057))
-  - P1: a number typed fast keeps every key; a letter in a number field does nothing ([#1055](https://github.com/FRIKKern/barkpark-studio/pull/1055))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
