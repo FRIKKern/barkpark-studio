@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 83 changes
+- **Today** · 84 changes
+  - fix(live): a deleted draft moots only the draft's replayed frames ([#1059](https://github.com/FRIKKern/barkpark-studio/pull/1059))
   - fix(a11y): calendar controls named as Sanity's ([#1060](https://github.com/FRIKKern/barkpark-studio/pull/1060))
-  - A task's title or description typed and not saved yet asks before the tab closes ([#1058](https://github.com/FRIKKern/barkpark-studio/pull/1058))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
