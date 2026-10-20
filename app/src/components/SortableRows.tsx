@@ -259,9 +259,9 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
           <TypeItems types={props.types} pick={(type) => (close(), props.onAdd(choosing === 'after', type))} />
         </MenuPopover>
       )}
-      {/* Sanity's: centred on the ⋯, every item with its icon, a rule before the last group (Open in new tab). */}
+      {/* Sanity's: centred on the ⋯ (to its left where that won't fit), every item with its icon, a rule before the last group (Open in new tab). */}
       {open && !choosing && (
-        <MenuPopover centered className="popover menu item-menu" onClose={close} aria-labelledby={props.id}>
+        <MenuPopover centered sideways className="popover menu item-menu" onClose={close} aria-labelledby={props.id}>
           <button type="button" role="menuitem" className="menu-item danger" autoFocus onClick={pick(props.onRemove)}>
             <span className="menu-icon-text">
               <Trash /> {t('Remove')}

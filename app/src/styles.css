@@ -772,6 +772,7 @@ a.menu-item { display: block; text-decoration: none; }
 .menu-item[aria-disabled] svg { color: var(--border); }
 .popover.menu.centered { right: auto; left: 50%; translate: -50% 0; }
 .popover.menu.item-menu { min-width: 0; } /* an array item's: as wide as its items (Sanity's 153.8 px) */
+.popover.menu.centered[data-side='left'] { top: 50%; left: auto; right: calc(100% + 4px); translate: 0 -50%; } /* sideways: 4 px left of the button, centred on it */
 .doc-actions > .icon-btn[aria-expanded='true'], .item-actions > .icon-btn[aria-expanded='true'] { background: var(--selected-fill); color: var(--fg); } /* Sanity's open menu button */
 .btn-create.btn-generate { padding: 0 12px; font-weight: 500; } /* Generate: Sanity's text button, 500, 12 px each side */
 /* Sanity's Create beside a reference search (post-01 Reviewer, Related; 1440): a 21 px muted icon 6 px in, the word 6 px after it in 500, 12 px after. */
