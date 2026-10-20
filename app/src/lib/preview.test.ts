@@ -43,3 +43,34 @@ test('alternatives, templates, a type title and the first image', () => {
   assert.equal(firstMedia(['backgroundImage', 'linkedDocument.cover'], read({'linkedDocument.cover': img}), isImage), img)
   assert.equal(firstMedia('backgroundImage', read({}), isImage), undefined)
 })
+
+// task-afbd6fe5a5e2085b: Barkpark's object parts (Barkpark.Content.PreviewText), read the same
+// way, never throwing.
+test('object parts: text, when, map, nested parts, each, and the case modifiers', () => {
+  const doc = {
+    pageType: 'landingPage',
+    status: 'draft',
+    name: 'Ada',
+    role: {title: 'Writer'},
+    formats: [{code: 'BB', label: 'Innbundet'}, {code: 'EB', label: 'E-bok'}, {code: 'DG'}, {_ref: 'format-x'}],
+  }
+  const at = (p: string) => p.split('.').reduce<unknown>((v, k) => (v && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined), doc)
+  const spec: PreviewText = {
+    parts: [
+      {path: 'pageType', map: {landingPage: 'Landingsside'}},
+      {when: {field: 'status', operator: 'eq', value: 'draft'}, show: {text: 'Utkast'}},
+      {when: {field: 'status', operator: 'eq', value: 'published'}, show: {text: 'Publisert'}},
+      {parts: ['{name} ({role.title|lower})'], join: ' '},
+      {each: 'formats', show: 'label', max: 1, more: ' +'},
+    ],
+  }
+  assert.doesNotThrow(() => formatPreview(spec, at))
+  assert.equal(formatPreview(spec, at), 'Landingsside · Utkast · Ada (writer) · Innbundet +')
+  // A value the map does not name shows as stored; {each} skips items with no value and references.
+  assert.equal(formatPreview({parts: [{path: 'status', map: {}}]}, at), 'draft')
+  assert.equal(formatPreview({parts: [{each: 'formats', show: 'code', join: '/'}]}, at), 'BB/EB/DG')
+  assert.equal(formatPreview({parts: [{each: 'nothing'}], empty: 'Ingen'}, at), 'Ingen')
+  assert.equal(formatPreview('name|upper', at), 'ADA')
+  // The paths a spec reads, for loading references: no throw on object parts either.
+  assert.deepEqual(previewRefs(spec, {parts: [{text: 'x'}, ['role.title', 'name']]}), ['role'])
+})
