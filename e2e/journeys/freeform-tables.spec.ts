@@ -131,6 +131,10 @@ test('@local D15: tables — slash insert, Tab/Shift+Tab, Tab adds a row, add/re
   await page.keyboard.type('Pear')
   await expect.poll(async () => (await grids(page))[0], {intervals: [50]}).toEqual([['#Name', '#Qty'], ['Pear', '3']])
   await agree()
+  // The studio's column is the text (no evidence band): the table starts at the paragraphs'
+  // left edge, not centred in the column (task-305dde90911726b8, --bp-table-centre: 0).
+  const [textLeft, tableLeft] = await pm.evaluate((el) => [el.querySelector(':scope > p')!, el.querySelector('.bp-table')!].map((n) => Math.round(n.getBoundingClientRect().left)))
+  expect(tableLeft).toBe(textLeft)
 
   // Tab in the last cell adds a row.
   await caretInCell(page, -1)
