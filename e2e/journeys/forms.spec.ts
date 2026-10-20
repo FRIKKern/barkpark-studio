@@ -10,10 +10,9 @@ test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info)
 
 test('J14: field groups, the seo object by two editors', async ({page, browser}, info) => {
   const t = target(info)
-  await t.prepare(page.context())
-  // A second editor on the same doc, Meta tab, for the seo step.
+  // A second editor on the same doc, Meta tab, for the seo step; both browsers get ready at once.
   const ctxB = await browser.newContext()
-  await t.prepare(ctxB)
+  await Promise.all([t.prepare(page.context()), t.prepare(ctxB)])
   const b = await ctxB.newPage()
   await Promise.all([page.goto(t.docPath('post', ID)).then(() => t.settle(page)), b.goto(t.docPath('post', ID)).then(() => t.settle(b))])
   await b.getByRole('tab', {name: 'Meta'}).click()

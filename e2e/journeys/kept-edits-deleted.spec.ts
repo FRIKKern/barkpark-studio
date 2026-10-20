@@ -21,8 +21,8 @@ test(`keystrokes typed as the doc is deleted come back with Restore (${frames})`
   // CI once missed the delete's live frame and the pane never turned (de6987a, ci-4): the
   // save's 404 alone must show the deleted banner.
   if (frames !== 'live') await page.route('**/api/stream**', (route) => route.abort('failed')) // the tab's one stream (lib/stream.ts)
-  await t.prepare(page.context())
-  await bpMutate([{createOrReplace: {_id: ID, _type: 'author', title: 'Kept Author', name: 'Kept Author'}}, {publish: {id: ID, type: 'author'}}])
+  // The author is made while the browser gets ready (as refs.spec, #935).
+  await Promise.all([t.prepare(page.context()), bpMutate([{createOrReplace: {_id: ID, _type: 'author', title: 'Kept Author', name: 'Kept Author'}}, {publish: {id: ID, type: 'author'}}])])
   await page.goto(t.docPath('author', ID))
   await signInIfAsked(page)
   await t.settle(page)
@@ -58,8 +58,8 @@ test(`keystrokes typed as the doc is deleted come back with Restore (${frames})`
 test('kept edits put back by Restore survive a newer version meanwhile', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours only')
-  await t.prepare(page.context())
-  await bpMutate([{createOrReplace: {_id: ID, _type: 'author', title: 'Kept Author', name: 'Kept Author'}}, {publish: {id: ID, type: 'author'}}])
+  // The author is made while the browser gets ready (as refs.spec, #935).
+  await Promise.all([t.prepare(page.context()), bpMutate([{createOrReplace: {_id: ID, _type: 'author', title: 'Kept Author', name: 'Kept Author'}}, {publish: {id: ID, type: 'author'}}])])
   await page.goto(t.docPath('author', ID))
   await signInIfAsked(page)
   await t.settle(page)
@@ -94,9 +94,8 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
 test('body words typed as the doc is deleted are offered back after Restore', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours only: Sanity loses them')
-  await t.prepare(page.context())
   const body = {blocks: [{id: 'p1', type: 'paragraph', content: [{type: 'text', value: 'First line.'}]}]}
-  await bpMutate([{createOrReplace: {_id: POST, _type: 'post', title: 'Kept body', slug: {_type: 'slug', current: POST}, body}}, {publish: {id: POST, type: 'post'}}])
+  await Promise.all([t.prepare(page.context()), bpMutate([{createOrReplace: {_id: POST, _type: 'post', title: 'Kept body', slug: {_type: 'slug', current: POST}, body}}, {publish: {id: POST, type: 'post'}}])])
   await page.goto(t.docPath('post', POST))
   await signInIfAsked(page)
   await t.settle(page)
