@@ -1,5 +1,5 @@
 import {useZone} from '../lib/now'
-import {createContext, forwardRef, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent} from 'react'
+import {createContext, forwardRef, memo, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent} from 'react'
 import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {commentsQuery, readerCommentsQuery, deleteComment, editComment, postComment, reactToComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
@@ -382,7 +382,9 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, active, o
   const t = useT()
   const [status, setStatus] = useState<CommentStatus>('open')
   const [menu, setMenu] = useState(false)
-  const threads = threadsOf(data ?? []).filter((th) => th.status === status)
+  // Once per read, not per key typed in the doc: with every thread a memo card, a key redraws none.
+  const all = useMemo(() => threadsOf(data ?? []), [data])
+  const threads = all.filter((th) => th.status === status)
   const fields = [...new Set(threads.map((th) => th.root.fieldPath))]
   const list = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -390,14 +392,14 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, active, o
   }, [focusField, data])
   // A comment's link (Copy link to comment): its thread's tab, scrolled to and marked.
   const linked = typeof location !== 'undefined' && location.hash.startsWith('#comment-') ? location.hash.slice('#comment-'.length) : null
-  const linkedThread = linked ? threadsOf(data ?? []).find((th) => th.root._id === linked || th.replies.some((r) => r._id === linked)) : undefined
+  const linkedThread = linked ? all.find((th) => th.root._id === linked || th.replies.some((r) => r._id === linked)) : undefined
   useEffect(() => {
     if (linkedThread && linkedThread.status !== status) setStatus(linkedThread.status)
     const el = linked ? document.getElementById(`comment-${linked}`) : null
     if (el) (el.scrollIntoView({block: 'center'}), el.setAttribute('data-linked', ''))
   }, [linked, linkedThread?.status, data])
   // An inline comment's highlight picked in the body: its thread, scrolled to.
-  const activeThread = active ? threadsOf(data ?? []).find((th) => th.root._id === active) : undefined
+  const activeThread = active ? all.find((th) => th.root._id === active) : undefined
   useEffect(() => {
     if (activeThread && activeThread.status !== status) setStatus(activeThread.status)
     if (active) list.current?.querySelector(`[data-thread="${CSS.escape(active)}"]`)?.scrollIntoView({block: 'nearest'})
@@ -443,7 +445,7 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, active, o
             {threads
               .filter((th) => th.root.fieldPath === f)
               .map((th) => (
-                <ThreadCard key={th.root._id} thread={th} docId={docId} docType={docType} active={th.root._id === active} onSelect={() => onSelect(th.root._id)} />
+                <ThreadCard key={th.root._id} thread={th} docId={docId} docType={docType} active={th.root._id === active} onSelect={onSelect} />
               ))}
           </section>
         ))}
@@ -452,7 +454,8 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, active, o
   )
 }
 
-function ThreadCard({thread, docId, docType, active, onSelect}: {thread: Thread; docId: string; docType: string; active: boolean; onSelect: () => void}) {
+// Memo: the doc pane draws this panel on every key typed in the doc; a thread redraws only when it changes.
+const ThreadCard = memo(function ThreadCard({thread, docId, docType, active, onSelect}: {thread: Thread; docId: string; docType: string; active: boolean; onSelect: (threadId: string) => void}) {
   const qc = useQueryClient()
   const t = useT()
   const refresh = () => void qc.invalidateQueries({queryKey: ['comments']})
@@ -475,7 +478,7 @@ function ThreadCard({thread, docId, docType, active, onSelect}: {thread: Thread;
       onClick={(e) => {
         // Its own controls (resolve, menu, reply) do their own thing.
         if (!thread.root.selection || (e.target as HTMLElement).closest('button, textarea, [role=menu], [role=button]')) return
-        onSelect()
+        onSelect(thread.root._id)
         document.querySelector(`.bp-comment-range[data-comment-id="${CSS.escape(thread.root._id)}"]`)?.scrollIntoView({block: 'center', behavior: glide()})
       }}
     >
@@ -494,7 +497,7 @@ function ThreadCard({thread, docId, docType, active, onSelect}: {thread: Thread;
       )}
     </article>
   )
-}
+})
 
 /**
  * Sanity's referenced value: the text an inline comment is on, cut at 250 characters; once
