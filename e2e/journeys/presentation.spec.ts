@@ -220,9 +220,9 @@ test('J64: viewport toggle, Open preview, share menu', async ({page, context}, i
   // The panel keeps its share of the window, as Sanity's: a quarter at 1440 (360 px), and
   // still a quarter when the window widens (480 px at 1920).
   const panelWidth = () => page.locator('.presentation-panel').evaluate((e) => Math.round(e.getBoundingClientRect().width))
-  await expect.poll(panelWidth).toBe(360)
+  await expect.poll(panelWidth, {intervals: [50]}).toBe(360)
   await page.setViewportSize({width: 1920, height: 900})
-  await expect.poll(panelWidth).toBe(480)
+  await expect.poll(panelWidth, {intervals: [50]}).toBe(480)
   await page.setViewportSize({width: 1440, height: 900})
   const toggle = page.getByRole('button', {name: 'Toggle viewport size'})
   await expect(toggle).toHaveAttribute('data-tip', 'Switch to narrow viewport')

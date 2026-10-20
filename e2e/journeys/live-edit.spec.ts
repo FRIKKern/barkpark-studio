@@ -67,8 +67,8 @@ test('J05 J06: two browsers, different fields then the same field', async ({brow
     // Ours coalesces writes: let the last land before the reset.
     if (t.name === 'studio') await Promise.all([a.locator('.save-state-text', {hasText: /^Saved$/}).waitFor(), b.locator('.save-state-text', {hasText: /^Saved$/}).waitFor()])
   } finally {
-    await t.restore(ID, SEED)
-    await Promise.all([ctxA.close(), ctxB.close()])
+    // The reset and the closing need not take turns (ours waited for "Saved" above).
+    await Promise.all([t.restore(ID, SEED), ctxA.close(), ctxB.close()])
   }
 })
 

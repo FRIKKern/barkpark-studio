@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
-import {target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, target, closeAndSettle} from '../rig/targets'
 
 // FF3 evidence (Freeform side track, ours only): story is an Expectation type
 // (lib/editor-mode.ts: alternative), so story-01 opens in Classic with a Classic ⇄
@@ -56,7 +56,7 @@ test('@evidence FF3 D02: per-type editor mode; Classic ⇄ Freeform is lossless 
 
   // A Classic edit changes its bound block only.
   await t.field(page, 'summary').fill('Edited in Classic.')
-  await expect.poll(async () => (await draftOrPublished()).blocks.find((b) => b.id === 'st-summary')?.value, {timeout: 10_000}).toBe('Edited in Classic.')
+  await expect.poll(async () => (await draftOrPublished()).blocks.find((b) => b.id === 'st-summary')?.value, BACKEND_POLL).toBe('Edited in Classic.')
   const edited = (await draftOrPublished()).blocks
   expect(edited.map((b) => b.id), 'same blocks, same order').toEqual(before.blocks.map((b) => b.id))
   expect(edited.filter((b) => b.id !== 'st-summary'), 'every other block untouched').toEqual(before.blocks.filter((b) => b.id !== 'st-summary'))
@@ -77,7 +77,7 @@ test('@evidence FF3 D02: per-type editor mode; Classic ⇄ Freeform is lossless 
   const kicker = canvas.locator('.bp-canvas-field').filter({has: page.locator('.bp-canvas-field-label', {hasText: 'Kicker'})}).locator('input')
   await expect(kicker).toHaveValue('Freeform fixture', {timeout: 20_000})
   await kicker.fill('Edited in Freeform.')
-  await expect.poll(async () => (await draftOrPublished()).blocks.find((b) => b.id === 'st-kicker')?.value, {timeout: 10_000}).toBe('Edited in Freeform.')
+  await expect.poll(async () => (await draftOrPublished()).blocks.find((b) => b.id === 'st-kicker')?.value, BACKEND_POLL).toBe('Edited in Freeform.')
   const both = (await draftOrPublished()).blocks
   expect(both.map((b) => b.id), 'same blocks, same order').toEqual(before.blocks.map((b) => b.id))
   expect(both.filter((b) => b.id !== 'st-kicker'), 'every other block as Classic left it').toEqual(edited.filter((b) => b.id !== 'st-kicker'))
@@ -104,6 +104,6 @@ test('@evidence FF3: typing in Freeform after a Classic edit edits that block', 
   await canvas.getByText(/A second free paragraph/).click()
   await page.keyboard.press('End')
   await page.keyboard.type(' Typed in Freeform.')
-  await expect.poll(async () => JSON.stringify((await draftOrPublished()).blocks.find((b) => b.id === 'st-p2')), {timeout: 10_000}).toContain('Typed in Freeform.')
+  await expect.poll(async () => JSON.stringify((await draftOrPublished()).blocks.find((b) => b.id === 'st-p2')), BACKEND_POLL).toContain('Typed in Freeform.')
   expect((await draftOrPublished()).blocks.map((b) => b.id), 'no block replaced').toEqual(['st-title', 'st-kicker', 'st-p1', 'st-summary', 'st-p2'])
 })

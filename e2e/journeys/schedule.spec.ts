@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import {expect, test} from '@playwright/test'
-import {bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
+import {BACKEND_POLL, bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
 
 // J40, Sanity's Schedule publish: a draft is scheduled from the document menu
 // ("Schedule draft for publishing", a future time), the header and a banner say so, the
@@ -64,7 +64,7 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
     await page.getByRole('dialog', {name: 'Publish draft now'}).getByRole('button', {name: 'Yes, run now'}).click()
     await expect(page.locator('.chip[data-tone=scheduled]')).toBeHidden()
     await expect(page.getByRole('button', {name: /^Published/}).first()).toBeEnabled()
-    await expect.poll(() => t.publishedTitle(id)).toBe('Schedule probe')
+    await expect.poll(() => t.publishedTitle(id), {...BACKEND_POLL, timeout: 5_000}).toBe('Schedule probe')
   } finally {
     await t.deleteDoc(id, 'post')
   }

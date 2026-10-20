@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {bpMutate, target} from '../rig/targets'
+import {BACKEND_POLL, bpMutate, target} from '../rig/targets'
 
 // Live stream survives a network blip (task-c1b6d7ed2e05b73a, F8): offline while
 // another client writes; on reconnect every frame arrives, in order, once. The CI
@@ -166,13 +166,13 @@ test('live: many tabs: four visible save, three hidden let go, six still save, a
   try {
     const tabs = await open(4)
     await type(tabs[3]!, ' four')
-    await expect.poll(() => t.docValue(ID, 'title'), {timeout: 10_000, message: 'four visible tabs: the save reached the server'}).toBe(`${TITLE} four`)
+    await expect.poll(() => t.docValue(ID, 'title'), {...BACKEND_POLL, timeout: 10_000, message: 'four visible tabs: the save reached the server'}).toBe(`${TITLE} four`)
     await expect(t.field(tabs[0]!, 'title'), 'and the first tab, live').toHaveValue(`${TITLE} four`, {timeout: 5_000})
     for (const p of tabs.slice(0, 3)) await hide(p, true)
     await tabs[3]!.waitForTimeout(600)
     tabs.push(...(await open(2)))
     await type(tabs[5]!, ' six')
-    await expect.poll(() => t.docValue(ID, 'title'), {timeout: 10_000, message: 'six tabs, three hidden: the save reached the server'}).toBe(`${TITLE} four six`)
+    await expect.poll(() => t.docValue(ID, 'title'), {...BACKEND_POLL, timeout: 10_000, message: 'six tabs, three hidden: the save reached the server'}).toBe(`${TITLE} four six`)
     await hide(tabs[0]!, false)
     await expect(t.field(tabs[0]!, 'title'), 'shown again, a hidden tab catches up').toHaveValue(`${TITLE} four six`, {timeout: 5_000})
   } finally {

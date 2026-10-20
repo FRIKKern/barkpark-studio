@@ -1,5 +1,5 @@
 import {expect, test, type Locator, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, type Target} from '../rig/targets'
 
 // J16 evidence, both studios, on post-history: a document with a real history on
 // each side (scripts/reference-history.mjs: edits by two authors, publishes, an
@@ -46,7 +46,7 @@ test('@evidence J16: history timeline, an old revision read-only, revert', async
   // revisions for edits it has indexed, and the newest are the reliable ones.
   await retitle(t, page, FIRST)
   await page.getByRole('button', {name: /^Publish$/}).last().click()
-  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toEqual({draft: undefined, published: FIRST})
+  await expect.poll(() => t.versions(ID), BACKEND_POLL).toEqual({draft: undefined, published: FIRST})
   await retitle(t, page, 'History fixture v5')
 
   // History, from the document "…" menu.
@@ -94,7 +94,7 @@ test('@evidence J16: history timeline, an old revision read-only, revert', async
     await page.screenshot({path: shot(t.name, '3-restored')})
     console.log(`[J16 sanity] after revert: ${JSON.stringify(await t.versions(ID))}`)
   } else {
-    await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: FIRST})
+    await expect.poll(() => t.versions(ID), BACKEND_POLL).toMatchObject({draft: FIRST})
     await page.screenshot({path: shot(t.name, '3-restored')})
   }
 

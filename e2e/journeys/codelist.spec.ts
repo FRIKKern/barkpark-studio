@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {target} from '../rig/targets'
+import {BACKEND_POLL, target} from '../rig/targets'
 
 // B05, ours: a codelist field picks a code by searching. What can break silently: the
 // tree stops finding codes, a pick does not save, a flat code loses its label.
@@ -20,7 +20,7 @@ test('B05: codelist fields — the Thema tree finds and picks a code by search; 
     await expect(item).toBeVisible({timeout: 5_000})
     await item.click()
     await expect(tree.locator('.codelist-current')).toContainText('YFB')
-    await expect.poll(() => t.docValue('volume-01', 'subject', 'volume'), {timeout: 10_000}).toBe('YFB')
+    await expect.poll(() => t.docValue('volume-01', 'subject', 'volume'), BACKEND_POLL).toBe('YFB')
   } finally {
     await t.restore('volume-01', {subject: 'FBA'}, 'volume')
   }

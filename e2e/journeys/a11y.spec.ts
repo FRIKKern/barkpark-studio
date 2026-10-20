@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import {expect, test, type Page} from '@playwright/test'
-import {seededCount, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, seededCount, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // F13, axe (WCAG 2.1 A + AA) on the J01–J04 screens, both studios: the list,
 // an open post, the post with a draft, and the Discard changes confirm. Ours must
@@ -37,7 +37,7 @@ test('@evidence F13: axe on the J01–J04 screens', async ({page}, info) => {
   await t.field(page, 'title').click()
   await page.keyboard.press('End')
   await page.keyboard.type(' a11y')
-  await expect.poll(() => t.versions(ID), {timeout: 10_000}).toMatchObject({draft: `${TITLE} a11y`})
+  await expect.poll(() => t.versions(ID), BACKEND_POLL).toMatchObject({draft: `${TITLE} a11y`})
   all.push(record('J03 draft', await scan(page)))
 
   await (t.name === 'sanity' ? page.locator('[data-testid="action-menu-button"]').last() : page.getByRole('button', {name: 'Document actions'}).last()).click()

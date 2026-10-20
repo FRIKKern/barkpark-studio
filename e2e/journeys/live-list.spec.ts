@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {signInIfAsked, target} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target} from '../rig/targets'
 
 // Two browsers on one list: A types in an item while B moves another item past it. Both
 // stay: B's order, and A's words in the item A is typing in, which moves with A's caret
@@ -124,7 +124,7 @@ test('a list item keeps every key typed fast', async ({page}, info) => {
     await page.keyboard.press('End')
     await page.keyboard.type('-by-A-x-y-z-1-2-3', {delay: 5})
     await expect(item).toHaveValue('two-by-A-x-y-z-1-2-3')
-    await expect.poll(() => t.docValue(id, 'highlights'), {timeout: 10_000}).toEqual(['one', 'two-by-A-x-y-z-1-2-3', 'three'])
+    await expect.poll(() => t.docValue(id, 'highlights'), BACKEND_POLL).toEqual(['one', 'two-by-A-x-y-z-1-2-3', 'three'])
   } finally {
     await t.deleteDoc(id, 'post')
   }

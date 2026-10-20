@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J35 evidence, both studios, in post-12's body: (1) expand the editor over the
 // pane and back — typing before, while and after lands in one run (the caret is
@@ -122,7 +122,7 @@ test('@evidence J35: expand and back keeps the caret; paste keeps structure', as
     await page.screenshot({path: shot(t.name, '5-expanded-callout')})
     await callout.getByRole('button', {name: 'Close dialog'}).click()
     const saved = async () => JSON.stringify(await t.docValue(ID, 'body'))
-    await expect.poll(saved, {timeout: 15_000}).toContain('Callout in the expanded editor')
+    await expect.poll(saved, {...BACKEND_POLL, timeout: 15_000}).toContain('Callout in the expanded editor')
     const stored = await saved()
     note('expanded tools saved', {wikilink: /"value":"after"\}\],"docId":"author-ada"[^}]*"type":"wikilink"/.test(stored), chip: stored.includes('"Expanded"'), callout: stored.includes('Callout in the expanded editor')})
     expect(stored).toMatch(/"value":"after"\}\],"docId":"author-ada"[^}]*"type":"wikilink"/)

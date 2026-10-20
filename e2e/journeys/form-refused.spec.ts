@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {bpMutate, signInIfAsked, target, closeAndSettle, savesLanded} from '../rig/targets'
+import {BACKEND_POLL, bpMutate, signInIfAsked, target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // The form's twin of collab.spec's D11 (#373): a save Barkpark refuses (403, 500, or a
 // 409 that keeps coming) while someone else's write arrives on the live stream. The
@@ -8,7 +8,12 @@ import {bpMutate, signInIfAsked, target, closeAndSettle, savesLanded} from '../r
 const ID = 'post-refused'
 const SEED = {title: 'Refused post', excerpt: 'Short excerpt here.', tags: ['one'], seo: {metaTitle: 'Meta here', metaDescription: 'A description.'}}
 test.setTimeout(60_000)
-test.beforeEach(async ({}, info) => target(info).draftOnly(ID, 'post', SEED))
+// The doc is written while the test's browser starts; each test waits for it before opening it.
+let seeded: Promise<void>
+test.beforeEach(({}, info) => {
+  seeded = target(info).draftOnly(ID, 'post', SEED)
+  seeded.catch(() => {}) // the test that awaits it says so
+})
 test.afterEach(async ({page}, info) => (await page.unrouteAll({behavior: 'ignoreErrors'}), await closeAndSettle(page), await target(info).deleteDoc(ID, 'post')))
 
 /**
@@ -96,7 +101,7 @@ for (const status of [403, 500, 409])
     test(`@local refused ${status}, a remote write meanwhile: ${c.name} keeps the editor's value`, async ({page}, info) => {
       const t = target(info)
       test.skip(t.name !== 'studio', 'ours: our save loop')
-      await t.prepare(page.context())
+      await Promise.all([seeded, t.prepare(page.context())])
       await page.goto(t.docPath('post', ID))
       await signInIfAsked(page)
       await t.settle(page)
@@ -130,7 +135,7 @@ async function bpDoc(id: string): Promise<Record<string, unknown> | null> {
 test('@local refused 500, a remote write meanwhile: an image hotspot keeps the editor\'s move, and theirs', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: our save loop')
-  await t.prepare(page.context())
+  await Promise.all([seeded, t.prepare(page.context())])
   await page.goto(t.docPath('post', ID))
   await signInIfAsked(page)
   await t.settle(page)
@@ -170,7 +175,7 @@ test('@local refused 500, a remote write meanwhile: an image hotspot keeps the e
 test('a clash shows both versions on the field: Take theirs, then Keep mine', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: our save loop')
-  await t.prepare(page.context())
+  await Promise.all([seeded, t.prepare(page.context())])
   await page.goto(t.docPath('post', ID))
   await signInIfAsked(page)
   await t.settle(page)
@@ -209,7 +214,7 @@ test('a clash shows both versions on the field: Take theirs, then Keep mine', as
   await card.getByRole('button', {name: 'Keep mine'}).click()
   await expect(card).toHaveCount(0)
   await savesLanded(page)
-  await expect.poll(async () => (await bpDoc(ID))?.excerpt, {timeout: 15_000}).toBe(mine)
+  await expect.poll(async () => (await bpDoc(ID))?.excerpt, {...BACKEND_POLL, timeout: 15_000}).toBe(mine)
   await expect(footer).not.toContainText('Not saved')
 })
 
@@ -220,7 +225,7 @@ test('a clash shows both versions on the field: Take theirs, then Keep mine', as
 test('a rewrite that lands while a refused write is in flight clashes, never saved over', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: our save loop')
-  await t.prepare(page.context())
+  await Promise.all([seeded, t.prepare(page.context())])
   await page.goto(t.docPath('post', ID))
   await signInIfAsked(page)
   await t.settle(page)

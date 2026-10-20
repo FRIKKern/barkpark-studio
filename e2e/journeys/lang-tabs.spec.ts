@@ -1,6 +1,6 @@
 import {expect, test} from '@playwright/test'
 import {installProbes, stats, typeAndMeasure} from '../rig/feel'
-import {target, closeAndSettle} from '../rig/targets'
+import {BACKEND_POLL, target, closeAndSettle} from '../rig/targets'
 
 // B06 evidence, ours (the reference is Barkpark's LiveView Studio, which lists
 // every language as a row; the journey asks for tabs): volume-01's blurb opens
@@ -41,7 +41,7 @@ test('@evidence B06: localizedText language tabs', async ({page, context}, info)
   // F1 while typing in a language.
   const typed = await typeAndMeasure(page, t.field(page, 'blurb.eng'), ' Now longer.')
   info.annotations.push({type: 'F1 eng', description: JSON.stringify(stats(typed.keys))})
-  await expect.poll(() => t.docValue(ID, 'blurb', 'volume'), {timeout: 10_000}).toEqual({...BLURB, eng: `${BLURB.eng} Now longer.`})
+  await expect.poll(() => t.docValue(ID, 'blurb', 'volume'), BACKEND_POLL).toEqual({...BLURB, eng: `${BLURB.eng} Now longer.`})
 
   // The primary emptied: its dot goes, and the field says what readers get.
   await page.keyboard.press('Shift+Tab')
@@ -50,5 +50,5 @@ test('@evidence B06: localizedText language tabs', async ({page, context}, info)
   await t.field(page, 'blurb.nob').fill('')
   await expect(field.getByRole('status')).toHaveText('No nob text: readers get the eng text instead.')
   await field.screenshot({path: shot('2-fallback')})
-  await expect.poll(() => t.docValue(ID, 'blurb', 'volume'), {timeout: 10_000}).toEqual({eng: `${BLURB.eng} Now longer.`})
+  await expect.poll(() => t.docValue(ID, 'blurb', 'volume'), BACKEND_POLL).toEqual({eng: `${BLURB.eng} Now longer.`})
 })
