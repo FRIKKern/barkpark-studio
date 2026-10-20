@@ -41,3 +41,8 @@ test('a save’s advisory warnings carry the findings (#22406)', async () => {
   assert.equal(formPath('/seo/metaDescription'), 'seo.metaDescription')
   assert.equal(formPath('/rating'), 'rating')
 })
+
+// task-af038d8b0d769e82: Barkpark's unknown_desk_icon advisory, in the studio's words.
+test('an unknown desk icon is said with its name', () => {
+  assert.equal(findingSentence({path: '/items/1/icon', message: 'x', code: 'unknown_desk_icon', params: {icon: 'nope'}}, en), 'Unknown icon "nope": use a Sanity icon name. The item shows without an icon')
+})
