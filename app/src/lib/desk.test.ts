@@ -1,7 +1,7 @@
 // B12: desk URLs read against a declared desk, Sanity-style, and print back unchanged.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {deskSort, listFilter, normalizeDesk, paneTitleOf, parseDeskPanes, rootDesk, unsupportedOps, type DeskNode} from './desk.ts'
+import {deskSort, listFilter, newDocPreset, normalizeDesk, paneTitleOf, parseDeskPanes, rootDesk, unsupportedOps, type DeskNode} from './desk.ts'
 import {panesPath} from './panes.ts'
 
 // The shape GET /v1/structure returns for the Agency twin, cut down.
@@ -112,4 +112,16 @@ test("a declared list's paneTitle names the pane it opens; its row keeps title (
   const root = normalizeDesk({id: 'root', type: 'list', items: [{id: 'u', type: 'list', title: 'Utgivelser', paneTitle: 'Alle utgivelser', items: [anmeldt]}]})
   assert.equal(paneTitleOf(root.items![0]), 'Alle utgivelser')
   assert.equal(paneTitleOf(root.items![0].items![0]), 'Produkter med anmeldelser')
+})
+
+test("a declared list's initialValues go on the document its + starts (Barkpark desk initialValues)", () => {
+  const landing: DeskNode = {id: 'landingssider', type: 'document_type_list', typeName: 'page', title: 'Landingssider', initialValues: {pageType: 'landingPage'}}
+  assert.deepEqual(newDocPreset(landing, false), {pageType: 'landingPage'})
+  // A child list's + starts its template instead; a list without presets starts empty.
+  assert.deepEqual(newDocPreset(landing, true), {})
+  assert.deepEqual(newDocPreset({...landing, initialValues: undefined}, false), {})
+  assert.deepEqual(newDocPreset(undefined, false), {})
+  // normalizeDesk keeps it.
+  const root = normalizeDesk({id: 'root', type: 'list', items: [landing]})
+  assert.deepEqual(newDocPreset(root.items![0], false), {pageType: 'landingPage'})
 })

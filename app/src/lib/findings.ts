@@ -23,6 +23,7 @@ const SENTENCES: Record<string, string> = {
   language_key_not_string: 'Language keys must be text',
   language_not_declared: 'Language "{lang}" is not one of the declared languages',
   unknown_desk_icon: 'Unknown icon "{icon}": use a Sanity icon name. The item shows without an icon',
+  unknown_desk_preset: 'Preset "{field}" does not fit {type}: name a field of the type with a value of its kind. The list\'s + leaves it out',
   rich_text_shape: 'Expected rich text',
   text_not_string: 'Must be text',
   image_shape: 'Expected an image',

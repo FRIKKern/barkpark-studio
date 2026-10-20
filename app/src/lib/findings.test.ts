@@ -46,3 +46,11 @@ test('a save’s advisory warnings carry the findings (#22406)', async () => {
 test('an unknown desk icon is said with its name', () => {
   assert.equal(findingSentence({path: '/items/1/icon', message: 'x', code: 'unknown_desk_icon', params: {icon: 'nope'}}, en), 'Unknown icon "nope": use a Sanity icon name. The item shows without an icon')
 })
+
+// task-dc9b751450c2c2c4: Barkpark's unknown_desk_preset advisory, in the studio's words.
+test('a desk preset that does not fit its type is said with its field and type', () => {
+  assert.equal(
+    findingSentence({path: '/items/0/initialValues/ghost', message: 'x', code: 'unknown_desk_preset', params: {field: 'ghost', type: 'page'}}, en),
+    "Preset \"ghost\" does not fit page: name a field of the type with a value of its kind. The list's + leaves it out",
+  )
+})
