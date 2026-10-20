@@ -1,7 +1,7 @@
-import {lazy, Suspense, useEffect, useMemo, useRef, useState} from 'react'
+import {lazy, Suspense, useEffect, useMemo, useRef, useState, type MouseEvent} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {PERSPECTIVES, runVisionQuery, type Perspective, type VisionResult} from '../lib/vision'
-import {toCsv} from '../lib/vision-csv'
+import {resultRows, toCsv} from '../lib/vision-csv'
 import {apiVersions, customApiVersion} from '../lib/vision-groq'
 import {useNow} from '../lib/now'
 import {dashLine, localQueryError, queryError} from '../lib/vision-error'
@@ -117,8 +117,10 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   useEffect(() => {
     if (!readable(dataset)) setDataset(bound ?? pageDataset)
   }, [bound])
-  // A GROQ answer is {query, result, ms}: Vision shows its result, as Sanity's.
-  const parsed = (() => {
+  // A GROQ answer is {query, result, ms}: Vision shows its result, as Sanity's. Once per
+  // answer: parsed on every key typed in the query, a 4 MB result cost 117 ms a key (14 ms
+  // in Sanity's), and the tree drew anew from a new object each time.
+  const parsed = useMemo(() => {
     if (!result?.body || result.error) return undefined
     try {
       const body = JSON.parse(result.body) as unknown
@@ -126,11 +128,17 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     } catch {
       return undefined
     }
-  })()
-  const saved = parsed === undefined ? '' : result?.groq ? JSON.stringify(parsed, null, 2) : result!.body
+  }, [result])
+  const csvAble = useMemo(() => parsed !== undefined && resultRows(parsed) !== null, [parsed])
+  // The files are made when asked for, as a blob the link points at once clicked: as data:
+  // URLs in the page they were two more copies of the result, built on every key.
+  const saveAs = (e: MouseEvent<HTMLAnchorElement>, text: () => string, type: string) => {
+    const a = e.currentTarget
+    if (a.href.startsWith('blob:')) URL.revokeObjectURL(a.href)
+    a.href = URL.createObjectURL(new Blob([text()], {type}))
+  }
   // Where it went wrong, in the query as sent (its $params already put in).
   const failure = result && !result.ok && !result.error ? queryError(result.sent ?? result.query ?? query, result.body) : null
-  const csv = parsed === undefined ? null : toCsv(parsed)
   const remember = () => {
     try {
       localStorage.setItem(KEY, JSON.stringify({...edits.current, perspective, dataset, version}))
@@ -364,11 +372,11 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
             {parsed !== undefined && result?.ok && (
               <span className="vision-save">
                 {t('Save result as')}{' '}
-                <a className="btn vision-save-btn" download={`vision-${dataset}.json`} href={`data:application/json;charset=utf-8,${encodeURIComponent(saved)}`}>
+                <a className="btn vision-save-btn" download={`vision-${dataset}.json`} href="#" onClick={(e) => saveAs(e, () => (result.groq ? JSON.stringify(parsed, null, 2) : result.body), 'application/json;charset=utf-8')}>
                   <DocumentIcon /> JSON
                 </a>
-                {csv !== null ? (
-                  <a className="btn vision-save-btn" download={`vision-${dataset}.csv`} href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}>
+                {csvAble ? (
+                  <a className="btn vision-save-btn" download={`vision-${dataset}.csv`} href="#" onClick={(e) => saveAs(e, () => toCsv(parsed) ?? '', 'text/csv;charset=utf-8')}>
                     <DocumentIcon /> CSV
                   </a>
                 ) : (

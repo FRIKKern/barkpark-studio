@@ -35,7 +35,9 @@ export const runVisionQuery = createServerFn({method: 'GET'})
     try {
       const json = JSON.parse(text) as {ms?: unknown}
       if (target.kind === 'groq' && typeof json.ms === 'number') ms = json.ms
-      body = JSON.stringify(json, null, 2)
+      // A GROQ answer is drawn as a tree from its parse: sent as it came (a 4 MB result was 5.5 MB
+      // indented, and parsed back on the page). Barkpark's query string shows as text: indented.
+      if (target.kind !== 'groq') body = JSON.stringify(json, null, 2)
     } catch {}
     return {ok: res.ok, status: res.status, url, href: `${process.env.BARKPARK_URL}/w/${scope().workspace}/p/${scope().project}${url}`, ms, body, sent: target.sent, groq: target.kind === 'groq'}
   })
