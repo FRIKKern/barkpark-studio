@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 66 changes
+- **Today** · 67 changes
+  - perf: off-screen rows of a long array skip style, layout and paint ([#1044](https://github.com/FRIKKern/barkpark-studio/pull/1044))
   - fix(i18n): relative times as Sanity's: yesterday, weeks, last week, then the date ([#1042](https://github.com/FRIKKern/barkpark-studio/pull/1042))
-  - Early changes to controls with no id are kept: the boot rule finds them by their label ([#1041](https://github.com/FRIKKern/barkpark-studio/pull/1041))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
