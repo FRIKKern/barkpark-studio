@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 70 changes
+- **Today** · 71 changes
+  - e2e: eleven UI-only checks go @local (about 16 s of CI) ([#1046](https://github.com/FRIKKern/barkpark-studio/pull/1046))
   - Early changes: the label fallback replays only on a unique match, and never in the document form ([#1047](https://github.com/FRIKKern/barkpark-studio/pull/1047))
-  - A save refused as too large stops, says why, keeps the text and offers Retry ([#1045](https://github.com/FRIKKern/barkpark-studio/pull/1045))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
