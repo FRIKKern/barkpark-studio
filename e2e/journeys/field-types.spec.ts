@@ -35,6 +35,14 @@ test('field types store as Sanity: a dateFormat date, a list in its order, "1,50
   // Up steps a number, as Sanity's <input type="number"> does.
   await page.locator('[id="width"]').press('ArrowUp')
   await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1201)
+  // Typed fast, every key counts (an older save's echo put its number back under the caret:
+  // "123456789012345" was stored as 12356825), and a letter does nothing, as in Sanity's.
+  const width = page.locator('[id="width"]')
+  await width.fill('')
+  await width.pressSequentially('123456789012', {delay: 5})
+  await width.pressSequentially('x')
+  await expect.poll(() => value('width'), {timeout: 10_000}).toBe(123456789012)
+  await expect(width).toHaveValue('123456789012')
   // A geopoint stays a geopoint.
   await page.locator('[id="place.lat"]').fill('60.5')
   await expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522})
