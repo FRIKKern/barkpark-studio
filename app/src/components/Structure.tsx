@@ -30,6 +30,9 @@ import {InPresentationContext, PaneLink, usePaneNavigate} from './PaneLink'
 import {PaneBoundary, ReadErrorCard} from './PaneError'
 import {collate, t as tBrowser, useLocale, useT, type Locale} from '../lib/i18n'
 
+// How long a list search's result count waits after the last key before it is announced.
+const SEARCH_COUNT_SETTLE_MS = 600
+
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 /** Width of the pane area. Starts from the server's hint (cookie) so SSR and the first paint agree. */
@@ -843,7 +846,12 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         : docs.length === 1
           ? t('{title}, 1 document', {title: listTitle})
           : t('{title}, {n} documents', {title: listTitle, n: docs.length})
-    if (text !== heard.current) (heard.current = text, announce(text))
+    if (text === heard.current) return
+    if (!q) return void ((heard.current = text), announce(text))
+    // A search's count waits until typing pauses (screen-reader scout, task-70ad149bfd690929):
+    // said per key it was 8 counts for "Fixture post 0", over the reader's own key echo.
+    const timer = setTimeout(() => ((heard.current = text), announce(text)), SEARCH_COUNT_SETTLE_MS)
+    return () => clearTimeout(timer)
   }, [isLastPane, docs, shown.length, searchComplete, shownQuery, listTitle, page?.hasMore])
   // Typing in the search box re-renders this pane; the rows are only redrawn when what they show changes.
   const renderRow = useCallback(
