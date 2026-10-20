@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 99 changes
+- **Today** · 100 changes
+  - Desk: a tree's own filter narrows every level below its root ([#1076](https://github.com/FRIKKern/barkpark-studio/pull/1076))
   - fix: closing the workspace switcher no longer crashes the studio ([#1075](https://github.com/FRIKKern/barkpark-studio/pull/1075))
-  - fix(a11y): the navbar presence button is named Global presence, as Sanity's ([#1074](https://github.com/FRIKKern/barkpark-studio/pull/1074))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
