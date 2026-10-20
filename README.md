@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 91 changes
+- **Today** · 92 changes
+  - test(e2e): a failed test keeps its page snapshot ([#1068](https://github.com/FRIKKern/barkpark-studio/pull/1068))
   - test(e2e): my specs clean up with bpRemove, retried once before failing ([#1065](https://github.com/FRIKKern/barkpark-studio/pull/1065))
-  - fix(i18n): the schedule action's validation message as Sanity's English ([#1067](https://github.com/FRIKKern/barkpark-studio/pull/1067))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
