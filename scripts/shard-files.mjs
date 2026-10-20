@@ -1,7 +1,7 @@
 // CI's e2e shards by recorded time, not test count (Playwright's --shard): the heavy specs
 // spread over the shards, the same way every run. e2e/durations.json holds each spec's CI
-// seconds (0: it has no CI test, only @local / @evidence ones); a spec not in it yet counts
-// as the median recorded spec until it is recorded (it was 3 s, and new specs on 2026-10-16 ran
+// seconds (0: it has no CI test, only @local / @evidence ones); a spec not in it yet, or
+// recorded 0 but with a CI test now, counts as the median recorded spec until it is recorded (it was 3 s, and new specs on 2026-10-16 ran
 // longer: shard 5 past the 60 s cap on #856 and #863), and the log names it.
 //   node scripts/shard-files.mjs 2 4                    # the spec files for shard 2 of 4
 //   node scripts/shard-files.mjs --update <run> [<run>…] # re-record from CI runs (gh)
@@ -53,13 +53,18 @@ const secs = JSON.parse(readFileSync(FILE, 'utf8'))
 const specs = readdirSync(new URL('../e2e/journeys/', import.meta.url)).filter((f) => f.endsWith('.spec.ts'))
 const ran = Object.values(secs).filter((v) => v > 0).sort((a, b) => a - b)
 const UNKNOWN = ran.length ? ran[Math.floor(ran.length / 2)] : 3
-const unknown = specs.filter((f) => !(f in secs))
-if (unknown.length) console.error(`shard-files: not in e2e/durations.json yet, counted as ${UNKNOWN} s each: ${unknown.join(', ')}`)
+// A spec recorded as 0 s had no CI test then. One with a CI test now (a test whose title names
+// none of @local, @evidence, @baseline) counts as unrecorded until it is recorded: counted 0,
+// media-library.spec's first CI test (#1061) went to a full shard and ran it past the 60 s cap.
+const hasCiTest = (f) => [...readFileSync(new URL(`../e2e/journeys/${f}`, import.meta.url), 'utf8').matchAll(/^\s*test\(\s*(['"`])(.*?)\1/gm)].some((m) => !/@local|@evidence|@baseline/.test(m[2]))
+const timeOf = (f) => (secs[f] === 0 && hasCiTest(f) ? undefined : secs[f])
+const unknown = specs.filter((f) => timeOf(f) === undefined)
+if (unknown.length) console.error(`shard-files: not recorded yet (or recorded 0 s, with a CI test now), counted as ${UNKNOWN} s each: ${unknown.join(', ')}`)
 // Heaviest first, each onto the lightest shard so far (ties: the lower shard, then by name).
 const bins = Array.from({length: of}, () => ({secs: 0, files: []}))
-for (const f of specs.sort((a, b) => (secs[b] ?? UNKNOWN) - (secs[a] ?? UNKNOWN) || a.localeCompare(b))) {
+for (const f of specs.sort((a, b) => (timeOf(b) ?? UNKNOWN) - (timeOf(a) ?? UNKNOWN) || a.localeCompare(b))) {
   const bin = bins.reduce((min, b) => (b.secs < min.secs ? b : min))
-  bin.secs += secs[f] ?? UNKNOWN
+  bin.secs += timeOf(f) ?? UNKNOWN
   bin.files.push(`journeys/${f}`)
 }
 console.log(bins[n - 1].files.join(' '))
