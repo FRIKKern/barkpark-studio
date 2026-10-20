@@ -65,7 +65,7 @@ test('J05 J06: two browsers, different fields then the same field', async ({brow
       await expect(t.field(b, 'title')).toHaveValue(undone, {timeout: 10_000})
     }
     // Ours coalesces writes: let the last land before the reset.
-    if (t.name === 'studio') await Promise.all([a.getByText(/^Saved$/).waitFor(), b.getByText(/^Saved$/).waitFor()])
+    if (t.name === 'studio') await Promise.all([a.locator('.save-state-text', {hasText: /^Saved$/}).waitFor(), b.locator('.save-state-text', {hasText: /^Saved$/}).waitFor()])
   } finally {
     await t.restore(ID, SEED)
     await Promise.all([ctxA.close(), ctxB.close()])
@@ -100,7 +100,7 @@ test('@local F7: undo with the focus outside the form is the document\'s, across
     await expect(t.field(page, 'title')).toHaveValue(SEED.title)
     await page.keyboard.press('Shift+ControlOrMeta+z')
     await expect(t.field(page, 'title')).toHaveValue(`${SEED.title} A`)
-    await page.getByText(/^Saved$/).waitFor()
+    await page.locator('.save-state-text', {hasText: /^Saved$/}).waitFor()
   } finally {
     await t.restore(ID, SEED)
   }

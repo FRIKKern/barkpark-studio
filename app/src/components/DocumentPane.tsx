@@ -1157,6 +1157,11 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
             : saved
               ? t('Saved')
               : t('Edited {ago}', {ago: ago(doc._updatedAt, locale, now)})
+  // What a screen reader hears (task-439d714d1ef00cec): only a change of state, once, as
+  // Sanity's (which says nothing on save or idle). The label above is a relative time
+  // ("Edited 7 min. ago") that the clock rewrites every minute, beside the editor's initial:
+  // in the live region it was read out unasked, "B Edited 8 min. ago".
+  const spoken = state === 'refused' ? label : state in STATE_LABELS ? t(STATE_LABELS[state]!) : saved ? t('Saved') : ''
   return (
     <footer className="doc-footer">
       {/* Sanity's status bar: the status and the badges wrap as one group (a narrow pane puts the
@@ -1164,12 +1169,15 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       <div className="doc-footer-status">
         {/* Sanity's status is a button: it opens History on Review changes (the keyboard reaches it too). */}
         <button type="button" className="save-state-btn" aria-label={label || undefined} onClick={onReview} disabled={!label}>
-          <span className="save-state" data-state={state} data-saved={saved || undefined} title={error} role="status">
+          <span className="save-state" data-state={state} data-saved={saved || undefined} title={error}>
             {/* Sanity's marks: a check once saved, a turning arrow while saving. */}
             {saved ? <CheckmarkCircle /> : state === 'saving' ? <SyncIcon /> : <FooterActor actor={actor} pending={actorPending} />}
             <span className="save-state-text">{label}</span>
           </span>
         </button>
+        <span className="sr-only" role="status">
+          {spoken}
+        </span>
         {state === 'signedOut' && (
           <SignInAgain />
         )}
