@@ -20,10 +20,11 @@
 import '@tanstack/react-start/server-only'
 import {bpFetch, forgetReads, forgetReadsOf, READ_DEDUPE_MS, scope} from './barkpark'
 import type {Scope} from '../lib/scope'
+import {withoutDeleted} from '../lib/replay'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
-type Buffered = {id: number; docId: string; type?: string; frame: string; at: number}
+type Buffered = {id: number; docId: string; type?: string; mutation?: string; frame: string; at: number}
 const BUFFER = 2000
 
 // One hub per token and scope: each editor listens as themself (their own access, their
@@ -103,7 +104,7 @@ export async function resumeMark(token: string): Promise<number | null> {
 
 export const publishedId = (id: string) => (id.startsWith('drafts.') ? id.slice(7) : id)
 
-export function subscribe(token: string, ids: string[], types: string[], send: Subscriber['send'], since?: number, resumed = false): () => void {
+export function subscribe(token: string, ids: string[], types: string[], send: Subscriber['send'], since?: number, resumed = false, latest = false): () => void {
   const hub = hubFor(token)
   const {buffer, subscribers} = hub
   const knownFrom = hub.knownFrom
@@ -112,7 +113,16 @@ export function subscribe(token: string, ids: string[], types: string[], send: S
     // -1: the page had seen nothing yet when it was told the head (welcome) —
     // everything buffered is after that.
     if (since >= 0 && knownFrom !== null && since + 1 < knownFrom) send('event: reset\ndata: {}\n\n')
-    else for (const b of buffer) if (b.id > since && wants(sub, b.docId, b.type)) send(b.frame)
+    else {
+      const frames = buffer.filter((b) => b.id > since && wants(sub, b.docId, b.type))
+      // `latest`: a page's first stream and the interests it adds later (a pane opened) resume
+      // from a mark taken before their reads, so older frames come too: those a later delete
+      // makes moot are left out. An update of a doc deleted since put it back on a list read
+      // without it until the delete's frame came: a row slid in under the editor's focus (J19
+      // on CI, after image-shape.spec deleted its posts). A stream opened again after a gap
+      // gets every frame it missed, in order (F8).
+      for (const b of latest ? withoutDeleted(frames) : frames) send(b.frame)
+    }
   }
   subscribers.add(sub)
   clearTimeout(hub.idleTimer)
@@ -279,7 +289,7 @@ function dispatch(hub: Hub, frame: string) {
   }
   if (id) hub.lastEventId = id
   if (event !== 'mutation' || data.length === 0) return
-  const payload = JSON.parse(data.join('\n')) as {documentId?: string; type?: string}
+  const payload = JSON.parse(data.join('\n')) as {documentId?: string; type?: string; mutation?: string}
   if (!payload.documentId || !id) return
   const n = Number(id)
   if (buffer.length && n <= buffer[buffer.length - 1].id) return // replayed by upstream after a reconnect
@@ -290,7 +300,7 @@ function dispatch(hub: Hub, frame: string) {
   hub.lastFrameFor.set(docId, Date.now())
   if (hub.lastFrameFor.size > 5000) hub.lastFrameFor.clear()
   const out = `id: ${id}\nevent: mutation\ndata: ${data.join('\n')}\n\n`
-  buffer.push({id: n, docId, type: payload.type, frame: out, at: Date.now()})
+  buffer.push({id: n, docId, type: payload.type, mutation: payload.mutation, frame: out, at: Date.now()})
   if (buffer.length > BUFFER) {
     buffer.shift()
     hub.knownFrom = buffer[0].id

@@ -43,11 +43,14 @@ export const Route = createFileRoute('/api/stream')({
             // yet still knows where to resume from.
             send(`id: ${Number.isFinite(since) ? since : head(token)}\nevent: welcome\ndata: {}\n\n`)
             let unsubscribe = () => {}
-            const listen = (ids: string[], types: string[], from?: number, again = false) => {
+            const listen = (ids: string[], types: string[], from?: number, again = false, latest = true) => {
               unsubscribe()
-              unsubscribe = ids.length + types.length ? subscribe(token, ids, types, send, from, again) : () => {}
+              unsubscribe = ids.length + types.length ? subscribe(token, ids, types, send, from, again, latest) : () => {}
             }
-            listen(list('ids'), list('types'), Number.isFinite(since) ? since : undefined, resumed)
+            // A page's first stream after its server render and a change of interests leave out
+            // the frames a later delete makes moot (lib/replay.ts); a stream opened again after a
+            // gap gets every frame it missed (F8).
+            listen(list('ids'), list('types'), Number.isFinite(since) ? since : undefined, resumed, resumed)
             open.set(id, {token, listen: (ids, types, from) => listen(ids, types, from)})
             // Presence: Barkpark's room for this tab's session. Refused, it is asked again
             // here in a while (the live frames go on). Ended by Barkpark (the room dropped a
