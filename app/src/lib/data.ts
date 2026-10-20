@@ -195,7 +195,15 @@ const fetchListSearch = createServerFn({method: 'GET'})
 const fetchDoc = createServerFn({method: 'GET'})
   .validator((d: {type: string | string[]; id: string}) => d)
   .handler(async ({data}) => {
-    for (const type of [data.type].flat()) {
+    let types = [data.type].flat()
+    // An id any of several types may hold (presence names a doc by id only): one read names
+    // its type. Asking each type in turn was a read per type, 64 in a row for a 64-type model.
+    if (types.length > 1) {
+      const type = (await typesOf([data.id]))[data.id]
+      if (!type || !types.includes(type)) return null
+      types = [type]
+    }
+    for (const type of types) {
       const path = `/v1/data/doc/${dataset()}/${encodeURIComponent(type)}/${encodeURIComponent(data.id)}?perspective=drafts`
       const res = await bpFetch(path)
       if (res.status === 404) continue
@@ -262,19 +270,20 @@ export async function ensureDocs(client: QueryClient, types: string[], ids: stri
 }
 
 /** The types of `ids` (published or draft spelling), in one read: `{id: type}`. */
+async function typesOf(ids: string[]): Promise<Record<string, string>> {
+  const qs = new URLSearchParams({query: '*[_id in $ids]{_id, _type}', perspective: 'raw'})
+  qs.set('$ids', JSON.stringify(ids.flatMap((id) => [id, `drafts.${id}`])))
+  const r = await bpJson<{result: {_id: string; _type: string}[]}>(`/v2025-02-19/data/query/${dataset()}?${qs}`)
+  return Object.fromEntries(r.result.map((d) => [d._id.replace(/^drafts\./, ''), d._type]))
+}
 const fetchTypesOf = createServerFn({method: 'GET'})
   .validator((d: {ids: string[]}) => d)
-  .handler(async ({data}) => {
-    const qs = new URLSearchParams({query: '*[_id in $ids]{_id, _type}', perspective: 'raw'})
-    qs.set('$ids', JSON.stringify(data.ids.flatMap((id) => [id, `drafts.${id}`])))
-    const r = await bpJson<{result: {_id: string; _type: string}[]}>(`/v2025-02-19/data/query/${dataset()}?${qs}`)
-    return Object.fromEntries(r.result.map((d) => [d._id.replace(/^drafts\./, ''), d._type])) as Record<string, string>
-  })
+  .handler(async ({data}) => typesOf(data.ids))
 
 /**
  * `anyDocQuery`'s cache for `ids`, in batches: their types in one read, then `ensureDocs`
- * per type. One `anyDocQuery` asks every schema type for its id, so a list of them was a
- * read per type per row; a missing doc is cached as null, as anyDocQuery answers it.
+ * per type. One `anyDocQuery` per row was two reads per row; a missing doc is cached as
+ * null, as anyDocQuery answers it.
  */
 export async function ensureAnyDocs(client: QueryClient, ids: string[]) {
   const missing = [...new Set(ids)].filter((id) => client.getQueryData(['doc-any', id]) === undefined)
@@ -564,14 +573,12 @@ export const searchQuery = (type: string | string[], q: string, filter?: RefFilt
 const fetchDocAnyType = createServerFn({method: 'GET'})
   .validator((d: {id: string}) => d)
   .handler(async ({data}) => {
-    const types = (await readSchemas()).map((s) => s.name)
-    const hits = await Promise.all(
-      types.map(async (type) => {
-        const res = await bpFetch(`/v1/data/doc/${dataset()}/${encodeURIComponent(type)}/${encodeURIComponent(data.id)}?perspective=drafts`)
-        return res.ok ? ((await res.json()) as {result: Json}).result : null
-      }),
-    )
-    return hits.find(Boolean) ?? null
+    // One read names its type, one reads it. A read per schema type was 64 at once for a
+    // 64-type model, and 3.8 s to say an id is not there.
+    const [type, schemas] = await Promise.all([typesOf([data.id]).then((t) => t[data.id]), readSchemas()])
+    if (!type || !schemas.some((s) => s.name === type)) return null
+    const res = await bpFetch(`/v1/data/doc/${dataset()}/${encodeURIComponent(type)}/${encodeURIComponent(data.id)}?perspective=drafts`)
+    return res.ok ? ((await res.json()) as {result: Json}).result : null
   })
 export const anyDocQuery = (id: string) =>
   queryOptions({queryKey: ['doc-any', id], staleTime: 30_000, queryFn: async () => (await fetchDocAnyType({data: {id}})) as unknown as (Doc & {preview?: {description?: string}}) | null})
