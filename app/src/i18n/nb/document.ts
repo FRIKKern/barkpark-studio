@@ -331,7 +331,7 @@ export default {
   'Enter focus mode': 'Gå til fokusmodus',
   'Exit focus mode': 'Gå ut av fokusmodus',
   // J40: scheduled publish (from Sanity's nb-NO pack where it has the string).
-  'Cannot schedule draft due to validation issues in the current draft.': 'Kan ikke planlegge utkast på grunn av valideringsfeil i gjeldende utkast.',
+  'Cannot Schedule Draft due to validation errors in the current draft.': 'Kan ikke planlegge utkast på grunn av valideringsfeil i gjeldende utkast.',
   'Delete schedule': 'Slett tidsplan',
   'Select a date in the future.': 'Velg en dato i fremtiden.',
   'Pause to edit': 'Sett på pause for å redigere',

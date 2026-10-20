@@ -1238,7 +1238,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
           <MenuPopover className="popover menu up" onClose={closeMenu}>
             {/* J40: Sanity's Schedule publish (a draft to publish, a Barkpark that schedules), or Delete schedule once set. Listed first, as Sanity's; Duplicate keeps the focus. */}
             {!single && scheduleQ.data?.supported && (!schedule || paused) && doc._draft && (
-              <button type="button" role="menuitem" className="menu-item" disabled={!canWrite || !!publishReason || blocked > 0} title={publishReason ?? (blocked > 0 ? t('Cannot schedule draft due to validation issues in the current draft.') : undefined)} onClick={() => (setMenu(false), setScheduling(true))}>
+              <button type="button" role="menuitem" className="menu-item" disabled={!canWrite || !!publishReason || blocked > 0} title={publishReason ?? (blocked > 0 ? t('Cannot Schedule Draft due to validation errors in the current draft.') : undefined)} onClick={() => (setMenu(false), setScheduling(true))}>
                 <span className="menu-icon-text">
                   <Calendar /> {t('Schedule publish')}
                 </span>
