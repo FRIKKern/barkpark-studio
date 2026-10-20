@@ -95,7 +95,7 @@ const IDS: [string, string[], string][] = [
   ['fox dog', ['The quick brown fox', 'Fox brown quick'], ''],
 ]
 // One search dialog for all of them (CI's budget: a page load each was 11 s).
-test('a search folds æøå in titles, the exact spelling first, and matches ids as Sanity does', async ({page, context}, info) => {
+test('@local a search folds æøå in titles, the exact spelling first, and matches ids as Sanity does', async ({page, context}, info) => {
   // Six searches in a row: on a loaded CI box one Barkpark search took 6.3 s (main's
   // ci-2, run 38328314136: the right results, but after the 15 s test budget). It
   // guards which docs come back, not how fast; speed is J38's F-numbers.

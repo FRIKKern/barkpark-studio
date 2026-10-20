@@ -87,11 +87,13 @@ test('Releases tool: scheduled drafts, calendar day filter and time zone, Active
   const title = `Releases probe ${id.slice(-6)}`
   const at = new Date(Date.now() + 2 * 86_400_000)
   at.setUTCHours(8, 0, 0, 0)
-  await t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}})
+  // The draft and its schedule are made while the browser gets ready (as refs.spec, #935).
+  const [made] = await Promise.all([
+    t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}}).then(() => fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: at.toISOString()})})),
+    t.prepare(context),
+  ])
   try {
-    const made = await fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: at.toISOString()})})
     expect(made.ok, await made.clone().text()).toBe(true)
-    await t.prepare(context)
     await page.goto(t.docPath('post', id))
     await signInIfAsked(page)
     await t.settle(page)

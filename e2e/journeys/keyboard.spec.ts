@@ -205,7 +205,7 @@ test('J19: Ctrl+Alt+P and Ctrl+Alt+D do nothing from the list; Delete from the p
 // At 768, as Sanity's: a document opened by its URL has focus on "All fields". Its pane
 // starts narrow (the group select shows) and widens as the panes beside it fold; the
 // select it first took focus on hides, and focus fell to the page.
-test('J19: at 768 an opened document has focus on its field groups', async ({page}, info) => {
+test('@local J19: at 768 an opened document has focus on its field groups', async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
   await page.setViewportSize({width: 768, height: 844})
