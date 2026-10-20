@@ -411,6 +411,8 @@ export default {
   'View calendar': 'Vis kalender',
   'Previous month': 'Forrige måned',
   'Next month': 'Neste måned',
+  'Go to next month': 'Gå til neste måned',
+  'Go to previous month': 'Gå til forrige måned',
   'Go to today': 'Gå til i dag',
   Today: 'I dag',
   'Time zone updated': 'Tidssonen er oppdatert',
