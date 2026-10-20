@@ -10,7 +10,7 @@ import type {Field} from '../lib/data'
 import {assetUrl} from '../lib/image'
 import {useLocale, useT} from '../lib/i18n'
 import {accepts, ago, formatBytes, humanBytes, mayAccept, mimeTitle, type FileAsset} from '../lib/files'
-import {uploadFile, UploadError} from '../lib/upload'
+import {uploadFile, uploadReason, UploadError} from '../lib/upload'
 import type {ImageMeta} from '../lib/image-meta'
 import {UploadProgress} from './UploadProgress'
 
@@ -65,8 +65,8 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
       use(await uploadFile(f, (progress) => setUploading((u) => u && u.stop === stop ? {...u, progress} : u), stop.signal))
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
-      setFailed(f)
-      toast({tone: 'critical', title: t('Upload failed'), description: err instanceof UploadError && err.network ? t('The network is unreachable.') : t('The upload could not be completed at this time.')})
+      if (!(err instanceof UploadError && err.tooLarge)) setFailed(f)
+      toast({tone: 'critical', title: t('Upload failed'), description: uploadReason(err, t)})
     } finally {
       setUploading((u) => (u?.stop === stop ? null : u))
     }
@@ -109,7 +109,9 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
 
   return (
     <div className="file-input" id={id}>
-      <input ref={setChooser} type="file" accept={accept} hidden onChange={(e) => (e.target.files?.[0] && upload(e.target.files[0]), (e.target.value = ''))} />
+      {/* The chooser's accept is a hint the browser lets the editor override ("All files"): a file it
+          doesn't accept is refused here as a drop is, not uploaded and stored (Sanity's refuses it). */}
+      <input ref={setChooser} type="file" accept={accept} hidden onChange={(e) => (take(filesOf(e.target.files)), (e.target.value = ''))} />
       {uploading ? (
         <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />
       ) : !ref ? (

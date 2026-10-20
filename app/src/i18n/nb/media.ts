@@ -58,6 +58,7 @@ export default {
   'Square': 'Kvadrat',
   'Panorama': 'Panorama',
   'The upload could not be completed at this time.': 'Opplastingen kunne ikke fullføres akkurat nå.',
+  'The file is too large to upload.': 'Filen er for stor til å lastes opp.',
   'Can\'t upload this file here': 'Kan ikke laste opp denne filen her',
   'Drop to upload file': 'Slipp for å laste opp fil',
   '{title}: drop, paste or upload a file': '{title}: slipp, lim inn eller last opp en fil',
