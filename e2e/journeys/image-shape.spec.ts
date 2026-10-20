@@ -1,6 +1,6 @@
 import {expect, test, type Page} from '@playwright/test'
 import {seedAssets} from '../../scripts/lib/seed-assets.mjs'
-import {bpBase, bpDataset, bpMutate, signInIfAsked, target} from '../rig/targets'
+import {bpBase, bpDataset, bpMutate, signInIfAsked, target, bpRemove, closeAndSettle} from '../rig/targets'
 
 // An image's stored shape (task-fd8c8097867ebe9f): a new pick stores Sanity's canonical
 // {_type: 'image', asset: {_type: 'reference', _ref}}; the bare {asset: {_ref}} older content
@@ -40,7 +40,8 @@ test('image shape: the old and the canonical read the same; an untouched old one
     await field.locator('input[type=file]').first().setInputFiles('../fixtures/assets/fixture-image.png')
     await expect.poll(() => t.docValue(OLD, 'mainImage'), {timeout: 15_000}).toEqual({_type: 'image', asset: {_type: 'reference', _ref: ref}, alt: 'Same picture'})
   } finally {
-    await bpMutate([{delete: {id: OLD, type: 'post', force: true}}, {delete: {id: NEW, type: 'post', force: true}}]).catch(() => {})
+    await closeAndSettle(page)
+    await Promise.all([bpRemove(OLD, 'post'), bpRemove(NEW, 'post')])
   }
 })
 

@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {bpMutate, bpRemove, signInIfAsked, target} from '../rig/targets'
+import {bpMutate, bpRemove, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // task-6fe143f72dc55f55: keys typed into the server-drawn form before React has it are kept.
 // They were silently lost (the inputs look editable from the first paint; Sanity's appear
@@ -33,7 +33,7 @@ test('keys typed before hydration are saved, not dropped', async ({page}, info) 
     await expect(title).toHaveValue('Early typed')
   } finally {
     // Closed first: a save still on its way would write the draft again after the delete.
-    await page.close()
+    await closeAndSettle(page)
     await bpRemove(id, 'post')
   }
 })
@@ -65,7 +65,7 @@ test('a checkbox, select and checkbox list changed before hydration are saved', 
     await expect(page.locator('[id="agree"]')).toBeChecked()
   } finally {
     // Closed first: a save still on its way would write the draft again after the delete.
-    await page.close()
+    await closeAndSettle(page)
     await bpRemove(id, 'fieldTypes')
   }
 })

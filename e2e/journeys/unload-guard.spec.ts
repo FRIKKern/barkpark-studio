@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type BrowserContext, type Page} from '@playwright/test'
-import {bpMutate, target, closeAndSettle} from '../rig/targets'
+import {bpMutate, target, closeAndSettle, bpRemove} from '../rig/targets'
 
 // B11 (Barkpark-native, ours only): closing the tab asks first while anything typed has
 // not reached Barkpark: a field edit still batching, a Freeform canvas edit not yet
@@ -125,6 +125,6 @@ test('B11: a typed, uncommitted date asks before the tab closes, and is saved if
     await expect.poll(() => asked, {intervals: [50]}).toBe(true)
     await expect.poll(() => t.docValue(id, 'day', 'fieldTypes'), {timeout: 6_000}).toBe('2026-10-14')
   } finally {
-    await bpMutate([{delete: {id, type: 'fieldTypes', force: true}}]).catch(() => {})
+    await bpRemove(id, 'fieldTypes')
   }
 })

@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {bpMutate, signInIfAsked, target} from '../rig/targets'
+import {bpMutate, signInIfAsked, target, bpRemove, closeAndSettle} from '../rig/targets'
 
 // J28 guard (a CI gate), as Sanity's slug rule: a duplicate's copied slug is "already in
 // use": the field is marked, publishing waits, and a new slug clears it. The copy is
@@ -49,6 +49,7 @@ test("a slug is in use whether it is stored as a string or as Sanity's {current}
       await expect(taken, id).toHaveCount(1)
     }
   } finally {
-    await bpMutate([{delete: {id: obj, type: 'post', force: true}}, {delete: {id: str, type: 'post', force: true}}]).catch(() => {})
+    await closeAndSettle(page)
+    await Promise.all([bpRemove(obj, 'post'), bpRemove(str, 'post')])
   }
 })
