@@ -1,4 +1,4 @@
-import {relativeTime} from './relative-time'
+import {dateTime, relativeTime} from './relative-time'
 import {createContext, useContext, type ReactNode} from 'react'
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
@@ -135,6 +135,10 @@ export const collate = (a: string, b: string, locale: Locale = browserLocale) =>
  * "for 12 min siden", "i går", "forrige uke", "5. sep.". A date reads `zone`'s calendar: pass useZone()
  * (lib/now.ts), the same on the server and while the page hydrates.
  */
-export function ago(iso: string, locale: Locale = browserLocale, now = Date.now(), zone = 'UTC'): string {
-  return relativeTime(iso, intlTag(locale), now, zone) ?? translate(locale, 'just now')
+export function ago(iso: string, locale: Locale = browserLocale, now = Date.now(), zone = 'UTC', minimal = true): string {
+  return relativeTime(iso, intlTag(locale), now, zone, minimal) ?? translate(locale, 'just now')
 }
+
+/** A date to hover (a time's title), in `zone`: History's "Oct 11, 2026, 5:28 PM" (medium); comments' "Sunday, October 11, 2026 at 5:28:30 PM" (full), as Sanity's. */
+export const dateTitle = (iso: string, locale: Locale, zone: string, style: 'medium' | 'full' = 'medium') =>
+  dateTime(intlTag(locale), zone, style === 'full' ? {dateStyle: 'full', timeStyle: 'medium'} : {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(iso))

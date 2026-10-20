@@ -27,13 +27,17 @@ function monthsBetween(then: Date, now: Date, timeZone: string) {
   return (y2! - y1!) * 12 + (m2! - m1!) - (later >= 0 && rest2[later]! < rest1[later]! ? 1 : 0)
 }
 
-/** The phrase for `iso` seen at `now` in a BCP 47 `tag` (dates on `zone`'s calendar), or null for "just now". */
-export function relativeTime(iso: string, tag: string, now = Date.now(), zone = 'UTC'): string | null {
+/**
+ * The phrase for `iso` seen at `now` in a BCP 47 `tag` (dates on `zone`'s calendar), or null for
+ * "just now". Not `minimal` (Sanity's comments): the long phrases ("5 hours ago") and, from a
+ * month on, the date with its time ("Sep 5, 2026, 3:45 PM").
+ */
+export function relativeTime(iso: string, tag: string, now = Date.now(), zone = 'UTC', minimal = true): string | null {
   const then = new Date(iso)
   const s = Math.max(0, (now - then.getTime()) / 1000)
   if (s <= 10) return null
-  if (monthsBetween(then, new Date(now), zone) > 0) return dtf(tag, wall(then, zone)[0] !== wall(new Date(now), zone)[0], zone).format(then)
-  const unit = (count: number, u: Intl.RelativeTimeFormatUnit, longAtOne = false) => rtf(tag, longAtOne && count === 1 ? 'long' : 'short').format(-count, u)
+  if (monthsBetween(then, new Date(now), zone) > 0) return minimal ? dtf(tag, wall(then, zone)[0] !== wall(new Date(now), zone)[0], zone).format(then) : dateTime(tag, zone, {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric'}).format(then)
+  const unit = (count: number, u: Intl.RelativeTimeFormatUnit, longAtOne = false) => rtf(tag, !minimal || (longAtOne && count === 1) ? 'long' : 'short').format(-count, u)
   const days = Math.floor(s / 86_400)
   if (days >= 7) return unit(Math.floor(days / 7), 'week', true)
   if (days) return unit(days, 'day', true)
@@ -41,3 +45,7 @@ export function relativeTime(iso: string, tag: string, now = Date.now(), zone = 
   if (s >= 60) return unit(Math.floor(s / 60), 'minute')
   return unit(Math.floor(s), 'second')
 }
+
+const dts: Record<string, Intl.DateTimeFormat> = {}
+/** A cached Intl.DateTimeFormat in `zone`. */
+export const dateTime = (tag: string, zone: string, options: Intl.DateTimeFormatOptions) => (dts[`${tag}|${zone}|${JSON.stringify(options)}`] ??= new Intl.DateTimeFormat(tag, {...options, timeZone: zone}))

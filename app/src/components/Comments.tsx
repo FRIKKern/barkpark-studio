@@ -8,7 +8,7 @@ import {insertMention, mentionAt, messageParts, REACTIONS, reactionGroups} from 
 import {meQuery, useCanWrite} from '../lib/session'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {ago} from './HistoryPanel'
-import {intlTag, useLocale, useT} from '../lib/i18n'
+import {dateTitle, useLocale, useT} from '../lib/i18n'
 import {AddComment, Check, ChevronDown, Close, CommentIcon, Ellipsis, LinkRemoved, Mention, Send, Undo} from './icons'
 import {toast} from './Toasts'
 import {PersonName} from './Presence'
@@ -536,10 +536,15 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
       <div className="comment-body">
         <div className="comment-meta">
           <strong>{author}</strong>
-          <time dateTime={comment.createdAt} title={new Date(comment.createdAt).toLocaleString(intlTag(locale))}>
-            {ago(comment.createdAt, locale, undefined, zone)}
+          {/* Sanity's: the long phrase ("5 hours ago"), the full date and time to hover, the edit's too. */}
+          <time dateTime={comment.createdAt} title={dateTitle(comment.createdAt, locale, zone, 'full')}>
+            {ago(comment.createdAt, locale, undefined, zone, false)}
           </time>
-          {comment.editedAt && <span className="muted">{t('(edited)')}</span>}
+          {comment.editedAt && (
+            <span className="muted" title={dateTitle(comment.editedAt, locale, zone, 'full')}>
+              {t('(edited)')}
+            </span>
+          )}
           <span className="comment-actions">
             {head && onToggle && (
               <button type="button" className="icon-btn" aria-label={resolved ? t('Re-open') : t('Mark comment as resolved')} title={resolved ? t('Re-open') : t('Mark as resolved')} onClick={onToggle}>

@@ -31,3 +31,10 @@ test('relative time: a date reads the given zone (UTC while hydrating, the brows
   assert.equal(relativeTime(at, 'en-US', now, 'Pacific/Kiritimati'), 'Sep 6')
   assert.equal(relativeTime(at, 'nb-NO', now, 'Pacific/Kiritimati'), '6. sep.')
 })
+
+test("relative time, not minimal (Sanity's comments): long phrases, and the date with its time", () => {
+  assert.equal(relativeTime(back(5 * 3600), 'en-US', now, 'UTC', false), '5 hours ago')
+  assert.equal(relativeTime(back(180), 'nb-NO', now, 'UTC', false), 'for 3 minutter siden')
+  assert.equal(relativeTime(back(86_400), 'en-US', now, 'UTC', false), 'yesterday')
+  assert.equal(relativeTime(back(45 * 86_400), 'en-US', now, 'UTC', false), 'Sep 5, 2026, 12:00 PM')
+})
