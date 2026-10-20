@@ -35,9 +35,10 @@ const MARK_WAIT_MS = 15_000
 /**
  * J51, inline in <head>: on a slow network the server-rendered page shows a while
  * before its code runs. Links work meanwhile (full page loads); a button would do
- * nothing, so its click is held (window.__earlyClicks) until releaseEarlyClicks().
+ * nothing, so its click is held (window.__earlyClicks) until releaseEarlyClicks(). Keys typed
+ * into an input then are noted too (window.__earlyTyped) and put in again (typeWhenLive).
  */
-export const EARLY_CLICKS = `window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
+export const EARLY_CLICKS = `window.__earlyTyped=new Map();document.addEventListener('input',function(e){var m=window.__earlyTyped,t=e.target;if(!m||!t||!t.id||(t.tagName!=='INPUT'&&t.tagName!=='TEXTAREA'))return;for(var k in t)if(k.indexOf('__reactProps$')===0)return;m.set(t.id,t)},true);window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
 
 let pending: Promise<unknown> | null = null
 /**
@@ -58,11 +59,14 @@ export function releaseEarlyClicks() {
     void until.then(releaseEarlyClicks)
     return
   }
-  const w = window as {__earlyClicks?: HTMLElement[] | null}
+  const w = window as {__earlyClicks?: HTMLElement[] | null; __earlyTyped?: Map<string, HTMLInputElement | HTMLTextAreaElement> | null}
   const held = w.__earlyClicks ?? []
   w.__earlyClicks = null
   const at = performance.now()
   for (const el of held) clickWhenLive(el, at)
+  const typed = w.__earlyTyped ?? new Map()
+  w.__earlyTyped = null
+  for (const [id, el] of typed) typeWhenLive(id, el)
 }
 
 /**
@@ -79,6 +83,26 @@ function clickWhenLive(el: HTMLElement, since: number, frames = 180) {
   const now = el.isConnected ? el : counterpart(el)
   if (now && (isLive(now) || frames === 0)) return void now.click()
   if (frames > 0) requestAnimationFrame(() => clickWhenLive(el, since, frames - 1))
+}
+
+/**
+ * The same for keys (task-6fe143f72dc55f55): the server-drawn form takes typing before React
+ * has it, and what was typed never reached the edit queue (silently lost on a slow load).
+ * EARLY_CLICKS also notes each input typed into while inert; once React has the field (the
+ * same element, or the one drawn in its place under the same id) its text is put in again
+ * as an input event, so the field's own onChange takes it, as if typed now.
+ */
+function typeWhenLive(id: string, early: HTMLInputElement | HTMLTextAreaElement, frames = 180) {
+  const now = (early.isConnected ? early : document.getElementById(id)) as HTMLInputElement | HTMLTextAreaElement | null
+  if (now && isLive(now)) return retype(now, early.value)
+  if (frames > 0) requestAnimationFrame(() => typeWhenLive(id, early, frames - 1))
+}
+function retype(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
+  Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(el, value)
+  // React fires onChange only for a value its tracker hasn't seen: hydrating in place, it saw this one.
+  ;(el as {_valueTracker?: {setValue: (v: string) => void}})._valueTracker?.setValue(value === '' ? ' ' : '')
+  el.dispatchEvent(new Event('input', {bubbles: true}))
 }
 
 let lastPointerDown = 0
