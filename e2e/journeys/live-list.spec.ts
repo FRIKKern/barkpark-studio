@@ -112,9 +112,9 @@ test('a list item keeps every key typed fast', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours: the item input')
   const id = `post-list-${Date.now().toString(36)}`
-  await t.draftOnly(id, 'post', {title: 'List probe', slug: {_type: 'slug', current: id}, highlights: ['one', 'two', 'three']})
+  // The probe is made while the browser gets ready (as refs.spec, #935).
+  await Promise.all([t.draftOnly(id, 'post', {title: 'List probe', slug: {_type: 'slug', current: id}, highlights: ['one', 'two', 'three']}), t.prepare(page.context())])
   try {
-    await t.prepare(page.context())
     await page.goto(t.docPath('post', id))
     await signInIfAsked(page)
     await t.settle(page)
