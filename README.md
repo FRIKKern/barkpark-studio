@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 85 changes
+- **Today** · 86 changes
+  - Desk: a declared list's initialValues preset the document its + starts ([#1064](https://github.com/FRIKKern/barkpark-studio/pull/1064))
   - test(e2e): early-typing cleanup removes drafts and fails loudly ([#1062](https://github.com/FRIKKern/barkpark-studio/pull/1062))
-  - fix(live): a deleted draft moots only the draft's replayed frames ([#1059](https://github.com/FRIKKern/barkpark-studio/pull/1059))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
