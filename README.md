@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 68 changes
+- **Today** · 69 changes
+  - A save refused as too large stops, says why, keeps the text and offers Retry ([#1045](https://github.com/FRIKKern/barkpark-studio/pull/1045))
   - Save faults: a lost answer on a live connection says "Not saved — retrying", not "Offline"; an e2e lever for write faults ([#1043](https://github.com/FRIKKern/barkpark-studio/pull/1043))
-  - perf: off-screen rows of a long array skip style, layout and paint ([#1044](https://github.com/FRIKKern/barkpark-studio/pull/1044))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
