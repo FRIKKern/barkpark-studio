@@ -800,9 +800,20 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
   // in English "1,500" is not a number, so the field is unset and keeps what was typed.
   const decimal = decimalSeparator(intlTag(useLocale()))
   const parse = (s: string) => parseNumber(s, decimal)
-  // What was typed stays as typed while it means the stored value (never reformatted under the
-  // caret); otherwise the stored number in the language's own way: "59,9139" in nb, as Sanity's.
-  const shown = text !== null && (parse(text) === value || (value == null && !Number.isFinite(parse(text)))) ? text : value == null ? '' : formatNumber(value, decimal)
+  // What was typed is shown as typed while it is being typed (never reformatted under the caret),
+  // and a value coming back is ours unless it is one this input never sent: someone else's edit,
+  // which wins. Shown only while it matched the stored value, fast typing lost most of its keys
+  // ("123456789012345" stored as 12356825): an older save's echo landed between two keys and
+  // put its number back under the caret.
+  const mine = useRef(new Set<number | undefined>())
+  const [seen, setSeen] = useState(value)
+  if (value !== seen) {
+    setSeen(value)
+    if (text !== null && !mine.current.has(value)) setText(null)
+  }
+  const send = (n: number | undefined) => (mine.current.add(n), onChange(n))
+  // Otherwise the stored number in the language's own way: "59,9139" in nb, as Sanity's.
+  const shown = text ?? (value == null ? '' : formatNumber(value, decimal))
   return (
     <input
       id={id}
@@ -811,12 +822,15 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
       inputMode={integer ? 'numeric' : 'decimal'}
       value={shown}
       onChange={(e) => {
+        // Sanity's <input type="number"> takes no letters: a key that can't be part of a number
+        // does nothing. Here it was kept on screen and the stored number went (unset), unsaid.
+        if (/[^\d\s.,+\-eE]/.test(e.target.value)) return
         setText(e.target.value)
         const n = parse(e.target.value)
         // Not a number (yet): a sign or a separator so far, or "1,500" in English. The field is
         // unset, as Sanity's number input leaves it, and the text stays.
-        if (e.target.value === '' || typingNumber(e.target.value, decimal) || !Number.isFinite(n)) onChange(undefined)
-        else if (!integer || Number.isInteger(n)) onChange(n)
+        if (e.target.value === '' || typingNumber(e.target.value, decimal) || !Number.isFinite(n)) send(undefined)
+        else if (!integer || Number.isInteger(n)) send(n)
       }}
       // Sanity's is an <input type="number">: Up and Down step it by 1 (from 0 when empty),
       // keeping its decimals ("1.5" Up is 2.5, not 2.5000000000000004).
@@ -826,10 +840,10 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
         const now = text !== null && Number.isFinite(parse(text)) ? parse(text) : (value ?? 0)
         const places = (String(now).split('.')[1] ?? '').length
         setText(null)
-        onChange(Number((now + (e.key === 'ArrowUp' ? 1 : -1)).toFixed(places)))
+        send(Number((now + (e.key === 'ArrowUp' ? 1 : -1)).toFixed(places)))
       }}
       // Left, a number typed in the other way ("59.9" in nb) shows in the language's way.
-      onBlur={() => text !== null && Number.isFinite(parse(text)) && setText(null)}
+      onBlur={() => text !== null && Number.isFinite(parse(text)) && (setText(null), mine.current.clear())}
     />
   )
 }
