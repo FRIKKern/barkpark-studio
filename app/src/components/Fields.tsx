@@ -383,7 +383,12 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
     const menu = wrap.current?.querySelector<HTMLElement>('.field-menu')
     if (!menu) return
     const edge = Math.min(document.documentElement.clientWidth, menu.closest('.pane')?.getBoundingClientRect().right ?? Infinity)
-    if (menu.getBoundingClientRect().right > edge) menu.dataset.side = 'top'
+    if (menu.getBoundingClientRect().right <= edge) return
+    menu.dataset.side = 'top'
+    // Above and centred, it stays 4 px inside the window as Sanity's (267.7..386 at 390).
+    const r = menu.getBoundingClientRect()
+    const shift = Math.max(Math.min(0, edge - 4 - r.right), 4 - r.left)
+    if (shift) menu.style.translate = `calc(-50% + ${shift}px) 0`
   }, [open])
   return (
     <div ref={register} className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
