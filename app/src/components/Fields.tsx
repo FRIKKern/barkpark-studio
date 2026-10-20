@@ -556,13 +556,15 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
           openRef={openRef}
           // Barkpark patches paths (task-bfb66a2ff491f6e7): a subfield edit sends
           // only its own path, so two editors on different subfields both keep theirs.
-          onChange={(v) =>
-            field.type === 'geopoint'
-              ? onChange({_type: 'geopoint', ...(value as Record<string, unknown>), [f.name]: v})
-              : editPath
-                ? editPath(`${path}.${f.name}`, v)
-                : onChange({...(value as Record<string, unknown>), [f.name]: v})
-          }
+          // A geopoint too (task-90f4187e4b90c2a8): it sent the whole object, built on the
+          // value a render old, so lat, lng and alt typed or cleared in quick succession
+          // undid each other (a typed lat never stored, a cleared lng came back). Its
+          // _type goes once, on its own path.
+          onChange={(v) => {
+            if (!editPath) return onChange({...(field.type === 'geopoint' ? {_type: 'geopoint'} : {}), ...(value as Record<string, unknown>), [f.name]: v})
+            if (field.type === 'geopoint' && (value as {_type?: unknown} | undefined)?._type !== 'geopoint') editPath(`${path}._type`, 'geopoint')
+            editPath(`${path}.${f.name}`, v)
+          }}
         />
       )
       return (
