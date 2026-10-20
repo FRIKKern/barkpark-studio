@@ -15,7 +15,8 @@ let table: Record<string, string> | undefined
 let loading: Promise<void> | undefined
 const loadTable = () => (loading ??= import('../lib/desk-icons.json').then((m) => void (table = m.default as Record<string, string>)))
 // `svg` from the server: the body, or '' for a name the table lacks (nothing to load for it).
-const bodyOf = (name?: string, svg?: string) => (svg !== undefined ? svg || undefined : name ? (OWN[name] ?? table?.[name]) : undefined)
+const own = (t: Record<string, string> | undefined, name: string) => (t && Object.hasOwn(t, name) ? t[name] : undefined)
+const bodyOf = (name?: string, svg?: string) => (svg !== undefined ? svg || undefined : name ? (own(OWN, name) ?? own(table, name)) : undefined)
 
 /** An icon's SVG body (25×25 viewBox): the desk's `iconSvg`, else by name; Sanity's DocumentIcon when it has none. */
 export const iconBody = (name?: string, svg?: string) => bodyOf(name, svg) || DOCUMENT
