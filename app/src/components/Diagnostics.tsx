@@ -8,7 +8,7 @@ import {useT} from '../lib/i18n'
 import {BUILD, buildName} from '../lib/version'
 import {barkparkInfoQuery, diagnosticsJson, listenCheck, mediaCheck, pingStudio, runServerChecks, type Check, type ListenCheck} from '../lib/diagnostics'
 import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
-import {samplesOf, summarize, type Sample} from '../lib/request-timings'
+import {requestSamples, summarize, type Sample} from '../lib/request-timings'
 import {schemasQuery} from '../lib/data'
 import {meQuery} from '../lib/session'
 
@@ -81,7 +81,7 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
   const pending = '…'
   const time = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString(undefined, utc ? {timeZone: 'UTC'} : undefined) : pending)
   // This tab's requests to the studio server since it opened (Resource Timing), read again per run.
-  const samples = useMemo(() => samplesOf(performance.getEntriesByType('resource') as PerformanceResourceTiming[], location.origin), [run])
+  const samples = useMemo(() => requestSamples(), [run])
   const tabOpen = (() => {
     const s = Math.round(performance.now() / 1000)
     return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
