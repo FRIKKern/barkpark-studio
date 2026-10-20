@@ -101,11 +101,13 @@ function typeWhenLive(key: string, early: Noted, frames = 180, tries = 3) {
   const now = early.el.isConnected ? early.el : counterpartOf(key)
   if (now && isLive(now)) {
     redo(now, early)
+    const at = performance.now()
     // A part React is still hydrating can take the change and then set the control back (a
-    // checkbox did): looked at again a moment later, and made again while it doesn't hold.
+    // checkbox did): looked at again a moment later, and made again while it doesn't hold,
+    // unless the person changed it themselves meanwhile: their newer choice wins.
     return void setTimeout(() => {
       const after = early.el.isConnected ? early.el : counterpartOf(key)
-      if (after && tries > 1 && !holds(after, early)) typeWhenLive(key, early, 60, tries - 1)
+      if (after && tries > 1 && (changedByHand.get(after) ?? 0) < at && !holds(after, early)) typeWhenLive(key, early, 60, tries - 1)
     }, 250)
   }
   if (frames > 0) requestAnimationFrame(() => typeWhenLive(key, early, frames - 1, tries))
@@ -116,7 +118,16 @@ function counterpartOf(key: string): Control | null {
   const box = document.getElementById(id!)
   return (tag ? box?.querySelectorAll(tag)[Number(at)] : box) as Control | null
 }
+let redoing = false
 function redo(el: Control, early: Noted) {
+  redoing = true
+  try {
+    redoNow(el, early)
+  } finally {
+    redoing = false
+  }
+}
+function redoNow(el: Control, early: Noted) {
   // React's onChange fires only for a value its tracker hasn't seen: hydrated in place, it saw this one.
   const tracker = (el as {_valueTracker?: {setValue: (v: string) => void}})._valueTracker
   if (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio')) {
@@ -131,7 +142,13 @@ function redo(el: Control, early: Noted) {
 }
 
 let lastPointerDown = 0
-if (typeof window !== 'undefined') addEventListener('pointerdown', (e) => e.isTrusted && (lastPointerDown = performance.now()), true)
+// When the person last changed each control themselves (not the events a redo sets off: a
+// redo's click fires trusted input and change events).
+const changedByHand = new WeakMap<EventTarget, number>()
+if (typeof window !== 'undefined') {
+  addEventListener('pointerdown', (e) => e.isTrusted && (lastPointerDown = performance.now()), true)
+  for (const type of ['input', 'change']) addEventListener(type, (e) => e.isTrusted && !redoing && e.target && changedByHand.set(e.target, performance.now()), true)
+}
 
 // React marks an element it has hydrated or rendered with its props (`__reactProps$<id>`).
 const isLive = (el: HTMLElement) => Object.keys(el).some((k) => k.startsWith('__reactProps$'))
