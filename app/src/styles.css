@@ -735,6 +735,7 @@ textarea.input { resize: vertical; }
 /* Sanity's Share menu: as wide as its items, 29 px under the button's top. */
 .popover.menu.share-menu { min-width: 0; width: max-content; top: 29px; }
 .popover.menu.ref-menu { min-width: 0; width: max-content; top: 29px; right: auto; left: 50%; transform: translateX(-50%); }
+.popover.menu.ref-menu[data-side='left'] { top: 50%; left: auto; right: calc(100% + 4px); transform: translateY(-50%); } /* Sanity's at 390 and 768: 4 px left of the button, centred on it */
 .ref-preview { flex: 1; min-width: 0; }
 .ref-preview .preview { margin: 0; }
 .ref-search { position: relative; display: flex; gap: 4px; }
