@@ -64,7 +64,22 @@ test('@local J47: the list, a list search and validation are announced', async (
   await expect(page.getByRole('region', {name: 'Post'})).toBeVisible()
   await page.getByRole('combobox', {name: 'Search list'}).fill('zzzz')
   await expect(heard).toHaveText('No results found')
-  await page.getByRole('combobox', {name: 'Search list'}).fill('')
+  // Typed key by key, a search's count is said once, after typing pauses, not per key
+  // (screen-reader scout, task-70ad149bfd690929: 8 counts for "Fixture post 0").
+  const box = page.getByRole('combobox', {name: 'Search list'})
+  await box.fill('')
+  await page.waitForTimeout(1000)
+  await heard.evaluate((el) => {
+    const w = window as unknown as {said: string[]}
+    w.said = []
+    new MutationObserver(() => void (el.textContent && w.said.push(el.textContent))).observe(el, {childList: true, subtree: true, characterData: true})
+  })
+  await box.pressSequentially('Fixture post 0', {delay: 50})
+  await expect(heard).toHaveText(/results? for Fixture post 0$/)
+  await page.waitForTimeout(1000)
+  const said = await page.evaluate(() => (window as unknown as {said: string[]}).said)
+  expect(said.filter((s) => / for |No results/.test(s)), said.join(' | ')).toHaveLength(1)
+  await box.fill('')
   await t.listItem(page, ID).click()
   await expect(page.getByRole('region', {name: TITLE})).toBeVisible()
   try {
