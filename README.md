@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 94 changes
+- **Today** · 95 changes
+  - Desk: a filter with neqOrMissing (GROQ's !=) can be listed ([#1072](https://github.com/FRIKKern/barkpark-studio/pull/1072))
   - Publish asks again whether a slug is in use, and refuses one taken meanwhile ([#1069](https://github.com/FRIKKern/barkpark-studio/pull/1069))
-  - perf: a doc with 200 comment threads shows them all and types fast with Comments open ([#1070](https://github.com/FRIKKern/barkpark-studio/pull/1070))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
