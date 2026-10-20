@@ -15,6 +15,14 @@ For a Sanity developer: where each Sanity habit lives here. Work in your own lan
 Shapes for every extension point: `app/src/lib/plugins.ts`; the working example of each:
 `app/src/studio.config.tsx` (J65), the same as `reference/sanity/plugin.tsx`.
 
+Account sign-in reads schemas and the desk configuration document with the editor's
+session. It needs backend support for session bearers on scoped schema reads.
+Structure navigation and people pickers retain their guarded service-token path.
+An account-only deployment without that token can use the default type list when
+no desk is declared; a declared desk still requires the existing service access.
+`node e2e/account-schema-contract.mjs` (after building the app) checks these two
+paths with a loopback backend and synthetic sessions; it is not live login evidence.
+
 ## Field types and validation
 
 Every field type, its options, the validation keys (`required min max pattern unique
