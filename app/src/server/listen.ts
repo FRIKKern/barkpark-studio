@@ -24,7 +24,7 @@ import {withoutDeleted} from '../lib/replay'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
-type Buffered = {id: number; docId: string; type?: string; mutation?: string; frame: string; at: number}
+type Buffered = {id: number; docId: string; rawId: string; type?: string; mutation?: string; frame: string; at: number}
 const BUFFER = 2000
 
 // One hub per token and scope: each editor listens as themself (their own access, their
@@ -300,7 +300,7 @@ function dispatch(hub: Hub, frame: string) {
   hub.lastFrameFor.set(docId, Date.now())
   if (hub.lastFrameFor.size > 5000) hub.lastFrameFor.clear()
   const out = `id: ${id}\nevent: mutation\ndata: ${data.join('\n')}\n\n`
-  buffer.push({id: n, docId, type: payload.type, mutation: payload.mutation, frame: out, at: Date.now()})
+  buffer.push({id: n, docId, rawId: payload.documentId, type: payload.type, mutation: payload.mutation, frame: out, at: Date.now()})
   if (buffer.length > BUFFER) {
     buffer.shift()
     hub.knownFrom = buffer[0].id

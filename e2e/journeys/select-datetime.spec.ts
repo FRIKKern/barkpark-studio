@@ -12,7 +12,7 @@ test.use({video: 'on', timezoneId: 'Europe/Oslo'})
 const calendarButton = (t: Target, page: Page) =>
   t.name === 'sanity'
     ? page.locator('[data-testid="field-publishedAt"] button:has([data-sanity-icon="calendar"])')
-    : page.getByRole('button', {name: 'Select date'})
+    : page.getByRole('button', {name: 'Open calendar'})
 
 test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, SEED)))
 

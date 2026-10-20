@@ -14,3 +14,15 @@ test('a replay drops the frames a later delete of their document makes moot, and
   ]
   assert.deepEqual(withoutDeleted(frames).map((f) => f.id), [2, 4, 5, 6, 7])
 })
+
+test('a delete of the draft drops only the draft frames before it; a delete of the doc drops both', () => {
+  const frames = [
+    {id: 1, docId: 'x', rawId: 'x', mutation: 'publish'}, // published…
+    {id: 2, docId: 'x', rawId: 'drafts.x', mutation: 'create'}, // …a new draft…
+    {id: 3, docId: 'x', rawId: 'drafts.x', mutation: 'delete'}, // …and only the draft deleted: the publish stays
+    {id: 4, docId: 'y', rawId: 'drafts.y', mutation: 'update'},
+    {id: 5, docId: 'y', rawId: 'y', mutation: 'publish'},
+    {id: 6, docId: 'y', rawId: 'y', mutation: 'delete'}, // the whole doc (Barkpark names the published id): both go
+  ]
+  assert.deepEqual(withoutDeleted(frames).map((f) => f.id), [1, 3, 6])
+})
