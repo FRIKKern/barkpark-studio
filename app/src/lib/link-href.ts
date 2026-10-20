@@ -13,3 +13,10 @@ export function linkHref(raw: string): string | null {
   if (href.startsWith('/')) return /^\/[/\\]/.test(href) ? null : href
   return ALLOWED_SCHEME.test(href) || IN_DOC.test(href) ? href : null
 }
+
+/**
+ * A stored link's address as the read view and Review changes may draw it: the allowlist
+ * above, or undefined, and the link is drawn as its words (a javascript: or data: address
+ * written by the API, an import or another client; task-b0b5853a3fb71864), as the canvas does.
+ */
+export const storedHref = (href: string | null | undefined) => (href ? (linkHref(href) ?? undefined) : undefined)
