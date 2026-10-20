@@ -121,6 +121,7 @@ export default {
   '$name takes its value from Params.': '$navn får verdien sin fra Parametre.',
   "Who's online": 'Hvem er pålogget',
   'Who is here': 'Hvem er her',
+  'Global presence': 'Hvem er her',
   'No one else is here': 'Ingen andre er her',
   'Invite people to the project to see their online status.': 'Inviter folk til prosjektet for å se deres onlinestatus.',
   '{name} is editing this document right now': '{name} redigerer dette dokumentet nå',

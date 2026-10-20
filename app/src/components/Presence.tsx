@@ -185,7 +185,7 @@ export function WhoIsOnline() {
   }, [open])
   return (
     <div className="menu-wrap" ref={ref} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
-      <button type="button" className="icon-btn who" aria-label={t("Who's online")} data-tip={t('Who is here')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn who" aria-label={t('Global presence')} data-tip={t('Who is here')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Users />
         {/* Sanity's: a positive dot when anyone else is here, not a count. */}
         {people.length > 0 && <span className="who-dot" aria-hidden="true" />}

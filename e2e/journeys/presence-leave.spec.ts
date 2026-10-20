@@ -72,7 +72,7 @@ test('@local J07: who\'s online opens the other editor\'s document at their fiel
     await t.field(b, 'excerpt').click()
     // B's field reaches A's room on B's next presence beat (the room carries no probe for it).
     await a.waitForTimeout(1500)
-    await a.getByRole('button', {name: "Who's online"}).click()
+    await a.getByRole('button', {name: 'Global presence'}).click()
     await a.getByRole('menuitem').filter({hasText: 'Fixture post 03'}).first().click()
     await expect(a).toHaveURL(/post-03,path=excerpt/)
     await expect(t.field(a, 'excerpt')).toBeFocused()
@@ -124,7 +124,7 @@ test('@local J07: many viewers: one per person, the counter, the menu', async ({
   await expect(row).toHaveAttribute('title', '5 people are editing this document right now')
   await expect(row.locator('.p-avatar')).toHaveText(['4', 'ED'])
   // The navbar: a dot, not a count; a row per person, the one in no document disabled.
-  const who = page.getByRole('button', {name: "Who's online"})
+  const who = page.getByRole('button', {name: 'Global presence'})
   await expect(who.locator('.who-dot')).toBeVisible()
   await who.click()
   await expect(page.locator('.who-menu .who-name')).toHaveText(['Ada Lovelace', 'Grace Hopper', 'Alan Turing', 'Barbara Liskov', 'Edsger Dijkstra', 'Linus Torvalds'])
