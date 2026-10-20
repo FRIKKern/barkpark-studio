@@ -13,7 +13,7 @@ import {MenuPopover} from './FocusScopes'
 import {ActorAvatar, PersonName} from './Presence'
 import {Status} from './Preview'
 import {DateTimeInput} from './DateTimeInput'
-import {Add, CheckmarkCircle, ChevronLeft, ChevronRight, Close, DocumentIcon, LinkIcon, Trash, UserIcon} from './icons'
+import {Add, CheckmarkCircle, ChevronDown, ChevronLeft, ChevronRight, Close, DocumentIcon, LinkIcon, Trash, UserIcon} from './icons'
 import {usePrimed} from '../lib/prime'
 
 /**
@@ -113,15 +113,23 @@ function TaskList({tab}: {tab: TasksTab}) {
           </div>
         ) : (
           <>
-            <ul className="tasks-list" aria-label={t('Open')}>
-              {open.map((x) => (
-                <TaskRow key={x._id} task={x} list={order} primed={primed} />
-              ))}
-            </ul>
-            {done.length > 0 && (
-              <details className="tasks-done">
+            {/* Sanity's two groups: To Do open, Done folded, each a header with its chevron. */}
+            {open.length > 0 && (
+              <details className="tasks-group" open>
                 <summary>
-                  {t('Done')} <span className="muted">{done.length}</span>
+                  {t('To Do')} <ChevronDown />
+                </summary>
+                <ul className="tasks-list" aria-label={t('To Do')}>
+                  {open.map((x) => (
+                    <TaskRow key={x._id} task={x} list={order} primed={primed} />
+                  ))}
+                </ul>
+              </details>
+            )}
+            {done.length > 0 && (
+              <details className="tasks-group tasks-done">
+                <summary>
+                  {t('Done')} <ChevronDown />
                 </summary>
                 <ul className="tasks-list" aria-label={t('Done')}>
                   {done.map((x) => (
@@ -137,8 +145,8 @@ function TaskList({tab}: {tab: TasksTab}) {
   )
 }
 
-/** Sanity's status toggle: an empty circle while open, a check when done. */
-function StatusToggle({task}: {task: Task}) {
+/** Sanity's status toggle: an empty circle while open, a check when done; in a list row, its checkbox. */
+function StatusToggle({task, box = false}: {task: Task; box?: boolean}) {
   const t = useT()
   const qc = useQueryClient()
   const done = task.state === 'done'
@@ -158,6 +166,7 @@ function StatusToggle({task}: {task: Task}) {
     }
     void qc.invalidateQueries({queryKey: tasksQuery.queryKey})
   }
+  if (box) return <input type="checkbox" className="checkbox task-check" checked={done} aria-label={t('Change status')} data-tip={t('Change status')} onChange={() => void flip()} />
   return (
     <button
       type="button"
@@ -179,13 +188,18 @@ function TaskRow({task, list, primed}: {task: Task; list: string[]; primed: (id:
   const locale = useLocale()
   return (
     <li className="task-row" data-done={task.state === 'done' || undefined}>
-      <StatusToggle task={task} />
+      <StatusToggle task={task} box />
       <div className="task-text">
         <button type="button" className="task-title" onClick={() => showTasks({kind: 'task', id: task._id, list})}>
           {task.title}
         </button>
         <span className="task-meta muted">
-          {task.target && <TargetTitle id={task.target._ref} primed={primed(task.target._ref)} />}
+          {task.target && (
+            <span className="task-meta-target">
+              <DocumentIcon />
+              <TargetTitle id={task.target._ref} primed={primed(task.target._ref)} />
+            </span>
+          )}
           {task.dueAt && <span>{new Date(`${task.dueAt}T00:00:00`).toLocaleDateString(locale === 'nb-NO' ? 'nb-NO' : 'en-US', {month: 'short', day: 'numeric'})}</span>}
         </span>
       </div>
@@ -194,7 +208,9 @@ function TaskRow({task, list, primed}: {task: Task; list: string[]; primed: (id:
           {task.assignee.slice(0, 2).toUpperCase()}
         </span>
       ) : (
-        <span className="task-assignee none" title={t('Unassigned')} aria-label={t('Unassigned')} />
+        <span className="task-assignee none" title={t('Unassigned')} aria-label={t('Unassigned')}>
+          <UserIcon />
+        </span>
       )}
     </li>
   )

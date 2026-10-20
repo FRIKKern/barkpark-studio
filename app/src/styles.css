@@ -3266,8 +3266,26 @@ body[data-tasks-open] .panes, body[data-tasks-open] .vision, body[data-tasks-ope
 .task-circle { width: 13px; height: 13px; border: 1.2px solid currentColor; border-radius: 50%; }
 .task-assignee { flex: none; display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: var(--hover); font-size: 10px; font-weight: 600; color: var(--fg-strong); }
 .task-assignee.none { background: none; border: 1px dashed var(--border); }
+/* Sanity's task list: To Do and Done headers (muted, a 21 px chevron after the word, Done folded),
+   rows of a 17 px checkbox, the title 600 in the header tone, the target under it behind its icon. */
+.tasks-group > summary { list-style: none; display: flex; align-items: center; gap: 0; margin-right: auto; width: max-content; font-weight: 500; line-height: 19px; color: var(--muted); cursor: pointer; }
+.tasks-group > summary::-webkit-details-marker { display: none; }
+.tasks-group > summary svg { width: 21px; height: 21px; margin-left: -2px; }
+.tasks-body > .tasks-group { margin: 0 4px; } /* the list 20 px in, as Sanity's (the body pads 16) */
+.tasks-body > .tasks-group:first-child { margin-top: 5px; }
+.tasks-group > .tasks-list { padding-top: 9px; }
+.tasks-group:not([open]) > summary svg { rotate: -90deg; }
 .tasks-done { margin-top: 16px; }
-.tasks-done summary { cursor: pointer; font-weight: 500; padding: 4px 0; }
+.tasks-group .task-row { gap: 12px; padding: 8px 0; border-bottom: 0; }
+.tasks-group .task-check { margin-top: 1px; }
+.tasks-group .task-title { font-weight: 600; line-height: 19px; color: var(--fg-header); }
+.tasks-group .task-text { gap: 9px; }
+.tasks-group .task-meta { font-size: 13px; line-height: 19px; }
+.task-meta-target { display: flex; align-items: center; gap: 2px; margin-left: -2px; font-weight: 500; color: var(--fg); }
+.task-meta-target > svg { flex: none; width: 21px; height: 21px; color: var(--muted); }
+.task-meta-target .status { display: none; }
+.tasks-group .task-assignee.none { width: 19px; height: 19px; border: 0; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+.tasks-group .task-assignee.none > svg { width: 17px; height: 17px; }
 .task-form { display: flex; flex-direction: column; gap: 8px; padding: 24px 20px; }
 .task-form .input { font-size: 13px; }
 .task-title-input { font: inherit; font-size: 19px; font-weight: 600; border: 0; background: none; color: var(--fg-strong); resize: none; padding: 4px 0; field-sizing: content; }

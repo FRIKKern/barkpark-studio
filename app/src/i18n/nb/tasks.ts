@@ -21,6 +21,7 @@ export default {
   'Deadline': 'Frist',
   'Change status': 'Endre status',
   'Done': 'Ferdig',
+  'To Do': 'Å gjøre',
   'No tasks': 'Ingen oppgaver',
   'Delete task': 'Slett oppgave',
   'Activity': 'Aktivitet',
