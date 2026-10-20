@@ -620,6 +620,10 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
     const l = loop.current
     let held = false
     try {
+      // A save on its way (a retry of the batch the delete refused, say) is waited out, up to
+      // 5 s: refused at once, Confirm said "Finish saving your edit first" and put nothing
+      // back, though the author had done nothing more (kept-edits-deleted :94 on CI).
+      for (const end = Date.now() + 5000; (l.saving || canvas.current?.hasPendingChanges()) && Date.now() < end; ) await new Promise((r) => setTimeout(r, 100))
       if (l.saving || canvas.current?.hasPendingChanges()) throw new Error(t('Finish saving your edit first.'))
       l.saving++ // our own write's frame is not another writer's edit (D22)
       held = true
