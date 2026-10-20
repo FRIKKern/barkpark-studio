@@ -1,7 +1,7 @@
 import {memo, useContext, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {useRevealed} from '../lib/reveal'
-import {Add, AddDocument, Copy, DragHandle, Ellipsis, InsertAbove, InsertBelow, Trash} from './icons'
+import {Add, AddDocument, Copy, DragHandle, Ellipsis, InsertAbove, InsertBelow, Search as SearchIcon, Trash} from './icons'
 import {DocIdContext, fieldClipboard, UrlPathContext} from './Fields'
 import {FieldPresence} from './Presence'
 import {useT} from '../lib/i18n'
@@ -438,6 +438,7 @@ function TypeItems({types, pick}: {types: {value: string; title: string}[]; pick
     <>
       {searchable && (
         <div className="menu-search">
+          <SearchIcon />
           <input ref={box} type="search" className="input" aria-label={t('Search')} placeholder={t('Search')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && shown[0] && (e.preventDefault(), pick(shown[0].value))} />
         </div>
       )}
