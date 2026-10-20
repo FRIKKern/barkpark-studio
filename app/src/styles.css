@@ -1527,6 +1527,9 @@ body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
 .array-row > .input { margin-right: 8px; }
 .ref-row-preview > .preview { margin-bottom: 0; }
 .array-row[data-moving] { box-shadow: 0 0 0 1px var(--selected), 0 6px 16px var(--shadow); position: relative; z-index: 1; }
+/* Long arrays (3,000 items): rows off screen skip style, layout and paint, as list rows do (J41).
+   Not a row being moved or holding focus (an open item menu has it): containment would clip them. */
+.array-box:not([data-layout]) > .array-row:not([data-moving], :focus-within) { content-visibility: auto; contain-intrinsic-size: auto 59px; }
 .array-row .input { flex: 1; }
 .drag-handle { cursor: grab; touch-action: none; color: var(--icon-muted); }
 .array-row > .drag-handle { height: 33px; } /* Sanity's handle: 25 x 33, its dots muted */
