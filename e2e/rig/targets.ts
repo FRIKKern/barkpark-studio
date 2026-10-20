@@ -336,6 +336,18 @@ const bpSend = async (mutations: unknown[], waits = 3): Promise<Response> => {
   return res
 }
 
+/**
+ * A scratch doc gone for good, draft and published, and checked after: a failure throws.
+ * A swallowed one left drafts that other journeys' lists then counted (J01, J47).
+ */
+export async function bpRemove(id: string, type: string) {
+  await bpMutate([{delete: {id, type, force: true}}])
+  for (const p of ['drafts', 'published']) {
+    const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/${type}/${encodeURIComponent(id)}?perspective=${p}`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
+    if (r.status !== 404) throw new Error(`${id} is still there after its delete (${p}: ${r.status})`)
+  }
+}
+
 const studio: Target = {
   name: 'studio',
   async prepare() {},

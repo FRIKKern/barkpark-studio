@@ -1,10 +1,10 @@
 import {expect, test} from '@playwright/test'
-import {bpMutate, signInIfAsked, target} from '../rig/targets'
+import {bpMutate, bpRemove, signInIfAsked, target} from '../rig/targets'
 
 // task-6fe143f72dc55f55: keys typed into the server-drawn form before React has it are kept.
 // They were silently lost (the inputs look editable from the first paint; Sanity's appear
 // only once they work). A slow CPU (6x) keeps the page inert long enough to type into it.
-// A scratch post, deleted after.
+// A scratch post, deleted after (and checked gone).
 test('keys typed before hydration are saved, not dropped', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's form is drawn on the client")
@@ -32,7 +32,9 @@ test('keys typed before hydration are saved, not dropped', async ({page}, info) 
     await expect.poll(() => t.docValue(id, 'title'), {timeout: 10_000}).toBe('Early typed')
     await expect(title).toHaveValue('Early typed')
   } finally {
-    await bpMutate([{delete: {id, type: 'post', force: true}}]).catch(() => {})
+    // Closed first: a save still on its way would write the draft again after the delete.
+    await page.close()
+    await bpRemove(id, 'post')
   }
 })
 
@@ -62,7 +64,9 @@ test('a checkbox, select and checkbox list changed before hydration are saved', 
     await expect.poll(async () => [await t.docValue(id, 'agree', 'fieldTypes'), await t.docValue(id, 'choice', 'fieldTypes'), await t.docValue(id, 'colours', 'fieldTypes')], {timeout: 10_000}).toEqual([true, 'b', ['red']])
     await expect(page.locator('[id="agree"]')).toBeChecked()
   } finally {
-    await bpMutate([{delete: {id, type: 'fieldTypes', force: true}}]).catch(() => {})
+    // Closed first: a save still on its way would write the draft again after the delete.
+    await page.close()
+    await bpRemove(id, 'fieldTypes')
   }
 })
 
