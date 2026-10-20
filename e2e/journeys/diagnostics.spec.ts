@@ -4,7 +4,7 @@ import {signInIfAsked, target} from '../rig/targets'
 // J69 guard (a CI gate): Help > Diagnostics runs its connection tests (the live stream
 // twice, the studio server, Barkpark's API and media) and every one passes on a healthy
 // studio; Copy output is JSON in Sanity's top-level shape. Nothing is written.
-test('J69: Diagnostics runs its connection tests and copies JSON', async ({page, context}, info) => {
+test('@local J69: Diagnostics runs its connection tests and copies JSON', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's dialog is the evidence still")
   await t.prepare(context)

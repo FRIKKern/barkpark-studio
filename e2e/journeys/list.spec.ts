@@ -69,7 +69,7 @@ test('@local J24: list search keys — the first result lit, ArrowDown moves it,
 // First run: a dataset with no schema says so (Sanity's "No document types" card) instead of
 // an empty desk, and lists none of the studio's own items (their types are not there).
 // A dataset nobody writes to; read only.
-test('first run: a dataset with no document types shows Sanity\'s card', async ({page}, info) => {
+test('@local first run: a dataset with no document types shows Sanity\'s card', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours (Sanity: the same card, in the evidence stills)')
   // A PR that changes fixture schemas runs with them read from the checkout (e2e.yml), so

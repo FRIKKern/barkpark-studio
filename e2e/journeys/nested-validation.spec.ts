@@ -25,7 +25,7 @@ test.afterAll(({}, info) => {
 // J13, nested, as Sanity's: a bad value in an array item is a validation error named
 // "Links / External link / URL", and picking it in the panel opens that item and puts
 // the caret in its field. (The item's fields went unchecked before.)
-test('J13: an array item field error is listed and jumped to', async ({page}, info) => {
+test('@local J13: an array item field error is listed and jumped to', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's panel is the scout's still")
   await Promise.all([seeded, t.prepare(page.context())])
@@ -42,7 +42,7 @@ test('J13: an array item field error is listed and jumped to', async ({page}, in
 })
 
 // Sanity's jump selects the field's own group: from Content, a Meta field's error opens Meta (not All fields).
-test("J13: picking an error in another group selects that field's group", async ({page}, info) => {
+test("@local J13: picking an error in another group selects that field's group", async ({page}, info) => {
   const t = target(info)
   await Promise.all([seeded, t.prepare(page.context())])
   await page.goto(t.docPath('post', GROUP))
@@ -56,7 +56,7 @@ test("J13: picking an error in another group selects that field's group", async 
 })
 
 // Sanity's jump opens a folded fieldset on the way: fieldTypes' More starts collapsed, with Limit (max 10) in it.
-test('J13: picking an error in a collapsed fieldset opens it', async ({page}, info) => {
+test('@local J13: picking an error in a collapsed fieldset opens it', async ({page}, info) => {
   const t = target(info)
   await Promise.all([seeded, t.prepare(page.context())])
   await page.goto(t.docPath('fieldTypes', FIELDSET))

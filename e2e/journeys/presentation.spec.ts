@@ -210,7 +210,7 @@ test('@evidence J61: the panel follows the page, side by side', async ({page, co
 // J64: the phone viewport (Sanity's 375×650, kept in the URL), Open preview, and the
 // share menu: nothing shared yet (no QR code, nothing to copy), then shared (any write
 // member may, Barkpark #22488), then off (the member who shared it, #22556).
-test('J64: viewport toggle, Open preview, share menu', async ({page, context}, info) => {
+test('@local J64: viewport toggle, Open preview, share menu', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the check runs on ours; Sanity is the evidence stills')
   await t.prepare(context)

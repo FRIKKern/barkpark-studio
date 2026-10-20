@@ -4,7 +4,7 @@ import {signInIfAsked, target} from '../rig/targets'
 // J26, Sanity's focus mode, on both sides (nothing is written). The document pane's
 // button hides the navigation (the list panes) and the URL stays; the title line becomes
 // a breadcrumb; the button brings the panes back; a breadcrumb goes back to its pane.
-test('J26: focus mode hides the navigation, keeps the URL, and leaves by its button or a breadcrumb', async ({page}, info) => {
+test('@local J26: focus mode hides the navigation, keeps the URL, and leaves by its button or a breadcrumb', async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
   await page.goto(t.docPath('post', 'post-05'))

@@ -3,7 +3,7 @@ import {target} from '../rig/targets'
 
 // The Releases calendar is one Tab stop, as a WAI-ARIA grid and Sanity's date picker: Tab
 // lands on today, arrow keys move a day or a week (into the next month), Tab leaves it.
-test('Releases: the calendar is one Tab stop; arrow keys move between days', async ({page}, info) => {
+test('@local Releases: the calendar is one Tab stop; arrow keys move between days', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's Releases calendar is locked behind its plan")
   await t.prepare(page.context())

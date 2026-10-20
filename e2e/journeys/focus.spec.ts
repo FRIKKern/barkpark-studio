@@ -115,7 +115,7 @@ test('@evidence J43: dialogs trap focus; focus returns to the opener', async ({p
 
 // The CI lock (F13): the "…" menu and the Delete dialog it opens. Sanity
 // passes this too.
-test('J43: menu → dialog keeps focus inside, returns it to "…"', async ({page}, info) => {
+test('@local J43: menu → dialog keeps focus inside, returns it to "…"', async ({page}, info) => {
   const t = target(info)
   await t.prepare(page.context())
   await page.goto(t.docPath('post', ID))
@@ -138,7 +138,7 @@ test('J43: menu → dialog keeps focus inside, returns it to "…"', async ({pag
 
 // Escape in a reference search inside an item dialog closes the results only, as Sanity's;
 // the next one closes the dialog (the first closed both: the nested dialogs sweep).
-test('J43: Escape in an item dialog closes its reference results first', async ({page}, info) => {
+test('@local J43: Escape in an item dialog closes its reference results first', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "measured side by side: Sanity's closes its results first too")
   await t.prepare(page.context())
@@ -162,7 +162,7 @@ test('J43: Escape in an item dialog closes its reference results first', async (
 
 // Inspect on a document longer than the window stays inside it and scrolls within, as
 // Sanity's (task-f0f926fff6847008: it was 1201 px tall in a 900 px window).
-test('J28: Inspect fits the window on a long document and scrolls inside', async ({page}, info) => {
+test('@local J28: Inspect fits the window on a long document and scrolls inside', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: Sanity's is the reference")
   await page.setViewportSize({width: 1440, height: 900})
