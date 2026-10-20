@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 39 changes
+- **Today** · 40 changes
+  - fix(navbar): the perspective menu ends on the chip's chevron, as Sanity's ([#1015](https://github.com/FRIKKern/barkpark-studio/pull/1015))
   - feat(vision): Params read as JSON5, with Sanity's line:column errors and auto-closed brackets ([#1016](https://github.com/FRIKKern/barkpark-studio/pull/1016))
-  - fix(previews): read Barkpark's object list_preview parts instead of throwing ([#1014](https://github.com/FRIKKern/barkpark-studio/pull/1014))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
