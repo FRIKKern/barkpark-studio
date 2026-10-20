@@ -135,6 +135,7 @@ export default {
   Query: 'Spørring',
   "A type, then Barkpark's query string:": 'En type, deretter Barkparks spørrestreng:',
   Fetch: 'Utfør',
+  'Parameters are not valid JSON': 'Parametrene er ikke gyldig JSON',
   Listen: 'Lytt',
   Stop: 'Stopp',
   'Listening for changes…': 'Lytter etter endringer …',
