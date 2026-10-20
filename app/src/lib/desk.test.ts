@@ -1,7 +1,7 @@
 // B12: desk URLs read against a declared desk, Sanity-style, and print back unchanged.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {deskSort, listFilter, normalizeDesk, parseDeskPanes, rootDesk, unsupportedOps, type DeskNode} from './desk.ts'
+import {deskSort, listFilter, normalizeDesk, paneTitleOf, parseDeskPanes, rootDesk, unsupportedOps, type DeskNode} from './desk.ts'
 import {panesPath} from './panes.ts'
 
 // The shape GET /v1/structure returns for the Agency twin, cut down.
@@ -100,4 +100,16 @@ test("B12, owner's call: a declared desk is shown exactly, without the studio's 
   const own: DeskNode = {id: '__studio', type: 'list', items: [{id: 'posts-by-author', type: 'document_type_list', typeName: 'author'}]}
   assert.equal(rootDesk(desk, own), desk)
   assert.equal(rootDesk(null, own), own)
+})
+
+test("a declared list's paneTitle names the pane it opens; its row keeps title (Barkpark paneTitle)", () => {
+  const anmeldt: DeskNode = {id: 'anmeldt', type: 'document_type_list', typeName: 'product', title: 'Med anmeldelser', paneTitle: 'Produkter med anmeldelser'}
+  assert.equal(paneTitleOf(anmeldt), 'Produkter med anmeldelser')
+  assert.equal(paneTitleOf({...anmeldt, paneTitle: undefined}), 'Med anmeldelser')
+  assert.equal(paneTitleOf({...anmeldt, paneTitle: ''}), 'Med anmeldelser')
+  assert.equal(paneTitleOf(undefined), undefined)
+  // normalizeDesk keeps it on nested lists too.
+  const root = normalizeDesk({id: 'root', type: 'list', items: [{id: 'u', type: 'list', title: 'Utgivelser', paneTitle: 'Alle utgivelser', items: [anmeldt]}]})
+  assert.equal(paneTitleOf(root.items![0]), 'Alle utgivelser')
+  assert.equal(paneTitleOf(root.items![0].items![0]), 'Produkter med anmeldelser')
 })
