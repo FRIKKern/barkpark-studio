@@ -14,9 +14,9 @@ import {slugQueries, takenByOther} from './slug-shape'
 const slugText = (v: unknown) => (typeof v === 'string' ? v : typeof (v as {current?: unknown})?.current === 'string' ? (v as {current: string}).current : '')
 
 const fetchTaken = createServerFn({method: 'GET'})
-  .validator((d: {type: string; field: string; value: string; id: string}) => d)
+  .validator((d: {type: string; field: string; value: string; id: string; fresh?: boolean}) => d)
   .handler(async ({data}) => {
-    const answers = await Promise.all(slugQueries(data.field, data.value).map((q) => bpFetch(`/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?${q}`)))
+    const answers = await Promise.all(slugQueries(data.field, data.value).map((q) => bpFetch(`/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?${q}`, {}, undefined, {fresh: data.fresh})))
     if (answers.some((res) => !res.ok)) return false // can't tell: say nothing rather than a false error
     const found = await Promise.all(answers.map(async (res) => ((await res.json()) as {result?: {documents?: {_publishedId?: string; _id: string}[]}}).result?.documents ?? []))
     return takenByOther(found.flat(), data.id)
@@ -58,7 +58,7 @@ export async function slugsTakenNow(qc: QueryClient, doc: Doc, schema: Schema | 
   const taken = await Promise.all(
     fields.map(async (f) => {
       const value = slugText(doc[f.name])
-      const yes = await fetchTaken({data: {type: doc._type, field: f.name, value, id: doc._publishedId}})
+      const yes = await fetchTaken({data: {type: doc._type, field: f.name, value, id: doc._publishedId, fresh: true}})
       qc.setQueryData(['slug-in-use', doc._type, f.name, value, doc._publishedId], yes)
       return yes ? (f.title ?? f.name) : null
     }),
