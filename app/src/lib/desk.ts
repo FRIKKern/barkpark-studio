@@ -13,6 +13,8 @@ export type DeskNode = {
   type: 'list' | 'divider' | 'document' | 'document_type_list'
   title?: string
   icon?: string
+  /** The icon's SVG body, added by the server ('' for an unknown name; server/desk-icons.ts). */
+  iconSvg?: string
   /** document, document_type_list: the schema type. */
   typeName?: string
   /** document: the pinned singleton's id. */

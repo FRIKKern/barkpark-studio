@@ -5,6 +5,8 @@ import '@tanstack/react-start/server-only'
 import {readdir, readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
 import {bpFetch, dataset, serviceToken} from './barkpark'
+import ICONS from '../lib/desk-icons.json'
+import {withIconBodies} from '../lib/desk-icon-bodies'
 
 export type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; fieldsets?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown; kind?: unknown}
 
@@ -65,7 +67,7 @@ export async function readDesk(): Promise<unknown | null> {
   // The deskStructure document's title names the root (Sanity's S.list().title('Innhold')).
   // Barkpark keeps a doc's title in a row column while its resolver reads content.title,
   // so the tree answers "Structure" (task-b40b41f8d21992ae); the declared title wins here.
-  return typeof title === 'string' && title.trim() ? {...tree, title: title.trim()} : tree
+  return withIconBodies(typeof title === 'string' && title.trim() ? {...tree, title: title.trim()} : tree, ICONS)
 }
 
 /**
@@ -81,7 +83,7 @@ export async function readRest(): Promise<unknown[]> {
   const tree = ((await res.json()) as {structure?: {items?: {id?: string; items?: unknown[]}[]}}).structure
   const rest = (tree?.items?.find((i) => i.id === 'rest')?.items ?? []) as {typeName?: string}[]
   // The studio's own records are never "…Rest" content, even in a dataset whose schema list lacks them.
-  return rest.filter((i) => !STUDIO_TYPES.includes(i.typeName ?? ''))
+  return withIconBodies(rest.filter((i) => !STUDIO_TYPES.includes(i.typeName ?? '')), ICONS)
 }
 
 /**
