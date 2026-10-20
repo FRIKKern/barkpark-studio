@@ -36,9 +36,10 @@ const MARK_WAIT_MS = 15_000
  * J51, inline in <head>: on a slow network the server-rendered page shows a while
  * before its code runs. Links work meanwhile (full page loads); a button would do
  * nothing, so its click is held (window.__earlyClicks) until releaseEarlyClicks(). Keys typed
- * into an input then are noted too (window.__earlyTyped) and put in again (typeWhenLive).
+ * into an input, and a checkbox, radio or select changed, are noted too (window.__earlyTyped)
+ * and put in again (typeWhenLive).
  */
-export const EARLY_CLICKS = `window.__earlyTyped=new Map();document.addEventListener('input',function(e){var m=window.__earlyTyped,t=e.target;if(!m||!t||!t.id||(t.tagName!=='INPUT'&&t.tagName!=='TEXTAREA'))return;for(var k in t)if(k.indexOf('__reactProps$')===0)return;m.set(t.id,t)},true);window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
+export const EARLY_CLICKS = `window.__earlyTyped=new Map();function __bpEarly(e){var m=window.__earlyTyped,t=e.target;if(!m||!t||!/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))return;for(var k in t)if(k.indexOf('__reactProps$')===0)return;var box=t.id?t:t.closest('[id]');if(box)m.set(t.id?t.id:box.id+'|'+t.tagName+'|'+[].indexOf.call(box.querySelectorAll(t.tagName),t),{el:t,value:t.value,checked:t.checked})}document.addEventListener('input',__bpEarly,true);document.addEventListener('change',__bpEarly,true);window.__earlyClicks=[];document.addEventListener('click',function(e){var q=window.__earlyClicks;if(!q)return;var b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;e.preventDefault();e.stopPropagation();q.indexOf(b)<0&&q.push(b)},true)`
 
 let pending: Promise<unknown> | null = null
 /**
@@ -59,7 +60,7 @@ export function releaseEarlyClicks() {
     void until.then(releaseEarlyClicks)
     return
   }
-  const w = window as {__earlyClicks?: HTMLElement[] | null; __earlyTyped?: Map<string, HTMLInputElement | HTMLTextAreaElement> | null}
+  const w = window as {__earlyClicks?: HTMLElement[] | null; __earlyTyped?: Map<string, Noted> | null}
   const held = w.__earlyClicks ?? []
   w.__earlyClicks = null
   const at = performance.now()
@@ -85,24 +86,48 @@ function clickWhenLive(el: HTMLElement, since: number, frames = 180) {
   if (frames > 0) requestAnimationFrame(() => clickWhenLive(el, since, frames - 1))
 }
 
+type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+/** What the control held when it was changed: hydrating can set the element back before it is redone. */
+type Noted = {el: Control; value: string; checked: boolean}
 /**
- * The same for keys (task-6fe143f72dc55f55): the server-drawn form takes typing before React
- * has it, and what was typed never reached the edit queue (silently lost on a slow load).
- * EARLY_CLICKS also notes each input typed into while inert; once React has the field (the
- * same element, or the one drawn in its place under the same id) its text is put in again
- * as an input event, so the field's own onChange takes it, as if typed now.
+ * The same for keys (task-6fe143f72dc55f55) and native controls (task-c044d1ebab1e53dd): the
+ * server-drawn form takes typing, ticks and picks before React has it, and none of it reached
+ * the edit queue (silently lost on a slow load). EARLY_CLICKS notes each control changed while
+ * inert, by its id (or its field's id and its place there: a checkbox list's boxes have none);
+ * once React has the field (the same element, or the one drawn in its place) the change is
+ * made again the way the field's own onChange hears it.
  */
-function typeWhenLive(id: string, early: HTMLInputElement | HTMLTextAreaElement, frames = 180) {
-  const now = (early.isConnected ? early : document.getElementById(id)) as HTMLInputElement | HTMLTextAreaElement | null
-  if (now && isLive(now)) return retype(now, early.value)
-  if (frames > 0) requestAnimationFrame(() => typeWhenLive(id, early, frames - 1))
+function typeWhenLive(key: string, early: Noted, frames = 180, tries = 3) {
+  const now = early.el.isConnected ? early.el : counterpartOf(key)
+  if (now && isLive(now)) {
+    redo(now, early)
+    // A part React is still hydrating can take the change and then set the control back (a
+    // checkbox did): looked at again a moment later, and made again while it doesn't hold.
+    return void setTimeout(() => {
+      const after = early.el.isConnected ? early.el : counterpartOf(key)
+      if (after && tries > 1 && !holds(after, early)) typeWhenLive(key, early, 60, tries - 1)
+    }, 250)
+  }
+  if (frames > 0) requestAnimationFrame(() => typeWhenLive(key, early, frames - 1, tries))
 }
-function retype(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
-  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
-  Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(el, value)
-  // React fires onChange only for a value its tracker hasn't seen: hydrating in place, it saw this one.
-  ;(el as {_valueTracker?: {setValue: (v: string) => void}})._valueTracker?.setValue(value === '' ? ' ' : '')
-  el.dispatchEvent(new Event('input', {bubbles: true}))
+const holds = (el: Control, early: Noted) => (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio') ? el.checked === early.checked : el.value === early.value)
+function counterpartOf(key: string): Control | null {
+  const [id, tag, at] = key.split('|')
+  const box = document.getElementById(id!)
+  return (tag ? box?.querySelectorAll(tag)[Number(at)] : box) as Control | null
+}
+function redo(el: Control, early: Noted) {
+  // React's onChange fires only for a value its tracker hasn't seen: hydrated in place, it saw this one.
+  const tracker = (el as {_valueTracker?: {setValue: (v: string) => void}})._valueTracker
+  if (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio')) {
+    // A click is what React hears for these: from the other state, so it lands on the noted one.
+    el.checked = !early.checked
+    return el.click()
+  }
+  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
+  Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(el, early.value)
+  tracker?.setValue(early.value === '' ? ' ' : '')
+  el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', {bubbles: true}))
 }
 
 let lastPointerDown = 0
