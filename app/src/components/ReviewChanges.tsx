@@ -1,3 +1,4 @@
+import {storedHref} from '../lib/link-href'
 import {Fragment, memo, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
@@ -314,7 +315,9 @@ const BlocksDiff = memo(function BlocksDiff({before, after, author, t}: {before?
       const Tag = (MARK_TAGS[m] ?? 'span') as 'span'
       node = <Tag>{node}</Tag>
     }
-    if (x.href) node = <a href={x.href} target="_blank" rel="noopener noreferrer">{node}</a>
+    // An address the reader allowlist refuses (javascript:, data:) stays words, as the canvas draws it.
+    const href = storedHref(x.href)
+    if (href) node = <a href={href} target="_blank" rel="noopener noreferrer">{node}</a>
     else if (x.ref) node = <span className="wikilink">{node}</span>
     // A changed chip, link or internal link opens what changed in it (Sanity's AnnotationDiff).
     if (x.change !== 'same' && (x.object || x.href || x.ref || x.was?.object || x.was?.href || x.was?.ref)) node = <InlineChange piece={x}>{node}</InlineChange>

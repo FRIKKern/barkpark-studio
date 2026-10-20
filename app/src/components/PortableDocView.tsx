@@ -1,3 +1,4 @@
+import {storedHref} from '../lib/link-href'
 import type {ReactNode} from 'react'
 import {useT} from '../lib/i18n'
 import {imageFileName} from '../lib/image'
@@ -22,7 +23,11 @@ function inline(nodes: Inline[] = [], key = '', linksOpen = false): ReactNode[] 
     // An inline object (J11, post-11's chip): its words, as a chip.
     if (!n.children && typeof n.text === 'string') return <span key={k} className="inline-object" data-type={n.type}>{n.text}</span>
     const kids = inline(n.children, `${k}.`, linksOpen)
-    if (n.type === 'link' && n.href) return <a key={k} href={n.href} target="_blank" rel="noopener noreferrer">{kids}</a>
+    // A stored address the reader allowlist refuses (javascript:, data:) is drawn as its words.
+    if (n.type === 'link' && n.href) {
+      const href = storedHref(n.href)
+      return href ? <a key={k} href={href} target="_blank" rel="noopener noreferrer">{kids}</a> : <span key={k}>{kids}</span>
+    }
     // A link to a document (Sanity's internal link; portable-doc's wikilink): drawn as a
     // link, as the canvas draws it, so the body reads the same before it is clicked.
     // `linksOpen` (a read-only body): it is a link the reader follows, by click or Enter.
