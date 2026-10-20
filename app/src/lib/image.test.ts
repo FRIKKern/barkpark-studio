@@ -57,7 +57,11 @@ test('a picked asset keeps the legacy shape only where the content uses it', () 
   const legacy = {assetId: 'old', url: '/media/files/old.jpg', alt: 'A', focalX: 0.3, hotspot: {x: 0.5, y: 0.5, width: 1, height: 1}}
   assert.deepEqual(pickedImage(legacy, 'asset-new', '/media/files/new.jpg'), {alt: 'A', asset: {_ref: 'asset-new'}, assetId: 'new', url: '/media/files/new.jpg'})
   assert.deepEqual(pickedImage(legacy, 'asset-new'), {alt: 'A', asset: {_ref: 'asset-new'}})
-  assert.deepEqual(pickedImage({asset: {_ref: 'asset-a'}, alt: 'B'}, 'asset-b', '/x.jpg'), {alt: 'B', asset: {_ref: 'asset-b'}})
+  // Canonical content (and the older bare {asset: {_ref}}) gets Sanity's shape on a new pick.
+  assert.deepEqual(pickedImage({asset: {_ref: 'asset-a'}, alt: 'B'}, 'asset-b', '/x.jpg'), {alt: 'B', _type: 'image', asset: {_type: 'reference', _ref: 'asset-b'}})
+  assert.deepEqual(pickedImage({}, 'asset-c'), {_type: 'image', asset: {_type: 'reference', _ref: 'asset-c'}})
+  // Both shapes read the same.
+  assert.equal(imageRef({asset: {_ref: 'asset-a'}}), imageRef({_type: 'image', asset: {_type: 'reference', _ref: 'asset-a'}}))
 })
 
 test("a body image card names the file as Barkpark's canvas does", () => {
