@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 28 changes
+- **Today** · 29 changes
+  - fix(a11y): a list search's result count is announced once, after typing pauses ([#1005](https://github.com/FRIKKern/barkpark-studio/pull/1005))
   - Field aria in one tested place: a described field points at its description ([#1004](https://github.com/FRIKKern/barkpark-studio/pull/1004))
-  - Screen reader: Vision says how a run went; Releases, Vision and Media have one h1 ([#1003](https://github.com/FRIKKern/barkpark-studio/pull/1003))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
