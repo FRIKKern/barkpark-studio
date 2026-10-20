@@ -77,7 +77,7 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
 // schedule is bold, a click shows that day's schedules (again: all), and a picked zone
 // changes only how the time reads; Barkpark keeps it in UTC. One draft and one page load for
 // both (CI's budget: each was its own seed, schedule and studio load).
-test('Releases tool: scheduled drafts, calendar day filter and time zone, Active / Paused / Archived, row actions', async ({page, context}, info) => {
+test('@local Releases tool: scheduled drafts, calendar day filter and time zone, Active / Paused / Archived, row actions', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours; Sanity's is measured by hand (plan-gated releases)")
   const api = `${bpBase()}/v1/data/schedules/${bpDataset()}`

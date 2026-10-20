@@ -5,7 +5,7 @@ import {target} from '../rig/targets'
 // change of save state (Saving… / Saved / Not saved), once. The relative time ("Edited 7 min.
 // ago", rewritten every minute) and the editor's initial stay outside it, so an idle draft
 // says nothing. Draft-only scratch post, deleted after.
-test('footer: the live region says only save-state changes, never the relative time or the initial', async ({page}, info) => {
+test('@local footer: the live region says only save-state changes, never the relative time or the initial', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's footer says nothing on save")
   const id = `post-footer-live-${Date.now().toString(36)}`
