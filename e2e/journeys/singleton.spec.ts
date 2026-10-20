@@ -44,7 +44,7 @@ test('@local B13: a singleton opens from Settings as its one doc; only publish, 
   await page.keyboard.press('Escape')
   await page.getByRole('button', {name: 'Publish', exact: true}).click()
   // The status starts with the publisher's avatar (its initials), then the words.
-  await expect(page.locator('.doc-footer [role=status]')).toContainText('Last published')
+  await expect(page.locator('.doc-footer .save-state-text')).toContainText('Last published')
   await page.goto('/structure/siteSettings?perspective=published')
   await t.settle(page)
   await expect(page.locator('.doc-footer')).toContainText('Last published')

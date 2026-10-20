@@ -60,7 +60,9 @@ export function ToastHost() {
     () => toasts,
   )
   return (
-    <div className="toasts" aria-live="polite">
+    // Each toast is its own live region (status, or alert when critical), as Sanity's one
+    // role=alert: a live container around them made some readers say a toast twice.
+    <div className="toasts">
       {list.map((x) => (
         <div key={x.id} className="toast" data-tone={x.tone} data-timed={x.ms ? '' : undefined} style={x.ms ? ({'--toast-ms': `${x.ms}ms`} as CSSProperties) : undefined} role={x.tone === 'critical' ? 'alert' : 'status'}>
           {typeof x.title === 'string' ? <strong>{x.title}</strong> : <span className="toast-title">{x.title}</span>}
