@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 58 changes
+- **Today** · 59 changes
+  - A checkbox, select or checkbox list changed before hydration is saved, as typed keys are ([#1035](https://github.com/FRIKKern/barkpark-studio/pull/1035))
   - Keys typed into the form before hydration are kept: noted while inert, put in again once live ([#1034](https://github.com/FRIKKern/barkpark-studio/pull/1034))
-  - perf: lookups and global search stay flat on a big content model ([#1033](https://github.com/FRIKKern/barkpark-studio/pull/1033))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
