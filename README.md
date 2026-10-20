@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 64 changes
+- **Today** · 65 changes
+  - Early changes to controls with no id are kept: the boot rule finds them by their label ([#1041](https://github.com/FRIKKern/barkpark-studio/pull/1041))
   - The list's and the media tool's search boxes keep keys typed before hydration ([#1040](https://github.com/FRIKKern/barkpark-studio/pull/1040))
-  - fix(i18n): nb-NO strings as Sanity's pack words them, across the studio ([#1039](https://github.com/FRIKKern/barkpark-studio/pull/1039))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
