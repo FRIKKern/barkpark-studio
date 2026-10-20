@@ -29,6 +29,11 @@ export type DeskNode = {
   child?: {typeName: string; title?: string; field: string; template?: {id: string; param: string}}
   /** A list with a `child`: its own pane's title ("Authors"), when not its row's ("Posts by author"). */
   listTitle?: string
+  /**
+   * A declared list's own pane title, when not its row's (Barkpark's `paneTitle`): Sanity's
+   * `S.listItem().title('Med anmeldelser').child(S.documentTypeList('product').title('Produkter med anmeldelser'))`.
+   */
+  paneTitle?: string
   items?: DeskNode[]
 }
 
@@ -66,6 +71,9 @@ export function normalizeDesk(raw: unknown): DeskNode {
   while (items.length && items[items.length - 1].type === 'divider') items.pop()
   return {...node, items}
 }
+
+/** The title of the pane a desk node opens: its paneTitle, else its row title. */
+export const paneTitleOf = (node: DeskNode | undefined) => node?.paneTitle || node?.title
 
 /** Every desk node by id (ids are unique in Barkpark's tree). */
 export function deskIndex(root: DeskNode): Map<string, DeskNode> {

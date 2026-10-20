@@ -4,7 +4,7 @@ import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
 import {deskQuery, restQuery, docQuery, docTitle, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {historyQuery} from '../lib/history'
-import {deskIndex, deskSort, listFilter, rootDesk, unsupportedOps, type DeskNode} from '../lib/desk'
+import {deskIndex, deskSort, listFilter, paneTitleOf, rootDesk, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
 import {announce} from '../lib/announce'
 import {DEFAULT_SORT, DEFAULT_VIEW, ListPrefsContext, useListPrefs, type Sort, type View} from '../lib/list-prefs'
@@ -323,12 +323,12 @@ function usePaneTitle(pane: Pane) {
   // J32: a doc someone deleted is "Untitled", as Sanity's (its pane reads this history already).
   const {data: revisions} = useQuery({...historyQuery(type, id), enabled: pane.kind === 'doc' && known && doc === null})
   if (pane.kind === 'types') return desk?.title ?? t('Content')
-  if (pane.kind === 'menu') return node?.title ?? pane.node
+  if (pane.kind === 'menu') return paneTitleOf(node) ?? pane.node
   // J18: a child list is titled by its declaration ("Posts"), its parent list by its own ("Authors").
   if (pane.kind === 'list' && pane.treeParent && node?.child) return node.child.title ?? schemaOf(schemas, pane.type)?.title ?? pane.type
   if (pane.kind === 'list' && pane.treeParent) return previewTitle(treeParent, schemaOf(schemas, pane.type), t)
-  if (pane.kind === 'list' && node?.child) return node.listTitle ?? node.title ?? pane.type
-  if (pane.kind === 'list') return node?.title ?? schemaOf(schemas, pane.type)?.title ?? t('Unknown pane type')
+  if (pane.kind === 'list' && node?.child) return node.listTitle ?? paneTitleOf(node) ?? pane.type
+  if (pane.kind === 'list') return paneTitleOf(node) ?? schemaOf(schemas, pane.type)?.title ?? t('Unknown pane type')
   const schema = schemaOf(schemas, pane.type)
   if (!schema) return t('Unknown document type')
   if (doc === null) return revisions?.[0]?.action === 'delete' && !published ? t('Untitled') : t('The document was not found')
@@ -480,10 +480,10 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
   const isRoot = panes[index].kind === 'types'
   const t = useT()
   return (
-    <section className="pane types" aria-label={node?.title ?? (isRoot ? t('Content') : t('List'))} data-testid="pane" data-pane={isRoot ? 'types' : `menu:${node?.id ?? ''}`} data-pane-index={index}>
+    <section className="pane types" aria-label={paneTitleOf(node) ?? (isRoot ? t('Content') : t('List'))} data-testid="pane" data-pane={isRoot ? 'types' : `menu:${node?.id ?? ''}`} data-pane-index={index}>
       <header className="pane-header">
         <BackLink panes={panes} index={index} />
-        <span className="title">{node?.title ?? (isRoot ? t('Content') : '')}</span>
+        <span className="title">{paneTitleOf(node) ?? (isRoot ? t('Content') : '')}</span>
       </header>
       <div className="pane-body" onKeyDown={rowKeys}>
         {!node && <p className="list-empty">{t('This list is not in the desk')}</p>}
@@ -829,7 +829,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   // B03: ticks only for a token that may publish (read-only: none, as in Sanity and LiveView).
   const selectable = canWrite && !tree && !published && !isSingleton(schemas, type)
   // J47: a list says what it holds when it opens, and what a search found (the last pane only).
-  const listTitle = node?.title ?? schemaOf(schemas, type)?.title ?? type
+  const listTitle = paneTitleOf(node) ?? schemaOf(schemas, type)?.title ?? type
   const isLastPane = index === panes.length - 1
   const heard = useRef('')
   useEffect(() => {
