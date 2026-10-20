@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 46 changes
+- **Today** · 47 changes
+  - fix(refs): the reference menu opens to the button's left where it can't centre below, as Sanity's ([#1023](https://github.com/FRIKKern/barkpark-studio/pull/1023))
   - feat(desk): draw every Sanity desk icon name, the same vocabulary as Barkpark ([#1022](https://github.com/FRIKKern/barkpark-studio/pull/1022))
-  - fix(fields): the field actions menu stays inside the window on a phone, as Sanity's ([#1021](https://github.com/FRIKKern/barkpark-studio/pull/1021))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
