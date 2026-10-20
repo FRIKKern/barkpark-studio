@@ -10,7 +10,7 @@ import {errorsOf, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
 import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
-import {createDoc, discardDraft, discardPending, draftNew, edit, flush, publish, reasonOf, recoverPending, restorePending, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
+import {createDoc, discardDraft, discardPending, draftNew, edit, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
@@ -1093,7 +1093,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
   const locale = useLocale()
   const zone = useZone()
   const qc = useQueryClient()
-  const {state, error} = useSaveState(doc._publishedId)
+  const {state, error, retry} = useSaveState(doc._publishedId)
   const {canWrite, canPublish, editReason, publishReason, createReason, deletePublishedReason} = useCanWrite()
   // A Contributor deletes a draft only: deleting a published document unpublishes it.
   const deleteReason = doc._hasPublished !== false && !canPublish ? deletePublishedReason : editReason
@@ -1184,6 +1184,12 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
         </span>
         {state === 'signedOut' && (
           <SignInAgain />
+        )}
+        {/* A save that stopped with a Retry (too large): the person tries again once content is out. */}
+        {state === 'refused' && retry && (
+          <button type="button" className="btn" onClick={() => retrySave(qc, doc._publishedId)}>
+            {t('Retry')}
+          </button>
         )}
         <DocBadges doc={doc} />
       </div>

@@ -27,6 +27,38 @@ test('a save whose answer is lost says retrying, not offline, and lands once', a
   }
 })
 
+
+// A save refused as too large (413) stops: it says why, keeps the text, sends nothing more on
+// its own, and goes again on Retry (it retried every 2 s, saying only "retrying").
+test('a save refused as too large says why, stops, and goes again on Retry', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'the lever is our server')
+  const id = `post-413-${Date.now().toString(36)}`
+  await bpMutate([{createOrReplace: {_id: id, _type: 'post', title: 'Big'}}])
+  const fault = (kind: string, more: Record<string, unknown> = {}) => page.request.post('/api/e2e-listen', {data: {action: 'write-fault', id, kind, ...more}})
+  try {
+    await t.prepare(page.context())
+    await page.goto(t.docPath('post', id))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await fault('413', {count: 1})
+    let sent = 0
+    page.on('request', (r) => r.method() === 'POST' && r.url().includes('_serverFn') && (r.postData() ?? '').includes(id) && sent++)
+    await t.field(page, 'title').fill('Big typed')
+    const footer = page.locator('.doc-footer')
+    await expect(footer).toContainText('This document is too large to save. Remove some content.')
+    const tries = sent
+    await page.waitForTimeout(2200) // it retried every 2 s before
+    expect(sent, 'nothing more sent on its own').toBe(tries)
+    await expect(t.field(page, 'title')).toHaveValue('Big typed')
+    await footer.getByRole('button', {name: 'Retry'}).click()
+    await expect.poll(() => t.docValue(id, 'title'), {timeout: 5_000}).toBe('Big typed')
+  } finally {
+    await fault('none').catch(() => {})
+    await bpMutate([{delete: {id, type: 'post', force: true}}]).catch(() => {})
+  }
+})
+
 // The whole sweep, longer (@local): 500s for 15 s, saves hanging 10 s, a storm of twenty 412s,
 // three lost answers, one 413, and 500s with a reload in the middle. Typing goes on through
 // each; after each recovery the title is exactly what was typed (no key lost or doubled).
@@ -68,6 +100,7 @@ test('@local five save faults and a reload mid-fault: every key stored exactly o
     await exact()
     await fault('413', {count: 1})
     await type(' e1')
+    await page.locator('.doc-footer').getByRole('button', {name: 'Retry'}).click()
     await exact()
     await fault('500', {ms: 12_000})
     await type(' f1')
