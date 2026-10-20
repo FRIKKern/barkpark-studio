@@ -74,8 +74,11 @@ export const localeQuery = queryOptions({
   staleTime: Infinity,
 })
 
+// A key may carry a context before \u0004 (gettext's msgctxt), where Sanity's one English text
+// has two Norwegian ones: the context is looked up, never shown.
 export function translate(locale: Locale, en: string, vars?: Vars): string {
-  const s = locale === 'en' ? en : (dictionaries[locale]?.[en] ?? en)
+  const shown = en.slice(en.indexOf('\u0004') + 1)
+  const s = locale === 'en' ? shown : (dictionaries[locale]?.[en] ?? shown)
   return vars ? s.replace(/\{(\w+)\}/g, (all, k: string) => (k in vars ? String(vars[k]) : all)) : s
 }
 

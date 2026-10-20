@@ -338,7 +338,7 @@ function CustomOrDefault(props: FieldProps) {
 /** Sanity's change bar (J15): a thin line beside a field the draft changed; it opens Review changes. */
 function ChangeBar({onClick}: {onClick: () => void}) {
   const t = useT()
-  return <button type="button" className="change-bar" aria-label={t('Review changes')} title={t('Review changes')} onClick={onClick} />
+  return <button type="button" className="change-bar" aria-label={t('change bar\u0004Review changes')} title={t('change bar\u0004Review changes')} onClick={onClick} />
 }
 
 /**
