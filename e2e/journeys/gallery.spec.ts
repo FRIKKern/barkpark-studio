@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test, type Page} from '@playwright/test'
-import {BACKEND_POLL, closeAndSettle, signInIfAsked, target, type Target} from '../rig/targets'
+import {closeAndSettle, signInIfAsked, target, type Target} from '../rig/targets'
 
 // J36 widen, both studios: an array of images (post.gallery): add two by upload, each in
 // its item dialog, then drag the second above the first, by keyboard and by mouse.
@@ -38,7 +38,7 @@ test('@evidence J36: an array of images — add by upload, reorder by keyboard a
     await dialog.getByRole('button', {name: 'Close dialog'}).click()
     await expect(dialog).toBeHidden()
   }
-  await expect.poll(async () => (await refs(t)).filter(Boolean).length, {...BACKEND_POLL, timeout: 15_000}).toBe(2)
+  await expect.poll(async () => (await refs(t)).filter(Boolean).length, {timeout: 15_000}).toBe(2)
   const [a, b] = await refs(t)
   await field.screenshot({path: shot(t.name, '3-two')})
 
@@ -46,7 +46,7 @@ test('@evidence J36: an array of images — add by upload, reorder by keyboard a
   const handles = field.locator('button[aria-roledescription="sortable"]')
   await handles.last().focus()
   for (const key of ['Space', 'ArrowUp', 'Space']) (await page.keyboard.press(key), t.name === 'sanity' && (await page.waitForTimeout(200)))
-  await expect.poll(() => refs(t), BACKEND_POLL).toEqual([b, a])
+  await expect.poll(() => refs(t), {timeout: 10_000}).toEqual([b, a])
 
   // Mouse: drag the last above the first.
   const from = (await handles.last().boundingBox())!
@@ -55,7 +55,7 @@ test('@evidence J36: an array of images — add by upload, reorder by keyboard a
   await page.mouse.down()
   await page.mouse.move(to.x + to.width / 2, to.y - 4, {steps: 12})
   await page.mouse.up()
-  await expect.poll(() => refs(t), BACKEND_POLL).toEqual([a, b])
+  await expect.poll(() => refs(t), {timeout: 10_000}).toEqual([a, b])
   await field.screenshot({path: shot(t.name, '4-reordered')})
 })
 

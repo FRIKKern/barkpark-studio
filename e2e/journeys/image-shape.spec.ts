@@ -1,6 +1,6 @@
 import {expect, test, type Page} from '@playwright/test'
 import {seedAssets} from '../../scripts/lib/seed-assets.mjs'
-import {BACKEND_POLL, bpBase, bpDataset, bpMutate, signInIfAsked, target} from '../rig/targets'
+import {bpBase, bpDataset, bpMutate, signInIfAsked, target} from '../rig/targets'
 
 // An image's stored shape (task-fd8c8097867ebe9f): a new pick stores Sanity's canonical
 // {_type: 'image', asset: {_type: 'reference', _ref}}; the bare {asset: {_ref}} older content
@@ -33,12 +33,12 @@ test('image shape: the old and the canonical read the same; an untouched old one
     await page.goto(t.docPath('post', OLD))
     await t.settle(page)
     await editTitle(page, t.field(page, 'title'))
-    await expect.poll(() => t.docValue(OLD, 'title'), BACKEND_POLL).toMatch(/ edited$/)
+    await expect.poll(() => t.docValue(OLD, 'title'), {timeout: 10_000}).toMatch(/ edited$/)
     expect(await t.docValue(OLD, 'mainImage')).toEqual(old)
     // A new pick (Upload, the same file: the library has it) stores the canonical shape.
     const field = page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')})
     await field.locator('input[type=file]').first().setInputFiles('../fixtures/assets/fixture-image.png')
-    await expect.poll(() => t.docValue(OLD, 'mainImage'), {...BACKEND_POLL, timeout: 15_000}).toEqual({_type: 'image', asset: {_type: 'reference', _ref: ref}, alt: 'Same picture'})
+    await expect.poll(() => t.docValue(OLD, 'mainImage'), {timeout: 15_000}).toEqual({_type: 'image', asset: {_type: 'reference', _ref: ref}, alt: 'Same picture'})
   } finally {
     await bpMutate([{delete: {id: OLD, type: 'post', force: true}}, {delete: {id: NEW, type: 'post', force: true}}]).catch(() => {})
   }

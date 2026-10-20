@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {BACKEND_POLL, target, type Target, closeAndSettle} from '../rig/targets'
+import {target, type Target, closeAndSettle} from '../rig/targets'
 
 // J31 evidence, both studios: radio and dropdown select lists, then the date-time
 // picker by mouse and by keyboard. Stills + clips go to e2e/evidence/ (gitignored)
@@ -30,8 +30,8 @@ test('@evidence J31: select lists and the date-time picker', async ({page}, info
   // Radio: pick Writing; dropdown: pick Article. Both land in the backend.
   await page.getByRole('radio', {name: 'Writing'}).click()
   await t.field(page, 'format').selectOption({label: 'Article'})
-  await expect.poll(() => t.docValue(ID, 'stage'), BACKEND_POLL).toBe('writing')
-  await expect.poll(() => t.docValue(ID, 'format'), BACKEND_POLL).toBe('article')
+  await expect.poll(() => t.docValue(ID, 'stage'), {timeout: 10_000}).toBe('writing')
+  await expect.poll(() => t.docValue(ID, 'format'), {timeout: 10_000}).toBe('article')
 
   // Date-time: the field shows local time; the picker opens on the selected day.
   const input = t.field(page, 'publishedAt')
@@ -47,7 +47,7 @@ test('@evidence J31: select lists and the date-time picker', async ({page}, info
     await page.keyboard.press('Enter')
   } else await page.getByRole('button', {name: 'Mon Sep 07 2026'}).click()
   await expect(input).toHaveValue('2026-09-07 11:00')
-  await expect.poll(() => t.docValue(ID, 'publishedAt'), BACKEND_POLL).toBe('2026-09-07T09:00:00.000Z')
+  await expect.poll(() => t.docValue(ID, 'publishedAt'), {timeout: 10_000}).toBe('2026-09-07T09:00:00.000Z')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', {name: 'Set to current time'})).toHaveCount(0)
 
@@ -56,7 +56,7 @@ test('@evidence J31: select lists and the date-time picker', async ({page}, info
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.type('2026-12-24 18:30')
   await page.keyboard.press('Tab')
-  await expect.poll(() => t.docValue(ID, 'publishedAt'), BACKEND_POLL).toBe('2026-12-24T17:30:00.000Z')
+  await expect.poll(() => t.docValue(ID, 'publishedAt'), {timeout: 10_000}).toBe('2026-12-24T17:30:00.000Z')
   await calendarButton(t, page).click()
   await page.screenshot({path: shot(t.name, '3-picker-december')})
   await page.getByRole('button', {name: 'Set to current time'}).click()

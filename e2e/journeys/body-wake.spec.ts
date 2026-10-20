@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {BACKEND_POLL, target, closeAndSettle} from '../rig/targets'
+import {target, closeAndSettle} from '../rig/targets'
 
 // J10, F8 (nothing lost): the body is read-only until a click wakes Barkpark's canvas,
 // which takes a moment on a fresh page (its bundle, the blocks). Keys typed in that
@@ -33,7 +33,7 @@ test('J10: keys typed while the body wakes up are all kept', async ({page}, info
   await expect(body.locator('.ProseMirror')).toContainText('Plugh', {timeout: 15_000})
   expect(await height()).toBe(306)
   const lines = async () => (((await t.docValue(ID, 'body')) as {blocks?: {content?: {value?: string}[]}[]} | undefined)?.blocks ?? []).map((b) => (b.content ?? []).map((c) => c.value ?? '').join(''))
-  await expect.poll(async () => (await lines()).join('|'), {...BACKEND_POLL, timeout: 15_000}).toMatch(/XYZZY\|Plugh(\||$)/)
+  await expect.poll(async () => (await lines()).join('|'), {timeout: 15_000}).toMatch(/XYZZY\|Plugh(\||$)/)
 })
 
 test('@local J10: Enter while the body wakes is a paragraph break, and another field keeps its own keys', async ({page}, info) => {

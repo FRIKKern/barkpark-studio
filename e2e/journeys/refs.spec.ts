@@ -1,6 +1,6 @@
 import {expect, test, type Route} from '@playwright/test'
 import {installProbes, networkBudget, recordFeel, sharedLocalToken, timeToReady} from '../rig/feel'
-import {BACKEND_POLL, bpBase, bpDataset, bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
+import {bpBase, bpDataset, bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
 // The URL and the test's own flags cost nothing to read: every 50 ms, not the default
@@ -162,7 +162,7 @@ test('J22: create a new author from the reference field, edit it in the next pan
     await page.keyboard.type('Barbara Liskov II')
     if (t.name === 'studio') await page.context().setOffline(false)
     await expect(t.refLink(pane, 'author')).toContainText('Barbara Liskov II', {timeout: 10_000})
-    await expect.poll(() => t.docValue(id!, 'name', 'author').catch(() => undefined), {...BACKEND_POLL, timeout: 5_000}).toBe('Barbara Liskov II')
+    await expect.poll(() => t.docValue(id!, 'name', 'author').catch(() => undefined)).toBe('Barbara Liskov II')
     await expect.poll(async () => {
       const value = await t.docValue(ID, 'author')
       // Sanity adds weak/strengthen-on-publish metadata for a new draft.

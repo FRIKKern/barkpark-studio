@@ -1,7 +1,7 @@
 import {expect, test, type BrowserContext, type Page} from '@playwright/test'
 import {readFileSync} from 'node:fs'
 import type {Route} from '@playwright/test'
-import {BACKEND_POLL, bpMutate, signInIfAsked, target, type Target, closeAndSettle, savesLanded} from '../rig/targets'
+import {bpMutate, signInIfAsked, target, type Target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // B11 widen (task-89fecb4915b2f30d): form edits Barkpark never acknowledged survive the
 // tab dying. Saves are cut off (every mutate fails as a network error; a crash sends no
@@ -44,9 +44,9 @@ test('body words typed offline are saved once back, with a field typed meanwhile
     await t.field(page, 'title').click()
     await context.setOffline(false)
     await savesLanded(page)
-    await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {...BACKEND_POLL, timeout: 15_000}).toContain(' kept words')
+    await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 15_000}).toContain(' kept words')
     await expect(para).toContainText(' kept words')
-    await expect.poll(() => t.docValue(ID, 'title'), {...BACKEND_POLL, timeout: 15_000}).toBe(`${TITLE} off`)
+    await expect.poll(() => t.docValue(ID, 'title'), {timeout: 15_000}).toBe(`${TITLE} off`)
   } finally {
     await t.restore(ID, {body})
   }
@@ -77,7 +77,7 @@ test('a body batch answered 404 by a publish race goes again', async ({page}, in
     await page.keyboard.press('End')
     await page.keyboard.type(' raced words')
     await savesLanded(page)
-    await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), BACKEND_POLL).toContain(' raced words')
+    await expect.poll(async () => JSON.stringify(await t.docValue(ID, 'body')), {timeout: 10_000}).toContain(' raced words')
     expect(raced, 'the first batch was answered 404').toBe(true)
     await expect(page.locator('.pd-conflict')).toHaveCount(0)
   } finally {
@@ -121,7 +121,7 @@ test('kept form edits over a newer save are offered: Restore merges', async ({co
   await card.getByRole('button', {name: 'Restore'}).click()
   await expect(card).toBeHidden()
   await savesLanded(page)
-  await expect.poll(() => t.docValue(ID, 'excerpt'), {...BACKEND_POLL, timeout: 15_000}).toBe(`Theirs. ${EXCERPT} mine`)
+  await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`Theirs. ${EXCERPT} mine`)
 })
 
 test('@local kept form edits are sent again after a crash; Discard sticks', async ({context}, info) => {
@@ -318,7 +318,7 @@ test('a re-read while typing is unsent keeps the typing', async ({page}, info) =
     release()
     await page.unrouteAll({behavior: 'wait'})
     await savesLanded(page)
-    await expect.poll(() => t.docValue('post-05', 'title'), BACKEND_POLL).toBe('Fixture post 05 xyzQ')
+    await expect.poll(() => t.docValue('post-05', 'title'), {timeout: 10_000}).toBe('Fixture post 05 xyzQ')
   } finally {
     release()
     await closeAndSettle(page)

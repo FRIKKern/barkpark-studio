@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {BACKEND_POLL, closeAndSettle, target} from '../rig/targets'
+import {closeAndSettle, target} from '../rig/targets'
 
 // Copy and paste go through the system clipboard in Sanity's format (task-11fcedbfe2d62bc8):
 // a field copied here pastes in another tab, a field copied in Sanity pastes here, and after
@@ -25,7 +25,7 @@ test('the field clipboard is the system clipboard, in Sanity\'s format', async (
 
   // Copy: Sanity's item (schema type, path, value), base64 in text/html, the words as text.
   await fieldMenu(page, 'excerpt', 'Copy field')
-  await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.read())[0]?.types.join('|') ?? ''), {intervals: [50]}).toContain(SANITY_TYPE)
+  await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.read())[0]?.types.join('|') ?? '')).toContain(SANITY_TYPE)
   const written = await page.evaluate(async (type) => {
     const [item] = await navigator.clipboard.read()
     return {json: JSON.parse(await (await item!.getType(type)).text()), html: await (await item!.getType('text/html')).text(), text: await (await item!.getType('text/plain')).text()}
@@ -40,7 +40,7 @@ test('the field clipboard is the system clipboard, in Sanity\'s format', async (
   await t.settle(other)
   await fieldMenu(other, 'title', 'Paste field')
   await expect(t.field(other, 'title')).toHaveValue('Short excerpt for post 22.')
-  await expect.poll(() => t.docValue(ID, 'title'), {...BACKEND_POLL, timeout: 5_000}).toBe('Short excerpt for post 22.')
+  await expect.poll(() => t.docValue(ID, 'title')).toBe('Short excerpt for post 22.')
   await closeAndSettle(other)
 
   // Something else copied since: nothing to paste, the title kept.
