@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 73 changes
+- **Today** · 74 changes
+  - fix(security): a title's bidi controls never reach the tab title ([#1051](https://github.com/FRIKKern/barkpark-studio/pull/1051))
   - fix(security): stored link addresses the allowlist refuses are drawn as words ([#1050](https://github.com/FRIKKern/barkpark-studio/pull/1050))
-  - fix(i18n): History and comment dates as Sanity's formats them, in the hydration-safe zone ([#1048](https://github.com/FRIKKern/barkpark-studio/pull/1048))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
