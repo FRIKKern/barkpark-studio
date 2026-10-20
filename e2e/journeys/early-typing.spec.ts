@@ -35,3 +35,33 @@ test('keys typed before hydration are saved, not dropped', async ({page}, info) 
     await bpMutate([{delete: {id, type: 'post', force: true}}]).catch(() => {})
   }
 })
+
+// task-c044d1ebab1e53dd: the same for a checkbox, a select and a checkbox list ticked or picked
+// on the inert form; they reverted to their stored state once React had them.
+test('a checkbox, select and checkbox list changed before hydration are saved', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's form is drawn on the client")
+  const id = `ft-early-${Date.now().toString(36)}`
+  await bpMutate([{createOrReplace: {_id: id, _type: 'fieldTypes', title: 'Early controls'}}])
+  try {
+    await t.prepare(page.context())
+    await page.goto(t.docPath('fieldTypes', id))
+    await signInIfAsked(page)
+    await t.settle(page)
+    const held: (() => void)[] = []
+    let holding = true
+    await page.route('**/*', (r) => (holding && r.request().resourceType() === 'script' ? void held.push(() => void r.continue()) : r.continue()))
+    await page.goto(t.docPath('fieldTypes', id), {waitUntil: 'commit'})
+    await page.locator('[id="agree"]').check()
+    await page.locator('[id="choice"]').selectOption('1')
+    await page.locator('[id="colours"] input[type=checkbox]').first().check()
+    expect(await page.locator('html[data-hydrated]').count(), 'changed before hydration').toBe(0)
+    holding = false
+    for (const go of held) go()
+    await t.settle(page)
+    await expect.poll(async () => [await t.docValue(id, 'agree', 'fieldTypes'), await t.docValue(id, 'choice', 'fieldTypes'), await t.docValue(id, 'colours', 'fieldTypes')], {timeout: 10_000}).toEqual([true, 'b', ['red']])
+    await expect(page.locator('[id="agree"]')).toBeChecked()
+  } finally {
+    await bpMutate([{delete: {id, type: 'fieldTypes', force: true}}]).catch(() => {})
+  }
+})
