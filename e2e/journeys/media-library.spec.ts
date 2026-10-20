@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '@playwright/test'
-import {bpMutate, target, closeAndSettle} from '../rig/targets'
+import {seedAssets} from '../../scripts/lib/seed-assets.mjs'
+import {bpBase, bpDataset, bpMutate, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // B08 (Barkpark-native, ours only), after LiveView's media library: the Media tool
 // lists the dataset's assets; search and the visibility filter narrow them; an asset's
@@ -148,4 +149,27 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   await tile.click()
   await inspector.getByRole('button', {name: 'Remove from collection'}).click()
   await expect(page.getByText('This collection is empty')).toBeVisible()
+})
+
+// An asset's details typed and not saved yet (they wait for Save) make closing the tab ask
+// first; they were lost, unasked. Nothing is written.
+test("media: an asset's unsaved details ask before the tab closes", async ({context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: the media tool')
+  // One image in the library at least (the fixture's; one asset per file).
+  await seedAssets([{img: {_sanityAsset: 'image@file://./assets/fixture-image.png'}}], {base: bpBase(), dataset: bpDataset(), token: process.env.BARKPARK_TOKEN!})
+  await t.prepare(context)
+  const page = await context.newPage()
+  await page.goto('/media')
+  await signInIfAsked(page)
+  await t.settle(page)
+  await page.locator('.media-tile').first().click()
+  const title = page.locator('[id="media-title"]')
+  await expect(title).toBeEditable()
+  await title.fill(`${await title.inputValue()} unsaved`)
+  let asked = false
+  page.once('dialog', (d) => ((asked = d.type() === 'beforeunload'), void d.dismiss()))
+  await page.close({runBeforeUnload: true})
+  await expect.poll(() => asked, {intervals: [50]}).toBe(true)
+  await page.close().catch(() => {})
 })
