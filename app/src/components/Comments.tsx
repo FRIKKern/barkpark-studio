@@ -409,7 +409,7 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, active, o
         <h2>{t('Comments')}</h2>
         <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}>
           <button type="button" className="chip-btn plain" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
-            {status === 'open' ? t('Open') : t('Resolved')} <ChevronDown />
+            {status === 'open' ? t('comment status\u0004Open') : t('Resolved')} <ChevronDown />
           </button>
           {menu && (
             <MenuPopover className="popover menu comments-status" onClose={() => setMenu(false)}>

@@ -55,8 +55,8 @@ export default {
   after: 'etter',
   before: 'før',
   // Both the menu name and the chip value ("Rating is not empty"): one word that reads in both.
-  'not empty': 'ikke tom',
-  empty: 'tom',
+  'not empty': 'er definert',
+  empty: 'ikke definert',
   'is in the last': 'er innenfor siste',
   'is after': 'er etter',
   'is before': 'er før',
