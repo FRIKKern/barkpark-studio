@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from 'react'
-import {useQueries, useQuery} from '@tanstack/react-query'
-import {backlinksQuery, disconnectReferences, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query'
+import {backlinksQuery, disconnectReferences, ensureBacklinks, previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {reasonOf} from '../lib/edits'
 import {DialogBox} from './FocusScopes'
 import {UsedInList} from './DeleteDialog'
@@ -15,10 +15,25 @@ import {useT} from '../lib/i18n'
  * bulk bar). As LiveView, "Disconnect references and unpublish" first takes the
  * references out of those documents (Barkpark's disconnect, #22139).
  */
+const BACKLINKS_BATCH = 100
+
 export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => Promise<unknown>; onClose: () => void}) {
   const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
-  const lookups = useQueries({queries: docs.map((d) => ({...backlinksQuery(d._publishedId), refetchOnMount: 'always' as const, retry: false}))})
+  // Every document's backlinks in batches of 100 first (barkpark#23825), not one read per
+  // document; a Barkpark without the batch read, or a failed one, lets each read alone.
+  const qc = useQueryClient()
+  const [primed, setPrimed] = useState(false)
+  const ids = docs.map((d) => d._publishedId)
+  useEffect(() => {
+    let live = true
+    void (async () => {
+      for (let i = 0; i < ids.length; i += BACKLINKS_BATCH) if (!(await ensureBacklinks(qc, ids.slice(i, i + BACKLINKS_BATCH)).catch(() => false))) break
+      if (live) setPrimed(true)
+    })()
+    return () => void (live = false)
+  }, [ids.join(',')]) // the documents, by identity
+  const lookups = useQueries({queries: docs.map((d) => ({...backlinksQuery(d._publishedId), refetchOnMount: 'always' as const, retry: false, enabled: primed}))})
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
   const cancel = useRef<HTMLButtonElement>(null)
