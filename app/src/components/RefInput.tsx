@@ -383,13 +383,13 @@ function RefMenu({onClear, onReplace, newTabHref}: {onClear: () => void; onRepla
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [open])
-  // Sanity's menu is centred under its button; a narrow pane shifts it back inside.
+  // Sanity's menu is centred under its button; where that would run past the pane (a
+  // narrow pane, a phone) it opens to the button's left instead, centred on it.
   useLayoutEffect(() => {
     const menu = ref.current?.querySelector<HTMLElement>('.popover')
     const pane = ref.current?.closest('.pane')
     if (!open || !menu || !pane) return
-    const over = menu.getBoundingClientRect().right - pane.getBoundingClientRect().right + 8
-    if (over > 0) menu.style.translate = `${-over}px`
+    if (menu.getBoundingClientRect().right > pane.getBoundingClientRect().right - 8) menu.dataset.side = 'left'
   }, [open])
   const item = (label: string, icon: ReactNode, run: () => void, cls = '') => (
     <button type="button" role="menuitem" className={`menu-item ${cls}`} onClick={() => (setOpen(false), run())}>
