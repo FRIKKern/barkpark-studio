@@ -1,6 +1,7 @@
 // Norwegian (nb-NO) for the document group: English as written in the code -> bokmål.
 // Sources: Sanity's nb-NO pack where our English is Sanity's, Barkpark's Studio, then ours.
 export default {
+  'This document is too large to save. Remove some content.': 'Dokumentet er for stort til å lagres. Fjern noe innhold.',
   '1 document refers to “{title}”': '1 dokument refererer til «{title}»',
   '1 item': '1 element',
   '1 property': '1 egenskap',

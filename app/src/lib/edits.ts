@@ -88,7 +88,7 @@ export const mutate = createServerFn({method: 'POST'})
  * read-only), with its reason; the next edit tries again, nothing retries on its own.
  */
 export type SaveState = 'saved' | 'saving' | 'stalled' | 'offline' | 'recovering' | 'error' | 'signedOut' | 'refused'
-type Snap = {state: SaveState; error?: string; creating?: boolean}
+type Snap = {state: SaveState; error?: string; creating?: boolean; retry?: boolean}
 type DocEdits = {
   type: string
   /** What Barkpark's schema check said of the last save (advisory: never blocks, #22406). */
@@ -268,8 +268,8 @@ function keepUnsaved(id: string, e: DocEdits) {
 const SAVED: Snap = {state: 'saved'}
 const docs = new Map<string, DocEdits>()
 const listeners = new Set<() => void>()
-const setState = (e: DocEdits, state: SaveState, error?: string) => {
-  e.snap = {state, error, creating: !!e.pendingCreate && !!e.createRequested}
+const setState = (e: DocEdits, state: SaveState, error?: string, retry = false) => {
+  e.snap = {state, error, creating: !!e.pendingCreate && !!e.createRequested, ...(retry && {retry})}
   setFooterOffline(anyOffline())
   listeners.forEach((l) => l())
 }
@@ -571,6 +571,12 @@ export function reasonOf(msg: string): string | undefined {
   }
 }
 
+/** Retry, by hand, a save refused with a Retry offered (too large, 413). */
+export function retrySave(qc: QueryClient, id: string) {
+  const e = docs.get(id)
+  if (e?.snap.retry && (e.dirty.size || e.createRequested)) (setState(e, 'saving'), void send(qc, id))
+}
+
 /** After signing in again: send every doc's edits that waited for it. */
 export function resumeSaving(qc: QueryClient) {
   for (const [id, e] of docs) if (e.snap.state === 'signedOut' && (e.dirty.size || e.createRequested)) (setState(e, 'saving'), void send(qc, id))
@@ -682,6 +688,14 @@ async function send(qc: QueryClient, id: string) {
     // A refusal still folds in a frame that came while it was on its way (rebase kept it
     // for afterInflight): a text of ours rewrote meanwhile is said, not hidden behind the
     // refusal until the next save 412s (the form-refused flake on a cold server).
+    // Too large (413) goes no better a second time: stop retrying, say why, keep every value
+    // (this browser's store too) and offer Retry; an edit (taking content out) tries again too.
+    if (/^mutate 413\b/.test(msg)) {
+      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      e.inflight = null
+      keepUnsaved(id, e)
+      return setState(e, 'refused', t('This document is too large to save. Remove some content.'), true)
+    }
     if (/^mutate 403\b/.test(msg)) {
       if (afterInflight(qc, id, e)) return
       return setState(e, 'refused', reasonOf(msg) ?? 'Barkpark refused the change')
