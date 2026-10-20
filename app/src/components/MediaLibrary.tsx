@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, type FormEvent} from 'react'
+import {useEffect, useId, useRef, useState, type FormEvent} from 'react'
 import {useInfiniteQuery, useQuery, useQueryClient} from '@tanstack/react-query'
 import {assetQuery, assetsQuery, collectionsQuery, createFolder, KINDS, kindCountsQuery, REFINE, type Refine, saveAssetMeta, SORTS, type Sort, setCheckout, setMember, type Kind, type LibraryAsset, type Visibility} from '../lib/media-library'
 import {reasonOf} from '../lib/edits'
@@ -67,6 +67,8 @@ export function MediaLibrary({search: kept, onSearch}: {search: MediaSearch; onS
   }, [q])
   // LiveView's "/ to focus": / outside a text field puts the caret in the search.
   const search = useRef<HTMLInputElement>(null)
+  // Keys typed into the server-drawn box before React has it are put in again by this id (lib/hydrated.ts).
+  const searchId = useId()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return
@@ -173,7 +175,7 @@ export function MediaLibrary({search: kept, onSearch}: {search: MediaSearch; onS
         <header className="media-bar">
           <div className="search">
             <span className="search-icon"><Search /></span>
-            <input ref={search} type="search" aria-label={t('Search media')} aria-keyshortcuts="/" placeholder={t('Search media')} value={q} onChange={(e) => setQ(e.target.value)} />
+            <input ref={search} id={searchId} type="search" aria-label={t('Search media')} aria-keyshortcuts="/" placeholder={t('Search media')} value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <select className="input media-visibility" aria-label={t('Visibility')} value={visibility} onChange={(e) => setVisibility(e.target.value as Visibility | '')}>
             <option value="">{t('Any visibility')}</option>

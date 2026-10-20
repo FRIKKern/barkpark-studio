@@ -65,3 +65,24 @@ test('a checkbox, select and checkbox list changed before hydration are saved', 
     await bpMutate([{delete: {id, type: 'fieldTypes', force: true}}]).catch(() => {})
   }
 })
+
+// The list's search box too: typed into before hydration, the list searches for it once live.
+test('a list search typed before hydration searches once live', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's list is drawn on the client")
+  await t.prepare(page.context())
+  await page.goto(t.listPath('post'))
+  await signInIfAsked(page)
+  await t.settle(page)
+  const held: (() => void)[] = []
+  let holding = true
+  await page.route('**/*', (r) => (holding && r.request().resourceType() === 'script' ? void held.push(() => void r.continue()) : r.continue()))
+  await page.goto(t.listPath('post'), {waitUntil: 'commit'})
+  await page.getByRole('combobox', {name: 'Search list'}).fill('Fixture post 07')
+  expect(await page.locator('html[data-hydrated]').count(), 'typed before hydration').toBe(0)
+  holding = false
+  for (const go of held) go()
+  await t.settle(page)
+  await expect(t.listItem(page, 'post-07')).toBeVisible()
+  await expect(t.listItem(page, 'post-02')).toHaveCount(0)
+})

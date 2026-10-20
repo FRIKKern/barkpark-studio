@@ -728,6 +728,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   // when React has time, and a newer key drops a redraw still under way.
   const shownQuery = useDeferredValue(query)
   const searchInput = useRef<HTMLInputElement>(null)
+  // The same id on the server and in the browser: keys typed into the server-drawn box before
+  // React has it are put in again by that id (lib/hydrated.ts); they were lost.
+  const searchId = useId()
   // Sanity's list search is a combobox over its rows: typing lights the first result,
   // ArrowDown/ArrowUp move the light, Enter opens it; the box names it (aria-activedescendant).
   const listId = useId()
@@ -939,6 +942,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         </span>
         <input
           ref={searchInput}
+          id={searchId}
           type="search"
           aria-label={t('Search list')}
           placeholder={t('Search list')}
