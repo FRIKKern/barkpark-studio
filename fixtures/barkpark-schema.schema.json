@@ -43,7 +43,7 @@
       "description": "initialValues, as Barkpark spells it."
     },
     "desk": {
-      "description": "Desk settings: orderings, views; hidden: true keeps the type off Barkpark's desk while its URLs still open (barkpark#22789).",
+      "description": "Desk settings: orderings, views; preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark's desk while its URLs still open (barkpark#22789).",
       "type": "object",
       "properties": {
         "hidden": {
@@ -62,6 +62,9 @@
     "prefill": {
       "description": "A new PortableDoc document's starting blocks."
     },
+    "kind": {
+      "description": "\"document\" or \"object\" (a named type other schemas use as a field type; never offered for creating)."
+    },
     "visibility": {
       "description": "\"public\" or \"private\": who may read its documents.",
       "enum": [
@@ -74,13 +77,6 @@
     },
     "icon": {
       "description": "Its icon."
-    },
-    "kind": {
-      "description": "\"document\" or \"object\" (a named type other schemas use as a field type).",
-      "enum": [
-        "document",
-        "object"
-      ]
     },
     "owner_scoped": {
       "description": "Documents scoped to their owner."

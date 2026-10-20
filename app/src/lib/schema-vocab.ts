@@ -86,16 +86,16 @@ export const SCHEMA_KEYS = {
   fieldsets: 'Sanity\'s fieldsets for the document\'s own fields, as a composite\'s.',
   initialValues: 'A new document\'s starting values.',
   initial_values: 'initialValues, as Barkpark spells it.',
-  desk: 'Desk settings: orderings, views; hidden: true keeps the type off Barkpark\'s desk while its URLs still open (barkpark#22789).',
+  desk: 'Desk settings: orderings, views; preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark\'s desk while its URLs still open (barkpark#22789).',
   singleton: 'One document, whose id is the type\'s name.',
   layout: 'The Expectation for PortableDoc types (decision 0004).',
   prefill: 'A new PortableDoc document\'s starting blocks.',
+  kind: '"document" or "object" (a named type other schemas use as a field type; never offered for creating).',
 } satisfies Record<keyof RawSchema, string>
 export const BARKPARK_SCHEMA_KEYS = {
   visibility: '"public" or "private": who may read its documents.',
   actions: 'Barkpark document actions the type declares.',
   icon: 'Its icon.',
-  kind: '"document" or "object" (a named type other schemas use as a field type).',
   owner_scoped: 'Documents scoped to their owner.',
   desk_groups: 'Desk groups.',
   cross_validations: 'Cross-field rules: [{name, title, rule, level, fields}].',

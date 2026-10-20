@@ -9,6 +9,7 @@ import {useCanWrite} from '../lib/session'
 import {Add, Close, Search} from './icons'
 import {toast} from './Toasts'
 import {collate, t as tBrowser, useT} from '../lib/i18n'
+import {isDocumentType} from '../lib/creatable'
 
 // J37, Sanity's navbar "+" ("Create new document"): a filterable list of the
 // types, A–Z; picking one opens a new document of it as the type's list + the
@@ -28,7 +29,7 @@ export function NewDocMenu() {
       </button>
       {open && (
         <TypePicker
-          choices={schemas.filter((s) => !isSingleton(schemas, s.name)).flatMap((s) => choicesFor(schemas, s.name)).sort((a, b) => collate(a.title, b.title))}
+          choices={schemas.filter((s) => isDocumentType(s) && !isSingleton(schemas, s.name)).flatMap((s) => choicesFor(schemas, s.name)).sort((a, b) => collate(a.title, b.title))}
           onClose={() => setOpen(false)}
           onPick={(choice) => {
             setOpen(false)
