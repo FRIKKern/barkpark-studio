@@ -10,6 +10,7 @@ import {advisoryFindings, findingsOf, findingsReason, type Finding} from './find
 import {t} from './i18n'
 import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
+import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
 import {merge3, mergeList3, onto, revertSteps} from './merge'
 import {applyPaths, getPath, setPath, within} from './paths'
@@ -827,11 +828,16 @@ export function whenSaved(id: string): Promise<void> {
 }
 
 /** Publish what the editor sees: unsent edits go first. */
-export async function publish(qc: QueryClient, doc: Doc) {
+export async function publish(qc: QueryClient, doc: Doc, {slugsChecked = false} = {}) {
   const id = doc._publishedId
   flush(qc, id)
   await whenSaved(id)
-  if (!qc.getQueryData<Doc>(['doc', id])?._draft) return // nothing to publish
+  const now = qc.getQueryData<Doc>(['doc', id])
+  if (!now?._draft) return // nothing to publish
+  // A slug someone else took since the form last asked is refused here, as Sanity's publish does.
+  // (A bulk publish asked for all its docs at once: slugsTakenAmong.)
+  const taken = slugsChecked ? [] : await slugsTakenNow(qc, now, qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === doc._type))
+  if (taken.length) throw new Error(`${taken.join(', ')}: ${t('Slug is already in use')}`)
   const r = (await mutate({data: {mutations: [{publish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
   applyServer(qc, r.results[0].document)
   qc.setQueryData(['doc-published', id], r.results[0].document)

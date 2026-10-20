@@ -1,9 +1,10 @@
 import {useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
-import type {Doc} from '../lib/data'
+import {schemasQuery, type Doc} from '../lib/data'
 import {publish, reasonOf, unpublish} from '../lib/edits'
 import {bulkSummary, isWall, type Outcome} from '../lib/bulk'
 import {useCanWrite} from '../lib/session'
+import {slugsTakenAmong} from '../lib/slug-unique'
 import {UnpublishDialog} from './UnpublishDialog'
 import {toast} from './Toasts'
 import {t as tBrowser, useT} from '../lib/i18n'
@@ -20,6 +21,11 @@ export function BulkBar({picked, onClear}: {picked: Doc[]; onClear: () => void})
   const [confirming, setConfirming] = useState(false)
   const run = async (action: 'publish' | 'unpublish') => {
     const outcomes: Outcome[] = []
+    // Slugs in use, asked once for all of them (publish asks per doc otherwise). Can't tell: none.
+    setRunning({action, at: 1})
+    const schemas = qc.getQueryData(schemasQuery.queryKey)
+    const latest = picked.filter((d) => d._draft).map((d) => qc.getQueryData<Doc>(['doc', d._publishedId]) ?? d)
+    const taken = action === 'publish' ? await slugsTakenAmong(qc, latest, (type) => schemas?.find((x) => x.name === type)).catch(() => new Map<string, string[]>()) : new Map<string, string[]>()
     for (const [i, doc] of picked.entries()) {
       setRunning({action, at: i + 1})
       // Nothing to do: publishing a doc with no draft, unpublishing one never published.
@@ -27,8 +33,13 @@ export function BulkBar({picked, onClear}: {picked: Doc[]; onClear: () => void})
         outcomes.push({kind: 'skipped'})
         continue
       }
+      const slugs = action === 'publish' && taken.get(doc._publishedId)
+      if (slugs) {
+        outcomes.push({kind: 'failed', reason: `${slugs.join(', ')}: ${t('Slug is already in use')}`})
+        continue
+      }
       try {
-        await (action === 'publish' ? publish(qc, doc) : unpublish(qc, doc))
+        await (action === 'publish' ? publish(qc, doc, {slugsChecked: true}) : unpublish(qc, doc))
         outcomes.push({kind: 'done'})
       } catch (e) {
         const msg = (e as Error).message

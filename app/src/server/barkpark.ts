@@ -109,7 +109,7 @@ export const apiBase = () => config().base
  * waits out Retry-After (capped) and tries again, up to 3 times, rather than
  * failing a pane. Streams (listen) are not retried here.
  */
-export async function bpFetch(path: string, init: RequestInit = {}, token = requestToken(), {retry = true, at}: {retry?: boolean; at?: Scope} = {}): Promise<Response> {
+export async function bpFetch(path: string, init: RequestInit = {}, token = requestToken(), {retry = true, at, fresh = false}: {retry?: boolean; at?: Scope; fresh?: boolean} = {}): Promise<Response> {
   const method = (init.method ?? 'GET').toUpperCase()
   const stream = new Headers(init.headers).get('accept') === 'text/event-stream'
   // Fail closed (task-ccd1876176b0fc08): with sign-in on, a write by nobody — the
@@ -120,7 +120,8 @@ export async function bpFetch(path: string, init: RequestInit = {}, token = requ
     return Response.json({error: {code: 'session_lost', message: "You've been logged out"}}, {status: 401})
   if (method !== 'GET') forgetReads() // a write: no read may answer from before it
   const base = config(at ?? scope()).base
-  if (method !== 'GET' || stream) return send(base, path, init, token, retry)
+  // `fresh`: a check that must see now, not a read shared from up to 0.5 s ago (publish's slug check).
+  if (method !== 'GET' || stream || fresh) return send(base, path, init, token, retry)
   // Identical reads within READ_DEDUPE_MS share one request: a reload's loader,
   // several panes and the SSR pass ask for the same things at once, and every
   // editor shares this token's read budget (task-2c31de0cf6597d32).
