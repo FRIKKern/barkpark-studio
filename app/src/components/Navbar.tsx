@@ -393,7 +393,7 @@ function Editor() {
           {signedIn ? <ActorAvatar actor={me!.name ?? me!.email!} /> : <UserIcon />}
         </button>
         {open && (
-          <MenuPopover className="popover menu user-menu" onClose={() => setOpen(false)} aria-labelledby="user-menu">
+          <MenuPopover className="popover menu user-menu" centered onClose={() => setOpen(false)} aria-labelledby="user-menu">
             {/* Sanity's: the avatar, the name, and the role here (task-701f8a5fdb6b4d52). */}
             {signedIn ? (
               <div className="user-head">
