@@ -114,3 +114,28 @@ test('a11y: an errored field is aria-invalid, its problem the description, its n
   await expect(title).toHaveAccessibleDescription('')
   await expect(title).toHaveAccessibleName('Title')
 })
+
+// scout-6 (WCAG 4.1.3, 1.3.1): a Vision run's outcome is said, a result and an error alike,
+// and Releases, Vision and Media each have one h1, at 1440 and on a phone.
+test('a11y: Vision says how a run went; Releases, Vision and Media have one h1', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's Vision says neither, and its tools have no h1")
+  await t.prepare(page.context())
+  await page.goto('/vision')
+  await signInIfAsked(page)
+  const heard = page.getByTestId('announcer')
+  const query = page.getByRole('textbox', {name: 'Query', exact: true})
+  await query.fill('*[_type == "post"][0...3]{title}')
+  await page.getByRole('button', {name: 'Fetch'}).click()
+  await expect(heard).toHaveText(/^3 results in \d+ ms$/)
+  await query.fill('*[_type == "post"')
+  await page.getByRole('button', {name: 'Fetch'}).click()
+  await expect(heard).toHaveText(/^Query error: /)
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({width, height: width < 600 ? 844 : 900})
+    for (const tool of ['/releases', '/vision', '/media']) {
+      await page.goto(tool)
+      await expect(page.getByRole('heading', {level: 1}), `${tool} at ${width}`).toHaveCount(1)
+    }
+  }
+})

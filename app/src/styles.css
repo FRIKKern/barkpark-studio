@@ -2691,7 +2691,9 @@ hr.desk-divider { margin: 4px 12px; padding: 0; border: 0; border-top: 1px solid
 @media (max-width: 768px) {
   .media-tool { flex-direction: column; height: auto; }
   .media-folders { width: auto; flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); }
-  .media-folders h1, .media-folders .desk-divider, .media-refine h2 { display: none; }
+  .media-folders .desk-divider, .media-refine h2 { display: none; }
+  /* The tool's one h1 stays for a screen reader (scout-6), out of sight as at 1440 it isn't. */
+  .media-folders h1 { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   /* WCAG reflow (320 px): the search takes its own line and the controls wrap under it. */
   .media-bar { flex-wrap: wrap; }
   .media-bar .search { flex: 1 1 100%; }

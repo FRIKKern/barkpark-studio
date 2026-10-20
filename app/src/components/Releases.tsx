@@ -104,6 +104,8 @@ export function Releases() {
   }, [rowKey]) // the rows, by identity
   return (
     <div className="releases">
+    {/* The tool's one h1, for a screen reader (scout-6): Sanity's shows none in sight either. */}
+    <h1 className="sr-only">{t('Releases')}</h1>
     {/* Nothing scheduled at all: Sanity's calendar has nothing to pick, so it is greyed out. */}
     <ReleasesCalendar zone={zone} marked={marked} picked={day} onPick={setDay} disabled={!!data && !all.length} />
     {calOpen && (
