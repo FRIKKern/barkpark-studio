@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 61 changes
+- **Today** · 62 changes
+  - e2e: polls back on the default backoff (revert the 250 ms intervals of #1036) ([#1038](https://github.com/FRIKKern/barkpark-studio/pull/1038))
   - Early controls: the re-check never undoes the person's own change ([#1037](https://github.com/FRIKKern/barkpark-studio/pull/1037))
-  - e2e: backend polls ask every 250 ms; nested-validation and form-refused seed while the browser starts ([#1036](https://github.com/FRIKKern/barkpark-studio/pull/1036))
 - **Yesterday** · 36 changes, 1 task closed
   - Validation as Sanity's: invalid reference card in the error tone, a field mark's tooltip with its messages ([#975](https://github.com/FRIKKern/barkpark-studio/pull/975))
 - **Last week** · 427 changes, 98 tasks closed
