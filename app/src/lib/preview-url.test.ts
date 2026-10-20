@@ -17,3 +17,15 @@ test('no slug, no URL: the view asks for one', () => {
   assert.equal(slugOf({slug: 'y'} as unknown as Doc), 'y')
   assert.equal(slugOf({slug: ''} as unknown as Doc), undefined)
 })
+
+// task-37691740e53e77b7: the Preview view is opt-in (desk.previewView) and never loads from nowhere.
+test('the Preview view: opt-in, and only with an origin to load from', async () => {
+  const {previewOrigin, previewViewTemplate} = await import('./preview-url.ts')
+  const abs = 'http://localhost:3537/posts/:slug'
+  assert.equal(previewViewTemplate({preview: abs}), undefined, 'desk.preview alone adds no tab (the reference post stays Sanity\'s)')
+  assert.equal(previewViewTemplate({preview: abs, previewView: {}}), abs)
+  assert.equal(previewViewTemplate({preview: '/posts/:slug', previewView: {}}), undefined, 'no origin: no tab')
+  assert.equal(previewViewTemplate({preview: '/posts/:slug', previewView: {}}, 'https://site.example/'), '/posts/:slug')
+  assert.equal(previewViewTemplate({previewView: {}}), undefined)
+  assert.equal(previewOrigin(abs), 'http://localhost:3537')
+})

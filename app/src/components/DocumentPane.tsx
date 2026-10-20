@@ -59,6 +59,7 @@ import {IncomingReferences} from './IncomingReferences'
 /** Sanity's inspector name for it, so a copied Sanity-style link opens the same panel. */
 const INCOMING = 'sanity/structure/incoming-references'
 import {EditIcon, EyeOpenIcon, PreviewView} from './PreviewView'
+import {previewViewTemplate} from '../lib/preview-url'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -317,8 +318,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // the JSON tab (Sanity has it as Inspect in the menu). Unset, both stay as before.
   const formTitle = import.meta.env.VITE_FORM_VIEW_TITLE as string | undefined
   const hideJson = import.meta.env.VITE_HIDE_JSON_VIEW === '1'
-  // Opt-in: the reference post declares desk.preview too, and its tabs stay as Sanity's.
-  const previewTemplate = import.meta.env.VITE_PREVIEW_VIEW === '1' ? schema?.preview : undefined
+  // The Preview view: a schema opts in (desk.previewView), as a view is declared in Sanity's
+  // structure; desk.preview alone (the reference post's, for Presentation) adds no tab. A
+  // template that loads from nowhere is not offered (task-37691740e53e77b7).
+  const previewTemplate = previewViewTemplate(schema)
   // B13: a singleton opens as Sanity's S.document() child: the form, no JSON view.
   const single = isSingleton(schemas, pane.type)
   const views: {id: View; title: string; icon?: ReactNode}[] = [
@@ -326,7 +329,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     ...(freeform ? [{id: 'freeform' as View, title: t('Freeform')}] : []),
     ...(hideJson || single ? [] : [{id: 'json' as View, title: 'JSON'}]),
     // The schema's desk.preview as a view: the site in an iframe (Agency's "Forhåndsvisning").
-    ...(previewTemplate ? [{id: 'preview' as View, title: 'Forhåndsvisning', icon: <EyeOpenIcon />}] : []),
+    ...(previewTemplate ? [{id: 'preview' as View, title: schema?.previewView?.title ?? t('Preview'), icon: <EyeOpenIcon />}] : []),
     // B09: the schema's related-document views (desk.views), after the doc's own.
     ...(schema?.views ?? []).map((v) => ({id: `desk:${v.id}` as View, title: v.title})),
   ]
