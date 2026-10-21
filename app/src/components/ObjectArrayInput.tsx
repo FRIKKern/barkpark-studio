@@ -1,7 +1,7 @@
-import {createContext, Fragment, useCallback, useContext, useEffect, useRef, useState, type DragEvent} from 'react'
+import {createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type DragEvent} from 'react'
 import {DialogBox, PaneOverlay} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
-import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Field} from '../lib/data'
+import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Field, type Schema} from '../lib/data'
 import {firstMedia, formatPreview, previewRefs, type PreviewText} from '../lib/preview'
 import {imageRef, pickedImage, type ImageValue} from '../lib/image'
 import {uploadFile, UploadError} from '../lib/upload'
@@ -15,13 +15,16 @@ import {Close as CloseIcon, Upload} from './icons'
 import {translate, useLocale, useT, useWorkspaceZone} from '../lib/i18n'
 import {usePrimed} from '../lib/prime'
 import {withField} from '../lib/with-field'
+import {memberChoices, memberFor, memberName, memberPreview, membersOf, newMemberItem} from '../lib/array-members'
 
 // Arrays of objects (J33), after Sanity's: each item a row with a preview (the
 // item's preview title/subtitle; a reference subtitle shows the referenced doc's
 // title), opened for editing in a dialog over the pane with "Links / #1 Title"
 // breadcrumbs. Items are keyed like Sanity's (_key), so the list keeps its rows
 // steady while you reorder and edit. "Add item" adds the one member type; with several
-// (a typeField) it is Sanity's "Add item…" with a menu of them.
+// (a typeField) it is Sanity's "Add item…" with a menu of them. An array whose `of` lists
+// several members (a page builder, task-3da190705a269df1) draws each item with its own
+// member's preview and icon, by the item's _type, and its "Add item…" menu lists the members.
 
 type Item = {_key?: string} & Record<string, unknown>
 type Crumb = {label: string; position: number; title: string; close: () => void}
@@ -45,9 +48,15 @@ const carriesFiles = (e: DragEvent<HTMLElement>) => [...e.dataTransfer.types].in
 
 export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}) {
   const items = (Array.isArray(value) ? value : []) as Item[]
-  const of = field.of!
-  const typing = memberTypes(of)
-  const primed = usePrimed(items.flatMap((it) => itemRefs(it, of).flatMap((r) => (r.id && r.types.length ? [{types: r.types, id: r.id}] : []))))
+  const members = useMemo(() => membersOf(field), [field.of])
+  const multi = members.length > 1
+  // One member: the array's `of` (a list of one is that one).
+  const of = members[0]!
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const memberOf = useCallback((it: Item) => memberFor(members, it) ?? unknownMember(it), [members])
+  const typing = multi ? undefined : memberTypes(of)
+  const choices = multi ? memberChoices(members, schemas) : typing?.types
+  const primed = usePrimed(items.flatMap((it) => itemRefs(it, memberOf(it), schemas).flatMap((r) => (r.id && r.types.length ? [{types: r.types, id: r.id}] : []))))
   const [editing, setEditing] = useState<string | null>(null)
   const index = items.findIndex((it) => it._key === editing)
   // J52: a link to a field inside an item (path=links[_key=="l1"].title, or Sanity's
@@ -118,7 +127,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
     for (let i = 0; i < Math.min(UPLOAD_LANES, queued.length); i++) void lane()
   }
   const dropTarget =
-    of.type === 'image' && !readOnly
+    !multi && of.type === 'image' && !readOnly
       ? {
           onDragEnter: (e: DragEvent<HTMLElement>) => carriesFiles(e) && (e.preventDefault(), setOver(true)),
           onDragOver: (e: DragEvent<HTMLElement>) => carriesFiles(e) && e.preventDefault(),
@@ -133,7 +142,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         }
       : {}
   // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
-  const renderItem = useCallback((it: Item) => <ItemRow item={it} of={of} onOpen={() => open(it._key ?? null)} />, [of, open])
+  const renderItem = useCallback((it: Item) => <ItemRow item={it} of={memberOf(it)} named={multi} onOpen={() => open(it._key ?? null)} />, [memberOf, multi, open])
   return (
     <PrimedContext.Provider value={primed}>
     <UploadsContext.Provider value={uploads}>
@@ -150,13 +159,19 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         readOnly={readOnly}
         keyOf={(it, i) => it._key ?? i}
         itemId={(it, i) => (it._key ? `${id}[_key=="${it._key}"]` : `${id}[${i}]`)}
-        blank={(type) => (of.type === 'image' ? {_type: 'image', _key: newKey()} : {...of.initialValue, ...(typing && type ? {[typing.field]: type} : {}), _key: newKey()})}
-        types={typing?.types}
+        blank={(type) =>
+          multi
+            ? newMemberItem(members.find((m) => memberName(m) === type) ?? of, newKey())
+            : of.type === 'image'
+              ? {_type: 'image', _key: newKey()}
+              : {...of.initialValue, ...(typing && type ? {[typing.field]: type} : {}), _key: newKey()}
+        }
+        types={choices}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => open(next[i]!._key ?? null)}
         onDuplicated={(i, next) => open(next[i]!._key ?? null)}
         onCopy={(it, i) => copyItem(id, i, signature(field), it)}
-        addLabel={typing ? 'Add item...' : 'Add item'}
+        addLabel={choices ? 'Add item...' : 'Add item'}
         renderItem={renderItem}
         grid={field.layout === 'grid' || (!Array.isArray(field.options) && field.options?.layout === 'grid')}
       />
@@ -166,7 +181,8 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
           parentTitle={field.title ?? field.name}
           position={index + 1}
           item={items[index]!}
-          of={of}
+          of={memberOf(items[index]!)}
+          named={multi}
           path={`${id}[_key=="${items[index]!._key}"]`}
           readOnly={readOnly}
           openRef={openRef}
@@ -210,24 +226,31 @@ function fieldsOf(of: Field, item: Item): Field[] {
  * reference ("linkedDocument.title"); a bare reference field reads as the
  * referenced doc's preview title, as Sanity's does.
  */
-const itemTitleSpec = (of: Field): PreviewText | undefined => of.preview?.title ?? of.fields?.find((f) => f.type === 'string')?.name
+const itemTitleSpec = (of: Field, p: Field['preview']): PreviewText | undefined => p?.title ?? of.fields?.find((f) => f.type === 'string')?.name
+
+/** An item whose _type no member names: its fields stay as they are, untouched. */
+const unknownMember = (it: Item): Field => ({name: typeof it._type === 'string' ? it._type : '', type: 'composite', fields: []})
 
 /** The references an item's preview reads: the preview's ref paths and bare reference fields. */
-function itemRefs(item: Item, of: Field) {
-  const p = of.preview ?? {}
-  const specs = [itemTitleSpec(of), p.subtitle, p.media]
+function itemRefs(item: Item, of: Field, schemas: Schema[]) {
+  const p = memberPreview(of, schemas) ?? {}
+  const specs = [itemTitleSpec(of, p), p.subtitle, p.media]
   const fieldOf = (name: string) => of.fields?.find((f) => f.name === name)
   const bare = specs.flatMap((s) => (typeof s === 'string' ? [s] : [])).filter((s) => !s.includes('.') && fieldOf(s)?.type === 'reference')
   return [...new Set([...previewRefs(...specs), ...bare])].map((name) => ({name, id: refId(item[name]), types: refTypesOf(fieldOf(name))}))
 }
 
-export function useItemPreview(item: Item, of: Field) {
+/**
+ * `named`: the item is one of several member types (a page builder). With no title of its
+ * own it takes its member's title, as the sections' previews in Sanity do, not "Untitled".
+ */
+export function useItemPreview(item: Item, of: Field, named = false) {
   const locale = useLocale()
   const t = useT()
   const {data: schemas = []} = useQuery(schemasQuery)
-  const p = of.preview ?? {}
-  const titleSpec = itemTitleSpec(of)
-  const refs = itemRefs(item, of)
+  const p = memberPreview(of, schemas) ?? {}
+  const titleSpec = itemTitleSpec(of, p)
+  const refs = itemRefs(item, of, schemas)
   const primed = useContext(PrimedContext)
   const targets = useQueries({queries: refs.map((r) => ({...docQuery(r.types, r.id ?? ''), enabled: !!r.id && r.types.length > 0 && primed(r.id)}))})
   const read = (path: string) => {
@@ -249,15 +272,15 @@ export function useItemPreview(item: Item, of: Field) {
     queryFn: () => fetch(`/api/media/${encodeURIComponent(picture!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<{name?: string}>) : null)),
   })
   return {
-    title: (of.type === 'image' ? asset?.name : formatPreview(titleSpec, read, {typeTitle, zone})) || translate(locale, 'Untitled'),
+    title: (of.type === 'image' ? asset?.name : formatPreview(titleSpec, read, {typeTitle, zone})) || (named ? memberChoices([of], schemas)[0]!.title : '') || translate(locale, 'Untitled'),
     subtitle: formatPreview(p.subtitle, read, {typeTitle, zone}),
     // An array of images: each item is its own picture.
     media: (of.type === 'image' && imageRef(item) ? item : firstMedia(p.media, read, (v) => !!imageRef(v))) as ImageValue | undefined,
   }
 }
 
-function ItemRow({item, of, onOpen}: {item: Item; of: Field; onOpen: () => void}) {
-  const {title, subtitle, media} = useItemPreview(item, of)
+function ItemRow({item, of, named, onOpen}: {item: Item; of: Field; named?: boolean; onOpen: () => void}) {
+  const {title, subtitle, media} = useItemPreview(item, of, named)
   const {data: schemas = []} = useQuery(schemasQuery)
   // No media: the member's type icon, as Sanity's (a named object type carries one).
   const icon = <TypeIcon schema={of.namedType ? schemaOf(schemas, of.namedType) : undefined} />
@@ -293,11 +316,12 @@ function ItemRow({item, of, onOpen}: {item: Item; of: Field; onOpen: () => void}
   )
 }
 
-function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, onChange, onClose}: {
+function ItemDialog({parentTitle, position, item, of, named, path, readOnly, openRef, onChange, onClose}: {
   parentTitle: string
   position: number
   item: Item
   of: Field
+  named?: boolean
   path: string
   readOnly?: boolean
   openRef: OpenRef
@@ -305,7 +329,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
   onClose: () => void
 }) {
   const t = useT()
-  const {title} = useItemPreview(item, of)
+  const {title} = useItemPreview(item, of, named)
   // An array inside an item: its dialog names the whole way down, as Sanity's
   // ("Sections / #1 Intro / Items / #2 …"); a crumb before ours closes back to it.
   const outer = useContext(DialogCrumbsContext)
@@ -347,7 +371,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
             <ParentContext.Provider value={item}>
               {of.type === 'image' ? (
                 // An array of images: the item is the image (upload, select, hotspot and crop, its fields).
-                <FieldView field={{...of, name: 'image', title: t('Image')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _type: 'image', _key: item._key})} />
+                <FieldView field={{...of, name: 'image', title: t('Image')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _type: named ? memberName(of) : 'image', _key: item._key})} />
               ) : (
                 fieldsOf(of, item).map((f) => (
                   <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange(withField(item, f.name, v))} />
