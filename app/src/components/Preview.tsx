@@ -1,9 +1,9 @@
 import {useZone} from '../lib/now'
-import {memo, useState, type ReactNode} from 'react'
+import {createContext, memo, useContext, useState, type ReactNode} from 'react'
 import {frame, imageRef, imageSrc, sanityImageId, NO_CROP, NO_HOTSPOT, THUMB_PX, type ImageValue} from '../lib/image'
-import {useQueries, useQuery, type QueryClient} from '@tanstack/react-query'
-import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
-import {formatPreview, previewRefs, rowMedia, type PreviewMedia, type PreviewText} from '../lib/preview'
+import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
+import {anyDocQuery, docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {formatPreview, mediaRefs, previewRefs, rowMedia, type PreviewMediaSpec, type PreviewMedia, type PreviewText} from '../lib/preview'
 import {DocumentIcon, BrokenImageIcon} from './icons'
 import {PaneLink} from './PaneLink'
 import {ago, useLocale, useT} from '../lib/i18n'
@@ -51,6 +51,27 @@ export async function previewSubtitle(qc: QueryClient, doc: Doc, schema: Schema 
   return subtitleOf(spec, doc, (name) => targets.get(name))
 }
 
+/**
+ * Whether a row may read a document its media path crosses on its own. A list reads them
+ * for all its rows in batches first (lib/prime.ts usePrimed) and says when each is in;
+ * a row anywhere else reads its own.
+ */
+export const MediaRefsPrimed = createContext<(id: string) => boolean>(() => true)
+
+/**
+ * A row's media candidates (lib/preview.ts rowMedia), reading the documents its media
+ * paths cross (`heroImage.asset.url`) from `anyDocQuery`'s cache. Each one loaded can
+ * name the next, so the hook subscribes to every id the paths have crossed so far.
+ */
+function useRowMedia(spec: PreviewMediaSpec | undefined, doc: Doc | null | undefined) {
+  const qc = useQueryClient()
+  const primed = useContext(MediaRefsPrimed)
+  const deref = (id: string) => qc.getQueryData(anyDocQuery(id).queryKey)
+  const ids = spec && doc ? mediaRefs(spec, doc, deref) : []
+  useQueries({queries: ids.map((id) => ({...anyDocQuery(id), enabled: primed(id)}))})
+  return spec && doc ? rowMedia(spec, doc, deref) : []
+}
+
 // Like Sanity: the item whose pane is open next is grey; blue only when that pane is the last one.
 type Sel = {selected: boolean; active?: boolean}
 
@@ -67,7 +88,7 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
   // The schema's list_preview.media: an image field or an image URL shows as the row's
   // thumbnail, like Sanity. A list of paths is tried in order (lib/preview.ts rowMedia).
   const mediaSpec = doc ? schemaOf(schemas, doc._type)?.listPreview?.media : undefined
-  const candidates = rowMedia(mediaSpec, doc)
+  const candidates = useRowMedia(mediaSpec, doc)
   const showMedia = !iconless || candidates.length > 0
   const body = (
     <>

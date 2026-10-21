@@ -1,7 +1,7 @@
 // J56: prepared previews, read the way Sanity's prepare in reference/sanity/schemaTypes/category.ts reads.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {firstMedia, formatPreview, mediaUrl, previewMedia, previewRefs, rowMedia, type PreviewText} from './preview.ts'
+import {firstMedia, formatPreview, mediaRefs, mediaUrl, previewMedia, previewRefs, rowMedia, type PreviewText} from './preview.ts'
 
 const featured: PreviewText = {parts: ['featuredPost.title', 'featuredPost.publishedAt|date'], join: ' · ', empty: 'No featured post'}
 const read = (values: Record<string, unknown>) => (path: string) => values[path]
@@ -43,6 +43,27 @@ test('a row\'s media from an image URL: drawn, an empty one skipped, the next pa
   assert.deepEqual(rowMedia(spec, {cover: {thumbnail: ''}}), [])
   assert.deepEqual(rowMedia('image', {image: {asset: {_ref: 'asset-123'}}}).map((c) => c.media), [{kind: 'image', ref: 'asset-123'}])
   assert.deepEqual(rowMedia(undefined, {image: url}), [])
+})
+
+test('a row\'s media path across a reference: the image doc\'s url, once it is loaded', () => {
+  const spec = 'mainImage.asset.url'
+  const post = {_id: 'post-a', mainImage: {_type: 'image', asset: {_type: 'reference', _ref: 'asset-doc-1'}}}
+  const assets: Record<string, unknown> = {'asset-doc-1': {_id: 'asset-doc-1', _type: 'imageAsset', url: 'https://images.example.com/a.jpg'}}
+  // Not loaded yet: the id to read, and nothing to draw.
+  assert.deepEqual(mediaRefs(spec, post), ['asset-doc-1'])
+  assert.deepEqual(rowMedia(spec, post), [])
+  // Loaded: its url draws.
+  const deref = (id: string) => assets[id]
+  assert.deepEqual(rowMedia(spec, post, deref).map((c) => c.media), [{kind: 'url', src: 'https://images.example.com/a.jpg'}])
+  // Missing (null) or with an empty url: nothing, and the next path in the list shows.
+  assert.deepEqual(rowMedia(spec, post, () => null), [])
+  assert.deepEqual(rowMedia([spec, 'cover'], {...post, cover: 'https://images.example.com/b.jpg'}, () => ({url: ''})).map((c) => c.media), [{kind: 'url', src: 'https://images.example.com/b.jpg'}])
+  // Two hops, a bare id on the way: each target names the next.
+  const docs: Record<string, unknown> = {'author-1': {photo: {asset: {_ref: 'asset-doc-1'}}}, ...assets}
+  assert.deepEqual(mediaRefs('author.photo.asset.url', {author: 'author-1'}, (id) => docs[id]), ['author-1', 'asset-doc-1'])
+  assert.deepEqual(rowMedia('author.photo.asset.url', {author: 'author-1'}, (id) => docs[id]).map((c) => c.media), [{kind: 'url', src: 'https://images.example.com/a.jpg'}])
+  // A path that ends on the image itself reads no doc: its asset ref is the image.
+  assert.deepEqual(mediaRefs('mainImage', post), [])
 })
 
 // J33: array item previews, as Agency's feature card prepares a banner row.

@@ -174,15 +174,50 @@ export function previewMedia(value: unknown): PreviewMedia {
   return url ? {kind: 'url', src: url} : {kind: 'none'}
 }
 
+/** References a media path crosses, at most (Barkpark's PreviewText follows five). */
+const MEDIA_HOPS = 5
+/** A reference crossed mid-path: a {_ref}, or a bare id (Barkpark's contract takes both). */
+const crossedId = (v: unknown): string | undefined =>
+  typeof v === 'string' ? (/^[\w.-]+$/.test(v) ? v : undefined) : v && typeof v === 'object' && typeof (v as {_ref?: unknown})._ref === 'string' ? (v as {_ref: string})._ref : undefined
+
+/**
+ * The value at a dotted media path (`heroImage.asset.url`). A reference met before the
+ * path ends is read on in its target: `deref(id)` gives the target doc, null when there
+ * is none, undefined while it is not loaded. Every id it crosses or waits for goes to `seen`.
+ */
+function readMedia(doc: unknown, path: string, deref: (id: string) => unknown, seen?: Set<string>): unknown {
+  let v = doc
+  let hops = 0
+  for (const key of path.split('.')) {
+    const id = v === doc ? undefined : crossedId(v)
+    if (id) {
+      if (hops++ >= MEDIA_HOPS) return undefined
+      seen?.add(id)
+      v = deref(id)
+      if (v == null) return undefined
+    }
+    v = v && typeof v === 'object' ? (v as Record<string, unknown>)[key] : undefined
+  }
+  return v
+}
+
+/** The documents a row's media paths read through (loaded ones and the ones still to load). */
+export function mediaRefs(spec: PreviewMediaSpec | undefined, doc: unknown, deref: (id: string) => unknown = () => undefined): string[] {
+  const seen = new Set<string>()
+  for (const p of spec ? [spec].flat() : []) readMedia(doc, pathOf(p), deref, seen)
+  return [...seen]
+}
+
 /**
  * Every media a row could show, in the spec's order: a path or a list of paths, each
- * dotted inside the document (`onix.thumbnail`). A path that holds nothing (an empty URL)
- * is skipped. The row draws the first and moves to the next when an image URL fails to load.
+ * dotted inside the document (`onix.thumbnail`), across references through `deref`
+ * (`heroImage.asset.url`). A path that holds nothing (an empty URL) is skipped. The row
+ * draws the first and moves to the next when an image URL fails to load.
  */
-export function rowMedia(spec: PreviewMediaSpec | undefined, doc: unknown): {path: string; value: unknown; media: PreviewMedia}[] {
+export function rowMedia(spec: PreviewMediaSpec | undefined, doc: unknown, deref: (id: string) => unknown = () => undefined): {path: string; value: unknown; media: PreviewMedia}[] {
   return (spec ? [spec].flat() : []).flatMap((p) => {
     const path = pathOf(p)
-    const value = within(doc, path)
+    const value = readMedia(doc, path, deref)
     const media = previewMedia(value)
     return media.kind === 'none' ? [] : [{path, value, media}]
   })

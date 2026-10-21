@@ -22,7 +22,9 @@ import {DocumentPane, usePrefetchDocPane} from './DocPane'
 import {FocusModeContext, useFocusMode} from './FocusMode'
 import {DeskIcon} from './DeskIcon'
 import {Add, ArrowLeft, ChevronRight, Close, Ellipsis, Search, Sort as SortIcon, Stack, StackCompact, WarningOutline} from './icons'
-import {DocPreview} from './Preview'
+import {DocPreview, MediaRefsPrimed} from './Preview'
+import {usePrimed} from '../lib/prime'
+import {mediaRefs} from '../lib/preview'
 import {BulkBar} from './BulkBar'
 import {MAX_SELECTED} from '../lib/bulk'
 import {AvatarStack} from './Presence'
@@ -910,6 +912,18 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     [rows, shown, searching, lit, listId, selectable, selecting, picked, open, selected, panes, index, tree, child, nodeId, type, schemas, t],
   )
   const rowEls = useMemo(() => (rows.length > WINDOW_FROM ? null : rows.map(renderRow)), [rows, renderRow])
+  // The documents the rows' media paths cross (`heroImage.asset.url`), read in batches for
+  // the whole list before any row reads its own (lib/prime.ts). Read anew each render, so a
+  // later hop is batched once the one before it lands. The rows see a new answer only when
+  // the set of read ids changes (they are memoised).
+  const mediaSpec = schemaOf(schemas, type)?.listPreview?.media
+  const mediaIds = mediaSpec ? [...new Set(rows.flatMap((d) => mediaRefs(mediaSpec, d, (id) => qc.getQueryData(['doc-any', id]))))] : []
+  const primedNow = usePrimed(mediaIds.map((id) => ({types: null, id})))
+  const primedKey = mediaIds.filter(primedNow).join(' ')
+  const mediaPrimed = useMemo(() => {
+    const ids = new Set(primedKey.split(' '))
+    return (id: string) => ids.has(id)
+  }, [primedKey])
   return (
     <section className="pane list" aria-label={listTitle} aria-busy={!page || sortBusy || undefined} data-testid="pane" data-pane={`list:${type}`} data-desk-node={nodeId} data-pane-index={index}>
       <header className="pane-header">
@@ -1020,7 +1034,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         {docs && shown.length === 0 && searchComplete && (!(tree && treeParent) || query.trim()) && <p className={`list-empty${query.trim() ? ' list-none' : ''}`}>{query.trim() ? t('No results found') : t('No documents of this type')}</p>}
         {/* J47: the rows are a list, so a reader hears "3 of 30" (Sanity: a listbox). display: contents keeps the layout. */}
         {shown.length > 0 && <div role="list" id={listId} aria-label={listTitle} className="rows-list">
-        {rowEls ?? <RowWindow rows={rows} renderRow={renderRow} top={shownQuery} focused={focusedRow} />}
+        <MediaRefsPrimed.Provider value={mediaPrimed}>{rowEls ?? <RowWindow rows={rows} renderRow={renderRow} top={shownQuery} focused={focusedRow} />}</MediaRefsPrimed.Provider>
         </div>}
         {canGrow && <div ref={sentinel} className="list-sentinel" />}
         {!query && page?.hasMore && limit >= LIST_MAX && (
