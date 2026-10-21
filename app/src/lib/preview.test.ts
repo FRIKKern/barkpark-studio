@@ -1,7 +1,7 @@
 // J56: prepared previews, read the way Sanity's prepare in reference/sanity/schemaTypes/category.ts reads.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {firstMedia, formatPreview, loadRefs, mediaRefs, mediaUrl, previewMedia, previewRefs, readPath, rowMedia, textRefs, type PreviewText} from './preview.ts'
+import {firstMedia, formatPreview, loadRefs, mediaRefs, mediaUrl, pathsOf, previewMedia, previewRefs, readPath, rowMedia, textRefs, type PreviewText} from './preview.ts'
 
 const featured: PreviewText = {parts: ['featuredPost.title', 'featuredPost.publishedAt|date'], join: ' · ', empty: 'No featured post'}
 const read = (values: Record<string, unknown>) => (path: string) => values[path]
@@ -190,4 +190,23 @@ test('an `each` item that is a reference reads its target', () => {
   assert.equal(formatPreview(spec, (p) => readPath(doc, p, deref), {deref}), 'Fixture tag one, Group, Inline tag')
   // Without a deref (an array item's own preview), a reference item reads as nothing.
   assert.equal(formatPreview(spec, (p) => readPath(doc, p, () => undefined)), 'Inline tag')
+})
+
+// Global search reads a type's preview paths to follow references (lib/data previewRefHits).
+// A subtitle of object parts once crashed it: every search across all types failed.
+test('pathsOf reads the paths in object parts, fallback lists and templates', () => {
+  const subtitle: PreviewText = {
+    join: ' ',
+    parts: [
+      {text: 'by'},
+      [{path: 'kind', map: {a: 'A'}}, {text: 'unknown'}],
+      {when: {field: 'hidden', operator: 'eq', value: true}, show: {text: 'Hidden'}},
+      {parts: ['author.name', 'editor.name|lower'], join: ', '},
+      {each: 'writers', show: 'name', max: 2},
+      '/{slug.current}',
+    ],
+  }
+  assert.deepEqual(pathsOf(subtitle), ['kind', 'author.name', 'editor.name', 'writers', 'slug.current'])
+  assert.deepEqual(pathsOf(['-> {target}', {text: '?'}]), ['target'])
+  assert.deepEqual(pathsOf(undefined), [])
 })

@@ -52,8 +52,8 @@ function partPaths(part: PreviewPart | undefined): string[] {
   return []
 }
 
-/** Every path a preview text or media spec reads. */
-function pathsOf(spec: PreviewText | PreviewMediaSpec | undefined): string[] {
+/** Every path a preview text or media spec reads: plain, template, fallback and object parts alike. */
+export function pathsOf(spec: PreviewText | PreviewMediaSpec | undefined): string[] {
   if (!spec) return []
   return typeof spec === 'string' || Array.isArray(spec) ? partPaths(spec) : partPaths(spec.parts)
 }
