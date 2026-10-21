@@ -142,14 +142,83 @@ export function firstMedia(spec: PreviewMediaSpec | undefined, read: (path: stri
 
 /**
  * A row's media (list_preview.media): an image to show (a Sanity image id too, which
- * Barkpark serves), an asset value the studio can't show (a Sanity export's `_sanityAsset`,
- * a ref that is no image id; task-ec9b4c0c78185fa4), or none. The unsupported one draws a
- * broken-image icon, not an empty box.
+ * Barkpark serves), an http(s) image URL (a field of type url, which Barkpark's
+ * list_preview contract takes as media; task-c74e7cdf5b119f87), an asset value the
+ * studio can't show (a Sanity export's `_sanityAsset`, a ref that is no image id;
+ * task-ec9b4c0c78185fa4), or none. The unsupported one draws a broken-image icon, not
+ * an empty box.
  */
-export type PreviewMedia = {kind: 'image'; ref: string} | {kind: 'unsupported'; source: string} | {kind: 'none'}
+export type PreviewMedia = {kind: 'image'; ref: string} | {kind: 'url'; src: string} | {kind: 'unsupported'; source: string} | {kind: 'none'}
+
+/** An absolute http(s) URL, trimmed; undefined for anything else (a path, `javascript:`, ''). */
+export function mediaUrl(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined
+  const s = v.trim()
+  if (!/^https?:\/\//i.test(s)) return undefined
+  try {
+    return new URL(s).href
+  } catch {
+    return undefined
+  }
+}
+
 export function previewMedia(value: unknown): PreviewMedia {
+  const src = mediaUrl(value)
+  if (src) return {kind: 'url', src}
   const foreign = unsupportedAsset({name: 'media', type: 'image'}, value)
   if (foreign) return {kind: 'unsupported', source: foreign.source}
   const ref = imageRef(value)
-  return ref ? {kind: 'image', ref} : {kind: 'none'}
+  if (ref) return {kind: 'image', ref}
+  // An image that only holds a `url` (Barkpark's contract: "an image with url").
+  const url = value && typeof value === 'object' ? mediaUrl((value as {url?: unknown}).url) : undefined
+  return url ? {kind: 'url', src: url} : {kind: 'none'}
+}
+
+/** References a media path crosses, at most (Barkpark's PreviewText follows five). */
+const MEDIA_HOPS = 5
+/** A reference crossed mid-path: a {_ref}, or a bare id (Barkpark's contract takes both). */
+const crossedId = (v: unknown): string | undefined =>
+  typeof v === 'string' ? (/^[\w.-]+$/.test(v) ? v : undefined) : v && typeof v === 'object' && typeof (v as {_ref?: unknown})._ref === 'string' ? (v as {_ref: string})._ref : undefined
+
+/**
+ * The value at a dotted media path (`heroImage.asset.url`). A reference met before the
+ * path ends is read on in its target: `deref(id)` gives the target doc, null when there
+ * is none, undefined while it is not loaded. Every id it crosses or waits for goes to `seen`.
+ */
+function readMedia(doc: unknown, path: string, deref: (id: string) => unknown, seen?: Set<string>): unknown {
+  let v = doc
+  let hops = 0
+  for (const key of path.split('.')) {
+    const id = v === doc ? undefined : crossedId(v)
+    if (id) {
+      if (hops++ >= MEDIA_HOPS) return undefined
+      seen?.add(id)
+      v = deref(id)
+      if (v == null) return undefined
+    }
+    v = v && typeof v === 'object' ? (v as Record<string, unknown>)[key] : undefined
+  }
+  return v
+}
+
+/** The documents a row's media paths read through (loaded ones and the ones still to load). */
+export function mediaRefs(spec: PreviewMediaSpec | undefined, doc: unknown, deref: (id: string) => unknown = () => undefined): string[] {
+  const seen = new Set<string>()
+  for (const p of spec ? [spec].flat() : []) readMedia(doc, pathOf(p), deref, seen)
+  return [...seen]
+}
+
+/**
+ * Every media a row could show, in the spec's order: a path or a list of paths, each
+ * dotted inside the document (`onix.thumbnail`), across references through `deref`
+ * (`heroImage.asset.url`). A path that holds nothing (an empty URL) is skipped. The row
+ * draws the first and moves to the next when an image URL fails to load.
+ */
+export function rowMedia(spec: PreviewMediaSpec | undefined, doc: unknown, deref: (id: string) => unknown = () => undefined): {path: string; value: unknown; media: PreviewMedia}[] {
+  return (spec ? [spec].flat() : []).flatMap((p) => {
+    const path = pathOf(p)
+    const value = readMedia(doc, path, deref)
+    const media = previewMedia(value)
+    return media.kind === 'none' ? [] : [{path, value, media}]
+  })
 }
