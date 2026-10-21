@@ -86,7 +86,8 @@ test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {cur
 })
 
 // task-ec9b4c0c78185fa4: a team moving over from Sanity brings asset values Barkpark has
-// no media for: the export form ({_sanityAsset}) and Sanity asset ids. The field shows
+// no media for: the export form ({_sanityAsset}) and Sanity asset ids whose file Barkpark
+// lacks (this sha1 matches no file; a known one draws, image-shape.spec.ts). The field shows
 // them as they are (never an empty picker, which one save would turn into a drop), a
 // save elsewhere leaves them byte-identical, and Reset is the one change offered.
 const FOREIGN = 'post-foreign-asset'

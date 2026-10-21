@@ -8,7 +8,8 @@ import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, 
 import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
-import {assetUrl, dragCrop, fitHotspot, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
+import {UnsupportedAssetCard} from './BrokenValues'
+import {assetUrl, sanityImageId, dragCrop, fitHotspot, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 import {uploadFile, uploadReason, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
 import {useFileInfo} from './FileInput'
@@ -50,7 +51,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   const title = field.title ?? field.name
   // While the image loads, its blur placeholder (the asset's lqip) where the image will
   // sit: contained in the 270 px box, never larger than the image itself.
-  const {data: info} = useFileInfo(ref)
+  const {data: info, error: infoError} = useFileInfo(ref)
   const [loaded, setLoaded] = useState<string>()
   const placeholder =
     ref && loaded !== ref && info?.lqip && info.width && info.height
@@ -118,6 +119,11 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       <Upload /> {t('Drop to upload')}
     </div>
   )
+
+  // A Sanity image id (a value moved over from Sanity) draws as the image Barkpark serves
+  // for it. Only when Barkpark has no file for it (404) is it an asset this studio does
+  // not know: the card shows it as it is, as for any other foreign ref (lib/broken.ts).
+  if (ref && sanityImageId(ref) && infoError?.message.endsWith(' 404')) return <UnsupportedAssetCard asset={{reason: 'foreignRef', source: ref}} value={value} onChange={onChange} />
 
   return (
     // With fields of its own (alt, caption) Sanity draws the image as an object: a rule on the left, all inside it.

@@ -2,7 +2,7 @@
 // moves (measured 2026-10-06 on reference/sanity, e2e/journeys/image.spec.ts).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {dragCrop, fitHotspot, frame, imageFileName, imageRef, pickedImage, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
+import {assetUrl, dragCrop, fitHotspot, frame, imageFileName, imageRef, pickedImage, sanityImageId, sanityImagePath, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≉ ${b}`)
 
@@ -68,4 +68,14 @@ test("a body image card names the file as Barkpark's canvas does", () => {
   assert.equal(imageFileName('/w/a/p/default/media/files/d/ds/2026/10/fixture-image-cbf5348f.png', 'x', 'Image'), 'fixture-image.png')
   assert.equal(imageFileName('https://example.com/pics/My%20photo-cbf5348f.jpg?w=200', undefined, 'Image'), 'My photo-cbf5348f.jpg')
   assert.equal(imageFileName(undefined, 'paste-image', 'Image'), 'paste-image')
+})
+
+test('a Sanity image id: parsed, mapped to Barkpark\'s Sanity image route, served through the media proxy', () => {
+  const sha1 = 'AB12'.repeat(10)
+  const id = sanityImageId(`image-${sha1}-640x400-PNG`)
+  assert.deepEqual(id, {sha1: sha1.toLowerCase(), width: 640, height: 400, ext: 'png'})
+  assert.equal(sanityImagePath(id!, 'production'), `/images/barkpark/production/${sha1.toLowerCase()}-640x400.png`)
+  assert.equal(assetUrl(`image-${sha1}-640x400-png`), `/api/media/image-${sha1}-640x400-png`)
+  for (const ref of ['asset-123', `image-${sha1}-0x400-png`, `image-abc-640x400-png`, `file-${sha1}-pdf`, `image-${sha1}-640x400`, undefined, 42])
+    assert.equal(sanityImageId(ref), null, String(ref))
 })

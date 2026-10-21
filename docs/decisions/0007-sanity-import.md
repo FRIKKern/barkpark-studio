@@ -27,8 +27,8 @@ draft-only). Until task-4460bcc2cab36c86 lands, step 3 needs `GODEBUG=http2clien
   PortableDoc only. The field shows a "Sanity Portable Text" card with the text
   read-only, kept byte-for-byte; Reset is the only change. Conversion at import:
   task-5412419a2e931805.
-- **Assets not in the export** (a Sanity asset id, `_sanityAsset` left over): an
-  "Unsupported asset value" card, kept as it is (#368).
+- **Assets Barkpark has no file for** (`_sanityAsset` left over, a Sanity id with no file):
+  an "Unsupported asset value" card, kept as it is (#368). A Sanity image id it has draws.
 - **Sanity system docs** (`sanity.previewUrlSecret` drafts) are imported but have no
   schema, so no list shows them; skipping them: task-5412419a2e931805.
 - **Content Releases** (`versions.*` ids): refused by Barkpark.

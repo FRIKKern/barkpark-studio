@@ -1,6 +1,6 @@
 import {useZone} from '../lib/now'
 import {memo, useState, type ReactNode} from 'react'
-import {frame, imageRef, imageSrc, NO_CROP, NO_HOTSPOT, THUMB_PX, type ImageValue} from '../lib/image'
+import {frame, imageRef, imageSrc, sanityImageId, NO_CROP, NO_HOTSPOT, THUMB_PX, type ImageValue} from '../lib/image'
 import {useQueries, useQuery, type QueryClient} from '@tanstack/react-query'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {formatPreview, previewRefs, previewMedia, type PreviewText} from '../lib/preview'
@@ -103,18 +103,29 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
 /** An image value as a square thumbnail: its crop, cut to the square around the hotspot (Sanity's image URL rules). */
 export function Thumb({value}: {value: ImageValue}) {
   const [natural, setNatural] = useState<{width: number; height: number}>()
+  const [failed, setFailed] = useState<string>()
+  const t = useT()
   const ref = imageRef(value)
   if (!ref) return <DocumentIcon />
+  // A Sanity image id Barkpark has no file for: the broken-image icon, as for any asset
+  // value the studio can't show (lib/preview.ts previewMedia).
+  if (failed === ref && sanityImageId(ref))
+    return (
+      <span className="media-broken" role="img" aria-label={t('Unsupported asset value')} title={`${t('Unsupported asset value')}: ${ref}`}>
+        <BrokenImageIcon />
+      </span>
+    )
   const f = natural && frame(value.crop ?? NO_CROP, value.hotspot ?? NO_HOTSPOT, natural, 1)
   const measure = (img: HTMLImageElement) => setNatural({width: img.naturalWidth, height: img.naturalHeight})
   return (
     <img
-      // A server-rendered thumbnail can load before hydration, and its load event
+      // A server-rendered thumbnail can load (or fail) before hydration, and its event
       // is then missed: measure it as it mounts, or it stays hidden (blank row).
-      ref={(img) => void (img?.complete && img.naturalWidth && !natural && measure(img))}
+      ref={(img) => void (img?.complete && !natural && (img.naturalWidth ? measure(img) : failed !== ref && setFailed(ref)))}
       src={imageSrc(ref, THUMB_PX)}
       alt=""
       decoding="async"
+      onError={() => setFailed(ref)}
       onLoad={(e) => measure(e.currentTarget)}
       style={f ? {width: `${100 / f.width}%`, height: `${100 / f.height}%`, left: `${(-f.left / f.width) * 100}%`, top: `${(-f.top / f.height) * 100}%`} : {opacity: 0}}
     />
