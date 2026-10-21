@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 4 changes
+- **Today** · 5 changes
+  - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
   - feat: draw a row's type icon when it has no media, as Sanity does ([#1084](https://github.com/FRIKKern/barkpark-studio/pull/1084))
-  - fix: follow up to five references in a list row's subtitle path ([#1082](https://github.com/FRIKKern/barkpark-studio/pull/1082))
 - **Yesterday** · 102 changes
   - fix(body): Put the words back waits out a save on its way instead of refusing ([#1078](https://github.com/FRIKKern/barkpark-studio/pull/1078))
 - **This week** · 36 changes, 1 task closed
