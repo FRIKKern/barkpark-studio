@@ -1,7 +1,7 @@
 // J56: prepared previews, read the way Sanity's prepare in reference/sanity/schemaTypes/category.ts reads.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {firstMedia, formatPreview, mediaRefs, mediaUrl, previewMedia, previewRefs, rowMedia, type PreviewText} from './preview.ts'
+import {firstMedia, formatPreview, loadRefs, mediaRefs, mediaUrl, previewMedia, previewRefs, readPath, rowMedia, textRefs, type PreviewText} from './preview.ts'
 
 const featured: PreviewText = {parts: ['featuredPost.title', 'featuredPost.publishedAt|date'], join: ' · ', empty: 'No featured post'}
 const read = (values: Record<string, unknown>) => (path: string) => values[path]
@@ -114,4 +114,76 @@ test('object parts: text, when, map, nested parts, each, and the case modifiers'
   assert.equal(formatPreview('name|upper', at), 'ADA')
   // The paths a spec reads, for loading references: no throw on object parts either.
   assert.deepEqual(previewRefs(spec, {parts: [{text: 'x'}, ['role.title', 'name']]}), ['role'])
+})
+
+// A category breadcrumb, as Sanity's catalogue category preview reads it: up to five parents.
+const breadcrumb: PreviewText = {parts: ['parent.parent.parent.title', 'parent.parent.title', 'parent.title'], join: ' > '}
+
+test('a three-level breadcrumb row, its targets read once per depth for the whole page', async () => {
+  const store: Record<string, unknown> = {
+    'cat-a1': {title: 'Alpha'},
+    'cat-b1': {title: 'Beta', parent: {_ref: 'cat-a1'}},
+    'cat-c1': {title: 'Gamma', parent: {_ref: 'cat-b1'}},
+    'cat-a2': {title: 'North'},
+    'cat-b2': {title: 'East', parent: 'cat-a2'},
+    'cat-c2': {title: 'South', parent: {_ref: 'cat-b2'}},
+  }
+  const rows = [
+    {_id: 'cat-d1', title: 'Delta', parent: {_ref: 'cat-c1'}},
+    {_id: 'cat-d2', title: 'West', parent: {_ref: 'cat-c2'}},
+    {_id: 'cat-d3', title: 'Top'},
+  ]
+  const loaded = new Map<string, unknown>()
+  const deref = (id: string) => loaded.get(id)
+  const subtitle = (d: unknown) => formatPreview(breadcrumb, (p) => readPath(d, p, deref), {deref})
+  // Nothing loaded yet: the first depth's ids, and no breadcrumb.
+  assert.deepEqual(textRefs(breadcrumb, rows[0], deref), ['cat-c1'])
+  assert.equal(subtitle(rows[0]), undefined)
+  const reads: string[][] = []
+  await loadRefs(
+    () => rows.flatMap((d) => textRefs(breadcrumb, d, deref)),
+    (id) => loaded.has(id),
+    async (ids) => {
+      reads.push([...ids].sort())
+      for (const id of ids) loaded.set(id, store[id] ?? null)
+    },
+  )
+  // Three depths, one read each, both rows' ids in it.
+  assert.deepEqual(reads, [['cat-c1', 'cat-c2'], ['cat-b1', 'cat-b2'], ['cat-a1', 'cat-a2']])
+  assert.equal(subtitle(rows[0]), 'Alpha > Beta > Gamma')
+  assert.equal(subtitle(rows[1]), 'North > East > South')
+  assert.equal(subtitle(rows[2]), undefined)
+})
+
+test('a sixth reference reads as nothing, and a cycle stops', async () => {
+  // c0 -> c1 -> ... -> c6, each a parent of the one before.
+  const store: Record<string, unknown> = Object.fromEntries(Array.from({length: 7}, (_, i) => [`c${i}`, {title: `Level ${i}`, parent: i < 6 ? {_ref: `c${i + 1}`} : undefined}]))
+  const deref = (id: string) => store[id]
+  const row = {parent: {_ref: 'c0'}}
+  assert.equal(readPath(row, 'parent.parent.parent.parent.parent.title', deref), 'Level 4')
+  assert.equal(readPath(row, 'parent.parent.parent.parent.parent.parent.title', deref), undefined)
+  assert.deepEqual(textRefs('parent.parent.parent.parent.parent.parent.title', row, deref), ['c0', 'c1', 'c2', 'c3', 'c4'])
+  // Two categories that name each other: five hops, then nothing, and loading ends.
+  const loop: Record<string, unknown> = {p: {title: 'P', parent: 'q'}, q: {title: 'Q', parent: 'p'}}
+  const deep = 'parent.'.repeat(7) + 'title'
+  assert.equal(readPath({parent: 'p'}, deep, (id) => loop[id]), undefined)
+  let loads = 0
+  const got = new Map<string, unknown>()
+  await loadRefs(() => textRefs(deep, {parent: 'p'}, (id) => got.get(id)), (id) => got.has(id), async (ids) => {
+    loads++
+    for (const id of ids) got.set(id, loop[id])
+  })
+  assert.equal(loads, 2)
+})
+
+test('an `each` item that is a reference reads its target', () => {
+  const docs: Record<string, unknown> = {'tag-1': {title: 'Fixture tag one'}, 'tag-2': {title: 'Fixture tag two', group: {_ref: 'group-1'}}, 'group-1': {title: 'Group'}}
+  const doc = {tags: [{_ref: 'tag-1'}, {_ref: 'tag-2'}, {title: 'Inline tag'}]}
+  const spec: PreviewText = {parts: [{each: 'tags', show: ['group.title', 'title']}]}
+  assert.deepEqual(textRefs(spec, doc), ['tag-1', 'tag-2'])
+  assert.deepEqual(textRefs(spec, doc, (id) => docs[id]), ['tag-1', 'tag-2', 'group-1'])
+  const deref = (id: string) => docs[id]
+  assert.equal(formatPreview(spec, (p) => readPath(doc, p, deref), {deref}), 'Fixture tag one, Group, Inline tag')
+  // Without a deref (an array item's own preview), a reference item reads as nothing.
+  assert.equal(formatPreview(spec, (p) => readPath(doc, p, () => undefined)), 'Inline tag')
 })

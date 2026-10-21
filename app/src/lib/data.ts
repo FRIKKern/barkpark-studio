@@ -597,6 +597,12 @@ const fetchDocAnyType = createServerFn({method: 'GET'})
 export const anyDocQuery = (id: string) =>
   queryOptions({queryKey: ['doc-any', id], staleTime: 30_000, queryFn: async () => (await fetchDocAnyType({data: {id}})) as unknown as (Doc & {preview?: {description?: string}}) | null})
 
+/**
+ * A document a preview path crosses, as loaded: a typed read (`docQuery`, kept live)
+ * first, then `anyDocQuery`'s. Undefined while neither has it.
+ */
+export const cachedDoc = (qc: QueryClient) => (id: string) => qc.getQueryData(['doc', id]) ?? qc.getQueryData(anyDocQuery(id).queryKey)
+
 /** D06: docs of any type matching `q` (the canvas's `[[` menu), newest first. */
 const fetchSearchAll = createServerFn({method: 'GET'})
   .validator((d: {q: string}) => d)
