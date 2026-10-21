@@ -1,6 +1,6 @@
 // J56, Sanity's preview `select` + `prepare`, declared instead of coded: a
-// schema's `list_preview.subtitle` is a path ("author.name": one reference hop)
-// or {parts, join, empty}. Each part is a path, optionally `|date` (dd.mm.yyyy);
+// schema's `list_preview.subtitle` is a path ("author.name" reads through a reference;
+// up to five, as Barkpark's PreviewText: "parent.parent.title") or {parts, join, empty}. Each part is a path, optionally `|date` (dd.mm.yyyy);
 // the parts that have a value are joined, and `empty` stands in when none do.
 // Barkpark will format previews itself (task-f3203617ae4cf03e); until then the
 // Studio reads the same declaration.
@@ -16,8 +16,8 @@
 // literal text, {when, show} a part shown while a visibleWhen condition holds, {path,
 // map} a stored value by its label, a nested {parts} spec, and {each, show, max, join,
 // more} a part read from each item of a list. `|lower` and `|upper` change the case.
-// An `each` item that is a reference is left out here: the Studio reads one reference
-// hop through `read`, and Barkpark's own row previews follow it.
+// An `each` item that is a reference reads its target through `opts.deref`, which costs
+// a hop; without `deref` it reads as nothing.
 
 import {unsupportedAsset} from './broken.ts'
 import {imageRef} from './image.ts'
@@ -33,7 +33,7 @@ export type PreviewPart = string | ObjectPart | PreviewPart[]
 export type PreviewText = string | {parts: PreviewPart[]; join?: string; empty?: string}
 /** An image path, or alternatives in order ("backgroundImage", then "linkedDocument.cover"). */
 export type PreviewMediaSpec = string | string[]
-export type PreviewOptions = {typeTitle?: (type: string) => string | undefined}
+export type PreviewOptions = {typeTitle?: (type: string) => string | undefined; deref?: (id: string) => unknown}
 
 const pathOf = (part: string) => part.split('|')[0]!.trim()
 const TEMPLATE = /\{([^{}]+)\}/g
@@ -71,13 +71,7 @@ function day(v: unknown) {
   return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`
 }
 
-/** A value at a dotted path inside `item` (no reference is followed). */
-const within = (item: unknown, path: string): unknown =>
-  path.split('.').reduce<unknown>((v, k) => (v && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined), item)
-
-const isRef = (item: unknown) => typeof item === 'string' || (!!item && typeof item === 'object' && typeof (item as {_ref?: unknown})._ref === 'string')
-
-/** The preview text for a doc; `read` resolves a path (following one reference). */
+/** The preview text for a doc; `read` resolves a path (`readPath` follows up to five references). */
 export function formatPreview(spec: PreviewText | undefined, read: (path: string) => unknown, opts: PreviewOptions = {}): string | undefined {
   if (!spec) return undefined
   const value = (part: string) => {
@@ -117,7 +111,15 @@ export function formatPreview(spec: PreviewText | undefined, read: (path: string
       const items = read(pathOf(part.each))
       if (!Array.isArray(items)) return undefined
       const show = part.show ?? 'title'
-      const texts = items.filter((item) => !isRef(item) && item && typeof item === 'object').map((item) => formatPreview({parts: [show]}, (p) => within(item, p), opts)).filter((t): t is string => !!t)
+      const deref = opts.deref ?? (() => undefined)
+      const texts = items
+        .map((item) => {
+          const id = crossedId(item)
+          const root = id ? deref(id) : item
+          if (!root || typeof root !== 'object') return undefined
+          return formatPreview({parts: [show]}, (p) => readPath(root, p, deref, undefined, id ? MAX_HOPS - 1 : MAX_HOPS), opts)
+        })
+        .filter((t): t is string => !!t)
       const max = typeof part.max === 'number' && part.max > 0 ? part.max : undefined
       const shown = max ? texts.slice(0, max) : texts
       if (!shown.length) return undefined
@@ -174,24 +176,24 @@ export function previewMedia(value: unknown): PreviewMedia {
   return url ? {kind: 'url', src: url} : {kind: 'none'}
 }
 
-/** References a media path crosses, at most (Barkpark's PreviewText follows five). */
-const MEDIA_HOPS = 5
+/** References a preview path crosses, at most (Barkpark's PreviewText @max_hops): a sixth reads as nothing, which also ends a cycle. */
+export const MAX_HOPS = 5
 /** A reference crossed mid-path: a {_ref}, or a bare id (Barkpark's contract takes both). */
 const crossedId = (v: unknown): string | undefined =>
   typeof v === 'string' ? (/^[\w.-]+$/.test(v) ? v : undefined) : v && typeof v === 'object' && typeof (v as {_ref?: unknown})._ref === 'string' ? (v as {_ref: string})._ref : undefined
 
 /**
- * The value at a dotted media path (`heroImage.asset.url`). A reference met before the
- * path ends is read on in its target: `deref(id)` gives the target doc, null when there
- * is none, undefined while it is not loaded. Every id it crosses or waits for goes to `seen`.
+ * The value at a dotted path (`heroImage.asset.url`, `parent.parent.title`). A reference
+ * met before the path ends is read on in its target: `deref(id)` gives the target doc,
+ * null when there is none, undefined while it is not loaded. Past `hops` references the
+ * path reads as nothing. Every id it crosses or waits for goes to `seen`.
  */
-function readMedia(doc: unknown, path: string, deref: (id: string) => unknown, seen?: Set<string>): unknown {
+export function readPath(doc: unknown, path: string, deref: (id: string) => unknown, seen?: Set<string>, hops = MAX_HOPS): unknown {
   let v = doc
-  let hops = 0
   for (const key of path.split('.')) {
     const id = v === doc ? undefined : crossedId(v)
     if (id) {
-      if (hops++ >= MEDIA_HOPS) return undefined
+      if (hops-- <= 0) return undefined
       seen?.add(id)
       v = deref(id)
       if (v == null) return undefined
@@ -204,8 +206,50 @@ function readMedia(doc: unknown, path: string, deref: (id: string) => unknown, s
 /** The documents a row's media paths read through (loaded ones and the ones still to load). */
 export function mediaRefs(spec: PreviewMediaSpec | undefined, doc: unknown, deref: (id: string) => unknown = () => undefined): string[] {
   const seen = new Set<string>()
-  for (const p of spec ? [spec].flat() : []) readMedia(doc, pathOf(p), deref, seen)
+  for (const p of spec ? [spec].flat() : []) readPath(doc, pathOf(p), deref, seen)
   return [...seen]
+}
+
+/** The documents a text spec's paths read through, `each` items that are references too (Barkpark's PreviewText.ref_ids). */
+export function textRefs(spec: PreviewText | undefined, doc: unknown, deref: (id: string) => unknown = () => undefined): string[] {
+  const seen = new Set<string>()
+  const walk = (part: PreviewPart | undefined, root: unknown, hops: number): void => {
+    if (part == null) return
+    if (Array.isArray(part)) return part.forEach((p) => walk(p, root, hops))
+    if (typeof part === 'object' && 'parts' in part && Array.isArray(part.parts)) return walk(part.parts, root, hops)
+    if (typeof part === 'object' && 'when' in part) return walk(part.show, root, hops)
+    if (typeof part === 'object' && 'each' in part && typeof part.each === 'string') {
+      const items = readPath(root, pathOf(part.each), deref, seen, hops)
+      for (const item of Array.isArray(items) ? items : []) {
+        const id = crossedId(item)
+        if (!id) walk(part.show ?? 'title', item, hops)
+        else if (hops > 0) {
+          seen.add(id)
+          walk(part.show ?? 'title', deref(id), hops - 1)
+        }
+      }
+      return
+    }
+    if (root && typeof root === 'object') for (const p of partPaths(part)) readPath(root, p, deref, seen, hops)
+  }
+  if (spec) walk(typeof spec === 'string' ? spec : spec.parts, doc, MAX_HOPS)
+  return [...seen]
+}
+
+/**
+ * Every document a page of rows reads through, one `load` per reference depth with all
+ * of that depth's ids (Barkpark's PreviewText.targets/2): at most five loads, however
+ * many rows. `refs()` names the ids the rows' paths cross so far, read again after each
+ * load, so a loaded target names the next depth. An id is asked for once.
+ */
+export async function loadRefs(refs: () => string[], loaded: (id: string) => boolean, load: (ids: string[]) => Promise<unknown>) {
+  const asked = new Set<string>()
+  for (let depth = 0; depth < MAX_HOPS; depth++) {
+    const ids = [...new Set(refs())].filter((id) => !asked.has(id) && !loaded(id))
+    if (!ids.length) return
+    for (const id of ids) asked.add(id)
+    await load(ids)
+  }
 }
 
 /**
@@ -217,7 +261,7 @@ export function mediaRefs(spec: PreviewMediaSpec | undefined, doc: unknown, dere
 export function rowMedia(spec: PreviewMediaSpec | undefined, doc: unknown, deref: (id: string) => unknown = () => undefined): {path: string; value: unknown; media: PreviewMedia}[] {
   return (spec ? [spec].flat() : []).flatMap((p) => {
     const path = pathOf(p)
-    const value = readMedia(doc, path, deref)
+    const value = readPath(doc, path, deref)
     const media = previewMedia(value)
     return media.kind === 'none' ? [] : [{path, value, media}]
   })

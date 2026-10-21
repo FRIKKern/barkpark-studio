@@ -2,11 +2,11 @@ import {useQuery, type QueryClient} from '@tanstack/react-query'
 import {setPresenceSelf, usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
-import {anyDocQuery, deskQuery, docQuery, ensureAnyDocs, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
+import {anyDocQuery, cachedDoc, deskQuery, docQuery, ensureAnyDocs, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {deskIndex, deskSort, listFilter, parseDeskPanes, rootDesk, unsupportedOps} from './desk'
 import {parseSingletonPanes, type Pane} from './panes'
 import {startsAtStudioItem, studioDesk} from './structure-config'
-import {mediaRefs, previewRefs} from './preview'
+import {loadRefs, mediaRefs, previewRefs, textRefs} from './preview'
 import {meQuery} from './session'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useEffect, useState} from 'react'
@@ -95,26 +95,31 @@ async function typeOf(qc: QueryClient, p: Extract<Pane, {kind: 'doc'}>): Promise
 /** The docs open docs reference, and what every visible preview needs; a preview that fails shows its own state. */
 async function followRefs(queryClient: QueryClient, schemas: Schema[], listed: (Doc[] | undefined)[], open: (Doc | null | undefined)[]) {
   const openDocs = open.filter((d): d is Doc => !!d)
-  // The docs list rows' media paths cross, alongside the references.
-  const media = ensureMediaRefs(queryClient, schemas, listed.flat().filter((d): d is Doc => !!d)).catch(() => {})
-  try {
-    // Level 1: what open docs reference, and what every visible preview needs.
-    const l1 = await ensureRefs(queryClient, schemas, [...openDocs.map((d) => [d, true] as const), ...listed.flat().flatMap((d) => (d ? [[d, false] as const] : []))])
+  const rows = listed.flat().filter((d): d is Doc => !!d)
+  // Level 1: what open docs reference, and what every visible preview needs.
+  const l1 = await ensureRefs(queryClient, schemas, [...openDocs.map((d) => [d, true] as const), ...rows.map((d) => [d, false] as const)]).catch(() => [] as Doc[])
+  await Promise.all([
     // Level 2: the subtitles of those references' own previews.
-    await ensureRefs(queryClient, schemas, l1.map((d) => [d, false] as const))
-  } catch {}
-  await media
+    ensureRefs(queryClient, schemas, l1.map((d) => [d, false] as const)).catch(() => {}),
+    // The rest of what the list rows' preview paths cross, past the first reference.
+    ensurePreviewRefs(queryClient, schemas, rows).catch(() => {}),
+  ])
 }
 
-/** The docs list rows' media paths read through (`heroImage.asset.url`): one batch per hop, as a row reads them (anyDocQuery's cache). */
-async function ensureMediaRefs(qc: QueryClient, schemas: Schema[], docs: Doc[]) {
-  const deref = (id: string) => qc.getQueryData(anyDocQuery(id).queryKey)
-  for (let hop = 0; hop < 5; hop++) {
-    const want = new Set(docs.flatMap((d) => mediaRefs(schemaOf(schemas, d._type)?.listPreview?.media, d, deref)).filter((id) => deref(id) === undefined))
-    if (!want.size) return
-    const ids = [...want]
+/**
+ * The docs list rows' preview paths read through (`heroImage.asset.url`, `parent.parent.title`):
+ * one batch per reference depth for all rows, as a row reads them (lib/preview.ts loadRefs).
+ */
+async function ensurePreviewRefs(qc: QueryClient, schemas: Schema[], docs: Doc[]) {
+  const deref = cachedDoc(qc)
+  const refs = () =>
+    docs.flatMap((d) => {
+      const lp = schemaOf(schemas, d._type)?.listPreview
+      return [...mediaRefs(lp?.media, d, deref), ...textRefs(lp?.subtitle, d, deref)]
+    })
+  await loadRefs(refs, (id) => deref(id) !== undefined, async (ids) => {
     for (let i = 0; i < ids.length; i += 100) await ensureAnyDocs(qc, ids.slice(i, i + 100))
-  }
+  })
 }
 
 /** For each [doc, allRefs]: the preview-subtitle ref, and (allRefs) every reference field. */

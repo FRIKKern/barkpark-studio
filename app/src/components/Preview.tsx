@@ -2,61 +2,60 @@ import {useZone} from '../lib/now'
 import {createContext, memo, useContext, useState, type ReactNode} from 'react'
 import {frame, imageRef, imageSrc, sanityImageId, NO_CROP, NO_HOTSPOT, THUMB_PX, type ImageValue} from '../lib/image'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
-import {anyDocQuery, docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
-import {formatPreview, mediaRefs, previewRefs, rowMedia, type PreviewMediaSpec, type PreviewMedia, type PreviewText} from '../lib/preview'
+import {anyDocQuery, cachedDoc, docQuery, ensureAnyDocs, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {formatPreview, loadRefs, mediaRefs, previewRefs, readPath, rowMedia, textRefs, type PreviewMediaSpec, type PreviewMedia, type PreviewText} from '../lib/preview'
 import {DocumentIcon, BrokenImageIcon} from './icons'
 import {PaneLink} from './PaneLink'
 import {ago, useLocale, useT} from '../lib/i18n'
 import {useTip} from './Tip'
 
 /**
- * Subtitle per the schema's list_preview.subtitle: a path ("author.name" follows
- * one reference) or prepared parts with a fallback (J56, lib/preview.ts).
+ * Whether a row may read a document its preview paths cross on its own. A list reads them
+ * for all its rows in batches first, one batch per reference depth (lib/prime.ts
+ * usePrimed), and says when each is in; a row anywhere else reads its own.
+ */
+export const RefsPrimed = createContext<(id: string) => boolean>(() => true)
+
+/**
+ * Subtitle per the schema's list_preview.subtitle: a path ("author.name", up to five
+ * references deep: "parent.parent.title") or prepared parts with a fallback (J56,
+ * lib/preview.ts). Each target loaded can name the next, so the hook subscribes to every
+ * id the paths have crossed so far. A reference field's own target is read typed
+ * (`docQuery`), which live updates refresh; deeper ones through `anyDocQuery`.
  */
 function useSubtitle(doc: Doc | null | undefined) {
   const {data: schemas = []} = useQuery(schemasQuery)
+  const qc = useQueryClient()
+  const primed = useContext(RefsPrimed)
   const schema = doc ? schemaOf(schemas, doc._type) : undefined
   const spec = schema?.listPreview?.subtitle
-  const refs = previewRefs(spec).map((name) => {
-    const field = schema?.fields.find((f) => f.name === name)
-    return {name, id: refId(doc?.[name]), types: refTypesOf(field)}
-  })
-  const targets = useQueries({queries: refs.map((r) => ({...docQuery(r.types, r.id ?? ''), enabled: !!r.id && r.types.length > 0}))})
+  const deref = cachedDoc(qc)
+  const typed = new Map(
+    previewRefs(spec).flatMap((name) => {
+      const id = refId(doc?.[name])
+      const types = refTypesOf(schema?.fields.find((f) => f.name === name))
+      return id && types.length ? [[id, types] as const] : []
+    }),
+  )
+  const ids = spec && doc ? textRefs(spec, doc, deref) : []
+  useQueries({queries: ids.map((id) => ({...(typed.has(id) ? docQuery(typed.get(id)!, id) : anyDocQuery(id)), enabled: primed(id)}))})
   if (!spec || !doc) return undefined
-  return subtitleOf(spec, doc, (name) => targets[refs.findIndex((r) => r.name === name)]?.data)
+  return subtitleOf(spec, doc, deref)
 }
 
-/** The subtitle from its spec: a field of the doc, or one of a document its reference names. */
-function subtitleOf(spec: PreviewText, doc: Doc, target: (name: string) => unknown) {
-  return formatPreview(spec, (path) => {
-    const [head, ...rest] = path.split('.')
-    if (!rest.length) return doc[head!]
-    return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], target(head!))
-  })
+/** The subtitle from its spec: a field of the doc, or one a reference chain leads to. */
+function subtitleOf(spec: PreviewText, doc: Doc, deref: (id: string) => unknown) {
+  return formatPreview(spec, (path) => readPath(doc, path, deref), {deref})
 }
 
-/** The same subtitle outside React (the canvas's link card), its references read through `qc`. */
+/** The same subtitle outside React (the canvas's link card), its references read through `qc`, one batch per depth. */
 export async function previewSubtitle(qc: QueryClient, doc: Doc, schema: Schema | undefined) {
   const spec = schema?.listPreview?.subtitle
   if (!spec) return undefined
-  const targets = new Map(
-    await Promise.all(
-      previewRefs(spec).map(async (name) => {
-        const id = refId(doc[name])
-        const types = refTypesOf(schema!.fields.find((f) => f.name === name))
-        return [name, id && types.length ? await qc.fetchQuery(docQuery(types, id)).catch(() => undefined) : undefined] as const
-      }),
-    ),
-  )
-  return subtitleOf(spec, doc, (name) => targets.get(name))
+  const deref = cachedDoc(qc)
+  await loadRefs(() => textRefs(spec, doc, deref), (id) => deref(id) !== undefined, (ids) => ensureAnyDocs(qc, ids)).catch(() => {})
+  return subtitleOf(spec, doc, deref)
 }
-
-/**
- * Whether a row may read a document its media path crosses on its own. A list reads them
- * for all its rows in batches first (lib/prime.ts usePrimed) and says when each is in;
- * a row anywhere else reads its own.
- */
-export const MediaRefsPrimed = createContext<(id: string) => boolean>(() => true)
 
 /**
  * A row's media candidates (lib/preview.ts rowMedia), reading the documents its media
@@ -65,8 +64,8 @@ export const MediaRefsPrimed = createContext<(id: string) => boolean>(() => true
  */
 function useRowMedia(spec: PreviewMediaSpec | undefined, doc: Doc | null | undefined) {
   const qc = useQueryClient()
-  const primed = useContext(MediaRefsPrimed)
-  const deref = (id: string) => qc.getQueryData(anyDocQuery(id).queryKey)
+  const primed = useContext(RefsPrimed)
+  const deref = cachedDoc(qc)
   const ids = spec && doc ? mediaRefs(spec, doc, deref) : []
   useQueries({queries: ids.map((id) => ({...anyDocQuery(id), enabled: primed(id)}))})
   return spec && doc ? rowMedia(spec, doc, deref) : []
