@@ -19,6 +19,7 @@ import {BlockPresence, FieldPresence} from './Presence'
 import {DateTimeInput, type DateOptions} from './DateTimeInput'
 import {StringArrayInput, TagsInput} from './ArrayInputs'
 import {ObjectArrayInput} from './ObjectArrayInput'
+import {isObjectMembers, membersOf} from '../lib/array-members'
 import {RefArrayInput} from './RefArrayInput'
 import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {CodelistInput} from './CodelistInput'
@@ -522,6 +523,12 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       const items = (value as unknown[]) ?? []
       const keys = keyProblem(items)
       if (keys) return <KeysAlert problem={keys} onChange={onChange} />
+      // Barkpark serves `of` as a list when it names member types. Several objects (a page
+      // builder) are rows of items, each by its own member (task-3da190705a269df1); a list of
+      // one is that member.
+      const members = membersOf(field)
+      if (isObjectMembers(members)) return <ObjectArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
+      if (Array.isArray(field.of) && members.length === 1) field = {...field, of: members[0]}
       if (field.of?.type === 'reference') return <RefArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       // Sanity: an array of strings with `options.list` is a set of checkboxes (a grid with layout 'grid').
       const choices = !Array.isArray(field.options) && Array.isArray(field.options?.list) ? (field.options.list as (string | {value: string; title?: string})[]) : undefined
