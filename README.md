@@ -18,6 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
+- **Today** · 1 change
+  - fix: draw a Sanity image id from Barkpark's Sanity image route ([#1080](https://github.com/FRIKKern/barkpark-studio/pull/1080))
 - **Yesterday** · 102 changes
   - fix(body): Put the words back waits out a save on its way instead of refusing ([#1078](https://github.com/FRIKKern/barkpark-studio/pull/1078))
 - **This week** · 36 changes, 1 task closed
