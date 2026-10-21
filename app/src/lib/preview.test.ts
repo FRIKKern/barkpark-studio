@@ -1,7 +1,7 @@
 // J56: prepared previews, read the way Sanity's prepare in reference/sanity/schemaTypes/category.ts reads.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {firstMedia, formatPreview, previewMedia, previewRefs, type PreviewText} from './preview.ts'
+import {firstMedia, formatPreview, mediaUrl, previewMedia, previewRefs, rowMedia, type PreviewText} from './preview.ts'
 
 const featured: PreviewText = {parts: ['featuredPost.title', 'featuredPost.publishedAt|date'], join: ' · ', empty: 'No featured post'}
 const read = (values: Record<string, unknown>) => (path: string) => values[path]
@@ -25,6 +25,24 @@ test('a row\'s media: an image, an asset from elsewhere (broken-image icon), or 
   assert.deepEqual(previewMedia({_type: 'image', _sanityAsset: 'image@file://./images/abc-640x400.png'}), {kind: 'unsupported', source: 'image@file://./images/abc-640x400.png'})
   assert.deepEqual(previewMedia(undefined), {kind: 'none'})
   assert.deepEqual(previewMedia({}), {kind: 'none'})
+})
+
+test('a row\'s media from an image URL: drawn, an empty one skipped, the next path after it', () => {
+  const spec = ['cover.thumbnail', 'cover.large']
+  const url = 'https://images.example.com/covers/fixture-01.jpg'
+  assert.deepEqual(previewMedia(url), {kind: 'url', src: url})
+  assert.deepEqual(previewMedia(`  ${url} `), {kind: 'url', src: url})
+  assert.deepEqual(previewMedia({url}), {kind: 'url', src: url})
+  // Not an image URL: empty, a relative path, another scheme.
+  for (const v of ['', '   ', '/covers/a.jpg', 'javascript:alert(1)', 'data:image/png;base64,AA', 'ftp://example.com/a.jpg']) assert.equal(mediaUrl(v), undefined, v)
+  assert.deepEqual(previewMedia(''), {kind: 'none'})
+  // The first path with a URL; an empty one gives way to the next; a single path still works.
+  const both = {cover: {thumbnail: url, large: 'https://images.example.com/covers/fixture-01-large.jpg'}}
+  assert.deepEqual(rowMedia(spec, both).map((c) => c.media), [{kind: 'url', src: url}, {kind: 'url', src: both.cover.large}])
+  assert.deepEqual(rowMedia(spec, {cover: {thumbnail: '', large: both.cover.large}}).map((c) => c.media), [{kind: 'url', src: both.cover.large}])
+  assert.deepEqual(rowMedia(spec, {cover: {thumbnail: ''}}), [])
+  assert.deepEqual(rowMedia('image', {image: {asset: {_ref: 'asset-123'}}}).map((c) => c.media), [{kind: 'image', ref: 'asset-123'}])
+  assert.deepEqual(rowMedia(undefined, {image: url}), [])
 })
 
 // J33: array item previews, as Agency's feature card prepares a banner row.

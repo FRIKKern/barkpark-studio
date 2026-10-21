@@ -69,7 +69,7 @@ export type Group = {name: string; title?: string; default?: boolean}
 /** J55: a type's own sort, Sanity's `orderings` (Barkpark: the schema's `desk.orderings`). */
 export type Ordering = {name: string; title: string; by: {field: string; direction: 'asc' | 'desc'}[]}
 /** A row's preview: title and media name fields; the subtitle may be prepared (J56, lib/preview.ts). */
-export type ListPreview = {title?: string; subtitle?: PreviewText; media?: string}
+export type ListPreview = {title?: string; subtitle?: PreviewText; media?: PreviewMediaSpec}
 /** One entry of a type's Expectation (Barkpark's `layout`): a bound field block, or the free region. */
 export type LayoutItem = {kind: 'field' | 'region' | string; name: string; max?: number; enforce?: boolean}
 export type Schema = {name: string; title: string; kind?: 'object'; previewView?: {title?: string}; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; fieldsets?: Field['fieldsets']; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>}

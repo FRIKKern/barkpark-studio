@@ -3,7 +3,7 @@ import {memo, useState, type ReactNode} from 'react'
 import {frame, imageRef, imageSrc, sanityImageId, NO_CROP, NO_HOTSPOT, THUMB_PX, type ImageValue} from '../lib/image'
 import {useQueries, useQuery, type QueryClient} from '@tanstack/react-query'
 import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
-import {formatPreview, previewRefs, previewMedia, type PreviewText} from '../lib/preview'
+import {formatPreview, previewRefs, rowMedia, type PreviewMedia, type PreviewText} from '../lib/preview'
 import {DocumentIcon, BrokenImageIcon} from './icons'
 import {PaneLink} from './PaneLink'
 import {ago, useLocale, useT} from '../lib/i18n'
@@ -64,23 +64,16 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
   const subtitle = useSubtitle(doc)
   const t = useT()
   const title = doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : '…'
-  // The schema's list_preview.media: an image field shows as the row's thumbnail, like Sanity.
-  const mediaKey = doc ? schemaOf(schemas, doc._type)?.listPreview?.media : undefined
-  const media = previewMedia(mediaKey ? doc?.[mediaKey] : undefined)
-  const showMedia = !iconless || media.kind === 'image' || media.kind === 'unsupported'
+  // The schema's list_preview.media: an image field or an image URL shows as the row's
+  // thumbnail, like Sanity. A list of paths is tried in order (lib/preview.ts rowMedia).
+  const mediaSpec = doc ? schemaOf(schemas, doc._type)?.listPreview?.media : undefined
+  const candidates = rowMedia(mediaSpec, doc)
+  const showMedia = !iconless || candidates.length > 0
   const body = (
     <>
       {showMedia && (
         <span className="media">
-          {media.kind === 'image' ? (
-            <Thumb value={doc![mediaKey!] as ImageValue} />
-          ) : media.kind === 'unsupported' ? (
-            <span className="media-broken" role="img" aria-label={t('Unsupported asset value')} title={`${t('Unsupported asset value')}: ${media.source}`}>
-              <BrokenImageIcon />
-            </span>
-          ) : (
-            <DocumentIcon />
-          )}
+          <RowMedia key={candidates.map(mediaKey).join(' ')} candidates={candidates} iconless={iconless} />
         </span>
       )}
       <span className="text">
@@ -99,6 +92,50 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
     </PaneLink>
   )
 })
+
+const mediaKey = ({media}: {media: PreviewMedia}) => (media.kind === 'image' ? media.ref : media.kind === 'url' ? media.src : media.kind)
+
+/**
+ * The first of a row's media that draws: an image value, an image URL, or the
+ * broken-image icon for an asset value the studio can't show. An image URL that fails to
+ * load gives way to the next candidate, and after the last to the document icon (none
+ * when the row is iconless).
+ */
+function RowMedia({candidates, iconless}: {candidates: {value: unknown; media: PreviewMedia}[]; iconless?: boolean}) {
+  const [failed, setFailed] = useState(0)
+  const t = useT()
+  const c = candidates[failed]
+  if (!c) return iconless ? null : <DocumentIcon />
+  if (c.media.kind === 'image') return <Thumb value={c.value as ImageValue} />
+  if (c.media.kind === 'url') return <UrlThumb key={failed} src={c.media.src} onFail={() => setFailed(failed + 1)} />
+  if (c.media.kind === 'unsupported')
+    return (
+      <span className="media-broken" role="img" aria-label={t('Unsupported asset value')} title={`${t('Unsupported asset value')}: ${c.media.source}`}>
+        <BrokenImageIcon />
+      </span>
+    )
+  return <DocumentIcon />
+}
+
+/**
+ * An image URL as a square thumbnail, cut to cover the square. Sent with no referrer:
+ * the image host learns nothing about the studio. A load failure (also one before
+ * hydration, seen as the img mounts) calls `onFail`.
+ */
+function UrlThumb({src, onFail}: {src: string; onFail: () => void}) {
+  return (
+    <img
+      className="url-thumb"
+      ref={(img) => void (img?.complete && !img.naturalWidth && onFail())}
+      src={src}
+      alt=""
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={onFail}
+      data-testid="row-media-url"
+    />
+  )
+}
 
 /** An image value as a square thumbnail: its crop, cut to the square around the hotspot (Sanity's image URL rules). */
 export function Thumb({value}: {value: ImageValue}) {

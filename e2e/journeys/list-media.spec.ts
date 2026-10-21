@@ -44,3 +44,45 @@ test('@evidence list rows show the main image, cropped', async ({page}, info) =>
   await page.waitForTimeout(3000)
   await row.screenshot({path: shot(t.name, '2-row-cropped')})
 })
+
+// task-c74e7cdf5b119f87: a media path that holds an image URL (a field of type url,
+// as Barkpark's list_preview contract takes) draws that image; an empty URL and one
+// that fails to load fall back to the document icon. Ours only: Sanity's media is a
+// prepare function. The image host is example.com, served or refused by the route.
+const URL_DOC = 'post-url-media'
+const IMAGE = 'https://images.example.com/covers/fixture.png'
+const BROKEN = 'https://images.example.com/covers/missing.png'
+test('@local a row whose media is an image URL draws it; empty or failing falls back', async ({page, context}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: Sanity media is a prepare function')
+  await context.route(IMAGE, (r) => r.fulfill({path: '../fixtures/assets/fixture-image.png', contentType: 'image/png'}))
+  await context.route(BROKEN, (r) => r.fulfill({status: 404, body: ''}))
+  await t.draftOnly(URL_DOC, 'post', {title: 'URL media', mainImage: IMAGE})
+  try {
+    await t.prepare(context)
+    await page.goto(t.docPath('post', URL_DOC))
+    await signInIfAsked(page)
+    await t.settle(page)
+    const row = t.listItem(page, URL_DOC)
+    const img = row.getByTestId('row-media-url')
+    await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0), {intervals: [50], timeout: 10_000}).toBe(true)
+    await expect(img).toHaveAttribute('referrerpolicy', 'no-referrer')
+    // Sized as other thumbnails: it fills the row's media square.
+    const [box, square] = await Promise.all([img.boundingBox(), row.locator('.media').boundingBox()])
+    expect(box && square && Math.round(box.width) === Math.round(square.width) && Math.round(box.height) === Math.round(square.height)).toBe(true)
+    await row.screenshot({path: 'evidence/list-media-url-1-row.png'})
+
+    // A URL that fails to load: the document icon, never a broken image.
+    await t.patch(URL_DOC, {mainImage: BROKEN})
+    await expect(row.locator('.media svg')).toBeVisible({timeout: 10_000})
+    await expect(row.locator('.media img')).toHaveCount(0)
+
+    // An empty URL: the document icon.
+    await t.patch(URL_DOC, {mainImage: ''})
+    await expect(row.locator('.media svg')).toBeVisible({timeout: 10_000})
+    await expect(row.locator('.media img')).toHaveCount(0)
+  } finally {
+    await closeAndSettle(page)
+    await t.deleteDoc(URL_DOC, 'post')
+  }
+})
