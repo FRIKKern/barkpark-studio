@@ -3,7 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {resumeMark} from '../server/listen'
-import {readDesk, readRest, readSchemas, STUDIO_TYPES} from '../server/schemas'
+import {readDesk, readRest, readSchemas, schemaIcon, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import {collate, translate, type T} from './i18n'
@@ -54,6 +54,8 @@ export type Field = {
   editor?: string
   /** codelist (B04/B05): `<plugin>:<name>`. */
   codelistId?: string
+  /** An array member that is a named object type (Barkpark expands it): the type, for its icon. */
+  namedType?: string
   /** Array item preview (J33): title, subtitle and media, read like a list preview (lib/preview.ts). */
   preview?: {title?: PreviewText; subtitle?: PreviewText; media?: PreviewMediaSpec}
   visibleWhen?: Condition
@@ -72,7 +74,7 @@ export type Ordering = {name: string; title: string; by: {field: string; directi
 export type ListPreview = {title?: string; subtitle?: PreviewText; media?: PreviewMediaSpec}
 /** One entry of a type's Expectation (Barkpark's `layout`): a bound field block, or the free region. */
 export type LayoutItem = {kind: 'field' | 'region' | string; name: string; max?: number; enforce?: boolean}
-export type Schema = {name: string; title: string; kind?: 'object'; previewView?: {title?: string}; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; fieldsets?: Field['fieldsets']; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>}
+export type Schema = {name: string; title: string; kind?: 'object'; icon?: string; iconSvg?: string; previewView?: {title?: string}; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; fieldsets?: Field['fieldsets']; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>}
 /**
  * B09: a related-documents view the schema declares (`desk.views`, Barkpark's LiveView
  * "view bar"): docs of `type` whose `by` field references the open doc.
@@ -103,8 +105,10 @@ const previewViewOf = (v: unknown): {previewView?: {title?: string}} =>
 const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
   const schemas = await readSchemas()
   return schemas
-    .map(({name, title, fields, listPreview, list_preview, groups, fieldsets, initialValues, initial_values, desk, singleton, layout, prefill, kind}) => ({
+    .map(({name, title, icon, fields, listPreview, list_preview, groups, fieldsets, initialValues, initial_values, desk, singleton, layout, prefill, kind}) => ({
       name, title, fields,
+      // The type's icon: a row with no media draws it, as Sanity's do.
+      ...schemaIcon(icon),
       // "object": a named composite other schemas embed (a page-builder section); it owns
       // no documents, so nothing offers to create one (task-37691740e53e77b7).
       ...(kind === 'object' ? {kind: 'object'} : {}), listPreview: listPreview ?? list_preview, groups: groups ?? [], fieldsets: Array.isArray(fieldsets) ? fieldsets : [], initialValues: initialValues ?? initial_values ?? {},
