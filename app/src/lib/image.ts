@@ -59,6 +59,25 @@ export function pickedImage(prev: Record<string, unknown>, ref: string, url?: st
 
 export const assetUrl = (ref: string) => `/api/media/${encodeURIComponent(ref.replace(/^asset-/, ''))}`
 
+export type SanityImageId = {sha1: string; width: number; height: number; ext: string}
+const SANITY_IMAGE_ID = /^image-([0-9a-f]{40})-([1-9][0-9]*)x([1-9][0-9]*)-([a-z0-9]+)$/i
+/**
+ * A Sanity image id, `image-<sha1>-<w>x<h>-<ext>`, as a value moved over from Sanity holds it.
+ * Barkpark serves it from its Sanity image route, which finds the media file by the id or
+ * by the sha1 of its bytes (routes/api/media/$id). Null for any other ref.
+ */
+export function sanityImageId(ref: unknown): SanityImageId | null {
+  const m = typeof ref === 'string' ? SANITY_IMAGE_ID.exec(ref) : null
+  return m ? {sha1: m[1]!.toLowerCase(), width: Number(m[2]), height: Number(m[3]), ext: m[4]!.toLowerCase()} : null
+}
+/**
+ * Barkpark's path for a Sanity image id, under the workspace and project prefix:
+ * `/images/<projectId>/<dataset>/<sha1>-<w>x<h>.<ext>`. Barkpark ignores the projectId
+ * segment (the prefix names the tenant), so the studio sends `barkpark`, as Barkpark's
+ * own Studio does (FieldInputs.sanity_image_url).
+ */
+export const sanityImagePath = (id: SanityImageId, dataset: string) => `/images/barkpark/${encodeURIComponent(dataset)}/${id.sha1}-${id.width}x${id.height}.${id.ext}`
+
 /**
  * An image at the size it shows (CSS px times 2 for a sharp screen), as AVIF or WebP when
  * the browser takes it: Barkpark's transform, fit inside w x h, never scaled up past the

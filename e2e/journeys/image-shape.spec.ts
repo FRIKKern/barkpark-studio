@@ -1,4 +1,6 @@
 import {expect, test, type Page} from '@playwright/test'
+import {createHash} from 'node:crypto'
+import {readFileSync} from 'node:fs'
 import {seedAssets} from '../../scripts/lib/seed-assets.mjs'
 import {bpBase, bpDataset, bpMutate, signInIfAsked, target, bpRemove, closeAndSettle} from '../rig/targets'
 
@@ -42,6 +44,39 @@ test('image shape: the old and the canonical read the same; an untouched old one
   } finally {
     await closeAndSettle(page)
     await Promise.all([bpRemove(OLD, 'post'), bpRemove(NEW, 'post')])
+  }
+})
+
+// task-894b06f33c89ed1e: a value moved over from Sanity holds a Sanity image id,
+// image-<sha1>-<w>x<h>-<ext>. Barkpark serves it from its Sanity image route (by the sha1 of
+// the bytes), so the field draws the image with its alt, offers no Reset card, and a new
+// pick replaces it. The fixture image's own id, on a scratch post deleted after.
+test('a Sanity image id: drawn with its alt, no warning card; a new pick replaces it', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: Sanity shows its own assets')
+  const ref = (await seedAssets([{img: {_sanityAsset: 'image@file://./assets/fixture-image.png'}}], {base: bpBase(), dataset: bpDataset(), token: process.env.BARKPARK_TOKEN!}))({_sanityAsset: 'image@file://./assets/fixture-image.png'})
+  const png = readFileSync(new URL('../../fixtures/assets/fixture-image.png', import.meta.url))
+  const sanityRef = `image-${createHash('sha1').update(png).digest('hex')}-${png.readUInt32BE(16)}x${png.readUInt32BE(20)}-png`
+  const ID = `post-sanity-image-${Date.now().toString(36)}`
+  await bpMutate([{createOrReplace: {_id: ID, _type: 'post', title: 'Sanity image id', mainImage: {_type: 'image', asset: {_type: 'reference', _ref: sanityRef}, alt: 'Synthetic alt'}}}])
+  try {
+    await t.prepare(page.context())
+    const known = page.waitForResponse((r) => r.url().includes(`/api/media/${sanityRef}/info`))
+    await page.goto(`${t.docPath('post', ID)},path=mainImage`)
+    await signInIfAsked(page)
+    expect((await known).status()).toBe(200)
+    const field = page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')})
+    const img = field.getByRole('img', {name: 'Preview of uploaded image'})
+    await expect(img).toBeVisible()
+    await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBeGreaterThan(0)
+    await expect(field.getByRole('textbox', {name: 'Alternative text'})).toHaveValue('Synthetic alt')
+    await expect(page.getByText('Unsupported asset value')).toHaveCount(0)
+    // A new pick (Upload; the library has the file) replaces the Sanity id, keeping the alt.
+    await field.locator('input[type=file]').first().setInputFiles('../fixtures/assets/fixture-image.png')
+    await expect.poll(() => t.docValue(ID, 'mainImage'), {timeout: 15_000}).toEqual({_type: 'image', asset: {_type: 'reference', _ref: ref}, alt: 'Synthetic alt'})
+  } finally {
+    await closeAndSettle(page)
+    await bpRemove(ID, 'post')
   }
 })
 

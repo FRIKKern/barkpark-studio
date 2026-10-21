@@ -20,6 +20,8 @@ test('a row\'s media: an image, an asset from elsewhere (broken-image icon), or 
   assert.deepEqual(previewMedia({asset: {_ref: 'asset-123'}}), {kind: 'image', ref: 'asset-123'})
   assert.deepEqual(previewMedia({assetId: '9', url: '/x'}), {kind: 'image', ref: 'asset-9'})
   assert.deepEqual(previewMedia({_type: 'image', asset: {_type: 'reference', _ref: 'image-0f1e-640x400-png'}, hotspot: {x: 0.5, y: 0.5, width: 1, height: 1}}), {kind: 'unsupported', source: 'image-0f1e-640x400-png'})
+  const sanityRef = `image-${'0f1e'.repeat(10)}-640x400-png`
+  assert.deepEqual(previewMedia({_type: 'image', asset: {_type: 'reference', _ref: sanityRef}}), {kind: 'image', ref: sanityRef})
   assert.deepEqual(previewMedia({_type: 'image', _sanityAsset: 'image@file://./images/abc-640x400.png'}), {kind: 'unsupported', source: 'image@file://./images/abc-640x400.png'})
   assert.deepEqual(previewMedia(undefined), {kind: 'none'})
   assert.deepEqual(previewMedia({}), {kind: 'none'})

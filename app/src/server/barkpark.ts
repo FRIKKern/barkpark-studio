@@ -222,8 +222,8 @@ export function bpRoot(path: string, init: RequestInit = {}): Promise<Response> 
 }
 
 /** A path under the workspace/project prefix (`/media/renditions/...`), raw (binary-safe), with the token. */
-export function bpRaw(path: string): Promise<Response> {
-  return fetch(`${config().base}${path}`, {headers: {authorization: `Bearer ${requestToken()}`}})
+export function bpRaw(path: string, {method, headers = {}}: {method?: string; headers?: Record<string, string>} = {}): Promise<Response> {
+  return fetch(`${config().base}${path}`, {method, headers: {...headers, authorization: `Bearer ${requestToken()}`}})
 }
 
 /** A media file by the path an asset record gives (`/w/<ws>/p/<project>/media/files/...`), with the token. */

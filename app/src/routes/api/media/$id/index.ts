@@ -1,6 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {apiBase, bpFetch, bpFile, bpRaw, dataset} from '../../../../server/barkpark'
 import {fallsBackToOriginal, mediaHeaders, transformQuery} from '../../../../lib/media-proxy'
+import {sanityImageId, sanityImagePath} from '../../../../lib/image'
 
 // GET /api/media/<asset id> → the file's bytes. Barkpark serves media files to a token only,
 // and an <img> can't send one, so the studio fetches them for it. An image takes Barkpark's
@@ -20,6 +21,17 @@ export const Route = createFileRoute('/api/media/$id/')({
       GET: async ({params, request}) => {
         const query = new URL(request.url).searchParams
         const dest = request.headers.get('sec-fetch-dest')
+        // A Sanity image id (a value moved over from Sanity): Barkpark's Sanity image route
+        // serves it, with the same transform parameters and the reader's own token.
+        const sanity = sanityImageId(params.id)
+        if (sanity) {
+          const path = sanityImagePath(sanity, dataset())
+          const transform = query.get('size') === 'thumb' ? 'w=320&h=320&fit=max&fm=jpg' : transformQuery(query)
+          const headers = {accept: request.headers.get('accept') ?? 'image/*'}
+          let file = transform ? await bpRaw(`${path}?${transform}`, {headers}) : null
+          if (!file || fallsBackToOriginal(file.status)) file = await bpRaw(path, {headers})
+          return new Response(file.ok ? file.body : null, {status: file.status, headers: mediaHeaders(file.ok, file.headers.get('content-type') ?? 'application/octet-stream', dest)})
+        }
         if (query.get('size') === 'thumb') {
           const thumb = await bpRaw(`/media/renditions/${encodeURIComponent(params.id)}/thumb`)
           return new Response(thumb.body, {status: thumb.status, headers: mediaHeaders(thumb.ok, thumb.headers.get('content-type') ?? 'image/jpeg', dest)})

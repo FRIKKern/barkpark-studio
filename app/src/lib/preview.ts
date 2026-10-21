@@ -141,9 +141,10 @@ export function firstMedia(spec: PreviewMediaSpec | undefined, read: (path: stri
 }
 
 /**
- * A row's media (list_preview.media): an image to show, an asset value the studio can't
- * show (a Sanity export's `_sanityAsset`, a Sanity asset id; task-ec9b4c0c78185fa4), or
- * none. The unsupported one draws a broken-image icon, not an empty box.
+ * A row's media (list_preview.media): an image to show (a Sanity image id too, which
+ * Barkpark serves), an asset value the studio can't show (a Sanity export's `_sanityAsset`,
+ * a ref that is no image id; task-ec9b4c0c78185fa4), or none. The unsupported one draws a
+ * broken-image icon, not an empty box.
  */
 export type PreviewMedia = {kind: 'image'; ref: string} | {kind: 'unsupported'; source: string} | {kind: 'none'}
 export function previewMedia(value: unknown): PreviewMedia {

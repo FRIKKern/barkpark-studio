@@ -1,4 +1,5 @@
 import type {Field, Schema} from './data'
+import {sanityImageId} from './image.ts'
 
 // J39, broken values: what another client can write that the schema doesn't allow,
 // found before an input draws it (Sanity's InvalidValueInput, the array "Missing
@@ -101,9 +102,11 @@ export type UnsupportedAsset = {reason: 'sanityAsset' | 'foreignRef'; source: st
 
 /**
  * An image or file value holding an asset this studio can't show: Sanity's export form
- * ({_sanityAsset: 'image@file://…'}) or a ref that is not a Barkpark media id
- * (Sanity's 'image-<sha>-640x400-png'). Read as empty, one save would drop it: the field
- * shows it as it is, read-only, with Reset (task-ec9b4c0c78185fa4).
+ * ({_sanityAsset: 'image@file://…'}) or a ref that is not a Barkpark media id (a Sanity
+ * file id, a made-up ref). Read as empty, one save would drop it: the field shows it as it
+ * is, read-only, with Reset (task-ec9b4c0c78185fa4). A Sanity image id in an image field
+ * is not one: Barkpark serves it (lib/image.ts sanityImageId, task-894b06f33c89ed1e); the
+ * field shows this card only when Barkpark has no file for it (ImageInput).
  */
 export function unsupportedAsset(field: Field, value: unknown): UnsupportedAsset | null {
   if (field.type !== 'image' && field.type !== 'file') return null
@@ -111,7 +114,7 @@ export function unsupportedAsset(field: Field, value: unknown): UnsupportedAsset
   const v = value as {_sanityAsset?: unknown; asset?: {_ref?: unknown}}
   if (typeof v._sanityAsset === 'string') return {reason: 'sanityAsset', source: v._sanityAsset}
   const ref = v.asset?._ref
-  if (typeof ref === 'string' && !ref.startsWith('asset-')) return {reason: 'foreignRef', source: ref}
+  if (typeof ref === 'string' && !ref.startsWith('asset-') && !(field.type === 'image' && sanityImageId(ref))) return {reason: 'foreignRef', source: ref}
   return null
 }
 

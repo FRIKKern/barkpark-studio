@@ -47,6 +47,13 @@ test('unknown fields skip system and server keys', () => {
 test('an asset this studio cannot show: Sanity export form, a foreign ref', () => {
   assert.deepEqual(unsupportedAsset(f('file'), {_type: 'file', _sanityAsset: 'file@file://./files/a.txt'}), {reason: 'sanityAsset', source: 'file@file://./files/a.txt'})
   assert.deepEqual(unsupportedAsset(f('image'), {asset: {_ref: 'image-abc-640x400-png'}}), {reason: 'foreignRef', source: 'image-abc-640x400-png'})
+  // A Sanity image id in an image field: Barkpark serves it, so it is no warning (task-894b06f33c89ed1e).
+  const sanityImage = {_type: 'image', asset: {_type: 'reference', _ref: `image-${'ab12'.repeat(10)}-640x400-png`}, alt: 'Synthetic alt'}
+  assert.equal(unsupportedAsset(f('image'), sanityImage), null)
+  // The same id in a file field, a Sanity file id, and a malformed image id stay unknown.
+  assert.deepEqual(unsupportedAsset(f('file'), sanityImage), {reason: 'foreignRef', source: sanityImage.asset._ref})
+  assert.deepEqual(unsupportedAsset(f('file'), {asset: {_ref: `file-${'ab12'.repeat(10)}-pdf`}}), {reason: 'foreignRef', source: `file-${'ab12'.repeat(10)}-pdf`})
+  assert.deepEqual(unsupportedAsset(f('image'), {asset: {_ref: `image-${'ab12'.repeat(10)}-0x400-png`}}), {reason: 'foreignRef', source: `image-${'ab12'.repeat(10)}-0x400-png`})
   assert.equal(unsupportedAsset(f('image'), {asset: {_ref: 'asset-123'}}), null)
   assert.equal(unsupportedAsset(f('image'), {assetId: '123', url: '/x'}), null) // the legacy shape it reads
   assert.equal(unsupportedAsset(f('image'), null), null)
