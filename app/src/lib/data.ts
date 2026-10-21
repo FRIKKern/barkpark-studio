@@ -9,7 +9,7 @@ import {paneRetry} from './connection'
 import {collate, translate, type T} from './i18n'
 import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
-import type {PreviewMediaSpec, PreviewText} from './preview'
+import {pathsOf, type PreviewMediaSpec, type PreviewText} from './preview'
 import {excluded, parseTextQuery, textScore} from './text-search'
 import {groqKeepPath, isGroqFilter, refFilterParams, type RefFilter} from './ref-filter'
 
@@ -386,10 +386,10 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
   // Each asked type's preview paths that read through a reference, and the types it points at.
   const via = asked.flatMap(({type, filter}) => {
     const schema = schemas.find((s) => s.name === type)
-    const sub = schema?.listPreview?.subtitle
-    const paths = [schema?.listPreview?.title, ...(typeof sub === 'string' ? [sub] : (sub as {parts?: string[]} | undefined)?.parts ?? [])]
+    // A preview's parts may be objects, fallback lists and templates (lib/preview), not only paths.
+    const paths = [...pathsOf(schema?.listPreview?.title), ...pathsOf(schema?.listPreview?.subtitle)]
     return paths.flatMap((path) => {
-      const [field, ...rest] = (path ?? '').split('|')[0]!.split('.')
+      const [field, ...rest] = path.split('.')
       const f = schema?.fields.find((x) => x.name === field)
       return rest.length && f?.type === 'reference' ? refTypesOf(f).map((target) => ({type, filter, schema, field: field!, rest, target})) : []
     })
