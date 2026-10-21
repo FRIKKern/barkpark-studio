@@ -4,6 +4,7 @@ import {useEffect, useId, useRef, useState} from 'react'
 import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {schemaOf, schemasQuery, searchQuery, textSearchQuery, type Doc} from '../lib/data'
+import {isDocumentType} from '../lib/creatable'
 import {announce} from '../lib/announce'
 import {collate, intlTag, useLocale, useT} from '../lib/i18n'
 import {focusFirstField} from '../lib/focus'
@@ -114,6 +115,8 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
   const navigate = useNavigate()
   const schemaResult = useQuery(schemasQuery)
   const schemas = schemaResult.data ?? []
+  // Sanity searches document types only: an object type (a page-builder section) owns no documents.
+  const docTypes = schemas.filter(isDocumentType)
   const input = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState(kept.current.q)
   const [query, setQuery] = useState(kept.current.q.trim())
@@ -142,9 +145,9 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
     const timer = setTimeout(() => setQuery(q.trim()), 120)
     return () => clearTimeout(timer)
   }, [q])
-  const fields = new Map<string, FilterField>([...BUILTINS, ...allFields(schemas)].map((f) => [f.key, f]))
+  const fields = new Map<string, FilterField>([...BUILTINS, ...allFields(docTypes)].map((f) => [f.key, f]))
   // A field filter only asks the types that have that field.
-  const asked = (types.length ? schemas.filter((s) => types.includes(s.name)) : schemas).flatMap((s) => {
+  const asked = (types.length ? docTypes.filter((s) => types.includes(s.name)) : docTypes).flatMap((s) => {
     const filter = toRefFilter(s, filters, fields)
     return filter ? [{s, filter}] : []
   })
@@ -260,7 +263,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
             <Controls />
           </button>
         </div>
-        {filtersShown && <SearchFilters schemas={schemas} fields={fields} types={types} onTypes={setTypes} filters={filters} onFilters={setFilters} />}
+        {filtersShown && <SearchFilters schemas={docTypes} fields={fields} types={types} onTypes={setTypes} filters={filters} onFilters={setFilters} />}
         {/* Sanity drops the order row when nothing matches. */}
         {filtersShown && searching && !(results.length === 0 && settled) && <SearchOrdering sort={sort} onSort={setSort} />}
         {searching && (offline ? <p className="search-empty" role="status">{t("You're offline. Reconnect to search.")}</p> : failed ? (
