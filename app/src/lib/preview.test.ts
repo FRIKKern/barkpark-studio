@@ -77,6 +77,10 @@ test('alternatives, templates, a type title and the first image', () => {
   assert.equal(formatPreview(title, read({})), 'Nytt kort')
   assert.equal(formatPreview(subtitle, linked, opts), 'Utgivelse: The Bell in the Lake • Knapp: "Read more"')
   assert.equal(formatPreview(subtitle, read({buttonHref: '/books'})), '🔗 /books')
+  // A list of alternatives as the whole spec, as a redirect row's subtitle: the first with a value.
+  const alternatives: PreviewText = ['→ {toPath}', {text: '→ ?'}]
+  assert.equal(formatPreview(alternatives, read({toPath: '/new'})), '→ /new')
+  assert.equal(formatPreview(alternatives, read({})), '→ ?')
   assert.deepEqual(previewRefs(title, subtitle, ['backgroundImage', 'linkedDocument.cover']), ['linkedDocument'])
   const isImage = (v: unknown) => !!(v as {asset?: unknown})?.asset
   const img = {asset: {_ref: 'image-1'}}
