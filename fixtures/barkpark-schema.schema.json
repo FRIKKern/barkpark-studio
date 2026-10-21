@@ -17,6 +17,9 @@
       "description": "Its label.",
       "type": "string"
     },
+    "icon": {
+      "description": "Its icon, a desk icon name: a list row, reference or search hit with no media draws it, as Sanity draws the type's icon."
+    },
     "fields": {
       "description": "Its fields.",
       "type": "array",
@@ -74,9 +77,6 @@
     },
     "actions": {
       "description": "Barkpark document actions the type declares."
-    },
-    "icon": {
-      "description": "Its icon."
     },
     "owner_scoped": {
       "description": "Documents scoped to their owner."
@@ -265,6 +265,9 @@
         "weak": {
           "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
         },
+        "namedType": {
+          "description": "An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type's icon."
+        },
         "ordered": {
           "description": "arrayOf: adds reordering.",
           "type": "boolean"
@@ -442,6 +445,9 @@
         },
         "weak": {
           "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
+        },
+        "namedType": {
+          "description": "An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type's icon."
         },
         "ordered": {
           "description": "arrayOf: adds reordering.",

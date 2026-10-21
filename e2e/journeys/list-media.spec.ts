@@ -86,3 +86,16 @@ test('@local a row whose media is an image URL draws it; empty or failing falls 
     await t.deleteDoc(URL_DOC, 'post')
   }
 })
+
+// A row with no media draws its type's icon, as Sanity's: category has the tag icon
+// (fixtures/barkpark-schema/category.json, reference/sanity/schemaTypes/category.ts), and
+// so does a reference to one. Post has no icon: its row without an image keeps the document icon.
+test('@local a row with no media draws its type icon', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto(t.docPath('category', 'category-guide'))
+  await signInIfAsked(page)
+  await t.settle(page)
+  await expect(t.listItem(page, 'category-news').locator('.media svg[data-sanity-icon="tag"]')).toBeVisible({timeout: 10_000})
+  await t.listItem(page, 'category-news').screenshot({path: `evidence/list-media-type-icon-${t.name}.png`})
+})

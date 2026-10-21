@@ -1,6 +1,7 @@
 {
   "name": "category",
   "title": "Category",
+  "icon": "tag",
   "visibility": "public",
   "list_preview": {"title": "title", "subtitle": {"parts": ["featuredPost.title", "featuredPost.publishedAt|date"], "join": " · ", "empty": "No featured post"}},
   "fields": [

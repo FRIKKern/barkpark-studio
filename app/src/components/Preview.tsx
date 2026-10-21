@@ -5,6 +5,7 @@ import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/
 import {anyDocQuery, cachedDoc, docQuery, ensureAnyDocs, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {formatPreview, loadRefs, mediaRefs, previewRefs, readPath, rowMedia, textRefs, type PreviewMediaSpec, type PreviewMedia, type PreviewText} from '../lib/preview'
 import {DocumentIcon, BrokenImageIcon} from './icons'
+import {DeskIcon} from './DeskIcon'
 import {PaneLink} from './PaneLink'
 import {ago, useLocale, useT} from '../lib/i18n'
 import {useTip} from './Tip'
@@ -83,17 +84,17 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
   const {data: schemas = []} = useQuery(schemasQuery)
   const subtitle = useSubtitle(doc)
   const t = useT()
-  const title = doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : '…'
+  const schema = doc ? schemaOf(schemas, doc._type) : undefined
+  const title = doc ? previewTitle(doc, schema, t) : '…'
   // The schema's list_preview.media: an image field or an image URL shows as the row's
   // thumbnail, like Sanity. A list of paths is tried in order (lib/preview.ts rowMedia).
-  const mediaSpec = doc ? schemaOf(schemas, doc._type)?.listPreview?.media : undefined
-  const candidates = useRowMedia(mediaSpec, doc)
+  const candidates = useRowMedia(schema?.listPreview?.media, doc)
   const showMedia = !iconless || candidates.length > 0
   const body = (
     <>
       {showMedia && (
         <span className="media">
-          <RowMedia key={candidates.map(mediaKey).join(' ')} candidates={candidates} iconless={iconless} />
+          <RowMedia key={candidates.map(mediaKey).join(' ')} candidates={candidates} iconless={iconless} fallback={<TypeIcon schema={schema} />} />
         </span>
       )}
       <span className="text">
@@ -116,17 +117,25 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
 const mediaKey = ({media}: {media: PreviewMedia}) => (media.kind === 'image' ? media.ref : media.kind === 'url' ? media.src : media.kind)
 
 /**
+ * What a row with no media draws, as Sanity's: its type's icon (the schema's `icon`, sent
+ * with its body), else the document icon. Also an array item's, by its member's named type.
+ */
+export function TypeIcon({schema}: {schema: Pick<Schema, 'icon' | 'iconSvg'> | undefined}) {
+  return schema?.icon && schema.iconSvg ? <DeskIcon name={schema.icon} svg={schema.iconSvg} /> : <DocumentIcon />
+}
+
+/**
  * The first of a row's media that draws: an image value, an image URL, or the
  * broken-image icon for an asset value the studio can't show. An image URL that fails to
- * load gives way to the next candidate, and after the last to the document icon (none
- * when the row is iconless).
+ * load gives way to the next candidate, and after the last to `fallback`, the type's icon
+ * (none when the row is iconless).
  */
-function RowMedia({candidates, iconless}: {candidates: {value: unknown; media: PreviewMedia}[]; iconless?: boolean}) {
+function RowMedia({candidates, iconless, fallback}: {candidates: {value: unknown; media: PreviewMedia}[]; iconless?: boolean; fallback: ReactNode}) {
   const [failed, setFailed] = useState(0)
   const t = useT()
   const c = candidates[failed]
-  if (!c) return iconless ? null : <DocumentIcon />
-  if (c.media.kind === 'image') return <Thumb value={c.value as ImageValue} />
+  if (!c) return iconless ? null : fallback
+  if (c.media.kind === 'image') return <Thumb value={c.value as ImageValue} fallback={fallback} />
   if (c.media.kind === 'url') return <UrlThumb key={failed} src={c.media.src} onFail={() => setFailed(failed + 1)} />
   if (c.media.kind === 'unsupported')
     return (
@@ -134,7 +143,7 @@ function RowMedia({candidates, iconless}: {candidates: {value: unknown; media: P
         <BrokenImageIcon />
       </span>
     )
-  return <DocumentIcon />
+  return fallback
 }
 
 /**
@@ -158,12 +167,12 @@ function UrlThumb({src, onFail}: {src: string; onFail: () => void}) {
 }
 
 /** An image value as a square thumbnail: its crop, cut to the square around the hotspot (Sanity's image URL rules). */
-export function Thumb({value}: {value: ImageValue}) {
+export function Thumb({value, fallback = <DocumentIcon />}: {value: ImageValue; fallback?: ReactNode}) {
   const [natural, setNatural] = useState<{width: number; height: number}>()
   const [failed, setFailed] = useState<string>()
   const t = useT()
   const ref = imageRef(value)
-  if (!ref) return <DocumentIcon />
+  if (!ref) return fallback
   // A Sanity image id Barkpark has no file for: the broken-image icon, as for any asset
   // value the studio can't show (lib/preview.ts previewMedia).
   if (failed === ref && sanityImageId(ref))

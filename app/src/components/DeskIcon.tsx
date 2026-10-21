@@ -29,5 +29,6 @@ export function DeskIcon({name, svg}: {name?: string; svg?: string}) {
     if (name && svg === undefined && !body && !table) void loadTable().then(() => loaded(true))
   }, [name, body])
   if (!body) return null
-  return <svg className="desk-icon" width={25} height={25} viewBox="0 0 25 25" fill="none" aria-hidden="true" dangerouslySetInnerHTML={{__html: body}} />
+  // data-sanity-icon names it as Sanity's icons do.
+  return <svg className="desk-icon" data-sanity-icon={name} width={25} height={25} viewBox="0 0 25 25" fill="none" aria-hidden="true" dangerouslySetInnerHTML={{__html: body}} />
 }

@@ -7,11 +7,11 @@ import {imageRef, pickedImage, type ImageValue} from '../lib/image'
 import {uploadFile, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
 import {toast} from './Toasts'
-import {Thumb} from './Preview'
+import {Thumb, TypeIcon} from './Preview'
 import {copyItem, signature} from '../lib/clipboard'
 import {EditPathContext, FieldView, UrlPathContext, WriteUrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
-import {Close as CloseIcon, DocumentIcon, Upload} from './icons'
+import {Close as CloseIcon, Upload} from './icons'
 import {translate, useLocale, useT} from '../lib/i18n'
 import {usePrimed} from '../lib/prime'
 
@@ -256,6 +256,9 @@ export function useItemPreview(item: Item, of: Field) {
 
 function ItemRow({item, of, onOpen}: {item: Item; of: Field; onOpen: () => void}) {
   const {title, subtitle, media} = useItemPreview(item, of)
+  const {data: schemas = []} = useQuery(schemasQuery)
+  // No media: the member's type icon, as Sanity's (a named object type carries one).
+  const icon = <TypeIcon schema={of.namedType ? schemaOf(schemas, of.namedType) : undefined} />
   const t = useT()
   const up = useContext(UploadsContext).get(item._key ?? '')
   if (up) {
@@ -279,7 +282,7 @@ function ItemRow({item, of, onOpen}: {item: Item; of: Field; onOpen: () => void}
   }
   return (
     <button type="button" className="array-item-preview" onClick={onOpen}>
-      <span className={media ? 'media has-image' : 'media'}>{media ? <Thumb value={media} /> : <DocumentIcon />}</span>
+      <span className={media ? 'media has-image' : 'media'}>{media ? <Thumb value={media} fallback={icon} /> : icon}</span>
       <span className="text">
         <span className="title">{title}</span>
         {subtitle && <span className="subtitle">{subtitle}</span>}

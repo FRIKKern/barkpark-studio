@@ -30,7 +30,8 @@ type ObjectPart =
   | {parts: PreviewPart[]; join?: string; empty?: string}
   | {each: string; show?: PreviewPart; max?: number; join?: string; more?: string}
 export type PreviewPart = string | ObjectPart | PreviewPart[]
-export type PreviewText = string | {parts: PreviewPart[]; join?: string; empty?: string}
+/** A part, a list of alternatives (the first with a value), or parts joined (barkpark docs/contracts/list-preview.md). */
+export type PreviewText = string | PreviewPart[] | {parts: PreviewPart[]; join?: string; empty?: string}
 /** An image path, or alternatives in order ("backgroundImage", then "linkedDocument.cover"). */
 export type PreviewMediaSpec = string | string[]
 export type PreviewOptions = {typeTitle?: (type: string) => string | undefined; deref?: (id: string) => unknown}
@@ -127,7 +128,7 @@ export function formatPreview(spec: PreviewText | undefined, read: (path: string
     }
     return undefined
   }
-  if (typeof spec === 'string') return one(spec)
+  if (typeof spec === 'string' || Array.isArray(spec)) return one(spec)
   const shown = spec.parts.map(one).filter(Boolean)
   return shown.length ? shown.join(spec.join ?? ' · ') : spec.empty
 }
@@ -232,7 +233,7 @@ export function textRefs(spec: PreviewText | undefined, doc: unknown, deref: (id
     }
     if (root && typeof root === 'object') for (const p of partPaths(part)) readPath(root, p, deref, seen, hops)
   }
-  if (spec) walk(typeof spec === 'string' ? spec : spec.parts, doc, MAX_HOPS)
+  if (spec) walk(typeof spec === 'string' || Array.isArray(spec) ? spec : spec.parts, doc, MAX_HOPS)
   return [...seen]
 }
 

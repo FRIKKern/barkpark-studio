@@ -1,9 +1,12 @@
+import {TagIcon} from '@sanity/icons'
 import {defineField, defineType} from 'sanity'
 
 export const category = defineType({
   name: 'category',
   title: 'Category',
   type: 'document',
+  // A row with no media draws the type's icon (fixtures/barkpark-schema/category.json "icon": "tag").
+  icon: TagIcon,
   fields: [
     defineField({name: 'title', type: 'string', validation: (r) => r.required()}),
     defineField({name: 'description', type: 'text', rows: 2}),

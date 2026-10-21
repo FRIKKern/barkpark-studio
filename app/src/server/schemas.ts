@@ -8,7 +8,7 @@ import {bpFetch, dataset, serviceToken} from './barkpark'
 import ICONS from '../lib/desk-icons.json'
 import {withIconBodies} from '../lib/desk-icon-bodies'
 
-export type RawSchema = {name: string; title: string; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; fieldsets?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown; kind?: unknown}
+export type RawSchema = {name: string; title: string; icon?: unknown; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; fieldsets?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown; kind?: unknown}
 
 /**
  * The studio's own record types (lib/tasks.ts, lib/comments.ts): declared in each
@@ -85,6 +85,13 @@ export async function readRest(): Promise<unknown[]> {
   // The studio's own records are never "…Rest" content, even in a dataset whose schema list lacks them.
   return withIconBodies(rest.filter((i) => !STUDIO_TYPES.includes(i.typeName ?? '')), ICONS)
 }
+
+/**
+ * A schema's icon name with its SVG body as `iconSvg` ('' for a name the table lacks), as the
+ * desk's icons come (lib/desk-icon-bodies.ts). A row with no media draws it, as Sanity draws
+ * the type's icon (components/Preview.tsx). No icon, no keys.
+ */
+export const schemaIcon = (icon: unknown): {icon?: string; iconSvg?: string} => (typeof icon === 'string' && icon ? (withIconBodies({icon}, ICONS) as {icon: string; iconSvg?: string}) : {})
 
 /**
  * The content model as one short string (each type's name and Barkpark's schemaHash):

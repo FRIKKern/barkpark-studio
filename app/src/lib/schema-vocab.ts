@@ -42,6 +42,7 @@ export const FIELD_KEYS = {
   fieldsets: 'composite: Sanity\'s fieldsets, [{name, title, options: {collapsible, collapsed, columns}}].',
   fieldset: 'The fieldset (of its composite) it shows in.',
   weak: 'reference: Sanity\'s weak reference; kept, not enforced by Barkpark.',
+  namedType: 'An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type\'s icon.',
 } satisfies Record<keyof Field, string>
 
 /** Keys Barkpark reads on a field that the studio passes through as they are. */
@@ -79,6 +80,7 @@ export const RULE_LEVELS = ['error', 'warning', 'warn', 'info']
 export const SCHEMA_KEYS = {
   name: 'The type\'s name.',
   title: 'Its label.',
+  icon: 'Its icon, a desk icon name: a list row, reference or search hit with no media draws it, as Sanity draws the type\'s icon.',
   fields: 'Its fields.',
   listPreview: 'A list row: {title, subtitle, media} field names.',
   list_preview: 'listPreview, as Barkpark spells it.',
@@ -95,7 +97,6 @@ export const SCHEMA_KEYS = {
 export const BARKPARK_SCHEMA_KEYS = {
   visibility: '"public" or "private": who may read its documents.',
   actions: 'Barkpark document actions the type declares.',
-  icon: 'Its icon.',
   owner_scoped: 'Documents scoped to their owner.',
   desk_groups: 'Desk groups.',
   cross_validations: 'Cross-field rules: [{name, title, rule, level, fields}].',
