@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 2 changes
+- **Today** · 3 changes
+  - fix: follow up to five references in a list row's subtitle path ([#1082](https://github.com/FRIKKern/barkpark-studio/pull/1082))
   - fix: draw image URL media in list rows, also across a reference ([#1081](https://github.com/FRIKKern/barkpark-studio/pull/1081))
-  - fix: draw a Sanity image id from Barkpark's Sanity image route ([#1080](https://github.com/FRIKKern/barkpark-studio/pull/1080))
 - **Yesterday** · 102 changes
   - fix(body): Put the words back waits out a save on its way instead of refusing ([#1078](https://github.com/FRIKKern/barkpark-studio/pull/1078))
 - **This week** · 36 changes, 1 task closed
