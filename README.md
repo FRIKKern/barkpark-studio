@@ -18,10 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Yesterday** · 5 changes
+- **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
-- **This week** · 138 changes, 1 task closed
-  - fix(body): Put the words back waits out a save on its way instead of refusing ([#1078](https://github.com/FRIKKern/barkpark-studio/pull/1078))
 - **Last week** · 427 changes, 98 tasks closed
   - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
 - **This month** · 499 changes, 84 tasks closed
