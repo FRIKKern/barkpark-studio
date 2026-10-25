@@ -6,7 +6,7 @@
 
 import type {T} from './i18n'
 
-export type QueryError = {message: string; hint?: string; code?: string; details?: Record<string, unknown>; spot?: {line: string; lineNumber: number; column: number; columnEnd: number}}
+export type QueryError = {message: string; hint?: string; code?: string; details?: Record<string, unknown>; spot?: {line: string; lineNumber: number; column: number; columnEnd: number}; frame?: string}
 
 type BarkparkError = {code?: unknown; message?: unknown; hint?: unknown; details?: unknown; type?: unknown; description?: unknown; start?: unknown; end?: unknown}
 
@@ -29,11 +29,14 @@ export function queryError(query: string, body: string): QueryError | null {
     const line = query.split('\n')[lineNumber - 1] ?? ''
     const column = before.at(-1)!.length
     const end = typeof error.end === 'number' ? error.end : at + 1
+    const message = typeof error.description === 'string' ? error.description : error.message
+    const columnEnd = Math.min(line.length + 1, Math.max(column + 1, column + (end - at)))
     return {
-      message: typeof error.description === 'string' ? error.description : error.message,
+      message,
       code: typeof error.code === 'string' ? error.code : undefined,
       details: {},
-      spot: {line, lineNumber, column, columnEnd: Math.min(line.length + 1, Math.max(column + 1, column + (end - at)))},
+      spot: {line, lineNumber, column, columnEnd},
+      frame: codeFrame(query, lineNumber, column, columnEnd - column, message),
     }
   }
   const text = query.trim()
@@ -110,3 +113,16 @@ export function localQueryError(e: QueryError, t: T): {message: string; hint?: s
 
 /** Sanity's marker line: a dash per character before the bad part, a caret under each of its own. */
 export const dashLine = (column: number, columnEnd: number) => `${'-'.repeat(column)}${'^'.repeat(Math.max(1, columnEnd - column))}`
+
+/**
+ * Sanity Vision's code frame for a GROQ parse error: every query line numbered, ">" on the bad
+ * one, carets under start..end (whatever their width: Barkpark's span may be a token or one
+ * byte) and the message after them. The heading ("GROQ query parse error:") is the caller's.
+ */
+export function codeFrame(query: string, lineNumber: number, column: number, width: number, message: string) {
+  const lines = query.split('\n')
+  const pad = String(lines.length).length
+  const out = lines.map((l, i) => `${i + 1 === lineNumber ? '>' : ' '} ${String(i + 1).padStart(pad)} | ${l}`)
+  out.splice(lineNumber, 0, `  ${' '.repeat(pad)} | ${' '.repeat(column)}${'^'.repeat(Math.max(1, width))} ${message}`)
+  return out.join('\n')
+}

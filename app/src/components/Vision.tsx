@@ -413,12 +413,18 @@ function QueryErrorCard({status, error}: {status: number; error: ReturnType<type
   const shown = local ?? error
   return (
     <div role="alert" className="vision-error">
-      <p className="field-error">{shown?.message ?? t('Barkpark answered {status}', {status})}</p>
+      {error?.frame ? (
+        // A GROQ parse error: Sanity's code frame, its message after the carets.
+        <pre className="vision-code">{`${t('GROQ query parse error:')}\n${local ? error.frame.replace(error.message, local.message) : error.frame}`}</pre>
+      ) : (
+        <p className="field-error">{shown?.message ?? t('Barkpark answered {status}', {status})}</p>
+      )}
       {shown?.hint && <p>{shown.hint}</p>}
       {error?.spot && (
         <>
           <pre className="vision-code">{`${error.spot.line}\n${dashLine(error.spot.column, error.spot.columnEnd)}`}</pre>
-          <pre className="vision-code">{`${t('Line')}:   ${error.spot.lineNumber}\n${t('Column')}: ${error.spot.column + 1}`}</pre>
+          {/* 0-based, as Sanity's Vision counts them. */}
+          <pre className="vision-code">{`${t('Line')}:   ${error.spot.lineNumber - 1}\n${t('Column')}: ${error.spot.column}`}</pre>
         </>
       )}
     </div>

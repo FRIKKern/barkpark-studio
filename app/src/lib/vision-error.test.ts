@@ -34,3 +34,15 @@ test('a GROQ parse error points at its byte range, on its own line', () => {
   assert.equal(e.hint, undefined)
   assert.deepEqual(e.spot, {line: '{title, nope(}', lineNumber: 2, column: 13, columnEnd: 14})
 })
+
+// Sanity Vision's code frame (task-a591294932d3284a): every line numbered, ">" on the bad one,
+// carets under start..end whatever their width, the message after them.
+test("a GROQ parse error draws Sanity's code frame", () => {
+  const query = "*[_type=='author']\n  {name, 'x': lowr(name)}"
+  const at = query.indexOf('lowr')
+  const one = queryError(query, JSON.stringify({error: {code: 'malformed', type: 'queryParseError', message: 'x', description: 'Undefined function "lowr"', start: at, end: at + 1}}))!
+  assert.equal(one.frame, ["  1 | *[_type=='author']", "> 2 |   {name, 'x': lowr(name)}", '    |               ^ Undefined function "lowr"'].join('\n'))
+  const token = queryError(query, JSON.stringify({error: {code: 'malformed', type: 'queryParseError', message: 'x', description: 'Undefined function "lowr"', start: at, end: at + 4}}))!
+  assert.match(token.frame!, /\|               \^\^\^\^ Undefined/)
+  assert.equal(queryError('post?limit=abc', JSON.stringify({error: {message: '?limit= must be a whole number', details: {parameter: 'limit'}}}))!.frame, undefined)
+})

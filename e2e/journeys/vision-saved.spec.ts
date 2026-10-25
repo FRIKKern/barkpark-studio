@@ -175,13 +175,15 @@ test('@local J37: Vision points at the bad part of a refused query', async ({pag
   const error = page.getByRole('region', {name: 'Result'}).getByRole('alert')
   await expect(error).toContainText('unknown filter operator "bogus"')
   await expect(error).toContainText(`-----${'^'.repeat(22)}`)
-  await expect(error).toContainText('Column: 6')
+  await expect(error).toContainText('Column: 5') // 0-based, as Sanity's
   // A GROQ query Barkpark refuses: its parse error, at the byte it names (task-8919d95d9e581c6b).
   await query.fill('*[_type ==]')
   await query.press('ControlOrMeta+Enter')
+  await expect(error).toContainText('GROQ query parse error:')
+  await expect(error).toContainText('> 1 | *[_type ==]') // Sanity's code frame
   await expect(error).toContainText('expected an expression')
   await expect(error).toContainText(`${'-'.repeat(10)}^`)
-  await expect(error).toContainText('Column: 11')
+  await expect(error).toContainText('Column: 10')
   // WCAG reflow (1280 px at 400 %): one column, scrolled down, never the page sideways.
   await page.setViewportSize({width: 320, height: 640})
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth), {intervals: [50]}).toBe(320)
