@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 32 changes
+- **Today** · 33 changes
+  - Integer field: store what is typed (3.5) and say 'Must be an integer', as Sanity's ([#1120](https://github.com/FRIKKern/barkpark-studio/pull/1120))
   - Datetime: a typed or picked time lands on the timeStep grid, as Sanity's ([#1119](https://github.com/FRIKKern/barkpark-studio/pull/1119))
-  - Pixel pass round 2 vs Sanity: reviewing tabs, create-menu icons, Vision timing ([#1118](https://github.com/FRIKKern/barkpark-studio/pull/1118))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
