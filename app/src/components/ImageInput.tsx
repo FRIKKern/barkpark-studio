@@ -242,6 +242,22 @@ const firstPage = () => {
   return warm ?? mediaPage(0)
 }
 
+// Media at scale (task-5374a17d7bec08ab): "Load more" waited for its page's list call
+// (~0.4 s) after the click, 850 ms to drawn against Sanity's 550. The next page is asked
+// for as soon as one is drawn, and the click takes it from here.
+const ahead = new Map<number, {at: number; page: Promise<MediaPage>}>()
+const readAhead = (offset: number) => {
+  if ((ahead.get(offset)?.at ?? 0) > Date.now() - 30_000) return
+  const page = mediaPage(offset)
+  page.catch(() => ahead.delete(offset))
+  ahead.set(offset, {at: Date.now(), page})
+}
+const nextPage = (offset: number) => {
+  const warm = ahead.get(offset)
+  ahead.delete(offset)
+  return warm && warm.at > Date.now() - 30_000 ? warm.page : mediaPage(offset)
+}
+
 /** Sanity's "Select image for <field>": the library as tiles; each tile's "…" shows where it is used. */
 export function AssetPicker({title, path, openRef, onPick, onClose}: {title: string; path: string; openRef: OpenRef; onPick: (ref: string) => void; onClose: () => void}) {
   // A page at a time, newest first; "Load more" reads the next, as Sanity's picker does.
@@ -252,10 +268,19 @@ export function AssetPicker({title, path, openRef, onPick, onClose}: {title: str
     queryKey: ['media'],
     gcTime: 0,
     initialPageParam: 0,
-    queryFn: ({pageParam}) => (pageParam === 0 ? firstPage() : mediaPage(pageParam)),
+    queryFn: ({pageParam}) => (pageParam === 0 ? firstPage() : nextPage(pageParam)),
     getNextPageParam: (last) => last.nextOffset ?? undefined,
   })
   const assets = data?.pages.flatMap((p) => p.images)
+  const nextOffset = data?.pages.at(-1)?.nextOffset
+  useEffect(() => void (nextOffset != null && readAhead(nextOffset)), [nextOffset])
+  // The first tiles load lazily (they come first); once a dozen are drawn the rest of the page
+  // loads too, so a scroll finds its thumbnails drawn (390 ms to drawn against Sanity's 150,
+  // which loads its whole page at once). Not sooner: a hundred requests at once held the first
+  // dozen back (the grid took 0.7-1.6 s instead of 0.5).
+  const [eager, setEager] = useState(false)
+  const drawn = useRef(0)
+  const tileLoaded = () => void (!eager && ++drawn.current >= 12 && setEager(true))
   const t = useT()
   const [usageOf, setUsageOf] = useState<Asset | null>(null)
   const [deleting, setDeleting] = useState<Asset | null>(null)
@@ -278,7 +303,7 @@ export function AssetPicker({title, path, openRef, onPick, onClose}: {title: str
               {assets?.map((a) => (
                 <div key={a.id} className="asset-tile">
                   <button type="button" className="asset-pick" aria-label={a.name} title={a.name} onClick={() => onPick(`asset-${a.id}`)}>
-                    <img src={imageSrc(a.id, TILE_PX)} alt={a.name} loading="lazy" decoding="async" />
+                    <img src={imageSrc(a.id, TILE_PX)} alt={a.name} loading={eager ? 'eager' : 'lazy'} decoding="async" onLoad={tileLoaded} />
                   </button>
                   <div className="menu-wrap asset-more" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenuFor(null)}>
                     <button id={`asset-${a.id}-menuButton`} type="button" className="icon-btn" aria-label={t('{name}: more', {name: a.name})} aria-haspopup="menu" aria-expanded={menuFor === a.id} onClick={() => setMenuFor(menuFor === a.id ? null : a.id)}>
