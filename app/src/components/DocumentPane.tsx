@@ -3,6 +3,7 @@ import {GroupIcon} from './GroupIcon'
 import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {NarrowContext, OpenedPanesContext} from '../lib/layout'
 import {AnchoredLayer, DialogBox, MenuPopover} from './FocusScopes'
+import {ConfirmDialog} from './ConfirmDialog'
 import {useSlugInUse} from '../lib/slug-unique'
 import {useCustomRules} from '../lib/use-custom-rules'
 import {useParseErrors} from '../lib/parse-errors'
@@ -1485,56 +1486,6 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
 }
 
 /** A Sanity-style confirm over the pane: Cancel (focused) or the red action. Failures show inline. */
-export function ConfirmDialog({title, body, action, run, onClose}: {title: string; body: string; action: string; run: () => Promise<unknown>; onClose: () => void}) {
-  const t = useT()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
-  return (
-    <div className="dialog-backdrop pane-confirm-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <DialogBox className="dialog pane-confirm" aria-modal="true" aria-label={title} onClose={onClose}>
-        <header>
-          <h2>{title}</h2>
-          <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
-            <CloseIcon />
-          </button>
-        </header>
-        <div className="dialog-body">
-          <p>{body}</p>
-          {error && (
-            <p className="field-error" role="alert">
-              {error}
-            </p>
-          )}
-        </div>
-        <footer>
-          <button type="button" className="btn" autoFocus onClick={onClose}>
-            {t('Cancel')}
-          </button>
-          <button
-            type="button"
-            className="btn danger"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true)
-              setError(undefined)
-              try {
-                await run()
-                onClose()
-              } catch (err) {
-                setError((err as Error).message)
-              } finally {
-                setBusy(false)
-              }
-            }}
-          >
-            {action}
-          </button>
-        </footer>
-      </DialogBox>
-    </div>
-  )
-}
-
 export type {Doc, Schema}
 
 // J14: which collapsible objects are open while the doc stays open (switching group
