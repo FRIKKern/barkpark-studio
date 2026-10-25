@@ -829,8 +829,10 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
         const n = parse(e.target.value)
         // Not a number (yet): a sign or a separator so far, or "1,500" in English. The field is
         // unset, as Sanity's number input leaves it, and the text stays.
+        // An integer field stores what was typed too (3.5 is 3.5) and validation says "Must be an
+        // integer", as Sanity's: dropping the decimals put 3 there silently (task-aa91cf7ad7b51863).
         if (e.target.value === '' || typingNumber(e.target.value, decimal) || !Number.isFinite(n)) send(undefined)
-        else if (!integer || Number.isInteger(n)) send(n)
+        else send(n)
       }}
       // Sanity's is an <input type="number">: Up and Down step it by 1 (from 0 when empty),
       // keeping its decimals ("1.5" Up is 2.5, not 2.5000000000000004).
