@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 35 changes
+- **Today** · 36 changes
+  - Cold load: a slow Barkpark gets the shell in 1.5 s, not a blank tab ([#1124](https://github.com/FRIKKern/barkpark-studio/pull/1124))
   - Number and datetime inputs: spaces type as nothing, "Not a number" says so, an empty datetime's day takes now ([#1122](https://github.com/FRIKKern/barkpark-studio/pull/1122))
-  - Array items: a cleared field leaves no key, as Sanity's unset (not "") ([#1121](https://github.com/FRIKKern/barkpark-studio/pull/1121))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
