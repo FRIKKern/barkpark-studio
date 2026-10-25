@@ -123,6 +123,8 @@ export default {
   'Could not restore the document': 'Kunne ikke gjenopprette dokumentet',
   'Could not restore this revision': 'Kunne ikke gjenopprette denne versjonen',
   'Could not unpublish: {error}': 'Kunne ikke avpublisere: {error}',
+  'Validating…': 'Validerer…',
+  'Validation timed out': 'Valideringen tok for lang tid',
   'Current draft': 'Gjeldende utkast',
   'Delete': 'Slett',
   'Delete anyway': 'Slett uansett',

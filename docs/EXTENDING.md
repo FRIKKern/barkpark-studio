@@ -27,6 +27,12 @@ misspelled key and never reads it: VS Code checks these files against
 `scripts/fixture-schema.mjs`, kept in step by a unit test), and `seed-barkpark` refuses one
 that fails it.
 
+Sanity's `Rule.custom` (a field's or the whole document's, with `context.document` /
+`context.parent`, answering at once or with a Promise) is `document.validation(type)` in
+`app/src/studio.config.tsx`: `[{path?, level?, validate(value, {document, parent, path})}]`.
+A Promise holds Publish ("Validating…", 10 s at most); a throw is an error. These run in the
+studio only, as Sanity's do: an API write or an import is checked by the schema's data rules alone.
+
 ## Removing a type
 
 Delete its file in `fixtures/barkpark-schema/`, then

@@ -1,6 +1,7 @@
 import type {DeskNode} from './desk'
 import type {ComponentType, ReactNode} from 'react'
 import type {Doc, Field} from './data'
+import type {CustomRule} from './custom-rules'
 
 // J65, the plugin surface, after Sanity's: a studio config names extra tools,
 // custom field inputs, document actions, document badges and a preview URL.
@@ -44,6 +45,12 @@ export type StudioConfig = {
     badges?: (type: string) => DocumentBadge[]
     /** "Open preview" in the document's "…" menu (Ctrl+Alt+O) when this returns a URL. */
     productionUrl?: (doc: Doc) => string | undefined
+    /**
+     * Sanity's Rule.custom: rules on a field (`path`) or the whole document, with `document` and
+     * `parent` in their context, answering at once or with a Promise (10 s at most). Studio only,
+     * as Sanity's custom rules: API writes and imports are not checked by them.
+     */
+    validation?: (type: string) => CustomRule[]
   }
 }
 

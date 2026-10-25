@@ -4,6 +4,7 @@ import {useCallback, useContext, useEffect, useMemo, useRef, useState, type Reac
 import {NarrowContext, OpenedPanesContext} from '../lib/layout'
 import {AnchoredLayer, DialogBox, MenuPopover} from './FocusScopes'
 import {useSlugInUse} from '../lib/slug-unique'
+import {useCustomRules} from '../lib/use-custom-rules'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
@@ -160,7 +161,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
   // J28: a slug another document of this type has (a duplicate's copied slug) is taken, as Sanity says.
   const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine, t)
-  const own = slugTaken.length ? [...checked, ...slugTaken] : checked
+  // The studio config's custom rules (Sanity's Rule.custom), sync and async; studio only.
+  const custom = useCustomRules(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine)
+  const own = slugTaken.length || custom.problems.length ? [...checked, ...slugTaken, ...custom.problems] : checked
   // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
   const advisories = useAdvisories(pane.id)
   const extra = advisories.length && schemaForPane && !viewingPublished && !gone ? advisoryProblems(advisories, schemaForPane, own, t) : []
@@ -427,11 +430,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const docShortcut = (e: Pick<KeyboardEvent, 'ctrlKey' | 'altKey' | 'code' | 'preventDefault'>) => {
     // Sanity's publish shortcut, also mid-edit (publish flushes first). Like its
     // button, a no-op with nothing to publish or while a publish is running.
-    if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !gone && !errors.length) {
+    if (e.ctrlKey && e.altKey && e.code === 'KeyP' && doc && !gone && !errors.length && !custom.validating) {
       e.preventDefault()
       if (!publishingKey.current && !pristine && (doc._draft || saveState !== 'saved')) {
         publishingKey.current = true
-        void publishAndTell(qc, doc)
+        // The custom rules on the document as it is first (and any Promise of theirs): an error stops it.
+        void custom
+          .check()
+          .then((ps) => (ps.some((p) => p.level === 'error') ? undefined : publishAndTell(qc, doc)))
           .catch((err: Error) => failedPublish(err))
           .finally(() => (publishingKey.current = false))
       }
@@ -904,7 +910,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         ? doc && <PublishedFooter doc={doc} single={single} />
         : gone
         ? <GoneFooter type={pane.type} id={pane.id} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} onReview={() => navigate({href: withParams(panes, index, {inspect: 'review', rev: undefined})})} />}
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} validating={custom.validating} checkRules={custom.check} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} onReview={() => navigate({href: withParams(panes, index, {inspect: 'review', rev: undefined})})} />}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => void toggleValidation()} />}
       {pane.inspect === INCOMING && <IncomingReferences id={pane.id} panes={panes} index={index} onClose={() => navigate({href: withParams(panes, index, {inspect: undefined})})} />}
@@ -1087,7 +1093,7 @@ function WithCode({text, code}: {text: string; code: string}) {
 }
 
 /** `single` (B13): a singleton keeps Publish, Discard changes and (in History) Restore only. */
-function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onReview}: {doc: Doc; closeHref: string; blocked: number; single: boolean; onDuplicate: () => void; askDelete: number; onReview: () => void}) {
+function DocFooter({doc, closeHref, blocked, validating = false, checkRules, single, onDuplicate, askDelete, onReview}: {doc: Doc; closeHref: string; blocked: number; validating?: boolean; checkRules?: () => Promise<Problem[]>; single: boolean; onDuplicate: () => void; askDelete: number; onReview: () => void}) {
   const actionsButton = useRef<HTMLButtonElement>(null)
   const t = useT()
   const locale = useLocale()
@@ -1118,7 +1124,7 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
   // J13: blocked by errors, Sanity's tooltip says why (a role's limit stays the button's title,
   // as on the studio's other buttons).
   const publishTip = useTip(() =>
-    publishReason ? null : blocked ? <span className="tip-text">{t('There are validation errors that need to be fixed before this document can be published')}</span> : doc._draft && !isPristine(doc, state) ? (
+    publishReason ? null : blocked ? <span className="tip-text">{t('There are validation errors that need to be fixed before this document can be published')}</span> : validating ? <span className="tip-text">{t('Validating…')}</span> : doc._draft && !isPristine(doc, state) ? (
       <Keys keys={['Ctrl', alt, 'P']} />
     ) : doc._hasPublished !== false && doc._updatedAt ? (
       t('Published {ago}', {ago: ago(doc._updatedAt, locale, undefined, zone)})
@@ -1205,7 +1211,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
       <span className="publish-tip" {...(publishReason ? {} : publishTip.anchor)}>
       <button
         className="publish"
-        disabled={!canPublish || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0}
+        disabled={!canPublish || !doc._draft || isPristine(doc, state) || (state !== 'saved' && state !== 'saving') || publishing || blocked > 0 || validating}
+        aria-busy={validating || undefined}
         title={publishReason}
         aria-keyshortcuts="Control+Alt+P"
         onClick={async (e) => {
@@ -1214,7 +1221,8 @@ function DocFooter({doc, closeHref, blocked, single, onDuplicate, askDelete, onR
           if (document.activeElement === e.currentTarget) actionsButton.current?.focus()
           setPublishing(true)
           try {
-            await publishAndTell(qc, doc)
+            // The custom rules on the document as it is first (and any Promise of theirs): an error stops it.
+            if (!(await checkRules?.())?.some((p) => p.level === 'error')) await publishAndTell(qc, doc)
           } catch (e) {
             failedPublish(e as Error)
           } finally {
