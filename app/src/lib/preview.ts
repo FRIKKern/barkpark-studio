@@ -64,12 +64,19 @@ export function previewRefs(...specs: (PreviewText | PreviewMediaSpec | undefine
 }
 
 /** A date or date-time as dd.mm.yyyy, the day it is in UTC (stable for every viewer). */
+/**
+ * `|date` as dd.mm.yyyy. A plain date is that day; a date-time is the day it is where the
+ * editor is, as Sanity's preview shows it (2026-10-08T23:30:00Z reads 09.10.2026 in Oslo).
+ * Barkpark's LiveView still shows a date-time's UTC day (it has no editor zone).
+ */
 function day(v: unknown) {
   if (typeof v !== 'string') return undefined
-  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v}T00:00:00Z` : v)
-  if (Number.isNaN(d.getTime())) return undefined
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`
+  const plain = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v)
+  if (plain) return `${plain[3]}.${plain[2]}.${plain[1]}`
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return undefined
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`
 }
 
 /** The preview text for a doc; `read` resolves a path (`readPath` follows up to five references). */
