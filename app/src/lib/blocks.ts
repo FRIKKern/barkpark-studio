@@ -1,4 +1,5 @@
 import {queryOptions} from '@tanstack/react-query'
+import {askCanvasFiles, type Files} from './canvas-files'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, underPressure} from '../server/barkpark'
 
@@ -67,25 +68,12 @@ export const applyBlockOps = createServerFn({method: 'POST'})
 
 /** The canvas's files on the connected Barkpark, which serves them (no token needed). */
 export type CanvasFiles = {origin: string; script: string; styles: string[]}
-const PLAIN = {script: '/assets/bp-paper-editor.bundle.js', styles: ['/assets/bp-paper-editor.css', '/assets/bp-paper-editor-shell.css', '/assets/bp-paper-surface.css']}
-const named = (v: unknown): v is typeof PLAIN => {
-  const f = v as typeof PLAIN | null
-  return typeof f?.script === 'string' && f.script.startsWith('/assets/') && Array.isArray(f.styles) && f.styles.length > 0 && f.styles.every((s) => typeof s === 'string' && s.startsWith('/assets/'))
-}
-let asked: {at: number; files: typeof PLAIN} | undefined
-/**
- * Where the canvas loads from. A Barkpark with GET /v1/embed/canvas (#24066) names the files
- * under their content hash, which it serves as immutable: the browser loads them once per
- * deploy instead of asking for all four on every document page. An older one answers 404,
- * and the plain names (no-cache) stand in. Asked at most once a minute per server.
- */
+let asked: {at: number; files: Files} | undefined
+/** Where the canvas loads from (lib/canvas-files.ts), asked at most once a minute per server. */
 export const canvasFiles = createServerFn({method: 'GET'}).handler(async (): Promise<CanvasFiles> => {
   const origin = process.env.BARKPARK_URL ?? ''
   if (!asked || Date.now() - asked.at > 60_000) {
-    const files: unknown = await fetch(`${origin}/v1/embed/canvas`, {signal: AbortSignal.timeout(3_000)})
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null)
-    asked = {at: Date.now(), files: named(files) ? files : PLAIN}
+    asked = {at: Date.now(), files: await askCanvasFiles(origin)}
   }
   return {origin, ...asked.files}
 })
