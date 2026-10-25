@@ -477,7 +477,21 @@ function opens(item: DeskNode): Pane | undefined {
 }
 
 /** B12: a declared desk list, Sanity's S.list(): rows, titled dividers, singletons. */
+/**
+ * A desk row's icon. A type's own list (Sanity's S.documentTypeListItem: no filter, its id the
+ * type's name) draws the type's icon, as Sanity's does; any other row its named icon, and in a
+ * nested list Sanity's FolderIcon where none is named (its showIcons default). The first pane's
+ * rows only the named ones.
+ */
+function rowIcon(item: DeskNode, isRoot: boolean, schemas: Schema[]): {name?: string; svg?: string} {
+  if (item.icon) return {name: item.icon, svg: item.iconSvg}
+  if (isRoot) return {}
+  const own = item.type === 'document_type_list' && !item.filter && item.typeName && item.id === item.typeName ? schemaOf(schemas, item.typeName) : undefined
+  return own?.icon ? {name: own.icon, svg: own.iconSvg} : {name: 'folder'}
+}
+
 function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: DeskNode | undefined}) {
+  const {data: schemas = []} = useQuery(schemasQuery)
   const next = panes[index + 1]
   const selected = next && (next.kind === 'menu' || next.kind === 'list' || next.kind === 'doc') ? next.node : undefined
   const isRoot = panes[index].kind === 'types'
@@ -498,7 +512,7 @@ function DeskPane({panes, index, node}: {panes: Pane[]; index: number; node: Des
             <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, target)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined} data-desk-node={item.id}>
               {/* A nested list shows every row's icon, Sanity's FolderIcon where none is named
                   (its showIcons default); the first pane's rows only the named ones. */}
-              <DeskIcon name={item.icon ?? (isRoot ? undefined : 'folder')} svg={item.iconSvg} />
+              <DeskIcon {...rowIcon(item, isRoot, schemas)} />
               {item.title ?? item.id}
               <span className="chev">
                 <ChevronRight />

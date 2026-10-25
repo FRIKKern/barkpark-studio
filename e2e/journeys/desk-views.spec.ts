@@ -34,6 +34,9 @@ test('@local J18: a nested structure list opens its own rows, and a filtered lis
   await expect(menu.getByText('Taxonomy', {exact: true})).toBeVisible()
   // Each row: its icon (FolderIcon, none being named) and the chevron.
   for (const row of await rows.all()) await expect(row.locator('svg')).toHaveCount(2)
+  // A type's own list (S.documentTypeListItem) draws its type's icon; a custom item Sanity's folder.
+  await expect(rows.filter({hasText: 'Category'}).locator('svg[data-sanity-icon]').first()).toHaveAttribute('data-sanity-icon', 'tag')
+  await expect(rows.filter({hasText: 'Featured posts'}).locator('svg[data-sanity-icon]').first()).toHaveAttribute('data-sanity-icon', 'folder')
   if (t.name === 'studio') await expect(page.locator('[data-pane="types"] .type-row', {hasText: 'Editorial'})).toHaveAttribute('aria-current', 'true')
   await rows.filter({hasText: 'Featured posts'}).click()
   const titles = page.locator('a[href*="featured-posts;post-"]').filter({hasText: 'Fixture post'})
