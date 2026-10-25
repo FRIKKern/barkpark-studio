@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 43 changes
+- **Today** · 44 changes
+  - Image picker at scale: the next page read ahead, thumbnails loaded before the scroll ([#1131](https://github.com/FRIKKern/barkpark-studio/pull/1131))
   - test: the canvas falls back to its plain names on an older Barkpark ([#1130](https://github.com/FRIKKern/barkpark-studio/pull/1130))
-  - perf: the navbar's click-only panels load on first use ([#1129](https://github.com/FRIKKern/barkpark-studio/pull/1129))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
