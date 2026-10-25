@@ -210,3 +210,20 @@ test('pathsOf reads the paths in object parts, fallback lists and templates', ()
   assert.deepEqual(pathsOf(['-> {target}', {text: '?'}]), ['target'])
   assert.deepEqual(pathsOf(undefined), [])
 })
+
+// task-394a39576c8fb399: Sanity's preview shows a date-time's day where the editor is,
+// not its UTC day. A plain date is that day everywhere.
+test('|date: a date-time is the editor\'s local day; a plain date is itself', () => {
+  const tz = process.env.TZ
+  try {
+    process.env.TZ = 'Europe/Oslo'
+    assert.equal(formatPreview({parts: ['at|date']}, read({at: '2026-10-08T23:30:00Z'})), '09.10.2026')
+    assert.equal(formatPreview({parts: ['day|date']}, read({day: '2026-10-08'})), '08.10.2026')
+    process.env.TZ = 'America/New_York'
+    assert.equal(formatPreview({parts: ['at|date']}, read({at: '2026-10-09T02:00:00Z'})), '08.10.2026')
+    assert.equal(formatPreview({parts: ['day|date']}, read({day: '2026-10-08'})), '08.10.2026')
+  } finally {
+    if (tz === undefined) delete process.env.TZ
+    else process.env.TZ = tz
+  }
+})
