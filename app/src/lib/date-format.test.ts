@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {formatDate, parseDate} from './date-format.ts'
+import {formatDate, onTimeStep, parseDate} from './date-format.ts'
 
 // The field-type matrix's dateFormat/timeFormat: what is shown is what reads back, and a
 // day that doesn't exist never lands (a silent wrong date is the risk here).
@@ -20,4 +20,13 @@ test('refuses text that is not in the format, or a day that does not exist', () 
   assert.equal(parseDate('2026-10-13', 'DD.MM.YYYY'), undefined)
   assert.equal(parseDate('31.02.2026', 'DD.MM.YYYY'), undefined)
   assert.equal(parseDate('13.10.2026 25:00', 'DD.MM.YYYY HH:mm'), undefined)
+})
+
+// task-08d777306df00a8d: a typed or picked time lands on the step's grid, as Sanity's.
+test('a time steps down to the grid; no step keeps the minute', () => {
+  const at = (h: number, m: number) => new Date(2026, 9, 14, h, m)
+  assert.equal(onTimeStep(at(9, 7), 15).getTime(), at(9, 0).getTime())
+  assert.equal(onTimeStep(at(14, 37), 15).getTime(), at(14, 30).getTime())
+  assert.equal(onTimeStep(at(9, 45), 15).getTime(), at(9, 45).getTime())
+  assert.equal(onTimeStep(at(9, 7)).getTime(), at(9, 7).getTime())
 })
