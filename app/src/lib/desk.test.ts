@@ -145,3 +145,18 @@ test("a tree's own filter narrows every level below its root (Barkpark tree.filt
   // A tree without its own filter drills as before.
   assert.deepEqual(listFilter({...tree, tree: {parent: 'content.parent'}}, 'info-a'), {'content.parent': {eq: 'info-a'}})
 })
+
+test("a tree over an array of parents drills with has, and its countEq root can be listed (Barkpark parentOp has)", () => {
+  const cats: DeskNode = {
+    id: 'kategorier',
+    type: 'document_type_list',
+    typeName: 'category',
+    filter: {'content.parentCategories': {countEq: 0}},
+    tree: {parent: 'content.parentCategories', op: 'has'},
+  }
+  assert.deepEqual(unsupportedOps(cats.filter), [])
+  assert.deepEqual(listFilter(cats), {'content.parentCategories': {countEq: 0}})
+  assert.deepEqual(listFilter(cats, 'c-root'), {'content.parentCategories': {has: 'c-root'}})
+  // A plain tree still drills with eq.
+  assert.deepEqual(listFilter({...cats, tree: {parent: 'content.parent'}}, 'c-root'), {'content.parent': {eq: 'c-root'}})
+})
