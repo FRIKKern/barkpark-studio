@@ -282,6 +282,7 @@ export function RefSearch({id, types, filter, current, autoFocus, invalid, onPic
         className="btn-square"
         aria-label={t('Show all')}
         tabIndex={-1}
+        disabled={open && results.length > 0} // Sanity's: off while its results show
         onClick={() => {
           setQ('')
           setActive(-1)
@@ -308,6 +309,7 @@ export function RefSearch({id, types, filter, current, autoFocus, invalid, onPic
               id={`${listId}-${i}`}
               role="option"
               aria-selected={i === active}
+              data-current={d._publishedId === current ? '' : undefined}
               onMouseDown={(e) => (e.preventDefault(), pick(d))}
             >
               <DocPreview doc={d} selected={false} badge={(typeBadge ?? types.length > 1) ? typeTitle(d._type) : undefined} />
