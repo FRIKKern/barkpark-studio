@@ -23,9 +23,10 @@ export type DeskNode = {
   orderings?: {field: string; direction: 'asc' | 'desc'}[]
   /**
    * document_type_list: a parent-child tree over this reference field. `filter` (Barkpark's tree
-   * filter) narrows every level, as it narrows the root through `filter`.
+   * filter) narrows every level, as it narrows the root through `filter`. `op: 'has'`: the
+   * parents are an array of references (Barkpark's parentOp has), so a level reads `has`.
    */
-  tree?: {parent: string; filter?: DeskFilter}
+  tree?: {parent: string; filter?: DeskFilter; op?: 'has'}
   /**
    * document_type_list (J18, Sanity's `.child((id) => S.documentList()…)`): a row opens the
    * `typeName` docs whose `field` points at it, and that list's "+" starts `template` with
@@ -50,7 +51,8 @@ export type DeskNode = {
 /** The query API's filter operators (Barkpark's 400 lists them). A desk filter using another can't be listed yet. */
 // referencedBy / notReferencedBy: barkpark#22134; notContains / nhas: barkpark#22106;
 // neqOrMissing (GROQ's !=, a missing field counts as not equal): barkpark#23913.
-const QUERY_OPS = new Set(['eq', 'neq', 'neqOrMissing', 'in', 'nin', 'has', 'nhas', 'hasStrong', 'contains', 'notContains', 'startsWith', 'endsWith', 'gt', 'gte', 'lt', 'lte', 'is', 'referencedBy', 'notReferencedBy'])
+// countEq…countLte (array length; no array counts 0): barkpark#22106, a has-tree's root.
+const QUERY_OPS = new Set(['eq', 'neq', 'neqOrMissing', 'in', 'nin', 'has', 'nhas', 'hasStrong', 'contains', 'notContains', 'startsWith', 'endsWith', 'gt', 'gte', 'lt', 'lte', 'is', 'referencedBy', 'notReferencedBy', 'countEq', 'countNeq', 'countGt', 'countGte', 'countLt', 'countLte'])
 
 /**
  * The tree as this studio shows it. Plugin links and plugin lists are LiveView
@@ -115,7 +117,7 @@ export function unsupportedOps(filter: DeskFilter | undefined): string[] {
 /** What a list pane reads: the node's filter, or one tree level's children. */
 export function listFilter(node: DeskNode | undefined, treeParent?: string): DeskFilter | undefined {
   if (node?.child && treeParent) return {[node.child.field]: {eq: treeParent}}
-  if (node?.tree && treeParent) return {...node.tree.filter, [node.tree.parent]: {eq: treeParent}}
+  if (node?.tree && treeParent) return {...node.tree.filter, [node.tree.parent]: {[node.tree.op ?? 'eq']: treeParent}}
   return node?.filter
 }
 
