@@ -96,6 +96,8 @@ test('@local a row with no media draws its type icon', async ({page}, info) => {
   await page.goto(t.docPath('category', 'category-guide'))
   await signInIfAsked(page)
   await t.settle(page)
-  await expect(t.listItem(page, 'category-news').locator('.media svg[data-sanity-icon="tag"]')).toBeVisible({timeout: 10_000})
+  // Sanity's row has no .media class: its icon is the row's only tag svg.
+  const icon = t.listItem(page, 'category-news').locator(`${t.name === 'sanity' ? '' : '.media '}svg[data-sanity-icon="tag"]`)
+  await expect(icon).toBeVisible({timeout: 10_000})
   await t.listItem(page, 'category-news').screenshot({path: `evidence/list-media-type-icon-${t.name}.png`})
 })
