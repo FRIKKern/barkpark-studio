@@ -35,7 +35,8 @@ const VisionEditor = lazy(() => import('./VisionEditor'))
 const KEY = 'bp-vision'
 const EXAMPLE = '*[_type == "post"] | order(_updatedAt desc)[0...5]{_id, title}'
 const NO_PARAMS = '{\n  \n}'
-const load = (): {query: string; perspective: Perspective; dataset?: string; params?: string; version?: string} => {
+/** `ran`: the query as last run, null if none was (since task-10a746cc9a4d067c); missing in an older keep, which was saved only on a run. */
+const load = (): {query: string; perspective: Perspective; dataset?: string; params?: string; version?: string; ran?: string | null} => {
   try {
     return {query: EXAMPLE, perspective: 'drafts', ...JSON.parse(localStorage.getItem(KEY) ?? '{}')}
   } catch {
@@ -109,9 +110,12 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     else if (saved.version && customApiVersion(saved.version)) (setVersion(saved.version), setCustom(saved.version))
     let kept = false
     try {
-      kept = localStorage.getItem(KEY) !== null && saved.query.trim() !== '' && (JSON.parse((saved.params ?? '').trim() || '{}'), true)
+      // Only what was run runs again: a query typed and never run comes back unrun, as Sanity's.
+      kept = localStorage.getItem(KEY) !== null && saved.query.trim() !== '' && (saved.ran === undefined || saved.ran === saved.query) && (JSON.parse((saved.params ?? '').trim() || '{}'), true)
     } catch {}
     if (kept) setRerun(true)
+    ran.current = saved.ran === undefined ? (localStorage.getItem(KEY) !== null ? saved.query : undefined) : (saved.ran ?? undefined)
+    restored.current = true
   }, [])
   // A remembered dataset this token can't read (it is bound to another): the page's.
   useEffect(() => {
@@ -139,11 +143,22 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   }
   // Where it went wrong, in the query as sent (its $params already put in).
   const failure = result && !result.ok && !result.error ? queryError(result.sent ?? result.query ?? query, result.body) : null
-  const remember = () => {
+  const ran = useRef<string | undefined>(undefined)
+  const restored = useRef(false)
+  const remember = (run = false) => {
+    if (run) ran.current = edits.current.query
     try {
-      localStorage.setItem(KEY, JSON.stringify({...edits.current, perspective, dataset, version}))
+      localStorage.setItem(KEY, JSON.stringify({...edits.current, perspective, dataset, version, ran: ran.current ?? null}))
     } catch {}
   }
+  // task-10a746cc9a4d067c: what is typed is kept as it is typed (a moment after the last key),
+  // as Sanity's Vision does, so a reload, a new tab or a crash before Fetch keeps the work.
+  useEffect(() => {
+    if (!restored.current) return
+    const id = setTimeout(() => remember(), 300)
+    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, params, perspective, dataset, version])
   useEffect(() => () => listening?.stop.abort(), [listening?.stop])
   useEffect(() => {
     if (rerun) (setRerun(false), void fetchIt(undefined, true))
@@ -155,7 +170,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
     listening?.stop.abort()
     setListening(undefined)
     setBusy(true)
-    remember()
+    remember(true)
     const t0 = performance.now()
     const {query, params} = edits.current
     const r = await runVisionQuery({data: {query, perspective, dataset, params, version}}).catch((e: Error) => ({ok: false, status: 0, url: '', ms: 0, body: '', error: e.message}))
@@ -179,7 +194,7 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
   // Sanity's Listen: the query's changes as they happen, until Stop.
   const listenIt = () => {
     if (listening && !listening.error) return (listening.stop.abort(), setListening(undefined))
-    remember()
+    remember(true)
     setResult(undefined)
     const stop = new AbortController()
     setListening({stop, open: false, events: []})
