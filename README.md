@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 20 changes
+- **Today** · 21 changes
+  - Desk: a type's own list in a nested list draws its type's icon ([#1109](https://github.com/FRIKKern/barkpark-studio/pull/1109))
   - After an unpublish, focus goes to the pane's document actions ([#1106](https://github.com/FRIKKern/barkpark-studio/pull/1106))
-  - seed: an image in an array maps to the asset ref, as a field's image does ([#1108](https://github.com/FRIKKern/barkpark-studio/pull/1108))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
