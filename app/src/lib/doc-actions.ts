@@ -2,8 +2,8 @@ import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {apiBase, bpFetch, dataset} from '../server/barkpark'
 
-// B10: the actions a document's schema declares (a plugin's, e.g. OnixEdit's
-// "Publish to Bokbasen"), as Barkpark's LiveView editor runs them: a `link` opens a
+// B10: the actions a document's schema declares (usually a plugin's), as Barkpark's
+// LiveView editor runs them: a `link` opens a
 // URL; a `modal` asks first, runs a dry-run, shows its preview, and only then runs
 // for real. Barkpark resolves the live list (a plugin can hide an action for the
 // document as it is now) and dispatches (task-bd311f4b5ea2b3b8): admin tier, as in
