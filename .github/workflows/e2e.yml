@@ -1,7 +1,7 @@
 # Our-side journey specs against Barkpark workspace studio-parity. The Sanity
 # side of each spec stays local (needs a Sanity login). Budget: each shard < 60 s
-# (aim for 45 s). Six shards on six runners, each on a dataset of its own, leased
-# (ci, ci-2 … ci-6; scripts/ci-lease.mjs): one run at a time, the next waits in its
+# (aim for 45 s). Seven shards on seven runners, each on a dataset of its own, leased
+# (ci, ci-2 … ci-7; scripts/ci-lease.mjs): one run at a time, the next waits in its
 # jobs for free datasets, and nothing is cancelled (a concurrency group per dataset
 # cancelled the pending run before it). A second pool (ci-b-*) is ready for two runs at
 # once, off until the shards have room under load (CI_LEASE_POOL=wide). Spec files go
@@ -34,6 +34,7 @@ jobs:
           - { shard: 4, dataset: ci-4 }
           - { shard: 5, dataset: ci-5 }
           - { shard: 6, dataset: ci-6 }
+          - { shard: 7, dataset: ci-7 }
     runs-on: ubuntu-latest
     timeout-minutes: 35 # up to 25 waiting for a dataset, then the run itself (about 5)
     env:
@@ -96,7 +97,7 @@ jobs:
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
-        run: node --env-file=../.env node_modules/@playwright/test/cli.js test $(node ../scripts/shard-files.mjs ${{ matrix.shard }} 6) --project=studio
+        run: node --env-file=../.env node_modules/@playwright/test/cli.js test $(node ../scripts/shard-files.mjs ${{ matrix.shard }} 7) --project=studio
       - if: always()
         uses: actions/upload-artifact@v4
         with:
