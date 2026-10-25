@@ -4,9 +4,20 @@
 import '@tanstack/react-start/server-only'
 import {readdir, readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
-import {bpFetch, dataset, serviceToken} from './barkpark'
+import {bpFetch, dataset, contentModelToken, serviceToken} from './barkpark'
+import {signInMode, signOut} from './auth'
+import {ACCOUNT_SESSION_LOST} from '../lib/content-model-credential'
 import ICONS from '../lib/desk-icons.json'
 import {withIconBodies} from '../lib/desk-icon-bodies'
+
+async function readContentModel(path: string) {
+  const response = await bpFetch(path, {}, await contentModelToken())
+  if (response.status === 401 && signInMode() === 'account') {
+    await signOut()
+    throw new Error(ACCOUNT_SESSION_LOST)
+  }
+  return response
+}
 
 export type RawSchema = {name: string; title: string; icon?: unknown; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; fieldsets?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown; kind?: unknown}
 
@@ -32,7 +43,7 @@ async function readAllSchemas(): Promise<RawSchema[]> {
     const files = (await readdir(dir)).filter((f) => f.endsWith('.json'))
     return Promise.all(files.map(async (f) => asBarkparkServes(JSON.parse(await readFile(join(dir, f), 'utf8')) as RawSchema)))
   }
-  const res = await bpFetch(`/v1/schemas/${dataset()}`, {}, await serviceToken())
+  const res = await readContentModel(`/v1/schemas/${dataset()}`)
   if (!res.ok) throw new Error(`Barkpark /v1/schemas/${dataset()} → ${res.status}`)
   return ((await res.json()) as {schemas: RawSchema[]}).schemas
 }
@@ -56,7 +67,7 @@ function asBarkparkServes({list_preview, initial_values, ...schema}: RawSchema):
 // Fixtures mode (CI) has no desk.
 export async function readDesk(): Promise<unknown | null> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return null
-  const declared = await bpFetch(`/v1/data/doc/${dataset()}/deskStructure/deskStructure?perspective=published`, {}, await serviceToken())
+  const declared = await readContentModel(`/v1/data/doc/${dataset()}/deskStructure/deskStructure?perspective=published`)
   if (declared.status === 404) return null
   if (!declared.ok) throw new Error(`Could not read the desk configuration (${declared.status})`)
   const title = ((await declared.json()) as {result?: {title?: unknown}}).result?.title

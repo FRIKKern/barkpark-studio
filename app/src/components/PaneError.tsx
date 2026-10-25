@@ -1,7 +1,8 @@
 import {Component, useLayoutEffect, useRef, type ReactNode} from 'react'
 import {useRouter, useRouterState, type ErrorComponentProps} from '@tanstack/react-router'
 import {useBoundElsewhere, useStudioTokenRefused} from '../lib/session'
-import {scopedPath} from '../lib/scope'
+import {parseScope, scopedPath} from '../lib/scope'
+import {ACCOUNT_SESSION_LOST} from '../lib/content-model-credential'
 import {AUTO_RETRIES} from '../lib/connection'
 import {toast} from './Toasts'
 import {Copy, Sync} from './icons'
@@ -157,6 +158,19 @@ export function StudioError({error, reset}: ErrorComponentProps) {
   const t = useT()
   const router = useRouter()
   const message = error instanceof Error ? error.message : String(error)
+  if (message === ACCOUNT_SESSION_LOST) {
+    const {scope, rest} = parseScope(router.state.location.pathname)
+    const login = scope ? scopedPath(scope, '/login') : '/login'
+    return (
+      <main className="studio-error" data-testid="studio-error">
+        <div className="pane-error" role="alert">
+          <h3>{t("You've been logged out")}</h3>
+          <p>{t('Sign in to continue.')}</p>
+          <a className="btn btn-primary" href={`${login}?redirect=${encodeURIComponent(rest + router.state.location.searchStr)}`}>{t('Sign in')}</a>
+        </div>
+      </main>
+    )
+  }
   // The content model itself read with a dead studio token (401, Barkpark #22517): say that,
   // as a pane would (#312), not a bare "error occurred".
   if (/\b401\b/.test(message))
