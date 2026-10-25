@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 15 changes
+- **Today** · 16 changes
+  - Validation: Sanity's custom rules from the studio config (document, async, context) ([#1103](https://github.com/FRIKKern/barkpark-studio/pull/1103))
   - perf(search): global search types as fast as Sanity's at 4x CPU ([#1102](https://github.com/FRIKKern/barkpark-studio/pull/1102))
-  - e2e: re-record durations from the first five main runs on seven shards; plan 40.9-41.8 s ([#1101](https://github.com/FRIKKern/barkpark-studio/pull/1101))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
