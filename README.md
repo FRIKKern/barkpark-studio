@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 13 changes
+- **Today** · 14 changes
+  - e2e: re-record durations from the first five main runs on seven shards; plan 40.9-41.8 s ([#1101](https://github.com/FRIKKern/barkpark-studio/pull/1101))
   - perf(style): no :has() on <body>: typing's style work drops 15-35x ([#1100](https://github.com/FRIKKern/barkpark-studio/pull/1100))
-  - e2e: list-media's type-icon check finds Sanity's icon too ([#1099](https://github.com/FRIKKern/barkpark-studio/pull/1099))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
