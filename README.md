@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes
+- **Today** · 10 changes
+  - Preview: |date shows a date-time as the editor's local day, as Sanity's ([#1097](https://github.com/FRIKKern/barkpark-studio/pull/1097))
   - Saves failing: "Not saved — retrying" holds until a save lands, no flip per key ([#1096](https://github.com/FRIKKern/barkpark-studio/pull/1096))
-  - CI: a seventh shard (ci-7): six had no room under 60 s ([#1095](https://github.com/FRIKKern/barkpark-studio/pull/1095))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
