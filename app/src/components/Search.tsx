@@ -1,6 +1,6 @@
 import {getPref, putPref} from '../lib/prefs'
 import {modKey} from './Tip'
-import {useEffect, useId, useRef, useState} from 'react'
+import {memo, useCallback, useEffect, useId, useRef, useState} from 'react'
 import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {schemaOf, schemasQuery, searchQuery, textSearchQuery, type Doc} from '../lib/data'
@@ -179,6 +179,20 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
           .slice(0, 50)
   const rows = showRecent ? recent.length : results.length
   useEffect(() => setActive(0), [query, types, filters, sort, showRecent])
+  // Drawn near the view, as Sanity's list: the first rows, then more as the end scrolls near or
+  // the keyboard nears it. All of up to 200 results on every response was most of global
+  // search's script time per key at 4x CPU (task-69da2b03bcdba09f).
+  const [shown, setShown] = useState(ROWS_STEP)
+  useEffect(() => setShown(ROWS_STEP), [query, types, filters, sort])
+  const drawn = Math.max(shown, active + ROWS_STEP)
+  const more = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = more.current
+    if (!el) return
+    const io = new IntersectionObserver((es) => es.some((x) => x.isIntersecting) && setShown((n) => n + ROWS_STEP))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [drawn, results.length])
   // Keep keyboard selection visible without moving the caret out of search. A row lit by
   // the pointer stays where it is, as Sanity's: one half in view must not scroll the list.
   const byPointer = useRef(false)
@@ -208,6 +222,10 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
     writeRecent(list)
     void putPref({data: {key: RECENT_PREF, value: {searches: list}}}).catch(() => {})
   }
+  // Steady for the memoized rows (ResultRow): a keystroke re-renders the rows whose doc changed.
+  const hover = useCallback((i: number) => ((byPointer.current = true), setActive(i)), [])
+  const opener = useRef<(d: Doc) => void>(() => {})
+  const open = useCallback((d: Doc) => opener.current(d), [])
   const openDoc = (d: Doc | undefined) => {
     if (!d || !settled) return
     remember(addRecent(recent, {query, types, filters: strip(filters)}))
@@ -225,6 +243,7 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
     input.current?.focus()
   }
 
+  opener.current = openDoc
   return (
     <div className="search-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose(true)}>
       <div ref={scope} className="search-dialog" role="dialog" aria-modal="true" aria-label={t('Search')}>
@@ -310,18 +329,10 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
                   </button>
                 </div>
               ))}
-            {results.map((d, i) => (
-              <div
-                key={d._id}
-                id={`${listId}-${i}`}
-                role="option"
-                aria-selected={i === active}
-                onMouseEnter={() => ((byPointer.current = true), setActive(i))}
-                onMouseDown={(e) => (e.preventDefault(), openDoc(d))}
-              >
-                <DocPreview doc={d} selected={false} badge={schemaOf(schemas, d._type)?.title} />
-              </div>
+            {results.slice(0, drawn).map((d, i) => (
+              <ResultRow key={d._id} doc={d} index={i} listId={listId} selected={i === active} badge={schemaOf(schemas, d._type)?.title} onHover={hover} onOpen={open} />
             ))}
+            {results.length > drawn && <div ref={more} className="search-more" aria-hidden="true" />}
             </div>
             )}
             {showRecent && (
@@ -346,3 +357,20 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
     </div>
   )
 }
+
+const ROWS_STEP = 40
+
+/**
+ * One result row, memoized: typing re-rendered every row's preview on each key (up to 200 of
+ * them), about half of global search's script time per key at 4x CPU (task-69da2b03bcdba09f).
+ */
+const ResultRow = memo(function ResultRow({doc, index, listId, selected, badge, onHover, onOpen}: {doc: Doc; index: number; listId: string; selected: boolean; badge?: string; onHover: (i: number) => void; onOpen: (d: Doc) => void}) {
+  return (
+    <div id={`${listId}-${index}`} role="option" aria-selected={selected} onMouseEnter={() => onHover(index)} onMouseDown={(e) => (e.preventDefault(), onOpen(doc))}>
+      <DocPreview doc={doc} selected={false} badge={badge} />
+    </div>
+  )
+}, (a, b) =>
+  // Each typed prefix's results are new objects for the same docs: the same revision is the same row.
+  a.doc._id === b.doc._id && a.doc._rev === b.doc._rev && a.doc._updatedAt === b.doc._updatedAt &&
+  a.index === b.index && a.selected === b.selected && a.badge === b.badge && a.listId === b.listId && a.onHover === b.onHover && a.onOpen === b.onOpen)

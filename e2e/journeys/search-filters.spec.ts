@@ -165,3 +165,21 @@ test('@local J38: field filter, type filter, order, recent searches', async ({pa
   await dialog(page).getByRole('combobox').fill('newsletter')
   await expect(results.getByText('Fixture post 05', {exact: true})).toBeVisible()
 })
+
+// task-69da2b03bcdba09f: up to 200 results drew at once on every response (most of global
+// search's script time per key at 4x CPU). Now the first rows, then more as the end scrolls
+// near, as Sanity's list. Read-only.
+test('global search draws its first 40 results, then more as the list scrolls', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', "ours: Sanity's list is its own")
+  await t.prepare(page.context())
+  await page.goto('/structure')
+  await signInIfAsked(page)
+  await t.settle(page)
+  await openSearch(page)
+  await page.keyboard.type('fixture')
+  const options = dialog(page).getByRole('option')
+  await expect(options).toHaveCount(40)
+  await options.last().scrollIntoViewIfNeeded()
+  await expect.poll(() => options.count()).toBeGreaterThan(40)
+})

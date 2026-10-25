@@ -193,11 +193,14 @@ export function SearchFilters({schemas, fields, types, onTypes, filters, onFilte
   const addBtn = useRef<HTMLButtonElement>(null)
   const open = (m: 'types' | 'add') => (setFind(''), setMenu(menu === m ? null : m))
   const toggle = (name: string) => onTypes(types.includes(name) ? types.filter((t) => t !== name) : [...types, name])
-  const sorted = [...schemas].sort((a, b) => collate(a.title, b.title))
+  // The menus' items only while that menu is open: built on every render, the "Add filter"
+  // list (every field of every type, each with its icon) cost global search ~70 ms a key at 4x
+  // CPU while it sat closed (task-69da2b03bcdba09f).
+  const sorted = menu === 'types' ? [...schemas].sort((a, b) => collate(a.title, b.title)) : []
   const typeItems: Item[] = sorted
     .filter((s) => s.title.toLowerCase().includes(find.trim().toLowerCase()))
     .map((s) => ({key: s.name, text: s.title, label: <span>{s.title}</span>, checked: types.includes(s.name), onPick: () => toggle(s.name)}))
-  const addGroups: Group[] = filterMenu(schemas, types, find, t).map((sec) => ({
+  const addGroups: Group[] = (menu === 'add' ? filterMenu(schemas, types, find, t) : []).map((sec) => ({
     title: sec.title,
     items: sec.fields.map((f) => ({
       key: `${sec.title ?? ''}:${f.key}`,
