@@ -367,8 +367,9 @@ export function Vision({dataset: pageDataset}: {dataset: string}) {
           )}
           </div>
           <footer className="vision-foot">
-            <span>{t('Execution: {time}', {time: result && !result.error ? `${result.ms} ms` : t('n/a')})}</span>
-            <span>{t('End-to-end: {time}', {time: result?.total !== undefined && !result.error ? `${result.total} ms` : t('n/a')})}</span>
+            {/* Sanity's: "Execution: 3ms", no space. */}
+            <span>{t('Execution: {time}', {time: result && !result.error ? `${result.ms}ms` : t('n/a')})}</span>
+            <span>{t('End-to-end: {time}', {time: result?.total !== undefined && !result.error ? `${result.total}ms` : t('n/a')})}</span>
             {parsed !== undefined && result?.ok && (
               <span className="vision-save">
                 {t('Save result as')}{' '}

@@ -40,7 +40,7 @@ test('@local J37: tool switcher, Vision query, user menu', async ({page, context
   await query.press('ControlOrMeta+Enter')
   const result = page.getByRole('region', {name: 'Result'})
   await expect(result).toContainText('Fixture post 12')
-  await expect(page.getByText(/^Execution: \d+ ms$/)).toBeVisible()
+  await expect(page.getByText(/^Execution: \d+ms$/)).toBeVisible()
   await page.screenshot({path: 'evidence/J37-studio-4-vision-result.png'})
   // Sanity Vision's result: a folding JSON tree that scrolls in its pane (the page stays put),
   // the query URL to copy, and Save result as JSON.
