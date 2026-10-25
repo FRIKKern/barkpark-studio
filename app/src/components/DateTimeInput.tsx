@@ -148,7 +148,13 @@ function DatePicker({value, dateOnly, timeStep = 1, min, notice, showZone, onPic
   const locale = useLocale()
   const [focused, setFocused] = useState(() => value ?? new Date())
   const [year, setYear] = useState(String(focused.getFullYear()))
-  const [time, setTime] = useState(value ? `${pad(value.getHours())}:${pad(value.getMinutes())}` : '00:00')
+  // With no value yet, a picked day takes the current time on the step's grid, as Sanity's: 00:00
+  // stored the instant before midnight UTC, the previous day for a site that formats in UTC.
+  const [time, setTime] = useState(() => {
+    const at = value ?? new Date()
+    const minutes = value ? at.getMinutes() : at.getMinutes() - (at.getMinutes() % timeStep)
+    return `${pad(at.getHours())}:${pad(minutes)}`
+  })
   const root = useRef<HTMLDivElement | null>(null)
   // J43: Tab stays in the picker, Escape closes it, focus goes back to its button.
   const scope = useFocusScope<HTMLDivElement>({trap: true, onDismiss: onClose})

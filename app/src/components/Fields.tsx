@@ -815,24 +815,32 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
   const send = (n: number | undefined) => (mine.current.add(n), onChange(n))
   // Otherwise the stored number in the language's own way: "59,9139" in nb, as Sanity's.
   const shown = text ?? (value == null ? '' : formatNumber(value, decimal))
+  // Text left that isn't a number (English "1,500") stores nothing, so the field says so: a shown
+  // value is never silently unset (task-cad5d4a8ee5f7893). Half-typed ("-", "1,") waits.
+  const t = useT()
+  const notNumber = text !== null && text !== '' && !typingNumber(text, decimal) && !Number.isFinite(parse(text))
   return (
+    <>
     <input
       id={id}
       className="input"
       // The phone's number pad: digits only for integers.
       inputMode={integer ? 'numeric' : 'decimal'}
       value={shown}
+      aria-invalid={notNumber || undefined}
       onChange={(e) => {
         // Sanity's <input type="number"> takes no letters: a key that can't be part of a number
         // does nothing. Here it was kept on screen and the stored number went (unset), unsaid.
         if (/[^\d\s.,+\-eE]/.test(e.target.value)) return
-        setText(e.target.value)
-        const n = parse(e.target.value)
+        // Nor a space: "1 200" (nb's thousands) types as 1200.
+        const typed = e.target.value.replace(/\s+/g, '')
+        setText(typed)
+        const n = parse(typed)
         // Not a number (yet): a sign or a separator so far, or "1,500" in English. The field is
         // unset, as Sanity's number input leaves it, and the text stays.
         // An integer field stores what was typed too (3.5 is 3.5) and validation says "Must be an
         // integer", as Sanity's: dropping the decimals put 3 there silently (task-aa91cf7ad7b51863).
-        if (e.target.value === '' || typingNumber(e.target.value, decimal) || !Number.isFinite(n)) send(undefined)
+        if (typed === '' || typingNumber(typed, decimal) || !Number.isFinite(n)) send(undefined)
         else send(n)
       }}
       // Sanity's is an <input type="number">: Up and Down step it by 1 (from 0 when empty),
@@ -848,6 +856,8 @@ function NumberInput({id, value, onChange, integer}: {id: string; value: number 
       // Left, a number typed in the other way ("59.9" in nb) shows in the language's way.
       onBlur={() => text !== null && Number.isFinite(parse(text)) && (setText(null), mine.current.clear())}
     />
+    {notNumber && <p className="field-error" role="alert">{t('Not a number')}</p>}
+    </>
   )
 }
 
