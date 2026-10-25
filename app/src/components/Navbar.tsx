@@ -1,4 +1,5 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useHtmlMark} from '../lib/html-mark'
 import {Link, useNavigate} from '@tanstack/react-router'
 import {meQuery} from '../lib/session'
 import {signOutHere} from '../lib/sign-out'
@@ -290,6 +291,7 @@ const CHANGELOG = 'https://github.com/FRIKKern/barkpark-studio#what-happened'
 
 /** Sanity's What's new, in the studio: this build's latest merged changes, each a link to its PR. */
 function WhatsNewDialog({onClose}: {onClose: () => void}) {
+  useHtmlMark('diagnostics-open') // toasts above it (styles.css)
   const t = useT()
   const locale = useLocale()
   const day = new Intl.DateTimeFormat(intlTag(locale), {month: 'short', day: 'numeric', timeZone: 'UTC'})
@@ -331,6 +333,7 @@ function WhatsNewDialog({onClose}: {onClose: () => void}) {
 
 /** Sanity's studio version dialog: which build this tab runs, that it is current, its commit. */
 function VersionDialog({onClose}: {onClose: () => void}) {
+  useHtmlMark('diagnostics-open') // toasts above it (styles.css)
   const t = useT()
   const locale = useLocale()
   const [commit = BUILD, at] = BUILD.split('-')

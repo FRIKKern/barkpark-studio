@@ -32,7 +32,12 @@ test('@local J11: inline, a block object offers its menu at its right edge; text
   if (button === own) {
     await expect(options, 'one "…" on the card, never the block handle beside it').toBeHidden()
     await expect(page.locator('.bp-canvas-object-menu [role="menuitem"]')).toHaveText(['Edit', 'Remove'])
-  } else await expect(page.locator('.bp-block-menu__item').filter({hasText: 'Duplicate'})).toBeVisible()
+  } else {
+    await expect(page.locator('.bp-block-menu__item').filter({hasText: 'Duplicate'})).toBeVisible()
+    // Right-aligned to the "…": said on <html>, not with body:has() (task-31fb868df35d608c).
+    await expect(page.locator('html')).toHaveAttribute('data-bp-object-menu', '')
+    expect(await page.locator('.bp-block-menu').evaluate((m) => getComputedStyle(m).transform)).not.toBe('none')
+  }
   await page.keyboard.press('Escape')
   // Expanded, the gutter's block handle still duplicates and moves a block.
   await page.getByRole('button', {name: /Expand editor/}).first().click()
@@ -40,5 +45,8 @@ test('@local J11: inline, a block object offers its menu at its right edge; text
   await expect(options).toBeVisible()
   await options.click()
   await expect(page.locator('.bp-block-menu__item').filter({hasText: 'Duplicate'})).toBeVisible()
+  // Expanded, the gutter's menu opens where it is, not shifted to an object's right edge.
+  await expect(page.locator('html')).not.toHaveAttribute('data-bp-object-menu')
+  expect(await page.locator('.bp-block-menu').evaluate((m) => getComputedStyle(m).transform)).toBe('none')
   await page.keyboard.press('Escape')
 })
