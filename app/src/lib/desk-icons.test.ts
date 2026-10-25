@@ -11,6 +11,9 @@ test('every desk icon name the twin uses has a body, and the twelve drawn before
   assert.deepEqual(TWIN.filter((n) => !icons[n]), [])
   for (const n of ['home', 'book', 'user', 'tag', 'documents', 'document-text', 'document', 'cog', 'image', 'warning-outline', 'error-outline', 'folder', 'schema']) assert.ok(icons[n], n)
   assert.ok(Object.keys(icons).length > 200)
+  // Barkpark #24008: six lucide icons a migrated Sanity schema names; lucide:tags is not @sanity/icons' tags.
+  for (const n of ['megaphone', 'layout-grid', 'graduation-cap', 'languages', 'user-pen', 'lucide:tags', 'lucide:megaphone']) assert.ok(icons[n], n)
+  assert.notEqual(icons['lucide:tags'], icons.tags)
   // SVG bodies only: no script, no event handler.
   for (const [n, body] of Object.entries(icons)) assert.ok(!/<script|\son\w+=/i.test(body), n)
 })

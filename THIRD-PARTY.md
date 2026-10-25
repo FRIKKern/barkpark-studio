@@ -10,7 +10,7 @@ in `app/src/i18n/nb/*.ts` takes Sanity's nb-NO strings where our English is Sani
 
 Ported: the icon paths in `app/src/components/icons.tsx`, from @sanity/icons 5.2.3, MIT.
 
-Vendored: `app/src/lib/desk-icons.json`, every @sanity/icons 5.2.3 icon's SVG body by name, MIT (the desk icon vocabulary, shared with Barkpark's `priv/desk_icons.json`), plus lucide's `library` (lucide 0.460, ISC: "Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.").
+Vendored: `app/src/lib/desk-icons.json`, every @sanity/icons 5.2.3 icon's SVG body by name, MIT (the desk icon vocabulary, shared with Barkpark's `priv/desk_icons.json`), plus lucide's `library` (lucide 0.460) and `megaphone`, `layout-grid`, `graduation-cap`, `languages`, `user-pen` and `tags` (lucide-static 1.61.0; also as `lucide:<name>`, and `tags` only as `lucide:tags`) (ISC: "Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.").
 
 Ported: the empty Releases illustration (`ReleaseIllustration` in
 `app/src/components/icons.tsx`), from sanity 6.17.0, MIT

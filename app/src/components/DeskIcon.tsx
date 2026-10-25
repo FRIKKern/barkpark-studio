@@ -1,6 +1,6 @@
 // B12: the icons a desk row names, as Sanity draws them (@sanity/icons, MIT, see THIRD-PARTY.md).
 // Keyed by Sanity's icon names; an unknown name shows no icon.
-// task-af038d8b0d769e82: every @sanity/icons 5.2.3 name (MIT), plus lucide's `library`
+// task-af038d8b0d769e82: every @sanity/icons 5.2.3 name (MIT), plus lucide's `library` and six more (#24008)
 // (ISC), the same vocabulary Barkpark's LiveView Studio draws (barkpark priv/desk_icons.json,
 // vendored as lib/desk-icons.json). Before, 12 names drew and the rest showed nothing.
 // The desk's own icons come with the desk, each one's body as `iconSvg` (lib/desk-icon-bodies.ts):
