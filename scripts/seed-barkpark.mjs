@@ -9,8 +9,8 @@
 //   … --production                                          # required to write the production dataset
 //   … --remove-type <name> [--with-docs] [--yes]            # drop a type whose fixture file is gone (dry run unless --yes)
 //
-// With SANITY_TOKEN set, verify also reads the reference Sanity dataset live and
-// checks it maps to the same documents.
+// With SANITY_TOKEN set, verify also reads the reference Sanity dataset live (the one
+// SANITY_STUDIO_DATASET names, default production) and checks it maps to the same documents.
 //
 // Not seeded here: the workspace seats. studio-editor-{a,b,c,d}@example.com are
 // members of studio-parity for multi-editor journeys (dev sign-in, presence).
@@ -232,8 +232,11 @@ async function verify() {
   compare('barkpark', docs, expectedDocs())
 
   if (!process.env.SANITY_TOKEN) return console.log('verify sanity: skipped (no SANITY_TOKEN)')
+  // The reference dataset the studio side reads (e2e-local for the lanes), else production.
+  const dataset = process.env.SANITY_STUDIO_DATASET || 'production'
+  console.log(`verify sanity: dataset ${dataset}`)
   const q = encodeURIComponent(`*[_type in ${JSON.stringify(TYPES)}]`)
-  const res = await fetch(`https://ecu57yeh.api.sanity.io/v2025-02-19/data/query/production?query=${q}`, {
+  const res = await fetch(`https://ecu57yeh.api.sanity.io/v2025-02-19/data/query/${dataset}?query=${q}`, {
     headers: {authorization: `Bearer ${process.env.SANITY_TOKEN}`},
   })
   if (!res.ok) fail(`sanity query → ${res.status}`)
