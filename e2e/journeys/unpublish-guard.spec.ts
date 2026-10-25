@@ -22,6 +22,9 @@ test('@local B07: unpublish lists who refers to it first; Cancel or Unpublish an
   await expect(dialog.getByRole('status')).toHaveText('10 documents refer to “Alan Turing”')
   await expect(dialog.locator('.used-in li')).toHaveCount(10)
   await expect(dialog.locator('.used-in li').first()).toContainText('Post / author')
+  // Sanity's words around the list (its confirm-delete-dialog, unpublish variant).
+  await expect(dialog).toContainText('You may not be able to unpublish “Alan Turing” because the following documents refer to it:')
+  await expect(dialog).toContainText('If you unpublish this document, documents that refer to it will no longer be able to access it.')
   await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
   await page.screenshot({path: 'evidence/B07-1-guard-studio.png'})
   await page.keyboard.press('Escape')

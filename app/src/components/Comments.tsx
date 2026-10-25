@@ -293,7 +293,7 @@ function ConfirmDialog({title, body, confirm, onConfirm, onClose}: {title: strin
       <DialogBox className="dialog confirm-dialog" aria-modal="true" aria-label={title} onClose={onClose}>
         <header>
           <h2>{title}</h2>
-          <button type="button" className="icon-btn" aria-label={t('Close')} onClick={onClose}>
+          <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
             <Close />
           </button>
         </header>
