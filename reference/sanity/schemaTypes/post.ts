@@ -107,7 +107,16 @@ export const post = defineType({
       },
     }),
     // Conditional fields (J30): shown only when featured; locked once done.
-    defineField({name: 'featuredNote', title: 'Featured note', type: 'string', group: 'meta', hidden: ({document}) => !document?.featured}),
+    defineField({
+      name: 'featuredNote',
+      title: 'Featured note',
+      type: 'string',
+      group: 'meta',
+      hidden: ({document}) => !document?.featured,
+      // A rule answering with a Promise (the studio's app/src/studio.config.tsx has the same).
+      validation: (r) =>
+        r.custom((v: string | undefined) => (typeof v === 'string' && v.includes('TODO') ? new Promise<string>((done) => setTimeout(() => done('Remove the TODO before publishing'), 1000)) : true)),
+    }),
     defineField({name: 'reviewNote', title: 'Review note', type: 'text', rows: 2, group: 'meta', readOnly: ({document}) => document?.stage === 'done'}),
     // File field (J36).
     defineField({name: 'attachment', type: 'file', group: 'meta', options: {accept: 'application/pdf'}}),
@@ -173,7 +182,7 @@ export const post = defineType({
       // J13: an error inside a collapsed object, and an info.
       options: {collapsible: true, collapsed: true},
       fields: [
-        defineField({name: 'metaTitle', title: 'Meta title', type: 'string', validation: (r) => r.max(60)}),
+        defineField({name: 'metaTitle', title: 'Meta title', type: 'string', validation: (r) => [r.max(60), r.custom((v: string | undefined, ctx) => (v && v === (ctx.parent as {metaDescription?: string} | undefined)?.metaDescription ? 'Meta title and description should differ' : true)).warning()]}),
         defineField({name: 'metaDescription', title: 'Meta description', type: 'text', rows: 2, validation: (r) => r.min(50).info('Search results show about 150 characters')}),
       ],
     }),
@@ -185,5 +194,7 @@ export const post = defineType({
     {title: 'Publish date, newest', name: 'publishedAtDesc', by: [{field: 'publishedAt', direction: 'desc'}]},
     {title: 'Rating, highest', name: 'ratingDesc', by: [{field: 'rating', direction: 'desc'}]},
   ],
+  // A document-level rule (Rule.custom on the document; app/src/studio.config.tsx has the same).
+  validation: (r) => r.custom((doc) => ((doc as {featured?: boolean; excerpt?: string} | undefined)?.featured && !(doc as {excerpt?: string}).excerpt ? 'A featured post needs an excerpt' : true)),
   preview: {select: {title: 'title', subtitle: 'author.name', media: 'mainImage'}},
 })

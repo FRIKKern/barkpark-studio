@@ -84,5 +84,18 @@ export default defineStudio({
       const slug = typeof doc.slug === 'string' ? doc.slug : (doc.slug as {current?: string} | undefined)?.current
       return doc._type === 'post' && slug ? `${PREVIEW_ORIGIN}/posts/${slug}` : undefined
     },
+    // Sanity's Rule.custom, as reference/sanity/schemaTypes/post.ts has them: a document rule, a
+    // rule answering with a Promise, one reading its parent. Studio only: API writes skip them.
+    validation: (type) =>
+      type === 'post'
+        ? [
+            {validate: (doc) => ((doc as {featured?: boolean; excerpt?: string}).featured && !(doc as {excerpt?: string}).excerpt ? 'A featured post needs an excerpt' : true)},
+            {
+              path: 'featuredNote',
+              validate: (v) => (typeof v === 'string' && v.includes('TODO') ? new Promise<string>((done) => setTimeout(() => done('Remove the TODO before publishing'), 1000)) : true),
+            },
+            {path: 'seo.metaTitle', level: 'warning', validate: (v, {parent}) => (v && v === (parent as {metaDescription?: string} | undefined)?.metaDescription ? 'Meta title and description should differ' : true)},
+          ]
+        : [],
   },
 })
