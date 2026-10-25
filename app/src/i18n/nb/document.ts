@@ -244,6 +244,7 @@ export default {
   'There are no changes': 'Det er ingen endringer',
   'There are validation errors that need to be fixed before this document can be published': 'Valideringsfeil må rettes før det kan publiseres',
   'You are offline. Publishing will be available when you are back online.': 'Du er frakoblet. Publisering blir tilgjengelig når du er på nett igjen.',
+  'Checking your access…': 'Sjekker tilgangen din…',
   'These technical details may be useful for developers.': 'Disse tekniske detaljene kan være nyttige for utviklere.',
   'They will no longer be live. Each one stays as a draft you can publish again.': 'De vil ikke lenger være publisert. Hvert av dem blir værende som et utkast du kan publisere igjen.',
   'This document has been deleted.': 'Dette dokumentet har blitt slettet.',

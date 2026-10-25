@@ -7,7 +7,8 @@ import {deskIndex, deskSort, listFilter, parseDeskPanes, rootDesk, unsupportedOp
 import {parseSingletonPanes, type Pane} from './panes'
 import {startsAtStudioItem, studioDesk} from './structure-config'
 import {loadRefs, mediaRefs, previewRefs, textRefs} from './preview'
-import {meQuery} from './session'
+import {meQuery, provisionalMe} from './session'
+import {withinBudget} from './ssr-budget'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useEffect, useState} from 'react'
 import {useReconnectingToast} from './connection'
@@ -24,7 +25,10 @@ import {redirect, useRouter} from '@tanstack/react-router'
 // data the pane can paint without.
 /** With sign-in on, the structure needs an editor: send others to /login. */
 export async function requireEditor(queryClient: QueryClient, href: string) {
-  const me = await queryClient.ensureQueryData(meQuery)
+  // On the server, Barkpark gets 600 ms to say who this is; late, the session cookie says
+  // (provisionalMe: signed in as they are, nothing allowed until the browser asks again).
+  // The sign-in check below runs either way.
+  const me = typeof window === 'undefined' ? await withinBudget(queryClient, meQuery, 600, () => provisionalMe()) : await queryClient.ensureQueryData(meQuery)
   if (me.signIn !== 'shared' && !me.email) throw redirect({to: '/login', search: {redirect: href}})
 }
 
