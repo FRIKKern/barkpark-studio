@@ -10,7 +10,7 @@ import {announceSession} from '../lib/session-channel'
  * sign-in, an email only. `onSignedIn` runs once the session holds. Used by /login and
  * by J48's sign-in-again dialog, so both ask the same way.
  */
-export function SignInForm({idPrefix, className, heading, autoFocus, onSignedIn, children}: {idPrefix?: string; className?: string; heading: ReactNode; autoFocus?: boolean; onSignedIn: () => Promise<void> | void; children: (busy: boolean) => ReactNode}) {
+export function SignInForm({idPrefix, className, heading, above, autoFocus, onSignedIn, children}: {idPrefix?: string; className?: string; heading: ReactNode; above?: ReactNode; autoFocus?: boolean; onSignedIn: () => Promise<void> | void; children: (busy: boolean) => ReactNode}) {
   const t = useT()
   const {data: me} = useQuery(meQuery)
   const dev = me?.signIn === 'dev'
@@ -102,6 +102,7 @@ export function SignInForm({idPrefix, className, heading, autoFocus, onSignedIn,
       }}
     >
       {heading}
+      {!dev && above}
       {dev && <p className="dev-badge">{t('Dev sign-in — no password. Never enabled in a production build.')}</p>}
       <label htmlFor={id('email')}>{t('Your email')}</label>
       <input id={id('email')} className="input" type="email" autoComplete="username" list={dev ? 'editors' : undefined} autoFocus={autoFocus} required value={email} onChange={(e) => setEmail(e.target.value)} />

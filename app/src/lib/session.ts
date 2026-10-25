@@ -1,6 +1,6 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {accountRequestReset, accountSignIn, currentEditor, describeToken, displayName, editorKey, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
+import {accountRequestReset, accountSignIn, cloudSignIn, currentEditor, describeToken, displayName, editorKey, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {requestToken} from '../server/barkpark'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
@@ -23,6 +23,8 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     /** How editors sign in: their Barkpark account, dev (an email), or nobody (shared). */
     signIn: mode,
     devLogin: mode === 'dev',
+    /** Sign in with Barkpark Cloud is offered (BARKPARK_CLOUD_URL and BARKPARK_CLOUD_INSTANCE). */
+    cloud: !!cloudSignIn(),
     email: ended ? null : editor?.email ?? null,
     /** task-701f8a5fdb6b4d52, the user menu as Sanity's: their name (Barkpark display name) and role here. */
     name: ended || !editor ? null : await displayName(editor.token),
