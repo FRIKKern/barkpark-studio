@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 6 changes
+- **Today** · 7 changes
+  - fix(reference): import TagIcon from its subpath; the reference studio loads again ([#1094](https://github.com/FRIKKern/barkpark-studio/pull/1094))
   - Unpublish dialog: Sanity's words around who refers to the document ([#1093](https://github.com/FRIKKern/barkpark-studio/pull/1093))
-  - B10: the fixture volume declares a neutral action, not OnixEdit's ([#1092](https://github.com/FRIKKern/barkpark-studio/pull/1092))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
