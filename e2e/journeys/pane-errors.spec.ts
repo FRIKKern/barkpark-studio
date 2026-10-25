@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, reveal} from '../rig/targets'
 
 // J50 evidence, both studios: the backend goes away mid-session. A list that can't

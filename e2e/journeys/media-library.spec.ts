@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {seedAssets} from '../../scripts/lib/seed-assets.mjs'
 import {bpBase, bpDataset, bpMutate, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 

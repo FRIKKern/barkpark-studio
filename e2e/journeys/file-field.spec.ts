@@ -1,4 +1,4 @@
-import {expect, test, type Locator, type Page} from '@playwright/test'
+import {expect, test, type Locator, type Page} from '../rig/test'
 import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J54, both studios, on post-03's attachment (the seed's fixture-attachment.txt, a real

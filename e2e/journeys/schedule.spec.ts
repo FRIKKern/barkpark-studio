@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
 
 // J40, Sanity's Schedule publish: a draft is scheduled from the document menu

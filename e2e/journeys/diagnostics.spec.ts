@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // J69 guard (a CI gate): Help > Diagnostics runs its connection tests (the live stream

@@ -1,4 +1,4 @@
-import {expect, test, type Route} from '@playwright/test'
+import {expect, test, type Route} from '../rig/test'
 import {installProbes, networkBudget, recordFeel, sharedLocalToken, timeToReady} from '../rig/feel'
 import {bpBase, bpDataset, bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'

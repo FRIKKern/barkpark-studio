@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {networkBudget, recordFeel, seenAt} from '../rig/feel'
 import {bpMutate, target} from '../rig/targets'
 

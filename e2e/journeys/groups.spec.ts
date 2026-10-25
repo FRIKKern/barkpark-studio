@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // Sanity's visibleGroups: post's Promotion group holds only promoLine, hidden until featured,

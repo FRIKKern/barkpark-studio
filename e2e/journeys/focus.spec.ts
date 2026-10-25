@@ -1,4 +1,4 @@
-import {expect, test, type Locator, type Page} from '@playwright/test'
+import {expect, test, type Locator, type Page} from '../rig/test'
 import {signInIfAsked, target, type Target} from '../rig/targets'
 
 // J43 evidence, both studios: dialogs keep Tab inside, and every dialog and

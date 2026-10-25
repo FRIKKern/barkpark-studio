@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 
 // J16: History opened right after a publish. The doc footer reads the history for "Last

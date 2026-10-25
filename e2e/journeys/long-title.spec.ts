@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // A long title, as Sanity shows it: the title bar under the header stays one line with an

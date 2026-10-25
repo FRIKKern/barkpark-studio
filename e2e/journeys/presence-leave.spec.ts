@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // J07 (task-936472b77285df5b): a closed tab leaves the room at once. Two browsers on

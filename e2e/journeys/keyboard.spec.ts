@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target, BACKEND_POLL, closeAndSettle} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 

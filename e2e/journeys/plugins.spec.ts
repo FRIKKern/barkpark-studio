@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 
 // J65, the plugin surface: the studio config's tool (Stats), custom input (a

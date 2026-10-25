@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // J10, F8 (nothing lost): the body is read-only until a click wakes Barkpark's canvas,

@@ -1,5 +1,5 @@
 import {spawn} from 'node:child_process'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, target} from '../rig/targets'
 
 // J67, ours: a production build asks for a Barkpark account, the editor works as

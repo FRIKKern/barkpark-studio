@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J15 evidence, both studios: change two fields; the change bar beside a field

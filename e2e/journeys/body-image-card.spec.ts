@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpBase, bpDataset, bpMutate, target} from '../rig/targets'
 
 // J11, as Sanity's image block object (scout 2026-10-16, measured light and dark): a body

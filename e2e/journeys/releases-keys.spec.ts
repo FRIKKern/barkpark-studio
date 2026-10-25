@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // The Releases calendar is one Tab stop, as a WAI-ARIA grid and Sanity's date picker: Tab

@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // Arrays as Sanity's, on fieldTypes' "blocks" (six member types) and "sections" (items

@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {closeAndSettle, target} from '../rig/targets'
 
 // J34: tags typed at full speed, Enter after each, all land in order (a fast second Enter

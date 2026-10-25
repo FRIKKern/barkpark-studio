@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // B08 (task-4c538c9fb64e9843): the Media tool's kind, search, sort and view live in the URL,

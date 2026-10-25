@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {BACKEND_POLL, closeAndSettle, signInIfAsked, target} from '../rig/targets'
 
 // A long array (over 150 items) draws only the rows near the view (SortableRows). What

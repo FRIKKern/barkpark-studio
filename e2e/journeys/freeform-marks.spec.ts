@@ -1,4 +1,4 @@
-import {expect, test, type Locator, type Page} from '@playwright/test'
+import {expect, test, type Locator, type Page} from '../rig/test'
 import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // D18 (Freeform side track, ours only), after Barkdown's EDITOR-PARITY rows 2 and 14 and

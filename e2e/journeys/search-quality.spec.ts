@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, type Target} from '../rig/targets'
 
 // Search quality, both studios, on the same docs: which come back, in what order, and

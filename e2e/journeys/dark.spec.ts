@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J45 evidence: dark mode. Both studios with the OS in dark (stills side by side);

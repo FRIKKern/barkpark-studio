@@ -131,8 +131,12 @@ const BEAT_MS = 30_000
 
 const subscribe = (l: () => void) => (listeners.add(l), () => void listeners.delete(l))
 /** Every other session in the room, this editor's other tabs too: for documents, fields and rows. */
-export const usePresences = () => useSyncExternalStore(subscribe, () => others, () => others)
+// The server draws nobody, so hydration starts from nobody too (NONE): presence frames that
+// came before hydration drew avatars the server hadn't, and React threw "Hydration failed"
+// and drew the whole pane again (the rig's error listener caught it in the many-tabs test).
+const NONE: Presence[] = []
+export const usePresences = () => useSyncExternalStore(subscribe, () => others, () => NONE)
 /** Everyone else in the studio, this editor's own tabs left out: for the navbar's Who's online. */
-export const useOtherPeople = () => useSyncExternalStore(subscribe, () => shown, () => shown)
+export const useOtherPeople = () => useSyncExternalStore(subscribe, () => shown, () => NONE)
 /** When each session last moved, for picking where a person with several tabs is now. */
 export const lastMoved: ReadonlyMap<string, number> = moved

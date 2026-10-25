@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, signInIfAsked, target, bpRemove, closeAndSettle} from '../rig/targets'
 
 // J28 guard (a CI gate), as Sanity's slug rule: a duplicate's copied slug is "already in

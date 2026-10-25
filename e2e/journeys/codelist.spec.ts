@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // B05, ours: a codelist field picks a code by searching. What can break silently: the

@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // D01 (Freeform side track, ours only): note is Freeform-main (lib/editor-mode.ts), so

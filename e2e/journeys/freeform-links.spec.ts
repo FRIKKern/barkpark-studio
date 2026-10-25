@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {target} from '../rig/targets'
 
 // Canvas 1.14.0 shows a block-cards body's link as Sanity's annotation pill, at the caret,

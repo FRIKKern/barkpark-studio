@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // The three probes' docs are written at once, while the first test's browser starts, and

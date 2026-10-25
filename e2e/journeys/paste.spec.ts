@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // Paste fidelity, both studios: the same clipboard (text/html + text/plain, as the source

@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J35 evidence, both studios, in post-12's body: (1) expand the editor over the

@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // D12 (Freeform side track, ours only): paper-01's metadata sidebar, after Barkpark's

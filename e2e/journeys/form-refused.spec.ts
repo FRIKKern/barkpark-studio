@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {bpMutate, signInIfAsked, target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // The form's twin of collab.spec's D11 (#373): a save Barkpark refuses (403, 500, or a

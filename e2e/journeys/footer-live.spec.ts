@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // Screen-reader scout (task-439d714d1ef00cec): the document footer's live region says only a

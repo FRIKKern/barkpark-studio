@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // D11 (Freeform side track, ours only): shared carets. Two browsers on paper-01; A puts

@@ -1,6 +1,6 @@
-import {expect, test, type BrowserContext, type Page} from '@playwright/test'
+import {expect, test, type BrowserContext, type Page} from '../rig/test'
 import {readFileSync} from 'node:fs'
-import type {Route} from '@playwright/test'
+import type {Route} from '../rig/test'
 import {bpMutate, signInIfAsked, target, type Target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // B11 widen (task-89fecb4915b2f30d): form edits Barkpark never acknowledged survive the

@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {installProbes, stats, typeAndMeasure} from '../rig/feel'
 import {target, closeAndSettle} from '../rig/targets'
 

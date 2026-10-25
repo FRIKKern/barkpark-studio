@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // J56 and J57, ours (their side by side is the evidence stills; the owner signs off).

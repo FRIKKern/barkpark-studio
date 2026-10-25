@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {target, type Target, closeAndSettle} from '../rig/targets'
 
 // J31 evidence, both studios: radio and dropdown select lists, then the date-time

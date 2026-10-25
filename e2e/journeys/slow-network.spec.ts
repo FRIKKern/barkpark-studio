@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // J51 evidence, both studios, on Fast 3G (Chrome's preset: 562.5 ms RTT, 1.44 Mbps

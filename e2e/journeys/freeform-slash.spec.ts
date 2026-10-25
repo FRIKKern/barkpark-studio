@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {resetNative, target, closeAndSettle} from '../rig/targets'
 
 // D17, Barkdown's EDITOR-PARITY row 12 (its slash sweep, editor-opaque.live.mjs) on our

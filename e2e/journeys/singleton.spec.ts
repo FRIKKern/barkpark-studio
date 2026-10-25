@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // B13 (Barkpark-native, ours only; the Agency Studio's frontpage / siteSettings): a

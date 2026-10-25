@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // D03 (Freeform side track, ours only): two browsers on story-01, A in Freeform and B

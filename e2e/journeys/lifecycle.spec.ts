@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {target, type Target, BACKEND_POLL, closeAndSettle} from '../rig/targets'
 
 // J03 + J04 + J13, both studios, three tests on three docs (QUALITY.md rule 5: each

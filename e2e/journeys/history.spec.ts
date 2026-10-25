@@ -1,4 +1,4 @@
-import {expect, test, type Locator, type Page} from '@playwright/test'
+import {expect, test, type Locator, type Page} from '../rig/test'
 import {signInIfAsked, target, type Target} from '../rig/targets'
 
 // J16 evidence, both studios, on post-history: a document with a real history on

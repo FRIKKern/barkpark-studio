@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from './rig/test'
 import {installProbes, seenAt, stats, timeToReady, typeAndMeasure} from './rig/feel'
 import {target} from './rig/targets'
 

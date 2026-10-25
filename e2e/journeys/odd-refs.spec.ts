@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // J27, both studios: odd reference states. A reference to a doc that is gone

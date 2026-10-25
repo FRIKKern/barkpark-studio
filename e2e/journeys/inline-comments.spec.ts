@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {bpMutate, bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
 
 // J40 widen, ours (the reference can't save a comment): a comment on a span of the body.

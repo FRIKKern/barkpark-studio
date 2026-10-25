@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // J38, global search filters. Evidence on both studios: the dialog with its type

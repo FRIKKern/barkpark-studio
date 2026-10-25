@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // D02, as LiveView's Classic form of a block-list type: note's body (its layout region) is

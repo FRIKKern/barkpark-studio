@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // B07 (Barkpark-native, ours only), after LiveView's unpublish guard: unpublishing an

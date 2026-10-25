@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {canvasFocusSettled, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J10 guard (a CI gate): the body field's toolbar runs Barkpark's canvas commands

@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // D07 (Freeform side track, ours only): a picture pasted into note-01's canvas becomes

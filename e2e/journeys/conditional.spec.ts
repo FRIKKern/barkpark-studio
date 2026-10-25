@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // J30 evidence, both studios: the same steps, one screenshot per step plus a clip,

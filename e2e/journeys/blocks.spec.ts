@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J11 evidence, both studios, in post-11's body: insert a callout and edit it

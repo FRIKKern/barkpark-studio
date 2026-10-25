@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // Barkpark-native track, as LiveView's paper header: the document menu's "Open standalone"

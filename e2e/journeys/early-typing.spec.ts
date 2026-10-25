@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, bpRemove, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // task-6fe143f72dc55f55: keys typed into the server-drawn form before React has it are kept.

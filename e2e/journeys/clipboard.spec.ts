@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {closeAndSettle, target} from '../rig/targets'
 
 // Copy and paste go through the system clipboard in Sanity's format (task-11fcedbfe2d62bc8):

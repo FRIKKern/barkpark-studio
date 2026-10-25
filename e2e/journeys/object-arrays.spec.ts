@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {closeAndSettle, target, type Target} from '../rig/targets'
 
 // J33 evidence, both studios, on post-03's links (an external link and a doc
