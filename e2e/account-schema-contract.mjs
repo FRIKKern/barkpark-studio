@@ -19,6 +19,8 @@ const reads = []
 let declared = false
 let revoked = false
 let structureRefused = false
+// Schema, desk and structure reads are shared for 5 s (server/barkpark.ts SETTLED_MS).
+const SETTLED_WAIT = 5_100
 const backend = createServer(async (req, res) => {
   const path = new URL(req.url, 'http://localhost').pathname
   const token = req.headers.authorization?.replace(/^Bearer /, '')
@@ -79,7 +81,7 @@ try {
 
       if (hasDesk) {
         structureRefused = true
-        await new Promise((resolve) => setTimeout(resolve, 550))
+        await new Promise((resolve) => setTimeout(resolve, SETTLED_WAIT))
         await page.reload()
         await expect(page.getByRole('heading', {name: "Barkpark refused this studio's token."})).toBeVisible()
         assert.equal((await context.cookies()).filter((cookie) => cookie.name === 'bp_sid').length, 1, 'refused service navigation must not end the personal session')
@@ -89,7 +91,7 @@ try {
       // A backend refusal must remain a visible error, never a service-token retry.
       revoked = true
       reads.length = 0
-      await new Promise((resolve) => setTimeout(resolve, 550)) // expire the existing 500 ms read coalescing window
+      await new Promise((resolve) => setTimeout(resolve, SETTLED_WAIT))
       await page.reload()
       await expect(page.getByRole('heading', {name: "You've been logged out"})).toBeVisible()
       assert.ok(reads.some((r) => r.path.includes('/v1/schemas/') && r.token === person))
