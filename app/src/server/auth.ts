@@ -26,6 +26,8 @@ import {getCookie, setCookie, deleteCookie} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
 import {seal, unseal} from './session-cookie'
 import {tokenSelf, type TokenBody, type TokenSelf} from '../lib/token-self'
+import {CLOUD_COOKIE, CLOUD_PATH, CLOUD_TTL_SECONDS, cloudConfig, cloudExchange, cloudStart, publicOrigin, stateMatches, type CloudError, type CloudPending} from '../lib/cloud-signin'
+import {returnPath} from '../lib/return-path'
 export type {TokenSelf} from '../lib/token-self'
 
 export type SignInMode = 'account' | 'dev' | 'shared'
@@ -162,6 +164,39 @@ export async function accountSignIn(email: string, password: string, code?: stri
     void endBarkparkSession(session)
     throw e
   }
+}
+
+/** Sign in with Barkpark Cloud (lib/cloud-signin.ts): on when both BARKPARK_CLOUD_* are set. */
+export const cloudSignIn = () => cloudConfig(process.env, signInMode() === 'account')
+
+/** /auth/cloud/start: remember the pending sign-in in a short cookie, then off to Cloud. */
+export function cloudSignInStart(requestUrl: string, redirect: unknown): string | undefined {
+  const cfg = cloudSignIn()
+  if (!cfg) return undefined
+  const {pending, location} = cloudStart(cfg, publicOrigin(process.env, requestUrl), returnPath(redirect))
+  setCookie(CLOUD_COOKIE, seal(pending, sessionSecret()), {httpOnly: true, sameSite: 'lax', secure: import.meta.env.PROD, path: CLOUD_PATH, maxAge: CLOUD_TTL_SECONDS})
+  return location
+}
+
+/**
+ * /auth/cloud/callback: the pending sign-in is used up whatever happens; a matching state
+ * and a ticket Barkpark trades for a session seated here sign the editor in, as a password
+ * sign-in does. Returns where to go next.
+ */
+export async function cloudSignInFinish(ticket: unknown, state: unknown): Promise<{ok: true; redirect: string} | {ok: false; error: CloudError}> {
+  const raw = getCookie(CLOUD_COOKIE)
+  deleteCookie(CLOUD_COOKIE, {path: CLOUD_PATH})
+  const pending = raw ? unseal<CloudPending>(raw, sessionSecret()) : undefined
+  if (!cloudSignIn() || !stateMatches(pending, state)) return {ok: false, error: 'state'}
+  const got = await cloudExchange({barkparkUrl: process.env.BARKPARK_URL!, ticket, pending, workspace: scope().workspace})
+  if (!got.ok) return got
+  try {
+    await startSession({email: got.email, token: got.token, session: got.token})
+  } catch (e) {
+    void endBarkparkSession(got.token)
+    throw e
+  }
+  return {ok: true, redirect: returnPath(pending.redirect)}
 }
 
 /** Sign out at Barkpark too (best effort): the login session ends there. */

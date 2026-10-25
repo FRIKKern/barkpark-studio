@@ -1127,6 +1127,9 @@ a.version-badge:hover { color: var(--fg-strong); }
 .btn-text.sign-in-forgot, .btn-text.sign-in-back { align-self: flex-start; margin: -4px 0 0 -8px; color: var(--link, var(--selected)); font-weight: 400; }
 .sign-in-sub { margin: 0; font-size: 15px; font-weight: 500; }
 .sign-in-note { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+/* Sign in with Barkpark Cloud: one button above the password form, "or" between them. */
+.sign-in-cloud { justify-content: center; padding: 8px 12px; text-decoration: none; }
+.sign-in-or { margin: 2px 0; text-align: center; font-size: 12px; color: var(--muted); }
 .dev-badge { font-size: 12px; padding: 2px 6px; border-radius: 3px; background: var(--warn-bg); color: var(--warn-fg); }
 .navbar .editor { justify-self: end; display: flex; align-items: center; gap: 8px; color: var(--muted); }
 /* The user menu as Sanity's (task-701f8a5fdb6b4d52): a round avatar in the navbar; the menu

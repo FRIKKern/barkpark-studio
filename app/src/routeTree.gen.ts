@@ -37,6 +37,8 @@ import { Route as ApiMediaFilesRouteImport } from './routes/api/media/files'
 import { Route as ApiMediaUploadRouteImport } from './routes/api/media/upload'
 import { Route as ApiPapersReaderRouteImport } from './routes/api/papers/reader'
 import { Route as ApiQueryTypeRouteImport } from './routes/api/query/$type'
+import { Route as AuthCloudCallbackRouteImport } from './routes/auth/cloud/callback'
+import { Route as AuthCloudStartRouteImport } from './routes/auth/cloud/start'
 import { Route as ApiDocTypeIdRouteImport } from './routes/api/doc/$type/$id'
 import { Route as ApiHistoryTypeIdRouteImport } from './routes/api/history/$type/$id'
 import { Route as ApiMediaIdIndexRouteImport } from './routes/api/media/$id/index'
@@ -183,6 +185,16 @@ const ApiQueryTypeRoute = ApiQueryTypeRouteImport.update({
   path: '/api/query/$type',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCloudCallbackRoute = AuthCloudCallbackRouteImport.update({
+  id: '/auth/cloud/callback',
+  path: '/auth/cloud/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCloudStartRoute = AuthCloudStartRouteImport.update({
+  id: '/auth/cloud/start',
+  path: '/auth/cloud/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDocTypeIdRoute = ApiDocTypeIdRouteImport.update({
   id: '/api/doc/$type/$id',
   path: '/api/doc/$type/$id',
@@ -237,6 +249,8 @@ export interface FileRoutesByFullPath {
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/papers/reader': typeof ApiPapersReaderRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
+  '/auth/cloud/callback': typeof AuthCloudCallbackRoute
+  '/auth/cloud/start': typeof AuthCloudStartRoute
   '/api/media/': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
   '/api/history/$type/$id': typeof ApiHistoryTypeIdRoute
@@ -272,6 +286,8 @@ export interface FileRoutesByTo {
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/papers/reader': typeof ApiPapersReaderRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
+  '/auth/cloud/callback': typeof AuthCloudCallbackRoute
+  '/auth/cloud/start': typeof AuthCloudStartRoute
   '/api/media': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
   '/api/history/$type/$id': typeof ApiHistoryTypeIdRoute
@@ -308,6 +324,8 @@ export interface FileRoutesById {
   '/api/media/upload': typeof ApiMediaUploadRoute
   '/api/papers/reader': typeof ApiPapersReaderRoute
   '/api/query/$type': typeof ApiQueryTypeRoute
+  '/auth/cloud/callback': typeof AuthCloudCallbackRoute
+  '/auth/cloud/start': typeof AuthCloudStartRoute
   '/api/media/': typeof ApiMediaIndexRoute
   '/api/doc/$type/$id': typeof ApiDocTypeIdRoute
   '/api/history/$type/$id': typeof ApiHistoryTypeIdRoute
@@ -345,6 +363,8 @@ export interface FileRouteTypes {
     | '/api/media/upload'
     | '/api/papers/reader'
     | '/api/query/$type'
+    | '/auth/cloud/callback'
+    | '/auth/cloud/start'
     | '/api/media/'
     | '/api/doc/$type/$id'
     | '/api/history/$type/$id'
@@ -380,6 +400,8 @@ export interface FileRouteTypes {
     | '/api/media/upload'
     | '/api/papers/reader'
     | '/api/query/$type'
+    | '/auth/cloud/callback'
+    | '/auth/cloud/start'
     | '/api/media'
     | '/api/doc/$type/$id'
     | '/api/history/$type/$id'
@@ -415,6 +437,8 @@ export interface FileRouteTypes {
     | '/api/media/upload'
     | '/api/papers/reader'
     | '/api/query/$type'
+    | '/auth/cloud/callback'
+    | '/auth/cloud/start'
     | '/api/media/'
     | '/api/doc/$type/$id'
     | '/api/history/$type/$id'
@@ -451,6 +475,8 @@ export interface RootRouteChildren {
   ApiMediaUploadRoute: typeof ApiMediaUploadRoute
   ApiPapersReaderRoute: typeof ApiPapersReaderRoute
   ApiQueryTypeRoute: typeof ApiQueryTypeRoute
+  AuthCloudCallbackRoute: typeof AuthCloudCallbackRoute
+  AuthCloudStartRoute: typeof AuthCloudStartRoute
   ApiMediaIndexRoute: typeof ApiMediaIndexRoute
   ApiDocTypeIdRoute: typeof ApiDocTypeIdRoute
   ApiHistoryTypeIdRoute: typeof ApiHistoryTypeIdRoute
@@ -657,6 +683,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiQueryTypeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/cloud/callback': {
+      id: '/auth/cloud/callback'
+      path: '/auth/cloud/callback'
+      fullPath: '/auth/cloud/callback'
+      preLoaderRoute: typeof AuthCloudCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/cloud/start': {
+      id: '/auth/cloud/start'
+      path: '/auth/cloud/start'
+      fullPath: '/auth/cloud/start'
+      preLoaderRoute: typeof AuthCloudStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/doc/$type/$id': {
       id: '/api/doc/$type/$id'
       path: '/api/doc/$type/$id'
@@ -723,6 +763,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMediaUploadRoute: ApiMediaUploadRoute,
   ApiPapersReaderRoute: ApiPapersReaderRoute,
   ApiQueryTypeRoute: ApiQueryTypeRoute,
+  AuthCloudCallbackRoute: AuthCloudCallbackRoute,
+  AuthCloudStartRoute: AuthCloudStartRoute,
   ApiMediaIndexRoute: ApiMediaIndexRoute,
   ApiDocTypeIdRoute: ApiDocTypeIdRoute,
   ApiHistoryTypeIdRoute: ApiHistoryTypeIdRoute,
