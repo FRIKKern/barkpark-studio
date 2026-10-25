@@ -520,11 +520,10 @@ a { color: inherit; text-decoration: none; }
 .type-row:hover { background: var(--card-hover); }
 .type-row-static { color: var(--muted); cursor: default; }
 .type-row-static:hover { background: none; }
-.type-row .chev { display: flex; margin-left: auto; margin-right: -2px; color: var(--muted); } /* 6 px from the edge, as Sanity's */
+.type-row .chev { display: flex; margin-left: auto; margin-right: -2px; opacity: 0.5; } /* 6 px from the edge; the row's own colour at half opacity in every state, as Sanity's (measured) */
 .type-row .chev > svg { width: 21px; height: 21px; }
 .type-row[data-selected] { background: var(--row-chain-bg); color: var(--row-chain-fg); } /* a row whose pane is open further right: Sanity's, measured */
 .type-row[aria-current='true'] { background: var(--selected); color: var(--on-selected); }
-.type-row[aria-current='true'] .chev { color: var(--on-selected); }
 
 /* J01: type/list navigation stays comfortable to tap on phones and tablets: a touch
    screen's (pointer: coarse). A narrow desktop window keeps Sanity's 25 px buttons. */
@@ -742,6 +741,7 @@ textarea.input { resize: vertical; }
 .ref-search { position: relative; display: flex; gap: 4px; }
 .combo { position: relative; flex: 1; }
 .combo .in-input { position: absolute; right: 6px; top: 5px; }
+.combo .in-input > svg { width: 25px; height: 25px; } /* Sanity's clear X here is its full 25 px glyph (11 px of ink, not 9), measured */
 .btn-square { width: 35px; height: 35px; flex: none; display: grid; place-items: center; border: 0; border-radius: 3px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); cursor: pointer; }
 .popover { position: absolute; z-index: 10; background: var(--bg); border-radius: 6px; box-shadow: var(--popover-shadow); padding: 4px; }
 .popover.options { top: 39px; left: 0; right: 39px; max-height: 320px; overflow: auto; }
@@ -749,8 +749,11 @@ textarea.input { resize: vertical; }
 .ref-search:has(> .btn-create, > .menu-wrap) > .popover.options { right: 0; }
 .popover.options [role=option] { border-radius: 3px; cursor: pointer; }
 .popover.options [role=option]:hover .preview { background: var(--card-hover); } /* the pointer greys a result; the arrow keys light one (Sanity's) */
-.popover.options [role=option][aria-selected='true'] .preview { background: var(--selected); color: var(--on-selected); }
-.popover.options [role=option][aria-selected='true'] .s { color: var(--on-selected-soft); }
+/* Lit too: the field's current value while replacing it, as Sanity's (its dot in the open row's tint). */
+.popover.options [role=option]:is([aria-selected='true'], [data-current]) .preview { background: var(--selected); color: var(--on-selected); }
+.popover.options [role=option]:is([aria-selected='true'], [data-current]) .s { color: var(--on-selected-soft); }
+.popover.options [role=option]:is([aria-selected='true'], [data-current]) .dot { background: var(--dot-on-selected); }
+.popover.options [role=option]:is([aria-selected='true'], [data-current]) .media { background: transparent; color: var(--on-selected); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-selected) 30%, transparent); } /* as the open row's */
 .menu-wrap { position: relative; }
 /* Sanity's menus, measured at 1440 (document actions, list options, Create, a reference's): 33 px items 4 px apart, #383d51 text in weight 500, icons in the muted grey. */
 .popover.menu { right: 0; top: 30px; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
@@ -786,13 +789,21 @@ a.menu-item { display: block; text-decoration: none; }
 .field .ref-search > .combo .input { border-radius: 3px 0 0 3px; }
 .field .ref-search > .btn-square { position: relative; width: 34px; margin-left: -4px; border-radius: 0 3px 3px 0; box-shadow: inset 0 1px 0 var(--line), inset -1px 0 0 var(--line), inset 0 -1px 0 var(--line); }
 .field .ref-search > .btn-square:hover { background: var(--bg); }
-.field .ref-search > .btn-square:hover::before { content: ''; position: absolute; inset: 4px 4px 4px 3px; border-radius: 3px; background: var(--icon-btn-hover); }
+.ref-search > .btn-square:disabled { color: var(--tool-disabled); cursor: default; } /* Sanity's, while its results show (#bbbdc9, measured) */
+.field .ref-search > .btn-square:hover:not(:disabled)::before { content: ''; position: absolute; inset: 4px 4px 4px 3px; border-radius: 3px; background: var(--icon-btn-hover); }
 .field .ref-search > .btn-square > svg { position: relative; }
 /* A narrow field (Sanity's under 480 px) puts Create on its own row under the search: full width, 33 px, 4 px under it. */
 .field .ref-search { container-type: inline-size; }
 @container (max-width: 479px) {
   .field .ref-search > :is(.btn-create, .menu-wrap) { flex: 1 0 100%; }
   .field .ref-search > .btn-create, .field .ref-search > .menu-wrap > .btn-create { width: 100%; height: 33px; justify-content: center; }
+  /* Its results open under Create, not over it (Sanity's at 390): 35 + 4 + 33 + 4. */
+  .field .ref-search:has(> .btn-create, > .menu-wrap) > .popover.options { top: 76px; }
+}
+@media (max-width: 768px) and (pointer: coarse) {
+  @container (max-width: 479px) {
+    .field .ref-search:has(> .btn-create, > .menu-wrap) > .popover.options { top: 96px; } /* 44 px rows: 44 + 4 + 44 + 4 */
+  }
 }
 @media (max-width: 768px) and (pointer: coarse) {
   .doc-form input.input { min-height: 44px; }
@@ -1816,7 +1827,7 @@ html[data-diagnostics-open] .toasts { z-index: 75; } /* not body:has(): lib/html
 .crumb { font: inherit; border: 0; background: none; padding: 2px 4px; border-radius: 3px; color: var(--muted); cursor: pointer; }
 .crumb.current { color: var(--fg-strong); font-weight: 600; cursor: default; }
 .item-dialog .crumbs { display: flex; align-items: center; min-width: 0; margin-top: 3px; font-size: 13px; line-height: 19px; color: var(--muted); }
-.item-dialog .crumb { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; padding: 3px 8px; color: var(--icon-muted); }
+.item-dialog .crumb { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; padding: 3px 8px; color: var(--icon-muted); text-transform: capitalize; } /* Sanity's crumbs: "Sanity docs" reads "Sanity Docs" (measured) */
 .item-dialog button.crumb:hover { background: var(--icon-btn-hover); }
 .item-dialog .crumb .muted { flex: none; padding: 0 4px; border-radius: 9999px; line-height: 17px; background: var(--fill-soft); color: var(--crumb-place-fg); font-weight: 400; }
 .item-dialog .crumb:has(> .muted) { padding-left: 4px; }
