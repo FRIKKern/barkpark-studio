@@ -13,3 +13,5 @@ e2e/evidence/
 *.tmp.sh
 .studio-dev-tokens.json
 .e2e-lane-tokens.json
+.vercel/
+.output/

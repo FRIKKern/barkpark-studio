@@ -4,6 +4,7 @@ import path from 'node:path'
 import {defineConfig, loadEnv, type Plugin} from 'vite'
 import {tanstackStart} from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
+import {nitro} from 'nitro/vite'
 import {parseChanges} from './src/lib/whats-new'
 
 // Cold-load scout (2026-10-09): the production server sent its content-hashed
@@ -139,6 +140,13 @@ const routeChunk = (id: string, ctx: {getModuleInfo: (id: string) => Info | null
   return doc.length === roots.length ? 'doc-pane' : 'desk-shared'
 }
 
+// A Vercel deployment (docs/DEPLOY.md): with NITRO_PRESET=vercel (`pnpm build:vercel`, or any
+// build on Vercel) Nitro
+// wraps the same server in the Build Output API, app/.vercel/output. Without it the build is
+// dist/ for `vite preview` (`pnpm serve`), unchanged. One Node 22 function serves every page and
+// API route; 300 s bounds a live stream (lib/live.ts reconnects past it).
+const vercel = (): Plugin[] => (process.env.NITRO_PRESET === 'vercel' || process.env.VERCEL === '1' ? (nitro({vercel: {functions: {runtime: 'nodejs22.x', maxDuration: 300}}}) as Plugin[]) : [])
+
 export default defineConfig(({mode}) => {
   // Server-only secrets from the repo-root .env. Not VITE_-prefixed, so they never reach the client bundle.
   Object.assign(process.env, loadEnv(mode, '..', ['BARKPARK_', 'STUDIO_']))
@@ -148,7 +156,7 @@ export default defineConfig(({mode}) => {
     try {
       return execSync('git rev-parse --short HEAD', {stdio: ['ignore', 'pipe', 'ignore']}).toString().trim()
     } catch {
-      return 'dev'
+      return process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) || 'dev'
     }
   })()
   // One id per build: the config runs once for the client and once for the server
@@ -169,6 +177,6 @@ export default defineConfig(({mode}) => {
     environments: {client: {build: {manifest: true, rolldownOptions: {output: {codeSplitting: {groups: [{name: routeChunk, includeDependenciesRecursively: false}]}}}}}},
     define: {__STUDIO_BUILD__: JSON.stringify(build), __STUDIO_CHANGES__: JSON.stringify(changes)},
     // Server-only modules (src/server) imported into client code fail the build, not mock silently.
-    plugins: [warmAtBoot(), immutableAssets(), compressHtml(), preloadEditors(), tanstackStart({importProtection: {behavior: 'error', client: {files: ['**/src/server/**']}}}), viteReact()],
+    plugins: [warmAtBoot(), immutableAssets(), compressHtml(), preloadEditors(), tanstackStart({importProtection: {behavior: 'error', client: {files: ['**/src/server/**']}}}), viteReact(), ...vercel()],
   }
 })
