@@ -82,6 +82,7 @@ export function useDocSelect<T>(select: (doc: Doc | null) => T): T {
 /** The object or array item the fields inside it belong to (a condition's `scope: "parent"`). */
 export const ParentContext = createContext<Record<string, unknown> | undefined>(undefined)
 import {DocIdContext, DocTypeContext} from './doc-ids'
+import {orUnset, withField} from '../lib/with-field'
 export {DocIdContext, DocTypeContext}
 /** J52: the field path the URL asks for (`path=`), so an array can open the item it sits in. */
 export const UrlPathContext = createContext<string | undefined>(undefined)
@@ -561,7 +562,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
           // undid each other (a typed lat never stored, a cleared lng came back). Its
           // _type goes once, on its own path.
           onChange={(v) => {
-            if (!editPath) return onChange({...(field.type === 'geopoint' ? {_type: 'geopoint'} : {}), ...(value as Record<string, unknown>), [f.name]: v})
+            if (!editPath) return onChange(orUnset(withField({...(field.type === 'geopoint' ? {_type: 'geopoint'} : {}), ...(value as Record<string, unknown>)}, f.name, v)))
             if (field.type === 'geopoint' && (value as {_type?: unknown} | undefined)?._type !== 'geopoint') editPath(`${path}._type`, 'geopoint')
             editPath(`${path}.${f.name}`, v)
           }}

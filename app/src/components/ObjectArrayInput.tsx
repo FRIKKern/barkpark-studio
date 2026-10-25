@@ -14,6 +14,7 @@ import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, Upload} from './icons'
 import {translate, useLocale, useT} from '../lib/i18n'
 import {usePrimed} from '../lib/prime'
+import {withField} from '../lib/with-field'
 
 // Arrays of objects (J33), after Sanity's: each item a row with a preview (the
 // item's preview title/subtitle; a reference subtitle shows the referenced doc's
@@ -348,7 +349,7 @@ function ItemDialog({parentTitle, position, item, of, path, readOnly, openRef, o
                 <FieldView field={{...of, name: 'image', title: t('Image')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _type: 'image', _key: item._key})} />
               ) : (
                 fieldsOf(of, item).map((f) => (
-                  <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange({...item, [f.name]: v})} />
+                  <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange(withField(item, f.name, v))} />
                 ))
               )}
             </ParentContext.Provider>
