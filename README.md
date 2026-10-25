@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 27 changes
+- **Today** · 28 changes
+  - Desk: a list filter with an $or group (Sanity's (!defined(x) || x == "")) ([#1115](https://github.com/FRIKKern/barkpark-studio/pull/1115))
   - seed-barkpark verify: read the Sanity dataset SANITY_STUDIO_DATASET names ([#1114](https://github.com/FRIKKern/barkpark-studio/pull/1114))
-  - Sign in with Barkpark Cloud: /auth/cloud/start and /auth/cloud/callback trade a Cloud ticket for a login session ([#1112](https://github.com/FRIKKern/barkpark-studio/pull/1112))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
