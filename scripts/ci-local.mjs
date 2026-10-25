@@ -1,5 +1,5 @@
 // Runs .github/workflows/{docs,e2e}.yml locally, for when GitHub Actions can't run
-// (e.g. billing). Same env, all six shards, each on a CI dataset leased as Actions does
+// (e.g. billing). Same env, all seven shards, each on a CI dataset leased as Actions does
 // (scripts/ci-lease.mjs: CI runs and this one never share a dataset). Usage, from a PR worktree:
 //   node scripts/ci-local.mjs            # prints a summary to paste on the PR
 import {execSync} from 'node:child_process'
@@ -25,7 +25,7 @@ process.on('exit', unlock); for (const s of ['SIGINT', 'SIGTERM']) process.on(s,
 const out = []
 sh('node scripts/check-docs.mjs'); out.push('docs: ok')
 sh('pnpm --dir app install --frozen-lockfile --silent && pnpm --dir e2e install --frozen-lockfile --silent && pnpm --dir app build')
-for (const [shard, home] of [[1, 'ci'], [2, 'ci-2'], [3, 'ci-3'], [4, 'ci-4'], [5, 'ci-5'], [6, 'ci-6']]) {
+for (const [shard, home] of [[1, 'ci'], [2, 'ci-2'], [3, 'ci-3'], [4, 'ci-4'], [5, 'ci-5'], [6, 'ci-6'], [7, 'ci-7']]) {
   Object.assign(process.env, base) // the lease reads BARKPARK_* from the env
   const dataset = await acquire({prefer: home})
   try {
@@ -35,7 +35,7 @@ for (const [shard, home] of [[1, 'ci'], [2, 'ci-2'], [3, 'ci-3'], [4, 'ci-4'], [
   try {
     execSync(`for i in $(seq 1 60); do curl -sf http://localhost:${port}/health >/dev/null && exit 0; sleep 1; done; exit 1`, {shell: '/bin/bash'})
     const t = Date.now()
-    sh(`node node_modules/@playwright/test/cli.js test $(node ../scripts/shard-files.mjs ${shard} 6) --project=studio`, {BARKPARK_DATASET: dataset, E2E_PORT: String(port), }, 'e2e')
+    sh(`node node_modules/@playwright/test/cli.js test $(node ../scripts/shard-files.mjs ${shard} 7) --project=studio`, {BARKPARK_DATASET: dataset, E2E_PORT: String(port), }, 'e2e')
     out.push(`shard ${shard} (${dataset}): pass in ${((Date.now() - t) / 1000).toFixed(1)} s`)
   } finally { try { process.kill(Number(srv)) } catch {} }
   } finally { await release({dataset}) }
