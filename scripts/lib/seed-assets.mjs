@@ -14,7 +14,8 @@ const fileOf = (sanityAsset) => new URL(sanityAsset.replace(/^\w+@file:\/\/\.\//
 /** `upload: false` only looks: a file the dataset lacks resolves to `asset-missing:<name>`. */
 export async function seedAssets(docs, {base, dataset, token, upload = true}) {
   const auth = {authorization: `Bearer ${token}`}
-  const wanted = [...new Set(docs.flatMap((d) => Object.values(d).flatMap((v) => (v?._sanityAsset ? [v._sanityAsset] : []))))]
+  // A field's file or image, and each one in an array (a gallery).
+  const wanted = [...new Set(docs.flatMap((d) => Object.values(d).flatMap((v) => (Array.isArray(v) ? v : [v]).flatMap((x) => (x?._sanityAsset ? [x._sanityAsset] : [])))))]
   const have = []
   for (let offset = 0; wanted.length; offset += 200) {
     const res = await withRetry(() => fetch(`${base}/v1/media/${dataset}?limit=200&offset=${offset}`, {headers: auth}), {label: `GET media ${dataset}`})
