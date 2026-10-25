@@ -1,4 +1,6 @@
-import {useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {getPref, putPref} from '../lib/prefs'
 import {DialogBox} from './FocusScopes'
 import type {Doc} from '../lib/data'
 import {Close as CloseIcon, Search as SearchIcon} from './icons'
@@ -10,8 +12,11 @@ import {useT, type T} from '../lib/i18n'
 
 type Json = null | boolean | number | string | Json[] | {[k: string]: Json}
 
-// Sanity reopens Inspect on the view used last, also after a reload (it keeps it per user).
+// Sanity reopens Inspect on the view used last, also after a reload and in another browser:
+// it keeps it per user on its server. So does this, through lib/prefs (Barkpark, per editor),
+// mirrored here in localStorage for the first paint (task-d381604895f6d274), like studio.lists.
 const VIEW_KEY = 'studio.inspect.view'
+const viewPrefQuery = {queryKey: ['pref', VIEW_KEY], queryFn: async () => ((await getPref({data: VIEW_KEY}).catch(() => null)) as unknown) ?? null, staleTime: 60_000}
 const readView = (): 'parsed' | 'raw' => {
   try {
     return localStorage.getItem(VIEW_KEY) === 'raw' ? 'raw' : 'parsed'
@@ -19,11 +24,12 @@ const readView = (): 'parsed' | 'raw' => {
     return 'parsed'
   }
 }
-const keepView = (view: 'parsed' | 'raw') => {
+const mirrorView = (view: 'parsed' | 'raw') => {
   try {
     localStorage.setItem(VIEW_KEY, view)
   } catch {}
 }
+const keepView = (view: 'parsed' | 'raw') => (mirrorView(view), void putPref({data: {key: VIEW_KEY, value: view}}).catch(() => {}))
 
 /** The document as stored, keys in order (Sanity's): client-only bookkeeping (_hasPublished, _publishedAt) left out. */
 export function storedValue(doc: Doc): Json {
@@ -36,7 +42,16 @@ export function storedValue(doc: Doc): Json {
 export function InspectDialog({doc, title, onClose}: {doc: Doc; title: string; onClose: () => void}) {
   const t = useT()
   const [tab, setTabState] = useState<'parsed' | 'raw'>(readView)
-  const setTab = (next: 'parsed' | 'raw') => (keepView(next), setTabState(next))
+  const chosen = useRef(false)
+  const qc = useQueryClient()
+  const setTab = (next: 'parsed' | 'raw') => ((chosen.current = true), keepView(next), qc.setQueryData(viewPrefQuery.queryKey, next), setTabState(next))
+  // The editor's own choice from Barkpark (another browser's), unless they chose here already.
+  const {data: kept} = useQuery(viewPrefQuery)
+  useEffect(() => {
+    if (chosen.current || (kept !== 'raw' && kept !== 'parsed')) return
+    mirrorView(kept)
+    setTabState(kept)
+  }, [kept])
   const [query, setQuery] = useState('')
   const value = storedValue(doc)
   return (
