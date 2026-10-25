@@ -226,10 +226,10 @@ test('@evidence B10: a schema action\'s confirm and dry-run', async ({page, brow
   await t.settle(page)
   await t.docMenu(page).click()
   await page.screenshot({path: still('B10', '1-menu', 'studio')})
-  const item = page.getByRole('menuitem', {name: 'Send to Bokbasen'})
+  const item = page.getByRole('menuitem', {name: 'Send for review'})
   if (await item.count()) {
     await item.click()
-    const dialog = page.getByRole('dialog', {name: 'Send to Bokbasen?'})
+    const dialog = page.getByRole('dialog', {name: 'Send for review?'})
     await page.screenshot({path: still('B10', '2-confirm', 'studio')})
     await dialog.getByRole('button', {name: 'Confirm', exact: true}).click()
     await expect(dialog.getByRole('alert')).toBeVisible()
@@ -237,7 +237,7 @@ test('@evidence B10: a schema action\'s confirm and dry-run', async ({page, brow
     await dialog.getByRole('button', {name: 'Cancel'}).click()
   }
   await lvGo(lv, '/volume/volume-01')
-  const lvAction = lv.getByRole('button', {name: /Send to Bokbasen/})
+  const lvAction = lv.getByRole('button', {name: /Send for review/})
   note(info, {type: 'liveview action button', description: String(await lvAction.count())})
   await lv.screenshot({path: still('B10', '1-menu', 'liveview')})
   if (await lvAction.count()) {
