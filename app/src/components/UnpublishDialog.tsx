@@ -91,12 +91,13 @@ export function UnpublishDialog({docs, run, onClose}: {docs: Doc[]; run: () => P
           )}
           {used.map(({doc, refs}) => (
             <section key={doc._publishedId} aria-label={t('Referring to {title}', {title: title(doc)})}>
-              {/* Sanity's warning bar, then what unpublishing does to them. */}
+              {/* Sanity's warning bar, its words for who refers, and what unpublishing does to them. */}
               <p className="warning" role="status">
                 {refs.length === 1 ? t('1 document refers to “{title}”', {title: title(doc)}) : t('{n} documents refer to “{title}”', {title: title(doc), n: refs.length})}
               </p>
-              <p>{t('Unpublishing it will leave these references pointing at nothing live:')}</p>
+              <p>{t('You may not be able to unpublish “{title}” because the following documents refer to it:', {title: title(doc)})}</p>
               <UsedInList refs={refs} field />
+              <p>{t('If you unpublish this document, documents that refer to it will no longer be able to access it.')}</p>
             </section>
           ))}
           {error && (
