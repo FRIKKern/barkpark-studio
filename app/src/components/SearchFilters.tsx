@@ -21,6 +21,7 @@ import {
   type Unit,
 } from '../lib/search-filters'
 import {DocPreview} from './Preview'
+import {SORTS, sortLabel, typesLabel, type SearchSort} from './search-labels'
 import {RefSearch} from './RefInput'
 import {Add, BlockContentIcon, Calendar, CheckmarkCircle, ListIcon, Check, ChevronDown, Close, DocumentIcon, ImageIcon, LinkIcon, NumberIcon, Search as SearchIcon, Sort, StringIcon, Trash} from './icons'
 
@@ -28,26 +29,6 @@ import {Add, BlockContentIcon, Calendar, CheckmarkCircle, ListIcon, Check, Chevr
 // ("All types", or the picked types as "Author, Post"), one chip per field filter
 // (click: field, operator, value; ×: remove), "Add filter", "Clear filters", and
 // the order row. The model (fields, operators, query) is lib/search-filters.ts.
-
-export type SearchSort = 'best' | 'createdAsc' | 'createdDesc' | 'updatedAsc' | 'updatedDesc'
-// Groups split by a divider, as Sanity's menu.
-export const SORTS: [SearchSort, string][][] = [
-  [['best', 'Best match']],
-  [['createdAsc', 'Created: Oldest first'], ['createdDesc', 'Created: Newest first']],
-  [['updatedAsc', 'Updated: Oldest first'], ['updatedDesc', 'Updated: Newest first']],
-]
-export const sortLabel = (s: SearchSort, t: T = english) => t(SORTS.flat().find(([k]) => k === s)![1])
-
-/** Picked type titles, A–Z, cut to `chars` with "+N more" (Sanity's documentTypesTruncated). */
-export function typesLabel(schemas: Schema[], types: string[], t: T = english, chars = 40) {
-  if (!types.length) return t('All types')
-  const titles = types.map((t) => schemas.find((s) => s.name === t)?.title ?? t).sort((a, b) => collate(a, b))
-  const shown: string[] = []
-  for (const t of titles) if (!shown.length || [...shown, t].join(', ').length <= chars) shown.push(t)
-    else break
-  const more = titles.length - shown.length
-  return more ? t('{types} +{count} more', {types: shown.join(', '), count: more}) : shown.join(', ')
-}
 
 // Sanity's icon per field kind (its data-sanity-icon on :3334): string, number, checkmark-circle, calendar, link, ulist, document.
 const ICON: Record<Kind, () => ReactNode> = {
