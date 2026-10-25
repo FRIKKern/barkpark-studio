@@ -15,7 +15,9 @@ import {watchRequests} from '../lib/request-timings'
 import {currentScopeQuery} from '../lib/scope-switch'
 import {serverNowQuery} from '../lib/now'
 import {LocaleProvider, localeQuery} from '../lib/i18n'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {withinBudget} from '../lib/ssr-budget'
+import {meQuery} from '../lib/session'
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url'
 
 export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope: ScopeRef}>()({
@@ -24,7 +26,14 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
   // B01: the workspace's language too, so the server render is already in it.
   // The server's render time too, for relative times that hydrate as rendered (lib/now.ts).
   // Nothing is returned: a fresh value on every navigation re-rendered the whole app (F2).
-  loader: async ({context}) => void (await Promise.all([context.queryClient.ensureQueryData(currentScopeQuery), context.queryClient.ensureQueryData(localeQuery), context.queryClient.ensureQueryData(serverNowQuery)])),
+  // The locale is a Barkpark read: on the server it gets 1 s (lib/ssr-budget), else the page
+  // renders in English and the browser asks again (task-f2bc22f7401aae9e).
+  loader: async ({context}) =>
+    void (await Promise.all([
+      context.queryClient.ensureQueryData(currentScopeQuery),
+      typeof window === 'undefined' ? withinBudget(context.queryClient, localeQuery, 1000, () => ({locale: 'en' as const, provisional: true as const})) : context.queryClient.ensureQueryData(localeQuery),
+      context.queryClient.ensureQueryData(serverNowQuery),
+    ])),
   head: () => ({
     meta: [
       {charSet: 'utf-8'},
@@ -61,6 +70,12 @@ function RootDocument({children}: {children: ReactNode}) {
   useEffect(watchRequests, [])
   const localeData = useQuery(localeQuery).data ?? {locale: 'en' as const}
   const locale = localeData.locale
+  // The server render stood in for a late Barkpark (lib/ssr-budget): the browser asks now.
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (localeData.provisional) void qc.invalidateQueries({queryKey: localeQuery.queryKey})
+    if (qc.getQueryData<{provisional?: boolean}>(meQuery.queryKey)?.provisional) void qc.invalidateQueries({queryKey: meQuery.queryKey})
+  }, [])
   return (
     // data-theme is set by THEME_BOOT before hydration; React must not fight it.
     <html lang={locale === 'nb-NO' ? 'nb' : 'en'} suppressHydrationWarning>

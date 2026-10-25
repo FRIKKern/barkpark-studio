@@ -13,6 +13,9 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
   const editor = currentEditor()
   // J49: may this editor write? The token they work with says (dev sign-in: theirs; else
   // the studio's own). Signed out of dev sign-in: the sign-in screen takes over.
+  // The display name (GET /v1/auth/me) only labels the user menu: asked beside the token
+  // check, and given 400 ms (a slow /v1/auth/me held every cold load; it fills in next time).
+  const named = editor ? displayName(editor.token) : undefined
   const self = signInRequired() && !editor ? undefined : await describeToken(editor?.token ?? requestToken())
   // The signed-in editor's own token is dead (revoked or expired, 401): their session
   // ends here, and signing in again mints a new one (J48), not a refused-studio card.
@@ -27,7 +30,7 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     cloud: !!cloudSignIn(),
     email: ended ? null : editor?.email ?? null,
     /** task-701f8a5fdb6b4d52, the user menu as Sanity's: their name (Barkpark display name) and role here. */
-    name: ended || !editor ? null : await displayName(editor.token),
+    name: ended || !named ? null : await Promise.race([named, new Promise<null>((r) => setTimeout(r, 400, null))]),
     role: ended || !editor ? null : self?.role ?? null,
     /** Help > Diagnostics: the Barkpark user behind a login session. */
     userId: ended || !editor ? null : self?.userId ?? null,
@@ -43,6 +46,36 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     studioTokenRefused: !editor && !!self?.refused,
     /** Signed in, but with no seat in this workspace (or it doesn't exist): Sanity's no-access screen. */
     noSeat: !!editor && !ended && !!self && serviceAccess(self) === 'no_seat',
+    /** Barkpark's answer (false), or provisionalMe's stand-in while it is late (true). */
+    provisional: false as boolean,
+  }
+})
+
+/**
+ * task-f2bc22f7401aae9e: who is signed in when Barkpark is too slow to say more, for the
+ * server render. From the session cookie alone (no Barkpark read), so a signed-in editor is
+ * never shown signed out; and with no right to write or publish until the browser's own
+ * whoAmI answers (it asks at once), so a slow Barkpark never opens an action a role forbids.
+ */
+export const provisionalMe = createServerFn({method: 'GET'}).handler(async () => {
+  const editor = currentEditor()
+  const mode = signInMode()
+  return {
+    signIn: mode,
+    devLogin: mode === 'dev',
+    cloud: !!cloudSignIn(),
+    email: editor?.email ?? null,
+    name: null,
+    role: null,
+    userId: null,
+    presenceName: editor ? presenceName(editor.email) : null,
+    editorKey: editor ? editorKey(editor.email) : null,
+    canWrite: false,
+    canPublish: false,
+    boundDataset: null,
+    studioTokenRefused: false,
+    noSeat: false,
+    provisional: true as boolean,
   }
 })
 
@@ -98,16 +131,19 @@ export function useCanWrite() {
   const {data: me} = useQuery(meQuery)
   const canWrite = me?.canWrite !== false
   const canPublish = canWrite && me?.canPublish !== false
+  // A provisional answer (Barkpark was slow for the server render): nothing is allowed yet,
+  // and the reason says so, not a role the editor may not have.
+  const checking = !!me?.provisional
   return {
     canWrite,
     canPublish,
     /** Sign-in is on and nobody is signed in any more. */
     signedOut: !!me && me.signIn !== 'shared' && !me.email,
-    editReason: canWrite ? undefined : t('Your role Viewer does not have permission to edit this document.'),
-    publishReason: !canWrite ? t('Your role Viewer does not have permission to publish this document.') : canPublish ? undefined : t('Your role Contributor does not have permission to publish this document.'),
-    unpublishReason: !canWrite ? t('Your role Viewer does not have permission to unpublish this document.') : canPublish ? undefined : t('Your role Contributor does not have permission to unpublish this document.'),
+    editReason: canWrite ? undefined : checking ? t('Checking your access…') : t('Your role Viewer does not have permission to edit this document.'),
+    publishReason: checking && !canPublish ? t('Checking your access…') : !canWrite ? t('Your role Viewer does not have permission to publish this document.') : canPublish ? undefined : t('Your role Contributor does not have permission to publish this document.'),
+    unpublishReason: checking && !canPublish ? t('Checking your access…') : !canWrite ? t('Your role Viewer does not have permission to unpublish this document.') : canPublish ? undefined : t('Your role Contributor does not have permission to unpublish this document.'),
     /** Deleting a published document unpublishes it too: a Contributor deletes drafts only. */
-    deletePublishedReason: !canWrite ? t('Your role Viewer does not have permission to delete this document.') : canPublish ? undefined : t('Your role Contributor does not have permission to delete this document.'),
+    deletePublishedReason: checking && !canPublish ? t('Checking your access…') : !canWrite ? t('Your role Viewer does not have permission to delete this document.') : canPublish ? undefined : t('Your role Contributor does not have permission to delete this document.'),
     createReason: canWrite ? undefined : t('Your role Viewer does not have permission to create documents.'),
     commentReason: canWrite ? undefined : t('Your role Viewer does not have permission to comment on this document.'),
   }

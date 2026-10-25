@@ -18,7 +18,8 @@ export type T = (en: string, vars?: Vars) => string
  * The workspace's locale and, for one other than English, its strings, and the Freeform
  * canvas's own (`canvas`: Barkpark's map as JSON, stamped as the canvas's data-strings).
  */
-export type LocaleData = {locale: Locale; strings?: Record<string, string>; canvas?: string}
+/** `provisional`: Barkpark was too slow for the server render to know; the browser asks again. */
+export type LocaleData = {locale: Locale; strings?: Record<string, string>; canvas?: string; provisional?: true}
 
 // The canvas's chrome words come from Barkpark (GET /v1/i18n/paper_canvas, #22439: the
 // map its LiveView stamps), read on the server and kept a while per locale; a failed
