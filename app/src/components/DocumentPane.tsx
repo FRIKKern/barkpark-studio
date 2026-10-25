@@ -1062,7 +1062,8 @@ function GroupTabs({schema, doc, value, onChange, problems, disabled}: {schema: 
             id={`group-tab-${g.name || 'all-fields'}`}
             aria-selected={value === g.name}
             tabIndex={value === g.name ? 0 : -1}
-            disabled={disabled}
+            // Reviewing, as Sanity's: the shown tab (All fields) stays live and takes focus; the rest wait.
+            disabled={disabled && value !== g.name}
             onClick={() => onChange(g.name)}
           >
             {/* A group's `icon` (a Sanity icon name) before its title, as Sanity's tabs. */}

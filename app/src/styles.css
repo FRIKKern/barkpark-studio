@@ -77,6 +77,7 @@
   --studio-on-primary: #fff;
   --disabled: #b0b4c0;
   --tool-disabled: #bbbdc9; /* Sanity's body tools before the editor has focus (measured) */
+  --tab-disabled-icon: #dbdce2; /* a group tab's level icon while History is open (Sanity's, measured) */
   --warn-bg: #fdf3c8;
   --warn-fg: #6b5300;
   /* Sanity's caution card (Presentation's "Missing a main document"), measured */
@@ -276,6 +277,7 @@
   --studio-on-primary: #13141b;
   --disabled: #5c6175;
   --tool-disabled: #3d4258;
+  --tab-disabled-icon: #303346; /* dark: the note ring's tone (not measured) */
   --warn-bg: #3b3216;
   --warn-fg: #f2d36b;
   --caution-card-bg: #1e1a1b;
@@ -892,6 +894,7 @@ a.menu-item { display: block; text-decoration: none; }
 .command-item[aria-selected='true'] { background: var(--icon-btn-hover); color: var(--menu-active-fg); }
 .command-item[aria-checked='true'] { color: var(--selected); }
 .command-item > svg { width: 19px; height: 19px; }
+.command-item > svg.desk-icon { width: 21px; height: 21px; margin-left: -5px; color: var(--muted); } /* Create new document: a type's icon, as Sanity's (its title 22 px further in) */
 .command-empty { margin: 0; padding: 12px; font-size: 13px; color: var(--muted); }
 .command-footer { display: flex; justify-content: center; border-top: 1px solid var(--border); padding: 4px; }
 .field-choice { display: flex; align-items: center; gap: 6px; margin-left: -6px; }
@@ -1177,7 +1180,8 @@ button.chip[data-tone=positive]:not([data-active], [data-off]):hover { backgroun
 .group-tabs [role=tab] .error-icon { margin: -1px -6px -1px 6px; }
 .group-tabs [role=tab] .error-icon svg { width: 21px; height: 21px; }
 .group-tabs [role=tab]:hover:not(:disabled) { background: var(--icon-btn-hover); }
-.group-tabs [role=tab]:disabled { cursor: default; } /* History or Review changes open: all fields, as Sanity's */
+.group-tabs [role=tab]:disabled { cursor: default; color: var(--placeholder); } /* History or Review changes open: all fields; the others greyed as Sanity's (#9499ad, measured; a disabled control needs no AA) */
+.group-tabs [role=tab]:disabled .error-icon { color: var(--tab-disabled-icon); }
 .group-tabs [role=tab][aria-selected='true'] { background: var(--selected-fill); color: var(--tab-selected-fg); }
 .group-tabs .group-icon { margin: -3px 4px -3px 0; vertical-align: middle; }
 .group-tabs [role=tab]:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--selected); }

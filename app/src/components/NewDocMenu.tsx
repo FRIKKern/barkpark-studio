@@ -1,12 +1,13 @@
 import {useId, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {isSingleton, schemasQuery} from '../lib/data'
+import {isSingleton, schemaOf, schemasQuery} from '../lib/data'
 import {choicesFor, startNew, type Choice} from '../lib/templates'
 import {focusFirstField} from '../lib/focus'
 import {useFocusScope} from '../lib/focus-scope'
 import {useCanWrite} from '../lib/session'
 import {Add, Close, Search} from './icons'
+import {DeskIcon} from './DeskIcon'
 import {toast} from './Toasts'
 import {collate, t as tBrowser, useT} from '../lib/i18n'
 import {isDocumentType} from '../lib/creatable'
@@ -46,6 +47,7 @@ export function NewDocMenu() {
 
 function TypePicker({choices, onPick, onClose}: {choices: Choice[]; onPick: (choice: Choice) => void; onClose: () => void}) {
   const tr = useT()
+  const {data: schemas = []} = useQuery(schemasQuery)
   const scope = useFocusScope<HTMLDivElement>({onDismiss: onClose})
   const [find, setFind] = useState('')
   // As Sanity's, nothing is lit until the arrow keys move (Enter then opens nothing by accident).
@@ -88,6 +90,11 @@ function TypePicker({choices, onPick, onClose}: {choices: Choice[]; onPick: (cho
         <div role="listbox" id={id} aria-label={tr('New document')} className="command-list">
           {shown.map((t, i) => (
             <div key={t.id} id={`${id}-${i}`} role="option" aria-selected={i === at} className="command-item" onMouseEnter={() => setActive(i)} onMouseDown={(e) => (e.preventDefault(), onPick(t))}>
+              {/* A type that names an icon shows it before its title, as Sanity's (Category's tag); others none. */}
+              {(() => {
+                const s = schemaOf(schemas, t.type)
+                return s?.icon && s.iconSvg ? <DeskIcon name={s.icon} svg={s.iconSvg} /> : null
+              })()}
               {t.title}
             </div>
           ))}
