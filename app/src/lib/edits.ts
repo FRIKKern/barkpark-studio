@@ -270,7 +270,10 @@ const SAVED: Snap = {state: 'saved'}
 const docs = new Map<string, DocEdits>()
 const listeners = new Set<() => void>()
 const setState = (e: DocEdits, state: SaveState, error?: string, retry = false) => {
-  e.snap = {state, error, creating: !!e.pendingCreate && !!e.createRequested, ...(retry && {retry})}
+  const creating = !!e.pendingCreate && !!e.createRequested
+  // The same state again tells nobody: the footer and the pane re-drew on each repeat.
+  if (e.snap.state === state && e.snap.error === error && e.snap.creating === creating && !!e.snap.retry === retry) return
+  e.snap = {state, error, creating, ...(retry && {retry})}
   setFooterOffline(anyOffline())
   listeners.forEach((l) => l())
 }
@@ -634,7 +637,9 @@ async function send(qc: QueryClient, id: string) {
   e.lastSent = Date.now()
   budget.spend()
   const after = e.snap.state === 'offline' || e.snap.state === 'recovering'
-  setState(e, after ? 'recovering' : 'saving')
+  // "Not saved — retrying" stays until a save lands: flipped to Saving and back on every
+  // key, each flip re-drew the footer and Publish (about 5x the style work on a long doc).
+  if (e.snap.state !== 'error') setState(e, after ? 'recovering' : 'saving')
   const stall = setTimeout(() => e.inflight && setState(e, 'stalled'), STALL_MS)
   const {set, unset} = toPatch(e.inflight)
   const creating = e.pendingCreate
