@@ -7,13 +7,12 @@ import {GlobalSearch} from './Search'
 import {NewDocMenu} from './NewDocMenu'
 import {ScopeSwitcher} from './ScopeSwitcher'
 import {ActorAvatar, WhoIsOnline} from './Presence'
-import {TasksPanel} from './TasksPanel'
-import {Diagnostics} from './Diagnostics'
+import {Diagnostics, loadDiagnostics, loadTasksPanel, TasksPanel, usePrefetchPanels} from './Panels'
 import {showTasks, useTasksView} from '../lib/tasks-ui'
 import {DialogBox, MenuPopover} from './FocusScopes'
 import {Calendar, CheckmarkCircle, ChevronDown, Close, Desktop, HelpCircle, MenuIcon, Moon, SignOut, Sun, UserCircle as UserIcon, BugIcon, FeedbackIcon} from './icons'
 import {setAppearance, useAppearance, type Appearance} from '../lib/theme'
-import {useEffect, useState} from 'react'
+import {Suspense, useEffect, useState} from 'react'
 import {createPortal} from 'react-dom'
 import {useHydratedMark} from '../lib/hydrated'
 import {BUILD, buildName, useNewVersion, useSchemaChanged} from '../lib/version'
@@ -30,6 +29,7 @@ const brand = studioBrand(studio.title)
 
 export function Navbar() {
   useHydratedMark()
+  usePrefetchPanels()
   const t = useT()
   const published = usePublishedPerspective()
   return (
@@ -179,20 +179,23 @@ function SchemaWatch() {
 function TasksButton({inDrawer = false, onPick}: {inDrawer?: boolean; onPick?: () => void}) {
   const t = useT()
   const open = useTasksView().kind !== 'closed'
+  // Opens once the sidebar's chunk is here (fetched on hover, focus or idle; Panels.tsx), so
+  // it draws at once instead of behind a Suspense fallback.
   const toggle = () => {
-    showTasks(open ? {kind: 'closed'} : {kind: 'list', tab: 'assigned'})
+    if (open) showTasks({kind: 'closed'})
+    else void loadTasksPanel().then(() => showTasks({kind: 'list', tab: 'assigned'}), () => showTasks({kind: 'list', tab: 'assigned'}))
     onPick?.()
   }
   if (inDrawer)
     return (
-      <button type="button" className="drawer-item drawer-tasks" aria-pressed={open} onClick={toggle}>
+      <button type="button" className="drawer-item drawer-tasks" aria-pressed={open} onClick={toggle} onPointerEnter={loadTasksPanel} onFocus={loadTasksPanel}>
         <span className="menu-icon-text">
           <CheckmarkCircle /> {t('Tasks')}
         </span>
       </button>
     )
   return (
-    <button type="button" className="icon-btn tasks-btn" data-testid="tasks-toolbar" aria-label={t('Tasks')} data-tip={t('Tasks')} aria-pressed={open} onClick={toggle}>
+    <button type="button" className="icon-btn tasks-btn" data-testid="tasks-toolbar" aria-label={t('Tasks')} data-tip={t('Tasks')} aria-pressed={open} onClick={toggle} onPointerEnter={loadTasksPanel} onFocus={loadTasksPanel}>
       <CheckmarkCircle />
     </button>
   )
@@ -223,6 +226,8 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
+        onPointerEnter={loadDiagnostics}
+        onFocus={loadDiagnostics}
       >
         {inDrawer ? (
           <span className="menu-icon-text">
@@ -280,7 +285,11 @@ function Help({inDrawer = false}: {inDrawer?: boolean}) {
           </button>
         </MenuPopover>
       )}
-      {diagnostics && <Diagnostics onClose={() => setDiagnostics(false)} />}
+      {diagnostics && (
+        <Suspense fallback={null}>
+          <Diagnostics onClose={() => setDiagnostics(false)} />
+        </Suspense>
+      )}
       {version && <VersionDialog onClose={() => setVersion(false)} />}
       {whatsNew && <WhatsNewDialog onClose={() => setWhatsNew(false)} />}
     </div>

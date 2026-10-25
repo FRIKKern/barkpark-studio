@@ -1,6 +1,6 @@
 import {getPref, putPref} from '../lib/prefs'
 import {modKey} from './Tip'
-import {memo, useCallback, useEffect, useId, useRef, useState} from 'react'
+import {memo, Suspense, useCallback, useEffect, useId, useRef, useState} from 'react'
 import {keepPreviousData, useQueries, useQuery} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
 import {schemaOf, schemasQuery, searchQuery, textSearchQuery, type Doc} from '../lib/data'
@@ -12,7 +12,8 @@ import {useFocusScope} from '../lib/focus-scope'
 import {ArrowLeft, Clock, Close, Controls, Search as SearchIcon} from './icons'
 import {DocPreview} from './Preview'
 import {allFields, BUILTINS, filterLabel, isComplete, labelText, toRefFilter, type FilterField, type SearchFilter} from '../lib/search-filters'
-import {SearchFilters, SearchOrdering, typesLabel, type SearchSort} from './SearchFilters'
+import {loadSearchFilters, SearchFilters, SearchOrdering} from './Panels'
+import {typesLabel, type SearchSort} from './search-labels'
 
 /**
  * Global search, Sanity's: Cmd/Ctrl+K or the navbar button opens it, results
@@ -55,6 +56,8 @@ export function GlobalSearch() {
         data-tip-keys={`${modKey()}+K`}
         aria-keyshortcuts="Control+K Meta+K"
         onClick={(e) => ((opener.current = e.currentTarget), setOpen(true))}
+        onPointerEnter={loadSearchFilters}
+        onFocus={loadSearchFilters}
       >
         <SearchIcon />
       </button>
@@ -282,9 +285,11 @@ function SearchDialog({onClose}: {onClose: (restoreFocus: boolean) => void}) {
             <Controls />
           </button>
         </div>
-        {filtersShown && <SearchFilters schemas={docTypes} fields={fields} types={types} onTypes={setTypes} filters={filters} onFilters={setFilters} />}
-        {/* Sanity drops the order row when nothing matches. */}
-        {filtersShown && searching && !(results.length === 0 && settled) && <SearchOrdering sort={sort} onSort={setSort} />}
+        <Suspense fallback={null}>
+          {filtersShown && <SearchFilters schemas={docTypes} fields={fields} types={types} onTypes={setTypes} filters={filters} onFilters={setFilters} />}
+          {/* Sanity drops the order row when nothing matches. */}
+          {filtersShown && searching && !(results.length === 0 && settled) && <SearchOrdering sort={sort} onSort={setSort} />}
+        </Suspense>
         {searching && (offline ? <p className="search-empty" role="status">{t("You're offline. Reconnect to search.")}</p> : failed ? (
           <div className="search-empty" role="alert">
             <p>{t('Could not fetch search results. Please retry.')}</p>
