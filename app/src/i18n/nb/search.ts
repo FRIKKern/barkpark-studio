@@ -149,6 +149,7 @@ export default {
   'Execution: {time}': 'Utførelsestid: {time}',
   'Query failed: {error}': 'Spørringen feilet: {error}',
   'Query error: {error}': 'Feil i spørringen: {error}',
+  'GROQ query parse error:': 'Feil ved tolking av GROQ-spørringen:',
   'Query done in {ms} ms': 'Spørringen er ferdig på {ms} ms',
   '1 result in {ms} ms': '1 treff på {ms} ms',
   '{count} results in {ms} ms': '{count} treff på {ms} ms',
