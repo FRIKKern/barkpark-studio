@@ -753,7 +753,7 @@ textarea.input { resize: vertical; }
 .popover.options [role=option]:is([aria-selected='true'], [data-current]) .preview { background: var(--selected); color: var(--on-selected); }
 .popover.options [role=option]:is([aria-selected='true'], [data-current]) .s { color: var(--on-selected-soft); }
 .popover.options [role=option]:is([aria-selected='true'], [data-current]) .dot { background: var(--dot-on-selected); }
-.popover.options [role=option]:is([aria-selected='true'], [data-current]) .media { background: transparent; color: var(--on-selected); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-selected) 30%, transparent); } /* as the open row's */
+.popover.options [role=option]:is([aria-selected='true'], [data-current]) .media { background: transparent; color: color-mix(in srgb, var(--on-selected) 65%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-selected) 10%, transparent); } /* Sanity's lit result: a faint box, the glyph at about two thirds (measured) */
 .menu-wrap { position: relative; }
 /* Sanity's menus, measured at 1440 (document actions, list options, Create, a reference's): 33 px items 4 px apart, #383d51 text in weight 500, icons in the muted grey. */
 .popover.menu { right: 0; top: 30px; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
