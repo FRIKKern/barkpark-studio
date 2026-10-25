@@ -7,7 +7,7 @@ import {readDesk, readRest, readSchemas, schemaIcon, STUDIO_TYPES} from '../serv
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import {collate, translate, type T} from './i18n'
-import {deskFilterParams, normalizeDesk, type DeskFilter, type DeskNode} from './desk'
+import {deskFilterParams, normalizeDesk, orGroupRefused, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
 import {pathsOf, type PreviewMediaSpec, type PreviewText} from './preview'
 import {excluded, parseTextQuery, textScore} from './text-search'
@@ -135,7 +135,8 @@ const ORDER: Record<string, string> = {updated: '_updatedAt:desc', created: '_cr
 const ORDER_EXPR = /^[A-Za-z_][\w.]*:(asc|desc)(,[A-Za-z_][\w.]*:(asc|desc))*$/
 const orderParam = (o: ListOrder | undefined) => ORDER[o ?? 'updated'] ?? (ORDER_EXPR.test(o!) ? `${o},_createdAt:asc` : ORDER.updated)
 /** One loaded list: its rows, and whether the server holds more. */
-export type ListPage = {docs: Doc[]; hasMore: boolean}
+/** `unsupported`: filter ops the server refused, shown as the list's advisory. */
+export type ListPage = {docs: Doc[]; hasMore: boolean; unsupported?: string[]}
 
 /** A desk list's filter as query parameters (B12), `$or` groups included (lib/desk deskFilterParams). */
 const filterParams = (filter?: DeskFilter) => deskFilterParams(filter)
@@ -148,9 +149,15 @@ const fetchList = createServerFn({method: 'GET'})
     let hasMore = true
     // Barkpark serves at most 1000 rows a request.
     while (hasMore && docs.length < limit) {
-      const r = await bpJson<{result: {documents: Doc[]; hasMore: boolean}}>(
-        `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=${orderParam(data.order)}&limit=${Math.min(limit - docs.length, 1000)}&offset=${docs.length}&perspective=${data.published ? 'published' : 'drafts'}${filterParams(data.filter)}`,
-      )
+      const path = `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?order=${orderParam(data.order)}&limit=${Math.min(limit - docs.length, 1000)}&offset=${docs.length}&perspective=${data.published ? 'published' : 'drafts'}${filterParams(data.filter)}`
+      const res = await bpFetch(path)
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        // A Barkpark without `$or` groups (before #23981): the advisory, not a failed list.
+        if (orGroupRefused(data.filter, res.status, body)) return {docs: [], hasMore: false, unsupported: ['$or']} as unknown as Json
+        throw new Error(`Barkpark ${path} → ${res.status}`)
+      }
+      const r = (await res.json()) as {result: {documents: Doc[]; hasMore: boolean}}
       docs.push(...r.result.documents)
       hasMore = r.result.hasMore
     }

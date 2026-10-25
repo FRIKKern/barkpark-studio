@@ -121,6 +121,17 @@ export function unsupportedOps(filter: DeskFilter | undefined): string[] {
 }
 
 /** A desk list's filter as query parameters: ops pass through as Barkpark reads them, an `$or` group as filter[$or][i][field][op]. */
+/**
+ * Whether Barkpark refused a list read because it does not take `$or` groups: a
+ * server older than Barkpark #23981 answers 400 naming `$or`. The list then shows the
+ * unsupported-filter advisory instead of failing.
+ */
+export function orGroupRefused(filter: DeskFilter | undefined, status: number, body: unknown): boolean {
+  if (status !== 400 || !filter || !('$or' in filter)) return false
+  const error = (body as {error?: {message?: unknown; details?: unknown}} | null)?.error
+  return JSON.stringify([error?.message, error?.details]).includes('$or')
+}
+
 export function deskFilterParams(filter?: DeskFilter, prefix = 'filter'): string {
   return Object.entries(filter ?? {})
     .flatMap(([field, ops]) =>

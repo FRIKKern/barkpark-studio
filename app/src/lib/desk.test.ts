@@ -1,7 +1,7 @@
 // B12: desk URLs read against a declared desk, Sanity-style, and print back unchanged.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {deskFilterParams, deskSort, listFilter, newDocPreset, normalizeDesk, paneTitleOf, parseDeskPanes, rootDesk, unsupportedOps, type DeskFilter, type DeskNode} from './desk.ts'
+import {deskFilterParams, deskSort, orGroupRefused, listFilter, newDocPreset, normalizeDesk, paneTitleOf, parseDeskPanes, rootDesk, unsupportedOps, type DeskFilter, type DeskNode} from './desk.ts'
 import {panesPath} from './panes.ts'
 
 // The shape GET /v1/structure returns for the Agency twin, cut down.
@@ -172,4 +172,15 @@ test("a desk filter with an $or group is sent as filter[$or][i] and can be liste
   // A plain filter is sent as before; an unknown op inside a branch is still caught.
   assert.equal(deskFilterParams({status: {eq: 'draft'}}), '&filter[status][eq]=draft')
   assert.deepEqual(unsupportedOps({'$or': [{x: {madeUp: 1}}]}), ['madeUp'])
+})
+
+test('a Barkpark without $or groups gets the advisory, not a failed list', () => {
+  const f: DeskFilter = {'$or': [{a: {eq: '1'}}, {b: {eq: '2'}}]}
+  // What a server before Barkpark #23981 answers: the group read as an unknown operator.
+  const old = {error: {code: 'invalid_filter', message: 'unknown filter operator "0" on field "$or"', details: {field: '$or', op: '0'}}}
+  assert.equal(orGroupRefused(f, 400, old), true)
+  // Any other failure stays a failure; a filter without $or never reads as unsupported.
+  assert.equal(orGroupRefused(f, 500, old), false)
+  assert.equal(orGroupRefused({a: {eq: '1'}}, 400, old), false)
+  assert.equal(orGroupRefused(f, 400, {error: {code: 'invalid_filter', message: 'unknown filter operator "bogus"', details: {field: 'a'}}}), false)
 })
