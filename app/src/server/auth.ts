@@ -59,6 +59,8 @@ function sessionSecret() {
   if (secret) return secret
   const set = process.env.STUDIO_SESSION_SECRET
   if (set && set.length < 32) throw new Error('STUDIO_SESSION_SECRET is too short: use 32 or more random characters (openssl rand -base64 32).')
+  // On Vercel each function instance would make its own: a sign-in would hold on one and not the next.
+  if (!set && process.env.VERCEL) throw new Error('STUDIO_SESSION_SECRET is required on Vercel: every instance must seal sessions with the same secret (docs/DEPLOY.md).')
   if (!set) console.warn('[auth] STUDIO_SESSION_SECRET is not set: sign-ins end when this server restarts.')
   return (secret = set ?? randomBytes(32).toString('base64'))
 }
