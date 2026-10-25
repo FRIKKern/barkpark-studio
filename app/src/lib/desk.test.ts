@@ -1,7 +1,7 @@
 // B12: desk URLs read against a declared desk, Sanity-style, and print back unchanged.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {deskSort, listFilter, newDocPreset, normalizeDesk, paneTitleOf, parseDeskPanes, rootDesk, unsupportedOps, type DeskNode} from './desk.ts'
+import {deskFilterParams, deskSort, listFilter, newDocPreset, normalizeDesk, paneTitleOf, parseDeskPanes, rootDesk, unsupportedOps, type DeskFilter, type DeskNode} from './desk.ts'
 import {panesPath} from './panes.ts'
 
 // The shape GET /v1/structure returns for the Agency twin, cut down.
@@ -159,4 +159,17 @@ test("a tree over an array of parents drills with has, and its countEq root can 
   assert.deepEqual(listFilter(cats, 'c-root'), {'content.parentCategories': {has: 'c-root'}})
   // A plain tree still drills with eq.
   assert.deepEqual(listFilter({...cats, tree: {parent: 'content.parent'}}, 'c-root'), {'content.parent': {eq: 'c-root'}})
+})
+
+test("a desk filter with an $or group is sent as filter[$or][i] and can be listed (Barkpark #23981)", () => {
+  // «Uten miniatyrbilde»: (!defined(onix.thumbnail) || onix.thumbnail == "").
+  const missingOrEmpty: DeskFilter = {'$or': [{'content.thumbnail': {is: 'null'}}, {'content.thumbnail': {eq: ''}}], 'content.kind': {eq: 'book'}}
+  assert.deepEqual(unsupportedOps(missingOrEmpty), [])
+  assert.equal(
+    deskFilterParams(missingOrEmpty),
+    '&filter[$or][0][content.thumbnail][is]=null&filter[$or][1][content.thumbnail][eq]=&filter[content.kind][eq]=book',
+  )
+  // A plain filter is sent as before; an unknown op inside a branch is still caught.
+  assert.equal(deskFilterParams({status: {eq: 'draft'}}), '&filter[status][eq]=draft')
+  assert.deepEqual(unsupportedOps({'$or': [{x: {madeUp: 1}}]}), ['madeUp'])
 })

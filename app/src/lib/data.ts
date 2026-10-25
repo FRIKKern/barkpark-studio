@@ -7,7 +7,7 @@ import {readDesk, readRest, readSchemas, schemaIcon, STUDIO_TYPES} from '../serv
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import {collate, translate, type T} from './i18n'
-import {normalizeDesk, type DeskFilter, type DeskNode} from './desk'
+import {deskFilterParams, normalizeDesk, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
 import {pathsOf, type PreviewMediaSpec, type PreviewText} from './preview'
 import {excluded, parseTextQuery, textScore} from './text-search'
@@ -137,11 +137,8 @@ const orderParam = (o: ListOrder | undefined) => ORDER[o ?? 'updated'] ?? (ORDER
 /** One loaded list: its rows, and whether the server holds more. */
 export type ListPage = {docs: Doc[]; hasMore: boolean}
 
-/** A desk list's filter as query parameters (B12): `is: null` and the other ops pass through as Barkpark reads them. */
-const filterParams = (filter?: DeskFilter) =>
-  Object.entries(filter ?? {})
-    .flatMap(([field, ops]) => Object.entries(ops).map(([op, v]) => `&filter[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(String(v))}`))
-    .join('')
+/** A desk list's filter as query parameters (B12), `$or` groups included (lib/desk deskFilterParams). */
+const filterParams = (filter?: DeskFilter) => deskFilterParams(filter)
 
 const fetchList = createServerFn({method: 'GET'})
   .validator((d: {type: string; published?: boolean; limit?: number; order?: ListOrder; filter?: DeskFilter}) => d)
