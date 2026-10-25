@@ -45,6 +45,13 @@ const objectItem = ({_type, _key, ...rest}) => ({
   ...Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v?._type === 'reference' ? v._ref : v])),
 })
 
+const isAsset = (v) => !!(v?._sanityAsset || v?.asset?._ref)
+// An image or file value → Barkpark's canonical shape, its media id from `asset`.
+const assetValue = (v, asset) => {
+  const {_sanityAsset, asset: _, ...rest} = v
+  return {...rest, asset: {_type: 'reference', _ref: asset(v)}}
+}
+
 const noAssets = (v) => {
   throw new Error(`an asset value needs a resolver: ${v._sanityAsset ?? v.asset._ref}`)
 }
@@ -57,15 +64,16 @@ export function toBarkpark(doc, asset = noAssets) {
   for (const [k, v] of Object.entries(doc)) {
     if (k.startsWith('_')) continue
     if (v?._type === 'slug') out[k] = v.current
-    else if (v?._sanityAsset || v?.asset?._ref) {
-      const {_sanityAsset, asset: _, ...rest} = v
-      out[k] = {...rest, asset: {_type: 'reference', _ref: asset(v)}}
-    } else if (v?._type === 'reference') out[k] = v._ref
+    else if (isAsset(v)) out[k] = assetValue(v, asset)
+    else if (v?._type === 'reference') out[k] = v._ref
     else if (k === 'body') out[k] = portableTextToPortableDoc(v)
     // Keyed reference arrays keep Sanity's item identity ({_key, _type, _ref}), so
     // reorder/remove and array patches by _key have something to address (J09).
     // From the finish-keys lane's draft (fix/seed-keyed-refs-object-blocks, 8f70b7f).
     else if (Array.isArray(v) && v.every((x) => x?._type === 'reference')) out[k] = v.map(({_key, _ref}) => ({_key, _type: 'reference', _ref}))
+    // An array of images or files (a gallery): each item as the studio writes it,
+    // {_key, _type: 'image', asset: {_type: 'reference', _ref}}, not a composite with `kind`.
+    else if (Array.isArray(v) && v.length && v.every(isAsset)) out[k] = v.map((x) => assetValue(x, asset))
     else if (Array.isArray(v) && v.every((x) => x?._type && x._key)) out[k] = v.map(objectItem)
     else out[k] = v
   }
