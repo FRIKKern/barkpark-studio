@@ -6,8 +6,12 @@
 import {parseDocSegments, parsePanes, type Pane} from './panes.ts'
 import type {Sort} from './list-prefs.ts'
 
-/** Barkpark's filter shape, as the query API reads it: {field: {op: value}}. */
-export type DeskFilter = Record<string, Record<string, unknown>>
+/**
+ * Barkpark's filter shape, as the query API reads it: {field: {op: value}}, plus an optional
+ * `$or` group (Barkpark #23981): a list of such maps, the row matching any one, as Sanity's
+ * `(!defined(x) || x == "")` desk filters.
+ */
+export type DeskFilter = {[field: string]: Record<string, unknown> | DeskFilter[]}
 export type DeskNode = {
   id: string
   type: 'list' | 'divider' | 'document' | 'document_type_list'
@@ -111,7 +115,22 @@ export function deskIndex(root: DeskNode): Map<string, DeskNode> {
 
 /** A desk filter's operators the query API does not have (the list can't be read until it does). */
 export function unsupportedOps(filter: DeskFilter | undefined): string[] {
-  return Object.values(filter ?? {}).flatMap((ops) => Object.keys(ops).filter((op) => !QUERY_OPS.has(op)))
+  return Object.entries(filter ?? {}).flatMap(([field, ops]) =>
+    field === '$or' && Array.isArray(ops) ? ops.flatMap((branch) => unsupportedOps(branch)) : Array.isArray(ops) ? [field] : Object.keys(ops).filter((op) => !QUERY_OPS.has(op)),
+  )
+}
+
+/** A desk list's filter as query parameters: ops pass through as Barkpark reads them, an `$or` group as filter[$or][i][field][op]. */
+export function deskFilterParams(filter?: DeskFilter, prefix = 'filter'): string {
+  return Object.entries(filter ?? {})
+    .flatMap(([field, ops]) =>
+      field === '$or' && Array.isArray(ops)
+        ? ops.map((branch, i) => deskFilterParams(branch, `${prefix}[$or][${i}]`))
+        : Array.isArray(ops)
+          ? []
+          : Object.entries(ops).map(([op, v]) => `&${prefix}[${encodeURIComponent(field)}][${encodeURIComponent(op)}]=${encodeURIComponent(String(v))}`),
+    )
+    .join('')
 }
 
 /** What a list pane reads: the node's filter, or one tree level's children. */
