@@ -10,7 +10,11 @@ import {visionTarget} from '../server/vision'
 // dataset in the project (the page's by default); a dataset-bound token (Barkpark #22393)
 // reads only its own.
 
-export const PERSPECTIVES = ['drafts', 'published', 'raw'] as const
+// In Sanity's order (@sanity/vision SUPPORTED_PERSPECTIVES: Pinned release, No perspective (API
+// default), Scheduled drafts, raw, published, drafts), the ones Barkpark serves. Barkpark's API
+// default is raw, so "No perspective (raw)" is both. Pinned release and Scheduled drafts are an
+// intended difference until Barkpark has releases (task-501a3f96aaec72ec). Vision opens on drafts.
+export const PERSPECTIVES = ['raw', 'published', 'drafts'] as const
 export type Perspective = (typeof PERSPECTIVES)[number]
 
 /**

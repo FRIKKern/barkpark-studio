@@ -138,6 +138,10 @@ test('a11y: Vision says how a run went; Releases, Vision and Media have one h1',
   await t.prepare(page.context())
   await page.goto('/vision')
   await signInIfAsked(page)
+  // Its perspectives in Sanity's order (the ones Barkpark serves), opening on drafts.
+  const perspective = page.getByRole('combobox', {name: /^Perspective/})
+  await expect(perspective.locator('option')).toHaveText(['No perspective (raw)', 'published', 'drafts'])
+  await expect(perspective).toHaveValue('drafts')
   const heard = page.getByTestId('announcer')
   const query = page.getByRole('textbox', {name: 'Query', exact: true})
   await query.fill('*[_type == "post"][0...3]{title}')
