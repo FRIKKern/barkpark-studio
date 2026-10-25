@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 39 changes
+- **Today** · 40 changes
+  - perf: the document pane out of the chunk every route loads ([#1127](https://github.com/FRIKKern/barkpark-studio/pull/1127))
   - Cold load: the locale and who-is-signed-in reads get a budget too, never an anonymous fallback ([#1126](https://github.com/FRIKKern/barkpark-studio/pull/1126))
-  - Inputs: a url's keyboard, and an unreadable date reported to the validation list ([#1123](https://github.com/FRIKKern/barkpark-studio/pull/1123))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
