@@ -18,6 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
+- **Today** · 1 change
+  - e2e: re-record durations from the ten main runs since #1061; shards plan 45.8-46.6 s ([#1089](https://github.com/FRIKKern/barkpark-studio/pull/1089))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
