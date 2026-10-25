@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 24 changes
+- **Today** · 25 changes
+  - Pixel pass vs Sanity: row chevron tone, crumb capitals, reference picker states ([#1113](https://github.com/FRIKKern/barkpark-studio/pull/1113))
   - STUDIO_DESK_ID picks the deployment's desk; VITE_STUDIO_TITLE names the browser tab ([#1111](https://github.com/FRIKKern/barkpark-studio/pull/1111))
-  - Deploy on Vercel: a Nitro vercel-preset build beside vite preview ([#1110](https://github.com/FRIKKern/barkpark-studio/pull/1110))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
