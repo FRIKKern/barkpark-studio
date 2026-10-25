@@ -4,6 +4,7 @@ import {Navbar} from '../components/Navbar'
 import {localeQuery, translate} from '../lib/i18n'
 import {MediaLibrary, type MediaSearch} from '../components/MediaLibrary'
 import {KINDS, SORTS, type Kind, type Sort} from '../lib/media-library'
+import {studioName} from '../lib/studio-name'
 
 // B08: the media library as its own tool, beside Structure and Vision.
 // Its kind or folder, search, visibility, sort and view live in the URL, so Back, a reload and a
@@ -19,7 +20,7 @@ export const Route = createFileRoute('/media')({
     view: s.view === 'list' ? 'list' : undefined,
   }),
   beforeLoad: ({context, location}) => requireEditor(context.queryClient, location.href),
-  head: ({match}) => ({meta: [{title: `${translate(match.context.queryClient.getQueryData(localeQuery.queryKey)?.locale ?? 'en', 'Media')} · Barkpark Studio`}]}),
+  head: ({match}) => ({meta: [{title: `${translate(match.context.queryClient.getQueryData(localeQuery.queryKey)?.locale ?? 'en', 'Media')} · ${studioName}`}]}),
   component: MediaPage,
 })
 

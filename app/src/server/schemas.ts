@@ -9,6 +9,10 @@ import {signInMode, signOut} from './auth'
 import {ACCOUNT_SESSION_LOST} from '../lib/content-model-credential'
 import ICONS from '../lib/desk-icons.json'
 import {withIconBodies} from '../lib/desk-icon-bodies'
+import {deskId, servesDesk, structurePath} from '../lib/desk-id'
+
+/** This deployment's desk document (STUDIO_DESK_ID, lib/desk-id.ts). An invalid id fails every read here, with the reason. */
+const DESK_ID = deskId(process.env.STUDIO_DESK_ID)
 
 async function readContentModel(path: string) {
   const response = await bpFetch(path, {}, await contentModelToken())
@@ -60,20 +64,22 @@ function asBarkparkServes({list_preview, initial_values, ...schema}: RawSchema):
 }
 
 // B12: the declared desk, when the workspace has one. Barkpark resolves a
-// `deskStructure` document into its structure tree; without that document the
+// `deskStructure` document (DESK_ID) into its structure tree; without that document the
 // tree is the LiveView Studio's default, not Sanity's type list, so this studio
 // keeps its own type list then (null). Other failures use the route's visible
 // error and Retry; an unavailable desk must not silently change navigation.
 // Fixtures mode (CI) has no desk.
 export async function readDesk(): Promise<unknown | null> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return null
-  const declared = await readContentModel(`/v1/data/doc/${dataset()}/deskStructure/deskStructure?perspective=published`)
+  const declared = await readContentModel(`/v1/data/doc/${dataset()}/deskStructure/${DESK_ID}?perspective=published`)
   if (declared.status === 404) return null
   if (!declared.ok) throw new Error(`Could not read the desk configuration (${declared.status})`)
   const title = ((await declared.json()) as {result?: {title?: unknown}}).result?.title
-  const res = await bpFetch(`/v1/structure/${dataset()}`, {}, await serviceToken())
+  const res = await bpFetch(structurePath(dataset(), DESK_ID), {}, await serviceToken())
   if (!res.ok) throw new Error(`Could not read the desk navigation (${res.status})`)
-  const tree = ((await res.json()) as {structure?: {title?: string}}).structure
+  const body = (await res.json()) as {structure?: {title?: string}; desk?: unknown}
+  if (!servesDesk(DESK_ID, body)) throw new Error(`Barkpark did not serve the desk ${DESK_ID} (its /v1/structure needs ?desk=)`)
+  const tree = body.structure
   if (!tree) throw new Error('The desk navigation response was empty')
   // The deskStructure document's title names the root (Sanity's S.list().title('Innhold')).
   // Barkpark keeps a doc's title in a row column while its resolver reads content.title,
@@ -89,9 +95,11 @@ export async function readDesk(): Promise<unknown | null> {
  */
 export async function readRest(): Promise<unknown[]> {
   if (process.env.BARKPARK_SCHEMA_SOURCE === 'fixtures') return []
-  const res = await serviceToken().then((token) => bpFetch(`/v1/structure/${dataset()}`, {}, token)).catch(() => null)
+  const res = await serviceToken().then((token) => bpFetch(structurePath(dataset(), DESK_ID), {}, token)).catch(() => null)
   if (!res?.ok) return []
-  const tree = ((await res.json()) as {structure?: {items?: {id?: string; items?: unknown[]}[]}}).structure
+  const body = (await res.json()) as {structure?: {items?: {id?: string; items?: unknown[]}[]}; desk?: unknown}
+  if (!servesDesk(DESK_ID, body)) return []
+  const tree = body.structure
   const rest = (tree?.items?.find((i) => i.id === 'rest')?.items ?? []) as {typeName?: string}[]
   // The studio's own records are never "…Rest" content, even in a dataset whose schema list lacks them.
   return withIconBodies(rest.filter((i) => !STUDIO_TYPES.includes(i.typeName ?? '')), ICONS)

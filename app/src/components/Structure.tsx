@@ -1,4 +1,5 @@
 import {tabTitle} from '../lib/tab-title'
+import {studioName} from '../lib/studio-name'
 import {Fragment, useCallback, useContext, useDeferredValue, useId, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
@@ -344,8 +345,8 @@ function usePaneTitle(pane: Pane) {
 function TabTitle({pane}: {pane: Pane}) {
   const title = usePaneTitle(pane)
   useEffect(() => {
-    document.title = tabTitle(title)
-    return () => { document.title = 'Barkpark Studio' }
+    document.title = tabTitle(title, studioName)
+    return () => { document.title = studioName }
   }, [title])
   return null
 }

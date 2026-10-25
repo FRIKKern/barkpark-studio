@@ -152,7 +152,7 @@ export const READ_DEDUPE_MS = 500
 // shows on the next page loaded 5 s after it. A CI shard made ~650 reads in under a minute
 // against Barkpark's 300 a minute (plus 5 a second) per token and dataset, and its last specs
 // waited out 429s (task-0fbe272a366541f4); these were ~200 of them.
-const SETTLED = /^\/v1\/(schemas\/|structure\/|workspace\/locale|members\?)|\/deskStructure\/deskStructure\?/
+const SETTLED = /^\/v1\/(schemas\/|structure\/|workspace\/locale|members\?)|\/deskStructure\/[\w.-]+\?/
 const SETTLED_MS = 5_000
 /** Drop the shared reads: none may answer for a point after this one. Writes don't move the settled ones. */
 export const forgetReads = () => {
