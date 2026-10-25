@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 31 changes
+- **Today** · 32 changes
+  - Datetime: a typed or picked time lands on the timeStep grid, as Sanity's ([#1119](https://github.com/FRIKKern/barkpark-studio/pull/1119))
   - Pixel pass round 2 vs Sanity: reviewing tabs, create-menu icons, Vision timing ([#1118](https://github.com/FRIKKern/barkpark-studio/pull/1118))
-  - Desk icons: sync the vendored table with Barkpark #24008 (237 -> 248) ([#1117](https://github.com/FRIKKern/barkpark-studio/pull/1117))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
