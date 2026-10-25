@@ -9,7 +9,8 @@ import type {T} from './i18n'
 // a warning or an info is shown the same ways in its own colour.
 export type Level = 'error' | 'warning' | 'info'
 /** `parents`: the titles of the objects the field sits in (Sanity's "Seo / Meta Title"). */
-export type Problem = {path: string; title: string; message: string; level: Level; parents?: string[]; group?: string}
+/** `parse`: an input's unreadable text (lib/parse-errors), shown as an error but, as Sanity's, not blocking Publish. */
+export type Problem = {path: string; title: string; message: string; level: Level; parents?: string[]; group?: string; parse?: true}
 /** A referenced doc as the cache has it: null = no such doc, undefined = still loading. */
 export type RefTarget = (id: string) => Doc | null | undefined
 

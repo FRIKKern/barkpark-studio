@@ -460,7 +460,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'string':
     case 'url':
     case 'email':
-      return <TextInput id={path} value={str} onChange={onChange} readOnly={readOnly} />
+      return <TextInput id={path} value={str} onChange={onChange} readOnly={readOnly} kind={field.type === 'string' ? undefined : field.type} />
     case 'slug':
       // Sanity-shaped data (an import) holds {current}; Barkpark a string.
       return <SlugInput id={path} value={value && typeof value === 'object' ? String((value as {current?: unknown}).current ?? '') : str} onChange={onChange} source={(field.options as {source?: string})?.source} maxLength={(field.options as {maxLength?: number})?.maxLength} readOnly={readOnly} />
@@ -597,7 +597,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
  * tick later, and a controlled input re-rendered with that older value drops the
  * keystrokes typed in between. A new value from outside (remote edit) still wins.
  */
-export function TextInput({id, value, onChange, rows, readOnly, label}: {id: string; value: string; onChange: (v: unknown) => void; rows?: number; readOnly?: boolean; label?: string}) {
+export function TextInput({id, value, onChange, rows, readOnly, label, kind}: {id: string; value: string; onChange: (v: unknown) => void; rows?: number; readOnly?: boolean; label?: string; kind?: 'url' | 'email'}) {
   const [local, setLocal] = useState(value)
   const [seen, setSeen] = useState(value)
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
@@ -621,7 +621,9 @@ export function TextInput({id, value, onChange, rows, readOnly, label}: {id: str
   return rows ? (
     <textarea ref={ref} id={id} className="input" rows={rows} value={local} readOnly={readOnly} aria-label={label} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
   ) : (
-    <input ref={ref} id={id} className="input" value={local} readOnly={readOnly} aria-label={label} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
+    // A phone's keyboard for the kind, as Sanity's UrlInput / EmailInput: "/" and ".com" for a url,
+    // "@" for an email. An email stays type text: type=email has no caret API (the J06 caret above).
+    <input ref={ref} id={id} className="input" type={kind === 'url' ? 'url' : undefined} inputMode={kind} value={local} readOnly={readOnly} aria-label={label} onChange={(e) => change(e.target.value)} onKeyDown={keepPaneStill} />
   )
 }
 
