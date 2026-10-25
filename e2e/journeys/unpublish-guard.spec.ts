@@ -37,6 +37,8 @@ test('@local B07: unpublish lists who refers to it first; Cancel or Unpublish an
   await page.getByRole('dialog').getByRole('button', {name: 'Unpublish anyway'}).click()
   await expect(page.getByRole('dialog')).toBeHidden()
   await expect.poll(() => live('author-ada')).toBe(false)
+  // The opener (Unpublish) is disabled now: focus goes to the pane's document actions, never the page or the read-only body.
+  await expect(page.getByRole('button', {name: 'Show document actions'}).last()).toBeFocused()
 
   // Bulk: one section per referenced doc.
   await page.goto(t.listPath('author'))

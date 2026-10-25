@@ -1436,6 +1436,17 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const {canPublish, unpublishReason} = useCanWrite()
+  // After an unpublish the dialog's opener (Unpublish) is disabled, so focus fell to the page and
+  // on into the read-only body: it goes to the pane's document actions instead, where the
+  // keyboard can go on (the dialog pattern's "back where it started", the opener gone).
+  const footer = useRef<HTMLElement>(null)
+  const done = useRef(false)
+  const closed = () => {
+    setConfirm(false)
+    if (!done.current) return
+    done.current = false
+    requestAnimationFrame(() => footer.current?.closest('section.pane')?.querySelector<HTMLElement>('[data-doc-actions]')?.focus())
+  }
   // J04: no published version (the pane's stub): Sanity's "Unpublished just now", from the
   // history, when an unpublish was the last publish-or-unpublish; else nothing.
   const none = !doc._rev
@@ -1445,9 +1456,9 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
   const last = none ? revisions?.find((r) => r.action === 'publish' || r.action === 'unpublish') : undefined
   const gone = last?.action === 'unpublish' ? last : undefined
   const run = () =>
-    unpublish(qc, doc).then(() => toast({tone: 'positive', title: named(qc, doc, tt('was unpublished. A draft has been created from the latest published revision.'))}))
+    unpublish(qc, doc).then(() => ((done.current = true), toast({tone: 'positive', title: named(qc, doc, tt('was unpublished. A draft has been created from the latest published revision.'))})))
   return (
-    <footer className="doc-footer">
+    <footer className="doc-footer" ref={footer}>
       <div className="doc-footer-status">
         <span className="save-state" role="status">
           <FooterActor actor={none ? gone?.actor : actor} pending={actorPending} />
@@ -1463,7 +1474,7 @@ function PublishedFooter({doc, single}: {doc: Doc; single: boolean}) {
         </button>
       )}
       {/* B07: who refers to it is listed before it goes. */}
-      {confirm && <UnpublishDialog docs={[doc]} run={run} onClose={() => setConfirm(false)} />}
+      {confirm && <UnpublishDialog docs={[doc]} run={run} onClose={closed} />}
     </footer>
   )
 }

@@ -85,7 +85,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
   const standalone = PAPER_TYPES.has(doc._type) && barkpark && scope ? `${barkpark}/w/${scope.workspace}/p/${scope.project}/papers/${encodeURIComponent(doc._publishedId)}` : undefined
   return (
     <div className="menu-wrap doc-actions" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
-      <button type="button" className="icon-btn" aria-label={t('Show document actions')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" data-doc-actions aria-label={t('Show document actions')} data-tip={t('Show more')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
       {open && (
