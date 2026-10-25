@@ -85,10 +85,12 @@ const compressHtml = (): Plugin => ({
 // document pages, from the build manifest, so it downloads with the route's code. Dev has
 // no manifest and skips it. Same document-page test as components/DocEditors.tsx.
 const DOC_PAGE = /^(?:\/w\/[^/]+\/p\/[^/]+(?:\/d\/[^/]+)?)?\/(?:structure\/[^?#]*;|presentation)/
+const STRUCTURE_ROOT = /^(?:\/w\/[^/]+\/p\/[^/]+(?:\/d\/[^/]+)?)?\/structure\/?$/
 const preloadEditors = (): Plugin => ({
   name: 'preload-doc-editors',
   configurePreviewServer(server) {
     const files: string[] = []
+    const rootFiles: string[] = []
     try {
       const dir = path.resolve(server.config.root, server.config.environments?.client?.build.outDir ?? 'dist/client')
       const manifest = JSON.parse(readFileSync(path.join(dir, '.vite/manifest.json'), 'utf8')) as Record<string, {file: string; imports?: string[]; isEntry?: boolean}>
@@ -103,12 +105,21 @@ const preloadEditors = (): Plugin => ({
       // The editors' chunk and the document pane's (task-a8874d0ebb2baa5c), with what they import.
       const entries = ['src/components/doc-editors.ts', 'src/components/doc-pane.ts']
       files.push(...[...closure(entries)].filter((key) => entries.includes(key) || !page.has(key)).map((key) => manifest[key]!.file))
+      // task-c33886bafc775e6c: the bare /structure page loads only its own route's chunk; the
+      // first click on a type waited for the pane route's (/structure/$) before it drew anything
+      // (818 ms on Fast 3G, over F14's 300). That chunk, and what it imports the page doesn't.
+      const rootPage = closure(Object.keys(manifest).filter((key) => manifest[key]!.isEntry || /routes\/structure\/index.*tsr-split/.test(key)))
+      const paneRoute = Object.keys(manifest).filter((key) => /routes\/structure\/\$.*tsr-split/.test(key))
+      rootFiles.push(...[...closure(paneRoute)].filter((key) => !rootPage.has(key)).map((key) => manifest[key]!.file))
     } catch {
       return // no manifest: nothing to name
     }
     const link = files.map((f) => `</${f}>; rel=modulepreload`).join(', ')
+    const rootLink = rootFiles.map((f) => `</${f}>; rel=modulepreload`).join(', ')
     server.middlewares.use((req, res, next) => {
-      if (link && req.method === 'GET' && DOC_PAGE.test(decodeURIComponent(req.url?.split('?')[0] ?? ''))) res.setHeader('Link', link)
+      const at = req.method === 'GET' ? decodeURIComponent(req.url?.split('?')[0] ?? '') : ''
+      if (link && DOC_PAGE.test(at)) res.setHeader('Link', link)
+      else if (rootLink && STRUCTURE_ROOT.test(at)) res.setHeader('Link', rootLink)
       next()
     })
   },

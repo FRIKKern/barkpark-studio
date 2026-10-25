@@ -1123,9 +1123,9 @@ function DocFooter({doc, closeHref, blocked, validating = false, checkRules, sin
   const schemaActions = useSchemaActions(doc, () => setMenu(false), menu)
   const alt = useAltName()
   // J13: blocked by errors, Sanity's tooltip says why (a role's limit stays the button's title,
-  // as on the studio's other buttons).
+  // as on the studio's other buttons). Offline, it says that (task-078de3e8f3aed739).
   const publishTip = useTip(() =>
-    publishReason ? null : blocked ? <span className="tip-text">{t('There are validation errors that need to be fixed before this document can be published')}</span> : validating ? <span className="tip-text">{t('Validating…')}</span> : doc._draft && !isPristine(doc, state) ? (
+    publishReason ? null : state === 'offline' ? <span className="tip-text">{t('You are offline. Publishing will be available when you are back online.')}</span> : blocked ? <span className="tip-text">{t('There are validation errors that need to be fixed before this document can be published')}</span> : validating ? <span className="tip-text">{t('Validating…')}</span> : doc._draft && !isPristine(doc, state) ? (
       <Keys keys={['Ctrl', alt, 'P']} />
     ) : doc._hasPublished !== false && doc._updatedAt ? (
       t('Published {ago}', {ago: ago(doc._updatedAt, locale, undefined, zone)})
