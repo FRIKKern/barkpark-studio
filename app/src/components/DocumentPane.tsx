@@ -5,13 +5,14 @@ import {NarrowContext, OpenedPanesContext} from '../lib/layout'
 import {AnchoredLayer, DialogBox, MenuPopover} from './FocusScopes'
 import {useSlugInUse} from '../lib/slug-unique'
 import {useCustomRules} from '../lib/use-custom-rules'
+import {useParseErrors} from '../lib/parse-errors'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
 import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
-import {createDoc, discardDraft, discardPending, draftNew, edit, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
+import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
@@ -163,7 +164,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine, t)
   // The studio config's custom rules (Sanity's Rule.custom), sync and async; studio only.
   const custom = useCustomRules(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine)
-  const own = slugTaken.length || custom.problems.length ? [...checked, ...slugTaken, ...custom.problems] : checked
+  // An input's unreadable text (a date typed in another format), as Sanity's useReportParseError.
+  const unreadable = useParseErrors(!viewingPublished && !gone ? doc?._publishedId : null)
+  const parsed: Problem[] = unreadable.map(([path, message]) => ({path, title: fieldTitle(schemaForPane?.fields ?? [], path) ?? path, message, level: 'error', parse: true}))
+  const own = slugTaken.length || custom.problems.length || parsed.length ? [...checked, ...slugTaken, ...custom.problems, ...parsed] : checked
   // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
   const advisories = useAdvisories(pane.id)
   const extra = advisories.length && schemaForPane && !viewingPublished && !gone ? advisoryProblems(advisories, schemaForPane, own, t) : []
@@ -171,7 +175,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const order = (p: Problem) => (schemaForPane?.fields ?? []).findIndex((f) => f.name === p.path.split(/[.[]/)[0])
   const problems = extra.length ? [...own, ...extra].map((p, i) => [p, i] as const).sort(([a, i], [b, j]) => order(a) - order(b) || i - j).map(([p]) => p) : own
   // J13: only errors block publishing; warnings and infos are shown, never in the way.
-  const errors = errorsOf(problems)
+  const errors = errorsOf(problems).filter((p) => !p.parse) // an unreadable input is shown, not blocking (as Sanity's)
   const openObjects = useOpenObjects(pane.id)
   // Sanity's `inspect=…/validation`: the panel survives a reload and a copied link.
   const inspecting = pane.inspect === 'validation'

@@ -52,6 +52,7 @@ export default {
   'Must be greater than or equal to {min}': 'Må være større enn eller lik {min}',
   'Must be lower than or equal to {max}': 'Må være mindre enn eller lik {max}',
   'Not a valid URL': 'Ikke en gyldig URL',
+  'Invalid date. Must be on the format "{format}"': 'Ugyldig dato. Må være på formatet «{format}»',
   'Image': 'Bilde',
   'Does not match allowed protocols/schemes': 'Stemmer ikke overens med tillatte protokoller/skjemaer',
   'Username/password not allowed': 'Brukernavn/passord er ikke tillatt',

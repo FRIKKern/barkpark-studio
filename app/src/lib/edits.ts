@@ -542,7 +542,7 @@ function toPatch(fields: Map<string, unknown>) {
 }
 
 /** A finding's path ("seo/metaDescription", "seo.metaDescription") as its field titles, "SEO › Meta description". */
-function fieldTitle(fields: Field[], path: string): string | undefined {
+export function fieldTitle(fields: Field[], path: string): string | undefined {
   const titles: string[] = []
   let here: Field[] | undefined = fields
   for (const name of path.split(/[./]/).filter((p) => p && !/^\d+$|^\[/.test(p))) {

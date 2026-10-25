@@ -1,10 +1,12 @@
-import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
+import {useContext, useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useFocusScope} from '../lib/focus-scope'
 import {Calendar, ChevronLeft, ChevronRight, ChevronDown, EarthGlobe} from './icons'
 import {intlTag, translate, useLocale, useT, type Locale} from '../lib/i18n'
 import {formatDate, onTimeStep, parseDate} from '../lib/date-format'
 import {unsavedElsewhere} from '../lib/edits'
 import {localZone, zoneLongName, zoneShort} from '../lib/timezone'
+import {reportParseError} from '../lib/parse-errors'
+import {DocIdContext} from './doc-ids'
 
 // Sanity's date-time input (J31): a text field in local time ("2026-09-06 11:00")
 // that commits on blur or Enter when it parses (half-typed dates never land), plus a calendar popover — month select, year
@@ -55,6 +57,15 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
   if (shown !== seen) (setSeen(shown), setText(shown))
   const [open, setOpen] = useState(false)
   const invalid = text.trim() !== '' && !parseLocal(text)
+  // In a document, the unreadable text is reported too: the field's header and the validation
+  // list say it, as Sanity's useReportParseError (its wording there). The value stays as stored.
+  const docId = useContext(DocIdContext)
+  const parseError = invalid ? t('Invalid date. Must be on the format "{format}"', {format}) : null
+  useEffect(() => {
+    if (!docId) return
+    reportParseError(docId, id, parseError)
+    return () => reportParseError(docId, id, null)
+  }, [docId, id, parseError])
   const button = useRef<HTMLButtonElement>(null)
 
   // What was typed: empty clears, a date commits, anything else waits (marked invalid).
