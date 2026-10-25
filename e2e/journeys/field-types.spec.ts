@@ -30,8 +30,12 @@ test('field types store as Sanity: a dateFormat date, a list in its order, "1,50
   await page.locator('[id="width"]').fill('1,500')
   await expect.poll(() => value('width'), {timeout: 10_000}).toBeUndefined()
   await expect(page.locator('[id="width"]')).toHaveValue('1,500')
+  // ...and the field says so, so a shown value is never silently unset (task-cad5d4a8ee5f7893).
+  const widthAlert = page.locator('.field').filter({has: page.locator('[id="width"]')}).getByRole('alert')
+  await expect(widthAlert).toHaveText('Not a number')
   await page.locator('[id="width"]').fill('1200')
   await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1200)
+  await expect(widthAlert).toBeHidden()
   // Up steps a number, as Sanity's <input type="number"> does.
   await page.locator('[id="width"]').press('ArrowUp')
   await expect.poll(() => value('width'), {timeout: 10_000}).toBe(1201)
