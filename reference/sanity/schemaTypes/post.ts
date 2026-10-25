@@ -115,7 +115,7 @@ export const post = defineType({
       hidden: ({document}) => !document?.featured,
       // A rule answering with a Promise (the studio's app/src/studio.config.tsx has the same).
       validation: (r) =>
-        r.custom((v: string | undefined) => (typeof v === 'string' && v.includes('TODO') ? new Promise<string>((done) => setTimeout(() => done('Remove the TODO before publishing'), 1000)) : true)),
+        r.custom((v: string | undefined) => (typeof v === 'string' && v.includes('TODO') ? new Promise<string>((done) => setTimeout(() => done('Remove the TODO before publishing'), 500)) : true)),
     }),
     defineField({name: 'reviewNote', title: 'Review note', type: 'text', rows: 2, group: 'meta', readOnly: ({document}) => document?.stage === 'done'}),
     // File field (J36).

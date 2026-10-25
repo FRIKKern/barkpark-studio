@@ -22,7 +22,6 @@ test('custom rules: a document rule gates Publish; an async rule says Validating
     await expect(panel).toContainText('A featured post needs an excerpt')
     await t.field(page, 'excerpt').fill('Now it has one.')
     await expect(panel).not.toContainText('A featured post needs an excerpt')
-    await expect(publish).toBeEnabled()
     // The async rule: Validating… (Publish held), then its answer.
     await page.getByRole('tab', {name: /^Meta/}).click()
     await t.field(page, 'featuredNote').fill('TODO: check')

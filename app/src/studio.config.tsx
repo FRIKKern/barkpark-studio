@@ -92,7 +92,7 @@ export default defineStudio({
             {validate: (doc) => ((doc as {featured?: boolean; excerpt?: string}).featured && !(doc as {excerpt?: string}).excerpt ? 'A featured post needs an excerpt' : true)},
             {
               path: 'featuredNote',
-              validate: (v) => (typeof v === 'string' && v.includes('TODO') ? new Promise<string>((done) => setTimeout(() => done('Remove the TODO before publishing'), 1000)) : true),
+              validate: (v) => (typeof v === 'string' && v.includes('TODO') ? new Promise<string>((done) => setTimeout(() => done('Remove the TODO before publishing'), 500)) : true),
             },
             {path: 'seo.metaTitle', level: 'warning', validate: (v, {parent}) => (v && v === (parent as {metaDescription?: string} | undefined)?.metaDescription ? 'Meta title and description should differ' : true)},
           ]
