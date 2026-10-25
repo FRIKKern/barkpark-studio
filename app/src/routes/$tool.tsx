@@ -2,6 +2,7 @@ import {createFileRoute, notFound} from '@tanstack/react-router'
 import {requireEditor} from '../lib/structure-route'
 import {Navbar} from '../components/Navbar'
 import studio from '../studio.config'
+import {studioName} from '../lib/studio-name'
 
 // J65: a tool from the studio config, at `/name` like Sanity's.
 const toolOf = (name: string) => studio.tools?.find((tool) => tool.name === name)
@@ -11,7 +12,7 @@ export const Route = createFileRoute('/$tool')({
     if (!toolOf(params.tool)) throw notFound()
     return requireEditor(context.queryClient, location.href)
   },
-  head: ({params}) => ({meta: [{title: `${toolOf(params.tool)?.title ?? ''} · Barkpark Studio`}]}),
+  head: ({params}) => ({meta: [{title: `${toolOf(params.tool)?.title ?? ''} · ${studioName}`}]}),
   component: ToolPage,
 })
 

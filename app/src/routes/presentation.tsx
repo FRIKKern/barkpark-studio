@@ -5,6 +5,7 @@ import {Presentation} from '../components/Presentation'
 import {localeQuery, translate} from '../lib/i18n'
 import {resumeLive} from '../lib/live'
 import studio from '../studio.config'
+import {studioName} from '../lib/studio-name'
 
 // J58: Presentation, when the studio config names a preview site. `?preview=/path`
 // is the site's page, like Sanity's; J61: `?pane=` the document panel's panes.
@@ -23,7 +24,7 @@ export const Route = createFileRoute('/presentation')({
   },
   loaderDeps: ({search}) => ({pane: search.pane}),
   loader: ({context, deps}) => (deps.pane ? loadPanes(context.queryClient, deps.pane) : null),
-  head: ({match}) => ({meta: [{title: `${translate(match.context.queryClient.getQueryData(localeQuery.queryKey)?.locale ?? 'en', 'Presentation')} · Barkpark Studio`}]}),
+  head: ({match}) => ({meta: [{title: `${translate(match.context.queryClient.getQueryData(localeQuery.queryKey)?.locale ?? 'en', 'Presentation')} · ${studioName}`}]}),
   component: PresentationRoute,
 })
 

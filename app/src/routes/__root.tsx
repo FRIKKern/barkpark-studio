@@ -9,6 +9,7 @@ import {ToastHost} from '../components/Toasts'
 import {SessionGate} from '../components/SessionGate'
 import {useAnnouncer} from '../lib/announce'
 import {THEME_BOOT} from '../lib/theme'
+import {studioName} from '../lib/studio-name'
 import {EARLY_CLICKS, releaseEarlyClicks} from '../lib/hydrated'
 import {watchRequests} from '../lib/request-timings'
 import {currentScopeQuery} from '../lib/scope-switch'
@@ -28,7 +29,7 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
     meta: [
       {charSet: 'utf-8'},
       {name: 'viewport', content: 'width=device-width, initial-scale=1'},
-      {title: 'Barkpark Studio'},
+      {title: studioName},
     ],
     links: [
       {rel: 'icon', href: 'data:,'},

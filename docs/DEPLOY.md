@@ -23,7 +23,8 @@ in at build: change one, deploy again.
 | `STUDIO_SIGN_IN` | no | `account` (production default): editors sign in with their Barkpark account. `shared`: everyone works as `BARKPARK_TOKEN` |
 | `STUDIO_SESSION_SECRET` | yes on Vercel | 32+ random characters (`openssl rand -base64 32`) sealing sign-in cookies. Every instance must share it; a Vercel build refuses sign-ins without it |
 | `STUDIO_LOCALE` | no | `nb-NO` or `en` forces the interface language; otherwise the workspace's |
-| `VITE_STUDIO_TITLE` | no | The studio's name in the navbar |
+| `STUDIO_DESK_ID` | no | The published `deskStructure` document this studio's desk is (default `deskStructure`), e.g. `deskStructure.pensum` for a second studio on the same dataset. Letters, digits, `_ . -`, no `drafts.`; another value is refused: every content-model read fails with the reason. A non-default desk needs Barkpark's `/v1/structure?desk=`; without it the desk shows an error, never the other studio's desk |
+| `VITE_STUDIO_TITLE` | no | The studio's name in the navbar and the browser tab |
 | `VITE_STUDIO_TOOLS` | no | e.g. `structure,vision`: only these tools, in this order |
 | `VITE_PREVIEW_ORIGIN_OVERRIDE` | no | Swaps the origin of every schema's `desk.preview` template |
 | `VITE_FORM_VIEW_TITLE`, `VITE_HIDE_JSON_VIEW=1` | no | The form tab's name; drop the JSON tab |
