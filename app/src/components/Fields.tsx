@@ -913,6 +913,11 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
   const [expanded, setExpanded] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const area = useExpandArea(box, expanded)
+  // The block menu's placement follows expanding too, and leaves with the canvas.
+  useEffect(() => {
+    if (box.current) syncObjectMenu(box.current)
+  }, [expanded])
+  useEffect(() => () => document.documentElement.removeAttribute('data-bp-object-menu'), [])
   // Inline comments show on the read-only view too, and a click on one opens its thread.
   const staticBody = useRef<HTMLDivElement>(null)
   const pickComment = useStaticCommentHighlights(staticBody, field, !active, value)
@@ -1118,7 +1123,16 @@ function markObjectHover(field: HTMLElement, target: Element) {
   // An image or object card (canvas 1.11.0, 1.12.0) carries its own "…" (Edit, Remove), as Sanity's: no second one.
   const ownMenu = !!block?.querySelector(':scope > .bp-canvas-image-head, :scope > .bp-canvas-object-more')
   field.toggleAttribute('data-hover-object', !!block && !ownMenu && !/^(P|H[1-6]|UL|OL|BLOCKQUOTE)$/.test(block.tagName))
+  syncObjectMenu(field)
 }
+
+/**
+ * The block menu (fixed, in <body>) opens right-aligned to an object's "…": said on <html>
+ * (data-bp-object-menu), as `body:has(.body-canvas[data-hover-object]…)` did; that selector had
+ * Chrome re-check the whole page on each keystroke's DOM change (lib/html-mark.ts).
+ */
+const syncObjectMenu = (field: HTMLElement) =>
+  document.documentElement.toggleAttribute('data-bp-object-menu', field.hasAttribute('data-hover-object') && !field.hasAttribute('data-expanded'))
 
 /** The body's expand button; its tooltip names the hotkey (J35, Sanity's "Expand editor ⌘ Enter"). */
 function ExpandButton({expanded, ...rest}: {expanded: boolean} & React.ButtonHTMLAttributes<HTMLButtonElement>) {

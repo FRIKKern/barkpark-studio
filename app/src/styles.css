@@ -1423,7 +1423,7 @@ fieldset.object-field[data-collapsible] { --lift: -26px; } /* its legend is a 25
    380 wide, 20 px in; on a phone 20 px in from both edges (350 at 390; ours ran 10 px off the left). */
 .toasts { position: fixed; right: 20px; bottom: 84px; z-index: 50; display: flex; flex-direction: column; gap: 12px; }
 /* Over a studio-wide dialog (Diagnostics, version), as Sanity's: its "copied" toast sat under it. Menus still go over toasts (J28). */
-body:has(.diagnostics-backdrop) .toasts { z-index: 75; }
+html[data-diagnostics-open] .toasts { z-index: 75; } /* not body:has(): lib/html-mark.ts */
 .toast { position: relative; width: min(380px, calc(100vw - 40px)); display: flex; flex-direction: column; gap: 6px; padding: 7px 40px 8px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--ring), 0 8px 24px var(--shadow); font-size: 13px; line-height: 19px; color: var(--fg-strong); }
 .toast strong { font-weight: 500; }
 .toast[data-tone=default] { background: var(--toast-bg); box-shadow: var(--toast-shadow); color: var(--toast-fg); }
@@ -2099,7 +2099,7 @@ html[data-theme='dark'] body > .bp-link-pill .bp-link-preview__remove { color: #
 .body-canvas:not([data-expanded]):not([data-hover-object]) .bp-block-handle { display: none !important; }
 .body-canvas[data-hover-object]:not([data-expanded]) .bp-block-handle { left: auto !important; right: 20px; opacity: 1; }
 /* Its menu (fixed, in <body>) opens right-aligned to the "…", inside the frame, as Sanity's. */
-body:has(.body-canvas[data-hover-object]:not([data-expanded])) > .bp-block-menu { transform: translateX(calc(-100% + 25px)); }
+html[data-bp-object-menu] > body > .bp-block-menu { transform: translateX(calc(-100% + 25px)); } /* set by Fields.tsx syncObjectMenu, not body:has() */
 .body-canvas[data-hover-object]:not([data-expanded]) .bp-block-handle__add { display: none; }
 .body-canvas[data-hover-object]:not([data-expanded]) .bp-block-handle__grip { width: 25px; height: 25px; font-size: 0; color: var(--muted); cursor: pointer; }
 .body-canvas[data-hover-object]:not([data-expanded]) .bp-block-handle__grip > * { display: none; }

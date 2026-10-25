@@ -1,4 +1,5 @@
 import {version as reactVersion, useCallback, useEffect, useMemo, useState} from 'react'
+import {useHtmlMark} from '../lib/html-mark'
 import {createPortal} from 'react-dom'
 import {useQuery} from '@tanstack/react-query'
 import {DialogBox} from './FocusScopes'
@@ -49,6 +50,7 @@ const browserFacts = () => {
 }
 
 export function Diagnostics({onClose}: {onClose: () => void}) {
+  useHtmlMark('diagnostics-open') // toasts above it (styles.css)
   const t = useT()
   const bp = useQuery(barkparkInfoQuery).data
   const scope = useQuery(currentScopeQuery).data
