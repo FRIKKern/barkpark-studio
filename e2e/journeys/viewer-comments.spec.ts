@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpBase, bpDataset, bpMutate, signInIfAsked, target} from '../rig/targets'
 
 // J49, Sanity's Viewer comments: a read-only editor (studio-editor-d, dev sign-in) adds a

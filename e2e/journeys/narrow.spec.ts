@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, reveal} from '../rig/targets'
 
 // J42, both studios, 500 px wide (under Sanity's 600 px collapse): one pane

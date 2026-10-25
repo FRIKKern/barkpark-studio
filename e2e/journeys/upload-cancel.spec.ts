@@ -1,5 +1,5 @@
 import {randomBytes} from 'node:crypto'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // A cancelled upload leaves no asset on Barkpark. The browser hands the studio server the

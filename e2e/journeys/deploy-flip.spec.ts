@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {target} from '../rig/targets'
 
 // A Barkpark deploy (blue/green) while editors work: main went red at 9398ab6 when Caddy

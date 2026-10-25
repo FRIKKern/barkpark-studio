@@ -1,4 +1,4 @@
-import {expect, test, type Locator, type Page} from '@playwright/test'
+import {expect, test, type Locator, type Page} from '../rig/test'
 import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // D09 (Freeform side track, ours only), in a fresh note's canvas: the block gutter is

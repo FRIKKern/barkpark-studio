@@ -1,4 +1,4 @@
-import {expect, test, type BrowserContext, type Page} from '@playwright/test'
+import {expect, test, type BrowserContext, type Page} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // Collaboration hour (D11 widen): two editors type in the same body paragraph at once.

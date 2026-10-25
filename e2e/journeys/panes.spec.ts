@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {installProbes, median, networkBudget, timeToReady} from '../rig/feel'
 import {seededCount, target, reveal} from '../rig/targets'
 import {referenceHold} from '../rig/reference'

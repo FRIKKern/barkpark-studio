@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J20 evidence, both studios, on post-17's excerpt: 10 s offline while typing, then

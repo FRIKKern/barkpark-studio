@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // B08 + J36 (ours only: LiveView's library has neither): the Media tool's asset shows the

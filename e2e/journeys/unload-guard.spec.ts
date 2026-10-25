@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test, type BrowserContext, type Page} from '@playwright/test'
+import {expect, test, type BrowserContext, type Page} from '../rig/test'
 import {bpMutate, target, closeAndSettle, bpRemove} from '../rig/targets'
 
 // B11 (Barkpark-native, ours only): closing the tab asks first while anything typed has

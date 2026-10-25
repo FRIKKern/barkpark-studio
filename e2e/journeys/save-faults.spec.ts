@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, signInIfAsked, target, bpRemove, closeAndSettle} from '../rig/targets'
 
 // Save fault sweep (task-2f360f9920e578b1): a write whose answer is lost on a live connection

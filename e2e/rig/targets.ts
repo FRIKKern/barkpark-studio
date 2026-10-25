@@ -348,15 +348,26 @@ const bpSend = async (mutations: unknown[], waits = 3): Promise<Response> => {
   return res
 }
 
+/** A Barkpark read that waits out a 429 as bpSend does (the lane's token is shared). */
+async function bpRead(url: string, waits = 3): Promise<Response> {
+  const res = await fetch(url, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
+  if (res.status !== 429 || waits === 0) return res
+  const s = Math.min(Number(res.headers.get('retry-after')) || 1, 5)
+  await new Promise((r) => setTimeout(r, s * 1000 + 100))
+  return bpRead(url, waits - 1)
+}
+
 /**
  * A scratch doc gone for good, draft and published, and checked after: a failure throws.
  * A swallowed one left drafts that other journeys' lists then counted (J01, J47).
  */
 export async function bpRemove(id: string, type: string, tries = 2): Promise<void> {
   try {
-    await bpMutate([{delete: {id, type, force: true}}])
+    // Gone already is gone: a retry after a delete that landed answers 404 (not_found).
+    const res = await sendBatches([{delete: {id, type, force: true}}], (part) => bpSend(part))
+    if (res && !res.ok && res.status !== 404) await ok(res)
     for (const p of ['drafts', 'published']) {
-      const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/${type}/${encodeURIComponent(id)}?perspective=${p}`, {headers: {authorization: `Bearer ${need('BARKPARK_TOKEN')}`}})
+      const r = await bpRead(`${bpBase()}/v1/data/doc/${bpDataset()}/${type}/${encodeURIComponent(id)}?perspective=${p}`)
       if (r.status !== 404) throw new Error(`${id} is still there after its delete (${p}: ${r.status})`)
     }
   } catch (e) {

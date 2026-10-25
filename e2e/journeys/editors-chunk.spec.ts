@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // J20: the document editors' chunk (image/file inputs, body, Review changes) is fetched

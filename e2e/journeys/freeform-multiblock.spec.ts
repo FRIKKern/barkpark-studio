@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {resetNative, target, type Target, closeAndSettle} from '../rig/targets'
 
 // D16, Barkdown's EDITOR-PARITY row 11 (app/tests/editor-multiblock.live.mjs) on our

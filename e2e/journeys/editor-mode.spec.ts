@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // FF3 evidence (Freeform side track, ours only): story is an Expectation type

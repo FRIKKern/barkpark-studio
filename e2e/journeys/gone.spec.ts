@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {sanityMutate, signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J32 evidence, both studios: someone else (an API write, as another editor would)

@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {closeAndSettle, signInIfAsked, target, type Target} from '../rig/targets'
 
 // J36 widen, both studios: an array of images (post.gallery): add two by upload, each in

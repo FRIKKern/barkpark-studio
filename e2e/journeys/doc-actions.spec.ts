@@ -1,4 +1,4 @@
-import {expect, test, type Locator, type Page} from '@playwright/test'
+import {expect, test, type Locator, type Page} from '../rig/test'
 import {target, type Target, closeAndSettle} from '../rig/targets'
 
 // J28 evidence, both studios: share (copy document URL / ID), Inspect with

@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // task-ccd1876176b0fc08 / J48 evidence, ours with dev sign-in (STUDIO_DEV_LOGIN=1 +

@@ -1,4 +1,4 @@
-import {expect, test, type Route} from '@playwright/test'
+import {expect, test, type Route} from '../rig/test'
 import {bpMutate, canvasFocusSettled, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J32 widen (task-6612fd882f8b8b63): someone deletes the doc while you type. The save

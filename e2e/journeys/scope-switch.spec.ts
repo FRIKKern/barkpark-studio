@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // B02 (Barkpark-native, ours only), after LiveView's switcher: the navbar names the

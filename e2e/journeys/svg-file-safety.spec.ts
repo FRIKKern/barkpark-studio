@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // task-71cb73cb5f89acef (scout 8): an uploaded SVG opened at the studio's /api/media/<id>

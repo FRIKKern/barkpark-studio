@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // J49 evidence, ours with dev sign-in (STUDIO_DEV_LOGIN=1 + BARKPARK_ADMIN_TOKEN):

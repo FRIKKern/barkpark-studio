@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, closeAndSettle, target} from '../rig/targets'
 
 // A declared object block (the post body's callout: tone + text) copied and pasted keeps

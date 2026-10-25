@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {bpBase, bpDataset, closeAndSettle, resetNative, target} from '../rig/targets'
 
 // D13 and D14, ours (Barkpark-only: Sanity has no Freeform). What can break silently: a

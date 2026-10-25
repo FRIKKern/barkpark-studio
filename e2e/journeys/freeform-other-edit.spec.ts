@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {resetNative, target, closeAndSettle} from '../rig/targets'
 
 // D22 (Freeform, ours only), after Barkdown's agent-edit row: an agent (another API

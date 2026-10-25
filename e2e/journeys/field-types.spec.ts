@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 
 // The field-type matrix (2026-10-13), ours: what Sanity draws for these options and we

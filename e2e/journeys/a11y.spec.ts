@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {seededCount, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // F13, axe (WCAG 2.1 A + AA) on the J01–J04 screens, both studios: the list,

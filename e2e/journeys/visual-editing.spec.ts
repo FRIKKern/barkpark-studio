@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, closeAndSettle, signInIfAsked, target} from '../rig/targets'
 import {median, recordFeel} from '../rig/feel'
 

@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // B03 (Barkpark-native, ours only), after LiveView's bulk bar: tick note rows (keyboard:

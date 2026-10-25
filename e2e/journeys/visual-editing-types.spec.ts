@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 
 // J59 widen, both studios, the real reference site (reference/preview-site) on post-02:

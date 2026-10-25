@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test, type Locator, type Page} from '@playwright/test'
+import {expect, test, type Locator, type Page} from '../rig/test'
 import {signInIfAsked, target, type Target, closeAndSettle} from '../rig/targets'
 
 // J36 evidence, both studios, on post-06's main image: drag a file over ("Drop

@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target} from '../rig/targets'
 
 // J11 guard (a CI gate), as Sanity's inline body: a text block shows no gutter, and a block

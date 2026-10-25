@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // B04 evidence, ours (the reference is Barkpark's LiveView Studio, not Sanity):

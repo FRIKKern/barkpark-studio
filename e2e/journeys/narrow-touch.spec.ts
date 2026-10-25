@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target} from '../rig/targets'
 
 // A phone (390, touch), light: the list search's icon sits on its words' line (the phone and

@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // D19 (Freeform side track, ours only), after Barkdown's find and replace (#17,

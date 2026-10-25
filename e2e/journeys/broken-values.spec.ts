@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {BACKEND_POLL, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J39, broken values: a draft written by another client with values the schema

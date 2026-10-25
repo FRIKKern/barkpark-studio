@@ -1,5 +1,5 @@
 import {randomBytes} from 'node:crypto'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // The same bytes give one asset (Barkpark #22700), and the second time nothing is sent:

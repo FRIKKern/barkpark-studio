@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {installProbes, timeToReady} from '../rig/feel'
 import {target} from '../rig/targets'
 

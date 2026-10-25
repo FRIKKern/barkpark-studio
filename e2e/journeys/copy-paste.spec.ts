@@ -1,4 +1,4 @@
-import {expect, test, type Locator, type Page} from '@playwright/test'
+import {expect, test, type Locator, type Page} from '../rig/test'
 import {closeAndSettle, target, type Target} from '../rig/targets'
 
 // J29 evidence, both studios: the field "…" menu copies one field and pastes it

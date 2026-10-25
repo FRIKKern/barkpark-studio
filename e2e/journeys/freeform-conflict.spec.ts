@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {target, closeAndSettle} from '../rig/targets'
 
 // D05 (Freeform side track, ours only): two tabs on note-01 in Freeform. A changes the

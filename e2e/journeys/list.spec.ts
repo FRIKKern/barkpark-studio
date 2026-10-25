@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {target} from '../rig/targets'
 
 // J24 + J25, both studios: list search (as you type, empty state) and the list's

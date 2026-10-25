@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs'
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {bpMutate, target, closeAndSettle} from '../rig/targets'
 
 // J36, Sanity's asset Delete: an image a document uses can't be deleted. The dialog

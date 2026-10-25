@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {bpMutate, signInIfAsked, target, type Target, bpRemove, closeAndSettle} from '../rig/targets'
 
 // task-90f4187e4b90c2a8 (P1): a geopoint's lat, lng and alt, and an object's subfields, typed

@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {createHash} from 'node:crypto'
 import {readFileSync} from 'node:fs'
 import {seedAssets} from '../../scripts/lib/seed-assets.mjs'

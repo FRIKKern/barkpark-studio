@@ -1,4 +1,4 @@
-import {expect, test, type Browser, type Page, type TestInfo} from '@playwright/test'
+import {expect, test, type Browser, type Page, type TestInfo} from '../rig/test'
 import {existsSync, rmSync} from 'node:fs'
 import {target} from '../rig/targets'
 

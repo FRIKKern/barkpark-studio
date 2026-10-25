@@ -1,4 +1,4 @@
-import {expect, test} from '@playwright/test'
+import {expect, test} from '../rig/test'
 import {target, BACKEND_POLL, closeAndSettle} from '../rig/targets'
 
 // J14, both studios, one doc, one page load: field-group tabs (keyboard too) and the

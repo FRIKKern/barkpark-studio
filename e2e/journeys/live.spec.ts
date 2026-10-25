@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test'
+import {expect, test, type Page} from '../rig/test'
 import {bpMutate, target} from '../rig/targets'
 
 // Live stream survives a network blip (task-c1b6d7ed2e05b73a, F8): offline while
