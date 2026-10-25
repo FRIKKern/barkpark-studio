@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 40 changes
+- **Today** · 41 changes
+  - perf: load the canvas from its hashed URLs when Barkpark names them ([#1128](https://github.com/FRIKKern/barkpark-studio/pull/1128))
   - perf: the document pane out of the chunk every route loads ([#1127](https://github.com/FRIKKern/barkpark-studio/pull/1127))
-  - Cold load: the locale and who-is-signed-in reads get a budget too, never an anonymous fallback ([#1126](https://github.com/FRIKKern/barkpark-studio/pull/1126))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
