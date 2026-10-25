@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 16 changes
+- **Today** · 17 changes
+  - Vision: a GROQ parse error draws Sanity's code frame; Line/Column 0-based ([#1104](https://github.com/FRIKKern/barkpark-studio/pull/1104))
   - Validation: Sanity's custom rules from the studio config (document, async, context) ([#1103](https://github.com/FRIKKern/barkpark-studio/pull/1103))
-  - perf(search): global search types as fast as Sanity's at 4x CPU ([#1102](https://github.com/FRIKKern/barkpark-studio/pull/1102))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
