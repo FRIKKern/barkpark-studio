@@ -45,3 +45,13 @@ export function parseDate(text: string, format: string): Date | undefined {
   const date = new Date(y, mo - 1, d, h, mi)
   return date.getMonth() === mo - 1 && date.getDate() === d && h < 24 && mi < 60 ? date : undefined
 }
+
+/** `d` down to the time step's grid (minutes), as Sanity's enforceTimeStep: every value a
+ *  datetime input writes, typed or picked (15: 09:07 → 09:00). No step, or 1, keeps the minute. */
+export function onTimeStep(d: Date, step = 1): Date {
+  const over = step > 1 ? d.getMinutes() % step : 0
+  if (!over) return d
+  const out = new Date(d)
+  out.setMinutes(d.getMinutes() - over)
+  return out
+}

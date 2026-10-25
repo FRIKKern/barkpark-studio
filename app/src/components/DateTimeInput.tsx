@@ -2,7 +2,7 @@ import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
 import {useFocusScope} from '../lib/focus-scope'
 import {Calendar, ChevronLeft, ChevronRight, ChevronDown, EarthGlobe} from './icons'
 import {intlTag, translate, useLocale, useT, type Locale} from '../lib/i18n'
-import {formatDate, parseDate} from '../lib/date-format'
+import {formatDate, onTimeStep, parseDate} from '../lib/date-format'
 import {unsavedElsewhere} from '../lib/edits'
 import {localZone, zoneLongName, zoneShort} from '../lib/timezone'
 
@@ -64,7 +64,9 @@ export function DateTimeInput({id, value, onChange, readOnly, dateOnly = false, 
     const d = parseLocal(text)
     if (d) commit(d)
   }
-  const commit = (d: Date | undefined) => {
+  const commit = (picked: Date | undefined) => {
+    // Typed, picked or set in the time box: on the time step's grid, as Sanity's (task-08d777306df00a8d).
+    const d = picked && !dateOnly ? onTimeStep(picked, options.timeStep) : picked
     const next = d ? formatLocal(d) : ''
     setText(next)
     setSeen(next)
@@ -273,6 +275,8 @@ function DatePicker({value, dateOnly, timeStep = 1, min, notice, showZone, onPic
               if (m && value && Number(m[1]) < 24 && Number(m[2]) < 60)
                 onPick(new Date(value.getFullYear(), value.getMonth(), value.getDate(), Number(m[1]), Number(m[2])))
             }}
+            // The stored time is on the step's grid; the box shows it once typing there ends (not per key, so 14:45 can be typed).
+            onBlur={() => value && setTime(`${pad(value.getHours())}:${pad(value.getMinutes())}`)}
           />
         </span>
         <button
