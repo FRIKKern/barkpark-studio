@@ -1,4 +1,4 @@
-import {canvasOrigin} from './blocks'
+import {canvasFiles} from './blocks'
 import {t as translate} from './i18n'
 
 // Barkpark's <bp-paper-canvas>, loaded once per page from the connected Barkpark: the
@@ -9,20 +9,21 @@ let bundle: Promise<void> | null = null
 /** Load the canvas once per page: script + its stylesheets, from the connected Barkpark. */
 export function loadCanvas(): Promise<void> {
   bundle ??= (async () => {
-    const origin = await canvasOrigin()
+    // Under their content hash when the Barkpark names one (blocks.ts canvasFiles).
+    const {origin, script: bundleSrc, styles} = await canvasFiles()
     // Its own CSS inject is origin-relative (wrong origin here): link them ourselves.
     ;(window as {BP_PAPER_EDITOR_NO_INJECT?: boolean}).BP_PAPER_EDITOR_NO_INJECT = true
     // bp-paper-surface.css (Barkpark #22541): the paper surface's own rules, the task and
     // fleet blocks among them (D14).
-    for (const css of ['bp-paper-editor.css', 'bp-paper-editor-shell.css', 'bp-paper-surface.css']) {
+    for (const css of styles) {
       const link = document.createElement('link')
       link.rel = 'stylesheet'
-      link.href = `${origin}/assets/${css}`
+      link.href = origin + css
       document.head.appendChild(link)
     }
     await new Promise<void>((resolve, reject) => {
       const script = document.createElement('script')
-      script.src = `${origin}/assets/bp-paper-editor.bundle.js`
+      script.src = origin + bundleSrc
       script.onload = () => resolve()
       script.onerror = () => reject(new Error(translate('could not load the editor from {origin}', {origin})))
       document.head.appendChild(script)
