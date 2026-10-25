@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 11 changes
+- **Today** · 12 changes
+  - e2e: list-media's type-icon check finds Sanity's icon too ([#1099](https://github.com/FRIKKern/barkpark-studio/pull/1099))
   - Vision: perspectives in Sanity's order, raw → published → drafts ([#1098](https://github.com/FRIKKern/barkpark-studio/pull/1098))
-  - Preview: |date shows a date-time as the editor's local day, as Sanity's ([#1097](https://github.com/FRIKKern/barkpark-studio/pull/1097))
 - **This week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
 - **Last week** · 427 changes, 98 tasks closed
