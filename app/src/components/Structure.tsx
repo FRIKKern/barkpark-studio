@@ -734,6 +734,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const publishedList = useQuery({...publishedListQuery(type, sort, limit, filter), enabled: readable && published, placeholderData: keepPreviousData})
   const listQ = published ? publishedList : draftList
   const page = listQ.data
+  // Ops the server itself refused (a Barkpark without `$or` groups) join the advisory.
+  const shownMissing = [...missingOps, ...(page?.unsupported ?? [])]
   // A new sort shows the old page until the server's answer: sorting that page on the
   // client would show the wrong first rows of a longer list for a moment.
   const resolvedSort = useRef(sort)
@@ -1028,7 +1030,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         onKeyDown={(e) => (e.key === 'Escape' && (selecting || picked.size > 0) ? stopSelecting() : rowKeys(e))}
         onFocus={(e) => void (focusedRow.current = (e.target as HTMLElement).closest('[role="listitem"] a[href]')?.getAttribute('href') ?? null)}
       >
-        {!readable && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: missingOps.join(', ')})}</p>}
+        {shownMissing.length > 0 && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: shownMissing.join(', ')})}</p>}
         {tree && treeParent && parentDoc && (
           <>
             <DocPreview doc={parentDoc} href={openAfter(panes, index, {kind: 'doc', id: treeParent, type})} selected={selected === treeParent} active={index === panes.length - 2} testId="pane-item" />
