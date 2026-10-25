@@ -456,10 +456,22 @@ function PaneTitle({pane}: {pane: Pane}) {
 
 /** The first pane, and a nested desk list: the declared desk's items, or the plain type list. */
 function RootPane({panes, index}: {panes: Pane[]; index: number}) {
-  const {data: desk} = useQuery(deskQuery)
+  const {data: desk, isPending} = useQuery(deskQuery)
+  const schemas = useQuery(schemasQuery)
+  const t = useT()
   const pane = panes[index]
   const menu = useDeskNode(pane.kind === 'menu' ? pane.node : undefined)
   const next = panes[index + 1]
+  // A slow Barkpark's first load: the server sent the shell, desk and schemas are on their way.
+  if (pane.kind === 'types' && (isPending || schemas.isPending))
+    return (
+      <section className="pane types" aria-label={t('Content')} aria-busy="true" data-testid="pane" data-pane="types" data-pane-index={index}>
+        <header className="pane-header">
+          <span className="title">{t('Content')}</span>
+        </header>
+        <div className="pane-loading" aria-busy="true" data-testid="root-loading">{t('Loading…')}</div>
+      </section>
+    )
   // Without a declared desk the first pane is the type list; a nested list of the studio's
   // own structure items (J18, Sanity's S.list() under an S.listItem()) is its own pane.
   if (!desk && pane.kind !== 'menu') return <TypesPane panes={panes} index={index} selected={next?.kind === 'list' ? next.node ?? next.type : next?.kind === 'menu' ? next.node : next?.kind === 'doc' ? next.id : undefined} />

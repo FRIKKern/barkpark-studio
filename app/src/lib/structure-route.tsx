@@ -1,4 +1,4 @@
-import {useQuery, type QueryClient} from '@tanstack/react-query'
+import {QueryClient, useQuery} from '@tanstack/react-query'
 import {setPresenceSelf, usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
@@ -12,7 +12,7 @@ import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, wri
 import {useEffect, useState} from 'react'
 import {useReconnectingToast} from './connection'
 import {resumeLive} from './live'
-import {redirect} from '@tanstack/react-router'
+import {redirect, useRouter} from '@tanstack/react-router'
 
 // Everything a pane chain needs before it paints: schemas, the list, every open
 // doc, and the docs their previews follow (refs + preview subtitles). On a
@@ -28,7 +28,37 @@ export async function requireEditor(queryClient: QueryClient, href: string) {
   if (me.signIn !== 'shared' && !me.email) throw redirect({to: '/login', search: {redirect: href}})
 }
 
-export async function loadPanes(queryClient: QueryClient, splat: string | undefined) {
+/** How long a server render waits on Barkpark before it sends the shell instead (task-9379f9fa115b156f). */
+const SSR_BUDGET_MS = 1500
+
+/** What a pane chain renders: its panes, or (`deferred`) the shell a slow Barkpark leaves, the browser filling it in. */
+export type PanesData = {panes: Pane[]; widthHint: number; listPrefs: ListPrefs; resume?: number | null; deferred?: true}
+
+/**
+ * The route's loader. On the server a slow Barkpark (9–10 s schema and desk reads were seen)
+ * held the whole page: no byte until every read in the chain had landed (82 s with 20 s
+ * reads), a blank tab. Now the server waits at most SSR_BUDGET_MS: past it, the shell goes
+ * out (navbar, the root pane loading) while the reads it started carry on and stream their
+ * answers into the page as they land (the SSR query integration), and the browser runs
+ * the chain itself. A normal Barkpark answers well inside the budget: the page is as before.
+ */
+export async function loadPanes(queryClient: QueryClient, splat: string | undefined): Promise<PanesData> {
+  if (typeof window !== 'undefined') return loadPaneChain(queryClient, splat)
+  // On a scratch client, so a chain past the budget never holds the page: the request's
+  // client streams every query it holds, and the page waited for each to land.
+  const scratch = new QueryClient({defaultOptions: {queries: {retry: false}}})
+  const chain = loadPaneChain(scratch, splat)
+  const inTime = await Promise.race([chain, new Promise<null>((r) => setTimeout(r, SSR_BUDGET_MS, null))])
+  if (!inTime) {
+    chain.catch(() => {})
+    return {panes: [{kind: 'types'}], widthHint: await fetchViewportHint(), listPrefs: {}, deferred: true}
+  }
+  // In time: what it read is the page's, as before.
+  for (const q of scratch.getQueryCache().getAll()) if (q.state.status === 'success') queryClient.setQueryData(q.queryKey, q.state.data)
+  return inTime
+}
+
+async function loadPaneChain(queryClient: QueryClient, splat: string | undefined): Promise<PanesData> {
   const onServer = typeof window === 'undefined'
   // Before any read: frames after this point reach the page once its stream opens.
   const resume = onServer ? await fetchResumeMark() : undefined
@@ -149,8 +179,14 @@ async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [D
   return [...byType.values()].flatMap((ids) => [...ids].map((id) => qc.getQueryData<Doc | null>(['doc', id])).filter((d): d is Doc => !!d))
 }
 
-export function StructureView({panes, widthHint, listPrefs, resume}: {panes: Pane[]; widthHint: number; listPrefs: ListPrefs; resume?: number | null}) {
+/** The structure tool; its shell and its panes are two mounts (the list prefs start again from the chain's). */
+export const StructureView = (data: PanesData) => <StructureTool key={data.deferred ? 'shell' : 'panes'} {...data} />
+
+function StructureTool({panes, widthHint, listPrefs, resume, deferred}: PanesData) {
   resumeLive(resume)
+  // The server sent the shell (Barkpark was slow): the browser runs the pane chain now.
+  const router = useRouter()
+  useEffect(() => void (deferred && router.invalidate()), [deferred, router])
   const [prefs, setPrefs] = useState(listPrefs)
   const set = (type: string, p: ListPrefs[string]) =>
     setPrefs((all) => {
