@@ -37,7 +37,7 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 | The quality bar + test budget | [`QUALITY.md`](QUALITY.md) |
 | The journeys (the spec) | [`JOURNEYS.md`](JOURNEYS.md) |
 | How we work; extending it (types, desk, inputs, actions, build); deploying (own server, Vercel) | [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/EXTENDING.md`](docs/EXTENDING.md), [`docs/DEPLOY.md`](docs/DEPLOY.md) |
-| Ported code + licenses | [`THIRD-PARTY.md`](THIRD-PARTY.md) |
+| License (Apache-2.0); ported code + their licenses | [`LICENSE`](LICENSE); [`THIRD-PARTY.md`](THIRD-PARTY.md) |
 | Decisions | [`docs/decisions/`](docs/decisions/), one page each |
 | Status, who does what | Barkpark tasks under goal `task-130be6b834d485ae`, mirrored to [FRIKKern/barkpark#21665](https://github.com/FRIKKern/barkpark/issues/21665). Never in docs |
 | Bugs, "feels off", server gaps | [New issue](https://github.com/FRIKKern/barkpark-studio/issues/new/choose) → lands on that board ([0003](docs/decisions/0003-tracking-and-hygiene.md)) |
