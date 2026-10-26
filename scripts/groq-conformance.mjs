@@ -7,6 +7,13 @@
 //   node --env-file=.env scripts/groq-conformance.mjs            # the table
 //   node --env-file=.env scripts/groq-conformance.mjs --diff     # and each failure's first difference
 //   node --env-file=.env scripts/groq-conformance.mjs --only ref # queries whose id starts with ref
+//   node --env-file=.env scripts/groq-conformance.mjs --csm      # diff the resultSourceMaps instead
+//
+// --csm (task-640e8371b8e468ce) asks both sides for resultSourceMap=withKeyArraySelector
+// (--csm=plain: =true) and compares the maps resolved to (result path, document _id, source
+// path), indices of an unordered result read as [*]. pass: the same mappings. FAIL lists the
+// first mapping only Sanity has (-) or only Barkpark has (+). A value a function computes
+// (upper, coalesce, select, pt::text) maps on Sanity and not yet on Barkpark (T2).
 //
 // Reads BARKPARK_URL, BARKPARK_WORKSPACE, BARKPARK_PROJECT, BARKPARK_TOKEN and SANITY_TOKEN.
 // The dataset is GROQ_DATASET (default e2e-local), never BARKPARK_DATASET: .env names
@@ -18,6 +25,8 @@ const PROJECT = 'ecu57yeh'
 const args = process.argv.slice(2)
 const showDiff = args.includes('--diff')
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null
+const csm = args.find((a) => a.startsWith('--csm'))
+const csmMode = csm === '--csm=plain' ? 'true' : csm ? 'withKeyArraySelector' : null
 const need = (k) => process.env[k] || (console.error(`missing env ${k}`), process.exit(2))
 
 // Each: id (source-topic), the query, its params, whether its order is the query's own, and
@@ -80,7 +89,7 @@ const Q = [
 const bpBase = `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}/${API}/data/query/${DATASET}`
 const sanityBase = `https://${PROJECT}.api.sanity.io/${API}/data/query/${DATASET}`
 const url = (base, {q, params = {}}) => {
-  const u = new URLSearchParams({query: q, perspective: 'published'})
+  const u = new URLSearchParams({query: q, perspective: 'published', ...(csmMode && {resultSourceMap: csmMode})})
   for (const [k, v] of Object.entries(params)) u.set(`$${k}`, JSON.stringify(v))
   return `${base}?${u}`
 }
@@ -89,7 +98,7 @@ async function run(base, token, entry) {
     const r = await fetch(url(base, entry), {headers: {authorization: `Bearer ${token}`}})
     if (r.status === 429) { await new Promise((s) => setTimeout(s, 1000 * (i + 1))); continue }
     const body = await r.json().catch(() => ({}))
-    return r.ok ? {ok: true, result: body.result} : {ok: false, error: `${r.status} ${(body.error?.description ?? body.error?.message ?? JSON.stringify(body.error ?? body)).slice(0, 90)}`}
+    return r.ok ? {ok: true, result: body.result, map: body.resultSourceMap} : {ok: false, error: `${r.status} ${(body.error?.description ?? body.error?.message ?? JSON.stringify(body.error ?? body)).slice(0, 90)}`}
   }
   return {ok: false, error: '429'}
 }
@@ -112,6 +121,24 @@ const firstDiff = (a, b, path = '') => {
   return `${path || '(root)'}: sanity ${JSON.stringify(a)?.slice(0, 80)} | barkpark ${JSON.stringify(b)?.slice(0, 80)}`
 }
 
+// A resultSourceMap as a sorted list of "result path → _id source path" lines.
+const resolveMap = (map, ordered) =>
+  !map
+    ? []
+    : Object.entries(map.mappings ?? {})
+        .map(([rpath, {source}]) => {
+          const doc = map.documents?.[source?.document]?._id
+          const r = ordered ? rpath : rpath.replace(/\[\d+\]/g, '[*]')
+          return `${r} → ${doc} ${map.paths?.[source?.path]}`
+        })
+        .sort()
+const mapDiff = (s, b) => {
+  const only = (a, c) => a.filter((x) => !c.includes(x))
+  const minus = only(s, b), plus = only(b, s)
+  if (!minus.length && !plus.length) return null
+  return `${s.length} vs ${b.length} mappings; ${minus.length ? `- ${minus[0]}` : ''}${minus.length && plus.length ? ' ; ' : ''}${plus.length ? `+ ${plus[0]}` : ''}`
+}
+
 const picked = Q.filter((e) => !only || e.id.startsWith(only))
 const sanityToken = need('SANITY_TOKEN'), bpToken = need('BARKPARK_TOKEN')
 const rows = []
@@ -122,7 +149,10 @@ await Promise.all(Array.from({length: 4}, async () => {
     let status, diff
     if (!s.ok) (status = 'REF-ERR'), (diff = `sanity ${s.error}`)
     else if (!b.ok) (status = 'ERROR'), (diff = `barkpark ${b.error}`)
-    else {
+    else if (csmMode) {
+      diff = mapDiff(resolveMap(s.map, e.ordered), resolveMap(b.map, e.ordered))
+      status = diff ? 'FAIL' : 'pass'
+    } else {
       diff = firstDiff(norm(s.result, e.ordered), norm(b.result, e.ordered))
       status = diff ? (e.intended ? 'intend' : e.known ? 'known' : 'FAIL') : 'pass'
       if (e.intended && diff) diff = `intended: ${e.intended}`
@@ -133,7 +163,7 @@ await Promise.all(Array.from({length: 4}, async () => {
 }))
 rows.sort((a, b) => Q.findIndex((e) => e.id === a.id) - Q.findIndex((e) => e.id === b.id))
 const w = Math.max(...rows.map((r) => r.id.length))
-console.log(`GROQ conformance · ${DATASET} · ${API} · perspective published · Sanity ${PROJECT} vs Barkpark ${process.env.BARKPARK_WORKSPACE}`)
+console.log(`GROQ conformance${csmMode ? ` · resultSourceMap=${csmMode}` : ''} · ${DATASET} · ${API} · perspective published · Sanity ${PROJECT} vs Barkpark ${process.env.BARKPARK_WORKSPACE}`)
 for (const r of rows) console.log(`${r.status.padEnd(7)} ${r.id.padEnd(w)}${(showDiff || r.status === 'known' || r.status === 'intend') && r.diff ? `  ${r.diff}` : ''}`)
 const n = (s) => rows.filter((r) => r.status === s).length
 const scored = rows.length - n('intend')
