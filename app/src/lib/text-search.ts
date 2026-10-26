@@ -3,6 +3,7 @@
 // Barkpark's /v1/data/search finds the candidates; this decides which of them
 // Sanity would show and in what order. Checked against the reference project.
 import type {Field, Schema} from './data.ts'
+import {pathsOf} from './preview.ts'
 
 type Part = {words: string[]; prefix: boolean; idWords: string[]}
 export type TextQuery = {any: Part[]; not: Part[]; raw: string}
@@ -104,4 +105,37 @@ const excludes = (text: string[][], title: string[], q: TextQuery) => q.not.some
 export function excluded(doc: Record<string, unknown>, q: TextQuery, schema?: Schema): boolean {
   const {text} = docText(doc, schema)
   return excludes(text, words(String(doc.title ?? '')), q)
+}
+
+/**
+ * Sanity's `boost(references($__refIds), 5)`: 5, once, for a doc that references a preview
+ * target that matched (an author whose name matched, a linked post whose title did),
+ * wherever in the doc the reference sits.
+ */
+export const refBoost = (doc: Record<string, unknown>, refIds: Set<string>, schema?: Schema) => (docText(doc, schema).refs.some((r) => refIds.has(r)) ? 5 : 0)
+
+/**
+ * What breaks a tie between equal hits: how many words the doc holds, stopwords included. Sanity
+ * scores a whole word with BM25, higher in the shorter doc, but a prefix (the last word as
+ * typed) flatly, so a query of one word leaves ties as they were (0 here).
+ */
+export const tieLength = (doc: Record<string, unknown>, q: TextQuery, schema?: Schema) =>
+  q.any.some((p) => !p.prefix) ? docText(doc, schema).text.flat().length + words(String(doc.title ?? '')).length : 0
+
+/**
+ * The reference fields an array item's preview reads (post.links: a docLink's subtitle is its
+ * `target`), each with the target field it shows (none: the target's own title). Sanity
+ * searches those targets as it does a doc preview's `author.name`.
+ */
+export function memberPreviewRefs(fields: Field[] = []): (Field & {leaf: string[]})[] {
+  return fields.flatMap((f) => {
+    const item = f.of
+    const paths = item?.preview ? [...pathsOf(item.preview.title), ...pathsOf(item.preview.subtitle)] : []
+    const own = paths.flatMap((path) => {
+      const [name, ...leaf] = path.split('.')
+      const ref = item?.fields?.find((x) => x.name === name)
+      return ref?.type === 'reference' ? [{...ref, leaf}] : []
+    })
+    return [...own, ...memberPreviewRefs(f.fields), ...memberPreviewRefs(item?.fields)]
+  })
 }
