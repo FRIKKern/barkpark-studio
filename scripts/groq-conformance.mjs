@@ -21,7 +21,8 @@ const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null
 const need = (k) => process.env[k] || (console.error(`missing env ${k}`), process.exit(2))
 
 // Each: id (source-topic), the query, its params, whether its order is the query's own, and
-// `intended`: a difference kept on purpose (run and shown, left out of the score, with why).
+// `intended`: a difference kept on purpose (run and shown, left out of the score, with why);
+// `known`: a gap filed as its own task (run and shown with it; still counted as not passing).
 // Sources: ref = this repo's reference studio and preview site; docs = Sanity's GROQ docs and
 // cheat sheet; starter = the next-sanity starter (clean template) patterns.
 const Q = [
@@ -53,8 +54,8 @@ const Q = [
   {id: 'docs-deref-object', q: '*[_id == "post-02"][0]{author->{_id, name}}'},
   {id: 'docs-deref-array', q: '*[_id == "post-06"][0]{"categories": categories[]->title}'},
   {id: 'docs-ref-raw', q: '*[_id == "post-01"][0].author._ref'},
-  {id: 'docs-references', q: '*[_type == "post" && references("author-ada")] | order(_id asc)._id', ordered: true},
-  {id: 'docs-references-count', q: '*[_type == "author"] | order(name asc){name, "posts": count(*[_type == "post" && references(^._id)])}', ordered: true},
+  {id: 'docs-references', q: '*[_type == "post" && references("author-ada")] | order(_id asc)._id', ordered: true, known: 'task-b1eb62967525ad1b: references in rich-text body links (markDefs) are not counted yet'},
+  {id: 'docs-references-count', q: '*[_type == "author"] | order(name asc){name, "posts": count(*[_type == "post" && references(^._id)])}', ordered: true, known: 'task-b1eb62967525ad1b: references in rich-text body links (markDefs) are not counted yet'},
   {id: 'docs-weak-ref', q: '*[_id == "field-types-01"][0]{"weak": weakRef->title, "isWeak": weakRef._weak}'},
   {id: 'docs-ref-filter', q: '*[_type == "post" && author._ref == "author-grace"] | order(_id asc)._id', ordered: true},
   // Arrays with _type
@@ -64,12 +65,12 @@ const Q = [
   {id: 'docs-object-type', q: '*[_id == "field-types-01"][0]{"place": place._type, "cards": cards[]._type}'},
   // Portable Text
   {id: 'docs-pt-text', q: '*[_id == "post-01"][0]{"text": pt::text(body)}'},
-  {id: 'docs-pt-blocks', q: '*[_id == "post-01"][0]{"blocks": count(body[_type == "block"])}'},
+  {id: 'docs-pt-blocks', q: '*[_id == "post-01"][0]{"blocks": count(body[_type == "block"])}', known: 'task-ab40acaf75927e0e: body is {blocks, html}; matching needs body read as a Portable Text array (breaking for body.blocks readers, owner decision)'},
   // The repo's reference preview site and Presentation (real queries, as written)
   {id: 'ref-home', q: '*[_type == "post" && defined(slug.current)] | order(title asc) {_id, title, "slug": slug.current, excerpt, author->{_id, name}}', ordered: true},
   {id: 'ref-post', q: '*[_type == "post" && slug.current == $slug][0] {_id, title, "slug": slug.current, excerpt, author->{_id, name}, categories[]->{_id, title}, related->{_type, _id, title, name, "slug": slug.current}, rating, publishedAt, seo{metaTitle}, links[]{_key, title}}', params: {slug: 'fixture-post-03'}},
   {id: 'ref-author', q: '*[_type == "author" && _id == $id][0] {_id, name, bio, "posts": *[_type == "post" && references(^._id) && defined(slug.current)] | order(title asc) {_id, title, "slug": slug.current, excerpt, author->{_id, name}}}', params: {id: 'author-alan'}},
-  {id: 'ref-locations', q: '{"doc": *[_id in [$id, "drafts." + $id]] | order(_updatedAt desc)[0]{_type, title, name, "slug": slug.current}, "referrers": *[_type == "post" && references($id) && defined(slug.current)] | order(title asc){title, "slug": slug.current}}', params: {id: 'author-grace'}},
+  {id: 'ref-locations', q: '{"doc": *[_id in [$id, "drafts." + $id]] | order(_updatedAt desc)[0]{_type, title, name, "slug": slug.current}, "referrers": *[_type == "post" && references($id) && defined(slug.current)] | order(title asc){title, "slug": slug.current}}', params: {id: 'author-grace'}, known: 'task-eb16cb09234c5398: Barkpark answers a title on title-less types (owner OK needed)'},
   // next-sanity starter patterns
   {id: 'starter-more-stories', q: '*[_type == "post" && _id != $skip && defined(slug.current)] | order(publishedAt desc, _updatedAt desc)[0...2]{_id, title, "slug": slug.current, "date": coalesce(publishedAt, _updatedAt), "author": author->{name}}', params: {skip: 'post-30'}, ordered: true},
   {id: 'starter-post-slugs', q: '*[_type == "post" && defined(slug.current)]{"slug": slug.current}'},
@@ -123,8 +124,9 @@ await Promise.all(Array.from({length: 4}, async () => {
     else if (!b.ok) (status = 'ERROR'), (diff = `barkpark ${b.error}`)
     else {
       diff = firstDiff(norm(s.result, e.ordered), norm(b.result, e.ordered))
-      status = diff ? (e.intended ? 'intend' : 'FAIL') : 'pass'
+      status = diff ? (e.intended ? 'intend' : e.known ? 'known' : 'FAIL') : 'pass'
       if (e.intended && diff) diff = `intended: ${e.intended}`
+      else if (e.known && diff) diff = `known gap → ${e.known}`
     }
     rows.push({id: e.id, status, diff})
   }
@@ -132,7 +134,7 @@ await Promise.all(Array.from({length: 4}, async () => {
 rows.sort((a, b) => Q.findIndex((e) => e.id === a.id) - Q.findIndex((e) => e.id === b.id))
 const w = Math.max(...rows.map((r) => r.id.length))
 console.log(`GROQ conformance · ${DATASET} · ${API} · perspective published · Sanity ${PROJECT} vs Barkpark ${process.env.BARKPARK_WORKSPACE}`)
-for (const r of rows) console.log(`${r.status.padEnd(7)} ${r.id.padEnd(w)}${showDiff && r.diff ? `  ${r.diff}` : ''}`)
+for (const r of rows) console.log(`${r.status.padEnd(7)} ${r.id.padEnd(w)}${(showDiff || r.status === 'known' || r.status === 'intend') && r.diff ? `  ${r.diff}` : ''}`)
 const n = (s) => rows.filter((r) => r.status === s).length
 const scored = rows.length - n('intend')
-console.log(`\n${n('pass')}/${scored} pass · ${n('FAIL')} differ · ${n('ERROR')} Barkpark errors${n('intend') ? ` · ${n('intend')} intended difference(s), not scored` : ''}${n('REF-ERR') ? ` · ${n('REF-ERR')} reference errors (fix the query)` : ''}`)
+console.log(`\n${n('pass')}/${scored} pass · ${n('FAIL') + n('known')} differ (${n('known')} known, with a task) · ${n('ERROR')} Barkpark errors${n('intend') ? ` · ${n('intend')} intended difference(s), not scored` : ''}${n('REF-ERR') ? ` · ${n('REF-ERR')} reference errors (fix the query)` : ''}`)
