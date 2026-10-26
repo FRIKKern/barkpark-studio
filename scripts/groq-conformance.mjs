@@ -96,6 +96,8 @@ const Q = [
   {id: 'docs-fn-projection', q: 'fn ex::n($d) = $d{name}; *[_type == "author" && !(_id in path("drafts.**"))] | order(_id)[0..1]{"x": ex::n(@)}', ordered: true},
   {id: 'docs-fn-deref', q: 'fn ex::a($d) = $d->{name}; *[_type == "post" && defined(author)] | order(_id asc)[0...3]{_id, "author": ex::a(author)}', ordered: true},
   {id: 'docs-fn-nested', q: 'fn ex::a($d) = $d{"inner": ex::b(@)}; fn ex::b($d) = $d{name}; *[_id == "author-ada"][0]{"x": ex::a(@)}'},
+  // diff:: (task-13790b478beeee4d): one stored post against a projected copy with its title changed.
+  {id: 'docs-diff-changed', q: '*[_id == "post-01"][0]{"any": diff::changedAny(@, @{..., "title": "x"}, (title)), "other": diff::changedAny(@, @{..., "title": "x"}, (excerpt, rating)), "only": diff::changedOnly(@, @{..., "title": "x"}, title), "notOnly": diff::changedOnly(@, @{..., "title": "x"}, excerpt)}'},
 ]
 
 const bpBase = `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}/${API}/data/query/${DATASET}`
