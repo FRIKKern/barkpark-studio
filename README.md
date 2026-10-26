@@ -18,14 +18,13 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 46 changes
+- **Today** · 1 change
+  - GROQ conformance: 42 real-world Sanity queries, Sanity vs Barkpark e2e-local ([#1134](https://github.com/FRIKKern/barkpark-studio/pull/1134))
+- **Yesterday** · 46 changes
   - Inspect: the Parsed / Raw JSON choice follows the editor, as Sanity's per-user setting ([#1133](https://github.com/FRIKKern/barkpark-studio/pull/1133))
-  - Vision keeps what is typed as it is typed, as Sanity's (not only on Fetch) ([#1132](https://github.com/FRIKKern/barkpark-studio/pull/1132))
-- **This week** · 143 changes, 1 task closed
+- **Last week** · 143 changes, 1 task closed
   - fix: global search across all types fails on object preview parts ([#1088](https://github.com/FRIKKern/barkpark-studio/pull/1088))
-- **Last week** · 427 changes, 98 tasks closed
-  - Releases under 900 px as Sanity's: the calendar behind a button, a View calendar dialog on a phone ([#940](https://github.com/FRIKKern/barkpark-studio/pull/940))
-- **This month** · 499 changes, 84 tasks closed
+- **This month** · 926 changes, 182 tasks closed
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
