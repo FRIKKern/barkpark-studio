@@ -14,7 +14,9 @@ const origin = `http://127.0.0.1:${port}`
 const scope = '/w/contract/p/default'
 const pagePath = `${scope}/d/review/structure`
 const person = 'synthetic-person-session'
-const service = 'synthetic-service-token'
+// A read-tier service token, as pensum-studio runs with (task-472c206eeff80777): Barkpark
+// serves it the scoped desk tree and refuses it every write and the admin member list.
+const service = 'synthetic-read-service-token'
 const reads = []
 let declared = false
 let revoked = false
@@ -28,6 +30,7 @@ const backend = createServer(async (req, res) => {
   const reply = (status, body) => {res.writeHead(status, {'content-type': 'application/json'}); res.end(JSON.stringify(body))}
   if (path === '/v1/auth/login' && req.method === 'POST') return reply(201, {token: person, user: {email: 'editor@example.invalid'}})
   if (token === person && revoked) return reply(401, {error: {code: 'invalid_token'}})
+  if (token === service && (req.method !== 'GET' || path === `${scope}/v1/members`)) return reply(403, {error: {code: 'forbidden'}})
   if (path === '/v1/auth/token' && token === person) return reply(200, {kind: 'session', user: {id: 'person-id'}, expires_at: null, seats: [{workspace: {id: 'workspace-id', slug: 'contract'}, role: 'member', can: {read: true, write: true, publish: true, admin: false}}]})
   if (path === '/v1/auth/me' && token === person) return reply(200, {user: {display_name: 'Contract editor'}})
   if (path === `${scope}/v1/schemas/review`) return token === person
@@ -38,6 +41,7 @@ const backend = createServer(async (req, res) => {
   if (path === `${scope}/v1/structure/review`) return token === service
     ? reply(200, {structure: {id: 'root', type: 'list', title: 'Structure', items: [{id: 'candidates', type: 'document_type_list', typeName: 'reviewCandidate', title: 'Declared candidates'}]}})
     : reply(403, {error: {code: 'admin_required'}})
+  if (path === `${scope}/v1/data/mutate/review` && req.method === 'POST' && token === person) return reply(200, {transactionId: 'tx', results: [{id: 'drafts.contract-doc', operation: 'create'}]})
   if (path === `${scope}/v1/data/query/review` && token === person) return reply(200, {result: {documents: [], hasMore: false}})
   return reply(403, {error: {code: 'fixture_does_not_grant_access'}})
 })
@@ -80,6 +84,12 @@ try {
       else assert.equal(deskReads.length, 0, 'default navigation must work without a service credential')
 
       if (hasDesk) {
+        // The editor writes with their own session while the studio holds only a read token.
+        const status = await page.evaluate(() => fetch('/api/mutate', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({mutations: [{create: {_id: 'drafts.contract-doc', _type: 'reviewCandidate', title: 'Written by the editor'}}]})}).then((r) => r.status))
+        assert.equal(status, 200, 'the editor write must succeed')
+        const writes = reads.filter((r) => r.path.includes('/v1/data/mutate/'))
+        assert.ok(writes.length === 1 && writes[0].token === person, 'a write goes out with the editor session, never the read service token')
+
         structureRefused = true
         await new Promise((resolve) => setTimeout(resolve, SETTLED_WAIT))
         await page.reload()
@@ -100,7 +110,7 @@ try {
       await page.getByRole('link', {name: 'Sign in', exact: true}).click()
       await expect(page.getByLabel('Password', {exact: true})).toBeVisible()
       assert.equal((await context.cookies()).filter((cookie) => cookie.name === 'bp_sid').length, 0, 'the refused personal session is cleared')
-      console.log(`PASS ${hasDesk ? 'declared desk preserves service navigation' : 'default navigation needs no shared token'}; schema session and revoked refusal`)
+      console.log(`PASS ${hasDesk ? 'declared desk loads with a read service token; the editor writes with their session' : 'default navigation needs no shared token'}; schema session and revoked refusal`)
     } catch (error) {
       console.error(log.slice(-3000))
       throw error
