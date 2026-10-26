@@ -227,3 +227,13 @@ test('|date: a date-time is the editor\'s local day; a plain date is itself', ()
     else process.env.TZ = tz
   }
 })
+
+test('|count: the items in a list, 0 when the path holds nothing, as Barkpark\'s PreviewText', () => {
+  const spec: PreviewText = [{when: {field: 'packages', operator: 'count_eq', value: 1}, show: {text: '1 package'}}, '{packages|count} packages']
+  assert.equal(formatPreview(spec, read({packages: [{}, {}, {}]})), '3 packages')
+  assert.equal(formatPreview(spec, read({packages: [{}]})), '1 package')
+  assert.equal(formatPreview(spec, read({})), '0 packages')
+  assert.equal(formatPreview({parts: ['{columns} columns', '{items|count} items'], join: ' • '}, read({columns: 3, items: []})), '3 columns • 0 items')
+  // A value that is not a list has no count, so its template shows nothing.
+  assert.equal(formatPreview('{title|count} items', read({title: 'Fixture'})), undefined)
+})
