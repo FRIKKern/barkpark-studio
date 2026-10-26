@@ -11,7 +11,7 @@ import {deskFilterParams, normalizeDesk, orGroupRefused, type DeskFilter, type D
 import type {Sort} from './list-prefs'
 import {pathsOf, type PreviewMediaSpec, type PreviewText} from './preview'
 import {excluded, memberPreviewRefs, parseTextQuery, refBoost, textScore, tieLength} from './text-search'
-import {groqKeepPath, isGroqFilter, refFilterParams, type RefFilter} from './ref-filter'
+import {groqKeepPath, isGroqFilter, referencingPath, refFilterParams, type RefFilter} from './ref-filter'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -368,7 +368,8 @@ const fetchTextSearch = createServerFn({method: 'GET'})
       }),
     )
     // Sanity searches each type's preview too (title weight 10, subtitle 5), following
-    // references: a post whose author is "Ada Lovelace" is a hit for "Lovelace".
+    // references: a post whose author is "Ada Lovelace" is a hit for "Lovelace", and so is
+    // any doc that references her elsewhere.
     const {docs: viaRefs, refIds} = await previewRefHits(data.q, q, asked, schemas as unknown as Schema[])
     const schemaOf = (d: Doc) => schemas.find((s) => s.name === d._type) as Schema | undefined
     // +5 once for a hit that references a matching target anywhere (a linked post, an author).
@@ -387,19 +388,19 @@ const fetchTextSearch = createServerFn({method: 'GET'})
     return hits.slice(0, data.limit) as unknown as Json
   })
 /**
- * The docs that match through a reference in their preview (`subtitle: 'author.name'`), and the
- * ids of every preview target that matched (Sanity's `$__refIds`, for its reference boost).
+ * The ids of every preview target that matched (Sanity's `$__refIds`: an author whose name did,
+ * a linked post whose title did), and the docs that reference one of them anywhere.
  */
 async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>, asked: {type: string; filter: RefFilter}[], schemas: Schema[]): Promise<{docs: Doc[]; refIds: Set<string>}> {
   // Each asked type's preview paths that read through a reference, and the types it points at.
-  const via = asked.flatMap(({type, filter}) => {
+  const via = asked.flatMap(({type}) => {
     const schema = schemas.find((s) => s.name === type)
     // A preview's parts may be objects, fallback lists and templates (lib/preview), not only paths.
     const paths = [...pathsOf(schema?.listPreview?.title), ...pathsOf(schema?.listPreview?.subtitle)]
     return paths.flatMap((path) => {
       const [field, ...rest] = path.split('.')
       const f = schema?.fields.find((x) => x.name === field)
-      return rest.length && f?.type === 'reference' ? refTypesOf(f).map((target) => ({type, filter, schema, field: field!, rest, target})) : []
+      return rest.length && f?.type === 'reference' ? refTypesOf(f).map((target) => ({target, rest})) : []
     })
   })
   // Array items' previews read through references too (post.links: a docLink shows its target,
@@ -417,15 +418,18 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
   // The referenced doc must match on the previewed field itself.
   const matching = (target: string, rest: string[]) =>
     found.documents.filter((d) => d._type === target && textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId as string)
-  const refIds = new Set(items.flatMap(({target, rest}) => matching(target, rest)))
+  const refIds = new Set([...via, ...items].flatMap(({target, rest}) => matching(target, rest)))
+  if (!refIds.size) return {docs: [], refIds}
+  // Sanity's `boost(references($__refIds), 5)` makes a hit of every doc that references one of
+  // them, in any field (a co-author, a linked post), not only the previewed one: one GROQ read.
+  const linked = (await bpJson<{result: {_id: string; _type: string}[]}>(referencingPath(dataset(), [...new Set(asked.map((a) => a.type))], [...refIds]))).result
   const hits = await Promise.all(
-    via.map(async ({type, filter, schema, field, rest, target}) => {
-      const ids = matching(target, rest)
-      for (const id of ids) refIds.add(id)
+    asked.map(async ({type, filter}) => {
+      const ids = [...new Set(linked.filter((d) => d._type === type).map((d) => d._id.replace(/^drafts\./, '')))]
       if (!ids.length) return []
-      const fq = `&filter[${encodeURIComponent(field)}][in]=${ids.map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
+      const fq = `&filter[_id][in]=${ids.flatMap((id) => [id, `drafts.${id}`]).map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
       const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${fq}`)
-      return (await groqKept(filter, r.result.documents)).filter((d) => !excluded(d, q, schema))
+      return (await groqKept(filter, r.result.documents)).filter((d) => !excluded(d, q, schemas.find((s) => s.name === type)))
     }),
   )
   return {docs: hits.flat(), refIds}

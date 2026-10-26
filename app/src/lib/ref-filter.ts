@@ -38,3 +38,14 @@ export function groqKeepPath(dataset: string, filter: GroqRefFilter, ids: string
   qs.set('perspective', 'raw')
   return `/v2025-02-19/data/query/${dataset}?${qs}`
 }
+
+/**
+ * Every doc of `types` that references one of `ids`, in any field: Sanity's
+ * `boost(references($__refIds), 5)` makes each a search hit (lib/data fetchTextSearch).
+ */
+export function referencingPath(dataset: string, types: string[], ids: string[]): string {
+  const qs = new URLSearchParams({query: '*[_type in $types && references($ids)]{_id, _type}', perspective: 'raw'})
+  qs.set('$types', JSON.stringify(types))
+  qs.set('$ids', JSON.stringify(ids))
+  return `/v2025-02-19/data/query/${dataset}?${qs}`
+}
