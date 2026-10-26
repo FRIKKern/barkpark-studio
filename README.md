@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 22 changes
+- **Today** · 23 changes
+  - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
   - scripts: groq-conformance probes fn custom functions ([#1158](https://github.com/FRIKKern/barkpark-studio/pull/1158))
-  - Media tool: tiles skip their metadata read, and show a spinner while a thumbnail is made ([#1157](https://github.com/FRIKKern/barkpark-studio/pull/1157))
 - **Yesterday** · 46 changes
   - Inspect: the Parsed / Raw JSON choice follows the editor, as Sanity's per-user setting ([#1133](https://github.com/FRIKKern/barkpark-studio/pull/1133))
 - **Last week** · 143 changes, 1 task closed
