@@ -65,7 +65,7 @@ const Q = [
   {id: 'docs-object-type', q: '*[_id == "field-types-01"][0]{"place": place._type, "cards": cards[]._type}'},
   // Portable Text
   {id: 'docs-pt-text', q: '*[_id == "post-01"][0]{"text": pt::text(body)}'},
-  {id: 'docs-pt-blocks', q: '*[_id == "post-01"][0]{"blocks": count(body[_type == "block"])}', known: 'task-ab40acaf75927e0e: PortableDoc text blocks carry no _type "block" yet'},
+  {id: 'docs-pt-blocks', q: '*[_id == "post-01"][0]{"blocks": count(body[_type == "block"])}', known: 'task-ab40acaf75927e0e: body is {blocks, html}; matching needs body read as a Portable Text array (breaking for body.blocks readers, owner decision)'},
   // The repo's reference preview site and Presentation (real queries, as written)
   {id: 'ref-home', q: '*[_type == "post" && defined(slug.current)] | order(title asc) {_id, title, "slug": slug.current, excerpt, author->{_id, name}}', ordered: true},
   {id: 'ref-post', q: '*[_type == "post" && slug.current == $slug][0] {_id, title, "slug": slug.current, excerpt, author->{_id, name}, categories[]->{_id, title}, related->{_type, _id, title, name, "slug": slug.current}, rating, publishedAt, seo{metaTitle}, links[]{_key, title}}', params: {slug: 'fixture-post-03'}},
