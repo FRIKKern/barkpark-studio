@@ -35,6 +35,14 @@ export function SignInForm({idPrefix, className, heading, above, autoFocus, onSi
     }
   }
   const back = () => (setReset(undefined), setError(undefined))
+  // SSO only (STUDIO_SIGN_IN=sso): the identity provider asks for the password, never this form.
+  if (me?.signIn === 'sso')
+    return (
+      <div className={className}>
+        {heading}
+        {above}
+      </div>
+    )
   if (reset)
     return (
       <form
