@@ -16,7 +16,7 @@ type Json = null | boolean | number | string | Json[] | {[k: string]: Json}
 // it keeps it per user on its server. So does this, through lib/prefs (Barkpark, per editor),
 // mirrored here in localStorage for the first paint (task-d381604895f6d274), like studio.lists.
 const VIEW_KEY = 'studio.inspect.view'
-const viewPrefQuery = {queryKey: ['pref', VIEW_KEY], queryFn: async () => ((await getPref({data: VIEW_KEY}).catch(() => null)) as unknown) ?? null, staleTime: 60_000}
+const viewPrefQuery = {queryKey: ['pref', VIEW_KEY], queryFn: async () => ((await getPref({data: VIEW_KEY}).catch(() => null)) as {view?: unknown} | null)?.view ?? null, staleTime: 60_000}
 const readView = (): 'parsed' | 'raw' => {
   try {
     return localStorage.getItem(VIEW_KEY) === 'raw' ? 'raw' : 'parsed'
@@ -29,7 +29,8 @@ const mirrorView = (view: 'parsed' | 'raw') => {
     localStorage.setItem(VIEW_KEY, view)
   } catch {}
 }
-const keepView = (view: 'parsed' | 'raw') => (mirrorView(view), void putPref({data: {key: VIEW_KEY, value: view}}).catch(() => {}))
+// Barkpark keeps a JSON object per key (a bare string is refused), so the view rides as {view}.
+const keepView = (view: 'parsed' | 'raw') => (mirrorView(view), void putPref({data: {key: VIEW_KEY, value: {view}}}).catch(() => {}))
 
 /** The document as stored, keys in order (Sanity's): client-only bookkeeping (_hasPublished, _publishedAt) left out. */
 export function storedValue(doc: Doc): Json {
