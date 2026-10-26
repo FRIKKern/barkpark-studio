@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 13 changes
+- **Today** · 14 changes
+  - STUDIO_SIGN_IN=sso: no password form, and no Barkpark Cloud beside it ([#1147](https://github.com/FRIKKern/barkpark-studio/pull/1147))
   - Studio runs with a read-only service token ([#1145](https://github.com/FRIKKern/barkpark-studio/pull/1145))
-  - client conformance: listen probe writes through the client on both sides ([#1148](https://github.com/FRIKKern/barkpark-studio/pull/1148))
 - **Yesterday** · 46 changes
   - Inspect: the Parsed / Raw JSON choice follows the editor, as Sanity's per-user setting ([#1133](https://github.com/FRIKKern/barkpark-studio/pull/1133))
 - **Last week** · 143 changes, 1 task closed
