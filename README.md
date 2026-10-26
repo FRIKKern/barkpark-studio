@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes
+- **Today** · 8 changes
+  - Client conformance: live events in both modes (published without a token) ([#1141](https://github.com/FRIKKern/barkpark-studio/pull/1141))
   - Intent links: a stega edit link opens on its field (path), as in Sanity ([#1140](https://github.com/FRIKKern/barkpark-studio/pull/1140))
-  - scripts: groq-conformance --csm diffs resultSourceMaps against Sanity ([#1139](https://github.com/FRIKKern/barkpark-studio/pull/1139))
 - **Yesterday** · 46 changes
   - Inspect: the Parsed / Raw JSON choice follows the editor, as Sanity's per-user setting ([#1133](https://github.com/FRIKKern/barkpark-studio/pull/1133))
 - **Last week** · 143 changes, 1 task closed
