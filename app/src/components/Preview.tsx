@@ -156,16 +156,19 @@ function RowMedia({candidates, iconless, fallback}: {candidates: {value: unknown
  */
 function UrlThumb({src, onFail}: {src: string; onFail: () => void}) {
   return (
-    <img
-      className="url-thumb"
-      ref={(img) => void (img?.complete && !img.naturalWidth && onFail())}
-      src={src}
-      alt=""
-      decoding="async"
-      referrerPolicy="no-referrer"
-      onError={onFail}
-      data-testid="row-media-url"
-    />
+    <>
+      <img
+        className="url-thumb"
+        ref={(img) => void (img?.complete && !img.naturalWidth && onFail())}
+        src={src}
+        alt=""
+        decoding="async"
+        referrerPolicy="no-referrer"
+        onError={onFail}
+        data-testid="row-media-url"
+      />
+      <span data-border="" />
+    </>
   )
 }
 
@@ -186,18 +189,22 @@ export function Thumb({value, fallback = <DocumentIcon />}: {value: ImageValue; 
     )
   const f = natural && frame(value.crop ?? NO_CROP, value.hotspot ?? NO_HOTSPOT, natural, 1)
   const measure = (img: HTMLImageElement) => setNatural({width: img.naturalWidth, height: img.naturalHeight})
+  // The span after it is Sanity's faint edge over the image (styles.css [data-border]).
   return (
-    <img
-      // A server-rendered thumbnail can load (or fail) before hydration, and its event
-      // is then missed: measure it as it mounts, or it stays hidden (blank row).
-      ref={(img) => void (img?.complete && !natural && (img.naturalWidth ? measure(img) : failed !== ref && setFailed(ref)))}
-      src={imageSrc(ref, THUMB_PX)}
-      alt=""
-      decoding="async"
-      onError={() => setFailed(ref)}
-      onLoad={(e) => measure(e.currentTarget)}
-      style={f ? {width: `${100 / f.width}%`, height: `${100 / f.height}%`, left: `${(-f.left / f.width) * 100}%`, top: `${(-f.top / f.height) * 100}%`} : {opacity: 0}}
-    />
+    <>
+      <img
+        // A server-rendered thumbnail can load (or fail) before hydration, and its event
+        // is then missed: measure it as it mounts, or it stays hidden (blank row).
+        ref={(img) => void (img?.complete && !natural && (img.naturalWidth ? measure(img) : failed !== ref && setFailed(ref)))}
+        src={imageSrc(ref, THUMB_PX)}
+        alt=""
+        decoding="async"
+        onError={() => setFailed(ref)}
+        onLoad={(e) => measure(e.currentTarget)}
+        style={f ? {width: `${100 / f.width}%`, height: `${100 / f.height}%`, left: `${(-f.left / f.width) * 100}%`, top: `${(-f.top / f.height) * 100}%`} : {opacity: 0}}
+      />
+      <span data-border="" />
+    </>
   )
 }
 
