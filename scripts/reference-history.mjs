@@ -3,7 +3,10 @@
 // journeys (J16, J15). Fixture imports rewrite history, so `post-history` is not in
 // the seed: this script edits it through each backend's API, the way editors would.
 //
-//   SANITY_STUDIO_DATASET=e2e-local node --env-file=.env scripts/reference-history.mjs [--barkpark-only]
+//   SANITY_STUDIO_DATASET=e2e-local node --env-file=.env scripts/reference-history.mjs [--barkpark-only | --sanity-only] [--dry-run]
+//
+// --sanity-only rebuilds the reference's side alone (a drifted Sanity copy, Barkpark untouched);
+// --dry-run prints the targets and writes nothing.
 //
 // Two authors on each side. Barkpark: BARKPARK_TOKEN, and studio-editor-b@example.com:
 // the dev sign-in's own token for editor b (scripts/lib/dev-tokens.mjs) while it works,
@@ -50,6 +53,8 @@ const SANITY = 'https://ecu57yeh.api.sanity.io/v2025-02-19/data'
 // The reference's test dataset, never its production one (the e2e rig's rule too).
 const SANITY_DATASET = process.env.SANITY_STUDIO_DATASET || 'production'
 const BARKPARK_ONLY = process.argv.includes('--barkpark-only')
+const SANITY_ONLY = process.argv.includes('--sanity-only')
+if (BARKPARK_ONLY && SANITY_ONLY) fail('--barkpark-only and --sanity-only together leave nothing to do')
 async function act(token, actions, okStatuses = []) {
   const res = await fetch(`${SANITY}/actions/${SANITY_DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${token}`, 'content-type': 'application/json'}, body: JSON.stringify({actions})})
   if (!res.ok && !okStatuses.includes(res.status)) fail(`sanity actions ${res.status} ${await res.text()}`)
@@ -116,4 +121,6 @@ async function barkparkHistory() {
 }
 
 if (!BARKPARK_ONLY && SANITY_DATASET === 'production') fail('Sanity writes need SANITY_STUDIO_DATASET=e2e-local (the reference test dataset); or pass --barkpark-only')
-await Promise.all([BARKPARK_ONLY ? undefined : sanityHistory(), barkparkHistory()])
+console.log(`reference-history: ${ID} on ${[BARKPARK_ONLY ? null : `sanity ecu57yeh/${SANITY_DATASET}`, SANITY_ONLY ? null : `barkpark ${BP} dataset ${DATASET}`].filter(Boolean).join(' and ')}`)
+if (process.argv.includes('--dry-run')) process.exit(0)
+await Promise.all([BARKPARK_ONLY ? undefined : sanityHistory(), SANITY_ONLY ? undefined : barkparkHistory()])
