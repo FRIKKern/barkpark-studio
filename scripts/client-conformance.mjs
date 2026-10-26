@@ -56,7 +56,7 @@ const CHECKS = [
   {id: 'listen-welcome', run: (c) => firstEvent(c.listen('*[_type == "post"]', {}, {events: ['welcome']}), 'welcome')},
   // Published events go out without the token (@sanity/client sends it only with includeDrafts),
   // as a site's defineLive does outside draft mode; drafts send it.
-  {id: 'live-events-welcome', run: (c) => firstEvent(c.live.events({includeDrafts: false}), 'welcome')},
+  {id: 'live-events-welcome', known: 'task-8239bb29f19b3511: the stream is token-or-member gated and the client sends no token without includeDrafts (owner decision)', run: (c) => firstEvent(c.live.events({includeDrafts: false}), 'welcome')},
   {id: 'live-events-drafts-welcome', run: (c) => firstEvent(c.live.events({includeDrafts: true}), 'welcome')},
   {id: 'error-syntax', run: (c) => c.fetch('*[').then(() => 'no error', errShape)},
   {id: 'error-unauthorized', run: (c) => c.withConfig({token: 'not-a-token'}).fetch('count(*)').then(() => 'no error', (e) => e?.statusCode ?? 'no status')},
