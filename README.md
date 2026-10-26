@@ -63,6 +63,7 @@ pnpm exec sanity dataset import ../../fixtures/seed.ndjson --dataset e2e-local #
 cp .env.example .env                            # BARKPARK_TOKEN (+ SANITY_TOKEN to verify the reference)
 node --env-file=.env scripts/seed-barkpark.mjs  # seed + verify BARKPARK_DATASET (your e2e-<you>; production refused)
 node --env-file=.env scripts/seed-bulk.mjs      # optional J41: e2e-local datasets only; see script for overrides
+node --env-file=.env scripts/groq-conformance.mjs # read-only: ~40 Sanity queries, Sanity vs Barkpark e2e-local, pass/fail (--diff)
 cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
 pnpm check                                      # typecheck + build; fails if client code imports src/server
 cd ../e2e && pnpm install && pnpm test          # journeys on both studios; ours on :3100 against dataset e2e-local
