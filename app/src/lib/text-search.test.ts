@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Schema} from './data.ts'
-import {excluded, parseTextQuery, textScore} from './text-search.ts'
+import {excluded, memberPreviewRefs, parseTextQuery, refBoost, textScore, tieLength} from './text-search.ts'
 
 const post: Schema = {
   name: 'post',
@@ -86,4 +86,26 @@ test("ids match as Sanity tokenizes them: a dot stays in the word, a draft-only 
   assert.equal(s('post-30'), 11)
   assert.equal(s('post-09', draftOfPublished), 1)
   assert.equal(s('drafts.post-09', draftOfPublished), 1)
+})
+
+test("equal hits rank as Sanity's best match: a matching link target first, then the shorter doc", () => {
+  // Sanity (e2e-local, 'Fixture post', 2026-10-26): post-09 (links to post-10) above post-01,
+  // and post-01 (34 words) above post-04 (39). Its score is BM25: shorter docs score higher
+  // for a whole word ("Fixture"); a prefix alone scores flatly (scratch docs, same day).
+  const linked = {...post, fields: post.fields.map((f) => (f.name === 'links' ? {...f, of: {...f.of!, preview: {title: 'title', subtitle: 'target'}}} : f))}
+  assert.deepEqual(memberPreviewRefs(linked.fields).map((r) => r.name), ['target'])
+  assert.deepEqual(memberPreviewRefs(post.fields), []) // an item preview that reads no reference
+  const doc = (id: string, excerpt: string, target?: string) => ({_id: id, _type: 'post', title: `Fixture post ${id.slice(-2)}`, excerpt, ...(target && {links: [{_key: 'l', title: 'Related', target}]})})
+  const docs = [doc('post-04', 'A longer excerpt with a few more words in it.'), doc('post-01', 'Short excerpt.'), doc('post-09', 'A longer excerpt with a few more words.', 'post-10')]
+  const q = parseTextQuery('Fixture post')
+  const matched = new Set(['post-01', 'post-04', 'post-09', 'post-10'])
+  assert.equal(refBoost(docs[2]!, matched, linked), 5)
+  assert.equal(refBoost(docs[2]!, new Set(['post-11']), linked), 0)
+  assert.equal(refBoost(docs[1]!, matched, linked), 0)
+  assert.ok(tieLength(docs[1]!, q, linked) < tieLength(docs[0]!, q, linked))
+  assert.equal(tieLength(docs[0]!, parseTextQuery('fixture'), linked), 0) // one word: a prefix, no tie-break
+  const ranked = docs
+    .map((d) => ({d, score: textScore(d, q, linked) + refBoost(d, matched, linked)}))
+    .sort((a, b) => b.score - a.score || tieLength(a.d, q, linked) - tieLength(b.d, q, linked))
+  assert.deepEqual(ranked.map((r) => r.d._id), ['post-09', 'post-01', 'post-04'])
 })

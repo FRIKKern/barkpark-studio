@@ -22,9 +22,11 @@ const QUERIES = process.env.SQ_QUERIES ? JSON.parse(process.env.SQ_QUERIES) as s
 // Where ours still differs from Sanity, on purpose (task-9ec63e76, 2026-10-10 side by side):
 // - Numbers: both prefix-match ("20" finds "2000…" and "Fixture post 20"). The lists differ
 //   because the reference's dataset holds the 2,000 bulk items and ours does not.
-// - Ties: equal-score docs come oldest first. Sanity's own order among them follows no
-//   rule we could see: "fox" puts the older doc first, while "brown fox quick" and "quick dog" put
-//   the newer one first, and "quick dog" ranks it over a doc that also matches "dog".
+// - Ties: Sanity scores a whole word with BM25 (higher in the shorter doc) and the last word,
+//   a prefix, flatly (2026-10-26, scratch docs). So "fox" keeps the older doc first, and
+//   "brown fox quick" puts the shorter, newer one first; ours does both (lib/text-search
+//   tieLength). Still different: "quick dog", where Sanity's BM25 title weight puts the shorter
+//   title over a doc that also matches "dog"; our scores are whole numbers.
 const dialog = (page: Page) => page.getByRole('dialog', {name: 'Search'})
 const STRUCTURE = new Set(['Post', 'Author', 'Category', 'Longform', 'Bulk', 'Posts by author', 'Content'])
 const resultTitles = async (t: Target, page: Page) =>

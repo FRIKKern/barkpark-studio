@@ -10,7 +10,7 @@ import {collate, translate, type T} from './i18n'
 import {deskFilterParams, normalizeDesk, orGroupRefused, type DeskFilter, type DeskNode} from './desk'
 import type {Sort} from './list-prefs'
 import {pathsOf, type PreviewMediaSpec, type PreviewText} from './preview'
-import {excluded, parseTextQuery, textScore} from './text-search'
+import {excluded, memberPreviewRefs, parseTextQuery, refBoost, textScore, tieLength} from './text-search'
 import {groqKeepPath, isGroqFilter, refFilterParams, type RefFilter} from './ref-filter'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
@@ -369,24 +369,28 @@ const fetchTextSearch = createServerFn({method: 'GET'})
     )
     // Sanity searches each type's preview too (title weight 10, subtitle 5), following
     // references: a post whose author is "Ada Lovelace" is a hit for "Lovelace".
-    const viaRefs = await previewRefHits(data.q, q, asked, schemas as unknown as Schema[])
-    for (const d of viaRefs) {
-      const had = hits.find((h) => h._id === d._id)
-      if (had) had._score = (had._score as number) + 5
-      else hits.push({...d, _score: 5})
-    }
+    const {docs: viaRefs, refIds} = await previewRefHits(data.q, q, asked, schemas as unknown as Schema[])
+    const schemaOf = (d: Doc) => schemas.find((s) => s.name === d._type) as Schema | undefined
+    // +5 once for a hit that references a matching target anywhere (a linked post, an author).
+    for (const h of hits) h._score = (h._score as number) + refBoost(h, refIds, schemaOf(h))
+    for (const d of viaRefs) if (!hits.some((h) => h._id === d._id)) hits.push({...d, _score: 5})
     const extra = viaRefs.filter((d) => !kept.flat().includes(d._id))
     if (extra.length) kept.push(extra.flatMap((d) => [d._id, d._publishedId]))
     const keep = new Set(kept.flat())
     const [key, dir] = data.order.split(':') as [string, string]
+    const lengths = new Map(hits.map((d) => [d._id, key === '_score' ? tieLength(d, q, schemaOf(d)) : 0]))
     hits = hits
       .filter((d) => keep.has(d._id))
-      // Ties stay in the dataset's order, oldest first (Sanity's, for equal scores).
-      .sort((a, b) => (dir === 'desc' ? -1 : 1) * cmp(a[key], b[key]) || cmp(a._createdAt, b._createdAt) || cmp(a._id, b._id))
+      // Equal scores: the shorter doc first (Sanity's BM25, lib/text-search), then the dataset's
+      // order, oldest first.
+      .sort((a, b) => (dir === 'desc' ? -1 : 1) * cmp(a[key], b[key]) || lengths.get(a._id)! - lengths.get(b._id)! || cmp(a._createdAt, b._createdAt) || cmp(a._id, b._id))
     return hits.slice(0, data.limit) as unknown as Json
   })
-/** The docs that match through a reference in their preview (`subtitle: 'author.name'`). */
-async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>, asked: {type: string; filter: RefFilter}[], schemas: Schema[]): Promise<Doc[]> {
+/**
+ * The docs that match through a reference in their preview (`subtitle: 'author.name'`), and the
+ * ids of every preview target that matched (Sanity's `$__refIds`, for its reference boost).
+ */
+async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>, asked: {type: string; filter: RefFilter}[], schemas: Schema[]): Promise<{docs: Doc[]; refIds: Set<string>}> {
   // Each asked type's preview paths that read through a reference, and the types it points at.
   const via = asked.flatMap(({type, filter}) => {
     const schema = schemas.find((s) => s.name === type)
@@ -398,22 +402,33 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
       return rest.length && f?.type === 'reference' ? refTypesOf(f).map((target) => ({type, filter, schema, field: field!, rest, target})) : []
     })
   })
-  if (!via.length) return []
+  // Array items' previews read through references too (post.links: a docLink shows its target,
+  // which reads as the target's own preview title).
+  const items = asked.flatMap(({type}) =>
+    memberPreviewRefs(schemas.find((s) => s.name === type)?.fields).flatMap((ref) =>
+      refTypesOf(ref).map((target) => ({target, rest: ref.leaf.length ? ref.leaf : (pathsOf(schemas.find((s) => s.name === target)?.listPreview?.title)[0] ?? 'title').split('.')})),
+    ),
+  )
+  if (!via.length && !items.length) return {docs: [], refIds: new Set()}
   // One search over every referenced type: a search per type in turn was 50 in a row (2.8 s)
   // on a 64-type model whose previews all read through a reference.
-  const targets = [...new Set(via.map((v) => v.target))]
+  const targets = [...new Set([...via, ...items].map((v) => v.target))]
   const found = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&match=any&limit=${Math.min(200, 50 * targets.length)}&q=${encodeURIComponent(raw)}&types=${targets.map(encodeURIComponent).join(',')}`)
+  // The referenced doc must match on the previewed field itself.
+  const matching = (target: string, rest: string[]) =>
+    found.documents.filter((d) => d._type === target && textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId as string)
+  const refIds = new Set(items.flatMap(({target, rest}) => matching(target, rest)))
   const hits = await Promise.all(
     via.map(async ({type, filter, schema, field, rest, target}) => {
-      // The referenced doc must match on the previewed field itself.
-      const ids = found.documents.filter((d) => d._type === target && textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId)
+      const ids = matching(target, rest)
+      for (const id of ids) refIds.add(id)
       if (!ids.length) return []
       const fq = `&filter[${encodeURIComponent(field)}][in]=${ids.map(encodeURIComponent).join(',')}${refFilterParams(filter)}`
       const r = await bpJson<{result: {documents: Doc[]}}>(`/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200${fq}`)
       return (await groqKept(filter, r.result.documents)).filter((d) => !excluded(d, q, schema))
     }),
   )
-  return hits.flat()
+  return {docs: hits.flat(), refIds}
 }
 const cmp = (a: unknown, b: unknown) => (typeof a === 'number' && typeof b === 'number' ? a - b : collate(String(a ?? ''), String(b ?? '')))
 
