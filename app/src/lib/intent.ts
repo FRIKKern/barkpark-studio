@@ -2,10 +2,10 @@
 // as other tools and old bookmarks send them: read here, then opened in Structure.
 
 export type Intent =
-  | {action: 'edit'; id: string; type?: string}
+  | {action: 'edit'; id: string; type?: string; path?: string}
   | {action: 'create'; type: string; template?: string; id?: string; params: Record<string, string>}
 
-/** `edit/id=post-03;type=post`, `create/template=t;type=post/<base64url JSON>`; null if not an intent. */
+/** `edit/id=post-03;type=post` (Sanity's stega links add `mode=presentation;…;path=title`), `create/template=t;type=post/<base64url JSON>`; null if not an intent. */
 export function parseIntent(splat: string): Intent | null {
   const [action, rawParams = '', payload] = splat.split('/')
   const params = Object.fromEntries(
@@ -17,7 +17,8 @@ export function parseIntent(splat: string): Intent | null {
         return at < 0 ? [pair, ''] : [decodeURIComponent(pair.slice(0, at)), decodeURIComponent(pair.slice(at + 1))]
       }),
   ) as Record<string, string>
-  if (action === 'edit' && params.id) return {action, id: params.id, ...(params.type ? {type: params.type} : {})}
+  // `path`: the field a stega edit link (a site's click-to-edit) points at, `links[_key=="l1"].title`.
+  if (action === 'edit' && params.id) return {action, id: params.id, ...(params.type ? {type: params.type} : {}), ...(params.path ? {path: params.path} : {})}
   if (action === 'create' && params.type) return {action, type: params.type, ...(params.template ? {template: params.template} : {}), ...(params.id ? {id: params.id} : {}), params: payload ? decodePayload(payload) : {}}
   return null
 }
