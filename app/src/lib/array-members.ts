@@ -49,3 +49,23 @@ export function memberPreview(member: Field, schemas: Pick<Schema, 'name' | 'lis
   const named = member.namedType ? schemas.find((s) => s.name === member.namedType)?.listPreview : undefined
   return named && Object.keys(named).length ? (named as Field['preview']) : undefined
 }
+
+/** Several reference members (Sanity's `of: [{type: 'reference', to: a}, {type: 'reference', to: b}]`). */
+export const isReferenceMembers = (members: Field[]) => members.length > 1 && members.every((m) => m.type === 'reference')
+
+/** Reference members as one: its `to` lists every member's targets, in order (task-3324220d080ea394). */
+export function mergedReference(members: Field[]): Field {
+  const to = [...new Set(members.flatMap((m) => [...(m.to ?? []).map((x) => x.type), ...(m.refType ? [m.refType] : [])]))]
+  return {...members[0]!, type: 'reference', to: to.map((type) => ({type})), refType: to[0]}
+}
+
+/**
+ * The fields of an item that its preview reads through as references: the first segment of
+ * a path ("linkedDocument" in "linkedDocument.title") or a bare path, only when that field
+ * is a reference. A path through an object or a list ("styling.theme", "tiles.0.image") is
+ * read in the item itself (task-9eac3198549f501b).
+ */
+export function referenceHeads(member: Pick<Field, 'fields'>, paths: string[]): string[] {
+  const heads = [...new Set(paths.map((p) => p.split('.')[0]!))]
+  return heads.filter((name) => member.fields?.find((f) => f.name === name)?.type === 'reference')
+}

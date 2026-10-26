@@ -9,7 +9,7 @@ import {docDiff, type AttrChange, type DocBlock, type DocInline, type Piece} fro
 import {anyDocQuery, docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
 import {arrayDiff} from '../lib/array-diff'
 import {useItemPreview} from './ObjectArrayInput'
-import {memberFor, membersOf} from '../lib/array-members'
+import {isReferenceMembers, memberFor, membersOf, mergedReference} from '../lib/array-members'
 import {rangeDate, Row} from './HistoryPanel'
 import {ChevronDown, Undo} from './icons'
 import {userColorVars} from '../lib/user-colors'
@@ -294,7 +294,7 @@ function ItemLabel({item, field}: {item: unknown; field: Field}) {
   if (item === null || typeof item !== 'object') return <>{String(item)}</>
   // Several members (a page builder): the item's own, by its _type.
   const members = membersOf(field)
-  const of = (members.length > 1 ? memberFor(members, item) : members[0]) ?? field
+  const of = (isReferenceMembers(members) ? mergedReference(members) : members.length > 1 ? memberFor(members, item) : members[0]) ?? field
   if (of.type === 'reference' || typeof (item as {_ref?: unknown})._ref === 'string') return <RefLabel id={refId(item)!} field={of.type === 'reference' ? of : field} />
   return <ObjectLabel item={item as Record<string, unknown>} of={of} named={members.length > 1} />
 }

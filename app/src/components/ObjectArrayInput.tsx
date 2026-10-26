@@ -1,8 +1,8 @@
 import {createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type DragEvent} from 'react'
 import {DialogBox, PaneOverlay} from './FocusScopes'
-import {useQueries, useQuery} from '@tanstack/react-query'
-import {docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Field, type Schema} from '../lib/data'
-import {firstMedia, formatPreview, previewRefs, type PreviewText} from '../lib/preview'
+import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query'
+import {anyDocQuery, cachedDoc, docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Field, type Schema} from '../lib/data'
+import {firstMedia, formatPreview, mediaRefs, previewRefs, readPath, textRefs, type PreviewText} from '../lib/preview'
 import {imageRef, pickedImage, type ImageValue} from '../lib/image'
 import {uploadFile, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
@@ -15,7 +15,7 @@ import {Close as CloseIcon, Upload} from './icons'
 import {translate, useLocale, useT, useWorkspaceZone} from '../lib/i18n'
 import {usePrimed} from '../lib/prime'
 import {withField} from '../lib/with-field'
-import {memberChoices, memberFor, memberName, memberPreview, membersOf, newMemberItem} from '../lib/array-members'
+import {memberChoices, memberFor, memberName, memberPreview, membersOf, newMemberItem, referenceHeads} from '../lib/array-members'
 
 // Arrays of objects (J33), after Sanity's: each item a row with a preview (the
 // item's preview title/subtitle; a reference subtitle shows the referenced doc's
@@ -56,7 +56,13 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   const memberOf = useCallback((it: Item) => memberFor(members, it) ?? unknownMember(it), [members])
   const typing = multi ? undefined : memberTypes(of)
   const choices = multi ? memberChoices(members, schemas) : typing?.types
-  const primed = usePrimed(items.flatMap((it) => itemRefs(it, memberOf(it), schemas).flatMap((r) => (r.id && r.types.length ? [{types: r.types, id: r.id}] : []))))
+  const deref = cachedDoc(useQueryClient())
+  const primed = usePrimed(
+    items.flatMap((it) => [
+      ...itemRefs(it, memberOf(it), schemas).flatMap((r) => (r.id && r.types.length ? [{types: r.types, id: r.id}] : [])),
+      ...deepRefs(it, memberOf(it), schemas, deref).map((id) => ({types: null, id})),
+    ]),
+  )
   const [editing, setEditing] = useState<string | null>(null)
   const index = items.findIndex((it) => it._key === editing)
   // J52: a link to a field inside an item (path=links[_key=="l1"].title, or Sanity's
@@ -231,13 +237,26 @@ const itemTitleSpec = (of: Field, p: Field['preview']): PreviewText | undefined 
 /** An item whose _type no member names: its fields stay as they are, untouched. */
 const unknownMember = (it: Item): Field => ({name: typeof it._type === 'string' ? it._type : '', type: 'composite', fields: []})
 
-/** The references an item's preview reads: the preview's ref paths and bare reference fields. */
+/**
+ * The item's own reference fields its preview reads: the first segment of a dotted path when
+ * that field is a reference ("linkedDocument.title"), and a bare reference field. A path
+ * through a plain object or a list ("styling.theme", "tiles.0.image") is read in the item
+ * (task-9eac3198549f501b).
+ */
 function itemRefs(item: Item, of: Field, schemas: Schema[]) {
   const p = memberPreview(of, schemas) ?? {}
   const specs = [itemTitleSpec(of, p), p.subtitle, p.media]
   const fieldOf = (name: string) => of.fields?.find((f) => f.name === name)
-  const bare = specs.flatMap((s) => (typeof s === 'string' ? [s] : [])).filter((s) => !s.includes('.') && fieldOf(s)?.type === 'reference')
-  return [...new Set([...previewRefs(...specs), ...bare])].map((name) => ({name, id: refId(item[name]), types: refTypesOf(fieldOf(name))}))
+  const bare = specs.flatMap((s) => (typeof s === 'string' ? [s] : []))
+  return referenceHeads(of, [...previewRefs(...specs), ...bare]).map((name) => ({name, id: refId(item[name]), types: refTypesOf(fieldOf(name))}))
+}
+
+/** The documents an item's preview reads deeper in (a reference inside an object or a list), read as the lists do. */
+function deepRefs(item: Item, of: Field, schemas: Schema[], deref: (id: string) => unknown): string[] {
+  const p = memberPreview(of, schemas) ?? {}
+  const own = new Set(itemRefs(item, of, schemas).flatMap((r) => (r.id ? [r.id] : [])))
+  const ids = [...textRefs(itemTitleSpec(of, p), item, deref), ...textRefs(p.subtitle, item, deref), ...mediaRefs(p.media, item, deref)]
+  return [...new Set(ids)].filter((id) => !own.has(id))
 }
 
 /**
@@ -253,13 +272,16 @@ export function useItemPreview(item: Item, of: Field, named = false) {
   const refs = itemRefs(item, of, schemas)
   const primed = useContext(PrimedContext)
   const targets = useQueries({queries: refs.map((r) => ({...docQuery(r.types, r.id ?? ''), enabled: !!r.id && r.types.length > 0 && primed(r.id)}))})
+  // Deeper references read through the same cache as the lists' rows (Preview.tsx).
+  const deref = cachedDoc(useQueryClient())
+  useQueries({queries: deepRefs(item, of, schemas, deref).map((id) => ({...anyDocQuery(id), enabled: primed(id)}))})
   const read = (path: string) => {
     const [head, ...rest] = path.split('.')
     const r = refs.findIndex((x) => x.name === head)
-    if (r < 0) return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], item[head!])
+    if (r < 0) return readPath(item, path, deref)
     const target = targets[r]?.data
     if (!rest.length) return target ? previewTitle(target, schemaOf(schemas, target._type), t) : undefined
-    return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], target)
+    return target ? readPath(target, rest.join('.'), deref) : undefined
   }
   const typeTitle = (type: string) => schemaOf(schemas, type)?.title
   const zone = useWorkspaceZone()
@@ -272,8 +294,8 @@ export function useItemPreview(item: Item, of: Field, named = false) {
     queryFn: () => fetch(`/api/media/${encodeURIComponent(picture!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<{name?: string}>) : null)),
   })
   return {
-    title: (of.type === 'image' ? asset?.name : formatPreview(titleSpec, read, {typeTitle, zone})) || (named ? memberChoices([of], schemas)[0]!.title : '') || translate(locale, 'Untitled'),
-    subtitle: formatPreview(p.subtitle, read, {typeTitle, zone}),
+    title: (of.type === 'image' ? asset?.name : formatPreview(titleSpec, read, {typeTitle, zone, deref})) || (named ? memberChoices([of], schemas)[0]!.title : '') || translate(locale, 'Untitled'),
+    subtitle: formatPreview(p.subtitle, read, {typeTitle, zone, deref}),
     // An array of images: each item is its own picture.
     media: (of.type === 'image' && imageRef(item) ? item : firstMedia(p.media, read, (v) => !!imageRef(v))) as ImageValue | undefined,
   }
