@@ -340,6 +340,12 @@ const fetchTextSearch = createServerFn({method: 'GET'})
     const types = asked.map((a) => a.type)
     // match=any: Sanity ORs the words; Barkpark's default (#23174) keeps only docs with all of them.
     const search = (q: string) => bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&match=any&limit=200&q=${encodeURIComponent(q)}&types=${types.map(encodeURIComponent).join(',')}`)
+    const q = parseTextQuery(data.q)
+    const schemasRead = readSchemas()
+    // The preview-reference half (Sanity's $__refIds and the docs that reference them) needs only
+    // the query, so it runs beside the main search: typing waits for the slower of the two.
+    const viaRead = schemasRead.then((schemas) => previewRefHits(data.q, q, asked, schemas as unknown as Schema[]))
+    viaRead.catch(() => {}) // awaited below; a failed main search must not leave it unhandled
     const found = await search(data.q)
     // An id with a dot ("drafts.sq-fox"): Barkpark's search misses some of its docs, so its
     // words are asked too; textScore then matches the id as Sanity does.
@@ -347,8 +353,7 @@ const fetchTextSearch = createServerFn({method: 'GET'})
       const more = (await search(data.q.replace(/\./g, ' '))).documents.filter((d) => !found.documents.some((f) => f._id === d._id))
       found.documents.push(...more)
     }
-    const schemas = await readSchemas()
-    const q = parseTextQuery(data.q)
+    const schemas = await schemasRead
     // Which drafts also have a published version (their published id is searchable too,
     // a draft-only doc's is not: Sanity's id matching). One query per type with drafts.
     const draftTypes = [...new Set(found.documents.filter((d) => d._draft).map((d) => d._type))]
@@ -370,7 +375,7 @@ const fetchTextSearch = createServerFn({method: 'GET'})
     // Sanity searches each type's preview too (title weight 10, subtitle 5), following
     // references: a post whose author is "Ada Lovelace" is a hit for "Lovelace", and so is
     // any doc that references her elsewhere.
-    const {docs: viaRefs, refIds} = await previewRefHits(data.q, q, asked, schemas as unknown as Schema[])
+    const {docs: viaRefs, refIds} = await viaRead
     const schemaOf = (d: Doc) => schemas.find((s) => s.name === d._type) as Schema | undefined
     // +5 once for a hit that references a matching target anywhere (a linked post, an author).
     for (const h of hits) h._score = (h._score as number) + refBoost(h, refIds, schemaOf(h))
@@ -417,8 +422,13 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
   const found = await bpJson<{documents: Doc[]}>(`/v1/data/search/${dataset()}?perspective=drafts&match=any&limit=${Math.min(200, 50 * targets.length)}&q=${encodeURIComponent(raw)}&types=${targets.map(encodeURIComponent).join(',')}`)
   // The referenced doc must match on the previewed field itself.
   const matching = (target: string, rest: string[]) =>
-    found.documents.filter((d) => d._type === target && textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q) >= 10).map((d) => d._publishedId as string)
-  const refIds = new Set([...via, ...items].flatMap(({target, rest}) => matching(target, rest)))
+    found.documents
+      .filter((d) => d._type === target)
+      .map((d) => ({id: d._publishedId as string, score: textScore({title: rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], d)}, q)}))
+      .filter((m) => m.score >= 10)
+  // The best-matching targets only: a broad word must not send hundreds of ids.
+  const best = [...via, ...items].flatMap(({target, rest}) => matching(target, rest)).sort((a, b) => b.score - a.score)
+  const refIds = new Set(best.map((m) => m.id).filter((id, i, all) => all.indexOf(id) === i).slice(0, REF_IDS_MAX))
   if (!refIds.size) return {docs: [], refIds}
   // Sanity's `boost(references($__refIds), 5)` makes a hit of every doc that references one of
   // them, in any field (a co-author, a linked post), not only the previewed one: one GROQ read.
@@ -434,6 +444,7 @@ async function previewRefHits(raw: string, q: ReturnType<typeof parseTextQuery>,
   )
   return {docs: hits.flat(), refIds}
 }
+const REF_IDS_MAX = 50
 const cmp = (a: unknown, b: unknown) => (typeof a === 'number' && typeof b === 'number' ? a - b : collate(String(a ?? ''), String(b ?? '')))
 
 export const textSearchQuery = (q: string, asked: {type: string; filter: RefFilter}[], order: string, limit: number) =>
