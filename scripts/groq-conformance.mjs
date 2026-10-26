@@ -31,6 +31,18 @@ const csm = args.find((a) => a.startsWith('--csm'))
 const csmMode = csm === '--csm=plain' ? 'true' : csm ? 'withKeyArraySelector' : null
 const need = (k) => process.env[k] || (console.error(`missing env ${k}`), process.exit(2))
 
+// Rings for the geo:: probes: a box around Oslo, one far away, and a hole around the geopoint.
+const BOX = [[10, 59], [11, 59], [11, 60], [10, 60], [10, 59]]
+const FAR = [[20, 50], [21, 50], [21, 51], [20, 51], [20, 50]]
+const GEO = {
+  box: {type: 'Polygon', coordinates: [BOX]},
+  far: {type: 'Polygon', coordinates: [FAR]},
+  holed: {type: 'Polygon', coordinates: [BOX, [[10.7, 59.9], [10.8, 59.9], [10.8, 59.95], [10.7, 59.95], [10.7, 59.9]]]},
+  multi: {type: 'MultiPolygon', coordinates: [[FAR], [BOX]]},
+  line: {type: 'LineString', coordinates: [[9, 59.5], [12, 59.5]]},
+  open: {type: 'Polygon', coordinates: [BOX.slice(0, 4)]},
+}
+
 // Each: id (source-topic), the query, its params, whether its order is the query's own, and
 // `intended`: a difference kept on purpose (run and shown, left out of the score, with why);
 // `known`: a gap filed as its own task (run and shown with it; still counted as not passing).
@@ -102,6 +114,10 @@ const Q = [
   {id: 'docs-fn-nested', q: 'fn ex::a($d) = $d{"inner": ex::b(@)}; fn ex::b($d) = $d{name}; *[_id == "author-ada"][0]{"x": ex::a(@)}'},
   // diff:: (task-13790b478beeee4d): one stored post against a projected copy with its title changed.
   {id: 'docs-diff-changed', q: '*[_id == "post-01"][0]{"any": diff::changedAny(@, @{..., "title": "x"}, (title)), "other": diff::changedAny(@, @{..., "title": "x"}, (excerpt, rating)), "only": diff::changedOnly(@, @{..., "title": "x"}, title), "notOnly": diff::changedOnly(@, @{..., "title": "x"}, excerpt)}'},
+  // geo::contains / geo::intersects (task-1db8d92a284a23d2): field-types-01's place is a geopoint in Oslo. Inside,
+  // outside, in a hole, on an edge (contains false, intersects true), a MultiPolygon, a LineString, an open ring (null).
+  {id: 'docs-geo-shapes', q: '*[_id == "field-types-01"][0]{"in": geo::contains($box, place), "out": geo::contains($far, place), "hole": geo::contains($holed, place), "edge": [geo::contains($box, geo::latLng(59, 10.5)), geo::intersects($box, geo::latLng(59, 10.5))], "multi": geo::intersects($multi, place), "line": [geo::intersects($line, $box), geo::contains($box, $line)], "bad": geo::contains($open, place), "self": geo::contains($box, $box)}', params: GEO},
+  {id: 'docs-geo-filter', q: '*[_type == "fieldTypes" && geo::contains($box, place)]._id', params: {box: GEO.box}},
 ]
 
 const bpBase = `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}/${API}/data/query/${DATASET}`
