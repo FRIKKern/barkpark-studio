@@ -7,6 +7,8 @@
 // - dev (STUDIO_DEV_LOGIN=1, dev builds only): the editor just names their email and the
 //   studio server mints them a token with BARKPARK_ADMIN_TOKEN (below). Who you are is
 //   asserted, not proven, so it never runs in a production build.
+// - sso (STUDIO_SIGN_IN=sso): the editor signs in only through the instance's SSO; no
+//   password form, and no Barkpark Cloud sign-in beside it.
 // - shared (STUDIO_SIGN_IN=shared, and any dev build without the dev flag): nobody signs
 //   in; the studio uses BARKPARK_TOKEN for everyone (CI, e2e lanes).
 //
@@ -30,11 +32,11 @@ import {CLOUD_COOKIE, CLOUD_PATH, CLOUD_TTL_SECONDS, cloudConfig, cloudExchange,
 import {returnPath} from '../lib/return-path'
 export type {TokenSelf} from '../lib/token-self'
 
-export type SignInMode = 'account' | 'dev' | 'shared'
+export type SignInMode = 'account' | 'dev' | 'sso' | 'shared'
 export function signInMode(): SignInMode {
   if (process.env.STUDIO_DEV_LOGIN === '1') return 'dev'
   const asked = process.env.STUDIO_SIGN_IN
-  if (asked === 'account' || asked === 'shared') return asked
+  if (asked === 'account' || asked === 'sso' || asked === 'shared') return asked
   return import.meta.env.PROD ? 'account' : 'shared'
 }
 export const devLoginEnabled = () => signInMode() === 'dev'
@@ -43,6 +45,10 @@ export const signInRequired = () => signInMode() !== 'shared'
 
 if (devLoginEnabled() && import.meta.env.PROD)
   throw new Error('STUDIO_DEV_LOGIN is dev-only and refused in a production build: it trusts an email without a password.')
+
+const cloudSetting = Object.keys(process.env).find((key) => key.startsWith('BARKPARK_CLOUD_') && process.env[key])
+if (signInMode() === 'sso' && cloudSetting)
+  throw new Error(`STUDIO_SIGN_IN=sso refuses ${cloudSetting}: Barkpark Cloud sign-in would be a second way in. Unset it.`)
 
 const COOKIE = 'bp_sid'
 // task-1883ba9b1ace5dcf: the session is the cookie, sealed (server/session-cookie.ts), not
