@@ -37,12 +37,6 @@ const sides = {
   barkpark: {client: createClient({projectId: 'ecu57yeh', dataset: DATASET, apiVersion: API, token: need('BARKPARK_TOKEN'), useCdn: false, apiHost: bpHost, useProjectHostname: false}), project: 'ecu57yeh', imageBase: bpHost},
 }
 
-// A probe's own write: Sanity's through the client; Barkpark's through its /v1 mutate (the
-// client's dated mutate path is the mutate-dry-run check, so the probe still measures listen).
-const write = (c, side, mutations) =>
-  side.imageBase
-    ? fetch(`${side.imageBase}/v1/data/mutate/${DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${c.config().token}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations})}).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`mutate ${r.status}`))))
-    : c.mutate(mutations)
 const within = (ms, p) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error(`no answer in ${ms / 1000} s`)), ms))])
 const firstEvent = (observable, want, ms = 10_000) =>
   within(ms, new Promise((resolve, reject) => {
@@ -80,25 +74,26 @@ const CHECKS = [
       // in the same check and must read not_found.
       const id = `client-check-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
       const heard = []
-      let sub
+      let sub, cleanup
       try {
-        await write(c, side, [{createOrReplace: {_id: id, _type: 'post', title: 'Client check scratch (deleted at once)'}}])
+        await c.createOrReplace({_id: id, _type: 'post', title: 'Client check scratch (deleted at once)'})
         let welcomed
         const ready = new Promise((r) => (welcomed = r))
         sub = c.listen('*[_type == "author"]', {}, {events: ['welcome', 'mutation'], includeResult: false}).subscribe({next: (e) => (e.type === 'welcome' ? welcomed() : heard.push(e.documentId)), error: () => welcomed()})
         await within(10_000, ready)
-        await write(c, side, [{patch: {id, ...(side.imageBase && {type: 'post'}), set: {title: 'Client check scratch, edited'}}}])
+        await c.patch(id).set({title: 'Client check scratch, edited'}).commit()
         await new Promise((r) => setTimeout(r, 3000))
       } finally {
         sub?.unsubscribe()
-        await write(c, side, [{delete: {id}}]).catch(() => {})
+        // The usual cleanup pair: only the published doc exists, so the draft delete must be a no-op.
+        await c.transaction().delete(id).delete(`drafts.${id}`).commit().catch((e) => (cleanup = e.message.slice(0, 80)))
       }
       const notFound = (await c.withConfig({perspective: 'raw'}).fetch('count(*[_id in [$id, "drafts." + $id]])', {id})) === 0
-      return {heardForAuthorFilter: heard.length, scratchNotFound: notFound}
+      return {heardForAuthorFilter: heard.length, scratchNotFound: notFound, ...(cleanup && {cleanup})}
     },
   },
-  // The client's own write path, without writing: a dry-run createOrReplace (Sanity validates and
-  // writes nothing). Barkpark has no /v<date>/data/mutate yet.
+  // The client's own write path, without writing: a dry-run createOrReplace (validated,
+  // nothing written).
   {id: 'mutate-dry-run', run: async (c) => { const r = await c.createOrReplace({_id: 'zz-dry-run-never-written', _type: 'post', title: 'dry run'}, {dryRun: true, returnDocuments: false}); return {ok: !!r?.transactionId || Array.isArray(r?.results)} }},
   {id: 'error-syntax', run: (c) => c.fetch('*[').then(() => 'no error', errShape)},
   {id: 'error-unauthorized', run: (c) => c.withConfig({token: 'not-a-token'}).fetch('count(*)').then(() => 'no error', (e) => e?.statusCode ?? 'no status')},
