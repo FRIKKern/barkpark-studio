@@ -37,6 +37,12 @@ const sides = {
   barkpark: {client: createClient({projectId: 'ecu57yeh', dataset: DATASET, apiVersion: API, token: need('BARKPARK_TOKEN'), useCdn: false, apiHost: bpHost, useProjectHostname: false}), project: 'ecu57yeh', imageBase: bpHost},
 }
 
+// A probe's own write: Sanity's through the client; Barkpark's through its /v1 mutate (the
+// client's dated mutate path is the mutate-dry-run check, so the probe still measures listen).
+const write = (c, side, mutations) =>
+  side.imageBase
+    ? fetch(`${side.imageBase}/v1/data/mutate/${DATASET}`, {method: 'POST', headers: {authorization: `Bearer ${c.config().token}`, 'content-type': 'application/json'}, body: JSON.stringify({mutations})}).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`mutate ${r.status}`))))
+    : c.mutate(mutations)
 const within = (ms, p) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error(`no answer in ${ms / 1000} s`)), ms))])
 const firstEvent = (observable, want, ms = 10_000) =>
   within(ms, new Promise((resolve, reject) => {
@@ -69,7 +75,7 @@ const CHECKS = [
     id: 'listen-query-filter',
     writeProbe: true,
     known: 'task-72331698ada8a2f6: listen() does not apply its GROQ query filter yet',
-    run: async (c) => {
+    run: async (c, side) => {
       const heard = []
       const id = `zz-listen-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
       let welcomed
@@ -77,16 +83,19 @@ const CHECKS = [
       const sub = c.listen('*[_type == "author"]', {}, {events: ['welcome', 'mutation'], includeResult: false}).subscribe({next: (e) => (e.type === 'welcome' ? welcomed() : heard.push(e.documentId)), error: () => welcomed()})
       try {
         await within(10_000, ready)
-        await c.createOrReplace({_id: id, _type: 'post', title: 'Listen filter probe (deleted at once)'})
+        await write(c, side, [{createOrReplace: {_id: id, _type: 'post', title: 'Listen filter probe (deleted at once)'}}])
         await new Promise((r) => setTimeout(r, 3000))
       } finally {
         sub.unsubscribe()
-        await c.delete(id).catch(() => {})
+        await write(c, side, [{delete: {id}}]).catch(() => {})
       }
       const gone = (await c.getDocument(id)) == null
       return {heardForAuthorFilter: heard.length, scratchGone: gone}
     },
   },
+  // The client's own write path, without writing: a dry-run createOrReplace (Sanity validates and
+  // writes nothing). Barkpark has no /v<date>/data/mutate yet.
+  {id: 'mutate-dry-run', run: async (c) => { const r = await c.createOrReplace({_id: 'zz-dry-run-never-written', _type: 'post', title: 'dry run'}, {dryRun: true, returnDocuments: false}); return {ok: !!r?.transactionId || Array.isArray(r?.results)} }},
   {id: 'error-syntax', run: (c) => c.fetch('*[').then(() => 'no error', errShape)},
   {id: 'error-unauthorized', run: (c) => c.withConfig({token: 'not-a-token'}).fetch('count(*)').then(() => 'no error', (e) => e?.statusCode ?? 'no status')},
   {id: 'image-asset-docs', known: 'task-66985e4bd08cc2d9: no sanity.imageAsset docs (design: /papers/sanity-shaped-image-assets-note)', run: async (c) => (await c.fetch('count(*[_type == "sanity.imageAsset"]) > 0'))},
