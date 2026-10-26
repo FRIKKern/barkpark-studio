@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 19 changes
-  - Global search: a doc that references a matching target anywhere is a hit ([#1156](https://github.com/FRIKKern/barkpark-studio/pull/1156))
-  - scripts: groq-conformance probes documents::get with each side's own project ([#1155](https://github.com/FRIKKern/barkpark-studio/pull/1155))
+- **Today** · 21 changes
+  - Media tool: tiles skip their metadata read, and show a spinner while a thumbnail is made ([#1157](https://github.com/FRIKKern/barkpark-studio/pull/1157))
+  - Preview: draw an icon picked by a stored value, read |date in the workspace zone ([#1152](https://github.com/FRIKKern/barkpark-studio/pull/1152))
 - **Yesterday** · 46 changes
   - Inspect: the Parsed / Raw JSON choice follows the editor, as Sanity's per-user setting ([#1133](https://github.com/FRIKKern/barkpark-studio/pull/1133))
 - **Last week** · 143 changes, 1 task closed
