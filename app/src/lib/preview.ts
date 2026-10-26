@@ -15,7 +15,8 @@
 // task-75cb2cac1e875214), read here the same way (task-afbd6fe5a5e2085b): {text}
 // literal text, {when, show} a part shown while a visibleWhen condition holds, {path,
 // map} a stored value by its label, a nested {parts} spec, and {each, show, max, join,
-// more} a part read from each item of a list. `|lower` and `|upper` change the case.
+// more} a part read from each item of a list. `|lower` and `|upper` change the case, and
+// `|count` shows the number of items in a list ("{packages|count} pakker").
 // An `each` item that is a reference reads its target through `opts.deref`, which costs
 // a hop; without `deref` it reads as nothing.
 
@@ -79,13 +80,16 @@ function day(v: unknown) {
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`
 }
 
+/** `|count`: the number of items in a list, `0` when the path holds nothing (Barkpark's PreviewText). */
+const count = (v: unknown) => (Array.isArray(v) ? String(v.length) : v == null ? '0' : undefined)
+
 /** The preview text for a doc; `read` resolves a path (`readPath` follows up to five references). */
 export function formatPreview(spec: PreviewText | undefined, read: (path: string) => unknown, opts: PreviewOptions = {}): string | undefined {
   if (!spec) return undefined
   const value = (part: string) => {
     const v = read(pathOf(part))
     const mods = part.split('|').slice(1).map((m) => m.trim())
-    const raw = mods.includes('date') ? day(v) : mods.includes('type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : typeof v === 'string' || typeof v === 'number' ? String(v) : undefined
+    const raw = mods.includes('count') ? count(v) : mods.includes('date') ? day(v) : mods.includes('type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : typeof v === 'string' || typeof v === 'number' ? String(v) : undefined
     const text = raw && mods.includes('lower') ? raw.toLowerCase() : raw && mods.includes('upper') ? raw.toUpperCase() : raw
     return text?.trim() ? text : undefined
   }
