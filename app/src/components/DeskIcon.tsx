@@ -6,7 +6,7 @@
 // The desk's own icons come with the desk, each one's body as `iconSvg` (lib/desk-icon-bodies.ts):
 // the whole table (96 KB) was in every page's first chunk. Folder and document, the two the
 // studio names itself, are here; any other name (a config's) loads the table, once.
-import {useEffect, useState} from 'react'
+import {useEffect, useState, type ReactNode} from 'react'
 
 const FOLDER = '<path d="M11.5 8.5H19.5V18.5H5.5V5.5H10.5L11.5 8.5ZM11.5 8.5H5.5" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"></path>'
 const DOCUMENT = '<path d="M11.5 4.5V9.5H6.5" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"></path><path d="M18.5 20.5H6.5V9.5L11.5 4.5H18.5V20.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"></path>'
@@ -21,14 +21,18 @@ const bodyOf = (name?: string, svg?: string) => (svg !== undefined ? svg || unde
 /** An icon's SVG body (25×25 viewBox): the desk's `iconSvg`, else by name; Sanity's DocumentIcon when it has none. */
 export const iconBody = (name?: string, svg?: string) => bodyOf(name, svg) || DOCUMENT
 
-/** A desk icon by name (with its body when the desk sent one), or null. The SVG bodies are fixed strings from @sanity/icons, never user input. */
-export function DeskIcon({name, svg}: {name?: string; svg?: string}) {
+/**
+ * A desk icon by name (with its body when the desk sent one), or null. The SVG bodies are
+ * fixed strings from @sanity/icons, never user input. `fallback` shows for a name the
+ * table lacks, once the table is loaded (a list preview's icon pick).
+ */
+export function DeskIcon({name, svg, fallback}: {name?: string; svg?: string; fallback?: ReactNode}) {
   const [, loaded] = useState(false)
   const body = bodyOf(name, svg)
   useEffect(() => {
     if (name && svg === undefined && !body && !table) void loadTable().then(() => loaded(true))
   }, [name, body])
-  if (!body) return null
+  if (!body) return table || svg !== undefined ? (fallback ?? null) : null
   // data-sanity-icon names it as Sanity's icons do.
   return <svg className="desk-icon" data-sanity-icon={name} width={25} height={25} viewBox="0 0 25 25" fill="none" aria-hidden="true" dangerouslySetInnerHTML={{__html: body}} />
 }

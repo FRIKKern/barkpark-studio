@@ -1,7 +1,7 @@
 // J56: prepared previews, read the way Sanity's prepare in reference/sanity/schemaTypes/category.ts reads.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {firstMedia, formatPreview, loadRefs, mediaRefs, mediaUrl, pathsOf, previewMedia, previewRefs, readPath, rowMedia, textRefs, type PreviewText} from './preview.ts'
+import {firstMedia, formatPreview, iconPick, loadRefs, mediaRefs, mediaUrl, pathsOf, previewMedia, previewRefs, readPath, rowMedia, textRefs, type IconPick, type PreviewText} from './preview.ts'
 
 const featured: PreviewText = {parts: ['featuredPost.title', 'featuredPost.publishedAt|date'], join: ' · ', empty: 'No featured post'}
 const read = (values: Record<string, unknown>) => (path: string) => values[path]
@@ -236,4 +236,57 @@ test('|count: the items in a list, 0 when the path holds nothing, as Barkpark\'s
   assert.equal(formatPreview({parts: ['{columns} columns', '{items|count} items'], join: ' • '}, read({columns: 3, items: []})), '3 columns • 0 items')
   // A value that is not a list has no count, so its template shows nothing.
   assert.equal(formatPreview('{title|count} items', read({title: 'Fixture'})), undefined)
+})
+
+// An icon picked by a stored value (barkpark docs/contracts/list-preview.md), as a Sanity
+// prepare that returns an icon component.
+const kind: IconPick = {icon: {path: 'kind', map: {guide: 'compass', faq: 'help-circle', draft: null}, else: 'document', empty: 'folder'}}
+
+test('an icon pick: the map, else for an unnamed value, empty for none, null for nothing', () => {
+  assert.equal(iconPick(kind, read({kind: 'guide'})), 'compass')
+  assert.equal(iconPick(kind, read({kind: 'recipe'})), 'document')
+  assert.equal(iconPick(kind, read({})), 'folder')
+  assert.equal(iconPick(kind, read({kind: ''})), 'folder')
+  assert.equal(iconPick(kind, read({kind: 'draft'})), undefined)
+  const bare: IconPick = {icon: {path: 'kind', map: {guide: 'compass'}}}
+  assert.equal(iconPick(bare, read({kind: 'recipe'})), undefined)
+  assert.equal(iconPick(bare, read({})), undefined)
+})
+
+test('an icon pick reads a number as its digits and takes the first path with a value', () => {
+  const byCode: IconPick = {icon: {path: ['outer.code', 'code'], map: {'7': 'star'}}}
+  assert.equal(iconPick(byCode, read({code: 7})), 'star')
+  assert.equal(iconPick(byCode, read({'outer.code': 7, code: 1})), 'star')
+})
+
+test('row media: an image first, then the icon pick; a pick through a reference loads it', () => {
+  const url = 'https://images.example.com/c.jpg'
+  const spec = ['cover', kind]
+  assert.deepEqual(rowMedia(spec, {cover: url, kind: 'guide'}).map((c) => c.media), [{kind: 'url', src: url}, {kind: 'icon', name: 'compass'}])
+  assert.deepEqual(rowMedia(spec, {kind: 'guide'}).map((c) => c.media), [{kind: 'icon', name: 'compass'}])
+  assert.deepEqual(rowMedia(spec, {kind: 'draft'}), [])
+  assert.equal(firstMedia(spec, read({kind: 'guide'}), () => true), undefined)
+
+  const viaRef: IconPick = {icon: {path: 'section.code', map: {north: 'pin'}}}
+  const doc = {section: {_ref: 'sec-1'}}
+  assert.deepEqual(mediaRefs(viaRef, doc), ['sec-1'])
+  assert.deepEqual(pathsOf(viaRef), ['section.code'])
+  const deref = (id: string) => (id === 'sec-1' ? {code: 'north'} : undefined)
+  assert.deepEqual(rowMedia([viaRef], doc, deref).map((c) => c.media), [{kind: 'icon', name: 'pin'}])
+})
+
+test('|date reads a date-time in the workspace zone, whatever the browser zone', () => {
+  const tz = process.env.TZ
+  try {
+    process.env.TZ = 'America/New_York'
+    assert.equal(formatPreview('at|date', read({at: '2026-10-08T23:30:00Z'}), {zone: 'Europe/Oslo'}), '09.10.2026')
+    process.env.TZ = 'Europe/Oslo'
+    assert.equal(formatPreview('at|date', read({at: '2026-10-09T02:00:00Z'}), {zone: 'America/New_York'}), '08.10.2026')
+    // A plain date is its own day in every zone; an unknown zone reads the browser's.
+    assert.equal(formatPreview('at|date', read({at: '2026-10-08'}), {zone: 'Pacific/Kiritimati'}), '08.10.2026')
+    assert.equal(formatPreview('at|date', read({at: '2026-10-08T23:30:00Z'}), {zone: 'Not/AZone'}), '09.10.2026')
+  } finally {
+    if (tz === undefined) delete process.env.TZ
+    else process.env.TZ = tz
+  }
 })

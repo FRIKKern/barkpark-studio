@@ -19,7 +19,8 @@ export type T = (en: string, vars?: Vars) => string
  * canvas's own (`canvas`: Barkpark's map as JSON, stamped as the canvas's data-strings).
  */
 /** `provisional`: Barkpark was too slow for the server render to know; the browser asks again. */
-export type LocaleData = {locale: Locale; strings?: Record<string, string>; canvas?: string; provisional?: true}
+/** `timeZone`: the workspace's IANA zone, read with the locale (task-ecaaa898e346dc73). */
+export type LocaleData = {locale: Locale; strings?: Record<string, string>; canvas?: string; provisional?: true; timeZone?: string}
 
 // The canvas's chrome words come from Barkpark (GET /v1/i18n/paper_canvas, #22439: the
 // map its LiveView stamps), read on the server and kept a while per locale; a failed
@@ -50,13 +51,14 @@ const fetchLocale = createServerFn({method: 'GET'}).handler(async (): Promise<Lo
   const pick = async (locale: Locale): Promise<LocaleData> => (locale === 'nb-NO' ? {locale, strings: (await import('../i18n/nb')).NB, canvas: await canvasStrings(locale)} : {locale})
   // A lane's dev server can force one (evidence runs): the workspace setting is shared.
   const forced = process.env.STUDIO_LOCALE
-  if (forced === 'en' || forced === 'nb-NO') return pick(forced)
   try {
     // The studio's own token: the sign-in screen is in the workspace's language too.
-    const locale = await workspaceLocale()
-    return pick(locale === 'nb-NO' ? 'nb-NO' : 'en')
+    const {locale, timeZone} = await workspaceLocale()
+    const zone = timeZone ? {timeZone} : {}
+    if (forced === 'en' || forced === 'nb-NO') return {...(await pick(forced)), ...zone}
+    return {...(await pick(locale === 'nb-NO' ? 'nb-NO' : 'en')), ...zone}
   } catch {
-    return {locale: 'en'}
+    return forced === 'en' || forced === 'nb-NO' ? pick(forced) : {locale: 'en'}
   }
 })
 
@@ -86,6 +88,7 @@ export function translate(locale: Locale, en: string, vars?: Vars): string {
 
 const LocaleContext = createContext<Locale>('en')
 const CanvasStringsContext = createContext<string | undefined>(undefined)
+const TimeZoneContext = createContext<string | undefined>(undefined)
 
 /** Rendering: the server render knows the request's locale through this, not a global. */
 export function LocaleProvider({data, children}: {data: LocaleData; children: ReactNode}) {
@@ -94,7 +97,9 @@ export function LocaleProvider({data, children}: {data: LocaleData; children: Re
   browserLocale = typeof window === 'undefined' ? browserLocale : locale
   return (
     <LocaleContext.Provider value={locale}>
-      <CanvasStringsContext.Provider value={data.canvas}>{children}</CanvasStringsContext.Provider>
+      <CanvasStringsContext.Provider value={data.canvas}>
+        <TimeZoneContext.Provider value={data.timeZone}>{children}</TimeZoneContext.Provider>
+      </CanvasStringsContext.Provider>
     </LocaleContext.Provider>
   )
 }
@@ -103,6 +108,9 @@ export function LocaleProvider({data, children}: {data: LocaleData; children: Re
 export const useCanvasStrings = () => useContext(CanvasStringsContext)
 
 export const useLocale = () => useContext(LocaleContext)
+
+/** The workspace's time zone, which a list preview's `|date` day is read in; undefined reads the browser's. */
+export const useWorkspaceZone = () => useContext(TimeZoneContext)
 
 // One translate function per locale, the same object every render: a fresh one each
 // time broke every memo and hook dependency it reached (F2 pane open +15 ms).
