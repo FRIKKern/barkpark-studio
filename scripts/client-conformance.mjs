@@ -41,6 +41,7 @@ const errShape = (e) => ({statusCode: e?.statusCode ?? null, hasDescription: typ
 const keysOf = (o) => Object.keys(o ?? {}).sort()
 
 // Each check: what each side answers (a plain value), and how two answers count as the same.
+// `known`: a difference filed as its own task, shown with it and still counted as not passing.
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 const CHECKS = [
   {id: 'fetch-basic', run: (c) => c.fetch('*[_id == "post-01"][0]{title, "author": author->name}')},
@@ -59,9 +60,10 @@ const CHECKS = [
   {id: 'live-events-drafts-welcome', run: (c) => firstEvent(c.live.events({includeDrafts: true}), 'welcome')},
   {id: 'error-syntax', run: (c) => c.fetch('*[').then(() => 'no error', errShape)},
   {id: 'error-unauthorized', run: (c) => c.withConfig({token: 'not-a-token'}).fetch('count(*)').then(() => 'no error', (e) => e?.statusCode ?? 'no status')},
-  {id: 'image-asset-docs', run: async (c) => (await c.fetch('count(*[_type == "sanity.imageAsset"]) > 0'))},
+  {id: 'image-asset-docs', known: 'task-66985e4bd08cc2d9: no sanity.imageAsset docs (design: /papers/sanity-shaped-image-assets-note)', run: async (c) => (await c.fetch('count(*[_type == "sanity.imageAsset"]) > 0'))},
   {
     id: 'image-url',
+    known: 'task-66985e4bd08cc2d9: our studio stores asset-<uuid> refs, which image-url rejects',
     run: async (c, side) => {
       // A stored image ref on each side (the first image field ref found), built into a 200 px URL and fetched.
       // A ref as each studio stores one: Sanity's an image asset id; ours `asset-<media id>`
@@ -90,15 +92,16 @@ const answer = async (check, side) => {
 const rows = []
 for (const check of CHECKS) {
   const [s, b] = await Promise.all([answer(check, sides.sanity), answer(check, sides.barkpark)])
-  const status = !s.ok ? 'REF-ERR' : b.ok && same(s.v, b.v) ? 'pass' : 'FAIL'
-  rows.push({id: check.id, status, s, b})
+  const status = !s.ok ? 'REF-ERR' : b.ok && same(s.v, b.v) ? 'pass' : check.known ? 'known' : 'FAIL'
+  rows.push({id: check.id, status, s, b, known: check.known})
 }
 const w = Math.max(...rows.map((r) => r.id.length))
 console.log(`@sanity/client conformance · ${DATASET} · v${API} · Sanity ecu57yeh vs Barkpark ${process.env.BARKPARK_WORKSPACE}`)
 for (const r of rows) {
   const show = (x) => (typeof x.v === 'string' ? x.v : JSON.stringify(x.v))?.slice(0, 90)
-  console.log(`${r.status.padEnd(7)} ${r.id.padEnd(w)}${detail || r.status !== 'pass' ? `  sanity ${show(r.s)} | barkpark ${show(r.b)}` : ''}`)
+  const why = r.status === 'known' ? `  known gap → ${r.known}` : detail || r.status !== 'pass' ? `  sanity ${show(r.s)} | barkpark ${show(r.b)}` : ''
+  console.log(`${r.status.padEnd(7)} ${r.id.padEnd(w)}${why}`)
 }
 const n = (st) => rows.filter((r) => r.status === st).length
-console.log(`\n${n('pass')}/${rows.length - n('REF-ERR')} pass · ${n('FAIL')} differ${n('REF-ERR') ? ` · ${n('REF-ERR')} reference errors (fix the check)` : ''}`)
+console.log(`\n${n('pass')}/${rows.length - n('REF-ERR')} pass · ${n('FAIL') + n('known')} differ${n('known') ? ` (${n('known')} known, with a task)` : ''}${n('REF-ERR') ? ` · ${n('REF-ERR')} reference errors (fix the check)` : ''}`)
 process.exit(0)
