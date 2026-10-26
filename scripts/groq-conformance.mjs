@@ -77,6 +77,10 @@ const Q = [
   // Portable Text
   {id: 'docs-pt-text', q: '*[_id == "post-01"][0]{"text": pt::text(body)}'},
   {id: 'docs-pt-blocks', q: '*[_id == "post-01"][0]{"blocks": count(body[_type == "block"])}', known: 'task-ab40acaf75927e0e: body is {blocks, html}; matching needs body read as a Portable Text array (breaking for body.blocks readers, owner decision)'},
+  // Geo (task-ce93ff890a895f54): pure functions, no dataset read; Sanity's doubles, exact.
+  {id: 'docs-geo-latlng', q: '{"oslo": geo::latLng(59.91, 10.75), "outOfRange": geo::latLng(91, 0), "notNumber": geo::latLng("59", 10)}'},
+  {id: 'docs-geo-distance', q: '{"degree": geo::distance(geo::latLng(0, 0), geo::latLng(0, 1)), "poles": geo::distance(geo::latLng(90, 0), geo::latLng(-90, 0)), "geopoint": geo::distance({"_type": "geopoint", "lat": 0, "lng": 0}, {"type": "Point", "coordinates": [1, 0]}), "none": geo::distance(1, 2)}'},
+  {id: 'docs-geo-distance-offaxis', q: '{"osloSydney": geo::distance(geo::latLng(59.91, 10.75), geo::latLng(-33.86, 151.2))}', intended: 'last-ulp only (2e-9 m): the server libm trig rounds the off-axis haversine one ulp apart from Sanity'},
   // The repo's reference preview site and Presentation (real queries, as written)
   {id: 'ref-home', q: '*[_type == "post" && defined(slug.current)] | order(title asc) {_id, title, "slug": slug.current, excerpt, author->{_id, name}}', ordered: true},
   {id: 'ref-post', q: '*[_type == "post" && slug.current == $slug][0] {_id, title, "slug": slug.current, excerpt, author->{_id, name}, categories[]->{_id, title}, related->{_type, _id, title, name, "slug": slug.current}, rating, publishedAt, seo{metaTitle}, links[]{_key, title}}', params: {slug: 'fixture-post-03'}},
