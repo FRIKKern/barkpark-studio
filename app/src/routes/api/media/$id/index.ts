@@ -1,6 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
-import {apiBase, bpFetch, bpFile, bpRaw, dataset} from '../../../../server/barkpark'
-import {fallsBackToOriginal, mediaHeaders, transformQuery} from '../../../../lib/media-proxy'
+import {bpFetch, bpFile, bpRaw, dataset} from '../../../../server/barkpark'
+import {mediaPathPrefix, mediaPaths} from '../../../../server/media-paths'
+import {fallsBackToOriginal, mediaHeaders, readAsset, transformQuery} from '../../../../lib/media-proxy'
 import {sanityImageId, sanityImagePath} from '../../../../lib/image'
 
 // GET /api/media/<asset id> → the file's bytes. Barkpark serves media files to a token only,
@@ -8,12 +9,11 @@ import {sanityImageId, sanityImagePath} from '../../../../lib/image'
 // transform parameters (lib/image.ts imageSrc: w, h, fit, auto=format), so a row thumbnail or
 // a field preview gets the size it shows at, as AVIF or WebP, instead of the original
 // (docs/media/IMAGE-TRANSFORMS.md in Barkpark). ?size=thumb is the 320 px JPEG preset.
-// An asset's path never changes under its id: one metadata read per asset, not per image.
-// Shared across editors on purpose: the path is never sent to the browser, and the file
-// read below goes with the requesting editor's own token (signed out: none), which
-// Barkpark checks on every file and transform read (403 without a seat, as the metadata
-// read would answer).
-const paths = new Map<string, {url: string; mimeType?: string}>()
+// An asset's path never changes under its id: one metadata read per asset, not per image, and
+// none for a tile the library list has just read (server/media-paths). Shared across editors on
+// purpose: the path is never sent to the browser, and the file read below goes with the
+// requesting editor's own token (signed out: none), which Barkpark checks on every file and
+// transform read (403 without a seat, as the metadata read would answer).
 
 export const Route = createFileRoute('/api/media/$id/')({
   server: {
@@ -36,22 +36,15 @@ export const Route = createFileRoute('/api/media/$id/')({
           const thumb = await bpRaw(`/media/renditions/${encodeURIComponent(params.id)}/thumb`)
           return new Response(thumb.body, {status: thumb.status, headers: mediaHeaders(thumb.ok, thumb.headers.get('content-type') ?? 'image/jpeg', dest)})
         }
-        const key = `${apiBase()}|${dataset()}|${params.id}`
-        let asset = paths.get(key)
-        if (!asset) {
-          const meta = await bpFetch(`/v1/media/${dataset()}/${encodeURIComponent(params.id)}`)
-          if (!meta.ok) return new Response(null, {status: meta.status})
-          asset = ((await meta.json()) as {result: {url: string; mimeType?: string}}).result
-          if (paths.size > 5000) paths.clear()
-          paths.set(key, asset)
-        }
-        const transform = transformQuery(query)
         const accept = {accept: request.headers.get('accept') ?? 'image/*'}
-        let file = transform && asset.mimeType?.startsWith('image/') ? await bpFile(`${asset.url}?${transform}`, accept) : null
-        if (!file || fallsBackToOriginal(file.status)) file = await bpFile(asset.url, accept)
+        const {status, file, mimeType} = await readAsset(params.id, mediaPathPrefix(), mediaPaths, transformQuery(query), {
+          meta: () => bpFetch(`/v1/media/${dataset()}/${encodeURIComponent(params.id)}`),
+          file: (path) => bpFile(path, accept),
+        })
+        if (!file) return new Response(null, {status})
         return new Response(file.body, {
           status: file.status,
-          headers: mediaHeaders(file.ok, file.headers.get('content-type') ?? asset.mimeType ?? 'application/octet-stream', dest),
+          headers: mediaHeaders(file.ok, file.headers.get('content-type') ?? mimeType ?? 'application/octet-stream', dest),
         })
       },
       // J36: Sanity's asset Delete. Barkpark refuses an asset in use itself (409 with

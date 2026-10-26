@@ -1,6 +1,7 @@
 import {createServerFn} from '@tanstack/react-start'
 import {infiniteQueryOptions, queryOptions} from '@tanstack/react-query'
 import {bpFetch, dataset} from '../server/barkpark'
+import {mediaPathPrefix, mediaPaths} from '../server/media-paths'
 
 // B08: the Media tool, after Barkpark's LiveView media library (its bp-asset-explorer
 // web component): folders (collections), a visibility filter, and the checkout lock
@@ -33,6 +34,8 @@ export type AssetDetail = LibraryAsset & {
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 type RawAsset = {
   id: string
+  /** The file's path on Barkpark: the media proxy's, never sent to the browser (toAsset drops it). */
+  url?: string
   size?: number
   filename?: string
   originalName?: string
@@ -106,6 +109,8 @@ const fetchAssets = createServerFn({method: 'GET'})
     if (data.kind) params.set('kind', data.kind)
     const r = await read<{hits: RawAsset[]; hasMore?: boolean; total?: number; nextCursor?: string | null}>(`${base()}/search?${params}`)
     const next = !r.hasMore ? null : r.nextCursor ? {cursor: r.nextCursor} : {offset: (data.from?.offset ?? 0) + r.hits.length}
+    // The tiles drawn next ask the media proxy for these files: it knows their paths now.
+    mediaPaths.fill(mediaPathPrefix(), r.hits)
     const page: Page = {assets: r.hits.map(toAsset), more: !!r.hasMore, total: r.total ?? null, next}
     return page as unknown as Json
   })

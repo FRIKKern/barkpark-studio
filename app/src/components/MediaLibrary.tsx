@@ -240,7 +240,7 @@ export function MediaLibrary({search: kept, onSearch}: {search: MediaSearch; onS
                   <tr key={a.id} aria-selected={picked === a.id}>
                     <td>
                       <button type="button" className="media-row" aria-pressed={picked === a.id} onClick={() => setPicked(a.id)}>
-                        <span className="media-thumb">{a.mimeType.startsWith('image/') ? <img src={imageSrc(a.id, TILE_PX)} alt="" loading="lazy" decoding="async" /> : <DocumentIcon />}</span>
+                        <Thumb asset={a} />
                         <span className="media-name">{a.name}</span>
                       </button>
                     </td>
@@ -266,12 +266,27 @@ export function MediaLibrary({search: kept, onSearch}: {search: MediaSearch; onS
   )
 }
 
+/** A tile's thumbnail. While Barkpark makes it (a fresh image's first view), a spinner shows after 300 ms. */
+function Thumb({asset}: {asset: LibraryAsset}) {
+  const img = useRef<HTMLImageElement>(null)
+  const [loaded, setLoaded] = useState(false)
+  // A cached image may load before hydration, when onLoad is not listening yet.
+  useEffect(() => void (img.current?.complete && setLoaded(true)), [])
+  if (!asset.mimeType.startsWith('image/')) return <span className="media-thumb"><DocumentIcon /></span>
+  return (
+    <span className="media-thumb" aria-busy={!loaded || undefined}>
+      <img ref={img} src={imageSrc(asset.id, TILE_PX)} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(true)} onError={() => setLoaded(true)} />
+      {!loaded && <span className="spinner" aria-hidden="true" />}
+    </span>
+  )
+}
+
 function Tile({asset, picked, onPick}: {asset: LibraryAsset; picked: boolean; onPick: () => void}) {
   const t = useT()
   const locale = useLocale()
   return (
     <button type="button" className="media-tile" aria-pressed={picked} onClick={onPick} title={asset.name}>
-      <span className="media-thumb">{asset.mimeType.startsWith('image/') ? <img src={imageSrc(asset.id, TILE_PX)} alt="" loading="lazy" decoding="async" /> : <DocumentIcon />}</span>
+      <Thumb asset={asset} />
       <span className="media-name">{asset.name}</span>
       <span className="media-size muted">{mediaBytes(asset.size, locale)}</span>
       <span className="media-badges">

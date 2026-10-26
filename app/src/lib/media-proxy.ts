@@ -57,3 +57,52 @@ export function mediaHeaders(ok: boolean, contentType: string, dest?: string | n
     ? {'content-type': contentType, 'cache-control': 'private, max-age=31536000, immutable', vary: 'Accept, Sec-Fetch-Dest', ...fileSafetyHeaders(contentType, dest)}
     : {'content-type': contentType, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff'}
 }
+
+export type AssetPath = {url: string; mimeType?: string}
+/**
+ * An asset's file path under its id, which never changes: keyed by `<Barkpark>|<dataset>|<reader>|<id>`
+ * (server/media-paths), at most `max` (then it starts over). The proxy reads one asset's metadata
+ * on a miss; the library list fills it with every hit it reads, so the tiles it draws next skip
+ * that read.
+ */
+export function pathCache(max = 5000) {
+  const paths = new Map<string, AssetPath>()
+  const set = (key: string, path: AssetPath) => {
+    if (paths.size >= max) paths.clear()
+    paths.set(key, path)
+  }
+  return {
+    get: (key: string) => paths.get(key),
+    set,
+    fill: (prefix: string, hits: {id: string; url?: string; mimeType?: string}[]) => {
+      for (const h of hits) if (h.url) set(`${prefix}|${h.id}`, {url: h.url, mimeType: h.mimeType})
+    },
+    size: () => paths.size,
+  }
+}
+
+/**
+ * One reader's asset file. `prefix` names the reader too, so a path another reader's list put in
+ * the cache is never this reader's: a reader without access reaches their own metadata read and is
+ * refused there. The file read always goes with the reader's own token (io), so Barkpark checks
+ * every read, cached path or not.
+ */
+export async function readAsset(
+  id: string,
+  prefix: string,
+  cache: ReturnType<typeof pathCache>,
+  transform: string,
+  io: {meta: () => Promise<Response>; file: (path: string) => Promise<Response>},
+): Promise<{status: number; file?: Response; mimeType?: string}> {
+  const key = `${prefix}|${id}`
+  let path = cache.get(key)
+  if (!path) {
+    const meta = await io.meta()
+    if (!meta.ok) return {status: meta.status}
+    path = ((await meta.json()) as {result: AssetPath}).result
+    cache.set(key, path)
+  }
+  let file = transform && path.mimeType?.startsWith('image/') ? await io.file(`${path.url}?${transform}`) : null
+  if (!file || fallsBackToOriginal(file.status)) file = await io.file(path.url)
+  return {status: file.status, file, mimeType: path.mimeType}
+}
