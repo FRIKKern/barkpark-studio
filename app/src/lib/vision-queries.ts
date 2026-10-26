@@ -6,6 +6,26 @@ export type SavedQuery = {key: string; title: string; query: string; perspective
 
 export const QUERIES_PREF = 'vision-queries'
 
+// This browser's copy, where the server keeps no prefs (shared sign-in), in the pref's shape.
+const LOCAL = 'bp-vision-queries'
+export function readLocalQueries(): unknown {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL) ?? 'null')
+  } catch {
+    return null
+  }
+}
+/** The last one gone: nothing left behind. False when this browser can't keep it. */
+export function writeLocalQueries(list: SavedQuery[]): boolean {
+  try {
+    if (list.length) localStorage.setItem(LOCAL, JSON.stringify({queries: list}))
+    else localStorage.removeItem(LOCAL)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** The stored list, whatever the pref holds (none, or an older shape: an empty list). */
 export function readQueries(value: unknown): SavedQuery[] {
   const list = (value as {queries?: unknown} | null)?.queries

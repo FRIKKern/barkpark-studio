@@ -30,11 +30,13 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
   await expect(page.getByText('Query saved')).toBeVisible()
   await row.getByRole('button', {name: 'Untitled', exact: true}).click()
   await row.getByLabel('Title', {exact: true}).fill(`Mine ${marker}`)
-  // The rename is stored (a POST to the prefs server function) before the reload.
-  const stored = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('_serverFn'))
+  // The rename is stored before the reload: a POST to the prefs server function, or, with
+  // shared sign-in (no prefs on Barkpark, lib/prefs-scope), this browser's copy.
+  let posted = false
+  page.on('response', (r) => void (r.request().method() === 'POST' && r.url().includes('_serverFn') && (posted = true)))
   await row.getByLabel('Title', {exact: true}).press('Enter')
   await expect(row.getByRole('button', {name: `Mine ${marker}`, exact: true})).toBeVisible()
-  await stored
+  await expect.poll(async () => posted || page.evaluate((title) => (localStorage.getItem('bp-vision-queries') ?? '').includes(title), `Mine ${marker}`)).toBe(true)
 
   // On the server: still there after a reload; loading it fills the query.
   await page.reload()
@@ -86,6 +88,8 @@ test('J37: Vision saves, renames, loads, shares, unshares and deletes a query, a
 test('@local J37: a query saved before the saved list loads keeps the others', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours: saved queries in Barkpark prefs')
+  // Shared sign-in (the dev server's default) keeps them in this browser: no server read to race.
+  test.skip(process.env.STUDIO_DEV_LOGIN !== '1' && !['account', 'sso'].includes(process.env.STUDIO_SIGN_IN ?? ''), 'shared sign-in: saved queries stay in this browser')
   await t.prepare(context)
   const marker = `j37-early-${Date.now().toString(36)}`
   const query = page.getByLabel('Query', {exact: true})

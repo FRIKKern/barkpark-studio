@@ -7,10 +7,10 @@ import {useNow} from '../lib/now'
 import {dashLine, localQueryError, queryError} from '../lib/vision-error'
 import {parseParams} from '../lib/vision-params'
 import {listen, LISTEN_KEEP, type ListenEvent} from '../lib/vision-listen'
-import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readQueries, renameQuery, updateQuery, type SavedQuery} from '../lib/vision-queries'
+import {addQuery, deleteQuery, findSaved, QUERIES_PREF, readLocalQueries, readQueries, renameQuery, updateQuery, writeLocalQueries, type SavedQuery} from '../lib/vision-queries'
 import {deleteSharedQuery, listSharedQueries, SHARED_TYPE, shareQuery, updateSharedQuery, type SharedQuery} from '../lib/vision-shared'
 import {ActorAvatar} from './Presence'
-import {deletePref, getPref, putPref} from '../lib/prefs'
+import {deletePref, getPref, prefsOnServer, putPref} from '../lib/prefs'
 import {currentScopeQuery, scopeOptionsQuery} from '../lib/scope-switch'
 import {meQuery} from '../lib/session'
 import {intlTag, useLocale, useT} from '../lib/i18n'
@@ -469,8 +469,14 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
   const reloadShared = () => listSharedQueries().then(setShared).catch(() => {})
   // A write since: the list on screen is the newer one.
   const wrote = useRef(false)
+  // Shared sign-in keeps no prefs on Barkpark (lib/prefs-scope): the list lives in this browser.
+  const onServer = useRef<Promise<boolean>>(undefined)
+  const kept = () => (onServer.current ??= prefsOnServer().catch(() => true))
+  const loadSaved = async () => ((await kept()) ? getPref({data: QUERIES_PREF}) : readLocalQueries())
+  const keepSaved = async (next: SavedQuery[]) =>
+    (await kept()) ? (next.length ? putPref({data: {key: QUERIES_PREF, value: {queries: next}}}) : deletePref({data: QUERIES_PREF})) : writeLocalQueries(next)
   useEffect(() => {
-    void getPref({data: QUERIES_PREF}).then((v) => wrote.current || setList(readQueries(v))).catch(() => {})
+    void loadSaved().then((v) => wrote.current || setList(readQueries(v))).catch(() => {})
     void reloadShared()
     // As Sanity's: a shared query someone else saves, renames or removes shows at once
     // (the studio's listen stream, narrowed to the type), and again when the tab comes back.
@@ -486,9 +492,9 @@ function SavedQueries({current, onLoad}: {current: Pick<SavedQuery, 'query' | 'p
     const before = list
     wrote.current = true
     setList(change(list))
-    const next = await getPref({data: QUERIES_PREF}).then((v) => change(readQueries(v)), () => null)
+    const next = await loadSaved().then((v) => change(readQueries(v)), () => null)
     // The last one gone: no pref left behind, not an empty list.
-    const ok = !!next && (await (next.length ? putPref({data: {key: QUERIES_PREF, value: {queries: next}}}) : deletePref({data: QUERIES_PREF})).catch(() => false))
+    const ok = !!next && (await keepSaved(next).catch(() => false))
     if (!ok) (setList(before), toast({title: t('Error saving query'), tone: 'critical'}))
     else (setList(next), done && toast({title: done, tone: 'positive'}))
     return ok
