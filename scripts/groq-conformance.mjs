@@ -92,6 +92,10 @@ const Q = [
   {id: 'docs-documents-get-proj', q: '*[_type == "post" && defined(author)] | order(_id asc)[0...3]{_id, "author": documents::get({"_ref": "dataset:" + $project + "." + $ds + ":" + author._ref}).name}', params: {project: SIDE_PROJECT, ds: DATASET}, ordered: true},
   {id: 'docs-documents-get-bare-id', q: 'documents::get("author-alan")'},
   {id: 'docs-documents-get-other-ds', q: 'documents::get({"_ref": "dataset:" + $project + ".production:author-alan"}).name', params: {project: SIDE_PROJECT}, intended: 'Barkpark resolves only the query\'s own dataset (tenant rule); Sanity reads any dataset of the project'},
+  // fn custom functions (task-13790b478beeee4d): a projection body, a deref body, one function calling another.
+  {id: 'docs-fn-projection', q: 'fn ex::n($d) = $d{name}; *[_type == "author" && !(_id in path("drafts.**"))] | order(_id)[0..1]{"x": ex::n(@)}', ordered: true},
+  {id: 'docs-fn-deref', q: 'fn ex::a($d) = $d->{name}; *[_type == "post" && defined(author)] | order(_id asc)[0...3]{_id, "author": ex::a(author)}', ordered: true},
+  {id: 'docs-fn-nested', q: 'fn ex::a($d) = $d{"inner": ex::b(@)}; fn ex::b($d) = $d{name}; *[_id == "author-ada"][0]{"x": ex::a(@)}'},
 ]
 
 const bpBase = `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}/${API}/data/query/${DATASET}`
