@@ -1,7 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, bpFile, bpRaw, dataset} from '../../../../server/barkpark'
 import {mediaPathPrefix, mediaPaths} from '../../../../server/media-paths'
-import {fallsBackToOriginal, mediaHeaders, transformQuery} from '../../../../lib/media-proxy'
+import {fallsBackToOriginal, mediaHeaders, readAsset, transformQuery} from '../../../../lib/media-proxy'
 import {sanityImageId, sanityImagePath} from '../../../../lib/image'
 
 // GET /api/media/<asset id> → the file's bytes. Barkpark serves media files to a token only,
@@ -36,21 +36,15 @@ export const Route = createFileRoute('/api/media/$id/')({
           const thumb = await bpRaw(`/media/renditions/${encodeURIComponent(params.id)}/thumb`)
           return new Response(thumb.body, {status: thumb.status, headers: mediaHeaders(thumb.ok, thumb.headers.get('content-type') ?? 'image/jpeg', dest)})
         }
-        const key = `${mediaPathPrefix()}|${params.id}`
-        let asset = mediaPaths.get(key)
-        if (!asset) {
-          const meta = await bpFetch(`/v1/media/${dataset()}/${encodeURIComponent(params.id)}`)
-          if (!meta.ok) return new Response(null, {status: meta.status})
-          asset = ((await meta.json()) as {result: {url: string; mimeType?: string}}).result
-          mediaPaths.set(key, asset)
-        }
-        const transform = transformQuery(query)
         const accept = {accept: request.headers.get('accept') ?? 'image/*'}
-        let file = transform && asset.mimeType?.startsWith('image/') ? await bpFile(`${asset.url}?${transform}`, accept) : null
-        if (!file || fallsBackToOriginal(file.status)) file = await bpFile(asset.url, accept)
+        const {status, file, mimeType} = await readAsset(params.id, mediaPathPrefix(), mediaPaths, transformQuery(query), {
+          meta: () => bpFetch(`/v1/media/${dataset()}/${encodeURIComponent(params.id)}`),
+          file: (path) => bpFile(path, accept),
+        })
+        if (!file) return new Response(null, {status})
         return new Response(file.body, {
           status: file.status,
-          headers: mediaHeaders(file.ok, file.headers.get('content-type') ?? asset.mimeType ?? 'application/octet-stream', dest),
+          headers: mediaHeaders(file.ok, file.headers.get('content-type') ?? mimeType ?? 'application/octet-stream', dest),
         })
       },
       // J36: Sanity's asset Delete. Barkpark refuses an asset in use itself (409 with
