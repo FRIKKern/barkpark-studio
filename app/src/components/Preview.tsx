@@ -7,7 +7,7 @@ import {formatPreview, loadRefs, mediaRefs, previewRefs, readPath, rowMedia, tex
 import {DocumentIcon, BrokenImageIcon} from './icons'
 import {DeskIcon} from './DeskIcon'
 import {PaneLink} from './PaneLink'
-import {ago, useLocale, useT} from '../lib/i18n'
+import {ago, useLocale, useT, useWorkspaceZone} from '../lib/i18n'
 import {useTip} from './Tip'
 
 /**
@@ -39,23 +39,24 @@ function useSubtitle(doc: Doc | null | undefined) {
     }),
   )
   const ids = spec && doc ? textRefs(spec, doc, deref) : []
+  const zone = useWorkspaceZone()
   useQueries({queries: ids.map((id) => ({...(typed.has(id) ? docQuery(typed.get(id)!, id) : anyDocQuery(id)), enabled: primed(id)}))})
   if (!spec || !doc) return undefined
-  return subtitleOf(spec, doc, deref)
+  return subtitleOf(spec, doc, deref, zone)
 }
 
-/** The subtitle from its spec: a field of the doc, or one a reference chain leads to. */
-function subtitleOf(spec: PreviewText, doc: Doc, deref: (id: string) => unknown) {
-  return formatPreview(spec, (path) => readPath(doc, path, deref), {deref})
+/** The subtitle from its spec: a field of the doc, or one a reference chain leads to. `zone`: the workspace's, for `|date`. */
+function subtitleOf(spec: PreviewText, doc: Doc, deref: (id: string) => unknown, zone?: string) {
+  return formatPreview(spec, (path) => readPath(doc, path, deref), {deref, zone})
 }
 
 /** The same subtitle outside React (the canvas's link card), its references read through `qc`, one batch per depth. */
-export async function previewSubtitle(qc: QueryClient, doc: Doc, schema: Schema | undefined) {
+export async function previewSubtitle(qc: QueryClient, doc: Doc, schema: Schema | undefined, zone?: string) {
   const spec = schema?.listPreview?.subtitle
   if (!spec) return undefined
   const deref = cachedDoc(qc)
   await loadRefs(() => textRefs(spec, doc, deref), (id) => deref(id) !== undefined, (ids) => ensureAnyDocs(qc, ids)).catch(() => {})
-  return subtitleOf(spec, doc, deref)
+  return subtitleOf(spec, doc, deref, zone)
 }
 
 /**
@@ -135,6 +136,8 @@ function RowMedia({candidates, iconless, fallback}: {candidates: {value: unknown
   const t = useT()
   const c = candidates[failed]
   if (!c) return iconless ? null : fallback
+  // An icon a stored value picks, in place of the type's icon; a name the studio cannot draw keeps the type's.
+  if (c.media.kind === 'icon') return <DeskIcon name={c.media.name} fallback={fallback} />
   if (c.media.kind === 'image') return <Thumb value={c.value as ImageValue} fallback={fallback} />
   if (c.media.kind === 'url') return <UrlThumb key={failed} src={c.media.src} onFail={() => setFailed(failed + 1)} />
   if (c.media.kind === 'unsupported')

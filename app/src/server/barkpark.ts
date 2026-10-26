@@ -91,13 +91,17 @@ export async function serviceToken(): Promise<string> {
 export const contentModelToken = () => contentModelCredential(signInMode(), requestToken, serviceToken)
 
 /**
- * The workspace's locale (its language), with the studio's token: the sign-in screen is in
- * it too. Signed out it is the studio's own workspace's, never one the request names.
+ * The workspace's locale (its language) and time zone, with the studio's token: the
+ * sign-in screen is in it too. Signed out it is the studio's own workspace's, never one the
+ * request names. `timeZone` is the IANA zone a list preview's `|date` day is read in
+ * (task-ecaaa898e346dc73); none when the workspace sets none.
  */
-export async function workspaceLocale(): Promise<string | undefined> {
+export async function workspaceLocale(): Promise<{locale?: string; timeZone?: string}> {
   const seated = await serviceToken().then(() => true, () => false)
   const res = await bpFetch('/v1/workspace/locale', {}, studioToken(), {retry: false, at: seated ? undefined : defaultScope()})
-  return res.ok ? ((await res.json()) as {locale?: string}).locale : undefined
+  if (!res.ok) return {}
+  const body = (await res.json()) as {locale?: string; time_zone?: string | null}
+  return {locale: body.locale, timeZone: typeof body.time_zone === 'string' && body.time_zone ? body.time_zone : undefined}
 }
 
 /** The token this request acts with (the editor's, or the studio's). */

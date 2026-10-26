@@ -12,7 +12,7 @@ import {copyItem, signature} from '../lib/clipboard'
 import {EditPathContext, FieldView, UrlPathContext, WriteUrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, Upload} from './icons'
-import {translate, useLocale, useT} from '../lib/i18n'
+import {translate, useLocale, useT, useWorkspaceZone} from '../lib/i18n'
 import {usePrimed} from '../lib/prime'
 import {withField} from '../lib/with-field'
 
@@ -239,6 +239,7 @@ export function useItemPreview(item: Item, of: Field) {
     return rest.reduce<unknown>((v, k) => (v as Record<string, unknown> | null | undefined)?.[k], target)
   }
   const typeTitle = (type: string) => schemaOf(schemas, type)?.title
+  const zone = useWorkspaceZone()
   // An array of images: titled by the picture's file name, as Sanity's.
   const picture = of.type === 'image' ? imageRef(item as ImageValue) : undefined
   const {data: asset} = useQuery({
@@ -248,8 +249,8 @@ export function useItemPreview(item: Item, of: Field) {
     queryFn: () => fetch(`/api/media/${encodeURIComponent(picture!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<{name?: string}>) : null)),
   })
   return {
-    title: (of.type === 'image' ? asset?.name : formatPreview(titleSpec, read, {typeTitle})) || translate(locale, 'Untitled'),
-    subtitle: formatPreview(p.subtitle, read, {typeTitle}),
+    title: (of.type === 'image' ? asset?.name : formatPreview(titleSpec, read, {typeTitle, zone})) || translate(locale, 'Untitled'),
+    subtitle: formatPreview(p.subtitle, read, {typeTitle, zone}),
     // An array of images: each item is its own picture.
     media: (of.type === 'image' && imageRef(item) ? item : firstMedia(p.media, read, (v) => !!imageRef(v))) as ImageValue | undefined,
   }

@@ -33,9 +33,17 @@ type ObjectPart =
 export type PreviewPart = string | ObjectPart | PreviewPart[]
 /** A part, a list of alternatives (the first with a value), or parts joined (barkpark docs/contracts/list-preview.md). */
 export type PreviewText = string | PreviewPart[] | {parts: PreviewPart[]; join?: string; empty?: string}
-/** An image path, or alternatives in order ("backgroundImage", then "linkedDocument.cover"). */
-export type PreviewMediaSpec = string | string[]
-export type PreviewOptions = {typeTitle?: (type: string) => string | undefined; deref?: (id: string) => unknown}
+/**
+ * An icon chosen by a stored value, as a Sanity prepare that returns an icon component
+ * (barkpark docs/contracts/list-preview.md): `path` (or the first of a list with a value)
+ * names its icon in `map`; `else` is the icon for a value the map does not name, `empty`
+ * the icon when there is no value. A null name, or none given, picks nothing.
+ */
+export type IconPick = {icon: {path: string | string[]; map?: Record<string, string | null>; else?: string | null; empty?: string | null}}
+/** An image path, an icon pick, or alternatives in order ("backgroundImage", then "linkedDocument.cover", then an icon). */
+export type PreviewMediaSpec = string | IconPick | (string | IconPick)[]
+/** `zone`: the IANA zone a date-time's `|date` day is read in (the workspace's); none reads the browser's. */
+export type PreviewOptions = {typeTitle?: (type: string) => string | undefined; deref?: (id: string) => unknown; zone?: string}
 
 const pathOf = (part: string) => part.split('|')[0]!.trim()
 const TEMPLATE = /\{([^{}]+)\}/g
@@ -50,13 +58,29 @@ function partPaths(part: PreviewPart | undefined): string[] {
   if ('when' in part) return partPaths(part.show)
   if ('map' in part && typeof part.path === 'string') return [pathOf(part.path)]
   if ('each' in part && typeof part.each === 'string') return [pathOf(part.each)]
+  if ('icon' in part) return iconPaths(part)
   return []
+}
+
+const isIconPick = (v: unknown): v is IconPick => !!v && typeof v === 'object' && 'icon' in v && !!(v as IconPick).icon && typeof (v as IconPick).icon === 'object'
+const iconPaths = (pick: unknown): string[] => (isIconPick(pick) ? [pick.icon.path].flat().filter((p): p is string => typeof p === 'string').map(pathOf) : [])
+/** A media spec's alternatives in order: image paths and icon picks. */
+const alternatives = (spec: PreviewMediaSpec | undefined): (string | IconPick)[] => (spec ? [spec].flat() : []).filter((a): a is string | IconPick => typeof a === 'string' || isIconPick(a))
+
+/** The icon name a pick chooses on a document, or undefined (Barkpark's PreviewText.media_item). */
+export function iconPick(pick: IconPick, read: (path: string) => unknown): string | undefined {
+  const key = (v: unknown): string | undefined => (typeof v === 'string' ? (v.trim() ? v : undefined) : typeof v === 'number' && Number.isFinite(v) ? String(v) : v && typeof v === 'object' && typeof (v as {current?: unknown}).current === 'string' ? key((v as {current: string}).current) : undefined)
+  const value = iconPaths(pick).map((p) => key(read(p))).find((v) => v !== undefined)
+  const {map, else: other, empty} = pick.icon
+  const name = value === undefined ? empty : map && Object.hasOwn(map, value) ? map[value] : other
+  return typeof name === 'string' && name.trim() ? name : undefined
 }
 
 /** Every path a preview text or media spec reads: plain, template, fallback and object parts alike. */
 export function pathsOf(spec: PreviewText | PreviewMediaSpec | undefined): string[] {
   if (!spec) return []
-  return typeof spec === 'string' || Array.isArray(spec) ? partPaths(spec) : partPaths(spec.parts)
+  if (isIconPick(spec)) return iconPaths(spec)
+  return typeof spec === 'string' || Array.isArray(spec) ? partPaths(spec as PreviewPart) : partPaths(spec.parts)
 }
 
 /** The reference fields a preview text reads through ("featuredPost" for "featuredPost.title"). */
@@ -64,19 +88,25 @@ export function previewRefs(...specs: (PreviewText | PreviewMediaSpec | undefine
   return [...new Set(specs.flatMap(pathsOf).filter((p) => p.includes('.')).map((p) => p.split('.')[0]!))]
 }
 
-/** A date or date-time as dd.mm.yyyy, the day it is in UTC (stable for every viewer). */
 /**
- * `|date` as dd.mm.yyyy. A plain date is that day; a date-time is the day it is where the
- * editor is, as Sanity's preview shows it (2026-10-08T23:30:00Z reads 09.10.2026 in Oslo).
- * Barkpark's LiveView still shows a date-time's UTC day (it has no editor zone).
+ * `|date` as dd.mm.yyyy. A plain date is that day; a date-time is the day it is in `zone`,
+ * the workspace's time zone (task-ecaaa898e346dc73), or where the editor is when the
+ * workspace sets none, as Sanity's preview shows it (2026-10-08T23:30:00Z reads 09.10.2026
+ * in Oslo). Barkpark's LiveView reads the same zone.
  */
-function day(v: unknown) {
+function day(v: unknown, zone?: string) {
   if (typeof v !== 'string') return undefined
   const pad = (n: number) => String(n).padStart(2, '0')
   const plain = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v)
   if (plain) return `${plain[3]}.${plain[2]}.${plain[1]}`
   const d = new Date(v)
   if (Number.isNaN(d.getTime())) return undefined
+  if (zone) {
+    try {
+      const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone: zone, day: '2-digit', month: '2-digit', year: 'numeric'}).formatToParts(d).map((x) => [x.type, x.value]))
+      return `${p.day}.${p.month}.${p.year}`
+    } catch {} // an unknown zone reads the browser's
+  }
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`
 }
 
@@ -89,7 +119,7 @@ export function formatPreview(spec: PreviewText | undefined, read: (path: string
   const value = (part: string) => {
     const v = read(pathOf(part))
     const mods = part.split('|').slice(1).map((m) => m.trim())
-    const raw = mods.includes('count') ? count(v) : mods.includes('date') ? day(v) : mods.includes('type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : typeof v === 'string' || typeof v === 'number' ? String(v) : undefined
+    const raw = mods.includes('count') ? count(v) : mods.includes('date') ? day(v, opts.zone) : mods.includes('type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : typeof v === 'string' || typeof v === 'number' ? String(v) : undefined
     const text = raw && mods.includes('lower') ? raw.toLowerCase() : raw && mods.includes('upper') ? raw.toUpperCase() : raw
     return text?.trim() ? text : undefined
   }
@@ -146,7 +176,8 @@ export function formatPreview(spec: PreviewText | undefined, read: (path: string
 
 /** The first image a media spec finds: an image value, or the first image in an array of them. */
 export function firstMedia(spec: PreviewMediaSpec | undefined, read: (path: string) => unknown, isImage: (v: unknown) => boolean): unknown {
-  for (const path of spec ? [spec].flat() : []) {
+  for (const path of alternatives(spec)) {
+    if (typeof path !== 'string') continue
     const v = read(pathOf(path))
     const hit = Array.isArray(v) ? v.find(isImage) : isImage(v) ? v : undefined
     if (hit) return hit
@@ -162,7 +193,7 @@ export function firstMedia(spec: PreviewMediaSpec | undefined, read: (path: stri
  * task-ec9b4c0c78185fa4), or none. The unsupported one draws a broken-image icon, not
  * an empty box.
  */
-export type PreviewMedia = {kind: 'image'; ref: string} | {kind: 'url'; src: string} | {kind: 'unsupported'; source: string} | {kind: 'none'}
+export type PreviewMedia = {kind: 'image'; ref: string} | {kind: 'url'; src: string} | {kind: 'unsupported'; source: string} | {kind: 'icon'; name: string} | {kind: 'none'}
 
 /** An absolute http(s) URL, trimmed; undefined for anything else (a path, `javascript:`, ''). */
 export function mediaUrl(v: unknown): string | undefined {
@@ -218,7 +249,7 @@ export function readPath(doc: unknown, path: string, deref: (id: string) => unkn
 /** The documents a row's media paths read through (loaded ones and the ones still to load). */
 export function mediaRefs(spec: PreviewMediaSpec | undefined, doc: unknown, deref: (id: string) => unknown = () => undefined): string[] {
   const seen = new Set<string>()
-  for (const p of spec ? [spec].flat() : []) readPath(doc, pathOf(p), deref, seen)
+  for (const p of alternatives(spec)) for (const path of typeof p === 'string' ? [pathOf(p)] : iconPaths(p)) readPath(doc, path, deref, seen)
   return [...seen]
 }
 
@@ -267,11 +298,16 @@ export async function loadRefs(refs: () => string[], loaded: (id: string) => boo
 /**
  * Every media a row could show, in the spec's order: a path or a list of paths, each
  * dotted inside the document (`onix.thumbnail`), across references through `deref`
- * (`heroImage.asset.url`). A path that holds nothing (an empty URL) is skipped. The row
- * draws the first and moves to the next when an image URL fails to load.
+ * (`heroImage.asset.url`), and icons picked by a stored value (`{icon: {path, map}}`). A
+ * path that holds nothing (an empty URL), or a pick that picks nothing, is skipped. The
+ * row draws the first and moves to the next when an image URL fails to load.
  */
 export function rowMedia(spec: PreviewMediaSpec | undefined, doc: unknown, deref: (id: string) => unknown = () => undefined): {path: string; value: unknown; media: PreviewMedia}[] {
-  return (spec ? [spec].flat() : []).flatMap((p) => {
+  return alternatives(spec).flatMap((p): {path: string; value: unknown; media: PreviewMedia}[] => {
+    if (typeof p !== 'string') {
+      const name = iconPick(p, (path) => readPath(doc, path, deref))
+      return name ? [{path: iconPaths(p).join(','), value: name, media: {kind: 'icon', name} as PreviewMedia}] : []
+    }
     const path = pathOf(p)
     const value = readPath(doc, path, deref)
     const media = previewMedia(value)
