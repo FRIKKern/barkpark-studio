@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 17 changes
+- **Today** · 18 changes
+  - scripts: groq-conformance probes documents::get with each side's own project ([#1155](https://github.com/FRIKKern/barkpark-studio/pull/1155))
   - Global search: rank equal hits as Sanity's best match ([#1154](https://github.com/FRIKKern/barkpark-studio/pull/1154))
-  - docs: license barkpark-studio under Apache-2.0 ([#1153](https://github.com/FRIKKern/barkpark-studio/pull/1153))
 - **Yesterday** · 46 changes
   - Inspect: the Parsed / Raw JSON choice follows the editor, as Sanity's per-user setting ([#1133](https://github.com/FRIKKern/barkpark-studio/pull/1133))
 - **Last week** · 143 changes, 1 task closed
