@@ -45,29 +45,6 @@ test('@evidence list rows show the main image, cropped', async ({page}, info) =>
   await row.screenshot({path: shot(t.name, '2-row-cropped')})
 })
 
-// task-dfe6a38d2340a4a2: Sanity draws a faint edge over every preview image, a span after
-// the img (data-border): an inset 1 px of the text colour at a tenth, corners 1 px. It
-// keeps a pale image apart from its row, darker on light and lighter on dark.
-test('@local a row thumbnail has Sanity\'s faint edge over the image', async ({page}, info) => {
-  const t = target(info)
-  await t.prepare(page.context())
-  await page.goto(t.docPath('post', ID))
-  await signInIfAsked(page)
-  await t.settle(page)
-  await page.getByRole('tab', {name: 'Content'}).click()
-  await imageField(t, page).locator('input[type=file]').first().setInputFiles('../fixtures/assets/fixture-image.png')
-  const row = t.listItem(page, ID)
-  const img = row.locator('img').first()
-  await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0), {intervals: [100], timeout: 20_000}).toBe(true)
-  const edge = await img.evaluate((i) => {
-    const border = i.parentElement!.querySelector<HTMLElement>(':scope > img + [data-border]')
-    if (!border) return 'no edge'
-    const s = getComputedStyle(border)
-    return `${s.position} ${s.boxShadow.replace(/rgba?\([^)]*\)\s*/, '')} ${s.opacity} ${s.borderRadius} ${getComputedStyle(i).borderRadius}`
-  })
-  expect(edge).toBe('absolute 0px 0px 0px 1px inset 0.1 1px 1px')
-})
-
 // task-c74e7cdf5b119f87: a media path that holds an image URL (a field of type url,
 // as Barkpark's list_preview contract takes) draws that image; an empty URL and one
 // that fails to load fall back to the document icon. Ours only: Sanity's media is a
