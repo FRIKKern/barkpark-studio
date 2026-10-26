@@ -40,15 +40,21 @@ export function SignInForm({idPrefix, className, heading, above, redirect, autoF
   }
   const back = () => (setReset(undefined), setError(undefined))
   // SSO only (STUDIO_SIGN_IN=sso): the identity provider asks for the password, never this form.
+<<<<<<< HEAD
   // Back here (or to `redirect`) once signed in (routes/auth/cloud/callback.ts).
+=======
+>>>>>>> origin/main
   if (me?.signIn === 'sso')
     return (
       <div className={className}>
         {heading}
         {above}
+<<<<<<< HEAD
         <a className="publish sign-in-cloud" href={`/auth/cloud/start?redirect=${encodeURIComponent(scoped(redirect ?? here))}`}>
           {t('Sign in with single sign-on')}
         </a>
+=======
+>>>>>>> origin/main
       </div>
     )
   if (reset)
