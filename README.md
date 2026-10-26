@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes
+- **Today** · 10 changes
+  - client conformance: listen-query-filter passes after barkpark #24147 ([#1143](https://github.com/FRIKKern/barkpark-studio/pull/1143))
   - Client conformance: listen query-filter probe (opt-in writes) and a mutate dry run ([#1142](https://github.com/FRIKKern/barkpark-studio/pull/1142))
-  - Client conformance: live events in both modes (published without a token) ([#1141](https://github.com/FRIKKern/barkpark-studio/pull/1141))
 - **Yesterday** · 46 changes
   - Inspect: the Parsed / Raw JSON choice follows the editor, as Sanity's per-user setting ([#1133](https://github.com/FRIKKern/barkpark-studio/pull/1133))
 - **Last week** · 143 changes, 1 task closed
