@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 4 changes
+- **Today** · 5 changes
+  - Previews: no doubled edge while a thumbnail loads; edge test on its own post ([#1164](https://github.com/FRIKKern/barkpark-studio/pull/1164))
   - scripts: groq-conformance probes geo::contains and geo::intersects ([#1163](https://github.com/FRIKKern/barkpark-studio/pull/1163))
-  - Previews: a faint edge over thumbnail images, as Sanity's ([#1162](https://github.com/FRIKKern/barkpark-studio/pull/1162))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
