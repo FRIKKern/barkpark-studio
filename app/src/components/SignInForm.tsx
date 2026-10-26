@@ -1,8 +1,10 @@
 import {useState, type ReactNode} from 'react'
 import {useQuery} from '@tanstack/react-query'
+import {useRouterState} from '@tanstack/react-router'
 import {devSignIn, meQuery, requestPasswordReset, signInWithAccount} from '../lib/session'
 import {useT} from '../lib/i18n'
 import {announceSession} from '../lib/session-channel'
+import {useScopedHref} from './PaneLink'
 
 /**
  * The sign-in fields (server/auth.ts says which way in): a Barkpark account's email and
@@ -10,9 +12,11 @@ import {announceSession} from '../lib/session-channel'
  * sign-in, an email only. `onSignedIn` runs once the session holds. Used by /login and
  * by J48's sign-in-again dialog, so both ask the same way.
  */
-export function SignInForm({idPrefix, className, heading, above, autoFocus, onSignedIn, children}: {idPrefix?: string; className?: string; heading: ReactNode; above?: ReactNode; autoFocus?: boolean; onSignedIn: () => Promise<void> | void; children: (busy: boolean) => ReactNode}) {
+export function SignInForm({idPrefix, className, heading, above, redirect, autoFocus, onSignedIn, children}: {idPrefix?: string; className?: string; heading: ReactNode; above?: ReactNode; redirect?: string; autoFocus?: boolean; onSignedIn: () => Promise<void> | void; children: (busy: boolean) => ReactNode}) {
   const t = useT()
   const {data: me} = useQuery(meQuery)
+  const here = useRouterState({select: (s) => s.location.href})
+  const scoped = useScopedHref()
   const dev = me?.signIn === 'dev'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -36,11 +40,15 @@ export function SignInForm({idPrefix, className, heading, above, autoFocus, onSi
   }
   const back = () => (setReset(undefined), setError(undefined))
   // SSO only (STUDIO_SIGN_IN=sso): the identity provider asks for the password, never this form.
+  // Back here (or to `redirect`) once signed in (routes/auth/cloud/callback.ts).
   if (me?.signIn === 'sso')
     return (
       <div className={className}>
         {heading}
         {above}
+        <a className="publish sign-in-cloud" href={`/auth/cloud/start?redirect=${encodeURIComponent(scoped(redirect ?? here))}`}>
+          {t('Sign in with single sign-on')}
+        </a>
       </div>
     )
   if (reset)

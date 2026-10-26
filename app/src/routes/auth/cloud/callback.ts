@@ -1,7 +1,7 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {cloudSignInFinish} from '../../../server/auth'
 
-// GET /auth/cloud/callback?ticket&state ← Barkpark Cloud (lib/cloud-signin.ts). Signed in:
+// GET /auth/cloud/callback?ticket&state ← Barkpark Cloud or the instance's SSO (lib/cloud-signin.ts). Signed in:
 // on to where the editor was going; refused: /login, saying why (?cloud_error=).
 export const Route = createFileRoute('/auth/cloud/callback')({
   server: {

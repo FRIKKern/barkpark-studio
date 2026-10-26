@@ -5,7 +5,7 @@ import '@tanstack/react-start/server-only'
 import {readdir, readFile} from 'node:fs/promises'
 import {join, resolve} from 'node:path'
 import {bpFetch, dataset, contentModelToken, serviceToken} from './barkpark'
-import {signInMode, signOut} from './auth'
+import {loginSessionMode, signOut} from './auth'
 import {ACCOUNT_SESSION_LOST} from '../lib/content-model-credential'
 import ICONS from '../lib/desk-icons.json'
 import {withIconBodies} from '../lib/desk-icon-bodies'
@@ -16,7 +16,7 @@ const DESK_ID = deskId(process.env.STUDIO_DESK_ID)
 
 async function readContentModel(path: string) {
   const response = await bpFetch(path, {}, await contentModelToken())
-  if (response.status === 401 && signInMode() === 'account') {
+  if (response.status === 401 && loginSessionMode()) {
     await signOut()
     throw new Error(ACCOUNT_SESSION_LOST)
   }

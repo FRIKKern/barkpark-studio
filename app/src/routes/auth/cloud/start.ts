@@ -1,7 +1,8 @@
 import {createFileRoute} from '@tanstack/react-router'
 import {cloudSignInStart} from '../../../server/auth'
 
-// GET /auth/cloud/start → Barkpark Cloud's sign-in (lib/cloud-signin.ts). Off: back to /login.
+// GET /auth/cloud/start → Barkpark Cloud's sign-in, or the instance's SSO with STUDIO_SIGN_IN=sso
+// (lib/cloud-signin.ts). Off: back to /login.
 export const Route = createFileRoute('/auth/cloud/start')({
   server: {
     handlers: {

@@ -7,8 +7,9 @@
 // - dev (STUDIO_DEV_LOGIN=1, dev builds only): the editor just names their email and the
 //   studio server mints them a token with BARKPARK_ADMIN_TOKEN (below). Who you are is
 //   asserted, not proven, so it never runs in a production build.
-// - sso (STUDIO_SIGN_IN=sso): the editor signs in only through the instance's SSO; no
-//   password form, and no Barkpark Cloud sign-in beside it.
+// - sso (STUDIO_SIGN_IN=sso): the editor signs in only through the instance's SSO for the
+//   organization STUDIO_SSO_ORG names (lib/cloud-signin.ts ssoConfig); no password form, and
+//   no Barkpark Cloud sign-in beside it. The session is a login session, as with account.
 // - shared (STUDIO_SIGN_IN=shared, and any dev build without the dev flag): nobody signs
 //   in; the studio uses BARKPARK_TOKEN for everyone (CI, e2e lanes).
 //
@@ -28,7 +29,7 @@ import {getCookie, setCookie, deleteCookie} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
 import {seal, unseal} from './session-cookie'
 import {tokenSelf, type TokenBody, type TokenSelf} from '../lib/token-self'
-import {CLOUD_COOKIE, CLOUD_PATH, CLOUD_TTL_SECONDS, cloudConfig, cloudExchange, cloudStart, publicOrigin, stateMatches, type CloudError, type CloudPending} from '../lib/cloud-signin'
+import {CLOUD_COOKIE, CLOUD_PATH, CLOUD_TTL_SECONDS, cloudConfig, cloudExchange, cloudStart, publicOrigin, ssoConfig, stateMatches, type CloudError, type CloudPending} from '../lib/cloud-signin'
 import {returnPath} from '../lib/return-path'
 export type {TokenSelf} from '../lib/token-self'
 
@@ -49,6 +50,11 @@ if (devLoginEnabled() && import.meta.env.PROD)
 const cloudSetting = Object.keys(process.env).find((key) => key.startsWith('BARKPARK_CLOUD_') && process.env[key])
 if (signInMode() === 'sso' && cloudSetting)
   throw new Error(`STUDIO_SIGN_IN=sso refuses ${cloudSetting}: Barkpark Cloud sign-in would be a second way in. Unset it.`)
+if (signInMode() === 'sso' && !process.env.STUDIO_SSO_ORG?.trim())
+  throw new Error('STUDIO_SIGN_IN=sso needs STUDIO_SSO_ORG: the Barkpark organization whose SSO editors sign in with.')
+
+/** Editors sign in with a Barkpark login session (account or SSO), not an API token. */
+export const loginSessionMode = () => signInMode() === 'account' || signInMode() === 'sso'
 
 const COOKIE = 'bp_sid'
 // task-1883ba9b1ace5dcf: the session is the cookie, sealed (server/session-cookie.ts), not
@@ -174,10 +180,12 @@ export async function accountSignIn(email: string, password: string, code?: stri
 
 /** Sign in with Barkpark Cloud (lib/cloud-signin.ts): on when both BARKPARK_CLOUD_* are set. */
 export const cloudSignIn = () => cloudConfig(process.env, signInMode() === 'account')
+/** Where /auth/cloud/* sends the editor: the instance's SSO in sso mode, else Barkpark Cloud. */
+const handoff = () => (signInMode() === 'sso' ? ssoConfig(process.env) : cloudSignIn())
 
-/** /auth/cloud/start: remember the pending sign-in in a short cookie, then off to Cloud. */
+/** /auth/cloud/start: remember the pending sign-in in a short cookie, then off to Cloud or the SSO. */
 export function cloudSignInStart(requestUrl: string, redirect: unknown): string | undefined {
-  const cfg = cloudSignIn()
+  const cfg = handoff()
   if (!cfg) return undefined
   const {pending, location} = cloudStart(cfg, publicOrigin(process.env, requestUrl), returnPath(redirect))
   setCookie(CLOUD_COOKIE, seal(pending, sessionSecret()), {httpOnly: true, sameSite: 'lax', secure: import.meta.env.PROD, path: CLOUD_PATH, maxAge: CLOUD_TTL_SECONDS})
@@ -193,8 +201,9 @@ export async function cloudSignInFinish(ticket: unknown, state: unknown): Promis
   const raw = getCookie(CLOUD_COOKIE)
   deleteCookie(CLOUD_COOKIE, {path: CLOUD_PATH})
   const pending = raw ? unseal<CloudPending>(raw, sessionSecret()) : undefined
-  if (!cloudSignIn() || !stateMatches(pending, state)) return {ok: false, error: 'state'}
-  const got = await cloudExchange({barkparkUrl: process.env.BARKPARK_URL!, ticket, pending, workspace: scope().workspace})
+  const cfg = handoff()
+  if (!cfg || !stateMatches(pending, state)) return {ok: false, error: 'state'}
+  const got = await cloudExchange({barkparkUrl: process.env.BARKPARK_URL!, exchange: cfg.exchange, ticket, pending, workspace: scope().workspace})
   if (!got.ok) return got
   try {
     await startSession({email: got.email, token: got.token, session: got.token})

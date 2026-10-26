@@ -21,7 +21,7 @@ export const Route = createFileRoute('/login')({
   component: Login,
 })
 
-// Why a Barkpark Cloud sign-in came back refused (routes/auth/cloud/callback.ts).
+// Why a Barkpark Cloud or SSO sign-in came back refused (routes/auth/cloud/callback.ts).
 const CLOUD_ERRORS = ['state', 'ticket', 'not_seated', 'unavailable'] as const
 type CloudError = (typeof CLOUD_ERRORS)[number]
 const isCloudError = (v: unknown): v is CloudError => (CLOUD_ERRORS as readonly unknown[]).includes(v)
@@ -36,13 +36,14 @@ function Login() {
   const cloudRefused: Record<CloudError, string> = {
     not_seated: t("You don't have access to this workspace yet. Ask an administrator for a seat."),
     state: t('That sign-in took too long or began in another browser. Try again.'),
-    ticket: t('Barkpark Cloud could not sign you in. Try again.'),
+    ticket: me?.signIn === 'sso' ? t('Single sign-on could not sign you in. Try again.') : t('Barkpark Cloud could not sign you in. Try again.'),
     unavailable: t('Barkpark could not be reached. Try again.'),
   }
   return (
     <main className="login">
       <SignInForm
         heading={<h1>Barkpark Studio</h1>}
+        redirect={redirect}
         above={
           (me?.cloud || cloud_error) && (
             <>
