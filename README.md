@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 4 changes
+- **Today** · 5 changes
+  - Client conformance: @sanity/client and image-url calls, Sanity vs Barkpark e2e-local ([#1138](https://github.com/FRIKKern/barkpark-studio/pull/1138))
   - GROQ conformance: known gaps annotated with their task, still counted ([#1137](https://github.com/FRIKKern/barkpark-studio/pull/1137))
-  - reference-history: --sanity-only rebuilds the reference's side alone; --dry-run prints the targets ([#1136](https://github.com/FRIKKern/barkpark-studio/pull/1136))
 - **Yesterday** · 46 changes
   - Inspect: the Parsed / Raw JSON choice follows the editor, as Sanity's per-user setting ([#1133](https://github.com/FRIKKern/barkpark-studio/pull/1133))
 - **Last week** · 143 changes, 1 task closed
