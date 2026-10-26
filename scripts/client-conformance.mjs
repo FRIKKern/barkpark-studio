@@ -53,7 +53,10 @@ const CHECKS = [
   {id: 'getDocument-missing', run: async (c) => (await c.getDocument('no-such-doc-zz')) ?? null},
   {id: 'getDocuments', run: async (c) => (await c.getDocuments(['post-01', 'author-ada', 'no-such-doc-zz'])).map((d) => d?._id ?? null)},
   {id: 'listen-welcome', run: (c) => firstEvent(c.listen('*[_type == "post"]', {}, {events: ['welcome']}), 'welcome')},
+  // Published events go out without the token (@sanity/client sends it only with includeDrafts),
+  // as a site's defineLive does outside draft mode; drafts send it.
   {id: 'live-events-welcome', run: (c) => firstEvent(c.live.events({includeDrafts: false}), 'welcome')},
+  {id: 'live-events-drafts-welcome', run: (c) => firstEvent(c.live.events({includeDrafts: true}), 'welcome')},
   {id: 'error-syntax', run: (c) => c.fetch('*[').then(() => 'no error', errShape)},
   {id: 'error-unauthorized', run: (c) => c.withConfig({token: 'not-a-token'}).fetch('count(*)').then(() => 'no error', (e) => e?.statusCode ?? 'no status')},
   {id: 'image-asset-docs', run: async (c) => (await c.fetch('count(*[_type == "sanity.imageAsset"]) > 0'))},
