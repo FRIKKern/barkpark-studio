@@ -20,7 +20,8 @@ const showDiff = args.includes('--diff')
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null
 const need = (k) => process.env[k] || (console.error(`missing env ${k}`), process.exit(2))
 
-// Each: id (source-topic), the query, its params, and whether its order is the query's own.
+// Each: id (source-topic), the query, its params, whether its order is the query's own, and
+// `intended`: a difference kept on purpose (run and shown, left out of the score, with why).
 // Sources: ref = this repo's reference studio and preview site; docs = Sanity's GROQ docs and
 // cheat sheet; starter = the next-sanity starter (clean template) patterns.
 const Q = [
@@ -46,7 +47,7 @@ const Q = [
   {id: 'docs-slug-project', q: '*[_type == "post"] | order(_id asc)[0...3]{_id, "slug": slug.current}', ordered: true},
   {id: 'docs-slug-filter', q: '*[_type == "post" && slug.current == $slug][0]{_id, title}', params: {slug: 'fixture-post-07'}},
   {id: 'docs-slug-defined', q: 'count(*[_type == "post" && defined(slug.current)])'},
-  {id: 'docs-slug-raw', q: '*[_id == "post-01"][0].slug'},
+  {id: 'docs-slug-raw', q: '*[_id == "post-01"][0].slug', intended: 'raw slug stays a string: the slices are additive, an object would break existing callers (slug.current works)'},
   // References
   {id: 'docs-deref-field', q: '*[_id == "post-01"][0]{"author": author->name}'},
   {id: 'docs-deref-object', q: '*[_id == "post-02"][0]{author->{_id, name}}'},
@@ -122,7 +123,8 @@ await Promise.all(Array.from({length: 4}, async () => {
     else if (!b.ok) (status = 'ERROR'), (diff = `barkpark ${b.error}`)
     else {
       diff = firstDiff(norm(s.result, e.ordered), norm(b.result, e.ordered))
-      status = diff ? 'FAIL' : 'pass'
+      status = diff ? (e.intended ? 'intend' : 'FAIL') : 'pass'
+      if (e.intended && diff) diff = `intended: ${e.intended}`
     }
     rows.push({id: e.id, status, diff})
   }
@@ -132,4 +134,5 @@ const w = Math.max(...rows.map((r) => r.id.length))
 console.log(`GROQ conformance · ${DATASET} · ${API} · perspective published · Sanity ${PROJECT} vs Barkpark ${process.env.BARKPARK_WORKSPACE}`)
 for (const r of rows) console.log(`${r.status.padEnd(7)} ${r.id.padEnd(w)}${showDiff && r.diff ? `  ${r.diff}` : ''}`)
 const n = (s) => rows.filter((r) => r.status === s).length
-console.log(`\n${n('pass')}/${rows.length} pass · ${n('FAIL')} differ · ${n('ERROR')} Barkpark errors${n('REF-ERR') ? ` · ${n('REF-ERR')} reference errors (fix the query)` : ''}`)
+const scored = rows.length - n('intend')
+console.log(`\n${n('pass')}/${scored} pass · ${n('FAIL')} differ · ${n('ERROR')} Barkpark errors${n('intend') ? ` · ${n('intend')} intended difference(s), not scored` : ''}${n('REF-ERR') ? ` · ${n('REF-ERR')} reference errors (fix the query)` : ''}`)
