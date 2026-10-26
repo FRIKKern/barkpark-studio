@@ -100,7 +100,7 @@ const CHECKS = [
   },
   // The client's own write path, without writing: a dry-run createOrReplace (Sanity validates and
   // writes nothing). Barkpark has no /v<date>/data/mutate yet.
-  {id: 'mutate-dry-run', run: async (c) => { const r = await c.createOrReplace({_id: 'zz-dry-run-never-written', _type: 'post', title: 'dry run'}, {dryRun: true, returnDocuments: false}); return {ok: !!r?.transactionId || Array.isArray(r?.results)} }},
+  {id: 'mutate-dry-run', known: 'task-c6cbf346a07ff01e: no /v<apiVersion>/data/mutate yet, so @sanity/client writes 404 (design first)', run: async (c) => { const r = await c.createOrReplace({_id: 'zz-dry-run-never-written', _type: 'post', title: 'dry run'}, {dryRun: true, returnDocuments: false}); return {ok: !!r?.transactionId || Array.isArray(r?.results)} }},
   {id: 'error-syntax', run: (c) => c.fetch('*[').then(() => 'no error', errShape)},
   {id: 'error-unauthorized', run: (c) => c.withConfig({token: 'not-a-token'}).fetch('count(*)').then(() => 'no error', (e) => e?.statusCode ?? 'no status')},
   {id: 'image-asset-docs', known: 'task-66985e4bd08cc2d9: no sanity.imageAsset docs (design: /papers/sanity-shaped-image-assets-note)', run: async (c) => (await c.fetch('count(*[_type == "sanity.imageAsset"]) > 0'))},
