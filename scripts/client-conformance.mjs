@@ -74,7 +74,6 @@ const CHECKS = [
     // to every mutation).
     id: 'listen-query-filter',
     writeProbe: true,
-    known: 'task-72331698ada8a2f6: listen() does not apply its GROQ query filter yet',
     run: async (c, side) => {
       // A scratch post (never a fixture): made first, then an author-filtered listener opens,
       // the post is edited, and whatever the listener hears is counted; the post is deleted
