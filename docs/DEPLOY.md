@@ -20,11 +20,7 @@ in at build: change one, deploy again.
 | `BARKPARK_WORKSPACE` | yes | Workspace slug |
 | `BARKPARK_PROJECT`, `BARKPARK_DATASET` | no | Default `default`, `production` |
 | `BARKPARK_TOKEN` | yes | The studio's service token: the sign-in screen's language, people pickers, …Rest, and a declared desk's tree (`/v1/structure` needs a read token with a seat in the workspace, Barkpark #24217; the people pickers list members, which needs an admin seat, so with a read token they are empty). Lent only to signed-in editors seated in that workspace. `BARKPARK_SERVICE_TOKEN`, if set, takes this role |
-<<<<<<< HEAD
 | `STUDIO_SIGN_IN` | no | `account` (production default): editors sign in with their Barkpark account. `sso`: editors sign in only through the instance's SSO (below), with no password form; a `BARKPARK_CLOUD_*` setting stops the studio. `shared`: everyone works as `BARKPARK_TOKEN` |
-=======
-| `STUDIO_SIGN_IN` | no | `account` (production default): editors sign in with their Barkpark account. `sso`: editors sign in only through the instance's SSO, with no password form; a `BARKPARK_CLOUD_*` setting stops the studio. `shared`: everyone works as `BARKPARK_TOKEN` |
->>>>>>> origin/main
 | `BARKPARK_CLOUD_URL`, `BARKPARK_CLOUD_INSTANCE` | no | Both set (with `account`): the sign-in screen offers **Sign in with Barkpark Cloud** above the password form. The Cloud web app (`https://barkpark.cloud`) and the Cloud id of `BARKPARK_URL`'s instance (`bp barkparks`). Below |
 | `STUDIO_SSO_ORG` | with `sso` | The Barkpark organization whose OIDC connection editors sign in with. Below |
 | `STUDIO_PUBLIC_URL` | no | The studio's public origin for Cloud or SSO sign-in, when the request's own is not it (a proxy) |

@@ -7,14 +7,9 @@
 // - dev (STUDIO_DEV_LOGIN=1, dev builds only): the editor just names their email and the
 //   studio server mints them a token with BARKPARK_ADMIN_TOKEN (below). Who you are is
 //   asserted, not proven, so it never runs in a production build.
-<<<<<<< HEAD
 // - sso (STUDIO_SIGN_IN=sso): the editor signs in only through the instance's SSO for the
 //   organization STUDIO_SSO_ORG names (lib/cloud-signin.ts ssoConfig); no password form, and
 //   no Barkpark Cloud sign-in beside it. The session is a login session, as with account.
-=======
-// - sso (STUDIO_SIGN_IN=sso): the editor signs in only through the instance's SSO; no
-//   password form, and no Barkpark Cloud sign-in beside it.
->>>>>>> origin/main
 // - shared (STUDIO_SIGN_IN=shared, and any dev build without the dev flag): nobody signs
 //   in; the studio uses BARKPARK_TOKEN for everyone (CI, e2e lanes).
 //
@@ -55,14 +50,11 @@ if (devLoginEnabled() && import.meta.env.PROD)
 const cloudSetting = Object.keys(process.env).find((key) => key.startsWith('BARKPARK_CLOUD_') && process.env[key])
 if (signInMode() === 'sso' && cloudSetting)
   throw new Error(`STUDIO_SIGN_IN=sso refuses ${cloudSetting}: Barkpark Cloud sign-in would be a second way in. Unset it.`)
-<<<<<<< HEAD
 if (signInMode() === 'sso' && !process.env.STUDIO_SSO_ORG?.trim())
   throw new Error('STUDIO_SIGN_IN=sso needs STUDIO_SSO_ORG: the Barkpark organization whose SSO editors sign in with.')
 
 /** Editors sign in with a Barkpark login session (account or SSO), not an API token. */
 export const loginSessionMode = () => signInMode() === 'account' || signInMode() === 'sso'
-=======
->>>>>>> origin/main
 
 const COOKIE = 'bp_sid'
 // task-1883ba9b1ace5dcf: the session is the cookie, sealed (server/session-cookie.ts), not
