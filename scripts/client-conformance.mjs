@@ -13,7 +13,7 @@
 // client is only ever asked to read, listen or build a URL. The packages come from the
 // reference studio's install (reference/sanity: pnpm install there first). The checks that need
 // a write (writeProbe) run only with --write-probes, on e2e-local only: each makes one scratch
-// post (zz-listen-…) and deletes it in the same check, then checks it is gone.
+// post (client-check-…), never a fixture, and deletes it in the same check, then checks not_found.
 
 import {createRequire} from 'node:module'
 import {fileURLToPath, pathToFileURL} from 'node:url'
@@ -70,27 +70,32 @@ const CHECKS = [
   {id: 'live-events-welcome', known: 'task-8239bb29f19b3511: the stream is token-or-member gated and the client sends no token without includeDrafts (owner decision)', run: (c) => firstEvent(c.live.events({includeDrafts: false}), 'welcome')},
   {id: 'live-events-drafts-welcome', run: (c) => firstEvent(c.live.events({includeDrafts: true}), 'welcome')},
   {
-    // A listener filtered to authors hears nothing when a post is written (Sanity applies the
-    // query to every mutation). One scratch post per side, deleted at once.
+    // A listener filtered to authors hears nothing when a post changes (Sanity applies the query
+    // to every mutation).
     id: 'listen-query-filter',
     writeProbe: true,
     known: 'task-72331698ada8a2f6: listen() does not apply its GROQ query filter yet',
     run: async (c, side) => {
+      // A scratch post (never a fixture): made first, then an author-filtered listener opens,
+      // the post is edited, and whatever the listener hears is counted; the post is deleted
+      // in the same check and must read not_found.
+      const id = `client-check-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
       const heard = []
-      const id = `zz-listen-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
-      let welcomed
-      const ready = new Promise((r) => (welcomed = r))
-      const sub = c.listen('*[_type == "author"]', {}, {events: ['welcome', 'mutation'], includeResult: false}).subscribe({next: (e) => (e.type === 'welcome' ? welcomed() : heard.push(e.documentId)), error: () => welcomed()})
+      let sub
       try {
+        await write(c, side, [{createOrReplace: {_id: id, _type: 'post', title: 'Client check scratch (deleted at once)'}}])
+        let welcomed
+        const ready = new Promise((r) => (welcomed = r))
+        sub = c.listen('*[_type == "author"]', {}, {events: ['welcome', 'mutation'], includeResult: false}).subscribe({next: (e) => (e.type === 'welcome' ? welcomed() : heard.push(e.documentId)), error: () => welcomed()})
         await within(10_000, ready)
-        await write(c, side, [{createOrReplace: {_id: id, _type: 'post', title: 'Listen filter probe (deleted at once)'}}])
+        await write(c, side, [{patch: {id, ...(side.imageBase && {type: 'post'}), set: {title: 'Client check scratch, edited'}}}])
         await new Promise((r) => setTimeout(r, 3000))
       } finally {
-        sub.unsubscribe()
+        sub?.unsubscribe()
         await write(c, side, [{delete: {id}}]).catch(() => {})
       }
-      const gone = (await c.getDocument(id)) == null
-      return {heardForAuthorFilter: heard.length, scratchGone: gone}
+      const notFound = (await c.withConfig({perspective: 'raw'}).fetch('count(*[_id in [$id, "drafts." + $id]])', {id})) === 0
+      return {heardForAuthorFilter: heard.length, scratchNotFound: notFound}
     },
   },
   // The client's own write path, without writing: a dry-run createOrReplace (Sanity validates and
