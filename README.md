@@ -18,7 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change
+- **Today** · 2 changes
+  - test(groq-conformance): probe geo::latLng and geo::distance ([#1161](https://github.com/FRIKKern/barkpark-studio/pull/1161))
   - Inspect: keep Parsed / Raw JSON on Barkpark for an account sign-in ([#1160](https://github.com/FRIKKern/barkpark-studio/pull/1160))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
