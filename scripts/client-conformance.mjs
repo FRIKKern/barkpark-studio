@@ -6,11 +6,14 @@
 //
 //   node --env-file=.env scripts/client-conformance.mjs           # the table
 //   node --env-file=.env scripts/client-conformance.mjs --detail  # and each check's two answers
+//   node --env-file=.env scripts/client-conformance.mjs --write-probes  # also the checks that write (e2e-local only)
 //
 // Reads BARKPARK_URL, BARKPARK_WORKSPACE, BARKPARK_PROJECT, BARKPARK_TOKEN and SANITY_TOKEN;
 // the dataset is GROQ_DATASET (default e2e-local), never BARKPARK_DATASET. No writes: the
 // client is only ever asked to read, listen or build a URL. The packages come from the
-// reference studio's install (reference/sanity: pnpm install there first).
+// reference studio's install (reference/sanity: pnpm install there first). The checks that need
+// a write (writeProbe) run only with --write-probes, on e2e-local only: each makes one scratch
+// post (zz-listen-…) and deletes it in the same check, then checks it is gone.
 
 import {createRequire} from 'node:module'
 import {fileURLToPath, pathToFileURL} from 'node:url'
@@ -25,6 +28,8 @@ const {createImageUrlBuilder} = await load('@sanity/image-url')
 const DATASET = process.env.GROQ_DATASET || 'e2e-local'
 const API = '2025-02-19'
 const detail = process.argv.includes('--detail')
+const writeProbes = process.argv.includes('--write-probes')
+if (writeProbes && DATASET !== 'e2e-local') (console.error('--write-probes writes scratch documents: e2e-local only'), process.exit(2))
 const need = (k) => process.env[k] || (console.error(`missing env ${k}`), process.exit(2))
 const bpHost = `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
 const sides = {
@@ -58,6 +63,30 @@ const CHECKS = [
   // as a site's defineLive does outside draft mode; drafts send it.
   {id: 'live-events-welcome', run: (c) => firstEvent(c.live.events({includeDrafts: false}), 'welcome')},
   {id: 'live-events-drafts-welcome', run: (c) => firstEvent(c.live.events({includeDrafts: true}), 'welcome')},
+  {
+    // A listener filtered to authors hears nothing when a post is written (Sanity applies the
+    // query to every mutation). One scratch post per side, deleted at once.
+    id: 'listen-query-filter',
+    writeProbe: true,
+    known: 'task-72331698ada8a2f6: listen() does not apply its GROQ query filter yet',
+    run: async (c) => {
+      const heard = []
+      const id = `zz-listen-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+      let welcomed
+      const ready = new Promise((r) => (welcomed = r))
+      const sub = c.listen('*[_type == "author"]', {}, {events: ['welcome', 'mutation'], includeResult: false}).subscribe({next: (e) => (e.type === 'welcome' ? welcomed() : heard.push(e.documentId)), error: () => welcomed()})
+      try {
+        await within(10_000, ready)
+        await c.createOrReplace({_id: id, _type: 'post', title: 'Listen filter probe (deleted at once)'})
+        await new Promise((r) => setTimeout(r, 3000))
+      } finally {
+        sub.unsubscribe()
+        await c.delete(id).catch(() => {})
+      }
+      const gone = (await c.getDocument(id)) == null
+      return {heardForAuthorFilter: heard.length, scratchGone: gone}
+    },
+  },
   {id: 'error-syntax', run: (c) => c.fetch('*[').then(() => 'no error', errShape)},
   {id: 'error-unauthorized', run: (c) => c.withConfig({token: 'not-a-token'}).fetch('count(*)').then(() => 'no error', (e) => e?.statusCode ?? 'no status')},
   {id: 'image-asset-docs', known: 'task-66985e4bd08cc2d9: no sanity.imageAsset docs (design: /papers/sanity-shaped-image-assets-note)', run: async (c) => (await c.fetch('count(*[_type == "sanity.imageAsset"]) > 0'))},
@@ -91,6 +120,7 @@ const answer = async (check, side) => {
 }
 const rows = []
 for (const check of CHECKS) {
+  if (check.writeProbe && !writeProbes) { rows.push({id: check.id, status: 'skip', known: check.known}); continue }
   const [s, b] = await Promise.all([answer(check, sides.sanity), answer(check, sides.barkpark)])
   const status = !s.ok ? 'REF-ERR' : b.ok && same(s.v, b.v) ? 'pass' : check.known ? 'known' : 'FAIL'
   rows.push({id: check.id, status, s, b, known: check.known})
@@ -99,9 +129,9 @@ const w = Math.max(...rows.map((r) => r.id.length))
 console.log(`@sanity/client conformance · ${DATASET} · v${API} · Sanity ecu57yeh vs Barkpark ${process.env.BARKPARK_WORKSPACE}`)
 for (const r of rows) {
   const show = (x) => (typeof x.v === 'string' ? x.v : JSON.stringify(x.v))?.slice(0, 90)
-  const why = r.status === 'known' ? `  known gap → ${r.known}` : detail || r.status !== 'pass' ? `  sanity ${show(r.s)} | barkpark ${show(r.b)}` : ''
+  const why = r.status === 'skip' ? '  writes: run with --write-probes (e2e-local)' : r.status === 'known' ? `  known gap → ${r.known}${detail ? `  (sanity ${show(r.s)} | barkpark ${show(r.b)})` : ''}` : detail || r.status !== 'pass' ? `  sanity ${show(r.s)} | barkpark ${show(r.b)}` : ''
   console.log(`${r.status.padEnd(7)} ${r.id.padEnd(w)}${why}`)
 }
 const n = (st) => rows.filter((r) => r.status === st).length
-console.log(`\n${n('pass')}/${rows.length - n('REF-ERR')} pass · ${n('FAIL') + n('known')} differ${n('known') ? ` (${n('known')} known, with a task)` : ''}${n('REF-ERR') ? ` · ${n('REF-ERR')} reference errors (fix the check)` : ''}`)
+console.log(`\n${n('pass')}/${rows.length - n('REF-ERR') - n('skip')} pass · ${n('FAIL') + n('known')} differ${n('known') ? ` (${n('known')} known, with a task)` : ''}${n('skip') ? ` · ${n('skip')} skipped (needs --write-probes)` : ''}${n('REF-ERR') ? ` · ${n('REF-ERR')} reference errors (fix the check)` : ''}`)
 process.exit(0)
