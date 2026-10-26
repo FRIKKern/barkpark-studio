@@ -22,6 +22,8 @@
 const DATASET = process.env.GROQ_DATASET || 'e2e-local'
 const API = 'v2025-02-19'
 const PROJECT = 'ecu57yeh'
+// A param whose value is SIDE_PROJECT is sent as that side's own project id.
+const SIDE_PROJECT = Symbol('project')
 const args = process.argv.slice(2)
 const showDiff = args.includes('--diff')
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null
@@ -84,13 +86,20 @@ const Q = [
   {id: 'starter-more-stories', q: '*[_type == "post" && _id != $skip && defined(slug.current)] | order(publishedAt desc, _updatedAt desc)[0...2]{_id, title, "slug": slug.current, "date": coalesce(publishedAt, _updatedAt), "author": author->{name}}', params: {skip: 'post-30'}, ordered: true},
   {id: 'starter-post-slugs', q: '*[_type == "post" && defined(slug.current)]{"slug": slug.current}'},
   {id: 'starter-heroes', q: '*[_type == "post" && defined(slug.current)] | order(publishedAt desc, _updatedAt desc)[0]{content, _id, title, "slug": slug.current, excerpt, "date": coalesce(publishedAt, _updatedAt), "author": author->{name}}'},
+  // documents::get (task-13790b478beeee4d): the reference names its project, so `$project` is each
+  // side's own (Sanity ecu57yeh, Barkpark BARKPARK_PROJECT); see SIDE_PROJECT below.
+  {id: 'docs-documents-get', q: 'documents::get({"_ref": "dataset:" + $project + "." + $ds + ":author-alan"}){_id, name}', params: {project: SIDE_PROJECT, ds: DATASET}},
+  {id: 'docs-documents-get-proj', q: '*[_type == "post" && defined(author)] | order(_id asc)[0...3]{_id, "author": documents::get({"_ref": "dataset:" + $project + "." + $ds + ":" + author._ref}).name}', params: {project: SIDE_PROJECT, ds: DATASET}, ordered: true},
+  {id: 'docs-documents-get-bare-id', q: 'documents::get("author-alan")'},
+  {id: 'docs-documents-get-other-ds', q: 'documents::get({"_ref": "dataset:" + $project + ".production:author-alan"}).name', params: {project: SIDE_PROJECT}, intended: 'Barkpark resolves only the query\'s own dataset (tenant rule); Sanity reads any dataset of the project'},
 ]
 
 const bpBase = `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}/${API}/data/query/${DATASET}`
 const sanityBase = `https://${PROJECT}.api.sanity.io/${API}/data/query/${DATASET}`
+const sideProject = (base) => (base === sanityBase ? PROJECT : process.env.BARKPARK_PROJECT || 'default')
 const url = (base, {q, params = {}}) => {
   const u = new URLSearchParams({query: q, perspective: 'published', ...(csmMode && {resultSourceMap: csmMode})})
-  for (const [k, v] of Object.entries(params)) u.set(`$${k}`, JSON.stringify(v))
+  for (const [k, v] of Object.entries(params)) u.set(`$${k}`, JSON.stringify(v === SIDE_PROJECT ? sideProject(base) : v))
   return `${base}?${u}`
 }
 async function run(base, token, entry) {
