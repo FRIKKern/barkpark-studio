@@ -57,3 +57,25 @@ export function mediaHeaders(ok: boolean, contentType: string, dest?: string | n
     ? {'content-type': contentType, 'cache-control': 'private, max-age=31536000, immutable', vary: 'Accept, Sec-Fetch-Dest', ...fileSafetyHeaders(contentType, dest)}
     : {'content-type': contentType, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff'}
 }
+
+export type AssetPath = {url: string; mimeType?: string}
+/**
+ * An asset's file path under its id, which never changes: keyed by `<Barkpark>|<dataset>|<id>`,
+ * at most `max` (then it starts over). The proxy reads one asset's metadata on a miss; the
+ * library list fills it with every hit it reads, so the tiles it draws next skip that read.
+ */
+export function pathCache(max = 5000) {
+  const paths = new Map<string, AssetPath>()
+  const set = (key: string, path: AssetPath) => {
+    if (paths.size >= max) paths.clear()
+    paths.set(key, path)
+  }
+  return {
+    get: (key: string) => paths.get(key),
+    set,
+    fill: (prefix: string, hits: {id: string; url?: string; mimeType?: string}[]) => {
+      for (const h of hits) if (h.url) set(`${prefix}|${h.id}`, {url: h.url, mimeType: h.mimeType})
+    },
+    size: () => paths.size,
+  }
+}

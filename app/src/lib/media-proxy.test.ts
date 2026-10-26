@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {FILE_CSP, fallsBackToOriginal, fileSafetyHeaders, mediaHeaders, transformQuery} from './media-proxy.ts'
+import {FILE_CSP, fallsBackToOriginal, fileSafetyHeaders, mediaHeaders, pathCache, transformQuery} from './media-proxy.ts'
 
 test('only the transform parameters go on, in one order', () => {
   assert.equal(transformQuery(new URLSearchParams('auto=format&fit=max&h=540&w=1200&token=x&size=thumb')), 'w=1200&h=540&fit=max&auto=format')
@@ -45,4 +45,17 @@ test('every uploaded file is nosniff; an SVG is sandboxed, and a download when o
   assert.match(mediaHeaders(true, 'image/svg+xml', 'image').vary, /Sec-Fetch-Dest/)
   assert.deepEqual(mediaHeaders(false, 'application/json')['x-content-type-options'], 'nosniff')
   assert.equal(mediaHeaders(false, 'application/json')['content-disposition'], undefined)
+})
+
+test("the library list fills the proxy's paths, so a tile it draws skips its metadata read", () => {
+  // Local Barkpark, 330 fresh images, Media opened on Images: the first 12 thumbnails drew
+  // 2.2-3.3 s after the list with a metadata read per tile, 1.4-1.7 s with the paths known
+  // (task-bb3bf037b79c6bce).
+  const paths = pathCache(3)
+  paths.fill('bp|ds', [{id: 'a', url: '/files/a.png', mimeType: 'image/png'}, {id: 'b'}])
+  assert.deepEqual(paths.get('bp|ds|a'), {url: '/files/a.png', mimeType: 'image/png'})
+  assert.equal(paths.get('bp|ds|b'), undefined, 'a hit without a url is left to the metadata read')
+  assert.equal(paths.get('bp|other|a'), undefined, 'per Barkpark and dataset')
+  paths.fill('bp|ds', [{id: 'c', url: '/c'}, {id: 'd', url: '/d'}, {id: 'e', url: '/e'}])
+  assert.ok(paths.size() <= 3, 'bounded')
 })
