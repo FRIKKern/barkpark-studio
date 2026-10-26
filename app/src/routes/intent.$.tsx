@@ -33,7 +33,8 @@ function IntentPage() {
         const type = intent.type ?? (await qc.fetchQuery(anyDocQuery(intent.id)))?._type
         if (gone) return
         if (!type || !schemaOf(schemas, type)) return setFailed(t('A document with the {id} identifier could not be found.', {id: intent.id}))
-        return void navigate({href: panesPath([{kind: 'types'}, {kind: 'list', type}, {kind: 'doc', id: intent.id, type}]), replace: true})
+        // A site's click-to-edit link names the field too: the pane opens on it (its J52 `path`).
+        return void navigate({href: panesPath([{kind: 'types'}, {kind: 'list', type}, {kind: 'doc', id: intent.id, type, ...(intent.path ? {path: intent.path} : {})}]), replace: true})
       }
       const choice = intent.template ? (templateChoice(intent.template, intent.params) ?? choicesFor(schemas, intent.type).find((c) => c.id === intent.template)) : choicesFor(schemas, intent.type)[0]
       if (gone) return
