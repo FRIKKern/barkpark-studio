@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '../rig/test'
 import {seedAssets} from '../../scripts/lib/seed-assets.mjs'
-import {bpBase, bpDataset, bpMutate, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {bpBase, bpDataset, bpRemove, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // B08 (Barkpark-native, ours only), after LiveView's media library: the Media tool
 // lists the dataset's assets; search and the visibility filter narrow them; an asset's
@@ -15,6 +15,10 @@ const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
 const NAME = `b08-${Date.now().toString(36)}.png`
 let asset: {id: string; docId: string} | undefined
 let folder: string | undefined
+// Its own folder name per run, and every "B08 folder…" removed after, confirmed gone: the
+// cleanup used to delete only by the id read after Create, so a run that failed in between
+// left the folder, and the next run met two of them (task-67cffff95b922031).
+const FOLDER = `B08 folder ${Date.now().toString(36)}`
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
   if (target(info).name !== 'studio') return
@@ -22,7 +26,9 @@ test.afterEach(async ({page}, info) => {
     await fetch(`${media()}/${asset.id}/undo-checkout`, {method: 'POST', headers: auth()})
     await fetch(`${media()}/${asset.id}`, {method: 'DELETE', headers: auth()})
   }
-  if (folder) await bpMutate([{delete: {id: folder, type: 'mediaCollection', force: true}}]).catch(() => {})
+  const listed = (await (await fetch(`${media()}/collections?limit=100`, {headers: auth()})).json()) as {result?: {collections?: {id: string; title: string}[]}}
+  const ours = new Set([...(folder ? [folder] : []), ...(listed.result?.collections ?? []).filter((c) => c.title.startsWith('B08 folder')).map((c) => c.id)])
+  for (const id of ours) await bpRemove(id, 'mediaCollection')
 })
 
 test('@local B08: media library — upload, count, search, visibility, checkout lock, title, folders', async ({page}, info) => {
@@ -124,12 +130,12 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   await expect(inspector.getByRole('status')).toContainText('Not checked out')
 
   await page.getByRole('button', {name: 'New collection'}).click()
-  await page.getByLabel('Collection name').fill('B08 folder')
+  await page.getByLabel('Collection name').fill(FOLDER)
   await page.getByRole('button', {name: 'Create', exact: true}).click()
-  const row = page.getByRole('navigation', {name: 'Library'}).getByRole('button', {name: 'B08 folder'})
+  const row = page.getByRole('navigation', {name: 'Library'}).getByRole('button', {name: FOLDER})
   await expect(row).toHaveAttribute('aria-current', 'true')
   const list = (await (await fetch(`${media()}/collections?limit=100`, {headers: auth()})).json()) as {result: {collections: {id: string; title: string}[]}}
-  folder = list.result.collections.find((c) => c.title === 'B08 folder')?.id
+  folder = list.result.collections.find((c) => c.title === FOLDER)?.id
   expect(folder).toBeTruthy()
   await page.getByRole('searchbox', {name: 'Search media'}).fill('')
   await page.getByLabel('Visibility').selectOption('')
@@ -140,7 +146,7 @@ test('@local B08: media library — upload, count, search, visibility, checkout 
   await page.getByRole('navigation', {name: 'Library'}).getByRole('button', {name: 'All media'}).click()
   await page.getByRole('searchbox', {name: 'Search media'}).fill(NAME)
   await tile.click()
-  await inspector.getByLabel('Add to collection').selectOption({label: 'B08 folder'})
+  await inspector.getByLabel('Add to collection').selectOption({label: FOLDER})
   await expect(page.getByText('Added to collection')).toBeVisible()
   await page.getByRole('searchbox', {name: 'Search media'}).fill('')
   await row.click()
