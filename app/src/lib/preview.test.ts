@@ -238,6 +238,50 @@ test('|count: the items in a list, 0 when the path holds nothing, as Barkpark\'s
   assert.equal(formatPreview('{title|count} items', read({title: 'Fixture'})), undefined)
 })
 
+test('|max:N cuts a text longer than N characters and adds ..., or the end it names', () => {
+  const doc = read({summary: 'A short note about the spring garden fair', code: 'abc'})
+  assert.equal(formatPreview('summary|max:12', doc), 'A short note...')
+  assert.equal(formatPreview('summary|max:80', doc), 'A short note about the spring garden fair')
+  assert.equal(formatPreview('summary|max:12:…', doc), 'A short note…')
+  // An empty end cuts with nothing after it, so a template can always add "...".
+  assert.equal(formatPreview('{summary|max:12:}...', doc), 'A short note...')
+  assert.equal(formatPreview('{code|max:12:}...', doc), 'abc...')
+  // Characters, not UTF-16 units: an emoji counts once.
+  assert.equal(formatPreview('t|max:3', read({t: '🌱🌱🌱🌱'})), '🌱🌱🌱...')
+  assert.equal(formatPreview('summary|max:7|upper', doc), 'A SHORT...')
+  assert.equal(formatPreview('summary|max:0', doc), 'A short note about the spring garden fair')
+})
+
+const deep = (doc: unknown) => (path: string) => readPath(doc, path, () => undefined)
+const body = [
+  {_type: 'block', style: 'normal', children: [{_type: 'span', text: '  '}]},
+  {_type: 'block', style: 'normal', children: [{_type: 'span', text: 'First line, '}, {_type: 'span', text: 'in two spans.'}]},
+  {_type: 'image', asset: {_ref: 'image-abc-10x10-png'}},
+  {_type: 'block', style: 'h3', children: [{_type: 'span', text: ' A heading '}]},
+  {_type: 'block', style: 'normal', children: [{_type: 'span', text: 'Last line.'}]},
+]
+
+test('|text joins the spans of Portable Text; :line and :heading take the first of each', () => {
+  assert.equal(formatPreview('body|text', read({body})), 'First line, in two spans.  A heading  Last line.')
+  assert.equal(formatPreview('body|text:line', read({body})), 'First line, in two spans.')
+  assert.equal(formatPreview('body|text:heading', read({body})), 'A heading')
+  assert.equal(formatPreview('body.4|text', deep({body})), 'Last line.')
+  assert.equal(formatPreview('body|text|max:10', read({body})), 'First line...')
+  assert.equal(formatPreview(['body|text:heading', 'body|text:line'], read({body: body.slice(0, 2)})), 'First line, in two spans.')
+  // A string is its own text; :line takes its first line that holds text.
+  assert.equal(formatPreview('body|text', read({body: 'Plain answer'})), 'Plain answer')
+  assert.equal(formatPreview('body|text:line', read({body: '\n  Top line \nNext'})), 'Top line')
+  assert.equal(formatPreview(['body|text', {text: 'Empty'}], read({body: [{_type: 'image'}]})), 'Empty')
+  assert.equal(formatPreview(['body|text', {text: 'Empty'}], read({})), 'Empty')
+})
+
+test('|type shows a type name by its schema title, or as stored when there is none', () => {
+  const titles: Record<string, string> = {guide: 'Guide'}
+  const opts = {typeTitle: (t: string) => titles[t]}
+  assert.equal(formatPreview('{target._type|type}: {target.title}', deep({target: {_type: 'guide', title: 'Planting'}}), opts), 'Guide: Planting')
+  assert.equal(formatPreview('target._type|type', deep({target: {_type: 'recipe'}}), opts), 'recipe')
+})
+
 // An icon picked by a stored value (barkpark docs/contracts/list-preview.md), as a Sanity
 // prepare that returns an icon component.
 const kind: IconPick = {icon: {path: 'kind', map: {guide: 'compass', faq: 'help-circle', draft: null}, else: 'document', empty: 'folder'}}

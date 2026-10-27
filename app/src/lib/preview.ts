@@ -16,7 +16,9 @@
 // literal text, {when, show} a part shown while a visibleWhen condition holds, {path,
 // map} a stored value by its label, a nested {parts} spec, and {each, show, max, join,
 // more} a part read from each item of a list. `|lower` and `|upper` change the case, and
-// `|count` shows the number of items in a list ("{packages|count} pakker").
+// `|count` shows the number of items in a list ("{packages|count} pakker"). `|text` reads
+// the text of a Portable Text value (`|text:line` its first line, `|text:heading` its first
+// heading), and `|max:N` cuts a text to N characters with "..." after it.
 // An `each` item that is a reference reads its target through `opts.deref`, which costs
 // a hop; without `deref` it reads as nothing.
 
@@ -113,15 +115,52 @@ function day(v: unknown, zone?: string) {
 /** `|count`: the number of items in a list, `0` when the path holds nothing (Barkpark's PreviewText). */
 const count = (v: unknown) => (Array.isArray(v) ? String(v.length) : v == null ? '0' : undefined)
 
+/** A Portable Text block's spans as one text: an object with `children`, `_type` block or none. */
+function spans(b: unknown): string | undefined {
+  if (!b || typeof b !== 'object') return undefined
+  const {_type, children} = b as {_type?: unknown; children?: unknown}
+  if ((_type !== undefined && _type !== 'block') || !Array.isArray(children)) return undefined
+  return children.map((c) => (c && typeof c === 'object' && typeof (c as {text?: unknown}).text === 'string' ? (c as {text: string}).text : '')).join('')
+}
+
+/**
+ * `|text`: the text of a Portable Text value (a list of blocks, or one block), its blocks
+ * that hold text joined by a space; a string is itself. `|text:line` is the first block (or
+ * line of a string) that holds text, and `|text:heading` the first heading block (style h1
+ * to h6) that holds text, both trimmed (Barkpark's PreviewText).
+ */
+function portableText(v: unknown, mode: string): string | undefined {
+  if (typeof v === 'string') return mode === '' ? v : mode === 'line' ? v.split('\n').map((l) => l.trim()).find(Boolean) : undefined
+  const blocks = Array.isArray(v) ? v : v && typeof v === 'object' ? [v] : []
+  if (mode === '') return blocks.map(spans).filter((t): t is string => !!t?.trim()).join(' ')
+  if (mode !== 'line' && mode !== 'heading') return undefined
+  const pick = mode === 'heading' ? blocks.filter((b) => /^h[1-6]$/.test(String((b as {style?: unknown} | null)?.style ?? ''))) : blocks
+  return pick.map((b) => spans(b)?.trim()).find(Boolean)
+}
+
+/**
+ * `|max:N`: a text longer than N characters cut to its first N, with `...` after it.
+ * `|max:N:<end>` puts `<end>` there instead (`|max:80:…`), and `|max:N:` nothing.
+ */
+function maxCut(text: string, mods: string[]): string {
+  const mod = mods.find((m) => /^max:\d+(:|$)/.test(m) && Number(m.split(':')[1]) > 0)
+  if (!mod) return text
+  const [, n, ...end] = mod.split(':')
+  const chars = Array.from(text)
+  return chars.length > Number(n) ? chars.slice(0, Number(n)).join('') + (end.length ? end.join(':') : '...') : text
+}
+
 /** The preview text for a doc; `read` resolves a path (`readPath` follows up to five references). */
 export function formatPreview(spec: PreviewText | undefined, read: (path: string) => unknown, opts: PreviewOptions = {}): string | undefined {
   if (!spec) return undefined
   const value = (part: string) => {
     const v = read(pathOf(part))
     const mods = part.split('|').slice(1).map((m) => m.trim())
-    const raw = mods.includes('count') ? count(v) : mods.includes('date') ? day(v, opts.zone) : mods.includes('type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : typeof v === 'string' || typeof v === 'number' ? String(v) : undefined
-    const text = raw && mods.includes('lower') ? raw.toLowerCase() : raw && mods.includes('upper') ? raw.toUpperCase() : raw
-    return text?.trim() ? text : undefined
+    const textMode = mods.find((m) => m === 'text' || m.startsWith('text:'))
+    const raw = mods.includes('count') ? count(v) : mods.includes('date') ? day(v, opts.zone) : mods.includes('type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : textMode ? portableText(v, textMode.slice(5)) : typeof v === 'string' || typeof v === 'number' ? String(v) : undefined
+    if (!raw?.trim()) return undefined
+    const cut = maxCut(raw, mods)
+    return mods.includes('lower') ? cut.toLowerCase() : mods.includes('upper') ? cut.toUpperCase() : cut
   }
   const template = (part: string) => {
     let missing = false
