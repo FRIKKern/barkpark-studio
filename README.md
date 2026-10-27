@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 10 changes
+- **Today** · 11 changes
+  - listen hub: back off on refusal and quick ends, say live updates are paused ([#1166](https://github.com/FRIKKern/barkpark-studio/pull/1166))
   - Validation panel: a document rule's problem is its message alone, and picking it goes nowhere ([#1170](https://github.com/FRIKKern/barkpark-studio/pull/1170))
-  - Validation panel: picking a problem is a step in history with path= ([#1169](https://github.com/FRIKKern/barkpark-studio/pull/1169))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
