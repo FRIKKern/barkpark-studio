@@ -3,6 +3,7 @@ import {schemaOf, type Schema} from './data'
 import {createDoc, draftNew} from './edits'
 import {editorMode} from './editor-mode'
 import studio from '../studio.config'
+import {resolveTemplate} from './template-resolve'
 
 // J18, Sanity's initial value templates: each type starts the one way its schema says
 // (its initial values), and the studio config can add more (`templates`). Every Create
@@ -27,10 +28,12 @@ export function templateChoice(id: string, params: Record<string, string>): Choi
   return {id: t.id, title: t.title, type: t.schemaType, value: typeof t.value === 'function' ? t.value(params) : t.value, params}
 }
 
-/** A template named in a new document's URL (`template=…`), with its parameters: the type's own, or the config's. */
+/** A template named by a URL (a new doc's `template=`, an intent link), checked as user input (lib/template-resolve). */
 export function choiceById(schemas: Schema[], type: string, id: string, params?: Record<string, string>): Choice | undefined {
-  if (params && Object.keys(params).length) return templateChoice(id, params)
-  return choicesFor(schemas, type).find((c) => c.id === id)
+  return resolveTemplate(studio.templates ?? [], (t) => {
+    const schema = schemaOf(schemas, t)
+    return schema && {title: schema.title ?? t, value: schema.initialValues ?? {}}
+  }, type, id, params)
 }
 
 /**
