@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 22 changes
+- **Today** · 23 changes
+  - e2e rig: a spec's own Barkpark read waits out a 429 ([#1182](https://github.com/FRIKKern/barkpark-studio/pull/1182))
   - kept-edits-deleted: delete each doc on its own and confirm it gone ([#1181](https://github.com/FRIKKern/barkpark-studio/pull/1181))
-  - J14 J46: pick the panel's field group by value ([#1180](https://github.com/FRIKKern/barkpark-studio/pull/1180))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
