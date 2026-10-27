@@ -55,3 +55,43 @@ test('@local arrays: a six-type insert menu searches; a nested item dialog names
     await t.deleteDoc(id, 'fieldTypes').catch(() => {})
   }
 })
+
+// task-eaba30ae6be378be: with a field named in the URL (path=title, as typing in it writes), Add item by
+// keyboard opened the new item's dialog, then a re-render on the save focused the named field
+// behind it and wrote path=title back: keyboard focus left the dialog. As Sanity's, focus
+// stays in the dialog and the URL names the item.
+test('@local arrays: Add item by keyboard keeps focus in the new item dialog when the URL names another field', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: the URL path= follower')
+  await t.prepare(page.context())
+  await page.goto('/intent/create/type=fieldTypes')
+  await signInIfAsked(page)
+  await expect(page).toHaveURL(/\/structure\/fieldTypes;([0-9a-f-]{36})/)
+  const id = page.url().match(/fieldTypes;([0-9a-f-]{36})/)![1]!
+  try {
+    await t.field(page, 'title').focus()
+    await page.keyboard.type('Path probe')
+    await page.keyboard.press('Tab') // focus moves on: the URL follows it (the next field)
+    await page.keyboard.press('Shift+Tab')
+    await expect(page).toHaveURL(/[,;]path=title(?:[,&]|$)/)
+    const add = page.locator('[id="sections"]').getByRole('button', {name: 'Add item', exact: true})
+    await add.focus()
+    await page.evaluate(() => {
+      const w = window as unknown as {out?: number}
+      w.out = 0
+      const until = performance.now() + 2000
+      const frame = () => {
+        if (document.querySelector('[role=dialog]') && !document.activeElement?.closest('[role=dialog]')) w.out!++
+        if (performance.now() < until) requestAnimationFrame(frame)
+      }
+      requestAnimationFrame(frame)
+    })
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('dialog', {name: /^Sections \//})).toBeVisible()
+    await page.waitForTimeout(2100)
+    expect(await page.evaluate(() => (window as unknown as {out: number}).out)).toBe(0)
+    await expect(page).toHaveURL(/path=sections/)
+  } finally {
+    await t.deleteDoc(id, 'fieldTypes').catch(() => {})
+  }
+})

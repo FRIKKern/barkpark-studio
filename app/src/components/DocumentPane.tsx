@@ -255,10 +255,18 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // in another, as Sanity's). Editing: the URL follows focus, replaced (no history entries).
   const schemaHere = schemaOf(schemas, pane.type)
   const opened = useRef<string | null>(null)
+  // The path this effect last saw. A save re-runs it (the doc changed) and can come before the
+  // router has the URL a moment-old write named (an item dialog's path): that older path was
+  // already followed, so it isn't again. It pulled focus out of a new item's dialog (keyboard).
+  const seen = useRef<string | null>(null)
   useEffect(() => {
     const want = pane.path
-    if (!want || !doc || !schemaHere || opened.current === `${pane.id}|${want}`) return
-    opened.current = `${pane.id}|${want}`
+    if (!want || !doc || !schemaHere) return
+    const key = `${pane.id}|${want}`
+    const followed = opened.current === key || seen.current === key
+    seen.current = key
+    if (followed) return
+    opened.current = key
     const top = schemaHere.fields.find((f) => f.name === want.split(/[.[]/)[0])
     if (top && group && top.group !== group) setGroup(top.group ?? '')
     openTheWay(want)
