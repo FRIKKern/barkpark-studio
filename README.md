@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes
+- **Today** · 8 changes
+  - Validation: an edit keeps the last async answer until the next one ([#1168](https://github.com/FRIKKern/barkpark-studio/pull/1168))
   - Validation: custom rule problems name their group and parents, in form order ([#1167](https://github.com/FRIKKern/barkpark-studio/pull/1167))
-  - Prefs: shared sign-in keeps them in this browser, not on one account ([#1165](https://github.com/FRIKKern/barkpark-studio/pull/1165))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
