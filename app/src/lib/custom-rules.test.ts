@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {describeField, latestOnly, runCustomRules, withTimeout, type CustomRule} from './custom-rules.ts'
+import {describeField, latestOnly, runCustomRules, startRun, visibleProblems, withTimeout, type CustomRule} from './custom-rules.ts'
 import type {Schema} from './data.ts'
 
 const doc = {_id: 'p', _type: 'post', featured: true, seo: {metaTitle: 'Same', metaDescription: 'Same'}} as never
@@ -55,4 +55,18 @@ test('custom rules: a problem carries its field group and parent titles', async 
   const shape = ({title, parents, group}: {title: string; parents?: string[]; group?: string}) => ({title, parents, group})
   assert.deepEqual(now.map(shape), [{title: 'Post', parents: undefined, group: undefined}, {title: 'Meta title', parents: ['SEO'], group: 'meta'}])
   assert.deepEqual((await later)!.map(shape), [{title: 'Featured note', parents: undefined, group: 'meta'}])
+})
+
+// task-4090c58c3d43fe67: as Sanity's, an edit keeps the last Promise answers on screen until the
+// next run's come, so the panel never says "No validation errors" mid-check; another document,
+// or a run with no Promise out, starts clean.
+test('custom rules: the last async answers stay until the next run answers', () => {
+  const err = {path: 'featuredNote', title: 'Featured note', message: 'Remove the TODO', level: 'error' as const}
+  const answered = {id: 'a', key: 'k1', now: [], later: [err], pending: false}
+  const next = startRun(answered, 'a', 'k2', [], true)
+  assert.deepEqual(visibleProblems(next, 'a'), [err])
+  assert.equal(next.pending, true)
+  assert.deepEqual(visibleProblems(startRun(answered, 'a', 'k2', [], false), 'a'), [])
+  assert.deepEqual(visibleProblems(startRun(answered, 'b', 'k3', [], true), 'b'), [])
+  assert.deepEqual(visibleProblems(answered, 'b'), [])
 })

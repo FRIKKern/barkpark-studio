@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState} from 'react'
 import studio from '../studio.config'
 import type {Doc, Schema} from './data'
 import type {Problem} from './validation'
-import {describeField, latestOnly, runCustomRules} from './custom-rules'
+import {describeField, latestOnly, runCustomRules, startRun, visibleProblems, type RulesState} from './custom-rules'
 import {useT} from './i18n'
 
 // The studio config's custom rules (StudioConfig.document.validation) on the document as
@@ -23,16 +23,17 @@ export function useCustomRules(doc: Doc | null | undefined, schema: Schema | und
     const id = setTimeout(() => setSettled(key), SETTLE_MS)
     return () => clearTimeout(id)
   }, [key])
-  const [state, setState] = useState<{key: string; now: Problem[]; later: Problem[]; pending: boolean}>({key: '', now: [], later: [], pending: false})
+  const id = doc?._id ?? ''
+  const [state, setState] = useState<RulesState>({id: '', key: '', now: [], later: [], pending: false})
   const runs = useRef(latestOnly())
   const latestDoc = useRef(doc)
   latestDoc.current = doc
   useEffect(() => {
     const d = latestDoc.current
-    if (!rules.length || !d || !settled) return void setState({key: settled, now: [], later: [], pending: false})
+    if (!rules.length || !d || !settled) return void setState({id: d?._id ?? '', key: settled, now: [], later: [], pending: false})
     const run = runs.current.next()
     const {now, later} = runCustomRules(rules, d, describeField(schema))
-    setState({key: settled, now, later: [], pending: !!later})
+    setState((s) => startRun(s, d._id, settled, now, !!later))
     // An answer for values since edited is dropped (a newer run is out).
     later?.then((ps) => runs.current.current(run) && setState((s) => ({...s, later: ps, pending: false})))
   }, [settled, rules, schema])
@@ -44,14 +45,15 @@ export function useCustomRules(doc: Doc | null | undefined, schema: Schema | und
     const run = runs.current.next()
     const k = valuesKey(d)
     const {now, later} = runCustomRules(rules, d, describeField(schema))
-    setState({key: k, now, later: [], pending: !!later})
+    setState((s) => startRun(s, d._id, k, now, !!later))
     const after = later ? await later : []
-    if (runs.current.current(run)) setState({key: k, now, later: after, pending: false})
+    if (runs.current.current(run)) setState({id: d._id, key: k, now, later: after, pending: false})
     return [...now, ...after]
   }
   if (!rules.length) return {problems: [], validating: false, check}
   // A rule's own message is its author's; the studio's timeout is said in the studio's language.
-  const problems = (state.key === key ? [...state.now, ...state.later] : [...state.now]).map((p) => (p.message === 'Validation timed out' ? {...p, message: t('Validation timed out')} : p))
+  // The latest answers stay while the typing settles and a newer run is out (startRun).
+  const problems = visibleProblems(state, id).map((p) => (p.message === 'Validation timed out' ? {...p, message: t('Validation timed out')} : p))
   // Held only while a Promise is out: a sync rule's answer for the latest values comes at Publish (check).
   return {problems, validating: state.pending, check}
 }

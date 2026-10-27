@@ -29,6 +29,25 @@ test('custom rules: a document rule gates Publish; an async rule says Validating
     await expect(publish).toBeDisabled()
     await expect(panel).toContainText('Remove the TODO before publishing')
     await expect(publish).not.toHaveAttribute('aria-busy')
+    // task-4090c58c3d43fe67: an edit keeps the last answer until the next one, as Sanity's: on
+    // no frame does the error leave the panel or Publish come back on (it said "No validation
+    // errors" and lit Publish for ~300 ms).
+    await panel.evaluate((list) => {
+      const w = window as unknown as {lost?: number}
+      w.lost = 0
+      const pub = [...document.querySelectorAll('button')].filter((b) => b.textContent?.trim() === 'Publish').pop()!
+      const until = performance.now() + 1500
+      const frame = () => {
+        if (!list.isConnected || !list.textContent?.includes('Remove the TODO before publishing') || !pub.disabled) w.lost!++
+        if (performance.now() < until) requestAnimationFrame(frame)
+      }
+      requestAnimationFrame(frame)
+    })
+    await t.field(page, 'featuredNote').press('End')
+    await page.keyboard.type(' again')
+    await page.waitForTimeout(1600)
+    expect(await page.evaluate(() => (window as unknown as {lost: number}).lost)).toBe(0)
+    await expect(panel).toContainText('Remove the TODO before publishing')
   } finally {
     await closeAndSettle(page)
     await bpRemove(id, 'post')
