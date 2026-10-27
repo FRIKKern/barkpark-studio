@@ -8,6 +8,7 @@ import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import {collate, translate, type T} from './i18n'
 import {deskFilterParams, normalizeDesk, orGroupRefused, type DeskFilter, type DeskNode} from './desk'
+import {listSearch} from './list-search'
 import type {Sort} from './list-prefs'
 import {pathsOf, type PreviewMediaSpec, type PreviewText} from './preview'
 import {excluded, memberPreviewRefs, parseTextQuery, refBoost, textScore, tieLength} from './text-search'
@@ -187,16 +188,8 @@ const fetchListSearch = createServerFn({method: 'GET'})
   .handler(async ({data}) => {
     const search = (q: string, limit: number) =>
       bpJson<{documents: Doc[]; count: number}>(`/v1/data/search/${dataset()}?q=${encodeURIComponent(q)}&type=${encodeURIComponent(data.type)}&limit=${limit}&perspective=drafts`)
-    // Barkpark matches ANY word, newest first; the list wants docs with EVERY word (the
-    // pane filters for that). So search the rarest word: its matches hold them all.
-    const terms = data.q.split(/\s+/).filter(Boolean)
-    let best = terms[0] ?? ''
-    if (terms.length > 1) {
-      const counts = await Promise.all(terms.map((t) => search(t, 1).then((r) => r.count)))
-      best = terms[counts.indexOf(Math.min(...counts))]!
-    }
-    const r = await search(best, LIST_PAGE)
-    return (await withHasPublished(data.type, r.documents)) as unknown as Json
+    const documents = await listSearch(data.q, LIST_PAGE, search)
+    return (await withHasPublished(data.type, documents)) as unknown as Json
   })
 
 // A reference with several target types names them all; the doc is whichever has the id.
