@@ -69,18 +69,19 @@ token, mints `BARKPARK_TOKEN` with `bp instance studio-token --workspace <BARKPA
 The instance needs Barkpark from 2026-10-27 (5c9263fa5) or later. An older one answers 404:
 update it first.
 
-Until `bp` can sign in through SSO, an operator with root on the instance's VM uses the
-admin token `deploy.sh` wrote to `/etc/barkpark/admin-token` (root only, mode 600). The
-token goes from the VM straight into Vercel and is never shown:
+An owner who signs in only through SSO signs `bp` in with the organization's SSO first
+(bp 1.26.5 or newer, Barkpark from 2026-10-27, ca119030e, or later), then mints the token
+straight into Vercel and signs out. The token is never shown:
 
 ```sh
-ssh <user>@<vm> 'sudo sh -c "BARKPARK_API_URL=https://<host> BARKPARK_API_TOKEN=\$(cat /etc/barkpark/admin-token) bp instance studio-token --workspace <ws> -o json"' \
-  | jq -r .token | vercel env add BARKPARK_TOKEN production --sensitive
+bp login --sso --org <org> -s https://<host>
+bp instance studio-token --workspace <ws> -o json | jq -r .token \
+  | vercel env add BARKPARK_TOKEN production --sensitive
+bp logout -s https://<host>
 ```
 
-A VM installed before `deploy.sh` wrote that file has none, and Barkpark has no command yet
-that mints a new admin token on the VM. Keep one you mint there in that file, mode 600, and
-its id in `/etc/barkpark/admin-token.id`.
+An operator with root on the VM can pass the admin token in `/etc/barkpark/admin-token` as
+`BARKPARK_API_TOKEN` instead.
 
 List the studio's production origin in `BARKPARK_STUDIO_SSO_ORIGINS`: your domain, or
 `https://<project>.vercel.app`. The deployment URL `vercel deploy` prints first,
