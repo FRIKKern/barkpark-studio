@@ -96,10 +96,11 @@ test('@local J14 J46: the panel\'s groups are a select; at phone width a tab bar
   const groups = panel.getByRole('combobox', {name: 'Field groups'})
   await expect(groups).toHaveValue('content')
   await expect(panel.getByRole('tablist', {name: 'Field groups'})).toBeHidden()
-  await groups.selectOption({label: 'Meta'})
+  // By value: since #951 an option names its group's worst problem, as Sanity's ("Meta (info)").
+  await groups.selectOption('meta')
   await expect(panel.getByText('Published at', {exact: true})).toBeVisible()
   await expect(panel.locator('[id="title"]')).toHaveCount(0)
-  await groups.selectOption({label: 'Content'})
+  await groups.selectOption('content')
 
   await page.setViewportSize({width: 390, height: 844})
   const bar = page.getByRole('tablist', {name: 'Presentation'})
