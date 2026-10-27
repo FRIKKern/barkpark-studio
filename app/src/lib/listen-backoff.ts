@@ -10,11 +10,11 @@
 //
 // A refresh is none of these: the hub cut the stream itself (a new Barkpark boot after a
 // blue/green flip, a write with no echo, a silent minute, the e2e `cut` and `flip` levers)
-// and reopens at once, counting nothing. A flip's old instance ends a stream that lived
-// (`event: retire`), and new streams go to the new one: at most one quick end, never a
-// pause.
+// and reopens at once, counting nothing; if that stream had welcomed, Barkpark took it, so
+// the back-off starts over. A flip's old instance ends a stream that lived (`event:
+// retire`), and new streams go to the new one: at most one quick end, never a pause.
 
-export type Attempt = {ok: boolean; status?: number; refusal?: string | null; livedMs: number; refreshed?: boolean}
+export type Attempt = {ok: boolean; status?: number; refusal?: string | null; livedMs: number; refreshed?: boolean; welcomed?: boolean}
 export type Backoff = {delay: number; quickEnds: number; paused: string | null}
 
 /** A 200 that ends sooner than this was not a stream. */
@@ -31,7 +31,7 @@ export const initialBackoff = (): Backoff => ({delay: SOON, quickEnds: 0, paused
 
 /** The state after an attempt, and how long to wait before the next. */
 export function afterAttempt(s: Backoff, a: Attempt, random: () => number = Math.random): {state: Backoff; wait: number} {
-  if (a.refreshed) return {state: s, wait: 0}
+  if (a.refreshed) return {state: a.welcomed ? initialBackoff() : s, wait: 0}
   if (a.ok && !a.refusal && a.livedMs >= QUICK_MS) return {state: initialBackoff(), wait: SOON}
   if (a.ok) {
     const quickEnds = s.quickEnds + 1

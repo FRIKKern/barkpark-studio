@@ -76,3 +76,15 @@ test('a blue/green flip never pauses: the old stream retires after living, one q
     assert.equal(s.paused, null)
   }
 })
+
+test('a stream that welcomed and is then refreshed starts the back-off over', () => {
+  // Refused for a while, then taken (welcome), then cut by the hub (a flip seen, a write with no echo).
+  let s = initialBackoff()
+  for (let i = 0; i < 6; i++) s = afterAttempt(s, refused, mid).state
+  const next = afterAttempt(s, {ok: false, livedMs: 0, refreshed: true, welcomed: true}, mid)
+  assert.deepEqual(next, {state: initialBackoff(), wait: 0})
+  // Quick ends either side of a taken stream are not "in a row": no pause.
+  let q = afterAttempt(afterAttempt(initialBackoff(), quickEnd, mid).state, quickEnd, mid).state
+  q = afterAttempt(q, {ok: false, livedMs: 0, refreshed: true, welcomed: true}, mid).state
+  assert.equal(afterAttempt(q, quickEnd, mid).state.paused, null)
+})

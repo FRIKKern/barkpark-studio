@@ -56,6 +56,10 @@ type Hub = {
   refusal: string | null
   /** Why live updates are paused (lib/listen-backoff.ts), sent to every page; null: live. */
   paused: string | null
+  /** A re-open with nothing to resume at: tell the pages to read again once it welcomes. */
+  resetOnWelcome: boolean
+  /** This attempt's stream welcomed: Barkpark took it (lib/listen-backoff). */
+  welcomed: boolean
 }
 
 const QUIET_MS = 1000
@@ -67,7 +71,7 @@ const hubFor = (token: string): Hub => {
   const at = scope()
   const key = hubKey(token, at)
   let h = hubs.get(key)
-  if (!h) hubs.set(key, (h = {token, scope: at, subscribers: new Set(), upstream: null, lastEventId: null, buffer: [], knownFrom: null, attempt: null, lastByte: 0, lastFrameFor: new Map(), liveSince: 0, refusal: null, paused: null}))
+  if (!h) hubs.set(key, (h = {token, scope: at, subscribers: new Set(), upstream: null, lastEventId: null, buffer: [], knownFrom: null, attempt: null, lastByte: 0, lastFrameFor: new Map(), liveSince: 0, refusal: null, paused: null, resetOnWelcome: false, welcomed: false}))
   return h
 }
 
@@ -250,6 +254,7 @@ async function connect(hub: Hub) {
       // page reads again once the new stream answers.
       const blind = !hub.lastEventId && !!hub.liveSince
       hub.refusal = null
+      hub.welcomed = false
       const res = await bpFetch(`/v1/data/listen/${hub.scope.dataset}`, {headers, signal: attempt.signal}, hub.token, {at: hub.scope})
       // A dead token (401, Barkpark #22517) won't come back by itself: lib/listen-backoff asks again once a minute.
       status = res.status
@@ -257,13 +262,15 @@ async function connect(hub: Hub) {
       const opened = Date.now()
       hub.lastByte = opened
       hub.liveSince ||= opened
-      if (blind) for (const sub of hub.subscribers) sub.send('event: reset\ndata: {}\n\n')
+      // Once it welcomes: a refused stream never does, so a back-off doesn't make every page
+      // read again on each attempt.
+      hub.resetOnWelcome = blind
       await pump(hub, res.body)
-      outcome = {ok: true, refusal: hub.refusal, livedMs: Date.now() - opened}
+      outcome = {ok: true, refusal: hub.refusal, livedMs: Date.now() - opened, welcomed: hub.welcomed}
     } catch (err) {
       if (ctrl.signal.aborted) return
       if (!attempt.signal.aborted) console.error('[listen] upstream dropped, reconnecting:', (err as Error).message)
-      outcome = {ok: false, status, livedMs: 0}
+      outcome = {ok: false, status, livedMs: 0, welcomed: hub.welcomed}
     } finally {
       ctrl.signal.removeEventListener('abort', stop)
     }
@@ -316,6 +323,11 @@ function dispatch(hub: Hub, frame: string) {
   }
   // A stream that welcomes is live: the pages hear again, and stop saying they don't.
   if (event === 'welcome') {
+    hub.welcomed = true
+    if (hub.resetOnWelcome) {
+      hub.resetOnWelcome = false
+      for (const sub of subscribers) sub.send('event: reset\ndata: {}\n\n')
+    }
     if (hub.paused) {
       hub.paused = null
       for (const sub of subscribers) sub.send('event: live\ndata: {}\n\n')
