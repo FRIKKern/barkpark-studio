@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 28 changes
+- **Today** · 29 changes
+  - Rows read Portable Text with |text and cut a text with |max:N ([#1186](https://github.com/FRIKKern/barkpark-studio/pull/1186))
   - DEPLOY.md: Vercel frictions from a self-hosted Studio deploy ([#1187](https://github.com/FRIKKern/barkpark-studio/pull/1187))
-  - DEPLOY.md: mint BARKPARK_TOKEN with bp instance studio-token ([#1185](https://github.com/FRIKKern/barkpark-studio/pull/1185))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
