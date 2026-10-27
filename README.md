@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 12 changes
+- **Today** · 13 changes
+  - J26: judge the F2 split budget on a production build, log it on dev ([#1172](https://github.com/FRIKKern/barkpark-studio/pull/1172))
   - Arrays: Add item keeps focus in the new item's dialog when the URL names another field ([#1171](https://github.com/FRIKKern/barkpark-studio/pull/1171))
-  - listen hub: back off on refusal and quick ends, say live updates are paused ([#1166](https://github.com/FRIKKern/barkpark-studio/pull/1166))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
