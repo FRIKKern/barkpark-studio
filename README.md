@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 24 changes
+- **Today** · 25 changes
+  - STUDIO_SIGN_IN=sso signs editors in through the instance's SSO ([#1149](https://github.com/FRIKKern/barkpark-studio/pull/1149))
   - B08: its own folder name per run, every B08 folder removed after ([#1183](https://github.com/FRIKKern/barkpark-studio/pull/1183))
-  - e2e rig: a spec's own Barkpark read waits out a 429 ([#1182](https://github.com/FRIKKern/barkpark-studio/pull/1182))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
