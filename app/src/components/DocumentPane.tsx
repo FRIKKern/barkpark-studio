@@ -203,6 +203,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     }
     // Sanity's: the field's own group (All fields for one in none).
     if (group && p.group !== group) setGroup(p.group ?? '')
+    // And a step in history naming the field (path=, as Sanity's): Back undoes only the jump, and
+    // a reload or a copied link lands on it. Ours: focused below, not a link to follow.
+    if (p.path) {
+      clearTimeout(pathTimer.current)
+      opened.current = `${pane.id}|${p.path}`
+      void navigate({href: withParams(panes, index, {path: p.path})})
+    }
     openTheWay(p.path)
     requestAnimationFrame(() => fieldEl(paneRoot.current, p.path)?.focus())
   }

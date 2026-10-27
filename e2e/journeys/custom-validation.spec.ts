@@ -48,6 +48,16 @@ test('custom rules: a document rule gates Publish; an async rule says Validating
     await page.waitForTimeout(1600)
     expect(await page.evaluate(() => (window as unknown as {lost: number}).lost)).toBe(0)
     await expect(panel).toContainText('Remove the TODO before publishing')
+    // task-17c587477e6bfe1c: picking a problem is a step in history, as Sanity's: the URL names
+    // the field (path=featuredNote, so a reload or a copied link lands on it), and Back undoes only that.
+    await t.field(page, 'reviewNote').click()
+    await expect(page).toHaveURL(/[,;]path=reviewNote(?:[,&]|$)/)
+    await panel.getByRole('button').filter({hasText: 'Remove the TODO before publishing'}).click()
+    await expect(page).toHaveURL(/[,;]path=featuredNote(?:[,&]|$)/)
+    await expect(t.field(page, 'featuredNote')).toBeFocused()
+    await page.goBack()
+    await expect(page).toHaveURL(/[,;]path=reviewNote(?:[,&]|$)/) // the field before the jump
+    await expect(panel).toBeVisible()
   } finally {
     await closeAndSettle(page)
     await bpRemove(id, 'post')
