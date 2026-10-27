@@ -27,7 +27,7 @@ const TWIN_LUCIDE = 'backpack book book-a book-copy book-dashed book-image book-
 test('every lucide icon the twin names gets a body, so a type icon or row icon draws it', () => {
   assert.equal(TWIN_LUCIDE.length, 56)
   const icons = ICONS as Record<string, string>
-  const fallbacks = TWIN_LUCIDE.filter((icon) => !withIconBodies({icon}, icons).iconSvg)
+  const fallbacks = TWIN_LUCIDE.filter((icon) => !(withIconBodies({icon}, icons) as {iconSvg?: string}).iconSvg)
   assert.deepEqual(fallbacks, [], `${fallbacks.length} fall back to document`)
   for (const n of TWIN_LUCIDE) assert.ok(icons[n]!.startsWith('<g transform="translate(0.5 0.5)" stroke="currentColor" stroke-width="1.2"'), n)
 })
