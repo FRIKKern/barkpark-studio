@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 17 changes
+- **Today** · 18 changes
+  - Published perspective: the loader reads an open doc's published version too ([#1177](https://github.com/FRIKKern/barkpark-studio/pull/1177))
   - Templates from a URL are checked as user input ([#1176](https://github.com/FRIKKern/barkpark-studio/pull/1176))
-  - Desk: draw a divider among the studio config's root structure items ([#1175](https://github.com/FRIKKern/barkpark-studio/pull/1175))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
