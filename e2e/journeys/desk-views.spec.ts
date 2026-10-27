@@ -44,3 +44,23 @@ test('@local J18: a nested structure list opens its own rows, and a filtered lis
   // Every fifth post is featured (fixtures/seed.ndjson).
   expect((await titles.allInnerTexts()).map((s) => s.split('\n')[0]!.trim()).sort()).toEqual(['05', '10', '15', '20', '25', '30'].map((n) => `Fixture post ${n}`))
 })
+
+// task-8bb8557ecfbe625f, both studios: a divider among the studio's own root items is drawn.
+// The reference puts S.divider() before "Editorial" (reference/sanity/structure.ts, and
+// `d-editorial` in app/src/studio.config.tsx). Ours dropped it at the root: a line between
+// "Posts by author" and "Editorial", as Sanity's <hr>.
+test('@local J18: a divider between the root structure items is drawn', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto('/structure')
+  await signInIfAsked(page)
+  await t.settle(page)
+  await expect(page.getByRole('link', {name: 'Editorial', exact: true}).first()).toBeVisible()
+  const between = await page.evaluate(() => {
+    const row = (name: string) => [...document.querySelectorAll('a')].find((a) => a.textContent?.trim() === name)!
+    const [a, b] = [row('Posts by author'), row('Editorial')]
+    const all = [...document.querySelectorAll('*')]
+    return all.slice(all.indexOf(a) + 1, all.indexOf(b)).filter((e) => e.tagName === 'HR' && e.getBoundingClientRect().width > 0).length
+  })
+  expect(between).toBe(1)
+})
