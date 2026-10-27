@@ -1,5 +1,5 @@
 import {expect, test, type Route} from '../rig/test'
-import {bpMutate, canvasFocusSettled, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {bpMutate, bpRemove, canvasFocusSettled, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // J32 widen (task-6612fd882f8b8b63): someone deletes the doc while you type. The save
 // that was on its way meets the delete (404); every keystroke is kept, the deleted
@@ -11,7 +11,10 @@ test.setTimeout(60_000)
 
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
-  if (target(info).name === 'studio') await bpMutate([{delete: {id: ID, type: 'author', force: true}}, {delete: {id: POST, type: 'post', force: true}}]).catch(() => {})
+  // One delete each, confirmed gone (bpRemove): in one batch the author's not_found (the body
+  // tests never make it) refused the whole batch, the catch hid it, and the post's draft stayed
+  // (task-207df0ed3ed446bf: panes J01 then counted one post too many).
+  if (target(info).name === 'studio') await Promise.all([bpRemove(ID, 'author'), bpRemove(POST, 'post')])
 })
 
 for (const frames of ['live', 'no live frame'] as const)
