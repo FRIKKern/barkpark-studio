@@ -61,3 +61,18 @@ test('a failed request keeps its old back-off (500 ms doubling to 10 s; a dead t
   assert.equal(s.paused, null)
   assert.equal(afterAttempt(initialBackoff(), {ok: false, status: 401, livedMs: 0}, mid).wait, 60_000)
 })
+
+test('a refresh (a new boot after a flip, the e2e cut and flip levers) reconnects at once and counts nothing', () => {
+  const s = afterAttempt(afterAttempt(initialBackoff(), quickEnd, mid).state, quickEnd, mid).state
+  const next = afterAttempt(s, {ok: true, refusal: null, livedMs: 10, refreshed: true}, mid)
+  assert.equal(next.wait, 0)
+  assert.deepEqual(next.state, s)
+})
+
+test('a blue/green flip never pauses: the old stream retires after living, one quick end, then the new one lives', () => {
+  let s = initialBackoff()
+  for (const a of [{...lived, livedMs: 5 * 60_000}, quickEnd, lived, quickEnd, lived]) {
+    s = afterAttempt(s, a, mid).state
+    assert.equal(s.paused, null)
+  }
+})

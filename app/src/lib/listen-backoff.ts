@@ -7,8 +7,14 @@
 // 1 s, doubling to 60 s, with a fifth of jitter either way so a server's hubs don't come
 // back in step. A refusal pauses live updates at once, with Barkpark's reason; quick ends
 // pause after a few in a row. The pages say so until a stream welcomes again.
+//
+// A refresh is none of these: the hub cut the stream itself (a new Barkpark boot after a
+// blue/green flip, a write with no echo, a silent minute, the e2e `cut` and `flip` levers)
+// and reopens at once, counting nothing. A flip's old instance ends a stream that lived
+// (`event: retire`), and new streams go to the new one: at most one quick end, never a
+// pause.
 
-export type Attempt = {ok: boolean; status?: number; refusal?: string | null; livedMs: number}
+export type Attempt = {ok: boolean; status?: number; refusal?: string | null; livedMs: number; refreshed?: boolean}
 export type Backoff = {delay: number; quickEnds: number; paused: string | null}
 
 /** A 200 that ends sooner than this was not a stream. */
@@ -25,6 +31,7 @@ export const initialBackoff = (): Backoff => ({delay: SOON, quickEnds: 0, paused
 
 /** The state after an attempt, and how long to wait before the next. */
 export function afterAttempt(s: Backoff, a: Attempt, random: () => number = Math.random): {state: Backoff; wait: number} {
+  if (a.refreshed) return {state: s, wait: 0}
   if (a.ok && !a.refusal && a.livedMs >= QUICK_MS) return {state: initialBackoff(), wait: SOON}
   if (a.ok) {
     const quickEnds = s.quickEnds + 1

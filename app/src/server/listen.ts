@@ -267,18 +267,16 @@ async function connect(hub: Hub) {
     } finally {
       ctrl.signal.removeEventListener('abort', stop)
     }
-    // A refresh reconnects at once. Otherwise lib/listen-backoff says how long to wait: a
-    // stream that lived comes back soon, a failure or a refusal backs off.
-    if (!attempt.signal.aborted) {
-      const next = afterAttempt(backoff, outcome)
-      backoff = next.state
-      if (next.state.paused && next.state.paused !== hub.paused) {
-        hub.paused = next.state.paused
-        console.error('[listen] live updates paused:', hub.paused)
-        for (const sub of hub.subscribers) sub.send(pausedFrame(hub.paused))
-      }
-      await new Promise((r) => setTimeout(r, next.wait))
+    // lib/listen-backoff says how long to wait: a refresh (the hub cut it) reconnects at
+    // once, a stream that lived comes back soon, a failure or a refusal backs off.
+    const next = afterAttempt(backoff, {...outcome, refreshed: attempt.signal.aborted})
+    backoff = next.state
+    if (next.state.paused && next.state.paused !== hub.paused) {
+      hub.paused = next.state.paused
+      console.error('[listen] live updates paused:', hub.paused)
+      for (const sub of hub.subscribers) sub.send(pausedFrame(hub.paused))
     }
+    if (next.wait) await new Promise((r) => setTimeout(r, next.wait))
   }
 }
 
