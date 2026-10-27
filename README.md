@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 13 changes
+- **Today** · 14 changes
+  - New documents: the URL names the template, so a reload before the first edit keeps it ([#1174](https://github.com/FRIKKern/barkpark-studio/pull/1174))
   - J26: judge the F2 split budget on a production build, log it on dev ([#1172](https://github.com/FRIKKern/barkpark-studio/pull/1172))
-  - Arrays: Add item keeps focus in the new item's dialog when the URL names another field ([#1171](https://github.com/FRIKKern/barkpark-studio/pull/1171))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
