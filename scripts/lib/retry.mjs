@@ -51,3 +51,25 @@ export async function withRetry(send, {label, safe = true, budgetMs = 60_000, lo
     await sleep(wait)
   }
 }
+
+/**
+ * `send()` again while Barkpark answers 429 (task-0613adf9fddc38d1): an e2e lane's token is
+ * shared by every run on that dataset, so a spec's own read can meet one in a long run. A 429
+ * is refused before anything is done, so asking again is safe for any request. It waits as
+ * Barkpark says (Retry-After: seconds, or a date), else backoff(attempt), and gives the 429
+ * back once the next wait would pass `budgetMs` (about 20 s).
+ */
+export async function waitOut429(send, {budgetMs = 20_000, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), now = Date.now, wallNow = Date.now} = {}) {
+  const started = now()
+  for (let attempt = 0; ; attempt++) {
+    const res = await send()
+    if (res.status !== 429) return res
+    const header = res.headers.get('retry-after')
+    const seconds = header === null ? NaN : Number(header)
+    const dated = header && Number.isNaN(seconds) ? Date.parse(header) - wallNow() : NaN
+    const wait = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : Number.isFinite(dated) ? Math.max(dated, 0) : backoff(attempt)
+    if (now() - started + wait > budgetMs) return res
+    await res.body?.cancel().catch(() => {})
+    await sleep(wait)
+  }
+}

@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs'
 import {test, type BrowserContext, type Locator, type Page, type TestInfo} from '@playwright/test'
 import {sendBatches} from '../../scripts/lib/batches.mjs'
-import {idempotent, isTransient} from '../../scripts/lib/retry.mjs'
+import {idempotent, isTransient, waitOut429} from '../../scripts/lib/retry.mjs'
 import {sanityAsset, seedAssets} from '../../scripts/lib/seed-assets.mjs'
 import {toBarkpark} from '../../scripts/lib/seed-map.mjs'
 
@@ -20,13 +20,16 @@ const sameTwice = (init?: RequestInit) => {
     return false
   }
 }
+// And a 429 is waited out (Retry-After, about 20 s at most, scripts/lib/retry.mjs waitOut429):
+// the lane's token is shared by every run on its dataset, and a spec's own read that met one
+// read the error body as data ("Cannot read properties of undefined", task-0613adf9fddc38d1).
+// Not for a Request object, whose body can't be sent twice.
 const nativeFetch = globalThis.fetch as typeof fetch & {rigRetry?: true}
-if (!nativeFetch.rigRetry)
-  globalThis.fetch = Object.assign(
-    (input: Parameters<typeof fetch>[0], init?: RequestInit) =>
-      nativeFetch(input, init).catch((error: unknown) => (isTransient({error}) && sameTwice(init) ? nativeFetch(input, init) : Promise.reject(error))),
-    {rigRetry: true as const},
-  )
+if (!nativeFetch.rigRetry) {
+  const once = (input: Parameters<typeof fetch>[0], init?: RequestInit) =>
+    nativeFetch(input, init).catch((error: unknown) => (isTransient({error}) && sameTwice(init) ? nativeFetch(input, init) : Promise.reject(error)))
+  globalThis.fetch = Object.assign((input: Parameters<typeof fetch>[0], init?: RequestInit) => (input instanceof Request ? once(input, init) : waitOut429(() => once(input, init))), {rigRetry: true as const})
+}
 
 // One adapter per backend. Specs talk to the adapter, never to a backend directly,
 // so every spec runs against the reference (the bar) and against ours unchanged.
