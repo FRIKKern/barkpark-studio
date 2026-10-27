@@ -256,6 +256,7 @@ export default {
   'This revision can\'t be found. Pick another entry in the history.': 'Denne versjonen finnes ikke. Velg en annen oppføring i historikken.',
   'To': 'Til',
   'Trying to connect…': 'Prøver å koble til…',
+  'Live updates paused': 'Direkteoppdateringer er satt på pause',
   'Unpublish': 'Avpubliser',
   'Unpublish anyway': 'Avpubliser uansett',
   'Disconnect references and unpublish': 'Koble fra referanser og avpubliser',
