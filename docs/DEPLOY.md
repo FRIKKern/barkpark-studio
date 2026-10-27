@@ -67,8 +67,20 @@ On a self-hosted instance, a workspace owner or admin signed in to `bp`, or the 
 token, mints `BARKPARK_TOKEN` with `bp instance studio-token --workspace <BARKPARK_WORKSPACE>`
 (bp 1.26.3 or newer). It prints the `BARKPARK_TOKEN=` line once: a read token with a member seat.
 The instance needs Barkpark from 2026-10-27 (5c9263fa5) or later. An older one answers 404:
-update it first. `bp` cannot sign in through SSO, so an owner who has only SSO uses the admin
-token `deploy.sh` wrote to `/etc/barkpark/admin-token`.
+update it first.
+
+Until `bp` can sign in through SSO, an operator with root on the instance's VM uses the
+admin token `deploy.sh` wrote to `/etc/barkpark/admin-token` (root only, mode 600). The
+token goes from the VM straight into Vercel and is never shown:
+
+```sh
+ssh <user>@<vm> 'sudo sh -c "BARKPARK_API_URL=https://<host> BARKPARK_API_TOKEN=\$(cat /etc/barkpark/admin-token) bp instance studio-token --workspace <ws> -o json"' \
+  | jq -r .token | vercel env add BARKPARK_TOKEN production --sensitive
+```
+
+A VM installed before `deploy.sh` wrote that file has none, and Barkpark has no command yet
+that mints a new admin token on the VM. Keep one you mint there in that file, mode 600, and
+its id in `/etc/barkpark/admin-token.id`.
 
 List the studio's production origin in `BARKPARK_STUDIO_SSO_ORIGINS`: your domain, or
 `https://<project>.vercel.app`. The deployment URL `vercel deploy` prints first,
@@ -106,6 +118,13 @@ bp instance studio-token --workspace <ws> -o json | jq -r .token \
   | vercel env add BARKPARK_TOKEN production --sensitive
 vercel deploy --prod
 ```
+
+`vercel env add` fails when the name already exists, and with `--sensitive` it shows only
+"Saving…". Replace a value with `vercel env update <NAME> production` or remove it first
+with `vercel env rm <NAME> production --yes`. Each `bp instance studio-token` run mints a
+new token: keep the one Vercel holds and revoke the others with
+`bp -w <ws> -p <project> token revoke <id> --yes`. `bp -w <ws> token ls` shows each
+token's `last_used_at`, so the one the studio uses is the one with a recent read.
 
 Any build on Vercel (`VERCEL=1`) uses the preset too. One Node 22 function
 (`nodejs22.x`, streaming, 300 s) serves every page and API route; assets come from
