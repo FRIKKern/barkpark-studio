@@ -20,6 +20,13 @@ test('custom rules: a document rule gates Publish; an async rule says Validating
     await page.getByRole('button', {name: 'Validation'}).first().click()
     const panel = page.getByRole('complementary', {name: 'Validation'})
     await expect(panel).toContainText('A featured post needs an excerpt')
+    // task-511f4dd5b053fe4d: as Sanity's, a document rule's item is its message alone (no
+    // "Post" line above it), and picking it goes nowhere: the group stays as it was.
+    const docItem = panel.getByRole('button').filter({hasText: 'A featured post needs an excerpt'})
+    await expect(docItem).toHaveText('A featured post needs an excerpt')
+    const shownGroup = await page.getByRole('tab', {selected: true}).filter({hasText: /^(All fields|Content|Meta|Promotion)/}).textContent()
+    await docItem.click()
+    await expect(page.getByRole('tab', {selected: true}).filter({hasText: /^(All fields|Content|Meta|Promotion)/})).toHaveText(shownGroup!)
     await t.field(page, 'excerpt').fill('Now it has one.')
     await expect(panel).not.toContainText('A featured post needs an excerpt')
     // The async rule: Validating… (Publish held), then its answer.
