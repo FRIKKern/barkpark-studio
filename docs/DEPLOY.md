@@ -62,6 +62,10 @@ login session. Barkpark returns only to a studio origin listed in its
 group mappings decide the editor's seat in `BARKPARK_WORKSPACE`; without one the sign-in is
 refused with "You don't have access to this workspace yet".
 
+On a self-hosted instance, a workspace owner or admin signed in to `bp`, or the instance admin
+token, mints `BARKPARK_TOKEN` with `bp instance studio-token --workspace <BARKPARK_WORKSPACE>`
+(bp 1.26.3 or newer). It prints the `BARKPARK_TOKEN=` line once: a read token with a member seat.
+
 ## Vercel
 
 Project settings (also in `app/vercel.json`):
