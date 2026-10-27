@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {backoff, idempotent, isTransient, withRetry} from './retry.mjs'
+import {backoff, idempotent, isTransient, waitOut429, withRetry} from './retry.mjs'
 
 const res = (status, body = '') => new Response(body, {status})
 // A fake clock: sleeping moves it on, so the budget is real but the test takes no time.
@@ -52,4 +52,35 @@ test('a write that may not repeat is never sent twice; a plain error is not retr
   const r = await withRetry(async () => (n++, res(500, 'boom')), {label: 'x', log: () => {}, ...c})
   assert.equal(r.status, 500)
   assert.equal(n, 1)
+})
+
+// task-0613adf9fddc38d1: the lane's token is shared, so a spec's own read can meet a 429 in a
+// long run; it waits as Barkpark says (Retry-After, seconds or a date), else backs off, and
+// gives the 429 back once about 20 s are spent. Not a 429: returned at once.
+test('a 429 is waited out: Retry-After, else backoff, within the budget', async () => {
+  const c = clock()
+  const answers = [new Response('', {status: 429, headers: {'retry-after': '2'}}), new Response('', {status: 429}), res(200, 'ok')]
+  let sent = 0
+  const r = await waitOut429(async () => answers[sent++], c)
+  assert.equal(r.status, 200)
+  assert.equal(sent, 3)
+  assert.equal(c.now(), 2000 + 2000) // Retry-After 2 s, then backoff(1) = 2 s
+
+  const d = clock()
+  let n = 0
+  const gaveUp = await waitOut429(async () => (n++, new Response('', {status: 429, headers: {'retry-after': '8'}})), {...d, budgetMs: 20_000})
+  assert.equal(gaveUp.status, 429)
+  assert.ok(d.now() <= 20_000, `waited ${d.now()} ms`)
+  assert.equal(n, 3) // 0, 8 s, 16 s: a third wait would pass 20 s
+
+  const e = clock()
+  const at = new Date(Date.UTC(2026, 9, 27, 8, 0, 3)).toUTCString()
+  const dated = [new Response('', {status: 429, headers: {'retry-after': at}}), res(200)]
+  let k = 0
+  await waitOut429(async () => dated[k++], {...e, wallNow: () => Date.UTC(2026, 9, 27, 8, 0, 0)})
+  assert.equal(e.now(), 3000)
+
+  let once = 0
+  assert.equal((await waitOut429(async () => (once++, res(404)), clock())).status, 404)
+  assert.equal(once, 1)
 })
