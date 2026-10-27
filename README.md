@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 30 changes
+- **Today** · 31 changes
+  - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
   - DEPLOY.md: operator path for the studio token, and replacing a Vercel env value ([#1188](https://github.com/FRIKKern/barkpark-studio/pull/1188))
-  - Rows read Portable Text with |text and cut a text with |max:N ([#1186](https://github.com/FRIKKern/barkpark-studio/pull/1186))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
