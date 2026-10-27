@@ -82,7 +82,18 @@ const dotted = (jsonPath: string | undefined) =>
     ? jsonPath.slice(1).replace(/\[\?\(@\._key=="((?:[^"\\]|\\.)*)"\)\]/g, '[_key=="$1"]').replace(/\["((?:[^"\\]|\\.)*)"\]/g, '.$1').replace(/^\./, '') || undefined
     : undefined
 
-export function toPage(kind: string, raw: Raw): {data: unknown; documents: Ref[]} {
+/**
+ * Sanity's JSONPath spelling, as Barkpark now writes it too (`$[0]['excerpt']`,
+ * `[?(@._key=='l1')]`), in the double-quoted one the lookups here use (`$[0]["excerpt"]`):
+ * keys and paths alike, so either spelling marks the page (J59).
+ */
+const doubleQuoted = (path: string) =>
+  path.replace(/\['((?:[^'\\]|\\.)*)'\]/g, (_, name: string) => `[${JSON.stringify(name.replace(/\\'/g, "'"))}]`).replace(/@\._key=='((?:[^'\\]|\\.)*)'/g, (_, key: string) => `@._key==${JSON.stringify(key.replace(/\\'/g, "'"))}`)
+export const normalizeMap = (map: SourceMap | null | undefined): SourceMap | null =>
+  map ? {...map, paths: map.paths.map(doubleQuoted), mappings: Object.fromEntries(Object.entries(map.mappings).map(([k, v]) => [doubleQuoted(k), v]))} : null
+
+export function toPage(kind: string, rawIn: Raw): {data: unknown; documents: Ref[]} {
+  const raw = {...rawIn, maps: rawIn.maps?.map(normalizeMap)}
   if (kind === 'home') {
     const posts = (raw.posts ?? []).filter((p) => p.slug)
     return {data: rows(raw.posts ?? [], raw.maps?.[0]), documents: seen(posts.flatMap((p) => [ref(p), ref(p.author)]))}
