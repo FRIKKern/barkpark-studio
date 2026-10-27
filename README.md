@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 11 changes
+- **Today** · 12 changes
+  - Arrays: Add item keeps focus in the new item's dialog when the URL names another field ([#1171](https://github.com/FRIKKern/barkpark-studio/pull/1171))
   - listen hub: back off on refusal and quick ends, say live updates are paused ([#1166](https://github.com/FRIKKern/barkpark-studio/pull/1166))
-  - Validation panel: a document rule's problem is its message alone, and picking it goes nowhere ([#1170](https://github.com/FRIKKern/barkpark-studio/pull/1170))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
