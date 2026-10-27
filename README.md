@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 6 changes
+- **Today** · 7 changes
+  - Validation: custom rule problems name their group and parents, in form order ([#1167](https://github.com/FRIKKern/barkpark-studio/pull/1167))
   - Prefs: shared sign-in keeps them in this browser, not on one account ([#1165](https://github.com/FRIKKern/barkpark-studio/pull/1165))
-  - Previews: no doubled edge while a thumbnail loads; edge test on its own post ([#1164](https://github.com/FRIKKern/barkpark-studio/pull/1164))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
