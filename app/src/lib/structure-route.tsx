@@ -2,7 +2,7 @@ import {QueryClient, useQuery} from '@tanstack/react-query'
 import {setPresenceSelf, usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
-import {anyDocQuery, cachedDoc, deskQuery, docQuery, ensureAnyDocs, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
+import {anyDocQuery, cachedDoc, deskQuery, docQuery, ensureAnyDocs, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {deskIndex, deskSort, listFilter, parseDeskPanes, rootDesk, unsupportedOps} from './desk'
 import {parseSingletonPanes, type Pane} from './panes'
 import {startsAtStudioItem, studioDesk} from './structure-config'
@@ -46,12 +46,12 @@ export type PanesData = {panes: Pane[]; widthHint: number; listPrefs: ListPrefs;
  * answers into the page as they land (the SSR query integration), and the browser runs
  * the chain itself. A normal Barkpark answers well inside the budget: the page is as before.
  */
-export async function loadPanes(queryClient: QueryClient, splat: string | undefined): Promise<PanesData> {
-  if (typeof window !== 'undefined') return loadPaneChain(queryClient, splat)
+export async function loadPanes(queryClient: QueryClient, splat: string | undefined, published = false): Promise<PanesData> {
+  if (typeof window !== 'undefined') return loadPaneChain(queryClient, splat, published)
   // On a scratch client, so a chain past the budget never holds the page: the request's
   // client streams every query it holds, and the page waited for each to land.
   const scratch = new QueryClient({defaultOptions: {queries: {retry: false}}})
-  const chain = loadPaneChain(scratch, splat)
+  const chain = loadPaneChain(scratch, splat, published)
   const inTime = await Promise.race([chain, new Promise<null>((r) => setTimeout(r, SSR_BUDGET_MS, null))])
   if (!inTime) {
     chain.catch(() => {})
@@ -62,7 +62,7 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   return inTime
 }
 
-async function loadPaneChain(queryClient: QueryClient, splat: string | undefined): Promise<PanesData> {
+async function loadPaneChain(queryClient: QueryClient, splat: string | undefined, published = false): Promise<PanesData> {
   const onServer = typeof window === 'undefined'
   // Before any read: frames after this point reach the page once its stream opens.
   const resume = onServer ? await fetchResumeMark() : undefined
@@ -99,6 +99,10 @@ async function loadPaneChain(queryClient: QueryClient, splat: string | undefined
     ),
     // A tree level shows its parent category on top (B12): that doc too.
     Promise.all(panes.flatMap((p) => (!('type' in p) || !schemaOf(schemas, p.type) ? [] : p.kind === 'doc' ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.id)))] : p.kind === 'list' && p.treeParent && !(p.node && nodes?.get(p.node)?.child) ? [settle(queryClient.ensureQueryData(docQuery(p.type, p.treeParent)))] : []))),
+    // The Published perspective shows an open doc's published version: read it here too, or
+    // the server draws the pane without it while the browser, its read streamed in, draws it
+    // (a hydration mismatch: a singleton under ?perspective=published, B13).
+    Promise.all(published ? panes.flatMap((p) => (p.kind === 'doc' && schemaOf(schemas, p.type) ? [settle(queryClient.ensureQueryData(publishedQuery(p.type, p.id)))] : [])) : []),
   ])
   if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, 0, false))]))) {
     void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))
