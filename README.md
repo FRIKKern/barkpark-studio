@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 21 changes
+- **Today** · 22 changes
+  - kept-edits-deleted: delete each doc on its own and confirm it gone ([#1181](https://github.com/FRIKKern/barkpark-studio/pull/1181))
   - J14 J46: pick the panel's field group by value ([#1180](https://github.com/FRIKKern/barkpark-studio/pull/1180))
-  - Preview site: read Barkpark's source map in Sanity's JSONPath spelling too ([#1179](https://github.com/FRIKKern/barkpark-studio/pull/1179))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
