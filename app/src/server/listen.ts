@@ -21,6 +21,7 @@ import '@tanstack/react-start/server-only'
 import {bpFetch, forgetReads, forgetReadsOf, READ_DEDUPE_MS, scope} from './barkpark'
 import type {Scope} from '../lib/scope'
 import {withoutDeleted} from '../lib/replay'
+import {afterAttempt, initialBackoff, type Attempt} from '../lib/listen-backoff'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
@@ -51,6 +52,10 @@ type Hub = {
   deaf?: boolean
   /** e2e: no reconnect before this (a cut that lasts). */
   holdUntil?: number
+  /** Barkpark's reason when this attempt was refused (`event: disconnect`). */
+  refusal: string | null
+  /** Why live updates are paused (lib/listen-backoff.ts), sent to every page; null: live. */
+  paused: string | null
 }
 
 const QUIET_MS = 1000
@@ -62,9 +67,11 @@ const hubFor = (token: string): Hub => {
   const at = scope()
   const key = hubKey(token, at)
   let h = hubs.get(key)
-  if (!h) hubs.set(key, (h = {token, scope: at, subscribers: new Set(), upstream: null, lastEventId: null, buffer: [], knownFrom: null, attempt: null, lastByte: 0, lastFrameFor: new Map(), liveSince: 0}))
+  if (!h) hubs.set(key, (h = {token, scope: at, subscribers: new Set(), upstream: null, lastEventId: null, buffer: [], knownFrom: null, attempt: null, lastByte: 0, lastFrameFor: new Map(), liveSince: 0, refusal: null, paused: null}))
   return h
 }
+
+const pausedFrame = (reason: string) => `event: paused\ndata: ${JSON.stringify({reason})}\n\n`
 
 const wants = (sub: Subscriber, docId: string, type?: string) => sub.ids.has(docId) || (!!type && sub.types.has(type))
 
@@ -125,6 +132,7 @@ export function subscribe(token: string, ids: string[], types: string[], send: S
     }
   }
   subscribers.add(sub)
+  if (hub.paused) send(pausedFrame(hub.paused))
   clearTimeout(hub.idleTimer)
   if (!hub.upstream) void connect(hub)
   // A browser back after a gap: if the upstream has been quiet, it may be dead.
@@ -222,13 +230,15 @@ async function connect(hub: Hub) {
   watchBoot()
   const ctrl = new AbortController()
   hub.upstream = ctrl
-  let delay = 500
+  let backoff = initialBackoff()
   const watchdog = setInterval(() => Date.now() - hub.lastByte > SILENT_MS && refresh(hub), 5000)
   watchdog.unref?.()
   ctrl.signal.addEventListener('abort', () => clearInterval(watchdog))
   while (hub.upstream === ctrl) {
     const attempt = new AbortController()
     hub.attempt = attempt
+    let status: number | undefined
+    let outcome: Attempt = {ok: false, livedMs: 0}
     const stop = () => attempt.abort()
     ctrl.signal.addEventListener('abort', stop)
     try {
@@ -239,25 +249,35 @@ async function connect(hub: Hub) {
       // welcome carries none): Barkpark replays nothing, so the gap is unknown and every
       // page reads again once the new stream answers.
       const blind = !hub.lastEventId && !!hub.liveSince
+      hub.refusal = null
       const res = await bpFetch(`/v1/data/listen/${hub.scope.dataset}`, {headers, signal: attempt.signal}, hub.token, {at: hub.scope})
-      // A dead token (401, Barkpark #22517) won't come back by itself: ask again once a minute, not every 10 s.
-      if (res.status === 401) delay = 60_000
+      // A dead token (401, Barkpark #22517) won't come back by itself: lib/listen-backoff asks again once a minute.
+      status = res.status
       if (!res.ok || !res.body) throw new Error(`listen ${res.status}`)
-      hub.lastByte = Date.now()
-      hub.liveSince ||= Date.now()
-      delay = 500
+      const opened = Date.now()
+      hub.lastByte = opened
+      hub.liveSince ||= opened
       if (blind) for (const sub of hub.subscribers) sub.send('event: reset\ndata: {}\n\n')
       await pump(hub, res.body)
+      outcome = {ok: true, refusal: hub.refusal, livedMs: Date.now() - opened}
     } catch (err) {
       if (ctrl.signal.aborted) return
       if (!attempt.signal.aborted) console.error('[listen] upstream dropped, reconnecting:', (err as Error).message)
+      outcome = {ok: false, status, livedMs: 0}
     } finally {
       ctrl.signal.removeEventListener('abort', stop)
     }
-    // A refresh reconnects at once; a failure backs off.
+    // A refresh reconnects at once. Otherwise lib/listen-backoff says how long to wait: a
+    // stream that lived comes back soon, a failure or a refusal backs off.
     if (!attempt.signal.aborted) {
-      await new Promise((r) => setTimeout(r, delay))
-      delay = delay >= 60_000 ? delay : Math.min(delay * 2, 10_000)
+      const next = afterAttempt(backoff, outcome)
+      backoff = next.state
+      if (next.state.paused && next.state.paused !== hub.paused) {
+        hub.paused = next.state.paused
+        console.error('[listen] live updates paused:', hub.paused)
+        for (const sub of hub.subscribers) sub.send(pausedFrame(hub.paused))
+      }
+      await new Promise((r) => setTimeout(r, next.wait))
     }
   }
 }
@@ -286,6 +306,22 @@ function dispatch(hub: Hub, frame: string) {
     if (line.startsWith('id:')) id = line.slice(3).trim()
     else if (line.startsWith('event:')) event = line.slice(6).trim()
     else if (line.startsWith('data:')) data.push(line.slice(5).trimStart())
+  }
+  // Barkpark's final event: it closes the stream next (its stream cap, Barkpark #24282).
+  if (event === 'disconnect') {
+    let reason: unknown
+    try {
+      reason = (JSON.parse(data.join('\n')) as {reason?: unknown}).reason
+    } catch {}
+    hub.refusal = typeof reason === 'string' && reason ? reason : 'Barkpark closed the live stream'
+    return
+  }
+  // A stream that welcomes is live: the pages hear again, and stop saying they don't.
+  if (event === 'welcome') {
+    if (hub.paused) {
+      hub.paused = null
+      for (const sub of subscribers) sub.send('event: live\ndata: {}\n\n')
+    }
   }
   if (id) hub.lastEventId = id
   if (event !== 'mutation' || data.length === 0) return

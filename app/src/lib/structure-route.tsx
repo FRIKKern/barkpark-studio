@@ -11,7 +11,7 @@ import {meQuery, provisionalMe} from './session'
 import {withinBudget} from './ssr-budget'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useEffect, useState} from 'react'
-import {useReconnectingToast} from './connection'
+import {useLivePausedToast, useReconnectingToast} from './connection'
 import {resumeLive} from './live'
 import {redirect, useRouter} from '@tanstack/react-router'
 
@@ -217,8 +217,9 @@ function PresenceStream() {
   return null
 }
 
-/** J50: "Trying to connect…" while reads or the live stream keep failing. */
+/** J50: "Trying to connect…" while reads or the live stream keep failing; "Live updates paused" while Barkpark refuses the server's stream. */
 function Reconnecting() {
   useReconnectingToast()
+  useLivePausedToast()
   return null
 }

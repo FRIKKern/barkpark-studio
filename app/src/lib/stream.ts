@@ -1,4 +1,4 @@
-import {setLiveDown} from './connection'
+import {setLiveDown, setLivePaused} from './connection'
 import {onLongHidden} from './hidden'
 
 // One stream per tab (/api/stream): the live frames (lib/live.ts) and the presence room
@@ -10,7 +10,7 @@ import {onLongHidden} from './hidden'
 
 type Handler = (e: MessageEvent) => void
 const handlers = new Map<string, Set<Handler>>()
-const NAMES = ['stream', 'welcome', 'ping', 'mutation', 'reset', 'session', 'presence']
+const NAMES = ['stream', 'welcome', 'ping', 'mutation', 'reset', 'session', 'presence', 'paused', 'live']
 
 /** Hear one named event of the tab's stream. Returns the unsubscribe. */
 export function onStream(name: string, h: Handler): () => void {
@@ -119,6 +119,9 @@ function open() {
       }
       if (name === 'mutation' && (e as MessageEvent).lastEventId) position.lastSeen = (e as MessageEvent).lastEventId
       if (name === 'welcome') setLiveDown(false)
+      // The server's hub: Barkpark refused or keeps closing its stream (task-d996dafa8231ba46).
+      if (name === 'paused') setLivePaused((JSON.parse((e as MessageEvent).data) as {reason?: string}).reason || 'unknown')
+      if (name === 'live') setLivePaused(null)
       handlers.get(name)?.forEach((h) => h(e as MessageEvent))
     })
   // EventSource retries a dropped stream by itself (sending Last-Event-ID); one it gave

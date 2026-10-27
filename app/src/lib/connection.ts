@@ -30,6 +30,30 @@ export function setLiveDown(down: boolean) {
   listeners.forEach((l) => l())
 }
 
+// The server's listen hub reports here why live updates are paused (Barkpark refused its
+// stream, or keeps closing it: lib/listen-backoff.ts); null while they come.
+let livePaused: string | null = null
+const pausedListeners = new Set<() => void>()
+export function setLivePaused(reason: string | null) {
+  if (reason === livePaused) return
+  livePaused = reason
+  pausedListeners.forEach((l) => l())
+}
+
+/** "Live updates paused", with Barkpark's reason, while the server's hub backs off. */
+export function useLivePausedToast() {
+  const reason = useSyncExternalStore(
+    (l) => (pausedListeners.add(l), () => pausedListeners.delete(l)),
+    () => livePaused,
+    () => null,
+  )
+  useEffect(() => {
+    if (!reason) return
+    stickyToast('live-paused', {tone: 'caution', title: translate('Live updates paused'), description: reason})
+    return () => stickyToast('live-paused', null)
+  }, [reason])
+}
+
 /** A read that has failed and is being tried again (or waits for the network). */
 const struggling = (q: Query) => q.state.fetchFailureCount > 0 && q.state.fetchStatus !== 'idle'
 
