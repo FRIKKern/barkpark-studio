@@ -1,8 +1,8 @@
 import {useEffect, useMemo, useRef, useState} from 'react'
 import studio from '../studio.config'
-import type {Doc, Field, Schema} from './data'
+import type {Doc, Schema} from './data'
 import type {Problem} from './validation'
-import {latestOnly, runCustomRules} from './custom-rules'
+import {describeField, latestOnly, runCustomRules} from './custom-rules'
 import {useT} from './i18n'
 
 // The studio config's custom rules (StudioConfig.document.validation) on the document as
@@ -11,17 +11,6 @@ import {useT} from './i18n'
 // an API write is not checked by them (lib/custom-rules.ts).
 const SETTLE_MS = 300
 
-const fieldTitle = (schema: Schema | undefined, path: string) => {
-  let fields: Field[] | undefined = schema?.fields
-  let title = schema?.title ?? ''
-  for (const name of path.split('.').filter(Boolean)) {
-    const f = fields?.find((x) => x.name === name)
-    if (!f) return name
-    title = f.title ?? f.name
-    fields = (f as {fields?: Field[]}).fields
-  }
-  return title
-}
 const valuesKey = (doc: Doc) => JSON.stringify(doc, (k, v) => (k === '_rev' || k === '_updatedAt' ? undefined : v))
 
 export function useCustomRules(doc: Doc | null | undefined, schema: Schema | undefined, enabled: boolean): {problems: Problem[]; validating: boolean; check: () => Promise<Problem[]>} {
@@ -42,7 +31,7 @@ export function useCustomRules(doc: Doc | null | undefined, schema: Schema | und
     const d = latestDoc.current
     if (!rules.length || !d || !settled) return void setState({key: settled, now: [], later: [], pending: false})
     const run = runs.current.next()
-    const {now, later} = runCustomRules(rules, d, (path) => fieldTitle(schema, path))
+    const {now, later} = runCustomRules(rules, d, describeField(schema))
     setState({key: settled, now, later: [], pending: !!later})
     // An answer for values since edited is dropped (a newer run is out).
     later?.then((ps) => runs.current.current(run) && setState((s) => ({...s, later: ps, pending: false})))
@@ -54,7 +43,7 @@ export function useCustomRules(doc: Doc | null | undefined, schema: Schema | und
     if (!rules.length || !d) return []
     const run = runs.current.next()
     const k = valuesKey(d)
-    const {now, later} = runCustomRules(rules, d, (path) => fieldTitle(schema, path))
+    const {now, later} = runCustomRules(rules, d, describeField(schema))
     setState({key: k, now, later: [], pending: !!later})
     const after = later ? await later : []
     if (runs.current.current(run)) setState({key: k, now, later: after, pending: false})

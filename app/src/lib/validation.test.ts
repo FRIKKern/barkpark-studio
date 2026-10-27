@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {validate} from './validation.ts'
+import {formOrder, validate} from './validation.ts'
 import type {Doc, Schema} from './data.ts'
 
 // Sanity's Rule.regex as Barkpark declares it (`validation: {pattern, message}`), single
@@ -112,4 +112,16 @@ test("an array item's fields are checked, named as Sanity's (Links / External li
     got.map((p) => `${p.path} ${[...(p.parents ?? []), p.title].join(' / ')}: ${p.message}`),
     ['links[_key=="l1"].url Links / External link / URL: Not a valid URL', 'sites[1] sites: Not a valid URL'],
   )
+})
+
+// task-79f70acdb29bc226: the panel lists problems in the form's order, nested fields too:
+// Sanity's "SEO / Meta title" before "SEO / Meta description"; a document rule first.
+test('problems sort in the form order, nested fields by their own order', () => {
+  const schema = {name: 'post', title: 'Post', fields: [
+    {name: 'excerpt', type: 'text'},
+    {name: 'tags', type: 'array'},
+    {name: 'seo', type: 'object', fields: [{name: 'metaTitle', type: 'string'}, {name: 'metaDescription', type: 'text'}]},
+  ]} as unknown as Schema
+  const paths = ['seo.metaDescription', 'tags', 'seo.metaTitle', '', 'excerpt']
+  assert.deepEqual([...paths].sort((a, b) => formOrder(schema, a, b)), ['', 'excerpt', 'tags', 'seo.metaTitle', 'seo.metaDescription'])
 })

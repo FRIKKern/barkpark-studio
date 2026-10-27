@@ -119,5 +119,29 @@ export function validate(doc: Doc, schema: Schema, target?: RefTarget, t: T = en
 
 const rank: Record<Level, number> = {error: 0, warning: 1, info: 2}
 /** The most serious level among these problems (what a tab or the header button shows). */
+/**
+ * Two problem paths in the form's order (Sanity's panel): field by field down the path, so
+ * "seo.metaTitle" comes before "seo.metaDescription"; a document rule ("") first. Below an
+ * array item the order is left to the caller.
+ */
+export function formOrder(schema: Schema | undefined, a: string, b: string): number {
+  const rank = (path: string) => {
+    const out: number[] = []
+    let fields: Field[] | undefined = schema?.fields
+    for (const seg of path.split('.')) {
+      const i = fields?.findIndex((f) => f.name === seg.split('[')[0]) ?? -1
+      out.push(i)
+      if (i < 0 || seg.includes('[')) break
+      fields = (fields![i] as {fields?: Field[]}).fields
+    }
+    return out
+  }
+  const [x, y] = [rank(a), rank(b)]
+  for (let k = 0; k < Math.max(x.length, y.length); k++) {
+    const d = (x[k] ?? -1) - (y[k] ?? -1)
+    if (d) return d
+  }
+  return 0
+}
 export const worst = (problems: Problem[]): Level | undefined => problems.reduce<Level | undefined>((w, p) => (!w || rank[p.level] < rank[w] ? p.level : w), undefined)
 export const errorsOf = (problems: Problem[]) => problems.filter((p) => p.level === 'error')

@@ -9,7 +9,7 @@ import {useCustomRules} from '../lib/use-custom-rules'
 import {useParseErrors} from '../lib/parse-errors'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
-import {errorsOf, validate, worst, type Problem} from '../lib/validation'
+import {errorsOf, formOrder, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
 import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
@@ -172,9 +172,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
   const advisories = useAdvisories(pane.id)
   const extra = advisories.length && schemaForPane && !viewingPublished && !gone ? advisoryProblems(advisories, schemaForPane, own, t) : []
-  // In the form's order, as Sanity lists them (a field's own problems stay in theirs).
-  const order = (p: Problem) => (schemaForPane?.fields ?? []).findIndex((f) => f.name === p.path.split(/[.[]/)[0])
-  const problems = extra.length ? [...own, ...extra].map((p, i) => [p, i] as const).sort(([a, i], [b, j]) => order(a) - order(b) || i - j).map(([p]) => p) : own
+  // In the form's order, as Sanity lists them (a field's own problems stay in theirs), the
+  // studio config's rules among them: SEO / Meta title before SEO / Meta description.
+  const problems = extra.length || custom.problems.length ? [...own, ...extra].map((p, i) => [p, i] as const).sort(([a, i], [b, j]) => formOrder(schemaForPane, a.path, b.path) || i - j).map(([p]) => p) : own
   // J13: only errors block publishing; warnings and infos are shown, never in the way.
   const errors = errorsOf(problems).filter((p) => !p.parse) // an unreadable input is shown, not blocking (as Sanity's)
   const openObjects = useOpenObjects(pane.id)
