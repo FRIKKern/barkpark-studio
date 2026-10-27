@@ -12,7 +12,8 @@ no fork of `app/src/studio.config.tsx`. Its desk and types live in Barkpark (a p
 ## Environment
 
 Server values are read at run time and never reach the browser. `VITE_*` values are baked
-in at build: change one, deploy again.
+in at build: change one, deploy again. On Vercel a deployment keeps the values it started
+with, so any change needs a new deployment.
 
 | Variable | Needed | What |
 |---|---|---|
@@ -65,23 +66,57 @@ refused with "You don't have access to this workspace yet".
 On a self-hosted instance, a workspace owner or admin signed in to `bp`, or the instance admin
 token, mints `BARKPARK_TOKEN` with `bp instance studio-token --workspace <BARKPARK_WORKSPACE>`
 (bp 1.26.3 or newer). It prints the `BARKPARK_TOKEN=` line once: a read token with a member seat.
+The instance needs Barkpark from 2026-10-27 (5c9263fa5) or later. An older one answers 404:
+update it first. `bp` cannot sign in through SSO, so an owner who has only SSO uses the admin
+token `deploy.sh` wrote to `/etc/barkpark/admin-token`.
+
+List the studio's production origin in `BARKPARK_STUDIO_SSO_ORIGINS`: your domain, or
+`https://<project>.vercel.app`. The deployment URL `vercel deploy` prints first,
+`https://<project>-<hash>-<team>.vercel.app`, changes with every deployment. Restart Barkpark
+after the change, then run `bp instance check --env-file <file> --studio-url <origin>`.
 
 ## Vercel
 
-Project settings (also in `app/vercel.json`):
+Deploy from the repository root with Root Directory `app`. The server imports
+`scripts/lib/` and `fixtures/` from the root, so a deployment of `app/` alone fails.
 
 | Setting | Value |
 |---|---|
-| Root Directory | `app` |
-| Framework | TanStack Start |
-| Install / Build Command | `pnpm install --frozen-lockfile` / `pnpm build:vercel` |
+| Root Directory | `app`, with "Include files outside the root directory" on (the default) |
+| Framework | TanStack Start (`app/vercel.json`) |
+| Install / Build Command | `pnpm install --frozen-lockfile` / `pnpm build:vercel` (`app/vercel.json`) |
 | Output Directory | framework default (do not set `dist`) |
-| Node.js | 22.x |
+| Node.js | 22.x. A new project starts on 24.x |
+
+`app/vercel.json` cannot hold Root Directory or Node.js. Set both on the project:
+
+```sh
+vercel project add <project>
+vercel link --project <project> --yes   # in the repository root
+vercel api /v9/projects/<project> -X PATCH -f rootDirectory=app -f nodeVersion=22.x
+```
+
+Add each value from [Environment](#environment) with
+`printf '%s' "<value>" | vercel env add <NAME> production`. Pipe the secrets so they never
+reach the terminal:
+
+```sh
+openssl rand -base64 32 | tr -d '\n' | vercel env add STUDIO_SESSION_SECRET production --sensitive
+bp instance studio-token --workspace <ws> -o json | jq -r .token \
+  | vercel env add BARKPARK_TOKEN production --sensitive
+vercel deploy --prod
+```
 
 Any build on Vercel (`VERCEL=1`) uses the preset too. One Node 22 function
 (`nodejs22.x`, streaming, 300 s) serves every page and API route; assets come from
-Vercel's CDN, cached for a year. Put Vercel Authentication in front if only your
-people should reach it: editors then sign in twice, Vercel first, then Barkpark.
+Vercel's CDN, cached for a year. Vercel picks pnpm 10 for the lockfile; the build log's
+pnpm and `engines` warnings are harmless.
+
+A new project has Vercel Authentication on for deployment URLs only: each
+`<project>-<hash>-<team>.vercel.app` asks for a Vercel login, while
+`<project>.vercel.app` and your own domain stay open. To keep everyone but your people out,
+protect all deployments in the project's Deployment Protection settings. Editors then sign
+in twice, Vercel first, then Barkpark.
 
 What differs from `serve`: a live stream (`/api/stream`) ends at 300 s and the tab
 reopens it; a tab's pane change that reaches another instance gets 404 and the tab
