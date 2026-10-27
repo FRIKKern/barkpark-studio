@@ -93,3 +93,16 @@ export function runCustomRules(rules: CustomRule[], doc: Doc, describe: (path: s
   }
   return {now, later: waits.length ? Promise.all(waits).then((ps) => ps.filter((p): p is Problem => !!p)) : null}
 }
+
+/** The rules' answers for one document: `id` the document, `key` the values they were run on. */
+export type RulesState = {id: string; key: string; now: Problem[]; later: Problem[]; pending: boolean}
+
+/**
+ * A new run's state, as Sanity's: the answers that came at once replace the old ones, and the
+ * last Promise answers stay on screen (same document) until this run's come, so an edit never
+ * shows "No validation errors" mid-check. No Promise out, or another document: none kept.
+ */
+export const startRun = (s: RulesState, id: string, key: string, now: Problem[], pending: boolean): RulesState => ({id, key, now, later: pending && s.id === id ? s.later : [], pending})
+
+/** What the panel shows: this document's latest answers, also while a newer run is out. */
+export const visibleProblems = (s: RulesState, id: string): Problem[] => (s.id === id ? [...s.now, ...s.later] : [])
