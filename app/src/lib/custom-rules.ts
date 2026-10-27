@@ -20,13 +20,13 @@ export type FieldInfo = {title: string; parents?: string[]; group?: string}
 
 /**
  * The describer for `schema`: "seo.metaTitle" is Meta title in SEO, in SEO's group (Sanity's
- * "SEO / Meta title", its group tab marked). A document rule ("") is the schema's own title.
+ * "SEO / Meta title", its group tab marked). A document rule ("") has no title.
  */
 export const describeField =
   (schema: Schema | undefined) =>
   (path: string): FieldInfo => {
     const names = path.split('.').filter(Boolean)
-    if (!names.length) return {title: schema?.title ?? ''}
+    if (!names.length) return {title: ''} // a document rule: its message alone, as Sanity lists it
     let fields: Field[] | undefined = schema?.fields
     const titles: string[] = []
     let group: string | undefined

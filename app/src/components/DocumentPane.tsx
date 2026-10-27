@@ -195,6 +195,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     })
   }
   const goTo = (p: Pick<Problem, 'path' | 'group'>) => {
+    // A document rule's problem names no field: picking it goes nowhere, as Sanity's.
+    if (!p.path) return
     // A field inside an array item: the item opens from the URL's path (J52, its dialog),
     // and the pane focuses the field once it is drawn, as a link to it does (Sanity's jump).
     if (p.path.includes('[_key==')) {
@@ -522,7 +524,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     if (errors.length) {
       if (errors.length !== was || was === 0)
         announce(
-          `${errors.length === 1 ? tt('1 validation error') : tt('{n} validation errors', {n: errors.length})}. ${errors[0]!.title}: ${errors[0]!.message}. ${tt('Publishing is blocked.')}`,
+          `${errors.length === 1 ? tt('1 validation error') : tt('{n} validation errors', {n: errors.length})}. ${errors[0]!.title ? `${errors[0]!.title}: ` : ''}${errors[0]!.message}. ${tt('Publishing is blocked.')}`,
         )
     } else if (was > 0) announce(tt('No validation errors'))
   }, [errorsKey, !!doc])
@@ -1005,14 +1007,17 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
               <button type="button" className="problem" data-level={p.level} onClick={() => onPick(p)}>
                 <LevelIcon level={p.level} label="" />
                 <span>
-                  <strong>
-                    {p.parents?.map((parent) => (
-                      <span key={parent} className="problem-parent">
-                        {parent} <span className="problem-slash">/</span>{' '}
-                      </span>
-                    ))}
-                    {p.title}
-                  </strong>
+                  {/* A document rule's problem is its message alone, as Sanity's. */}
+                  {p.title && (
+                    <strong>
+                      {p.parents?.map((parent) => (
+                        <span key={parent} className="problem-parent">
+                          {parent} <span className="problem-slash">/</span>{' '}
+                        </span>
+                      ))}
+                      {p.title}
+                    </strong>
+                  )}
                   <span>{p.message}</span>
                 </span>
               </button>

@@ -1260,6 +1260,8 @@ fieldset.object-field > legend { padding: 0; font-size: 13px; line-height: 19px;
 .inspector .problems { margin-top: 12px; }
 .problem { --tone-bg: var(--tone-error-bg); --tone-fg: var(--tone-error-fg); --tone-muted: var(--tone-error-muted); --tone-icon: var(--tone-error-icon);
   width: 100%; display: flex; gap: 6px; align-items: flex-start; text-align: left; font: inherit; font-size: 13px; padding: 8px 12px 7px 6px; border: 0; border-radius: 3px; background: var(--tone-bg); color: var(--tone-muted); cursor: pointer; }
+.problem:not(:has(strong)) { padding-top: 7px; padding-bottom: 6px; } /* a document rule's message alone: Sanity's 33 px row, text 7 px down */
+.problem:not(:has(strong)) .error-icon[data-level] { margin-top: -1px; } /* its icon stays 6 px down */
 .problem[data-level=warning] { --tone-bg: var(--tone-warning-bg); --tone-fg: var(--tone-warning-fg); --tone-muted: var(--tone-warning-muted); --tone-icon: var(--tone-warning-icon); }
 .problem[data-level=info] { --tone-bg: var(--tone-info-bg); --tone-fg: var(--tone-info-fg); --tone-muted: var(--tone-info-muted); --tone-icon: var(--tone-info-icon); }
 .problem svg { flex: none; width: 21px; height: 21px; }

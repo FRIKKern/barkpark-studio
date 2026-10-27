@@ -40,7 +40,7 @@ test('custom rules: a stuck Promise times out; a stale run is dropped', async ()
 
 // task-79f70acdb29bc226: a custom rule's problem is described as a schema one is, so the group
 // tab it sits in is marked (Sanity marks Meta for featuredNote's rule) and the panel names the
-// object it is in ("SEO / Meta title"). A document rule is in no group and has no parents.
+// object it is in ("SEO / Meta title"). A document rule has no title, group or parents (task-511f4dd5b053fe4d).
 test('custom rules: a problem carries its field group and parent titles', async () => {
   const schema = {name: 'post', title: 'Post', fields: [
     {name: 'featuredNote', title: 'Featured note', type: 'string', group: 'meta'},
@@ -53,7 +53,7 @@ test('custom rules: a problem carries its field group and parent titles', async 
   ]
   const {now, later} = runCustomRules(rules, doc, describeField(schema))
   const shape = ({title, parents, group}: {title: string; parents?: string[]; group?: string}) => ({title, parents, group})
-  assert.deepEqual(now.map(shape), [{title: 'Post', parents: undefined, group: undefined}, {title: 'Meta title', parents: ['SEO'], group: 'meta'}])
+  assert.deepEqual(now.map(shape), [{title: '', parents: undefined, group: undefined}, {title: 'Meta title', parents: ['SEO'], group: 'meta'}])
   assert.deepEqual((await later)!.map(shape), [{title: 'Featured note', parents: undefined, group: 'meta'}])
 })
 
