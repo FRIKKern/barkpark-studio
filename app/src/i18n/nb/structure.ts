@@ -262,6 +262,8 @@ export default {
   "You don't have access to this workspace yet. Ask an administrator for a seat.": 'Du har ikke tilgang til dette arbeidsområdet ennå. Be en administrator om tilgang.',
   'That sign-in took too long or began in another browser. Try again.': 'Innloggingen tok for lang tid eller ble startet i en annen nettleser. Prøv igjen.',
   'Barkpark Cloud could not sign you in. Try again.': 'Barkpark Cloud kunne ikke logge deg inn. Prøv igjen.',
+  'Sign in with single sign-on': 'Logg inn med enkel pålogging',
+  'Single sign-on could not sign you in. Try again.': 'Enkel pålogging kunne ikke logge deg inn. Prøv igjen.',
   Password: 'Passord',
   'Code from your authenticator app': 'Koden fra autentiseringsappen din',
   'The email or password is incorrect.': 'E-postadressen eller passordet er feil.',

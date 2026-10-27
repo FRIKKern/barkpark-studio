@@ -6,6 +6,7 @@ test('account model reads never borrow the service identity, including after ses
   const service = async () => {throw new Error('shared credential must not be read')}
   assert.equal(await contentModelCredential('account', () => 'editor-session', service), 'editor-session')
   assert.equal(await contentModelCredential('account', () => '', service), '')
+  assert.equal(await contentModelCredential('sso', () => 'editor-session', service), 'editor-session')
   await assert.rejects(contentModelCredential('account', () => {throw new Error('session unavailable')}, service), /session unavailable/)
 })
 

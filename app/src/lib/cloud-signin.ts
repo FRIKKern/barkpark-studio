@@ -7,6 +7,11 @@
 //   <cloud> (signed in, team member, return_to on the instance's allowlist) ── 302 ──▶
 //   /auth/cloud/callback?ticket&state ── POST <barkpark>/v1/auth/login-tickets/exchange
 //
+// STUDIO_SIGN_IN=sso (task-8bdf1b15305af840) runs the same round trip through the
+// instance's own OIDC instead: /auth/cloud/start ── 302 ──▶ <barkpark>/v1/auth/oidc/<org>/start,
+// the identity provider, then Barkpark's callback ── 302 ──▶ /auth/cloud/callback, and the
+// ticket is traded at POST <barkpark>/v1/auth/sso/exchange (ssoConfig).
+//
 // `state` (in an HttpOnly cookie) ties the callback to the browser that started; the
 // PKCE verifier (S256) ties the ticket to this server, so a ticket read off a log or a
 // URL is worth nothing without it. Pure but for `fetch`, so it has a fast test.
@@ -17,7 +22,8 @@ export const CLOUD_COOKIE = 'bp_cloud'
 export const CLOUD_PATH = '/auth/cloud'
 export const CLOUD_TTL_SECONDS = 600
 
-export type CloudConfig = {cloudUrl: string; instance: string}
+/** Where the editor proves who they are (`start`, with `params`), and the Barkpark path that trades the ticket. */
+export type CloudConfig = {start: string; params: Record<string, string>; exchange: string}
 /** What the start leaves in the cookie for the callback (sealed). */
 export type CloudPending = {state: string; verifier: string; origin: string; redirect: string; exp: number}
 export type CloudError = 'state' | 'ticket' | 'not_seated' | 'unavailable'
@@ -26,7 +32,14 @@ export type CloudError = 'state' | 'ticket' | 'not_seated' | 'unavailable'
 export function cloudConfig(env: Record<string, string | undefined>, accountMode: boolean): CloudConfig | undefined {
   const cloudUrl = env.BARKPARK_CLOUD_URL?.trim().replace(/\/+$/, '')
   const instance = env.BARKPARK_CLOUD_INSTANCE?.trim()
-  return accountMode && cloudUrl && instance ? {cloudUrl, instance} : undefined
+  return accountMode && cloudUrl && instance ? {start: `${cloudUrl}/studio-signin`, params: {instance}, exchange: '/v1/auth/login-tickets/exchange'} : undefined
+}
+
+/** STUDIO_SIGN_IN=sso: the instance's OIDC sign-in for the organization STUDIO_SSO_ORG names. */
+export function ssoConfig(env: Record<string, string | undefined>): CloudConfig | undefined {
+  const barkparkUrl = env.BARKPARK_URL?.trim().replace(/\/+$/, '')
+  const org = env.STUDIO_SSO_ORG?.trim()
+  return barkparkUrl && org ? {start: `${barkparkUrl}/v1/auth/oidc/${encodeURIComponent(org)}/start`, params: {}, exchange: '/v1/auth/sso/exchange'} : undefined
 }
 
 /** This studio's public origin: STUDIO_PUBLIC_URL when set, else the request's. */
@@ -40,8 +53,8 @@ export const challengeOf = (verifier: string) => b64url(createHash('sha256').upd
 /** The pending sign-in to seal in the cookie, and where to send the browser. */
 export function cloudStart(cfg: CloudConfig, origin: string, redirect: string, now = Date.now()): {pending: CloudPending; location: string} {
   const pending: CloudPending = {state: b64url(randomBytes(32)), verifier: b64url(randomBytes(32)), origin, redirect, exp: Math.floor(now / 1000) + CLOUD_TTL_SECONDS}
-  const q = new URLSearchParams({instance: cfg.instance, return_to: `${origin}${CLOUD_PATH}/callback`, state: pending.state, code_challenge: challengeOf(pending.verifier)})
-  return {pending, location: `${cfg.cloudUrl}/studio-signin?${q}`}
+  const q = new URLSearchParams({...cfg.params, return_to: `${origin}${CLOUD_PATH}/callback`, state: pending.state, code_challenge: challengeOf(pending.verifier)})
+  return {pending, location: `${cfg.start}?${q}`}
 }
 
 /** The callback came back to the browser that started it, in time. */
@@ -60,12 +73,12 @@ type Fetch = typeof fetch
  * (a session with no seat here is signed out again at Barkpark). Never logs the ticket
  * or the session.
  */
-export async function cloudExchange(opts: {barkparkUrl: string; ticket: unknown; pending: CloudPending; workspace: string; fetch?: Fetch}): Promise<{ok: true; email: string; token: string} | {ok: false; error: CloudError}> {
+export async function cloudExchange(opts: {barkparkUrl: string; exchange: string; ticket: unknown; pending: CloudPending; workspace: string; fetch?: Fetch}): Promise<{ok: true; email: string; token: string} | {ok: false; error: CloudError}> {
   const f = opts.fetch ?? fetch
   if (typeof opts.ticket !== 'string' || !opts.ticket) return {ok: false, error: 'ticket'}
   let res: Response
   try {
-    res = await f(`${opts.barkparkUrl}/v1/auth/login-tickets/exchange`, {
+    res = await f(`${opts.barkparkUrl}${opts.exchange}`, {
       method: 'POST',
       headers: {'content-type': 'application/json'},
       body: JSON.stringify({ticket: opts.ticket, audience: opts.pending.origin, code_verifier: opts.pending.verifier}),
