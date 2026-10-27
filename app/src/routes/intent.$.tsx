@@ -4,7 +4,7 @@ import {useQueryClient} from '@tanstack/react-query'
 import {requireEditor} from '../lib/structure-route'
 import {anyDocQuery, schemaOf, schemasQuery} from '../lib/data'
 import {parseIntent} from '../lib/intent'
-import {choicesFor, startNew, templateChoice} from '../lib/templates'
+import {choiceById, choicesFor, startNew} from '../lib/templates'
 import {panesPath} from '../lib/panes'
 import {focusFirstField} from '../lib/focus'
 import {Navbar} from '../components/Navbar'
@@ -36,7 +36,8 @@ function IntentPage() {
         // A site's click-to-edit link names the field too: the pane opens on it (its J52 `path`).
         return void navigate({href: panesPath([{kind: 'types'}, {kind: 'list', type}, {kind: 'doc', id: intent.id, type, ...(intent.path ? {path: intent.path} : {})}]), replace: true})
       }
-      const choice = intent.template ? (templateChoice(intent.template, intent.params) ?? choicesFor(schemas, intent.type).find((c) => c.id === intent.template)) : choicesFor(schemas, intent.type)[0]
+      // The link's template, checked as user input (lib/template-resolve): one for its type only.
+      const choice = intent.template ? choiceById(schemas, intent.type, intent.template, intent.params) : choicesFor(schemas, intent.type)[0]
       if (gone) return
       if (!choice || !schemaOf(schemas, choice.type)) return setFailed(t('This link is not one the Studio knows.'))
       const id = intent.id ?? crypto.randomUUID()
