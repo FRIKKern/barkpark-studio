@@ -15,6 +15,7 @@ import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refTypesO
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
+import {choiceById} from '../lib/templates'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
 import {groupShows} from '../lib/conditions'
@@ -95,6 +96,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const viewingPublished = usePublishedPerspective()
   const narrow = useContext(NarrowContext)
   const draftQ = useQuery(docQuery(pane.type, pane.id))
+  // A new document lives only in the tab until its first edit. Its URL names its template
+  // (template=…, as Sanity's), so after a reload or from a copied link Barkpark has none, and
+  // it opens new again with the template's values, not "not found".
+  const qcHere = useQueryClient()
+  useEffect(() => {
+    if (!pane.template || draftQ.data !== null || !schemas.length) return
+    const choice = choiceById(schemas, pane.type, pane.template, pane.templateParams)
+    if (choice) draftNew(qcHere, pane.type, pane.id, choice.value)
+  }, [pane.template, pane.templateParams, pane.type, pane.id, draftQ.data, schemas, qcHere])
   // The published version: for its perspective, and (J15) to see what the draft changed.
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished || (!!draftQ.data?._draft && draftQ.data?._hasPublished !== false)})
   const docQ = viewingPublished ? publishedQ : draftQ

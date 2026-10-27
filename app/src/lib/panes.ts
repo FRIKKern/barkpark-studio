@@ -13,7 +13,7 @@ export type Pane =
   | {kind: 'types'}
   | {kind: 'menu'; node: string}
   | {kind: 'list'; type: string; node?: string; treeParent?: string}
-  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean; inspect?: string; rev?: string; path?: string; node?: string; untyped?: boolean}
+  | {kind: 'doc'; id: string; type: string; parentRefPath?: string; view?: string; sibling?: boolean; inspect?: string; rev?: string; path?: string; node?: string; untyped?: boolean; template?: string; templateParams?: Record<string, string>}
 
 // Sanity's inspector names (`inspect=sanity/structure/validation`), so a link copied
 // from either studio opens the same inspector in the other. History is one inspector
@@ -28,6 +28,21 @@ const inspectOut = (inspect: string) =>
     : inspect === 'history'
       ? `,changesInspectorTab=history,inspect=${encodeURIComponent(HISTORY)}`
       : `,inspect=${encodeURIComponent(SANITY_INSPECT[inspect] ?? inspect)}`
+
+// A new document's template parameters, as Sanity writes them after `template=`: base64 of
+// their JSON (url-safe, unpadded when ours writes it; padded or not, either alphabet, read).
+const paramsOut = (params: Record<string, string>) =>
+  btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(params)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+function paramsIn(raw: string): Record<string, string> | undefined {
+  try {
+    const b64 = raw.replace(/-/g, '+').replace(/_/g, '/')
+    const json = new TextDecoder().decode(Uint8Array.from(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)), (c) => c.charCodeAt(0)))
+    const v = JSON.parse(json) as unknown
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, string>) : undefined
+  } catch {
+    return undefined
+  }
+}
 
 export function parsePanes(splat: string | undefined): Pane[] {
   const panes: Pane[] = [{kind: 'types'}]
@@ -49,6 +64,9 @@ export function parseDocSegments(segs: string[], listType: string): Extract<Pane
       // Split each param at its first "=" only: the router shows the URL decoded, and a
       // field path inside an array item has its own (path=links[_key=="l1"].title).
       const p = Object.fromEntries(params.filter(Boolean).map((kv) => [kv.slice(0, kv.indexOf('=') < 0 ? kv.length : kv.indexOf('=')), kv.indexOf('=') < 0 ? '' : kv.slice(kv.indexOf('=') + 1)].map(decodeURIComponent)))
+      // The param after `template=` with no "=" of its own (or base64 padding only) is its parameters.
+      const payload = p.template ? params.slice(params.findIndex((kv) => kv.startsWith('template=')) + 1).find((kv) => /^[A-Za-z0-9+/_-]+=*$/.test(kv)) : undefined
+      const templateParams = payload ? paramsIn(decodeURIComponent(payload)) : undefined
       const pane: Extract<Pane, {kind: 'doc'}> = {
         kind: 'doc',
         id: id ? decodeURIComponent(id) : first?.id ?? '',
@@ -62,6 +80,10 @@ export function parseDocSegments(segs: string[], listType: string): Extract<Pane
         // J52: the focused field (Sanity's `path=seo.metaTitle`): a reload or a copied
         // link opens on it.
         path: p.path,
+        // A new document's template (Sanity's `template=post-by-author,<params>`): until its
+        // first edit it exists only in the tab, so a reload rebuilds it from these.
+        ...(p.template && {template: p.template}),
+        ...(templateParams && {templateParams}),
         sibling: !!first || undefined,
         // A followed doc with no `type=` (a hand-trimmed link): its type is looked up, as Sanity does.
         ...(k > 0 && !p.type && !first && {untyped: true}),
@@ -105,6 +127,7 @@ export function panesPath(panes: Pane[]): string {
       if (p.inspect) params += inspectOut(p.inspect)
       if (p.rev) params += `,rev=${encodeURIComponent(p.rev)}`
       if (p.path) params += `,path=${encodeURIComponent(p.path)}`
+      if (p.template) params += `,template=${encodeURIComponent(p.template)}${p.templateParams && Object.keys(p.templateParams).length ? `,${paramsOut(p.templateParams)}` : ''}`
       // A sibling of the same doc carries only its own params, like Sanity's "|,".
       if (p.sibling) segs[segs.length - 1] += `|,${p.view ? `view=${encodeURIComponent(p.view)}` : ''}`
       else segs.push(encodeURIComponent(p.node ?? p.id) + params)

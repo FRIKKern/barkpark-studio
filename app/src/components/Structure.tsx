@@ -975,7 +975,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               // A declared list's initialValues go on top (Barkpark's desk initialValues).
               startNew(qc, schemas, choice, id, newDocPreset(node, !!childTemplate)).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
               // A child list's template opens the new doc under its type's own list, as Sanity's create intent does.
-              void navigate({href: childTemplate ? panesPath([{kind: 'types'}, {kind: 'list', type}, {kind: 'doc', id, type}]) : openAfter(panes, index, {kind: 'doc', id, type})})
+              // Its URL names the template (and parameters), as Sanity's: a reload before the first edit rebuilds it.
+              const made = {kind: 'doc' as const, id, type, template: choice.id, ...(choice.params && {templateParams: choice.params})}
+              void navigate({href: childTemplate ? panesPath([{kind: 'types'}, {kind: 'list', type}, made]) : openAfter(panes, index, made)})
               focusFirstField(id)
             }}
           />
