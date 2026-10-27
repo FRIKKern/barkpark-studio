@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 14 changes
+- **Today** · 15 changes
+  - list search: one capped round of searches, not counts then a search ([#1173](https://github.com/FRIKKern/barkpark-studio/pull/1173))
   - New documents: the URL names the template, so a reload before the first edit keeps it ([#1174](https://github.com/FRIKKern/barkpark-studio/pull/1174))
-  - J26: judge the F2 split budget on a production build, log it on dev ([#1172](https://github.com/FRIKKern/barkpark-studio/pull/1172))
 - **Yesterday** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
