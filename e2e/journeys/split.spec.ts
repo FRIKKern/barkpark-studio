@@ -82,7 +82,10 @@ test('@local J26: split pane right, edit both sides, close the split', async ({p
   await expect(titles).toHaveValue('Fixture post 26 left right')
 
   if (t.name === 'studio') {
-    expect(split.ms, 'F2 split opens').toBeLessThan(100)
+    // F2 is a production budget, judged on a production build (E2E_PROD=1, or CI's) as
+    // editors-chunk.spec judges its own. The dev server's React is slower: 194, 106 and 106 ms
+    // where the build gave 90, 73 and 70. There the time is logged (recordFeel), not judged.
+    if (process.env.CI || process.env.E2E_PROD) expect(split.ms, 'F2 split opens').toBeLessThan(100)
     expect(split.cls, `F2 zero layout shift (moved: ${split.shifted})`).toBe(0)
     await page.locator('.save-state-text', {hasText: /^Saved$/}).waitFor() // let the last write land before the reset
   }
