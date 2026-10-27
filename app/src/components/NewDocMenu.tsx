@@ -4,6 +4,7 @@ import {useNavigate} from '@tanstack/react-router'
 import {isSingleton, schemaOf, schemasQuery} from '../lib/data'
 import {choicesFor, startNew, type Choice} from '../lib/templates'
 import {focusFirstField} from '../lib/focus'
+import {panesPath} from '../lib/panes'
 import {useFocusScope} from '../lib/focus-scope'
 import {useCanWrite} from '../lib/session'
 import {Add, Close, Search} from './icons'
@@ -36,7 +37,7 @@ export function NewDocMenu() {
             setOpen(false)
             const id = crypto.randomUUID()
             startNew(qc, schemas, choice, id).catch((err) => toast({tone: 'critical', title: tBrowser('Could not create the document'), description: (err as Error).message}))
-            void navigate({href: `/structure/${choice.type};${id}`})
+            void navigate({href: panesPath([{kind: 'types'}, {kind: 'list', type: choice.type}, {kind: 'doc', id, type: choice.type, template: choice.id}])})
             focusFirstField(id)
           }}
         />

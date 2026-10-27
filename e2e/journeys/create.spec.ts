@@ -90,6 +90,28 @@ test('@local J18: a parameterised template from a structure item — Posts by au
   await page.screenshot({path: `evidence/J18-${t.name}-param-template.png`})
 })
 
+// task-464876895f8ab042: a new document's URL names its template and parameters, as
+// Sanity's (`;<id>,template=post-by-author,<base64 JSON>`): a reload or a copied link before
+// the first edit opens the same new document, the template's values in it, not "not found".
+// Nothing is written: no edit is made.
+test('@local J18: a new doc from a template survives a reload before its first edit', async ({page}, info) => {
+  const t = target(info)
+  await t.prepare(page.context())
+  await page.goto('/structure/posts-by-author;author-alan')
+  await t.settle(page)
+  await expect(page.getByText('Fixture post 07', {exact: true}).first()).toBeVisible()
+  await page.getByRole('link', {name: 'Post by author'}).or(page.getByRole('button', {name: 'Post by author'})).first().click()
+  await expect(t.field(page, 'title')).toBeVisible()
+  await expect.poll(() => decodeURIComponent(page.url())).toMatch(/;[0-9a-f-]{36},template=post-by-author,[A-Za-z0-9+/=_-]+$/)
+  const url = page.url()
+  await page.reload()
+  await t.settle(page)
+  expect(page.url()).toBe(url)
+  await expect(t.field(page, 'title')).toBeVisible({timeout: 15_000})
+  await expect(page.getByText('The document was not found')).toHaveCount(0)
+  await expect(page.locator('[data-testid="document-pane"]').last().getByText('Alan Turing').first()).toBeVisible()
+})
+
 // An initial value on a field hidden at the start (fieldTypes' hiddenNote, until Agree) is set all the same, as Sanity's.
 test('@local J18: a field hidden at the start still gets its initial value', async ({page}, info) => {
   const t = target(info)

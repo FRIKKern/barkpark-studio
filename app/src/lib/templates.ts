@@ -9,7 +9,7 @@ import studio from '../studio.config'
 // new offers them all: the navbar "+", a list's "+" (a menu once there are several)
 // and a reference field's Create.
 
-export type Choice = {id: string; title: string; type: string; value: Record<string, unknown>}
+export type Choice = {id: string; title: string; type: string; value: Record<string, unknown>; params?: Record<string, string>}
 
 /** The ways to start `type`: its own first, then the config's templates for it, in config order. */
 export function choicesFor(schemas: Schema[], type: string): Choice[] {
@@ -24,7 +24,13 @@ export function choicesFor(schemas: Schema[], type: string): Choice[] {
 export function templateChoice(id: string, params: Record<string, string>): Choice | undefined {
   const t = studio.templates?.find((x) => x.id === id)
   if (!t) return undefined
-  return {id: t.id, title: t.title, type: t.schemaType, value: typeof t.value === 'function' ? t.value(params) : t.value}
+  return {id: t.id, title: t.title, type: t.schemaType, value: typeof t.value === 'function' ? t.value(params) : t.value, params}
+}
+
+/** A template named in a new document's URL (`template=…`), with its parameters: the type's own, or the config's. */
+export function choiceById(schemas: Schema[], type: string, id: string, params?: Record<string, string>): Choice | undefined {
+  if (params && Object.keys(params).length) return templateChoice(id, params)
+  return choicesFor(schemas, type).find((c) => c.id === id)
 }
 
 /**

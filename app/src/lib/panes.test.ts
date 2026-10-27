@@ -68,3 +68,16 @@ test('a followed doc without type= is marked for a type lookup; the first doc an
   assert.equal((parsePanes('post;post-01;author-alan,type=author')[3] as {untyped?: boolean}).untyped, undefined)
   assert.equal((parsePanes('post;post-01|,')[3] as {untyped?: boolean}).untyped, undefined)
 })
+
+// task-464876895f8ab042: a new document's template and parameters, in Sanity's own words:
+// `template=post-by-author` then the parameters as base64 JSON.
+test('a new doc names its template and parameters, as Sanity writes them', () => {
+  const sanity = 'post;n1,template=post-by-author,eyJhdXRob3JJZCI6ImF1dGhvci1hZGEifQ'
+  const [, , doc] = parsePanes(sanity)
+  assert.deepEqual(doc, {kind: 'doc', id: 'n1', type: 'post', parentRefPath: undefined, view: undefined, inspect: undefined, rev: undefined, path: undefined, template: 'post-by-author', templateParams: {authorId: 'author-ada'}, sibling: undefined})
+  assert.equal(panesPath(parsePanes(sanity)), `/structure/${sanity}`)
+  // A plain type's template: no parameters.
+  assert.equal(panesPath(parsePanes('category;n2,template=category')), '/structure/category;n2,template=category')
+  // Padded base64 reads the same.
+  assert.deepEqual((parsePanes('post;n1,template=post-by-author,eyJhdXRob3JJZCI6ImF1dGhvci1hZGEifQ==')[2] as {templateParams?: unknown}).templateParams, {authorId: 'author-ada'})
+})
