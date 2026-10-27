@@ -118,6 +118,9 @@ const Q = [
   // outside, in a hole, on an edge (contains false, intersects true), a MultiPolygon, a LineString, an open ring (null).
   {id: 'docs-geo-shapes', q: '*[_id == "field-types-01"][0]{"in": geo::contains($box, place), "out": geo::contains($far, place), "hole": geo::contains($holed, place), "edge": [geo::contains($box, geo::latLng(59, 10.5)), geo::intersects($box, geo::latLng(59, 10.5))], "multi": geo::intersects($multi, place), "line": [geo::intersects($line, $box), geo::contains($box, $line)], "bad": geo::contains($open, place), "self": geo::contains($box, $box)}', params: GEO},
   {id: 'docs-geo-filter', q: '*[_type == "fieldTypes" && geo::contains($box, place)]._id', params: {box: GEO.box}},
+  // user::attributes() (task-de59c528ba98db66): null for a caller without member attributes; in a filter it
+  // compares like any null, so a missing field matches and a set one does not.
+  {id: 'docs-user-attributes', q: '{"a": user::attributes(), "b": user::attributes().branch, "d": defined(user::attributes()), "missing": count(*[_type == "post" && nosuchfield == user::attributes().branch]), "set": count(*[_type == "post" && title == user::attributes().branch])}'},
 ]
 
 const bpBase = `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}/${API}/data/query/${DATASET}`
