@@ -613,7 +613,9 @@ function TypesPane({panes, index, selected}: {panes: Pane[]; index: number; sele
         ))}
         {/* J18: the studio config's own structure items, after a divider (Sanity's S.divider()). */}
         {own.length > 0 && <hr className="desk-divider" />}
-        {own.map((item) => {
+        {own.map((item, i) => {
+          // A divider among them, as in a nested list (Sanity's S.divider(), titled or not).
+          if (item.type === 'divider') return item.title ? <div key={item.id ?? i} className="desk-divider">{item.title}</div> : <hr key={item.id ?? i} className="desk-divider" />
           const to = opens(item)
           return to ? (
             <PaneLink key={item.id} className="type-row" href={openAfter(panes, index, to)} aria-current={selected === item.id && index === panes.length - 2} data-selected={selected === item.id ? '' : undefined}>
