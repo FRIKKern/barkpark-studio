@@ -92,6 +92,9 @@ export function observedVocabulary(value: unknown): PtVocabulary {
   return {styles: out(seen.styles), lists: out(seen.lists), decorators: out(seen.decorators), annotations: out(seen.annotations), blockObjects: out(seen.blockObjects), inlineObjects: out(seen.inlineObjects)}
 }
 
+// An image block (Sanity's `image` in blocks.of) holds its asset, hotspot and crop beside its own fields.
+const IMAGE_PARTS = ['asset', 'hotspot', 'crop'].map((name) => ({name, type: 'object'}) as Field)
+
 const union = (a: Named[], b: Named[]) => [...a, ...b.filter((n) => !a.some((m) => m.name === n.name))]
 
 /**
@@ -110,7 +113,7 @@ export function editorSchema(field: Pick<Field, 'blocks'>, value: unknown, schem
     decorators: union(d.decorators, o.decorators),
     // Each with every field it may hold: the editor drops a markDef field it was not told.
     annotations: union(d.annotations, o.annotations).map((a) => ({...a, fields: editorFields(objectFields(field, 'annotation', a.name, value, schemas), storedObjects(value, 'annotation', a.name))})),
-    blockObjects: union(d.blockObjects, o.blockObjects).map((b) => ({...b, fields: editorFields(objectFields(field, 'block', b.name, value, schemas), storedObjects(value, 'block', b.name))})),
+    blockObjects: union(d.blockObjects, o.blockObjects).map((b) => ({...b, fields: editorFields([...(b.name === 'image' ? IMAGE_PARTS : []), ...objectFields(field, 'block', b.name, value, schemas)], storedObjects(value, 'block', b.name))})),
     inlineObjects: union(d.inlineObjects, o.inlineObjects).map((i) => ({...i, fields: editorFields(objectFields(field, 'inline', i.name, value, schemas), storedObjects(value, 'inline', i.name))})),
   }
 }
@@ -376,7 +379,7 @@ export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: st
 /** What Insert offers: the declared custom block and inline object types. An image or file block needs its own input: not yet. */
 export function insertable(field: Pick<Field, 'blocks'>): {blocks: Named[]; inline: Named[]} {
   const d = declaredVocabulary(field)
-  return {blocks: d.blockObjects.filter((b) => b.name !== 'image' && b.name !== 'file'), inline: d.inlineObjects}
+  return {blocks: d.blockObjects.filter((b) => b.name !== 'file'), inline: d.inlineObjects}
 }
 
 /**
