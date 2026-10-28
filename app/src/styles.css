@@ -3627,6 +3627,10 @@ html[data-theme='dark'] .pt-annotation-pop .icon-btn:hover { background: #e4e5e9
 .pt-object-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pt-object-label { flex: none; font-weight: 500; color: var(--fg); }
 .pt-object-preview { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pt-object-edit { flex: none; margin-left: auto; }
+.pt-object-menu { flex: none; margin-left: auto; }
+/* Sanity's: the menu 4 px left of its …, centred on it, as wide as its items; the card shows
+   selected (info fill, blue ring) while it is open, as the canvas's. */
+.popover.menu.pt-object-actions { top: 50%; right: calc(100% + 4px); transform: translateY(-50%); min-width: 0; width: max-content; }
+.pt-object:has(.pt-object-more[aria-expanded='true']) { background: var(--tone-info-bg); box-shadow: 0 0 0 1px var(--card-selected-ring); }
 .pt-inline-object [role='button'] { cursor: pointer; }
 .pt-note { margin: 0; padding: 6px 12px; font-size: 13px; border-bottom: 1px solid var(--line); }

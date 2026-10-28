@@ -25,7 +25,7 @@ import {declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, mar
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {MenuPopover} from './FocusScopes'
-import {Add, BoldIcon, CodeIcon, EditIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
+import {Add, BoldIcon, CodeIcon, EditIcon, Ellipsis, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
 // S4a (task-7f77f41c95cc6d9f): a richText field holding Portable Text, edited with
 // @portabletext/editor (owner decision D2). Text, styles, lists and decorators edit.
@@ -98,13 +98,22 @@ function preview(node: Obj): string {
   return (first(node) ?? nested.map(([, v]) => first(v as object)).find(Boolean) ?? '').trim()
 }
 
-/** A custom block: its type's title, a line of its text, and Edit (a double click too). */
+/**
+ * A custom block: its type's title, a line of its text, and Sanity's "Open menu" (…) with
+ * Edit and Remove. A double click edits it too.
+ */
 function BlockCard({node, path, title, readOnly, attributes, children}: {node: Obj; path: unknown[]; title: string; readOnly: boolean; attributes: Record<string, unknown>; children: ReactNode}) {
   const t = useT()
+  const editor = useEditor()
   const edit = useContext(EditObject)
+  const [menu, setMenu] = useState(false)
   const open = () => !readOnly && edit?.({kind: 'block', node, path})
-  const label = t('Edit {name}', {name: title})
   const line = preview(node)
+  const remove = () => {
+    setMenu(false)
+    editor.send({type: 'delete.block', at: path as never})
+    editor.send({type: 'focus'})
+  }
   return (
     <div {...attributes} className="pt-object" data-type={node._type} onDoubleClick={open}>
       {children}
@@ -112,9 +121,32 @@ function BlockCard({node, path, title, readOnly, attributes, children}: {node: O
         <span className="pt-object-label">{title}</span>
         {line && <span className="pt-object-preview">{line}</span>}
         {!readOnly && edit && (
-          <button type="button" className="icon-btn pt-object-edit" aria-label={label} data-tip={label} data-tip-side="top" onClick={open}>
-            <EditIcon />
-          </button>
+          // The editor never sees the menu's pointer and keys (it would select the block and take the focus back).
+          <span
+            className="menu-wrap pt-object-menu"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}
+          >
+            <button type="button" className="icon-btn pt-object-more" aria-label={t('Open menu')} data-tip={t('Show more')} data-tip-side="top" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+              <Ellipsis />
+            </button>
+            {menu && (
+              <MenuPopover className="popover menu pt-object-actions" onClose={() => setMenu(false)}>
+                <button type="button" role="menuitem" className="menu-item" autoFocus onClick={() => (setMenu(false), open())}>
+                  <span className="menu-icon-text">
+                    <EditIcon /> {t('Edit')}
+                  </span>
+                </button>
+                <button type="button" role="menuitem" className="menu-item danger" onClick={remove}>
+                  <span className="menu-icon-text">
+                    <Trash /> {t('Remove')}
+                  </span>
+                </button>
+              </MenuPopover>
+            )}
+          </span>
         )}
       </span>
     </div>

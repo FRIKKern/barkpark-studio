@@ -226,7 +226,8 @@ test('@local Portable Text: insert a custom block and an inline object, edit sto
   for (const b of draft) if (b._key !== 'p4') expect(JSON.stringify(b)).toBe(JSON.stringify(before.find((x) => x._key === b._key)))
 
   // The stored custom block: its tone edited, its nested field kept.
-  await editor.locator('.pt-object[data-type="kettleCallout"]').getByRole('button', {name: 'Edit Kettle Callout'}).click()
+  await editor.locator('.pt-object[data-type="kettleCallout"]').getByRole('button', {name: 'Open menu'}).click()
+  await page.getByRole('menuitem', {name: 'Edit'}).click()
   const kettle = page.getByRole('dialog', {name: 'Kettle Callout'})
   await kettle.locator('[id="body.kettleCallout.tone"]').fill('cold')
   await kettle.getByRole('button', {name: 'Close dialog'}).click()
@@ -355,4 +356,18 @@ test('@local Portable Text: Expand editor and back keeps the caret; Cmd/Ctrl+Ent
   await expect(editor).toBeFocused()
   await savesLanded(page)
   await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Cups and saucers')
+})
+
+// task-2a1286a4e3d569de: a custom block's … menu, as Sanity's: Edit and Remove.
+test('@local Portable Text: a custom block\'s menu removes it; every other block stays as stored', async ({page}, info) => {
+  const stored = ((await read('published'))!.body ?? []) as typeof BODY
+  const editor = await open(page, info)
+  await editor.locator('.pt-object[data-type="kettleCallout"]').getByRole('button', {name: 'Open menu'}).click()
+  await expect(page.getByRole('menuitem')).toHaveText(['Edit', 'Remove'])
+  await page.getByRole('menuitem', {name: 'Remove'}).click()
+  await expect(editor.locator('.pt-object[data-type="kettleCallout"]')).toHaveCount(0)
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).not.toContain('kettleCallout')
+  const draft = (await read('drafts'))!.body as typeof BODY
+  expect(JSON.stringify(draft)).toBe(JSON.stringify(stored.filter((b) => b._key !== 'c1')))
 })
