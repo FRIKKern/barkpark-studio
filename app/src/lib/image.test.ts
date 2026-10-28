@@ -2,7 +2,7 @@
 // moves (measured 2026-10-06 on reference/sanity, e2e/journeys/image.spec.ts).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {assetUrl, dragCrop, fitHotspot, frame, imageFileName, imageRef, pickedImage, sanityImageId, sanityImagePath, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
+import {assetUrl, cropView, dragCrop, fitHotspot, frame, imageFileName, imageRef, pickedImage, sanityImageId, sanityImagePath, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≉ ${b}`)
 
@@ -78,4 +78,16 @@ test('a Sanity image id: parsed, mapped to Barkpark\'s Sanity image route, serve
   assert.equal(assetUrl(`image-${sha1}-640x400-png`), `/api/media/image-${sha1}-640x400-png`)
   for (const ref of ['asset-123', `image-${sha1}-0x400-png`, `image-abc-640x400-png`, `file-${sha1}-pdf`, `image-${sha1}-640x400`, undefined, 42])
     assert.equal(sanityImageId(ref), null, String(ref))
+})
+
+test('cropView: the image input shows the crop only, as the rect Sanity asks for (640x400, left half and bottom 30% cut)', () => {
+  const v = cropView({top: 0, bottom: 0.3, left: 0.5, right: 0}, {width: 640, height: 400})!
+  // Sanity's preview asks for rect=320,0,320,280: a 320 x 280 box.
+  assert.equal(v.width, 320)
+  assert.equal(v.ratio, 320 / 280)
+  assert.deepEqual(v.style, {position: 'absolute', width: '200%', height: '142.8571%', left: '-100%', top: '0%', maxWidth: 'none', maxHeight: 'none'})
+  // Nothing cropped (or no crop, or a broken one): the plain preview.
+  assert.equal(cropView({top: 0, bottom: 0, left: 0, right: 0}, {width: 640, height: 400}), null)
+  assert.equal(cropView(undefined, {width: 640, height: 400}), null)
+  assert.equal(cropView({top: 0.6, bottom: 0.6, left: 0, right: 0}, {width: 640, height: 400}), null)
 })

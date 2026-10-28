@@ -9,7 +9,7 @@ import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
 import {UnsupportedAssetCard} from './BrokenValues'
-import {assetUrl, sanityImageId, dragCrop, fitHotspot, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
+import {assetUrl, cropView, sanityImageId, dragCrop, fitHotspot, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 import {uploadFile, uploadReason, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
 import {useFileInfo} from './FileInput'
@@ -53,6 +53,8 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   // sit: contained in the 270 px box, never larger than the image itself.
   const {data: info, error: infoError} = useFileInfo(ref)
   const [loaded, setLoaded] = useState<string>()
+  // A crop set on the image: the preview shows that part only (cropView in lib/image.ts).
+  const crop = info?.width && info.height ? cropView(image.crop, {width: info.width, height: info.height}) : null
   const placeholder =
     ref && loaded !== ref && info?.lqip && info.width && info.height
       ? {backgroundImage: `url("${info.lqip}")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundSize: `min(${info.width}px, 100%, ${Math.round((270 * info.width) / info.height)}px) auto`}
@@ -161,7 +163,14 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       ) : (
         <div className="image-preview" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste an image to replace it', {title})} data-over={over || undefined} style={placeholder} {...target}>
           {overlay}
-          <img src={imageSrc(ref, 1200, 540)} alt={t('Preview of uploaded image')} decoding="async" onLoad={() => setLoaded(ref)} ref={(el) => void (el?.complete && el.naturalWidth && loaded !== ref && setLoaded(ref))} />
+          {crop ? (
+            // Sanity's preview shows the crop (its rect), never more of the image than the crop.
+            <span className="image-crop" style={{width: `min(100%, ${Math.round(270 * crop.ratio)}px, ${Math.round(crop.width)}px)`, aspectRatio: String(crop.ratio)}}>
+              <img src={imageSrc(ref, 1200, 540)} alt={t('Preview of uploaded image')} decoding="async" onLoad={() => setLoaded(ref)} ref={(el) => void (el?.complete && el.naturalWidth && loaded !== ref && setLoaded(ref))} style={crop.style} />
+            </span>
+          ) : (
+            <img src={imageSrc(ref, 1200, 540)} alt={t('Preview of uploaded image')} decoding="async" onLoad={() => setLoaded(ref)} ref={(el) => void (el?.complete && el.naturalWidth && loaded !== ref && setLoaded(ref))} />
+          )}
           <div className="image-actions">
             {hotspot && (
               <button type="button" className="icon-btn" aria-label={t('Open image edit dialog')} title={t('Edit hotspot and crop')} disabled={readOnly} onClick={() => setEditing(true)}>

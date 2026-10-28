@@ -141,6 +141,24 @@ export function dragCrop(c: Crop, side: CropSide, px: number, py: number): Crop 
 }
 
 /**
+ * How a preview shows only an image's crop: the crop's aspect ratio and pixel width, and the
+ * whole image's size and offset inside a box of that ratio, in percent. Null when nothing is
+ * cropped (or the crop is not a usable one).
+ */
+export function cropView(c: Crop | undefined, natural: {width: number; height: number}) {
+  if (!c) return null
+  const cw = 1 - c.left - c.right
+  const ch = 1 - c.top - c.bottom
+  if (!(cw > 0 && ch > 0) || (cw >= 1 && ch >= 1)) return null
+  const pct = (n: number) => `${+(n * 100).toFixed(4)}%`
+  return {
+    ratio: (cw * natural.width) / (ch * natural.height),
+    width: cw * natural.width,
+    style: {position: 'absolute', width: pct(1 / cw), height: pct(1 / ch), left: pct(-c.left / cw), top: pct(-c.top / ch), maxWidth: 'none', maxHeight: 'none'} as const,
+  }
+}
+
+/**
  * The part of the image a frame of aspect `ratio` (w/h) shows: the crop, cut
  * down to the ratio around the hotspot's centre (as Sanity's image URLs do).
  * In 0–1 fractions of the image; `natural` is the image's pixel size.
