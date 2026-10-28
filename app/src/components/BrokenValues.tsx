@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react'
-import type {Invalid, KeyProblem, RichTextProblem, SanityPortableText, UnsupportedAsset} from '../lib/broken'
+import type {Invalid, KeyProblem, RichTextProblem, UnsupportedAsset} from '../lib/broken'
 import {ErrorOutline, WarningOutline} from './icons'
 import {useT} from '../lib/i18n'
 
@@ -94,42 +94,6 @@ export function UnsupportedAssetCard({asset, value, onChange}: {asset: Unsupport
         {t('Reset value')}
       </button>
     </Card>
-  )
-}
-
-/**
- * B14: a rich text field holding Sanity Portable Text (a Sanity export brought over).
- * The canvas can't edit it, so its text shows read-only, never an empty canvas; saves
- * elsewhere leave it untouched. It offers no action: Reset would delete the whole body
- * (task-3396abb1524c3045).
- */
-export function SanityPortableTextCard({pt, value}: {pt: SanityPortableText; value: unknown}) {
-  const t = useT()
-  return (
-    <Card
-      tone="warn"
-      title={t('Sanity Portable Text')}
-      text={t('This field holds rich text from Sanity, which this studio cannot edit yet. Its text is shown below and kept as it is.')}
-      body={
-        <div className="broken-pt">
-          {pt.lines.map((line, i) =>
-            line.style === 'object' ? (
-              <p key={i} className="broken-label">
-                <code>{line.text}</code>
-              </p>
-            ) : /^h[1-6]$/.test(line.style) ? (
-              <p key={i}>
-                <strong>{line.text}</strong>
-              </p>
-            ) : (
-              <p key={i}>{line.style === 'listItem' ? `• ${line.text}` : line.text}</p>
-            ),
-          )}
-        </div>
-      }
-      dev={<pre className="broken-value">{json(value)}</pre>}
-      devOpen={false}
-    />
   )
 }
 

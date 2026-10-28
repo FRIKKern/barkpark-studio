@@ -24,9 +24,10 @@ draft-only). Until task-4460bcc2cab36c86 lands, step 3 needs `GODEBUG=http2clien
 ## What does not, and how it shows
 
 - **Portable Text bodies.** Stored as Sanity's block array; the rich text canvas reads
-  PortableDoc only. The field shows a "Sanity Portable Text" card with the text
-  read-only, kept byte-for-byte. It offers no Reset: that deleted the whole body
-  (task-3396abb1524c3045). Conversion at import: task-5412419a2e931805.
+  PortableDoc only. The field edits in a Portable Text input (@portabletext/editor,
+  task-7f77f41c95cc6d9f): text, styles, lists and decorators. Annotations, custom
+  blocks and inline objects show and are kept byte-for-byte until S4b and S4c. Conversion
+  at import: task-5412419a2e931805.
 - **Assets Barkpark has no file for** (`_sanityAsset` left over, a Sanity id with no file):
   an "Unsupported asset value" card, kept as it is (#368). A Sanity image id it has draws.
 - **Sanity system docs** (`sanity.previewUrlSecret` drafts) are imported but have no

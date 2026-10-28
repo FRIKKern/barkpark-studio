@@ -176,13 +176,14 @@ export default {
   'Unsupported asset value': 'Ressursverdi som ikke støttes',
   'This field points to a file from an export that has not been uploaded to Barkpark. It is kept as it is.': 'Dette feltet viser til en fil fra en eksport som ikke er lastet opp til Barkpark. Den beholdes som den er.',
   'This field points to an asset Barkpark does not know. It is kept as it is.': 'Dette feltet viser til en ressurs Barkpark ikke kjenner. Den beholdes som den er.',
-  'Sanity Portable Text': 'Sanity Portable Text',
-  'This field holds rich text from Sanity, which this studio cannot edit yet. Its text is shown below and kept as it is.': 'Dette feltet har rik tekst fra Sanity, som dette studioet ikke kan redigere ennå. Teksten vises under og beholdes som den er.',
   // A drag handle's role, heard by screen readers (aria-roledescription).
   'sortable': 'sorterbar',
   // J10, the rich text toolbar (Sanity's nb pack).
   'Formatting': 'Formatering',
   'No style': 'Ingen stil',
+  // S4a, the Portable Text input.
+  'Block style': 'Blokkstil',
+  'This text holds content the editor cannot read. It is shown read-only and kept as it is.': 'Denne teksten har innhold redigeringsverktøyet ikke kan lese. Den vises skrivebeskyttet og beholdes som den er.',
   'Normal': 'Normal',
   'Heading 1': 'Overskrift 1',
   'Heading 2': 'Overskrift 2',

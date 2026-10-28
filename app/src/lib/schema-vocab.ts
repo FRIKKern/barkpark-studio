@@ -35,6 +35,8 @@ export const FIELD_KEYS = {
   languages: 'localizedText: the languages it holds.',
   fallbackChain: 'localizedText: the order readers fall back through.',
   editor: 'richText: "blocks" for Barkpark\'s block editor.',
+  format: 'richText: "portableText" or "portableDoc", the stored format. localizedText: "plain" or "rich".',
+  blocks: 'richText: the block vocabulary (styles, lists, marks, annotations, of, inline: inline objects [{name, fields}]). The Portable Text input takes its toolbar from it.',
   codelistId: 'codelist: "<plugin>:<name>".',
   preview: 'An array item\'s row: {title, subtitle} subfield names.',
   visibleWhen: 'Shown only when {field, operator, value, scope?} holds.',
@@ -48,8 +50,6 @@ export const FIELD_KEYS = {
 /** Keys Barkpark reads on a field that the studio passes through as they are. */
 export const BARKPARK_FIELD_KEYS = {
   ordered: 'arrayOf: adds reordering.',
-  blocks: 'richText: the block vocabulary for Barkpark\'s editor (styles, lists, marks, annotations, of, inline: inline objects [{name, fields}]).',
-  format: 'localizedText: "plain" or "rich".',
   refTypeTolerant: 'reference: resolve the target as any type.',
   refTypes: 'reference: the types it may point to (another spelling of `to`).',
   surface: '"body" or "sidebar" (metadata only).',

@@ -244,6 +244,12 @@
         "editor": {
           "description": "richText: \"blocks\" for Barkpark's block editor."
         },
+        "format": {
+          "description": "richText: \"portableText\" or \"portableDoc\", the stored format. localizedText: \"plain\" or \"rich\"."
+        },
+        "blocks": {
+          "description": "richText: the block vocabulary (styles, lists, marks, annotations, of, inline: inline objects [{name, fields}]). The Portable Text input takes its toolbar from it."
+        },
         "codelistId": {
           "description": "codelist: \"<plugin>:<name>\"."
         },
@@ -271,12 +277,6 @@
         "ordered": {
           "description": "arrayOf: adds reordering.",
           "type": "boolean"
-        },
-        "blocks": {
-          "description": "richText: the block vocabulary for Barkpark's editor (styles, lists, marks, annotations, of, inline: inline objects [{name, fields}])."
-        },
-        "format": {
-          "description": "localizedText: \"plain\" or \"rich\"."
         },
         "refTypeTolerant": {
           "description": "reference: resolve the target as any type.",
@@ -425,6 +425,12 @@
         "editor": {
           "description": "richText: \"blocks\" for Barkpark's block editor."
         },
+        "format": {
+          "description": "richText: \"portableText\" or \"portableDoc\", the stored format. localizedText: \"plain\" or \"rich\"."
+        },
+        "blocks": {
+          "description": "richText: the block vocabulary (styles, lists, marks, annotations, of, inline: inline objects [{name, fields}]). The Portable Text input takes its toolbar from it."
+        },
         "codelistId": {
           "description": "codelist: \"<plugin>:<name>\"."
         },
@@ -452,12 +458,6 @@
         "ordered": {
           "description": "arrayOf: adds reordering.",
           "type": "boolean"
-        },
-        "blocks": {
-          "description": "richText: the block vocabulary for Barkpark's editor (styles, lists, marks, annotations, of, inline: inline objects [{name, fields}])."
-        },
-        "format": {
-          "description": "localizedText: \"plain\" or \"rich\"."
         },
         "refTypeTolerant": {
           "description": "reference: resolve the target as any type.",

@@ -54,6 +54,10 @@ export type Field = {
   fallbackChain?: string[]
   /** richText: `blocks` means Barkpark's block editor (the canvas). */
   editor?: string
+  /** richText: the stored format, `portableText` or `portableDoc` (owner decision D1; sniffed from the value when absent). */
+  format?: string
+  /** richText: the block vocabulary it declares, Sanity-shaped (styles, lists, marks, annotations, of, inline). */
+  blocks?: Record<string, unknown>
   /** codelist (B04/B05): `<plugin>:<name>`. */
   codelistId?: string
   /** An array member that is a named object type (Barkpark expands it): the type, for its icon. */
