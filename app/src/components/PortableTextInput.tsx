@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {
   defineAnnotation,
   defineBlockObject,
@@ -18,16 +18,18 @@ import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotat
 import {useQuery} from '@tanstack/react-query'
 import {schemasQuery, type Field} from '../lib/data'
 import {useT} from '../lib/i18n'
-import {declaredVocabulary, editorSchema, equal, mergeValue, newKey, objectFields, objectTitle, offeredAnnotations, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {declaredVocabulary, editorSchema, equal, insertable, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import type {OpenRef} from './Fields'
-import {BoldIcon, CodeIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
+import {MenuPopover} from './FocusScopes'
+import {Add, BoldIcon, CodeIcon, EditIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
 
 // S4a (task-7f77f41c95cc6d9f): a richText field holding Portable Text, edited with
 // @portabletext/editor (owner decision D2). Text, styles, lists and decorators edit.
 // S4b: annotations add, edit and go, in a dialog of the annotation's fields (lib/pt-value.ts
-// says where they come from); a reference field is the studio's reference input. Custom
-// blocks and inline objects (S4c) show and are kept as stored.
+// says where they come from); a reference field is the studio's reference input.
+// S4c: Insert adds a declared custom block or inline object; Edit on one opens its fields
+// in BlockObjectDialog, the named type's fields where the field declares none.
 // A save sets the whole field (lib/edits.ts, fenced on the doc's rev) with every block
 // and span the author did not touch exactly as it was stored (lib/pt-value.ts).
 
@@ -78,31 +80,83 @@ const annotations = defineAnnotation({
   ),
 })
 
-/** Custom blocks and inline objects: drawn by type name, kept as stored (S4c edits them). */
-function objectNodes(schema: PtSchema): RegistrableNode[] {
-  const title = (name: string, list: {name: string; title?: string}[]) => list.find((n) => n.name === name)?.title ?? name
+type ObjectKind = 'block' | 'inline'
+type Obj = Record<string, unknown> & {_type: string; _key: string}
+type ObjectEdit = {kind: ObjectKind; node: Obj; path: unknown[]}
+/** Opens the dialog for a custom block or inline object (Editor holds it). */
+const EditObject = createContext<((edit: ObjectEdit) => void) | null>(null)
+
+/** A short line of an object's own text for its card: its first non-empty string, else one a field object holds. */
+function preview(node: Obj): string {
+  const first = (o: object) => Object.entries(o).find(([k, v]) => !k.startsWith('_') && typeof v === 'string' && v.trim())?.[1] as string | undefined
+  const nested = Object.entries(node).filter(([k, v]) => !k.startsWith('_') && v && typeof v === 'object' && !Array.isArray(v))
+  return (first(node) ?? nested.map(([, v]) => first(v as object)).find(Boolean) ?? '').trim()
+}
+
+/** A custom block: its type's title, a line of its text, and Edit (a double click too). */
+function BlockCard({node, path, title, readOnly, attributes, children}: {node: Obj; path: unknown[]; title: string; readOnly: boolean; attributes: Record<string, unknown>; children: ReactNode}) {
+  const t = useT()
+  const edit = useContext(EditObject)
+  const open = () => !readOnly && edit?.({kind: 'block', node, path})
+  const label = t('Edit {name}', {name: title})
+  const line = preview(node)
+  return (
+    <div {...attributes} className="pt-object" data-type={node._type} onDoubleClick={open}>
+      {children}
+      <span className="pt-object-head" contentEditable={false}>
+        <span className="pt-object-label">{title}</span>
+        {line && <span className="pt-object-preview">{line}</span>}
+        {!readOnly && edit && (
+          <button type="button" className="icon-btn pt-object-edit" aria-label={label} data-tip={label} data-tip-side="top" onClick={open}>
+            <EditIcon />
+          </button>
+        )}
+      </span>
+    </div>
+  )
+}
+
+/** An inline object: its type's title (and a line of its text); a click opens it. */
+function InlineChip({node, path, title, readOnly, attributes, children}: {node: Obj; path: unknown[]; title: string; readOnly: boolean; attributes: Record<string, unknown>; children: ReactNode}) {
+  const t = useT()
+  const edit = useContext(EditObject)
+  const line = preview(node)
+  return (
+    <span {...attributes} className="pt-inline-object" data-type={node._type}>
+      {children}
+      <span
+        contentEditable={false}
+        role={readOnly || !edit ? undefined : 'button'}
+        tabIndex={readOnly || !edit ? undefined : -1}
+        aria-label={readOnly || !edit ? undefined : t('Edit {name}', {name: title})}
+        onClick={() => !readOnly && edit?.({kind: 'inline', node, path})}
+      >
+        {line ? `${title}: ${line}` : title}
+      </span>
+    </span>
+  )
+}
+
+/** Custom blocks and inline objects: a card and a chip by type, each opening its dialog. */
+function objectNodes(schema: PtSchema, title: (kind: ObjectKind, name: string) => string): RegistrableNode[] {
   return [
     ...schema.blockObjects.map((o) =>
       defineBlockObject({
         type: o.name as 'x',
-        render: ({attributes, children}) => (
-          <div {...attributes} className="pt-object" data-type={o.name}>
+        render: ({attributes, children, node, path, readOnly}) => (
+          <BlockCard node={node as Obj} path={path} title={title('block', o.name)} readOnly={readOnly} attributes={attributes}>
             {children}
-            <span className="pt-object-label" contentEditable={false}>
-              {title(o.name, schema.blockObjects)}
-            </span>
-          </div>
+          </BlockCard>
         ),
       }),
     ),
     ...schema.inlineObjects.map((o) =>
       defineInlineObject({
         type: o.name as 'x',
-        render: ({attributes, children}) => (
-          <span {...attributes} className="pt-inline-object" data-type={o.name}>
+        render: ({attributes, children, node, path, readOnly}) => (
+          <InlineChip node={node as Obj} path={path} title={title('inline', o.name)} readOnly={readOnly} attributes={attributes}>
             {children}
-            <span contentEditable={false}>{title(o.name, schema.inlineObjects)}</span>
-          </span>
+          </InlineChip>
         ),
       }),
     ),
@@ -140,7 +194,8 @@ type Shared = {mine: {current: unknown[]}; focused: {current: boolean}; onBlur: 
 function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, focused, onBlur}: Props & Shared & {stored: PtBlock[]; schemas: SchemaLike[]}) {
   const t = useT()
   const schema = useMemo(() => editorSchema(field, stored, schemas), [field, stored, schemas])
-  const nodes = useMemo(() => [textBlock, decorators, annotations, ...objectNodes(schema)], [schema])
+  const nodes = useMemo(() => [textBlock, decorators, annotations, ...objectNodes(schema, (kind, name) => objectTitle(field, kind, name, schemas))], [schema, field, schemas])
+  const [objectEdit, setObjectEdit] = useState<ObjectEdit | null>(null)
   // A value the editor can't read: it stays read-only and nothing is saved from it.
   const [invalid, setInvalid] = useState(false)
   // The toolbar waits for the editor to have read the value (its 'ready').
@@ -156,8 +211,11 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
             {t('This text holds content the editor cannot read. It is shown read-only and kept as it is.')}
           </p>
         )}
-        {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} />}
-        <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} />
+        <EditObject.Provider value={locked ? null : setObjectEdit}>
+          {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} />}
+          <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} />
+        </EditObject.Provider>
+        {objectEdit && <ObjectDialog id={id} edit={objectEdit} field={field} stored={stored} schemas={schemas} openRef={openRef} onClose={() => setObjectEdit(null)} />}
       </EditorProvider>
     </div>
   )
@@ -226,8 +284,85 @@ function Toolbar({id, field, stored, schemas, openRef, ready}: ToolbarProps) {
       {annotations.map((a) => (
         <AnnotationButton key={a.name} id={id} name={a.name} field={field} stored={stored} schemas={schemas} openRef={openRef} />
       ))}
+      <InsertMenu field={field} schemas={schemas} />
     </fieldset>
   )
+}
+
+/**
+ * Insert: the declared custom block and inline object types. A pick puts a new one in, a
+ * custom block after the caret's block and an inline object at the caret, with its `_type`
+ * and a new 12-hex `_key`, and opens it to fill in, as Sanity's does. An inline object
+ * needs the caret in text.
+ */
+function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
+  const t = useT()
+  const editor = useEditor()
+  const edit = useContext(EditObject)
+  const inText = !!useEditorSelector(editor, getFocusTextBlock)
+  const [open, setOpen] = useState(false)
+  const {blocks, inline} = useMemo(() => insertable(field), [field])
+  if (!blocks.length && !inline.length) return null
+  const insert = (kind: ObjectKind, name: string) => {
+    setOpen(false)
+    const _key = newKey()
+    // After the caret's block, never splitting its text.
+    if (kind === 'block') editor.send({type: 'insert.block', block: {_type: name, _key}, placement: 'after', select: 'none'})
+    else editor.send({type: 'insert.child', child: {_type: name, _key}})
+    // Where it landed: by its key.
+    for (const b of (editor.getSnapshot().context.value ?? []) as PtBlock[]) {
+      if (kind === 'block' && b._key === _key) return edit?.({kind, node: b as Obj, path: [{_key}]})
+      const child = kind === 'inline' && Array.isArray(b.children) ? (b.children as Obj[]).find((c) => c._key === _key) : undefined
+      if (child) return edit?.({kind, node: child, path: [{_key: b._key}, 'children', {_key}]})
+    }
+  }
+  const title = (kind: ObjectKind, n: {name: string; title?: string}) => n.title ?? objectTitle(field, kind, n.name, schemas)
+  return (
+    <>
+      <span className="body-toolbar-sep" />
+      {/* The button takes focus, as the canvas toolbar's style button does, so the menu can return it there; the editor keeps its selection. */}
+      <div className="menu-wrap pt-insert-wrap" onMouseDown={(e) => e.stopPropagation()} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+        <button type="button" className="icon-btn body-tool" aria-label={t('Insert')} data-tip={t('Insert')} data-tip-side="top" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <Add />
+        </button>
+        {open && (
+          <MenuPopover onClose={() => setOpen(false)}>
+            {blocks.map((b) => (
+              <button key={`b:${b.name}`} type="button" role="menuitem" className="menu-item" data-insert={b.name} onClick={() => insert('block', b.name)}>
+                {title('block', b)}
+              </button>
+            ))}
+            {blocks.length > 0 && inline.length > 0 && <hr />}
+            {inline.map((i) => (
+              <button key={`i:${i.name}`} type="button" role="menuitem" className="menu-item" data-insert={i.name} disabled={!inText} onClick={() => insert('inline', i.name)}>
+                {title('inline', i)}
+              </button>
+            ))}
+          </MenuPopover>
+        )}
+      </div>
+    </>
+  )
+}
+
+/** A custom block's or inline object's fields: what changed sets on it, an emptied field goes. */
+function ObjectDialog({id, edit, field, stored, schemas, openRef, onClose}: {id: string; edit: ObjectEdit; field: Field; stored: PtBlock[]; schemas: SchemaLike[]; openRef: OpenRef; onClose: () => void}) {
+  const editor = useEditor()
+  const {kind, node, path} = edit
+  const fields = useMemo(() => objectFields(field, kind, node._type, stored, schemas), [field, kind, node._type, stored, schemas])
+  const title = objectTitle(field, kind, node._type, schemas)
+  const request: BlockObjectRequest = {type: node._type, title, inline: kind === 'inline', fields, value: node as unknown as BlockObjectRequest['value'], error: null}
+  const done = (value: Record<string, unknown> | null) => {
+    onClose()
+    if (value) {
+      const {set, unset} = objectChanges(node, storedShape(fields, value, node))
+      const at = path as never
+      if (Object.keys(set).length) editor.send(kind === 'block' ? {type: 'block.set', at, props: set} : {type: 'child.set', at, props: set})
+      if (unset.length) editor.send(kind === 'block' ? {type: 'block.unset', at, props: unset} : {type: 'child.unset', at, props: unset})
+    }
+    editor.send({type: 'focus'})
+  }
+  return <BlockObjectDialog key={JSON.stringify(path)} request={request} path={`${id}.${node._type}`} openRef={openRef} onDone={done} />
 }
 
 type Selection = NonNullable<ReturnType<ReturnType<typeof useEditor>['getSnapshot']>['context']['selection']>

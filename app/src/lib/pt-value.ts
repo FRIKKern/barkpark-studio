@@ -2,13 +2,14 @@ import type {Field} from './data'
 import {refId} from './refs.ts'
 
 // S4a (task-7f77f41c95cc6d9f): Portable Text in a richText field, edited with
-// @portabletext/editor. S4b: annotations. The jobs live here, apart from React so a unit
-// test can run them:
+// @portabletext/editor. S4b: annotations. S4c: custom blocks and inline objects. The jobs
+// live here, apart from React so a unit test can run them:
 // - the editor's schema, from the field's `blocks` declaration plus whatever the stored
 //   value already holds, so the editor never drops a type it was not told about;
 // - the value to save: blocks and spans the author did not touch go back exactly as
 //   they were stored, and only the edited ones take the editor's version;
-// - the fields an annotation's dialog shows, and the value it stores.
+// - the fields a dialog for an annotation, a custom block or an inline object shows, and
+//   the value it stores.
 
 type Obj = Record<string, unknown>
 export type PtBlock = Obj & {_type: string; _key?: string}
@@ -25,7 +26,7 @@ export type PtVocabulary = {
   inlineObjects: Named[]
 }
 /** A schema in @portabletext/editor's SchemaDefinition shape. */
-export type PtSchema = Omit<PtVocabulary, 'annotations'> & {block: {name: 'block'}; annotations: NamedWithFields[]}
+export type PtSchema = Omit<PtVocabulary, 'annotations' | 'blockObjects' | 'inlineObjects'> & {block: {name: 'block'}; annotations: NamedWithFields[]; blockObjects: NamedWithFields[]; inlineObjects: NamedWithFields[]}
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v)
 const isText = (b: unknown): b is PtBlock => isObj(b) && b._type === 'block'
@@ -109,8 +110,8 @@ export function editorSchema(field: Pick<Field, 'blocks'>, value: unknown, schem
     decorators: union(d.decorators, o.decorators),
     // Each with every field it may hold: the editor drops a markDef field it was not told.
     annotations: union(d.annotations, o.annotations).map((a) => ({...a, fields: editorFields(objectFields(field, 'annotation', a.name, value, schemas), storedObjects(value, 'annotation', a.name))})),
-    blockObjects: union(d.blockObjects, o.blockObjects),
-    inlineObjects: union(d.inlineObjects, o.inlineObjects),
+    blockObjects: union(d.blockObjects, o.blockObjects).map((b) => ({...b, fields: editorFields(objectFields(field, 'block', b.name, value, schemas), storedObjects(value, 'block', b.name))})),
+    inlineObjects: union(d.inlineObjects, o.inlineObjects).map((i) => ({...i, fields: editorFields(objectFields(field, 'inline', i.name, value, schemas), storedObjects(value, 'inline', i.name))})),
   }
 }
 
@@ -154,8 +155,8 @@ function keepAbsent(stored: Obj, seen: Obj | undefined, next: Obj, keys: string[
 function mergeChild(stored: Obj | undefined, seen: Obj | undefined, next: Obj): Obj {
   if (!stored) return next
   if (seen && equal(next, seen)) return stored
-  // An inline object can't be edited here (S4c): it goes back as it was stored.
-  if (stored._type !== 'span' || next._type !== 'span') return stored
+  // An inline object the author edited (S4c) changes only the keys edited.
+  if (stored._type !== 'span' || next._type !== 'span') return stored._type === next._type ? editedObject(stored, seen, next) : stored
   const own = keepAbsent(stored, seen, next, ['_type', '_key', 'text', 'marks'])
   const rest = Object.fromEntries(Object.entries(stored).filter(([k]) => !['_type', '_key', 'text', 'marks'].includes(k)))
   return {...own, ...rest}
@@ -208,8 +209,8 @@ function mergeText(stored: PtBlock, seen: PtBlock | undefined, next: PtBlock): P
 /**
  * The value to save after an edit. `stored` is the field's value as read, `seen` the
  * editor's own reading of it before any edit (its normalised form), `next` the editor's
- * value now. A block, span or markDef the author did not touch goes back byte for byte as
- * stored; custom blocks always do (S4c edits them). A stored block the editor never loaded (not
+ * value now. A block, span, markDef, custom block or inline object the author did not touch
+ * goes back byte for byte as stored; an edited one changes only the keys edited. A stored block the editor never loaded (not
  * in `seen`) is put back after the stored block before it, so nothing is lost unseen.
  */
 export function mergeValue(stored: PtBlock[], seen: PtBlock[], next: PtBlock[]): PtBlock[] {
@@ -221,6 +222,8 @@ export function mergeValue(stored: PtBlock[], seen: PtBlock[], next: PtBlock[]):
     const read = key ? seenBy.get(key) : undefined
     if (!was) return b
     if (read && equal(b, read)) return was
+    // A custom block the author edited (S4c) changes only the keys edited.
+    if (was._type !== 'block' && b._type !== 'block') return was._type === b._type ? (editedObject(was, read, b) as PtBlock) : was
     if (!isText(was) || !isText(b)) return was
     return mergeText(was, read, b)
   })
@@ -235,19 +238,22 @@ export function mergeValue(stored: PtBlock[], seen: PtBlock[], next: PtBlock[]):
   return out
 }
 
-// S4b (annotations). The fields an annotation's dialog shows come from, in order:
-// 1. the field's declaration, `blocks.annotations: [{name, fields}]` (barkpark S1 and the
-//    twin's S5 add these);
-// 2. what the stored markDefs of that type hold (gyl today: linkAnnotation is declared
+// S4b (annotations) and S4c (custom blocks, inline objects). The fields a dialog shows come
+// from, in order:
+// 1. the field's declaration, `blocks.annotations`, `blocks.of` or `blocks.inline` entries
+//    with `fields` (barkpark S1 and the twin's S5 add these for annotations);
+// 2. for a custom block or inline object, the named object type (gyl's `blocks.of` names
+//    quote, mediaModule and the rest, each a schema of kind object);
+// 3. what the stored objects of that type hold (gyl today: linkAnnotation is declared
 //    nowhere, so its url, internalLink, linkType and the rest are read off the value);
-// 3. Sanity's default for `link`: one `href`.
-// A named object type of the same name is not used: gyl's `link` object (a link field's
-// type) is not the `link` annotation, which stores `href`.
+// 4. Sanity's default for `link`: one `href`.
+// An annotation never takes a named object type: gyl's `link` object (a link field's type)
+// is not the `link` annotation, which stores `href`.
 
 /** The schemas this module reads: a type's name, its kind and its fields. */
 export type SchemaLike = {name: string; kind?: string; fields?: Field[]}
-export type PtKind = 'annotation'
-const KIND_KEY: Record<PtKind, string> = {annotation: 'annotations'}
+export type PtKind = 'annotation' | 'block' | 'inline'
+const KIND_KEY: Record<PtKind, string> = {annotation: 'annotations', block: 'of', inline: 'inline'}
 
 /** The annotations the toolbar offers: the declared ones; none declared, those the value uses; none used, Sanity's `link`. */
 export function offeredAnnotations(field: Pick<Field, 'blocks'>, value: unknown): Named[] {
@@ -257,12 +263,15 @@ export function offeredAnnotations(field: Pick<Field, 'blocks'>, value: unknown)
   return used.length ? used : [{name: 'link'}]
 }
 
-/** Every stored object of one kind and type: the markDefs of `name` in every block. */
+/** Every stored object of one kind and type: markDefs, custom blocks or inline objects named `name`. */
 export function storedObjects(value: unknown, kind: PtKind, name: string): Obj[] {
   const out: Obj[] = []
   for (const b of Array.isArray(value) ? value : []) {
+    if (!isObj(b)) continue
+    if (kind === 'block' && b._type === name) out.push(b)
     if (!isText(b)) continue
     if (kind === 'annotation') for (const d of Array.isArray(b.markDefs) ? b.markDefs : []) if (isObj(d) && d._type === name) out.push(d)
+    if (kind === 'inline') for (const c of Array.isArray(b.children) ? b.children : []) if (isObj(c) && c._type === name) out.push(c)
   }
   return out
 }
@@ -310,19 +319,44 @@ function declaredEntry(field: Pick<Field, 'blocks'>, kind: PtKind, name: string)
   return Array.isArray(entries) ? (entries.find((e) => isObj(e) && named(e)?.name === name) as Obj | undefined) : undefined
 }
 
-/** The fields a dialog for one annotation shows (see the order above). */
+/** The fields a dialog for one annotation, custom block or inline object shows (see the order above). */
 export function objectFields(field: Pick<Field, 'blocks'>, kind: PtKind, name: string, value: unknown, schemas: SchemaLike[]): Field[] {
   const entry = declaredEntry(field, kind, name)
   if (entry && Array.isArray(entry.fields) && entry.fields.length) return entry.fields as Field[]
+  const named = kind !== 'annotation' ? schemas.find((s) => s.name === name && s.kind === 'object') : undefined
+  if (named?.fields?.length) return named.fields
   const inferred = inferFields(storedObjects(value, kind, name), schemas)
   if (kind === 'annotation' && name === 'link' && !inferred.some((f) => f.name === 'href')) return [{name: 'href', title: 'URL', type: 'url'}, ...inferred]
   return inferred
 }
 
-/** The title a dialog and a button show for a type. */
-export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: string): string {
+/** The title a dialog, a button or a menu item shows for a type: declared, else the named type's, else its name. */
+export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: string, schemas: (SchemaLike & {title?: string})[] = []): string {
   const t = declaredEntry(field, kind, name)?.title
-  return typeof t === 'string' && t ? t : startCase(name)
+  if (typeof t === 'string' && t) return t
+  const named = kind !== 'annotation' ? schemas.find((s) => s.name === name && s.kind === 'object')?.title : undefined
+  return named || startCase(name)
+}
+
+/** What Insert offers: the declared custom block and inline object types. An image or file block needs its own input: not yet. */
+export function insertable(field: Pick<Field, 'blocks'>): {blocks: Named[]; inline: Named[]} {
+  const d = declaredVocabulary(field)
+  return {blocks: d.blockObjects.filter((b) => b.name !== 'image' && b.name !== 'file'), inline: d.inlineObjects}
+}
+
+/**
+ * The props a dialog changed on an object, against the object as the editor holds it:
+ * `set` for @portabletext/editor's block.set and child.set, `unset` for the keys emptied.
+ */
+export function objectChanges(node: Obj, shaped: Obj): {set: Obj; unset: string[]} {
+  const set: Obj = {}
+  const unset: string[] = []
+  for (const k of new Set([...Object.keys(node), ...Object.keys(shaped)])) {
+    if (k === '_key' || k === '_type' || equal(shaped[k], node[k])) continue
+    if (shaped[k] === undefined) unset.push(k)
+    else set[k] = shaped[k]
+  }
+  return {set, unset}
 }
 
 /** The editor's field list: the dialog's fields plus every key stored objects of that type hold. */
@@ -344,9 +378,14 @@ function editorFields(fields: Field[], stored: Obj[]): PtField[] {
 export function storedShape(fields: Field[], value: Obj, before: Obj = {}): Obj {
   const out: Obj = {}
   for (const [k, v] of Object.entries(value)) {
+    const was = before[k]
+    // Untouched: as stored, an empty string or null included.
+    if (k in before && equal(v, was)) {
+      out[k] = was
+      continue
+    }
     if (v === undefined || v === null || v === '') continue
     const f = fields.find((x) => x.name === k)
-    const was = before[k]
     if (f?.type === 'reference' && typeof v === 'string') out[k] = refId(was) === v ? was : {...(isObj(was) ? was : {_type: 'reference'}), _ref: v}
     else if (f?.type === 'composite' && f.fields && isObj(v)) out[k] = storedShape(f.fields, v, isObj(was) ? was : {})
     else out[k] = v

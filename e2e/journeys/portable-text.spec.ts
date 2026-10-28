@@ -165,3 +165,71 @@ test('@local Portable Text: add a link, change a reference annotation\'s target,
   await savesLanded(page)
   await expect.poll(async () => JSON.stringify(((await read('drafts'))?.body as typeof BODY)[5].children), {timeout: 10_000}).not.toContain('wk1')
 })
+
+// S4c (custom blocks and inline objects): Insert adds a declared custom block or inline
+// object with its _type and a 12-hex _key, filled in from its dialog; Edit on a stored one
+// changes the fields edited and nothing else.
+test('@local Portable Text: insert a custom block and an inline object, edit stored ones; only those change', async ({page}, info) => {
+  test.setTimeout(90_000)
+  const stored = ((await read('published'))!.body ?? []) as typeof BODY
+  const editor = await open(page, info)
+  type Item = Record<string, unknown> & {_key: string; _type: string}
+  const body = async () => ((await read('drafts'))?.body ?? []) as (Item & {children?: Item[]})[]
+
+  // A callout after "Cups", its tone and text set in the dialog.
+  await editor.getByText('Cups').click()
+  await page.waitForTimeout(150)
+  await page.getByRole('button', {name: 'Insert'}).click()
+  await page.getByRole('menuitem', {name: 'Callout'}).click()
+  const callout = page.getByRole('dialog', {name: 'Callout'})
+  await callout.locator('[id="body.callout.tone"]').selectOption({label: 'Warning'})
+  await callout.locator('[id="body.callout.text"]').fill('Mind the steam')
+  await callout.getByRole('button', {name: 'Close dialog'}).click()
+  await savesLanded(page)
+  await expect.poll(async () => (await body()).map((b) => b._type), {timeout: 10_000}).toContain('callout')
+  let draft = await body()
+  expect(draft[4]).toEqual({_key: expect.stringMatching(/^[0-9a-f]{12}$/), _type: 'callout', tone: 'warning', text: 'Mind the steam'})
+  expect(JSON.stringify(draft.filter((b) => b._type !== 'callout'))).toBe(JSON.stringify(stored))
+
+  // A chip at the caret in "Pour slowly".
+  await editor.getByText('Pour slowly').click()
+  await page.waitForTimeout(150)
+  await page.getByRole('button', {name: 'Insert'}).click()
+  await page.getByRole('menuitem', {name: 'Chip'}).click()
+  const chip = page.getByRole('dialog', {name: 'Chip'})
+  await chip.locator('[id="body.chip.text"]').fill('Hot')
+  await chip.getByRole('button', {name: 'Close dialog'}).click()
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await body()).find((b) => b._key === 'p4')?.children), {timeout: 10_000}).toContain('"chip"')
+  let before = draft
+  draft = await body()
+  const p4 = draft.find((b) => b._key === 'p4')!
+  expect(p4.children!.find((c) => c._type === 'chip')).toEqual({_key: expect.stringMatching(/^[0-9a-f]{12}$/), _type: 'chip', text: 'Hot'})
+  for (const b of draft) if (b._key !== 'p4') expect(JSON.stringify(b)).toBe(JSON.stringify(before.find((x) => x._key === b._key)))
+
+  // The stored custom block: its tone edited, its nested field kept.
+  await editor.locator('.pt-object[data-type="kettleCallout"]').getByRole('button', {name: 'Edit Kettle Callout'}).click()
+  const kettle = page.getByRole('dialog', {name: 'Kettle Callout'})
+  await kettle.locator('[id="body.kettleCallout.tone"]').fill('cold')
+  await kettle.getByRole('button', {name: 'Close dialog'}).click()
+  await savesLanded(page)
+  await expect.poll(async () => (await body()).find((b) => b._key === 'c1')?.tone, {timeout: 10_000}).toBe('cold')
+  before = draft
+  draft = await body()
+  expect(JSON.stringify(draft.find((b) => b._key === 'c1'))).toBe(JSON.stringify({...stored[2], tone: 'cold'}))
+  for (const b of draft) if (b._key !== 'c1') expect(JSON.stringify(b)).toBe(JSON.stringify(before.find((x) => x._key === b._key)))
+
+  // The stored inline object: its label edited from its chip, its tint kept.
+  await editor.locator('.pt-inline-object[data-type="teaChip"] [role="button"]').click()
+  const tea = page.getByRole('dialog', {name: 'Tea Chip'})
+  await tea.locator('[id="body.teaChip.label"]').fill('Black')
+  await tea.getByRole('button', {name: 'Close dialog'}).click()
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await body()).find((b) => b._key === 'p2')?.children), {timeout: 10_000}).toContain('Black')
+  before = draft
+  draft = await body()
+  const p2 = draft.find((b) => b._key === 'p2')!
+  expect(p2.children![2]).toEqual({_key: 'p2i1', _type: 'teaChip', label: 'Black', tint: 4})
+  expect(JSON.stringify(p2.markDefs)).toBe(JSON.stringify(stored[1].markDefs))
+  for (const b of draft) if (b._key !== 'p2') expect(JSON.stringify(b)).toBe(JSON.stringify(before.find((x) => x._key === b._key)))
+})

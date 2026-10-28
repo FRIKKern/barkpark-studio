@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {declaredVocabulary, editorSchema, equal, inferFields, isPortableTextField, mergeValue, newKey, objectFields, observedVocabulary, offeredAnnotations, refTargets, storedShape, type PtBlock} from './pt-value.ts'
+import {declaredVocabulary, editorSchema, equal, inferFields, insertable, isPortableTextField, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -68,9 +68,6 @@ test('pt: custom blocks, inline objects, unknown marks and markDefs survive an e
   const seen = editorReading(value)
   const next = clone(seen)
   ;(next[1].children as {text: string}[])[3].text = ' at the very most.'
-  // An editor that also lost a custom block's field and an inline object's field still saves them as stored.
-  delete (next[2] as Record<string, unknown>).nested
-  delete (next[1].children as Record<string, unknown>[])[2].tint
   const merged = mergeValue(value, seen, next)
   assert.equal(JSON.stringify(merged[2]), JSON.stringify(value[2]))
   const b2 = merged[1] as unknown as {markDefs: unknown[]; children: unknown[]; extraFlag: boolean}
@@ -119,7 +116,7 @@ test('pt: the editor schema is the declared vocabulary plus every name the value
   assert.deepEqual(schema.lists.map((s) => s.name), ['bullet'])
   assert.deepEqual(schema.decorators.map((s) => s.name), ['strong', 'strike-through', 'glow'])
   assert.deepEqual(schema.annotations.map((s) => s.name), ['link', 'internalLink'])
-  assert.deepEqual(schema.blockObjects, [{name: 'kettleCallout', title: 'Kettle callout'}])
+  assert.deepEqual(schema.blockObjects, [{name: 'kettleCallout', title: 'Kettle callout', fields: [{name: 'tone', type: 'string'}, {name: 'nested', type: 'object'}]}])
   assert.deepEqual(schema.inlineObjects.map((s) => s.name), ['teaChip'])
   // No declaration: Sanity's defaults.
   assert.deepEqual(declaredVocabulary({}).decorators.map((d) => d.name), ['strong', 'em', 'code', 'underline', 'strike-through'])
@@ -201,4 +198,47 @@ test('pt: an edited markDef changes only what was edited; the others in its bloc
   const next2 = clone(seen)
   delete (next2[1].markDefs as Record<string, unknown>[])[1].keep
   assert.deepEqual((mergeValue(value, seen, next2)[1].markDefs as unknown[])[1], {_key: 'm2', _type: 'internalLink', reference: {_ref: 'page-cups', _type: 'reference'}})
+})
+
+// S4c: custom blocks and inline objects.
+test('pt: a custom block or inline object dialog takes declared fields, else the named object type, else stored keys', () => {
+  const cupFields = [{name: 'size', type: 'number'}]
+  const all = [...schemas, {name: 'teapot', title: 'Teapot', kind: 'object', fields: [{name: 'volume', type: 'number'}]}]
+  const field = {blocks: {of: ['image', {name: 'teapot'}, {name: 'cup', title: 'Cup', fields: cupFields}], inline: [{name: 'teaChip', title: 'Tea chip'}]}}
+  assert.deepEqual(objectFields(field, 'block', 'cup', stored(), all), cupFields)
+  assert.deepEqual(objectFields(field, 'block', 'teapot', stored(), all), [{name: 'volume', type: 'number'}])
+  assert.deepEqual(objectFields(field, 'inline', 'teaChip', stored(), all).map((f) => [f.name, f.type]), [['label', 'string'], ['tint', 'number']])
+  assert.deepEqual(objectFields(field, 'block', 'kettleCallout', stored(), all).map((f) => f.name), ['tone'])
+  assert.equal(objectTitle(field, 'block', 'teapot', all), 'Teapot')
+  assert.equal(objectTitle(field, 'block', 'cup', all), 'Cup')
+  // Insert offers the declared types; an image block needs its own input.
+  assert.deepEqual(insertable(field), {blocks: [{name: 'teapot'}, {name: 'cup', title: 'Cup'}], inline: [{name: 'teaChip', title: 'Tea chip'}]})
+  // The editor is told every field, so block.set keeps them.
+  assert.deepEqual(editorSchema(field, stored(), all).blockObjects.find((b) => b.name === 'cup')?.fields, [{name: 'size', type: 'number'}])
+})
+
+test('pt: a dialog changes only what it changed; an untouched empty string stays', () => {
+  const node = {_key: 'c1', _type: 'kettleCallout', tone: 'warm', note: '', nested: {list: [1]}}
+  const fields = [{name: 'tone', type: 'string'}, {name: 'note', type: 'string'}]
+  assert.deepEqual(objectChanges(node, storedShape(fields, {...node}, node)), {set: {}, unset: []})
+  assert.deepEqual(objectChanges(node, storedShape(fields, {...node, tone: 'cold'}, node)), {set: {tone: 'cold'}, unset: []})
+  assert.deepEqual(objectChanges(node, storedShape(fields, {...node, tone: undefined}, node)), {set: {}, unset: ['tone']})
+})
+
+test('pt: an edited custom block or inline object changes only the keys edited, the rest as stored', () => {
+  const value = stored()
+  const seen = editorReading(value)
+  const next = clone(seen)
+  ;(next[2] as Record<string, unknown>).tone = 'cold'
+  ;(next[1].children as Record<string, unknown>[])[2].label = 'Black'
+  // A new custom block and a new inline object: as the editor has them.
+  next.push({_type: 'kettleCallout', _key: '0123456789ab'})
+  ;(next[3].children as unknown[]).push({_type: 'teaChip', _key: 'ba9876543210'})
+  const merged = mergeValue(value, seen, next)
+  assert.deepEqual(merged[2], {_key: 'c1', _type: 'kettleCallout', tone: 'cold', nested: {list: [1, 2, {deep: 'yes'}]}})
+  assert.equal(merged[2].nested, value[2].nested)
+  assert.deepEqual((merged[1].children as unknown[])[2], {_key: 'i1', _type: 'teaChip', label: 'Black', tint: 4})
+  assert.equal(merged[0], value[0])
+  assert.deepEqual(merged[4], {_type: 'kettleCallout', _key: '0123456789ab'})
+  assert.deepEqual((merged[3].children as unknown[]).at(-1), {_type: 'teaChip', _key: 'ba9876543210'})
 })
