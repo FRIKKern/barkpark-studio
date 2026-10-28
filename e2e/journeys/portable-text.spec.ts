@@ -233,3 +233,56 @@ test('@local Portable Text: insert a custom block and an inline object, edit sto
   expect(JSON.stringify(p2.markDefs)).toBe(JSON.stringify(stored[1].markDefs))
   for (const b of draft) if (b._key !== 'p2') expect(JSON.stringify(b)).toBe(JSON.stringify(before.find((x) => x._key === b._key)))
 })
+
+// Sanity's default editor plugins (task-a375ab49a1e5ffff, task-03219d1c3ae221d7,
+// task-c50f184c65e0132e): Markdown shortcuts, smart typography and a URL pasted over text.
+test('@local Portable Text: Markdown shortcuts, smart typography and a pasted URL store as Sanity\'s', async ({page}, info) => {
+  const editor = await open(page, info)
+  // The caret at the end of a text, or a word selected, as the browser's selection.
+  const select = (text: string, word?: string) =>
+    editor.evaluate(
+      (el, [text, word]) => {
+        const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+        for (let n = walk.nextNode() as Text | null; n; n = walk.nextNode() as Text | null) {
+          if (!n.data.includes(text)) continue
+          const r = document.createRange()
+          const at = word ? n.data.indexOf(word) : n.data.length
+          r.setStart(n, at)
+          r.setEnd(n, word ? at + word.length : at)
+          getSelection()!.removeAllRanges()
+          getSelection()!.addRange(r)
+          return
+        }
+      },
+      [text, word] as const,
+    )
+  await editor.getByText('Brew the tea with warm water.').click()
+  await select('Brew the tea with warm water.')
+  await page.waitForTimeout(150)
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('## Kettles')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('**Hot** "tea" -- now')
+  await select('Brew the tea with warm water.', 'water')
+  await page.waitForTimeout(150)
+  await editor.evaluate((el) => {
+    const data = new DataTransfer()
+    data.setData('text/plain', 'https://example.com/kettles')
+    el.dispatchEvent(new ClipboardEvent('paste', {clipboardData: data, bubbles: true, cancelable: true}))
+  })
+  await savesLanded(page)
+  type Block = {style?: string; markDefs?: {_key: string; _type: string; href?: string}[]; children: {text: string; marks?: string[]}[]}
+  await expect
+    .poll(async () => {
+      const body = ((await read('drafts'))?.body ?? []) as Block[]
+      const link = body[0]?.markDefs?.find((d) => d._type === 'link')
+      return [
+        body[1]?.style,
+        body[1]?.children?.map((c) => c.text).join(''),
+        body[2]?.children?.map((c) => [c.text, c.marks ?? []]),
+        link?.href,
+        body[0]?.children?.find((c) => c.text === 'water')?.marks?.includes(link?._key ?? '-'),
+      ]
+    }, {timeout: 10_000})
+    .toEqual(['h2', 'Kettles', [['Hot', ['strong']], [' “tea” — now', []]], 'https://example.com/kettles', true])
+})
