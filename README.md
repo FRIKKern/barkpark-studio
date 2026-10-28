@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 27 changes
-  - Image input: a set crop shows in the field's preview, as Sanity's ([#1217](https://github.com/FRIKKern/barkpark-studio/pull/1217))
+- **Today** · 28 changes
+  - Canvas body toolbar: one Tab stop again, arrows between its tools ([#1215](https://github.com/FRIKKern/barkpark-studio/pull/1215))
 - **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **This week** · 23 changes
