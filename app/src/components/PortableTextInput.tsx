@@ -21,6 +21,8 @@ import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotat
 import {useQuery} from '@tanstack/react-query'
 import {schemasQuery, type Field} from '../lib/data'
 import {imageRef, imageSrc} from '../lib/image'
+import {uploadFile, uploadReason} from '../lib/upload'
+import {toast} from './Toasts'
 import {useT} from '../lib/i18n'
 import {declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
@@ -284,6 +286,7 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
             {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} />}
             <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} />
             {!locked && <AnnotationPopover field={field} />}
+            {!locked && <ImagePaste field={field} />}
           </AnnotationOpeners.Provider>
         </EditObject.Provider>
         {!locked && <ExpandButton expanded={expanded} aria-pressed={expanded} className="icon-btn body-expand pt-expand" onMouseDown={(e) => e.preventDefault()} onClick={toggle} />}
@@ -711,6 +714,37 @@ function AnnotationPopover({field}: {field: Field}) {
       )}
     </>
   )
+}
+
+/**
+ * An image file pasted into the text, where the field takes image blocks, goes up and comes
+ * back as an image block after the caret's block, as Sanity's does. A failed upload says so
+ * and puts nothing in. Other pastes are the editor's.
+ */
+function ImagePaste({field}: {field: Field}) {
+  const t = useT()
+  const editor = useEditor()
+  const ref = useRef<HTMLSpanElement>(null)
+  const takes = useMemo(() => insertable(field).blocks.some((b) => b.name === 'image'), [field])
+  useEffect(() => {
+    const text = ref.current?.closest('.pt-input')?.querySelector<HTMLElement>('.pt-editable')
+    if (!takes || !text) return
+    const paste = (e: ClipboardEvent) => {
+      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+      if (!file) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      // Where the caret was when pasted, whatever it does while the file goes up.
+      const at = editor.getSnapshot().context.selection ?? undefined
+      uploadFile(file, () => {}, new AbortController().signal).then(
+        (assetRef) => editor.send({type: 'insert.block', block: {_type: 'image', _key: newKey(), asset: {_type: 'reference', _ref: assetRef}}, placement: 'after', select: 'none', ...(at && {at})}),
+        (err) => toast({tone: 'critical', title: t('Upload failed'), description: uploadReason(err, t)}),
+      )
+    }
+    text.addEventListener('paste', paste, true)
+    return () => text.removeEventListener('paste', paste, true)
+  }, [takes, editor, t])
+  return <span ref={ref} hidden />
 }
 
 function MarkButton({name, label, icon: Icon}: {name: string; label: string; icon?: () => ReactNode}) {

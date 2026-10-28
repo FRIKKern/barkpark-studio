@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs'
 import {expect, test} from '../rig/test'
 import {bpBase, bpDataset, bpMutate, closeAndSettle, savesLanded, target} from '../rig/targets'
 
@@ -463,4 +464,37 @@ test('@local Portable Text: a custom block card drags below the next block; only
   await expect.poll(order, {timeout: 10_000}).toEqual(['p1', 'p2', 'p3', 'c1', 'p4', 'p5'])
   const draft = ((await read('drafts'))!.body ?? []) as typeof BODY
   for (const b of stored) expect(JSON.stringify(draft.find((x) => x._key === b._key))).toBe(JSON.stringify(b))
+})
+
+// task-9514965bfed38750: an image file pasted into the text comes in as an image block (Sanity's).
+// The fixture image's bytes are already in the library: no upload, the same asset back.
+test('@local Portable Text: a pasted image file becomes an image block after the caret\'s block; a failed upload adds nothing', async ({page}, info) => {
+  const stored = ((await read('published'))!.body ?? []) as typeof BODY
+  const editor = await open(page, info)
+  const png = readFileSync(new URL('../../fixtures/assets/fixture-image.png', import.meta.url)).toString('base64')
+  const paste = () =>
+    editor.evaluate((el, b64) => {
+      const data = new DataTransfer()
+      data.items.add(new File([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], 'kettle.png', {type: 'image/png'}))
+      el.dispatchEvent(new ClipboardEvent('paste', {clipboardData: data, bubbles: true, cancelable: true}))
+    }, png)
+  await editor.getByText('Cups').click()
+  await expect(field(page).locator('.body-style')).toHaveText('Heading 2')
+  // A failed upload first: it says so and puts nothing in.
+  await page.route(/\/api\/media\/by-sha1/, (route) => route.fulfill({status: 404, body: '{}'}))
+  await page.route(/\/api\/media\/upload/, (route) => route.abort())
+  await paste()
+  await expect(page.getByText('Upload failed').first()).toBeVisible()
+  await expect(editor.locator('.pt-object[data-type="image"]')).toHaveCount(0)
+  await page.unrouteAll()
+  await paste()
+  await expect(editor.locator('.pt-object[data-type="image"] .pt-object-thumb')).toBeVisible()
+  await savesLanded(page)
+  type Img = {_key: string; _type: string; asset?: {_type: string; _ref: string}}
+  await expect.poll(async () => ((await read('drafts'))?.body as unknown as Img[] | undefined)?.find((b) => b._type === 'image')?.asset?._ref, {timeout: 10_000}).toBeTruthy()
+  const draft = (await read('drafts'))!.body as unknown as Img[]
+  const image = draft.find((b) => b._type === 'image')!
+  expect(image).toEqual({_key: expect.stringMatching(/^[0-9a-f]{12}$/), _type: 'image', asset: {_type: 'reference', _ref: expect.any(String)}})
+  expect(draft[draft.indexOf(image) - 1]._key).toBe('p3')
+  expect(JSON.stringify(draft.filter((b) => b !== image))).toBe(JSON.stringify(stored))
 })
