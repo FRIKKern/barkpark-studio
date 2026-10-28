@@ -442,7 +442,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   const invalid = useContext(ProblemsContext).some((p) => p.path === path && p.level === 'error')
   // B14: Sanity Portable Text in a rich text field reads as its text, kept as it is.
   const pt = sanityPortableText(field, value)
-  if (pt) return <SanityPortableTextCard pt={pt} value={value} onChange={onChange} />
+  if (pt) return <SanityPortableTextCard pt={pt} value={value} />
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
   if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />

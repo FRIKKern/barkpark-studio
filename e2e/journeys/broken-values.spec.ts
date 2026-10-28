@@ -82,7 +82,11 @@ test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {cur
   await expect(t.field(page, 'slug')).toHaveValue('broken-post')
   await expect(t.refLink(page.locator('body'), 'author')).toContainText('Ada Lovelace')
   // B14: a Portable Text body reads as its text, read-only (the canvas reads PortableDoc).
-  await expect(page.getByRole('alert').filter({hasText: 'Sanity Portable Text'})).toContainText('Sanity paragraph')
+  const card = page.getByRole('alert').filter({hasText: 'Sanity Portable Text'})
+  await expect(card).toContainText('Sanity paragraph')
+  // No Reset value: it deleted the whole body (task-3396abb1524c3045).
+  await expect(card.getByRole('button')).toHaveCount(0)
+  expect(await t.docValue(ID, 'body')).toEqual(body)
 })
 
 // task-ec9b4c0c78185fa4: a team moving over from Sanity brings asset values Barkpark has
