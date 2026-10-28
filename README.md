@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 13 changes
-  - Show the published text in the Portable Text input after Discard changes ([#1199](https://github.com/FRIKKern/barkpark-studio/pull/1199))
+- **Today** · 14 changes
+  - Portable Text input: Expand editor over the document pane, as Sanity's ([#1203](https://github.com/FRIKKern/barkpark-studio/pull/1203))
 - **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **This week** · 23 changes
