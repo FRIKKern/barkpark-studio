@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 29 changes
-  - Portable Text input: an image block draws its image large, as Sanity's ([#1218](https://github.com/FRIKKern/barkpark-studio/pull/1218))
+- **Today** · 30 changes
+  - Re-record e2e/durations.json from tonight's main runs ([#1219](https://github.com/FRIKKern/barkpark-studio/pull/1219))
 - **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **This week** · 23 changes
