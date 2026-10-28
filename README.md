@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 3 changes
-  - Read a reference row's target as every type the reference may point to ([#1192](https://github.com/FRIKKern/barkpark-studio/pull/1192))
+- **Today** · 4 changes
+  - Show the unavailable mark on a reference row whose target no document holds ([#1194](https://github.com/FRIKKern/barkpark-studio/pull/1194))
 - **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **This week** · 23 changes
