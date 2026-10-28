@@ -58,9 +58,12 @@ async function open(page: import('@playwright/test').Page, info: import('@playwr
   const editor = page.locator('[id="body"][contenteditable="true"]')
   await expect(editor).toContainText('Brew the tea with warm water.')
   // The editor has read the value (its 'ready'): a click before that places no caret.
-  await page.locator('.pt-input[data-ready]').waitFor()
+  await field(page).and(page.locator('[data-ready]')).waitFor()
   return editor
 }
+
+/** The body's input: its toolbar, not another Portable Text field's (ptBody is one too). */
+const field = (page: import('@playwright/test').Page) => page.locator('.pt-input').filter({has: page.locator('[id="body"][contenteditable="true"]')})
 
 test('Portable Text: opening, clicking in and closing writes nothing', async ({page}, info) => {
   const before = await read('drafts')
@@ -122,12 +125,12 @@ test('@local Portable Text: styles, lists and decorators edit from the toolbar',
   const caret = async (text: string, dbl = false) => (await (dbl ? editor.getByText(text).dblclick({position: {x: 10, y: 8}}) : editor.getByText(text).click()), await page.waitForTimeout(150))
   await caret('Cups')
   // The style button (Sanity's menu, each style drawn as it looks).
-  await page.locator('.pt-input').filter({has: editor}).locator('.body-style').click()
+  await field(page).locator('.body-style').click()
   await page.getByRole('menuitemradio', {name: 'Heading 3'}).click()
   await caret('Pour slowly')
-  await page.getByRole('button', {name: 'Bulleted list'}).click()
+  await field(page).getByRole('button', {name: 'Bulleted list'}).click()
   await caret('Brew the tea with warm water.', true)
-  await page.getByRole('button', {name: 'Strong'}).click()
+  await field(page).getByRole('button', {name: 'Strong'}).click()
   await savesLanded(page)
   await expect
     .poll(async () => {
@@ -147,7 +150,7 @@ test('@local Portable Text: add a link, change a reference annotation\'s target,
   // Add: select a word, the Link button, its URL, close.
   await editor.getByText('Brew the tea with warm water.').dblclick({position: {x: 135, y: 8}})
   await expect.poll(() => page.evaluate(() => getSelection()?.toString().trim())).toBe('warm')
-  await page.getByRole('button', {name: 'Link', exact: true}).click()
+  await field(page).getByRole('button', {name: 'Link', exact: true}).click()
   const link = page.getByRole('dialog', {name: 'Link'})
   await link.locator('[id="body.link.href"]').fill('https://example.com/kettles')
   await link.getByRole('button', {name: 'Close dialog'}).click()
@@ -162,7 +165,7 @@ test('@local Portable Text: add a link, change a reference annotation\'s target,
   // Edit: the caret in the wikilink, its target replaced in the reference input.
   await editor.getByText('the tea maker').click()
   await page.waitForTimeout(150)
-  await page.getByRole('button', {name: 'Edit Wikilink'}).click()
+  await field(page).getByRole('button', {name: 'Edit Wikilink'}).click()
   const wiki = page.getByRole('dialog', {name: 'Wikilink'})
   await wiki.getByRole('button', {name: 'Reference actions'}).click()
   await page.getByRole('menuitem', {name: 'Replace'}).click()
@@ -180,7 +183,7 @@ test('@local Portable Text: add a link, change a reference annotation\'s target,
   // Remove: the annotation comes off its text.
   await editor.getByText('the tea maker').click()
   await page.waitForTimeout(150)
-  await page.getByRole('button', {name: 'Edit Wikilink'}).click()
+  await field(page).getByRole('button', {name: 'Edit Wikilink'}).click()
   await page.getByRole('dialog', {name: 'Wikilink'}).getByRole('button', {name: 'Remove Wikilink'}).click()
   await savesLanded(page)
   await expect.poll(async () => JSON.stringify(((await read('drafts'))?.body as typeof BODY)[5].children), {timeout: 10_000}).not.toContain('wk1')
@@ -199,7 +202,7 @@ test('@local Portable Text: insert a custom block and an inline object, edit sto
   // A callout after "Cups", its tone and text set in the dialog.
   await editor.getByText('Cups').click()
   await page.waitForTimeout(150)
-  await page.getByRole('button', {name: 'Insert'}).click()
+  await field(page).getByRole('button', {name: 'Insert'}).click()
   await page.getByRole('menuitem', {name: 'Callout'}).click()
   const callout = page.getByRole('dialog', {name: 'Callout'})
   await callout.locator('[id="body.callout.tone"]').selectOption({label: 'Warning'})
@@ -214,7 +217,7 @@ test('@local Portable Text: insert a custom block and an inline object, edit sto
   // A chip at the caret in "Pour slowly".
   await editor.getByText('Pour slowly').click()
   await page.waitForTimeout(150)
-  await page.getByRole('button', {name: 'Insert'}).click()
+  await field(page).getByRole('button', {name: 'Insert'}).click()
   await page.getByRole('menuitem', {name: 'Chip'}).click()
   const chip = page.getByRole('dialog', {name: 'Chip'})
   await chip.locator('[id="body.chip.text"]').fill('Hot')
@@ -335,7 +338,7 @@ test('@local Portable Text: the popover over an annotation opens its dialog and 
 // canvas body's, J35); the editor stays mounted, so the caret and typing carry on.
 test('@local Portable Text: Expand editor and back keeps the caret; Cmd/Ctrl+Enter and Escape toggle it', async ({page}, info) => {
   const editor = await open(page, info)
-  const box = page.locator('.pt-input').filter({has: editor})
+  const box = field(page)
   await editor.getByText('Cups').click()
   // The caret at the end of "Cups" before expanding (End scrolls on a Mac): typing after lands there.
   await editor.evaluate((el) => {
