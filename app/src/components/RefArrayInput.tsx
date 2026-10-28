@@ -1,9 +1,10 @@
 import {useContext, useEffect, useRef} from 'react'
-import {itemPath, refId, refTypesOf, type Field} from '../lib/data'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {docQuery, itemPath, refId, refOpenType, refTypesOf, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
 import {copyItem, signature} from '../lib/clipboard'
 import {ProblemMark, ProblemsContext, type OpenRef} from './Fields'
-import {RefPreview} from './Preview'
+import {DocPreview} from './Preview'
 import {RefInput} from './RefInput'
 import {SortableRows} from './SortableRows'
 import {LaunchIcon, SyncIcon} from './icons'
@@ -29,6 +30,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
     focusKey.current = undefined
   })
   const problems = useContext(ProblemsContext)
+  const qc = useQueryClient()
   return (
     <SortableRows
       id={id}
@@ -46,7 +48,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
         if (!ref) return []
         return [
           {label: t('Replace'), icon: <SyncIcon />, run: () => { focusKey.current = it._key; set(items.map((x, j) => (j === i ? {_key: x._key, _type: 'reference'} : x))) }},
-          {label: t('Open in new tab'), icon: <LaunchIcon />, run: () => window.open(`/structure/${types[0]};${ref}`, '_blank'), last: true},
+          {label: t('Open in new tab'), icon: <LaunchIcon />, run: () => window.open(`/structure/${refOpenType(types, qc.getQueryData<Doc | null>(['doc', ref]))};${ref}`, '_blank'), last: true},
         ]
       }}
       renderItem={(it, i) => {
@@ -54,7 +56,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
         const link = (target: string, type: string) => openRef(type, target, itemPath(id, it, i))
         return ref ? (
           <div className="ref-row-preview">
-            <RefPreview type={types[0]!} id={ref} {...link(ref, types[0]!)} />
+            <RefRow types={types} id={ref} link={(type) => link(ref, type)} />
           </div>
         ) : (
           <div className="ref-row-search">
@@ -78,4 +80,14 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
       }}
     />
   )
+}
+
+/**
+ * A filled row: the target read as any of the reference's types, and opened as its own type.
+ * Read as the first type alone, a byline to person or contributor stayed at "…" for every
+ * contributor (task-e0d7229807a2baf7).
+ */
+function RefRow({types, id, link}: {types: string[]; id: string; link: (type: string) => {href: string; selected: boolean; active: boolean}}) {
+  const {data} = useQuery({...docQuery(types, id), enabled: types.length > 0})
+  return <DocPreview doc={data} {...link(refOpenType(types, data) ?? '')} />
 }
