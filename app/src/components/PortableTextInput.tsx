@@ -361,8 +361,44 @@ function Toolbar({id, field, stored, schemas, openRef, ready}: ToolbarProps) {
   const annotations = useMemo(() => offeredAnnotations(field, stored), [field, stored])
   const style = useEditorSelector(editor, getActiveStyle)
   const styles = vocab.styles
+  // One Tab stop, as Sanity's toolbar (and the canvas body's): the arrows, Home and End move
+  // between its enabled tools, and the tool last used keeps the stop.
+  const bar = useRef<HTMLFieldSetElement>(null)
+  const at = useRef(0)
+  const tools = () => [...(bar.current?.querySelectorAll<HTMLButtonElement>('button.body-style, button.body-tool, button.body-insert') ?? [])].filter((b) => !b.disabled && !b.closest('[role="menu"]'))
+  const roveTo = (list: HTMLButtonElement[], i: number) => {
+    at.current = i
+    list.forEach((b, j) => (b.tabIndex = j === i ? 0 : -1))
+  }
+  useEffect(() => {
+    const list = tools()
+    if (list.length) roveTo(list, Math.min(at.current, list.length - 1))
+  })
+  const rove = (e: React.KeyboardEvent) => {
+    const list = tools()
+    const i = list.indexOf(e.target as HTMLButtonElement)
+    const next = i < 0 ? -1 : ({ArrowRight: (i + 1) % list.length, ArrowLeft: (i - 1 + list.length) % list.length, Home: 0, End: list.length - 1} as Record<string, number>)[e.key] ?? -1
+    if (next < 0) return
+    e.preventDefault()
+    roveTo(list, next)
+    list[next]!.focus()
+  }
+  const focused = (e: React.FocusEvent) => {
+    const list = tools()
+    const i = list.indexOf(e.target as HTMLButtonElement)
+    if (i >= 0) roveTo(list, i)
+  }
   return (
-    <fieldset className="body-toolbar pt-toolbar" role="toolbar" aria-label={t('Formatting')} disabled={!ready} onMouseDown={(e) => e.currentTarget.contains(e.target as Node) && (e.target as HTMLElement).tagName !== 'SELECT' && e.preventDefault()}>
+    <fieldset
+      ref={bar}
+      className="body-toolbar pt-toolbar"
+      role="toolbar"
+      aria-label={t('Formatting')}
+      disabled={!ready}
+      onMouseDown={(e) => e.currentTarget.contains(e.target as Node) && (e.target as HTMLElement).tagName !== 'SELECT' && e.preventDefault()}
+      onKeyDown={rove}
+      onFocus={focused}
+    >
       {styles.length > 1 && <StyleMenu styles={styles} style={style} />}
       {styles.length > 1 && vocab.decorators.length > 0 && <span className="body-toolbar-sep" />}
       {vocab.decorators.map((d) => (
