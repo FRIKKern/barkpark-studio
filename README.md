@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 23 changes
-  - Keyboard: a document opened from search with a list open takes focus in its first field ([#1214](https://github.com/FRIKKern/barkpark-studio/pull/1214))
+- **Today** · 24 changes
+  - Portable Text input: a custom block card drags to a new place, as Sanity's ([#1213](https://github.com/FRIKKern/barkpark-studio/pull/1213))
 - **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **This week** · 23 changes
