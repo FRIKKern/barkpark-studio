@@ -129,7 +129,10 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
     return () => (box.removeEventListener('focusin', sync), box.removeEventListener('focusout', out))
   }, [host, supported])
   const at = useRef(0)
-  const tools = () => [...(bar.current?.querySelectorAll<HTMLButtonElement>(':scope > fieldset > .menu-wrap > button, :scope > fieldset > .body-tool-slot > button, :scope > fieldset > .body-tool-slot > .menu-wrap > button') ?? [])].filter((b) => !b.matches(':disabled'))
+  // Each group's tools and its Show more sit in a .body-tool-group (the fold): a selector
+  // without it found the style button alone, and every other tool was its own Tab stop.
+  const tools = () =>
+    [...(bar.current?.querySelectorAll<HTMLButtonElement>(':scope > fieldset > .menu-wrap > button, :scope > fieldset > .body-tool-group > .body-tool-slot > button, :scope > fieldset > .body-tool-group > .body-tool-slot > .menu-wrap > button, :scope > fieldset > .body-tool-group > .body-more-wrap > button') ?? [])].filter((b) => !b.matches(':disabled'))
   const roveTo = (list: HTMLButtonElement[], i: number) => {
     at.current = i
     list.forEach((b, j) => (b.tabIndex = j === i ? 0 : -1))
