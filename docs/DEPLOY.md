@@ -83,10 +83,11 @@ bp logout -s https://<host>
 An operator with root on the VM can pass the admin token in `/etc/barkpark/admin-token` as
 `BARKPARK_API_TOKEN` instead. When that file is missing, because the VM predates it or the
 token was lost, mint a new admin token on the VM with
-`sudo /opt/barkpark/api/start.sh admin-token --label "admin (studio)"` (Barkpark from
-2026-10-27, accba3961, or later). It writes the token to that file, mode 600, and its id to
+`sudo /opt/barkpark/api/start.sh admin-token --label "admin (studio)"` (Barkpark
+accba3961 or later). It writes the token to that file, mode 600, and its id to
 `/etc/barkpark/admin-token.id`, and prints only the id and the path. On Container Apps the
-command is `/app/bin/admin-token`. Barkpark's
+app cannot write `/etc`, so run `/app/bin/admin-token --label "admin (studio)" --file /tmp/admin-token`
+in the app's shell. Barkpark's
 [Lost the admin token](https://github.com/FRIKKern/barkpark/blob/main/docs/setup/SELF-HOST-UPDATES.md#lost-the-admin-token)
 covers both.
 
