@@ -18,13 +18,13 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 31 changes
+- **Today** · 2 changes
+  - DEPLOY.md: start.sh admin-token is the fallback for a missing admin token ([#1190](https://github.com/FRIKKern/barkpark-studio/pull/1190))
+- **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
-  - DEPLOY.md: operator path for the studio token, and replacing a Vercel env value ([#1188](https://github.com/FRIKKern/barkpark-studio/pull/1188))
-- **Yesterday** · 23 changes
+- **This week** · 23 changes
   - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
-  - Inspect: the Parsed / Raw JSON choice follows the editor, as Sanity's per-user setting ([#1133](https://github.com/FRIKKern/barkpark-studio/pull/1133))
 - **This month** · 926 changes, 182 tasks closed
 <!-- timeline:end -->
 
