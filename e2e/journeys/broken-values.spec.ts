@@ -81,11 +81,10 @@ test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {cur
   await expect(page.getByText('Could not render the document editor')).toHaveCount(0)
   await expect(t.field(page, 'slug')).toHaveValue('broken-post')
   await expect(t.refLink(page.locator('body'), 'author')).toContainText('Ada Lovelace')
-  // B14: a Portable Text body reads as its text, read-only (the canvas reads PortableDoc).
-  const card = page.getByRole('alert').filter({hasText: 'Sanity Portable Text'})
-  await expect(card).toContainText('Sanity paragraph')
-  // No Reset value: it deleted the whole body (task-3396abb1524c3045).
-  await expect(card.getByRole('button')).toHaveCount(0)
+  // S4a: a Portable Text body opens in the Portable Text input (portable-text.spec.ts), with
+  // no Reset value: it deleted the whole body (task-3396abb1524c3045).
+  await expect(page.locator('[id="body"][contenteditable="true"]')).toContainText('Sanity paragraph')
+  await expect(page.locator('.field').filter({has: page.locator('label[for="body"]')}).getByRole('button', {name: 'Reset value'})).toHaveCount(0)
   expect(await t.docValue(ID, 'body')).toEqual(body)
 })
 

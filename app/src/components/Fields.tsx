@@ -1,4 +1,4 @@
-import {createContext, memo, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
+import {createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {descId, fieldAria, problemId} from '../lib/field-aria'
 import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
@@ -25,8 +25,9 @@ import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './Native
 import {CodelistInput} from './CodelistInput'
 import {FieldComments} from './Comments'
 import {useStaticCommentHighlights} from './InlineComments'
-import {InvalidValueCard, KeysAlert, RichTextCard, SanityPortableTextCard, UnsupportedAssetCard} from './BrokenValues'
+import {InvalidValueCard, KeysAlert, RichTextCard, UnsupportedAssetCard} from './BrokenValues'
 import {invalidValue, keyProblem, richTextProblem, sanityPortableText, unsupportedAsset} from '../lib/broken'
+import {isPortableTextField, type PtBlock} from '../lib/pt-value'
 import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
 import {BodyToolbar} from './BodyToolbar'
 import {PortableDocView} from './PortableDocView'
@@ -38,6 +39,33 @@ import {intlTag, t as tBrowser, useLocale, useT} from '../lib/i18n'
 import studio from '../studio.config'
 
 // Field rendering for the document form: one component per Barkpark field type.
+// S4a: the editor's bundle loads with the first Portable Text field.
+const PortableTextInput = lazy(() => import('./PortableTextInput'))
+
+/** The editor runs in the browser only (it reads the DOM as it renders); its text shows until then. */
+function PortableTextField(props: {id: string; field: Field; value: PtBlock[] | undefined; onChange: (v: unknown) => void; readOnly?: boolean}) {
+  const [client, setClient] = useState(false)
+  useEffect(() => setClient(true), [])
+  const atRest = <PortableTextAtRest field={props.field} value={props.value} />
+  return client ? <Suspense fallback={atRest}><PortableTextInput {...props} /></Suspense> : atRest
+}
+
+/** Portable Text as its text, read-only, while the editor loads. */
+function PortableTextAtRest({field, value}: {field: Field; value: unknown}) {
+  const lines = sanityPortableText(field, value)?.lines ?? []
+  return (
+    <div className="pt-input" data-loading="">
+      <div className="pt-editable">
+        {lines.map((line, i) => (
+          <p key={i} className="pt-block" data-style={line.style}>
+            {line.style === 'object' ? <code>{line.text}</code> : line.text}
+          </p>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // Inputs carry id=<field path>, like Sanity's, so the e2e rig drives both studios the same way.
 
 export type OpenRef = (type: string, id: string, parentRefPath: string) => {href: string; selected: boolean; active: boolean}
@@ -440,9 +468,13 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   const t = useT()
   const editPath = useContext(EditPathContext)
   const invalid = useContext(ProblemsContext).some((p) => p.path === path && p.level === 'error')
-  // B14: Sanity Portable Text in a rich text field reads as its text, kept as it is.
-  const pt = sanityPortableText(field, value)
-  if (pt) return <SanityPortableTextCard pt={pt} value={value} />
+  // S4a: Portable Text in a rich text field (a Sanity import, gyl's bodies) edits in place.
+  if (isPortableTextField(field, value)) {
+    // Blocks without keys, or sharing one: fixed first, as Sanity asks.
+    const keys = Array.isArray(value) && keyProblem(value)
+    if (keys) return <KeysAlert problem={keys} onChange={onChange} />
+    return <PortableTextField id={path} field={field} value={value as PtBlock[] | undefined} onChange={onChange} readOnly={readOnly} />
+  }
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
   if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />

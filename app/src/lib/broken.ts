@@ -122,9 +122,9 @@ export type SanityPortableText = {lines: {style: string; text: string}[]}
 
 /**
  * A rich text field holding Sanity Portable Text (a list of `_type: 'block'` items with
- * `children`), as `bp import` brings it over from a Sanity export (B14). The canvas reads
- * PortableDoc only, so it shows as its text, read-only, and is kept as it is until
- * Barkpark converts it (task-5412419a2e931805). Other items read as their `_type`.
+ * `children`), as `bp import` brings it over from a Sanity export (B14), as its lines of
+ * text: what the field shows while the Portable Text editor loads (S4a). Other items read
+ * as their `_type`.
  */
 export function sanityPortableText(field: Field, value: unknown): SanityPortableText | null {
   if (field.type !== 'richText' || !Array.isArray(value)) return null
