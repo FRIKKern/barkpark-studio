@@ -188,6 +188,8 @@ export default {
   'Edit {name}': 'Rediger {name}',
   'Remove {name}': 'Fjern {name}',
   'This type has no fields to edit.': 'Denne typen har ingen felt å redigere.',
+  // S4c, custom blocks and inline objects.
+  'Insert': 'Sett inn',
   'Normal': 'Normal',
   'Heading 1': 'Overskrift 1',
   'Heading 2': 'Overskrift 2',

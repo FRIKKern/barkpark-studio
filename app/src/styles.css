@@ -3602,4 +3602,9 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
 .pt-annotation { text-decoration: underline dotted; text-underline-offset: 3px; }
 .pt-object { margin: 0 0 8px; padding: 6px 10px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); user-select: none; }
 .pt-inline-object { padding: 0 4px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 0.9em; }
+.pt-object-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pt-object-label { flex: none; font-weight: 500; color: var(--fg); }
+.pt-object-preview { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-object-edit { flex: none; margin-left: auto; }
+.pt-inline-object [role='button'] { cursor: pointer; }
 .pt-note { margin: 0; padding: 6px 12px; font-size: 13px; border-bottom: 1px solid var(--line); }
