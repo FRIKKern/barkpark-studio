@@ -11,6 +11,7 @@ import {deskFilterParams, normalizeDesk, orGroupRefused, type DeskFilter, type D
 import {listSearch} from './list-search'
 import type {Sort} from './list-prefs'
 import {pathsOf, type PreviewMediaSpec, type PreviewText} from './preview'
+import {readDocOf} from './refs'
 import {excluded, memberPreviewRefs, parseTextQuery, refBoost, textScore, tieLength} from './text-search'
 import {groqKeepPath, isGroqFilter, referencingPath, refFilterParams, type RefFilter} from './ref-filter'
 
@@ -195,25 +196,21 @@ const fetchListSearch = createServerFn({method: 'GET'})
 // A reference with several target types names them all; the doc is whichever has the id.
 const fetchDoc = createServerFn({method: 'GET'})
   .validator((d: {type: string | string[]; id: string}) => d)
-  .handler(async ({data}) => {
-    let types = [data.type].flat()
+  .handler(async ({data}) =>
     // An id any of several types may hold (presence names a doc by id only): one read names
     // its type. Asking each type in turn was a read per type, 64 in a row for a 64-type model.
-    if (types.length > 1) {
-      const type = (await typesOf([data.id]))[data.id]
-      if (!type || !types.includes(type)) return null
-      types = [type]
-    }
-    for (const type of types) {
-      const path = `/v1/data/doc/${dataset()}/${encodeURIComponent(type)}/${encodeURIComponent(data.id)}?perspective=drafts`
-      const res = await bpFetch(path)
-      if (res.status === 404) continue
-      if (!res.ok) throw new Error(`Barkpark ${path} → ${res.status}`)
-      const [doc] = await withHasPublished(type, [((await res.json()) as {result: Doc}).result])
-      return doc as unknown as Json
-    }
-    return null
-  })
+    readDocOf<Json>([data.type].flat(), data.id, {
+      typeOf: async (id) => (await typesOf([id]))[id],
+      read: async (type, id) => {
+        const path = `/v1/data/doc/${dataset()}/${encodeURIComponent(type)}/${encodeURIComponent(id)}?perspective=drafts`
+        const res = await bpFetch(path)
+        if (res.status === 404) return null
+        if (!res.ok) throw new Error(`Barkpark ${path} → ${res.status}`)
+        const [doc] = await withHasPublished(type, [((await res.json()) as {result: Doc}).result])
+        return doc as unknown as Json
+      },
+    }),
+  )
 
 const fetchPublished = createServerFn({method: 'GET'})
   .validator((d: {type: string; id: string}) => d)
@@ -648,7 +645,7 @@ export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) =>
 export const isSingleton = (schemas: Schema[], type: string) => schemaOf(schemas, type)?.singleton === true
 
 /** The types a reference field (or a reference array's member) may point to. */
-export {itemPath, refId} from './refs'
+export {itemPath, refId, refOpenType} from './refs'
 export const refTypesOf = (field: Field | undefined): string[] => field?.to?.map((t) => t.type) ?? (field?.refType ? [field.refType] : [])
 
 /** The types with a reference field (at any depth, in arrays too) that can point at `type`: who can refer to it. */
