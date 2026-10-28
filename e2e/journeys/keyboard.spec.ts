@@ -228,3 +228,28 @@ test('@local J19: a document opened from search with a list open takes focus in 
   await expect.poll(() => decodeURIComponent(new URL(page.url()).pathname)).toBe(`/structure/post;${ID}`)
   await expect(t.field(page, 'title')).toBeFocused()
 })
+
+// task-9e4571cd18792ca3: the body's toolbar is one Tab stop (arrows inside), as Sanity's; every
+// tool behind the fold groups was its own stop (12 between the body and the next field).
+test('@local J19: the body toolbar is one Tab stop; arrows move between its tools', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: the canvas body toolbar')
+  await page.goto(`/structure/post;${ID}`)
+  await t.settle(page)
+  const body = page.locator('[id="body"]')
+  await body.focus()
+  // The toolbar wakes (its tools enable) once the body holds focus.
+  await expect(body.locator('fieldset').first()).toBeEnabled()
+  const label = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') || (document.activeElement as HTMLElement | null)?.innerText.trim())
+  await page.keyboard.press('Tab')
+  const first = await label()
+  await page.keyboard.press('ArrowRight')
+  await expect.poll(label).toBe('Strong')
+  await page.keyboard.press('Home')
+  await expect.poll(label).toBe(first)
+  // One more Tab leaves the toolbar: Expand editor, then out of the body.
+  await page.keyboard.press('Tab')
+  await expect.poll(label).toBe('Expand editor')
+  await page.keyboard.press('Tab')
+  await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[id="body"]'))).toBe(false)
+})
