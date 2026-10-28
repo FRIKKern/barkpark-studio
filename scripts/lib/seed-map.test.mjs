@@ -14,3 +14,17 @@ test('seed images map to the asset ref, in a field and in an array', () => {
   // A multi-type object array is still a composite with `kind` (decision 0005).
   assert.deepEqual(toBarkpark({_id: 'y', _type: 'post', links: [{_key: 'l1', _type: 'externalLink', title: 'T', url: 'u'}]}).links, [{_key: 'l1', kind: 'externalLink', title: 'T', url: 'u'}])
 })
+
+// post.ptBody is stored as Portable Text on both sides, as written: blocks, a custom block
+// and a linkAnnotation with its reference keep their shape. post.body still maps to
+// PortableDoc (D3), which has no linkAnnotation.
+test('ptBody stays Portable Text while body maps to PortableDoc', () => {
+  const pt = [
+    {_type: 'block', _key: 'b1', style: 'normal', markDefs: [{_type: 'linkAnnotation', _key: 'm1', internalLink: {_type: 'reference', _ref: 'category-guide'}}], children: [{_type: 'span', _key: 's1', text: 'Hi', marks: ['m1']}]},
+    {_type: 'callout', _key: 'c1', tone: 'info', text: 'Note'},
+  ]
+  const body = [{_type: 'block', _key: 'b1', style: 'normal', markDefs: [], children: [{_type: 'span', _key: 's1', text: 'Hi', marks: []}]}, pt[1]]
+  const out = toBarkpark({_id: 'x', _type: 'post', body, ptBody: pt})
+  assert.deepEqual(out.ptBody, pt)
+  assert.deepEqual(out.body.blocks.map((b) => b.type), ['paragraph', 'callout'])
+})

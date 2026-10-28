@@ -86,6 +86,41 @@ export const post = defineType({
         }),
       ],
     }),
+    // A second Portable Text field (task-7b800632b1d92b2c). Barkpark stores body as PortableDoc
+    // and this one as Portable Text, so GROQ conformance reads Portable Text on both sides.
+    defineField({
+      name: 'ptBody',
+      title: 'Portable Text body',
+      description: 'Stored as Portable Text, as Sanity stores it.',
+      type: 'array',
+      group: 'content',
+      of: [
+        defineArrayMember({
+          type: 'block',
+          marks: {
+            annotations: [
+              defineArrayMember({name: 'link', type: 'object', fields: [defineField({name: 'href', type: 'url'})]}),
+              defineArrayMember({
+                name: 'linkAnnotation',
+                type: 'object',
+                fields: [
+                  defineField({name: 'linkType', type: 'string', options: {list: ['internal', 'external']}}),
+                  defineField({name: 'internalLink', type: 'reference', to: [{type: 'post'}, {type: 'author'}, {type: 'category'}]}),
+                ],
+              }),
+            ],
+          },
+        }),
+        defineArrayMember({
+          name: 'callout',
+          type: 'object',
+          fields: [
+            defineField({name: 'tone', type: 'string', options: {list: ['info', 'warning', 'danger']}}),
+            defineField({name: 'text', type: 'text', rows: 2}),
+          ],
+        }),
+      ],
+    }),
     // Select lists, radio and dropdown (J31).
     defineField({
       name: 'stage',
