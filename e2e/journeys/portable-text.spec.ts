@@ -121,7 +121,9 @@ test('@local Portable Text: styles, lists and decorators edit from the toolbar',
   // the editor reads the browser's selection just after the click.
   const caret = async (text: string, dbl = false) => (await (dbl ? editor.getByText(text).dblclick({position: {x: 10, y: 8}}) : editor.getByText(text).click()), await page.waitForTimeout(150))
   await caret('Cups')
-  await page.getByRole('combobox', {name: 'Block style'}).selectOption('h3')
+  // The style button (Sanity's menu, each style drawn as it looks).
+  await page.locator('.pt-input').filter({has: editor}).locator('.body-style').click()
+  await page.getByRole('menuitemradio', {name: 'Heading 3'}).click()
   await caret('Pour slowly')
   await page.getByRole('button', {name: 'Bulleted list'}).click()
   await caret('Brew the tea with warm water.', true)
