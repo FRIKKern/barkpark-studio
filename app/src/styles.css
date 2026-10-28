@@ -3590,7 +3590,9 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
 .pt-toolbar:disabled { opacity: 0.6; }
 .pt-toolbar .pt-style { width: auto; height: 25px; padding: 0 6px; font-size: 13px; }
 .pt-tool-text { font-size: 12px; padding: 0 2px; }
-.pt-editable { min-height: 47px; max-height: 273px; overflow: auto; resize: vertical; padding: 8px 12px; font-size: 15px; line-height: 1.6; outline: none; }
+/* Sanity's text box is 271 px under its 33 px bar whatever the length, as the canvas body's:
+   the text scrolls inside and the corner drags it taller or shorter (its whole box min 80). */
+.pt-editable { height: 271px; min-height: 47px; overflow: auto; resize: vertical; padding: 8px 12px; font-size: 15px; line-height: 1.6; outline: none; }
 .pt-editable .pt-block { margin: 0 0 8px; }
 .pt-editable h1.pt-block { font-size: 1.6em; } .pt-editable h2.pt-block { font-size: 1.4em; } .pt-editable h3.pt-block { font-size: 1.2em; }
 .pt-editable h4.pt-block, .pt-editable h5.pt-block, .pt-editable h6.pt-block { font-size: 1em; }
@@ -3599,7 +3601,8 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
 .pt-editable .pt-block[data-list='bullet'] { list-style-type: disc; }
 .pt-editable .pt-block[data-list='number'] { list-style-type: decimal; }
 .pt-editable .pt-block[data-level='2'] { --pt-level: 2; } .pt-editable .pt-block[data-level='3'] { --pt-level: 3; }
-.pt-annotation { text-decoration: underline dotted; text-underline-offset: 3px; }
+/* Sanity draws every annotation as a link: its link tone (the pinned one) with a 1 px rule under it. */
+.pt-annotation { color: var(--pinned-fg); border-bottom: 1px solid currentColor; }
 .pt-object { margin: 0 0 8px; padding: 6px 10px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); user-select: none; }
 .pt-inline-object { padding: 0 4px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 0.9em; }
 .pt-object-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
