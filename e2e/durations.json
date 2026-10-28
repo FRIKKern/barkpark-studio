@@ -103,6 +103,7 @@
   "paper-standalone.spec.ts": 0,
   "paste.spec.ts": 0,
   "plugins.spec.ts": 0,
+  "portable-text.spec.ts": 11.1,
   "presence-leave.spec.ts": 5.4,
   "presentation.spec.ts": 0,
   "previews-tips.spec.ts": 0,
