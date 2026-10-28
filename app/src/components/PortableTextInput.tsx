@@ -1,4 +1,4 @@
-import {createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {
   defineAnnotation,
   defineBlockObject,
@@ -17,7 +17,7 @@ import {EventListenerPlugin, NodePlugin} from '@portabletext/editor/plugins'
 import {MarkdownShortcutsPlugin} from '@portabletext/plugin-markdown-shortcuts'
 import {PasteLinkPlugin, type LinkMatcher} from '@portabletext/plugin-paste-link'
 import {createDecoratorGuard, TypographyPlugin} from '@portabletext/plugin-typography'
-import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotation, isActiveDecorator, isActiveListItem, isSelectionExpanded} from '@portabletext/editor/selectors'
+import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotation, isActiveDecorator, isActiveListItem, isSelectionCollapsed, isSelectionExpanded} from '@portabletext/editor/selectors'
 import {useQuery} from '@tanstack/react-query'
 import {schemasQuery, type Field} from '../lib/data'
 import {useT} from '../lib/i18n'
@@ -25,7 +25,7 @@ import {declaredVocabulary, editorSchema, equal, insertable, markdownNames, merg
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import type {OpenRef} from './Fields'
 import {MenuPopover} from './FocusScopes'
-import {Add, BoldIcon, CodeIcon, EditIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
+import {Add, BoldIcon, CodeIcon, EditIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
 // S4a (task-7f77f41c95cc6d9f): a richText field holding Portable Text, edited with
 // @portabletext/editor (owner decision D2). Text, styles, lists and decorators edit.
@@ -88,6 +88,8 @@ type Obj = Record<string, unknown> & {_type: string; _key: string}
 type ObjectEdit = {kind: ObjectKind; node: Obj; path: unknown[]}
 /** Opens the dialog for a custom block or inline object (Editor holds it). */
 const EditObject = createContext<((edit: ObjectEdit) => void) | null>(null)
+/** Each annotation type's toolbar Edit, by name: the popover over an annotation opens it too. */
+const AnnotationOpeners = createContext<Map<string, () => void> | null>(null)
 
 /** A short line of an object's own text for its card: its first non-empty string, else one a field object holds. */
 function preview(node: Obj): string {
@@ -204,6 +206,7 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
   // The toolbar waits for the editor to have read the value (its 'ready').
   const [ready, setReady] = useState(false)
   const locked = readOnly || invalid
+  const openers = useMemo(() => new Map<string, () => void>(), [])
   return (
     <div className="pt-input" data-readonly={locked || undefined} data-ready={ready || undefined}>
       <EditorProvider initialConfig={{schemaDefinition: schema, initialValue: stored as PortableTextBlock[], readOnly: locked}}>
@@ -216,8 +219,11 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
           </p>
         )}
         <EditObject.Provider value={locked ? null : setObjectEdit}>
-          {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} />}
-          <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} />
+          <AnnotationOpeners.Provider value={openers}>
+            {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} />}
+            <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} />
+            {!locked && <AnnotationPopover field={field} />}
+          </AnnotationOpeners.Provider>
         </EditObject.Provider>
         {objectEdit && <ObjectDialog id={id} edit={objectEdit} field={field} stored={stored} schemas={schemas} openRef={openRef} onClose={() => setObjectEdit(null)} />}
       </EditorProvider>
@@ -452,6 +458,11 @@ function AnnotationButton({id, name, field, stored, schemas, openRef}: {id: stri
     }
     editor.send({type: 'focus'})
   }
+  const openers = useContext(AnnotationOpeners)
+  useEffect(() => {
+    openers?.set(name, open)
+    return () => void openers?.delete(name)
+  })
   const remove = () => {
     const e = edit
     setEdit(null)
@@ -475,6 +486,71 @@ function AnnotationButton({id, name, field, stored, schemas, openRef}: {id: stri
           onRemove={edit.def ? remove : undefined}
           removeLabel={t('Remove {name}', {name: title})}
         />
+      )}
+    </>
+  )
+}
+
+/**
+ * Sanity's popover over an annotation: with the caret in one (and the editor focused), its
+ * title, Edit (the toolbar button's dialog) and Remove, centred 4 px above its text.
+ */
+function AnnotationPopover({field}: {field: Field}) {
+  const t = useT()
+  const editor = useEditor()
+  const openers = useContext(AnnotationOpeners)
+  const active = useEditorSelector(editor, getActiveAnnotations)
+  const collapsed = useEditorSelector(editor, isSelectionCollapsed)
+  const [focused, setFocused] = useState(false)
+  const [at, setAt] = useState<{left: number; top: number} | null>(null)
+  const ref = useRef<HTMLSpanElement>(null)
+  const names = [...new Set(active.map((a) => a._type))]
+  const show = focused && collapsed && names.length > 0
+  useLayoutEffect(() => {
+    const box = ref.current?.closest('.pt-input')
+    const scroller = box?.querySelector('.pt-editable')
+    if (!show || !box || !scroller) return setAt(null)
+    // Over the annotation the caret is in, as the browser's selection has it.
+    const place = () => {
+      const node = getSelection()?.focusNode
+      const mark = (node instanceof Element ? node : node?.parentElement)?.closest('.pt-annotation')
+      if (!mark || !scroller.contains(mark)) return setAt(null)
+      const r = mark.getBoundingClientRect()
+      const view = scroller.getBoundingClientRect()
+      const outer = box.getBoundingClientRect()
+      setAt(r.bottom < view.top || r.top > view.bottom ? null : {left: r.left + r.width / 2 - outer.left, top: r.top - outer.top - 4})
+    }
+    place()
+    scroller.addEventListener('scroll', place)
+    return () => scroller.removeEventListener('scroll', place)
+  }, [show, active])
+  const remove = (name: string) => {
+    const sel = editor.getSnapshot().context.selection
+    // A caret takes the whole annotation off, as far as its text runs.
+    if (sel) editor.send({type: 'annotation.remove', annotation: {name}, at: {anchor: sel.focus, focus: sel.focus}})
+    editor.send({type: 'focus'})
+  }
+  return (
+    <>
+      <EventListenerPlugin on={(e) => (e.type === 'focused' ? setFocused(true) : e.type === 'blurred' && setFocused(false))} />
+      <span ref={ref} hidden />
+      {show && at && (
+        // Its buttons keep the editor's focus (and so the popover) while clicked.
+        <div className="pt-annotation-pop" style={{left: at.left, top: at.top}} onMouseDown={(e) => e.preventDefault()}>
+          {names.map((name) => (
+            <span key={name} className="pt-annotation-pop-row">
+              <span className="pt-annotation-pop-title">{objectTitle(field, 'annotation', name)}</span>
+              {openers?.has(name) && (
+                <button type="button" className="icon-btn" aria-label={t('Edit annotation')} data-tip={t('Edit annotation')} data-tip-side="top" onClick={() => openers.get(name)?.()}>
+                  <EditIcon />
+                </button>
+              )}
+              <button type="button" className="icon-btn" aria-label={t('Remove annotation')} data-tip={t('Remove annotation')} data-tip-side="top" onClick={() => remove(name)}>
+                <Trash />
+              </button>
+            </span>
+          ))}
+        </div>
       )}
     </>
   )
