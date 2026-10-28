@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
+import {changedBlocks, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -280,4 +280,18 @@ test('pt: an image block is insertable (a file block is not) and the editor keep
   assert.deepEqual(insertable(field).blocks.map((b) => b.name), ['image', 'callout'])
   const image = editorSchema(field, []).blockObjects.find((b) => b.name === 'image')!
   assert.deepEqual(image.fields?.map((f) => [f.name, f.type]), [['asset', 'object'], ['hotspot', 'object'], ['crop', 'object']])
+})
+
+test('pt: an edit inside blocks sends those blocks by key; a block that came, went or moved sends the field', () => {
+  const before = stored()
+  const typed = JSON.parse(JSON.stringify(before)) as PtBlock[]
+  ;(typed[0].children as {text: string}[])[0].text = 'Tea is brewed with warm water.'
+  assert.deepEqual(changedBlocks(before, typed), [{key: 'b1', block: typed[0]}])
+  assert.deepEqual(changedBlocks(before, stored()), [])
+  // Added, removed, moved, or a key that is not a plain one: the whole field.
+  assert.equal(changedBlocks(before, [...before, {_key: 'b9', _type: 'block', children: []}]), null)
+  assert.equal(changedBlocks(before, before.slice(1)), null)
+  assert.equal(changedBlocks(before, [before[1], before[0], ...before.slice(2)]), null)
+  assert.equal(changedBlocks([{_key: 'a"b', _type: 'block'}], [{_key: 'a"b', _type: 'block', x: 1}]), null)
+  assert.equal(changedBlocks(undefined, typed), null)
 })

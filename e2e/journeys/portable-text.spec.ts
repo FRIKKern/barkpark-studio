@@ -505,3 +505,99 @@ test('@local Portable Text: a pasted image file becomes an image block after the
   expect(draft[draft.indexOf(image) - 1]._key).toBe('p3')
   expect(JSON.stringify(draft.filter((b) => b !== image))).toBe(JSON.stringify(stored))
 })
+
+// task-283bdc577aedb167: a save sends the blocks typed in only, by key (Barkpark's keyed
+// patch paths), not the whole field: on a 300-block body the field went whole at 337 KB a save.
+// A block that comes or goes (Enter) still sends the field.
+test('@local Portable Text: typing in a block saves that block by its key, not the whole field', async ({page}, info) => {
+  const editor = await open(page, info)
+  const saves: string[] = []
+  page.on('request', (r) => r.method() === 'POST' && /_serverFn/.test(r.url()) && (r.postData() ?? '').includes(ID) && saves.push(r.postData()!))
+  await selectWarm(page, editor)
+  await page.keyboard.type('hot')
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Brew the tea with hot water.')
+  const typed = saves.filter((s) => s.includes('hot'))
+  expect(typed.length).toBeGreaterThan(0)
+  for (const s of typed) {
+    // That block, by its key; none of the others (their words) went with it.
+    expect(s).toContain('[_key==')
+    expect(s).toContain('p1')
+    for (const other of ['Steep it for', 'Cups', 'Pour slowly', 'the tea maker']) expect(s).not.toContain(other)
+  }
+  const one = Math.max(...typed.map((s) => s.length))
+  // A new block (Enter): the whole field goes, every block in it.
+  saves.length = 0
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Cool')
+  await savesLanded(page)
+  // The block splits at the caret ("…with hot" | " water."), the new one typed into.
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Cool water.')
+  const whole = saves.find((s) => s.includes('Cups') && s.includes('the tea maker'))
+  expect(whole).toBeTruthy()
+  expect(one).toBeLessThan(whole!.length)
+  // What is stored: the typed words where they were typed, every key kept.
+  const body = ((await read('drafts'))!.body ?? []) as typeof BODY
+  expect(body.map((b) => b._key).filter((k) => !/^[0-9a-f]{12}$/.test(k))).toEqual(['p1', 'p2', 'c1', 'p3', 'p4', 'p5'])
+  expect(body[0]!.children[0]!.text).toBe('Brew the tea with hot')
+  expect(body[1]!.children.map((c) => c.text).join('')).toBe('Cool water.')
+})
+
+/** The caret at the end of the span holding exactly `text`, once the editor has read the click. */
+async function caretAtEnd(page: import('@playwright/test').Page, editor: import('@playwright/test').Locator, text: string) {
+  await editor.getByText(text, {exact: true}).click()
+  await editor.evaluate((el, text) => {
+    const span = [...el.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === text)!.firstChild!
+    getSelection()!.collapse(span, text.length)
+  }, text)
+  await page.waitForTimeout(200)
+}
+
+// task-283bdc577aedb167, with saves by key: another editor removes the block being typed in.
+// The key then finds no item (Barkpark's patch.path_unmatched) or the fence refuses the
+// save (412); either way the field goes whole again as this editor has it, on the rev that
+// came back, and no keystroke is lost.
+test('@local Portable Text: a block another editor removes mid-typing comes back with every keystroke', async ({page}, info) => {
+  const editor = await open(page, info)
+  await caretAtEnd(page, editor, 'Cups')
+  await page.keyboard.type(' and')
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Cups and')
+  // The other editor (the rig's own token) removes that block from the draft.
+  await bpMutate([{patch: {id: ID, type: 'post', unset: ['body[_key=="p3"]']}}])
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).not.toContain('Cups')
+  await page.keyboard.type(' saucers')
+  await savesLanded(page)
+  type Block = {_key: string; children?: {text: string}[]}
+  await expect
+    .poll(async () => (((await read('drafts'))?.body ?? []) as Block[]).find((b) => b._key === 'p3')?.children?.map((c) => c.text).join(''), {timeout: 15_000})
+    .toBe('Cups and saucers')
+  const keys = (((await read('drafts'))!.body ?? []) as Block[]).map((b) => b._key)
+  expect(keys).toEqual(['p1', 'p2', 'c1', 'p3', 'p4', 'p5'])
+})
+
+// task-283bdc577aedb167: two editors typing in different blocks of one body at once both keep
+// their words (saves by key; whole-field saves raced for the field).
+test('@local Portable Text: two editors typing in different blocks at once both keep their text', async ({page, browser}, info) => {
+  const t = target(info)
+  const ctxB = await browser.newContext()
+  await t.prepare(ctxB)
+  const b = await ctxB.newPage()
+  try {
+    const [edA, edB] = await Promise.all([open(page, info), open(b, info)])
+    await caretAtEnd(page, edA, 'Pour slowly')
+    await caretAtEnd(b, edB, 'Cups')
+    await Promise.all([
+      (async () => { for (const w of [' from', ' a', ' height']) await page.keyboard.type(w, {delay: 60}) })(),
+      (async () => { for (const w of [' and', ' fine', ' saucers']) await b.keyboard.type(w, {delay: 60}) })(),
+    ])
+    await Promise.all([savesLanded(page), savesLanded(b)])
+    type Block = {_key: string; children?: {text: string}[]}
+    const text = async (key: string) => (((await read('drafts'))?.body ?? []) as Block[]).find((x) => x._key === key)?.children?.map((c) => c.text).join('')
+    await expect.poll(() => text('p4'), {timeout: 15_000}).toBe('Pour slowly from a height')
+    await expect.poll(() => text('p3'), {timeout: 15_000}).toBe('Cups and fine saucers')
+  } finally {
+    await closeAndSettle(b)
+    await ctxB.close()
+  }
+})

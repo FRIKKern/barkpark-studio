@@ -136,6 +136,23 @@ export function equal(a: unknown, b: unknown): boolean {
 }
 
 /**
+ * The blocks an edit changed, by key, when no block came, went or moved: what a save can
+ * send as `body[_key=="…"]` sets instead of the whole field (task-283bdc577aedb167). Null
+ * when one did (or a block has no plain key): the whole field goes.
+ */
+export function changedBlocks(prev: unknown, next: unknown): {key: string; block: PtBlock}[] | null {
+  if (!Array.isArray(prev) || !Array.isArray(next) || prev.length !== next.length) return null
+  const out: {key: string; block: PtBlock}[] = []
+  for (let i = 0; i < next.length; i++) {
+    const a = prev[i] as PtBlock
+    const b = next[i] as PtBlock
+    if (!isObj(a) || !isObj(b) || typeof b._key !== 'string' || !/^[\w-]+$/.test(b._key) || a._key !== b._key) return null
+    if (!equal(a, b)) out.push({key: b._key, block: b})
+  }
+  return out
+}
+
+/**
  * Whether a value from outside the input replaces what the editor shows (`shown`: its
  * last save, else the value it opened with). Not when it is what the editor shows, nor
  * one of this input's own saves coming back (`mine`). A value going back to the one the

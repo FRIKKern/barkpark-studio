@@ -13,7 +13,7 @@ import {heldFor} from './held-for'
 import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
 import {merge3, mergeList3, onto, revertSteps} from './merge'
-import {applyPaths, getPath, setPath, within} from './paths'
+import {applyPaths, getPath, keyedRoots, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {paceMs, paced} from './write-pace'
@@ -435,8 +435,14 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
   }
   // What this edit is made against: the server's value (and rev) as this browser has it.
   if (!e.dirty.size && !e.inflight) (e.rev = held._rev || undefined), (e.forks = held._draft === false && !e.pendingCreate)
-  const pending = [...e.base.keys()].some((k) => within(field, k) || within(k, field))
-  if (!pending) e.base.set(field, getPath(held, field))
+  // What this spot is made from, unless a pending spot holding it has that already. A whole
+  // value over spots pending inside it (a Portable Text body after its blocks went by key)
+  // takes their place: without its own base its rebase had nothing to go by, kept the old
+  // rev, and the field's fence refused it again and again (412).
+  if (![...e.base.keys()].some((k) => within(field, k))) {
+    e.base.set(field, getPath(held, field))
+    for (const k of [...e.base.keys()]) if (k !== field && within(k, field) && !e.inflight?.has(k)) e.base.delete(k)
+  }
   // One pending write per spot: a path inside an object already pending whole goes
   // into that value; a whole value replaces the paths pending inside it.
   const outer = [...e.dirty.keys()].find((k) => k !== field && within(field, k))
@@ -527,6 +533,18 @@ export function flushOnUnload() {
   })
   if (mutations.length) navigator.sendBeacon('/api/mutate', new Blob([JSON.stringify({mutations})], {type: 'application/json'}))
 }
+
+// Who sends a field whole again when an item path sent for it found no item: its input,
+// which holds the value it means (a Portable Text editor still shows the block).
+const keyedMisses = new Map<string, () => void>()
+/** Called when an item path this doc's `field` sent found no item there; returns the cleanup. */
+export function onKeyedMiss(id: string, field: string, resend: () => void): () => void {
+  const k = `${id}\n${field}`
+  keyedMisses.set(k, resend)
+  return () => void (keyedMisses.get(k) === resend && keyedMisses.delete(k))
+}
+
+const hasWarning = (r: {warnings?: unknown}, code: string) => Array.isArray(r.warnings) && r.warnings.some((w) => (w as {code?: unknown})?.code === code)
 
 function toPatch(fields: Map<string, unknown>) {
   const set: Record<string, Json> = {}
@@ -643,6 +661,8 @@ async function send(qc: QueryClient, id: string) {
   const stall = setTimeout(() => e.inflight && setState(e, 'stalled'), STALL_MS)
   const {set, unset} = toPatch(e.inflight)
   const creating = e.pendingCreate
+  // This editor's doc as sent: what a keyed path that finds no item there falls back to.
+  const sentFrom = qc.getQueryData<Doc>(['doc', id])
   try {
     const fence: Record<string, Json> = e.rev ? {ifRevisionID: e.rev} : {}
     // J16: the first edit of a published document makes its draft. Sent as an empty patch
@@ -659,6 +679,7 @@ async function send(qc: QueryClient, id: string) {
     e.forks = false
     e.advisories = advisoryFindings(r)
     if (creating) { e.pendingCreate = undefined; e.createRequested = false }
+    const sentPaths = [...e.inflight.keys()]
     // What we sent is now the server's: a field still being typed builds on it.
     for (const f of e.inflight.keys()) {
       if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
@@ -675,6 +696,18 @@ async function send(qc: QueryClient, id: string) {
     keepUnsaved(id, e)
     applyServer(qc, saved)
     if (later) applyServer(qc, later)
+    // An item path (`body[_key=="…"]`) that found no item there (removed meanwhile) wrote
+    // nothing (Barkpark's patch.path_unmatched, as Sanity's), while the save's other paths
+    // did. Its whole field goes again as the editor means it, fenced on the rev this save
+    // returned (the cache holds it now): the part that missed is put right. The field's
+    // input says what it means (onKeyedMiss); else the doc as it was sent.
+    if (hasWarning(r, 'patch.path_unmatched'))
+      for (const root of keyedRoots(sentPaths)) {
+        const own = keyedMisses.get(`${id}\n${root}`)
+        const now = qc.getQueryData<Doc>(['doc', id])
+        if (own) own()
+        else if (now && sentFrom) edit(qc, now, root, getPath(sentFrom, root), false)
+      }
     setState(e, e.dirty.size ? 'saving' : 'saved')
   } catch (err) {
     clearTimeout(stall)
