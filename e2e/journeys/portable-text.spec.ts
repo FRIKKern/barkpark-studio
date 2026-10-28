@@ -425,3 +425,27 @@ test('@local Portable Text: Insert Image puts an image block in, its image picke
   expect(draft[draft.indexOf(image) - 1]._key).toBe('p3')
   expect(JSON.stringify(draft.filter((b) => b !== image))).toBe(JSON.stringify(stored))
 })
+
+// task-764545042192c57d: the toolbar is one Tab stop, the arrows move between its tools (Sanity's).
+test('@local Portable Text: the toolbar is one Tab stop; arrows, Home and End move between tools', async ({page}, info) => {
+  const editor = await open(page, info)
+  await editor.getByText('Cups').click()
+  await expect(field(page).locator('.body-style')).toHaveText('Heading 2')
+  const focused = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') || (document.activeElement as HTMLElement | null)?.innerText)
+  // Back from the text: the toolbar's one stop, its first tool.
+  await page.keyboard.press('Shift+Tab')
+  await expect.poll(focused).toBe('Heading 2')
+  await page.keyboard.press('ArrowRight')
+  await expect.poll(focused).toBe('Strong')
+  await page.keyboard.press('ArrowLeft')
+  await page.keyboard.press('ArrowLeft')
+  await expect.poll(focused).not.toBe('Heading 2') // wrapped round to the last tool
+  await page.keyboard.press('Home')
+  await page.keyboard.press('ArrowRight')
+  await expect.poll(focused).toBe('Strong')
+  // Out of the toolbar in one Shift+Tab, and back in on the tool last used.
+  await page.keyboard.press('Shift+Tab')
+  await expect.poll(async () => page.evaluate(() => !!document.activeElement?.closest('.pt-toolbar'))).toBe(false)
+  await page.keyboard.press('Tab')
+  await expect.poll(focused).toBe('Strong')
+})
