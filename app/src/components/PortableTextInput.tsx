@@ -25,7 +25,7 @@ import {declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, mar
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {MenuPopover} from './FocusScopes'
-import {Add, BoldIcon, CodeIcon, EditIcon, Ellipsis, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
+import {Add, BoldIcon, ChevronDown, CodeIcon, EditIcon, Ellipsis, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
 // S4a (task-7f77f41c95cc6d9f): a richText field holding Portable Text, edited with
 // @portabletext/editor (owner decision D2). Text, styles, lists and decorators edit.
@@ -359,24 +359,8 @@ function Toolbar({id, field, stored, schemas, openRef, ready}: ToolbarProps) {
   const styles = vocab.styles
   return (
     <fieldset className="body-toolbar pt-toolbar" role="toolbar" aria-label={t('Formatting')} disabled={!ready} onMouseDown={(e) => e.currentTarget.contains(e.target as Node) && (e.target as HTMLElement).tagName !== 'SELECT' && e.preventDefault()}>
-      {styles.length > 1 && (
-        <select
-          className="input pt-style"
-          aria-label={t('Block style')}
-          value={style ?? ''}
-          onChange={(e) => {
-            editor.send({type: 'style.toggle', style: e.target.value})
-            editor.send({type: 'focus'})
-          }}
-        >
-          {!style && <option value="">{t('No style')}</option>}
-          {styles.map((s) => (
-            <option key={s.name} value={s.name}>
-              {s.title ?? t(STYLE_LABEL[s.name] ?? s.name)}
-            </option>
-          ))}
-        </select>
-      )}
+      {styles.length > 1 && <StyleMenu styles={styles} style={style} />}
+      {styles.length > 1 && vocab.decorators.length > 0 && <span className="body-toolbar-sep" />}
       {vocab.decorators.map((d) => (
         <MarkButton key={d.name} name={d.name} label={d.title ?? (MARKS[d.name] ? t(MARKS[d.name][0]) : d.name)} icon={MARKS[d.name]?.[1]} />
       ))}
@@ -390,6 +374,41 @@ function Toolbar({id, field, stored, schemas, openRef, ready}: ToolbarProps) {
       ))}
       <InsertMenu field={field} schemas={schemas} />
     </fieldset>
+  )
+}
+
+/**
+ * The block style, as Sanity's (and the canvas body's): a button with the caret's style and
+ * a menu drawing each style as it looks. The button takes focus (the editor keeps its
+ * selection), so the menu returns focus to it; a pick puts the caret back in the text.
+ */
+function StyleMenu({styles, style}: {styles: {name: string; title?: string}[]; style: string | undefined}) {
+  const t = useT()
+  const editor = useEditor()
+  const [open, setOpen] = useState(false)
+  const label = (s: {name: string; title?: string}) => s.title ?? t(STYLE_LABEL[s.name] ?? s.name)
+  const current = styles.find((s) => s.name === style)
+  const pick = (name: string) => {
+    setOpen(false)
+    if (name !== style) editor.send({type: 'style.toggle', style: name})
+    editor.send({type: 'focus'})
+  }
+  return (
+    <div className="menu-wrap body-style-wrap" onMouseDown={(e) => e.stopPropagation()} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <button type="button" className="body-style" aria-haspopup="menu" aria-expanded={open} data-tip={t('Block style')} data-tip-side="top" onClick={() => setOpen((o) => !o)}>
+        <span>{current ? label(current) : t('No style')}</span>
+        <ChevronDown />
+      </button>
+      {open && (
+        <MenuPopover onClose={() => setOpen(false)} aria-label={t('Block style')}>
+          {styles.map((s) => (
+            <button key={s.name} type="button" role="menuitemradio" aria-checked={s.name === style} className={`menu-item body-style-${s.name}`} onClick={() => pick(s.name)}>
+              {label(s)}
+            </button>
+          ))}
+        </MenuPopover>
+      )}
+    </div>
   )
 }
 
