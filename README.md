@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 26 changes
-  - portable-text.spec: a custom block dropped where it is writes nothing ([#1216](https://github.com/FRIKKern/barkpark-studio/pull/1216))
+- **Today** · 27 changes
+  - Image input: a set crop shows in the field's preview, as Sanity's ([#1217](https://github.com/FRIKKern/barkpark-studio/pull/1217))
 - **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **This week** · 23 changes
