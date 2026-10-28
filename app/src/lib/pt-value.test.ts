@@ -212,7 +212,7 @@ test('pt: a custom block or inline object dialog takes declared fields, else the
   assert.equal(objectTitle(field, 'block', 'teapot', all), 'Teapot')
   assert.equal(objectTitle(field, 'block', 'cup', all), 'Cup')
   // Insert offers the declared types; an image block needs its own input.
-  assert.deepEqual(insertable(field), {blocks: [{name: 'teapot'}, {name: 'cup', title: 'Cup'}], inline: [{name: 'teaChip', title: 'Tea chip'}]})
+  assert.deepEqual(insertable(field), {blocks: [{name: 'image'}, {name: 'teapot'}, {name: 'cup', title: 'Cup'}], inline: [{name: 'teaChip', title: 'Tea chip'}]})
   // The editor is told every field, so block.set keeps them.
   assert.deepEqual(editorSchema(field, stored(), all).blockObjects.find((b) => b.name === 'cup')?.fields, [{name: 'size', type: 'number'}])
 })
@@ -273,4 +273,11 @@ test('pt: a value going back to the one the editor opened with shows after edits
   assert.equal(isOutsideValue(stored(), more, [typed, more]), true)
   // Another editor's change.
   assert.equal(isOutsideValue([...more, {_key: 'b9', _type: 'block', children: []}], more, [typed, more]), true)
+})
+
+test('pt: an image block is insertable (a file block is not) and the editor keeps its asset, hotspot and crop', () => {
+  const field = {blocks: {of: ['image', 'file', {name: 'callout'}]}}
+  assert.deepEqual(insertable(field).blocks.map((b) => b.name), ['image', 'callout'])
+  const image = editorSchema(field, []).blockObjects.find((b) => b.name === 'image')!
+  assert.deepEqual(image.fields?.map((f) => [f.name, f.type]), [['asset', 'object'], ['hotspot', 'object'], ['crop', 'object']])
 })

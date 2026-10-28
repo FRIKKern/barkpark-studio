@@ -62,6 +62,14 @@ async function open(page: import('@playwright/test').Page, info: import('@playwr
   return editor
 }
 
+/** A named insert button, or its Show more item where the bar folds it away (as Sanity's does). */
+async function insert(page: import('@playwright/test').Page, title: string, kind: 'block' | 'inline') {
+  const button = field(page).getByRole('button', {name: `Insert ${title} (${kind})`})
+  if (await button.isVisible()) return button.click()
+  await field(page).getByRole('button', {name: 'Show more'}).click()
+  await page.getByRole('menuitem', {name: title, exact: true}).click()
+}
+
 /** The body's input: its toolbar, not another Portable Text field's (ptBody is one too). */
 const field = (page: import('@playwright/test').Page) => page.locator('.pt-input').filter({has: page.locator('[id="body"][contenteditable="true"]')})
 
@@ -208,13 +216,14 @@ test('@local Portable Text: insert a custom block and an inline object, edit sto
   await editor.getByText('Cups').click()
   await page.waitForTimeout(150)
   // Sanity's named insert buttons (at 1440 both fit; a narrow bar folds them behind Show more).
-  await field(page).getByRole('button', {name: 'Insert Callout (block)'}).click()
+  await insert(page, 'Callout', 'block')
   const callout = page.getByRole('dialog', {name: 'Callout'})
   await callout.locator('[id="body.callout.tone"]').selectOption({label: 'Warning'})
   await callout.locator('[id="body.callout.text"]').fill('Mind the steam')
   await callout.getByRole('button', {name: 'Close dialog'}).click()
   await savesLanded(page)
-  await expect.poll(async () => (await body()).map((b) => b._type), {timeout: 10_000}).toContain('callout')
+  // The block lands first, its dialog's fields a save later.
+  await expect.poll(async () => (await body()).find((b) => b._type === 'callout')?.tone, {timeout: 10_000}).toBe('warning')
   let draft = await body()
   expect(draft[4]).toEqual({_key: expect.stringMatching(/^[0-9a-f]{12}$/), _type: 'callout', tone: 'warning', text: 'Mind the steam'})
   expect(JSON.stringify(draft.filter((b) => b._type !== 'callout'))).toBe(JSON.stringify(stored))
@@ -222,7 +231,7 @@ test('@local Portable Text: insert a custom block and an inline object, edit sto
   // A chip at the caret in "Pour slowly".
   await editor.getByText('Pour slowly').click()
   await page.waitForTimeout(150)
-  await field(page).getByRole('button', {name: 'Insert Chip (inline)'}).click()
+  await insert(page, 'Chip', 'inline')
   const chip = page.getByRole('dialog', {name: 'Chip'})
   await chip.locator('[id="body.chip.text"]').fill('Hot')
   await chip.getByRole('button', {name: 'Close dialog'}).click()
@@ -379,4 +388,30 @@ test('@local Portable Text: a custom block\'s menu removes it; every other block
   await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).not.toContain('kettleCallout')
   const draft = (await read('drafts'))!.body as typeof BODY
   expect(JSON.stringify(draft)).toBe(JSON.stringify(stored.filter((b) => b._key !== 'c1')))
+})
+
+// task-65c50f82aed32ea8: an image block inserts as Sanity's, its image picked in the image input.
+test('@local Portable Text: Insert Image puts an image block in, its image picked from the library', async ({page}, info) => {
+  const stored = ((await read('published'))!.body ?? []) as typeof BODY
+  const editor = await open(page, info)
+  await editor.getByText('Cups').click()
+  await page.waitForTimeout(150)
+  await insert(page, 'Image', 'block')
+  const dialog = page.getByRole('dialog', {name: 'Image'})
+  await dialog.getByRole('button', {name: 'Select'}).click()
+  // The library's first image (whichever it is): its tile's button.
+  const picked = page.getByRole('dialog').last().getByRole('button', {name: /\.(png|jpe?g|webp|gif)$/i}).first()
+  await picked.click()
+  await dialog.getByRole('button', {name: 'Close dialog'}).click()
+  await expect(editor.locator('.pt-object[data-type="image"] .pt-object-thumb')).toBeVisible()
+  await savesLanded(page)
+  type Img = {_key: string; _type: string; asset?: {_type: string; _ref: string}}
+  // The block lands first, its image a save later.
+  await expect.poll(async () => ((await read('drafts'))?.body as unknown as Img[] | undefined)?.find((b) => b._type === 'image')?.asset?._ref, {timeout: 10_000}).toBeTruthy()
+  const draft = (await read('drafts'))!.body as unknown as Img[]
+  const image = draft.find((b) => b._type === 'image')!
+  expect(image).toEqual({_key: expect.stringMatching(/^[0-9a-f]{12}$/), _type: 'image', asset: {_type: 'reference', _ref: expect.any(String)}})
+  // After "Cups"; every other block as stored.
+  expect(draft[draft.indexOf(image) - 1]._key).toBe('p3')
+  expect(JSON.stringify(draft.filter((b) => b !== image))).toBe(JSON.stringify(stored))
 })

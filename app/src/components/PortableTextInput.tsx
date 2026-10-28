@@ -20,6 +20,7 @@ import {createDecoratorGuard, TypographyPlugin} from '@portabletext/plugin-typog
 import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotation, isActiveDecorator, isActiveListItem, isSelectionCollapsed, isSelectionExpanded} from '@portabletext/editor/selectors'
 import {useQuery} from '@tanstack/react-query'
 import {schemasQuery, type Field} from '../lib/data'
+import {imageRef, imageSrc} from '../lib/image'
 import {useT} from '../lib/i18n'
 import {declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
@@ -109,6 +110,8 @@ function BlockCard({node, path, title, readOnly, attributes, children}: {node: O
   const [menu, setMenu] = useState(false)
   const open = () => !readOnly && edit?.({kind: 'block', node, path})
   const line = preview(node)
+  // An image block shows its image, small, as Sanity's card does.
+  const thumb = node._type === 'image' ? imageRef(node) : undefined
   const remove = () => {
     setMenu(false)
     editor.send({type: 'delete.block', at: path as never})
@@ -118,6 +121,7 @@ function BlockCard({node, path, title, readOnly, attributes, children}: {node: O
     <div {...attributes} className="pt-object" data-type={node._type} onDoubleClick={open}>
       {children}
       <span className="pt-object-head" contentEditable={false}>
+        {thumb && <img className="pt-object-thumb" src={imageSrc(thumb, 66)} alt="" />}
         <span className="pt-object-label">{title}</span>
         {line && <span className="pt-object-preview">{line}</span>}
         {!readOnly && edit && (
@@ -505,13 +509,20 @@ function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
 function ObjectDialog({id, edit, field, stored, schemas, openRef, onClose}: {id: string; edit: ObjectEdit; field: Field; stored: PtBlock[]; schemas: SchemaLike[]; openRef: OpenRef; onClose: () => void}) {
   const editor = useEditor()
   const {kind, node, path} = edit
-  const fields = useMemo(() => objectFields(field, kind, node._type, stored, schemas), [field, kind, node._type, stored, schemas])
   const title = objectTitle(field, kind, node._type, schemas)
-  const request: BlockObjectRequest = {type: node._type, title, inline: kind === 'inline', fields, value: node as unknown as BlockObjectRequest['value'], error: null}
+  // An image block: Sanity's image input on the block itself (upload, select, hotspot and crop).
+  const image = kind === 'block' && node._type === 'image'
+  const fields = useMemo(
+    () => (image ? [{name: 'image', title, type: 'image', options: {hotspot: true}} as Field] : objectFields(field, kind, node._type, stored, schemas)),
+    [image, title, field, kind, node._type, stored, schemas],
+  )
+  const {_key: _k, ...own} = node
+  const request: BlockObjectRequest = {type: node._type, title, inline: kind === 'inline', fields, value: (image ? {type: 'image', image: own} : node) as unknown as BlockObjectRequest['value'], error: null}
   const done = (value: Record<string, unknown> | null) => {
     onClose()
     if (value) {
-      const {set, unset} = objectChanges(node, storedShape(fields, value, node))
+      const next = image ? {...(value.image as Obj | undefined), _key: node._key, _type: 'image'} : storedShape(fields, value, node)
+      const {set, unset} = objectChanges(node, next)
       const at = path as never
       if (Object.keys(set).length) editor.send(kind === 'block' ? {type: 'block.set', at, props: set} : {type: 'child.set', at, props: set})
       if (unset.length) editor.send(kind === 'block' ? {type: 'block.unset', at, props: unset} : {type: 'child.unset', at, props: unset})
