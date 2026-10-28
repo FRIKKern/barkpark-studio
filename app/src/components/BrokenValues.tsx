@@ -9,7 +9,7 @@ import {useT} from '../lib/i18n'
 
 const json = (v: unknown) => JSON.stringify(v, null, 2)
 
-function Card({tone, title, text, body, dev, devOpen = true, children}: {tone: 'warn' | 'danger'; title: string; text: string; body?: ReactNode; dev: ReactNode; devOpen?: boolean; children: ReactNode}) {
+function Card({tone, title, text, body, dev, devOpen = true, children}: {tone: 'warn' | 'danger'; title: string; text: string; body?: ReactNode; dev: ReactNode; devOpen?: boolean; children?: ReactNode}) {
   const t = useT()
   return (
     <div className="broken-card" data-tone={tone} role="alert">
@@ -25,7 +25,7 @@ function Card({tone, title, text, body, dev, devOpen = true, children}: {tone: '
           </details>
         </div>
       </div>
-      <div className="broken-actions">{children}</div>
+      {children && <div className="broken-actions">{children}</div>}
     </div>
   )
 }
@@ -100,9 +100,10 @@ export function UnsupportedAssetCard({asset, value, onChange}: {asset: Unsupport
 /**
  * B14: a rich text field holding Sanity Portable Text (a Sanity export brought over).
  * The canvas can't edit it, so its text shows read-only, never an empty canvas; saves
- * elsewhere leave it untouched and Reset is the only change offered.
+ * elsewhere leave it untouched. It offers no action: Reset would delete the whole body
+ * (task-3396abb1524c3045).
  */
-export function SanityPortableTextCard({pt, value, onChange}: {pt: SanityPortableText; value: unknown; onChange: (v: unknown) => void}) {
+export function SanityPortableTextCard({pt, value}: {pt: SanityPortableText; value: unknown}) {
   const t = useT()
   return (
     <Card
@@ -128,11 +129,7 @@ export function SanityPortableTextCard({pt, value, onChange}: {pt: SanityPortabl
       }
       dev={<pre className="broken-value">{json(value)}</pre>}
       devOpen={false}
-    >
-      <button type="button" className="btn broken-btn danger" onClick={() => onChange(undefined)}>
-        {t('Reset value')}
-      </button>
-    </Card>
+    />
   )
 }
 
