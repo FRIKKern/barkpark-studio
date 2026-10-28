@@ -1404,7 +1404,7 @@ fieldset.object-field[data-collapsible][data-open=true]:not(.fieldset-group) { -
 .ref-search .input[data-invalid]::placeholder { color: var(--danger-text); }
 /* Sanity's "Document unavailable" (measured at 390, 768 and 1440, light and dark): a 45 px critical card,
    its words 15 px in the muted error tone, a 25 px help icon, the menu in the same muted tone. */
-.ref-box:has(.unavailable) .icon-btn { color: var(--tone-error-muted); }
+.ref-box:has(.unavailable) .icon-btn, .array-row:has(> .ref-row-preview .unavailable) .icon-btn { color: var(--tone-error-muted); }
 .preview.unavailable { gap: 6px; min-height: 35px; padding: 5px 4px; font-size: 15px; line-height: 23px; color: var(--tone-error-muted); }
 .preview.unavailable .help { color: var(--tone-error-icon); }
 .preview.unavailable .help > svg { width: 25px; height: 25px; }

@@ -22,6 +22,13 @@ export async function readDocOf<D>(types: string[], id: string, io: {typeOf: (id
   return type && types.includes(type) ? io.read(type, id) : null
 }
 
+/**
+ * What a reference row shows for its target read: `loading` ("…") until the read answers,
+ * `missing` (Sanity's "Document unavailable") when it answers null, because no document holds
+ * the id or none of the reference's types does, and `found` for a document.
+ */
+export const refTarget = (data: unknown): 'loading' | 'missing' | 'found' => (data === undefined ? 'loading' : data === null ? 'missing' : 'found')
+
 /** The type a reference row opens its target as: the loaded doc's own, else the first it may be. */
 export const refOpenType = (types: string[], doc: {_type?: unknown} | null | undefined): string | undefined =>
   typeof doc?._type === 'string' && types.includes(doc._type) ? doc._type : types[0]
