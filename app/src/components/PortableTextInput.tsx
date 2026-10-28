@@ -23,6 +23,7 @@ import {schemasQuery, type Field} from '../lib/data'
 import {imageRef, imageSrc} from '../lib/image'
 import {uploadFile, uploadReason} from '../lib/upload'
 import {toast} from './Toasts'
+import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
 import {declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
@@ -112,8 +113,9 @@ function BlockCard({node, path, title, readOnly, attributes, children}: {node: O
   const [menu, setMenu] = useState(false)
   const open = () => !readOnly && edit?.({kind: 'block', node, path})
   const line = preview(node)
-  // An image block shows its image, small, as Sanity's card does.
-  const thumb = node._type === 'image' ? imageRef(node) : undefined
+  // An image block shows its file's name over the image itself, across the card, as Sanity's.
+  const image = node._type === 'image' ? imageRef(node) : undefined
+  const {data: file} = useFileInfo(image)
   const remove = () => {
     setMenu(false)
     editor.send({type: 'delete.block', at: path as never})
@@ -124,8 +126,7 @@ function BlockCard({node, path, title, readOnly, attributes, children}: {node: O
       {children}
       {/* Draggable, as the editor's own block object (and Sanity's card): drop it between blocks to move it. */}
       <span className="pt-object-head" contentEditable={false} draggable={!readOnly}>
-        {thumb && <img className="pt-object-thumb" src={imageSrc(thumb, 66)} alt="" />}
-        <span className="pt-object-label">{title}</span>
+        <span className="pt-object-label">{image ? (file?.name ?? title) : title}</span>
         {line && <span className="pt-object-preview">{line}</span>}
         {!readOnly && edit && (
           // The editor never sees the menu's pointer and keys (it would select the block and take the focus back).
@@ -156,6 +157,11 @@ function BlockCard({node, path, title, readOnly, attributes, children}: {node: O
           </span>
         )}
       </span>
+      {image && (
+        <span className="pt-image-view" contentEditable={false} draggable={!readOnly}>
+          <img src={imageSrc(image, 1200, 750)} alt="" decoding="async" />
+        </span>
+      )}
     </div>
   )
 }

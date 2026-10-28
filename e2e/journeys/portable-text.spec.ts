@@ -414,7 +414,7 @@ test('@local Portable Text: Insert Image puts an image block in, its image picke
   const picked = page.getByRole('dialog').last().getByRole('button', {name: /\.(png|jpe?g|webp|gif)$/i}).first()
   await picked.click()
   await dialog.getByRole('button', {name: 'Close dialog'}).click()
-  await expect(editor.locator('.pt-object[data-type="image"] .pt-object-thumb')).toBeVisible()
+  await expect(editor.locator('.pt-object[data-type="image"] .pt-image-view img')).toBeVisible()
   await savesLanded(page)
   type Img = {_key: string; _type: string; asset?: {_type: string; _ref: string}}
   // The block lands first, its image a save later.
@@ -495,7 +495,7 @@ test('@local Portable Text: a pasted image file becomes an image block after the
   await expect(editor.locator('.pt-object[data-type="image"]')).toHaveCount(0)
   await page.unrouteAll()
   await paste()
-  await expect(editor.locator('.pt-object[data-type="image"] .pt-object-thumb')).toBeVisible()
+  await expect(editor.locator('.pt-object[data-type="image"] .pt-image-view img')).toBeVisible()
   await savesLanded(page)
   type Img = {_key: string; _type: string; asset?: {_type: string; _ref: string}}
   await expect.poll(async () => ((await read('drafts'))?.body as unknown as Img[] | undefined)?.find((b) => b._type === 'image')?.asset?._ref, {timeout: 10_000}).toBeTruthy()
