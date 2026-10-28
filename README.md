@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change
-  - Portable Text input: another editor's blocks arrive live while you type, as Sanity's ([#1222](https://github.com/FRIKKern/barkpark-studio/pull/1222))
+- **Today** · 2 changes
+  - Portable Text input: two editors typing in one block both keep their words, as Sanity's ([#1223](https://github.com/FRIKKern/barkpark-studio/pull/1223))
 - **Yesterday** · 32 changes
   - Portable Text saves send the blocks typed in by key, not the whole field ([#1221](https://github.com/FRIKKern/barkpark-studio/pull/1221))
 - **This week** · 54 changes
