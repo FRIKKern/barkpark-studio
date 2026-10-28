@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {declaredVocabulary, editorSchema, equal, inferFields, insertable, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
+import {declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -256,4 +256,21 @@ test('pt: Markdown shortcuts use only what the field declares; a URL pasted over
   assert.equal(pastesLinks({}, []), true)
   assert.equal(pastesLinks({blocks: {annotations: [{name: 'wikilink'}]}}, []), false)
   assert.equal(pastesLinks({blocks: {annotations: [{name: 'link'}, {name: 'wikilink'}]}}, []), true)
+})
+
+test('pt: a value going back to the one the editor opened with shows after edits (Discard changes); its own saves coming back do not remount', () => {
+  const opened = stored()
+  const typed = JSON.parse(JSON.stringify(opened)) as PtBlock[]
+  ;(typed[0].children as {text: string}[])[0].text = 'Tea is brewed with warm water.'
+  const more = JSON.parse(JSON.stringify(typed)) as PtBlock[]
+  ;(more[0].children as {text: string}[])[0].text = 'Tea is brewed with warm, soft water.'
+  // Nothing typed: the value it opened with is what it shows.
+  assert.equal(isOutsideValue(stored(), opened, []), false)
+  // Typed twice: each save coming back, the latest or an older one, is its own.
+  assert.equal(isOutsideValue(more, more, [typed, more]), false)
+  assert.equal(isOutsideValue(typed, more, [typed, more]), false)
+  // The draft discarded: back to the value it opened with, which it no longer shows.
+  assert.equal(isOutsideValue(stored(), more, [typed, more]), true)
+  // Another editor's change.
+  assert.equal(isOutsideValue([...more, {_key: 'b9', _type: 'block', children: []}], more, [typed, more]), true)
 })
