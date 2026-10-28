@@ -50,7 +50,9 @@ function bucket(d, list) {
 
 function events() {
   const out = [];
-  for (const line of git('log', '--first-parent', '--format=%aI%x09%an%x09%s', 'HEAD').trim().split('\n')) {
+  // --no-merges: a pull request's check runs on GitHub's merge commit, which is no change on main.
+  // Counted, it added a "Today" period on days main had none and pushed README past its cap.
+  for (const line of git('log', '--first-parent', '--no-merges', '--format=%aI%x09%an%x09%s', 'HEAD').trim().split('\n')) {
     if (!line) continue;
     const [at, who, subject] = line.split('\t');
     if (BOT.test(who) || subject.includes('[skip ci]')) continue;
