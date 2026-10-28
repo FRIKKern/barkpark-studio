@@ -86,3 +86,31 @@ async function editTitle(page: Page, title: ReturnType<Page['locator']>) {
   await page.keyboard.press('ControlOrMeta+ArrowRight')
   await page.keyboard.type(' edited')
 }
+
+// task-8a7b8265fc3b5fc3: with a crop set, the image input shows the crop only, as Sanity's
+// (its rect=320,0,320,280 for this crop of the 640 x 400 fixture): a 320:280 box, the image
+// inside at twice the box's width and moved a box's width left.
+test('@local image preview: a set crop shows only the crop, at its own ratio', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: Sanity crops in its image URL')
+  const ref = (await seedAssets([{img: {_sanityAsset: 'image@file://./assets/fixture-image.png'}}], {base: bpBase(), dataset: bpDataset(), token: process.env.BARKPARK_TOKEN!}))({_sanityAsset: 'image@file://./assets/fixture-image.png'})
+  const ID = `post-crop-${Date.now().toString(36)}`
+  const crop = {_type: 'sanity.imageCrop', top: 0, bottom: 0.3, left: 0.5, right: 0}
+  await bpMutate([{createOrReplace: {_id: ID, _type: 'post', title: 'Crop preview', mainImage: {_type: 'image', asset: {_type: 'reference', _ref: ref}, crop}}}])
+  try {
+    await t.prepare(page.context())
+    await page.goto(`${t.docPath('post', ID)},path=mainImage`)
+    await signInIfAsked(page)
+    const box = page.locator('[id="mainImage"] .image-crop')
+    await expect(box).toBeVisible()
+    const b = (await box.boundingBox())!
+    expect(Math.abs(b.width / b.height - 320 / 280)).toBeLessThan(0.01)
+    expect(b.height).toBeLessThanOrEqual(270.5)
+    const img = (await box.getByRole('img', {name: 'Preview of uploaded image'}).boundingBox())!
+    expect(Math.round(img.width / b.width)).toBe(2)
+    expect(Math.round(img.x - b.x)).toBe(-Math.round(b.width))
+  } finally {
+    await closeAndSettle(page)
+    await bpRemove(ID, 'post')
+  }
+})
