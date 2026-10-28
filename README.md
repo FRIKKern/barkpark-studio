@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 19 changes
-  - portable-text.spec: the toolbar journey waits for the editor's state, not 150 ms ([#1209](https://github.com/FRIKKern/barkpark-studio/pull/1209))
+- **Today** · 20 changes
+  - Portable Text input: insert and edit image blocks, as Sanity's ([#1208](https://github.com/FRIKKern/barkpark-studio/pull/1208))
 - **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **This week** · 23 changes
