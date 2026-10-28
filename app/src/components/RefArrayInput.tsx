@@ -1,11 +1,12 @@
 import {useContext, useEffect, useRef} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {docQuery, itemPath, refId, refOpenType, refTypesOf, type Doc, type Field} from '../lib/data'
+import {refTarget} from '../lib/refs'
 import {refFilterOf} from '../lib/ref-filter'
 import {copyItem, signature} from '../lib/clipboard'
 import {ProblemMark, ProblemsContext, type OpenRef} from './Fields'
 import {DocPreview} from './Preview'
-import {RefInput} from './RefInput'
+import {RefInput, Unavailable} from './RefInput'
 import {SortableRows} from './SortableRows'
 import {LaunchIcon, SyncIcon} from './icons'
 import {useT} from '../lib/i18n'
@@ -85,9 +86,11 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
 /**
  * A filled row: the target read as any of the reference's types, and opened as its own type.
  * Read as the first type alone, a byline to person or contributor stayed at "…" for every
- * contributor (task-e0d7229807a2baf7).
+ * contributor (task-e0d7229807a2baf7). A target no document holds reads null and shows
+ * Sanity's unavailable mark, as RefInput does; it showed "…" forever (task-d7b1d4fefe18fce6).
  */
 function RefRow({types, id, link}: {types: string[]; id: string; link: (type: string) => {href: string; selected: boolean; active: boolean}}) {
   const {data} = useQuery({...docQuery(types, id), enabled: types.length > 0})
+  if (refTarget(data) === 'missing') return <Unavailable id={id} />
   return <DocPreview doc={data} {...link(refOpenType(types, data) ?? '')} />
 }

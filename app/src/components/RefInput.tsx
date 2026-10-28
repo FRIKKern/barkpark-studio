@@ -139,7 +139,8 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
 
 
 /** Sanity's card for a reference to a doc that does not exist, with the why on hover. */
-function Unavailable({id}: {id: string}) {
+/** Sanity's mark for a reference whose target no document holds: in a reference field and in a reference array row. */
+export function Unavailable({id}: {id: string}) {
   const t = useT()
   // The id sits in a <code> inside the sentence: split the translated sentence around it.
   const [before, after] = t('The referenced document does not exist (ID: {id}). You can either remove the reference or replace it with another document.').split('{id}')

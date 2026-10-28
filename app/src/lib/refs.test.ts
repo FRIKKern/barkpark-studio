@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {readDocOf, refOpenType} from './refs.ts'
+import {readDocOf, refOpenType, refTarget} from './refs.ts'
 
 // A made-up dataset: a reference field to author or guest, and an id only guest holds.
 type Doc = {_id: string; _type: string; name: string}
@@ -43,4 +43,17 @@ test('a reference preview of the first to type, of one type, and of a type not l
   // Before the doc loads, and for a doc of a type not listed, the row opens as the first type.
   assert.equal(refOpenType(['author', 'guest'], undefined), 'author')
   assert.equal(refOpenType(['author', 'guest'], {_type: 'post'}), 'author')
+})
+
+test('a reference row to an id no document holds shows the unavailable mark, not … forever', async () => {
+  // The read has not answered: the row shows "…".
+  assert.equal(refTarget(undefined), 'loading')
+  // Read as any of its types, an id no document holds answers null: Sanity's unavailable mark.
+  const gone = await readDocOf(['author', 'guest'], 'nobody-holds-this', store().io)
+  assert.equal(gone, null)
+  assert.equal(refTarget(gone), 'missing')
+  // Held by a type the reference does not list: missing too, as Sanity marks it.
+  assert.equal(refTarget(await readDocOf(['author', 'post'], 'g1', store().io)), 'missing')
+  // Found, the row shows the document.
+  assert.equal(refTarget(await readDocOf(['author', 'guest'], 'g1', store().io)), 'found')
 })
