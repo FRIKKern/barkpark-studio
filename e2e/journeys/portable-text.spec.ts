@@ -120,16 +120,21 @@ test('Portable Text: Discard changes puts the published text back in the editor'
 
 test('@local Portable Text: styles, lists and decorators edit from the toolbar', async ({page}, info) => {
   const editor = await open(page, info)
-  // The beat a person always takes between a click in the text and a toolbar button:
-  // the editor reads the browser's selection just after the click.
-  const caret = async (text: string, dbl = false) => (await (dbl ? editor.getByText(text).dblclick({position: {x: 10, y: 8}}) : editor.getByText(text).click()), await page.waitForTimeout(150))
-  await caret('Cups')
+  // Each toolbar step waits for the editor to show it has read the click's selection (the
+  // style it names, a list pressed, a range that Link can take), never for a set time: a
+  // click before the editor read the selection acted on the old one (the step flaked).
+  await editor.getByText('Cups').click()
+  await expect(field(page).locator('.body-style')).toHaveText('Heading 2')
   // The style button (Sanity's menu, each style drawn as it looks).
   await field(page).locator('.body-style').click()
   await page.getByRole('menuitemradio', {name: 'Heading 3'}).click()
-  await caret('Pour slowly')
-  await field(page).getByRole('button', {name: 'Bulleted list'}).click()
-  await caret('Brew the tea with warm water.', true)
+  await editor.getByText('Pour slowly').click()
+  const bullets = field(page).getByRole('button', {name: 'Bulleted list'})
+  await expect(bullets).toHaveAttribute('aria-pressed', 'true')
+  await bullets.click()
+  await editor.getByText('Brew the tea with warm water.').dblclick({position: {x: 10, y: 8}})
+  await expect.poll(() => page.evaluate(() => getSelection()?.toString().trim())).toBe('Brew')
+  await expect(field(page).getByRole('button', {name: 'Link', exact: true})).toBeEnabled()
   await field(page).getByRole('button', {name: 'Strong'}).click()
   await savesLanded(page)
   await expect
