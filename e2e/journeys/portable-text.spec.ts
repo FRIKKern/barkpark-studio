@@ -202,8 +202,8 @@ test('@local Portable Text: insert a custom block and an inline object, edit sto
   // A callout after "Cups", its tone and text set in the dialog.
   await editor.getByText('Cups').click()
   await page.waitForTimeout(150)
-  await field(page).getByRole('button', {name: 'Insert'}).click()
-  await page.getByRole('menuitem', {name: 'Callout'}).click()
+  // Sanity's named insert buttons (at 1440 both fit; a narrow bar folds them behind Show more).
+  await field(page).getByRole('button', {name: 'Insert Callout (block)'}).click()
   const callout = page.getByRole('dialog', {name: 'Callout'})
   await callout.locator('[id="body.callout.tone"]').selectOption({label: 'Warning'})
   await callout.locator('[id="body.callout.text"]').fill('Mind the steam')
@@ -217,8 +217,7 @@ test('@local Portable Text: insert a custom block and an inline object, edit sto
   // A chip at the caret in "Pour slowly".
   await editor.getByText('Pour slowly').click()
   await page.waitForTimeout(150)
-  await field(page).getByRole('button', {name: 'Insert'}).click()
-  await page.getByRole('menuitem', {name: 'Chip'}).click()
+  await field(page).getByRole('button', {name: 'Insert Chip (inline)'}).click()
   const chip = page.getByRole('dialog', {name: 'Chip'})
   await chip.locator('[id="body.chip.text"]').fill('Hot')
   await chip.getByRole('button', {name: 'Close dialog'}).click()
