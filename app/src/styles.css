@@ -3603,6 +3603,16 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
 .pt-editable .pt-block[data-level='2'] { --pt-level: 2; } .pt-editable .pt-block[data-level='3'] { --pt-level: 3; }
 /* Sanity draws every annotation as a link: its link tone (the pinned one) with a 1 px rule under it. */
 .pt-annotation { color: var(--pinned-fg); border-bottom: 1px solid currentColor; }
+/* Sanity's popover over an annotation, measured at 1280: 33 px tall, its 25 px buttons 4 px
+   apart, centred 4 px above the text, inverted as the canvas's link pill. */
+.pt-annotation-pop { position: absolute; z-index: 20; transform: translate(-50%, -100%); display: flex; gap: 4px; padding: 4px; border-radius: 6px; background: #13141b; color: #e4e5e9; box-shadow: var(--popover-shadow); font-size: 13px; white-space: nowrap; }
+.pt-annotation-pop-row { display: flex; align-items: center; gap: 4px; }
+.pt-annotation-pop-title { padding: 0 8px; font-weight: 500; }
+.pt-annotation-pop .icon-btn { color: #bdbfcb; }
+.pt-annotation-pop .icon-btn:hover { background: #252837; color: #e4e5e9; }
+html[data-theme='dark'] .pt-annotation-pop { background: #fff; color: #252837; }
+html[data-theme='dark'] .pt-annotation-pop .icon-btn { color: #383d51; }
+html[data-theme='dark'] .pt-annotation-pop .icon-btn:hover { background: #e4e5e9; color: #252837; }
 .pt-object { margin: 0 0 8px; padding: 6px 10px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); user-select: none; }
 .pt-inline-object { padding: 0 4px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 0.9em; }
 .pt-object-head { display: flex; align-items: center; gap: 8px; min-width: 0; }

@@ -188,6 +188,9 @@ export default {
   'Edit {name}': 'Rediger {name}',
   'Remove {name}': 'Fjern {name}',
   'This type has no fields to edit.': 'Denne typen har ingen felt å redigere.',
+  // The popover over an annotation (Sanity's nb pack).
+  'Edit annotation': 'Rediger annotasjon',
+  'Remove annotation': 'Fjern annotasjon',
   // S4c, custom blocks and inline objects.
   'Insert': 'Sett inn',
   'Normal': 'Normal',

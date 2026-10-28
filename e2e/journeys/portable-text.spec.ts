@@ -286,3 +286,26 @@ test('@local Portable Text: Markdown shortcuts, smart typography and a pasted UR
     }, {timeout: 10_000})
     .toEqual(['h2', 'Kettles', [['Hot', ['strong']], [' “tea” — now', []]], 'https://example.com/kettles', true])
 })
+
+// task-f625cf11a0810ca2: Sanity's popover over an annotation, with its title, Edit and Remove.
+test('@local Portable Text: the popover over an annotation opens its dialog and removes it', async ({page}, info) => {
+  const editor = await open(page, info)
+  const pop = page.locator('.pt-annotation-pop')
+  await editor.getByText('the tea maker').click()
+  await expect(pop).toHaveText('Wikilink')
+  await pop.getByRole('button', {name: 'Edit annotation'}).click()
+  const wiki = page.getByRole('dialog', {name: 'Wikilink'})
+  await expect(wiki).toBeVisible()
+  await wiki.getByRole('button', {name: 'Close dialog'}).click()
+  await editor.getByText('the tea maker').click()
+  await pop.getByRole('button', {name: 'Remove annotation'}).click()
+  await expect(pop).toBeHidden()
+  await savesLanded(page)
+  type Block = {markDefs?: unknown[]; children: {text: string; marks?: string[]}[]}
+  await expect
+    .poll(async () => {
+      const b = ((await read('drafts'))?.body ?? []) as Block[]
+      return [b[5]?.markDefs, b[5]?.children?.map((c) => c.text).join(''), b[5]?.children?.some((c) => c.marks?.length)]
+    }, {timeout: 10_000})
+    .toEqual([[], 'Ask the tea maker', false])
+})
