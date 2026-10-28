@@ -21,13 +21,14 @@ import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotat
 import {useQuery} from '@tanstack/react-query'
 import {schemasQuery, type Field} from '../lib/data'
 import {imageRef, imageSrc} from '../lib/image'
+import {keyedPath} from '../lib/paths'
 import {uploadFile, uploadReason} from '../lib/upload'
 import {toast} from './Toasts'
 import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
-import {declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {changedBlocks, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
-import {ExpandButton, useExpandArea, type OpenRef} from './Fields'
+import {EditPathContext, ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {MenuPopover} from './FocusScopes'
 import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, EditIcon, Ellipsis, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
@@ -251,6 +252,8 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
   // The toolbar waits for the editor to have read the value (its 'ready').
   const [ready, setReady] = useState(false)
   const locked = readOnly || invalid
+  // Writes one path of the doc (lib/edits.ts): none in a dialog, where the whole value goes back.
+  const editPath = useContext(EditPathContext)
   const openers = useMemo(() => new Map<string, () => void>(), [])
   // Expanded over the document pane and back, as the canvas body (J35): the same editor
   // stays mounted (only its frame moves), so caret, selection and edits are kept.
@@ -281,7 +284,7 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
       <EditorProvider initialConfig={{schemaDefinition: schema, initialValue: stored as PortableTextBlock[], readOnly: locked}}>
         <NodePlugin nodes={nodes} />
         {!locked && <SanityPlugins field={field} stored={stored} />}
-        <Saver stored={stored} onChange={invalid ? () => {} : onChange} onInvalid={() => setInvalid(true)} onReady={() => setReady(true)} mine={mine} focused={focused} onBlur={onBlur} />
+        <Saver id={id} stored={stored} onChange={invalid ? () => {} : onChange} editPath={invalid ? null : editPath} onInvalid={() => setInvalid(true)} onReady={() => setReady(true)} mine={mine} focused={focused} onBlur={onBlur} />
         {invalid && (
           <p className="pt-note" role="status">
             {t('This text holds content the editor cannot read. It is shown read-only and kept as it is.')}
@@ -340,7 +343,7 @@ function SanityPlugins({field, stored}: {field: Field; stored: PtBlock[]}) {
 }
 
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */
-function Saver({stored, onChange, onInvalid, onReady, mine, focused, onBlur}: Shared & {stored: PtBlock[]; onChange: (v: unknown) => void; onInvalid: () => void; onReady: () => void}) {
+function Saver({id, stored, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; stored: PtBlock[]; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
   const editor = useEditor()
   const seen = useRef<PtBlock[] | null>(null)
   const last = useRef<unknown>(stored)
@@ -355,9 +358,13 @@ function Saver({stored, onChange, onInvalid, onReady, mine, focused, onBlur}: Sh
     const merged = mergeValue(stored, seen.current, (event.value ?? []) as PtBlock[])
     const next = merged.length ? merged : undefined
     if (equal(next ?? [], last.current ?? [])) return
+    // Blocks edited in place go as `field[_key=="…"]` sets, those blocks only (a 300-block
+    // body sent 337 KB a keystroke whole); a block that came, went or moved sends the field.
+    const parts = editPath && next ? changedBlocks(last.current, next) : null
     last.current = next
     mine.current = [...mine.current.slice(-19), next ?? []]
-    onChange(next)
+    if (parts && parts.length && parts.length * 2 <= next!.length) for (const p of parts) editPath!(keyedPath(id, p.key), p.block)
+    else onChange(next)
   }
   return <EventListenerPlugin on={on} />
 }

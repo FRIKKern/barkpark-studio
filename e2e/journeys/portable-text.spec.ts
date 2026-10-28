@@ -505,3 +505,40 @@ test('@local Portable Text: a pasted image file becomes an image block after the
   expect(draft[draft.indexOf(image) - 1]._key).toBe('p3')
   expect(JSON.stringify(draft.filter((b) => b !== image))).toBe(JSON.stringify(stored))
 })
+
+// task-283bdc577aedb167: a save sends the blocks typed in only, by key (Barkpark's keyed
+// patch paths), not the whole field: on a 300-block body the field went whole at 337 KB a save.
+// A block that comes or goes (Enter) still sends the field.
+test('@local Portable Text: typing in a block saves that block by its key, not the whole field', async ({page}, info) => {
+  const editor = await open(page, info)
+  const saves: string[] = []
+  page.on('request', (r) => r.method() === 'POST' && /_serverFn/.test(r.url()) && (r.postData() ?? '').includes(ID) && saves.push(r.postData()!))
+  await selectWarm(page, editor)
+  await page.keyboard.type('hot')
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Brew the tea with hot water.')
+  const typed = saves.filter((s) => s.includes('hot'))
+  expect(typed.length).toBeGreaterThan(0)
+  for (const s of typed) {
+    // That block, by its key; none of the others (their words) went with it.
+    expect(s).toContain('[_key==')
+    expect(s).toContain('p1')
+    for (const other of ['Steep it for', 'Cups', 'Pour slowly', 'the tea maker']) expect(s).not.toContain(other)
+  }
+  const one = Math.max(...typed.map((s) => s.length))
+  // A new block (Enter): the whole field goes, every block in it.
+  saves.length = 0
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Cool')
+  await savesLanded(page)
+  // The block splits at the caret ("…with hot" | " water."), the new one typed into.
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Cool water.')
+  const whole = saves.find((s) => s.includes('Cups') && s.includes('the tea maker'))
+  expect(whole).toBeTruthy()
+  expect(one).toBeLessThan(whole!.length)
+  // What is stored: the typed words where they were typed, every key kept.
+  const body = ((await read('drafts'))!.body ?? []) as typeof BODY
+  expect(body.map((b) => b._key).filter((k) => !/^[0-9a-f]{12}$/.test(k))).toEqual(['p1', 'p2', 'c1', 'p3', 'p4', 'p5'])
+  expect(body[0]!.children[0]!.text).toBe('Brew the tea with hot')
+  expect(body[1]!.children.map((c) => c.text).join('')).toBe('Cool water.')
+})
