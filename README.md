@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes
-  - Insert and edit custom blocks and inline objects in the Portable Text input (S4c) ([#1198](https://github.com/FRIKKern/barkpark-studio/pull/1198))
+- **Today** · 10 changes
+  - Run Sanity's default editor plugins in the Portable Text input ([#1200](https://github.com/FRIKKern/barkpark-studio/pull/1200))
 - **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **This week** · 23 changes
