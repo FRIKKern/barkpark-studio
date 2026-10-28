@@ -38,8 +38,9 @@ export function focusFirstField(id: string, ms = 30_000) {
     const pane = document.querySelector(`[data-pane="doc:${id}"]`)
     if (seen && !pane) return done() // the editor went elsewhere
     seen ||= !!pane
-    // Placed and still there (in this pane): nothing to do this frame.
-    const here = pane?.contains(document.activeElement)
+    // Placed and still there (in this pane): nothing to do this frame. The pane itself
+    // focused (it takes focus as it opens) is not placed: the field still has to be.
+    const here = !!pane && document.activeElement !== pane && pane.contains(document.activeElement)
     if (pane && !here) place(pane)
     requestAnimationFrame(tick)
   }

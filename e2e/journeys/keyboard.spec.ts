@@ -213,3 +213,18 @@ test('@local J19: at 768 an opened document has focus on its field groups', asyn
   await t.settle(page)
   await expect(page.getByRole('tab', {name: 'All fields'})).toBeFocused({timeout: 15_000})
 })
+
+// task-18eb09ae9b59cb76 (keyboard scout): with a list open, a document opened from search by Enter
+// put focus on its pane, not its first field; Tab then walked the pane's header first.
+test('@local J19: a document opened from search with a list open takes focus in its first field', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name === 'sanity', 'ours: Sanity focuses its field groups instead')
+  await page.goto('/structure/post')
+  await t.settle(page)
+  await page.keyboard.press('ControlOrMeta+k')
+  await page.keyboard.type('post 12')
+  await expect(page.getByRole('option').filter({hasText: TITLE}).first()).toBeVisible()
+  await page.keyboard.press('Enter')
+  await expect.poll(() => decodeURIComponent(new URL(page.url()).pathname)).toBe(`/structure/post;${ID}`)
+  await expect(t.field(page, 'title')).toBeFocused()
+})
