@@ -12,7 +12,7 @@ import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
 import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
-import {merge3, mergeList3, onto, revertSteps} from './merge'
+import {merge3, mergeList3, mergeText, onto, revertSteps} from './merge'
 import {applyPaths, getPath, keyedRoots, setPath, within} from './paths'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
@@ -329,7 +329,9 @@ function rebase(e: DocEdits, d: Doc): string[] {
     }
     const mine = e.dirty.get(f)
     if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') {
-      const merged = merge3(base, mine, theirs, !!e.unsure?.has(f))
+      // A Portable Text span's text (two editors typing in one block): never held, never a
+      // word dropped (mergeText); other text fields hold a clash for the editor to settle.
+      const merged = SPAN_TEXT.test(f) ? mergeText(base, mine, theirs, !!e.unsure?.has(f)) : merge3(base, mine, theirs, !!e.unsure?.has(f))
       e.unsure?.delete(f)
       if (merged === null) clashed.push(f)
       else e.dirty.set(f, merged)
@@ -402,7 +404,7 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   if (e && clashed.length) clash(qc, id, e, clashed, doc)
 }
 
-/** `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. */
+/** `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. `value` may be a function of the path's value now. */
 export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, record = true) {
   // Scout 7: clearing the last field of an object (or of a geopoint, its _type alone left)
   // unsets the object, as Sanity does: the empty shell ({} or {_type}) read as set to every
@@ -418,6 +420,9 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
   const id = doc._publishedId
   const e = entry(id, doc._type)
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
+  // A change given as what it does to the spot (a Portable Text span's typing, as its
+  // diff-match-patch): made onto the spot as this browser holds it now, others' words in it.
+  if (typeof value === 'function') return edit(qc, held, field, value(getPath(held, field)), record)
   // `value` was made from `doc`, what the pane last drew. Someone else's version that came
   // in since and is not drawn yet is in `held`: the change goes onto it, or it would go out
   // against held's rev and undo theirs unseen (live-list race, task-8cc2a447b03bf599). A
@@ -543,6 +548,8 @@ export function onKeyedMiss(id: string, field: string, resend: () => void): () =
   keyedMisses.set(k, resend)
   return () => void (keyedMisses.get(k) === resend && keyedMisses.delete(k))
 }
+
+const SPAN_TEXT = /\.children\[_key=="[^"]*"\]\.text$/
 
 const hasWarning = (r: {warnings?: unknown}, code: string) => Array.isArray(r.warnings) && r.warnings.some((w) => (w as {code?: unknown})?.code === code)
 

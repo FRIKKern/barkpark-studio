@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {changedBlocks, remoteBlockPatches, withRemote, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
+import {applyPatches, parsePatch} from '@sanity/diff-match-patch'
+import {changedBlocks, remoteBlockPatches, spanTextChanges, textPatches, withRemote, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -304,11 +305,22 @@ test('pt: blocks another editor changed come in as patches; a block this editor 
   const shown = [held(blk('b1', 'one typed')), held(known[1]!), held(known[2]!)]
   // Theirs: b2 changed, b1 changed too (this editor types there), b3 gone, b9 new after b2.
   const incoming = [blk('b1', 'one theirs'), blk('b2', 'two theirs'), blk('b9', 'new')]
-  assert.deepEqual(remoteBlockPatches(known, incoming, shown), [
+  // This editor has accounted for its own typing in b1 (`seen`); the stored b1 holds it and theirs.
+  const seen = new Map([['b1/b1s', 'one typed']])
+  const got = remoteBlockPatches(known, [blk('b1', 'one typed theirs'), ...incoming.slice(1)], shown, [], new Set(), seen)
+  assert.deepEqual(got.filter((p) => p.type !== 'diffMatchPatch'), [
     {type: 'unset', path: [{_key: 'b3'}], origin: 'remote'},
-    {type: 'set', path: [{_key: 'b2'}], value: incoming[1], origin: 'remote'},
     {type: 'insert', path: [{_key: 'b2'}], position: 'after', items: [incoming[2]], origin: 'remote'},
   ])
+  // Span texts changed there: diff-match-patch into each span (undo and caret move with it),
+  // measured from what this editor has: only their words come, never its own a second time.
+  const dmp = got.filter((p) => p.type === 'diffMatchPatch')
+  assert.deepEqual(dmp.map((p) => p.path), [[{_key: 'b1'}, 'children', {_key: 'b1s'}, 'text'], [{_key: 'b2'}, 'children', {_key: 'b2s'}, 'text']])
+  assert.equal(applyPatches(parsePatch(dmp[0]!.value as string), 'one typed more')[0], 'one typed theirs more')
+  assert.equal(applyPatches(parsePatch(dmp[1]!.value as string), 'two')[0], 'two theirs')
+  assert.equal(seen.get('b1/b1s'), 'one typed theirs')
+  // An older echo of text this editor wrote is not theirs.
+  assert.deepEqual(remoteBlockPatches([blk('b1', 'one typed')], [blk('b1', 'one')], [held(blk('b1', 'one typed'))], [], new Set(), new Map([['b1/b1s', 'one typed']]), (_, t) => t === 'one'), [])
   // Nothing new: nothing to apply. A block this editor removed is not put back.
   assert.deepEqual(remoteBlockPatches(known, known, shown), [])
   assert.deepEqual(remoteBlockPatches(known, [known[0], blk('b2', 'two theirs'), known[2]], [held(known[0]!), held(known[2]!)]), [])
@@ -333,4 +345,17 @@ test('pt: an echo of this editor\'s own block, or one it sent a moment ago, is n
     [blk('b1', 'one mine'), blk('b2', 'two theirs'), blk('b3', 'new')],
   )
   assert.deepEqual(withRemote(value, [{type: 'unset', path: [{_key: 'b1'}], origin: 'remote'}]), [blk('b2', 'two')])
+})
+
+test('pt: typing alone goes as span text patches; span texts changed alone come in as text; anything more is the block', () => {
+  const dmp = (b: string, s: string, value = '@@ -1,3 +1,4 @@\n one\n+!\n') => ({type: 'diffMatchPatch', path: [{_key: b}, 'children', {_key: s}, 'text'], value, origin: 'local'})
+  assert.deepEqual(textPatches([dmp('b1', 's1'), dmp('b2', 's9')]), [{block: 'b1', span: 's1', value: '@@ -1,3 +1,4 @@\n one\n+!\n'}, {block: 'b2', span: 's9', value: '@@ -1,3 +1,4 @@\n one\n+!\n'}])
+  assert.equal(textPatches([dmp('b1', 's1'), {type: 'set', path: [{_key: 'b1'}, 'style'], value: 'h2'}]), null)
+  assert.equal(textPatches([]), null)
+
+  const blk = (t1: string, t2: string, marks = ['strong']) => ({_key: 'b1', _type: 'block', style: 'normal', markDefs: [], children: [{_key: 's1', _type: 'span', marks: [], text: t1}, {_key: 's2', _type: 'span', marks, text: t2}]})
+  assert.deepEqual(spanTextChanges(blk('one', 'two'), blk('one more', 'two')), [{span: 's1', text: 'one more'}])
+  assert.deepEqual(spanTextChanges(blk('one', 'two'), blk('one', 'two')), [])
+  assert.equal(spanTextChanges(blk('one', 'two'), blk('one', 'two', ['em'])), null)
+  assert.equal(spanTextChanges(blk('one', 'two'), {...blk('one', 'two'), style: 'h2'}), null)
 })

@@ -1,7 +1,8 @@
 // J06's text merge and caret mapping (node --test).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {mapCaret, merge3, mergeList3, onto, revert, revertSteps, unapply} from './merge.ts'
+import {makePatches} from '@sanity/diff-match-patch'
+import {applyText, mapCaret, merge3, mergeList3, mergeText, onto, revert, revertSteps, unapply} from './merge.ts'
 
 test('merge3 keeps both edits', () => {
   assert.equal(merge3('Fixture post', 'bbb Fixture post', 'Fixture post aaa'), 'bbb Fixture post aaa')
@@ -98,4 +99,13 @@ test('revertSteps undoes a typed burst whole, or not at all when it was typed on
   assert.equal(revertSteps(undo, 'X Scout4 tabs Bravo'), 'X Scout4 tabs') // theirs before it stays
   // Another tab typed ' Ay' right after it: Sanity's undo leaves it; never 'Scout4 tabso Ay'.
   assert.equal(revertSteps(undo, 'Scout4 tabs Bravo Ay'), 'Scout4 tabs Bravo Ay')
+})
+
+test('mergeText never drops a word: merges as merge3, and where mine has nowhere to go its words follow theirs', () => {
+  assert.equal(mergeText('First block', 'First block alpha', 'First gamma block'), 'First gamma block alpha')
+  // They rewrote the whole text mine was typed into: theirs, then my words.
+  assert.equal(mergeText('abc def ghi', 'abc def ghi NEW', 'totally different'), 'totally different NEW')
+  // A typed patch onto text that moved on: in place; with its spot gone, after it.
+  assert.equal(applyText(makePatches('First block', 'First block alpha'), 'First gamma block'), 'First gamma block alpha')
+  assert.equal(applyText(makePatches('abc def ghi', 'abc def ghi NEW'), 'totally different'), 'totally different NEW')
 })

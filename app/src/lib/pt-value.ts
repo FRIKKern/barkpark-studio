@@ -1,5 +1,6 @@
 import type {Field} from './data'
 import {refId} from './refs.ts'
+import {makePatches, stringifyPatches} from '@sanity/diff-match-patch'
 
 // S4a (task-7f77f41c95cc6d9f): Portable Text in a richText field, edited with
 // @portabletext/editor. S4b: annotations. S4c: custom blocks and inline objects. The jobs
@@ -141,6 +142,50 @@ export type RemotePatch =
   | {type: 'set'; path: Keyed[]; value: PtBlock; origin: 'remote'}
   | {type: 'unset'; path: Keyed[]; origin: 'remote'}
   | {type: 'insert'; path: Keyed[]; position: 'before' | 'after'; items: PtBlock[]; origin: 'remote'}
+  | {type: 'diffMatchPatch'; path: [Keyed, 'children', Keyed, 'text']; value: string; origin: 'remote'}
+
+/** A span's text in a Portable Text value, by block and span key ('' when it has none). */
+export function spanText(value: unknown, block: string, span: string): string {
+  const b = Array.isArray(value) ? (value as PtBlock[]).find((x) => x?._key === block) : undefined
+  const t = (Array.isArray(b?.children) ? (b.children as Obj[]) : []).find((c) => c._key === span)?.text
+  return typeof t === 'string' ? t : ''
+}
+
+/**
+ * The editor's own changes as span text patches (it emits each typed or removed letter as
+ * diff-match-patch on `[{_key: block}, 'children', {_key: span}, 'text']`), when that is all
+ * the change was: a save applies them onto the span as stored now, as Sanity's server does.
+ * Null when anything else changed.
+ */
+export function textPatches(patches: unknown[]): {block: string; span: string; value: string}[] | null {
+  const out: {block: string; span: string; value: string}[] = []
+  for (const p of patches as {type?: string; path?: unknown[]; value?: unknown}[]) {
+    const [block, children, span, text] = p.path ?? []
+    const key = (s: unknown) => (isObj(s) && typeof s._key === 'string' && /^[\w-]+$/.test(s._key) ? s._key : null)
+    if (p.type !== 'diffMatchPatch' || p.path!.length !== 4 || children !== 'children' || text !== 'text' || !key(block) || !key(span) || typeof p.value !== 'string') return null
+    out.push({block: key(block)!, span: key(span)!, value: p.value})
+  }
+  return out.length ? out : null
+}
+
+/**
+ * The span texts `next` changed from `prev`, when nothing else did (same spans in the same
+ * order, same marks, same block): another editor's typing comes in as diff-match-patch
+ * into each span, not as the whole block. Null when more than text changed.
+ */
+export function spanTextChanges(prev: unknown, next: unknown): {span: string; text: string}[] | null {
+  if (!isText(prev) || !isText(next) || !Array.isArray(prev.children) || !Array.isArray(next.children)) return null
+  const blank = (b: PtBlock) => ({...b, children: (b.children as Obj[]).map((c) => (c._type === 'span' ? {...c, text: ''} : c))})
+  if (prev.children.length !== next.children.length || !equal(asEditorHolds(blank(prev)), asEditorHolds(blank(next)))) return null
+  const out: {span: string; text: string}[] = []
+  for (let i = 0; i < next.children.length; i++) {
+    const a = prev.children[i] as Obj
+    const b = next.children[i] as Obj
+    if (b._type !== 'span' || typeof b._key !== 'string' || !/^[\w-]+$/.test(b._key)) return null
+    if (a.text !== b.text) out.push({span: b._key, text: typeof b.text === 'string' ? b.text : ''})
+  }
+  return out
+}
 
 /** A block as the editor holds it: its defaults filled in (style, markDefs, each span's marks). */
 export function asEditorHolds(b: unknown): unknown {
@@ -157,8 +202,10 @@ export function asEditorHolds(b: unknown): unknown {
  * whose incoming version is one this editor itself sent (`sent`): an echo, maybe an older
  * one, never theirs. A block in `keep` (this editor sent it a moment ago: the value it came
  * in may hold that unconfirmed) is not taken away; if it is gone there, the save says so.
+ * `seen` (by `block/span`) is each span's text as this editor has accounted for it, updated
+ * here; `echo` tells a text this editor itself wrote a moment ago (an older echo of its own).
  */
-export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unknown, sent: unknown[] = [], keep: Set<string> = new Set()): RemotePatch[] {
+export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unknown, sent: unknown[] = [], keep: Set<string> = new Set(), seen: Map<string, string> = new Map(), echo: (span: string, text: string) => boolean = () => false): RemotePatch[] {
   if (!Array.isArray(known) || !Array.isArray(incoming) || !Array.isArray(shown)) return []
   const byKey = (list: unknown[]) => new Map(list.filter((b): b is PtBlock => isObj(b) && typeof b._key === 'string').map((b) => [b._key!, b]))
   const was = byKey(known)
@@ -169,7 +216,24 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
   const untouched = (k: string) => here.has(k) && was.has(k) && equal(asEditorHolds(here.get(k)), asEditorHolds(was.get(k)))
   const out: RemotePatch[] = []
   for (const k of was.keys()) if (!now.has(k) && untouched(k) && !keep.has(k)) out.push({type: 'unset', path: [{_key: k}], origin: 'remote'})
-  for (const [k, b] of now) if (was.has(k) && !equal(was.get(k), b) && untouched(k) && !ours(k, b)) out.push({type: 'set', path: [{_key: k}], value: b, origin: 'remote'})
+  // A block changed there. Span texts alone: diff-match-patch into each span (as Sanity's),
+  // so the caret, this editor's own typing and its undo steps stay. Measured from the text
+  // this editor has accounted for (`seen`: its own changes and theirs it was given), so its
+  // own words are never given back to it. More than text: the block, where untouched.
+  for (const [k, b] of now) {
+    const old = was.get(k)
+    const mine = here.get(k)
+    if (!old || !mine || equal(old, b) || ours(k, b)) continue
+    const theirs = spanTextChanges(old, b)
+    if (theirs && spanTextChanges(old, mine)) {
+      for (const {span, text} of theirs) {
+        const from = seen.get(`${k}/${span}`) ?? (((old.children as Obj[]).find((c) => c._key === span)?.text ?? '') as string)
+        if (text === from || echo(`${k}/${span}`, text)) continue
+        out.push({type: 'diffMatchPatch', path: [{_key: k}, 'children', {_key: span}, 'text'], value: stringifyPatches(makePatches(from, text)), origin: 'remote'})
+        seen.set(`${k}/${span}`, text)
+      }
+    } else if (untouched(k)) out.push({type: 'set', path: [{_key: k}], value: b, origin: 'remote'})
+  }
   // New blocks, in place: after the block before them that this editor has (or will have).
   const present = new Set([...here.keys()].filter((k) => now.has(k) || !was.has(k)))
   let prev: string | undefined
@@ -196,6 +260,7 @@ export function withRemote(value: unknown, patches: RemotePatch[]): PtBlock[] {
     const k = p.path[0]!._key
     const at = out.findIndex((b) => b._key === k)
     if (p.type === 'unset') out = out.filter((b) => b._key !== k)
+    else if (p.type === 'diffMatchPatch') continue // the editor's text: its next change is sent as patches, not measured from this
     else if (p.type === 'set') out = at < 0 ? out : out.map((b, i) => (i === at ? p.value : b))
     else if (at >= 0) out = [...out.slice(0, p.position === 'after' ? at + 1 : at), ...p.items, ...out.slice(p.position === 'after' ? at + 1 : at)]
   }
