@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {declaredVocabulary, editorSchema, equal, isPortableTextField, mergeValue, observedVocabulary, type PtBlock} from './pt-value.ts'
+import {declaredVocabulary, editorSchema, equal, inferFields, isPortableTextField, mergeValue, newKey, objectFields, observedVocabulary, offeredAnnotations, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -135,4 +135,70 @@ test('pt: which rich text fields are Portable Text', () => {
   assert.equal(isPortableTextField({type: 'arrayOf'}, stored()), false)
   assert.equal(equal({a: 1, b: [1, {c: 2}]}, {b: [1, {c: 2}], a: 1}), true)
   assert.equal(equal({a: 1}, {a: 1, b: 2}), false)
+})
+
+// S4b: annotations.
+const schemas = [
+  {name: 'recipe', fields: [{name: 'title', type: 'string'}]},
+  {name: 'pantry', fields: [{name: 'title', type: 'string'}]},
+  {name: 'linkBox', kind: 'object', fields: [{name: 'target', type: 'reference', to: [{type: 'recipe'}]}]},
+]
+
+test('pt: the toolbar offers declared annotations; none declared, those the value uses; none used, link', () => {
+  assert.deepEqual(offeredAnnotations({blocks: {annotations: [{name: 'note', title: 'Note'}]}}, stored()), [{name: 'note', title: 'Note'}])
+  assert.deepEqual(offeredAnnotations({}, stored()), [{name: 'internalLink'}])
+  assert.deepEqual(offeredAnnotations({blocks: {}}, []), [{name: 'link'}])
+})
+
+test('pt: an annotation dialog takes declared fields, else fields read off stored markDefs, else link\'s href', () => {
+  const declared = [{name: 'target', type: 'reference', to: [{type: 'pantry'}]}]
+  assert.deepEqual(objectFields({blocks: {annotations: [{name: 'internalLink', fields: declared}]}}, 'annotation', 'internalLink', stored(), schemas), declared)
+  // Read off the value: the reference targets every document type (no field of that name declares any).
+  assert.deepEqual(objectFields({}, 'annotation', 'internalLink', stored(), schemas), [{name: 'reference', title: 'Reference', type: 'reference', to: [{type: 'recipe'}, {type: 'pantry'}]}])
+  assert.deepEqual(objectFields({}, 'annotation', 'link', [], schemas), [{name: 'href', title: 'URL', type: 'url'}])
+  // linkType is a plain field, never required; a reference takes a same-named declared field's targets.
+  const fields = inferFields([{_key: 'k', _type: 'linkNote', linkType: 'internal', target: {_ref: 'r1', _type: 'reference'}, openInNewTab: true, url: 'https://example.com', email: 'tea@example.com', extra: {deep: 1}}], schemas)
+  assert.deepEqual(fields.map((f) => [f.name, f.type]), [['linkType', 'string'], ['target', 'reference'], ['openInNewTab', 'boolean'], ['url', 'url'], ['email', 'email']])
+  assert.equal(fields.some((f) => f.validation), false)
+  assert.deepEqual(fields[1].to, [{type: 'recipe'}])
+  assert.deepEqual(refTargets('missing', schemas), [{type: 'recipe'}, {type: 'pantry'}])
+})
+
+test('pt: the editor schema names every field an annotation holds, so the editor keeps them', () => {
+  const schema = editorSchema({}, stored(), schemas)
+  assert.deepEqual(schema.annotations.find((a) => a.name === 'internalLink')?.fields, [{name: 'reference', type: 'object'}])
+  assert.deepEqual(schema.annotations.find((a) => a.name === 'link')?.fields, [{name: 'href', type: 'string'}])
+})
+
+test('pt: a dialog value is stored Sanity-shaped; an unchanged reference keeps its stored object', () => {
+  const fields = [{name: 'target', type: 'reference'}, {name: 'label', type: 'string'}]
+  const was = {_key: 'm9', _type: 'linkNote', target: {_ref: 'r1', _type: 'internalLink'}, label: 'Old'}
+  assert.deepEqual(storedShape(fields, {...was, target: 'r2'}, was), {_key: 'm9', _type: 'linkNote', target: {_ref: 'r2', _type: 'internalLink'}, label: 'Old'})
+  assert.equal(storedShape(fields, {...was, target: 'r1'}, was).target, was.target)
+  assert.deepEqual(storedShape(fields, {_type: 'linkNote', target: 'r3'}), {_type: 'linkNote', target: {_type: 'reference', _ref: 'r3'}})
+  assert.deepEqual(storedShape(fields, {...was, label: undefined}, was), {_key: 'm9', _type: 'linkNote', target: was.target})
+  assert.match(newKey(), /^[0-9a-f]{12}$/)
+})
+
+test('pt: an edited markDef changes only what was edited; the others in its block go back as stored', () => {
+  const value = stored()
+  ;(value[1].markDefs as unknown[]).push({_key: 'm2', _type: 'internalLink', reference: {_ref: 'page-cups', _type: 'reference'}, keep: {a: [1]}})
+  const seen = editorReading(value)
+  const next = clone(seen)
+  const defs = next[1].markDefs as Record<string, unknown>[]
+  defs[1] = {...defs[1], reference: {_ref: 'page-pots', _type: 'reference'}}
+  // A new link on the first block, its span marked.
+  next[0].markDefs = [{_key: 'aaaaaaaaaaaa', _type: 'link', href: 'https://example.com'}]
+  ;(next[0].children as {marks: string[]}[])[0].marks = ['aaaaaaaaaaaa']
+  const merged = mergeValue(value, seen, next)
+  const was = value[1].markDefs as unknown[]
+  const now = merged[1].markDefs as Record<string, unknown>[]
+  assert.equal(now[0], was[0])
+  assert.deepEqual(now[1], {_key: 'm2', _type: 'internalLink', reference: {_ref: 'page-pots', _type: 'reference'}, keep: {a: [1]}})
+  assert.deepEqual(merged[0].markDefs, [{_key: 'aaaaaaaaaaaa', _type: 'link', href: 'https://example.com'}])
+  for (const i of [2, 3]) assert.equal(merged[i], value[i])
+  // A field the dialog emptied goes from that markDef only.
+  const next2 = clone(seen)
+  delete (next2[1].markDefs as Record<string, unknown>[])[1].keep
+  assert.deepEqual((mergeValue(value, seen, next2)[1].markDefs as unknown[])[1], {_key: 'm2', _type: 'internalLink', reference: {_ref: 'page-cups', _type: 'reference'}})
 })

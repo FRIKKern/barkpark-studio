@@ -14,15 +14,20 @@ import {
   type RegistrableNode,
 } from '@portabletext/editor'
 import {EventListenerPlugin, NodePlugin} from '@portabletext/editor/plugins'
-import {getActiveStyle, isActiveDecorator, isActiveListItem} from '@portabletext/editor/selectors'
-import type {Field} from '../lib/data'
+import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotation, isActiveDecorator, isActiveListItem, isSelectionExpanded} from '@portabletext/editor/selectors'
+import {useQuery} from '@tanstack/react-query'
+import {schemasQuery, type Field} from '../lib/data'
 import {useT} from '../lib/i18n'
-import {declaredVocabulary, editorSchema, equal, mergeValue, type PtBlock, type PtSchema} from '../lib/pt-value'
-import {BoldIcon, CodeIcon, ItalicIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
+import {declaredVocabulary, editorSchema, equal, mergeValue, newKey, objectFields, objectTitle, offeredAnnotations, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
+import type {OpenRef} from './Fields'
+import {BoldIcon, CodeIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
 
 // S4a (task-7f77f41c95cc6d9f): a richText field holding Portable Text, edited with
-// @portabletext/editor (owner decision D2). Text, styles, lists and decorators edit;
-// annotations (S4b), custom blocks and inline objects (S4c) show and are kept as stored.
+// @portabletext/editor (owner decision D2). Text, styles, lists and decorators edit.
+// S4b: annotations add, edit and go, in a dialog of the annotation's fields (lib/pt-value.ts
+// says where they come from); a reference field is the studio's reference input. Custom
+// blocks and inline objects (S4c) show and are kept as stored.
 // A save sets the whole field (lib/edits.ts, fenced on the doc's rev) with every block
 // and span the author did not touch exactly as it was stored (lib/pt-value.ts).
 
@@ -63,7 +68,7 @@ const decorators = defineDecorator({
     return <span data-mark={decorator}>{children}</span>
   },
 })
-// S4b edits annotations; until then each shows as marked text and is kept.
+// An annotation shows as marked text; the toolbar's button for its type edits it.
 const annotations = defineAnnotation({
   type: '*',
   render: ({annotation, children}) => (
@@ -104,7 +109,7 @@ function objectNodes(schema: PtSchema): RegistrableNode[] {
   ]
 }
 
-type Props = {id: string; field: Field; value: PtBlock[] | undefined; onChange: (v: unknown) => void; readOnly?: boolean}
+type Props = {id: string; field: Field; value: PtBlock[] | undefined; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}
 
 export default function PortableTextInput(props: Props) {
   // A value from elsewhere (another editor, a restore) remounts the editor on it; this
@@ -122,15 +127,19 @@ export default function PortableTextInput(props: Props) {
     mine.current = []
     setBase((b) => ({value: incoming, n: b.n + 1}))
   }, [incoming, base.value, blurs])
+  // The editor's schema names every field an annotation may hold, some of them read off the
+  // schemas (a reference's targets): it mounts once they are here (the form has them already).
+  const {data: schemas} = useQuery(schemasQuery)
+  if (!schemas) return null
   // The editor takes readOnly once, when it mounts: a change remounts it.
-  return <Editor key={`${base.n}-${!!props.readOnly}`} {...props} stored={base.value} mine={mine} focused={focused} onBlur={() => setBlurs((n) => n + 1)} />
+  return <Editor key={`${base.n}-${!!props.readOnly}`} {...props} schemas={schemas} stored={base.value} mine={mine} focused={focused} onBlur={() => setBlurs((n) => n + 1)} />
 }
 
 type Shared = {mine: {current: unknown[]}; focused: {current: boolean}; onBlur: () => void}
 
-function Editor({id, field, stored, onChange, readOnly, mine, focused, onBlur}: Props & Shared & {stored: PtBlock[]}) {
+function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, focused, onBlur}: Props & Shared & {stored: PtBlock[]; schemas: SchemaLike[]}) {
   const t = useT()
-  const schema = useMemo(() => editorSchema(field, stored), [field, stored])
+  const schema = useMemo(() => editorSchema(field, stored, schemas), [field, stored, schemas])
   const nodes = useMemo(() => [textBlock, decorators, annotations, ...objectNodes(schema)], [schema])
   // A value the editor can't read: it stays read-only and nothing is saved from it.
   const [invalid, setInvalid] = useState(false)
@@ -147,7 +156,7 @@ function Editor({id, field, stored, onChange, readOnly, mine, focused, onBlur}: 
             {t('This text holds content the editor cannot read. It is shown read-only and kept as it is.')}
           </p>
         )}
-        {!locked && <Toolbar field={field} ready={ready} />}
+        {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} />}
         <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} />
       </EditorProvider>
     </div>
@@ -177,14 +186,17 @@ function Saver({stored, onChange, onInvalid, onReady, mine, focused, onBlur}: Sh
   return <EventListenerPlugin on={on} />
 }
 
-function Toolbar({field, ready}: {field: Field; ready: boolean}) {
+type ToolbarProps = {id: string; field: Field; stored: PtBlock[]; schemas: SchemaLike[]; openRef: OpenRef; ready: boolean}
+
+function Toolbar({id, field, stored, schemas, openRef, ready}: ToolbarProps) {
   const t = useT()
   const editor = useEditor()
   const vocab = useMemo(() => declaredVocabulary(field), [field])
+  const annotations = useMemo(() => offeredAnnotations(field, stored), [field, stored])
   const style = useEditorSelector(editor, getActiveStyle)
   const styles = vocab.styles
   return (
-    <fieldset className="body-toolbar pt-toolbar" role="toolbar" aria-label={t('Formatting')} disabled={!ready} onMouseDown={(e) => (e.target as HTMLElement).tagName !== 'SELECT' && e.preventDefault()}>
+    <fieldset className="body-toolbar pt-toolbar" role="toolbar" aria-label={t('Formatting')} disabled={!ready} onMouseDown={(e) => e.currentTarget.contains(e.target as Node) && (e.target as HTMLElement).tagName !== 'SELECT' && e.preventDefault()}>
       {styles.length > 1 && (
         <select
           className="input pt-style"
@@ -210,7 +222,85 @@ function Toolbar({field, ready}: {field: Field; ready: boolean}) {
       {vocab.lists.map((l) => (
         <ListButton key={l.name} name={l.name} label={l.title ?? (LISTS[l.name] ? t(LISTS[l.name][0]) : l.name)} icon={LISTS[l.name]?.[1]} />
       ))}
+      {annotations.length > 0 && <span className="body-toolbar-sep" />}
+      {annotations.map((a) => (
+        <AnnotationButton key={a.name} id={id} name={a.name} field={field} stored={stored} schemas={schemas} openRef={openRef} />
+      ))}
     </fieldset>
+  )
+}
+
+type Selection = NonNullable<ReturnType<ReturnType<typeof useEditor>['getSnapshot']>['context']['selection']>
+type Markdef = Record<string, unknown> & {_key: string; _type: string}
+type AnnotationEdit = {request: BlockObjectRequest; at: Selection; def?: Markdef; blockPath?: unknown[]; markDefs?: Markdef[]}
+
+/**
+ * One annotation type's button. With text selected it adds one: a dialog of its fields,
+ * and the annotation goes on when the dialog closes with something filled in. With the
+ * caret in one it opens that one: what is changed there sets that markDef only, and
+ * Remove takes the annotation off its text.
+ */
+function AnnotationButton({id, name, field, stored, schemas, openRef}: {id: string; name: string; field: Field; stored: PtBlock[]; schemas: SchemaLike[]; openRef: OpenRef}) {
+  const t = useT()
+  const editor = useEditor()
+  const active = useEditorSelector(editor, isActiveAnnotation(name))
+  const expanded = useEditorSelector(editor, isSelectionExpanded)
+  const [edit, setEdit] = useState<AnnotationEdit | null>(null)
+  const title = objectTitle(field, 'annotation', name)
+  const label = active ? t('Edit {name}', {name: title}) : title
+  const open = () => {
+    const snap = editor.getSnapshot()
+    const at = snap.context.selection
+    if (!at) return
+    const fields = objectFields(field, 'annotation', name, stored, schemas)
+    const base = {type: name, title, inline: true, fields, error: null}
+    if (active) {
+      const def = getActiveAnnotations(snap).find((a) => a._type === name) as Markdef | undefined
+      const block = getFocusTextBlock(snap)
+      if (!def || !block) return
+      setEdit({request: {...base, value: def as unknown as BlockObjectRequest['value']}, at, def, blockPath: block.path, markDefs: (block.node.markDefs ?? []) as Markdef[]})
+    } else if (expanded) setEdit({request: {...base, value: {_type: name} as unknown as BlockObjectRequest['value']}, at})
+  }
+  const done = (value: Record<string, unknown> | null) => {
+    const e = edit
+    setEdit(null)
+    if (!e || !value) return editor.send({type: 'focus'})
+    const shaped = storedShape(e.request.fields, value, e.def ?? {})
+    if (e.def && e.blockPath && e.markDefs) {
+      // This markDef only, whole: a field emptied in the dialog goes from it.
+      const markDefs = e.markDefs.map((d) => (d._key === e.def!._key ? {...shaped, _key: d._key, _type: d._type} : d))
+      editor.send({type: 'block.set', at: e.blockPath as never, props: {markDefs}})
+    } else {
+      const {_key: _k, _type: _t, ...fields} = shaped
+      editor.send({type: 'annotation.add', annotation: {name, _key: newKey(), value: fields}, at: e.at})
+    }
+    editor.send({type: 'focus'})
+  }
+  const remove = () => {
+    const e = edit
+    setEdit(null)
+    if (!e) return
+    // A caret (not a range) takes the whole annotation off, as far as its text runs.
+    editor.send({type: 'annotation.remove', annotation: {name}, at: {anchor: e.at.focus, focus: e.at.focus}})
+    editor.send({type: 'focus'})
+  }
+  return (
+    <>
+      <button type="button" className="icon-btn body-tool" aria-label={label} data-tip={label} data-tip-side="top" aria-pressed={active} data-annotation={name} disabled={!active && !expanded} onClick={open}>
+        {/link/i.test(name) ? <LinkIcon /> : <span className="pt-tool-text">{title}</span>}
+      </button>
+      {edit && (
+        <BlockObjectDialog
+          key={JSON.stringify(edit.request.value)}
+          request={edit.request}
+          path={`${id}.${name}`}
+          openRef={openRef}
+          onDone={done}
+          onRemove={edit.def ? remove : undefined}
+          removeLabel={t('Remove {name}', {name: title})}
+        />
+      )}
+    </>
   )
 }
 

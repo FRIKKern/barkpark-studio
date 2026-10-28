@@ -24,6 +24,17 @@ const BODY = [
   {_key: 'c1', _type: 'kettleCallout', tone: 'warm', nested: {list: [1, 2, {deep: 'yes'}]}},
   {_key: 'p3', _type: 'block', style: 'h2', markDefs: [], children: [{_key: 'p3s1', _type: 'span', marks: [], text: 'Cups'}]},
   {_key: 'p4', _type: 'block', style: 'normal', listItem: 'bullet', level: 1, markDefs: [], children: [{_key: 'p4s1', _type: 'span', marks: ['em'], text: 'Pour slowly'}]},
+  // S4b: a declared annotation with no declared fields; the dialog reads them off this markDef.
+  {
+    _key: 'p5',
+    _type: 'block',
+    style: 'normal',
+    markDefs: [{_key: 'wk1', _type: 'wikilink', author: {_ref: 'author-ada', _type: 'reference'}, shelf: {row: 2}}],
+    children: [
+      {_key: 'p5s1', _type: 'span', marks: [], text: 'Ask '},
+      {_key: 'p5s2', _type: 'span', marks: ['wk1'], text: 'the tea maker'},
+    ],
+  },
 ]
 
 type Doc = {_rev: string; _updatedAt?: string; body?: unknown}
@@ -104,4 +115,53 @@ test('@local Portable Text: styles, lists and decorators edit from the toolbar',
       return [body[3]?.style, body[4]?.listItem ?? null, body[0]?.children.find((c) => c.text === 'Brew')?.marks]
     }, {timeout: 10_000})
     .toEqual(['h3', null, ['strong']])
+})
+
+// S4b (annotations): a link added from the toolbar is a markDef with a 12-hex key and its
+// span marked; a reference annotation's target edits in the reference input and changes
+// that markDef only; Remove takes the annotation off its text.
+test('@local Portable Text: add a link, change a reference annotation\'s target, remove it; only those markDefs change', async ({page}, info) => {
+  test.setTimeout(90_000)
+  const stored = ((await read('published'))!.body ?? []) as typeof BODY
+  const editor = await open(page, info)
+  // Add: select a word, the Link button, its URL, close.
+  await editor.getByText('Brew the tea with warm water.').dblclick({position: {x: 135, y: 8}})
+  await expect.poll(() => page.evaluate(() => getSelection()?.toString().trim())).toBe('warm')
+  await page.getByRole('button', {name: 'Link', exact: true}).click()
+  const link = page.getByRole('dialog', {name: 'Link'})
+  await link.locator('[id="body.link.href"]').fill('https://example.com/kettles')
+  await link.getByRole('button', {name: 'Close dialog'}).click()
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('https://example.com/kettles')
+  let draft = (await read('drafts'))!.body as typeof BODY
+  const added = (draft[0].markDefs as {_key: string; _type: string; href?: string}[])[0]
+  expect(added).toEqual({_key: expect.stringMatching(/^[0-9a-f]{12}$/), _type: 'link', href: 'https://example.com/kettles'})
+  expect(draft[0].children.find((c) => c.text === 'warm')?.marks).toEqual([added._key])
+  for (const i of [1, 2, 3, 4, 5]) expect(JSON.stringify(draft[i])).toBe(JSON.stringify(stored[i]))
+
+  // Edit: the caret in the wikilink, its target replaced in the reference input.
+  await editor.getByText('the tea maker').click()
+  await page.waitForTimeout(150)
+  await page.getByRole('button', {name: 'Edit Wikilink'}).click()
+  const wiki = page.getByRole('dialog', {name: 'Wikilink'})
+  await wiki.getByRole('button', {name: 'Reference actions'}).click()
+  await page.getByRole('menuitem', {name: 'Replace'}).click()
+  await wiki.locator('[id="body.wikilink.author"]').fill('Grace')
+  await page.getByRole('option').filter({hasText: 'Grace Hopper'}).first().click()
+  await wiki.getByRole('button', {name: 'Close dialog'}).click()
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('author-grace')
+  const before = draft
+  draft = (await read('drafts'))!.body as typeof BODY
+  expect(draft[5].markDefs).toEqual([{_key: 'wk1', _type: 'wikilink', author: {_ref: 'author-grace', _type: 'reference'}, shelf: {row: 2}}])
+  expect(JSON.stringify(draft[5].children)).toBe(JSON.stringify(before[5].children))
+  for (const i of [0, 1, 2, 3, 4]) expect(JSON.stringify(draft[i])).toBe(JSON.stringify(before[i]))
+
+  // Remove: the annotation comes off its text.
+  await editor.getByText('the tea maker').click()
+  await page.waitForTimeout(150)
+  await page.getByRole('button', {name: 'Edit Wikilink'}).click()
+  await page.getByRole('dialog', {name: 'Wikilink'}).getByRole('button', {name: 'Remove Wikilink'}).click()
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify(((await read('drafts'))?.body as typeof BODY)[5].children), {timeout: 10_000}).not.toContain('wk1')
 })

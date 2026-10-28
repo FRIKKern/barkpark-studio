@@ -1,15 +1,21 @@
 import type {Field} from './data'
+import {refId} from './refs.ts'
 
 // S4a (task-7f77f41c95cc6d9f): Portable Text in a richText field, edited with
-// @portabletext/editor. Two jobs live here, apart from React so a unit test can run them:
+// @portabletext/editor. S4b: annotations. The jobs live here, apart from React so a unit
+// test can run them:
 // - the editor's schema, from the field's `blocks` declaration plus whatever the stored
 //   value already holds, so the editor never drops a type it was not told about;
 // - the value to save: blocks and spans the author did not touch go back exactly as
-//   they were stored, and only the edited ones take the editor's version.
+//   they were stored, and only the edited ones take the editor's version;
+// - the fields an annotation's dialog shows, and the value it stores.
 
 type Obj = Record<string, unknown>
 export type PtBlock = Obj & {_type: string; _key?: string}
 type Named = {name: string; title?: string}
+/** A field as @portabletext/editor's schema takes it: the editor keeps only the fields it is told. */
+type PtField = {name: string; type: 'string' | 'number' | 'boolean' | 'object'}
+type NamedWithFields = Named & {fields?: PtField[]}
 export type PtVocabulary = {
   styles: Named[]
   lists: Named[]
@@ -19,7 +25,7 @@ export type PtVocabulary = {
   inlineObjects: Named[]
 }
 /** A schema in @portabletext/editor's SchemaDefinition shape. */
-export type PtSchema = PtVocabulary & {block: {name: 'block'}}
+export type PtSchema = Omit<PtVocabulary, 'annotations'> & {block: {name: 'block'}; annotations: NamedWithFields[]}
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v)
 const isText = (b: unknown): b is PtBlock => isObj(b) && b._type === 'block'
@@ -91,7 +97,7 @@ const union = (a: Named[], b: Named[]) => [...a, ...b.filter((n) => !a.some((m) 
  * The editor's schema: the declared vocabulary plus every name the stored value uses.
  * The toolbar offers the declared ones only; the rest are there so the editor keeps them.
  */
-export function editorSchema(field: Pick<Field, 'blocks'>, value: unknown): PtSchema {
+export function editorSchema(field: Pick<Field, 'blocks'>, value: unknown, schemas: SchemaLike[] = []): PtSchema {
   const d = declaredVocabulary(field)
   const o = observedVocabulary(value)
   // `normal` is always a style: a new paragraph takes it.
@@ -101,7 +107,8 @@ export function editorSchema(field: Pick<Field, 'blocks'>, value: unknown): PtSc
     styles,
     lists: union(d.lists, o.lists),
     decorators: union(d.decorators, o.decorators),
-    annotations: union(d.annotations, o.annotations),
+    // Each with every field it may hold: the editor drops a markDef field it was not told.
+    annotations: union(d.annotations, o.annotations).map((a) => ({...a, fields: editorFields(objectFields(field, 'annotation', a.name, value, schemas), storedObjects(value, 'annotation', a.name))})),
     blockObjects: union(d.blockObjects, o.blockObjects),
     inlineObjects: union(d.inlineObjects, o.inlineObjects),
   }
@@ -154,11 +161,35 @@ function mergeChild(stored: Obj | undefined, seen: Obj | undefined, next: Obj): 
   return {...own, ...rest}
 }
 
+/**
+ * An object the author edited: the stored one with only the keys the editor changed
+ * (against its own reading, `seen`) set or removed. A key the editor never knew stays.
+ */
+export function editedObject(stored: Obj, seen: Obj | undefined, next: Obj): Obj {
+  const base = seen ?? stored
+  const out: Obj = {...stored}
+  for (const k of new Set([...Object.keys(base), ...Object.keys(next)])) {
+    if (k === '_key' || k === '_type' || equal(next[k], base[k])) continue
+    if (next[k] === undefined) delete out[k]
+    else out[k] = next[k]
+  }
+  return out
+}
+
 function mergeMarkDefs(stored: unknown, seen: unknown, next: unknown): unknown {
   if (equal(next, seen)) return stored
   const was = byKey<Obj>(stored)
-  // A markDef can't be edited here (S4b): one the block still holds goes back as stored.
-  return Array.isArray(next) ? next.map((d) => (isObj(d) && typeof d._key === 'string' && was.get(d._key)) || d) : next
+  const read = byKey<Obj>(seen)
+  // A markDef the author did not edit goes back as stored; an edited one changes only the keys edited.
+  return Array.isArray(next)
+    ? next.map((d) => {
+        const key = isObj(d) && typeof d._key === 'string' ? d._key : undefined
+        const s = key ? was.get(key) : undefined
+        if (!s) return d
+        const r = read.get(key!)
+        return r && equal(d, r) ? s : editedObject(s, r, d as Obj)
+      })
+    : next
 }
 
 function mergeText(stored: PtBlock, seen: PtBlock | undefined, next: PtBlock): PtBlock {
@@ -177,8 +208,8 @@ function mergeText(stored: PtBlock, seen: PtBlock | undefined, next: PtBlock): P
 /**
  * The value to save after an edit. `stored` is the field's value as read, `seen` the
  * editor's own reading of it before any edit (its normalised form), `next` the editor's
- * value now. A block or span the author did not touch goes back byte for byte as stored;
- * custom blocks always do (S4c edits them). A stored block the editor never loaded (not
+ * value now. A block, span or markDef the author did not touch goes back byte for byte as
+ * stored; custom blocks always do (S4c edits them). A stored block the editor never loaded (not
  * in `seen`) is put back after the stored block before it, so nothing is lost unseen.
  */
 export function mergeValue(stored: PtBlock[], seen: PtBlock[], next: PtBlock[]): PtBlock[] {
@@ -202,4 +233,129 @@ export function mergeValue(stored: PtBlock[], seen: PtBlock[], next: PtBlock[]):
     out.splice(after + 1, 0, m)
   }
   return out
+}
+
+// S4b (annotations). The fields an annotation's dialog shows come from, in order:
+// 1. the field's declaration, `blocks.annotations: [{name, fields}]` (barkpark S1 and the
+//    twin's S5 add these);
+// 2. what the stored markDefs of that type hold (gyl today: linkAnnotation is declared
+//    nowhere, so its url, internalLink, linkType and the rest are read off the value);
+// 3. Sanity's default for `link`: one `href`.
+// A named object type of the same name is not used: gyl's `link` object (a link field's
+// type) is not the `link` annotation, which stores `href`.
+
+/** The schemas this module reads: a type's name, its kind and its fields. */
+export type SchemaLike = {name: string; kind?: string; fields?: Field[]}
+export type PtKind = 'annotation'
+const KIND_KEY: Record<PtKind, string> = {annotation: 'annotations'}
+
+/** The annotations the toolbar offers: the declared ones; none declared, those the value uses; none used, Sanity's `link`. */
+export function offeredAnnotations(field: Pick<Field, 'blocks'>, value: unknown): Named[] {
+  const b = isObj(field.blocks) ? field.blocks : {}
+  if (Array.isArray(b.annotations)) return list(b.annotations, [])
+  const used = observedVocabulary(value).annotations
+  return used.length ? used : [{name: 'link'}]
+}
+
+/** Every stored object of one kind and type: the markDefs of `name` in every block. */
+export function storedObjects(value: unknown, kind: PtKind, name: string): Obj[] {
+  const out: Obj[] = []
+  for (const b of Array.isArray(value) ? value : []) {
+    if (!isText(b)) continue
+    if (kind === 'annotation') for (const d of Array.isArray(b.markDefs) ? b.markDefs : []) if (isObj(d) && d._type === name) out.push(d)
+  }
+  return out
+}
+
+const startCase = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/^./, (c) => c.toUpperCase())
+
+/**
+ * The document types a reference field read off stored values may point to: those of a
+ * declared reference field of the same name (gyl: `link.internalLink`), else every document type.
+ */
+export function refTargets(name: string, schemas: SchemaLike[]): {type: string}[] {
+  const find = (fields: Field[] | undefined): Field | undefined => {
+    for (const f of fields ?? []) {
+      if (f.name === name && f.type === 'reference' && f.to?.length) return f
+      const inner = find(f.fields)
+      if (inner) return inner
+    }
+  }
+  for (const s of schemas) {
+    const f = find(s.fields)
+    if (f) return f.to!
+  }
+  return schemas.filter((s) => s.kind !== 'object').map((s) => ({type: s.name}))
+}
+
+/** Fields read off stored objects, in the order their keys first show up. Arrays and plain objects are kept, not shown. */
+export function inferFields(objects: Obj[], schemas: SchemaLike[]): Field[] {
+  const out = new Map<string, Field>()
+  for (const o of objects)
+    for (const [k, v] of Object.entries(o)) {
+      if (k.startsWith('_') || out.has(k) || v === undefined || v === null) continue
+      const title = startCase(k)
+      if (isObj(v) && typeof v._ref === 'string') out.set(k, {name: k, title, type: 'reference', to: refTargets(k, schemas)})
+      else if (typeof v === 'boolean') out.set(k, {name: k, title, type: 'boolean'})
+      else if (typeof v === 'number') out.set(k, {name: k, title, type: 'number'})
+      else if (typeof v === 'string') out.set(k, {name: k, title, type: k === 'email' ? 'email' : k === 'href' || k === 'url' || /^(https?:|mailto:)/.test(v) ? 'url' : 'string'})
+    }
+  return [...out.values()]
+}
+
+/** The raw entry a field's `blocks` declares for one type, if any. */
+function declaredEntry(field: Pick<Field, 'blocks'>, kind: PtKind, name: string): Obj | undefined {
+  const b = isObj(field.blocks) ? field.blocks : {}
+  const entries = b[KIND_KEY[kind]]
+  return Array.isArray(entries) ? (entries.find((e) => isObj(e) && named(e)?.name === name) as Obj | undefined) : undefined
+}
+
+/** The fields a dialog for one annotation shows (see the order above). */
+export function objectFields(field: Pick<Field, 'blocks'>, kind: PtKind, name: string, value: unknown, schemas: SchemaLike[]): Field[] {
+  const entry = declaredEntry(field, kind, name)
+  if (entry && Array.isArray(entry.fields) && entry.fields.length) return entry.fields as Field[]
+  const inferred = inferFields(storedObjects(value, kind, name), schemas)
+  if (kind === 'annotation' && name === 'link' && !inferred.some((f) => f.name === 'href')) return [{name: 'href', title: 'URL', type: 'url'}, ...inferred]
+  return inferred
+}
+
+/** The title a dialog and a button show for a type. */
+export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: string): string {
+  const t = declaredEntry(field, kind, name)?.title
+  return typeof t === 'string' && t ? t : startCase(name)
+}
+
+/** The editor's field list: the dialog's fields plus every key stored objects of that type hold. */
+function editorFields(fields: Field[], stored: Obj[]): PtField[] {
+  const out = new Map<string, PtField>()
+  const ptType = (t: string): PtField['type'] => (t === 'boolean' ? 'boolean' : ['number', 'integer', 'float'].includes(t) ? 'number' : ['string', 'text', 'url', 'email', 'select', 'date', 'datetime', 'time', 'markdown'].includes(t) ? 'string' : 'object')
+  for (const f of fields) out.set(f.name, {name: f.name, type: ptType(f.type)})
+  for (const o of stored)
+    for (const [k, v] of Object.entries(o)) if (!k.startsWith('_') && !out.has(k)) out.set(k, {name: k, type: typeof v === 'boolean' ? 'boolean' : typeof v === 'number' ? 'number' : typeof v === 'string' ? 'string' : 'object'})
+  return [...out.values()]
+}
+
+/**
+ * What a dialog's value stores, Sanity-shaped as the rest of the Portable Text value is:
+ * the reference input gives a bare id, a markDef holds `{_type: 'reference', _ref}`. A
+ * reference whose id did not change keeps its stored object (gyl has some with
+ * `_type: 'internalLink'`); an emptied field is left out.
+ */
+export function storedShape(fields: Field[], value: Obj, before: Obj = {}): Obj {
+  const out: Obj = {}
+  for (const [k, v] of Object.entries(value)) {
+    if (v === undefined || v === null || v === '') continue
+    const f = fields.find((x) => x.name === k)
+    const was = before[k]
+    if (f?.type === 'reference' && typeof v === 'string') out[k] = refId(was) === v ? was : {...(isObj(was) ? was : {_type: 'reference'}), _ref: v}
+    else if (f?.type === 'composite' && f.fields && isObj(v)) out[k] = storedShape(f.fields, v, isObj(was) ? was : {})
+    else out[k] = v
+  }
+  return out
+}
+
+/** A new key, as the editor and Sanity make them: 12 hex digits. */
+export function newKey(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(6))
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
 }

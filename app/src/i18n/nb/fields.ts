@@ -184,6 +184,10 @@ export default {
   // S4a, the Portable Text input.
   'Block style': 'Blokkstil',
   'This text holds content the editor cannot read. It is shown read-only and kept as it is.': 'Denne teksten har innhold redigeringsverktøyet ikke kan lese. Den vises skrivebeskyttet og beholdes som den er.',
+  // S4b, annotations in the Portable Text input.
+  'Edit {name}': 'Rediger {name}',
+  'Remove {name}': 'Fjern {name}',
+  'This type has no fields to edit.': 'Denne typen har ingen felt å redigere.',
   'Normal': 'Normal',
   'Heading 1': 'Overskrift 1',
   'Heading 2': 'Overskrift 2',
