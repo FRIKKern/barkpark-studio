@@ -3625,7 +3625,9 @@ html[data-theme='dark'] .pt-annotation-pop .icon-btn:hover { background: #e4e5e9
 .pt-inline-object { padding: 0 4px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); font-size: 0.9em; }
 .pt-object-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pt-object-label { flex: none; font-weight: 500; color: var(--fg); }
-.pt-object-thumb { flex: none; width: 33px; height: 33px; margin: -4px 0; border-radius: 3px; object-fit: cover; background: var(--card-hover); }
+/* An image block, as Sanity's: its file's name and menu over the image, across the card (at most 375 px tall). */
+.pt-image-view { display: block; margin: 6px -10px -6px; background: var(--bg-soft); }
+.pt-image-view img { display: block; width: 100%; height: auto; max-height: 375px; object-fit: contain; }
 .pt-object-preview { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pt-object-menu { flex: none; margin-left: auto; }
 /* Sanity's: the menu 4 px left of its …, centred on it, as wide as its items; the card shows
