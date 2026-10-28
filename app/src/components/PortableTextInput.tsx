@@ -120,7 +120,8 @@ function BlockCard({node, path, title, readOnly, attributes, children}: {node: O
   return (
     <div {...attributes} className="pt-object" data-type={node._type} onDoubleClick={open}>
       {children}
-      <span className="pt-object-head" contentEditable={false}>
+      {/* Draggable, as the editor's own block object (and Sanity's card): drop it between blocks to move it. */}
+      <span className="pt-object-head" contentEditable={false} draggable={!readOnly}>
         {thumb && <img className="pt-object-thumb" src={imageSrc(thumb, 66)} alt="" />}
         <span className="pt-object-label">{title}</span>
         {line && <span className="pt-object-preview">{line}</span>}

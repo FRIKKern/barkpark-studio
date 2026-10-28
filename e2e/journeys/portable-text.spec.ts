@@ -449,3 +449,18 @@ test('@local Portable Text: the toolbar is one Tab stop; arrows, Home and End mo
   await page.keyboard.press('Tab')
   await expect.poll(focused).toBe('Strong')
 })
+
+// task-e76b738c90624a72: a custom block's card drags to another place, as Sanity's does.
+test('@local Portable Text: a custom block card drags below the next block; only the order changes', async ({page}, info) => {
+  const stored = ((await read('published'))!.body ?? []) as typeof BODY
+  const editor = await open(page, info)
+  const cups = editor.getByText('Cups', {exact: true})
+  const box = (await cups.boundingBox())!
+  // Onto the lower half of "Cups": the card goes after it.
+  await editor.locator('.pt-object[data-type="kettleCallout"] .pt-object-head').dragTo(cups, {targetPosition: {x: 5, y: box.height - 4}})
+  await savesLanded(page)
+  const order = async () => (((await read('drafts'))?.body ?? []) as typeof BODY).map((b) => b._key)
+  await expect.poll(order, {timeout: 10_000}).toEqual(['p1', 'p2', 'p3', 'c1', 'p4', 'p5'])
+  const draft = ((await read('drafts'))!.body ?? []) as typeof BODY
+  for (const b of stored) expect(JSON.stringify(draft.find((x) => x._key === b._key))).toBe(JSON.stringify(b))
+})
