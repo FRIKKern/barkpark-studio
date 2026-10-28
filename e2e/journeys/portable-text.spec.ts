@@ -544,12 +544,12 @@ test('@local Portable Text: typing in a block saves that block by its key, not t
 })
 
 /** The caret at the end of the span holding exactly `text`, once the editor has read the click. */
-async function caretAtEnd(page: import('@playwright/test').Page, editor: import('@playwright/test').Locator, text: string) {
+async function caretAtEnd(page: import('@playwright/test').Page, editor: import('@playwright/test').Locator, text: string, at = text.length) {
   await editor.getByText(text, {exact: true}).click()
-  await editor.evaluate((el, text) => {
+  await editor.evaluate((el, [text, at]) => {
     const span = [...el.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === text)!.firstChild!
-    getSelection()!.collapse(span, text.length)
-  }, text)
+    getSelection()!.collapse(span, at)
+  }, [text, at] as const)
   await page.waitForTimeout(200)
 }
 
@@ -614,6 +614,39 @@ test('@local Portable Text: two editors typing in different blocks at once both 
     await page.keyboard.press('ControlOrMeta+z')
     await expect.poll(() => text('p4'), {timeout: 15_000}).toBe('Pour slowly from a')
     expect(await text('p3')).toBe('Cups and fine saucers')
+  } finally {
+    await closeAndSettle(b)
+    await ctxB.close()
+  }
+})
+
+// task-88240409d3fc3c51: two editors typing in one block at once, on a slow machine (4x CPU),
+// both keep their words in place (each one's typing goes as diff-match-patch onto the span as
+// stored, as Sanity's), and undo takes back only this editor's own last word.
+test('@local Portable Text: two editors typing in one block at once both keep their words', async ({page, browser}, info) => {
+  const t = target(info)
+  const ctxB = await browser.newContext()
+  await t.prepare(ctxB)
+  const b = await ctxB.newPage()
+  try {
+    const [edA, edB] = await Promise.all([open(page, info), open(b, info)])
+    for (const p of [page, b]) await (await p.context().newCDPSession(p)).send('Emulation.setCPUThrottlingRate', {rate: 4})
+    await caretAtEnd(page, edA, 'Pour slowly')
+    await caretAtEnd(b, edB, 'Pour slowly', 'Pour'.length)
+    await Promise.all([
+      (async () => { for (const w of [' from', ' a', ' height']) (await page.keyboard.type(w, {delay: 60}), await page.waitForTimeout(400)) })(),
+      (async () => { for (const w of [' gently', ' and']) (await b.keyboard.type(w, {delay: 60}), await b.waitForTimeout(400)) })(),
+    ])
+    await Promise.all([savesLanded(page), savesLanded(b)])
+    type Block = {_key: string; children?: {text: string}[]}
+    const text = async () => (((await read('drafts'))?.body ?? []) as Block[]).find((x) => x._key === 'p4')?.children?.map((c) => c.text).join('')
+    await expect.poll(text, {timeout: 15_000}).toBe('Pour gently and slowly from a height')
+    await expect(edA).toContainText('Pour gently and slowly from a height')
+    await expect(edB).toContainText('Pour gently and slowly from a height')
+    await expect(edA).toBeFocused()
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect.poll(text, {timeout: 15_000}).toBe('Pour gently and slowly from a')
+    await expect(edA).toContainText('Pour gently and slowly from a')
   } finally {
     await closeAndSettle(b)
     await ctxB.close()

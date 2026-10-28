@@ -26,7 +26,9 @@ import {uploadFile, uploadReason} from '../lib/upload'
 import {toast} from './Toasts'
 import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
-import {asEditorHolds, changedBlocks, remoteBlockPatches, withRemote, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {asEditorHolds, changedBlocks, remoteBlockPatches, spanText, textPatches, withRemote, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {parsePatch} from '@sanity/diff-match-patch'
+import {applyText} from '../lib/merge'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {EditPathContext, ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {DocIdContext} from './doc-ids'
@@ -344,6 +346,9 @@ function SanityPlugins({field, stored}: {field: Field; stored: PtBlock[]}) {
   )
 }
 
+/** How long after this editor's last keystroke another editor's text waits (a word's letters come faster). */
+const WORD_PAUSE_MS = 500
+
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */
 function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; stored: PtBlock[]; incoming: unknown; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
   const editor = useEditor()
@@ -361,6 +366,16 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
   const sentAt = useRef(new Map<string, number>())
   const sentWhen = useRef(new Map<string, number>())
   const fromServer = useRef(new Map<string, {block: unknown; at: number}[]>())
+  // The editor's value as the server last sent it, and each span's text (`block/span`) as
+  // this editor has accounted for it since: its own typing applied, and others' given to it.
+  // Text that comes in different from that is another editor's (remoteBlockPatches). The
+  // texts its own typing wrote in the last 10 s: an older echo of those is never theirs.
+  const known = useRef<unknown>(stored)
+  const text = useRef(new Map<string, string>())
+  const wrote = useRef<{at: string; text: string; when: number}[]>([])
+  const remember = (blocks: unknown[]) => {
+    for (const b of blocks as PtBlock[]) for (const c of Array.isArray(b?.children) ? (b.children as {_key?: string; text?: unknown}[]) : []) if (typeof c.text === 'string') text.current.set(`${b._key}/${c._key}`, c.text)
+  }
   const theirs = (key: string, block: unknown) =>
     (fromServer.current.get(key) ?? []).some((r) => r.at > (sentAt.current.get(key) ?? 0) && equal(asEditorHolds(r.block), asEditorHolds(block)))
   const on = (event: EditorEmittedEvent) => {
@@ -369,21 +384,57 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
     if (event.type === 'invalid value') return onInvalid()
     // The editor's own reading of the stored value, before any edit: what an untouched block looks like.
     if (event.type === 'ready') (seen.current = (editor.getSnapshot().context.value ?? []) as PtBlock[]), onReady()
+    if (event.type === 'patch') typing.current = Date.now() // each keystroke as it lands; `mutation` comes batched
     if (event.type !== 'mutation') return
     seen.current ??= stored
     const merged = mergeValue(stored, seen.current, (event.value ?? []) as PtBlock[])
     const next = merged.length ? merged : undefined
     const prior = before.current
     before.current = next
+    // Typing alone: its diff-match-patch goes onto each span as stored now, so another
+    // editor's words in that span stay (two editors in one block, as Sanity's).
+    const typed = editPath && textPatches(event.patches)
+    if (typed) {
+      last.current = next
+      mine.current = [...mine.current.slice(-19), next ?? []]
+      for (const t of typed) {
+        const at = `${t.block}/${t.span}`
+        const own = parsePatch(t.value)
+        const from = text.current.get(at) ?? spanText(known.current, t.block, t.span)
+        text.current.set(at, applyText(own, from))
+        wrote.current = [...wrote.current.filter((w) => Date.now() - w.when < 10_000), {at, text: text.current.get(at)!, when: Date.now()}]
+        sentAt.current.set(t.block, ++seq.current)
+        sentWhen.current.set(t.block, Date.now())
+        editPath(`${keyedPath(keyedPath(id, t.block) + '.children', t.span)}.text`, (now: unknown) => applyText(own, typeof now === 'string' ? now : ''))
+      }
+      return
+    }
     if (equal(next ?? [], last.current ?? [])) return
     // Blocks edited in place go as `field[_key=="…"]` sets, those blocks only (a 300-block
     // body sent 337 KB a keystroke whole); a block that came, went or moved sends the field.
     const parts = editPath && next ? changedBlocks(prior, next)?.filter((p) => !theirs(p.key, p.block)) ?? null : null
     last.current = next
     mine.current = [...mine.current.slice(-19), next ?? []]
-    if (parts && parts.length * 2 <= next!.length) for (const p of parts) (sentAt.current.set(p.key, ++seq.current), sentWhen.current.set(p.key, Date.now()), editPath!(keyedPath(id, p.key), p.block))
-    else onChange(next)
+    if (parts && parts.length * 2 <= next!.length)
+      for (const p of parts) {
+        sentAt.current.set(p.key, ++seq.current)
+        sentWhen.current.set(p.key, Date.now())
+        editPath!(keyedPath(id, p.key), p.block)
+        remember([p.block])
+      }
+    else onChange(next), remember(next ?? [])
   }
+  const typing = useRef(0)
+  const held = useRef<RemotePatch[]>([])
+  const flushText = useRef(() => {})
+  flushText.current = () => {
+    clearTimeout(flushTimer.current)
+    const wait = typing.current + WORD_PAUSE_MS - Date.now()
+    if (wait > 0) flushTimer.current = setTimeout(() => flushText.current(), wait)
+    else if (held.current.length) editor.send({type: 'patches', patches: held.current.splice(0) as never, snapshot: known.current as never})
+  }
+  const flushTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(flushTimer.current), [])
   // A block saved by its key that another editor removed meanwhile (the key found no item):
   // the whole field again, as this editor has it, so no keystroke in it is lost.
   const resend = useRef(() => {})
@@ -395,7 +446,6 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
   // Another editor's blocks while this one has the focus (without it the input remounts on
   // them): patches the editor merges in, caret and typing kept, as Sanity's live edits.
   // A block this editor is typing in keeps its own version (remoteBlockPatches).
-  const known = useRef<unknown>(stored)
   useEffect(() => {
     const prev = known.current
     known.current = incoming
@@ -404,9 +454,16 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
     if (!focused.current || equal(prev ?? [], incoming ?? []) || mine.current.some((v) => equal(v, incoming ?? []))) return
     // Sent in the last 10 s: maybe not landed yet, kept (a removal then answers that save).
     const recent = new Set([...sentWhen.current].filter(([, at]) => Date.now() - at < 10_000).map(([k]) => k))
-    const patches = remoteBlockPatches(prev ?? [], incoming ?? [], editor.getSnapshot().context.value ?? [], mine.current, recent)
+    const echo = (at: string, t: string) => wrote.current.some((w) => w.at === at && w.text === t && Date.now() - w.when < 10_000)
+    const patches = remoteBlockPatches(prev ?? [], incoming ?? [], editor.getSnapshot().context.value ?? [], mine.current, recent, text.current, echo)
+    remember(patches.flatMap((p) => (p.type === 'set' ? [p.value] : p.type === 'insert' ? p.items : [])))
     if (!patches.length) return
-    editor.send({type: 'patches', patches: patches as never, snapshot: incoming as never})
+    // Their text alone waits while this editor is typing a word: put in mid-word it splits
+    // this editor's undo step there (the editor merges letters into one step only while each
+    // lands right after the last). Anything else goes now, with what waited before it.
+    held.current.push(...patches)
+    if (patches.every((p) => p.type === 'diffMatchPatch')) flushText.current()
+    else editor.send({type: 'patches', patches: held.current.splice(0) as never, snapshot: incoming as never})
     // The next save is measured from the last one with their blocks in: they are not sent back
     // as this editor's own, and its typing not emitted yet still goes.
     last.current = withRemote(last.current, patches)

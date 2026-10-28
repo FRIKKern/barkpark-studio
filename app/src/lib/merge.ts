@@ -1,4 +1,4 @@
-import {applyPatches, makePatches} from '@sanity/diff-match-patch'
+import {applyPatches, makePatches, type Patch} from '@sanity/diff-match-patch'
 
 // J06: two editors typing in one text field converge with both edits kept. Sanity
 // does it with diff-match-patch on its server; Barkpark sets whole values, so the
@@ -22,6 +22,25 @@ export function merge3(base: string, mine: string, theirs: string, mayHaveLanded
   if (without !== theirs && undone.every(Boolean) && applyPatches(makePatches(base, mine), without)[0] === theirs) return theirs
   const [merged, applied] = applyPatches(makePatches(base, mine), theirs)
   return applied.every(Boolean) ? merged : null
+}
+
+/**
+ * merge3 that never drops a word: where some of mine has nowhere to go in theirs (they
+ * rewrote that text), what mine inserted there is added after theirs instead. For text two
+ * editors type into at once (a Portable Text span), where a hold-and-ask would block both.
+ */
+export function mergeText(base: string, mine: string, theirs: string, mayHaveLanded = false): string {
+  return merge3(base, mine, theirs, mayHaveLanded) ?? applyText(makePatches(base, mine), theirs)
+}
+
+/**
+ * Diff-match-patch patches applied to `text`, none of their words dropped: a patch with
+ * nowhere to go (its spot rewritten) adds what it inserted after the text instead.
+ */
+export function applyText(patches: Patch[], text: string): string {
+  const [onto, applied] = applyPatches(patches, text)
+  const lost = patches.filter((_, i) => !applied[i]).flatMap((p) => p.diffs.filter(([op]) => op === 1).map(([, t]) => t.trim())).filter(Boolean)
+  return lost.length ? `${onto} ${lost.join(' ')}` : onto
 }
 
 /** Undo text change `from` → `to` on `now`, keeping what changed elsewhere since (F7). */
