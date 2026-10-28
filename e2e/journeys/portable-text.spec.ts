@@ -452,13 +452,20 @@ test('@local Portable Text: the toolbar is one Tab stop; arrows, Home and End mo
 })
 
 // task-e76b738c90624a72: a custom block's card drags to another place, as Sanity's does.
-test('@local Portable Text: a custom block card drags below the next block; only the order changes', async ({page}, info) => {
+test('@local Portable Text: a custom block card dropped in place writes nothing; below the next block, only the order changes', async ({page}, info) => {
   const stored = ((await read('published'))!.body ?? []) as typeof BODY
   const editor = await open(page, info)
   const cups = editor.getByText('Cups', {exact: true})
   const box = (await cups.boundingBox())!
+  const card = editor.locator('.pt-object[data-type="kettleCallout"] .pt-object-head')
+  // Onto the upper half of "Cups", the block after it: where it already is. Nothing is written.
+  const published = await read('published')
+  await card.dragTo(cups, {targetPosition: {x: 5, y: 4}})
+  await page.waitForTimeout(1500)
+  await savesLanded(page)
+  expect((await read('drafts'))?._rev).toBe(published?._rev)
   // Onto the lower half of "Cups": the card goes after it.
-  await editor.locator('.pt-object[data-type="kettleCallout"] .pt-object-head').dragTo(cups, {targetPosition: {x: 5, y: box.height - 4}})
+  await card.dragTo(cups, {targetPosition: {x: 5, y: box.height - 4}})
   await savesLanded(page)
   const order = async () => (((await read('drafts'))?.body ?? []) as typeof BODY).map((b) => b._key)
   await expect.poll(order, {timeout: 10_000}).toEqual(['p1', 'p2', 'p3', 'c1', 'p4', 'p5'])
