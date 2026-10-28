@@ -1191,7 +1191,7 @@ const syncObjectMenu = (field: HTMLElement) =>
   document.documentElement.toggleAttribute('data-bp-object-menu', field.hasAttribute('data-hover-object') && !field.hasAttribute('data-expanded'))
 
 /** The body's expand button; its tooltip names the hotkey (J35, Sanity's "Expand editor ⌘ Enter"). */
-function ExpandButton({expanded, ...rest}: {expanded: boolean} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function ExpandButton({expanded, ...rest}: {expanded: boolean} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const t = useT()
   const label = expanded ? t('Collapse editor') : t('Expand editor')
   const {anchor, tip} = useTip(() => (
@@ -1260,7 +1260,7 @@ function caretIn(el: HTMLElement | null, offset: number): {node: Node; offset: n
 }
 
 /** Where an expanded body sits: flush over its document pane's body (Sanity's), kept in step as it resizes. */
-function useExpandArea(box: RefObject<HTMLDivElement | null>, on: boolean) {
+export function useExpandArea(box: RefObject<HTMLDivElement | null>, on: boolean) {
   const [area, setArea] = useState<CSSProperties>()
   useLayoutEffect(() => {
     if (!on) return
