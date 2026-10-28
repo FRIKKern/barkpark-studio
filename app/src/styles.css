@@ -654,9 +654,10 @@ a.preview:hover:not([data-selected], [aria-current='true']) :is(.s, .media) { co
 /* The title steps down with the document pane, as Sanity's: 33 px, 27 under 600 px,
    21 under 465 px (Presentation's docked pane, a phone). Measured on Sanity 2026-10-15. */
 /* By the form's column, not the pane: with History or another inspector beside it the title steps
-   down, as Sanity's. 33 px once the form itself is 600 wide (a 640 px column), 21 under 465
-   (measured with History open at 768, 1024 and 1100, and alone from 400 to 700). */
-@container doc-column (max-width: 639px) { .doc-form h1 { font-size: 27px; line-height: 35px; } }
+   down, as Sanity's. 33 px from a 601 px column, 21 under 465 (measured with History open at
+   768, 1024 and 1100, alone from 400 to 700, and stepped: Sanity's 600 px pane is 27, 601 is 33;
+   the 1280 default's 638 px pane is 33). */
+@container doc-column (max-width: 600px) { .doc-form h1 { font-size: 27px; line-height: 35px; } }
 @container doc-column (max-width: 464px) { .doc-form h1 { font-size: 21px; line-height: 29px; } }
 .field { margin-bottom: 59px; }
 .field > label, .field > .label { display: block; font-size: 13px; line-height: 19px; font-weight: 500; margin-bottom: 15px; }
