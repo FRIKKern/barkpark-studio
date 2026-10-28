@@ -18,12 +18,12 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 32 changes
+- **Today** · 1 change
+  - Portable Text input: another editor's blocks arrive live while you type, as Sanity's ([#1222](https://github.com/FRIKKern/barkpark-studio/pull/1222))
+- **Yesterday** · 32 changes
   - Portable Text saves send the blocks typed in by key, not the whole field ([#1221](https://github.com/FRIKKern/barkpark-studio/pull/1221))
-- **Yesterday** · 31 changes
+- **This week** · 54 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
-- **This week** · 23 changes
-  - scripts: groq-conformance probes diff::changedAny and changedOnly ([#1159](https://github.com/FRIKKern/barkpark-studio/pull/1159))
 - **Last week** · 189 changes, 1 task closed
 - **This month** · 926 changes, 182 tasks closed
 <!-- timeline:end -->
