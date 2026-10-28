@@ -135,6 +135,73 @@ export function equal(a: unknown, b: unknown): boolean {
   return ka.length === kb.length && ka.every((k) => equal(a[k], b[k]))
 }
 
+type Keyed = {_key: string}
+/** A change another editor made, as @portabletext/editor's `patches` event takes it. */
+export type RemotePatch =
+  | {type: 'set'; path: Keyed[]; value: PtBlock; origin: 'remote'}
+  | {type: 'unset'; path: Keyed[]; origin: 'remote'}
+  | {type: 'insert'; path: Keyed[]; position: 'before' | 'after'; items: PtBlock[]; origin: 'remote'}
+
+/** A block as the editor holds it: its defaults filled in (style, markDefs, each span's marks). */
+export function asEditorHolds(b: unknown): unknown {
+  if (!isText(b)) return b
+  const children = Array.isArray(b.children) ? b.children.map((c) => (isObj(c) && c._type === 'span' && !('marks' in c) ? {...c, marks: []} : c)) : b.children
+  return {style: 'normal', markDefs: [], ...b, children}
+}
+
+/**
+ * Another editor's changes (`known` → `incoming`, the stored value before and now) as
+ * patches onto what this editor shows: a block it changed, came or went, where this editor
+ * has not touched that block (it still shows it as `known` had it). A block this editor is
+ * typing in keeps its own version (its save and the field's fence decide), and so does one
+ * whose incoming version is one this editor itself sent (`sent`): an echo, maybe an older
+ * one, never theirs. A block in `keep` (this editor sent it a moment ago: the value it came
+ * in may hold that unconfirmed) is not taken away; if it is gone there, the save says so.
+ */
+export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unknown, sent: unknown[] = [], keep: Set<string> = new Set()): RemotePatch[] {
+  if (!Array.isArray(known) || !Array.isArray(incoming) || !Array.isArray(shown)) return []
+  const byKey = (list: unknown[]) => new Map(list.filter((b): b is PtBlock => isObj(b) && typeof b._key === 'string').map((b) => [b._key!, b]))
+  const was = byKey(known)
+  const now = byKey(incoming)
+  const here = byKey(shown)
+  const mine = sent.filter(Array.isArray).map((v) => byKey(v as unknown[]))
+  const ours = (k: string, b: PtBlock) => mine.some((m) => m.has(k) && equal(m.get(k), b))
+  const untouched = (k: string) => here.has(k) && was.has(k) && equal(asEditorHolds(here.get(k)), asEditorHolds(was.get(k)))
+  const out: RemotePatch[] = []
+  for (const k of was.keys()) if (!now.has(k) && untouched(k) && !keep.has(k)) out.push({type: 'unset', path: [{_key: k}], origin: 'remote'})
+  for (const [k, b] of now) if (was.has(k) && !equal(was.get(k), b) && untouched(k) && !ours(k, b)) out.push({type: 'set', path: [{_key: k}], value: b, origin: 'remote'})
+  // New blocks, in place: after the block before them that this editor has (or will have).
+  const present = new Set([...here.keys()].filter((k) => now.has(k) || !was.has(k)))
+  let prev: string | undefined
+  for (const [k, b] of now) {
+    if (!was.has(k) && !here.has(k)) {
+      const first = [...here.keys()].find((x) => present.has(x))
+      if (prev) out.push({type: 'insert', path: [{_key: prev}], position: 'after', items: [b], origin: 'remote'})
+      else if (first) out.push({type: 'insert', path: [{_key: first}], position: 'before', items: [b], origin: 'remote'})
+      else continue
+      present.add(k)
+    }
+    if (present.has(k)) prev = k
+  }
+  return out
+}
+
+/**
+ * `value` with another editor's patches applied: what the editor holds after them, minus
+ * its own typing not yet emitted (a save is measured from this, so that typing still goes).
+ */
+export function withRemote(value: unknown, patches: RemotePatch[]): PtBlock[] {
+  let out = (Array.isArray(value) ? value : []) as PtBlock[]
+  for (const p of patches) {
+    const k = p.path[0]!._key
+    const at = out.findIndex((b) => b._key === k)
+    if (p.type === 'unset') out = out.filter((b) => b._key !== k)
+    else if (p.type === 'set') out = at < 0 ? out : out.map((b, i) => (i === at ? p.value : b))
+    else if (at >= 0) out = [...out.slice(0, p.position === 'after' ? at + 1 : at), ...p.items, ...out.slice(p.position === 'after' ? at + 1 : at)]
+  }
+  return out
+}
+
 /**
  * The blocks an edit changed, by key, when no block came, went or moved: what a save can
  * send as `body[_key=="…"]` sets instead of the whole field (task-283bdc577aedb167). Null

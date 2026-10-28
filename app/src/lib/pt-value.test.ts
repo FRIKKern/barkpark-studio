@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {changedBlocks, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
+import {changedBlocks, remoteBlockPatches, withRemote, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -294,4 +294,43 @@ test('pt: an edit inside blocks sends those blocks by key; a block that came, we
   assert.equal(changedBlocks(before, [before[1], before[0], ...before.slice(2)]), null)
   assert.equal(changedBlocks([{_key: 'a"b', _type: 'block'}], [{_key: 'a"b', _type: 'block', x: 1}]), null)
   assert.equal(changedBlocks(undefined, typed), null)
+})
+
+test('pt: blocks another editor changed come in as patches; a block this editor is typing in keeps its own version', () => {
+  const blk = (k: string, text: string) => ({_key: k, _type: 'block', children: [{_key: `${k}s`, _type: 'span', text}]})
+  // The editor's reading fills defaults in: still "untouched".
+  const held = (b: PtBlock) => ({style: 'normal', markDefs: [], ...b, children: (b.children as object[]).map((c) => ({marks: [], ...c}))})
+  const known = [blk('b1', 'one'), blk('b2', 'two'), blk('b3', 'three')]
+  const shown = [held(blk('b1', 'one typed')), held(known[1]!), held(known[2]!)]
+  // Theirs: b2 changed, b1 changed too (this editor types there), b3 gone, b9 new after b2.
+  const incoming = [blk('b1', 'one theirs'), blk('b2', 'two theirs'), blk('b9', 'new')]
+  assert.deepEqual(remoteBlockPatches(known, incoming, shown), [
+    {type: 'unset', path: [{_key: 'b3'}], origin: 'remote'},
+    {type: 'set', path: [{_key: 'b2'}], value: incoming[1], origin: 'remote'},
+    {type: 'insert', path: [{_key: 'b2'}], position: 'after', items: [incoming[2]], origin: 'remote'},
+  ])
+  // Nothing new: nothing to apply. A block this editor removed is not put back.
+  assert.deepEqual(remoteBlockPatches(known, known, shown), [])
+  assert.deepEqual(remoteBlockPatches(known, [known[0], blk('b2', 'two theirs'), known[2]], [held(known[0]!), held(known[2]!)]), [])
+  // A new first block goes before the first block shown.
+  assert.deepEqual(remoteBlockPatches(known, [blk('b0', 'zero'), ...known], shown.slice()), [{type: 'insert', path: [{_key: 'b1'}], position: 'before', items: [blk('b0', 'zero')], origin: 'remote'}])
+})
+
+test('pt: an echo of this editor\'s own block, or one it sent a moment ago, is never taken from it; withRemote applies theirs to a value', () => {
+  const blk = (k: string, text: string) => ({_key: k, _type: 'block', children: [{_key: `${k}s`, _type: 'span', text}]})
+  const known = [blk('b1', 'one'), blk('b2', 'two')]
+  // An older version this editor itself sent comes back: not theirs.
+  assert.deepEqual(remoteBlockPatches(known, [blk('b1', 'on'), known[1]], known, [[blk('b1', 'on'), known[1]]]), [])
+  // Removed there while this editor's save of it may not have landed: kept here.
+  assert.deepEqual(remoteBlockPatches(known, [known[1]], known, [], new Set(['b1'])), [])
+  assert.deepEqual(remoteBlockPatches(known, [known[1]], known), [{type: 'unset', path: [{_key: 'b1'}], origin: 'remote'}])
+  const value = [blk('b1', 'one mine'), blk('b2', 'two')]
+  assert.deepEqual(
+    withRemote(value, [
+      {type: 'set', path: [{_key: 'b2'}], value: blk('b2', 'two theirs'), origin: 'remote'},
+      {type: 'insert', path: [{_key: 'b2'}], position: 'after', items: [blk('b3', 'new')], origin: 'remote'},
+    ]),
+    [blk('b1', 'one mine'), blk('b2', 'two theirs'), blk('b3', 'new')],
+  )
+  assert.deepEqual(withRemote(value, [{type: 'unset', path: [{_key: 'b1'}], origin: 'remote'}]), [blk('b2', 'two')])
 })

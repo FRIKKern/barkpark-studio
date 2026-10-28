@@ -26,7 +26,7 @@ import {uploadFile, uploadReason} from '../lib/upload'
 import {toast} from './Toasts'
 import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
-import {changedBlocks, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {asEditorHolds, changedBlocks, remoteBlockPatches, withRemote, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {EditPathContext, ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {DocIdContext} from './doc-ids'
@@ -244,7 +244,7 @@ export default function PortableTextInput(props: Props) {
 
 type Shared = {mine: {current: unknown[]}; focused: {current: boolean}; onBlur: () => void}
 
-function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, focused, onBlur}: Props & Shared & {stored: PtBlock[]; schemas: SchemaLike[]}) {
+function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef, mine, focused, onBlur}: Props & Shared & {stored: PtBlock[]; schemas: SchemaLike[]}) {
   const t = useT()
   const schema = useMemo(() => editorSchema(field, stored, schemas), [field, stored, schemas])
   const nodes = useMemo(() => [textBlock, decorators, annotations, ...objectNodes(schema, (kind, name) => objectTitle(field, kind, name, schemas))], [schema, field, schemas])
@@ -286,7 +286,7 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
       <EditorProvider initialConfig={{schemaDefinition: schema, initialValue: stored as PortableTextBlock[], readOnly: locked}}>
         <NodePlugin nodes={nodes} />
         {!locked && <SanityPlugins field={field} stored={stored} />}
-        <Saver id={id} stored={stored} onChange={invalid ? () => {} : onChange} editPath={invalid ? null : editPath} onInvalid={() => setInvalid(true)} onReady={() => setReady(true)} mine={mine} focused={focused} onBlur={onBlur} />
+        <Saver id={id} stored={stored} incoming={value} onChange={invalid ? () => {} : onChange} editPath={invalid ? null : editPath} onInvalid={() => setInvalid(true)} onReady={() => setReady(true)} mine={mine} focused={focused} onBlur={onBlur} />
         {invalid && (
           <p className="pt-note" role="status">
             {t('This text holds content the editor cannot read. It is shown read-only and kept as it is.')}
@@ -345,11 +345,24 @@ function SanityPlugins({field, stored}: {field: Field; stored: PtBlock[]}) {
 }
 
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */
-function Saver({id, stored, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; stored: PtBlock[]; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
+function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; stored: PtBlock[]; incoming: unknown; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
   const editor = useEditor()
   const docId = useContext(DocIdContext)
   const seen = useRef<PtBlock[] | null>(null)
   const last = useRef<unknown>(stored)
+  // The editor's own value at its previous change: a block is this editor's edit when it
+  // differs from that, not from the last save (another editor's block it has not drawn yet,
+  // its patch deferred while this one types, would read as an edit and go back stale).
+  const before = useRef<unknown>(stored)
+  // Each block's versions as the server sent them (`incoming`), and when this editor last
+  // sent each block: a block that reads as one the server sent since this editor last sent it
+  // is theirs (drawn, or not drawn yet), never sent back as this editor's edit.
+  const seq = useRef(0)
+  const sentAt = useRef(new Map<string, number>())
+  const sentWhen = useRef(new Map<string, number>())
+  const fromServer = useRef(new Map<string, {block: unknown; at: number}[]>())
+  const theirs = (key: string, block: unknown) =>
+    (fromServer.current.get(key) ?? []).some((r) => r.at > (sentAt.current.get(key) ?? 0) && equal(asEditorHolds(r.block), asEditorHolds(block)))
   const on = (event: EditorEmittedEvent) => {
     if (event.type === 'focused') focused.current = true
     if (event.type === 'blurred') (focused.current = false), onBlur()
@@ -360,13 +373,15 @@ function Saver({id, stored, onChange, editPath, onInvalid, onReady, mine, focuse
     seen.current ??= stored
     const merged = mergeValue(stored, seen.current, (event.value ?? []) as PtBlock[])
     const next = merged.length ? merged : undefined
+    const prior = before.current
+    before.current = next
     if (equal(next ?? [], last.current ?? [])) return
     // Blocks edited in place go as `field[_key=="…"]` sets, those blocks only (a 300-block
     // body sent 337 KB a keystroke whole); a block that came, went or moved sends the field.
-    const parts = editPath && next ? changedBlocks(last.current, next) : null
+    const parts = editPath && next ? changedBlocks(prior, next)?.filter((p) => !theirs(p.key, p.block)) ?? null : null
     last.current = next
     mine.current = [...mine.current.slice(-19), next ?? []]
-    if (parts && parts.length && parts.length * 2 <= next!.length) for (const p of parts) editPath!(keyedPath(id, p.key), p.block)
+    if (parts && parts.length * 2 <= next!.length) for (const p of parts) (sentAt.current.set(p.key, ++seq.current), sentWhen.current.set(p.key, Date.now()), editPath!(keyedPath(id, p.key), p.block))
     else onChange(next)
   }
   // A block saved by its key that another editor removed meanwhile (the key found no item):
@@ -377,6 +392,25 @@ function Saver({id, stored, onChange, editPath, onInvalid, onReady, mine, focuse
     onChange(last.current)
   }
   useEffect(() => (docId && editPath ? onKeyedMiss(docId, id, () => resend.current()) : undefined), [docId, editPath, id])
+  // Another editor's blocks while this one has the focus (without it the input remounts on
+  // them): patches the editor merges in, caret and typing kept, as Sanity's live edits.
+  // A block this editor is typing in keeps its own version (remoteBlockPatches).
+  const known = useRef<unknown>(stored)
+  useEffect(() => {
+    const prev = known.current
+    known.current = incoming
+    for (const b of Array.isArray(incoming) ? (incoming as PtBlock[]) : [])
+      if (typeof b?._key === 'string') fromServer.current.set(b._key, [...(fromServer.current.get(b._key) ?? []).slice(-7), {block: b, at: ++seq.current}])
+    if (!focused.current || equal(prev ?? [], incoming ?? []) || mine.current.some((v) => equal(v, incoming ?? []))) return
+    // Sent in the last 10 s: maybe not landed yet, kept (a removal then answers that save).
+    const recent = new Set([...sentWhen.current].filter(([, at]) => Date.now() - at < 10_000).map(([k]) => k))
+    const patches = remoteBlockPatches(prev ?? [], incoming ?? [], editor.getSnapshot().context.value ?? [], mine.current, recent)
+    if (!patches.length) return
+    editor.send({type: 'patches', patches: patches as never, snapshot: incoming as never})
+    // The next save is measured from the last one with their blocks in: they are not sent back
+    // as this editor's own, and its typing not emitted yet still goes.
+    last.current = withRemote(last.current, patches)
+  }, [incoming, editor, focused, mine, stored])
   return <EventListenerPlugin on={on} />
 }
 

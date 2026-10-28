@@ -553,20 +553,28 @@ async function caretAtEnd(page: import('@playwright/test').Page, editor: import(
   await page.waitForTimeout(200)
 }
 
-// task-283bdc577aedb167, with saves by key: another editor removes the block being typed in.
-// The key then finds no item (Barkpark's patch.path_unmatched) or the fence refuses the
-// save (412); either way the field goes whole again as this editor has it, on the rev that
-// came back, and no keystroke is lost.
+// task-283bdc577aedb167, with saves by key: another editor removes the block being typed in
+// while this editor's keystrokes in it are still on their way. The key then finds no item
+// (Barkpark's patch.path_unmatched) or the fence refuses the save (412); either way the field
+// goes whole again as this editor has it, on the rev that came back: no keystroke is lost.
+// (Removed while this editor has nothing unsent in it, the block goes here too, live, as in
+// Sanity: task-39d73a15a48563b0.)
 test('@local Portable Text: a block another editor removes mid-typing comes back with every keystroke', async ({page}, info) => {
   const editor = await open(page, info)
   await caretAtEnd(page, editor, 'Cups')
   await page.keyboard.type(' and')
   await savesLanded(page)
   await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Cups and')
-  // The other editor (the rig's own token) removes that block from the draft.
+  // This editor's next save held on its way while the other editor (the rig's own token)
+  // removes that block from the draft.
+  let release = () => {}
+  const held = new Promise<void>((go) => (release = go))
+  await page.route(/_serverFn/, async (route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes(ID) ? (await held, route.continue()) : route.continue()))
+  await page.keyboard.type(' saucers')
+  await page.waitForTimeout(500)
   await bpMutate([{patch: {id: ID, type: 'post', unset: ['body[_key=="p3"]']}}])
   await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).not.toContain('Cups')
-  await page.keyboard.type(' saucers')
+  release()
   await savesLanded(page)
   type Block = {_key: string; children?: {text: string}[]}
   await expect
@@ -574,10 +582,12 @@ test('@local Portable Text: a block another editor removes mid-typing comes back
     .toBe('Cups and saucers')
   const keys = (((await read('drafts'))!.body ?? []) as Block[]).map((b) => b._key)
   expect(keys).toEqual(['p1', 'p2', 'c1', 'p3', 'p4', 'p5'])
+  await page.unrouteAll({behavior: 'ignoreErrors'})
 })
 
 // task-283bdc577aedb167: two editors typing in different blocks of one body at once both keep
-// their words (saves by key; whole-field saves raced for the field).
+// their words (saves by key; whole-field saves raced for the field). task-39d73a15a48563b0: each sees the
+// other's blocks while typing, and undo is each editor's own.
 test('@local Portable Text: two editors typing in different blocks at once both keep their text', async ({page, browser}, info) => {
   const t = target(info)
   const ctxB = await browser.newContext()
@@ -596,6 +606,14 @@ test('@local Portable Text: two editors typing in different blocks at once both 
     const text = async (key: string) => (((await read('drafts'))?.body ?? []) as Block[]).find((x) => x._key === key)?.children?.map((c) => c.text).join('')
     await expect.poll(() => text('p4'), {timeout: 15_000}).toBe('Pour slowly from a height')
     await expect.poll(() => text('p3'), {timeout: 15_000}).toBe('Cups and fine saucers')
+    // Live, as Sanity's: each sees the other's words while still typing (focus kept), and
+    // undo takes back only this editor's own last words.
+    await expect(edA).toContainText('Cups and fine saucers')
+    await expect(edB).toContainText('Pour slowly from a height')
+    await expect(edA).toBeFocused()
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect.poll(() => text('p4'), {timeout: 15_000}).toBe('Pour slowly from a')
+    expect(await text('p3')).toBe('Cups and fine saucers')
   } finally {
     await closeAndSettle(b)
     await ctxB.close()
