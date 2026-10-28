@@ -534,6 +534,16 @@ export function flushOnUnload() {
   if (mutations.length) navigator.sendBeacon('/api/mutate', new Blob([JSON.stringify({mutations})], {type: 'application/json'}))
 }
 
+// Who sends a field whole again when an item path sent for it found no item: its input,
+// which holds the value it means (a Portable Text editor still shows the block).
+const keyedMisses = new Map<string, () => void>()
+/** Called when an item path this doc's `field` sent found no item there; returns the cleanup. */
+export function onKeyedMiss(id: string, field: string, resend: () => void): () => void {
+  const k = `${id}\n${field}`
+  keyedMisses.set(k, resend)
+  return () => void (keyedMisses.get(k) === resend && keyedMisses.delete(k))
+}
+
 const hasWarning = (r: {warnings?: unknown}, code: string) => Array.isArray(r.warnings) && r.warnings.some((w) => (w as {code?: unknown})?.code === code)
 
 function toPatch(fields: Map<string, unknown>) {
@@ -687,12 +697,16 @@ async function send(qc: QueryClient, id: string) {
     applyServer(qc, saved)
     if (later) applyServer(qc, later)
     // An item path (`body[_key=="…"]`) that found no item there (removed meanwhile) wrote
-    // nothing (Barkpark's patch.path_unmatched, as Sanity's): its whole field goes again,
-    // as this editor has it.
+    // nothing (Barkpark's patch.path_unmatched, as Sanity's), while the save's other paths
+    // did. Its whole field goes again as the editor means it, fenced on the rev this save
+    // returned (the cache holds it now): the part that missed is put right. The field's
+    // input says what it means (onKeyedMiss); else the doc as it was sent.
     if (hasWarning(r, 'patch.path_unmatched'))
       for (const root of keyedRoots(sentPaths)) {
+        const own = keyedMisses.get(`${id}\n${root}`)
         const now = qc.getQueryData<Doc>(['doc', id])
-        if (now && sentFrom) edit(qc, now, root, getPath(sentFrom, root), false)
+        if (own) own()
+        else if (now && sentFrom) edit(qc, now, root, getPath(sentFrom, root), false)
       }
     setState(e, e.dirty.size ? 'saving' : 'saved')
   } catch (err) {

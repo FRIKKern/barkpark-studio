@@ -29,6 +29,8 @@ import {useT} from '../lib/i18n'
 import {changedBlocks, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {EditPathContext, ExpandButton, useExpandArea, type OpenRef} from './Fields'
+import {DocIdContext} from './doc-ids'
+import {onKeyedMiss} from '../lib/edits'
 import {MenuPopover} from './FocusScopes'
 import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, EditIcon, Ellipsis, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
@@ -345,6 +347,7 @@ function SanityPlugins({field, stored}: {field: Field; stored: PtBlock[]}) {
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */
 function Saver({id, stored, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; stored: PtBlock[]; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
   const editor = useEditor()
+  const docId = useContext(DocIdContext)
   const seen = useRef<PtBlock[] | null>(null)
   const last = useRef<unknown>(stored)
   const on = (event: EditorEmittedEvent) => {
@@ -366,6 +369,14 @@ function Saver({id, stored, onChange, editPath, onInvalid, onReady, mine, focuse
     if (parts && parts.length && parts.length * 2 <= next!.length) for (const p of parts) editPath!(keyedPath(id, p.key), p.block)
     else onChange(next)
   }
+  // A block saved by its key that another editor removed meanwhile (the key found no item):
+  // the whole field again, as this editor has it, so no keystroke in it is lost.
+  const resend = useRef(() => {})
+  resend.current = () => {
+    mine.current = [...mine.current.slice(-19), last.current ?? []]
+    onChange(last.current)
+  }
+  useEffect(() => (docId && editPath ? onKeyedMiss(docId, id, () => resend.current()) : undefined), [docId, editPath, id])
   return <EventListenerPlugin on={on} />
 }
 
