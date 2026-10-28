@@ -70,6 +70,19 @@ async function insert(page: import('@playwright/test').Page, title: string, kind
   await page.getByRole('menuitem', {name: title, exact: true}).click()
 }
 
+/**
+ * "warm" selected by a double click, as a person does. The editor focused first and seen to
+ * have read the caret (the style button names its block's style): a double click as the
+ * editor first takes focus could be split by that render and select nothing (CI flaked once).
+ */
+async function selectWarm(page: import('@playwright/test').Page, editor: import('@playwright/test').Locator) {
+  const text = editor.getByText('Brew the tea with warm water.')
+  await text.click({position: {x: 135, y: 8}})
+  await expect(field(page).locator('.body-style')).toHaveText('Normal')
+  await text.dblclick({position: {x: 135, y: 8}})
+  await expect.poll(() => page.evaluate(() => getSelection()?.toString().trim())).toBe('warm')
+}
+
 /** The body's input: its toolbar, not another Portable Text field's (ptBody is one too). */
 const field = (page: import('@playwright/test').Page) => page.locator('.pt-input').filter({has: page.locator('[id="body"][contenteditable="true"]')})
 
@@ -89,8 +102,7 @@ test('Portable Text: one word edited changes that span only, keys and unknown co
   const published = await read('published')
   const stored = JSON.parse(JSON.stringify(published!.body)) as typeof BODY
   const editor = await open(page, info)
-  await editor.getByText('Brew the tea with warm water.').dblclick({position: {x: 135, y: 8}})
-  await expect.poll(() => page.evaluate(() => getSelection()?.toString().trim())).toBe('warm')
+  await selectWarm(page, editor)
   await page.keyboard.type('hot')
   await savesLanded(page)
   await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Brew the tea with hot water.')
@@ -113,8 +125,7 @@ test('Portable Text: one word edited changes that span only, keys and unknown co
 test('Portable Text: Discard changes puts the published text back in the editor', async ({page}, info) => {
   const t = target(info)
   const editor = await open(page, info)
-  await editor.getByText('Brew the tea with warm water.').dblclick({position: {x: 135, y: 8}})
-  await expect.poll(() => page.evaluate(() => getSelection()?.toString().trim())).toBe('warm')
+  await selectWarm(page, editor)
   await page.keyboard.type('hot')
   await savesLanded(page)
   await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Brew the tea with hot water.')
@@ -161,8 +172,7 @@ test('@local Portable Text: add a link, change a reference annotation\'s target,
   const stored = ((await read('published'))!.body ?? []) as typeof BODY
   const editor = await open(page, info)
   // Add: select a word, the Link button, its URL, close.
-  await editor.getByText('Brew the tea with warm water.').dblclick({position: {x: 135, y: 8}})
-  await expect.poll(() => page.evaluate(() => getSelection()?.toString().trim())).toBe('warm')
+  await selectWarm(page, editor)
   await field(page).getByRole('button', {name: 'Link', exact: true}).click()
   const link = page.getByRole('dialog', {name: 'Link'})
   await link.locator('[id="body.link.href"]').fill('https://example.com/kettles')
