@@ -67,6 +67,8 @@ export function toBarkpark(doc, asset = noAssets) {
     else if (isAsset(v)) out[k] = assetValue(v, asset)
     else if (v?._type === 'reference') out[k] = v._ref
     else if (k === 'body') out[k] = portableTextToPortableDoc(v)
+    // ptBody is stored as Portable Text on both sides (post.body stays PortableDoc, owner D3).
+    else if (k === 'ptBody') out[k] = v
     // Keyed reference arrays keep Sanity's item identity ({_key, _type, _ref}), so
     // reorder/remove and array patches by _key have something to address (J09).
     // From the finish-keys lane's draft (fix/seed-keyed-refs-object-blocks, 8f70b7f).

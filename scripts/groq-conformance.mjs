@@ -86,9 +86,13 @@ const Q = [
   {id: 'docs-array-type-filter', q: '*[_id == "post-03"][0].links[_type == "externalLink"]{title, url}'},
   {id: 'docs-array-key', q: '*[_id == "post-03"][0].links[_key == "l1"][0].title'},
   {id: 'docs-object-type', q: '*[_id == "field-types-01"][0]{"place": place._type, "cards": cards[]._type}'},
-  // Portable Text
-  {id: 'docs-pt-text', q: '*[_id == "post-01"][0]{"text": pt::text(body)}'},
-  {id: 'docs-pt-blocks', q: '*[_id == "post-01"][0]{"blocks": count(body[_type == "block"])}', known: 'task-ab40acaf75927e0e: body is {blocks, html}; matching needs body read as a Portable Text array (breaking for body.blocks readers, owner decision)'},
+  // Portable Text. post.body is PortableDoc on Barkpark (owner D3) and pt::text reads it as
+  // Sanity's blocks; post.ptBody is stored as Portable Text on both sides (task-7b800632b1d92b2c).
+  {id: 'docs-pt-text-portabledoc', q: '*[_id == "post-01"][0]{"text": pt::text(body)}'},
+  {id: 'docs-pt-text', q: '*[_id == "post-01"][0]{"text": pt::text(ptBody)}'},
+  {id: 'docs-pt-blocks', q: '*[_id == "post-01"][0]{"blocks": count(ptBody[_type == "block"])}'},
+  {id: 'docs-pt-marks', q: '*[_id == "post-01"][0].ptBody[].children[].marks', ordered: true},
+  {id: 'docs-pt-markdef-deref', q: '*[_id == "post-01"][0].ptBody[_type == "block"].markDefs[]{..., "to": internalLink->{_id, _type, title}}', ordered: true},
   // Geo (task-ce93ff890a895f54): pure functions, no dataset read; Sanity's doubles, exact.
   {id: 'docs-geo-latlng', q: '{"oslo": geo::latLng(59.91, 10.75), "outOfRange": geo::latLng(91, 0), "notNumber": geo::latLng("59", 10)}'},
   {id: 'docs-geo-distance', q: '{"degree": geo::distance(geo::latLng(0, 0), geo::latLng(0, 1)), "poles": geo::distance(geo::latLng(90, 0), geo::latLng(-90, 0)), "geopoint": geo::distance({"_type": "geopoint", "lat": 0, "lng": 0}, {"type": "Point", "coordinates": [1, 0]}), "none": geo::distance(1, 2)}'},
