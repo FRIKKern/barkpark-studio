@@ -25,7 +25,7 @@ import {declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, mar
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {MenuPopover} from './FocusScopes'
-import {Add, BoldIcon, ChevronDown, CodeIcon, EditIcon, Ellipsis, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
+import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, EditIcon, Ellipsis, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
 // S4a (task-7f77f41c95cc6d9f): a richText field holding Portable Text, edited with
 // @portabletext/editor (owner decision D2). Text, styles, lists and decorators edit.
@@ -412,11 +412,13 @@ function StyleMenu({styles, style}: {styles: {name: string; title?: string}[]; s
   )
 }
 
+type Tool = {name: string; title?: string; kind: ObjectKind}
+
 /**
- * Insert: the declared custom block and inline object types. A pick puts a new one in, a
- * custom block after the caret's block and an inline object at the caret, with its `_type`
- * and a new 12-hex `_key`, and opens it to fill in, as Sanity's does. An inline object
- * needs the caret in text.
+ * Insert: a named button per declared custom block and inline object type, with its icon,
+ * as Sanity's toolbar (and the canvas body's). A pick puts a new one in, a custom block
+ * after the caret's block and an inline object at the caret, with its `_type` and a new
+ * 12-hex `_key`, and opens it to fill in. An inline object needs the caret in text.
  */
 function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
   const t = useT()
@@ -425,7 +427,30 @@ function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
   const inText = !!useEditorSelector(editor, getFocusTextBlock)
   const [open, setOpen] = useState(false)
   const {blocks, inline} = useMemo(() => insertable(field), [field])
-  if (!blocks.length && !inline.length) return null
+  const tools = useMemo<Tool[]>(() => [...blocks.map((b) => ({...b, kind: 'block' as const})), ...inline.map((i) => ({...i, kind: 'inline' as const}))], [blocks, inline])
+  // Sanity's fold: the inserts that don't fit the bar's end go behind Show more. Widths are
+  // read with everything shown and kept per insert (as the canvas body's toolbar).
+  const group = useRef<HTMLDivElement>(null)
+  const widths = useRef(new Map<string, number>())
+  const [folded, setFolded] = useState(0)
+  const keys = tools.map((x) => `${x.kind}:${x.name}`).join()
+  useLayoutEffect(() => setFolded(0), [keys])
+  useLayoutEffect(() => {
+    const el = group.current
+    if (!el) return
+    const fit = () => {
+      for (const b of el.querySelectorAll<HTMLElement>('[data-tool]')) widths.current.set(b.dataset.tool!, b.offsetWidth + 4)
+      const width = (n: number) => tools.slice(0, n).reduce((sum, x) => sum + (widths.current.get(`${x.kind}:${x.name}`) ?? 80), 0) - 4
+      let fits = tools.length
+      while (fits > 0 && width(fits) + (fits < tools.length ? 4 + 25 : 0) > el.clientWidth) fits--
+      setFolded((f) => (f === tools.length - fits ? f : tools.length - fits))
+    }
+    fit()
+    const watch = new ResizeObserver(fit)
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [keys, folded, tools])
+  if (!tools.length) return null
   const insert = (kind: ObjectKind, name: string) => {
     setOpen(false)
     const _key = newKey()
@@ -440,28 +465,36 @@ function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
     }
   }
   const title = (kind: ObjectKind, n: {name: string; title?: string}) => n.title ?? objectTitle(field, kind, n.name, schemas)
+  const label = (x: Tool) => t(x.kind === 'block' ? 'Insert {typeName} (block)' : 'Insert {typeName} (inline)', {typeName: title(x.kind, x)})
+  const shown = tools.slice(0, tools.length - folded)
+  const rest = tools.slice(tools.length - folded)
   return (
     <>
       <span className="body-toolbar-sep" />
-      {/* The button takes focus, as the canvas toolbar's style button does, so the menu can return it there; the editor keeps its selection. */}
-      <div className="menu-wrap pt-insert-wrap" onMouseDown={(e) => e.stopPropagation()} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
-        <button type="button" className="icon-btn body-tool" aria-label={t('Insert')} data-tip={t('Insert')} data-tip-side="top" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-          <Add />
-        </button>
-        {open && (
-          <MenuPopover onClose={() => setOpen(false)}>
-            {blocks.map((b) => (
-              <button key={`b:${b.name}`} type="button" role="menuitem" className="menu-item" data-insert={b.name} onClick={() => insert('block', b.name)}>
-                {title('block', b)}
-              </button>
-            ))}
-            {blocks.length > 0 && inline.length > 0 && <hr />}
-            {inline.map((i) => (
-              <button key={`i:${i.name}`} type="button" role="menuitem" className="menu-item" data-insert={i.name} disabled={!inText} onClick={() => insert('inline', i.name)}>
-                {title('inline', i)}
-              </button>
-            ))}
-          </MenuPopover>
+      <div ref={group} className="body-tool-group pt-insert-group">
+        {shown.map((x) => (
+          <button key={`${x.kind}:${x.name}`} type="button" className="body-insert" data-tool={`${x.kind}:${x.name}`} aria-label={label(x)} disabled={x.kind === 'inline' && !inText} onClick={() => insert(x.kind, x.name)}>
+            {x.kind === 'block' ? <BlockIcon /> : <InlineIcon />}
+            <span>{title(x.kind, x)}</span>
+          </button>
+        ))}
+        {rest.length > 0 && (
+          // The button takes focus, as the canvas toolbar's does, so the menu returns it there; the editor keeps its selection.
+          <div className="menu-wrap body-more-wrap" onMouseDown={(e) => e.stopPropagation()} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+            <button type="button" className="icon-btn body-tool" aria-label={t('Show more')} data-tip={t('Show more')} data-tip-side="top" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+              <Ellipsis />
+            </button>
+            {open && (
+              <MenuPopover centered onClose={() => setOpen(false)}>
+                {rest.map((x) => (
+                  <button key={`${x.kind}:${x.name}`} type="button" role="menuitem" className="menu-item body-more-item" disabled={x.kind === 'inline' && !inText} onClick={() => insert(x.kind, x.name)}>
+                    {x.kind === 'block' ? <BlockIcon /> : <InlineIcon />}
+                    <span>{title(x.kind, x)}</span>
+                  </button>
+                ))}
+              </MenuPopover>
+            )}
+          </div>
         )}
       </div>
     </>
