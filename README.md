@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 12 changes
-  - Portable Text input: Sanity's popover over an annotation (title, Edit, Remove) ([#1202](https://github.com/FRIKKern/barkpark-studio/pull/1202))
+- **Today** · 13 changes
+  - Show the published text in the Portable Text input after Discard changes ([#1199](https://github.com/FRIKKern/barkpark-studio/pull/1199))
 - **Yesterday** · 31 changes
   - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **This week** · 23 changes
