@@ -14,11 +14,14 @@ import {
   type RegistrableNode,
 } from '@portabletext/editor'
 import {EventListenerPlugin, NodePlugin} from '@portabletext/editor/plugins'
+import {MarkdownShortcutsPlugin} from '@portabletext/plugin-markdown-shortcuts'
+import {PasteLinkPlugin, type LinkMatcher} from '@portabletext/plugin-paste-link'
+import {createDecoratorGuard, TypographyPlugin} from '@portabletext/plugin-typography'
 import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotation, isActiveDecorator, isActiveListItem, isSelectionExpanded} from '@portabletext/editor/selectors'
 import {useQuery} from '@tanstack/react-query'
 import {schemasQuery, type Field} from '../lib/data'
 import {useT} from '../lib/i18n'
-import {declaredVocabulary, editorSchema, equal, insertable, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {declaredVocabulary, editorSchema, equal, insertable, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import type {OpenRef} from './Fields'
 import {MenuPopover} from './FocusScopes'
@@ -205,6 +208,7 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
     <div className="pt-input" data-readonly={locked || undefined} data-ready={ready || undefined}>
       <EditorProvider initialConfig={{schemaDefinition: schema, initialValue: stored as PortableTextBlock[], readOnly: locked}}>
         <NodePlugin nodes={nodes} />
+        {!locked && <SanityPlugins field={field} stored={stored} />}
         <Saver stored={stored} onChange={invalid ? () => {} : onChange} onInvalid={() => setInvalid(true)} onReady={() => setReady(true)} mine={mine} focused={focused} onBlur={onBlur} />
         {invalid && (
           <p className="pt-note" role="status">
@@ -218,6 +222,43 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
         {objectEdit && <ObjectDialog id={id} edit={objectEdit} field={field} stored={stored} schemas={schemas} openRef={openRef} onClose={() => setObjectEdit(null)} />}
       </EditorProvider>
     </div>
+  )
+}
+
+// Smart quotes, dashes and arrows, never inside code (Sanity's guard).
+const typographyGuard = createDecoratorGuard({decorators: ({context}) => context.schema.decorators.flatMap((d) => (d.name === 'code' ? [] : [d.name]))})
+
+/**
+ * The plugins Sanity's Portable Text input runs by default (its PortableTextEditorPlugins):
+ * Markdown shortcuts for what the field declares, a URL pasted over text links it, and
+ * smart typography.
+ */
+function SanityPlugins({field, stored}: {field: Field; stored: PtBlock[]}) {
+  const md = useMemo(() => markdownNames(field), [field])
+  const links = useMemo(() => pastesLinks(field, stored), [field, stored])
+  // Sanity's own matcher: the schema's `link` with a string `href`.
+  const link = useMemo<LinkMatcher>(
+    () =>
+      ({context, value}) =>
+        links && context.schema.annotations.find((a) => a.name === 'link')?.fields.some((f) => f.name === 'href' && f.type === 'string') ? {_type: 'link', href: value.href} : undefined,
+    [links],
+  )
+  return (
+    <>
+      <MarkdownShortcutsPlugin
+        boldDecorator={() => md.boldDecorator}
+        codeDecorator={() => md.codeDecorator}
+        italicDecorator={() => md.italicDecorator}
+        strikeThroughDecorator={() => md.strikeThroughDecorator}
+        defaultStyle={() => md.defaultStyle}
+        blockquoteStyle={() => md.blockquoteStyle}
+        headingStyle={({props}) => md.headingStyle(props.level)}
+        orderedList={() => md.orderedList}
+        unorderedList={() => md.unorderedList}
+      />
+      <PasteLinkPlugin link={link} />
+      <TypographyPlugin guard={typographyGuard} />
+    </>
   )
 }
 

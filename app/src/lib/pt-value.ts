@@ -263,6 +263,31 @@ export function offeredAnnotations(field: Pick<Field, 'blocks'>, value: unknown)
   return used.length ? used : [{name: 'link'}]
 }
 
+/**
+ * What Sanity's Markdown shortcuts turn typing into (its markdownConfig): `**` strong, `*`
+ * em, a backtick code, `~~` strike-through, `#`..`######` headings, `>` a quote, `-` and
+ * `1.` lists. Each only where the field declares it (what the toolbar offers); a shortcut
+ * it lacks types its characters.
+ */
+export function markdownNames(field: Pick<Field, 'blocks'>) {
+  const v = declaredVocabulary(field)
+  const has = (names: Named[], name: string) => (names.some((n) => n.name === name) ? name : undefined)
+  return {
+    boldDecorator: has(v.decorators, 'strong'),
+    codeDecorator: has(v.decorators, 'code'),
+    italicDecorator: has(v.decorators, 'em'),
+    strikeThroughDecorator: has(v.decorators, 'strike-through'),
+    defaultStyle: has(v.styles, 'normal'),
+    blockquoteStyle: has(v.styles, 'blockquote'),
+    headingStyle: (level: number) => has(v.styles, `h${level}`),
+    orderedList: has(v.lists, 'number'),
+    unorderedList: has(v.lists, 'bullet'),
+  }
+}
+
+/** A URL pasted over text links it (Sanity's paste-link) when the toolbar offers `link`. */
+export const pastesLinks = (field: Pick<Field, 'blocks'>, value: unknown): boolean => offeredAnnotations(field, value).some((a) => a.name === 'link')
+
 /** Every stored object of one kind and type: markDefs, custom blocks or inline objects named `name`. */
 export function storedObjects(value: unknown, kind: PtKind, name: string): Obj[] {
   const out: Obj[] = []

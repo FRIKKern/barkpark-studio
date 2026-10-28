@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {declaredVocabulary, editorSchema, equal, inferFields, insertable, isPortableTextField, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, refTargets, storedShape, type PtBlock} from './pt-value.ts'
+import {declaredVocabulary, editorSchema, equal, inferFields, insertable, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -241,4 +241,19 @@ test('pt: an edited custom block or inline object changes only the keys edited, 
   assert.equal(merged[0], value[0])
   assert.deepEqual(merged[4], {_type: 'kettleCallout', _key: '0123456789ab'})
   assert.deepEqual((merged[3].children as unknown[]).at(-1), {_type: 'teaChip', _key: 'ba9876543210'})
+})
+
+test('pt: Markdown shortcuts use only what the field declares; a URL pasted over text links it where link is offered', () => {
+  // None declared: Sanity's defaults, so every shortcut works.
+  const all = markdownNames({})
+  assert.deepEqual([all.boldDecorator, all.italicDecorator, all.codeDecorator, all.strikeThroughDecorator], ['strong', 'em', 'code', 'strike-through'])
+  assert.deepEqual([all.defaultStyle, all.blockquoteStyle, all.headingStyle(1), all.headingStyle(6), all.unorderedList, all.orderedList], ['normal', 'blockquote', 'h1', 'h6', 'bullet', 'number'])
+  // A narrow field: `## ` stays text where h2 isn't declared, `~~` where strike isn't.
+  const narrow = markdownNames({blocks: {styles: ['normal', 'h1'], lists: ['bullet'], marks: ['strong']}})
+  assert.deepEqual([narrow.headingStyle(1), narrow.headingStyle(2), narrow.blockquoteStyle, narrow.orderedList, narrow.italicDecorator, narrow.strikeThroughDecorator], ['h1', undefined, undefined, undefined, undefined, undefined])
+  // Barkpark's `strikethrough` is Portable Text's `strike-through`.
+  assert.equal(markdownNames({blocks: {marks: ['strikethrough']}}).strikeThroughDecorator, 'strike-through')
+  assert.equal(pastesLinks({}, []), true)
+  assert.equal(pastesLinks({blocks: {annotations: [{name: 'wikilink'}]}}, []), false)
+  assert.equal(pastesLinks({blocks: {annotations: [{name: 'link'}, {name: 'wikilink'}]}}, []), true)
 })
