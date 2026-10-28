@@ -1,6 +1,6 @@
 import {useCallback, useState} from 'react'
 import {DialogBox, PaneOverlay} from './FocusScopes'
-import {FieldView, ParentContext, type OpenRef} from './Fields'
+import {EditPathContext, FieldView, ParentContext, type OpenRef} from './Fields'
 import {Close as CloseIcon} from './icons'
 import {useT} from '../lib/i18n'
 import type {Field} from '../lib/data'
@@ -19,7 +19,8 @@ export type BlockObjectRequest = {
 // any object; ours too (the canvas's own popover was a small form beside the block).
 // Edits apply as you make them in Sanity; here they go to the canvas when the dialog
 // closes, as one change. Nothing changed answers null: nothing is inserted or edited.
-export function BlockObjectDialog({request, path, openRef, onDone}: {request: BlockObjectRequest; path: string; openRef: OpenRef; onDone: (value: Record<string, unknown> | null) => void}) {
+// The Portable Text input (S4b) edits a markDef here too, with Remove for its annotation.
+export function BlockObjectDialog({request, path, openRef, onDone, onRemove, removeLabel}: {request: BlockObjectRequest; path: string; openRef: OpenRef; onDone: (value: Record<string, unknown> | null) => void; onRemove?: () => void; removeLabel?: string}) {
   const t = useT()
   const [value, setValue] = useState(request.value)
   // Focus on the first field (the one an error names, when asked again), as Sanity's
@@ -59,13 +60,24 @@ export function BlockObjectDialog({request, path, openRef, onDone}: {request: Bl
               </p>
             )}
             <fieldset className="form-fields">
-              <ParentContext.Provider value={value}>
-                {request.fields.map((f) => (
-                  <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={value[f.name]} openRef={openRef} onChange={(v) => setValue((s) => ({...s, [f.name]: v}))} />
-                ))}
-              </ParentContext.Provider>
+              {/* The dialog's value goes back as one change when it closes: no subfield writes its own path to the document. */}
+              <EditPathContext.Provider value={null}>
+                <ParentContext.Provider value={value}>
+                  {request.fields.map((f) => (
+                    <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={value[f.name]} openRef={openRef} onChange={(v) => setValue((s) => ({...s, [f.name]: v}))} />
+                  ))}
+                </ParentContext.Provider>
+              </EditPathContext.Provider>
             </fieldset>
+            {!request.fields.length && <p className="muted">{t('This type has no fields to edit.')}</p>}
           </div>
+          {onRemove && (
+            <footer>
+              <button type="button" className="btn danger" onClick={onRemove}>
+                {removeLabel ?? t('Remove')}
+              </button>
+            </footer>
+          )}
         </DialogBox>
       </div>
     </PaneOverlay>

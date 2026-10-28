@@ -43,7 +43,7 @@ import studio from '../studio.config'
 const PortableTextInput = lazy(() => import('./PortableTextInput'))
 
 /** The editor runs in the browser only (it reads the DOM as it renders); its text shows until then. */
-function PortableTextField(props: {id: string; field: Field; value: PtBlock[] | undefined; onChange: (v: unknown) => void; readOnly?: boolean}) {
+function PortableTextField(props: {id: string; field: Field; value: PtBlock[] | undefined; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}) {
   const [client, setClient] = useState(false)
   useEffect(() => setClient(true), [])
   const atRest = <PortableTextAtRest field={props.field} value={props.value} />
@@ -473,7 +473,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     // Blocks without keys, or sharing one: fixed first, as Sanity asks.
     const keys = Array.isArray(value) && keyProblem(value)
     if (keys) return <KeysAlert problem={keys} onChange={onChange} />
-    return <PortableTextField id={path} field={field} value={value as PtBlock[] | undefined} onChange={onChange} readOnly={readOnly} />
+    return <PortableTextField id={path} field={field} value={value as PtBlock[] | undefined} onChange={onChange} readOnly={readOnly} openRef={openRef} />
   }
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
