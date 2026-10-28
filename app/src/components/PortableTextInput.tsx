@@ -21,7 +21,7 @@ import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotat
 import {useQuery} from '@tanstack/react-query'
 import {schemasQuery, type Field} from '../lib/data'
 import {useT} from '../lib/i18n'
-import {declaredVocabulary, editorSchema, equal, insertable, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import type {OpenRef} from './Fields'
 import {MenuPopover} from './FocusScopes'
@@ -169,8 +169,8 @@ function objectNodes(schema: PtSchema, title: (kind: ObjectKind, name: string) =
 type Props = {id: string; field: Field; value: PtBlock[] | undefined; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}
 
 export default function PortableTextInput(props: Props) {
-  // A value from elsewhere (another editor, a restore) remounts the editor on it; this
-  // input's own saves coming back do not. `mine` is what this input has sent.
+  // A value from elsewhere (another editor, a restore, Discard changes) remounts the
+  // editor on it; this input's own saves coming back do not. `mine` is what this input has sent.
   const mine = useRef<unknown[]>([])
   const [base, setBase] = useState(() => ({value: props.value ?? [], n: 0}))
   const focused = useRef(false)
@@ -178,7 +178,7 @@ export default function PortableTextInput(props: Props) {
   const [blurs, setBlurs] = useState(0)
   const incoming = props.value ?? []
   useEffect(() => {
-    if (equal(incoming, base.value) || mine.current.some((v) => equal(v, incoming))) return
+    if (!isOutsideValue(incoming, mine.current.at(-1) ?? base.value, mine.current)) return
     // Not while the author is typing: the field's own save merges theirs (lib/edits.ts).
     if (focused.current) return
     mine.current = []

@@ -132,6 +132,16 @@ export function equal(a: unknown, b: unknown): boolean {
   return ka.length === kb.length && ka.every((k) => equal(a[k], b[k]))
 }
 
+/**
+ * Whether a value from outside the input replaces what the editor shows (`shown`: its
+ * last save, else the value it opened with). Not when it is what the editor shows, nor
+ * one of this input's own saves coming back (`mine`). A value going back to the one the
+ * editor opened with (Discard changes, an undo) is from outside once the author has typed.
+ */
+export function isOutsideValue(incoming: unknown, shown: unknown, mine: unknown[]): boolean {
+  return !equal(incoming, shown) && !mine.some((v) => equal(v, incoming))
+}
+
 const byKey = <T>(items: unknown): Map<string, T> => {
   const m = new Map<string, T>()
   for (const i of Array.isArray(items) ? items : []) if (isObj(i) && typeof i._key === 'string' && !m.has(i._key)) m.set(i._key, i as T)

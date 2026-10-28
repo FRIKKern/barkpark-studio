@@ -97,6 +97,24 @@ test('Portable Text: one word edited changes that span only, keys and unknown co
   expect(JSON.stringify(after?.body)).toBe(JSON.stringify(published?.body))
 })
 
+// task-0b78ed09edd97e6f: after Discard changes the editor kept the discarded words on screen
+// while the stored value was the published one; the next key would have written them back.
+test('Portable Text: Discard changes puts the published text back in the editor', async ({page}, info) => {
+  const t = target(info)
+  const editor = await open(page, info)
+  await editor.getByText('Brew the tea with warm water.').dblclick({position: {x: 135, y: 8}})
+  await expect.poll(() => page.evaluate(() => getSelection()?.toString().trim())).toBe('warm')
+  await page.keyboard.type('hot')
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Brew the tea with hot water.')
+  await t.docMenu(page).click()
+  await page.getByRole('menuitem', {name: /Discard changes/}).click()
+  const discard = page.getByRole('dialog').getByRole('button', {name: /^Discard changes$/})
+  await discard.click()
+  await expect(editor).toContainText('Brew the tea with warm water.')
+  await expect(editor).not.toContainText('hot water')
+})
+
 test('@local Portable Text: styles, lists and decorators edit from the toolbar', async ({page}, info) => {
   const editor = await open(page, info)
   // The beat a person always takes between a click in the text and a toolbar button:
