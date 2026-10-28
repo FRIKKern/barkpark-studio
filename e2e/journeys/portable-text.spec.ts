@@ -327,3 +327,32 @@ test('@local Portable Text: the popover over an annotation opens its dialog and 
     }, {timeout: 10_000})
     .toEqual([[], 'Ask the tea maker', false])
 })
+
+// task-9a2e53f73e6461e7: expand over the document pane and back, as Sanity's (and the
+// canvas body's, J35); the editor stays mounted, so the caret and typing carry on.
+test('@local Portable Text: Expand editor and back keeps the caret; Cmd/Ctrl+Enter and Escape toggle it', async ({page}, info) => {
+  const editor = await open(page, info)
+  const box = page.locator('.pt-input').filter({has: editor})
+  await editor.getByText('Cups').click()
+  // The caret at the end of "Cups" before expanding (End scrolls on a Mac): typing after lands there.
+  await editor.evaluate((el) => {
+    const text = [...el.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === 'Cups')!.firstChild!
+    getSelection()!.collapse(text, 4)
+  })
+  await page.waitForTimeout(150)
+  await box.getByRole('button', {name: 'Expand editor'}).click()
+  await expect(box).toHaveAttribute('data-expanded')
+  // Flush over the pane body.
+  const [pane, area] = await Promise.all([page.locator('.pane-body').last().boundingBox(), box.boundingBox()])
+  expect([Math.round(area!.x), Math.round(area!.width)]).toEqual([Math.round(pane!.x), Math.round(pane!.width)])
+  await page.keyboard.type(' and saucers')
+  await page.keyboard.press('Escape')
+  await expect(box).not.toHaveAttribute('data-expanded')
+  await page.keyboard.press('ControlOrMeta+Enter')
+  await expect(box).toHaveAttribute('data-expanded')
+  await page.keyboard.press('ControlOrMeta+Enter')
+  await expect(box).not.toHaveAttribute('data-expanded')
+  await expect(editor).toBeFocused()
+  await savesLanded(page)
+  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Cups and saucers')
+})

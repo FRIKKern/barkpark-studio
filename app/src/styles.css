@@ -3586,9 +3586,18 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
    canvas: a bordered box, a toolbar on top, the text scrolling inside. */
 .pt-input { position: relative; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg); color: var(--fg); }
 .pt-input:focus-within { box-shadow: inset 0 0 0 1px var(--focus-ring); }
-.pt-toolbar { margin: 0; min-width: 0; border: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.pt-toolbar { margin: 0; min-width: 0; border: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 40px 4px 6px; border-bottom: 1px solid var(--line); }
 .pt-toolbar:disabled { opacity: 0.6; }
 .pt-toolbar .pt-style { width: auto; height: 25px; padding: 0 6px; font-size: 13px; }
+/* J35 for Portable Text: Expand at the bar's right end after a rule, as Sanity's; expanded,
+   flush over the document pane with a 41 px bar and the text 32 px in (Sanity's, measured). */
+.pt-expand { position: absolute; top: 4px; right: 6px; }
+.pt-expand::before { content: ''; position: absolute; left: -5px; top: -4px; bottom: -4px; width: 1px; background: var(--line); }
+.pt-input[data-expanded], .pt-input[data-expanded]:focus-within { display: flex; flex-direction: column; border-radius: 1px; box-shadow: none; }
+.pt-input[data-expanded] .pt-toolbar { flex: none; padding: 8px 48px 8px 8px; }
+.pt-input[data-expanded] .pt-expand { top: 8px; right: 8px; }
+.pt-input[data-expanded] .pt-expand::before { top: -8px; bottom: -8px; }
+.pt-input[data-expanded] .pt-editable { flex: 1; height: auto; min-height: 0; resize: none; padding: 36px 32px; }
 .pt-tool-text { font-size: 12px; padding: 0 2px; }
 /* Sanity's text box is 271 px under its 33 px bar whatever the length, as the canvas body's:
    the text scrolls inside and the corner drags it taller or shorter (its whole box min 80). */

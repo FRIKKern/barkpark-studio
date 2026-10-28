@@ -23,7 +23,7 @@ import {schemasQuery, type Field} from '../lib/data'
 import {useT} from '../lib/i18n'
 import {declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
-import type {OpenRef} from './Fields'
+import {ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {MenuPopover} from './FocusScopes'
 import {Add, BoldIcon, CodeIcon, EditIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
@@ -207,8 +207,32 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
   const [ready, setReady] = useState(false)
   const locked = readOnly || invalid
   const openers = useMemo(() => new Map<string, () => void>(), [])
+  // Expanded over the document pane and back, as the canvas body (J35): the same editor
+  // stays mounted (only its frame moves), so caret, selection and edits are kept.
+  const box = useRef<HTMLDivElement>(null)
+  const [expanded, setExpanded] = useState(false)
+  const area = useExpandArea(box, expanded)
+  const toggle = () => {
+    setExpanded((x) => !x)
+    requestAnimationFrame(() => getSelection()?.focusNode?.parentElement?.scrollIntoView({block: 'nearest'}))
+  }
   return (
-    <div className="pt-input" data-readonly={locked || undefined} data-ready={ready || undefined}>
+    <div
+      className="pt-input"
+      ref={box}
+      data-readonly={locked || undefined}
+      data-ready={ready || undefined}
+      data-expanded={expanded || undefined}
+      style={expanded ? area : undefined}
+      // Cmd/Ctrl+Enter toggles, as Sanity's; Escape in the text collapses. Not from a dialog
+      // (its keys come through React's tree too) and not over an open menu.
+      onKeyDownCapture={(e) => {
+        const inText = (e.target as HTMLElement).closest?.('.pt-editable') && box.current?.contains(e.target as Node)
+        if (locked || !inText) return
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.altKey) return e.preventDefault(), e.stopPropagation(), toggle()
+        if (expanded && e.key === 'Escape' && !box.current?.querySelector('[role="menu"]')) e.preventDefault(), e.stopPropagation(), toggle()
+      }}
+    >
       <EditorProvider initialConfig={{schemaDefinition: schema, initialValue: stored as PortableTextBlock[], readOnly: locked}}>
         <NodePlugin nodes={nodes} />
         {!locked && <SanityPlugins field={field} stored={stored} />}
@@ -225,6 +249,7 @@ function Editor({id, field, stored, schemas, onChange, readOnly, openRef, mine, 
             {!locked && <AnnotationPopover field={field} />}
           </AnnotationOpeners.Provider>
         </EditObject.Provider>
+        {!locked && <ExpandButton expanded={expanded} aria-pressed={expanded} className="icon-btn body-expand pt-expand" onMouseDown={(e) => e.preventDefault()} onClick={toggle} />}
         {objectEdit && <ObjectDialog id={id} edit={objectEdit} field={field} stored={stored} schemas={schemas} openRef={openRef} onClose={() => setObjectEdit(null)} />}
       </EditorProvider>
     </div>
