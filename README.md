@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 4 changes
-  - Portable Text input: presence updates no longer re-draw the text and lose a fresh selection ([#1225](https://github.com/FRIKKern/barkpark-studio/pull/1225))
+- **Today** · 5 changes
+  - Portable Text input: a body stored as [] opens the empty editor, as Sanity's ([#1226](https://github.com/FRIKKern/barkpark-studio/pull/1226))
 - **Yesterday** · 32 changes
   - Portable Text saves send the blocks typed in by key, not the whole field ([#1221](https://github.com/FRIKKern/barkpark-studio/pull/1221))
 - **This week** · 54 changes
