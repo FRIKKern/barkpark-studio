@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 7 changes
-  - Portable Text input: the editor is described by its field description, as Sanity's ([#1228](https://github.com/FRIKKern/barkpark-studio/pull/1228))
+- **Today** · 8 changes
+  - Portable Text input: remote carets on a layer over the text, never in it ([#1229](https://github.com/FRIKKern/barkpark-studio/pull/1229))
 - **Yesterday** · 32 changes
   - Portable Text saves send the blocks typed in by key, not the whole field ([#1221](https://github.com/FRIKKern/barkpark-studio/pull/1221))
 - **This week** · 54 changes
