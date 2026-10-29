@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 9 changes
-  - e2e: the remote caret layer follows reflow, a narrower pane, scrolling and its block's removal ([#1230](https://github.com/FRIKKern/barkpark-studio/pull/1230))
+- **Today** · 10 changes
+  - Image hotspot dialog: previews keep the whole hotspot in view, as Sanity's ([#1231](https://github.com/FRIKKern/barkpark-studio/pull/1231))
 - **Yesterday** · 32 changes
   - Portable Text saves send the blocks typed in by key, not the whole field ([#1221](https://github.com/FRIKKern/barkpark-studio/pull/1221))
 - **This week** · 54 changes
