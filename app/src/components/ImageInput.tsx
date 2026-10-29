@@ -4,7 +4,7 @@ import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {EditPathContext, FieldView, ParentContext, type OpenRef} from './Fields'
 import {toast} from './Toasts'
 import {RefPreview} from './Preview'
-import {Close as CloseIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Trash, Undo, Upload} from './icons'
+import {Close as CloseIcon, Copy as CopyIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Trash, Undo, Upload} from './icons'
 import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
@@ -182,13 +182,16 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
                 <Ellipsis />
               </button>
               {menu && (
-                <MenuPopover className="popover menu image-menu" onClose={() => setMenu(false)} aria-labelledby={`${id}-menuButton`}>
+                // Sanity's: centred under the button, as wide as its items, a rule between its groups.
+                <MenuPopover className="popover menu image-menu field-image-menu" centered onClose={() => setMenu(false)} aria-labelledby={`${id}-menuButton`}>
                   <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), pick())}>
                     <Upload /> {t('Upload')}
                   </button>
+                  <hr />
                   <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onPointerEnter={warmMediaList} onFocus={warmMediaList} onClick={() => (setMenu(false), setBrowsing(true))}>
                     <SearchIcon /> {t('Select')}
                   </button>
+                  <hr />
                   <a role="menuitem" className="menu-item" href={url} download onClick={() => setMenu(false)}>
                     <Download /> {t('Download')}
                   </a>
@@ -198,8 +201,9 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
                     className="menu-item"
                     onClick={() => (setMenu(false), navigator.clipboard.writeText(new URL(url!, location.href).href).then(() => toast({title: t('The URL is copied to the clipboard')})))}
                   >
-                    <LinkIcon /> {t('Copy URL')}
+                    <CopyIcon /> {t('Copy URL')}
                   </button>
+                  <hr />
                   <button type="button" role="menuitem" className="menu-item danger" disabled={readOnly} onClick={() => (setMenu(false), onChange(undefined))}>
                     <Reset /> {t('Clear field')}
                   </button>
