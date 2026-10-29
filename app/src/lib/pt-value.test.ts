@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {applyPatches, parsePatch} from '@sanity/diff-match-patch'
-import {changedBlocks, remoteBlockPatches, spanTextChanges, textPatches, withRemote, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
+import {caretOf, changedBlocks, remoteBlockPatches, remoteCarets, spanTextChanges, textPatches, withRemote, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -358,4 +358,23 @@ test('pt: typing alone goes as span text patches; span texts changed alone come 
   assert.deepEqual(spanTextChanges(blk('one', 'two'), blk('one', 'two')), [])
   assert.equal(spanTextChanges(blk('one', 'two'), blk('one', 'two', ['em'])), null)
   assert.equal(spanTextChanges(blk('one', 'two'), {...blk('one', 'two'), style: 'h2'}), null)
+})
+
+test('pt: a caret goes out as block and span keys; others\' carets land where this editor has that span, clamped', () => {
+  const sel = (b: string, s: string, o: number, b2 = b, s2 = s, o2 = o) => ({anchor: {path: [{_key: b}, 'children', {_key: s}], offset: o}, focus: {path: [{_key: b2}, 'children', {_key: s2}], offset: o2}})
+  assert.deepEqual(caretOf(sel('b1', 's1', 3)), {anchor: {blockId: 'b1', path: 's1', offset: 3}, head: {blockId: 'b1', path: 's1', offset: 3}})
+  assert.equal(caretOf({anchor: {path: [{_key: 'img'}], offset: 0}, focus: {path: [{_key: 'img'}], offset: 0}}), null)
+  assert.equal(caretOf(null), null)
+  const value = [{_key: 'b1', _type: 'block', children: [{_key: 's1', _type: 'span', text: 'one two'}]}, {_key: 'b2', _type: 'block', children: [{_key: 's2', _type: 'span', text: 'three'}]}]
+  const at = (b: string, s: string, o: number) => ({blockId: b, path: s, offset: o})
+  const person = (id: string, anchor: ReturnType<typeof at>, head = anchor) => ({sessionId: id, selection: {anchor, head}})
+  // A caret past the text as this editor has it (theirs got ahead): at its end.
+  assert.deepEqual(remoteCarets(value, [person('x', at('b1', 's1', 99))]).map((c) => [c.kind, c.selection]), [['caret', {anchor: {path: [{_key: 'b1'}, 'children', {_key: 's1'}], offset: 7}, focus: {path: [{_key: 'b1'}, 'children', {_key: 's1'}], offset: 7}}]])
+  // A block or span this editor does not have: none. No selection: none.
+  assert.deepEqual(remoteCarets(value, [person('x', at('b9', 's1', 0)), person('y', at('b1', 's9', 0)), {sessionId: 'z', selection: null}]), [])
+  // A selection dragged up: tinted, backward, and the caret at its head.
+  const up = remoteCarets(value, [person('x', at('b2', 's2', 2), at('b1', 's1', 4))])
+  assert.deepEqual(up.map((c) => c.kind), ['selection', 'caret'])
+  assert.equal((up[0]!.selection as {backward?: boolean}).backward, true)
+  assert.deepEqual(up[1]!.selection.focus, {path: [{_key: 'b1'}, 'children', {_key: 's1'}], offset: 4})
 })

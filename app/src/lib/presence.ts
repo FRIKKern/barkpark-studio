@@ -73,8 +73,15 @@ export function reportSelection(documentId: string, selection: CaretSelection | 
   if (focus.documentId !== documentId) focus = {documentId, field: null, selection}
   else focus = {...focus, selection}
   caretTimer ??= setTimeout(() => ((caretTimer = undefined), push()), CARET_FLUSH_MS)
+  // Where the caret comes to rest goes once more: a move dropped on the way (Barkpark's focus
+  // budget answers 429, never retried) or overtaken by an older one left the others' copy
+  // a step behind until the next move.
+  clearTimeout(settleTimer)
+  settleTimer = setTimeout(() => ((sent = ''), push()), CARET_SETTLE_MS)
 }
 const CARET_FLUSH_MS = 100
+const CARET_SETTLE_MS = 1000
+let settleTimer: ReturnType<typeof setTimeout> | undefined
 
 /** Mount once: keeps this tab in the room, on the tab's one stream (lib/stream.ts), rejoining with the same session. */
 export function usePresenceStream() {
