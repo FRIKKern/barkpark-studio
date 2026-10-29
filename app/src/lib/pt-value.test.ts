@@ -130,6 +130,11 @@ test('pt: which rich text fields are Portable Text', () => {
   assert.equal(isPortableTextField({type: 'richText'}, {blocks: []}), false)
   assert.equal(isPortableTextField({type: 'richText'}, undefined), false)
   assert.equal(isPortableTextField({type: 'richText', format: 'portableText'}, undefined), true)
+  // Declared: empty, or block objects alone, is Portable Text too; items that are not objects are not.
+  assert.equal(isPortableTextField({type: 'richText', format: 'portableText'}, []), true)
+  assert.equal(isPortableTextField({type: 'richText', format: 'portableText'}, [{_type: 'image', _key: 'i1'}]), true)
+  assert.equal(isPortableTextField({type: 'richText', format: 'portableText'}, ['loose text']), false)
+  assert.equal(isPortableTextField({type: 'richText'}, []), false)
   assert.equal(isPortableTextField({type: 'arrayOf'}, stored()), false)
   assert.equal(equal({a: 1, b: [1, {c: 2}]}, {b: [1, {c: 2}], a: 1}), true)
   assert.equal(equal({a: 1}, {a: 1, b: 2}), false)
