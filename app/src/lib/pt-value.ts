@@ -119,11 +119,16 @@ export function editorSchema(field: Pick<Field, 'blocks'>, value: unknown, schem
   }
 }
 
-/** A rich text field holding Portable Text (an array with a text block), or declared as such. */
+/**
+ * A rich text field holding Portable Text (an array with a text block), or declared as such:
+ * then empty ([]) or blocks with no text among them (an image alone) too, as Sanity's input
+ * opens them (task-52410d0bb72b39d4; they read as the wrong type and offered Reset value).
+ */
 export function isPortableTextField(field: Pick<Field, 'type' | 'format'>, value: unknown): boolean {
   if (field.type !== 'richText') return false
-  if (Array.isArray(value)) return value.some((b) => isText(b) && Array.isArray(b.children))
-  return field.format === 'portableText' && (value === undefined || value === null)
+  const declared = field.format === 'portableText'
+  if (Array.isArray(value)) return value.some((b) => isText(b) && Array.isArray(b.children)) || (declared && value.every(isObj))
+  return declared && (value === undefined || value === null)
 }
 
 /** Deep equality that ignores key order (the editor writes keys in its own order). */

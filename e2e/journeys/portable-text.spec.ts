@@ -687,3 +687,18 @@ test('@local Portable Text: another editor\'s caret shows where they type and go
     await ctxB.close()
   }
 })
+
+// task-52410d0bb72b39d4: a Portable Text field stored empty ([]) opens the editor, as Sanity's,
+// not the wrong-type card (it offered Reset value); typing into it saves blocks.
+test('@local Portable Text: a body stored as [] opens the empty editor and takes typing', async ({page}, info) => {
+  await bpMutate([{patch: {id: ID, type: 'post', set: {ptBody: []}}}, {publish: {id: ID, type: 'post'}}])
+  await open(page, info)
+  const pt = page.locator('[id="ptBody"][contenteditable="true"]')
+  await expect(pt).toBeVisible()
+  await expect(page.getByText('Invalid property value')).toHaveCount(0)
+  await pt.click()
+  await page.keyboard.type('First words', {delay: 30})
+  await savesLanded(page)
+  type Block = {children?: {text: string}[]}
+  await expect.poll(async () => (((await read('drafts')) as {ptBody?: Block[]} | undefined)?.ptBody ?? []).map((b) => b.children?.map((c) => c.text).join('')), {timeout: 15_000}).toEqual(['First words'])
+})
