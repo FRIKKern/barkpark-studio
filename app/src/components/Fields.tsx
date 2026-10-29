@@ -320,7 +320,8 @@ function useFieldAria(box: RefObject<HTMLElement | null>, path: string, titleId:
     if (!root) return
     const apply = () => {
       const c = root.querySelector<HTMLElement>(`[id="${CSS.escape(path)}"]`)
-      if (!c?.matches('input, textarea, select, [role=combobox], [role=group], [role=radiogroup]')) return
+      // [role=textbox]: a Portable Text editor, described by the field as Sanity's is (task-94186a5d3563bcf0).
+      if (!c?.matches('input, textarea, select, [role=combobox], [role=group], [role=radiogroup], [role=textbox]')) return
       if (by) c.setAttribute('aria-describedby', by)
       else c.removeAttribute('aria-describedby')
       if (invalid) (c.setAttribute('aria-invalid', 'true'), (c.dataset.fieldInvalid = ''))
