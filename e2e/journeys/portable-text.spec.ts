@@ -702,3 +702,23 @@ test('@local Portable Text: a body stored as [] opens the empty editor and takes
   type Block = {children?: {text: string}[]}
   await expect.poll(async () => (((await read('drafts')) as {ptBody?: Block[]} | undefined)?.ptBody ?? []).map((b) => b.children?.map((c) => c.text).join('')), {timeout: 15_000}).toEqual(['First words'])
 })
+
+// task-fdcba3b9c695bf15: an empty Portable Text input shows Sanity's grey "Empty" placeholder,
+// gone on the first keystroke and never stored.
+test('@local Portable Text: an empty body shows the Empty placeholder until typed in', async ({page}, info) => {
+  await bpMutate([{patch: {id: ID, type: 'post', unset: ['ptBody']}}, {publish: {id: ID, type: 'post'}}])
+  await open(page, info)
+  const pt = page.locator('[id="ptBody"][contenteditable="true"]')
+  const placeholder = pt.locator('.pt-placeholder')
+  await expect(placeholder).toHaveText('Empty')
+  expect(await placeholder.evaluate((e) => getComputedStyle(e).color)).toBe('rgb(148, 153, 173)')
+  const at = await placeholder.evaluate((e) => e.getBoundingClientRect().x)
+  await pt.click()
+  await page.keyboard.type('Words', {delay: 30})
+  await expect(placeholder).toHaveCount(0)
+  // Where the text starts, not at the editor's edge.
+  expect(await pt.getByText('Words').evaluate((e) => e.getBoundingClientRect().x)).toBeCloseTo(at, 0)
+  await savesLanded(page)
+  type Block = {children?: {text: string}[]}
+  await expect.poll(async () => (((await read('drafts')) as {ptBody?: Block[]} | undefined)?.ptBody ?? []).map((b) => b.children?.map((c) => c.text).join('')), {timeout: 15_000}).toEqual(['Words'])
+})

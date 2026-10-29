@@ -1,4 +1,4 @@
-import {createContext, memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {
   defineAnnotation,
   defineBlockObject,
@@ -405,7 +405,10 @@ function Editable({id}: {id: string}) {
 // document, this editor's own too) re-rendered the text, and a selection the browser had
 // just been given (a click, a paste's target) was put back to the editor's older one.
 const Text = memo(function Text({id, decorations}: {id: string; decorations: RangeDecoration[]}) {
-  return <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} rangeDecorations={decorations} />
+  const t = useT()
+  // Empty: Sanity's grey "Empty" on the first line (task-fdcba3b9c695bf15).
+  const placeholder = useCallback(() => <span className="pt-placeholder">{t('Empty')}</span>, [t])
+  return <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} rangeDecorations={decorations} renderPlaceholder={placeholder} />
 })
 
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */
