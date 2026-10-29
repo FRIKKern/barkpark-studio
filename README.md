@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 10 changes
-  - Image hotspot dialog: previews keep the whole hotspot in view, as Sanity's ([#1231](https://github.com/FRIKKern/barkpark-studio/pull/1231))
+- **Today** · 11 changes
+  - Image field options menu: Sanity's rules, size, place and Copy icon ([#1232](https://github.com/FRIKKern/barkpark-studio/pull/1232))
 - **Yesterday** · 32 changes
   - Portable Text saves send the blocks typed in by key, not the whole field ([#1221](https://github.com/FRIKKern/barkpark-studio/pull/1221))
 - **This week** · 54 changes
