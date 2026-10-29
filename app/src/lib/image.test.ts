@@ -2,7 +2,7 @@
 // moves (measured 2026-10-06 on reference/sanity, e2e/journeys/image.spec.ts).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {assetUrl, cropView, dragCrop, fitHotspot, frame, imageFileName, imageRef, pickedImage, sanityImageId, sanityImagePath, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
+import {assetUrl, cropView, dragCrop, fitHotspot, frame, hotspotPreview, imageFileName, imageRef, pickedImage, sanityImageId, sanityImagePath, moveCrop, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot} from './image.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≉ ${b}`)
 
@@ -44,6 +44,31 @@ test('a preview frame keeps the hotspot centred inside the crop', () => {
   near(f.width, 400 / 640)
   near(f.height, 1)
   near(f.left + f.width, 1) // pushed against the right edge, not past it
+})
+
+// Sanity's dialog previews (calculateHotSpotCrop), measured on its studio at 640x400.
+test('a dialog preview keeps the whole hotspot in view, letterboxed where the ratio cannot hold it', () => {
+  const natural = {width: 640, height: 400}
+  // The default hotspot is the whole image: 3:4 shows all of it, full width, centred top to bottom.
+  const tall = hotspotPreview(NO_CROP, NO_HOTSPOT, natural, 3 / 4)
+  near(tall.box.width, 1)
+  near(tall.box.height, 0.75 / 1.6)
+  near(tall.box.top, (1 - 0.75 / 1.6) / 2)
+  near(tall.box.left, 0)
+  // Panorama: full height, centred side to side.
+  const wide = hotspotPreview(NO_CROP, NO_HOTSPOT, natural, 4)
+  near(wide.box.height, 1)
+  near(wide.box.width, 1.6 / 4)
+  near(wide.box.left, (1 - 1.6 / 4) / 2)
+  // A small hotspot fills the frame (full bleed), held against the image's edge, never past it.
+  const small = hotspotPreview(NO_CROP, {x: 0.9, y: 0.5, width: 0.1, height: 0.1}, natural, 1)
+  near(small.box.height, 1)
+  near(small.box.width, 1.6)
+  near(small.box.left, -0.6)
+  // A crop: the image sits in the crop box at the crop's offset.
+  const cropped = hotspotPreview({top: 0, bottom: 0, left: 0.25, right: 0.25}, NO_HOTSPOT, natural, 1)
+  near(cropped.image.width, 2)
+  near(cropped.image.left, -0.5)
 })
 
 test('an image ref reads the canonical value and the legacy {assetId} one', () => {

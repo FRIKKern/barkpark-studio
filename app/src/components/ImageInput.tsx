@@ -9,7 +9,7 @@ import {AssetDeleteDialog} from './AssetDelete'
 import type {Field} from '../lib/data'
 import {useT} from '../lib/i18n'
 import {UnsupportedAssetCard} from './BrokenValues'
-import {assetUrl, cropView, sanityImageId, dragCrop, fitHotspot, imageSrc, TILE_PX, frame, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
+import {assetUrl, cropView, sanityImageId, dragCrop, fitHotspot, imageSrc, TILE_PX, hotspotPreview, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 import {uploadFile, uploadReason, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
 import {useFileInfo} from './FileInput'
@@ -599,12 +599,15 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
           {natural && (
             <div className="crop-previews">
               {PREVIEWS.map((p) => {
-                const f = frame(c, h, natural, p.ratio)
+                // The whole hotspot stays in view: letterboxed on the checkerboard where the ratio cannot hold it.
+                const {box, image} = hotspotPreview(c, h, natural, p.ratio)
                 return (
                   <figure key={p.name}>
                     <figcaption>{t(p.name)}</figcaption>
                     <div className="crop-preview" style={{aspectRatio: String(p.ratio)}}>
-                      <img src={url} alt="" style={{width: `${100 / f.width}%`, left: `${(-f.left / f.width) * 100}%`, top: `${(-f.top / f.height) * 100}%`, height: `${100 / f.height}%`}} />
+                      <div className="crop-preview-box" style={boxStyle(box)}>
+                        <img src={url} alt="" style={boxStyle(image)} />
+                      </div>
                     </div>
                   </figure>
                 )
@@ -619,6 +622,7 @@ function HotspotDialog({title, url, hotspot, crop, onChange, onClose}: {title: s
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
+const boxStyle = (b: {left: number; top: number; width: number; height: number}) => ({left: `${b.left * 100}%`, top: `${b.top * 100}%`, width: `${b.width * 100}%`, height: `${b.height * 100}%`})
 // Sanity's crop corner handle (8 px thick, 16 long), turned for each corner.
 const CORNER_PATH = 'M -4 12 L -4 -4 L 12 -4 L 12 4 L 4 4 L 4 12 Z'
 const CORNER_TURN = {topLeft: 0, topRight: 90, bottomRight: 180, bottomLeft: 270} as const
