@@ -3592,6 +3592,8 @@ input.checkbox:disabled { cursor: default; opacity: .5; }
 /* D11 in Portable Text, as Sanity's CursorLine: another editor's caret, a 1px line in their colour with a dot on top; their selection tinted. */
 .pt-remote-caret { position: relative; margin-left: -1px; border-left: 1px solid var(--who); pointer-events: none; user-select: none; }
 .pt-remote-caret__dot { position: absolute; top: -3px; left: -3.5px; width: 6px; height: 6px; border-radius: 50%; background: var(--who); pointer-events: auto; }
+.pt-placeholder { color: var(--placeholder); } /* the editor puts it at left 0 of the nearest positioned box: its block, so it sits where the text starts */
+.pt-editable .pt-block:has(.pt-placeholder) { position: relative; }
 .pt-remote-selection { background: color-mix(in srgb, var(--who) 25%, transparent); }
 .pt-toolbar { margin: 0; min-width: 0; border: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 40px 4px 6px; border-bottom: 1px solid var(--line); }
 .pt-toolbar:disabled { opacity: 0.6; }
