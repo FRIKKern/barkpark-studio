@@ -56,13 +56,13 @@ export const Route = createFileRoute('/api/presence')({
 // apart from content writes. Coalesced per token to that pace: the latest per tab, sent
 // at most once every FOCUS_FLUSH_MS, so a burst of Tab presses can't run it dry.
 const FOCUS_FLUSH_MS = 100
-const queues = new Map<string, {pending: Map<string, string>; latest: Map<string, string>; last: number; timer?: ReturnType<typeof setTimeout>}>()
+const queues = new Map<string, {pending: Map<string, {body: string; again: boolean}>; latest: Map<string, string>; last: number; timer?: ReturnType<typeof setTimeout>}>()
 const FOCUS_RETRY_MS = 1000
 
-function queueFocus(token: string, sessionId: string, body: string) {
+function queueFocus(token: string, sessionId: string, body: string, again = false) {
   let q = queues.get(token)
   if (!q) queues.set(token, (q = {pending: new Map(), latest: new Map(), last: 0}))
-  q.pending.set(sessionId, body)
+  q.pending.set(sessionId, {body, again})
   q.latest.set(sessionId, body)
   if (q.timer) return
   const flush = () => {
@@ -70,12 +70,12 @@ function queueFocus(token: string, sessionId: string, body: string) {
     q.last = Date.now()
     const out = [...q.pending]
     q.pending.clear()
-    for (const [sid, b] of out)
-      // Over the budget (429): where this tab is now goes again after a beat, unless it has
-      // moved since (that move is sent instead). Else a caret that came to rest stays a step
-      // behind for the others until it moves again.
+    for (const [sid, {body: b, again}] of out)
+      // Over the budget (429): where this tab is now goes once more after a beat (one retry,
+      // never a loop), unless it has moved since (that move is sent instead). Else a caret that
+      // came to rest stays a step behind for the others until it moves again.
       void bpFetch(`/v1/data/presence/${dataset()}/focus`, {method: 'POST', headers: {'content-type': 'application/json'}, body: b}, token, {retry: false})
-        .then((r) => r.status === 429 && setTimeout(() => q.latest.get(sid) === b && !q.pending.has(sid) && queueFocus(token, sid, b), FOCUS_RETRY_MS))
+        .then((r) => r.status === 429 && !again && setTimeout(() => q.latest.get(sid) === b && !q.pending.has(sid) && queueFocus(token, sid, b, true), FOCUS_RETRY_MS))
         .catch(() => {})
   }
   const wait = q.last + FOCUS_FLUSH_MS - Date.now()
