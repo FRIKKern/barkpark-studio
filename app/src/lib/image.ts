@@ -174,3 +174,39 @@ export function frame(c: Crop, h: Hotspot, natural: {width: number; height: numb
   const top = clamp(h.y * natural.height - hgt / 2, c.top * natural.height, c.top * natural.height + ch - hgt)
   return {left: left / natural.width, top: top / natural.height, width: w / natural.width, height: hgt / natural.height}
 }
+
+type Box = {left: number; top: number; width: number; height: number}
+
+/**
+ * A hotspot-and-crop dialog preview of aspect `ratio`, as Sanity draws it: the whole hotspot
+ * stays in view, so where the ratio cannot hold it the crop is shrunk and centred on the
+ * checkerboard (letterboxed) instead of cut. `box` is the crop's place in the frame and
+ * `image` the whole image's place in the crop, both as fractions. Ported from sanity 6.17.0's
+ * calculateHotSpotCrop (MIT, centre alignment).
+ */
+export function hotspotPreview(c: Crop, h: Hotspot, natural: {width: number; height: number}, ratio: number): {box: Box; image: Box} {
+  const netWidth = 1 - c.left - c.right
+  const netHeight = 1 - c.top - c.bottom
+  const image = {left: -c.left / netWidth, top: -c.top / netHeight, width: 1 / netWidth, height: 1 / netHeight}
+  const cropAspect = (netWidth / netHeight) * (natural.width / natural.height)
+  const spot = {x: (h.x - c.left) / netWidth, y: (h.y - c.top) / netHeight, width: h.width / netWidth, height: h.height / netHeight}
+  const maxScale = Math.min(1 / spot.width, ((1 / spot.height) * cropAspect) / ratio)
+  const taller = cropAspect <= ratio
+  const fullBleed = taller ? 1 : cropAspect / ratio
+  if (fullBleed > maxScale) {
+    const scale = taller ? 1 - (fullBleed - maxScale) : maxScale
+    const width = scale
+    const height = (scale / cropAspect) * ratio
+    const left = taller ? (1 - width) / 2 : -(spot.x * width - (spot.width * width) / 2)
+    const top = taller ? -(spot.y * height - (spot.height * height) / 2) : (1 - height) / 2
+    return {box: {left, top, width, height}, image}
+  }
+  if (taller) {
+    const height = (fullBleed / cropAspect) * ratio
+    const top = clamp(0.5 - (spot.y / cropAspect) * ratio, -(height - 1), 0)
+    return {box: {left: 0, top, width: fullBleed, height}, image}
+  }
+  const height = (fullBleed / cropAspect) * ratio
+  const left = clamp(0.5 - spot.x * fullBleed, -(fullBleed - 1), 0)
+  return {box: {left, top: 0, width: fullBleed, height}, image}
+}
