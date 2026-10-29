@@ -693,8 +693,38 @@ test('@local Portable Text: another editor\'s caret shows where they type and go
     expect(await edA.locator('.pt-remote-caret, .pt-remote-selection').count()).toBe(0)
     await b.keyboard.type(' gently', {delay: 40})
     await expect.poll(() => gap('Pour slowly gently'), {timeout: 10_000}).toBeLessThan(2)
+    // It stays on B's text as A's own typing reflows the lines above it, the pane narrows,
+    // and the document scrolls.
+    const errors: string[] = []
+    page.on('pageerror', (e) => errors.push(String(e)))
+    await caretAtEnd(page, edA, 'Brew the tea with warm water.')
+    await page.keyboard.type(' Then wait a little while, and pour it over the leaves slowly.', {delay: 5})
+    await expect.poll(() => gap('Pour slowly gently'), {timeout: 10_000}).toBeLessThan(2)
+    // In B too before B selects (task-55d37ed632c57c71: their text landing mid-selection can reset B's selection).
+    await expect(edB).toContainText('over the leaves slowly.')
+    const size = page.viewportSize()!
+    await page.setViewportSize({width: size.width - 300, height: size.height})
+    await expect.poll(() => gap('Pour slowly gently'), {timeout: 10_000}).toBeLessThan(2)
+    await page.setViewportSize(size)
+    await edA.evaluate((el) => {
+      for (let p = el.parentElement; p; p = p.parentElement) if (p.scrollHeight > p.clientHeight && /auto|scroll/.test(getComputedStyle(p).overflowY)) return void (p.scrollTop += 120)
+    })
+    await expect.poll(() => gap('Pour slowly gently'), {timeout: 10_000}).toBeLessThan(2)
     for (let i = 0; i < 'gently'.length; i++) await b.keyboard.press('Shift+ArrowLeft')
     await expect.poll(() => gap('Pour slowly gently', 'gently'), {timeout: 10_000}).toBeLessThan(2)
+    // A removes the block B's selection is in: its tint goes, nothing drawn astray, no error.
+    await edA.evaluate((el) => {
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+      for (let n = w.nextNode() as Text | null; n; n = w.nextNode() as Text | null)
+        if (n.data.startsWith('Pour slowly')) return void getSelection()!.setBaseAndExtent(n, 0, n, n.data.length)
+    })
+    await page.keyboard.press('Backspace')
+    await page.keyboard.press('Backspace')
+    await expect(edA).not.toContainText('Pour slowly')
+    await expect(box.locator('.pt-remote-selection')).toHaveCount(0, {timeout: 10_000})
+    const inside = await box.evaluate((l) => [...l.querySelectorAll('.pt-remote-caret')].every((c) => { const r = c.getBoundingClientRect(), o = l.getBoundingClientRect(); return r.top >= o.top - 4 && r.bottom <= o.bottom + 4 }))
+    expect(inside).toBe(true)
+    expect(errors).toEqual([])
     await b.locator('[id="title"]').click()
     await expect(caret).toHaveCount(0, {timeout: 10_000})
     await expect(box.locator('.pt-remote-selection')).toHaveCount(0)
