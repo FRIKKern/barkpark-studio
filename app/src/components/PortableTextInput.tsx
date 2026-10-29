@@ -1,4 +1,4 @@
-import {createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {createContext, memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {
   defineAnnotation,
   defineBlockObject,
@@ -357,16 +357,23 @@ const WORD_PAUSE_MS = 500
  * presence colour with a dot on top (their name on hover), their selection tinted. From their
  * presence in this field, so a caret goes when its editor leaves the field.
  */
+const NO_DECORATIONS: RangeDecoration[] = []
+
 function Editable({id}: {id: string}) {
   const docId = useContext(DocIdContext)
   const nameOf = usePersonNamer()
-  const value = useEditorSelector(useEditor(), (s) => s.context.value)
-  const here = usePresences().filter((p) => p.documentId === docId && p.field === id && p.selection)
+  const here = usePresences()
+    .filter((p) => p.documentId === docId && p.field === id && p.selection)
+    .map((p) => ({...p, name: nameOf(p.name) ?? p.name}))
   const key = JSON.stringify(here.map((p) => [p.sessionId, p.color, p.name, p.selection]))
+  // The value only while another editor's caret is here, and the same (empty) decorations
+  // otherwise, so typing alone does not draw the text again (Text below).
+  const anyone = here.length > 0
+  const value = useEditorSelector(useEditor(), (s) => (anyone ? s.context.value : undefined))
   const decorations = useMemo(
     () =>
-      remoteCarets(value, here).map(({person, kind, selection}): RangeDecoration => {
-        const name = nameOf(person.name) ?? person.name
+      !anyone ? NO_DECORATIONS : remoteCarets(value, here).map(({person, kind, selection}): RangeDecoration => {
+        const name = person.name
         const style = {'--who': person.color} as React.CSSProperties
         return {
           selection,
@@ -389,10 +396,17 @@ function Editable({id}: {id: string}) {
         }
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is the people, by value
-    [key, value, nameOf],
+    [key, value],
   )
-  return <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} rangeDecorations={decorations} />
+  return <Text id={id} decorations={decorations} />
 }
+
+// Drawn again only when its carets change: every presence update (each caret move in the
+// document, this editor's own too) re-rendered the text, and a selection the browser had
+// just been given (a click, a paste's target) was put back to the editor's older one.
+const Text = memo(function Text({id, decorations}: {id: string; decorations: RangeDecoration[]}) {
+  return <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} rangeDecorations={decorations} />
+})
 
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */
 function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; stored: PtBlock[]; incoming: unknown; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
