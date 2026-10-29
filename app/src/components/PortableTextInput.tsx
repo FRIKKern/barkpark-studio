@@ -1,4 +1,4 @@
-import {createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {createContext, Fragment, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {
   defineAnnotation,
   defineBlockObject,
@@ -11,7 +11,6 @@ import {
   useEditorSelector,
   type EditorEmittedEvent,
   type PortableTextBlock,
-  type RangeDecoration,
   type RegistrableNode,
 } from '@portabletext/editor'
 import {EventListenerPlugin, NodePlugin} from '@portabletext/editor/plugins'
@@ -353,12 +352,12 @@ function SanityPlugins({field, stored}: {field: Field; stored: PtBlock[]}) {
 const WORD_PAUSE_MS = 500
 
 /**
- * The text, with the other editors' carets in it where they are, as Sanity's: a line in their
+ * The text, with the other editors' carets over it where they are, as Sanity's: a line in their
  * presence colour with a dot on top (their name on hover), their selection tinted. From their
- * presence in this field, so a caret goes when its editor leaves the field.
+ * presence in this field, so a caret goes when its editor leaves the field. Drawn on a layer
+ * over the text, never in it (task-5318637e9d1cfc7e): as range decorations they split the text
+ * a caret sat in, and this editor's own selection there fell to the block's start.
  */
-const NO_DECORATIONS: RangeDecoration[] = []
-
 function Editable({id}: {id: string}) {
   const docId = useContext(DocIdContext)
   const nameOf = usePersonNamer()
@@ -366,49 +365,100 @@ function Editable({id}: {id: string}) {
     .filter((p) => p.documentId === docId && p.field === id && p.selection)
     .map((p) => ({...p, name: nameOf(p.name) ?? p.name}))
   const key = JSON.stringify(here.map((p) => [p.sessionId, p.color, p.name, p.selection]))
-  // The value only while another editor's caret is here, and the same (empty) decorations
-  // otherwise, so typing alone does not draw the text again (Text below).
+  // The value only while another editor's caret is here: text moving under a caret moves it.
   const anyone = here.length > 0
   const value = useEditorSelector(useEditor(), (s) => (anyone ? s.context.value : undefined))
-  const decorations = useMemo(
-    () =>
-      !anyone ? NO_DECORATIONS : remoteCarets(value, here).map(({person, kind, selection}): RangeDecoration => {
-        const name = person.name
-        const style = {'--who': person.color} as React.CSSProperties
-        return {
-          selection,
-          payload: {id: `${person.sessionId}:${kind}`},
-          component:
-            kind === 'caret'
-              ? ({children}) => (
-                  <>
-                    {children}
-                    <span contentEditable={false} className="pt-remote-caret" style={style} data-testid={`presence-cursor-${name}`} title={name}>
-                      <span className="pt-remote-caret__dot" />
-                    </span>
-                  </>
-                )
-              : ({children}) => (
-                  <span className="pt-remote-selection" style={style}>
-                    {children}
-                  </span>
-                ),
-        }
-      }),
+  const layer = useRef<HTMLDivElement>(null)
+  const [marks, setMarks] = useState<CaretMark[]>([])
+  useLayoutEffect(() => {
+    const box = layer.current?.parentElement
+    const text = document.getElementById(id)
+    if (!anyone || !box || !text) return setMarks((m) => (m.length ? [] : m))
+    const carets = remoteCarets(value, here)
+    let frame = 0
+    const draw = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        // The layer over the text's box, its marks clipped to what is scrolled into view.
+        const b = box.getBoundingClientRect()
+        const t = text.getBoundingClientRect()
+        Object.assign(layer.current!.style, {left: `${t.left - b.left}px`, top: `${t.top - b.top}px`, width: `${t.width}px`, height: `${t.height}px`})
+        const next = caretMarks(text, carets)
+        setMarks((m) => (JSON.stringify(m) === JSON.stringify(next) ? m : next))
+      })
+    }
+    draw()
+    const resized = new ResizeObserver(draw)
+    resized.observe(text)
+    text.addEventListener('scroll', draw)
+    return () => (cancelAnimationFrame(frame), resized.disconnect(), text.removeEventListener('scroll', draw))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is the people, by value
-    [key, value],
+  }, [id, key, value, anyone])
+  return (
+    <>
+      <Text id={id} />
+      <div ref={layer} className="pt-remote-layer" aria-hidden>
+        {marks.map((m) => (
+          <Fragment key={m.id}>
+            {m.rects.map((r, i) => (
+              <div key={i} className="pt-remote-selection" style={{'--who': m.color, left: r.x, top: r.y, width: r.w, height: r.h} as React.CSSProperties} />
+            ))}
+            {m.caret && (
+              <div className="pt-remote-caret" style={{'--who': m.color, left: m.caret.x, top: m.caret.y, height: m.caret.h} as React.CSSProperties} data-testid={`presence-cursor-${m.name}`} title={m.name}>
+                <span className="pt-remote-caret__dot" />
+              </div>
+            )}
+          </Fragment>
+        ))}
+      </div>
+    </>
   )
-  return <Text id={id} decorations={decorations} />
 }
 
-// Drawn again only when its carets change: every presence update (each caret move in the
-// document, this editor's own too) re-rendered the text, and a selection the browser had
-// just been given (a click, a paste's target) was put back to the editor's older one.
-const Text = memo(function Text({id, decorations}: {id: string; decorations: RangeDecoration[]}) {
+type Box = {x: number; y: number; w: number; h: number}
+type CaretMark = {id: string; name: string; color: string; caret?: {x: number; y: number; h: number}; rects: Box[]}
+type CaretPoint = {path: unknown[]; offset: number}
+
+/** A point in the editor's value as a DOM point in its text (null when that span is not drawn). */
+function domPoint(text: HTMLElement, p: CaretPoint): [Node, number] | null {
+  const [block, , span] = p.path as [{_key: string}, string, {_key: string}]
+  const path = `[_key=="${block._key}"].children[_key=="${span._key}"]`
+  const el = [...text.querySelectorAll('[data-pt-path]')].find((e) => e.getAttribute('data-pt-path') === path)
+  const node = el?.querySelector('[data-pt-text]')?.firstChild ?? el?.querySelector('[data-pt-zero-width]')?.firstChild
+  if (!node) return null
+  return [node, node.nodeType === Node.TEXT_NODE && el!.querySelector('[data-pt-text]') ? Math.min(p.offset, (node as Text).length) : 0]
+}
+
+/** Where the carets and selections fall, in the layer's box (the text's, as it is scrolled). */
+function caretMarks(text: HTMLElement, carets: ReturnType<typeof remoteCarets<{sessionId: string; name: string; color: string}>>): CaretMark[] {
+  const at = text.getBoundingClientRect()
+  const rel = (r: DOMRect): Box => ({x: Math.round(r.left - at.left), y: Math.round(r.top - at.top), w: Math.round(r.width), h: Math.round(r.height)})
+  const out = new Map<string, CaretMark>()
+  for (const {person, kind, selection} of carets) {
+    const mark = out.get(person.sessionId) ?? {id: person.sessionId, name: person.name, color: person.color, rects: []}
+    out.set(person.sessionId, mark)
+    const [from, to] = 'backward' in selection && selection.backward ? [selection.focus, selection.anchor] : [selection.anchor, selection.focus]
+    const start = domPoint(text, from)
+    const end = domPoint(text, to)
+    if (!start || !end) continue
+    const range = document.createRange()
+    range.setStart(...start)
+    range.setEnd(...end)
+    if (kind === 'selection') mark.rects = [...range.getClientRects()].filter((r) => r.width > 0).map(rel)
+    else {
+      const r = range.getClientRects()[0] ?? (start[0].parentElement ?? text).getBoundingClientRect()
+      const b = rel(r)
+      mark.caret = {x: b.x, y: b.y, h: b.h}
+    }
+  }
+  return [...out.values()]
+}
+
+const Text = memo(function Text({id}: {id: string}) {
   const t = useT()
   // Empty: Sanity's grey "Empty" on the first line (task-fdcba3b9c695bf15).
   const placeholder = useCallback(() => <span className="pt-placeholder">{t('Empty')}</span>, [t])
-  return <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} rangeDecorations={decorations} renderPlaceholder={placeholder} />
+  return <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} renderPlaceholder={placeholder} />
 })
 
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */

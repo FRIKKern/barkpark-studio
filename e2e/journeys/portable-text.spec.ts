@@ -663,25 +663,41 @@ test('@local Portable Text: another editor\'s caret shows where they type and go
   try {
     const [edA, edB] = await Promise.all([open(page, info), open(b, info)])
     await caretAtEnd(b, edB, 'Pour slowly')
-    const caret = edA.locator('.pt-remote-caret')
-    // The text of its span before it: where B's caret is.
-    const before = () => caret.evaluate((c) => {
-      const r = document.createRange()
-      r.setStart(c.closest('[data-pt-path]')!, 0)
-      r.setEndBefore(c)
-      return r.toString().replace(/\ufeff/g, '') // the editor's zero-width filler at a span's end
-    })
-    await expect.poll(before, {timeout: 10_000}).toBe('Pour slowly')
+    // On a layer over A's text, never in it (task-5318637e9d1cfc7e).
+    const box = field(page).locator('.pt-remote-layer')
+    const caret = box.locator('.pt-remote-caret')
+    // Where `text` ends (or `word` spans) in A's text, and where B's caret line (or tint) is.
+    const gap = (text: string, word?: string) =>
+      edA.evaluate(
+        (el, [text, word]) => {
+          const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+          for (let n = w.nextNode() as Text | null; n; n = w.nextNode() as Text | null) {
+            if (!n.data.startsWith(text)) continue
+            const r = document.createRange()
+            const at = word ? n.data.indexOf(word) : text.length
+            r.setStart(n, at)
+            r.setEnd(n, word ? at + word.length : at)
+            const want = r.getBoundingClientRect()
+            const box = el.closest('.pt-input')!.querySelector('.pt-remote-layer')!
+            const marks = [...box.querySelectorAll(word ? '.pt-remote-selection' : '.pt-remote-caret')].map((m) => m.getBoundingClientRect())
+            if (!marks.length) return 99
+            const left = Math.min(...marks.map((m) => m.left)), right = Math.max(...marks.map((m) => m.right))
+            return word ? Math.max(Math.abs(left - want.left), Math.abs(right - want.right)) : Math.abs(left + 1 - want.left)
+          }
+          return 98
+        },
+        [text, word] as const,
+      )
+    await expect.poll(() => gap('Pour slowly'), {timeout: 10_000}).toBeLessThan(2)
     expect(await caret.evaluate((c) => getComputedStyle(c).borderLeftColor)).not.toBe('rgba(0, 0, 0, 0)')
+    expect(await edA.locator('.pt-remote-caret, .pt-remote-selection').count()).toBe(0)
     await b.keyboard.type(' gently', {delay: 40})
-    await expect.poll(before, {timeout: 10_000}).toBe('Pour slowly gently')
+    await expect.poll(() => gap('Pour slowly gently'), {timeout: 10_000}).toBeLessThan(2)
     for (let i = 0; i < 'gently'.length; i++) await b.keyboard.press('Shift+ArrowLeft')
-    // Tinted in segments where marks or other decorations split it: their text together.
-    const tinted = () => edA.locator('.pt-remote-selection').allTextContents().then((t) => t.join(''))
-    await expect.poll(tinted, {timeout: 10_000}).toBe('gently')
+    await expect.poll(() => gap('Pour slowly gently', 'gently'), {timeout: 10_000}).toBeLessThan(2)
     await b.locator('[id="title"]').click()
     await expect(caret).toHaveCount(0, {timeout: 10_000})
-    await expect(edA.locator('.pt-remote-selection')).toHaveCount(0)
+    await expect(box.locator('.pt-remote-selection')).toHaveCount(0)
   } finally {
     await closeAndSettle(b)
     await ctxB.close()
@@ -730,4 +746,55 @@ test('@local Portable Text: the editor is described by its field description', a
   const pt = page.locator('[id="ptBody"][contenteditable="true"]')
   await expect(pt).toHaveAccessibleDescription('Stored as Portable Text, as Sanity stores it.')
   await expect(pt).toHaveAccessibleName('Portable Text body')
+})
+
+// A selection made while another editor's caret is in the text (its presence ticking) is the
+// one a paste lands on: their caret's updates never put this editor's selection back.
+test('@local Portable Text: with another editor in the text, a URL pasted over a selected word links that word', async ({page, browser}, info) => {
+  const t = target(info)
+  const ctxB = await browser.newContext()
+  await t.prepare(ctxB)
+  const b = await ctxB.newPage()
+  try {
+    const [edA, edB] = await Promise.all([open(page, info), open(b, info)])
+    await caretAtEnd(b, edB, 'Cups')
+    await expect(field(page).locator('.pt-remote-layer .pt-remote-caret')).toHaveCount(1, {timeout: 10_000})
+    // B keeps typing, so A's text keeps changing and B's caret keeps moving meanwhile.
+    const typing = (async () => { for (const w of [' and', ' fine', ' saucers', ' too']) (await b.keyboard.type(w, {delay: 80}), await b.waitForTimeout(150)) })()
+    await caretAtEnd(page, edA, 'Pour slowly')
+    await page.keyboard.type(' now', {delay: 40})
+    await edA.evaluate((el) => {
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+      for (let n = w.nextNode() as Text | null; n; n = w.nextNode() as Text | null) {
+        const at = n.data.indexOf('water')
+        if (at < 0) continue
+        const r = document.createRange()
+        r.setStart(n, at)
+        r.setEnd(n, at + 5)
+        getSelection()!.removeAllRanges()
+        getSelection()!.addRange(r)
+        return
+      }
+    })
+    await page.waitForTimeout(150)
+    await edA.evaluate((el) => {
+      const data = new DataTransfer()
+      data.setData('text/plain', 'https://example.com/kettles')
+      el.dispatchEvent(new ClipboardEvent('paste', {clipboardData: data, bubbles: true, cancelable: true}))
+    })
+    await typing
+    await Promise.all([savesLanded(page), savesLanded(b)])
+    type Block = {_key: string; markDefs?: {_key: string; _type: string; href?: string}[]; children: {text: string; marks?: string[]}[]}
+    await expect
+      .poll(async () => {
+        const body = ((await read('drafts'))?.body ?? []) as Block[]
+        const p1 = body.find((x) => x._key === 'p1')
+        const link = p1?.markDefs?.find((d) => d._type === 'link')
+        return [link?.href, p1?.children?.find((c) => c.text === 'water')?.marks?.includes(link?._key ?? '-'), body.filter((x) => x.markDefs?.some((d) => d._type === 'link')).length]
+      }, {timeout: 15_000})
+      .toEqual(['https://example.com/kettles', true, 1])
+  } finally {
+    await closeAndSettle(b)
+    await ctxB.close()
+  }
 })
