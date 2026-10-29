@@ -585,3 +585,50 @@ export function newKey(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6))
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
+
+/** A caret as presence carries it (lib/presence.ts): the block's key, the span's key in `path`. */
+type CaretPoint = {blockId: string; path?: string; offset: number}
+type Point = {path: unknown[]; offset: number}
+
+/** This editor's selection as its presence carries it; null when it is not in a text span. */
+export function caretOf(selection: {anchor: Point; focus: Point} | null | undefined): {anchor: CaretPoint; head: CaretPoint} | null {
+  const point = (p: Point): CaretPoint | null => {
+    const [block, children, span] = p.path
+    if (!isObj(block) || typeof block._key !== 'string' || children !== 'children' || !isObj(span) || typeof span._key !== 'string') return null
+    return {blockId: block._key, path: span._key, offset: p.offset}
+  }
+  const anchor = selection && point(selection.anchor)
+  const head = selection && point(selection.focus)
+  return anchor && head ? {anchor, head} : null
+}
+
+/**
+ * Where the other editors' carets go in this text (D11 for Portable Text, as Sanity's
+ * CursorLine): each one whose block and span this editor has, the offset kept inside the
+ * span's text as it is here. Their selection, when it spans text, as a range of its own.
+ */
+export function remoteCarets<P extends {sessionId: string; selection?: {anchor: CaretPoint; head: CaretPoint} | null}>(value: unknown, people: P[]) {
+  const text = (p: CaretPoint) => {
+    const block = Array.isArray(value) ? (value as PtBlock[]).find((b) => b?._key === p.blockId) : undefined
+    const span = (Array.isArray(block?.children) ? (block.children as Obj[]) : []).find((c) => c._key === p.path && c._type === 'span')
+    return typeof span?.text === 'string' ? span.text : null
+  }
+  const at = (p: CaretPoint) => ({path: [{_key: p.blockId}, 'children', {_key: p.path!}], offset: Math.max(0, Math.min(p.offset, text(p)!.length))})
+  return people.flatMap((person) => {
+    const s = person.selection
+    if (!s || text(s.anchor) === null || text(s.head) === null) return []
+    const head = at(s.head)
+    const anchor = at(s.anchor)
+    const caret = {person, kind: 'caret' as const, selection: {anchor: head, focus: head}}
+    if (equal(anchor, head)) return [caret]
+    // Backward (dragged up or left): the editor wants that said.
+    const order = (p: CaretPoint) => {
+      const b = (value as PtBlock[]).findIndex((x) => x?._key === p.blockId)
+      const c = ((value as PtBlock[])[b]!.children as Obj[]).findIndex((x) => x._key === p.path)
+      return [b, c, Math.min(p.offset, text(p)!.length)]
+    }
+    const [a, h] = [order(s.anchor), order(s.head)]
+    const backward = a[0]! > h[0]! || (a[0] === h[0] && (a[1]! > h[1]! || (a[1] === h[1] && a[2]! > h[2]!)))
+    return [{person, kind: 'selection' as const, selection: {anchor, focus: head, backward}}, caret]
+  })
+}

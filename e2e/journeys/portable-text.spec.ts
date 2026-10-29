@@ -652,3 +652,38 @@ test('@local Portable Text: two editors typing in one block at once both keep th
     await ctxB.close()
   }
 })
+
+// task-b788cb2ad52aecbc: the other editor's caret in the text where they are, as Sanity's
+// CursorLine: in their colour, after their typing, their selection tinted, gone when they leave.
+test('@local Portable Text: another editor\'s caret shows where they type and goes when they leave the field', async ({page, browser}, info) => {
+  const t = target(info)
+  const ctxB = await browser.newContext()
+  await t.prepare(ctxB)
+  const b = await ctxB.newPage()
+  try {
+    const [edA, edB] = await Promise.all([open(page, info), open(b, info)])
+    await caretAtEnd(b, edB, 'Pour slowly')
+    const caret = edA.locator('.pt-remote-caret')
+    // The text of its span before it: where B's caret is.
+    const before = () => caret.evaluate((c) => {
+      const r = document.createRange()
+      r.setStart(c.closest('[data-pt-path]')!, 0)
+      r.setEndBefore(c)
+      return r.toString().replace(/\ufeff/g, '') // the editor's zero-width filler at a span's end
+    })
+    await expect.poll(before, {timeout: 10_000}).toBe('Pour slowly')
+    expect(await caret.evaluate((c) => getComputedStyle(c).borderLeftColor)).not.toBe('rgba(0, 0, 0, 0)')
+    await b.keyboard.type(' gently', {delay: 40})
+    await expect.poll(before, {timeout: 10_000}).toBe('Pour slowly gently')
+    for (let i = 0; i < 'gently'.length; i++) await b.keyboard.press('Shift+ArrowLeft')
+    // Tinted in segments where marks or other decorations split it: their text together.
+    const tinted = () => edA.locator('.pt-remote-selection').allTextContents().then((t) => t.join(''))
+    await expect.poll(tinted, {timeout: 10_000}).toBe('gently')
+    await b.locator('[id="title"]').click()
+    await expect(caret).toHaveCount(0, {timeout: 10_000})
+    await expect(edA.locator('.pt-remote-selection')).toHaveCount(0)
+  } finally {
+    await closeAndSettle(b)
+    await ctxB.close()
+  }
+})

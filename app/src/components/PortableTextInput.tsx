@@ -11,6 +11,7 @@ import {
   useEditorSelector,
   type EditorEmittedEvent,
   type PortableTextBlock,
+  type RangeDecoration,
   type RegistrableNode,
 } from '@portabletext/editor'
 import {EventListenerPlugin, NodePlugin} from '@portabletext/editor/plugins'
@@ -26,13 +27,15 @@ import {uploadFile, uploadReason} from '../lib/upload'
 import {toast} from './Toasts'
 import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
-import {asEditorHolds, changedBlocks, remoteBlockPatches, spanText, textPatches, withRemote, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanText, textPatches, withRemote, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {EditPathContext, ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {DocIdContext} from './doc-ids'
 import {onKeyedMiss} from '../lib/edits'
+import {reportSelection, usePresences} from '../lib/presence'
+import {usePersonNamer} from '../lib/person'
 import {MenuPopover} from './FocusScopes'
 import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, EditIcon, Ellipsis, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
@@ -297,7 +300,7 @@ function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef,
         <EditObject.Provider value={locked ? null : setObjectEdit}>
           <AnnotationOpeners.Provider value={openers}>
             {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} />}
-            <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} />
+            <Editable id={id} />
             {!locked && <AnnotationPopover field={field} />}
             {!locked && <ImagePaste field={field} />}
           </AnnotationOpeners.Provider>
@@ -349,6 +352,48 @@ function SanityPlugins({field, stored}: {field: Field; stored: PtBlock[]}) {
 /** How long after this editor's last keystroke another editor's text waits (a word's letters come faster). */
 const WORD_PAUSE_MS = 500
 
+/**
+ * The text, with the other editors' carets in it where they are, as Sanity's: a line in their
+ * presence colour with a dot on top (their name on hover), their selection tinted. From their
+ * presence in this field, so a caret goes when its editor leaves the field.
+ */
+function Editable({id}: {id: string}) {
+  const docId = useContext(DocIdContext)
+  const nameOf = usePersonNamer()
+  const value = useEditorSelector(useEditor(), (s) => s.context.value)
+  const here = usePresences().filter((p) => p.documentId === docId && p.field === id && p.selection)
+  const key = JSON.stringify(here.map((p) => [p.sessionId, p.color, p.name, p.selection]))
+  const decorations = useMemo(
+    () =>
+      remoteCarets(value, here).map(({person, kind, selection}): RangeDecoration => {
+        const name = nameOf(person.name) ?? person.name
+        const style = {'--who': person.color} as React.CSSProperties
+        return {
+          selection,
+          payload: {id: `${person.sessionId}:${kind}`},
+          component:
+            kind === 'caret'
+              ? ({children}) => (
+                  <>
+                    {children}
+                    <span contentEditable={false} className="pt-remote-caret" style={style} data-testid={`presence-cursor-${name}`} title={name}>
+                      <span className="pt-remote-caret__dot" />
+                    </span>
+                  </>
+                )
+              : ({children}) => (
+                  <span className="pt-remote-selection" style={style}>
+                    {children}
+                  </span>
+                ),
+        }
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is the people, by value
+    [key, value, nameOf],
+  )
+  return <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} rangeDecorations={decorations} />
+}
+
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */
 function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; stored: PtBlock[]; incoming: unknown; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
   const editor = useEditor()
@@ -380,7 +425,9 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
     (fromServer.current.get(key) ?? []).some((r) => r.at > (sentAt.current.get(key) ?? 0) && equal(asEditorHolds(r.block), asEditorHolds(block)))
   const on = (event: EditorEmittedEvent) => {
     if (event.type === 'focused') focused.current = true
-    if (event.type === 'blurred') (focused.current = false), onBlur()
+    if (event.type === 'blurred') (focused.current = false), onBlur(), docId && reportSelection(docId, null)
+    // D11: this editor's caret goes out with its presence, for the others' text.
+    if (event.type === 'selection' && focused.current && docId) reportSelection(docId, caretOf(event.selection))
     if (event.type === 'invalid value') return onInvalid()
     // The editor's own reading of the stored value, before any edit: what an untouched block looks like.
     if (event.type === 'ready') (seen.current = (editor.getSnapshot().context.value ?? []) as PtBlock[]), onReady()
