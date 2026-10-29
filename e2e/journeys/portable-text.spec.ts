@@ -722,3 +722,12 @@ test('@local Portable Text: an empty body shows the Empty placeholder until type
   type Block = {children?: {text: string}[]}
   await expect.poll(async () => (((await read('drafts')) as {ptBody?: Block[]} | undefined)?.ptBody ?? []).map((b) => b.children?.map((c) => c.text).join('')), {timeout: 15_000}).toEqual(['Words'])
 })
+
+// task-94186a5d3563bcf0: the editor is described by its field's description, as Sanity's
+// (aria-describedby), so a screen reader reads it on entering the text.
+test('@local Portable Text: the editor is described by its field description', async ({page}, info) => {
+  await open(page, info)
+  const pt = page.locator('[id="ptBody"][contenteditable="true"]')
+  await expect(pt).toHaveAccessibleDescription('Stored as Portable Text, as Sanity stores it.')
+  await expect(pt).toHaveAccessibleName('Portable Text body')
+})
