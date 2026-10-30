@@ -18,12 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 11 changes
+- **Yesterday** · 11 changes
   - Image field options menu: Sanity's rules, size, place and Copy icon ([#1232](https://github.com/FRIKKern/barkpark-studio/pull/1232))
-- **Yesterday** · 32 changes
+- **This week** · 86 changes
   - Portable Text saves send the blocks typed in by key, not the whole field ([#1221](https://github.com/FRIKKern/barkpark-studio/pull/1221))
-- **This week** · 54 changes
-  - DEPLOY.md: an SSO-only owner mints BARKPARK_TOKEN after bp login --sso ([#1189](https://github.com/FRIKKern/barkpark-studio/pull/1189))
 - **Last week** · 189 changes, 1 task closed
 - **This month** · 926 changes, 182 tasks closed
 <!-- timeline:end -->
