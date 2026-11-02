@@ -18,10 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **This week** · 97 changes
-  - Image field options menu: Sanity's rules, size, place and Copy icon ([#1232](https://github.com/FRIKKern/barkpark-studio/pull/1232))
-- **Last week** · 189 changes, 1 task closed
-- **Last month** · 926 changes, 182 tasks closed
+- **Last week** · 97 changes
+- **Last month** · 1115 changes, 183 tasks closed
 <!-- timeline:end -->
 
 ## Where things live (one fact, one home)
