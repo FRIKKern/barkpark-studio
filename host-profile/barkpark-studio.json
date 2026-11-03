@@ -1,0 +1,175 @@
+{
+  "host": "barkpark-studio",
+  "root": "..",
+  "minContract": "1.22.0",
+  "fleet": true,
+  "sources": [
+    "app/src/components/PortableDocEditor.tsx",
+    "app/src/components/CanvasChrome.tsx",
+    "app/src/components/Fields.tsx",
+    "app/src/lib/canvas-bundle.ts",
+    "app/src/lib/fleet.ts",
+    "app/src/styles.css"
+  ],
+  "uses": {
+    "canvas": {
+      "DOM attribute": [
+        "data-bp-fleet-body",
+        "data-bp-fleet-id",
+        "data-bp-id",
+        "data-wikilink"
+      ],
+      "ancestor attribute": [
+        "data-paper-masters",
+        "data-strings",
+        "data-theme"
+      ],
+      "attribute": [
+        "block-cards",
+        "data-field-caps",
+        "data-vocabulary",
+        "editable"
+      ],
+      "class": [
+        "bp-comment-range",
+        "bp-comment-range--active",
+        "bp-remote-caret__label"
+      ],
+      "event": [
+        "bp-canvas-history",
+        "bp-canvas-node-failed",
+        "bp-canvas-open-link",
+        "bp-canvas-ops",
+        "bp-canvas-selection",
+        "bp-master-insert",
+        "bp-ready",
+        "bp-save-master"
+      ],
+      "host class": [
+        "bp-paper-editor"
+      ],
+      "inbound event": [
+        "bp-fleet-paint",
+        "bp-fleet-paint"
+      ],
+      "member": [
+        "acknowledgeOps",
+        "acknowledgedSaves",
+        "applyServerBlocks",
+        "applyServerBlocksIfIdle",
+        "blocks",
+        "discardInflightOps",
+        "editBlockObject",
+        "findClear",
+        "focusSelection",
+        "hasPendingChanges",
+        "identifyOpsRequest",
+        "linkPreviewSource",
+        "mediaPicker",
+        "mediaUploader",
+        "recoverySnapshot",
+        "redo",
+        "resendPendingOps",
+        "resolveConflictWithServerBlocks",
+        "run",
+        "selectBlock",
+        "setRemoteSelections",
+        "state",
+        "undo",
+        "wikilinkSource"
+      ],
+      "tag": [
+        "bp-paper-canvas"
+      ]
+    },
+    "editor": {
+      "attribute": [
+        "editable"
+      ],
+      "event": [
+        "bp-ready"
+      ],
+      "member": [
+        "block",
+        "focusSelection",
+        "hasPendingChanges",
+        "wikilinkSource"
+      ],
+      "tag": [
+        "bp-paper-editor"
+      ]
+    },
+    "window": {
+      "global": [
+        "BP_PAPER_EDITOR_NO_INJECT"
+      ]
+    },
+    "both": {
+      "static": [
+        "CONTRACT_VERSION"
+      ]
+    },
+    "css": {
+      "token": [
+        "--bp-evidence-pull",
+        "--bp-evidence-width",
+        "--bp-section-beat",
+        "--bp-section-gap",
+        "--bp-section-rule",
+        "--bp-table-centre",
+        "--paper-accent",
+        "--paper-bg",
+        "--paper-ink",
+        "--paper-ink-faint"
+      ]
+    }
+  },
+  "internals": [
+    {
+      "names": [
+        "ProseMirror",
+        "ProseMirror-selectednode",
+        "bp-block-handle",
+        "bp-block-handle__add",
+        "bp-block-handle__grip",
+        "bp-block-menu",
+        "bp-block-menu__item",
+        "bp-block-menu__item--danger",
+        "bp-canvas-field",
+        "bp-canvas-field--bound",
+        "bp-canvas-field-badge",
+        "bp-canvas-field-binding",
+        "bp-canvas-field-control",
+        "bp-canvas-field-label",
+        "bp-canvas-field-unbind",
+        "bp-canvas-image",
+        "bp-canvas-image-head",
+        "bp-canvas-image-menu",
+        "bp-canvas-image-more",
+        "bp-canvas-image-name",
+        "bp-canvas-object-media",
+        "bp-canvas-object-menu",
+        "bp-canvas-object-more",
+        "bp-canvas-object-preview",
+        "bp-canvas-object-row",
+        "bp-canvas-object-title",
+        "bp-inline-object-dialog",
+        "bp-inline-object-dialog__actions",
+        "bp-inline-object-dialog__cancel",
+        "bp-inline-object-dialog__msg",
+        "bp-inline-object-dialog__row",
+        "bp-inline-object-dialog__save",
+        "bp-inline-object-dialog__title",
+        "bp-link-pill",
+        "bp-link-preview__edit",
+        "bp-link-preview__open",
+        "bp-link-preview__remove",
+        "bp-paper-editor-body",
+        "bp-paper-format",
+        "bp-slash-item",
+        "bp-slash-menu"
+      ],
+      "why": "Studio's field controls and stylesheet intentionally bind to canvas node views until equivalent public host seams exist."
+    }
+  ]
+}
