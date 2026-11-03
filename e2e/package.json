@@ -8,7 +8,8 @@
     "evidence": "node run.mjs evidence",
     "reference": "node run.mjs reference",
     "recording": "node run.mjs recording",
-    "reset": "node run.mjs reset"
+    "reset": "node run.mjs reset",
+    "editor-restore": "node canvas-candidate-restore.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
