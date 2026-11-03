@@ -51,7 +51,7 @@ jobs:
         with: { version: 9.12.0 }
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 22.22.0
           cache: pnpm
           cache-dependency-path: |
             app/pnpm-lock.yaml
@@ -60,6 +60,7 @@ jobs:
       - name: Lease a CI dataset
         run: node scripts/ci-lease.mjs acquire ${{ matrix.dataset }}
       - run: pnpm --dir app install --frozen-lockfile && pnpm --dir e2e install --frozen-lockfile
+      - uses: ./.github/actions/react-alpha
       # The studio reads the schemas from Barkpark, as in production (a member token may,
       # barkpark #22080). A PR that changes the fixture schemas tests them from the
       # checkout instead: the pool's datasets only get them when someone reseeds (--schemas, each of ci-lease.mjs POOL).

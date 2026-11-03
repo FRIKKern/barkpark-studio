@@ -1,0 +1,30 @@
+name: Install PortableDoc React rehearsal artifact
+description: Rebuild the public alpha candidate and verify the release digest before installing it for CI
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        BARKPARK_TOKEN: ''
+      run: |
+        set -euo pipefail
+        source_sha=976855af9085c6c3840359f79016822adf5c300d
+        expected_sha=5aa1eed120d95ecc5f09fed68c366a85ca61f3c6f66df10d835b1575c4f855a4
+        scratch=$(mktemp -d "${RUNNER_TEMP}/portable-doc-alpha.XXXXXX")
+        trap 'rm -rf -- "$scratch"' EXIT
+        git init -q "$scratch/source"
+        git -C "$scratch/source" fetch -q --depth=1 https://github.com/FRIKKern/portable-doc.git "$source_sha"
+        git -C "$scratch/source" checkout -q --detach FETCH_HEAD
+        test "$(git -C "$scratch/source" rev-parse HEAD)" = "$source_sha"
+        npm install --global npm@11.18.0
+        (
+          cd "$scratch/source"
+          npm ci
+          npm run react:pack -- "$scratch/pack"
+        )
+        tarball="$scratch/pack/portable-doc-react-0.1.0-alpha.1.tgz"
+        printf '%s  %s\n' "$expected_sha" "$tarball" | sha256sum --check
+        package_dir=app/node_modules/@portable-doc/react
+        test ! -e "$package_dir"
+        mkdir -p "$package_dir"
+        tar -xzf "$tarball" --strip-components=1 -C "$package_dir"
