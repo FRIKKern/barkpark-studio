@@ -24,3 +24,5 @@ jobs:
         run: pnpm --dir app exec tsc --noEmit
       - name: Unit tests
         run: pnpm --dir app test
+      - name: PortableDoc conformance
+        run: pnpm --dir app conformance
