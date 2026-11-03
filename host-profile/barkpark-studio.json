@@ -9,6 +9,7 @@
     "app/src/components/Fields.tsx",
     "app/src/lib/canvas-bundle.ts",
     "app/src/lib/canvas-focus.ts",
+    "app/src/lib/focus.ts",
     "app/src/lib/fleet.ts",
     "app/src/styles.css"
   ],
@@ -61,6 +62,7 @@
         "discardInflightOps",
         "editBlockObject",
         "findClear",
+        "focusFirstBodyBlock",
         "focusSelection",
         "hasPendingChanges",
         "identifyOpsRequest",
@@ -127,7 +129,6 @@
   "internals": [
     {
       "names": [
-        "ProseMirror",
         "ProseMirror-selectednode",
         "bp-block-handle",
         "bp-block-handle__add",
@@ -139,7 +140,6 @@
         "bp-canvas-field--bound",
         "bp-canvas-field-badge",
         "bp-canvas-field-binding",
-        "bp-canvas-field-control",
         "bp-canvas-field-label",
         "bp-canvas-field-unbind",
         "bp-canvas-image",
@@ -170,6 +170,13 @@
         "bp-slash-menu"
       ],
       "why": "Studio's field controls and stylesheet intentionally bind to canvas node views until equivalent public host seams exist."
+    },
+    {
+      "names": [
+        "ProseMirror",
+        "bp-canvas-field-control"
+      ],
+      "why": "focusFirstField distinguishes the first canvas field's native control from a prose block so a newly opened document focuses the actual field; focusFirstBodyBlock only places the editor selection and is not equivalent for field node views."
     }
   ]
 }
