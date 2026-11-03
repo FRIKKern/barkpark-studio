@@ -35,7 +35,7 @@ jobs:
           - { shard: 5, dataset: ci-5 }
           - { shard: 6, dataset: ci-6 }
           - { shard: 7, dataset: ci-7 }
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35 # up to 25 waiting for a dataset, then the run itself (about 5)
     env:
       CI: 'true'
@@ -56,11 +56,11 @@ jobs:
           cache-dependency-path: |
             app/pnpm-lock.yaml
             e2e/pnpm-lock.yaml
+      - run: pnpm --dir app install --frozen-lockfile && pnpm --dir e2e install --frozen-lockfile
+      - uses: ./.github/actions/react-alpha
       # BARKPARK_DATASET: a CI dataset of the pool (GitHub's own; local runs use e2e-*, people use production).
       - name: Lease a CI dataset
         run: node scripts/ci-lease.mjs acquire ${{ matrix.dataset }}
-      - run: pnpm --dir app install --frozen-lockfile && pnpm --dir e2e install --frozen-lockfile
-      - uses: ./.github/actions/react-alpha
       # The studio reads the schemas from Barkpark, as in production (a member token may,
       # barkpark #22080). A PR that changes the fixture schemas tests them from the
       # checkout instead: the pool's datasets only get them when someone reseeds (--schemas, each of ci-lease.mjs POOL).
