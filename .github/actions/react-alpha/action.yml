@@ -20,7 +20,8 @@ runs:
         (
           cd "$scratch/source"
           npm ci
-          npm run react:pack -- "$scratch/pack"
+          # The producer verifies its checkout against GITHUB_SHA.
+          GITHUB_SHA="$source_sha" GITHUB_REF='' npm run react:pack -- "$scratch/pack"
         )
         tarball="$scratch/pack/portable-doc-react-0.1.0-alpha.1.tgz"
         printf '%s  %s\n' "$expected_sha" "$tarball" | sha256sum --check
