@@ -9,11 +9,13 @@ const load = (name) => import(pathToFileURL(require.resolve(name)).href)
 const {Window} = await load('happy-dom')
 const {createServer} = await load('vite')
 let renderPortableDocView
+let renderPortableDocument
 let vite
 
 before(async () => {
   vite = await createServer({root: new URL('../app/', import.meta.url).pathname, server: {middlewareMode: true}, appType: 'custom', logLevel: 'error'})
   ;({renderPortableDocView} = await vite.ssrLoadModule('/src/components/PortableDocView.tsx'))
+  ;({renderPortableDocument} = await load('@portable-doc/react'))
 })
 
 after(async () => {
@@ -61,12 +63,18 @@ test('host attributes remain inert and prototype-named registries use own entrie
   assert.equal(document.querySelectorAll('[data-evil],[onmouseover],[onerror],[onfocus],[autofocus]').length, 0)
 })
 
-test('field and embed opt-ins render while canonical callouts and external links keep their DOM', () => {
+test('field and embed opt-ins render while callouts stay canonical and safe external links remain native', () => {
   const html = renderPortableDocView([
     {type: 'field-string', label: 'Title', value: 'Hello'},
     {type: 'embed', target: 'paper-1'},
     {type: 'callout', tone: 'info', content: [{type: 'text', value: 'Notice'}]},
-    {type: 'paragraph', content: [{type: 'link', href: 'https://example.com', children: [{type: 'text', value: 'Outside'}]}]},
+    {type: 'paragraph', content: [
+      {type: 'link', href: '/inside', children: [{type: 'text', value: 'Inside'}]},
+      {type: 'text', value: ' '},
+      {type: 'link', href: 'https://example.com', children: [{type: 'text', value: 'Outside'}]},
+      {type: 'text', value: ' '},
+      {type: 'link', href: 'javascript:alert(1)', children: [{type: 'text', value: 'Unsafe'}]},
+    ]},
   ], false, [], (value) => value)
   const document = new Window().document
   document.body.innerHTML = html
@@ -74,6 +82,31 @@ test('field and embed opt-ins render while canonical callouts and external links
   assert.equal(document.querySelector('.bp-field__v')?.textContent, 'Hello')
   assert.equal(document.querySelector('.paper-embed')?.getAttribute('data-embed'), 'paper-1')
   assert.equal(document.querySelector('.bp-callout')?.classList.contains('callout'), false)
-  assert.equal(document.querySelector('a')?.getAttribute('target'), null)
-  assert.equal(document.querySelector('a')?.getAttribute('rel'), null)
+  const [inside, outside, unsafe] = document.querySelectorAll('a')
+  assert.equal(inside.getAttribute('target'), null)
+  assert.equal(outside.getAttribute('target'), '_blank')
+  assert.equal(outside.getAttribute('rel'), 'noopener noreferrer')
+  assert.equal(unsafe.getAttribute('href'), '#')
+  assert.equal(unsafe.getAttribute('target'), null)
+})
+
+test('the image card embeds canonical image output while preserving inline and legacy sources', () => {
+  const ordinary = {id: 'ordinary', type: 'image', src: 'https://example.com/image.png', alt: 'Ordinary', width: 120, height: 80}
+  const inline = {id: 'inline', type: 'image', src: 'data:image/png;base64,AA==', alt: 'Inline', width: 2, height: 3}
+  const legacy = {id: 'legacy', type: 'image', url: 'https://example.com/legacy.png', alt: 'Legacy', width: 40}
+  const document = new Window().document
+  document.body.innerHTML = renderPortableDocView([ordinary, inline, legacy], false, [], (value) => value)
+  const images = [...document.querySelectorAll('.pd-image img')]
+  assert.equal(images.length, 3)
+  const canonical = new Window().document
+  canonical.body.innerHTML = renderPortableDocument([ordinary])
+  assert.equal(images[0].outerHTML, canonical.querySelector('img')?.outerHTML)
+  assert.equal(images[0].getAttribute('data-bp-lightboxable'), 'true')
+  assert.equal(images[0].getAttribute('style'), 'max-width:100%;height:auto')
+  assert.equal(images[0].getAttribute('width'), '120')
+  assert.equal(images[0].getAttribute('height'), '80')
+  assert.equal(images[1].getAttribute('src'), inline.src)
+  assert.equal(images[1].getAttribute('width'), '2')
+  assert.equal(images[2].getAttribute('src'), legacy.url)
+  assert.equal(document.querySelector('[data-bp-id="ordinary"]')?.classList.contains('pd-image'), true)
 })

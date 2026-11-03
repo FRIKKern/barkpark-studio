@@ -2,11 +2,15 @@
   "renderer": "barkpark-studio",
   "compare": "dom",
   "pack_stamp": "1ca9ca01d368484f4e7aa39003f9fb065595d29745f785d823154762b362be0b",
-  "ran_at_sha": "bd6c3f11a1f50455656d2a4bfe27907e810bf628",
+  "ran_at_sha": "db312a1576a9a1d199958df5186bea5cd754379d",
   "rows": [
     {
       "type": "action",
-      "status": "pass"
+      "status": "fail",
+      "diff": [
+        "root > a.bp-button.bp-button--primary[0]: attr rel=\"noopener noreferrer\" extra",
+        "root > a.bp-button.bp-button--primary[0]: attr target=\"_blank\" extra"
+      ]
     },
     {
       "type": "api-endpoint",
@@ -38,7 +42,11 @@
     },
     {
       "type": "card",
-      "status": "pass"
+      "status": "fail",
+      "diff": [
+        "root > div.bp-card.bp-card--info[0] > a.bp-button[2]: attr rel=\"noopener noreferrer\" extra",
+        "root > div.bp-card.bp-card--info[0] > a.bp-button[2]: attr target=\"_blank\" extra"
+      ]
     },
     {
       "type": "cards",
@@ -209,7 +217,11 @@
     },
     {
       "type": "lineage",
-      "status": "pass"
+      "status": "fail",
+      "diff": [
+        "root > div.bp-lineage[0] > p.bp-kilde[1] > span.bp-kilde__ref[2] > a[0]: attr rel=\"noopener noreferrer\" extra",
+        "root > div.bp-lineage[0] > p.bp-kilde[1] > span.bp-kilde__ref[2] > a[0]: attr target=\"_blank\" extra"
+      ]
     },
     {
       "type": "list",
@@ -233,7 +245,13 @@
     },
     {
       "type": "paragraph",
-      "status": "pass"
+      "status": "fail",
+      "diff": [
+        "root > p[0] > a[3]: attr rel=\"noopener noreferrer\" extra",
+        "root > p[0] > a[3]: attr target=\"_blank\" extra",
+        "root > p[0] > a[5]: attr rel=\"noopener noreferrer\" extra",
+        "root > p[0] > a[5]: attr target=\"_blank\" extra"
+      ]
     },
     {
       "type": "pipeline",

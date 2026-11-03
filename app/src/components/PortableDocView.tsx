@@ -66,6 +66,14 @@ function docId(node: Record<string, unknown>): string | undefined {
     : undefined
 }
 
+function externalLinks(html: string): string {
+  return html.replace(/<a href="(https?:\/\/[^"]*)"([^>]*)>/g, (whole, href: string, attrs: string) =>
+    /\starget=/.test(attrs)
+      ? whole
+      : `<a href="${href}"${attrs} target="_blank" rel="noopener noreferrer">`,
+  )
+}
+
 /** Pure inner HTML form, exported so the candidate adapter can be contract-tested. */
 export function renderPortableDocView(
   blocks: Block[],
@@ -75,13 +83,16 @@ export function renderPortableDocView(
 ): string {
   const extensionBlocks = Object.assign(Object.create(null), fieldBlocks, embedBlocks()) as NonNullable<PortableDocProps['blocks']>
   const blockOverrides = Object.create(null) as Record<string, CoreBlockRenderer>
-  blockOverrides.image = (raw) => {
+  blockOverrides.image = (raw, _ctx, renderDefault) => {
     const block = raw as Block
-    const src = typeof block.src === 'string' ? block.src : typeof block.url === 'string' ? block.url : ''
-    if (!src) return ''
+    const directSrc = typeof block.src === 'string' ? block.src : ''
+    const src = directSrc || (typeof block.url === 'string' ? block.url : '')
+    if (!src.trim()) return ''
     const alt = typeof block.alt === 'string' ? block.alt : ''
-    const imageAttrs = ` src="${escapeHtml(src)}" alt='${escapeHtml(alt)}'`
-    return `<figure class="pd-image"><div class="pd-image-head"><span class="pd-image-name">${escapeHtml(imageFileName(src, alt, t('Image')))}</span><span class="pd-image-more" aria-hidden="true">${ELLIPSIS}</span></div><img${imageAttrs}></figure>`
+    let image = directSrc ? renderDefault() : renderPortableDocument([{...block, src}])
+    if (src.toLowerCase().startsWith('data:image/'))
+      image = image.replace('src="#"', () => `src="${escapeHtml(src)}"`)
+    return `<figure class="pd-image"><div class="pd-image-head"><span class="pd-image-name">${escapeHtml(imageFileName(src, alt, t('Image')))}</span><span class="pd-image-more" aria-hidden="true">${ELLIPSIS}</span></div>${image}</figure>`
   }
   for (const kind of objects) {
     const renderObject = (raw: PortableBlock) =>
@@ -95,7 +106,7 @@ export function renderPortableDocView(
     inlineObjects[type] = (node) =>
       `<span class="inline-object" data-type="${escapeHtml(type)}">${escapeHtml(node.text)}</span>`
 
-  return renderPortableDocument(blocks, {
+  return externalLinks(renderPortableDocument(blocks, {
     blocks: extensionBlocks,
     blockOverrides,
     blockAttributes: (block) =>
@@ -110,7 +121,7 @@ export function renderPortableDocView(
         .replace(/^<span/, () => `<span${attrs}`)
         .replace('class="bp-wikilink ', 'class="wikilink bp-wikilink ')
     },
-  })
+  }))
 }
 
 /** `objects`: the body field's declared object kinds (`blocks.of`): those draw as the canvas's card. */

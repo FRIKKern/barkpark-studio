@@ -14,12 +14,7 @@ test('@local: the React body adapter keeps hostile attributes inert through relo
   const badSrc = 'https://example.invalid/pic.png" onerror="boom'
   const badAlt = 'alt" autofocus onfocus="boom'
   const safeSrc = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="2" height="2"%3E%3Crect width="2" height="2" fill="red"/%3E%3C/svg%3E'
-  await page.addInitScript(() => {
-    window.open = ((url?: string | URL) => {
-      ;(window as typeof window & {__opened?: string}).__opened = String(url)
-      return null
-    }) as typeof window.open
-  })
+  await page.context().route('https://example.invalid/outside', (route) => route.fulfill({body: 'ok'}))
   await bpMutate([
     {createOrReplace: {_id: ID, _type: 'post', title: 'React body adapter rehearsal', body: {blocks: [
       {id: badId, type: 'paragraph', content: [
@@ -49,9 +44,13 @@ test('@local: the React body adapter keeps hostile attributes inert through relo
   ])
   await expect(body.locator('.wikilink')).toHaveAttribute('data-doc-id', badDoc)
   const external = body.getByRole('link', {name: 'Outside'})
-  await expect(external).not.toHaveAttribute('target')
+  await expect(external).toHaveAttribute('target', '_blank')
+  await expect(external).toHaveAttribute('rel', 'noopener noreferrer')
+  const popupReady = page.waitForEvent('popup')
   await external.click()
-  await expect.poll(() => page.evaluate(() => (window as typeof window & {__opened?: string}).__opened)).toBe('https://example.invalid/outside')
+  const popup = await popupReady
+  await expect.poll(() => popup.url()).toBe('https://example.invalid/outside')
+  await popup.close()
   const images = body.locator('.pd-image img')
   await expect(images).toHaveCount(2)
   await expect(images.nth(1)).toHaveAttribute('src', badSrc)
