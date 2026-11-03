@@ -1,8 +1,8 @@
 {
   "renderer": "barkpark-studio-host",
   "compare": "host-contract-then-dom",
-  "pack_stamp": "1ca9ca01d368484f4e7aa39003f9fb065595d29745f785d823154762b362be0b",
-  "ran_at_sha": "73613ceb316ae4057bff5da3f0a2267411178581",
+  "pack_stamp": "5b3a5a973934a87e3431756d164c2197d1078ec9dd3420bad1c889df673eb9b5",
+  "ran_at_sha": "750d241f734391e3917242a6e7a3c708e90b016e",
   "rows": [
     {
       "type": "action",

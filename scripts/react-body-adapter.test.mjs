@@ -73,6 +73,8 @@ test('field and embed opt-ins render while callouts stay canonical and safe exte
       {type: 'text', value: ' '},
       {type: 'link', href: 'https://example.com', children: [{type: 'text', value: 'Outside'}]},
       {type: 'text', value: ' '},
+      {type: 'link', href: 'HTTPS://EXAMPLE.COM/UPPER', children: [{type: 'text', value: 'Upper'}]},
+      {type: 'text', value: ' '},
       {type: 'link', href: 'javascript:alert(1)', children: [{type: 'text', value: 'Unsafe'}]},
     ]},
   ], false, [], (value) => value)
@@ -82,10 +84,12 @@ test('field and embed opt-ins render while callouts stay canonical and safe exte
   assert.equal(document.querySelector('.bp-field__v')?.textContent, 'Hello')
   assert.equal(document.querySelector('.paper-embed')?.getAttribute('data-embed'), 'paper-1')
   assert.equal(document.querySelector('.bp-callout')?.classList.contains('callout'), false)
-  const [inside, outside, unsafe] = document.querySelectorAll('a')
+  const [inside, outside, upper, unsafe] = document.querySelectorAll('a')
   assert.equal(inside.getAttribute('target'), null)
   assert.equal(outside.getAttribute('target'), '_blank')
   assert.equal(outside.getAttribute('rel'), 'noopener noreferrer')
+  assert.equal(upper.getAttribute('target'), '_blank')
+  assert.equal(upper.getAttribute('rel'), 'noopener noreferrer')
   assert.equal(unsafe.getAttribute('href'), '#')
   assert.equal(unsafe.getAttribute('target'), null)
 })

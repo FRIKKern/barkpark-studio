@@ -67,7 +67,7 @@ function docId(node: Record<string, unknown>): string | undefined {
 }
 
 function externalLinks(html: string): string {
-  return html.replace(/<a href="(https?:\/\/[^"]*)"([^>]*)>/g, (whole, href: string, attrs: string) =>
+  return html.replace(/<a href="(https?:\/\/[^"]*)"([^>]*)>/gi, (whole, href: string, attrs: string) =>
     /\starget=/.test(attrs)
       ? whole
       : `<a href="${href}"${attrs} target="_blank" rel="noopener noreferrer">`,

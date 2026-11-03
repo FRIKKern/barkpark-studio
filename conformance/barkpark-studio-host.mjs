@@ -17,6 +17,14 @@ const ELLIPSIS =
 let PortableDocView
 let imageFileName
 
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
 function rendered(html) {
   const document = new Window().document
   document.body.innerHTML = html
@@ -49,14 +57,14 @@ function validateImageCard(golden, output, errors) {
     errors.push('host image card: expected exactly .pd-image-head followed by the canonical img')
     return
   }
-  const [name, more] = [...head.children]
   const src = typeof golden.input.src === 'string' ? golden.input.src : typeof golden.input.url === 'string' ? golden.input.url : ''
   const alt = typeof golden.input.alt === 'string' ? golden.input.alt : ''
   const expectedName = imageFileName(src, alt, 'Image')
-  if (head.children.length !== 2 || name?.localName !== 'span' || name.className !== 'pd-image-name' || name.textContent !== expectedName)
-    errors.push(`host image card: exact name ${JSON.stringify(expectedName)} is absent`)
-  if (more?.localName !== 'span' || more.className !== 'pd-image-more' || more.getAttribute('aria-hidden') !== 'true' || more.innerHTML !== ELLIPSIS)
-    errors.push('host image card: exact inert ellipsis action is absent')
+  const shell = root.cloneNode(true)
+  shell.children[1].replaceWith(shell.ownerDocument.createTextNode('__CANONICAL_IMAGE__'))
+  const expectedShell = `<figure class="pd-image"><div class="pd-image-head"><span class="pd-image-name">${escapeHtml(expectedName)}</span><span class="pd-image-more" aria-hidden="true">${ELLIPSIS}</span></div>__CANONICAL_IMAGE__</figure>`
+  if (shell.outerHTML !== expectedShell)
+    errors.push('host image card: wrapper attributes, text, and markup are not exact')
   root.replaceWith(image)
 }
 
@@ -72,7 +80,7 @@ function validateNativeLinks(expected, output, errors) {
     const actual = actualLinks[index]
     const target = golden.getAttribute('target')
     const rel = golden.getAttribute('rel')
-    const external = /^https?:\/\//.test(golden.getAttribute('href') ?? '')
+    const external = /^https?:\/\//i.test(golden.getAttribute('href') ?? '')
     const expectedTarget = target ?? (external ? '_blank' : null)
     const expectedRel = rel ?? (external ? 'noopener noreferrer' : null)
     exactAttribute(errors, actual, 'target', expectedTarget, `host link ${index}`)
