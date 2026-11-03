@@ -685,7 +685,7 @@ textarea.input { resize: vertical; }
 /* An image's own fields (alt text…) under its box: the same 7 px band above each, as Sanity's. */
 .image-input > .field { --band: 7px; padding-top: var(--band); }
 .rich p, .rich h2 { margin: 0 0 8px; }
-.callout { padding: 8px 12px; border-radius: 3px; background: var(--info-bg); font-size: 14px; }
+.callout, .body-canvas .bp-callout { padding: 8px 12px; border-radius: 3px; background: var(--info-bg); font-size: 14px; }
 .image-empty { height: 43px; display: flex; align-items: center; padding: 0 16px; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; color: var(--muted); }
 
 /* Edit state */

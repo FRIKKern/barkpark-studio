@@ -1097,7 +1097,12 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
         aria-readonly={readOnly || undefined}
         tabIndex={0}
         onClick={(e) => {
-          if ((e.target as HTMLElement).closest('a')) return
+          const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href]')
+          if (anchor) {
+            e.preventDefault()
+            window.open(anchor.href, '_blank', 'noopener,noreferrer')
+            return
+          }
           const link = linksOpen ? (e.target as HTMLElement).closest<HTMLElement>('[data-wikilink][data-doc-id]') : null
           if (link) return follow(link.dataset.docId!)
           const spot = clickedAt(e.clientX, e.clientY)

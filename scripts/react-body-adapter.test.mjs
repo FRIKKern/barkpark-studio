@@ -60,3 +60,20 @@ test('host attributes remain inert and prototype-named registries use own entrie
   assert.equal(document.querySelector('.pd-image img')?.getAttribute('alt'), badAlt)
   assert.equal(document.querySelectorAll('[data-evil],[onmouseover],[onerror],[onfocus],[autofocus]').length, 0)
 })
+
+test('field and embed opt-ins render while canonical callouts and external links keep their DOM', () => {
+  const html = renderPortableDocView([
+    {type: 'field-string', label: 'Title', value: 'Hello'},
+    {type: 'embed', target: 'paper-1'},
+    {type: 'callout', tone: 'info', content: [{type: 'text', value: 'Notice'}]},
+    {type: 'paragraph', content: [{type: 'link', href: 'https://example.com', children: [{type: 'text', value: 'Outside'}]}]},
+  ], false, [], (value) => value)
+  const document = new Window().document
+  document.body.innerHTML = html
+  assert.equal(document.querySelectorAll('.bp-unknown-block').length, 0)
+  assert.equal(document.querySelector('.bp-field__v')?.textContent, 'Hello')
+  assert.equal(document.querySelector('.paper-embed')?.getAttribute('data-embed'), 'paper-1')
+  assert.equal(document.querySelector('.bp-callout')?.classList.contains('callout'), false)
+  assert.equal(document.querySelector('a')?.getAttribute('target'), null)
+  assert.equal(document.querySelector('a')?.getAttribute('rel'), null)
+})

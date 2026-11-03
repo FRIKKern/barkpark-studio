@@ -3,7 +3,10 @@ import {
   type Block as PortableBlock,
   type CoreBlockRenderer,
   type InlineObjectRenderer,
+  type PortableDocProps,
 } from '@portable-doc/react'
+import {embedBlocks} from '@portable-doc/react/embed'
+import {fieldBlocks} from '@portable-doc/react/field-blocks'
 import {useT} from '../lib/i18n'
 import {imageFileName} from '../lib/image'
 import {objectBlockTitle, type ObjectKind} from '../lib/object-block'
@@ -63,12 +66,6 @@ function docId(node: Record<string, unknown>): string | undefined {
     : undefined
 }
 
-function externalLinks(html: string): string {
-  return html.replace(/<a href="([^"]*)">/g, (_whole, href: string) =>
-    `<a href="${href}" target="_blank" rel="noopener noreferrer">`,
-  )
-}
-
 /** Pure inner HTML form, exported so the candidate adapter can be contract-tested. */
 export function renderPortableDocView(
   blocks: Block[],
@@ -76,7 +73,7 @@ export function renderPortableDocView(
   objects: ObjectKind[],
   t: (key: string) => string,
 ): string {
-  const extensionBlocks = Object.create(null) as Record<string, (block: never) => string>
+  const extensionBlocks = Object.assign(Object.create(null), fieldBlocks, embedBlocks()) as NonNullable<PortableDocProps['blocks']>
   const blockOverrides = Object.create(null) as Record<string, CoreBlockRenderer>
   blockOverrides.image = (raw) => {
     const block = raw as Block
@@ -86,8 +83,6 @@ export function renderPortableDocView(
     const imageAttrs = ` src="${escapeHtml(src)}" alt='${escapeHtml(alt)}'`
     return `<figure class="pd-image"><div class="pd-image-head"><span class="pd-image-name">${escapeHtml(imageFileName(src, alt, t('Image')))}</span><span class="pd-image-more" aria-hidden="true">${ELLIPSIS}</span></div><img${imageAttrs}></figure>`
   }
-  blockOverrides.callout = (_block, _ctx, renderDefault) =>
-    renderDefault().replace(/^<div class="bp-callout[^\"]*"/, '<div class="callout"')
   for (const kind of objects) {
     const renderObject = (raw: PortableBlock) =>
       `<div class="pd-object" data-object-type="${escapeHtml(raw.type)}"><span class="pd-object-media" aria-hidden="true">${DOCUMENT_ICON}</span><span class="pd-object-title">${escapeHtml(objectBlockTitle(kind, raw, (value) => t(value ? 'Yes' : 'No')))}</span><span class="pd-image-more" aria-hidden="true">${ELLIPSIS}</span></div>`
@@ -100,24 +95,22 @@ export function renderPortableDocView(
     inlineObjects[type] = (node) =>
       `<span class="inline-object" data-type="${escapeHtml(type)}">${escapeHtml(node.text)}</span>`
 
-  return externalLinks(
-    renderPortableDocument(blocks, {
-      blocks: extensionBlocks,
-      blockOverrides,
-      blockAttributes: (block) =>
-        typeof block.id === 'string' ? {'data-bp-id': block.id} : undefined,
-      inlineObjects,
-      wikilink: (node, defaultHtml) => {
-        const id = docId(node)
-        const attrs = id
-          ? ` data-doc-id="${escapeHtml(id)}"${linksOpen ? ' role="link" tabindex="0"' : ''}`
-          : ''
-        return defaultHtml
-          .replace(/^<span/, () => `<span${attrs}`)
-          .replace('class="bp-wikilink ', 'class="wikilink bp-wikilink ')
-      },
-    }),
-  )
+  return renderPortableDocument(blocks, {
+    blocks: extensionBlocks,
+    blockOverrides,
+    blockAttributes: (block) =>
+      typeof block.id === 'string' ? {'data-bp-id': block.id} : undefined,
+    inlineObjects,
+    wikilink: (node, defaultHtml) => {
+      const id = docId(node)
+      const attrs = id
+        ? ` data-doc-id="${escapeHtml(id)}"${linksOpen ? ' role="link" tabindex="0"' : ''}`
+        : ''
+      return defaultHtml
+        .replace(/^<span/, () => `<span${attrs}`)
+        .replace('class="bp-wikilink ', 'class="wikilink bp-wikilink ')
+    },
+  })
 }
 
 /** `objects`: the body field's declared object kinds (`blocks.of`): those draw as the canvas's card. */

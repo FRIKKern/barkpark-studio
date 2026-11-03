@@ -14,6 +14,12 @@ test('@local: the React body adapter keeps hostile attributes inert through relo
   const badSrc = 'https://example.invalid/pic.png" onerror="boom'
   const badAlt = 'alt" autofocus onfocus="boom'
   const safeSrc = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="2" height="2"%3E%3Crect width="2" height="2" fill="red"/%3E%3C/svg%3E'
+  await page.addInitScript(() => {
+    window.open = ((url?: string | URL) => {
+      ;(window as typeof window & {__opened?: string}).__opened = String(url)
+      return null
+    }) as typeof window.open
+  })
   await bpMutate([
     {createOrReplace: {_id: ID, _type: 'post', title: 'React body adapter rehearsal', body: {blocks: [
       {id: badId, type: 'paragraph', content: [
@@ -23,6 +29,8 @@ test('@local: the React body adapter keeps hostile attributes inert through relo
         {type: 'constructor', text: 'Ctor'},
         {type: 'toString', text: 'String'},
         {type: '__proto__', text: 'Proto'},
+        {type: 'text', value: ' '},
+        {type: 'link', href: 'https://example.invalid/outside', children: [{type: 'text', value: 'Outside'}]},
       ]},
       {id: 'safe-image', type: 'image', src: safeSrc, alt: 'Safe image'},
       {id: 'bad-image', type: 'image', src: badSrc, alt: badAlt},
@@ -40,6 +48,10 @@ test('@local: the React body adapter keeps hostile attributes inert through relo
     'constructor', 'toString', '__proto__',
   ])
   await expect(body.locator('.wikilink')).toHaveAttribute('data-doc-id', badDoc)
+  const external = body.getByRole('link', {name: 'Outside'})
+  await expect(external).not.toHaveAttribute('target')
+  await external.click()
+  await expect.poll(() => page.evaluate(() => (window as typeof window & {__opened?: string}).__opened)).toBe('https://example.invalid/outside')
   const images = body.locator('.pd-image img')
   await expect(images).toHaveCount(2)
   await expect(images.nth(1)).toHaveAttribute('src', badSrc)
