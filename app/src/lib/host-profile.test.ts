@@ -16,7 +16,6 @@ test('barkpark-studio host profile matches the pinned editor surface', () => {
   const result = run(profilePath)
   assert.equal(result.status, 0, result.stdout + result.stderr)
 })
-
 test('canvas focus uses the public seam and preserves the connected 1.21 fallback', () => {
   const calls: string[] = []
   focusCanvas({focusSelection: () => (calls.push('public'), true), querySelector: () => ({focus: () => calls.push('legacy')})})
