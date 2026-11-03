@@ -1,13 +1,14 @@
 {
   "host": "barkpark-studio",
   "root": "..",
-  "minContract": "1.22.0",
+  "minContract": "1.21.0",
   "fleet": true,
   "sources": [
     "app/src/components/PortableDocEditor.tsx",
     "app/src/components/CanvasChrome.tsx",
     "app/src/components/Fields.tsx",
     "app/src/lib/canvas-bundle.ts",
+    "app/src/lib/canvas-focus.ts",
     "app/src/lib/fleet.ts",
     "app/src/styles.css"
   ],
@@ -49,7 +50,6 @@
         "bp-paper-editor"
       ],
       "inbound event": [
-        "bp-fleet-paint",
         "bp-fleet-paint"
       ],
       "member": [
