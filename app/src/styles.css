@@ -2088,6 +2088,7 @@ html[data-theme='dark'] body > .bp-link-pill .bp-link-preview__remove { color: #
 .body-canvas .bp-paper-editor-body { background: transparent; color: var(--fg); font-family: inherit; font-size: 15px; line-height: 23px; padding: 12px 13px 20px; min-height: 120px; } /* 12 px inside the 1 px ring, as Sanity's */
 /* The canvas's paper type (0.005em tracking, old-style figures) rewraps lines on click; Sanity's input has neither. */
 .body-canvas .bp-paper-editor-body, .body-canvas .bp-paper-editor-body * { letter-spacing: normal; font-feature-settings: normal; text-rendering: optimizeLegibility; font-variant-ligatures: none; }
+.portable-doc-view { display: contents; }
 /* The read-only body wraps as ProseMirror does (a trailing space keeps its width), so a line never reflows on click. */
 .body-static .bp-paper-editor-body :is(p, li, h1, h2, h3, h4, h5, h6, blockquote) { white-space: break-spaces; overflow-wrap: break-word; }
 .body-bar { display: flex; align-items: center; justify-content: flex-end; flex: none; height: 33px; padding: 0 5px; box-shadow: inset 0 -1px 0 var(--line); } /* 4 px inside the field's 1 px ring */
@@ -2161,8 +2162,8 @@ html[data-bp-object-menu] > body > .bp-block-menu { transform: translateX(calc(-
 .body-canvas .bp-paper-editor-body p { margin: 0 0 8px; }
 /* The same heading gap in both states (the pane canvas gives an h2 32 px), none above the first block. */
 .body-canvas .bp-paper-editor-body > .ProseMirror > :is(h1, h2, h3, h4, h5, h6) { margin-top: 20.5px; }
-.body-canvas .bp-paper-editor-body > :first-child, .body-canvas .bp-paper-editor-body > .ProseMirror > :first-child { margin-top: 0; }
-.body-canvas .bp-paper-editor-body > :is(h1, h2, h3, h4, h5, h6):first-child, .body-canvas .bp-paper-editor-body > .ProseMirror > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 10.5px; }
+.body-canvas .bp-paper-editor-body > :first-child, .body-canvas .bp-paper-editor-body > .portable-doc-view > :first-child, .body-canvas .bp-paper-editor-body > .ProseMirror > :first-child { margin-top: 0; }
+.body-canvas .bp-paper-editor-body > :is(h1, h2, h3, h4, h5, h6):first-child, .body-canvas .bp-paper-editor-body > .portable-doc-view > :is(h1, h2, h3, h4, h5, h6):first-child, .body-canvas .bp-paper-editor-body > .ProseMirror > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 10.5px; }
 .body-canvas .pd-conflict { margin: 8px; }
 
 /* Sanity's style menu: under the button, each style drawn as it looks (measured at 1440). */
