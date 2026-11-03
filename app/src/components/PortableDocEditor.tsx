@@ -26,6 +26,7 @@ import {useRouter} from '@tanstack/react-router'
 import {FindBar, findKey, type FindCanvas} from './FindBar'
 import {InlineComments} from './InlineComments'
 import {CanvasChrome} from './CanvasChrome'
+import {focusCanvas} from '../lib/canvas-focus'
 
 
 // Freeform (decision 0004): Barkpark's own <bp-paper-canvas>, hosted by its
@@ -58,6 +59,7 @@ type Canvas = HTMLElement & {
   editBlockObject?: ((request: BlockObjectRequest) => Promise<Record<string, unknown> | null>) | null
   hasPendingChanges(): boolean
   focusBlock(id: string): boolean
+  focusSelection?: () => boolean
   /** D11: the other editors' carets (decorations only). */
   setRemoteSelections(list: ({id: string; name: string; color: string} & CaretSelection)[]): void
   /** What the author has now, saved or not (D21). */
@@ -426,7 +428,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
             const {kind, count} = (e as CustomEvent<{kind: 'step' | 'undo' | 'redo' | 'clear'; count: number}>).detail
             bodyHistory(id, type, field, kind, count)
           })
-          unregisterBody = registerBody(id, field, {undo: () => el.undo!(), redo: () => el.redo!(), focus: () => el.querySelector<HTMLElement>('.ProseMirror')?.focus()})
+          unregisterBody = registerBody(id, field, {undo: () => el.undo!(), redo: () => el.redo!(), focus: () => focusCanvas(el)})
         }
         // A block the canvas could not draw says so (never a silent gap: F8).
         el.addEventListener('bp-canvas-node-failed', (e) => {
@@ -703,7 +705,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   const closeFind = () => {
     findCanvas()?.findClear()
     setFinding(null)
-    host.current?.querySelector<HTMLElement>('.ProseMirror')?.focus()
+    focusCanvas(canvas.current)
   }
   const onKeyDownCapture = (e: KeyboardEvent<HTMLDivElement>) => {
     const want = findKey(e)
