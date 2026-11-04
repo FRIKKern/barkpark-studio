@@ -18,8 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change
-  - Declare Studio first-field focus reach-in ([#1237](https://github.com/FRIKKern/barkpark-studio/pull/1237))
+- **Today** · 2 changes
+  - test: verify Studio composite save through editor rollback ([#1238](https://github.com/FRIKKern/barkpark-studio/pull/1238))
 - **Yesterday** · 3 changes
   - test: rehearse Studio editor rollback ([#1235](https://github.com/FRIKKern/barkpark-studio/pull/1235))
 - **Last week** · 97 changes
