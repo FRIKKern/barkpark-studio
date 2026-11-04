@@ -31,6 +31,7 @@ import {seal, unseal} from './session-cookie'
 import {tokenSelf, type TokenBody, type TokenSelf} from '../lib/token-self'
 import {CLOUD_COOKIE, CLOUD_PATH, CLOUD_TTL_SECONDS, cloudConfig, cloudExchange, cloudStart, publicOrigin, ssoConfig, stateMatches, type CloudError, type CloudPending} from '../lib/cloud-signin'
 import {returnPath} from '../lib/return-path'
+import {onRequest, sessionWindow, type SessionClock} from '../lib/session-age'
 export type {TokenSelf} from '../lib/token-self'
 
 export type SignInMode = 'account' | 'dev' | 'sso' | 'shared'
@@ -60,11 +61,12 @@ const COOKIE = 'bp_sid'
 // task-1883ba9b1ace5dcf: the session is the cookie, sealed (server/session-cookie.ts), not
 // an entry in this process's memory: a restart or a deploy signed every editor out. It
 // ends after IDLE_SECONDS without a request; an editor at work past half of that gets a
-// fresh one, so nobody active is signed out by the clock (it was a fixed 12 h).
-const IDLE_SECONDS = 60 * 60 * 12
+// fresh one (it was a fixed 12 h). Work never takes it past the absolute end `abs`
+// (task-4c981126f9255b29): when the instance ends the login session, as Barkpark answers
+// it (lib/session-age.ts). Then the next request signs the editor out, however busy.
 // `session`: an account sign-in's Barkpark login session, kept only to sign it out.
 type Editor = {email: string; token: string; session?: string}
-type Sealed = Editor & {exp: number}
+type Sealed = Editor & SessionClock
 
 // STUDIO_SESSION_SECRET (32+ random characters, e.g. `openssl rand -base64 32`) seals the
 // cookie. Without it each process makes its own, and a restart signs everyone out as before.
@@ -82,11 +84,11 @@ function sessionSecret() {
 const readSession = (): Sealed | undefined => {
   const raw = getCookie(COOKIE)
   const s = raw ? unseal<Sealed>(raw, sessionSecret()) : undefined
-  return s && typeof s.email === 'string' && typeof s.token === 'string' && typeof s.exp === 'number' && s.exp * 1000 > Date.now() ? s : undefined
+  return s && typeof s.email === 'string' && typeof s.token === 'string' && typeof s.exp === 'number' && (s.abs === undefined || typeof s.abs === 'number') ? s : undefined
 }
 
-const writeSession = ({email, token, session}: Editor) =>
-  setCookie(COOKIE, seal({email, token, ...(session && {session}), exp: Math.floor(Date.now() / 1000) + IDLE_SECONDS}, sessionSecret()), {httpOnly: true, sameSite: 'lax', secure: import.meta.env.PROD, path: '/', maxAge: IDLE_SECONDS})
+const writeSession = ({email, token, session}: Editor, {exp, abs}: SessionClock) =>
+  setCookie(COOKIE, seal({email, token, ...(session && {session}), exp, ...(abs !== undefined && {abs})}, sessionSecret()), {httpOnly: true, sameSite: 'lax', secure: import.meta.env.PROD, path: '/', maxAge: Math.max(0, Math.floor(exp - Date.now() / 1000))})
 
 /**
  * The editor as browser storage keys name them (kept edits and words): an opaque digest of
@@ -106,18 +108,25 @@ export function currentEditor(): Editor | undefined {
   if (!signInRequired()) return undefined
   const s = readSession()
   if (!s) return undefined
+  // The end Barkpark answered last for this token wins over the cookie's: a changed policy.
+  const r = onRequest(s, Date.now() / 1000, knownEnd(s.token))
+  if (!r.open) return undefined
   const editor: Editor = {email: s.email, token: s.token, ...(s.session && {session: s.session})}
-  // Sliding: in use past half its time, sealed again for a full window. A response that
-  // has started (a live stream) can't take a header; the next request renews it.
-  if (s.exp * 1000 - Date.now() < (IDLE_SECONDS * 1000) / 2) {
+  // Sliding: in use past half its time, sealed again for a full window up to the end. A
+  // response that has started (a live stream) can't take a header; the next request renews it.
+  if (r.renew) {
     try {
-      writeSession(editor)
+      writeSession(editor, r.renew)
     } catch {}
   }
   return editor
 }
 
-const startSession = async (editor: Editor) => writeSession(editor)
+// The absolute end comes from the instance, never from here: Barkpark answers it for the token.
+const startSession = async (editor: Editor) => {
+  const abs = (await describeToken(editor.token)).expiresAt ?? undefined
+  writeSession(editor, {exp: sessionWindow(Date.now() / 1000, abs).exp, ...(abs !== undefined && {abs})})
+}
 
 /** Dev sign-in: an email, no password (dev builds only). */
 export async function signIn(email: string) {
@@ -272,6 +281,9 @@ async function editorToken(email: string): Promise<string> {
  * to when bound (#22393). Kept a minute per token. Unknown: Barkpark judges each write.
  */
 const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
+// When Barkpark last said each token ends (unix seconds; null, never), for currentEditor.
+const ends = new Map<string, number | null>()
+const knownEnd = (token: string) => ends.get(token)
 export function describeToken(token: string): Promise<TokenSelf> {
   // A login session holds a seat per workspace: what it may do depends on where it is.
   const key = `${token} ${scope().workspace}`
@@ -284,7 +296,11 @@ export function describeToken(token: string): Promise<TokenSelf> {
     if (res?.status === 401) return {permissions: [], boundDataset: null, refused: true}
     if (res?.status === 403) return {permissions: [], boundDataset: null}
     if (!res?.ok) return {permissions: ['read', 'write'], boundDataset: null}
-    return tokenSelf((await res.json()) as TokenBody, workspace)
+    const me = tokenSelf((await res.json()) as TokenBody, workspace)
+    if (me.expiresAt !== undefined) (ends.delete(token), ends.set(token, me.expiresAt))
+    // Held by insertion: the oldest go first, so a long-running server keeps a bounded few.
+    if (ends.size > 10_000) ends.delete(ends.keys().next().value!)
+    return me
   })()
   described.set(key, {at: Date.now(), self})
   return self

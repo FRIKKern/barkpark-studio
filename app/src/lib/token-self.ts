@@ -2,19 +2,21 @@
 // its permissions as far as its seat in this workspace allows, whether it may publish
 // (a Contributor seat, barkpark #22762, writes drafts only) and the dataset it is held
 // to when bound (#22393). Pure, so the seat rules have a fast test.
+import {absoluteEnd} from './session-age.ts'
 
 // `elsewhere`: an API token of another workspace (a dev sign-in's is minted for one).
 // `role`: the seat's role here (the user menu shows it, as Sanity's); `name`: a login session's display name.
-export type TokenSelf = {permissions: string[]; boundDataset: string | null; refused?: boolean; canPublish?: boolean; elsewhere?: boolean; role?: string; name?: string; userId?: string}
+// `expiresAt`: when the instance ends the token, in unix seconds (lib/session-age.ts); null, never.
+export type TokenSelf = {permissions: string[]; boundDataset: string | null; refused?: boolean; canPublish?: boolean; elsewhere?: boolean; role?: string; name?: string; userId?: string; expiresAt?: number | null}
 type Can = Record<string, boolean>
-export type TokenBody = {kind?: string; user?: {id?: string | number}; permissions?: string[]; seat?: {role?: string; can?: Can}; workspace?: {slug?: string}; seats?: {workspace?: {slug?: string}; role?: string; can?: Can}[]; dataset?: string; dataset_bound?: boolean}
+export type TokenBody = {kind?: string; user?: {id?: string | number}; permissions?: string[]; seat?: {role?: string; can?: Can}; workspace?: {slug?: string}; seats?: {workspace?: {slug?: string}; role?: string; can?: Can}[]; dataset?: string; dataset_bound?: boolean; expires_at?: string | null}
 
 export function tokenSelf(me: TokenBody, workspace: string): TokenSelf {
   // A login session (#22783): its seat in this workspace says what it may do; none, nothing.
   if (me.kind === 'session') {
     const seat = me.seats?.find((s) => s.workspace?.slug === workspace)
     const can = seat?.can ?? {}
-    return {permissions: ['read', 'write', 'admin'].filter((p) => can[p]), boundDataset: null, canPublish: can.publish !== false, ...(seat?.role && {role: seat.role}), ...(me.user?.id != null && {userId: String(me.user.id)})}
+    return {permissions: ['read', 'write', 'admin'].filter((p) => can[p]), boundDataset: null, canPublish: can.publish !== false, ...(seat?.role && {role: seat.role}), ...(me.user?.id != null && {userId: String(me.user.id)}), expiresAt: absoluteEnd(me.expires_at) ?? null}
   }
   return {
     permissions: (me.permissions ?? ['read', 'write']).filter((p) => me.seat?.can?.[p] !== false),
@@ -22,6 +24,7 @@ export function tokenSelf(me: TokenBody, workspace: string): TokenSelf {
     canPublish: me.seat?.can?.publish !== false,
     ...(me.seat?.role && {role: me.seat.role}),
     ...(!!me.workspace?.slug && me.workspace.slug !== workspace && {elsewhere: true}),
+    expiresAt: absoluteEnd(me.expires_at) ?? null,
   }
 }
 
