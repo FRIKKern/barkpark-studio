@@ -18,9 +18,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 3 changes
-  - Studio sessions end at the instance's absolute session limit ([#1239](https://github.com/FRIKKern/barkpark-studio/pull/1239))
 - **Yesterday** · 3 changes
+  - Studio sessions end at the instance's absolute session limit ([#1239](https://github.com/FRIKKern/barkpark-studio/pull/1239))
+- **This week** · 3 changes
   - test: rehearse Studio editor rollback ([#1235](https://github.com/FRIKKern/barkpark-studio/pull/1235))
 - **Last week** · 97 changes
 - **Last month** · 1115 changes, 183 tasks closed
