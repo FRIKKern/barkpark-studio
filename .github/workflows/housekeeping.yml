@@ -2,8 +2,6 @@
 # Why and how: docs/decisions/0003-tracking-and-hygiene.md
 name: housekeeping
 on:
-  push:
-    branches: [main]
   schedule:
     - cron: '17 4 * * *' # daily refresh
     - cron: '23 5 * * 1' # weekly hygiene, Mondays

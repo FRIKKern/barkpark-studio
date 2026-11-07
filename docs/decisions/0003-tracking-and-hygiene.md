@@ -18,7 +18,7 @@
   `scripts/lib/board.mjs`.
 - **Generated, not hand-kept:** the README timeline (`scripts/readme-timeline.mjs`)
   and `docs/images/roadmap.svg` (`scripts/generate-roadmap.mjs`). The
-  `housekeeping` Action rebuilds both on push to main and daily, and commits only
+  `housekeeping` Action rebuilds both daily, and commits only
   when the output changed.
 - **Hygiene:** squash merge only, branch auto-deleted on merge. A weekly job deletes
   merged branches left behind, comments on PRs idle for 7+ days, lists idle branches

@@ -25,4 +25,4 @@ at most one PR in five; its D-journeys are counted apart. First stop: the
 `<PortableDocEditor>` wrapper, which phase 5 (J10, J11) reuses.
 
 The picture is `docs/images/roadmap.svg`, made by `node scripts/generate-roadmap.mjs`
-and refreshed by CI on every push to main and once a day.
+and refreshed by CI once a day.
