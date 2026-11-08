@@ -18,7 +18,7 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Today** · 1 change
+- **Yesterday** · 1 change
   - Refresh README and roadmap daily, not on every push (task-3448a1e117e92f6e) ([#1240](https://github.com/FRIKKern/barkpark-studio/pull/1240))
 - **This week** · 6 changes
   - Studio sessions end at the instance's absolute session limit ([#1239](https://github.com/FRIKKern/barkpark-studio/pull/1239))
