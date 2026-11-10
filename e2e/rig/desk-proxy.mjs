@@ -7,7 +7,7 @@
 //   /structure…  ⇄  /w/<workspace>/p/<project>/d/<dataset>/studio/_desk…
 // in request paths, Location headers, HTML bodies and LiveView's WebSocket frames (the join
 // and every patch carry the page's URL; every diff carries hrefs). Everything else passes as
-// it is. An e2e-* dataset only.
+// it is, except what names a dataset that is not e2e-* (the INVARIANT at `foreign`).
 //
 // It is also the slow network for J51: Chrome's throttling (CDP) does not delay frames on a
 // WebSocket that is already open, and a LiveView click is such a frame. Here every HTTP
@@ -23,9 +23,10 @@ function fail(msg) {
   console.error(`desk-proxy: ${msg}`)
   process.exit(1)
 }
+const E2E = /^e2e-[a-z0-9][a-z0-9-]*$/
 const UP = new URL(need('BARKPARK_URL'))
 const DATASET = need('BARKPARK_DATASET')
-if (!/^e2e-[a-z0-9][a-z0-9-]*$/.test(DATASET)) fail(`an e2e-* dataset only, not "${DATASET}"`)
+if (!E2E.test(DATASET)) fail(`an e2e-* dataset only, not "${DATASET}"`)
 const PORT = Number(process.env.DESK_PORT || 3200)
 const LOCAL = `http://localhost:${PORT}`
 const BASE = `/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}/d/${DATASET}/studio/_desk`
@@ -44,6 +45,37 @@ const textUp = (s) =>
     .replaceAll(LOCAL + ALIAS, UP.origin + BASE)
     .replaceAll(LOCAL, UP.origin)
     .replace(/(["'])\/structure(?=["'/;?#])/g, (_, q) => q + BASE)
+// INVARIANT: the browser's session (an admin's) reaches no dataset but an e2e-* one through
+// here. Refused (403, upstream never asked): a path with a /d/<name> segment or a ?dataset=
+// that is not e2e-*, and every API path (/v1…, /api…, also under /w/<ws>/p/<proj>) but
+// /v1/data/<verb>/<e2e-*>… and /v1/media/<e2e-*>…, the only API the desk's pages call. A
+// LiveView navigation over the open socket (a join or patch to another URL) is held to it too.
+function foreign(target) {
+  const url = new URL(target, UP.origin)
+  let seg
+  try {
+    seg = url.pathname.split('/').map(decodeURIComponent)
+  } catch {
+    return true
+  }
+  if (url.searchParams.getAll('dataset').some((d) => !E2E.test(d))) return true
+  if (seg.some((s, i) => s === 'd' && !E2E.test(seg[i + 1] ?? ''))) return true
+  const api = seg[1] === 'w' && seg[3] === 'p' ? seg.slice(5) : seg.slice(1)
+  if (api[0] !== 'v1' && api[0] !== 'api') return false
+  const ds = api[1] === 'data' ? (api[2] === 'local' ? api[4] : api[3]) : api[1] === 'media' ? api[2] : ''
+  return !(api[0] === 'v1' && E2E.test(ds ?? ''))
+}
+const refused = (how, path) => console.error(`desk-proxy: 403 ${how} ${path}: not the e2e-* dataset's`)
+/** The URL a LiveView message navigates to (phx_join, live_patch), if it is one. */
+const navigation = (text) => {
+  try {
+    const payload = JSON.parse(text)?.[4]
+    return payload?.url ?? payload?.redirect
+  } catch {
+    return undefined
+  }
+}
+
 /** Text from the desk → as the browser is to see it. */
 const textDown = (s) => s.replaceAll(BASE, ALIAS).replaceAll(UP.origin, LOCAL)
 
@@ -64,9 +96,15 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, {'content-type': 'application/json'})
     return void res.end(JSON.stringify({ok: true, alias: ALIAS, dataset: DATASET, ...shape}))
   }
+  const path = pathUp(req.url)
+  if (foreign(path)) {
+    refused(req.method, path)
+    res.writeHead(403, {'content-type': 'text/plain'})
+    return void res.end('desk-proxy: an e2e-* dataset only')
+  }
   const headers = {...req.headers, host: UP.host, 'accept-encoding': 'identity'}
   for (const k of ['origin', 'referer']) if (headers[k]) headers[k] = textUp(headers[k])
-  const up = web.request({hostname: UP.hostname, port: UP.port || undefined, method: req.method, path: pathUp(req.url), headers, agent}, async (r) => {
+  const up = web.request({hostname: UP.hostname, port: UP.port || undefined, method: req.method, path, headers, agent}, async (r) => {
     const h = {...r.headers}
     delete h['strict-transport-security']
     if (h.location) h.location = textDown(h.location)
@@ -109,11 +147,15 @@ const frame = (opcode, payload) => {
 }
 
 server.on('upgrade', (req, socket) => {
+  // The socket's query can carry the page's URL too (LiveView's referer).
+  const query = req.url.replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin))
+  if (foreign(query)) {
+    refused('upgrade', query)
+    return void socket.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
+  }
   const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')
   socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`)
   socket.setNoDelay(true)
-  // The socket's query can carry the page's URL too (LiveView's referer).
-  const query = req.url.replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin))
   const up = new WebSocket(`${UP.protocol === 'https:' ? 'wss' : 'ws'}://${UP.host}${query}`, {
     headers: {cookie: req.headers.cookie ?? '', origin: UP.origin, 'user-agent': req.headers['user-agent'] ?? 'desk-proxy'},
   })
@@ -190,6 +232,8 @@ server.on('upgrade', (req, socket) => {
       const whole = Buffer.concat(parts)
       const message = kind === 1 ? textUp(whole.toString('utf8')) : whole
       parts = []
+      const to = kind === 1 && navigation(message)
+      if (to && foreign(to)) return void (refused('navigation', to), close())
       toDesk(async () => (await opened, up.send(message)))
     }
   })

@@ -5,15 +5,28 @@
 // test in several reports counts as its last run.
 //   node rig/desk-scoreboard.mjs run1.json [run2.json …] [--notes notes.json] > SCOREBOARD.md
 // notes.json: {"journeys/panes.spec.ts:37": "who owns the fix: what is missing"}, by hand.
+//
+// It prints only what a desk run measured: a report with run errors (webServer, globalSetup,
+// a spec that would not load), with no tests, or with a test of another project is refused,
+// exit 1 and no table. A skipped test stays in the table and its journey is not green.
 import {readFileSync} from 'node:fs'
+
+function refuse(msg) {
+  console.error(`desk-scoreboard: ${msg}`)
+  process.exit(1)
+}
+const read = (file) => {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'))
+  } catch (e) {
+    refuse(`cannot read ${file}: ${e.message}`)
+  }
+}
 
 const args = process.argv.slice(2)
 const at = args.indexOf('--notes')
-const notes = at < 0 ? {} : JSON.parse(readFileSync(args.splice(at, 2)[1], 'utf8'))
-if (!args.length) {
-  console.error('Usage: node rig/desk-scoreboard.mjs run.json [more.json …] [--notes notes.json]')
-  process.exit(1)
-}
+const notes = at < 0 ? {} : read(args.splice(at, 2)[1])
+if (!args.length) refuse('usage: node rig/desk-scoreboard.mjs run.json [more.json …] [--notes notes.json]')
 
 /** Every spec of a report, whatever describe it sits in. */
 const specs = (suite) => [...(suite.specs ?? []), ...(suite.suites ?? []).flatMap(specs)]
@@ -30,34 +43,42 @@ function reason(result) {
   const where = at.file && at.line ? ` (${at.file.split('/').pop()}:${at.line})` : ''
   return (errors.some((e) => /^Test timeout of/.test(e.text)) && best !== errors[0] ? 'timed out: ' : '') + keep.replace(/\|/g, '\\|').slice(0, 260) + where
 }
+/** Why a test did not run: its skip or fixme annotation. */
+const skipped = (test) => {
+  const a = (test.annotations ?? []).find((x) => x.type === 'skip' || x.type === 'fixme')
+  return a ? `${a.type}${a.description ? `: ${a.description.replace(/\|/g, '\\|')}` : ''}` : 'did not run'
+}
 
 const tests = new Map()
 let ran = ''
 for (const file of args) {
-  const report = JSON.parse(readFileSync(file, 'utf8'))
+  const report = read(file)
+  if (report.errors?.length) refuse(`${file}: the run failed before or around its tests, nothing to score:\n${report.errors.map((e) => `  ${plain(e.message).split('\n')[0]}`).join('\n')}`)
+  const found = (report.suites ?? []).flatMap(specs).flatMap((spec) => (spec.tests ?? []).map((test) => ({spec, test})))
+  if (!found.length) refuse(`${file}: no tests in this report, nothing to score`)
+  const other = found.find(({test}) => test.projectName !== 'desk')
+  if (other) refuse(`${file}: a test of project "${other.test.projectName}" (${other.spec.file}:${other.spec.line}); this scores desk runs only (pnpm desk)`)
   ran = report.stats?.startTime ?? ran
-  for (const spec of report.suites.flatMap(specs)) {
-    const result = spec.tests[0]?.results.at(-1)
-    if (!result) continue
+  for (const {spec, test} of found) {
+    const result = test.results?.at(-1)
+    const status = !result || test.status === 'skipped' ? 'skipped' : result.status
     const key = `${spec.file}:${spec.line}`
-    tests.set(key, {key, title: spec.title, status: result.status, ms: result.duration, why: result.status === 'passed' ? '' : reason(result)})
+    tests.set(key, {key, title: spec.title, status, why: status === 'passed' ? '' : status === 'skipped' ? skipped(test) : reason(result)})
   }
 }
 
 const journeys = new Map()
-for (const t of tests.values()) {
-  if (t.status === 'skipped') continue
-  for (const id of new Set(t.title.match(/\b[JBD]\d{2}\b/g) ?? ['(no id)'])) journeys.set(id, [...(journeys.get(id) ?? []), t])
-}
+for (const t of tests.values()) for (const id of new Set(t.title.match(/\b[JBD]\d{2}\b/g) ?? ['(no id)'])) journeys.set(id, [...(journeys.get(id) ?? []), t])
 const order = (id) => ('JBD('.indexOf(id[0]) * 100 + (Number(id.slice(1)) || 0))
 const ids = [...journeys.keys()].sort((a, b) => order(a) - order(b))
-const all = [...tests.values()].filter((t) => t.status !== 'skipped')
-const passed = (list) => list.filter((t) => t.status === 'passed').length
+const all = [...tests.values()]
+const count = (list, status) => list.filter((t) => t.status === status).length
+const mark = {passed: 'pass', skipped: 'skipped'}
 
-console.log(`run of ${ran}: ${passed(all)} of ${all.length} tests pass; ${ids.filter((id) => passed(journeys.get(id)) === journeys.get(id).length).length} of ${ids.length} journeys have every test green\n`)
+console.log(`run of ${ran}: ${count(all, 'passed')} of ${all.length} tests pass, ${count(all, 'skipped')} skipped; ${ids.filter((id) => count(journeys.get(id), 'passed') === journeys.get(id).length).length} of ${ids.length} journeys have every test green\n`)
 console.log('| journey | passing | test | what stops it | owner: what is missing |')
 console.log('|---|---|---|---|---|')
 for (const id of ids) {
   const list = journeys.get(id)
-  list.forEach((t, i) => console.log(`| ${i ? '' : id} | ${i ? '' : `${passed(list)}/${list.length}`} | ${t.status === 'passed' ? 'pass' : 'FAIL'} \`${t.key.replace('journeys/', '')}\` ${t.title.replace(/\|/g, '\\|').slice(0, 70)} | ${t.why} | ${t.status === 'passed' ? '' : (notes[t.key] ?? '')} |`))
+  list.forEach((t, i) => console.log(`| ${i ? '' : id} | ${i ? '' : `${count(list, 'passed')}/${list.length}`} | ${mark[t.status] ?? 'FAIL'} \`${t.key.replace('journeys/', '')}\` ${t.title.replace(/\|/g, '\\|').slice(0, 70)} | ${t.why} | ${t.status === 'passed' ? '' : (notes[t.key] ?? '')} |`))
 }
