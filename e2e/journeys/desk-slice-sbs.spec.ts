@@ -42,16 +42,21 @@ function record(info: TestInfo, n: number, row: Verdict & {check: string; bar: s
 /**
  * Measure one row and record it. Whatever the measurement throws (a pane that never came)
  * becomes a failed row with the reason, recorded like the rest: one missing pane must
- * not leave a row out of the scorecard.
+ * not leave a row out of the scorecard. With `within` (ms), a measurement still running
+ * then is a failed row too, recorded before the test's own timeout can drop it.
  */
-async function scoreRow(info: TestInfo, n: number, check: string, bar: string, measure: (out: Record<string, unknown>) => Promise<Verdict>) {
+async function scoreRow(info: TestInfo, n: number, check: string, bar: string, measure: (out: Record<string, unknown>) => Promise<Verdict>, within = 0) {
   const out: Record<string, unknown> = {}
   let verdict: Verdict
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    verdict = await measure(out)
+    const late = new Promise<never>((_, fail) => within && (timer = setTimeout(() => fail(new Error(`still measuring after ${within / 1000} s`)), within)))
+    verdict = await Promise.race([measure(out), late])
   } catch (e) {
     out.error = String((e as Error).message ?? e).split('\n')[0]!.slice(0, 300)
     verdict = {pass: false, summary: `did not finish: ${out.error}`}
+  } finally {
+    clearTimeout(timer)
   }
   record(info, n, {check, bar, ...verdict, ...out})
   expect.soft(verdict.pass, `row ${n}, ${check} (${bar}): ${verdict.summary}`).toBe(true)
@@ -88,27 +93,36 @@ async function open(page: Page, info: TestInfo, url: string, count: number) {
  * Click, then ms from the pointerdown to the first frame where each check's selector
  * shows an element with a height (polled every frame in the page). A check not seen
  * within `limit` ms is null. Selectors, not code: the desk's CSP has no eval.
+ * The watcher is in the page before the click is sent; a click whose pointerdown never
+ * reaches it within `limit` throws (a failed row), it does not wait out the test.
  */
+type Watch = {__clickAndTime?: Promise<Record<string, number | null> | null>}
 async function clickAndTime(page: Page, click: () => Promise<void>, checks: Record<string, string>, limit = 15_000): Promise<Record<string, number | null>> {
-  const watch = page.evaluate(
-    ({checks, limit}) =>
-      new Promise<Record<string, number | null>>((resolve) => {
+  await page.evaluate(
+    ({checks, limit}) => {
+      const w = window as Watch
+      w.__clickAndTime = new Promise((resolve) => {
         const out: Record<string, number | null> = {}
+        const start = performance.now()
         let t0 = 0
         addEventListener('pointerdown', () => (t0 = performance.now()), {once: true, capture: true})
         const seen = (sel: string) => [...document.querySelectorAll(sel)].some((e) => e.getBoundingClientRect().height > 0)
         const tick = () => {
+          if (!t0 && performance.now() - start > limit) return resolve(null)
           if (t0) for (const [k, sel] of Object.entries(checks)) if (!(k in out) && seen(sel)) out[k] = Math.round(performance.now() - t0)
           if (Object.keys(out).length === Object.keys(checks).length) return resolve(out)
           if (t0 && performance.now() - t0 > limit) return resolve(Object.fromEntries(Object.keys(checks).map((k) => [k, out[k] ?? null])))
           requestAnimationFrame(tick)
         }
         tick()
-      }),
+      })
+    },
     {checks, limit},
   )
   await click()
-  return watch
+  const ms = await page.evaluate(() => (window as Watch).__clickAndTime ?? null)
+  if (!ms) throw new Error(`the click never reached the page: no pointerdown within ${limit} ms`)
+  return ms
 }
 
 /** Types in the root pane to click: the fixture's, as many as the desk tree shows. */
@@ -200,8 +214,19 @@ const SLOW_4G = {offline: false, latency: 562.5, downloadThroughput: (1.6e6 / 8)
 // A dead click: nothing on screen 300 ms after it (QUALITY.md F14: a loading state within 300 ms).
 const DEAD_MS = 300
 
+// Row 4's wait per click (its rows, the way back): four clicks and two waits each fit
+// SLOW_WITHIN, and that fits the test's timeout with the load and the teardown.
+const SLOW_LIMIT = 15_000
+const SLOW_WITHIN = 150_000
+
+// The desk's shape is its proxy's, which outlives the test: put back after every test,
+// a timed-out one too (a finally in the test body does not run when its await never ends).
+test.afterEach(async ({}, info) => {
+  if (info.project.name in SIDES) await target(info).network?.(null)
+})
+
 test('@evidence desk slice 4: Slow 4G, frame still instant, rows fill in, no dead click', async ({page, context}, info) => {
-  test.setTimeout(180_000)
+  test.setTimeout(SLOW_WITHIN + 30_000)
   const t = target(info)
   await scoreRow(info, 4, 'Slow 4G', 'frame under 50 ms, rows fill in, no dead click', async (out) => {
     if (!(await open(page, info, '/structure', 1))) throw new Error('the root pane never settled')
@@ -210,14 +235,18 @@ test('@evidence desk slice 4: Slow 4G, frame still instant, rows fill in, no dea
     if (t.network) await t.network(SLOW_4G)
     else await (await context.newCDPSession(page)).send('Network.emulateNetworkConditions', SLOW_4G)
     try {
-      const clicks = await openLists(page, 3, 30_000)
-      // A second click while the first one's pane still reads: it must win.
+      const clicks = await openLists(page, 3, SLOW_LIMIT)
+      // A second click while the first one's pane still reads: it must win. Its frame is
+      // what that click itself changes, its row marked current (the first click's pane
+      // is on screen already, so pane 1 being there says nothing about this click).
       const [a, b] = (await rootTypes(page)).slice(0, 2)
       if (!a || !b) throw new Error('two fixture types are needed in the root pane')
+      const rowB = `[data-pane-index="0"] a[href="/structure/${b}"]`
       await page.locator(`[data-pane-index="0"] a[href="/structure/${a}"]`).first().click()
       await page.waitForTimeout(100)
-      const second = await clickAndTime(page, () => page.locator(`[data-pane-index="0"] a[href="/structure/${b}"]`).first().click(), {frame: '[data-pane-index="1"]', rows: `[data-pane-index="1"] a[href^="/structure/${b};"]`}, 30_000)
-      const landed = (await quiet(page, 2, 30_000)) && path(page) === `/structure/${b}`
+      if (await page.locator(`${rowB}[aria-current="true"]`).count()) throw new Error(`${b} was marked current before its click`)
+      const second = await clickAndTime(page, () => page.locator(rowB).first().click(), {frame: `${rowB}[aria-current="true"]`, rows: `[data-pane-index="1"] a[href^="/structure/${b};"]`}, SLOW_LIMIT)
+      const landed = (await quiet(page, 2, SLOW_LIMIT)) && path(page) === `/structure/${b}`
       const last = {type: `${b} (after ${a})`, frame: second.frame ?? null, rows: second.rows ?? null, ...(!landed && {stuck: await stuckAt(page)})}
       const all = [...clicks, last]
       const dead = all.filter((c) => c.frame === null || c.frame > DEAD_MS).length
@@ -234,7 +263,7 @@ test('@evidence desk slice 4: Slow 4G, frame still instant, rows fill in, no dea
     } finally {
       await t.network?.(null)
     }
-  })
+  }, SLOW_WITHIN)
 })
 
 /** Watch every frame until stopped: frames where a pane went missing or showed nothing (blank), or read (busy). */
@@ -294,7 +323,12 @@ test('@evidence desk slice 5: back and forward, no blank frame', async ({page}, 
     const blank = steps.reduce((s, x) => s + x.blank, 0)
     const busy = steps.reduce((s, x) => s + x.busy, 0)
     const lost = steps.filter((s) => !s.landed).length
-    return {pass: blank === 0 && lost === 0, summary: `${blank} blank frames, ${busy} frames with a pane still reading, over ${steps.length} steps${lost ? `; ${lost} never landed` : ''}`}
+    // A step that saw no frame measured nothing: it cannot pass for "no blank frame".
+    const unseen = steps.filter((s) => !(s.frames > 0)).length
+    return {
+      pass: blank === 0 && lost === 0 && unseen === 0,
+      summary: `${blank} blank frames, ${busy} frames with a pane still reading, over ${steps.length} steps${lost ? `; ${lost} never landed` : ''}${unseen ? `; ${unseen} saw no frame at all` : ''}`,
+    }
   })
 })
 
