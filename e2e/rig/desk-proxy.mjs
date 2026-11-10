@@ -45,13 +45,15 @@ const textUp = (s) =>
     .replaceAll(LOCAL + ALIAS, UP.origin + BASE)
     .replaceAll(LOCAL, UP.origin)
     .replace(/(["'])\/structure(?=["'/;?#])/g, (_, q) => q + BASE)
-// INVARIANT: the proxy refuses URLs that name a dataset not matching e2e-* (403, upstream never
-// asked); it does not judge pages that name no dataset, or event payloads. It judges the URL as
-// Plug routes it (dot segments resolved, empty ones dropped, each decoded) and forwards exactly
-// that. A URL names a dataset by a /d/<name> segment, a `dataset` query key, or by being an API
+// So a spec cannot wander into another dataset by accident; not a security boundary (the token
+// is). INVARIANT: the proxy refuses URLs that name a dataset not matching e2e-* (403, upstream
+// never asked), and /live/longpoll; it does not judge request bodies, pages that name no
+// dataset, or event payloads. It judges a request's URL as Plug routes it (dot segments
+// resolved, empty ones dropped, each decoded) and forwards exactly that. A URL names a dataset by a /d/<name> segment, a `dataset` query key, or by being an API
 // path (/v1…, /api…, also under /w/<ws>/p/<proj>): those pass only as /v1/data/<verb>/<e2e-*>…
 // or /v1/media/<e2e-*>…, all the desk's pages call. A LiveView join or patch over the open
-// socket is held to it by every url and redirect it carries.
+// socket is held to it by every url and redirect it carries, which must also be plain (no
+// dot segment: Phoenix does not resolve one), and goes on re-serialised as it was judged.
 function judge(target) {
   let url
   try {
@@ -72,6 +74,8 @@ function names(seg, query) {
   if ([...query].some(([k, v]) => k.split(/[[\]]/).includes('dataset') && !E2E.test(v))) return true
   // Keywords in any case (a router that folds case must not route past this); names as they are.
   const low = seg.map((s) => s.toLowerCase())
+  // LiveView's long-poll carries joins in request bodies, never judged here; the desk's client uses the socket.
+  if (low[0] === 'live' && low[1] === 'longpoll') return true
   if (low.some((s, i) => s === 'd' && !E2E.test(seg[i + 1] ?? ''))) return true
   const at = low[0] === 'w' && low[2] === 'p' ? 4 : 0
   const [kind, area, verb] = low.slice(at)
@@ -80,16 +84,29 @@ function names(seg, query) {
   return !(kind === 'v1' && E2E.test(ds ?? ''))
 }
 const refused = (how, path) => console.error(`desk-proxy: 403 ${how} ${path}: not the e2e-* dataset's`)
-/** A LiveView message (V2 array or V1 object) that navigates to a foreign URL; unparsed, one naming a /d/<other>. */
-function foreignFrame(text) {
+/** A URL in a frame passes only as written in its resolved form: the server does not resolve `..`. */
+const plainUrl = (u) => {
+  try {
+    return new URL(u).href === u
+  } catch {
+    return false
+  }
+}
+/**
+ * A LiveView message (V2 array or V1 object) as it is to go to the desk: re-serialised from
+ * what was parsed (a duplicate key reads as the last here, as the first in Jason), refused when
+ * a url or redirect it carries is foreign or not plain. Unparsed: refused if it names /d/<other>.
+ */
+function guardFrame(text) {
   let m
   try {
     m = JSON.parse(text)
   } catch {
-    return [...text.matchAll(/\/d\/([^/?#"'\s\\]+)/g)].some(([, name]) => !E2E.test(name))
+    return {out: text, foreign: [...text.matchAll(/\/d\/([^/?#"'\s\\]+)/g)].some(([, name]) => !E2E.test(name))}
   }
   const payload = Array.isArray(m) ? m[4] : m?.payload
-  return [payload?.url, payload?.redirect].some((u) => typeof u === 'string' && judge(u).foreign)
+  const foreign = [payload?.url, payload?.redirect].some((u) => u !== undefined && (typeof u !== 'string' || !plainUrl(u) || judge(u).foreign))
+  return {out: JSON.stringify(m), foreign}
 }
 
 /** Text from the desk → as the browser is to see it. */
@@ -246,9 +263,13 @@ server.on('upgrade', (req, socket) => {
       parts.push(payload)
       if (!fin) continue
       const whole = Buffer.concat(parts)
-      const message = kind === 1 ? textUp(whole.toString('utf8')) : whole
       parts = []
-      if (kind === 1 && foreignFrame(message)) return void (refused('frame', message.slice(0, 200)), close())
+      let message = whole
+      if (kind === 1) {
+        const {out, foreign} = guardFrame(textUp(whole.toString('utf8')))
+        if (foreign) return void (refused('frame', out.slice(0, 200)), close())
+        message = out
+      }
       toDesk(async () => (await opened, up.send(message)))
     }
   })

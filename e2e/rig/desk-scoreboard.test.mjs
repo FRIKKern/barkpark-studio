@@ -2,20 +2,21 @@
 // measured. DESK_SCOREBOARD=<path> scores with another copy of the script (the old one, to see red).
 import assert from 'node:assert/strict'
 import {spawnSync} from 'node:child_process'
-import {mkdtempSync, writeFileSync} from 'node:fs'
+import {mkdtempSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {test} from 'node:test'
+import {after, test} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
 const SCRIPT = process.env.DESK_SCOREBOARD ?? fileURLToPath(new URL('./desk-scoreboard.mjs', import.meta.url))
 const dir = mkdtempSync(join(tmpdir(), 'desk-scoreboard-'))
+after(() => rmSync(dir, {recursive: true, force: true}))
 let n = 0
 /** Score one report (an object, or raw text), as the CLI does. */
 function score(report) {
   const file = join(dir, `run-${++n}.json`)
   writeFileSync(file, typeof report === 'string' ? report : JSON.stringify(report))
-  const r = spawnSync(process.execPath, [SCRIPT, file], {encoding: 'utf8'})
+  const r = spawnSync(process.execPath, [SCRIPT, file], {encoding: 'utf8', env: {PATH: process.env.PATH}})
   return {file, status: r.status, out: r.stdout, err: r.stderr}
 }
 // The shapes Playwright 1.x writes (taken from real reports: a run, a webServer that died).

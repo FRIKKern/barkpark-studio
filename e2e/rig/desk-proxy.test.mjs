@@ -56,7 +56,8 @@ let port
 before(async () => {
   await new Promise((resolve) => desk.listen(0, '127.0.0.1', resolve))
   port = await freePort()
-  const env = {...process.env, BARKPARK_URL: `http://127.0.0.1:${desk.address().port}`, BARKPARK_DATASET: DATASET, BARKPARK_WORKSPACE: 'ws', BARKPARK_PROJECT: 'default', DESK_PORT: String(port), DESK_LATENCY_MS: '0', DESK_DOWN_BPS: '0'}
+  // Hermetic: no env of the shell (no token, no .env), the desk is the fake on 127.0.0.1.
+  const env = {PATH: process.env.PATH, BARKPARK_URL: `http://127.0.0.1:${desk.address().port}`, BARKPARK_DATASET: DATASET, BARKPARK_WORKSPACE: 'ws', BARKPARK_PROJECT: 'default', DESK_PORT: String(port), DESK_LATENCY_MS: '0', DESK_DOWN_BPS: '0'}
   proxy = spawn(process.execPath, [SCRIPT], {env, stdio: 'ignore'})
   for (let i = 0; i < 100; i++) {
     if (await fetch(`http://localhost:${port}/__rig/health`).then((r) => r.ok, () => false)) return
@@ -152,6 +153,25 @@ test('a LiveView join or patch to another dataset is not passed on: by url or re
     'a frame that is not JSON': ['2.0.0', `not json ${at(OTHER)}`],
   }
   for (const [name, [vsn, message]] of Object.entries(cases)) assert.deepEqual(await send(vsn, message), [], name)
+})
+
+test('a frame URL with a dot segment is refused, not resolved: Phoenix would read it as written', async () => {
+  const url = at(`http://localhost:PORT/w/ws/p/default/d/production/studio/_desk/../../../${DATASET}/studio/_desk`)
+  assert.deepEqual(await send('2.0.0', ['4', '4', 'lv:phx-1', 'phx_join', {url, params: {}}]), [])
+})
+
+test('a frame with a duplicate key reaches the desk as the guard read it', async () => {
+  const twice = `["4","4","lv:phx-1","phx_join",{"redirect":"${at(OTHER)}","redirect":"${at(OURS)}","params":{}}]`
+  const got = await send('2.0.0', twice)
+  assert.equal(got.length, 1)
+  assert.ok(!got[0].includes('production'), got[0])
+})
+
+test('LiveView long-poll is refused outright: its joins ride in bodies', async () => {
+  const join = JSON.stringify(['4', '4', 'lv:phx-1', 'phx_join', {url: at(OTHER), params: {}}])
+  const r = await fetch(`http://localhost:${port}/live/longpoll?vsn=2.0.0`, {method: 'POST', body: join})
+  assert.equal(r.status, 403)
+  assert.deepEqual(seen.requests, [])
 })
 
 test("the desk's own traffic passes: /structure, assets, sign-in, its socket, the e2e dataset's API", async () => {
