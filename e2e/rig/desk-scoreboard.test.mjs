@@ -48,6 +48,12 @@ test('a report that cannot be parsed exits non-zero and names the file', () => {
   assert.ok(r.err.includes(r.file), r.err)
 })
 
+test('a report that is JSON but not an object (null) exits non-zero and names the file', () => {
+  const r = score('null')
+  assert.notEqual(r.status, 0)
+  assert.ok(r.err.includes(`cannot read ${r.file}`), r.err)
+})
+
 test('a skipped test is in the table as skipped, its journey is not green, the headline counts it', () => {
   const r = score(report([spec(3, 'J01 opens'), spec(5, 'J01 closes', {status: 'skipped', annotations: [{type: 'fixme', description: 'desk: no close'}]}), spec(7, 'J02 edits')]))
   assert.equal(r.status, 0, r.err)

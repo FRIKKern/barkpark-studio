@@ -16,11 +16,14 @@ function refuse(msg) {
   process.exit(1)
 }
 const read = (file) => {
+  let json
   try {
-    return JSON.parse(readFileSync(file, 'utf8'))
+    json = JSON.parse(readFileSync(file, 'utf8'))
   } catch (e) {
     refuse(`cannot read ${file}: ${e.message}`)
   }
+  if (typeof json !== 'object' || json === null || Array.isArray(json)) refuse(`cannot read ${file}: not a JSON object`)
+  return json
 }
 
 const args = process.argv.slice(2)

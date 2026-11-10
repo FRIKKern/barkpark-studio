@@ -13,10 +13,15 @@ const SCRIPT = process.env.DESK_PROXY ?? fileURLToPath(new URL('./desk-proxy.mjs
 const DATASET = 'e2e-rig-test'
 const BASE = `/w/ws/p/default/d/${DATASET}/studio/_desk`
 
-/** What the fake desk was asked: request paths, upgrade paths, and the first byte of each frame. */
-const seen = {requests: [], upgrades: [], frames: []}
+/** What the fake desk was asked: request paths, upgrade paths, the text frames it got. */
+const seen = {requests: [], upgrades: [], texts: []}
 const desk = http.createServer((req, res) => {
   seen.requests.push(req.url)
+  // Sign-in as Barkpark answers it: the session cookie, and off to the account's default Studio.
+  if (req.method === 'POST' && req.url === '/login') {
+    res.writeHead(302, {location: `http://127.0.0.1:${desk.address().port}/w/ws/p/default/d/production/studio`, 'set-cookie': '_bp=s1; path=/; HttpOnly; Secure'})
+    return void res.end()
+  }
   res.writeHead(200, {'content-type': 'text/plain'})
   res.end('desk')
 })
@@ -24,7 +29,19 @@ desk.on('upgrade', (req, socket) => {
   seen.upgrades.push(req.url)
   const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')
   socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`)
-  socket.on('data', (chunk) => seen.frames.push(chunk[0]))
+  let buf = Buffer.alloc(0)
+  socket.on('data', (chunk) => {
+    buf = Buffer.concat([buf, chunk])
+    while (buf.length >= 6) {
+      let n = buf[1] & 127
+      let at = 2
+      if (n === 126) (n = buf.readUInt16BE(2)), (at = 4)
+      if (buf.length < at + 4 + n) return
+      const payload = Buffer.from(buf.subarray(at + 4, at + 4 + n)).map((b, i) => b ^ buf[at + (i & 3)])
+      if ((buf[0] & 15) === 1) seen.texts.push(payload.toString())
+      buf = buf.subarray(at + 4 + n)
+    }
+  })
   socket.on('error', () => {})
 })
 
@@ -55,6 +72,14 @@ after(() => {
 beforeEach(() => Object.values(seen).forEach((list) => (list.length = 0)))
 
 const get = (path) => fetch(`http://localhost:${port}${path}`).then((r) => r.status)
+/** A request line exactly as written (no client normalises it): the status it is answered with. */
+const raw = (target) => new Promise((resolve, reject) => {
+  const s = net.connect(port, '127.0.0.1', () => s.write(`GET ${target} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n`))
+  let d = ''
+  s.on('data', (c) => (d += c))
+  s.on('end', () => resolve(Number(d.split(' ')[1])))
+  s.on('error', reject)
+})
 /** A WebSocket upgrade by hand: the status line the proxy answers with. */
 const upgrade = (path) => new Promise((resolve, reject) => {
   const req = http.request({host: '127.0.0.1', port, path, headers: {connection: 'Upgrade', upgrade: 'websocket', 'sec-websocket-version': '13', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='}})
@@ -64,6 +89,19 @@ const upgrade = (path) => new Promise((resolve, reject) => {
   req.end()
 })
 const settle = () => new Promise((r) => setTimeout(r, 200))
+/** Send one LiveView message on a fresh socket; what reached the desk. */
+async function send(vsn, message) {
+  seen.texts.length = 0
+  const ws = new WebSocket(`ws://localhost:${port}/live/websocket?vsn=${vsn}`)
+  await new Promise((resolve) => ws.addEventListener('open', resolve, {once: true}))
+  ws.send(typeof message === 'string' ? message : JSON.stringify(message))
+  for (let i = 0; i < 12 && !seen.texts.length; i++) await new Promise((r) => setTimeout(r, 25))
+  ws.close()
+  return [...seen.texts]
+}
+const OTHER = `http://localhost:PORT/w/ws/p/default/d/production/studio/_desk`
+const OURS = `http://localhost:PORT/structure/post`
+const at = (u) => u.replace('PORT', String(port))
 
 test('a path naming a dataset that is not e2e-* is answered 403 and never reaches the desk', async () => {
   for (const path of [
@@ -78,30 +116,60 @@ test('a path naming a dataset that is not e2e-* is answered 403 and never reache
   assert.deepEqual(seen.requests, [])
 })
 
+test('an empty segment, a case or a bracketed key cannot carry another dataset past the guard', async () => {
+  for (const target of [
+    '/w/ws/p/default//v1/data/query/production/post',
+    '/w//ws/p/default/v1/data/query/production/post',
+    '//v1/data/doc/production/post/abc',
+    '//api/schemas',
+    'http://evil.example//v1/data/doc/production/post/abc',
+    '/w/ws/p/default/D/production/studio',
+    '/structure?dataset[]=production',
+  ]) assert.equal(await raw(target), 403, target)
+  assert.deepEqual(seen.requests, [])
+})
+
+test('what reaches the desk is the path that was judged, its dot segments resolved', async () => {
+  assert.equal(await raw('/w/ws/p/default/d/production/studio/_desk/../../../e2e-rig-test/studio/_desk'), 200)
+  assert.deepEqual(seen.requests, [`/w/ws/p/default/d/${DATASET}/studio/_desk`])
+})
+
 test('a WebSocket upgrade naming a dataset that is not e2e-* is answered 403 and never reaches the desk', async () => {
   assert.equal(await upgrade('/w/ws/p/default/d/production/live/websocket?vsn=2.0.0'), 403)
+  assert.equal(await upgrade('//w/ws/p/default/d/production/live/websocket?vsn=2.0.0'), 403)
   await settle()
   assert.deepEqual(seen.upgrades, [])
 })
 
-test('a LiveView navigation to another dataset over the open socket is not passed on', async () => {
-  const ws = new WebSocket(`ws://localhost:${port}/live/websocket?vsn=2.0.0`)
-  await new Promise((resolve) => ws.addEventListener('open', resolve, {once: true}))
-  const closed = new Promise((resolve) => ws.addEventListener('close', resolve, {once: true}))
-  ws.send(JSON.stringify(['4', '4', 'lv:phx-1', 'phx_join', {url: `http://localhost:${port}/w/ws/p/default/d/production/studio/_desk`, params: {}}]))
-  await Promise.race([closed, settle().then(settle)])
-  assert.ok(!seen.frames.includes(0x81), 'the desk got the join to production')
-  ws.close()
+test('a LiveView join or patch to another dataset is not passed on: by url or redirect, V2 or V1 frames', async () => {
+  const cases = {
+    'V2 join, url': ['2.0.0', ['4', '4', 'lv:phx-1', 'phx_join', {url: at(OTHER), params: {}}]],
+    'V2 join, redirect': ['2.0.0', ['4', '4', 'lv:phx-1', 'phx_join', {redirect: at(OTHER), params: {}}]],
+    'V2 join, url ours and redirect another': ['2.0.0', ['4', '4', 'lv:phx-1', 'phx_join', {url: at(OURS), redirect: at(OTHER), params: {}}]],
+    'V2 live_patch': ['2.0.0', ['4', '5', 'lv:phx-1', 'live_patch', {url: at(OTHER)}]],
+    'V1 join': ['1.0.0', {topic: 'lv:phx-1', event: 'phx_join', payload: {url: at(OTHER), params: {}}, ref: '1', join_ref: '1'}],
+    'V1 live_patch': ['1.0.0', {topic: 'lv:phx-1', event: 'live_patch', payload: {url: at(OTHER)}, ref: '2'}],
+    'a frame that is not JSON': ['2.0.0', `not json ${at(OTHER)}`],
+  }
+  for (const [name, [vsn, message]] of Object.entries(cases)) assert.deepEqual(await send(vsn, message), [], name)
 })
 
 test("the desk's own traffic passes: /structure, assets, sign-in, its socket, the e2e dataset's API", async () => {
   for (const path of ['/structure/post', '/assets/app.js', '/login', `/v1/data/search/${DATASET}?q=a`, `/v1/media/${DATASET}/abc`]) assert.equal(await get(path), 200, path)
   assert.deepEqual(seen.requests, [`${BASE}/post`, '/assets/app.js', '/login', `/v1/data/search/${DATASET}?q=a`, `/v1/media/${DATASET}/abc`])
-  const ws = new WebSocket(`ws://localhost:${port}/live/websocket?vsn=2.0.0`)
-  await new Promise((resolve) => ws.addEventListener('open', resolve, {once: true}))
-  ws.send(JSON.stringify(['4', '4', 'lv:phx-1', 'phx_join', {url: `http://localhost:${port}/structure/post`, params: {}}]))
-  for (let i = 0; i < 20 && !seen.frames.includes(0x81); i++) await new Promise((r) => setTimeout(r, 25))
-  ws.close()
+  assert.equal((await send('2.0.0', ['4', '4', 'lv:phx-1', 'phx_join', {url: at(OURS), params: {}}])).length, 1, 'the join to the e2e desk reached it')
   assert.deepEqual(seen.upgrades, ['/live/websocket?vsn=2.0.0'])
-  assert.ok(seen.frames.includes(0x81), 'the join to the e2e desk reached it')
+})
+
+// rig/test.ts signs in by the /login form and waits for any URL off /login: the redirect to the
+// account's default Studio (production) is refused, the session cookie has landed, the desk serves.
+test('sign-in still signs in when its redirect to the default Studio is refused', async () => {
+  const r = await fetch(`http://localhost:${port}/login`, {method: 'POST', redirect: 'manual'})
+  assert.equal(r.status, 302)
+  const cookie = r.headers.get('set-cookie')
+  assert.equal(cookie, '_bp=s1; path=/; HttpOnly')
+  assert.equal(r.headers.get('location'), `http://localhost:${port}/w/ws/p/default/d/production/studio`)
+  assert.equal((await fetch(r.headers.get('location'))).status, 403)
+  assert.equal((await fetch(`http://localhost:${port}/structure`, {headers: {cookie: '_bp=s1'}})).status, 200)
+  assert.deepEqual(seen.requests, ['/login', BASE])
 })

@@ -7,7 +7,7 @@
 //   /structure…  ⇄  /w/<workspace>/p/<project>/d/<dataset>/studio/_desk…
 // in request paths, Location headers, HTML bodies and LiveView's WebSocket frames (the join
 // and every patch carry the page's URL; every diff carries hrefs). Everything else passes as
-// it is, except what names a dataset that is not e2e-* (the INVARIANT at `foreign`).
+// it is, except what names a dataset that is not e2e-* (the INVARIANT at `judge`).
 //
 // It is also the slow network for J51: Chrome's throttling (CDP) does not delay frames on a
 // WebSocket that is already open, and a LiveView click is such a frame. Here every HTTP
@@ -45,35 +45,51 @@ const textUp = (s) =>
     .replaceAll(LOCAL + ALIAS, UP.origin + BASE)
     .replaceAll(LOCAL, UP.origin)
     .replace(/(["'])\/structure(?=["'/;?#])/g, (_, q) => q + BASE)
-// INVARIANT: the browser's session (an admin's) reaches no dataset but an e2e-* one through
-// here. Refused (403, upstream never asked): a path with a /d/<name> segment or a ?dataset=
-// that is not e2e-*, and every API path (/v1…, /api…, also under /w/<ws>/p/<proj>) but
-// /v1/data/<verb>/<e2e-*>… and /v1/media/<e2e-*>…, the only API the desk's pages call. A
-// LiveView navigation over the open socket (a join or patch to another URL) is held to it too.
-function foreign(target) {
-  const url = new URL(target, UP.origin)
-  let seg
+// INVARIANT: the proxy refuses URLs that name a dataset not matching e2e-* (403, upstream never
+// asked); it does not judge pages that name no dataset, or event payloads. It judges the URL as
+// Plug routes it (dot segments resolved, empty ones dropped, each decoded) and forwards exactly
+// that. A URL names a dataset by a /d/<name> segment, a `dataset` query key, or by being an API
+// path (/v1…, /api…, also under /w/<ws>/p/<proj>): those pass only as /v1/data/<verb>/<e2e-*>…
+// or /v1/media/<e2e-*>…, all the desk's pages call. A LiveView join or patch over the open
+// socket is held to it by every url and redirect it carries.
+function judge(target) {
+  let url
   try {
-    seg = url.pathname.split('/').map(decodeURIComponent)
+    url = new URL(target.startsWith('/') ? UP.origin + target : target)
   } catch {
-    return true
+    return {path: target, foreign: true}
   }
-  if (url.searchParams.getAll('dataset').some((d) => !E2E.test(d))) return true
-  if (seg.some((s, i) => s === 'd' && !E2E.test(seg[i + 1] ?? ''))) return true
-  const api = seg[1] === 'w' && seg[3] === 'p' ? seg.slice(5) : seg.slice(1)
-  if (api[0] !== 'v1' && api[0] !== 'api') return false
-  const ds = api[1] === 'data' ? (api[2] === 'local' ? api[4] : api[3]) : api[1] === 'media' ? api[2] : ''
-  return !(api[0] === 'v1' && E2E.test(ds ?? ''))
+  const raw = url.pathname.split('/').filter(Boolean)
+  const path = `/${raw.join('/')}${url.search}`
+  try {
+    return {path, foreign: names(raw.map(decodeURIComponent), url.searchParams)}
+  } catch {
+    return {path, foreign: true}
+  }
+}
+function names(seg, query) {
+  if (seg.some((s) => s === '.' || s === '..')) return true
+  if ([...query].some(([k, v]) => k.split(/[[\]]/).includes('dataset') && !E2E.test(v))) return true
+  // Keywords in any case (a router that folds case must not route past this); names as they are.
+  const low = seg.map((s) => s.toLowerCase())
+  if (low.some((s, i) => s === 'd' && !E2E.test(seg[i + 1] ?? ''))) return true
+  const at = low[0] === 'w' && low[2] === 'p' ? 4 : 0
+  const [kind, area, verb] = low.slice(at)
+  if (kind !== 'v1' && kind !== 'api') return false
+  const ds = area === 'data' ? seg[at + (verb === 'local' ? 4 : 3)] : area === 'media' ? seg[at + 2] : ''
+  return !(kind === 'v1' && E2E.test(ds ?? ''))
 }
 const refused = (how, path) => console.error(`desk-proxy: 403 ${how} ${path}: not the e2e-* dataset's`)
-/** The URL a LiveView message navigates to (phx_join, live_patch), if it is one. */
-const navigation = (text) => {
+/** A LiveView message (V2 array or V1 object) that navigates to a foreign URL; unparsed, one naming a /d/<other>. */
+function foreignFrame(text) {
+  let m
   try {
-    const payload = JSON.parse(text)?.[4]
-    return payload?.url ?? payload?.redirect
+    m = JSON.parse(text)
   } catch {
-    return undefined
+    return [...text.matchAll(/\/d\/([^/?#"'\s\\]+)/g)].some(([, name]) => !E2E.test(name))
   }
+  const payload = Array.isArray(m) ? m[4] : m?.payload
+  return [payload?.url, payload?.redirect].some((u) => typeof u === 'string' && judge(u).foreign)
 }
 
 /** Text from the desk → as the browser is to see it. */
@@ -96,8 +112,8 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, {'content-type': 'application/json'})
     return void res.end(JSON.stringify({ok: true, alias: ALIAS, dataset: DATASET, ...shape}))
   }
-  const path = pathUp(req.url)
-  if (foreign(path)) {
+  const {path, foreign} = judge(pathUp(req.url))
+  if (foreign) {
     refused(req.method, path)
     res.writeHead(403, {'content-type': 'text/plain'})
     return void res.end('desk-proxy: an e2e-* dataset only')
@@ -148,15 +164,15 @@ const frame = (opcode, payload) => {
 
 server.on('upgrade', (req, socket) => {
   // The socket's query can carry the page's URL too (LiveView's referer).
-  const query = req.url.replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin))
-  if (foreign(query)) {
-    refused('upgrade', query)
+  const {path, foreign} = judge(req.url.replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin)))
+  if (foreign) {
+    refused('upgrade', path)
     return void socket.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
   }
   const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')
   socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`)
   socket.setNoDelay(true)
-  const up = new WebSocket(`${UP.protocol === 'https:' ? 'wss' : 'ws'}://${UP.host}${query}`, {
+  const up = new WebSocket(`${UP.protocol === 'https:' ? 'wss' : 'ws'}://${UP.host}${path}`, {
     headers: {cookie: req.headers.cookie ?? '', origin: UP.origin, 'user-agent': req.headers['user-agent'] ?? 'desk-proxy'},
   })
   up.binaryType = 'arraybuffer'
@@ -232,8 +248,7 @@ server.on('upgrade', (req, socket) => {
       const whole = Buffer.concat(parts)
       const message = kind === 1 ? textUp(whole.toString('utf8')) : whole
       parts = []
-      const to = kind === 1 && navigation(message)
-      if (to && foreign(to)) return void (refused('navigation', to), close())
+      if (kind === 1 && foreignFrame(message)) return void (refused('frame', message.slice(0, 200)), close())
       toDesk(async () => (await opened, up.send(message)))
     }
   })
