@@ -196,7 +196,7 @@ test('@evidence desk slice 2 3: click to pane frame, click to rows (median of 10
 })
 
 // Chrome DevTools' Slow 4G preset (its old "Fast 3G"): 562.5 ms RTT, 1.6 Mbps down, 750 kbps up.
-const SLOW_4G = {offline: false, latency: Number(process.env.XLAT), downloadThroughput: Number(process.env.XDOWN), uploadThroughput: (750e3 / 8) * 0.9}
+const SLOW_4G = {offline: false, latency: 562.5, downloadThroughput: (1.6e6 / 8) * 0.9, uploadThroughput: (750e3 / 8) * 0.9}
 // A dead click: nothing on screen 300 ms after it (QUALITY.md F14: a loading state within 300 ms).
 const DEAD_MS = 300
 
