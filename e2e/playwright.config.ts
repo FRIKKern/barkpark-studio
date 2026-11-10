@@ -13,6 +13,10 @@ const SANITY = `http://localhost:${process.env.SANITY_PORT || 3333}`
 // Barkpark copies, one pair per lane (default 3536 / 3537). Set here, the specs, both
 // studios' preview origins and the dev server read them (a prod build bakes
 // VITE_PREVIEW_ORIGIN in: build with it set).
+// A third target, on its own (`pnpm desk`, DESK=1): Barkpark's own Phoenix desk, behind
+// rig/desk-proxy.mjs, which serves it at /structure/<panes> so the specs run as they are.
+// No Sanity, no app server, no preview site: the desk is whatever BARKPARK_URL runs.
+const DESK = process.env.DESK ? `http://localhost:${process.env.DESK_PORT || 3200}` : ''
 process.env.PREVIEW_SITE_PORT ||= '3536'
 process.env.PREVIEW_SITE_PORT_BARKPARK ||= '3537'
 const SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT}`
@@ -41,12 +45,17 @@ export default defineConfig({
   // (journeys outside QUALITY.md rule 5) run in `pnpm test`, not in CI's budget.
   grepInvert: process.env.BASELINE || process.env.EVIDENCE ? undefined : process.env.CI ? /@baseline|@evidence|@local/ : /@baseline|@evidence/,
   use: {channel: 'chrome', viewport: {width: 1440, height: 900}},
-  projects: [
-    {name: 'sanity', use: {baseURL: SANITY}},
-    {name: 'studio', use: {baseURL: STUDIO}},
-  ],
+  projects: DESK
+    ? // F10 on the desk: with DESK_F10=1 compared with OUR approved stills, never ones of its
+      // own; without it not compared, so a run shows what a journey does past its first still.
+      // And a click that finds nothing gives up in 10 s with its locator, not at the test's timeout.
+      [{name: 'desk', ignoreSnapshots: !process.env.DESK_F10, snapshotPathTemplate: '{testDir}/{testFilePath}-snapshots/{arg}-studio-{platform}{ext}', use: {baseURL: DESK, actionTimeout: 10_000}}]
+    : [
+        {name: 'sanity', use: {baseURL: SANITY}},
+        {name: 'studio', use: {baseURL: STUDIO}},
+      ],
   // CI runs ours only (the reference needs a Sanity login); side-by-side stays local.
-  webServer: [
+  webServer: DESK ? [{command: 'node rig/desk-proxy.mjs', url: `${DESK}/__rig/health`, reuseExistingServer: false, timeout: 15_000, stdout: 'pipe'}] : [
     ...(process.env.CI ? [] : [{command: `pnpm --dir ../reference/sanity dev --port ${process.env.SANITY_PORT || 3333}`, url: SANITY, reuseExistingServer: true, timeout: 60_000}]),
     // J58–J64: the site Presentation shows, on both sides (reference/preview-site).
     // Sanity's on SITE, ours from Barkpark on SITE_BARKPARK (same pages, this run's dataset).

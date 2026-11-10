@@ -1,4 +1,4 @@
-import {test as base, type BrowserContext, type Page} from '@playwright/test'
+import {test as base, type Browser, type BrowserContext, type Page} from '@playwright/test'
 
 export * from '@playwright/test'
 
@@ -27,10 +27,32 @@ const watchScreen = (binding: string) => {
   look()
 }
 
+// The Phoenix desk (project `desk`) asks for a Barkpark session: one sign-in per worker with
+// the rig's token (the desk is for workspace admins), its cookie given to every context.
+// Kept in memory only: a session is a credential.
+let deskSession: Parameters<BrowserContext['addCookies']>[0] | undefined
+async function deskSignIn(browser: Browser, baseURL: string | undefined) {
+  if (deskSession) return deskSession
+  const ctx = await browser.newContext({baseURL})
+  const page = await ctx.newPage()
+  await page.goto('/login')
+  // The token form sits behind a disclosure: filled and sent in the page.
+  await page.evaluate((token) => {
+    const form = document.querySelector<HTMLFormElement>('form[action="/login"]')!
+    form.querySelector<HTMLInputElement>('[name="token"]')!.value = token
+    form.requestSubmit()
+  }, process.env.BARKPARK_TOKEN ?? '')
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'))
+  deskSession = await ctx.cookies()
+  await ctx.close()
+  return deskSession
+}
+
 export const test = base.extend<{errorWatch: void}>({
   errorWatch: [
     async ({context, browser}, use, info) => {
       const problems: string[] = []
+      const session = info.project.name === 'desk' ? await deskSignIn(browser, info.project.use.baseURL) : undefined
       const watchPage = (page: Page) => {
         page.on('pageerror', (e) => problems.push(`uncaught error in ${page.url()}: ${e.message}`))
         page.on('console', (m) => {
@@ -40,6 +62,7 @@ export const test = base.extend<{errorWatch: void}>({
       const watch = async (c: BrowserContext) => {
         c.pages().forEach(watchPage)
         c.on('page', watchPage)
+        if (session) await c.addCookies(session)
         await c.exposeBinding(SCREEN, ({page}, text: string) => void problems.push(`the studio's error screen in ${page.url()}: ${text}`))
         await c.addInitScript(watchScreen, SCREEN)
       }

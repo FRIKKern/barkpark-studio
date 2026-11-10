@@ -45,6 +45,8 @@ export type Target = {
   docPath(type: string, id: string): string
   listItem(page: Page, id: string): Locator
   field(page: Page, path: string): Locator
+  /** The same field as a CSS selector, for code that runs in the page (a timing probe). */
+  fieldSelector(path: string): string
   /** The pane at `index` (both studios mark panes with data-pane-index, strips with data-pane-collapsed). */
   pane(page: Page, index: number): Locator
   /** The reference preview link for `field` inside a pane. */
@@ -86,6 +88,11 @@ export type Target = {
   discardDraft(id: string, type: string): Promise<void>
   /** The backend's history has the doc's latest writes (published and draft): poll before reading history in the UI. */
   historyReady(id: string): Promise<boolean>
+  /**
+   * A slow network the target shapes itself (null: back to normal). Only the desk has one,
+   * its proxy: Chrome's throttling does not delay frames on LiveView's open WebSocket.
+   */
+  network?(shape: {latency: number; downloadThroughput: number} | null): Promise<void>
 }
 
 /**
@@ -249,6 +256,7 @@ const sanity: Target = {
   docPath: (type, id) => `/structure/${type};${id}`,
   listItem: (page, id) => page.locator(`a[href$=";${id}"]`),
   field: (page, path) => page.locator(`[id="${path}"]`),
+  fieldSelector: (path) => `[id="${path}"]`,
   pane: (page, index) => page.locator(`[data-pane-index="${index}"]`),
   refLink: (pane, field) => {
     // Sanity puts parentRefPath last, except on a just-created doc (…,parentRefPath=x,type=y).
@@ -390,6 +398,7 @@ const studio: Target = {
   docPath: (type, id) => `/structure/${type};${id}`,
   listItem: (page, id) => page.locator(`a[href$=";${id}"]`),
   field: (page, path) => page.locator(`[id="${path}"]`),
+  fieldSelector: (path) => `[id="${path}"]`,
   pane: (page, index) => page.locator(`[data-pane-index="${index}"]`),
   refLink: (pane, field) => pane.locator(`a[href$="parentRefPath=${encodeURIComponent(field)}"]:not([data-testid="pane-close"])`).first(),
   closeButton: (pane) => pane.getByTestId('pane-close'),
@@ -458,7 +467,24 @@ export async function resetNative(id: string, type: string) {
   await bpMutate([{createOrReplace: JSON.parse(line)}, {publish: {id, type}}])
 }
 
-export const target = (info: TestInfo): Target => (info.project.name === 'sanity' ? sanity : studio)
+/**
+ * Barkpark's own Phoenix desk (project `desk`, `pnpm desk`), served at /structure/<panes>
+ * by rig/desk-proxy.mjs. It is held to our bar, so it answers to the name `studio` and
+ * every "ours" branch of a spec runs on it; the backend is the same Barkpark. Only what
+ * LiveView names differently is mapped here. Its session: rig/test.ts.
+ */
+const desk: Target = {
+  ...studio,
+  // LiveView has no hydration mark: its socket has joined.
+  settle: (page) => page.locator('[data-phx-main].phx-connected').first().waitFor(),
+  // Its editor is the LiveView Studio's: an input's id is doc-field-<doc id>-<field>.
+  fieldSelector: (path) => `[id="${path}"], [id^="doc-field-"][id$="-${path}"]`,
+  field: (page, path) => page.locator(desk.fieldSelector(path)),
+  closeButton: (pane) => pane.locator('[data-testid="pane-close"], a.dk-close').first(),
+  network: (shape) => fetch(`http://localhost:${process.env.DESK_PORT || 3200}/__rig/shape?latency=${shape?.latency ?? 0}&down=${shape?.downloadThroughput ?? 0}`).then(ok).then(() => {}),
+}
+
+export const target = (info: TestInfo): Target => (info.project.name === 'sanity' ? sanity : info.project.name === 'desk' ? desk : studio)
 
 /** With dev sign-in on (STUDIO_DEV_LOGIN=1), ours asks who you are first: answer as editor A. */
 export async function signInIfAsked(page: Page, email = 'studio-editor-a@example.com') {

@@ -29,6 +29,8 @@ async function readOnlyEditorD() {
 export default async function warmup() {
   clearFeelLog()
   await readOnlyEditorD()
+  // The desk run has no app server of ours to warm: its proxy is up (the config waited for it).
+  if (process.env.DESK) return
   const base = `http://localhost:${process.env.E2E_PORT || 3100}`
   await fetch(`${base}/health`).then((r) => r.text())
   await Promise.all(

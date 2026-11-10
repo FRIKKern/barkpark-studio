@@ -11,6 +11,7 @@ import {signInIfAsked, target} from '../rig/targets'
 const FAST_3G = {offline: false, latency: 562.5, downloadThroughput: (1.44e6 / 8) * 0.9, uploadThroughput: (675e3 / 8) * 0.9}
 const shot = (name: string, step: string) => `evidence/J51-${step}-${name}.png`
 test.setTimeout(180_000)
+test.afterEach(async ({}, info) => target(info).network?.(null))
 
 /** Click, then ms (click → each predicate first true), polled every frame in the page. */
 async function clickAndTime(page: Page, click: () => Promise<void>, checks: Record<string, string>) {
@@ -48,7 +49,9 @@ test('@evidence J51: Fast 3G — shell, then a loading state in every pane, neve
   const cdp = await context.newCDPSession(cold)
   await cdp.send('Network.enable')
   await cdp.send('Network.setCacheDisabled', {cacheDisabled: true})
-  await cdp.send('Network.emulateNetworkConditions', FAST_3G)
+  // The desk's own proxy is its slow network (rig/desk-proxy.mjs): CDP would add its delay twice.
+  if (t.network) await t.network(FAST_3G)
+  else await cdp.send('Network.emulateNetworkConditions', FAST_3G)
   await cold.addInitScript((checks) => {
     const w = window as unknown as {__cold: Record<string, number>}
     w.__cold = {}

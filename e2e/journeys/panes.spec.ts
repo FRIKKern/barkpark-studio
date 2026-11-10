@@ -51,7 +51,7 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
   // is a noisy sample); post-02 last, so what follows reads it. Every open: no shift.
   const opens = []
   for (const id of ['post-03', 'post-04', 'post-02'])
-    opens.push(await timeToReady(page, await reveal(t.listItem(page, id)), `(w) => document.getElementById('title')?.value === w`, `Fixture post ${id.slice(-2)}`))
+    opens.push(await timeToReady(page, await reveal(t.listItem(page, id)), `(w) => document.querySelector(${JSON.stringify(t.fieldSelector('title'))})?.value === w`, `Fixture post ${id.slice(-2)}`))
   const open = {ms: median(opens.map((o) => o.ms)), cls: Math.max(...opens.map((o) => o.cls)), shifted: opens.map((o) => o.shifted).filter(Boolean).join(' | ')}
   expect(path(page)).toBe('/structure/post;post-02')
   await expect(t.listItem(page, 'post-02')).toHaveAttribute('data-selected')

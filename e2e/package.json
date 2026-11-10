@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node run.mjs test",
+    "desk": "node run.mjs desk",
     "baseline": "node run.mjs baseline",
     "evidence": "node run.mjs evidence",
     "reference": "node run.mjs reference",
