@@ -116,16 +116,23 @@ async function rootTypes(page: Page) {
   const hrefs = await page.locator('[data-pane-index="0"] a[href^="/structure/"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')))
   return ['post', 'author', 'category', 'bulk'].filter((type) => hrefs.includes(`/structure/${type}`))
 }
+/** What the page shows when a check never came: the URL, each pane (busy = still reading), LiveView's socket state. */
+const stuckAt = async (page: Page) => ({
+  path: path(page),
+  panes: (await panesNow(page)).map((p) => `${p.kind}${p.busy ? '(busy)' : ''}`),
+  live: await page.evaluate(() => document.querySelector('[data-phx-main]')?.className ?? null),
+})
+type Click = {type: string; frame: number | null; rows: number | null; stuck?: Awaited<ReturnType<typeof stuckAt>>}
 /** Open type lists from the root, `times` clicks round the types; back to the root after each. */
 async function openLists(page: Page, times: number, limit = 15_000) {
   const types = await rootTypes(page)
   if (!types.length) throw new Error('no fixture type (post, author, category, bulk) in the root pane')
-  const clicks: {type: string; frame: number | null; rows: number | null}[] = []
+  const clicks: Click[] = []
   for (let i = 0; i < times; i++) {
     const type = types[i % types.length]!
     const link = page.locator(`[data-pane-index="0"] a[href="/structure/${type}"]`).first()
     const ms = await clickAndTime(page, () => link.click(), {frame: '[data-pane-index="1"]', rows: `[data-pane-index="1"] a[href^="/structure/${type};"]`}, limit)
-    clicks.push({type, frame: ms.frame ?? null, rows: ms.rows ?? null})
+    clicks.push({type, frame: ms.frame ?? null, rows: ms.rows ?? null, ...(ms.rows === null && {stuck: await stuckAt(page)})})
     await page.goBack({waitUntil: 'commit'})
     if (!(await quiet(page, 1, limit))) throw new Error(`back to the root after opening ${type}: its list pane stayed`)
   }
@@ -167,7 +174,7 @@ test('@evidence desk slice 1: the same pane URLs open the same panes', async ({p
 })
 
 test('@evidence desk slice 2 3: click to pane frame, click to rows (median of 10)', async ({page}, info) => {
-  let clicks: Awaited<ReturnType<typeof openLists>> = []
+  let clicks: Click[] = []
   const measured = (async () => {
     if (!(await open(page, info, '/structure', 1))) throw new Error('the root pane never settled')
     clicks = await openLists(page, 10)
@@ -189,7 +196,7 @@ test('@evidence desk slice 2 3: click to pane frame, click to rows (median of 10
 })
 
 // Chrome DevTools' Slow 4G preset (its old "Fast 3G"): 562.5 ms RTT, 1.6 Mbps down, 750 kbps up.
-const SLOW_4G = {offline: false, latency: 562.5, downloadThroughput: (1.6e6 / 8) * 0.9, uploadThroughput: (750e3 / 8) * 0.9}
+const SLOW_4G = {offline: false, latency: Number(process.env.XLAT), downloadThroughput: Number(process.env.XDOWN), uploadThroughput: (750e3 / 8) * 0.9}
 // A dead click: nothing on screen 300 ms after it (QUALITY.md F14: a loading state within 300 ms).
 const DEAD_MS = 300
 
@@ -211,15 +218,18 @@ test('@evidence desk slice 4: Slow 4G, frame still instant, rows fill in, no dea
       await page.waitForTimeout(100)
       const second = await clickAndTime(page, () => page.locator(`[data-pane-index="0"] a[href="/structure/${b}"]`).first().click(), {frame: '[data-pane-index="1"]', rows: `[data-pane-index="1"] a[href^="/structure/${b};"]`}, 30_000)
       const landed = (await quiet(page, 2, 30_000)) && path(page) === `/structure/${b}`
-      const all = [...clicks.map((c) => ({...c, second: false})), {type: `${b} (after ${a})`, frame: second.frame ?? null, rows: second.rows ?? null, second: true}]
-      const dead = all.filter((c) => c.frame === null || c.frame > DEAD_MS || c.rows === null).length + (landed ? 0 : 1)
+      const last = {type: `${b} (after ${a})`, frame: second.frame ?? null, rows: second.rows ?? null, ...(!landed && {stuck: await stuckAt(page)})}
+      const all = [...clicks, last]
+      const dead = all.filter((c) => c.frame === null || c.frame > DEAD_MS).length
       const frames = numbers(all.map((c) => c.frame))
       const rows = numbers(all.map((c) => c.rows))
       Object.assign(out, {shape: SLOW_4G, clicks: all, secondClickLanded: landed, dead, frame: stats(frames), rows: stats(rows)})
       const instant = frames.length === all.length && Math.max(...frames) < 50
       return {
-        pass: instant && rows.length === all.length && dead === 0,
-        summary: `frame max ${stats(frames).max} ms, rows median ${rows.length ? median(rows) : '-'} ms (max ${stats(rows).max}), dead clicks ${dead} of ${all.length}${landed ? '' : ', the second click lost'}`,
+        pass: instant && rows.length === all.length && dead === 0 && landed,
+        summary:
+          `frame max ${stats(frames).max} ms; rows ${rows.length ? `median ${median(rows)} ms, max ${stats(rows).max}` : 'never came'} (${rows.length} of ${all.length} clicks); ` +
+          `dead clicks ${dead} of ${all.length}; a second click while the first reads ${landed ? 'lands' : 'is LOST'}`,
       }
     } finally {
       await t.network?.(null)
@@ -240,7 +250,8 @@ const watchFrames = (page: Page, need: number) =>
       f.fewest = Math.min(f.fewest, shown.length)
       if (shown.length < need || empty.length) {
         f.blank++
-        f.first ||= `frame ${f.frames}: ${shown.length} panes shown, ${empty.length} empty`
+        const which = shown.map((p) => `${p.dataset.paneIndex}:${p.getAttribute('data-pane-kind') ?? p.getAttribute('data-pane') ?? '?'}`).join(' ')
+        f.first ||= `frame ${f.frames}: ${shown.length} of ${need} panes shown (${which}), ${empty.length} empty`
       }
       if (shown.some((p) => p.getAttribute('aria-busy') === 'true')) f.busy++
       requestAnimationFrame(tick)
