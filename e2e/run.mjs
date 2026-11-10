@@ -7,9 +7,15 @@ import {LANE_RESET_USAGE, laneResetRefusal} from '../scripts/lib/seed-plan.mjs'
 import {fileURLToPath} from 'node:url'
 
 const [mode, ...args] = process.argv.slice(2)
-if (!['test', 'baseline', 'evidence', 'reference', 'recording', 'reset'].includes(mode)) {
-  console.error('Usage: node run.mjs test|baseline|evidence|reference|recording|reset [arguments]')
+if (!['test', 'desk', 'baseline', 'evidence', 'reference', 'recording', 'reset'].includes(mode)) {
+  console.error('Usage: node run.mjs test|desk|baseline|evidence|reference|recording|reset [arguments]')
   process.exit(1)
+}
+// `desk`: the same specs against Barkpark's own Phoenix desk (rig/desk-proxy.mjs), on its
+// own lane dataset so a run never meets `pnpm test`'s writes.
+if (mode === 'desk') {
+  process.env.DESK = '1'
+  process.env.BARKPARK_DATASET ||= 'e2e-local-desk'
 }
 process.env.BARKPARK_DATASET ||= 'e2e-local'
 const envFile = fileURLToPath(new URL('../.env', import.meta.url))
@@ -19,6 +25,10 @@ if (existsSync(envFile)) loadEnvFile(envFile)
 if (mode === 'reset' && (args.includes('--help') || args.includes('-h'))) {
   console.log(LANE_RESET_USAGE)
   process.exit(0)
+}
+if (mode === 'desk' && !/^e2e-/.test(process.env.BARKPARK_DATASET)) {
+  console.error('run.mjs desk: the desk run writes fixture data: an e2e-* dataset only, never production.')
+  process.exit(1)
 }
 const refused = mode === 'reset' && laneResetRefusal(process.env.BARKPARK_DATASET, args)
 if (refused) {
@@ -77,7 +87,7 @@ const flags = mode === 'reset' ? [] : [
 // for any other such run (two at once merged each other's typing, J26 2026-10-09). Our
 // own project (--project studio) has a dataset per lane and stays parallel.
 const projects = args.flatMap((a, i) => (a === '--project' ? [args[i + 1]] : a.startsWith('--project=') ? [a.slice(10)] : []))
-const sanitySide = mode === 'reference' || (mode !== 'reset' && mode !== 'recording' && (!projects.length || projects.includes('sanity')))
+const sanitySide = mode === 'reference' || (mode !== 'reset' && mode !== 'recording' && mode !== 'desk' && (!projects.length || projects.includes('sanity')))
 const command = [process.execPath, cli, ...flags, ...args]
 const result = sanitySide
   ? spawnSync(fileURLToPath(new URL('../scripts/with-lock.sh', import.meta.url)), command, {cwd: fileURLToPath(new URL('.', import.meta.url)), stdio: 'inherit', env: {...process.env, BP_LOCK: '/tmp/barkpark-studio-sanity.lock'}})
