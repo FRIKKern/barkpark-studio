@@ -5,18 +5,25 @@
 //
 // It is a plain reverse proxy to BARKPARK_URL with one alias, both ways:
 //   /structure…  ⇄  /w/<workspace>/p/<project>/d/<dataset>/studio/_desk…
-// in request paths, Location headers, HTML bodies and LiveView's WebSocket frames (the join
-// and every patch carry the page's URL; every diff carries hrefs). Everything else passes as
-// it is, except what names a dataset that is not e2e-* (the INVARIANT at `judge`).
+// (and any e2e-* dataset's desk by its full path, …/d/<e2e-*>/structure…), in request paths,
+// Location headers, HTML bodies and LiveView's WebSocket frames (the join and every patch
+// carry the page's URL; every diff carries hrefs). Everything else passes as it is, except
+// what names a dataset that is not e2e-* (the INVARIANT at `judge`).
 //
 // It is also the slow network for J51: Chrome's throttling (CDP) does not delay frames on a
 // WebSocket that is already open, and a LiveView click is such a frame. Here every HTTP
 // request waits `latency` ms once and every WebSocket frame half of it each way (a click and
-// its answer: one `latency`), and bytes to the browser are paced at `down` bytes/s.
+// its answer: one `latency`), and bytes to the browser share one link of `down` bytes/s.
+// Those bytes are the ones a browser gets direct: compressed for its own accept-encoding, the
+// socket's with permessage-deflate. Not the same: the browser's side is HTTP/1.1 over plain
+// http (keep-alive, at most 6 requests at once; direct it is h2 over TLS, all at once), and
+// TLS's own round trips are not modelled. The desk's side is HTTPS (HTTP/1.1, keep-alive).
 //   GET /__rig/shape?latency=562.5&down=162000   set (0 = off)      GET /__rig/health   read
+// Each shape set logs what went to the browser since the last one (bytes, requests, most at once).
 import http from 'node:http'
 import https from 'node:https'
 import {createHash} from 'node:crypto'
+import zlib from 'node:zlib'
 
 const need = (k) => process.env[k] ?? fail(`missing ${k}`)
 function fail(msg) {
@@ -37,11 +44,20 @@ const agent = new web.Agent({keepAlive: true})
 const shape = {latency: Number(process.env.DESK_LATENCY_MS || 0), down: Number(process.env.DESK_DOWN_BPS || 0)}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// Any e2e-* dataset's desk also answers by its full path: /w/<ws>/p/<proj>/d/<e2e-*>/structure…
+// ⇄ …/d/<e2e-*>/studio/_desk… (a spec that opens another e2e dataset by URL). Others: refused.
+const AT = String.raw`/w/[^/?#;"'\s]+/p/[^/?#;"'\s]+/d/e2e-[a-z0-9][a-z0-9-]*`
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const fullPath = new RegExp(`^(${AT})/structure(?=$|[/;?#])`)
+const fullUp = new RegExp(`(${esc(LOCAL)}|["'])(${AT})/structure(?=$|["'/;?#])`, 'g')
+const fullUpEncoded = new RegExp(`${esc(encodeURIComponent(LOCAL))}(%2Fw%2F[^%&]+%2Fp%2F[^%&]+%2Fd%2Fe2e-[a-z0-9][a-z0-9-]*)%2Fstructure(?=$|&|%2F|%3B|%3F|%23)`, 'g')
+const fullDown = new RegExp(`(${AT})/studio/_desk`, 'g')
 /** A request path as the browser has it → the desk's own. */
-const pathUp = (path) => (path === ALIAS || (path.startsWith(ALIAS) && '/;?#'.includes(path[ALIAS.length])) ? BASE + path.slice(ALIAS.length) : path)
+const pathUp = (path) => (path === ALIAS || (path.startsWith(ALIAS) && '/;?#'.includes(path[ALIAS.length])) ? BASE + path.slice(ALIAS.length) : path.replace(fullPath, '$1/studio/_desk'))
 /** Text from the browser (a header, a WebSocket frame): its URLs and quoted paths → the desk's own. */
 const textUp = (s) =>
   s
+    .replace(fullUp, (_, pre, at) => (pre === LOCAL ? UP.origin : pre) + at + '/studio/_desk')
     .replaceAll(LOCAL + ALIAS, UP.origin + BASE)
     .replaceAll(LOCAL, UP.origin)
     .replace(/(["'])\/structure(?=["'/;?#])/g, (_, q) => q + BASE)
@@ -110,32 +126,82 @@ function guardFrame(text) {
 }
 
 /** Text from the desk → as the browser is to see it. */
-const textDown = (s) => s.replaceAll(BASE, ALIAS).replaceAll(UP.origin, LOCAL)
+const textDown = (s) => s.replaceAll(BASE, ALIAS).replace(fullDown, '$1/structure').replaceAll(UP.origin, LOCAL)
 
-/** Bytes to the browser, at `down` bytes/s when set (20 slices a second). */
-async function paced(write, buf) {
+// The browser's own accept-encoding goes to the desk, less what this proxy cannot undo, so the
+// bytes paced to it are the compressed ones a browser gets. A page it rewrites (HTML) is decoded,
+// rewritten and encoded again in the coding the desk chose; everything else passes as it came.
+const CODECS = {
+  gzip: [zlib.gunzipSync, zlib.gzipSync],
+  'x-gzip': [zlib.gunzipSync, zlib.gzipSync],
+  deflate: [(b) => (b[0] === 0x78 ? zlib.inflateSync(b) : zlib.inflateRawSync(b)), zlib.deflateSync],
+  br: [zlib.brotliDecompressSync, zlib.brotliCompressSync],
+  ...(zlib.zstdCompressSync && {zstd: [zlib.zstdDecompressSync, zlib.zstdCompressSync]}),
+}
+const acceptable = (ae) =>
+  (ae ?? '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.split(';')[0].trim().toLowerCase() in CODECS)
+    .join(', ') || 'identity'
+/** An HTML body as the browser is to get it: in the desk's coding, its text aliased; null if that coding is not one known here. */
+function rewrite(body, encoding) {
+  const codings = (encoding ?? '').split(',').map((c) => c.trim().toLowerCase()).filter((c) => c && c !== 'identity')
+  if (!codings.every((c) => CODECS[c])) return null
+  try {
+    let text = body
+    for (const c of codings.toReversed()) text = CODECS[c][0](text)
+    let out = Buffer.from(textDown(text.toString('utf8')))
+    for (const c of codings) out = CODECS[c][1](out)
+    return out
+  } catch {
+    return null
+  }
+}
+
+/** What went to the browser since the shape was last set: bytes over HTTP and the socket, requests. */
+const fresh = () => ({http: 0, ws: 0, requests: 0, peak: 0})
+let open = 0
+let sent = fresh()
+/**
+ * Bytes to the browser, at `down` bytes/s when set, in slices of 50 ms. One link for every answer
+ * and frame at once, as a real link is and Chrome's throttling shares its throughput: each slice
+ * waits its turn on it and arrives when its last byte would have.
+ */
+let free = 0
+async function paced(write, buf, leg = 'http') {
+  sent[leg] += buf.length
   if (!shape.down) return void write(buf)
   const slice = Math.max(1, Math.ceil(shape.down / 20))
   for (let i = 0; i < buf.length; i += slice) {
-    write(buf.subarray(i, i + slice))
-    if (i + slice < buf.length) await sleep(50)
+    const part = buf.subarray(i, i + slice)
+    free = Math.max(Date.now(), free) + (part.length * 1000) / shape.down
+    await sleep(free - Date.now())
+    write(part)
   }
 }
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, LOCAL)
   if (url.pathname === '/__rig/health' || url.pathname === '/__rig/shape') {
-    if (url.pathname === '/__rig/shape') for (const k of ['latency', 'down']) if (url.searchParams.has(k)) shape[k] = Number(url.searchParams.get(k)) || 0
+    if (url.pathname === '/__rig/shape') {
+      console.log(`desk-proxy: sent at ${JSON.stringify(shape)}: ${JSON.stringify(sent)}`)
+      for (const k of ['latency', 'down']) if (url.searchParams.has(k)) shape[k] = Number(url.searchParams.get(k)) || 0
+      sent = fresh()
+    }
     res.writeHead(200, {'content-type': 'application/json'})
-    return void res.end(JSON.stringify({ok: true, alias: ALIAS, dataset: DATASET, ...shape}))
+    return void res.end(JSON.stringify({ok: true, alias: ALIAS, dataset: DATASET, ...shape, sent}))
   }
+  sent.requests++
+  sent.peak = Math.max(sent.peak, ++open)
+  res.on('close', () => open--)
   const {path, foreign} = judge(pathUp(req.url))
   if (foreign) {
     refused(req.method, path)
     res.writeHead(403, {'content-type': 'text/plain'})
     return void res.end('desk-proxy: an e2e-* dataset only')
   }
-  const headers = {...req.headers, host: UP.host, 'accept-encoding': 'identity'}
+  const headers = {...req.headers, host: UP.host, 'accept-encoding': acceptable(req.headers['accept-encoding'])}
   for (const k of ['origin', 'referer']) if (headers[k]) headers[k] = textUp(headers[k])
   const up = web.request({hostname: UP.hostname, port: UP.port || undefined, method: req.method, path, headers, agent}, async (r) => {
     const h = {...r.headers}
@@ -148,11 +214,12 @@ const server = http.createServer(async (req, res) => {
       if (/text\/html/.test(h['content-type'] ?? '')) {
         const chunks = []
         for await (const c of r) chunks.push(c)
-        const body = Buffer.from(textDown(Buffer.concat(chunks).toString('utf8')))
-        h['content-length'] = String(body.length)
-        delete h['transfer-encoding']
+        const got = Buffer.concat(chunks)
+        const body = got.length ? rewrite(got, h['content-encoding']) : got
+        if (!body) console.error(`desk-proxy: ${path}: not rewritten, ${h['content-encoding']} is not a coding known here`)
+        else if (got.length) (h['content-length'] = String(body.length)), delete h['transfer-encoding']
         res.writeHead(r.statusCode, h)
-        await paced((b) => res.write(b), body)
+        await paced((b) => res.write(b), body ?? got)
       } else {
         res.writeHead(r.statusCode, h)
         for await (const c of r) await paced((b) => res.write(b), c)
@@ -167,27 +234,46 @@ const server = http.createServer(async (req, res) => {
   req.pipe(up)
 })
 
-// ── WebSocket: the browser's side is spoken here (RFC 6455, no extensions), the desk's by
-// Node's own client. Whole messages only, so a text frame can be rewritten.
-const frame = (opcode, payload) => {
+// ── WebSocket: the browser's side is spoken here (RFC 6455), the desk's by Node's own client.
+// Whole messages only, so a text frame can be rewritten. permessage-deflate (RFC 7692) as the
+// desk speaks it to a browser direct (Phoenix `compress: true`): offered by the browser,
+// accepted here; the desk's messages keep their deflate context, the browser's (small) reset it.
+const frame = (opcode, payload, deflated = false) => {
   const n = payload.length
   const head = Buffer.alloc(n < 126 ? 2 : n < 65536 ? 4 : 10)
-  head[0] = 0x80 | opcode
+  head[0] = 0x80 | (deflated ? 0x40 : 0) | opcode
   if (n < 126) head[1] = n
   else if (n < 65536) (head[1] = 126), head.writeUInt16BE(n, 2)
   else (head[1] = 127), head.writeBigUInt64BE(BigInt(n), 2)
   return Buffer.concat([head, payload])
 }
+const TAIL = Buffer.from([0, 0, 0xff, 0xff])
+/** permessage-deflate as offered (no parameters but client_max_window_bits), or not. */
+const deflateOffered = (ext) => {
+  const [name, ...params] = (ext ?? '').split(',')[0].split(';').map((p) => p.trim().toLowerCase())
+  return name === 'permessage-deflate' && params.every((p) => /^client_max_window_bits(=\d+)?$/.test(p))
+}
+/** One message through a deflate stream that keeps its context: what it adds, less the sync-flush tail. */
+const deflateOne = (z, buf) =>
+  new Promise((resolve, reject) => {
+    const out = []
+    const take = (c) => out.push(c)
+    z.on('data', take).once('error', reject)
+    z.write(buf)
+    z.flush(zlib.constants.Z_SYNC_FLUSH, () => (z.off('data', take).off('error', reject), resolve(Buffer.concat(out).subarray(0, -4))))
+  })
 
 server.on('upgrade', (req, socket) => {
   // The socket's query can carry the page's URL too (LiveView's referer).
-  const {path, foreign} = judge(req.url.replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin)))
+  const {path, foreign} = judge(req.url.replace(fullUpEncoded, `${encodeURIComponent(UP.origin)}$1%2Fstudio%2F_desk`).replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin)))
   if (foreign) {
     refused('upgrade', path)
     return void socket.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
   }
   const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')
-  socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`)
+  const deflate = deflateOffered(req.headers['sec-websocket-extensions']) && zlib.createDeflateRaw()
+  const ext = deflate ? 'Sec-WebSocket-Extensions: permessage-deflate; client_no_context_takeover\r\n' : ''
+  socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n${ext}\r\n`)
   socket.setNoDelay(true)
   const up = new WebSocket(`${UP.protocol === 'https:' ? 'wss' : 'ws'}://${UP.host}${path}`, {
     headers: {cookie: req.headers.cookie ?? '', origin: UP.origin, 'user-agent': req.headers['user-agent'] ?? 'desk-proxy'},
@@ -199,6 +285,7 @@ server.on('upgrade', (req, socket) => {
     if (closed) return
     closed = true
     socket.destroy()
+    if (deflate) deflate.close()
     try {
       up.close()
     } catch {
@@ -222,7 +309,7 @@ server.on('upgrade', (req, socket) => {
   up.addEventListener('message', (e) => {
     const text = typeof e.data === 'string'
     const payload = text ? Buffer.from(textDown(e.data)) : Buffer.from(e.data)
-    toBrowser(() => paced((b) => socket.write(b), frame(text ? 1 : 2, payload)))
+    toBrowser(async () => paced((b) => socket.write(b), deflate ? frame(text ? 1 : 2, await deflateOne(deflate, payload), true) : frame(text ? 1 : 2, payload), 'ws'))
   })
   up.addEventListener('close', close)
   up.addEventListener('error', close)
@@ -232,6 +319,7 @@ server.on('upgrade', (req, socket) => {
   let buf = Buffer.alloc(0)
   let parts = []
   let kind = 0
+  let packed = false
   socket.on('data', (chunk) => {
     buf = Buffer.concat([buf, chunk])
     for (;;) {
@@ -253,17 +341,24 @@ server.on('upgrade', (req, socket) => {
       at += masked ? 4 : 0
       const payload = Buffer.from(buf.subarray(at, at + n))
       if (key) for (let i = 0; i < n; i++) payload[i] ^= key[i & 3]
-      const fin = !!(buf[0] & 128)
-      const opcode = buf[0] & 15
+      const buf0 = buf[0]
+      const fin = !!(buf0 & 128)
+      const opcode = buf0 & 15
       buf = buf.subarray(at + n)
       if (opcode === 8) return close()
       if (opcode === 9) socket.write(frame(10, payload))
       if (opcode > 2) continue
-      if (opcode) kind = opcode
+      if (opcode) (kind = opcode), (packed = !!(buf0 & 0x40))
+      if (packed && !deflate) return close()
       parts.push(payload)
       if (!fin) continue
-      const whole = Buffer.concat(parts)
+      let whole = Buffer.concat(parts)
       parts = []
+      try {
+        if (packed) whole = zlib.inflateRawSync(Buffer.concat([whole, TAIL]), {finishFlush: zlib.constants.Z_SYNC_FLUSH})
+      } catch {
+        return close()
+      }
       let message = whole
       if (kind === 1) {
         const {out, foreign} = guardFrame(textUp(whole.toString('utf8')))

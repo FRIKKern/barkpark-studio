@@ -8,15 +8,31 @@ import http from 'node:http'
 import net from 'node:net'
 import {after, before, beforeEach, test} from 'node:test'
 import {fileURLToPath} from 'node:url'
+import zlib from 'node:zlib'
 
 const SCRIPT = process.env.DESK_PROXY ?? fileURLToPath(new URL('./desk-proxy.mjs', import.meta.url))
 const DATASET = 'e2e-rig-test'
 const BASE = `/w/ws/p/default/d/${DATASET}/studio/_desk`
 
-/** What the fake desk was asked: request paths, upgrade paths, the text frames it got. */
-const seen = {requests: [], upgrades: [], texts: []}
+/** What the fake desk was asked: request paths, upgrade paths, the text frames it got; accept-encodings, bodies it sent. */
+const seen = {requests: [], upgrades: [], texts: [], encodings: [], bodies: []}
+const CODE = {gzip: zlib.gzipSync, br: zlib.brotliCompressSync, deflate: zlib.deflateSync, ...(zlib.zstdCompressSync && {zstd: zlib.zstdCompressSync})}
+const DECODE = {gzip: zlib.gunzipSync, br: zlib.brotliDecompressSync, deflate: zlib.inflateSync, ...(zlib.zstdDecompressSync && {zstd: zlib.zstdDecompressSync})}
+/** A desk page: links to itself, as the desk's are. */
+const page = (path) => `<a href="${path}">here</a> <a href="${path};doc">a doc</a>`
 const desk = http.createServer((req, res) => {
   seen.requests.push(req.url)
+  seen.encodings.push(req.headers['accept-encoding'])
+  // Pages and assets in the first coding asked for that the desk speaks, as Phoenix answers.
+  if (req.url.includes('/studio/_desk') || req.url.startsWith('/assets/')) {
+    const html = !req.url.startsWith('/assets/')
+    const coding = (req.headers['accept-encoding'] ?? '').split(',').map((t) => t.split(';')[0].trim()).find((c) => CODE[c])
+    const text = req.url === '/assets/big' ? Buffer.alloc(40_000, 'x') : Buffer.from(html ? page(req.url) : `export const desk = "${BASE}/post"\n`.repeat(40))
+    const body = coding ? CODE[coding](text) : text
+    seen.bodies.push(body)
+    res.writeHead(200, {'content-type': html ? 'text/html; charset=utf-8' : 'text/javascript', 'content-length': body.length, ...(coding && {'content-encoding': coding})})
+    return void res.end(body)
+  }
   // Sign-in as Barkpark answers it: the session cookie, and off to the account's default Studio.
   if (req.method === 'POST' && req.url === '/login') {
     res.writeHead(302, {location: `http://127.0.0.1:${desk.address().port}/w/ws/p/default/d/production/studio`, 'set-cookie': '_bp=s1; path=/; HttpOnly; Secure'})
@@ -38,13 +54,16 @@ desk.on('upgrade', (req, socket) => {
       if (n === 126) (n = buf.readUInt16BE(2)), (at = 4)
       if (buf.length < at + 4 + n) return
       const payload = Buffer.from(buf.subarray(at + 4, at + 4 + n)).map((b, i) => b ^ buf[at + (i & 3)])
-      if ((buf[0] & 15) === 1) seen.texts.push(payload.toString())
+      if ((buf[0] & 15) === 1) seen.texts.push(payload.toString()), socket.write(Buffer.concat([REPLY_HEAD, REPLY, REPLY_HEAD, REPLY]))
       buf = buf.subarray(at + 4 + n)
     }
   })
   socket.on('error', () => {})
 })
 
+// The desk answers every text frame twice with a diff that carries its own hrefs.
+const REPLY = Buffer.from(JSON.stringify({diff: `<a href="${BASE}/post">a post</a>`.repeat(20)}))
+const REPLY_HEAD = Buffer.from([0x81, 126, REPLY.length >> 8, REPLY.length & 255])
 const freePort = () => new Promise((resolve) => {
   const s = net.createServer().listen(0, '127.0.0.1', () => {
     const {port} = s.address()
@@ -90,6 +109,14 @@ const upgrade = (path) => new Promise((resolve, reject) => {
   req.end()
 })
 const settle = () => new Promise((r) => setTimeout(r, 200))
+/** A GET as a browser's network stack has it, nothing decoded: status, headers, the bytes. */
+const bytes = (path, headers = {}) => new Promise((resolve, reject) => {
+  http.get({host: '127.0.0.1', port, path, headers}, (r) => {
+    const chunks = []
+    r.on('data', (c) => chunks.push(c))
+    r.on('end', () => resolve({status: r.statusCode, headers: r.headers, body: Buffer.concat(chunks)}))
+  }).on('error', reject)
+})
 /** Send one LiveView message on a fresh socket; what reached the desk. */
 async function send(vsn, message) {
   seen.texts.length = 0
@@ -194,4 +221,103 @@ test('sign-in still signs in when its redirect to the default Studio is refused'
   assert.equal((await fetch(r.headers.get('location'))).status, 403)
   assert.equal((await fetch(`http://localhost:${port}/structure`, {headers: {cookie: '_bp=s1'}})).status, 200)
   assert.deepEqual(seen.requests, ['/login', BASE])
+})
+
+// The paced leg carries what a browser gets (J51): the desk is asked with the browser's own
+// accept-encoding, and what the proxy rewrites goes on in the coding the desk answered in.
+test("a page the proxy rewrites reaches the browser in the desk's coding, for the browser's accept-encoding", async () => {
+  const cases = [['gzip, deflate, br', 'gzip'], ['br;q=1.0, gzip;q=0.8', 'br'], ['deflate', 'deflate'], ...(CODE.zstd ? [['zstd, gzip', 'zstd']] : [])]
+  for (const [accept, coding] of cases) {
+    seen.encodings.length = 0
+    const r = await bytes('/structure/post', {'accept-encoding': accept})
+    assert.equal(seen.encodings[0], accept, 'the desk was asked with the browser\'s accept-encoding')
+    assert.equal(r.headers['content-encoding'], coding, accept)
+    assert.equal(Number(r.headers['content-length']), r.body.length, accept)
+    assert.equal(DECODE[coding](r.body).toString(), page('/structure/post'), accept)
+  }
+  // A coding the proxy could not undo is not offered: the page could not be rewritten.
+  seen.encodings.length = 0
+  await bytes('/structure/post', {'accept-encoding': 'compress, x-unknown, gzip;q=0.5'})
+  assert.deepEqual(seen.encodings, ['gzip;q=0.5'])
+})
+
+test('an answer the proxy does not rewrite passes byte for byte, still compressed', async () => {
+  const r = await bytes('/assets/app.js', {'accept-encoding': 'gzip, deflate, br'})
+  assert.equal(r.headers['content-encoding'], 'gzip')
+  assert.deepEqual(r.body, seen.bodies[0])
+  assert.ok(zlib.gunzipSync(r.body).toString().includes(BASE), 'its text as the desk wrote it')
+})
+
+// list.spec.ts opens another e2e dataset by its full path (/w/…/d/e2e-no-schema-ever/structure).
+test("another e2e-* dataset's desk answers by its full path, its links and socket mapped; one not e2e-* is still refused", async () => {
+  const other = '/w/ws/p/default/d/e2e-other'
+  const r = await bytes(`${other}/structure/post`)
+  assert.equal(r.status, 200)
+  assert.equal(r.body.toString(), page(`${other}/structure/post`))
+  assert.equal(await get(`${other}/structure`), 200)
+  assert.equal(await get('/w/ws/p/default/d/production/structure/post'), 403)
+  assert.deepEqual(seen.requests, [`${other}/studio/_desk/post`, `${other}/studio/_desk`])
+  const up = `http://127.0.0.1:${desk.address().port}${other}/studio/_desk/post`
+  const got = await send('2.0.0', ['4', '4', 'lv:phx-1', 'phx_join', {url: at(`http://localhost:PORT${other}/structure/post`), params: {}}])
+  assert.deepEqual(got.map((m) => JSON.parse(m)[4].url), [up], 'the join passed the frame guard, as that desk\'s URL')
+  seen.upgrades.length = 0
+  assert.equal(await upgrade(`/live/websocket?_live_referer=${encodeURIComponent(at(`http://localhost:PORT${other}/structure/post`))}&vsn=2.0.0`), 101)
+  await settle()
+  assert.deepEqual(seen.upgrades, [`/live/websocket?_live_referer=${encodeURIComponent(up)}&vsn=2.0.0`])
+})
+
+// Chrome's throttling (the TanStack side of J51) shares its throughput among every request; so
+// does the proxy's link. Two 40 kB answers at once at 200 kB/s: 0.4 s, not 0.2 s each in parallel.
+test('the slow link is one link: two answers at once take as long as both in a row', async () => {
+  await fetch(`http://localhost:${port}/__rig/shape?down=200000`)
+  try {
+    const t0 = performance.now()
+    const both = await Promise.all([bytes('/assets/big'), bytes('/assets/big')])
+    assert.deepEqual(both.map((r) => r.body.length), [40_000, 40_000])
+    const ms = performance.now() - t0
+    assert.ok(ms >= 350, `${Math.round(ms)} ms`)
+  } finally {
+    await fetch(`http://localhost:${port}/__rig/shape?latency=0&down=0`)
+  }
+})
+
+// The desk speaks permessage-deflate to a browser direct (Phoenix `compress: true`): so does the proxy.
+test("the socket speaks permessage-deflate when the browser offers it: the desk's frames go on compressed, the browser's are inflated", async () => {
+  const s = net.connect(port, '127.0.0.1')
+  let got = Buffer.alloc(0)
+  s.on('data', (c) => (got = Buffer.concat([got, c])))
+  const until = async (ok) => {
+    for (let i = 0; i < 40 && !ok(); i++) await new Promise((r) => setTimeout(r, 25))
+  }
+  s.write('GET /live/websocket?vsn=2.0.0 HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n\r\n')
+  await until(() => got.includes('\r\n\r\n'))
+  const end = got.indexOf('\r\n\r\n')
+  assert.match(got.subarray(0, end).toString(), /^HTTP\/1.1 101[^]*\r\nSec-WebSocket-Extensions: permessage-deflate; client_no_context_takeover$/)
+  got = got.subarray(end + 4)
+  // A browser's frame: compressed (RSV1), masked. The desk gets it inflated, its URL the desk's.
+  const z = zlib.deflateRawSync(JSON.stringify(['4', '4', 'lv:phx-1', 'phx_join', {url: at(OURS), params: {}}]), {finishFlush: zlib.constants.Z_SYNC_FLUSH}).subarray(0, -4)
+  assert.ok(z.length < 126)
+  const key = Buffer.from([1, 2, 3, 4])
+  s.write(Buffer.concat([Buffer.from([0xc1, 0x80 | z.length]), key, z.map((b, i) => b ^ key[i & 3])]))
+  /** The server frames in what came: [first byte, payload] each. */
+  const frames = () => {
+    const out = []
+    for (let at = 0; at + 2 <= got.length; ) {
+      const [n, head] = (got[at + 1] & 127) === 126 ? [got.readUInt16BE(at + 2), 4] : [got[at + 1] & 127, 2]
+      if (at + head + n > got.length) break
+      out.push([got[at], got.subarray(at + head, at + head + n)])
+      at += head + n
+    }
+    return out
+  }
+  await until(() => frames().length >= 2)
+  s.destroy()
+  assert.deepEqual(seen.texts.map((t) => JSON.parse(t)[4].url), [`http://127.0.0.1:${desk.address().port}${BASE}/post`])
+  // Its two answers: compressed, the second smaller for the context the first left.
+  const [a, b] = frames()
+  assert.deepEqual([a[0], b[0]], [0xc1, 0xc1], 'FIN, RSV1, text')
+  assert.ok(a[1].length < REPLY.length / 4 && b[1].length < a[1].length, `${a[1].length}, ${b[1].length} of ${REPLY.length}`)
+  const tail = Buffer.from([0, 0, 255, 255])
+  const text = zlib.inflateRawSync(Buffer.concat([a[1], tail, b[1], tail]), {finishFlush: zlib.constants.Z_SYNC_FLUSH}).toString()
+  assert.equal(text, REPLY.toString().replaceAll(BASE, '/structure').repeat(2))
 })
