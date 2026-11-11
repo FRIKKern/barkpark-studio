@@ -26,3 +26,9 @@ jobs:
         run: pnpm --dir app test
       - name: PortableDoc conformance
         run: pnpm --dir app conformance
+      # The desk rig's guards (e2e/rig/*.test.mjs): node only, loopback only, no .env. `ls` first:
+      # node --test passes on a glob that matches nothing.
+      - name: Rig guard tests
+        run: |
+          ls e2e/rig/*.test.mjs
+          node --test e2e/rig/*.test.mjs

@@ -108,6 +108,8 @@ test('a path naming a dataset that is not e2e-* is answered 403 and never reache
   for (const path of [
     '/w/ws/p/default/d/production/studio/_desk/post',
     '/w/ws/p/default/d/%70roduction/studio',
+    // The keyword segment encoded: only decoding before judging stops it.
+    '/w/ws/p/default/%64/production/studio',
     '/v1/data/doc/production/post/abc',
     '/w/ws/p/default/v1/data/query/production/post',
     '/v1/media/production/abc',
