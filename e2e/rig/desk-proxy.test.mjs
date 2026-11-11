@@ -27,7 +27,7 @@ const desk = http.createServer((req, res) => {
   if (req.url.includes('/studio/_desk') || req.url.startsWith('/assets/')) {
     const html = !req.url.startsWith('/assets/')
     const coding = (req.headers['accept-encoding'] ?? '').split(',').map((t) => t.split(';')[0].trim()).find((c) => CODE[c])
-    const text = Buffer.from(html ? page(req.url) : `export const desk = "${BASE}/post"\n`.repeat(40))
+    const text = req.url === '/assets/big' ? Buffer.alloc(40_000, 'x') : Buffer.from(html ? page(req.url) : `export const desk = "${BASE}/post"\n`.repeat(40))
     const body = coding ? CODE[coding](text) : text
     seen.bodies.push(body)
     res.writeHead(200, {'content-type': html ? 'text/html; charset=utf-8' : 'text/javascript', 'content-length': body.length, ...(coding && {'content-encoding': coding})})
@@ -54,13 +54,16 @@ desk.on('upgrade', (req, socket) => {
       if (n === 126) (n = buf.readUInt16BE(2)), (at = 4)
       if (buf.length < at + 4 + n) return
       const payload = Buffer.from(buf.subarray(at + 4, at + 4 + n)).map((b, i) => b ^ buf[at + (i & 3)])
-      if ((buf[0] & 15) === 1) seen.texts.push(payload.toString())
+      if ((buf[0] & 15) === 1) seen.texts.push(payload.toString()), socket.write(Buffer.concat([REPLY_HEAD, REPLY, REPLY_HEAD, REPLY]))
       buf = buf.subarray(at + 4 + n)
     }
   })
   socket.on('error', () => {})
 })
 
+// The desk answers every text frame twice with a diff that carries its own hrefs.
+const REPLY = Buffer.from(JSON.stringify({diff: `<a href="${BASE}/post">a post</a>`.repeat(20)}))
+const REPLY_HEAD = Buffer.from([0x81, 126, REPLY.length >> 8, REPLY.length & 255])
 const freePort = () => new Promise((resolve) => {
   const s = net.createServer().listen(0, '127.0.0.1', () => {
     const {port} = s.address()
@@ -261,4 +264,60 @@ test("another e2e-* dataset's desk answers by its full path, its links and socke
   assert.equal(await upgrade(`/live/websocket?_live_referer=${encodeURIComponent(at(`http://localhost:PORT${other}/structure/post`))}&vsn=2.0.0`), 101)
   await settle()
   assert.deepEqual(seen.upgrades, [`/live/websocket?_live_referer=${encodeURIComponent(up)}&vsn=2.0.0`])
+})
+
+// Chrome's throttling (the TanStack side of J51) shares its throughput among every request; so
+// does the proxy's link. Two 40 kB answers at once at 200 kB/s: 0.4 s, not 0.2 s each in parallel.
+test('the slow link is one link: two answers at once take as long as both in a row', async () => {
+  await fetch(`http://localhost:${port}/__rig/shape?down=200000`)
+  try {
+    const t0 = performance.now()
+    const both = await Promise.all([bytes('/assets/big'), bytes('/assets/big')])
+    assert.deepEqual(both.map((r) => r.body.length), [40_000, 40_000])
+    const ms = performance.now() - t0
+    assert.ok(ms >= 350, `${Math.round(ms)} ms`)
+  } finally {
+    await fetch(`http://localhost:${port}/__rig/shape?latency=0&down=0`)
+  }
+})
+
+// The desk speaks permessage-deflate to a browser direct (Phoenix `compress: true`): so does the proxy.
+test("the socket speaks permessage-deflate when the browser offers it: the desk's frames go on compressed, the browser's are inflated", async () => {
+  const s = net.connect(port, '127.0.0.1')
+  let got = Buffer.alloc(0)
+  s.on('data', (c) => (got = Buffer.concat([got, c])))
+  const until = async (ok) => {
+    for (let i = 0; i < 40 && !ok(); i++) await new Promise((r) => setTimeout(r, 25))
+  }
+  s.write('GET /live/websocket?vsn=2.0.0 HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n\r\n')
+  await until(() => got.includes('\r\n\r\n'))
+  const end = got.indexOf('\r\n\r\n')
+  assert.match(got.subarray(0, end).toString(), /^HTTP\/1.1 101[^]*\r\nSec-WebSocket-Extensions: permessage-deflate; client_no_context_takeover$/)
+  got = got.subarray(end + 4)
+  // A browser's frame: compressed (RSV1), masked. The desk gets it inflated, its URL the desk's.
+  const z = zlib.deflateRawSync(JSON.stringify(['4', '4', 'lv:phx-1', 'phx_join', {url: at(OURS), params: {}}]), {finishFlush: zlib.constants.Z_SYNC_FLUSH}).subarray(0, -4)
+  assert.ok(z.length < 126)
+  const key = Buffer.from([1, 2, 3, 4])
+  s.write(Buffer.concat([Buffer.from([0xc1, 0x80 | z.length]), key, z.map((b, i) => b ^ key[i & 3])]))
+  /** The server frames in what came: [first byte, payload] each. */
+  const frames = () => {
+    const out = []
+    for (let at = 0; at + 2 <= got.length; ) {
+      const [n, head] = (got[at + 1] & 127) === 126 ? [got.readUInt16BE(at + 2), 4] : [got[at + 1] & 127, 2]
+      if (at + head + n > got.length) break
+      out.push([got[at], got.subarray(at + head, at + head + n)])
+      at += head + n
+    }
+    return out
+  }
+  await until(() => frames().length >= 2)
+  s.destroy()
+  assert.deepEqual(seen.texts.map((t) => JSON.parse(t)[4].url), [`http://127.0.0.1:${desk.address().port}${BASE}/post`])
+  // Its two answers: compressed, the second smaller for the context the first left.
+  const [a, b] = frames()
+  assert.deepEqual([a[0], b[0]], [0xc1, 0xc1], 'FIN, RSV1, text')
+  assert.ok(a[1].length < REPLY.length / 4 && b[1].length < a[1].length, `${a[1].length}, ${b[1].length} of ${REPLY.length}`)
+  const tail = Buffer.from([0, 0, 255, 255])
+  const text = zlib.inflateRawSync(Buffer.concat([a[1], tail, b[1], tail]), {finishFlush: zlib.constants.Z_SYNC_FLUSH}).toString()
+  assert.equal(text, REPLY.toString().replaceAll(BASE, '/structure').repeat(2))
 })

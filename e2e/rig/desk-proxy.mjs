@@ -5,15 +5,21 @@
 //
 // It is a plain reverse proxy to BARKPARK_URL with one alias, both ways:
 //   /structure…  ⇄  /w/<workspace>/p/<project>/d/<dataset>/studio/_desk…
-// in request paths, Location headers, HTML bodies and LiveView's WebSocket frames (the join
-// and every patch carry the page's URL; every diff carries hrefs). Everything else passes as
-// it is, except what names a dataset that is not e2e-* (the INVARIANT at `judge`).
+// (and any e2e-* dataset's desk by its full path, …/d/<e2e-*>/structure…), in request paths,
+// Location headers, HTML bodies and LiveView's WebSocket frames (the join and every patch
+// carry the page's URL; every diff carries hrefs). Everything else passes as it is, except
+// what names a dataset that is not e2e-* (the INVARIANT at `judge`).
 //
 // It is also the slow network for J51: Chrome's throttling (CDP) does not delay frames on a
 // WebSocket that is already open, and a LiveView click is such a frame. Here every HTTP
 // request waits `latency` ms once and every WebSocket frame half of it each way (a click and
-// its answer: one `latency`), and bytes to the browser are paced at `down` bytes/s.
+// its answer: one `latency`), and bytes to the browser share one link of `down` bytes/s.
+// Those bytes are the ones a browser gets direct: compressed for its own accept-encoding, the
+// socket's with permessage-deflate. Not the same: the browser's side is HTTP/1.1 over plain
+// http (keep-alive, at most 6 requests at once; direct it is h2 over TLS, all at once), and
+// TLS's own round trips are not modelled. The desk's side is HTTPS (HTTP/1.1, keep-alive).
 //   GET /__rig/shape?latency=562.5&down=162000   set (0 = off)      GET /__rig/health   read
+// Each shape set logs what went to the browser since the last one (bytes, requests, most at once).
 import http from 'node:http'
 import https from 'node:https'
 import {createHash} from 'node:crypto'
@@ -157,14 +163,21 @@ function rewrite(body, encoding) {
 const fresh = () => ({http: 0, ws: 0, requests: 0, peak: 0})
 let open = 0
 let sent = fresh()
-/** Bytes to the browser, at `down` bytes/s when set (20 slices a second). */
+/**
+ * Bytes to the browser, at `down` bytes/s when set, in slices of 50 ms. One link for every answer
+ * and frame at once, as a real link is and Chrome's throttling shares its throughput: each slice
+ * waits its turn on it and arrives when its last byte would have.
+ */
+let free = 0
 async function paced(write, buf, leg = 'http') {
   sent[leg] += buf.length
   if (!shape.down) return void write(buf)
   const slice = Math.max(1, Math.ceil(shape.down / 20))
   for (let i = 0; i < buf.length; i += slice) {
-    write(buf.subarray(i, i + slice))
-    if (i + slice < buf.length) await sleep(50)
+    const part = buf.subarray(i, i + slice)
+    free = Math.max(Date.now(), free) + (part.length * 1000) / shape.down
+    await sleep(free - Date.now())
+    write(part)
   }
 }
 
@@ -221,17 +234,34 @@ const server = http.createServer(async (req, res) => {
   req.pipe(up)
 })
 
-// ── WebSocket: the browser's side is spoken here (RFC 6455, no extensions), the desk's by
-// Node's own client. Whole messages only, so a text frame can be rewritten.
-const frame = (opcode, payload) => {
+// ── WebSocket: the browser's side is spoken here (RFC 6455), the desk's by Node's own client.
+// Whole messages only, so a text frame can be rewritten. permessage-deflate (RFC 7692) as the
+// desk speaks it to a browser direct (Phoenix `compress: true`): offered by the browser,
+// accepted here; the desk's messages keep their deflate context, the browser's (small) reset it.
+const frame = (opcode, payload, deflated = false) => {
   const n = payload.length
   const head = Buffer.alloc(n < 126 ? 2 : n < 65536 ? 4 : 10)
-  head[0] = 0x80 | opcode
+  head[0] = 0x80 | (deflated ? 0x40 : 0) | opcode
   if (n < 126) head[1] = n
   else if (n < 65536) (head[1] = 126), head.writeUInt16BE(n, 2)
   else (head[1] = 127), head.writeBigUInt64BE(BigInt(n), 2)
   return Buffer.concat([head, payload])
 }
+const TAIL = Buffer.from([0, 0, 0xff, 0xff])
+/** permessage-deflate as offered (no parameters but client_max_window_bits), or not. */
+const deflateOffered = (ext) => {
+  const [name, ...params] = (ext ?? '').split(',')[0].split(';').map((p) => p.trim().toLowerCase())
+  return name === 'permessage-deflate' && params.every((p) => /^client_max_window_bits(=\d+)?$/.test(p))
+}
+/** One message through a deflate stream that keeps its context: what it adds, less the sync-flush tail. */
+const deflateOne = (z, buf) =>
+  new Promise((resolve, reject) => {
+    const out = []
+    const take = (c) => out.push(c)
+    z.on('data', take).once('error', reject)
+    z.write(buf)
+    z.flush(zlib.constants.Z_SYNC_FLUSH, () => (z.off('data', take).off('error', reject), resolve(Buffer.concat(out).subarray(0, -4))))
+  })
 
 server.on('upgrade', (req, socket) => {
   // The socket's query can carry the page's URL too (LiveView's referer).
@@ -241,7 +271,9 @@ server.on('upgrade', (req, socket) => {
     return void socket.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
   }
   const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')
-  socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`)
+  const deflate = deflateOffered(req.headers['sec-websocket-extensions']) && zlib.createDeflateRaw()
+  const ext = deflate ? 'Sec-WebSocket-Extensions: permessage-deflate; client_no_context_takeover\r\n' : ''
+  socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n${ext}\r\n`)
   socket.setNoDelay(true)
   const up = new WebSocket(`${UP.protocol === 'https:' ? 'wss' : 'ws'}://${UP.host}${path}`, {
     headers: {cookie: req.headers.cookie ?? '', origin: UP.origin, 'user-agent': req.headers['user-agent'] ?? 'desk-proxy'},
@@ -253,6 +285,7 @@ server.on('upgrade', (req, socket) => {
     if (closed) return
     closed = true
     socket.destroy()
+    if (deflate) deflate.close()
     try {
       up.close()
     } catch {
@@ -276,7 +309,7 @@ server.on('upgrade', (req, socket) => {
   up.addEventListener('message', (e) => {
     const text = typeof e.data === 'string'
     const payload = text ? Buffer.from(textDown(e.data)) : Buffer.from(e.data)
-    toBrowser(() => paced((b) => socket.write(b), frame(text ? 1 : 2, payload), 'ws'))
+    toBrowser(async () => paced((b) => socket.write(b), deflate ? frame(text ? 1 : 2, await deflateOne(deflate, payload), true) : frame(text ? 1 : 2, payload), 'ws'))
   })
   up.addEventListener('close', close)
   up.addEventListener('error', close)
@@ -286,6 +319,7 @@ server.on('upgrade', (req, socket) => {
   let buf = Buffer.alloc(0)
   let parts = []
   let kind = 0
+  let packed = false
   socket.on('data', (chunk) => {
     buf = Buffer.concat([buf, chunk])
     for (;;) {
@@ -307,17 +341,24 @@ server.on('upgrade', (req, socket) => {
       at += masked ? 4 : 0
       const payload = Buffer.from(buf.subarray(at, at + n))
       if (key) for (let i = 0; i < n; i++) payload[i] ^= key[i & 3]
-      const fin = !!(buf[0] & 128)
-      const opcode = buf[0] & 15
+      const buf0 = buf[0]
+      const fin = !!(buf0 & 128)
+      const opcode = buf0 & 15
       buf = buf.subarray(at + n)
       if (opcode === 8) return close()
       if (opcode === 9) socket.write(frame(10, payload))
       if (opcode > 2) continue
-      if (opcode) kind = opcode
+      if (opcode) (kind = opcode), (packed = !!(buf0 & 0x40))
+      if (packed && !deflate) return close()
       parts.push(payload)
       if (!fin) continue
-      const whole = Buffer.concat(parts)
+      let whole = Buffer.concat(parts)
       parts = []
+      try {
+        if (packed) whole = zlib.inflateRawSync(Buffer.concat([whole, TAIL]), {finishFlush: zlib.constants.Z_SYNC_FLUSH})
+      } catch {
+        return close()
+      }
       let message = whole
       if (kind === 1) {
         const {out, foreign} = guardFrame(textUp(whole.toString('utf8')))
