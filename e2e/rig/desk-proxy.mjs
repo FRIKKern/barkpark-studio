@@ -17,6 +17,7 @@
 import http from 'node:http'
 import https from 'node:https'
 import {createHash} from 'node:crypto'
+import zlib from 'node:zlib'
 
 const need = (k) => process.env[k] ?? fail(`missing ${k}`)
 function fail(msg) {
@@ -37,11 +38,20 @@ const agent = new web.Agent({keepAlive: true})
 const shape = {latency: Number(process.env.DESK_LATENCY_MS || 0), down: Number(process.env.DESK_DOWN_BPS || 0)}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// Any e2e-* dataset's desk also answers by its full path: /w/<ws>/p/<proj>/d/<e2e-*>/structure…
+// ⇄ …/d/<e2e-*>/studio/_desk… (a spec that opens another e2e dataset by URL). Others: refused.
+const AT = String.raw`/w/[^/?#;"'\s]+/p/[^/?#;"'\s]+/d/e2e-[a-z0-9][a-z0-9-]*`
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const fullPath = new RegExp(`^(${AT})/structure(?=$|[/;?#])`)
+const fullUp = new RegExp(`(${esc(LOCAL)}|["'])(${AT})/structure(?=$|["'/;?#])`, 'g')
+const fullUpEncoded = new RegExp(`${esc(encodeURIComponent(LOCAL))}(%2Fw%2F[^%&]+%2Fp%2F[^%&]+%2Fd%2Fe2e-[a-z0-9][a-z0-9-]*)%2Fstructure(?=$|&|%2F|%3B|%3F|%23)`, 'g')
+const fullDown = new RegExp(`(${AT})/studio/_desk`, 'g')
 /** A request path as the browser has it → the desk's own. */
-const pathUp = (path) => (path === ALIAS || (path.startsWith(ALIAS) && '/;?#'.includes(path[ALIAS.length])) ? BASE + path.slice(ALIAS.length) : path)
+const pathUp = (path) => (path === ALIAS || (path.startsWith(ALIAS) && '/;?#'.includes(path[ALIAS.length])) ? BASE + path.slice(ALIAS.length) : path.replace(fullPath, '$1/studio/_desk'))
 /** Text from the browser (a header, a WebSocket frame): its URLs and quoted paths → the desk's own. */
 const textUp = (s) =>
   s
+    .replace(fullUp, (_, pre, at) => (pre === LOCAL ? UP.origin : pre) + at + '/studio/_desk')
     .replaceAll(LOCAL + ALIAS, UP.origin + BASE)
     .replaceAll(LOCAL, UP.origin)
     .replace(/(["'])\/structure(?=["'/;?#])/g, (_, q) => q + BASE)
@@ -110,10 +120,46 @@ function guardFrame(text) {
 }
 
 /** Text from the desk → as the browser is to see it. */
-const textDown = (s) => s.replaceAll(BASE, ALIAS).replaceAll(UP.origin, LOCAL)
+const textDown = (s) => s.replaceAll(BASE, ALIAS).replace(fullDown, '$1/structure').replaceAll(UP.origin, LOCAL)
 
+// The browser's own accept-encoding goes to the desk, less what this proxy cannot undo, so the
+// bytes paced to it are the compressed ones a browser gets. A page it rewrites (HTML) is decoded,
+// rewritten and encoded again in the coding the desk chose; everything else passes as it came.
+const CODECS = {
+  gzip: [zlib.gunzipSync, zlib.gzipSync],
+  'x-gzip': [zlib.gunzipSync, zlib.gzipSync],
+  deflate: [(b) => (b[0] === 0x78 ? zlib.inflateSync(b) : zlib.inflateRawSync(b)), zlib.deflateSync],
+  br: [zlib.brotliDecompressSync, zlib.brotliCompressSync],
+  ...(zlib.zstdCompressSync && {zstd: [zlib.zstdDecompressSync, zlib.zstdCompressSync]}),
+}
+const acceptable = (ae) =>
+  (ae ?? '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.split(';')[0].trim().toLowerCase() in CODECS)
+    .join(', ') || 'identity'
+/** An HTML body as the browser is to get it: in the desk's coding, its text aliased; null if that coding is not one known here. */
+function rewrite(body, encoding) {
+  const codings = (encoding ?? '').split(',').map((c) => c.trim().toLowerCase()).filter((c) => c && c !== 'identity')
+  if (!codings.every((c) => CODECS[c])) return null
+  try {
+    let text = body
+    for (const c of codings.toReversed()) text = CODECS[c][0](text)
+    let out = Buffer.from(textDown(text.toString('utf8')))
+    for (const c of codings) out = CODECS[c][1](out)
+    return out
+  } catch {
+    return null
+  }
+}
+
+/** What went to the browser since the shape was last set: bytes over HTTP and the socket, requests. */
+const fresh = () => ({http: 0, ws: 0, requests: 0, peak: 0})
+let open = 0
+let sent = fresh()
 /** Bytes to the browser, at `down` bytes/s when set (20 slices a second). */
-async function paced(write, buf) {
+async function paced(write, buf, leg = 'http') {
+  sent[leg] += buf.length
   if (!shape.down) return void write(buf)
   const slice = Math.max(1, Math.ceil(shape.down / 20))
   for (let i = 0; i < buf.length; i += slice) {
@@ -125,17 +171,24 @@ async function paced(write, buf) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, LOCAL)
   if (url.pathname === '/__rig/health' || url.pathname === '/__rig/shape') {
-    if (url.pathname === '/__rig/shape') for (const k of ['latency', 'down']) if (url.searchParams.has(k)) shape[k] = Number(url.searchParams.get(k)) || 0
+    if (url.pathname === '/__rig/shape') {
+      console.log(`desk-proxy: sent at ${JSON.stringify(shape)}: ${JSON.stringify(sent)}`)
+      for (const k of ['latency', 'down']) if (url.searchParams.has(k)) shape[k] = Number(url.searchParams.get(k)) || 0
+      sent = fresh()
+    }
     res.writeHead(200, {'content-type': 'application/json'})
-    return void res.end(JSON.stringify({ok: true, alias: ALIAS, dataset: DATASET, ...shape}))
+    return void res.end(JSON.stringify({ok: true, alias: ALIAS, dataset: DATASET, ...shape, sent}))
   }
+  sent.requests++
+  sent.peak = Math.max(sent.peak, ++open)
+  res.on('close', () => open--)
   const {path, foreign} = judge(pathUp(req.url))
   if (foreign) {
     refused(req.method, path)
     res.writeHead(403, {'content-type': 'text/plain'})
     return void res.end('desk-proxy: an e2e-* dataset only')
   }
-  const headers = {...req.headers, host: UP.host, 'accept-encoding': 'identity'}
+  const headers = {...req.headers, host: UP.host, 'accept-encoding': acceptable(req.headers['accept-encoding'])}
   for (const k of ['origin', 'referer']) if (headers[k]) headers[k] = textUp(headers[k])
   const up = web.request({hostname: UP.hostname, port: UP.port || undefined, method: req.method, path, headers, agent}, async (r) => {
     const h = {...r.headers}
@@ -148,11 +201,12 @@ const server = http.createServer(async (req, res) => {
       if (/text\/html/.test(h['content-type'] ?? '')) {
         const chunks = []
         for await (const c of r) chunks.push(c)
-        const body = Buffer.from(textDown(Buffer.concat(chunks).toString('utf8')))
-        h['content-length'] = String(body.length)
-        delete h['transfer-encoding']
+        const got = Buffer.concat(chunks)
+        const body = got.length ? rewrite(got, h['content-encoding']) : got
+        if (!body) console.error(`desk-proxy: ${path}: not rewritten, ${h['content-encoding']} is not a coding known here`)
+        else if (got.length) (h['content-length'] = String(body.length)), delete h['transfer-encoding']
         res.writeHead(r.statusCode, h)
-        await paced((b) => res.write(b), body)
+        await paced((b) => res.write(b), body ?? got)
       } else {
         res.writeHead(r.statusCode, h)
         for await (const c of r) await paced((b) => res.write(b), c)
@@ -181,7 +235,7 @@ const frame = (opcode, payload) => {
 
 server.on('upgrade', (req, socket) => {
   // The socket's query can carry the page's URL too (LiveView's referer).
-  const {path, foreign} = judge(req.url.replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin)))
+  const {path, foreign} = judge(req.url.replace(fullUpEncoded, `${encodeURIComponent(UP.origin)}$1%2Fstudio%2F_desk`).replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin)))
   if (foreign) {
     refused('upgrade', path)
     return void socket.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
@@ -222,7 +276,7 @@ server.on('upgrade', (req, socket) => {
   up.addEventListener('message', (e) => {
     const text = typeof e.data === 'string'
     const payload = text ? Buffer.from(textDown(e.data)) : Buffer.from(e.data)
-    toBrowser(() => paced((b) => socket.write(b), frame(text ? 1 : 2, payload)))
+    toBrowser(() => paced((b) => socket.write(b), frame(text ? 1 : 2, payload), 'ws'))
   })
   up.addEventListener('close', close)
   up.addEventListener('error', close)

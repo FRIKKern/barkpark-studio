@@ -8,15 +8,31 @@ import http from 'node:http'
 import net from 'node:net'
 import {after, before, beforeEach, test} from 'node:test'
 import {fileURLToPath} from 'node:url'
+import zlib from 'node:zlib'
 
 const SCRIPT = process.env.DESK_PROXY ?? fileURLToPath(new URL('./desk-proxy.mjs', import.meta.url))
 const DATASET = 'e2e-rig-test'
 const BASE = `/w/ws/p/default/d/${DATASET}/studio/_desk`
 
-/** What the fake desk was asked: request paths, upgrade paths, the text frames it got. */
-const seen = {requests: [], upgrades: [], texts: []}
+/** What the fake desk was asked: request paths, upgrade paths, the text frames it got; accept-encodings, bodies it sent. */
+const seen = {requests: [], upgrades: [], texts: [], encodings: [], bodies: []}
+const CODE = {gzip: zlib.gzipSync, br: zlib.brotliCompressSync, deflate: zlib.deflateSync, ...(zlib.zstdCompressSync && {zstd: zlib.zstdCompressSync})}
+const DECODE = {gzip: zlib.gunzipSync, br: zlib.brotliDecompressSync, deflate: zlib.inflateSync, ...(zlib.zstdDecompressSync && {zstd: zlib.zstdDecompressSync})}
+/** A desk page: links to itself, as the desk's are. */
+const page = (path) => `<a href="${path}">here</a> <a href="${path};doc">a doc</a>`
 const desk = http.createServer((req, res) => {
   seen.requests.push(req.url)
+  seen.encodings.push(req.headers['accept-encoding'])
+  // Pages and assets in the first coding asked for that the desk speaks, as Phoenix answers.
+  if (req.url.includes('/studio/_desk') || req.url.startsWith('/assets/')) {
+    const html = !req.url.startsWith('/assets/')
+    const coding = (req.headers['accept-encoding'] ?? '').split(',').map((t) => t.split(';')[0].trim()).find((c) => CODE[c])
+    const text = Buffer.from(html ? page(req.url) : `export const desk = "${BASE}/post"\n`.repeat(40))
+    const body = coding ? CODE[coding](text) : text
+    seen.bodies.push(body)
+    res.writeHead(200, {'content-type': html ? 'text/html; charset=utf-8' : 'text/javascript', 'content-length': body.length, ...(coding && {'content-encoding': coding})})
+    return void res.end(body)
+  }
   // Sign-in as Barkpark answers it: the session cookie, and off to the account's default Studio.
   if (req.method === 'POST' && req.url === '/login') {
     res.writeHead(302, {location: `http://127.0.0.1:${desk.address().port}/w/ws/p/default/d/production/studio`, 'set-cookie': '_bp=s1; path=/; HttpOnly; Secure'})
@@ -90,6 +106,14 @@ const upgrade = (path) => new Promise((resolve, reject) => {
   req.end()
 })
 const settle = () => new Promise((r) => setTimeout(r, 200))
+/** A GET as a browser's network stack has it, nothing decoded: status, headers, the bytes. */
+const bytes = (path, headers = {}) => new Promise((resolve, reject) => {
+  http.get({host: '127.0.0.1', port, path, headers}, (r) => {
+    const chunks = []
+    r.on('data', (c) => chunks.push(c))
+    r.on('end', () => resolve({status: r.statusCode, headers: r.headers, body: Buffer.concat(chunks)}))
+  }).on('error', reject)
+})
 /** Send one LiveView message on a fresh socket; what reached the desk. */
 async function send(vsn, message) {
   seen.texts.length = 0
@@ -194,4 +218,47 @@ test('sign-in still signs in when its redirect to the default Studio is refused'
   assert.equal((await fetch(r.headers.get('location'))).status, 403)
   assert.equal((await fetch(`http://localhost:${port}/structure`, {headers: {cookie: '_bp=s1'}})).status, 200)
   assert.deepEqual(seen.requests, ['/login', BASE])
+})
+
+// The paced leg carries what a browser gets (J51): the desk is asked with the browser's own
+// accept-encoding, and what the proxy rewrites goes on in the coding the desk answered in.
+test("a page the proxy rewrites reaches the browser in the desk's coding, for the browser's accept-encoding", async () => {
+  const cases = [['gzip, deflate, br', 'gzip'], ['br;q=1.0, gzip;q=0.8', 'br'], ['deflate', 'deflate'], ...(CODE.zstd ? [['zstd, gzip', 'zstd']] : [])]
+  for (const [accept, coding] of cases) {
+    seen.encodings.length = 0
+    const r = await bytes('/structure/post', {'accept-encoding': accept})
+    assert.equal(seen.encodings[0], accept, 'the desk was asked with the browser\'s accept-encoding')
+    assert.equal(r.headers['content-encoding'], coding, accept)
+    assert.equal(Number(r.headers['content-length']), r.body.length, accept)
+    assert.equal(DECODE[coding](r.body).toString(), page('/structure/post'), accept)
+  }
+  // A coding the proxy could not undo is not offered: the page could not be rewritten.
+  seen.encodings.length = 0
+  await bytes('/structure/post', {'accept-encoding': 'compress, x-unknown, gzip;q=0.5'})
+  assert.deepEqual(seen.encodings, ['gzip;q=0.5'])
+})
+
+test('an answer the proxy does not rewrite passes byte for byte, still compressed', async () => {
+  const r = await bytes('/assets/app.js', {'accept-encoding': 'gzip, deflate, br'})
+  assert.equal(r.headers['content-encoding'], 'gzip')
+  assert.deepEqual(r.body, seen.bodies[0])
+  assert.ok(zlib.gunzipSync(r.body).toString().includes(BASE), 'its text as the desk wrote it')
+})
+
+// list.spec.ts opens another e2e dataset by its full path (/w/…/d/e2e-no-schema-ever/structure).
+test("another e2e-* dataset's desk answers by its full path, its links and socket mapped; one not e2e-* is still refused", async () => {
+  const other = '/w/ws/p/default/d/e2e-other'
+  const r = await bytes(`${other}/structure/post`)
+  assert.equal(r.status, 200)
+  assert.equal(r.body.toString(), page(`${other}/structure/post`))
+  assert.equal(await get(`${other}/structure`), 200)
+  assert.equal(await get('/w/ws/p/default/d/production/structure/post'), 403)
+  assert.deepEqual(seen.requests, [`${other}/studio/_desk/post`, `${other}/studio/_desk`])
+  const up = `http://127.0.0.1:${desk.address().port}${other}/studio/_desk/post`
+  const got = await send('2.0.0', ['4', '4', 'lv:phx-1', 'phx_join', {url: at(`http://localhost:PORT${other}/structure/post`), params: {}}])
+  assert.deepEqual(got.map((m) => JSON.parse(m)[4].url), [up], 'the join passed the frame guard, as that desk\'s URL')
+  seen.upgrades.length = 0
+  assert.equal(await upgrade(`/live/websocket?_live_referer=${encodeURIComponent(at(`http://localhost:PORT${other}/structure/post`))}&vsn=2.0.0`), 101)
+  await settle()
+  assert.deepEqual(seen.upgrades, [`/live/websocket?_live_referer=${encodeURIComponent(up)}&vsn=2.0.0`])
 })
