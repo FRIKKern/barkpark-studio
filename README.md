@@ -18,10 +18,8 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
-- **Yesterday** · 4 changes
+- **This week** · 6 changes
   - e2e: the desk proxy paces the compressed bytes a browser gets ([#1246](https://github.com/FRIKKern/barkpark-studio/pull/1246))
-- **This week** · 2 changes
-  - e2e: desk slice scorecard, seven rows on the desk and on ours ([#1242](https://github.com/FRIKKern/barkpark-studio/pull/1242))
 - **Last week** · 7 changes
 - **Last month** · 1212 changes, 183 tasks closed
 <!-- timeline:end -->
