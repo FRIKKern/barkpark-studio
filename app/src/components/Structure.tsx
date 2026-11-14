@@ -851,7 +851,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   // list, a row drags to a new place (OrderableRows). Off when searching, read-only, or in
   // the Published perspective; the rows are then `shown` as they are.
   const manual = sort === RANK_SORT && !published
-  const ord = useOrderableRows({on: manual && canWrite && !query.trim() && !shownQuery.trim() && !!page && !page.hasMore && !listQ.isPlaceholderData, type, shown, direct: canPublish})
+  const ord = useOrderableRows({on: manual && canWrite && !query.trim() && !shownQuery.trim() && !!page && !page.hasMore && !listQ.isPlaceholderData, capped: manual && canWrite && !!page?.hasMore && limit >= LIST_MAX && !listQ.isPlaceholderData ? LIST_MAX : undefined, type, shown, direct: canPublish})
   const rows = ord.rows
   const searching = !!shownQuery.trim() && rows.length > 0 // as drawn: the first key leaves the rows to the deferred redraw
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
