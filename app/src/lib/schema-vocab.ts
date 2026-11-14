@@ -40,6 +40,7 @@ export const FIELD_KEYS = {
   codelistId: 'codelist: "<plugin>:<name>".',
   preview: 'An array item\'s row: {title, subtitle} subfield names.',
   visibleWhen: 'Shown only when {field, operator, value, scope?} holds.',
+  hidden: 'true keeps the field out of the form whatever visibleWhen says; its value stays (a manual order\'s orderRank).',
   readOnly: 'true, or a condition like visibleWhen.',
   fieldsets: 'composite: Sanity\'s fieldsets, [{name, title, options: {collapsible, collapsed, columns}}].',
   fieldset: 'The fieldset (of its composite) it shows in.',

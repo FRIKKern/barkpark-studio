@@ -112,6 +112,7 @@ export function schemaFields(s: Schema): FilterField[] {
   const out: FilterField[] = []
   const walk = (fields: Field[], prefix: string, parent?: string) => {
     for (const f of fields) {
+      if (f.hidden === true) continue // never in the form (a manual order's rank): not a filter either
       if ((f.type === 'composite' || f.type === 'object') && f.fields) {
         walk(f.fields, `${prefix}${f.name}.`, titleOf(f))
         continue

@@ -27,6 +27,8 @@ import {DocPreview, RefsPrimed} from './Preview'
 import {usePrimed} from '../lib/prime'
 import {mediaRefs, textRefs} from '../lib/preview'
 import {BulkBar} from './BulkBar'
+import {useOrderableRows} from './OrderableRows'
+import {RANK_SORT} from '../lib/order-rank'
 import {MAX_SELECTED} from '../lib/bulk'
 import {AvatarStack} from './Presence'
 import {usePresences, type Presence} from '../lib/presence'
@@ -724,7 +726,7 @@ function leaveList(e: React.KeyboardEvent<HTMLElement>, list: HTMLElement) {
 function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {panes: Pane[]; index: number; type: string; node?: string; treeParent?: string; selected?: string}) {
   const t = useT()
   const locale = useLocale()
-  const {canWrite, createReason} = useCanWrite()
+  const {canWrite, canPublish, createReason} = useCanWrite()
   const {data: schemas = []} = useQuery(schemasQuery)
   const qc = useQueryClient()
   const navigate = usePaneNavigate()
@@ -811,6 +813,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
     io.observe(el)
     return () => io.disconnect()
   }, [canGrow])
+  // A manual order is moved in on the whole list: it loads at once, not on scroll.
+  useEffect(() => void (sort === RANK_SORT && canGrow && setLimit(LIST_MAX)), [sort, canGrow])
   // J07: whose doc is open where, as avatars on the rows (only those rows re-render).
   const people = usePresences()
   const open = useMemo(() => {
@@ -843,7 +847,12 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   }, [docs, shownQuery, order, schemas, type, locale])
   // F11: growing to LIST_MAX once mounted ~1,900 rows (a 350 ms frame, then 60 a task
   // apart); a list that long now draws only the rows near the view (RowWindow).
-  const rows = shown
+  // Manual order (Sanity's orderable document list): under the orderRank sort, on the whole
+  // list, a row drags to a new place (OrderableRows). Off when searching, read-only, or in
+  // the Published perspective; the rows are then `shown` as they are.
+  const manual = sort === RANK_SORT && !published
+  const ord = useOrderableRows({on: manual && canWrite && !query.trim() && !shownQuery.trim() && !!page && !page.hasMore && !listQ.isPlaceholderData, type, shown, direct: canPublish})
+  const rows = ord.rows
   const searching = !!shownQuery.trim() && rows.length > 0 // as drawn: the first key leaves the rows to the deferred redraw
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
   const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())
@@ -894,7 +903,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const renderRow = useCallback(
     (d: Doc, i: number) => {
         // Drawn a window at a time (RowWindow), a row still says where it is: "3 of 2,000".
-        const lightProps = {id: `${listId}-item-${i}`, 'data-lit': searching && i === lit ? '' : undefined, ...(rows.length > WINDOW_FROM && {'aria-setsize': rows.length, 'aria-posinset': i + 1})}
+        const lightProps = {id: `${listId}-item-${i}`, 'data-lit': searching && i === lit ? '' : undefined, ...(rows.length > WINDOW_FROM && {'aria-setsize': rows.length, 'aria-posinset': i + 1}), ...ord.rowProps(d, i)}
         const row = (
           <DocPreview
             key={d._publishedId}
@@ -906,7 +915,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             extra={open.has(d._publishedId) ? <AvatarStack people={open.get(d._publishedId)!} max={2} editing /> : undefined}
           />
         )
-        if (!selectable) return <div key={d._publishedId} role="listitem" className="rows-item" {...lightProps}>{row}</div>
+        if (!selectable) return <div key={d._publishedId} role="listitem" className="rows-item" {...lightProps}>{ord.handle(d, i)}{row}</div>
         return (
           <div
             key={d._publishedId}
@@ -931,6 +940,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               lastPick.current = d._publishedId
             }}
           >
+            {ord.handle(d, i)}
             {/* Out of the tab order and the accessibility tree until selecting: hidden ticks read as 31 stray checkboxes. */}
             <label className="bulk-check" inert={!(selecting || picked.size > 0)}>
               <input type="checkbox" aria-label={t('Select {title}', {title: previewTitle(d, schemaOf(schemas, type), t)})} checked={picked.has(d._publishedId)} onChange={() => pick(d)} />
@@ -975,7 +985,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
               // block list from the schema's layout and fills it from its prefill.
               const id = crypto.randomUUID()
               // A declared list's initialValues go on top (Barkpark's desk initialValues).
-              startNew(qc, schemas, choice, id, newDocPreset(node, !!childTemplate)).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
+              startNew(qc, schemas, choice, id, {...newDocPreset(node, !!childTemplate), ...ord.newDocValues()}).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
               // A child list's template opens the new doc under its type's own list, as Sanity's create intent does.
               // Its URL names the template (and parameters), as Sanity's: a reload before the first edit rebuilds it.
               const made = {kind: 'doc' as const, id, type, template: choice.id, ...(choice.params && {templateParams: choice.params})}
@@ -985,7 +995,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           />
         )}
         {/* J18: a structure's child list is Sanity's S.documentList(): no menu items, so no "…". */}
-        {!childTemplate && !(treeParent && node?.child) && <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} selecting={selectable ? selecting || picked.size > 0 : undefined} onSelecting={(on) => (on ? setSelecting(true) : stopSelecting())} />}
+        {!childTemplate && !(treeParent && node?.child) && <ListMenu schema={schemaOf(schemas, type)} sort={sort} view={view} set={set} selecting={selectable ? selecting || picked.size > 0 : undefined} onSelecting={(on) => (on ? setSelecting(true) : stopSelecting())} onResetOrder={ord.on ? ord.reset : undefined} />}
       </header>
       <div className="search">
         <span className="search-icon">
@@ -1032,6 +1042,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
           {t('Sorted by relevance')}
         </div>
       )}
+      {ord.notice}
       {query.trim() && filter && page?.hasMore && (
         <p className="list-empty" role="status">
           {t('Search covers the {n} loaded documents in this list. Clear search and scroll to load more.', {n: page.docs.length})}
@@ -1043,7 +1054,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         data-more={canGrow || (listQ.isPlaceholderData && listQ.isFetching) ? '' : undefined}
         data-windowed={rowEls ? undefined : ''}
         data-selecting={selectable && (selecting || picked.size > 0) ? '' : undefined}
-        onKeyDown={(e) => (e.key === 'Escape' && (selecting || picked.size > 0) ? stopSelecting() : rowKeys(e))}
+        onKeyDown={(e) => (e.key === 'Escape' && (selecting || picked.size > 0) ? stopSelecting() : ord.onKey(e) || rowKeys(e))}
         onFocus={(e) => void (focusedRow.current = (e.target as HTMLElement).closest('[role="listitem"] a[href]')?.getAttribute('href') ?? null)}
       >
         {shownMissing.length > 0 && <p className="list-empty">{t("This list filters with {ops}, which Barkpark's query API does not offer yet", {ops: shownMissing.join(', ')})}</p>}
@@ -1130,7 +1141,7 @@ function byOrder(sort: string, locale: Locale) {
  * J25 + J55: the list's "…" menu, Sanity's: the type's own orderings when it
  * declares any, else "Sort by <title field>"; then last edited, created; layout.
  */
-function ListMenu({schema, sort, view, set, selecting, onSelecting}: {schema: Schema | undefined; sort: Sort; view: View; set: (p: {sort?: Sort; view?: View}) => void; selecting?: boolean; onSelecting?: (on: boolean) => void}) {
+function ListMenu({schema, sort, view, set, selecting, onSelecting, onResetOrder}: {schema: Schema | undefined; sort: Sort; view: View; set: (p: {sort?: Sort; view?: View}) => void; selecting?: boolean; onSelecting?: (on: boolean) => void; /** Under the manual order: Sanity's "Reset Order". */ onResetOrder?: () => void}) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -1174,6 +1185,7 @@ function ListMenu({schema, sort, view, set, selecting, onSelecting}: {schema: Sc
           {item(t('Sort by Last Edited'), sort === 'updated', () => set({sort: 'updated'}), false, <SortIcon />)}
           {item(t('Sort by Created'), sort === 'created', () => set({sort: 'created'}), false, <SortIcon />)}
           {item(t('Default sort'), false, () => set({sort: DEFAULT_SORT}), sort === DEFAULT_SORT && t('Already using the default sort order'))}
+          {onResetOrder && item(t('Reset order'), false, onResetOrder)}
           <hr />
           <div className="menu-label">{t('Layout')}</div>
           {item(t('Compact view'), view === 'compact', () => set({view: 'compact'}), false, <StackCompact />)}
