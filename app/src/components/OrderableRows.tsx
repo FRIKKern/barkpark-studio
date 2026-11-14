@@ -1,12 +1,12 @@
 import {useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode} from 'react'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {DragHandle} from './icons'
 import {toast} from './Toasts'
 import {announce} from '../lib/announce'
-import {previewTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {previewTitle, schemaOf, schemasQuery, type Doc, type ListPage} from '../lib/data'
 import {applyServer, reasonOf} from '../lib/edits'
 import {useT} from '../lib/i18n'
-import {compareRanks, isRank, RANK_FIELD, rankAll, rankAtEnd, rankMove, reorder} from '../lib/order-rank'
+import {compareRanks, isRank, RANK_FIELD, rankAll, rankAtEnd, rankMoveOf, rankAfter, reorder, sessionLost} from '../lib/order-rank'
 import {saveRanks, type RankSaved} from '../lib/order-save'
 
 // Sanity's orderable document list (@sanity/orderable-document-list): a list sorted by its
@@ -46,7 +46,18 @@ export type Orderable = {
 
 const idOf = (d: Doc) => d._publishedId
 
-export function useOrderableRows({on, type, shown, direct}: {on: boolean; type: string; shown: Doc[]; /** The editor may publish: a published document's rank is written to it, not to a new draft. */ direct: boolean}): Orderable {
+/**
+ * Duplicate: a copy of a ranked document goes right after its source, before the next rank
+ * the open lists of its type hold, instead of onto the source's own rank. No list open: the
+ * copy keeps the rank (it sorts beside its source; the next move there undoes the tie).
+ */
+export function copyRank(qc: QueryClient, from: Doc): Record<string, unknown> {
+  const ranks = qc.getQueriesData<ListPage>({queryKey: ['list', from._type]}).flatMap(([, page]) => page?.docs ?? []).map((d) => d[RANK_FIELD])
+  const rank = ranks.length ? rankAfter(from[RANK_FIELD], ranks) : null
+  return rank ? {[RANK_FIELD]: rank} : {}
+}
+
+export function useOrderableRows({on, capped, type, shown, direct}: {on: boolean; /** Set (to the cap) when the manual order is shown but Barkpark holds more rows than a list loads: no dragging, and the list says why. */ capped?: number; type: string; shown: Doc[]; /** The editor may publish: a published document's rank is written to it, not to a new draft. */ direct: boolean}): Orderable {
   const t = useT()
   const qc = useQueryClient()
   const helpId = useId()
@@ -89,6 +100,11 @@ export function useOrderableRows({on, type, shown, direct}: {on: boolean; type: 
       const saved = (await saveRanks({data: {type, writes: writes.map((w) => ({id: idOf(w.doc), rank: w.rank, direct: direct && !w.doc._draft}))}})) as unknown as RankSaved
       for (const d of saved.docs) applyServer(qc, d)
       letGo()
+      // A long list goes in parts: a later part refused leaves the earlier ones saved, and shown.
+      if (saved.failed) {
+        toast({tone: 'critical', title: t('Saved the place of {n} of {total} documents', {n: saved.docs.length, total: writes.length}), description: reasonOf(saved.failed) ?? saved.failed})
+        return false
+      }
       // Written to a draft whose published version keeps its old place until the draft is published.
       const waiting = writes.filter((w) => saved.waiting.includes(idOf(w.doc)) && w.doc._hasPublished)
       if (waiting.length === 1) toast({tone: 'caution', title: t('{title} has unpublished changes: its new place goes live when it is published.', {title: title(waiting[0]!.doc)})})
@@ -97,16 +113,25 @@ export function useOrderableRows({on, type, shown, direct}: {on: boolean; type: 
     } catch (err) {
       letGo()
       const message = (err as Error).message
-      toast({tone: 'critical', title: t('Could not save the new order'), description: reasonOf(message) ?? message})
+      // J48: the session is gone. The studio asks who is here again (its sign-in), as after any refused write.
+      if (sessionLost(message)) {
+        void qc.invalidateQueries({queryKey: ['me']})
+        toast({tone: 'caution', title: t("You've been logged out"), description: t('The new order was not saved. Sign in and move it again.')})
+      } else toast({tone: 'critical', title: t('Could not save the new order'), description: reasonOf(message) ?? message})
       return false
     }
   }
 
-  /** Row `from` of the list as it stands (no move shown) goes to place `to`. */
-  const drop = (from: number, to: number) => {
+  /**
+   * The row `id`, picked up at `from` of the list as it stands (no move shown), goes to place
+   * `to`. If the list changed since it was picked up (another editor's move, a new or deleted
+   * row: another document sits at `from` now) nothing is moved: the drag ends where it began.
+   */
+  const drop = (id: string, from: number, to: number) => {
     const {base} = latest.current
     const moved = base[from]
-    const writes = rankMove(base.map((d) => d[RANK_FIELD]), from, to).map((w) => ({doc: base[w.at]!, rank: w.rank}))
+    const byId = new Map(base.map((d) => [idOf(d), d]))
+    const writes = rankMoveOf(base.map((d) => ({id: idOf(d), rank: d[RANK_FIELD]})), id, from, to).map((w) => ({doc: byId.get(w.id)!, rank: w.rank}))
     if (!moved || !writes.length) return
     announce(t('{title} moved to place {n} of {total}', {title: title(moved), n: to + 1, total: base.length}))
     void save(writes)
@@ -124,7 +149,7 @@ export function useOrderableRows({on, type, shown, direct}: {on: boolean; type: 
       taken()
       if (!m) return setMoving({id: idOf(doc), from: at, to: at, keys: true})
       setMoving(null)
-      drop(m.from, m.to)
+      drop(m.id, m.from, m.to)
       focusIn(m.id, '.order-handle')
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       taken()
@@ -174,7 +199,7 @@ export function useOrderableRows({on, type, shown, direct}: {on: boolean; type: 
       removeEventListener('pointercancel', end)
       removeEventListener('keydown', end, true)
       setMoving(null)
-      if (ev.type === 'pointerup' && to !== from) drop(from, to)
+      if (ev.type === 'pointerup' && to !== from) drop(id, from, to)
     }
     addEventListener('pointermove', move)
     addEventListener('pointerup', end)
@@ -195,7 +220,7 @@ export function useOrderableRows({on, type, shown, direct}: {on: boolean; type: 
     if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && !latest.current.moving) {
       e.preventDefault()
       const to = at + (e.key === 'ArrowDown' ? 1 : -1)
-      if (to >= 0 && to < latest.current.base.length) (drop(at, to), focusIn(id, onLink ? 'a[href]' : '.order-handle'))
+      if (to >= 0 && to < latest.current.base.length) (drop(id, at, to), focusIn(id, onLink ? 'a[href]' : '.order-handle'))
       return true
     }
     // The handles are off the Tab order (the list stays one Tab stop): Left arrow reaches a row's.
@@ -241,6 +266,10 @@ export function useOrderableRows({on, type, shown, direct}: {on: boolean; type: 
           </p>
         )}
       </>
+    ) : capped ? (
+      <p className="order-note" role="status">
+        {t('Dragging is off: this list holds more than {max} documents, and only the first {max} are loaded.', {max: capped})}
+      </p>
     ) : null,
     reset: () => {
       const {base} = latest.current
