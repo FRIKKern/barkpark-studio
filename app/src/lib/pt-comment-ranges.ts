@@ -122,6 +122,7 @@ export function mapPtRanges(before: unknown, after: unknown, ranges: PtRange[], 
     return {head, group: groups.get(head)!}
   }
   const order = (p: Point) => [wasAt.get(p.blockId)!, p.offset] as const
+  const whole = (p: Point) => Number.isInteger(p.offset) && p.offset >= 0
   const point = (p: Point, assoc: 1 | -1): Point | null => {
     const i = wasAt.get(p.blockId)!
     const {head, group} = groupOf(i)
@@ -132,7 +133,7 @@ export function mapPtRanges(before: unknown, after: unknown, ranges: PtRange[], 
     return {blockId: group.blocks[n]!._key, offset: o - group.to.starts[n]!}
   }
   return ranges.flatMap((r): PtRange[] => {
-    if (!wasAt.has(r.anchor.blockId) || !wasAt.has(r.head.blockId)) return [r]
+    if (!wasAt.has(r.anchor.blockId) || !wasAt.has(r.head.blockId) || !whole(r.anchor) || !whole(r.head)) return [r]
     const [a, h] = [order(r.anchor), order(r.head)]
     const forward = a[0] < h[0] || (a[0] === h[0] && a[1] <= h[1])
     const start = point(forward ? r.anchor : r.head, 1)
@@ -143,6 +144,14 @@ export function mapPtRanges(before: unknown, after: unknown, ranges: PtRange[], 
   })
 }
 
+/**
+ * What the comments do with the text a field shows. Only an editor of the draft ('edit')
+ * carries spans from one value to the next and saves where they went. A draft shown
+ * read-only ('read') paints the saved spans as they are; another version (the published
+ * one, a revision: 'none') paints none, its text is not what they are on.
+ */
+export const ptCommentMode = (view: {otherVersion?: boolean; editable: boolean}): 'none' | 'read' | 'edit' => (view.otherVersion ? 'none' : view.editable ? 'edit' : 'read')
+
 /** The spans that are in the text of `value` (both ends' blocks there, some text between), running forward, offsets inside their blocks. */
 export function placedPtRanges<R extends PtRange>(value: unknown, ranges: R[]): R[] {
   if (!ranges.length) return []
@@ -151,7 +160,7 @@ export function placedPtRanges<R extends PtRange>(value: unknown, ranges: R[]): 
   return ranges.flatMap((r): R[] => {
     const ends = [r.anchor, r.head].map((p) => {
       const i = at.get(p.blockId)
-      return i === undefined ? null : {i, point: {blockId: p.blockId, offset: Math.max(0, Math.min(p.offset, blockText(blocks[i]).length))}}
+      return i === undefined || !Number.isFinite(p.offset) ? null : {i, point: {blockId: p.blockId, offset: Math.max(0, Math.min(p.offset, blockText(blocks[i]).length))}}
     })
     if (!ends[0] || !ends[1]) return []
     const [a, b] = ends[0].i < ends[1].i || (ends[0].i === ends[1].i && ends[0].point.offset <= ends[1].point.offset) ? [ends[0], ends[1]] : [ends[1], ends[0]]

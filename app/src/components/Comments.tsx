@@ -31,6 +31,8 @@ type Api = {
   /** The thread the author has picked (Sanity's selected thread): its span of text shows active. */
   active?: string
   select: (threadId?: string) => void
+  /** The form shows another version than the draft the comments are on (the published one, a revision): spans are not followed there. */
+  otherVersion?: boolean
 }
 export const CommentsContext = createContext<Api | null>(null)
 

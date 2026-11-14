@@ -1,7 +1,7 @@
 // J40: an inline comment's span on Portable Text follows its words through edits.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {blockPoint, blockText, mapPtRanges, placedPtRanges, type PtRange} from './pt-comment-ranges.ts'
+import {blockPoint, blockText, mapPtRanges, ptCommentMode, placedPtRanges, type PtRange} from './pt-comment-ranges.ts'
 
 const block = (_key: string, ...texts: string[]) => ({_key, _type: 'block', children: texts.map((text, i) => ({_key: `${_key}s${i}`, _type: 'span', text}))})
 const at = (blockId: string, from: number, to: number, endBlock = blockId): PtRange => ({id: 't1', anchor: {blockId, offset: from}, head: {blockId: endBlock, offset: to}})
@@ -67,4 +67,17 @@ test('a span the value does not hold is left as it is, and not placed', () => {
   assert.deepEqual(mapPtRanges(BEFORE, BEFORE, [stray, GAMMA]), [stray, GAMMA])
   assert.deepEqual(placedPtRanges(BEFORE, [stray, at('p1', 30, 40), {id: 'back', anchor: {blockId: 'p1', offset: 16}, head: {blockId: 'p1', offset: 11}}]), [{...at('p1', 11, 16), id: 'back'}])
   assert.deepEqual(blockPoint(BEFORE, {blockId: 'p1', path: 'p1s1', offset: 3}), {blockId: 'p1', offset: 14})
+  // An offset that is no number: left as it is, never placed.
+  const broken = at('p1', NaN, 16)
+  assert.deepEqual(mapPtRanges(BEFORE, [block('p1', 'Zero Alpha beta gamma delta.')], [broken]), [broken])
+  assert.deepEqual(placedPtRanges(BEFORE, [broken]), [])
+})
+
+test('spans are followed and saved only in an editor of the draft', () => {
+  assert.equal(ptCommentMode({editable: true}), 'edit')
+  // A read seat, a locked draft: the saved spans, painted as they are.
+  assert.equal(ptCommentMode({editable: false}), 'read')
+  // The published version or a revision, editable or not: their text is not what the spans are on.
+  assert.equal(ptCommentMode({otherVersion: true, editable: false}), 'none')
+  assert.equal(ptCommentMode({otherVersion: true, editable: true}), 'none')
 })

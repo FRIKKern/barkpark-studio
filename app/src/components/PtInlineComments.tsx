@@ -4,7 +4,7 @@ import {useEditor, useEditorSelector} from '@portabletext/editor'
 import {CommentsContext} from './Comments'
 import {CommentOffer, DRAFT, moveSaver, paintCommentHighlights, selectionBox, useMayComment} from './InlineComments'
 import {commentRangesOf, rangeMoves, type CommentSelection, type Point} from '../lib/comment-threads'
-import {blockPoint, mapPtRanges, placedPtRanges, type PtRange} from '../lib/pt-comment-ranges'
+import {blockPoint, mapPtRanges, placedPtRanges, ptCommentMode, type PtRange} from '../lib/pt-comment-ranges'
 import {caretOf} from '../lib/pt-value'
 import {glide} from '../lib/layout'
 
@@ -19,7 +19,7 @@ import {glide} from '../lib/layout'
  * What the editor (remounted on a value from elsewhere) and the comments (kept, a composer
  * may be open) share: the editor's value as it last read it, and how to give it the focus.
  */
-export type PtCommentBridge = {el?: HTMLElement | null; value?: unknown; caret?: Point | null; changed?: () => void; focus?: () => void}
+export type PtCommentBridge = {el?: HTMLElement | null; editor?: object; value?: unknown; caret?: Point | null; changed?: () => void; focus?: () => void}
 
 /** Inside the editor: hands its value (once it has read it) and its caret to the comments. */
 export function PtCommentValue({bridge, ready}: {bridge: PtCommentBridge; ready: boolean}) {
@@ -29,6 +29,7 @@ export function PtCommentValue({bridge, ready}: {bridge: PtCommentBridge; ready:
   useLayoutEffect(() => {
     if (!ready) return
     bridge.el = ref.current?.closest('.pt-input')?.querySelector<HTMLElement>('.pt-editable')
+    bridge.editor = editor
     bridge.focus = () => editor.send({type: 'focus'})
     // The caret says where this editor's own edit ended (not while the focus is elsewhere: the edit is another's).
     const sel = bridge.el?.contains(document.activeElement) ? caretOf(editor.getSnapshot().context.selection as never) : null
@@ -85,7 +86,7 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
   // What this editor holds, kept over its remounts: the value the spans were last mapped to,
   // each span as mapped since it was read (they win over the saved ones, which may lag
   // behind), the ones whose words went, the ones once painted, and the one being written about.
-  const track = useRef({value: undefined as unknown, live: new Map<string, CommentSelection>(), gone: new Set<string>(), seen: new Set<string>(), draft: null as CommentSelection | null})
+  const track = useRef({editor: undefined as object | undefined, value: undefined as unknown, live: new Map<string, CommentSelection>(), gone: new Set<string>(), seen: new Set<string>(), draft: null as CommentSelection | null})
   const placed = useRef<(PtRange & {active?: boolean})[]>([])
   const painted = useRef<{id: string; range: Range; active?: boolean}[]>([])
   // The spans on the text as it is drawn now. Again whenever the editor redraws its text:
@@ -124,9 +125,23 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
     const t = track.current
     const el = bridge.el
     if (!api || !el?.isConnected || bridge.value === undefined) return
+    const mode = ptCommentMode({otherVersion: api.otherVersion, editable: el.isContentEditable})
+    // Spans are followed from one value to the next of one editor only. A new editor (it
+    // remounts on a value from elsewhere: another version looked at, Discard changes, another
+    // editor's save while this one has no focus) reads the saved spans afresh: its first value
+    // is not an edit of the last one's, and mapping across the two saved spans moved, or gone
+    // for good, by looking at the published version. So for a text shown read-only.
+    if (t.editor !== bridge.editor || mode !== 'edit') (t.value = undefined), t.live.clear(), t.gone.clear()
+    t.editor = bridge.editor
+    if (mode === 'none') {
+      t.draft = null
+      if (latest.current.draft) setDraft(null)
+      if (placed.current.length) ((placed.current = []), paint())
+      return
+    }
     const threads = commentRangesOf(api.threads, field, api.active, t.live).filter((r) => !t.gone.has(r.id))
     let ranges: (PtRange & {active?: boolean})[] = [...threads, ...(t.draft ? [{id: DRAFT, ...t.draft}] : [])]
-    const edited = t.value !== undefined && t.value !== bridge.value
+    const edited = mode === 'edit' && t.value !== undefined && t.value !== bridge.value
     if (edited) {
       const mapped = new Map(mapPtRanges(t.value, bridge.value, ranges, bridge.caret).map((r) => [r.id, r]))
       for (const r of threads) {
@@ -137,14 +152,16 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
       if (t.draft) t.draft = mapped.get(DRAFT) ?? null
       ranges = ranges.flatMap((r) => (mapped.has(r.id) ? [{...r, ...mapped.get(r.id)!}] : []))
     }
-    t.value = bridge.value
+    if (mode === 'edit') t.value = bridge.value
+    const had = placed.current.length
     placed.current = placedPtRanges(bridge.value, ranges)
     if (watch.current.on !== el) {
       watch.current.redrawn?.disconnect()
       watch.current.redrawn?.observe(el, {subtree: true, childList: true, characterData: true})
       watch.current.on = el
     }
-    paint()
+    // A field with no comments: nothing to paint, nothing painted.
+    if (had || placed.current.length) paint()
     const there = placed.current.filter((r) => r.id !== DRAFT)
     for (const r of there) t.seen.add(r.id)
     // Saved after an edit only (never because a save came back: two editors that read one edit
@@ -163,7 +180,7 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
     bridge.changed = () => syncRef.current()
     return () => void (bridge.changed = undefined)
   }, [bridge])
-  const threadsKey = JSON.stringify(commentRangesOf(api?.threads ?? [], field, api?.active, new Map()))
+  const threadsKey = JSON.stringify([api?.otherVersion, commentRangesOf(api?.threads ?? [], field, api?.active, new Map())])
   useLayoutEffect(() => syncRef.current(), [threadsKey, draft])
 
   // A thread picked in the panel: its words come into view.
@@ -190,7 +207,7 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
     const read = () => {
       const el = bridge.el
       const sel = getSelection()
-      const box = el?.isConnected && !down && !latest.current.draft && latest.current.mayComment ? selectionBox(el) : null
+      const box = el?.isConnected && !down && !latest.current.draft && latest.current.mayComment && !latest.current.api?.otherVersion ? selectionBox(el) : null
       const range = box && sel!.getRangeAt(0)
       const [a, h] = range ? [pointAt(el!, range.startContainer, range.startOffset), pointAt(el!, range.endContainer, range.endOffset)] : []
       if (!box || !range || !a || !h || (a.blockId === h.blockId && a.offset === h.offset)) return setOffer((o) => (o ? null : o))
