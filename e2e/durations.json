@@ -105,6 +105,7 @@
   "plugins.spec.ts": 0,
   "portable-text.spec.ts": 9.3,
   "presence-leave.spec.ts": 5.4,
+  "presentation-comlink.spec.ts": 0,
   "presentation.spec.ts": 0,
   "previews-tips.spec.ts": 0,
   "read-only.spec.ts": 0,

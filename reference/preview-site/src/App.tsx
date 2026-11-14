@@ -3,7 +3,7 @@ import {VisualEditing} from '@sanity/visual-editing/react'
 import {createDataAttribute} from '@sanity/visual-editing'
 import {stegaClean} from '@sanity/client/stega'
 import {Link, historyAdapter, usePathname} from './router'
-import {draftMode, liveClient, useLiveData, useLoad} from './sanity'
+import {draftMode, liveClient, onBarkpark, useLiveData, useLoad} from './sanity'
 import {BarkparkPage, SharedBanner, SOURCE} from './barkpark-source'
 import type {Edit} from './bp-pages'
 import {EditOverlays} from './overlays'
@@ -22,7 +22,8 @@ type PostRow = {
 }
 type Post = PostRow & {
   categories?: {_id: string; title?: string; $edit?: Edit}[]
-  body?: {_key: string; _type: string; children?: {_key: string; text?: string}[]}[]
+  /** Portable Text from Sanity; Barkpark's block document ({blocks}) from its GROQ API. */
+  body?: {_key: string; _type: string; children?: {_key: string; text?: string}[]}[] | {blocks?: {id: string; type: string; content?: {value?: string}[]}[]}
   related?: {_type: string; _id: string; title?: string; name?: string; slug?: string; $edit?: Edit}
   rating?: number
   publishedAt?: string
@@ -66,7 +67,25 @@ function Loaded<T>({page, render}: {page: PageKey; render: (data: T) => React.Re
   return <SanityLoaded<T> query={QUERIES[page.kind]} params={params} render={render} />
 }
 
+/** A body's paragraphs, from either shape. */
+const paragraphs = (body: Post['body']) =>
+  Array.isArray(body)
+    ? body.filter((b) => b._type === 'block').map((b) => ({key: b._key, text: b.children?.map((c) => c.text).join('')}))
+    : (body?.blocks ?? []).filter((b) => b.type === 'paragraph' || b.type === 'heading').map((b) => ({key: b.id, text: b.content?.map((c) => c.value).join('')}))
+
+/** On Barkpark the site holds no token: the studio it is shown in runs the query and streams the result (live mode). */
+function StudioLoaded<T>({query, params, render}: {query: string; params: Record<string, string>; render: (data: T) => React.ReactNode}) {
+  const data = useLiveData<T>(query, params)
+  return data === undefined ? <p className="meta">Loading…</p> : <>{render(data)}</>
+}
+
 function SanityLoaded<T>({query, params = {}, render}: {query: string; params?: Record<string, string>; render: (data: T) => React.ReactNode}) {
+  // Keyed by the query: the loader's hook keeps the last page's result for a render.
+  if (onBarkpark) return draftMode ? <StudioLoaded<T> key={query + JSON.stringify(params)} query={query} params={params} render={render} /> : <p className="meta">Open this site in the studio's Presentation tool.</p>
+  return <ProxyLoaded<T> query={query} params={params} render={render} />
+}
+
+function ProxyLoaded<T>({query, params, render}: {query: string; params: Record<string, string>; render: (data: T) => React.ReactNode}) {
   const {initial, error} = useLoad<T>(query, params)
   if (error) return <p role="alert">Could not load: {error}</p>
   if (!initial) return <p className="meta">Loading…</p>
@@ -74,7 +93,7 @@ function SanityLoaded<T>({query, params = {}, render}: {query: string; params?: 
 }
 
 function Live<T>({query, params, initial, render}: {query: string; params: Record<string, string>; initial: QueryResponseInitial<T>; render: (data: T) => React.ReactNode}) {
-  return <>{render(useLiveData<T>(query, params, initial))}</>
+  return <>{render(useLiveData<T>(query, params, initial) as T)}</>
 }
 
 function PostList({posts}: {posts: PostRow[]}) {
@@ -115,7 +134,7 @@ function Page() {
                 </p>
               )}
               {p.mainImage && <figure className="image" {...marked(p, 'mainImage')}>{stegaClean(p.mainImage.alt) || 'Main image'}</figure>}
-              {p.body?.filter((b) => b._type === 'block').map((b) => <p key={b._key} {...inBlock(p.$edit?.('body'), b._key)}>{b.children?.map((c) => c.text).join('')}</p>)}
+              {paragraphs(p.body).map((b) => <p key={b.key} {...inBlock(p.$edit?.('body'), b.key)}>{b.text}</p>)}
               {p.seo?.metaTitle && <p className="meta">SEO: <span {...p.seo.$edit?.('metaTitle')}>{p.seo.metaTitle}</span></p>}
               {!!p.links?.length && (
                 <ul className="links">
@@ -151,7 +170,7 @@ function LiveMode() {
 export function App() {
   return (
     <>
-      {SOURCE === 'sanity' && draftMode && (
+      {SOURCE === 'sanity' && draftMode && !onBarkpark && (
         <div className="banner">
           Draft mode · <a href="/api/draft-mode/disable">Leave</a>
         </div>
