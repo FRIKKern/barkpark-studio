@@ -21,6 +21,10 @@ process.env.PREVIEW_SITE_PORT ||= '3536'
 process.env.PREVIEW_SITE_PORT_BARKPARK ||= '3537'
 const SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT}`
 const SITE_BARKPARK = `http://localhost:${process.env.PREVIEW_SITE_PORT_BARKPARK}`
+// A third copy, as a next-sanity site runs (PREVIEW_SOURCE=sanity-on-barkpark: Sanity's comlink,
+// no token), for presentation-comlink.spec. By default 1000 above the Barkpark copy's port,
+// so lanes that already took their own pair don't meet on this one.
+process.env.PREVIEW_SITE_PORT_COMLINK ||= String(Number(process.env.PREVIEW_SITE_PORT_BARKPARK) + 1000)
 process.env.SANITY_STUDIO_PREVIEW_ORIGIN ||= SITE
 process.env.VITE_PREVIEW_ORIGIN ||= SITE_BARKPARK
 // Secrets come from the repo-root .env: run as `node --env-file=../.env node_modules/.bin/playwright test`
@@ -62,6 +66,7 @@ export default defineConfig({
     ...(process.env.CI ? [] : [
       {command: 'pnpm --dir ../reference/preview-site dev', url: SITE, reuseExistingServer: true, timeout: 60_000, env: {...process.env, SANITY_STUDIO_URL: SANITY, PREVIEW_PORT: process.env.PREVIEW_SITE_PORT} as Record<string, string>},
       {command: 'pnpm --dir ../reference/preview-site dev', url: SITE_BARKPARK, reuseExistingServer: false, timeout: 60_000, env: {...process.env, PREVIEW_SOURCE: 'barkpark', PREVIEW_PORT: process.env.PREVIEW_SITE_PORT_BARKPARK, PREVIEW_DATASET: process.env.BARKPARK_DATASET ?? 'e2e-local'} as Record<string, string>},
+      {command: 'pnpm --dir ../reference/preview-site dev', url: `http://localhost:${process.env.PREVIEW_SITE_PORT_COMLINK}`, reuseExistingServer: false, timeout: 60_000, env: {...process.env, PREVIEW_SOURCE: 'sanity-on-barkpark', PREVIEW_PORT: process.env.PREVIEW_SITE_PORT_COMLINK, PREVIEW_DATASET: process.env.BARKPARK_DATASET ?? 'e2e-local', PREVIEW_STUDIO_URL: STUDIO} as Record<string, string>},
     ]),
     // CI times a production build (what users get; built in an earlier step); locally the
     // dev server, or the build with E2E_PROD=1 (perf evidence: dev React is far slower).

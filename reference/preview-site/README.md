@@ -8,6 +8,7 @@ side to record against. Vite + React, three routes: `/` (posts), `/posts/:slug`,
 pnpm install
 SANITY_STUDIO_DATASET=e2e-local pnpm dev   # http://localhost:3536 (PREVIEW_PORT to change)
 PREVIEW_SOURCE=barkpark PREVIEW_DATASET=e2e-local PREVIEW_PORT=3537 pnpm dev   # the same pages from Barkpark
+PREVIEW_SOURCE=sanity-on-barkpark PREVIEW_DATASET=e2e-local PREVIEW_PORT=4537 PREVIEW_STUDIO_URL=http://localhost:3000 pnpm dev   # as a next-sanity site on Barkpark
 ```
 
 - **Two sources, one site.** Sanity's Presentation shows the Sanity copy (:3536); ours
@@ -29,6 +30,15 @@ PREVIEW_SOURCE=barkpark PREVIEW_DATASET=e2e-local PREVIEW_PORT=3537 pnpm dev   #
   (`SANITY_STUDIO_PREVIEW_ORIGIN`, default `http://localhost:3536`), main documents
   per route, and locations for posts and authors. Set `SANITY_STUDIO_URL` here when
   the Studio is not on :3333.
+- **A next-sanity site on Barkpark** (`PREVIEW_SOURCE=sanity-on-barkpark`): the Sanity code
+  path (`@sanity/client`, `<VisualEditing>`, `useLiveMode`), its client pointed at Barkpark
+  (`apiHost`, `useProjectHostname: false`, `stega.studioUrl` = `PREVIEW_STUDIO_URL`). No
+  token, no server route, no bridge: Barkpark Studio's Presentation answers Sanity's comlink
+  handshake, runs the page's queries as the signed-in editor and streams the results, so
+  overlays, click-to-edit and live preview work as in Sanity's. The studio shows it when
+  its `VITE_PREVIEW_ORIGIN` is this copy's origin; outside a studio it shows nothing.
+  The studio hears comlink from that origin only, opens only documents its schema has,
+  and follows the page only on that origin.
 - Barkpark Studio's Presentation (J58) talks to the page through `src/barkpark.ts`:
   the page posts `{bp: 'preview', type: 'hello' | 'location'}` to its parent and
   takes `{bp: 'studio', type: 'navigate' | 'refresh'}` back. Sanity's comlink is

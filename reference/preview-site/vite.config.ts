@@ -81,8 +81,20 @@ function api(): Plugin {
 
 // PREVIEW_SOURCE=barkpark reads the same pages from Barkpark (barkpark-server.ts).
 const SOURCE = process.env.PREVIEW_SOURCE === 'barkpark' ? 'barkpark' : 'sanity'
+// PREVIEW_SOURCE=sanity-on-barkpark: the Sanity code path as a next-sanity site runs it
+// (@sanity/client, <VisualEditing>, useLiveMode), its client pointed at Barkpark's
+// Sanity-compatible API. No token and no server route here: inside Barkpark Studio's
+// Presentation the studio runs the page's queries (comlink's loader channel).
+const bp = {...loadEnv('development', resolve(__dirname, '../..'), 'BARKPARK_'), ...process.env}
+const ON_BARKPARK = process.env.PREVIEW_SOURCE === 'sanity-on-barkpark'
+const API_HOST = ON_BARKPARK ? `${bp.BARKPARK_URL}/w/${bp.BARKPARK_WORKSPACE}/p/${bp.BARKPARK_PROJECT || 'default'}` : ''
 
 export default defineConfig({
-  plugins: [react(), SOURCE === 'barkpark' ? barkparkApi({...loadEnv('development', resolve(__dirname, '../..'), 'BARKPARK_'), ...process.env}) : api()],
-  define: {__SOURCE__: JSON.stringify(SOURCE), __STUDIO_URL__: JSON.stringify(STUDIO_URL), __DATASET__: JSON.stringify(env.SANITY_STUDIO_DATASET || 'production')},
+  plugins: [react(), ...(ON_BARKPARK ? [] : [SOURCE === 'barkpark' ? barkparkApi(bp) : api()])],
+  define: {
+    __SOURCE__: JSON.stringify(SOURCE),
+    __API_HOST__: JSON.stringify(API_HOST),
+    __STUDIO_URL__: JSON.stringify(ON_BARKPARK ? process.env.PREVIEW_STUDIO_URL || 'http://localhost:3000' : STUDIO_URL),
+    __DATASET__: JSON.stringify(ON_BARKPARK ? bp.PREVIEW_DATASET || bp.BARKPARK_DATASET || 'production' : env.SANITY_STUDIO_DATASET || 'production'),
+  },
 })

@@ -14,6 +14,7 @@ import {RefPreview} from './Preview'
 import {iconBody} from './DeskIcon'
 import type {DeskNode} from '../lib/desk'
 import {Structure} from './Structure'
+import {usePresentationComlink} from '../lib/presentation-channels'
 
 /**
  * J58, Sanity's Presentation tool: the site in an iframe beside the document
@@ -135,6 +136,10 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   // brings the main document back.
   const keepPane = useRef<string | null>(panes?.some((p) => p.kind === 'doc') ? preview : null)
   const [s, send] = useReducer(reduce, initial)
+  // The site said our bridge's hello: it is spoken to that way, and comlink stays off.
+  const [bridge, setBridge] = useState(false)
+  const bridgeRef = useRef(bridge)
+  bridgeRef.current = bridge
   // The frame mounts after hydration: one rendered on the server can fire its load
   // event before React listens, and the overlay would wait forever.
   const [mounted, setMounted] = useState(false)
@@ -159,12 +164,12 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   }, [s.load])
   useEffect(() => {
     if (connecting && s.wait === 'timedOut')
-      console.error(`Unable to connect to the preview at ${origin}. The site has to post {bp: 'preview', type: 'hello'} to its parent (see reference/preview-site/src/barkpark.ts).`)
+      console.error(`Unable to connect to the preview at ${origin}. The site has to answer Sanity's comlink handshake from this origin (<VisualEditing> of @sanity/visual-editing), or post {bp: 'preview', type: 'hello'} to its parent (see reference/preview-site/README.md).`)
   }, [connecting, s.wait])
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== origin || e.source !== frame.current?.contentWindow || e.data?.bp !== 'preview') return
-      if (e.data.type === 'hello') send({type: 'hello'})
+      if (e.data.type === 'hello') (setBridge(true), send({type: 'hello'}))
       // The site asks for single-use preview tokens before each read (lib/preview-links.ts).
       if (e.data.type === 'tokens' && typeof e.data.id === 'string') {
         const reply = (tokens: string[] | null) => frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'tokens', id: e.data.id, tokens}, origin)
@@ -220,7 +225,8 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
     }
     if (target.origin !== origin) return setTyped(null)
     const path = target.pathname + target.search
-    if (s.connected) frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'navigate', url: path}, origin)
+    if (comlink.connected) comlink.go(path)
+    else if (s.connected) frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'navigate', url: path}, origin)
     else {
       setUrl(target.toString())
       send({type: 'reload'})
@@ -250,7 +256,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   // J63: the site shows the perspective the document panel shows (its Published /
   // Draft chips set ?perspective=), told again on every hello.
   const shownPerspective = perspective === 'published' ? 'published' : 'drafts'
-  const tell = useCallback((msg: Record<string, unknown>) => frame.current?.contentWindow?.postMessage({bp: 'studio', ...msg}, origin), [origin])
+  const tell = useCallback((msg: Record<string, unknown>) => bridgeRef.current && frame.current?.contentWindow?.postMessage({bp: 'studio', ...msg}, origin), [origin])
   useEffect(() => {
     if (s.connected) tell({type: 'perspective', perspective: shownPerspective})
   }, [s.connected, s.hellos, shownPerspective, tell])
@@ -316,8 +322,27 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
   const refresh = () => {
     if (!s.connected) return reload()
     send({type: 'refresh'})
-    frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'refresh'}, origin)
+    if (comlink.connected) comlink.refresh()
+    else frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'refresh'}, origin)
   }
+
+  // A next-sanity site (Sanity's comlink: <VisualEditing>, useLiveMode) beside our bridge:
+  // a site that never says our hello is offered Sanity's handshake once its frame has loaded.
+  const lastDoc = last?.kind === 'doc' ? last : null
+  const comlink = usePresentationComlink({
+    frame,
+    origin,
+    generation,
+    enabled: mounted && !bridge && (s.load === 'loaded' || s.load === 'dismissed'),
+    perspective: shownPerspective,
+    overlays: overlaysOn,
+    focus: lastDoc?.path ? {id: lastDoc.id, path: lastDoc.path} : null,
+    onConnected: () => send({type: 'hello'}),
+    onPage: (path) => void onPage(path),
+    onDocuments: setDocs,
+    onOverlays: (enabled) => setOverlays(enabled !== altHeld),
+    onReload: reload,
+  })
 
   const [narrowTab, setNarrowTab] = useState<'preview' | 'content'>('preview')
   const busy = s.load === 'loading' || s.refreshing || connecting
@@ -353,6 +378,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
             <input
               className="input presentation-url"
               aria-label="URL"
+              title={comlink.title || undefined}
               value={typed ?? url}
               onChange={(e) => setTyped(e.target.value)}
               onKeyDown={(e) => {
