@@ -259,6 +259,9 @@
         "visibleWhen": {
           "description": "Shown only when {field, operator, value, scope?} holds."
         },
+        "hidden": {
+          "description": "true keeps the field out of the form whatever visibleWhen says; its value stays (a manual order's orderRank)."
+        },
         "readOnly": {
           "description": "true, or a condition like visibleWhen."
         },
@@ -439,6 +442,9 @@
         },
         "visibleWhen": {
           "description": "Shown only when {field, operator, value, scope?} holds."
+        },
+        "hidden": {
+          "description": "true keeps the field out of the form whatever visibleWhen says; its value stays (a manual order's orderRank)."
         },
         "readOnly": {
           "description": "true, or a condition like visibleWhen."

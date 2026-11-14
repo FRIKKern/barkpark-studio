@@ -65,6 +65,8 @@ export type Field = {
   /** Array item preview (J33): title, subtitle and media, read like a list preview (lib/preview.ts). */
   preview?: {title?: PreviewText; subtitle?: PreviewText; media?: PreviewMediaSpec}
   visibleWhen?: Condition
+  /** Barkpark's (and Sanity's) `hidden: true`: never in the form, its value kept (a manual order's orderRank). */
+  hidden?: boolean
   readOnly?: boolean | Condition
   /** Sanity's fieldsets on an object: [{name, title, options: {collapsible, collapsed, columns}}]. */
   fieldsets?: {name: string; title?: string; options?: {collapsible?: boolean; collapsed?: boolean; columns?: number}}[]

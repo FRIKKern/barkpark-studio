@@ -276,4 +276,14 @@ export default {
   'This link is not one the Studio knows.': 'Studioet kjenner ikke denne lenken.',
   // Sanity's pane divider.
   'Resize pane': 'Endre bredden på ruten',
+  // Manual order (Sanity's orderable document list; components/OrderableRows.tsx).
+  'Reset order': 'Tilbakestill rekkefølgen',
+  'Order reset': 'Rekkefølgen er tilbakestilt',
+  'Could not save the new order': 'Kunne ikke lagre den nye rekkefølgen',
+  '{title} moved to place {n} of {total}': '{title} flyttet til plass {n} av {total}',
+  '{title} has unpublished changes: its new place goes live when it is published.': '{title} har upubliserte endringer: den nye plassen gjelder når dokumentet publiseres.',
+  '{n} documents have unpublished changes: their new places go live when they are published.': '{n} dokumenter har upubliserte endringer: de nye plassene gjelder når de publiseres.',
+  '{n} of {total} documents have no place in the order yet. Drag one, or choose Reset order in the list menu.': '{n} av {total} dokumenter har ingen plass i rekkefølgen ennå. Dra ett, eller velg Tilbakestill rekkefølgen i listemenyen.',
+  'To move a document, press Left arrow on its row to reach its handle, then Space or Enter to pick it up. Use the arrow keys to move it, Space or Enter to drop, Escape to cancel. Alt+Up and Alt+Down move a row one place.':
+    'For å flytte et dokument: trykk Pil venstre på raden for å nå håndtaket, og så Mellomrom eller Enter for å løfte det. Flytt med piltastene, slipp med Mellomrom eller Enter, avbryt med Escape. Alt+Pil opp og Alt+Pil ned flytter en rad én plass.',
 } satisfies Record<string, string>

@@ -53,7 +53,7 @@ export function matches(c: Condition, doc: Record<string, unknown>): boolean {
 
 /** What a condition reads from: the enclosing object for scope "parent" (the document when there is none). */
 const base = (c: Condition, doc: Record<string, unknown>, parent?: Record<string, unknown>) => (c.scope === 'parent' && parent ? parent : doc)
-export const isHidden = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => !!f.visibleWhen && !matches(f.visibleWhen, base(f.visibleWhen, doc, parent))
+export const isHidden = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => f.hidden === true || (!!f.visibleWhen && !matches(f.visibleWhen, base(f.visibleWhen, doc, parent)))
 export const isReadOnly = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) =>
   f.readOnly === true || (typeof f.readOnly === 'object' && f.readOnly !== null && matches(f.readOnly, base(f.readOnly, doc, parent)))
 
