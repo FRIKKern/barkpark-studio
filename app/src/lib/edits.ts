@@ -14,6 +14,7 @@ import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
 import {merge3, mergeList3, mergeText, onto, revertSteps} from './merge'
 import {applyPaths, getPath, keyedRoots, setPath, within} from './paths'
+import {settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {paceMs, paced} from './write-pace'
@@ -31,6 +32,8 @@ import {paceMs, paced} from './write-pace'
 // Concurrent edits (J05, J06): every patch carries the rev it was made against
 // (ifRevisionID). Someone else wrote first → 412 → read theirs, rebase ours on it
 // (text fields merge with diff-match-patch, lists item by item, other values: ours wins), send again.
+// Typing in a Portable Text span is the exception: it goes as a diffMatchPatch from the text
+// Barkpark last gave us, which the server merges with no fence and no 412 (lib/pt-dmp.ts).
 // A live frame that changes a field being typed in rebases it the same way at once.
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -123,6 +126,8 @@ type DocEdits = {
   missed?: Doc
   /** Fields whose last write got no answer (a network failure): Barkpark may hold it already. */
   unsure?: Set<string>
+  /** Span texts whose next save goes as a set, not a patch (lib/pt-dmp.ts): a patch of theirs was refused, or its words did not land. */
+  noDmp?: Set<string>
   /** The last value this editor gave each field: a cache still holding it has nothing new of anyone else's. */
   typed: Map<string, unknown>
   /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
@@ -549,7 +554,8 @@ export function onKeyedMiss(id: string, field: string, resend: () => void): () =
   return () => void (keyedMisses.get(k) === resend && keyedMisses.delete(k))
 }
 
-const SPAN_TEXT = /\.children\[_key=="[^"]*"\]\.text$/
+/** This page met a Barkpark that ignores diffMatchPatch (older than #24688): span texts go as sets. */
+let dmpOff = false
 
 const hasWarning = (r: {warnings?: unknown}, code: string) => Array.isArray(r.warnings) && r.warnings.some((w) => (w as {code?: unknown})?.code === code)
 
@@ -666,8 +672,14 @@ async function send(qc: QueryClient, id: string) {
   // key, each flip re-drew the footer and Publish (about 5x the style work on a long doc).
   if (e.snap.state !== 'error') setState(e, after ? 'recovering' : 'saving')
   const stall = setTimeout(() => e.inflight && setState(e, 'stalled'), STALL_MS)
-  const {set, unset} = toPatch(e.inflight)
   const creating = e.pendingCreate
+  // Span texts as patches from what Barkpark had (`base`); a write that may have landed
+  // already (no answer came) goes as a set: a patch applied twice types its words twice.
+  const sentBase = new Map(e.base)
+  const {sets, dmp} = creating ? {sets: e.inflight, dmp: {}} : splitDmp(e.inflight, sentBase, (f) => dmpOff || !!e.unsure?.has(f) || !!e.noDmp?.has(f))
+  const patched = Object.keys(dmp)
+  const diffMatchPatch: Record<string, Json> = patched.length ? {diffMatchPatch: dmp} : {}
+  const {set, unset} = toPatch(sets)
   // This editor's doc as sent: what a keyed path that finds no item there falls back to.
   const sentFrom = qc.getQueryData<Doc>(['doc', id])
   try {
@@ -675,11 +687,13 @@ async function send(qc: QueryClient, id: string) {
     // J16: the first edit of a published document makes its draft. Sent as an empty patch
     // and then the edit, Barkpark's history says "Draft created" and then "Edited", as
     // Sanity's timeline does (one patch was only "Draft created").
+    // Span patches alone need no fence there: they merge into the draft another editor's
+    // first key made a moment ago (fenced, the second editor's first word cost a 412).
     const mutations: Json[] = creating
       ? [{create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}]
       : e.forks
-        ? [{patch: {id, type: e.type, set: {}, ...fence}}, {patch: {id, type: e.type, set, unset}}]
-        : [{patch: {id, type: e.type, set, unset, ...fence, ...(e.rev ? FIELDS_FENCE : {})}}]
+        ? [{patch: {id, type: e.type, set: {}, ...(sets.size ? fence : {})}}, {patch: {id, type: e.type, set, unset, ...diffMatchPatch}}]
+        : [{patch: {id, type: e.type, set, unset, ...diffMatchPatch, ...fence, ...(e.rev ? FIELDS_FENCE : {})}}]
     const r = (await mutate({data: {mutations}})) as {results: {document: Doc}[]; warnings?: unknown; studioThrottled?: boolean}
     paced(!!r.studioThrottled)
     const saved = r.results.at(-1)!.document
@@ -687,6 +701,19 @@ async function send(qc: QueryClient, id: string) {
     e.advisories = advisoryFindings(r)
     if (creating) { e.pendingCreate = undefined; e.createRequested = false }
     const sentPaths = [...e.inflight.keys()]
+    // A patched span came back with more than was sent: someone else's words, merged there.
+    // Keys typed since (made on what was sent) move onto the answer; words of ours it lacks
+    // go again, as a set (settleDmp).
+    for (const f of patched) {
+      const fix = settleDmp(sentBase.get(f) as string, e.inflight.get(f) as string, getPath(saved, f), e.dirty.get(f))
+      // Its block is pending whole (a mark toggled meanwhile): that set carries this editor's text.
+      if (!fix || [...e.dirty.keys()].some((k) => k !== f && within(f, k))) continue
+      if (fix.value === getPath(saved, f)) e.dirty.delete(f)
+      else e.dirty.set(f, fix.value)
+      if (fix.missing) (e.noDmp ??= new Set()).add(f)
+      if (fix.ignored) dmpOff = true
+    }
+    for (const f of sets.keys()) e.noDmp?.delete(f)
     // What we sent is now the server's: a field still being typed builds on it.
     for (const f of e.inflight.keys()) {
       if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
@@ -757,6 +784,13 @@ async function send(qc: QueryClient, id: string) {
       void qc.invalidateQueries({queryKey: ['doc', id]})
       void qc.invalidateQueries({queryKey: ['list', e.type]})
       return setState(e, 'refused', t('This document has been deleted.'))
+    }
+    // Barkpark refused the batch and it held span patches (over its limits: 422, or a server
+    // that reads none): nothing was written, so the same texts go again as sets, once.
+    if (patched.length && /^mutate (400|422)\b/.test(msg)) {
+      for (const f of patched) (e.noDmp ??= new Set()).add(f)
+      if (afterInflight(qc, id, e)) return
+      return void send(qc, id)
     }
     // A validation refusal (a dataset that enforces its schema): say which fields and why,
     // in the editor's words; sending it again would only be refused again.
