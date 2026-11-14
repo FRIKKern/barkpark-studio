@@ -1,0 +1,19 @@
+/* Manual order: a list sorted by orderRank gets a drag handle on every row
+   (components/OrderableRows.tsx). Its own file: styles.css is long enough. */
+.rows-item[data-orderable], .bulk-row[data-orderable] { display: flex; align-items: flex-start; position: relative; border-radius: 3px; margin-bottom: 4px; }
+[data-orderable] > .preview { flex: 1; min-width: 0; margin-bottom: 0; }
+/* Sanity's handle, as an array row's: 25 x 33, centred on the 49 px row. */
+[data-orderable] > .order-handle { flex: none; height: 33px; margin: 8px 0; }
+.list-rows.detailed [data-orderable] > .order-handle { margin-block: 20px; }
+.order-handle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* The row in hand: lifted, as an array row's. */
+[data-orderable][data-moving] { z-index: 1; background: var(--bg); box-shadow: 0 0 0 1px var(--selected), 0 6px 16px var(--shadow); }
+/* B03: the tick sits over the row's icon, now one handle further in. */
+.bulk-row[data-orderable] > .bulk-check { left: 28px; }
+.order-note { margin: 0 12px 12px; padding: 8px 12px; border-radius: 3px; font-size: 13px; line-height: 19px; color: var(--muted); background: var(--bg-soft); }
+/* J46: a finger gets a 44 px handle. */
+@media (max-width: 768px) and (pointer: coarse) {
+  [data-orderable] > .order-handle { width: 44px; height: 44px; margin: 2px 0; }
+  .list-rows.detailed [data-orderable] > .order-handle { margin-block: 14px; }
+  .bulk-row[data-orderable] > .bulk-check { left: 47px; }
+}

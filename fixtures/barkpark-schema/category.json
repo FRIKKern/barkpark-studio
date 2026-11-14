@@ -4,9 +4,14 @@
   "icon": "tag",
   "visibility": "public",
   "list_preview": {"title": "title", "subtitle": {"parts": ["featuredPost.title", "featuredPost.publishedAt|date"], "join": " · ", "empty": "No featured post"}},
+  "desk": {"orderings": [
+    {"name": "titleAsc", "title": "Title", "field": "title", "direction": "asc"},
+    {"name": "manual", "title": "Manual order", "field": "orderRank", "direction": "asc"}
+  ]},
   "fields": [
     {"name": "title", "title": "Title", "type": "string", "validation": {"required": true}},
     {"name": "description", "title": "Description", "type": "text", "rows": 2},
-    {"name": "featuredPost", "title": "Featured Post", "type": "reference", "refType": "post"}
+    {"name": "featuredPost", "title": "Featured Post", "type": "reference", "refType": "post"},
+    {"name": "orderRank", "title": "Order rank", "type": "string", "hidden": true}
   ]
 }

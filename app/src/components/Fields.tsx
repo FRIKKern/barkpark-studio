@@ -177,6 +177,8 @@ export function ProblemMark({path, within, id}: {path: string; within?: boolean;
  * condition reads the whole doc. Hidden and read-only follow the doc as it is edited (J30).
  */
 export const FieldView = memo(function FieldView(props: FieldProps) {
+  // Barkpark's `hidden: true` (Sanity's): never in the form, its value kept (a manual order's orderRank).
+  if (props.field.hidden === true) return null
   const conditional = !!props.field.visibleWhen || (typeof props.field.readOnly === 'object' && props.field.readOnly !== null)
   return conditional ? <ConditionalField {...props} /> : <FieldBody {...props} />
 })
