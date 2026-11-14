@@ -237,8 +237,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     if (pane.inspect !== 'comments') void navigate({href: withParams(panes, index, {inspect: 'comments', rev: undefined})})
   }
   const commentsApi = useMemo(
-    () => ({docId: pane.id, docType: pane.type, threads: threadsOf(commentsQ.data ?? []), open: (path?: string, thread?: string) => openComments.current(path, thread), active: commentThread, select: setCommentThread}),
-    [pane.id, pane.type, commentsQ.data, commentThread],
+    () => ({docId: pane.id, docType: pane.type, threads: threadsOf(commentsQ.data ?? []), open: (path?: string, thread?: string) => openComments.current(path, thread), active: commentThread, select: setCommentThread, otherVersion: viewingPublished || !!revision}),
+    [pane.id, pane.type, commentsQ.data, commentThread, viewingPublished, revision],
   )
   const schema = schemaOf(schemas, pane.type)
   const fieldLabels = useMemo(() => Object.fromEntries((schema?.fields ?? []).map((f) => [f.name, f.title ?? f.name])), [schema])
