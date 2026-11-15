@@ -2,22 +2,24 @@
 
 ## Vision
 
-Editors should not notice they left Sanity. Barkpark Studio gives Barkpark the editing feel people love in Sanity Studio: panes that open to the right without end, references you can follow, pick, create and edit without losing your place, typing that never waits on the network, and two people in one document, live.
+Editors should not notice they left Sanity. Barkpark Studio gives Barkpark the
+editing feel people love in Sanity Studio: panes that open to the right without
+end, references you can follow, pick, create and edit without losing your place,
+typing that never waits on the network, and two people in one document, live.
 
-We get there one journey at a time, each signed off side by side against a real Sanity Studio in a real browser; tests stay few and fast. The journey list grows whenever a scout finds an honest gap. Then plugins and a Presentation tool.
+We get there one journey at a time, each signed off side by side against a real
+Sanity Studio in a real browser; tests stay few and fast. The journey list grows
+whenever a scout finds an honest gap. Then plugins and a Presentation tool.
 
-Past Sanity, the Freeform track: PortableDoc documents open in Barkpark's shared canvas, the editor Barkdown hosts ([0004](docs/decisions/0004-portabledoc-freeform.md)). Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-backend.md)).
-
-<!-- news:start -->
-## News
-
-<a href="docs/news/2026-11-15-two-editors-one-paragraph.md"><img src="docs/news/img/two-editors-one-paragraph-soak-paragraph.png" width="320" alt=""></a>
-
-- 15 Nov 2026 · [Two editors, one paragraph](docs/news/2026-11-15-two-editors-one-paragraph.md) · Two people can now type in the same paragraph at once and both keep every word. On the old code, a third of the words vanished.
-<!-- news:end -->
+Past Sanity, the Freeform track: PortableDoc documents open in Barkpark's shared
+canvas, the editor Barkdown hosts ([0004](docs/decisions/0004-portabledoc-freeform.md)).
+Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-backend.md)).
 
 ## What happened
 
+<!-- news:start -->
+- **News** · 15 Nov 2026 · [Two editors, one paragraph](docs/news/2026-11-15-two-editors-one-paragraph.md) · Two people can now type in the same paragraph at once and both keep every word. On the old code, a third of the words vanished.
+<!-- news:end -->
 <!-- timeline:start -->
 - **Today** · 7 changes
   - feat(J17): incoming references in the form, with Add item (Sanity's incoming references input) ([#1255](https://github.com/FRIKKern/barkpark-studio/pull/1255))
@@ -53,7 +55,6 @@ fixtures/            seed data + Barkpark schema, same content on both sides
 e2e/                 Playwright: few, fast specs for what can break silently
 scripts/             seed Barkpark, README timeline, roadmap picture, doc checks
 spikes/concurrent-text/  reproducible two-browser concurrency comparison (decision 0002)
-docs/                roadmap, decisions (one page each)
 ```
 
 ## Run it
@@ -69,11 +70,11 @@ node --env-file=.env scripts/client-conformance.mjs # read-only: @sanity/client 
 cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
 pnpm check                                      # typecheck + build; fails if client code imports src/server
 cd ../e2e && pnpm install && pnpm test          # journeys on both studios; ours on :3100 against dataset e2e-local
-pnpm reference                                # P0 crown clips, Sanity only; uses the Sanity CLI login
 STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (dev only; app/src/server/auth.ts)
-pnpm --dir ../app serve                         # production build: editors sign in with their Barkpark account; STUDIO_SIGN_IN=shared = one shared token; put it behind HTTPS with HTTP/2 (plain HTTP/1.1 gives a browser 6 connections, 2 per visible tab)
 ```
 
-`pnpm reference` records Sanity; `pnpm recording` records our built app against `e2e-local` (requires Barkpark environment variables). Both reuse J01/J02/J08/J17/J19/J21/J22/J23 with two-second holds after content is ready. Reports and WebM clips
+`pnpm reference` records Sanity; `pnpm recording` records our built app against
+`e2e-local` (requires Barkpark environment variables). Both reuse J01/J02/J08/J17/
+J19/J21/J22/J23 with two-second holds after content is ready. Reports and WebM clips
 live under `e2e/evidence/{reference,studio}/<run>/`. Install dependencies and `pnpm --dir e2e exec playwright install ffmpeg`. Reference auth uses `pnpm --dir reference/sanity exec sanity login` or `SANITY_TOKEN`; credentials stay in memory. Link reviewed clips to tasks; recording alone is not sign-off.
 Locally with no lane token in `.e2e-lane-tokens.json`, studio and rig share one token: refs.spec skips its live-edit timing budgets (values still checked; `sharedLocalToken`).
