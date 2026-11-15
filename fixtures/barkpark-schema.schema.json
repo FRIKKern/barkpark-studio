@@ -46,7 +46,7 @@
       "description": "initialValues, as Barkpark spells it."
     },
     "desk": {
-      "description": "Desk settings: orderings, views; incoming: lists, in the form, of the documents that reference this one, with Add item (Sanity's incoming references input); preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark's desk while its URLs still open (barkpark#22789).",
+      "description": "Desk settings: orderings, views; incoming: lists, in the form, of the documents that reference this one, with Add item (Sanity's incoming references input); preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark's desk while its URLs still open (barkpark#22789); translations: {languages: [{id, title}], languageField?} makes it a translated type (docs/EXTENDING.md).",
       "type": "object",
       "properties": {
         "hidden": {
@@ -137,6 +137,47 @@
                   }
                 ]
               }
+            }
+          }
+        },
+        "translations": {
+          "type": "object",
+          "description": "Document translations (Sanity's @sanity/document-internationalization): one document per language, linked in a group.",
+          "required": [
+            "languages"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "languages": {
+              "type": "array",
+              "minItems": 1,
+              "description": "The languages: {id, title}, or the id alone.",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "id"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "languageField": {
+              "type": "string",
+              "description": "The field that holds a document's language (default \"language\"); the form hides it."
             }
           }
         }

@@ -12,6 +12,7 @@ import {listSearch} from './list-search'
 import type {Sort} from './list-prefs'
 import {pathsOf, type PreviewMediaSpec, type PreviewText} from './preview'
 import {readDocOf} from './refs'
+import {METADATA_TYPE, translatedFields, type TranslationConfig} from './translation-group'
 import {excluded, memberPreviewRefs, parseTextQuery, refBoost, textScore, tieLength} from './text-search'
 import {groqKeepPath, isGroqFilter, referencingPath, refFilterParams, type RefFilter} from './ref-filter'
 import {parseIncoming, relatedPath, type IncomingDecl, type Related} from './incoming-refs'
@@ -83,7 +84,7 @@ export type Ordering = {name: string; title: string; by: {field: string; directi
 export type ListPreview = {title?: string; subtitle?: PreviewText; media?: PreviewMediaSpec}
 /** One entry of a type's Expectation (Barkpark's `layout`): a bound field block, or the free region. */
 export type LayoutItem = {kind: 'field' | 'region' | string; name: string; max?: number; enforce?: boolean}
-export type Schema = {name: string; title: string; kind?: 'object'; icon?: string; iconSvg?: string; previewView?: {title?: string}; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; fieldsets?: Field['fieldsets']; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; incoming?: IncomingDecl[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>}
+export type Schema = {name: string; title: string; kind?: 'object'; icon?: string; iconSvg?: string; previewView?: {title?: string}; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; fieldsets?: Field['fieldsets']; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; incoming?: IncomingDecl[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>; translations?: TranslationConfig}
 /**
  * B09: a related-documents view the schema declares (`desk.views`, Barkpark's LiveView
  * "view bar"): docs of `type` whose `by` field references the open doc.
@@ -115,7 +116,9 @@ const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
   const schemas = await readSchemas()
   return schemas
     .map(({name, title, icon, fields, listPreview, list_preview, groups, fieldsets, initialValues, initial_values, desk, singleton, layout, prefill, kind}) => ({
-      name, title, fields,
+      name, title,
+      // Document translations (desk.translations): the languages, and the language field kept out of the form.
+      ...translatedFields(fields as {name: string}[], desk),
       // The type's icon: a row with no media draws it, as Sanity's do.
       ...schemaIcon(icon),
       // "object": a named composite other schemas embed (a page-builder section); it owns
@@ -475,11 +478,14 @@ export const textSearchQuery = (q: string, asked: {type: string; filter: RefFilt
 
 export type Backlink ={from_doc_id: string; type: string; title: string; via_field: string}
 
+/** A translation group's metadata document is the group's own link, not a document that "uses" its members (lib/translations.ts unlinks it). */
+const notMetadata = (b: Backlink) => b.type !== METADATA_TYPE
+
 const fetchBacklinks = createServerFn({method: 'GET'})
   .validator((d: {id: string}) => d)
   .handler(async ({data}) => {
     const r = await bpJson<{result: {backlinks: Backlink[]}}>(`/v1/data/backlinks/${dataset()}/${encodeURIComponent(data.id)}`)
-    return r.result.backlinks.map(({from_doc_id, type, title, via_field}) => ({from_doc_id, type, title, via_field})) as unknown as Json
+    return r.result.backlinks.filter(notMetadata).map(({from_doc_id, type, title, via_field}) => ({from_doc_id, type, title, via_field})) as unknown as Json
   })
 
 /**
@@ -505,7 +511,7 @@ const fetchBacklinksMany = createServerFn({method: 'GET'})
     if (res.status === 404) return null
     if (!res.ok) throw new Error(`Barkpark backlinks → ${res.status}`)
     const r = (await res.json()) as {result: {byId: Record<string, {backlinks: Backlink[]}>}}
-    return Object.fromEntries(Object.entries(r.result.byId).map(([id, v]) => [id, v.backlinks.map(({from_doc_id, type, title, via_field}) => ({from_doc_id, type, title, via_field}))])) as unknown as Json
+    return Object.fromEntries(Object.entries(r.result.byId).map(([id, v]) => [id, v.backlinks.filter(notMetadata).map(({from_doc_id, type, title, via_field}) => ({from_doc_id, type, title, via_field}))])) as unknown as Json
   })
 
 /**

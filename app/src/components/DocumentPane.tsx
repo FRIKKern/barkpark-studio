@@ -32,6 +32,7 @@ import {unknownFields} from '../lib/broken'
 import {ChangesContext, DocProvider, DocIdContext, DocTypeContext, EditPathContext, WriteUrlPathContext, FormDisabledContext, FreeformBodyContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
+import {TranslationsMenu} from './TranslationsMenu'
 import {UnpublishDialog} from './UnpublishDialog'
 import {setActiveDocument} from '../lib/tasks-ui'
 import {DocHeaderMenu, DocShareMenu, Keys, openPreview, useAltName} from './DocHeaderMenu'
@@ -678,6 +679,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           )}
         </span>
         {doc && !pristine && !gone && <DocShareMenu doc={doc} />}
+        {/* Document translations (the schema's desk.translations): the language badge and the Translations menu. */}
+        {doc && schema?.translations && !gone && <TranslationsMenu doc={doc} config={schema.translations} panes={panes} index={index} readOnly={viewingPublished || !!pane.rev || !canWrite} reason={editReason} />}
         {/* Sanity shows it only when there is something to show (an info alone: a check). */}
         {!viewingPublished && (problems.length > 0 || inspecting) && (
           <button

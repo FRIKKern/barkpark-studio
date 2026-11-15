@@ -89,7 +89,7 @@ export const SCHEMA_KEYS = {
   fieldsets: 'Sanity\'s fieldsets for the document\'s own fields, as a composite\'s.',
   initialValues: 'A new document\'s starting values.',
   initial_values: 'initialValues, as Barkpark spells it.',
-  desk: 'Desk settings: orderings, views; incoming: lists, in the form, of the documents that reference this one, with Add item (Sanity\'s incoming references input); preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark\'s desk while its URLs still open (barkpark#22789).',
+  desk: 'Desk settings: orderings, views; incoming: lists, in the form, of the documents that reference this one, with Add item (Sanity\'s incoming references input); preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark\'s desk while its URLs still open (barkpark#22789); translations: {languages: [{id, title}], languageField?} makes it a translated type (docs/EXTENDING.md).',
   singleton: 'One document, whose id is the type\'s name.',
   layout: 'The Expectation for PortableDoc types (decision 0004).',
   prefill: 'A new PortableDoc document\'s starting blocks.',
@@ -166,7 +166,7 @@ export function fixtureJsonSchema(): JsonSchema {
     required: ['name', 'fields'],
     additionalProperties: false,
     properties: {
-      ...described(SCHEMA_KEYS, {name: {type: 'string'}, title: {type: 'string'}, fields: {type: 'array', items: {$ref: '#/definitions/field'}}, singleton: {type: 'boolean'}, desk: {type: 'object', properties: {hidden: {type: 'boolean', description: 'Off the desk; the type still opens from a direct URL.'}, incoming: INCOMING}}}),
+      ...described(SCHEMA_KEYS, {name: {type: 'string'}, title: {type: 'string'}, fields: {type: 'array', items: {$ref: '#/definitions/field'}}, singleton: {type: 'boolean'}, desk: {type: 'object', properties: {hidden: {type: 'boolean', description: 'Off the desk; the type still opens from a direct URL.'}, incoming: INCOMING, translations: {type: 'object', description: 'Document translations (Sanity\'s @sanity/document-internationalization): one document per language, linked in a group.', required: ['languages'], additionalProperties: false, properties: {languages: {type: 'array', minItems: 1, description: 'The languages: {id, title}, or the id alone.', items: {anyOf: [{type: 'string'}, {type: 'object', required: ['id'], additionalProperties: false, properties: {id: {type: 'string'}, title: {type: 'string'}}}]}}, languageField: {type: 'string', description: 'The field that holds a document\'s language (default "language"); the form hides it.'}}}}}}),
       ...described(BARKPARK_SCHEMA_KEYS, {visibility: {enum: ['public', 'private']}, kind: {enum: ['document', 'object']}}),
     },
     definitions: {

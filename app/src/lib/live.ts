@@ -68,6 +68,8 @@ const onFrame = (qc: QueryClient, e: MessageEvent) => {
   if (f.type === 'studioComment') return void qc.invalidateQueries({queryKey: ['comments']})
   // J66: a task changed: the Tasks sidebar reads again.
   if (f.type === 'studioTask') return void qc.invalidateQueries({queryKey: ['tasks']})
+  // A translation group changed (lib/translations.ts): open Translations menus read again.
+  if (f.type === 'translation.metadata') return void qc.invalidateQueries({queryKey: ['translations']})
   // D14: a task changed: papers' task previews read again (debounced: a bulk
   // edit is one read).
   if (f.type === 'task') return void (clearTimeout(fleetTimer), (fleetTimer = setTimeout(() => void qc.invalidateQueries({queryKey: ['fleet']}), 400)))
@@ -86,6 +88,7 @@ const onFrame = (qc: QueryClient, e: MessageEvent) => {
   // A delete or a discard carries the document it removed: read again, never apply it
   // (a replayed discardDraft put a dead draft back on screen, J36 flake 2026-10-09).
   if (!f.result || f.mutation === 'delete' || f.mutation === 'discardDraft') {
+    void qc.invalidateQueries({queryKey: ['translations']}) // a translation may be gone: its language is creatable again
     void qc.invalidateQueries({queryKey: ['doc', id]})
     void qc.invalidateQueries({queryKey: ['list', f.type]})
     // A form's incoming references (and a B09 view): a row deleted, or a draft discarded back to a version that points elsewhere.

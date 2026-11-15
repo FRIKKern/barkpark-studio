@@ -5,6 +5,7 @@ import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstac
 import appCss from '../styles.css?url'
 import orderCss from '../order-rows.css?url'
 import incomingCss from '../incoming-input.css?url'
+import translationsCss from '../translations.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
 import {IconTips} from '../components/Tip'
 import {ToastHost} from '../components/Toasts'
@@ -48,6 +49,7 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
       {rel: 'stylesheet', href: appCss},
       {rel: 'stylesheet', href: orderCss},
       {rel: 'stylesheet', href: incomingCss},
+      {rel: 'stylesheet', href: translationsCss},
     ],
   }),
   component: () => (
