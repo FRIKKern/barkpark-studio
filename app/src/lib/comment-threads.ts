@@ -23,6 +23,8 @@ export type Comment = {
   selection?: CommentSelection
   /** The text it was on when written (Sanity's contentSnapshot). */
   contentSnapshot?: string
+  /** A Portable Text span's text as last saved with it (edits inside it change it): a fresh read checks the span is still on it. */
+  selectionText?: string
   /** That text has since been deleted: the thread stays, its highlight goes. */
   textDeleted?: boolean
 }
@@ -72,7 +74,7 @@ const painted = (th: Thread, fieldPath: string) => th.status === 'open' && th.ro
  * mapped through edits since; they win over the saved ones, which may lag behind.
  */
 export function commentRangesOf(threads: Thread[], fieldPath: string, active: string | undefined, live: ReadonlyMap<string, CommentSelection>) {
-  return threads.filter((th) => painted(th, fieldPath)).map((th) => ({id: th.root._id, ...(live.get(th.root._id) ?? th.root.selection!), ...(th.root._id === active ? {active: true} : {})}))
+  return threads.filter((th) => painted(th, fieldPath)).map((th) => ({...(live.get(th.root._id) ?? th.root.selection!), id: th.root._id, ...(th.root._id === active ? {active: true} : {})}))
 }
 
 const samePoint = (a: Point, b: Point) => a.blockId === b.blockId && (a.path ?? '') === (b.path ?? '') && a.offset === b.offset

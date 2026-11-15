@@ -1,7 +1,8 @@
 // J40: an inline comment's span on Portable Text follows its words through edits.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {blockPoint, blockText, mapPtRanges, ptCommentMode, placedPtRanges, type PtRange} from './pt-comment-ranges.ts'
+import {commentRangesOf, type Thread} from './comment-threads.ts'
+import {blockPoint, blockText, findPtRange, mapPtRanges, ptCommentMode, ptRangeText, ptSpanSaves, placedPtRanges, type PtRange} from './pt-comment-ranges.ts'
 
 const block = (_key: string, ...texts: string[]) => ({_key, _type: 'block', children: texts.map((text, i) => ({_key: `${_key}s${i}`, _type: 'span', text}))})
 const at = (blockId: string, from: number, to: number, endBlock = blockId): PtRange => ({id: 't1', anchor: {blockId, offset: from}, head: {blockId: endBlock, offset: to}})
@@ -80,4 +81,50 @@ test('spans are followed and saved only in an editor of the draft', () => {
   // The published version or a revision, editable or not: their text is not what the spans are on.
   assert.equal(ptCommentMode({otherVersion: true, editable: false}), 'none')
   assert.equal(ptCommentMode({otherVersion: true, editable: true}), 'none')
+})
+
+test('a span read afresh is on its quote: where it was saved, found again in its block, or unlinked', () => {
+  assert.equal(ptRangeText(BEFORE, GAMMA), 'gamma')
+  assert.equal(ptRangeText(BEFORE, at('p1', 17, 6, 'p2')), 'delta.\nSecond')
+  assert.deepEqual(findPtRange(BEFORE, GAMMA, 'gamma'), GAMMA)
+  // An API patch put "Zero " before it: the saved offsets are on "beta ", the quote is 5 further on.
+  const patched = [block('p1', 'Zero Alpha beta gamma delta.'), BEFORE[1]]
+  assert.equal(ptRangeText(patched, GAMMA), 'beta ')
+  assert.deepEqual(findPtRange(patched, GAMMA, 'gamma'), at('p1', 16, 21))
+  // Twice in the block: the one nearest to where it was saved.
+  assert.deepEqual(findPtRange([block('p1', 'gamma Alpha beta de gamma.')], GAMMA, 'gamma'), at('p1', 20, 25))
+  assert.deepEqual(findPtRange([block('p1', 'gamma Alpha beta delta and gamma.')], GAMMA, 'gamma'), at('p1', 0, 5))
+  assert.deepEqual(findPtRange([block('p1', 'gamma Alph gamma.')], GAMMA, 'gamma'), at('p1', 11, 16))
+  // Discard changes took the word away (the offsets are on "delta"), or its block: unlinked, never on other words.
+  assert.equal(findPtRange([block('p1', 'Alpha beta delta.'), BEFORE[1]], GAMMA, 'gamma'), null)
+  assert.equal(findPtRange([BEFORE[1]], GAMMA, 'gamma'), null)
+  // Not looked for in another block.
+  assert.equal(findPtRange([block('p1', 'Alpha.'), block('p2', 'gamma')], GAMMA, 'gamma'), null)
+  // Over two blocks: where it was saved or unlinked; a browser's own line breaks in the quote are no difference.
+  const two = at('p1', 17, 6, 'p2')
+  assert.deepEqual(findPtRange(BEFORE, two, 'delta.\n\nSecond'), two)
+  assert.equal(findPtRange(patched, two, 'delta.\nSecond'), null)
+})
+
+test('only spans linked to their words are saved, with their text; one as saved again drops its waiting save', () => {
+  const stored = [{...GAMMA, text: 'gamma'}, {...at('p2', 0, 6), id: 't2', text: 'Second'}, {...at('p2', 7, 11), id: 't3', text: 'gone'}, {...at('p2', 12, 16), id: 't4', text: 'here'}]
+  // A receiving browser read "Zero " typed by another before that editor's span save came: the
+  // stale span is found again on its quote, so what this browser saves after its own typing is right.
+  const value = [block('p1', 'Zero Alpha beta gamma delta.'), block('p2', 'Second line here.')]
+  const found = findPtRange(value, GAMMA, 'gamma')!
+  const live = new Map([['t1', {anchor: found.anchor, head: found.head}], ['t2', {anchor: {blockId: 'p2', offset: 0}, head: {blockId: 'p2', offset: 6}}]])
+  assert.deepEqual(ptSpanSaves(stored, value, live, new Set(['t4'])), {
+    moves: [{id: 't1', selection: {anchor: {blockId: 'p1', offset: 16}, head: {blockId: 'p1', offset: 21}}, text: 'gamma'}, {id: 't4', selection: null}],
+    same: ['t2'], // t3 was never linked: nothing is saved for it
+  })
+  // Typed inside it: where it is saved is the same at its start, its text is not.
+  const inside = [block('p1', 'Alpha beta gaXmma delta.'), BEFORE[1]]
+  assert.deepEqual(ptSpanSaves([stored[0]!], inside, new Map([['t1', at('p1', 11, 17)]]), new Set()).moves, [{id: 't1', selection: {anchor: {blockId: 'p1', offset: 11}, head: {blockId: 'p1', offset: 17}}, text: 'gaXmma'}])
+  assert.deepEqual(findPtRange(inside, at('p1', 11, 17), 'gaXmma'), at('p1', 11, 17))
+})
+
+test("a thread's span is the thread's, whatever its saved selection carries", () => {
+  // A comment sent while its composer's span was followed through an edit was saved with the draft's id in its selection.
+  const root = {_id: 't9', documentId: 'd', documentType: 'post', fieldPath: 'ptBody', threadId: 't9', message: 'm', authorEmail: null, createdAt: '', selection: {id: '__draft', anchor: GAMMA.anchor, head: GAMMA.head}}
+  assert.deepEqual(commentRangesOf([{root, replies: [], status: 'open'} as Thread], 'ptBody', undefined, new Map()), [{id: 't9', anchor: GAMMA.anchor, head: GAMMA.head}])
 })
