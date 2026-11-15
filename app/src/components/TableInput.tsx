@@ -119,28 +119,41 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
    * The caret into a cell, now or once it is drawn (a row out of a long table's view). A cell
    * an edit of this editor's makes (`made`: the row or column count it waits for) is waited
    * for on the grid itself: the cell at that place now is another one, its text selected, and
-   * the first keys would type over it (or, on the button just pressed, press it again).
+   * the first keys would type over it (or, on the button just pressed, press it again). The
+   * keys typed meanwhile are kept (`early`) and typed into the new cell once it is there.
    */
+  const early = useRef<string | null>(null)
   const focusCell = useCallback(
     (row: number, column: number, select: 'start' | 'end' | 'all' = 'all', made?: {rows?: number; columns?: number}) => {
       let frames = made ? 60 : 12
       const drawn = () => !made || ((made.rows === undefined || latest.current.grid.rows.length >= made.rows) && (made.columns === undefined || latest.current.grid.columns >= made.columns))
-      if (!drawn()) win.box.current?.focus({preventScroll: true})
+      if (!drawn()) (early.current = ''), win.box.current?.focus({preventScroll: true})
       const go = () => {
         const el = drawn() ? cellAt(row, column) : null
         if (!el) {
           const box = win.box.current
           if (box && win.on && drawn()) box.scrollTop = Math.max(0, row * win.rowH - box.clientHeight / 2)
-          return void (frames-- > 0 && requestAnimationFrame(go))
+          if (frames-- > 0) return void requestAnimationFrame(go)
+          return void (early.current = null)
         }
         el.focus()
         if (select === 'all') el.select()
         else el.setSelectionRange(select === 'start' ? 0 : el.value.length, select === 'start' ? 0 : el.value.length)
+        const keys = early.current
+        early.current = null
+        // As the browser types them: the input's own change, its undo step too.
+        if (keys) document.execCommand('insertText', false, keys)
       }
       go()
     },
     [win.on, win.rowH, win.box],
   )
+  /** While a new cell is on its way: a letter is kept for it, and Space or Enter presses nothing (a header, the button again). */
+  const onEarlyKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (early.current === null || e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent.isComposing) return
+    if (e.key.length === 1) (e.preventDefault(), e.stopPropagation(), (early.current += e.key))
+    else if (e.key === 'Enter') (e.preventDefault(), e.stopPropagation())
+  }
   const header = (kind: 'row' | 'column', index: number) => root.current?.querySelector<HTMLElement>(`button[data-${kind}-header="${index}"]`)
 
   const onCell = useCallback((row: number, column: number, text: string) => write(setCell(seen.current, row, column, text, newKey)), [write])
@@ -309,7 +322,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
 
   if (!grid.rows.length)
     return (
-      <div className="table-input" id={id} ref={root}>
+      <div className="table-input" id={id} ref={root} onKeyDownCapture={onEarlyKey}>
         {shut ? (
           <p className="muted table-empty">{t('Empty Table')}</p>
         ) : (
@@ -324,7 +337,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   const shown = win.on ? [...new Set([...Array.from({length: Math.max(0, win.end - win.start)}, (_, k) => win.start + k), ...(focused >= 0 && focused < grid.rows.length ? [focused] : [])])].sort((a, b) => a - b) : grid.rows.map((_, i) => i)
   const gap = (from: number, to: number) => to > from && <tr key={`gap-${from}`} className="table-gap" aria-hidden="true" style={{height: (to - from) * win.rowH}}><td colSpan={grid.columns + 1} /></tr>
   return (
-    <div className="table-input" id={id} ref={root}>
+    <div className="table-input" id={id} ref={root} onKeyDownCapture={onEarlyKey}>
       {!shut && (
         <div className="table-bar">
           <button type="button" className="btn table-add" onClick={() => (write(addRows(seen.current, grid.rows.length, 1, rowType, newKey)), focusCell(grid.rows.length, 0, 'all', {rows: grid.rows.length + 1}))}>
