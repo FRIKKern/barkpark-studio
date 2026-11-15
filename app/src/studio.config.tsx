@@ -18,6 +18,19 @@ function CountedInput(props: InputProps) {
   )
 }
 
+/** The dashboard's custom widget, as Sanity's `{name, component, layout}`: any component of the studio's. */
+function HouseStyle() {
+  return (
+    <div className="dash-custom">
+      <ul>
+        <li>Headlines in sentence case, under 70 characters.</li>
+        <li>Every post gets an excerpt and a main image with alt text.</li>
+        <li>Schedule a launch post; never publish one by hand at midnight.</li>
+      </ul>
+    </div>
+  )
+}
+
 export default defineStudio({
   // Sanity's `title`. VITE_STUDIO_TITLE names one deployment ("Gyldendal Agency Studio").
   title: import.meta.env.VITE_STUDIO_TITLE || 'Barkpark Studio',
@@ -26,6 +39,19 @@ export default defineStudio({
   navbarTools: import.meta.env.VITE_STUDIO_TOOLS
     ? String(import.meta.env.VITE_STUDIO_TOOLS).split(',').map((s: string) => s.trim()).filter(Boolean)
     : undefined,
+  // The Dashboard tool (Sanity's @sanity/dashboard), on because this is set: the studio's own
+  // widgets, Sanity's document list, and one of this studio's making. Shapes: lib/dashboard.ts.
+  dashboard: {
+    widgets: [
+      {type: 'drafts'},
+      {type: 'recent'},
+      {type: 'tasks'},
+      {type: 'scheduled'},
+      {type: 'documentList', title: 'Latest posts', types: ['post'], order: '_createdAt desc', limit: 5, createNew: true},
+      {type: 'members'},
+      {name: 'house-style', title: 'House style', component: HouseStyle, layout: {width: 'small'}},
+    ],
+  },
   presentation: {
     previewUrl: PREVIEW_ORIGIN,
     mainDocuments: [
