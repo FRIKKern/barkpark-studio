@@ -90,7 +90,9 @@ function TypeList({decl, type, titled, doc, panes, index, published, revision, l
   useRelatedLive(query.queryKey, related, id, exists && !!kind && !published)
   // Documents "Add item" made here: listed at once, before any read has them.
   const [made, setMade] = useState<string[]>([])
-  const held = (docId: string) => (published ? undefined : qc.getQueryData<Doc | null>(['doc', docId]))
+  // What this browser holds of a row's document decides, unless it is marked stale (a draft discarded while no pane had
+  // it open is only marked, lib/live.ts): then the row as the server just gave it does.
+  const held = (docId: string) => (published || qc.getQueryState(['doc', docId])?.isInvalidated ? undefined : qc.getQueryData<Doc | null>(['doc', docId]))
   const open = (docId: string) => panes.some((p) => p.kind === 'doc' && p.id === docId)
   const mine = made.flatMap((docId) => qc.getQueryData<Doc | null>(['doc', docId]) ?? [])
   const rows = shownRelated([...mine.filter((m) => !m._rev), ...(data ?? [])], related, id, held, open)

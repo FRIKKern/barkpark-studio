@@ -186,6 +186,13 @@ const fetchList = createServerFn({method: 'GET'})
 const fetchRelated = createServerFn({method: 'GET'})
   .validator((d: {view: Related; id: string; published?: boolean}) => d)
   .handler(async ({data}) => {
+    // Asked again when a frame says a document of the type changed: never the shared answer from just before it
+    // (server/barkpark.ts keeps a read 0.5 s, and forgets only the reads that name the changed document).
+    const bpJson = async <T,>(path: string): Promise<T> => {
+      const res = await bpFetch(path, {}, undefined, {fresh: true})
+      if (!res.ok) throw new Error(`Barkpark ${path} → ${res.status}`)
+      return res.json() as Promise<T>
+    }
     const r = await bpJson<{result: {documents: Doc[]}}>(relatedPath(dataset(), data.view, data.id, data.published))
     if (data.published) return r.result.documents.map((d) => ({...d, _hasPublished: true, _publishedAt: d._updatedAt})) as unknown as Json
     // A published row whose document has a draft was matched in the draft's place (the draft points elsewhere): not a row.
@@ -201,7 +208,9 @@ export const relatedQuery = (view: Related, id: string, published = false) =>
     queryFn: async ({client}) => {
       const docs = (await fetchRelated({data: {view: {type: view.type, by: view.by, orderings: view.orderings}, id, published}})) as unknown as Doc[]
       // A row holds the whole doc as editors see it (fetchRelated drops a published version a draft stands in front of): opening it needs no second request.
-      if (!published) for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
+      // One held but marked stale (a draft discarded while no pane had it open: lib/live.ts only marks it) gives way to
+      // this newer read, under the editor's unsaved values: the list shows what the browser holds, and that was the dead draft.
+      if (!published) for (const d of docs) if (!client.getQueryData(['doc', d._publishedId]) || client.getQueryState(['doc', d._publishedId])?.isInvalidated) client.setQueryData(['doc', d._publishedId], withUnsaved(d))
       return docs
     },
   })
