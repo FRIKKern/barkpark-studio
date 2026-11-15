@@ -9,7 +9,7 @@ import {uploadMeta} from '../lib/image-meta'
 import {toast} from './Toasts'
 import {Thumb, TypeIcon} from './Preview'
 import {copyItem, signature} from '../lib/clipboard'
-import {EditPathContext, FieldView, UrlPathContext, WriteUrlPathContext, type OpenRef, ParentContext} from './Fields'
+import {EditPathContext, FieldView, FormDisabledContext, UrlPathContext, WriteUrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, PanelLeftIcon, Upload} from './icons'
 import {translate, useLocale, useT, useWorkspaceZone} from '../lib/i18n'
@@ -414,6 +414,7 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
   onClose: () => void
 }) {
   const t = useT()
+  const formDisabled = useContext(FormDisabledContext)
   const {title} = useItemPreview(item, of, named)
   // An array inside an item: its dialog names the whole way down, as Sanity's
   // ("Sections / #1 Intro / Items / #2 …"); a crumb before ours closes back to it.
@@ -479,7 +480,8 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
           </aside>
         )}
         <div className={of.type === 'image' ? 'dialog-body item-fields image-item' : 'dialog-body item-fields'}>
-          <fieldset className="form-fields" disabled={readOnly}>
+          {/* The dialog is drawn outside the form's own disabled fieldset (PaneOverlay), so a read-only form (Published, a revision) locks it here. */}
+          <fieldset className="form-fields" disabled={readOnly || formDisabled}>
             <ParentContext.Provider value={item}>
               {of.type === 'image' ? (
                 // An array of images: the item is the image (upload, select, hotspot and crop, its fields).
