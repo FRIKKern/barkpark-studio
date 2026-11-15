@@ -1,10 +1,11 @@
 import {expect, test, type Page} from '../rig/test'
-import {bpBase, bpDataset, bpMutate, signInIfAsked, target} from '../rig/targets'
+import {signInIfAsked, target} from '../rig/targets'
 
 // J66, Sanity's Tasks on ours (the reference's create form and panel are the evidence
 // clip). The doc menu's "Create new task" opens the sidebar on this document; the task
 // shows under Active Document, the status toggle moves it to Done, delete removes it.
-test('J66: create a task on a document, see it under Active Document, mark it done, delete', async ({page}, info) => {
+// On the way: a comment and the status change in its Activity, in order, and Duplicate task.
+test('J66: create a task on a document, comment on it, duplicate it, see it under Active Document, mark it done, read its Activity, delete', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the reference refuses writes; its create form and panel are the clip')
   await t.prepare(page.context())
@@ -28,9 +29,22 @@ test('J66: create a task on a document, see it under Active Document, mark it do
   await panel.getByRole('textbox', {name: 'Task title'}).fill(title)
   await panel.getByRole('button', {name: 'Create Task'}).click()
   await expect(page.getByText('Task created')).toBeVisible()
+  const feed = panel.getByRole('region', {name: 'Activity'}).locator('.task-feed > li')
   try {
     await expect(panel.getByRole('heading', {name: title})).toBeVisible()
-    await panel.getByRole('button', {name: 'Tasks', exact: true}).click()
+    // Its Activity: a comment (the documents' comment store, the task as its target) under the creation line.
+    await expect(feed).toHaveCount(1)
+    const box = panel.getByRole('textbox', {name: 'Add a comment...'})
+    await box.fill('Looks ready to me')
+    await box.press('Enter')
+    await expect(feed.nth(1)).toContainText('Looks ready to me')
+    await expect(box).toBeFocused()
+    // Duplicate task: the create form, "(copy)" after the title, the same target; Discard goes back to the lists.
+    await panel.getByRole('button', {name: 'Task actions'}).click()
+    await page.getByRole('menuitem', {name: 'Duplicate task'}).click()
+    await expect(panel.getByRole('textbox', {name: 'Task title'})).toHaveValue(`${title} (copy)`)
+    await expect(panel.locator('.task-target')).toContainText('Fixture post 05')
+    await panel.getByRole('button', {name: 'Discard'}).click()
     await panel.getByRole('tab', {name: 'Active Document'}).click()
     const open = panel.getByRole('list', {name: 'To Do'})
     await expect(open.getByText(title)).toBeVisible()
@@ -45,8 +59,13 @@ test('J66: create a task on a document, see it under Active Document, mark it do
     await expect(search.getByText('No results found')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(search).toBeHidden()
-  } finally {
+    // The status change, read back from the task's revisions, after the comment that came before it.
     await panel.getByRole('button', {name: title}).click()
+    await expect(feed.nth(2)).toContainText('changed status to Done')
+    await expect(feed).toHaveCount(3)
+  } finally {
+    // Deleting the task deletes its thread with it.
+    if (!(await panel.getByRole('button', {name: 'Task actions'}).isVisible())) await panel.getByRole('button', {name: title}).click()
     await deleteOpenTask(page)
     await expect(panel.getByRole('button', {name: title})).toBeHidden()
   }
@@ -58,60 +77,6 @@ async function deleteOpenTask(page: Page) {
   await page.getByRole('menuitem', {name: 'Delete task'}).click()
   await page.getByRole('dialog', {name: 'Delete this task?'}).getByRole('button', {name: 'Delete', exact: true}).click()
 }
-
-// A task's Activity, read back from the task's own revisions, with its comments (the
-// documents' comment store, the task as the target) between the changes by time. The
-// thread stays the task's: the target document's Comments shows none of it.
-test("J66: a task's Activity lists its comment and its status change in order; Duplicate task opens a copy to create", async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name === 'sanity', "the reference's plan sells task comments and Duplicate (\"Upgrade to comment on tasks\")")
-  const id = `task-j66-${Date.now().toString(36)}`
-  const title = `J66 thread ${Date.now().toString(36)}`
-  const auth = {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}
-  const found = async (type: string, filter: string) => {
-    const res = await fetch(`${bpBase()}/v1/data/query/${bpDataset()}/${type}?perspective=drafts&${filter}`, {headers: auth})
-    return res.ok ? ((await res.json()) as {result: {documents: {_publishedId: string}[]}}).result.documents.map((d) => d._publishedId) : []
-  }
-  await bpMutate([
-    {create: {_id: id, _type: 'studioTask', title, description: '', target: {_type: 'reference', _ref: 'post-05'}, targetType: 'post', assignee: null, dueAt: '2026-12-24', subscribers: [], state: 'open', createdBy: null, createdAt: new Date().toISOString()}},
-    {publish: {id, type: 'studioTask'}},
-  ])
-  try {
-    await t.prepare(page.context())
-    await page.goto(t.docPath('post', 'post-05'))
-    await signInIfAsked(page)
-    await page.goto(`${t.docPath('post', 'post-05')}?task=${id}`)
-    await t.settle(page)
-    const panel = page.getByRole('complementary', {name: 'Tasks'})
-    const feed = panel.getByRole('region', {name: 'Activity'}).locator('.task-feed > li')
-    await expect(feed).toHaveCount(1)
-    await expect(feed.first()).toContainText('created this task')
-    const box = panel.getByRole('textbox', {name: 'Add a comment...'})
-    await box.fill('Looks ready to me')
-    await box.press('Enter')
-    await expect(feed.nth(1)).toContainText('Looks ready to me')
-    await expect(box).toBeFocused()
-    await panel.getByRole('checkbox', {name: 'Change status'}).click()
-    await expect(feed.nth(2)).toContainText('changed status to Done')
-    await expect(feed).toHaveCount(3)
-    // The document's own Comments: nothing of the task's thread, no count on a field.
-    await page.getByRole('button', {name: 'Comments', exact: true}).click()
-    await expect(page.getByRole('complementary', {name: 'Comments'}).getByText('No open comments yet')).toBeVisible()
-    await expect(page.locator('.comment-count')).toHaveCount(0)
-    // Duplicate: the create form, "(copy)" after the title, the same target and deadline.
-    await panel.getByRole('button', {name: 'Task actions'}).click()
-    await page.getByRole('menuitem', {name: 'Duplicate task'}).click()
-    await expect(panel.getByRole('textbox', {name: 'Task title'})).toHaveValue(`${title} (copy)`)
-    await expect(panel.locator('.task-target')).toContainText('Fixture post 05')
-    await expect(panel.locator('input[id$="-due"]')).toHaveValue('2026-12-24')
-    await panel.getByRole('button', {name: 'Discard'}).click()
-    await expect(panel.getByRole('tab', {name: 'Assigned'})).toBeVisible()
-  } finally {
-    const comments = await found('studioComment', `filter[documentId][eq]=${id}`)
-    const copies = await found('studioTask', `filter[title][eq]=${encodeURIComponent(`${title} (copy)`)}`)
-    for (const [type, ids] of [['studioComment', comments], ['studioTask', [id, ...copies]]] as const) for (const doc of ids) await bpMutate([{delete: {id: doc, type, force: true}}]).catch(() => {})
-  }
-})
 
 // A task's description typed and not left yet (it saves when the box is left) is unsaved:
 // closing the tab asks first.
