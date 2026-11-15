@@ -70,6 +70,7 @@ function TaskList({tab}: {tab: TasksTab}) {
   const t = useT()
   const me = useQuery(meQuery).data?.email ?? null
   const active = useActiveDocument()
+  const {canWrite, createReason} = useCanWrite()
   const {data: tasks = [], isPending} = useQuery(tasksQuery)
   // A draft is not a task yet: it is under the create form's Draft menu (TaskCreate.tsx).
   const shown = tasks.filter((x) => x.state !== 'draft').filter((x) => (tab === 'assigned' ? !!me && x.assignee === me : tab === 'subscribed' ? !!me && (x.subscribers ?? []).includes(me) : !!active && x.target?._ref === active.id))
@@ -82,7 +83,8 @@ function TaskList({tab}: {tab: TasksTab}) {
     <>
       <Header>
         <h2>{t('Tasks')}</h2>
-        <button type="button" className="btn-text tasks-new" onClick={() => showTasks({kind: 'create', target: active})}>
+        {/* J49: a read seat cannot write a task (Barkpark refuses it), so it is not offered one. */}
+        <button type="button" className="btn-text tasks-new" disabled={!canWrite} title={createReason} onClick={() => showTasks({kind: 'create', target: active})}>
           <Add /> {t('New task')}
         </button>
       </Header>
@@ -100,7 +102,7 @@ function TaskList({tab}: {tab: TasksTab}) {
           <div className="tasks-empty">
             <h3>{t(heading)}</h3>
             <p>{t(text)}</p>
-            <button type="button" className="btn btn-primary" onClick={() => showTasks({kind: 'create', target: active})}>
+            <button type="button" className="btn btn-primary" disabled={!canWrite} title={createReason} onClick={() => showTasks({kind: 'create', target: active})}>
               <Add /> {t('Create new task')}
             </button>
           </div>
@@ -147,9 +149,7 @@ function StatusToggle({task, box = false}: {task: Task; box?: boolean}) {
     const state: TaskState = done ? 'open' : 'done'
     qc.setQueryData<Task[]>(tasksQuery.queryKey, (all) => all?.map((x) => (x._id === task._id ? {...x, state} : x)))
     try {
-      await updateTask({
-        data: {id: task._id, set: {state}, subscribers: task.subscribers},
-      })
+      await updateTask({data: {id: task._id, set: {state}}})
     } catch (e) {
       toast({
         tone: 'critical',
@@ -248,7 +248,7 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
         ) as Task[],
     )
     try {
-      await updateTask({data: {id, set, subscribers: task.subscribers}})
+      await updateTask({data: {id, set}})
     } catch (e) {
       toast({
         tone: 'critical',

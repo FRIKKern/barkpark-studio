@@ -11,7 +11,7 @@ import {currentEditor} from '../server/auth'
 // stamped here on the server from the signed-in editor, never sent by the page.
 
 import {COMMENT_TYPE} from './comment-threads'
-import {followers, TASK_TYPE, type Task, type TaskInput, type TaskRevision, type TaskState} from './task-activity'
+import {fencedChange, followers, TASK_TYPE, type Task, type TaskInput, type TaskRevision, type TaskState} from './task-activity'
 import {sendBatches} from '../../../scripts/lib/batches.mjs'
 
 export {TASK_TYPE, type Task, type TaskInput, type TaskState} from './task-activity'
@@ -25,6 +25,18 @@ async function write(mutations: Json[]) {
     body: JSON.stringify({mutations}),
   })
   if (!res.ok) throw new Error(`Could not save the task (${res.status})`)
+}
+
+/** A patch that lands only on the revision read (Barkpark's per-op ifRevisionID): 'stale' when the task changed since. */
+async function patchAt(task: Task, set: Record<string, Json>): Promise<'ok' | 'stale'> {
+  const res = await bpFetch(`/v1/data/mutate/${dataset()}`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({mutations: [{patch: {id: task._id, type: TASK_TYPE, ...(task._rev && {ifRevisionID: task._rev}), set}}, {publish: {id: task._id, type: TASK_TYPE}}]}),
+  })
+  if (res.status === 412) return 'stale'
+  if (!res.ok) throw new Error(`Could not save the task (${res.status})`)
+  return 'ok'
 }
 
 const fetchTasks = createServerFn({method: 'GET'}).handler(async () => {
@@ -105,7 +117,6 @@ export const updateTask = createServerFn({method: 'POST'})
         state?: TaskState
         target?: {id: string; type: string} | null
       }
-      subscribers?: string[]
     }) => d,
   )
   .handler(async ({data}) => {
@@ -117,9 +128,12 @@ export const updateTask = createServerFn({method: 'POST'})
         targetType: target?.type ?? null,
       })
     // Whoever changes a task follows it (Sanity: "When you create, modify, or comment on a
-    // task you will be subscribed automatically"), and so does a new assignee.
-    set.subscribers = followers(...(data.subscribers ?? []), currentEditor()?.email, data.set.assignee)
-    await write([{patch: {id: data.id, type: TASK_TYPE, set}}, {publish: {id: data.id, type: TASK_TYPE}}])
+    // task you will be subscribed automatically"), and so does a new assignee. The followers
+    // are the task's own as read here, not the page's copy, and the write is fenced on that
+    // read: two editors changing it at once both stay followers.
+    const me = currentEditor()?.email
+    const task = await fencedChange(() => readTask(data.id), (now) => patchAt(now, {...set, subscribers: followers(...(now.subscribers ?? []), me, data.set.assignee)}))
+    if (!task) throw new Error('Could not save the task (404)')
     return {ok: true}
   })
 
@@ -139,13 +153,17 @@ export const followTask = createServerFn({method: 'POST'})
   .validator((d: {id: string; follow: boolean; add?: string[]}) => d)
   .handler(async ({data}) => {
     const me = currentEditor()?.email ?? null
-    const task = await readTask(data.id)
+    const next = (was: string[]) => (data.follow ? followers(...was, me, ...(data.add ?? [])) : was.filter((e) => e !== me))
+    const task = await fencedChange(
+      () => readTask(data.id),
+      async (now) => {
+        const was = now.subscribers ?? []
+        const to = next(was)
+        return to.length === was.length && to.every((e) => was.includes(e)) ? 'same' : patchAt(now, {subscribers: to})
+      },
+    )
     if (!task) throw new Error('Task not found (404)')
-    const was = task.subscribers ?? []
-    const now = data.follow ? followers(...was, me, ...(data.add ?? [])) : was.filter((e) => e !== me)
-    if (now.length === was.length && now.every((e) => was.includes(e))) return {subscribers: was}
-    await write([{patch: {id: data.id, type: TASK_TYPE, set: {subscribers: now}}}, {publish: {id: data.id, type: TASK_TYPE}}])
-    return {subscribers: now}
+    return {subscribers: next(task.subscribers ?? [])}
   })
 
 const HISTORY_PAGE = 100
@@ -185,18 +203,21 @@ async function taskCommentIds(taskId: string): Promise<string[]> {
   return ids
 }
 
-/** Delete a task and, first, its thread: no comment is left pointing at nothing. */
+/**
+ * Delete a task with its thread, in one request (all or nothing). Refused (a comment someone
+ * deleted meanwhile refuses the whole batch): the task goes first, then what is left of
+ * its thread one by one; a comment that stays is on no task and shows nowhere.
+ */
 export const deleteTask = createServerFn({method: 'POST'})
   .validator((d: {id: string}) => d)
   .handler(async ({data}) => {
     const comments = await taskCommentIds(data.id)
-    // One at a time when the batch is refused: Barkpark refuses a whole batch that names a
-    // comment someone deleted meanwhile, and that one is already gone.
-    const drop = (ids: string[]) => sendBatches(ids.map((id) => ({delete: {id, type: COMMENT_TYPE, force: true}})), (part: Json[]) => bpFetch(`/v1/data/mutate/${dataset()}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({mutations: part})}))
-    if (comments.length) {
-      const res = await drop(comments)
-      if (res && !res.ok) for (const id of comments) await drop([id])
-    }
-    await write([{delete: {id: data.id, type: TASK_TYPE, force: true}}])
+    const send = (part: Json[]) => bpFetch(`/v1/data/mutate/${dataset()}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({mutations: part})})
+    const drop = (id: string): Json => ({delete: {id, type: COMMENT_TYPE, force: true}})
+    const gone: Json = {delete: {id: data.id, type: TASK_TYPE, force: true}}
+    const res = comments.length ? await sendBatches([...comments.map(drop), gone], send) : null
+    if (res?.ok) return {ok: true}
+    await write([gone])
+    for (const id of comments) await send([drop(id)]).catch(() => {})
     return {ok: true}
   })

@@ -40,6 +40,21 @@ export type TaskInput = {
 /** The creator, the assignee, whoever changes or comments, whoever is mentioned: once each. */
 export const followers = (...emails: (string | null | undefined)[]) => [...new Set(emails.filter((e): e is string => !!e))]
 
+/**
+ * A change to a task that depends on what it holds now (its followers): read it, write the
+ * change fenced on the revision read, and when someone else wrote in between ('stale'),
+ * read again and try again. Two editors who follow at the same moment are both kept: the
+ * unfenced write kept only the last one.
+ */
+export async function fencedChange<T extends {_rev?: string}>(read: () => Promise<T | null>, write: (now: T) => Promise<'ok' | 'stale' | 'same'>, tries = 6): Promise<T | null> {
+  for (let i = 0; i < tries; i++) {
+    const now = await read()
+    if (!now) return null
+    if ((await write(now)) !== 'stale') return now
+  }
+  throw new Error('The task kept changing. Try again.')
+}
+
 /** Sanity's Duplicate task: the same task, "(copy)" after its title, to do again. */
 export const duplicateOf = (task: Pick<Task, 'title' | 'description' | 'target' | 'targetType' | 'assignee' | 'dueAt'>): TaskInput => ({
   title: `${task.title} (copy)`,

@@ -106,6 +106,13 @@ export function rangeMoves(threads: Thread[], fieldPath: string, live: ({id: str
   })
 }
 
+/**
+ * After a send, the composer takes the keyboard back only when nobody took it elsewhere
+ * meanwhile: focus still in the box, or on nothing (the box was disabled while sending).
+ * An editor who clicked into a field while the comment was on its way keeps typing there.
+ */
+export const composerKeepsFocus = (active: unknown, box: unknown, body: unknown): boolean => active == null || active === box || active === body
+
 // Mentions (J40), as Sanity's: "@" opens the list of users; a pick puts @<email> in
 // the text, shown as a chip with the name. Emails are what Barkpark knows people by.
 const MENTION = /@([^\s@]+@[^\s@]+\.[^\s@.,;:!?)]+)/g

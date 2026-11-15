@@ -4,7 +4,7 @@ import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {commentsQuery, readerCommentsQuery, deleteComment, editComment, postComment, reactToComment, setThreadStatus, threadsOf, type Comment, type CommentStatus, type Thread} from '../lib/comments'
 import {peopleQuery} from '../lib/people'
-import {insertMention, mentionAt, messageParts, REACTIONS, reactionGroups} from '../lib/comment-threads'
+import {composerKeepsFocus, insertMention, mentionAt, messageParts, REACTIONS, reactionGroups} from '../lib/comment-threads'
 import {meQuery, useCanWrite} from '../lib/session'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {ago} from './HistoryPanel'
@@ -193,8 +193,9 @@ export function Composer({label, placeholder, initial = '', autoFocus, onSend, o
       await onSend(text)
       setText('')
       void qc.invalidateQueries({queryKey: ['comments']})
-      // A composer that stays (a reply box, a task's): the keyboard stays in it for the next one.
-      requestAnimationFrame(() => box.current?.focus())
+      // A composer that stays (a reply box, a task's): the keyboard stays in it for the next
+      // one, unless the editor has gone on to something else by now (lib/comment-threads.ts).
+      requestAnimationFrame(() => composerKeepsFocus(document.activeElement, box.current, document.body) && box.current?.focus())
     } catch (err) {
       toast({tone: 'critical', title: t('Failed to send.'), description: (err as Error).message})
     } finally {

@@ -1,8 +1,8 @@
 // J66: a task's Activity, read back from its revisions; its duplicate; its thread's place in the comment store.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {activityFeed, changeKind, duplicateOf, followers, snapshotRows, taskChanges, type TaskRevision, type TaskSnapshot} from './task-activity.ts'
-import {commentsOn, threadsOf, type Comment} from './comment-threads.ts'
+import {activityFeed, changeKind, duplicateOf, fencedChange, followers, snapshotRows, taskChanges, type TaskRevision, type TaskSnapshot} from './task-activity.ts'
+import {commentsOn, composerKeepsFocus, threadsOf, type Comment} from './comment-threads.ts'
 
 const A = 'a@example.com'
 const B = 'b@example.com'
@@ -104,4 +104,41 @@ test('duplicate: the same task with "(copy)" after its title; followers once eac
   })
   assert.deepEqual(duplicateOf({title: 'Bare'}), {title: 'Bare (copy)', description: '', target: null, assignee: null, dueAt: null})
   assert.deepEqual(followers(A, null, B, A, undefined), [A, B])
+})
+
+test('two editors who follow a task at the same moment are both kept (the write is fenced on the revision read, and tried again)', async () => {
+  // A store as Barkpark's: a write lands only on the revision it names.
+  const store = {_rev: 'r0', subscribers: [] as string[]}
+  let writes = 0
+  const tick = () => new Promise((go) => setTimeout(go, 1))
+  const follow = (who: string) =>
+    fencedChange(
+      async () => (await tick(), {...store}),
+      async (now) => {
+        await tick()
+        if (now.subscribers.includes(who)) return 'same'
+        if (now._rev !== store._rev) return 'stale'
+        store.subscribers = followers(...now.subscribers, who)
+        store._rev = `r${++writes}`
+        return 'ok'
+      },
+    )
+  await Promise.all([follow(A), follow(B)])
+  assert.deepEqual(store.subscribers.sort(), [A, B])
+  // Already a follower: nothing is written (no history row for a comment by a follower).
+  await follow(A)
+  assert.equal(writes, 2)
+  // A task that is gone answers null; one that never stops changing gives up with a reason.
+  assert.equal(await fencedChange(async () => null, async () => 'ok'), null)
+  await assert.rejects(fencedChange(async () => ({_rev: 'x'}), async () => 'stale', 3), /kept changing/)
+})
+
+test('after a send the composer takes focus back only from itself or from nothing, never from a field the editor went on to', () => {
+  const box = {}
+  const body = {}
+  const title = {}
+  assert.equal(composerKeepsFocus(box, box, body), true)
+  assert.equal(composerKeepsFocus(body, box, body), true) // the box was disabled while sending
+  assert.equal(composerKeepsFocus(null, box, body), true)
+  assert.equal(composerKeepsFocus(title, box, body), false) // reply sent, Title clicked before the answer
 })
