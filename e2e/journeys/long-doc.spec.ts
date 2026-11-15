@@ -68,6 +68,8 @@ test('@evidence J44: 200 fields + 300 rows keep F1 and F2 (4× CPU throttle)', a
   note('F1 field 200', {frame: stats(bottom.keys), eventTiming: stats(bottom.slowKeys)})
   await page.screenshot({path: shot(t.name, '2-field-200')})
 
+  // Both fold a long array after 4 items (Sanity 6.17's collapseItems): Show all first.
+  await rowsField(t, page).getByRole('button', {name: 'Show all 300 items'}).click()
   const row = rowsField(t, page).getByRole('button', {name: /Row 300/}).first()
   // Both draw only the array rows in view (ours from 150 items): wheel down to the last one.
   const field = rowsField(t, page)

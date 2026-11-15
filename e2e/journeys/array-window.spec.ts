@@ -19,6 +19,8 @@ test('@local a long array: a row moved 60 places by keyboard keeps focus; a deep
   await t.settle(page)
   await page.getByRole('tab', {name: 'Meta'}).click()
   await page.locator('#links').evaluate((el) => el.scrollIntoView())
+  // Folded after 4, as Sanity's (array-tools.spec): Show all first.
+  await page.getByRole('button', {name: `Show all ${N} items`}).click()
   // Only the rows near the view are drawn.
   expect(await page.locator('#links .array-row').count()).toBeLessThan(100)
 
