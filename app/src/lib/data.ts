@@ -15,7 +15,7 @@ import {readDocOf} from './refs'
 import {METADATA_TYPE, translatedFields, type TranslationConfig} from './translation-group'
 import {excluded, memberPreviewRefs, parseTextQuery, refBoost, textScore, tieLength} from './text-search'
 import {groqKeepPath, isGroqFilter, referencingPath, refFilterParams, type RefFilter} from './ref-filter'
-import {parseIncoming, relatedPath, type IncomingDecl, type Related} from './incoming-refs'
+import {draftsPaths, parseIncoming, relatedPath, shadowable, unshadowed, type IncomingDecl, type Related} from './incoming-refs'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -188,7 +188,9 @@ const fetchRelated = createServerFn({method: 'GET'})
   .handler(async ({data}) => {
     const r = await bpJson<{result: {documents: Doc[]}}>(relatedPath(dataset(), data.view, data.id, data.published))
     if (data.published) return r.result.documents.map((d) => ({...d, _hasPublished: true, _publishedAt: d._updatedAt})) as unknown as Json
-    return (await withHasPublished(data.view.type, r.result.documents)) as unknown as Json
+    // A published row whose document has a draft was matched in the draft's place (the draft points elsewhere): not a row.
+    const drafted = (await Promise.all(draftsPaths(dataset(), data.view.type, shadowable(r.result.documents)).map((path) => bpJson<{result: {documents: Doc[]}}>(path)))).flatMap((x) => x.result.documents.filter((d) => d._draft).map((d) => d._publishedId))
+    return (await withHasPublished(data.view.type, unshadowed(r.result.documents, drafted))) as unknown as Json
   })
 
 /** The key says type first: a live frame for a doc of that type finds every list it may belong in (lib/live.ts). */
@@ -198,7 +200,7 @@ export const relatedQuery = (view: Related, id: string, published = false) =>
     staleTime: 5_000,
     queryFn: async ({client}) => {
       const docs = (await fetchRelated({data: {view: {type: view.type, by: view.by, orderings: view.orderings}, id, published}})) as unknown as Doc[]
-      // A row holds the whole doc: opening it needs no second request (as a list's rows).
+      // A row holds the whole doc as editors see it (fetchRelated drops a published version a draft stands in front of): opening it needs no second request.
       if (!published) for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
       return docs
     },

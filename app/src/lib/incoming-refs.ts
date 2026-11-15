@@ -116,6 +116,26 @@ export function relatedPath(dataset: string, r: Related, id: string, published =
 }
 
 /**
+ * Barkpark's drafts perspective answers a filter with the PUBLISHED version of a document
+ * whose draft no longer matches it (a post published under this author, its draft now naming
+ * another). That row is not the document as editors see it: it is asked about (`draftsPath`)
+ * and dropped (`unshadowed`), so the list, and whatever opens from it, is the draft's truth.
+ */
+export const shadowable = (rows: Doc[]) => rows.filter((d) => !d._draft).map((d) => d._publishedId)
+/** The reads that say which of `ids` have a draft: `_id in` matches a draft by its `drafts.` id only. */
+export function draftsPaths(dataset: string, type: string, ids: string[], per = 50): string[] {
+  const out: string[] = []
+  for (let i = 0; i < ids.length; i += per)
+    out.push(`/v1/data/query/${dataset}/${encodeURIComponent(type)}?perspective=drafts&limit=${per}&filter[_id][in]=${ids.slice(i, i + per).map((id) => encodeURIComponent(`drafts.${id}`)).join(',')}`)
+  return out
+}
+/** The rows without the published versions that a draft (one of `drafted`, published ids) stands in front of. */
+export const unshadowed = (rows: Doc[], drafted: Iterable<string>) => {
+  const has = new Set(drafted)
+  return has.size ? rows.filter((d) => d._draft || !has.has(d._publishedId)) : rows
+}
+
+/**
  * Does `a` come before `b` in the list's order? A value that is not there sorts as the
  * greatest, as Barkpark's order does (last ascending, first descending): so a doc not saved
  * yet, which has no time, is the newest.

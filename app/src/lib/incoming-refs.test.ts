@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {test} from 'node:test'
 import type {Doc, Schema} from './data'
-import {creationChoices, dropRelated, foldRelated, incomingFor, incomingIn, parseIncoming, pointsVia, referenceKind, referencePreset, relatedPath, shownRelated, type Related} from './incoming-refs.ts'
+import {creationChoices, draftsPaths, dropRelated, shadowable, unshadowed, foldRelated, incomingFor, incomingIn, parseIncoming, pointsVia, referenceKind, referencePreset, relatedPath, shownRelated, type Related} from './incoming-refs.ts'
 import {FIELD_TYPES} from './schema-vocab.ts'
 
 // Sanity's incoming references input (defineIncomingReferenceDecoration): the pure parts.
@@ -160,4 +160,22 @@ test('it holds no value: a declaration is no field (Barkpark refuses an unknown 
   // The author fixture's fields are untouched by its lists: nothing named after one.
   assert.equal(author.fields.some((f) => f.name === 'posts' || f.type === 'incomingReferences'), false)
   assert.deepEqual(Object.keys(referencePreset(post, 'author', 'author-ada', {title: 'From a template'})!), ['author'])
+})
+
+test("a published row matched in place of a draft that points elsewhere is not a row (Barkpark's drafts perspective answers with it)", () => {
+  const draft = {...doc('post-d', {author: 'author-ada'}), _id: 'drafts.post-d', _draft: true}
+  const plain = doc('post-p', {author: 'author-ada'})
+  const shadowed = doc('post-s', {author: 'author-ada', title: 'Published title'}) // its draft names Alan
+  const rows = [draft, plain, shadowed]
+  // Only published rows can be one; they are asked about by their drafts. ids, in batches.
+  assert.deepEqual(shadowable(rows), ['post-p', 'post-s'])
+  assert.deepEqual(draftsPaths('e2e-local', 'post', ['post-p', 'post s', 'post-3'], 2), [
+    '/v1/data/query/e2e-local/post?perspective=drafts&limit=2&filter[_id][in]=drafts.post-p,drafts.post%20s',
+    '/v1/data/query/e2e-local/post?perspective=drafts&limit=2&filter[_id][in]=drafts.post-3',
+  ])
+  assert.deepEqual(draftsPaths('e2e-local', 'post', []), [])
+  assert.deepEqual(unshadowed(rows, ['post-s']), [draft, plain])
+  // A draft row is the document itself, whatever the answer names.
+  assert.deepEqual(unshadowed(rows, ['post-d']), rows)
+  assert.equal(unshadowed(rows, []), rows)
 })
