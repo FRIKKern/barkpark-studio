@@ -67,7 +67,7 @@ const onFrame = (qc: QueryClient, e: MessageEvent) => {
   // J40: a comment changed somewhere: the comment threads read again.
   if (f.type === 'studioComment') return void qc.invalidateQueries({queryKey: ['comments']})
   // J66: a task changed: the Tasks sidebar reads again.
-  if (f.type === 'studioTask') return void qc.invalidateQueries({queryKey: ['tasks']})
+  if (f.type === 'studioTask') return void (qc.invalidateQueries({queryKey: ['tasks']}), qc.invalidateQueries({queryKey: ['task-history', f.documentId.replace(/^drafts\./, '')]}))
   // A translation group changed (lib/translations.ts): open Translations menus read again.
   if (f.type === 'translation.metadata') return void qc.invalidateQueries({queryKey: ['translations']})
   // D14: a task changed: papers' task previews read again (debounced: a bulk

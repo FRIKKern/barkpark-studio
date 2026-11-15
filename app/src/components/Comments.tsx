@@ -193,6 +193,8 @@ export function Composer({label, placeholder, initial = '', autoFocus, onSend, o
       await onSend(text)
       setText('')
       void qc.invalidateQueries({queryKey: ['comments']})
+      // A composer that stays (a reply box, a task's): the keyboard stays in it for the next one.
+      requestAnimationFrame(() => box.current?.focus())
     } catch (err) {
       toast({tone: 'critical', title: t('Failed to send.'), description: (err as Error).message})
     } finally {
@@ -456,8 +458,15 @@ export function CommentsPanel({docId, docType, fieldTitle, focusField, active, o
   )
 }
 
+/**
+ * J66: what a task's thread does differently from a document's (components/TaskActivity.tsx):
+ * no resolve (Sanity's task comments have none), a comment's link opens the task, and a
+ * reply tells the task (its author and whoever it mentions follow it).
+ */
+export type ThreadHost = {link: (commentId: string) => string; onPosted: (message: string) => void}
+
 // Memo: the doc pane draws this panel on every key typed in the doc; a thread redraws only when it changes.
-const ThreadCard = memo(function ThreadCard({thread, docId, docType, active, onSelect}: {thread: Thread; docId: string; docType: string; active: boolean; onSelect: (threadId: string) => void}) {
+export const ThreadCard = memo(function ThreadCard({thread, docId, docType, active = false, onSelect, host}: {thread: Thread; docId: string; docType: string; active?: boolean; onSelect?: (threadId: string) => void; host?: ThreadHost}) {
   const qc = useQueryClient()
   const t = useT()
   const refresh = () => void qc.invalidateQueries({queryKey: ['comments']})
@@ -479,22 +488,22 @@ const ThreadCard = memo(function ThreadCard({thread, docId, docType, active, onS
       data-active={active || undefined}
       onClick={(e) => {
         // Its own controls (resolve, menu, reply) do their own thing.
-        if (!thread.root.selection || (e.target as HTMLElement).closest('button, textarea, [role=menu], [role=button]')) return
+        if (!onSelect || !thread.root.selection || (e.target as HTMLElement).closest('button, textarea, [role=menu], [role=button]')) return
         onSelect(thread.root._id)
         document.querySelector(`.bp-comment-range[data-comment-id="${CSS.escape(thread.root._id)}"]`)?.scrollIntoView({block: 'center', behavior: glide()})
       }}
     >
       {thread.root.selection && <CommentedText text={thread.root.contentSnapshot ?? ''} gone={!!thread.root.textDeleted} />}
-      <CommentItem comment={thread.root} replyIds={thread.replies.map((r) => r._id)} head onToggle={toggle} resolved={resolved} />
+      <CommentItem comment={thread.root} replyIds={thread.replies.map((r) => r._id)} head onToggle={host ? undefined : toggle} resolved={resolved} link={host?.link} />
       {thread.replies.map((r) => (
-        <CommentItem key={r._id} comment={r} />
+        <CommentItem key={r._id} comment={r} link={host?.link} />
       ))}
       {!resolved && (
         <Composer
           compact
           label={t('Reply')}
           placeholder={t('Reply')}
-          onSend={async (message) => void (await postComment({data: {id: newId(), documentId: docId, documentType: docType, fieldPath: thread.root.fieldPath, message, parentCommentId: thread.root._id}}))}
+          onSend={async (message) => (await postComment({data: {id: newId(), documentId: docId, documentType: docType, fieldPath: thread.root.fieldPath, message, parentCommentId: thread.root._id}}), host?.onPosted(message))}
         />
       )}
     </article>
@@ -520,7 +529,7 @@ function CommentedText({text, gone}: {text: string; gone: boolean}) {
   )
 }
 
-function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {comment: Comment; head?: boolean; replyIds?: string[]; resolved?: boolean; onToggle?: () => void}) {
+function CommentItem({comment, head, replyIds = [], resolved, onToggle, link}: {comment: Comment; head?: boolean; replyIds?: string[]; resolved?: boolean; onToggle?: () => void; link?: (commentId: string) => string}) {
   const {data: me} = useQuery(meQuery)
   const t = useT()
   const locale = useLocale()
@@ -581,7 +590,7 @@ function CommentItem({comment, head, replyIds = [], resolved, onToggle}: {commen
                       className="menu-item"
                       onClick={() => {
                         setMenu(false)
-                        navigator.clipboard.writeText(`${location.href.split('#')[0]}#comment-${comment._id}`).catch(() => toast({tone: 'critical', title: t('Unable to copy link to clipboard')}))
+                        navigator.clipboard.writeText(link ? link(comment._id) : `${location.href.split('#')[0]}#comment-${comment._id}`).catch(() => toast({tone: 'critical', title: t('Unable to copy link to clipboard')}))
                       }}
                     >
                       {t('Copy link to comment')}

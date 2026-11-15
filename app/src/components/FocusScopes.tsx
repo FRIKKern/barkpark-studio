@@ -68,12 +68,13 @@ export function DialogBox({onClose, children, ...rest}: DivProps) {
  * Draw a field's dialog over its document's form, as Sanity does (its document panel
  * portal): between the title bar and the footer, which stay as they are. Not inside the
  * field (a field is `position: relative`, so an absolute backdrop would stop at its
- * edges). Outside a form, over the whole pane. Children render once it is found.
+ * edges). Outside a form, over the whole pane; in the Tasks sidebar (a task's comments),
+ * over the sidebar. Children render once it is found.
  */
 export function PaneOverlay({children, whole = false}: {children: ReactNode; whole?: boolean}) {
   const [pane, setPane] = useState<HTMLElement | null>(null)
   // `whole`: the whole pane, header and footer too (signing in again: nothing acts meanwhile).
-  const anchor = useCallback((el: HTMLSpanElement | null) => setPane((!whole && el?.closest<HTMLElement>('.doc-main')) || el?.closest<HTMLElement>('.pane.doc') || null), [whole])
+  const anchor = useCallback((el: HTMLSpanElement | null) => setPane((!whole && el?.closest<HTMLElement>('.doc-main')) || el?.closest<HTMLElement>('.pane.doc') || el?.closest<HTMLElement>('.tasks-panel') || null), [whole])
   return (
     <>
       <span ref={anchor} hidden />

@@ -57,6 +57,18 @@ export const reactionGroups = (reactions: Reaction[] = []) =>
   })
 export type Thread = {root: Comment; replies: Comment[]; status: CommentStatus}
 
+// J66: a task's thread is the same comment document with the task as its target
+// (`documentId` the task's id, `documentType` the task type). One store, two kinds of target.
+export const TASK_TARGET = 'studioTask'
+export type CommentTarget = 'document' | 'task'
+export const targetOf = (c: Pick<Comment, 'documentType'>): CommentTarget => (c.documentType === TASK_TARGET ? 'task' : 'document')
+/**
+ * The comments one kind of target may show. A document's Comments panel, its field counts
+ * and its inline ranges ask for 'document': a task's thread never reaches them, whatever
+ * id it carries.
+ */
+export const commentsOn = <C extends Pick<Comment, 'documentType'>>(comments: C[], target: CommentTarget): C[] => comments.filter((c) => targetOf(c) === target)
+
 /** Threads in the order Sanity lists them: by field, then oldest first. */
 export function threadsOf(comments: Comment[]): Thread[] {
   // Replies by their thread in one pass: per root over every comment was 120,000 steps for
