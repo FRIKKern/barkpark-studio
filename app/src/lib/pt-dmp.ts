@@ -128,6 +128,22 @@ export function settleDmp(base: string, sent: string, saved: unknown, typed?: un
   return {value, missing: ignored || words.length > 0, ignored}
 }
 
+/**
+ * `read`'s answer, asked again every `everyMs` while it fails and `wanted()` holds (undefined
+ * once it no longer does). For the read settleDmp's `before` comes from: a failed read says
+ * nothing about whether a hunk landed, so the save stays on its way until one answers.
+ */
+export async function askUntilAnswered<T>(read: () => Promise<T>, wanted: () => boolean, everyMs = 2_000): Promise<T | undefined> {
+  while (wanted()) {
+    try {
+      return await read()
+    } catch {
+      await new Promise((go) => setTimeout(go, everyMs))
+    }
+  }
+  return undefined
+}
+
 // A patch must not land after a later write of its span from this browser (Barkpark cannot
 // refuse it: no fence covers a diffMatchPatch path). The studio's server is where a write can
 // wait (a 429's Retry-After, a slow connection), so it gives a write that carries a patch up:

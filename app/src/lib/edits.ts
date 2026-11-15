@@ -15,7 +15,7 @@ import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
 import {merge3, mergeList3, mergeText, onto, revertSteps} from './merge'
 import {applyPaths, getPath, keyedRoots, setPath, within} from './paths'
-import {carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
+import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {clientGone} from '../server/client-gone'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
@@ -101,12 +101,16 @@ const valuesBefore = createServerFn({method: 'GET'})
   .validator((d: {type: string; id: string; rev: string; paths: string[]}) => d)
   .handler(async ({data}) => {
     const list = await bpFetch(`/v1/data/history/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?limit=10`, {}, undefined, {fresh: true})
+    // A read that failed is not an answer (the caller asks again); one Barkpark refuses is.
+    const failed = (r: Response) => r.status >= 500 || r.status === 429
+    if (failed(list)) throw new Error(`history ${list.status}`)
     if (!list.ok) return null
     const rows = ((await list.json()) as {revisions?: {id: string; rev?: string; status?: string}[]}).revisions ?? []
     const at = rows.findIndex((r) => r.rev === data.rev)
     const prior = at < 0 ? undefined : rows.slice(at + 1).find((r) => r.status === rows[at]!.status)
     if (!prior) return null
     const res = await bpFetch(`/v1/data/revision/${dataset()}/${encodeURIComponent(prior.id)}`)
+    if (failed(res)) throw new Error(`revision ${res.status}`)
     if (!res.ok) return null
     const {revision} = (await res.json()) as {revision?: {content?: Record<string, Json>}}
     return data.paths.map((path) => (getPath(revision?.content, path) ?? null) as Json)
@@ -738,9 +742,11 @@ async function send(qc: QueryClient, id: string) {
     // Keys typed since (made on what was sent) move onto the answer; words of a hunk that
     // did not land go again, as a set (settleDmp). Where the answer leaves that open, the
     // text the patch was applied to says: one read, and this save counts as on its way
-    // until it is back.
+    // until it is back. A read that fails is asked again (askUntilAnswered): settled without
+    // it, a skipped hunk's letters were gone with no word said.
     const open = patched.filter((f) => landingUnsure(sentBase.get(f) as string, e.inflight!.get(f) as string, getPath(saved, f)))
-    const before = open.length ? await valuesBefore({data: {type: e.type, id, rev: saved._rev, paths: open}}).catch(() => null) : null
+    const sent = e.inflight
+    const before = open.length ? await askUntilAnswered(() => valuesBefore({data: {type: e.type, id, rev: saved._rev, paths: open}}), () => e.inflight === sent) : null
     if (!e.inflight) return // the edits were dropped meanwhile (signed out, discarded)
     const sentPaths = [...e.inflight.keys()]
     for (const f of patched) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import {applyPatches, parsePatch} from '@sanity/diff-match-patch'
 import {mergeText} from './merge.ts'
-import {carriesPatch, DMP_LIMITS, DMP_SETTLE_MS, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, spanPatch, splitDmp} from './pt-dmp.ts'
+import {askUntilAnswered, carriesPatch, DMP_LIMITS, DMP_SETTLE_MS, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, spanPatch, splitDmp} from './pt-dmp.ts'
 
 const SPAN = 'body[_key=="b1"].children[_key=="s1"].text'
 /** What Barkpark does with a patch text: @sanity/diff-match-patch's apply, onto the text it holds. */
@@ -77,6 +77,29 @@ test('a hunk that did not land goes again as a set; one that may have landed is 
   assert.deepEqual(settleDmp(base, sent, theirs, undefined, theirs), {value: `${theirs} long`, missing: true, ignored: false})
   // A server that ignores the op (older than Barkpark #24688) answers with the text as it was.
   assert.deepEqual(settleDmp(base, sent, base, `${sent} Yes`), {value: `${sent} Yes`, missing: true, ignored: true})
+})
+
+test('the read of the text before the patch fails: asked again, not settled without it; the letter is kept once', async () => {
+  // Review 1251b round two: "e" typed inside "slowly" while they replaced the span; the read
+  // failed and the skipped letter was taken as landed, gone from server and screen.
+  const base = 'Pour slowly one'
+  const sent = 'Pour sloewly one'
+  const theirs = 'Boil the kettle gently'
+  const saved = server(spanPatch(base, sent)!.text, theirs)
+  assert.equal(saved, theirs) // Barkpark skipped the hunk
+  assert.equal(landingUnsure(base, sent, saved), true) // an "e" is in their text too
+  let asked = 0
+  const read = async () => {
+    if (++asked < 3) throw new Error('fetch failed')
+    return theirs
+  }
+  const before = await askUntilAnswered(read, () => true, 1)
+  assert.equal(asked, 3)
+  assert.deepEqual(settleDmp(base, sent, saved, undefined, before), {value: `${theirs} e`, missing: true, ignored: false})
+  // The edits were dropped meanwhile: no more asking.
+  let again = 0
+  assert.equal(await askUntilAnswered(async () => { again++; throw new Error('fetch failed') }, () => again < 2, 1), undefined)
+  assert.equal(again, 2)
 })
 
 test('two editors each add a short word at one spot: the answer stands, nothing typed twice', () => {
