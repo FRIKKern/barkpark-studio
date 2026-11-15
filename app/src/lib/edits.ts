@@ -14,6 +14,7 @@ import {heldFor} from './held-for'
 import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
 import {merge3, mergeList3, mergeText, onto, revertSteps} from './merge'
+import {mergeTablePart} from './table-merge'
 import {answeredInto, anyInside, applyPaths, getPath, keyedRoots, mergePending, setInside, setPath, within} from './paths'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {clientGone} from '../server/client-gone'
@@ -158,6 +159,8 @@ type DocEdits = {
    * was made, so a retry is refused (412) rather than saved over theirs.
    */
   missed?: Doc
+  /** The document as the server had it before the first frame held in `missed` (a table's merge reads it). */
+  missedFrom?: Record<string, unknown>
   /** Fields whose last write got no answer (a network failure): Barkpark may hold it already. */
   unsure?: Set<string>
   /** Span texts whose next save goes as a set, not a patch (lib/pt-dmp.ts): a patch of theirs was refused, or its words did not land. */
@@ -348,9 +351,12 @@ const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.s
  * Returns the fields that could not: text of ours they rewrote. Ours stays (on screen and
  * pending), unsent, until the editor says so.
  */
-function rebase(e: DocEdits, d: Doc): string[] {
+function rebase(e: DocEdits, d: Doc, was?: Doc | null): string[] {
   const clashed: string[] = []
   let missed = false
+  // The document as the server had it before `d`: what this browser held (`was`), its own
+  // pending edits taken out. A table's merge reads which column became which from it.
+  const before = e.missedFrom ?? (was ? applyPaths(was as Record<string, unknown>, e.base) : undefined)
   for (const [f, base] of e.base) {
     const theirs = getPath(d, f)
     if (same(theirs, base)) continue
@@ -380,13 +386,14 @@ function rebase(e: DocEdits, d: Doc): string[] {
       else e.dirty.set(f, merged)
     } else if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(theirs)) {
       // A list: their reorder, add or remove stays while I edit an item (else ours wins).
-      const merged = mergeList3(base, mine, theirs)
+      // A table field's rows and cells merge as a table (cells have no keys: lib/table-merge.ts).
+      const merged = mergeTablePart(f, base, mine, theirs, before, d) ?? mergeList3(base, mine, theirs)
       if (merged) e.dirty.set(f, merged as Json)
     }
     e.base.set(f, theirs)
   }
-  if (missed) e.missed = d
-  else e.rev = d._rev
+  if (missed) (e.missed = d), (e.missedFrom ??= before)
+  else (e.rev = d._rev), (e.missedFrom = undefined)
   return clashed
 }
 
@@ -410,7 +417,7 @@ function afterInflight(qc: QueryClient, id: string, e: DocEdits): boolean {
   e.inflight = null
   const d = e.missed
   e.missed = undefined
-  const clashed = d ? rebase(e, d) : []
+  const clashed = d ? rebase(e, d, qc.getQueryData<Doc>(['doc', id])) : []
   if (d && clashed.length) clash(qc, id, e, clashed, d)
   // Merged: the field shows it too, or the next keystroke sends the field as it was on
   // screen, over theirs, on the rev that now says it saw them.
@@ -449,7 +456,7 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   const held = qc.getQueryData<Doc | null>(['doc', id])
   if (held && held._updatedAt > doc._updatedAt) return
   const e = docs.get(id)
-  const clashed = e ? rebase(e, doc) : []
+  const clashed = e ? rebase(e, doc, held) : []
   // A published row (or a publish) proves a published version; a draft keeps what we knew.
   const _hasPublished = !doc._draft || (doc._hasPublished ?? held?._hasPublished ?? false)
   historyChanged(qc, id)
@@ -917,7 +924,7 @@ async function send(qc: QueryClient, id: string) {
         unsent(e)
         e.inflight = null
         e.missed = undefined // the latest read supersedes it
-        const clashed = latest ? rebase(e, latest) : []
+        const clashed = latest ? rebase(e, latest, qc.getQueryData<Doc>(['doc', id])) : []
         if (latest) writeCache(qc, id, e.type, overlay(id, latest))
         if (clashed.length && latest) return clash(qc, id, e, clashed, latest)
         void send(qc, id)
@@ -1186,6 +1193,7 @@ export function reapply(qc: QueryClient, restored: Doc, fields: [string, unknown
   e.dirty = new Map()
   e.inflight = null
   e.missed = undefined
+  e.missedFrom = undefined
   e.base.clear()
   setState(e, 'saved')
   // The edits are made against the restored version, not against what the screen shows
