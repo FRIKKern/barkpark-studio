@@ -15,6 +15,7 @@ import {readDocOf} from './refs'
 import {METADATA_TYPE, translatedFields, type TranslationConfig} from './translation-group'
 import {excluded, memberPreviewRefs, parseTextQuery, refBoost, textScore, tieLength} from './text-search'
 import {groqKeepPath, isGroqFilter, referencingPath, refFilterParams, type RefFilter} from './ref-filter'
+import {draftsPaths, parseIncoming, relatedPath, shadowable, unshadowed, type IncomingDecl, type Related} from './incoming-refs'
 
 // Every read the studio does. Server functions: on the server they call Barkpark
 // directly (SSR), in the browser they are same-origin RPC — the token never leaves.
@@ -83,7 +84,7 @@ export type Ordering = {name: string; title: string; by: {field: string; directi
 export type ListPreview = {title?: string; subtitle?: PreviewText; media?: PreviewMediaSpec}
 /** One entry of a type's Expectation (Barkpark's `layout`): a bound field block, or the free region. */
 export type LayoutItem = {kind: 'field' | 'region' | string; name: string; max?: number; enforce?: boolean}
-export type Schema = {name: string; title: string; kind?: 'object'; icon?: string; iconSvg?: string; previewView?: {title?: string}; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; fieldsets?: Field['fieldsets']; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>; translations?: TranslationConfig}
+export type Schema = {name: string; title: string; kind?: 'object'; icon?: string; iconSvg?: string; previewView?: {title?: string}; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; fieldsets?: Field['fieldsets']; initialValues?: Record<string, unknown>; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; incoming?: IncomingDecl[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>; translations?: TranslationConfig}
 /**
  * B09: a related-documents view the schema declares (`desk.views`, Barkpark's LiveView
  * "view bar"): docs of `type` whose `by` field references the open doc.
@@ -127,6 +128,8 @@ const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
       singleton: singleton === true,
       orderings: ((desk as {orderings?: RawOrdering[]} | undefined)?.orderings ?? []).filter((o) => o.field || o.by?.length).map(ordering),
       views: ((desk as {views?: Json[]} | undefined)?.views ?? []) as Json[],
+      // Sanity's incoming references input: the lists the type's form shows (lib/incoming-refs.ts).
+      incoming: parseIncoming((desk as {incoming?: unknown} | undefined)?.incoming, ((desk as {views?: DeskView[]} | undefined)?.views ?? [])) as unknown as Json,
       // The type's preview URL template (desk.preview): Presentation and "Used on N pages"
       // read it. The Preview VIEW is opt-in, as a declared view in Sanity's structure is:
       // desk.previewView true, or {title} (task-37691740e53e77b7).
@@ -176,21 +179,41 @@ const fetchList = createServerFn({method: 'GET'})
     return {docs: out, hasMore} as unknown as Json
   })
 
-// B09: a desk view's rows, as Barkpark's LiveView reads them (handlers/views.ex):
-// drafts perspective, at most 200, `by` equal to the open doc's published id.
+// B09: a desk view's rows, as Barkpark's LiveView reads them (handlers/views.ex): drafts
+// perspective, at most 200, `by` pointing at the open doc's published id. The form's
+// incoming references lists read the same (lib/incoming-refs.ts relatedPath: a reference
+// or an array of them), also as the Published perspective shows them.
 const fetchRelated = createServerFn({method: 'GET'})
-  .validator((d: {view: DeskView; id: string}) => d)
+  .validator((d: {view: Related; id: string; published?: boolean}) => d)
   .handler(async ({data}) => {
-    const {type, by, orderings = []} = data.view
-    const order = orderings.length ? `&order=${orderings.map((o) => `${o.field}:${o.direction}`).join(',')}` : ''
-    const r = await bpJson<{result: {documents: Doc[]}}>(
-      `/v1/data/query/${dataset()}/${encodeURIComponent(type)}?perspective=drafts&limit=200&filter[${encodeURIComponent(by)}][eq]=${encodeURIComponent(data.id)}${order}`,
-    )
-    return (await withHasPublished(type, r.result.documents)) as unknown as Json
+    // Asked again when a frame says a document of the type changed: never the shared answer from just before it
+    // (server/barkpark.ts keeps a read 0.5 s, and forgets only the reads that name the changed document).
+    const bpJson = async <T,>(path: string): Promise<T> => {
+      const res = await bpFetch(path, {}, undefined, {fresh: true})
+      if (!res.ok) throw new Error(`Barkpark ${path} → ${res.status}`)
+      return res.json() as Promise<T>
+    }
+    const r = await bpJson<{result: {documents: Doc[]}}>(relatedPath(dataset(), data.view, data.id, data.published))
+    if (data.published) return r.result.documents.map((d) => ({...d, _hasPublished: true, _publishedAt: d._updatedAt})) as unknown as Json
+    // A published row whose document has a draft was matched in the draft's place (the draft points elsewhere): not a row.
+    const drafted = (await Promise.all(draftsPaths(dataset(), data.view.type, shadowable(r.result.documents)).map((path) => bpJson<{result: {documents: Doc[]}}>(path)))).flatMap((x) => x.result.documents.filter((d) => d._draft).map((d) => d._publishedId))
+    return (await withHasPublished(data.view.type, unshadowed(r.result.documents, drafted))) as unknown as Json
   })
 
-export const relatedQuery = (view: DeskView, id: string) =>
-  queryOptions({queryKey: ['related', view.type, view.by, id], staleTime: 5_000, queryFn: async () => (await fetchRelated({data: {view, id}})) as unknown as Doc[]})
+/** The key says type first: a live frame for a doc of that type finds every list it may belong in (lib/live.ts). */
+export const relatedQuery = (view: Related, id: string, published = false) =>
+  queryOptions({
+    queryKey: [published ? 'related-published' : 'related', view.type, view.by, id],
+    staleTime: 5_000,
+    queryFn: async ({client}) => {
+      const docs = (await fetchRelated({data: {view: {type: view.type, by: view.by, orderings: view.orderings}, id, published}})) as unknown as Doc[]
+      // A row holds the whole doc as editors see it (fetchRelated drops a published version a draft stands in front of): opening it needs no second request.
+      // One held but marked stale (a draft discarded while no pane had it open: lib/live.ts only marks it) gives way to
+      // this newer read, under the editor's unsaved values: the list shows what the browser holds, and that was the dead draft.
+      if (!published) for (const d of docs) if (!client.getQueryData(['doc', d._publishedId]) || client.getQueryState(['doc', d._publishedId])?.isInvalidated) client.setQueryData(['doc', d._publishedId], withUnsaved(d))
+      return docs
+    },
+  })
 
 /** List search over the whole type, not just the rows loaded (J41): Barkpark's full-text search. */
 const fetchListSearch = createServerFn({method: 'GET'})

@@ -46,12 +46,99 @@
       "description": "initialValues, as Barkpark spells it."
     },
     "desk": {
-      "description": "Desk settings: orderings, views; preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark's desk while its URLs still open (barkpark#22789); translations: {languages: [{id, title}], languageField?} makes it a translated type (docs/EXTENDING.md).",
+      "description": "Desk settings: orderings, views; incoming: lists, in the form, of the documents that reference this one, with Add item (Sanity's incoming references input); preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark's desk while its URLs still open (barkpark#22789); translations: {languages: [{id, title}], languageField?} makes it a translated type (docs/EXTENDING.md).",
       "type": "object",
       "properties": {
         "hidden": {
           "type": "boolean",
           "description": "Off the desk; the type still opens from a direct URL."
+        },
+        "incoming": {
+          "type": "array",
+          "description": "Lists in the form of the documents that reference this one. It is no field and holds no value.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "types"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Its name, unique in the type."
+              },
+              "title": {
+                "type": "string",
+                "description": "Its label; the name, start-cased, without one."
+              },
+              "description": {
+                "type": "string",
+                "description": "Help text under the label."
+              },
+              "group": {
+                "type": "string",
+                "description": "The field group (tab) it shows on; without one, under all fields only."
+              },
+              "types": {
+                "type": "array",
+                "minItems": 1,
+                "description": "The referring types: {type, by} (by: the reference field, or array of references, that points here), or {view} for the relation a desk.views entry declares.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "by": {
+                      "type": "string"
+                    },
+                    "view": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "orderings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "field"
+                        ],
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "direction": {
+                            "enum": [
+                              "asc",
+                              "desc"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "creationAllowed": {
+                "description": "false: no Add item. A list of template ids: only those. Default true.",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          }
         },
         "translations": {
           "type": "object",

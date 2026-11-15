@@ -39,7 +39,12 @@ export default defineStudio({
       if (doc._type === 'author') return [{title: String(doc.name ?? 'Untitled'), href: `/authors/${doc._publishedId}`}]
     },
   },
-  form: {inputs: {'post.excerpt': CountedInput}},
+  form: {
+    inputs: {'post.excerpt': CountedInput},
+    // Sanity's defineIncomingReferenceDecoration: an author's form lists the posts that name them,
+    // last edited first, with "Add item" (a schema says the same in its `desk.incoming`).
+    incomingReferences: {author: [{name: 'posts', title: 'Posts by this author', types: [{type: 'post', by: 'author'}]}]},
+  },
   // J18: the reference Studio's template (reference/sanity/sanity.config.ts).
   templates: [
     {id: 'post-by-alan', title: 'Post by Alan Turing', schemaType: 'post', value: {author: 'author-alan'}},

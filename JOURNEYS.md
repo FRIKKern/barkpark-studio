@@ -24,7 +24,7 @@ status lives on the task board. A scout's honest gap adds a row: never a shrinki
 | J14 | 2 | Field groups (tabs, with validation badge) and nested objects that collapse and keep that state; an object's fieldsets (columns, collapsible) and Sanity's field options: a list's checkboxes, geopoint, checkbox boolean, slug maxLength, reference disableNew (fieldTypes) | F2 F5 |
 | J15 | 6 | Review changes: change bars, per-field diff by author, revert one field or all, image/rich-text diffs | F10 |
 | J16 | 6 | Browse history: timeline with authors, open an old revision read-only (deep URL), restore it | F9 |
-| J17 | 1 ★ | Delete author with incoming refs → blocked, "used in" shown; any time, the doc menu's "Incoming references" panel lists them by type, each opens in a pane | F9 |
+| J17 | 1 ★ | Delete author with incoming refs → blocked, "used in" shown; any time, the doc menu's "Incoming references" panel lists them by type, each opens in a pane; a type may list them in its form too (Sanity's incoming references input: an author's posts, live, each opens in the next pane, "Add item" creates one that already points here) | F9 F2 F4 |
 | J18 | 2 | New post from the list header "+": quiet until the first edit, initial values (also on new array items), slug Generate (a no-op while its source is empty); initial value templates (several per type, with parameters) in every Create new | F2 F5 |
 | J19 | 1 | Keyboard only: Cmd+K search (arrows, Enter, Esc, recent searches) or a list's rows (one Tab stop; arrows, Home / End, Enter) → open → edit → publish | F5 F6 |
 | J20 | 3 | 10 s offline while typing → "not saving" / stalled / recovering states → reconnect, nothing lost | F8 F9 |

@@ -61,6 +61,7 @@ import studio from '../studio.config'
 import {useSchemaActions} from './SchemaActions'
 import {LocationsBanner} from './LocationsBanner'
 import {IncomingReferences} from './IncomingReferences'
+import {IncomingReferencesInputs} from './IncomingReferencesInput'
 
 /** Sanity's inspector name for it, so a copied Sanity-style link opens the same panel. */
 const INCOMING = 'sanity/structure/incoming-references'
@@ -927,6 +928,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               fields: formFields.slice(0, revealed),
               unknown: !revision && revealed >= formFields.length,
             })}
+            {/* Sanity's incoming references input: the declared lists of documents that reference this one. No field, no value. */}
+            {revealed >= formFields.length && <IncomingReferencesInputs schema={schema} group={group} doc={doc} panes={panes} index={index} published={viewingPublished} revision={!!revision} locked={gone || scheduleLocked} />}
           </div>
         )}
       </div>
