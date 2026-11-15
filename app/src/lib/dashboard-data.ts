@@ -3,7 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import {readSchemas} from '../server/schemas'
 import type {Doc} from './data'
-import {docRows, draftsToCheck, LIMIT_MAX, orderExpr, upcoming, type RawDoc, type RowsKind} from './dashboard'
+import {docRows, draftsToCheck, LIMIT_MAX, orderExpr, upcoming, type PublishedTimes, type RawDoc, type RowsKind} from './dashboard'
 import {readPage, type Schedule} from './schedule-read'
 import {groqPath} from './vision-groq'
 
@@ -31,11 +31,11 @@ async function groq<T>(query: string, params: Record<string, unknown>): Promise<
   return ((await res.json()) as {result: T}).result
 }
 
-/** When the published versions of these drafts last changed, by id: one read for the lot. */
-async function publishedAt(ids: string[]): Promise<Record<string, string>> {
+/** The published versions of these drafts (when each last changed, when its document was created), by id: one read for the lot. */
+async function publishedTimes(ids: string[]): Promise<PublishedTimes> {
   if (!ids.length) return {}
-  const rows = await groq<{_id: string; _updatedAt: string}[]>('*[_id in $ids]{_id, _updatedAt}', {ids})
-  return Object.fromEntries(rows.map((d) => [d._id, d._updatedAt]))
+  const rows = await groq<{_id: string; _updatedAt: string; _createdAt?: string}[]>('*[_id in $ids]{_id, _updatedAt, _createdAt}', {ids})
+  return Object.fromEntries(rows.map((d) => [d._id, {_updatedAt: d._updatedAt, _createdAt: d._createdAt}]))
 }
 
 const fetchRows = createServerFn({method: 'GET'})
@@ -46,11 +46,14 @@ const fetchRows = createServerFn({method: 'GET'})
     const types = data.types ? data.types.filter((t) => known.includes(t)) : known
     if (!types.length) return [] as Json
     const limit = Math.max(1, Math.min(LIMIT_MAX, Math.floor(data.limit) || 1))
+    const order = orderExpr(data.order)
     // Both versions of a document may be in the window: twice the rows, as Sanity's widget asks.
-    const window = data.only === 'drafts' ? limit : limit * 2
+    // Last created, three times: a draft sorts by when its editing began (lib/dashboard.ts
+    // docRows puts it back where its document belongs), so drafts of old documents take room.
+    const window = data.only === 'drafts' ? limit : limit * (order === '_createdAt desc' ? 3 : 2)
     const filter = data.only === 'drafts' ? '_id in path("drafts.**") && _type in $types' : '_type in $types'
-    const raw = await groq<RawDoc[]>(`*[${filter}] | order(${orderExpr(data.order)})[0...${window}]`, {types})
-    return docRows(raw, await publishedAt(draftsToCheck(raw)), limit) as unknown as Json
+    const raw = await groq<RawDoc[]>(`*[${filter}] | order(${order})[0...${window}]`, {types})
+    return docRows(raw, await publishedTimes(draftsToCheck(raw)), limit, order) as unknown as Json
   })
 
 /** A widget's document rows. The key starts ['dashboard', 'rows']: the page's frame listener finds every one. */

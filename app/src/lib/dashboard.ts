@@ -108,25 +108,36 @@ export const dashboardEnabled = (config: {dashboard?: DashboardConfig; navbarToo
 export type RawDoc = {_id: string; _type: string; _updatedAt: string} & Record<string, unknown>
 const publishedId = (id: string) => id.replace(/^drafts\./, '')
 
+/** A published version's times, by id: when it last changed, and when the document was created. */
+export type PublishedTimes = Record<string, {_updatedAt: string; _createdAt?: string}>
+
 /**
  * Rows from a raw read, in its order: one per document, the draft in front of its published
  * version (as lists show it), each marked as lists mark theirs (`_draft`, `_publishedId`,
- * `_hasPublished`, `_publishedAt`). `published`: when the published versions of the drafts
- * last changed, by id (the second read); a published version in `raw` itself counts too.
+ * `_hasPublished`, `_publishedAt`). `published`: the published versions of the drafts, by id
+ * (the second read); a published version in `raw` itself counts too.
+ *
+ * A draft of a published document is a row of its own in Barkpark, created when the editing
+ * began: its `_createdAt` is that moment, not the document's. A row says the document's, and
+ * a list of the last created (`order`) is put in that order here, or every document someone
+ * starts editing would be its newest.
  */
-export function docRows(raw: RawDoc[], published: Record<string, string>, limit: number): Doc[] {
+export function docRows(raw: RawDoc[], published: PublishedTimes, limit: number, order?: string): Doc[] {
   const live = new Map(Object.entries(published))
-  for (const d of raw) if (!d._id.startsWith('drafts.')) live.set(d._id, d._updatedAt)
+  for (const d of raw) if (!d._id.startsWith('drafts.')) live.set(d._id, {_updatedAt: d._updatedAt, _createdAt: typeof d._createdAt === 'string' ? d._createdAt : undefined})
   const rows = new Map<string, Doc>()
   for (const d of raw) {
     const id = publishedId(d._id)
     const draft = d._id !== id
     const had = rows.get(id)
     if (had && (had._draft || !draft)) continue
+    const pub = live.get(id)
     // A draft met after its published version takes the row where that one stood.
-    rows.set(id, {...d, _rev: String(d._rev ?? ''), _publishedId: id, _draft: draft, _hasPublished: !draft || live.has(id), _publishedAt: live.get(id)} as Doc)
+    rows.set(id, {...d, _rev: String(d._rev ?? ''), _publishedId: id, _draft: draft, _hasPublished: !draft || !!pub, _publishedAt: pub?._updatedAt, ...(draft && pub?._createdAt ? {_createdAt: pub._createdAt} : {})} as Doc)
   }
-  return [...rows.values()].slice(0, limit)
+  const all = [...rows.values()]
+  if (order === '_createdAt desc') all.sort((a, b) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')))
+  return all.slice(0, limit)
 }
 
 /** The ids of the drafts among `raw` whose published version it does not hold: what the second read asks for. */
@@ -154,13 +165,17 @@ export function withFrame(rows: Doc[], doc: Doc, kind: RowsKind): Doc[] | null {
     if (!was) return rows
     return rows.length >= kind.limit ? null : rows.filter((r) => r !== was)
   }
+  // Last created: a published document older than every row of a full list changes nothing here.
+  // (A draft's own `_createdAt` is when its editing began, docRows: it cannot tell.)
+  const last = rows.at(-1)?._createdAt
+  if (!was && !doc._draft && kind.order === '_createdAt desc' && rows.length >= kind.limit && typeof last === 'string' && typeof doc._createdAt === 'string' && doc._createdAt <= last) return rows
   const hasPublished = !doc._draft || (doc._hasPublished ?? was?._hasPublished)
   if (hasPublished === undefined) return null
   const row = {...doc, _hasPublished: hasPublished, _publishedAt: doc._draft ? (doc._publishedAt ?? was?._publishedAt) : doc._updatedAt} as Doc
   if (kind.order === '_updatedAt desc') return [row, ...rows.filter((r) => r !== was)].slice(0, kind.limit)
   // Another order: a row in the list is redrawn where it stands when its order cannot have
   // changed (last created); anything else is read again.
-  if (was && kind.order === '_createdAt desc') return rows.map((r) => (r === was ? row : r))
+  if (was && kind.order === '_createdAt desc') return rows.map((r) => (r === was ? ({...row, _createdAt: was._createdAt} as Doc) : r))
   return null
 }
 

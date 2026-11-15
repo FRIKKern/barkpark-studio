@@ -88,13 +88,16 @@ function useLiveRows() {
       if (again.has(k)) return
       again.set(k, setTimeout(() => (again.delete(k), void qc.invalidateQueries({queryKey: key, exact: true})), READ_AGAIN_MS))
     }
-    const off = onDocFrame((f) => applyFrame(qc, f, readAgain))
+    // Last created lists: a draft's frame cannot say when its document was created (lib/dashboard.ts
+    // docRows), so a document that is no row costs one read, and is then known not to be one.
+    const outside = new Map<string, Set<string>>()
+    const off = onDocFrame((f) => applyFrame(qc, f, readAgain, outside))
     return () => (off(), again.forEach(clearTimeout))
   }, [qc])
 }
 const READ_AGAIN_MS = 400
 
-function applyFrame(qc: QueryClient, f: Frame, readAgain: (key: readonly unknown[]) => void) {
+function applyFrame(qc: QueryClient, f: Frame, readAgain: (key: readonly unknown[]) => void, outside: Map<string, Set<string>>) {
   const id = f.documentId.replace(/^drafts\./, '')
   const removed = !f.result || f.mutation === 'delete' || f.mutation === 'discardDraft'
   for (const [key, rows] of qc.getQueriesData<Doc[]>({queryKey: ['dashboard', 'rows']})) {
@@ -102,8 +105,16 @@ function applyFrame(qc: QueryClient, f: Frame, readAgain: (key: readonly unknown
     const kind = {only: key[2], types: key[3], order: key[4], limit: key[5]} as RowsKind
     if (kind.types && !kind.types.includes(f.type)) continue
     const next = removed ? withoutFrame(rows, id) : withFrame(rows, f.result!, kind)
-    if (next === null) readAgain(key)
-    else if (next !== rows) qc.setQueryData(key, next)
+    if (next !== null) {
+      if (next !== rows) qc.setQueryData(key, next)
+      continue
+    }
+    if (!removed && kind.order === '_createdAt desc' && f.result!._draft && !rows.some((r) => r._publishedId === id)) {
+      const k = JSON.stringify(key)
+      if (outside.get(k)?.has(id)) continue
+      outside.set(k, (outside.get(k) ?? new Set()).add(id))
+    }
+    readAgain(key)
   }
   // A scheduled draft was published (its schedule ran, or someone published it), or is gone: Scheduled reads again.
   if (removed || !f.documentId.startsWith('drafts.'))

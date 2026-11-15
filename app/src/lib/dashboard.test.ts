@@ -67,7 +67,7 @@ test('rows from a raw read: one per document, the draft in front, marked as list
   const read = [raw('drafts.b', '05'), raw('a', '04'), raw('b', '03'), raw('drafts.c', '02'), raw('drafts.d', '01'), raw('e', '00')]
   // The second read asks only for the drafts whose published version the first did not hold.
   assert.deepEqual(draftsToCheck(read), ['c', 'd'])
-  const rows = docRows(read, {c: '2026-01-01'}, 4)
+  const rows = docRows(read, {c: {_updatedAt: '2026-01-01'}}, 4)
   assert.deepEqual(rows.map((d) => [d._id, d._publishedId, d._draft, d._hasPublished, d._publishedAt]), [
     ['drafts.b', 'b', true, true, '03'],
     ['a', 'a', false, true, '04'],
@@ -76,6 +76,13 @@ test('rows from a raw read: one per document, the draft in front, marked as list
   ])
   // A published version met first gives its place to the draft met after it.
   assert.deepEqual(docRows([raw('a', '09'), raw('drafts.a', '08', {title: 'draft words'})], {}, 5).map((d) => [d._id, d.title, d._hasPublished]), [['drafts.a', 'draft words', true]])
+})
+
+test('last created: a draft of an old document is not a new document', () => {
+  // Barkpark creates the draft when editing begins: its own _createdAt is that moment.
+  const read = [raw('drafts.old', '09', {_createdAt: '2026-11-15'}), raw('new', '05', {_createdAt: '2026-11-01'}), raw('drafts.fresh', '04', {_createdAt: '2026-10-20'}), raw('mid', '03', {_createdAt: '2026-10-01'})]
+  const rows = docRows(read, {old: {_updatedAt: '01', _createdAt: '2026-01-01'}}, 3, '_createdAt desc')
+  assert.deepEqual(rows.map((d) => [d._publishedId, d._createdAt]), [['new', '2026-11-01'], ['fresh', '2026-10-20'], ['mid', '2026-10-01']])
 })
 
 const row = (id: string, at: string, draft = false, more: Partial<Doc> = {}): Doc => ({_id: draft ? `drafts.${id}` : id, _publishedId: id, _type: 'post', _draft: draft, _rev: 'r', _updatedAt: at, _hasPublished: true, ...more})
@@ -118,6 +125,12 @@ test('a list in its own order: a row is redrawn where it stands, anything else i
   const rows = [row('a', '03'), row('b', '02')]
   assert.deepEqual(withFrame(rows, row('b', '09', true, {_hasPublished: undefined, title: 'new'}), created)!.map((d) => [d._publishedId, d.title]), [['a', undefined], ['b', 'new']])
   assert.equal(withFrame(rows, row('z', '09'), created), null)
+  // A full list of the last created: an edit to an older document is not its business (no read), a newer document is.
+  const full = [row('a', '03', false, {_createdAt: '2026-03'}), row('b', '02', false, {_createdAt: '2026-02'}), row('c', '01', false, {_createdAt: '2026-01'})]
+  assert.equal(withFrame(full, row('old', '09', false, {_createdAt: '2025-12'}), created), full)
+  assert.equal(withFrame(full, row('new', '09', true, {_hasPublished: undefined, _createdAt: '2026-04'}), created), null)
+  // A row redrawn keeps its document's creation time, not its draft's.
+  assert.equal(withFrame(full, row('b', '09', true, {_hasPublished: undefined, _createdAt: '2026-11'}), created)![1]!._createdAt, '2026-02')
   assert.equal(withFrame(rows, row('b', '09'), {...created, order: 'title asc'}), null)
 })
 
