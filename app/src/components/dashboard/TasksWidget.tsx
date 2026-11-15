@@ -3,7 +3,8 @@ import {anyDocQuery, previewTitle, schemaOf, schemasQuery} from '../../lib/data'
 import {dueState, openTasks, type Resolved} from '../../lib/dashboard'
 import {usePrimed} from '../../lib/prime'
 import {meQuery} from '../../lib/session'
-import {tasksQuery, type Task} from '../../lib/tasks'
+import {dashboardTasksQuery} from '../../lib/dashboard-data'
+import type {Task} from '../../lib/tasks'
 import {showTasks} from '../../lib/tasks-ui'
 import {intlTag, useLocale, useT} from '../../lib/i18n'
 import {CheckmarkCircle, DocumentIcon} from '../icons'
@@ -12,14 +13,14 @@ import {RowList, WidgetEmpty, WidgetError, WidgetFrame, WidgetSkeleton} from './
 
 /**
  * My tasks (J66): the open tasks assigned to the signed-in editor, the soonest deadline
- * first; a row opens the task in the Tasks sidebar. It reads what the sidebar reads
- * (lib/tasks.ts tasksQuery, one read), and a task changed anywhere reads it again (lib/live.ts).
+ * first; a row opens the task in the Tasks sidebar. One read of the task list (the sidebar's
+ * own read); a task changed anywhere comes in as a frame, with no read (components/Dashboard.tsx).
  * With shared sign-in nobody is "me": the widget lists every open task and says so.
  */
 export function TasksWidget({widget}: {widget: Extract<Resolved, {kind: 'tasks'}>}) {
   const t = useT()
   const {data: me} = useQuery(meQuery)
-  const q = useQuery({...tasksQuery, refetchOnWindowFocus: true})
+  const q = useQuery(dashboardTasksQuery)
   const mine = !!me?.email && me.signIn !== 'shared'
   const {rows, total} = openTasks(q.data ?? [], mine ? me!.email : null, widget.limit)
   const primed = usePrimed(rows.flatMap((x) => (x.target ? [{types: null, id: x.target._ref}] : [])))

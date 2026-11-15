@@ -120,9 +120,9 @@ export type PublishedTimes = Record<string, {_updatedAt: string; _createdAt?: st
  * A draft of a published document is a row of its own in Barkpark, created when the editing
  * began: its `_createdAt` is that moment, not the document's. A row says the document's, and
  * a list of the last created (`order`) is put in that order here, or every document someone
- * starts editing would be its newest.
+ * starts editing would be its newest. `window`: how many rows the read asked for.
  */
-export function docRows(raw: RawDoc[], published: PublishedTimes, limit: number, order?: string): Doc[] {
+export function docRows(raw: RawDoc[], published: PublishedTimes, limit: number, order?: string, window = Infinity): Doc[] {
   const live = new Map(Object.entries(published))
   for (const d of raw) if (!d._id.startsWith('drafts.')) live.set(d._id, {_updatedAt: d._updatedAt, _createdAt: typeof d._createdAt === 'string' ? d._createdAt : undefined})
   const rows = new Map<string, Doc>()
@@ -136,8 +136,14 @@ export function docRows(raw: RawDoc[], published: PublishedTimes, limit: number,
     rows.set(id, {...d, _rev: String(d._rev ?? ''), _publishedId: id, _draft: draft, _hasPublished: !draft || !!pub, _publishedAt: pub?._updatedAt, ...(draft && pub?._createdAt ? {_createdAt: pub._createdAt} : {})} as Doc)
   }
   const all = [...rows.values()]
-  if (order === '_createdAt desc') all.sort((a, b) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')))
-  return all.slice(0, limit)
+  if (order !== '_createdAt desc') return all.slice(0, limit)
+  all.sort((a, b) => String(b._createdAt ?? '').localeCompare(String(a._createdAt ?? '')))
+  // A full read (`window` rows) ends somewhere: every document created after its last row's
+  // time is in it (as itself, or as a draft that began later still), one created before may
+  // not be. With many drafts open on old documents the newest ones fall outside, and an old
+  // document would take their row: the list stops at that time instead. Shorter, never wrong.
+  const edge = raw.length >= window ? String(raw.at(-1)!._createdAt ?? '') : ''
+  return all.filter((d) => String(d._createdAt ?? '') >= edge).slice(0, limit)
 }
 
 /** The ids of the drafts among `raw` whose published version it does not hold: what the second read asks for. */
@@ -177,6 +183,33 @@ export function withFrame(rows: Doc[], doc: Doc, kind: RowsKind): Doc[] | null {
   // changed (last created); anything else is read again.
   if (was && kind.order === '_createdAt desc') return rows.map((r) => (r === was ? ({...row, _createdAt: was._createdAt} as Doc) : r))
   return null
+}
+
+/**
+ * What a frame does to one widget's rows. `rows`: what the widget holds (undefined: its first
+ * read is still out); `next`: withFrame's or withoutFrame's answer; `fetching`: a read of
+ * these rows is out right now.
+ *
+ * A read that is out was answered from before this frame's write. When it lands it replaces
+ * the rows, the frame's document as it was: a draft missing from Unpublished changes, a title
+ * from before the last edit, and nothing to put it right. So a frame that comes while a read
+ * is out always asks for one more read, made after it (the caller's replaces the one out).
+ */
+export function frameStep(rows: Doc[] | undefined, next: Doc[] | null | undefined, fetching: boolean): {set?: Doc[]; read: boolean} {
+  if (!rows) return {read: fetching}
+  if (next === null || next === undefined) return {read: true}
+  return {...(next !== rows ? {set: next} : {}), read: fetching}
+}
+
+/**
+ * A task frame put into the tasks the widget holds, with no read: the task as it now reads
+ * (`task` null: deleted) in its place, a new one first, as the list is read (newest first).
+ */
+export function withTaskFrame(tasks: Task[], id: string, task: (Omit<Task, '_id'> & {_id?: string}) | null): Task[] {
+  const at = tasks.findIndex((x) => x._id === id)
+  if (!task) return at < 0 ? tasks : tasks.filter((x) => x._id !== id)
+  const now = {...task, _id: id} as Task
+  return at < 0 ? [now, ...tasks] : tasks.map((x, i) => (i === at ? now : x))
 }
 
 /** A document deleted, or a draft discarded: the rows as they are when it is not among them, else null (read again). */

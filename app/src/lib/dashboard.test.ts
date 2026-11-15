@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {dashboardEnabled, DEFAULT_WIDGETS, docRows, draftsToCheck, dueState, memberRows, membersRefused, openTasks, orderExpr, resolveWidgets, upcoming, withFrame, withoutFrame, type RowsKind, type WidgetConfig} from './dashboard.ts'
+import {dashboardEnabled, DEFAULT_WIDGETS, docRows, draftsToCheck, dueState, frameStep, memberRows, membersRefused, openTasks, orderExpr, resolveWidgets, upcoming, withFrame, withoutFrame, withTaskFrame, type RowsKind, type WidgetConfig} from './dashboard.ts'
 import type {Doc} from './data.ts'
 import type {Task} from './tasks.ts'
 
@@ -85,6 +85,46 @@ test('last created: a draft of an old document is not a new document', () => {
   assert.deepEqual(rows.map((d) => [d._publishedId, d._createdAt]), [['new', '2026-11-01'], ['fresh', '2026-10-20'], ['mid', '2026-10-01']])
 })
 
+const task = (id: string, more: Partial<Task>): Task => ({_id: id, title: id, state: 'open', createdAt: '2026-11-01', ...more})
+
+test('last created with many drafts open on old documents: a shorter list, never an old document in a new one\'s row', () => {
+  // Five newest posts N5…N1, and 11 old posts someone began editing after N2 was created (review of #1259, N2).
+  const drafts = Array.from({length: 11}, (_, i) => raw(`drafts.O${i + 1}`, '09', {_createdAt: `2026-11-15T${String(20 - i).padStart(2, '0')}`}))
+  const news = [5, 4, 3, 2, 1].map((n) => raw(`N${n}`, '05', {_createdAt: `2026-11-0${n}`}))
+  const old = Object.fromEntries(drafts.map((d, i) => [d._id.slice(7), {_updatedAt: '01', _createdAt: `2025-01-${String(i + 10)}`}]))
+  // The read asks for 15 rows, newest first by the rows' own times: the 11 drafts, then N5 N4 N3 N2. N1 is outside it.
+  const window = [...drafts, ...news].slice(0, 15)
+  assert.deepEqual(docRows(window, old, 5, '_createdAt desc', 15).map((d) => d._publishedId), ['N5', 'N4', 'N3', 'N2'])
+  // A read that holds everything there is (not full) is the whole truth.
+  assert.deepEqual(docRows([...drafts, ...news], old, 5, '_createdAt desc', 30).map((d) => d._publishedId), ['N5', 'N4', 'N3', 'N2', 'N1'])
+})
+
+test('a frame while a read of the rows is out asks for one more read: the read out is older than the frame', () => {
+  const rows = [row('a', '03'), row('b', '02')]
+  const typed = withFrame(rows, row('b', '04', true, {_hasPublished: undefined}), {only: 'all', types: null, order: '_updatedAt desc', limit: 3})!
+  // No read out: the frame's rows, and no read.
+  assert.deepEqual(frameStep(rows, typed, false), {set: typed, read: false})
+  // A read out (it began before this write): the frame's rows now, and a read after it, or the older rows come back and stay.
+  assert.deepEqual(frameStep(rows, typed, true), {set: typed, read: true})
+  // A frame that changes no row here still may be in the read's answer as it was (a publish the drafts read saw as a draft).
+  assert.deepEqual(frameStep(rows, rows, true), {read: true})
+  assert.deepEqual(frameStep(rows, rows, false), {read: false})
+  // What a frame cannot tell is read, as before; the first read still out is read again too.
+  assert.deepEqual(frameStep(rows, null, false), {read: true})
+  assert.deepEqual(frameStep(undefined, undefined, true), {read: true})
+  assert.deepEqual(frameStep(undefined, undefined, false), {read: false})
+})
+
+test('a task frame goes into My tasks with no read: changed in place, a new one first, a deleted one gone', () => {
+  const tasks = [task('b', {assignee: 'me@x.io'}), task('a', {assignee: 'me@x.io'})]
+  assert.deepEqual(withTaskFrame(tasks, 'a', {...task('drafts.a', {assignee: 'me@x.io', state: 'done'})}).map((x) => [x._id, x.state]), [['b', 'open'], ['a', 'done']])
+  assert.deepEqual(withTaskFrame(tasks, 'c', task('c', {assignee: 'me@x.io'})).map((x) => x._id), ['c', 'b', 'a'])
+  assert.deepEqual(withTaskFrame(tasks, 'b', null).map((x) => x._id), ['a'])
+  assert.equal(withTaskFrame(tasks, 'z', null), tasks)
+  // Assigned to me from someone else's list: it is mine now.
+  assert.deepEqual(openTasks(withTaskFrame([task('t', {assignee: 'you@x.io'})], 't', task('t', {assignee: 'me@x.io'})), 'me@x.io', 5).rows.map((x) => x._id), ['t'])
+})
+
 const row = (id: string, at: string, draft = false, more: Partial<Doc> = {}): Doc => ({_id: draft ? `drafts.${id}` : id, _publishedId: id, _type: 'post', _draft: draft, _rev: 'r', _updatedAt: at, _hasPublished: true, ...more})
 const recent: RowsKind = {only: 'all', types: ['post', 'author'], order: '_updatedAt desc', limit: 3}
 const drafts: RowsKind = {...recent, only: 'drafts'}
@@ -134,7 +174,6 @@ test('a list in its own order: a row is redrawn where it stands, anything else i
   assert.equal(withFrame(rows, row('b', '09'), {...created, order: 'title asc'}), null)
 })
 
-const task = (id: string, more: Partial<Task>): Task => ({_id: id, title: id, state: 'open', createdAt: '2026-11-01', ...more})
 
 test('My tasks: open tasks assigned to me, the soonest deadline first; shared sign-in lists every open one', () => {
   const tasks = [

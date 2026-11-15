@@ -5,6 +5,7 @@ import {readSchemas} from '../server/schemas'
 import type {Doc} from './data'
 import {docRows, draftsToCheck, LIMIT_MAX, orderExpr, upcoming, type PublishedTimes, type RawDoc, type RowsKind} from './dashboard'
 import {readPage, type Schedule} from './schedule-read'
+import {tasksQuery} from './tasks'
 import {groqPath} from './vision-groq'
 
 // The Dashboard's reads (components/Dashboard.tsx). Opening it costs a bounded number of
@@ -26,7 +27,8 @@ const API_VERSION = 'v2025-02-19'
 
 /** One GROQ read over both versions of every document (the raw perspective), with the editor's own token. */
 async function groq<T>(query: string, params: Record<string, unknown>): Promise<T> {
-  const res = await bpFetch(groqPath(dataset(), API_VERSION, query, params, 'raw'))
+  // Never the shared answer from just before (server/barkpark.ts keeps a read 0.5 s): a read asked for after a frame must see its write.
+  const res = await bpFetch(groqPath(dataset(), API_VERSION, query, params, 'raw'), {}, undefined, {fresh: true})
   if (!res.ok) throw new Error(`Could not read the documents (${res.status})`)
   return ((await res.json()) as {result: T}).result
 }
@@ -49,11 +51,12 @@ const fetchRows = createServerFn({method: 'GET'})
     const order = orderExpr(data.order)
     // Both versions of a document may be in the window: twice the rows, as Sanity's widget asks.
     // Last created, three times: a draft sorts by when its editing began (lib/dashboard.ts
-    // docRows puts it back where its document belongs), so drafts of old documents take room.
+    // docRows puts it back where its document belongs), so drafts of old documents take room;
+    // with more of them than that, the list is shorter (docRows), never wrong.
     const window = data.only === 'drafts' ? limit : limit * (order === '_createdAt desc' ? 3 : 2)
     const filter = data.only === 'drafts' ? '_id in path("drafts.**") && _type in $types' : '_type in $types'
     const raw = await groq<RawDoc[]>(`*[${filter}] | order(${order})[0...${window}]`, {types})
-    return docRows(raw, await publishedTimes(draftsToCheck(raw)), limit, order) as unknown as Json
+    return docRows(raw, await publishedTimes(draftsToCheck(raw)), limit, order, window) as unknown as Json
   })
 
 /** A widget's document rows. The key starts ['dashboard', 'rows']: the page's frame listener finds every one. */
@@ -81,6 +84,14 @@ const fetchUpcoming = createServerFn({method: 'GET'})
     const docs = new Map(docRows(raw, {}, raw.length).map((d) => [d._publishedId, d]))
     return {supported: true, total, rows: rows.map((schedule) => ({schedule, doc: docs.get(schedule.documentId.replace(/^drafts\./, '')) ?? null}))} as unknown as Json
   })
+
+/**
+ * My tasks' own copy of the task list (lib/tasks.ts tasksQuery's read, under the dashboard's
+ * key). The Tasks sidebar's key is read again on every task frame (lib/live.ts); an open
+ * dashboard would be a read of every task for each of them, anyone's. This one takes the
+ * frame into its rows instead (components/Dashboard.tsx).
+ */
+export const dashboardTasksQuery = queryOptions({...tasksQuery, queryKey: ['dashboard', 'tasks'], staleTime: 30_000, refetchOnWindowFocus: true, retry: false})
 
 /** The next scheduled publishes, each with its document. */
 export const upcomingQuery = (limit: number) =>

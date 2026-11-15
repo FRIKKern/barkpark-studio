@@ -36,9 +36,11 @@ test('dashboard: widgets show their rows, an edit from outside comes in live, a 
     await t.patch(ID, {title})
     await expect(recent.getByTestId('dash-doc').first()).toContainText(title)
     await expect(recent.getByTestId('dash-doc').filter({hasText: title})).toHaveCount(1)
-    await recent.getByTestId('dash-doc').first().click()
+    // By its title: on a shared dataset another write can take the first row between two lines.
+    await recent.getByTestId('dash-doc').filter({hasText: title}).click()
     await expect(page).toHaveURL(new RegExp(`/structure/post;${ID}$`))
-    await expect(t.field(page, 'title')).toHaveValue(title)
+    // The document's own field, not the pane's "Loading document…" (its chunk is fetched from the dashboard while idle).
+    await expect(t.field(page, 'title')).toHaveValue(title, {timeout: 10_000})
   } finally {
     await t.restore(ID, {title: 'Fixture post 19'})
     await t.deleteDoc(draft, 'post')
