@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {backlinksQuery, previewTitle, schemaOf, schemasQuery, type Backlink, type Doc} from '../lib/data'
-import {deleteDoc} from '../lib/edits'
+import {deleteTranslated} from '../lib/translations'
 import {Close, DocumentIcon, WarningOutline} from './icons'
 import {DocPreview} from './Preview'
 import {useScopedHref, usePaneNavigate} from './PaneLink'
@@ -104,7 +104,8 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
               setBusy(true)
               setError(undefined)
               try {
-                await deleteDoc(qc, doc)
+                // A translation leaves its group with it (lib/translations.ts).
+                await deleteTranslated(qc, doc, !!schemaOf(schemas, doc._type)?.translations)
                 onClose()
                 void navigate({href: closeHref})
               } catch (err) {

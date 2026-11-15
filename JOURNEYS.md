@@ -109,8 +109,7 @@ Side track, counted apart. Editor bar: Barkdown's `docs/EDITOR-PARITY.md`.
 
 ## Barkpark-native track
 
-What editors use in Barkpark's own LiveView Studio today, beyond Sanity. Side
-track, counted apart. Out of scope (link out to LiveView): sheets, admin console.
+What editors use in Barkpark's own LiveView Studio today, beyond Sanity. Side track, counted apart. Out of scope (link out to LiveView): sheets, admin console.
 
 | ID | Phase | Journey | Feel rows that matter most |
 |---|---|---|---|
@@ -128,3 +127,4 @@ track, counted apart. Out of scope (link out to LiveView): sheets, admin console
 | B12 | 1 | A workspace's declared desk drives the panes: nested lists, titled dividers, filtered lists, singletons, a parent-child tree; doc types no row places stay reachable under …Rest | F2 F10 |
 | B13 | 1 | Singleton types: opened from the desk only; no create, duplicate or delete; publish, discard and restore only; never in Create new | F9 F10 |
 | B14 | after | A Sanity team moving over: its dataset export and schema brought in, opened here: references, slugs, drafts, Portable Text bodies and assets read sanely, never a crashed pane | F9 F10 |
+| B15 | after | Document translations (Sanity's `@sanity/document-internationalization`): a translated type's header shows the document's language and a Translations menu: open each translation in the next pane, create a missing one as a linked copy, pick a language for a document without one, unlink; deleting a translation leaves its group; two editors creating one language at once get one document | F2 F5 F9 |
