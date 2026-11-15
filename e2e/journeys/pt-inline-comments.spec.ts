@@ -75,8 +75,8 @@ test('J40: a comment on a span of a Portable Text field is saved on its words an
 // Review of #1248: the form stays mounted when it shows the published version, and its text
 // coming in was read as an edit: the span was mapped onto it and saved (moved, or deleted for
 // good) with nothing typed. Looking is not editing: no span is painted on the other version,
-// and the saved one is the same after coming back. @local: it waits out the save's 1.2 s three times.
-test('@local J40: looking at the published version does not move a Portable Text comment span; typing does', async ({page}, info) => {
+// and the saved one is the same after coming back. @local: it waits out the save's 1.2 s four times.
+test('@local J40: a Portable Text comment span moves with typing only: not by looking at the published version, not onto other words after an outside change', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "the reference can't save a comment")
   const body = (text: string) => [{...BODY[0]!, children: [{...BODY[0]!.children[0]!, text}]}]
@@ -118,4 +118,22 @@ test('@local J40: looking at the published version does not move a Portable Text
   await page.keyboard.type('Zero ')
   await expect.poll(() => marked(page)).toEqual(['gamma'])
   await expect.poll(async () => (await comments())[0]!.selection, {timeout: 10_000}).toEqual({anchor: {blockId: 'p1', offset: 16}, head: {blockId: 'p1', offset: 21}})
+
+  // A change nobody here typed (the draft patched from outside, the editor not in focus): the
+  // mark is on its words at once, not where it was saved ("beta "), and the next typed edit
+  // saves it there.
+  await page.locator('.inspector.comments h2').click()
+  await bpMutate([{patch: {id: ID, type: 'post', set: {ptBody: body('More Zero Alpha beta gamma delta.')}}}])
+  await expect(page.locator('[id="ptBody"]')).toContainText('More Zero')
+  await expect.poll(() => marked(page)).toEqual(['gamma'])
+  await page.locator('[id="ptBody"]').getByText(/Alpha beta/).click()
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End')
+  await page.keyboard.type('!')
+  await expect.poll(async () => (await comments())[0]!.selection, {timeout: 10_000}).toEqual({anchor: {blockId: 'p1', offset: 21}, head: {blockId: 'p1', offset: 26}})
+  // Its words taken away from outside: no mark on other words, and the thread keeps its quote.
+  await page.locator('.inspector.comments h2').click()
+  await bpMutate([{patch: {id: ID, type: 'post', set: {ptBody: body('More Zero Alpha beta delta.')}}}])
+  await expect(page.locator('[id="ptBody"]')).not.toContainText('gamma')
+  await expect.poll(() => marked(page)).toEqual([])
+  await expect(page.locator('.inspector.comments .commented-text')).toHaveText('gamma')
 })

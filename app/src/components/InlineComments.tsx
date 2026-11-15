@@ -34,16 +34,18 @@ const SAVE_AFTER_MS = 1200
  */
 export function moveSaver(qc: QueryClient) {
   let timer: ReturnType<typeof setTimeout> | undefined
-  let pending = new Map<string, CommentSelection | null>()
+  let pending = new Map<string, {id: string; selection: CommentSelection | null; text?: string}>()
   const save = () => {
     clearTimeout(timer)
-    const moves = [...pending].map(([id, selection]) => ({id, selection}))
+    const moves = [...pending.values()]
     pending = new Map()
     if (moves.length) void moveCommentSelections({data: {moves}}).then(() => qc.invalidateQueries({queryKey: ['comments']}), () => {})
   }
   return {
-    queue(moves: {id: string; selection: CommentSelection | null}[]) {
-      for (const m of moves) pending.set(m.id, m.selection)
+    /** `settled`: spans that are as saved again, so a save still waiting for them is dropped. */
+    queue(moves: {id: string; selection: CommentSelection | null; text?: string}[], settled: string[] = []) {
+      for (const m of moves) pending.set(m.id, m)
+      for (const id of settled) pending.delete(id)
       clearTimeout(timer)
       timer = setTimeout(save, SAVE_AFTER_MS)
     },

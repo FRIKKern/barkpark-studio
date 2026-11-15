@@ -3,8 +3,8 @@ import {useQueryClient} from '@tanstack/react-query'
 import {useEditor, useEditorSelector} from '@portabletext/editor'
 import {CommentsContext} from './Comments'
 import {CommentOffer, DRAFT, moveSaver, paintCommentHighlights, selectionBox, useMayComment} from './InlineComments'
-import {commentRangesOf, rangeMoves, type CommentSelection, type Point} from '../lib/comment-threads'
-import {blockPoint, mapPtRanges, placedPtRanges, ptCommentMode, type PtRange} from '../lib/pt-comment-ranges'
+import {commentRangesOf, type CommentSelection, type Point} from '../lib/comment-threads'
+import {blockPoint, findPtRange, mapPtRanges, placedPtRanges, ptCommentMode, ptRangeText, ptSpanSaves, type PtRange} from '../lib/pt-comment-ranges'
 import {caretOf} from '../lib/pt-value'
 import {glide} from '../lib/layout'
 
@@ -84,9 +84,10 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
   const [offer, setOffer] = useState<{selection: CommentSelection; box: DOMRect; overlap: boolean} | null>(null)
   const [draft, setDraft] = useState<{text: string; box: DOMRect} | null>(null)
   // What this editor holds, kept over its remounts: the value the spans were last mapped to,
-  // each span as mapped since it was read (they win over the saved ones, which may lag
-  // behind), the ones whose words went, the ones once painted, and the one being written about.
-  const track = useRef({editor: undefined as object | undefined, value: undefined as unknown, live: new Map<string, CommentSelection>(), gone: new Set<string>(), seen: new Set<string>(), draft: null as CommentSelection | null})
+  // each span it follows (linked to its words when first read, mapped since: they win over
+  // the saved ones, which may lag behind), the ones whose words went, and the one being
+  // written about with its quote.
+  const track = useRef({editor: undefined as object | undefined, value: undefined as unknown, live: new Map<string, CommentSelection>(), gone: new Set<string>(), draft: null as CommentSelection | null, draftText: ''})
   const placed = useRef<(PtRange & {active?: boolean})[]>([])
   const painted = useRef<{id: string; range: Range; active?: boolean}[]>([])
   // The spans on the text as it is drawn now. Again whenever the editor redraws its text:
@@ -131,7 +132,14 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
     // editor's save while this one has no focus) reads the saved spans afresh: its first value
     // is not an edit of the last one's, and mapping across the two saved spans moved, or gone
     // for good, by looking at the published version. So for a text shown read-only.
-    if (t.editor !== bridge.editor || mode !== 'edit') (t.value = undefined), t.live.clear(), t.gone.clear()
+    // What a fresh read finds: each saved span where its quote is (findPtRange), or unlinked.
+    const fresh = t.editor !== bridge.editor
+    if (fresh || mode !== 'edit') (t.value = undefined), t.live.clear(), t.gone.clear()
+    // The span being written about, on its words in the new editor's text.
+    if (fresh && t.draft) {
+      const at = findPtRange(bridge.value, {id: DRAFT, ...t.draft}, t.draftText)
+      t.draft = at && {anchor: at.anchor, head: at.head}
+    }
     t.editor = bridge.editor
     if (mode === 'none') {
       t.draft = null
@@ -139,22 +147,31 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
       if (placed.current.length) ((placed.current = []), paint())
       return
     }
-    const threads = commentRangesOf(api.threads, field, api.active, t.live).filter((r) => !t.gone.has(r.id))
-    let ranges: (PtRange & {active?: boolean})[] = [...threads, ...(t.draft ? [{id: DRAFT, ...t.draft}] : [])]
     const edited = mode === 'edit' && t.value !== undefined && t.value !== bridge.value
     if (edited) {
-      const mapped = new Map(mapPtRanges(t.value, bridge.value, ranges, bridge.caret).map((r) => [r.id, r]))
-      for (const r of threads) {
+      // Every span this editor follows (a resolved thread's too: it may be opened again).
+      const followed = [...t.live].map(([id, at]) => ({id, ...at}))
+      const mapped = new Map(mapPtRanges(t.value, bridge.value, [...followed, ...(t.draft ? [{id: DRAFT, ...t.draft}] : [])], bridge.caret).map((r) => [r.id, r]))
+      for (const r of followed) {
         const m = mapped.get(r.id)
         if (m) t.live.set(r.id, {anchor: m.anchor, head: m.head})
         else (t.live.delete(r.id), t.gone.add(r.id))
       }
-      if (t.draft) t.draft = mapped.get(DRAFT) ?? null
-      ranges = ranges.flatMap((r) => (mapped.has(r.id) ? [{...r, ...mapped.get(r.id)!}] : []))
+      const at = mapped.get(DRAFT)
+      if (t.draft) t.draft = at ? {anchor: at.anchor, head: at.head} : null
     }
     if (mode === 'edit') t.value = bridge.value
+    // The saved spans this editor does not follow yet: linked to their words, and followed from here on.
+    const quote = new Map(api.threads.map((th) => [th.root._id, th.root.selectionText ?? th.root.contentSnapshot]))
+    const stored = commentRangesOf(api.threads, field, api.active, new Map())
+    const threads = stored.flatMap((r) => {
+      if (t.gone.has(r.id)) return []
+      const at = t.live.get(r.id) ?? findPtRange(bridge.value, r, quote.get(r.id))
+      if (at && mode === 'edit') t.live.set(r.id, {anchor: at.anchor, head: at.head})
+      return at ? [{...r, anchor: at.anchor, head: at.head}] : []
+    })
     const had = placed.current.length
-    placed.current = placedPtRanges(bridge.value, ranges)
+    placed.current = placedPtRanges(bridge.value, [...threads, ...(t.draft ? [{id: DRAFT, ...t.draft}] : [])])
     if (watch.current.on !== el) {
       watch.current.redrawn?.disconnect()
       watch.current.redrawn?.observe(el, {subtree: true, childList: true, characterData: true})
@@ -162,11 +179,12 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
     }
     // A field with no comments: nothing to paint, nothing painted.
     if (had || placed.current.length) paint()
-    const there = placed.current.filter((r) => r.id !== DRAFT)
-    for (const r of there) t.seen.add(r.id)
     // Saved after an edit only (never because a save came back: two editors that read one edit
     // differently would save over each other for good), and only a writer's edits move text.
-    if (edited && canWrite) saver.queue(rangeMoves(api.threads, field, there, t.seen))
+    if (edited && canWrite) {
+      const {moves, same} = ptSpanSaves(stored.map((r) => ({...r, text: quote.get(r.id)})), bridge.value, t.live, t.gone)
+      saver.queue(moves, same)
+    }
     // The words being written about were deleted: nothing to comment on.
     if (latest.current.draft && !t.draft) setDraft(null)
   }
@@ -193,8 +211,10 @@ export function PtInlineComments({bridge, field, title}: {bridge: PtCommentBridg
   const start = () => {
     const {offer} = latest.current
     if (!offer || offer.overlap) return
-    track.current.draft = offer.selection
-    setDraft({text: getSelection()?.toString() ?? '', box: offer.box})
+    // The quote as the text holds it: what the span is checked against when it is read again.
+    const text = ptRangeText(bridge.value, offer.selection) || (getSelection()?.toString() ?? '')
+    Object.assign(track.current, {draft: offer.selection, draftText: text})
+    setDraft({text, box: offer.box})
     setOffer(null)
   }
   const startRef = useRef(start)

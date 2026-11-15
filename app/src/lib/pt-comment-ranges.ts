@@ -175,3 +175,59 @@ export function blockPoint(value: unknown, caret: {blockId: string; path?: strin
   const at = (kids as {_key?: unknown}[]).findIndex((c) => c?._key === caret.path)
   return at < 0 ? null : {blockId: caret.blockId, offset: blockText({children: kids.slice(0, at)}).length + caret.offset}
 }
+
+/** The text a span is on in `value`, a line per block; '' when it is not in the text. */
+export function ptRangeText(value: unknown, range: CommentSelection): string {
+  const [r] = placedPtRanges(value, [{id: '', ...range}])
+  if (!r) return ''
+  const blocks = keyed(value)
+  const [a, h] = [blocks.findIndex((b) => b._key === r.anchor.blockId), blocks.findIndex((b) => b._key === r.head.blockId)]
+  return blocks.slice(a, h + 1).map((b, i, all) => blockText(b).slice(i ? 0 : r.anchor.offset, i === all.length - 1 ? r.head.offset : undefined)).join('\n')
+}
+
+// A quote as compared: a browser's own copy of a selection breaks lines its own way, and fills an empty one.
+const plain = (s: string) => s.replace(/[\n\uFEFF]/g, '')
+
+/**
+ * A saved span as it is read afresh (a reload, or a value nobody here typed: an API patch,
+ * Discard changes, another editor's save): where it was saved, when the text there is still
+ * its `quote`; else the quote found again in its block, the occurrence nearest to where it
+ * was saved (the text moved under it); else null: the thread shows unlinked, and nothing is
+ * saved for it. A span painted where it was saved without this check sat on other words,
+ * and the next typed edit followed and saved it there.
+ */
+export function findPtRange<R extends PtRange>(value: unknown, range: R, quote: string | undefined): R | null {
+  const [placed] = placedPtRanges(value, [range])
+  if (quote === undefined) return placed ?? null
+  if (placed && plain(ptRangeText(value, placed)) === plain(quote)) return placed
+  if (!quote || quote.includes('\n')) return null
+  const blocks = keyed(value)
+  const from = placed?.anchor ?? [range.anchor, range.head].find((p) => blocks.some((b) => b._key === p.blockId))
+  const text = from ? blockText(blocks.find((b) => b._key === from.blockId)) : ''
+  let best = -1
+  for (let i = text.indexOf(quote); i >= 0; i = text.indexOf(quote, i + 1)) if (best < 0 || Math.abs(i - from!.offset) < Math.abs(best - from!.offset)) best = i
+  return best < 0 ? null : {...range, anchor: {blockId: from!.blockId, offset: best}, head: {blockId: from!.blockId, offset: best + quote.length}}
+}
+
+/**
+ * What to save after an edit: each followed span (`live`) that is not where, or on what,
+ * it is saved (`stored`, its quote as `text`), with its text now; null for one whose words
+ * the edit deleted (`gone`). `same` are the ones that are as saved again (a save still
+ * waiting for them is dropped). A span that was never linked to its words is not in `live`:
+ * nothing is saved for it.
+ */
+export function ptSpanSaves(stored: (PtRange & {text?: string})[], value: unknown, live: ReadonlyMap<string, CommentSelection>, gone: ReadonlySet<string>) {
+  const moves: {id: string; selection: CommentSelection | null; text?: string}[] = []
+  const same: string[] = []
+  const at = (a: Point, b: Point) => a.blockId === b.blockId && a.offset === b.offset
+  for (const s of stored) {
+    const now = live.get(s.id)
+    if (gone.has(s.id)) moves.push({id: s.id, selection: null})
+    else if (now) {
+      const text = ptRangeText(value, now)
+      if (at(now.anchor, s.anchor) && at(now.head, s.head) && plain(text) === plain(s.text ?? text)) same.push(s.id)
+      else moves.push({id: s.id, selection: {anchor: now.anchor, head: now.head}, text})
+    }
+  }
+  return {moves, same}
+}
