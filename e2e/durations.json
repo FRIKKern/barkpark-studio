@@ -132,6 +132,7 @@
   "string-arrays.spec.ts": 5.4,
   "svg-file-safety.spec.ts": 0,
   "sync-states.spec.ts": 0,
+  "table-input.spec.ts": 5,
   "tags-fast.spec.ts": 0,
   "tasks.spec.ts": 9,
   "thumb-edge.spec.ts": 0,
