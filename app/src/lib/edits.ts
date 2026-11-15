@@ -1,6 +1,7 @@
 import {useSyncExternalStore} from 'react'
 import type {QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
+import {getRequest} from '@tanstack/react-start/server'
 import {bpFetch, dataset, requestToken, underPressure} from '../server/barkpark'
 import {writeFaultFor} from '../server/write-faults'
 import {currentEditor, signOut} from '../server/auth'
@@ -14,6 +15,8 @@ import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
 import {merge3, mergeList3, mergeText, onto, revertSteps} from './merge'
 import {applyPaths, getPath, keyedRoots, setPath, within} from './paths'
+import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
+import {clientGone} from '../server/client-gone'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {paceMs, paced} from './write-pace'
@@ -31,6 +34,8 @@ import {paceMs, paced} from './write-pace'
 // Concurrent edits (J05, J06): every patch carries the rev it was made against
 // (ifRevisionID). Someone else wrote first → 412 → read theirs, rebase ours on it
 // (text fields merge with diff-match-patch, lists item by item, other values: ours wins), send again.
+// Typing in a Portable Text span is the exception: it goes as a diffMatchPatch from the text
+// Barkpark last gave us, which the server merges with no fence and no 412 (lib/pt-dmp.ts).
 // A live frame that changes a field being typed in rebases it the same way at once.
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
@@ -43,16 +48,24 @@ export const mutate = createServerFn({method: 'POST'})
   .validator((d: {mutations: Json[]}) => d)
   .handler(async ({data}) => {
     // e2e only: a fault set for a document this write names (server/write-faults.ts).
+    // A write that carries a span patch is given up here once it could land late (lib/pt-dmp.ts):
+    // Barkpark cannot refuse a late patch, and the browser sends the text again as a set.
+    const arrived = Date.now()
+    const patch = carriesPatch(data.mutations)
+    const gone = patch ? clientGone(getRequest()) : null
     const fault = writeFaultFor(data.mutations)
     if (fault?.kind === '500') throw new Error('mutate 500: {"error":{"code":"internal_error","message":"Internal Server Error"}}')
     if (fault?.kind === '412') throw new Error('mutate 412: {"error":{"code":"precondition_failed","message":"document revision mismatch"}}')
     if (fault?.kind === '413') throw new Error('mutate 413: {"error":{"code":"payload_too_large","message":"The request body is larger than the limit"}}')
     if (fault?.kind === 'hang') await new Promise((go) => setTimeout(go, fault.ms ?? 0))
+    if (gone && !patchMayGo(arrived, Date.now(), gone.aborted)) throw new Error('mutate 408: {"error":{"code":"patch_expired","message":"The save waited too long and was not sent"}}')
+    // No wait on a 429 for it either (bpFetch's retry): the browser's queue sends it again.
     const res = await bpFetch(`/v1/data/mutate/${dataset()}`, {
       method: 'POST',
       headers: {'content-type': 'application/json'},
       body: JSON.stringify({mutations: data.mutations}),
-    })
+      ...(gone && {signal: AbortSignal.any([gone, AbortSignal.timeout(Math.max(1, DMP_TTL_MS - (Date.now() - arrived)))])}),
+    }, undefined, {retry: !patch})
     const body = (await res.json().catch(() => ({}))) as Json
     // The token's write budget is running out (lib/write-pace.ts): this browser writes less often.
     if (res.ok && underPressure()) (body as {[k: string]: Json}).studioThrottled = true
@@ -77,6 +90,30 @@ export const mutate = createServerFn({method: 'POST'})
     if (fault?.kind === 'reset') throw new Error('fetch failed (e2e: the answer was lost)')
     expectEcho(requestToken(), mutatedIds(data.mutations))
     return body
+  })
+
+/**
+ * The values at `paths` in document `id` just before its revision `rev` was written (null:
+ * not found in its last ten revisions). What a span patch was applied to, when its answer
+ * alone does not say whether every hunk landed (lib/pt-dmp.ts landingUnsure).
+ */
+const valuesBefore = createServerFn({method: 'GET'})
+  .validator((d: {type: string; id: string; rev: string; paths: string[]}) => d)
+  .handler(async ({data}) => {
+    const list = await bpFetch(`/v1/data/history/${dataset()}/${encodeURIComponent(data.type)}/${encodeURIComponent(data.id)}?limit=10`, {}, undefined, {fresh: true})
+    // A read that failed is not an answer (the caller asks again); one Barkpark refuses is.
+    const failed = (r: Response) => r.status >= 500 || r.status === 429
+    if (failed(list)) throw new Error(`history ${list.status}`)
+    if (!list.ok) return null
+    const rows = ((await list.json()) as {revisions?: {id: string; rev?: string; status?: string}[]}).revisions ?? []
+    const at = rows.findIndex((r) => r.rev === data.rev)
+    const prior = at < 0 ? undefined : rows.slice(at + 1).find((r) => r.status === rows[at]!.status)
+    if (!prior) return null
+    const res = await bpFetch(`/v1/data/revision/${dataset()}/${encodeURIComponent(prior.id)}`)
+    if (failed(res)) throw new Error(`revision ${res.status}`)
+    if (!res.ok) return null
+    const {revision} = (await res.json()) as {revision?: {content?: Record<string, Json>}}
+    return data.paths.map((path) => (getPath(revision?.content, path) ?? null) as Json)
   })
 
 /**
@@ -123,6 +160,10 @@ type DocEdits = {
   missed?: Doc
   /** Fields whose last write got no answer (a network failure): Barkpark may hold it already. */
   unsure?: Set<string>
+  /** Span texts whose next save goes as a set, not a patch (lib/pt-dmp.ts): a patch of theirs was refused, or its words did not land. */
+  noDmp?: Set<string>
+  /** Nothing more is sent for this document before this time: a span patch that got no answer may still land (lib/pt-dmp.ts). */
+  holdUntil?: number
   /** The last value this editor gave each field: a cache still holding it has nothing new of anyone else's. */
   typed: Map<string, unknown>
   /** This editor's own changes, for Mod+Z / Mod+Shift+Z (F7). */
@@ -549,7 +590,8 @@ export function onKeyedMiss(id: string, field: string, resend: () => void): () =
   return () => void (keyedMisses.get(k) === resend && keyedMisses.delete(k))
 }
 
-const SPAN_TEXT = /\.children\[_key=="[^"]*"\]\.text$/
+/** This page met a Barkpark that ignores diffMatchPatch (older than #24688): span texts go as sets. */
+let dmpOff = false
 
 const hasWarning = (r: {warnings?: unknown}, code: string) => Array.isArray(r.warnings) && r.warnings.some((w) => (w as {code?: unknown})?.code === code)
 
@@ -657,6 +699,8 @@ async function send(qc: QueryClient, id: string) {
   if (e.held) return
   if (e.pendingCreate) e.createRequested = true
   if (!online()) return waitForNetwork(qc, id, e)
+  const hold = (e.holdUntil ?? 0) - Date.now()
+  if (hold > 0) return void (e.timer ??= setTimeout(() => ((e.timer = undefined), void send(qc, id)), hold))
   e.inflight = e.dirty
   e.dirty = new Map()
   e.lastSent = Date.now()
@@ -666,8 +710,14 @@ async function send(qc: QueryClient, id: string) {
   // key, each flip re-drew the footer and Publish (about 5x the style work on a long doc).
   if (e.snap.state !== 'error') setState(e, after ? 'recovering' : 'saving')
   const stall = setTimeout(() => e.inflight && setState(e, 'stalled'), STALL_MS)
-  const {set, unset} = toPatch(e.inflight)
   const creating = e.pendingCreate
+  // Span texts as patches from what Barkpark had (`base`); a write that may have landed
+  // already (no answer came) goes as a set: a patch applied twice types its words twice.
+  const sentBase = new Map(e.base)
+  const {sets, dmp} = creating ? {sets: e.inflight, dmp: {}} : splitDmp(e.inflight, sentBase, (f) => dmpOff || !!e.unsure?.has(f) || !!e.noDmp?.has(f))
+  const patched = Object.keys(dmp)
+  const diffMatchPatch: Record<string, Json> = patched.length ? {diffMatchPatch: dmp} : {}
+  const {set, unset} = toPatch(sets)
   // This editor's doc as sent: what a keyed path that finds no item there falls back to.
   const sentFrom = qc.getQueryData<Doc>(['doc', id])
   try {
@@ -675,18 +725,40 @@ async function send(qc: QueryClient, id: string) {
     // J16: the first edit of a published document makes its draft. Sent as an empty patch
     // and then the edit, Barkpark's history says "Draft created" and then "Edited", as
     // Sanity's timeline does (one patch was only "Draft created").
+    // Span patches alone need no fence there: they merge into the draft another editor's
+    // first key made a moment ago (fenced, the second editor's first word cost a 412).
     const mutations: Json[] = creating
       ? [{create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}]
       : e.forks
-        ? [{patch: {id, type: e.type, set: {}, ...fence}}, {patch: {id, type: e.type, set, unset}}]
-        : [{patch: {id, type: e.type, set, unset, ...fence, ...(e.rev ? FIELDS_FENCE : {})}}]
+        ? [{patch: {id, type: e.type, set: {}, ...(sets.size ? fence : {})}}, {patch: {id, type: e.type, set, unset, ...diffMatchPatch}}]
+        : [{patch: {id, type: e.type, set, unset, ...diffMatchPatch, ...fence, ...(e.rev ? FIELDS_FENCE : {})}}]
     const r = (await mutate({data: {mutations}})) as {results: {document: Doc}[]; warnings?: unknown; studioThrottled?: boolean}
     paced(!!r.studioThrottled)
     const saved = r.results.at(-1)!.document
     e.forks = false
     e.advisories = advisoryFindings(r)
     if (creating) { e.pendingCreate = undefined; e.createRequested = false }
+    // A patched span came back with more than was sent: someone else's words, merged there.
+    // Keys typed since (made on what was sent) move onto the answer; words of a hunk that
+    // did not land go again, as a set (settleDmp). Where the answer leaves that open, the
+    // text the patch was applied to says: one read, and this save counts as on its way
+    // until it is back. A read that fails is asked again (askUntilAnswered): settled without
+    // it, a skipped hunk's letters were gone with no word said.
+    const open = patched.filter((f) => landingUnsure(sentBase.get(f) as string, e.inflight!.get(f) as string, getPath(saved, f)))
+    const sent = e.inflight
+    const before = open.length ? await askUntilAnswered(() => valuesBefore({data: {type: e.type, id, rev: saved._rev, paths: open}}), () => e.inflight === sent) : null
+    if (!e.inflight) return // the edits were dropped meanwhile (signed out, discarded)
     const sentPaths = [...e.inflight.keys()]
+    for (const f of patched) {
+      const fix = settleDmp(sentBase.get(f) as string, e.inflight.get(f) as string, getPath(saved, f), e.dirty.get(f), before?.[open.indexOf(f)])
+      // Its block is pending whole (a mark toggled meanwhile): that set carries this editor's text.
+      if (!fix || [...e.dirty.keys()].some((k) => k !== f && within(f, k))) continue
+      if (fix.value === getPath(saved, f)) e.dirty.delete(f)
+      else e.dirty.set(f, fix.value)
+      if (fix.missing) (e.noDmp ??= new Set()).add(f)
+      if (fix.ignored) dmpOff = true
+    }
+    for (const f of sets.keys()) e.noDmp?.delete(f)
     // What we sent is now the server's: a field still being typed builds on it.
     for (const f of e.inflight.keys()) {
       if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
@@ -720,6 +792,15 @@ async function send(qc: QueryClient, id: string) {
     clearTimeout(stall)
     const msg = (err as Error).message ?? ''
     if (/^mutate 429\b/.test(msg)) paced(true)
+    // A span patch whose fate is not known (no answer, a failure with no clear refusal): it
+    // may land yet, and Barkpark cannot refuse it late. Its text goes as a set from here on
+    // (a live frame clearing `unsure` does not undo that), and nothing goes for this document
+    // until the studio's server has given the patch up (lib/pt-dmp.ts).
+    const doubt = () => {
+      if (!patched.length) return
+      for (const f of patched) (e.noDmp ??= new Set()).add(f)
+      e.holdUntil = settledAt(e.lastSent)
+    }
     // Signed out, or not allowed: keep every value, say why, stop writing.
     if (/token_refused/.test(msg)) {
       e.dirty = new Map([...e.inflight!, ...e.dirty])
@@ -758,6 +839,20 @@ async function send(qc: QueryClient, id: string) {
       void qc.invalidateQueries({queryKey: ['list', e.type]})
       return setState(e, 'refused', t('This document has been deleted.'))
     }
+    // Not sent on (the studio's server gave a held patch up: 408) or over the write budget
+    // (429, not waited out there for a patch): nothing was written, the same goes again.
+    if (patched.length && /^mutate (408|429)\b/.test(msg)) {
+      if (afterInflight(qc, id, e)) return
+      setTimeout(() => void send(qc, id), 2000)
+      return
+    }
+    // Barkpark refused the batch and it held span patches (over its limits: 422, or a server
+    // that reads none): nothing was written, so the same texts go again as sets, once.
+    if (patched.length && /^mutate (400|422)\b/.test(msg)) {
+      for (const f of patched) (e.noDmp ??= new Set()).add(f)
+      if (afterInflight(qc, id, e)) return
+      return void send(qc, id)
+    }
     // A validation refusal (a dataset that enforces its schema): say which fields and why,
     // in the editor's words; sending it again would only be refused again.
     const findings = findingsOf(msg)
@@ -769,6 +864,7 @@ async function send(qc: QueryClient, id: string) {
     // No network: keep every value and wait for it, no error, no retry storm. The write may
     // have landed with its answer lost: a frame holding it is not theirs to merge in again.
     if (isNetworkError(err)) {
+      doubt()
       for (const f of e.inflight!.keys()) (e.unsure ??= new Set()).add(f)
       e.dirty = new Map([...e.inflight!, ...e.dirty])
       e.inflight = null
@@ -813,6 +909,7 @@ async function send(qc: QueryClient, id: string) {
     }
     // Keep every value: put the failed batch back under anything typed since, retry. A
     // failure with no clear refusal may still have saved it.
+    doubt()
     for (const f of e.inflight!.keys()) (e.unsure ??= new Set()).add(f)
     if (afterInflight(qc, id, e)) return
     setState(e, 'error', (err as Error).message)
@@ -1025,6 +1122,8 @@ export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema)
   const verdict = judge(pending, doc, schema)
   if (verdict.kind === 'drop') return (keys.forEach((k) => void dropPending(k)), null)
   if (verdict.kind === 'ask') return {ask: {pending, fields: verdict.fields, gone: verdict.gone, keys}}
+  // As sets (lib/pt-dmp.ts): the page that kept them may have had a patch of these on its way.
+  for (const [f] of verdict.fields) (entry(id, doc._type).noDmp ??= new Set()).add(f)
   for (const [f, v] of verdict.fields) edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? doc, f, v)
   // Now this page's own edits (kept under its own entry): the dead pages' entries go.
   keys.forEach((k) => void dropPending(k))
@@ -1035,6 +1134,7 @@ export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema)
 export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys}: Recovered) {
   for (const [f, v] of fields) {
     const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
+    ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(f)
     edit(qc, now, f, restoreValue(pending, f, v, now))
   }
   keys.forEach((k) => void dropPending(k))
@@ -1070,7 +1170,7 @@ export function reapply(qc: QueryClient, restored: Doc, fields: [string, unknown
   // (it already shows them): with the screen as base, a newer version from Barkpark
   // meanwhile read as "the editor changed nothing" and theirs replaced the typing.
   e.rev = restored._rev
-  for (const [f] of fields) e.base.set(f, getPath(restored, f))
+  for (const [f] of fields) (e.base.set(f, getPath(restored, f)), (e.noDmp ??= new Set()).add(f))
   for (const [f, v] of fields) edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? restored, f, v)
   flush(qc, id)
 }

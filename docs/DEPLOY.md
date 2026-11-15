@@ -69,6 +69,10 @@ token, mints `BARKPARK_TOKEN` with `bp instance studio-token --workspace <BARKPA
 The instance needs Barkpark from 2026-10-27 (5c9263fa5) or later. An older one answers 404:
 update it first.
 
+Two editors typing in one paragraph merge on Barkpark from 2026-10-29 (beff58bea) or later: the
+studio sends that typing as `diffMatchPatch`. On an older instance, which ignores or refuses the
+patch, the studio saves the text as before (a `set`, rebased here on a 412). Nothing to set.
+
 An owner who signs in only through SSO signs `bp` in with the organization's SSO first
 (bp 1.26.5 or newer, Barkpark from 2026-10-27, ca119030e, or later), then mints the token
 straight into Vercel and signs out. The token is never shown:

@@ -623,6 +623,8 @@ test('@local Portable Text: two editors typing in different blocks at once both 
 // task-88240409d3fc3c51: two editors typing in one block at once, on a slow machine (4x CPU),
 // both keep their words in place (each one's typing goes as diff-match-patch onto the span as
 // stored, as Sanity's), and undo takes back only this editor's own last word.
+// task-b31e6bd019c95b80: the typing goes to Barkpark as diffMatchPatch, merged there: no
+// save is refused as stale (412) and sent again, for either editor.
 test('@local Portable Text: two editors typing in one block at once both keep their words', async ({page, browser}, info) => {
   const t = target(info)
   const ctxB = await browser.newContext()
@@ -631,6 +633,14 @@ test('@local Portable Text: two editors typing in one block at once both keep th
   try {
     const [edA, edB] = await Promise.all([open(page, info), open(b, info)])
     for (const p of [page, b]) await (await p.context().newCDPSession(p)).send('Emulation.setCPUThrottlingRate', {rate: 4})
+    const writes = {patched: 0, stale: 0}
+    for (const p of [page, b])
+      p.on('response', async (r) => {
+        const sent = r.request().postData() ?? ''
+        if (!sent.includes('mutations')) return
+        if (sent.includes('diffMatchPatch')) writes.patched++
+        if (/mutate 412\b/.test(await r.text().catch(() => ''))) writes.stale++
+      })
     await caretAtEnd(page, edA, 'Pour slowly')
     await caretAtEnd(b, edB, 'Pour slowly', 'Pour'.length)
     await Promise.all([
@@ -643,6 +653,8 @@ test('@local Portable Text: two editors typing in one block at once both keep th
     await expect.poll(text, {timeout: 15_000}).toBe('Pour gently and slowly from a height')
     await expect(edA).toContainText('Pour gently and slowly from a height')
     await expect(edB).toContainText('Pour gently and slowly from a height')
+    expect(writes.patched, 'typing went as diffMatchPatch').toBeGreaterThan(0)
+    expect(writes.stale, 'no save was refused as stale (412)').toBe(0)
     await expect(edA).toBeFocused()
     await page.keyboard.press('ControlOrMeta+z')
     await expect.poll(text, {timeout: 15_000}).toBe('Pour gently and slowly from a')

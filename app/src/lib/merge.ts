@@ -1,4 +1,9 @@
-import {applyPatches, makePatches, type Patch} from '@sanity/diff-match-patch'
+import {applyPatches as apply, makePatches, type Patch} from '@sanity/diff-match-patch'
+
+// A patch placed on other text than it was made from: its byte offset may fall inside one of
+// that text's letters (an æ or an emoji the other editor typed before it). The library throws
+// there ("Failed to determine byte offset") unless told the offsets are only a hint.
+const applyPatches = (patches: Patch[], text: string) => apply(patches, text, {allowExceedingIndices: true})
 
 // J06: two editors typing in one text field converge with both edits kept. Sanity
 // does it with diff-match-patch on its server; Barkpark sets whole values, so the
