@@ -547,6 +547,12 @@ export const BlockIcon = () => (
     <path d="M5 19.5H20M5 5.5H20M6.5 8.5H18.5V16.5H6.5V8.5Z" />
   </svg>
 )
+/** Sanity's ThLargeIcon: a grid of four (a table, Select table). */
+export const TableIcon = () => (
+  <svg {...s}>
+    <path d="M12.5 6.5V18.5M6.5 12.5H18.5M6.5 6.5H18.5V18.5H6.5V6.5Z" />
+  </svg>
+)
 // Sanity's Play and Stop (Vision's Fetch and Listen), filled.
 /** Sanity's PlayIcon: filled and stroked, round corners. */
 export const PlayIcon = () => (

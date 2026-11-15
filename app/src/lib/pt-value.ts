@@ -1,6 +1,7 @@
 import type {Field} from './data'
 import {refId} from './refs.ts'
 import {makePatches, stringifyPatches} from '@sanity/diff-match-patch'
+import {isTable, TABLE_FIELDS, tablesIn} from './pt-table.ts'
 
 // S4a (task-7f77f41c95cc6d9f): Portable Text in a richText field, edited with
 // @portabletext/editor. S4b: annotations. S4c: custom blocks and inline objects. The jobs
@@ -17,7 +18,7 @@ export type PtBlock = Obj & {_type: string; _key?: string}
 type Named = {name: string; title?: string}
 /** A field as @portabletext/editor's schema takes it: the editor keeps only the fields it is told. */
 type PtField = {name: string; type: 'string' | 'number' | 'boolean' | 'object'}
-type NamedWithFields = Named & {fields?: PtField[]}
+type NamedWithFields = Named & {fields?: (PtField | (typeof TABLE_FIELDS)[number])[]}
 export type PtVocabulary = {
   styles: Named[]
   lists: Named[]
@@ -68,7 +69,9 @@ export function declaredVocabulary(field: Pick<Field, 'blocks'>): PtVocabulary {
 /** What the stored value holds, by kind: every name the editor must know to keep it. */
 export function observedVocabulary(value: unknown): PtVocabulary {
   const seen = {styles: new Set<string>(), lists: new Set<string>(), decorators: new Set<string>(), annotations: new Set<string>(), blockObjects: new Set<string>(), inlineObjects: new Set<string>()}
-  for (const b of Array.isArray(value) ? value : []) {
+  // A table's cells hold text as the field does: what they use is the field's vocabulary too.
+  const blocks = (list: unknown[], top = true): unknown[] => list.flatMap((b) => (isTable(b) ? [...(top ? [b] : []), ...blocks(b.rows.flatMap((r) => r.cells.flatMap((c) => c.value ?? [])), false)] : [b]))
+  for (const b of blocks(Array.isArray(value) ? value : [])) {
     if (!isObj(b) || typeof b._type !== 'string') continue
     if (b._type !== 'block') {
       seen.blockObjects.add(b._type)
@@ -107,6 +110,7 @@ export function editorSchema(field: Pick<Field, 'blocks'>, value: unknown, schem
   const o = observedVocabulary(value)
   // `normal` is always a style: a new paragraph takes it.
   const styles = union(d.styles.some((s) => s.name === 'normal') ? d.styles : [{name: 'normal'}, ...d.styles], o.styles)
+  const tables = tablesIn(field, value).on
   return {
     block: {name: 'block'},
     styles,
@@ -114,7 +118,14 @@ export function editorSchema(field: Pick<Field, 'blocks'>, value: unknown, schem
     decorators: union(d.decorators, o.decorators),
     // Each with every field it may hold: the editor drops a markDef field it was not told.
     annotations: union(d.annotations, o.annotations).map((a) => ({...a, fields: editorFields(objectFields(field, 'annotation', a.name, value, schemas), storedObjects(value, 'annotation', a.name))})),
-    blockObjects: union(d.blockObjects, o.blockObjects).map((b) => ({...b, fields: editorFields([...(b.name === 'image' ? IMAGE_PARTS : []), ...objectFields(field, 'block', b.name, value, schemas)], storedObjects(value, 'block', b.name))})),
+    // A table (lib/pt-table.ts) is rows of cells of text, told to the editor whole: it edits inside it.
+    blockObjects: union(d.blockObjects, o.blockObjects).map((b) => ({
+      ...b,
+      fields: [
+        ...(b.name === 'table' && tables ? TABLE_FIELDS : []),
+        ...editorFields([...(b.name === 'image' ? IMAGE_PARTS : []), ...objectFields(field, 'block', b.name, value, schemas)], storedObjects(value, 'block', b.name)).filter((f) => !(b.name === 'table' && tables && TABLE_FIELDS.some((t) => t.name === f.name))),
+      ],
+    })),
     inlineObjects: union(d.inlineObjects, o.inlineObjects).map((i) => ({...i, fields: editorFields(objectFields(field, 'inline', i.name, value, schemas), storedObjects(value, 'inline', i.name))})),
   }
 }
@@ -142,12 +153,67 @@ export function equal(a: unknown, b: unknown): boolean {
 }
 
 type Keyed = {_key: string}
-/** A change another editor made, as @portabletext/editor's `patches` event takes it. */
+/** A step into the value, as the editor's paths have them: an item by its key, or a field's name. */
+export type Step = Keyed | string
+/**
+ * A change another editor made, as @portabletext/editor's `patches` event takes it. A path
+ * is a block's key, or goes on into a table (`[{_key}, 'rows', {_key}, 'cells', {_key},
+ * 'value', {_key}]`) to a row, a cell, a block in a cell, or a field of one of them.
+ */
 export type RemotePatch =
-  | {type: 'set'; path: Keyed[]; value: PtBlock; origin: 'remote'}
-  | {type: 'unset'; path: Keyed[]; origin: 'remote'}
-  | {type: 'insert'; path: Keyed[]; position: 'before' | 'after'; items: PtBlock[]; origin: 'remote'}
-  | {type: 'diffMatchPatch'; path: [Keyed, 'children', Keyed, 'text']; value: string; origin: 'remote'}
+  | {type: 'set'; path: Step[]; value: unknown; origin: 'remote'}
+  | {type: 'unset'; path: Step[]; origin: 'remote'}
+  | {type: 'insert'; path: Step[]; position: 'before' | 'after'; items: PtBlock[]; origin: 'remote'}
+  | {type: 'diffMatchPatch'; path: Step[]; value: string; origin: 'remote'}
+
+// Where a table holds its items, level by level (Sanity's table: rows of cells of blocks).
+const NEST = [{type: 'table', field: 'rows'}, {type: 'row', field: 'cells'}, {type: 'cell', field: 'value'}]
+/** The array field all of `nodes` (one item, in several versions) hold their items in, `depth` levels into a table; null when they are not that. */
+const nests = (depth: number, ...nodes: unknown[]): string | null => {
+  const n = NEST[depth]
+  return n && nodes.every((b) => isObj(b) && b._type === n.type && Array.isArray(b[n.field])) ? n.field : null
+}
+const plainKey = (s: unknown): string | null => (isObj(s) && typeof s._key === 'string' && /^[\w-]+$/.test(s._key) ? s._key : null)
+
+/**
+ * A span's text as the editor's patch path names it: in a block of the field (`[{_key},
+ * 'children', {_key}, 'text']`), or in a block of a table's cell (the same after `[{_key},
+ * 'rows', {_key}, 'cells', {_key}, 'value']`). `at` names the span among all the field's
+ * (its keys, outermost first); `path` is the keyed path from the field, as a save names it
+ * (`[_key=="b"].children[_key=="s"].text`), and `inBlock` the one to its block. Null for any other path.
+ */
+export function spanAt(path: unknown[] | undefined): {block: string; span: string; at: string; path: string; inBlock: string} | null {
+  if (!Array.isArray(path) || (path.length !== 4 && path.length !== 10)) return null
+  const names = path.length === 4 ? ['children', 'text'] : ['rows', 'cells', 'value', 'children', 'text']
+  const keys: string[] = []
+  let out = ''
+  let inBlock = ''
+  for (let i = 0; i < path.length; i++) {
+    if (i % 2) {
+      if (path[i] !== names[(i - 1) / 2]) return null
+      if (path[i] === 'children') inBlock = out
+      out += `.${path[i]}`
+    } else {
+      const key = plainKey(path[i])
+      if (!key) return null
+      keys.push(key)
+      out += `[_key=="${key}"]`
+    }
+  }
+  return {block: keys[0]!, span: keys.at(-1)!, at: keys.join('/'), path: out, inBlock}
+}
+
+/** Every span's text in `blocks`, those in a table's cells too, each named as spanAt's `at`. */
+export function spanTexts(blocks: unknown, prefix = '', depth = 0): [at: string, text: string][] {
+  const out: [string, string][] = []
+  for (const b of Array.isArray(blocks) ? (blocks as PtBlock[]) : []) {
+    if (typeof b?._key !== 'string') continue
+    const field = nests(depth, b)
+    if (field) out.push(...spanTexts(b[field], `${prefix}${b._key}/`, depth + 1))
+    else if (isText(b)) for (const c of Array.isArray(b.children) ? (b.children as {_key?: string; text?: unknown}[]) : []) if (typeof c?.text === 'string') out.push([`${prefix}${b._key}/${c._key}`, c.text])
+  }
+  return out
+}
 
 /** A span's text in a Portable Text value, by block and span key ('' when it has none). */
 export function spanText(value: unknown, block: string, span: string): string {
@@ -158,17 +224,17 @@ export function spanText(value: unknown, block: string, span: string): string {
 
 /**
  * The editor's own changes as span text patches (it emits each typed or removed letter as
- * diff-match-patch on `[{_key: block}, 'children', {_key: span}, 'text']`), when that is all
- * the change was: a save applies them onto the span as stored now, as Sanity's server does.
+ * diff-match-patch on `[{_key: block}, 'children', {_key: span}, 'text']`, deeper for a span in
+ * a table's cell), when that is all the change was: a save applies them onto the span as stored now, as Sanity's server does.
  * Null when anything else changed.
  */
-export function textPatches(patches: unknown[]): {block: string; span: string; value: string}[] | null {
-  const out: {block: string; span: string; value: string}[] = []
+export function textPatches(patches: unknown[]): (NonNullable<ReturnType<typeof spanAt>> & {value: string})[] | null {
+  const out: (NonNullable<ReturnType<typeof spanAt>> & {value: string})[] = []
   for (const p of patches as {type?: string; path?: unknown[]; value?: unknown}[]) {
-    const [block, children, span, text] = p.path ?? []
-    const key = (s: unknown) => (isObj(s) && typeof s._key === 'string' && /^[\w-]+$/.test(s._key) ? s._key : null)
-    if (p.type !== 'diffMatchPatch' || p.path!.length !== 4 || children !== 'children' || text !== 'text' || !key(block) || !key(span) || typeof p.value !== 'string') return null
-    out.push({block: key(block)!, span: key(span)!, value: p.value})
+    // A span in a table's cell too (spanAt): its text is patched where it is, as any span's.
+    const at = p.type === 'diffMatchPatch' && typeof p.value === 'string' ? spanAt(p.path) : null
+    if (!at) return null
+    out.push({...at, value: p.value as string})
   }
   return out.length ? out : null
 }
@@ -193,7 +259,10 @@ export function spanTextChanges(prev: unknown, next: unknown): {span: string; te
 }
 
 /** A block as the editor holds it: its defaults filled in (style, markDefs, each span's marks). */
-export function asEditorHolds(b: unknown): unknown {
+export function asEditorHolds(b: unknown, depth = 0): unknown {
+  // A table: every block in its cells, the same way.
+  const field = nests(depth, b)
+  if (field) return {...(b as Obj), [field]: ((b as Obj)[field] as unknown[]).map((x) => asEditorHolds(x, depth + 1))}
   if (!isText(b)) return b
   const children = Array.isArray(b.children) ? b.children.map((c) => (isObj(c) && c._type === 'span' && !('marks' in c) ? {...c, marks: []} : c)) : b.children
   return {style: 'normal', markDefs: [], ...b, children}
@@ -210,17 +279,21 @@ export function asEditorHolds(b: unknown): unknown {
  * `seen` (by `block/span`) is each span's text as this editor has accounted for it, updated
  * here; `echo` tells a text this editor itself wrote a moment ago (an older echo of its own).
  */
-export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unknown, sent: unknown[] = [], keep: Set<string> = new Set(), seen: Map<string, string> = new Map(), echo: (span: string, text: string) => boolean = () => false): RemotePatch[] {
+export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unknown, sent: unknown[] = [], keep: Set<string> = new Set(), seen: Map<string, string> = new Map(), echo: (span: string, text: string) => boolean = () => false, prefix: Step[] = []): RemotePatch[] {
   if (!Array.isArray(known) || !Array.isArray(incoming) || !Array.isArray(shown)) return []
+  // In a table (`prefix` leads to this list of rows, cells or a cell's blocks) as in the field.
+  const at = (k: string): Step[] => [...prefix, {_key: k}]
+  const depth = prefix.length / 2
+  const name = (k: string, span: string) => [...prefix.flatMap((s) => (typeof s === 'string' ? [] : [s._key])), k, span].join('/')
   const byKey = (list: unknown[]) => new Map(list.filter((b): b is PtBlock => isObj(b) && typeof b._key === 'string').map((b) => [b._key!, b]))
   const was = byKey(known)
   const now = byKey(incoming)
   const here = byKey(shown)
   const mine = sent.filter(Array.isArray).map((v) => byKey(v as unknown[]))
   const ours = (k: string, b: PtBlock) => mine.some((m) => m.has(k) && equal(m.get(k), b))
-  const untouched = (k: string) => here.has(k) && was.has(k) && equal(asEditorHolds(here.get(k)), asEditorHolds(was.get(k)))
+  const untouched = (k: string) => here.has(k) && was.has(k) && equal(asEditorHolds(here.get(k), depth), asEditorHolds(was.get(k), depth))
   const out: RemotePatch[] = []
-  for (const k of was.keys()) if (!now.has(k) && untouched(k) && !keep.has(k)) out.push({type: 'unset', path: [{_key: k}], origin: 'remote'})
+  for (const k of was.keys()) if (!now.has(k) && untouched(k) && !keep.has(k)) out.push({type: 'unset', path: at(k), origin: 'remote'})
   // A block changed there. Span texts alone: diff-match-patch into each span (as Sanity's),
   // so the caret, this editor's own typing and its undo steps stay. Measured from the text
   // this editor has accounted for (`seen`: its own changes and theirs it was given), so its
@@ -232,12 +305,27 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
     const theirs = spanTextChanges(old, b)
     if (theirs && spanTextChanges(old, mine)) {
       for (const {span, text} of theirs) {
-        const from = seen.get(`${k}/${span}`) ?? (((old.children as Obj[]).find((c) => c._key === span)?.text ?? '') as string)
-        if (text === from || echo(`${k}/${span}`, text)) continue
-        out.push({type: 'diffMatchPatch', path: [{_key: k}, 'children', {_key: span}, 'text'], value: stringifyPatches(makePatches(from, text)), origin: 'remote'})
-        seen.set(`${k}/${span}`, text)
+        const from = seen.get(name(k, span)) ?? (((old.children as Obj[]).find((c) => c._key === span)?.text ?? '') as string)
+        if (text === from || echo(name(k, span), text)) continue
+        out.push({type: 'diffMatchPatch', path: [...at(k), 'children', {_key: span}, 'text'], value: stringifyPatches(makePatches(from, text)), origin: 'remote'})
+        seen.set(name(k, span), text)
       }
-    } else if (untouched(k)) out.push({type: 'set', path: [{_key: k}], value: b, origin: 'remote'})
+      continue
+    }
+    // A table (a row, a cell): their change goes into the rows, cells and blocks this editor
+    // has not changed, each as a block of the field does (the caret in another cell stays).
+    // A field beside the items (the header row) is theirs where this editor left it alone.
+    const field = depth === 0 && ![old, b, mine].every(isTable) ? null : nests(depth, old, b, mine)
+    if (!field) {
+      if (untouched(k)) out.push({type: 'set', path: at(k), value: b, origin: 'remote'})
+      continue
+    }
+    for (const f of new Set([...Object.keys(old), ...Object.keys(b)])) {
+      if (f === '_key' || f === '_type' || f === field || equal(old[f], b[f]) || !equal(mine[f], old[f])) continue
+      out.push(b[f] === undefined ? {type: 'unset', path: [...at(k), f], origin: 'remote'} : {type: 'set', path: [...at(k), f], value: b[f], origin: 'remote'})
+    }
+    const inside = (v: unknown) => (Array.isArray(v) ? (v as PtBlock[]).find((x) => x?._key === k)?.[field] : undefined)
+    out.push(...remoteBlockPatches(old[field], b[field], mine[field], sent.map(inside), keep, seen, echo, [...at(k), field]))
   }
   // New blocks, in place: after the block before them that this editor has (or will have).
   const present = new Set([...here.keys()].filter((k) => now.has(k) || !was.has(k)))
@@ -245,8 +333,8 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
   for (const [k, b] of now) {
     if (!was.has(k) && !here.has(k)) {
       const first = [...here.keys()].find((x) => present.has(x))
-      if (prev) out.push({type: 'insert', path: [{_key: prev}], position: 'after', items: [b], origin: 'remote'})
-      else if (first) out.push({type: 'insert', path: [{_key: first}], position: 'before', items: [b], origin: 'remote'})
+      if (prev) out.push({type: 'insert', path: at(prev), position: 'after', items: [b], origin: 'remote'})
+      else if (first) out.push({type: 'insert', path: at(first), position: 'before', items: [b], origin: 'remote'})
       else continue
       present.add(k)
     }
@@ -261,15 +349,28 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
  */
 export function withRemote(value: unknown, patches: RemotePatch[]): PtBlock[] {
   let out = (Array.isArray(value) ? value : []) as PtBlock[]
-  for (const p of patches) {
-    const k = p.path[0]!._key
-    const at = out.findIndex((b) => b._key === k)
-    if (p.type === 'unset') out = out.filter((b) => b._key !== k)
-    else if (p.type === 'diffMatchPatch') continue // the editor's text: its next change is sent as patches, not measured from this
-    else if (p.type === 'set') out = at < 0 ? out : out.map((b, i) => (i === at ? p.value : b))
-    else if (at >= 0) out = [...out.slice(0, p.position === 'after' ? at + 1 : at), ...p.items, ...out.slice(p.position === 'after' ? at + 1 : at)]
-  }
+  // The editor's text: its next change is sent as patches, not measured from this.
+  for (const p of patches) if (p.type !== 'diffMatchPatch') out = patched(out, p.path, p)
   return out
+}
+
+/** `list` with one patch applied at `path`: an item of it, or on into that item (a table's rows, cells, blocks, fields). */
+function patched(list: PtBlock[], path: Step[], p: Exclude<RemotePatch, {type: 'diffMatchPatch'}>): PtBlock[] {
+  const [head, field, ...rest] = path
+  const at = isObj(head) ? list.findIndex((b) => b?._key === head._key) : -1
+  if (path.length === 1) {
+    if (p.type === 'unset') return at < 0 ? list : list.filter((_, i) => i !== at)
+    if (p.type === 'set') return at < 0 ? list : list.map((b, i) => (i === at ? (p.value as PtBlock) : b))
+    return at < 0 ? list : [...list.slice(0, p.position === 'after' ? at + 1 : at), ...p.items, ...list.slice(p.position === 'after' ? at + 1 : at)]
+  }
+  if (at < 0 || typeof field !== 'string') return list
+  const node = {...list[at]!}
+  if (rest.length) {
+    if (!Array.isArray(node[field])) return list
+    node[field] = patched(node[field] as PtBlock[], rest, p)
+  } else if (p.type === 'unset') delete node[field]
+  else if (p.type === 'set') node[field] = p.value
+  return list.map((b, i) => (i === at ? node : b))
 }
 
 /**
@@ -286,6 +387,36 @@ export function changedBlocks(prev: unknown, next: unknown): {key: string; block
     if (!isObj(a) || !isObj(b) || typeof b._key !== 'string' || !/^[\w-]+$/.test(b._key) || a._key !== b._key) return null
     if (!equal(a, b)) out.push({key: b._key, block: b})
   }
+  return out
+}
+
+/**
+ * A list this editor changed (`prior` → `next`: a row, a column, a block came, went or
+ * moved), as it is saved onto the list as this browser holds it `now` (the server's, with
+ * what is on its way): the items this editor did not change go as they are there, another
+ * editor's newest words in them, never this editor's older copy of them over those. An item
+ * this editor changed or added is its own; one it removed goes; `theirs` tells an item that
+ * reads as changed only because the editor has drawn another editor's version since. Items
+ * that came there meanwhile stay, after the item they follow.
+ */
+export function freshItems(prior: unknown, next: unknown[], now: unknown, theirs: (item: Obj) => boolean = () => false): unknown[] {
+  if (!Array.isArray(now)) return next
+  const was = byKey<Obj>(prior)
+  const held = byKey<Obj>(now)
+  const mine = byKey<Obj>(next)
+  const out = next.map((item) => {
+    const fresh = isObj(item) && typeof item._key === 'string' ? held.get(item._key) : undefined
+    if (!fresh) return item
+    const before = was.get((item as Obj)._key as string)
+    return (before && equal(before, item)) || theirs(item as Obj) ? fresh : item
+  })
+  now.forEach((item, i) => {
+    const key = isObj(item) && typeof item._key === 'string' ? item._key : undefined
+    if (!key || was.has(key) || mine.has(key)) return
+    let at = -1
+    for (let j = i - 1; j >= 0 && at < 0; j--) at = out.findIndex((x) => isObj(x) && isObj(now[j]) && x._key !== undefined && x._key === (now[j] as Obj)._key)
+    out.splice(at + 1, 0, item)
+  })
   return out
 }
 
@@ -374,6 +505,29 @@ function mergeText(stored: PtBlock, seen: PtBlock | undefined, next: PtBlock): P
 }
 
 /**
+ * A custom block the author edited: only the keys edited change (editedObject). A table's
+ * rows, cells and the blocks in them are each merged the same way, level by level, so a
+ * cell the author did not touch goes back byte for byte as stored.
+ */
+function mergeNested(stored: Obj, seen: Obj | undefined, next: Obj, depth = 0): Obj {
+  const out = editedObject(stored, seen, next)
+  const field = nests(depth, stored, next)
+  if (!field || (seen && equal(next[field], seen[field]))) return out
+  const was = byKey<Obj>(stored[field])
+  const read = byKey<Obj>(seen?.[field])
+  out[field] = (next[field] as Obj[]).map((item) => {
+    const key = isObj(item) && typeof item._key === 'string' ? item._key : undefined
+    const s = key ? was.get(key) : undefined
+    if (!s) return item
+    const r = read.get(key!)
+    if (r && equal(item, r)) return s
+    if (isText(s) && isText(item)) return mergeText(s, r as PtBlock | undefined, item)
+    return s._type === item._type && s._type !== 'block' ? mergeNested(s, r, item, depth + 1) : item
+  })
+  return out
+}
+
+/**
  * The value to save after an edit. `stored` is the field's value as read, `seen` the
  * editor's own reading of it before any edit (its normalised form), `next` the editor's
  * value now. A block, span, markDef, custom block or inline object the author did not touch
@@ -390,7 +544,7 @@ export function mergeValue(stored: PtBlock[], seen: PtBlock[], next: PtBlock[]):
     if (!was) return b
     if (read && equal(b, read)) return was
     // A custom block the author edited (S4c) changes only the keys edited.
-    if (was._type !== 'block' && b._type !== 'block') return was._type === b._type ? (editedObject(was, read, b) as PtBlock) : was
+    if (was._type !== 'block' && b._type !== 'block') return was._type === b._type ? (mergeNested(was, read, b) as PtBlock) : was
     if (!isText(was) || !isText(b)) return was
     return mergeText(was, read, b)
   })
@@ -531,9 +685,11 @@ export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: st
 }
 
 /** What Insert offers: the declared custom block and inline object types. An image or file block needs its own input: not yet. */
-export function insertable(field: Pick<Field, 'blocks'>): {blocks: Named[]; inline: Named[]} {
+export function insertable(field: Pick<Field, 'blocks'>, tables = false): {blocks: Named[]; inline: Named[]} {
   const d = declaredVocabulary(field)
-  return {blocks: d.blockObjects.filter((b) => b.name !== 'file'), inline: d.inlineObjects}
+  const blocks = d.blockObjects.filter((b) => b.name !== 'file')
+  // A text that holds a table already offers one, declared or not (lib/pt-table.ts tablesIn), as it offers the annotations it uses.
+  return {blocks: tables && !blocks.some((b) => b.name === 'table') ? [...blocks, {name: 'table'}] : blocks, inline: d.inlineObjects}
 }
 
 /**

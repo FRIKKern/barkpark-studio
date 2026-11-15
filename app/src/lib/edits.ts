@@ -14,7 +14,7 @@ import {heldFor} from './held-for'
 import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
 import {merge3, mergeList3, mergeText, onto, revertSteps} from './merge'
-import {applyPaths, getPath, keyedRoots, setPath, within} from './paths'
+import {answeredInto, anyInside, applyPaths, getPath, keyedRoots, mergePending, setInside, setPath, within} from './paths'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {clientGone} from '../server/client-gone'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
@@ -364,7 +364,9 @@ function rebase(e: DocEdits, d: Doc): string[] {
     // base before it either typed it twice or, in a run of one letter, dropped keys
     // (task-510e753bc62a59f0). A dirty-only one merges now. Advancing `rev` past theirs
     // here let a retry of that write save over theirs, unseen (task-41ba9f3dc3fd81e2).
-    if (!e.dirty.has(f) || e.inflight?.has(f)) {
+    // So does a whole value with a write of this editor's on its way inside it (a span typed
+    // in, then its block moved): merged now, the frame of that own write read as theirs.
+    if (!e.dirty.has(f) || e.inflight?.has(f) || (e.inflight && anyInside(e.inflight.keys(), f))) {
       missed = true
       continue
     }
@@ -389,12 +391,22 @@ function rebase(e: DocEdits, d: Doc): string[] {
 }
 
 /**
+ * A save that did not land waits again, with what was edited since: one write per spot
+ * (lib/paths.ts mergePending), each with the base it is measured from.
+ */
+function unsent(e: DocEdits) {
+  const {pending, dropped} = mergePending(e.inflight!, e.dirty)
+  for (const f of dropped) e.base.delete(f)
+  e.dirty = pending as DocEdits['dirty']
+}
+
+/**
  * A write came back without saving (refused, failed): its values wait in `dirty` again,
  * merged with any server version that changed them meanwhile. A clash is said at once.
  * True when it clashed (the edits are held, nothing to retry).
  */
 function afterInflight(qc: QueryClient, id: string, e: DocEdits): boolean {
-  e.dirty = new Map([...e.inflight!, ...e.dirty])
+  unsent(e)
   e.inflight = null
   const d = e.missed
   e.missed = undefined
@@ -485,14 +497,20 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
   // value over spots pending inside it (a Portable Text body after its blocks went by key)
   // takes their place: without its own base its rebase had nothing to go by, kept the old
   // rev, and the field's fence refused it again and again (412).
+  // Made from what the server had there, not from this browser's own words still on their
+  // way inside it: each spot pending inside (a span typed in, then its table's rows set whole)
+  // is put back to its own base. Left in, the whole value read as unchanged by this editor
+  // where it held them, and the answer to the earlier save took them out again.
   if (![...e.base.keys()].some((k) => within(field, k))) {
-    e.base.set(field, getPath(held, field))
+    let from = getPath(held, field)
+    for (const [k, was] of e.base) if (k !== field && within(k, field)) from = setInside(field, from, k, was)
+    e.base.set(field, from)
     for (const k of [...e.base.keys()]) if (k !== field && within(k, field) && !e.inflight?.has(k)) e.base.delete(k)
   }
   // One pending write per spot: a path inside an object already pending whole goes
   // into that value; a whole value replaces the paths pending inside it.
   const outer = [...e.dirty.keys()].find((k) => k !== field && within(field, k))
-  if (outer) e.dirty.set(outer, setPath({[outer]: e.dirty.get(outer)}, field, value)[outer])
+  if (outer) e.dirty.set(outer, setInside(outer, e.dirty.get(outer), field, value))
   else {
     for (const k of [...e.dirty.keys()]) if (k !== field && within(k, field)) e.dirty.delete(k)
     e.dirty.set(field, value)
@@ -763,6 +781,7 @@ async function send(qc: QueryClient, id: string) {
     for (const f of e.inflight.keys()) {
       if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
       else e.base.delete(f)
+      answeredInto(e.base, f, getPath(saved, f))
       e.unsure?.delete(f)
     }
     e.inflight = null
@@ -803,12 +822,12 @@ async function send(qc: QueryClient, id: string) {
     }
     // Signed out, or not allowed: keep every value, say why, stop writing.
     if (/token_refused/.test(msg)) {
-      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      unsent(e)
       e.inflight = null
       return setState(e, 'refused', reasonOf(msg) ?? "Barkpark refused this studio's token.")
     }
     if (/^mutate 401\b/.test(msg) || /session_lost/.test(msg)) {
-      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      unsent(e)
       e.inflight = null
       return setState(e, 'signedOut', "You've been logged out")
     }
@@ -818,7 +837,7 @@ async function send(qc: QueryClient, id: string) {
     // Too large (413) goes no better a second time: stop retrying, say why, keep every value
     // (this browser's store too) and offer Retry; an edit (taking content out) tries again too.
     if (/^mutate 413\b/.test(msg)) {
-      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      unsent(e)
       e.inflight = null
       keepUnsaved(id, e)
       return setState(e, 'refused', t('This document is too large to save. Remove some content.'), true)
@@ -830,7 +849,7 @@ async function send(qc: QueryClient, id: string) {
     // J32 widen: the doc was deleted (by someone else) under these edits. Keep every value,
     // here and in this browser's store, and stop: the deleted banner's Restore puts them back.
     if (/^mutate 404\b/.test(msg)) {
-      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      unsent(e)
       e.inflight = null
       keepUnsaved(id, e)
       // The 404 is proof enough: read the doc again, so the pane turns to the deleted
@@ -866,7 +885,7 @@ async function send(qc: QueryClient, id: string) {
     if (isNetworkError(err)) {
       doubt()
       for (const f of e.inflight!.keys()) (e.unsure ??= new Set()).add(f)
-      e.dirty = new Map([...e.inflight!, ...e.dirty])
+      unsent(e)
       e.inflight = null
       return waitForNetwork(qc, id, e)
     }
@@ -878,7 +897,7 @@ async function send(qc: QueryClient, id: string) {
         if (saved) {
           e.pendingCreate = undefined
           e.createRequested = false
-          e.dirty = new Map([...e.inflight!, ...e.dirty])
+          unsent(e)
           e.inflight = null
           applyServer(qc, saved)
           setState(e, e.dirty.size ? 'saving' : 'saved')
@@ -895,7 +914,7 @@ async function send(qc: QueryClient, id: string) {
     if (!creating && /^mutate (409|412)\b/.test((err as Error).message) && e.conflicts++ < 5) {
       try {
         const latest = await readServerDoc(e.type, id)
-        e.dirty = new Map([...e.inflight!, ...e.dirty])
+        unsent(e)
         e.inflight = null
         e.missed = undefined // the latest read supersedes it
         const clashed = latest ? rebase(e, latest) : []

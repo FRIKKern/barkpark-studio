@@ -471,12 +471,15 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   const t = useT()
   const editPath = useContext(EditPathContext)
   const invalid = useContext(ProblemsContext).some((p) => p.path === path && p.level === 'error')
+  // A form shown to read (the published version, a revision, no write access): its fieldset
+  // disables the inputs, and the text editor (no input, the fieldset does not reach it) is told.
+  const formDisabled = useContext(FormDisabledContext)
   // S4a: Portable Text in a rich text field (a Sanity import, gyl's bodies) edits in place.
   if (isPortableTextField(field, value)) {
     // Blocks without keys, or sharing one: fixed first, as Sanity asks.
     const keys = Array.isArray(value) && keyProblem(value)
     if (keys) return <KeysAlert problem={keys} onChange={onChange} />
-    return <PortableTextField id={path} field={field} value={value as PtBlock[] | undefined} onChange={onChange} readOnly={readOnly} openRef={openRef} />
+    return <PortableTextField id={path} field={field} value={value as PtBlock[] | undefined} onChange={onChange} readOnly={readOnly || formDisabled} openRef={openRef} />
   }
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)

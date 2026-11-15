@@ -1,0 +1,7 @@
+/* Review changes for a Portable Text field (components/PtChanges.tsx): a changed block a line,
+   a table's cells under it, each named by its row and column. Its own file: styles.css is long enough. */
+.review-pt { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.review-pt ul { list-style: none; margin: 4px 0 0; padding: 0 0 0 12px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+.review-pt-label { font-weight: 600; }
+.review-pt-where, .review-pt-note { font-size: 12px; line-height: 22px; color: var(--muted); }
+.review-pt-where { display: block; }
