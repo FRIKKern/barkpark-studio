@@ -3,6 +3,7 @@ import type {ComponentType, ReactNode} from 'react'
 import type {Doc, Field} from './data'
 import type {CustomRule} from './custom-rules'
 import type {IncomingInput} from './incoming-refs'
+import type {DashboardConfig} from './dashboard'
 
 // J65, the plugin surface, after Sanity's: a studio config names extra tools,
 // custom field inputs, document actions, document badges and a preview URL.
@@ -24,8 +25,16 @@ export type StudioConfig = {
   /** The studio's name in the navbar, Sanity's `title` ("Gyldendal Agency Studio"); its initials are the logo. */
   title?: string
   tools?: Tool[]
-  /** The navbar's and drawer's tools by name (`structure`, `vision`, a plugin tool's name), in order. Unset: all of them. */
+  /** The navbar's and drawer's tools by name (`structure`, `dashboard`, `vision`, a plugin tool's name), in order. Unset: all of them. */
   navbarTools?: string[]
+  /**
+   * The Dashboard tool (Sanity's @sanity/dashboard), on when this is set: `widgets` in a grid, each
+   * one of the studio's own (`{type: 'drafts' | 'recent' | 'tasks' | 'scheduled' | 'members' |
+   * 'projectInfo'}`), Sanity's document list (`{type: 'documentList', title, types, order, limit,
+   * createNew}`) or a component of yours (`{name, component, layout: {width}}`). No `widgets`: the
+   * default five (lib/dashboard.ts).
+   */
+  dashboard?: DashboardConfig
   /** J58: the Presentation tool, over the site at `previewUrl`; J61: its routes' main documents. */
   presentation?: {
     previewUrl: string

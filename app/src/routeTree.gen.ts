@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolRouteImport } from './routes/$tool'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MediaRouteImport } from './routes/media'
@@ -53,6 +54,11 @@ const IndexRoute = IndexRouteImport.update({
 const ToolRoute = ToolRouteImport.update({
   id: '/$tool',
   path: '/$tool',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HealthRoute = HealthRouteImport.update({
@@ -224,6 +230,7 @@ const ApiMediaIdUsageRoute = ApiMediaIdUsageRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$tool': typeof ToolRoute
+  '/dashboard': typeof DashboardRoute
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
@@ -261,6 +268,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$tool': typeof ToolRoute
+  '/dashboard': typeof DashboardRoute
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$tool': typeof ToolRoute
+  '/dashboard': typeof DashboardRoute
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
@@ -338,6 +347,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$tool'
+    | '/dashboard'
     | '/health'
     | '/login'
     | '/media'
@@ -375,6 +385,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$tool'
+    | '/dashboard'
     | '/health'
     | '/login'
     | '/media'
@@ -412,6 +423,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$tool'
+    | '/dashboard'
     | '/health'
     | '/login'
     | '/media'
@@ -450,6 +462,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ToolRoute: typeof ToolRoute
+  DashboardRoute: typeof DashboardRoute
   HealthRoute: typeof HealthRoute
   LoginRoute: typeof LoginRoute
   MediaRoute: typeof MediaRoute
@@ -499,6 +512,13 @@ declare module '@tanstack/react-router' {
       path: '/$tool'
       fullPath: '/$tool'
       preLoaderRoute: typeof ToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/health': {
@@ -738,6 +758,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ToolRoute: ToolRoute,
+  DashboardRoute: DashboardRoute,
   HealthRoute: HealthRoute,
   LoginRoute: LoginRoute,
   MediaRoute: MediaRoute,
