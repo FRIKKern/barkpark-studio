@@ -60,7 +60,7 @@ test('translations: create the other language, it opens linked in the next pane;
   await page.keyboard.press('Escape')
 
   // Delete the translation: it leaves the group, and the source offers to create it again.
-  await translation.getByRole('button', {name: 'Document actions'}).click()
+  await translation.getByRole('button', {name: 'Open document actions'}).click()
   await page.getByRole('menuitem', {name: 'Delete'}).click()
   await page.getByRole('dialog').getByRole('button', {name: 'Delete document'}).click()
   await expect(translation).toHaveCount(0)

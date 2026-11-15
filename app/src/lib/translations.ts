@@ -15,27 +15,30 @@ type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 /** What the menu reads: the metadata documents that name `id`, and which of their members still exist. */
 export type Group = {metas: Metadata[]; alive: string[]}
 
-async function groq<T>(query: string, params: Record<string, unknown>, perspective: 'published' | 'raw', fresh: boolean): Promise<T> {
+// Never a read shared from up to 0.5 s ago (bpFetch's dedupe): a group is read right after a
+// write to it (ours, or one a live frame announced), and a shared read from before that write
+// showed the menu a translation as missing that had just been linked.
+async function groq<T>(query: string, params: Record<string, unknown>, perspective: 'published' | 'raw'): Promise<T> {
   const qs = new URLSearchParams({query, perspective})
   for (const [k, v] of Object.entries(params)) qs.set(`$${k}`, JSON.stringify(v))
-  const res = await bpFetch(`/v2025-02-19/data/query/${dataset()}?${qs}`, {}, undefined, {fresh})
+  const res = await bpFetch(`/v2025-02-19/data/query/${dataset()}?${qs}`, {}, undefined, {fresh: true})
   if (!res.ok) throw new Error(`Could not read the translations (${res.status})`)
   return ((await res.json()) as {result: T}).result
 }
 
 const fetchGroup = createServerFn({method: 'GET'})
-  .validator((d: {id: string; fresh?: boolean}) => d)
+  .validator((d: {id: string}) => d)
   .handler(async ({data}) => {
     // The plugin's own lookup (its useTranslationMetadata).
-    const metas = await groq<Metadata[]>('*[_type == $type && $id in translations[].value._ref]', {type: METADATA_TYPE, id: data.id}, 'published', !!data.fresh)
+    const metas = await groq<Metadata[]>('*[_type == $type && $id in translations[].value._ref]', {type: METADATA_TYPE, id: data.id}, 'published')
     const ids = [...new Set(metas.flatMap((m) => membersOf(m).map((x) => x.id)))]
     // A member deleted from outside (the API, another studio) leaves its entry behind: only
     // the ones that still exist, as a draft or published, are translations.
-    const found = ids.length ? await groq<{_id: string}[]>('*[_id in $ids]{_id}', {ids: ids.flatMap((id) => [id, `drafts.${id}`])}, 'raw', !!data.fresh) : []
+    const found = ids.length ? await groq<{_id: string}[]>('*[_id in $ids]{_id}', {ids: ids.flatMap((id) => [id, `drafts.${id}`])}, 'raw') : []
     return {metas, alive: [...new Set(found.map((d) => d._id.replace(/^drafts\./, '')))]} as unknown as Json
   })
 
-const readGroup = async (id: string, fresh = false) => (await fetchGroup({data: {id, fresh}})) as unknown as Group
+const readGroup = async (id: string) => (await fetchGroup({data: {id}})) as unknown as Group
 
 /** The translation group of `id`, kept live by the menu (a metadata or member frame reads it again, lib/live.ts). */
 export const groupQuery = (id: string) => queryOptions({queryKey: ['translations', id], staleTime: 10_000, queryFn: () => readGroup(id)})
@@ -65,7 +68,7 @@ export async function createTranslation(qc: QueryClient, source: Doc, config: Tr
   const from = languageOf(now, config)
   if (!from || !now._rev) throw new Error('Choose a language for this document first')
   for (let attempt = 0; attempt < TRIES; attempt++) {
-    let group = await readGroup(id, true)
+    let group = await readGroup(id)
     let meta = groupOf(group.metas, id)
     if (!meta) {
       // No group yet: start it at this document, under the id every browser derives. Should
@@ -74,7 +77,7 @@ export async function createTranslation(qc: QueryClient, source: Doc, config: Tr
         await mutate({data: {mutations: seedMutations(metaId, id, from, now._type, key())}}).catch((err) => {
           if (!lostRace((err as Error).message)) throw err
         })
-        group = await readGroup(id, true)
+        group = await readGroup(id)
         meta = groupOf(group.metas, id)
         if (meta) break
       }
@@ -102,7 +105,7 @@ export async function createTranslation(qc: QueryClient, source: Doc, config: Tr
 export async function unlinkTranslation(qc: QueryClient, id: string): Promise<boolean> {
   let removed = false
   for (let attempt = 0; attempt < TRIES; attempt++) {
-    const {metas} = await readGroup(id, true)
+    const {metas} = await readGroup(id)
     const writes = metas.flatMap((m) => unlinkMutations(m, id) ?? [])
     if (!writes.length) break
     try {
