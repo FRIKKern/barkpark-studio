@@ -65,6 +65,21 @@ export function mapCaret(before: string, after: string, pos: number): number {
 const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
 const keyOf = (x: unknown) => (x && typeof x === 'object' && typeof (x as {_key?: unknown})._key === 'string' ? (x as {_key: string})._key : null)
 
+// Where a Portable Text table holds its items (lib/pt-table.ts): rows of cells of blocks.
+const NESTED: Record<string, string> = {table: 'rows', row: 'cells', cell: 'value'}
+/**
+ * A table (a row, a cell) both editors changed: its own list merged the same way, so one
+ * editor's new row or column keeps the other's words in the cells it did not touch. Null
+ * for anything else (the caller keeps ours).
+ */
+function nested(base: unknown, mine: unknown, theirs: unknown): unknown {
+  const of = (x: unknown, field: string) => (x && typeof x === 'object' && Array.isArray((x as Record<string, unknown>)[field]) ? ((x as Record<string, unknown>)[field] as unknown[]) : null)
+  const field = mine && typeof mine === 'object' ? NESTED[String((mine as {_type?: unknown})._type)] : undefined
+  const [b, m, t] = field ? [of(base, field), of(mine, field), of(theirs, field)] : []
+  const list = b && m && t ? mergeList3(b, m, t) : null
+  return list ? {...(mine as object), [field!]: list} : null
+}
+
 /**
  * Three-way merge of a list (live editing): my edits since `base`, applied onto `theirs`,
  * so another editor's reorder, add or remove is kept while I edit an item. Sanity patches
@@ -77,7 +92,7 @@ const keyOf = (x: unknown) => (x && typeof x === 'object' && typeof (x as {_key?
 export function mergeList3(base: unknown[], mine: unknown[], theirs: unknown[]): unknown[] | null {
   if (same(mine, base) || same(theirs, mine)) return theirs
   if (same(theirs, base)) return mine
-  const item = (b: unknown, m: unknown, t: unknown) => (typeof b === 'string' && typeof m === 'string' && typeof t === 'string' ? merge3(b, m, t) ?? m : same(t, b) ? m : same(m, b) ? t : m)
+  const item = (b: unknown, m: unknown, t: unknown) => (typeof b === 'string' && typeof m === 'string' && typeof t === 'string' ? merge3(b, m, t) ?? m : same(t, b) ? m : same(m, b) ? t : nested(b, m, t) ?? m)
   const keyed = [base, mine, theirs].every((xs) => xs.every((x) => keyOf(x) !== null))
   if (keyed) {
     const baseBy = new Map(base.map((x) => [keyOf(x)!, x]))

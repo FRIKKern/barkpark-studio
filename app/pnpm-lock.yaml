@@ -42,6 +42,9 @@ importers:
       '@portabletext/plugin-paste-link':
         specifier: 5.0.16
         version: 5.0.16(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+      '@portabletext/plugin-table':
+        specifier: 2.0.18
+        version: 2.0.18(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@portabletext/plugin-typography':
         specifier: 9.0.17
         version: 9.0.17(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
@@ -356,6 +359,15 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@floating-ui/core@1.8.0':
+    resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
+
+  '@floating-ui/dom@1.8.0':
+    resolution: {integrity: sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg==}
+
+  '@floating-ui/utils@0.2.12':
+    resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
   '@fontsource-variable/inter@5.3.0':
     resolution: {integrity: sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==}
 
@@ -454,6 +466,14 @@ packages:
     peerDependencies:
       '@portabletext/editor': ^8.2.3
       react: ^19.2
+
+  '@portabletext/plugin-table@2.0.18':
+    resolution: {integrity: sha512-OLau2PGiDkjGDt9qnsVcGpQ3cebB2X5T7gUSCySepiGPe3FnA8MUBpzfex784IH1zuJ0xs5lOcXXhb1UesqTfg==}
+    engines: {node: '>=22.12'}
+    peerDependencies:
+      '@portabletext/editor': ^8.2.5
+      react: ^19.2
+      react-dom: ^19.2
 
   '@portabletext/plugin-typography@9.0.17':
     resolution: {integrity: sha512-5RERtyv4JyW0xntI7SCP2Clo7FrlXGaOxBLFkVoyndaBB/w5JpNd/wzPjqp6Xv84Wsd5XDuhDPZkF5TZyb1HQQ==}
@@ -1858,6 +1878,17 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
+  '@floating-ui/core@1.8.0':
+    dependencies:
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/dom@1.8.0':
+    dependencies:
+      '@floating-ui/core': 1.8.0
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/utils@0.2.12': {}
+
   '@fontsource-variable/inter@5.3.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
@@ -1973,6 +2004,14 @@ snapshots:
     dependencies:
       '@portabletext/editor': 8.2.5(@types/react@19.3.0)(react@19.3.0)
       react: 19.3.0
+
+  '@portabletext/plugin-table@2.0.18(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@portabletext/editor': 8.2.5(@types/react@19.3.0)(react@19.3.0)
+      '@portabletext/keyboard-shortcuts': 3.0.0
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   '@portabletext/plugin-typography@9.0.17(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)':
     dependencies:

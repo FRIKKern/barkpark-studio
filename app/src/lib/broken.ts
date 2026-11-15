@@ -1,5 +1,6 @@
 import type {Field, Schema} from './data'
 import {sanityImageId} from './image.ts'
+import {isTable, tableText} from './pt-table.ts'
 
 // J39, broken values: what another client can write that the schema doesn't allow,
 // found before an input draws it (Sanity's InvalidValueInput, the array "Missing
@@ -131,10 +132,13 @@ export function sanityPortableText(field: Field, value: unknown): SanityPortable
   const items = value.filter((b): b is Record<string, unknown> => !!b && typeof b === 'object' && !Array.isArray(b))
   if (!items.some((b) => b._type === 'block' && Array.isArray(b.children))) return null
   return {
-    lines: items.map((b) =>
+    lines: items.flatMap((b) =>
       b._type === 'block'
-        ? {style: typeof b.listItem === 'string' ? 'listItem' : typeof b.style === 'string' ? b.style : 'normal', text: Array.isArray(b.children) ? b.children.map((c) => (c && typeof c === 'object' && typeof (c as {text?: unknown}).text === 'string' ? (c as {text: string}).text : '')).join('') : ''}
-        : {style: 'object', text: String(b._type ?? '')},
+        ? [{style: typeof b.listItem === 'string' ? 'listItem' : typeof b.style === 'string' ? b.style : 'normal', text: Array.isArray(b.children) ? b.children.map((c) => (c && typeof c === 'object' && typeof (c as {text?: unknown}).text === 'string' ? (c as {text: string}).text : '')).join('') : ''}]
+        : isTable(b)
+          ? // A table (lib/pt-table.ts): a line a row, its cells' words.
+            tableText(b).split('\n').map((row) => ({style: 'normal', text: row.replace(/\t/g, '   ')}))
+          : [{style: 'object', text: String(b._type ?? '')}],
     ),
   }
 }

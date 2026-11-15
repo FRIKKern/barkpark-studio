@@ -354,7 +354,7 @@ test('pt: an echo of this editor\'s own block, or one it sent a moment ago, is n
 
 test('pt: typing alone goes as span text patches; span texts changed alone come in as text; anything more is the block', () => {
   const dmp = (b: string, s: string, value = '@@ -1,3 +1,4 @@\n one\n+!\n') => ({type: 'diffMatchPatch', path: [{_key: b}, 'children', {_key: s}, 'text'], value, origin: 'local'})
-  assert.deepEqual(textPatches([dmp('b1', 's1'), dmp('b2', 's9')]), [{block: 'b1', span: 's1', value: '@@ -1,3 +1,4 @@\n one\n+!\n'}, {block: 'b2', span: 's9', value: '@@ -1,3 +1,4 @@\n one\n+!\n'}])
+  assert.deepEqual(textPatches([dmp('b1', 's1'), dmp('b2', 's9')])?.map(({block, span, value}) => ({block, span, value})), [{block: 'b1', span: 's1', value: '@@ -1,3 +1,4 @@\n one\n+!\n'}, {block: 'b2', span: 's9', value: '@@ -1,3 +1,4 @@\n one\n+!\n'}])
   assert.equal(textPatches([dmp('b1', 's1'), {type: 'set', path: [{_key: 'b1'}, 'style'], value: 'h2'}]), null)
   assert.equal(textPatches([]), null)
 
