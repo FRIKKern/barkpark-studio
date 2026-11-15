@@ -97,7 +97,7 @@ jobs:
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
-        run: node --env-file=../.env node_modules/@playwright/test/cli.js test $(node ../scripts/shard-files.mjs ${{ matrix.shard }} 7) --project=studio
+        run: node --env-file=../.env node_modules/@playwright/test/cli.js test $(node ../scripts/shard-files.mjs ${{ matrix.shard }} ${{ strategy.job-total }}) --project=studio
       - if: always()
         uses: actions/upload-artifact@v4
         with:
