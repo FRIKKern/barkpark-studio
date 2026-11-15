@@ -271,13 +271,13 @@ function useTreeTitles(): Titles {
  * Then adding asks the type (Sanity's insert menu) and an item shows its type's fields
  * only. Barkpark's LiveView ignores these options and shows the select and every field.
  */
-type Typing = {field: string; types: {value: string; title: string}[]; fieldsByType: Record<string, string[]>}
+type Typing = {field: string; types: {value: string; title: string; icon?: {icon: string; iconSvg?: string}}[]; fieldsByType: Record<string, string[]>}
 function memberTypes(of: Field): Typing | undefined {
   const o = (Array.isArray(of.options) ? undefined : of.options) as {typeField?: string; fieldsByType?: Record<string, string[]>} | undefined
   const select = of.fields?.find((f) => f.name === o?.typeField)
-  const list = select && Array.isArray(select.options) ? (select.options as {value: string; title?: string}[]) : undefined
+  const list = select && Array.isArray(select.options) ? (select.options as {value: string; title?: string; icon?: string; iconSvg?: string}[]) : undefined
   if (!o?.typeField || !o.fieldsByType || !list) return undefined
-  return {field: o.typeField, types: list.map((t) => ({value: t.value, title: t.title ?? t.value})), fieldsByType: o.fieldsByType}
+  return {field: o.typeField, types: list.map((t) => ({value: t.value, title: t.title ?? t.value, ...(t.icon ? {icon: {icon: t.icon, iconSvg: t.iconSvg}} : {})})), fieldsByType: o.fieldsByType}
 }
 
 /** The fields an item shows: its type's, without the type select; all of them when it has no type. */
