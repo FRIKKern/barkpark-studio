@@ -41,7 +41,7 @@ It took several rounds of review by reviewers who had not written the code. Each
 
 ## How Barkpark helped
 
-Barkpark counts positions in bytes, and æ, ø, å and emoji take more than one byte. When the other person had typed one of those before your place, a patch could point into the middle of a letter, and Barkpark refused it: 7 of 328 patches in the ten-minute run. Studio fell back to sending the whole paragraph, so nothing was lost, but it was slower.
+Barkpark counts positions in bytes, and æ, ø, å and emoji take more than one byte. When the other person had typed one of those before your place, a patch could point into the middle of a letter, and Barkpark refused it: 7 of 328 patches in the ten-minute run. Studio fell back to sending the whole paragraph, so nothing was lost.
 
 Barkpark fixed it the same day: a patch that lands inside a letter is now placed by the words around it instead of being refused.
 
