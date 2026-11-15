@@ -1,0 +1,95 @@
+/* The Dashboard tool (components/Dashboard.tsx, Sanity's @sanity/dashboard): a grid of
+   widgets, four columns wide, two on a tablet, one on a phone. Its own file: styles.css is
+   long enough. Colours are the studio's tokens, so dark mode follows. */
+.dashboard { height: calc(100vh - var(--nav-h)); overflow-y: auto; padding: 16px; background: var(--bg-soft); font-size: 13px; line-height: 19px; color: var(--fg); }
+.dash-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; max-width: 1680px; margin: 0 auto; }
+.dash-none { margin: 64px auto; text-align: center; }
+
+/* Sanity's layout widths: small one column, medium two, large three, full the row. */
+.dash-widget { grid-column: span 1; min-width: 0; display: flex; flex-direction: column; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); }
+.dash-widget[data-width='medium'] { grid-column: span 2; }
+.dash-widget[data-width='large'] { grid-column: span 3; }
+.dash-widget[data-width='full'] { grid-column: 1 / -1; }
+@media (max-width: 1199px) {
+  .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dash-widget[data-width='medium'] { grid-column: span 1; }
+  .dash-widget:is([data-width='large'], [data-width='full']) { grid-column: 1 / -1; }
+}
+/* A phone (J46): one column, every widget the row. */
+@media (max-width: 767px) {
+  .dashboard { padding: 12px; }
+  .dash-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .dash-widget, .dash-widget[data-width] { grid-column: 1 / -1; }
+  /* One column is a long scroll: an empty widget keeps three rows of room, not its whole list's. */
+  .dash-body { min-height: calc(min(var(--rows, 2), 3) * 53px + 8px); }
+}
+
+.dash-widget > header { display: flex; align-items: center; gap: 8px; min-height: 45px; padding: 10px 10px 6px 16px; }
+.dash-widget > header h2 { flex: 1; min-width: 0; margin: 0; font-size: 13px; line-height: 19px; font-weight: 600; color: var(--fg-header); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-note { margin: -4px 16px 6px; font-size: 12px; line-height: 17px; color: var(--muted); }
+.dash-refresh[data-busy] > svg { animation: spin 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .dash-refresh[data-busy] > svg { animation: none; opacity: 0.5; } }
+
+/* The body keeps the room its rows will take (--rows of 53 px: a preview row and its gap),
+   so loading, empty and loaded are one height and nothing below it moves. */
+.dash-body { flex: 1; min-height: calc(var(--rows, 2) * 53px + 8px); padding: 4px 8px; display: flex; flex-direction: column; }
+.dash-rows { list-style: none; margin: 0; padding: 0; }
+.dash-rows .preview { margin-bottom: 4px; }
+.dash-rows .preview .p-avatars { flex: none; }
+.dash-when { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dash-skeleton .preview { margin-bottom: 4px; }
+
+.dash-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 16px; text-align: center; }
+.dash-empty p { margin: 0; max-width: 280px; }
+.dash-empty p:first-child { font-weight: 500; color: var(--fg-strong); }
+.dash-error { flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; padding: 12px 8px; overflow-wrap: anywhere; }
+.dash-error strong { font-weight: 600; color: var(--fg-strong); }
+.dash-retry { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 3px 10px 3px 4px; box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); }
+.dash-retry > svg { width: 21px; height: 21px; }
+
+.dash-widget > footer { display: flex; padding: 4px; border-top: 1px solid var(--border); }
+.dash-widget > footer .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 33px; padding: 4px 12px; text-decoration: none; }
+.dash-widget > footer .btn > svg { width: 21px; height: 21px; color: var(--icon-muted); }
+.dash-widget > footer .btn:disabled > svg { color: inherit; }
+.dash-count { padding: 7px 12px; font-size: 12px; }
+
+/* My tasks: a row is the task's title over its document and deadline. */
+.dash-task { display: flex; flex-direction: column; justify-content: center; gap: 0; width: 100%; min-height: 49px; margin-bottom: 4px; padding: 5px 8px; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.dash-task:hover { background: var(--card-hover); }
+.dash-task-title { max-width: 100%; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-task-meta { display: flex; align-items: center; gap: 8px; max-width: 100%; font-size: 12px; line-height: 17px; }
+.dash-task-target { display: inline-flex; align-items: center; gap: 2px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-task-target > svg { flex: none; width: 15px; height: 15px; }
+.dash-due { flex: none; white-space: nowrap; }
+.dash-due:is([data-due='overdue'], [data-due='today']) { color: var(--danger-text); font-weight: 500; }
+
+/* A schedule whose document is gone: its id and its time. */
+.dash-gone-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 5px 8px; border-radius: 3px; }
+.dash-gone-row:hover { background: var(--card-hover); }
+.dash-gone-row > .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Members: an avatar with a dot on who is here now. */
+.dash-member { display: flex; align-items: center; gap: 10px; min-height: 45px; padding: 4px 8px; }
+.dash-avatar { position: relative; flex: none; display: inline-flex; }
+.dash-avatar .p-avatar { width: 29px; height: 29px; font-size: 11px; box-shadow: none; }
+.dash-online { position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; background: var(--published); box-shadow: 0 0 0 2px var(--bg); }
+.dash-member-text { min-width: 0; display: flex; flex-direction: column; }
+.dash-member-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-member-email { font-size: 12px; line-height: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-member-more { padding: 4px 8px 8px; font-size: 12px; }
+
+.dash-info { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; margin: 0; padding: 4px 8px 12px; }
+.dash-info dt { color: var(--muted); }
+.dash-info dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+
+/* A custom widget's own words (the studio config's) get the card's padding. */
+.dash-custom { padding: 4px 8px 12px; }
+.dash-custom :is(p, ul, ol) { margin: 0 0 8px; }
+.dash-custom ul { padding-left: 18px; }
+
+/* J46: a finger gets a 44 px target. */
+@media (max-width: 768px) and (pointer: coarse) {
+  .dash-widget > header .icon-btn { width: 44px; height: 44px; margin: -6px -4px -6px 0; }
+  .dash-widget > footer .btn { min-height: 44px; }
+  .dash-retry { min-height: 44px; }
+}

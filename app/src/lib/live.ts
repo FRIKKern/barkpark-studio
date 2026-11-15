@@ -4,7 +4,11 @@ import type {Doc} from './data'
 import {applyServer} from './edits'
 import {listenTo, onStream, position} from './stream'
 
-type Frame = {documentId: string; type: string; mutation: string; result: Doc | null}
+export type Frame = {documentId: string; type: string; mutation: string; result: Doc | null}
+
+// The Dashboard's widgets (components/Dashboard.tsx) put each frame into their rows themselves, after the cache has it.
+const frameListeners = new Set<(f: Frame) => void>()
+export const onDocFrame = (cb: (f: Frame) => void) => (frameListeners.add(cb), () => void frameListeners.delete(cb))
 
 /**
  * Keep open panes live: the docs and list types on screen, on the tab's one stream (lib/stream.ts).
@@ -32,7 +36,7 @@ let heardBy: QueryClient | null = null
 function hear(qc: QueryClient) {
   if (heardBy === qc) return
   heardBy = qc
-  onStream('mutation', (e) => onFrame(qc, e))
+  onStream('mutation', (e) => (onFrame(qc, e), frameListeners.size && frameListeners.forEach((cb) => cb(JSON.parse(e.data) as Frame))))
   // The server lost track of where we were: refetch what is on screen.
   onStream('reset', () => void qc.invalidateQueries())
   onStream('welcome', (e) => {

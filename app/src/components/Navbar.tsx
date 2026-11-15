@@ -456,6 +456,8 @@ function Editor() {
 // `navbarTools` (names, in order) picks and orders them for one deployment; hidden tools' routes still work.
 const ALL_TOOLS: (readonly [string, string])[] = [
   ['/structure', 'Structure'],
+  // The Dashboard (Sanity's @sanity/dashboard) when the config has one; Structure stays first and the tool `/` opens.
+  ...(studio.dashboard ? [['/dashboard', 'Dashboard'] as const] : []),
   ...(studio.presentation ? [['/presentation', 'Presentation'] as const] : []),
   ['/vision', 'Vision'],
   ['/media', 'Media'],
