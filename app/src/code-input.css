@@ -14,7 +14,8 @@
 .code-box .cm-scroller { min-height: 144px; }
 .code-editor { min-width: 0; }
 .code-rest, .code-static { margin: 0; padding: 8px 12px; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--input-fg); white-space: pre; overflow: auto; tab-size: 4; }
-.code-box .code-rest { min-height: 144px; max-height: 420px; box-sizing: border-box; padding-left: 61px; }
+/* Until the input's chunk lands: the code as plain text, in a box the editor's size. */
+.code-rest[data-loading] { min-height: 144px; max-height: 420px; box-sizing: border-box; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); }
 .code-static { padding: 8px 0; max-height: 320px; }
 .code-static .code-line { display: block; padding: 0 12px; min-width: max-content; }
 .code-static .cm-code-highlight { background: var(--code-highlight-line); }
@@ -51,3 +52,5 @@
 .code-diff-row > del, .code-diff-row > ins, .code-diff-row > span:last-child { flex: 1; padding: 0 8px; border-radius: 0; }
 .code-diff-no { flex: none; width: 30px; padding-right: 6px; text-align: right; color: var(--muted); user-select: none; }
 .code-diff-skip { padding: 2px 8px; color: var(--muted); background: var(--bg-soft); font-family: inherit; }
+/* The line numbers' column runs the editor's whole height, an empty one's too. */
+.code-box .cm-content, .code-box .cm-gutter { min-height: 144px; box-sizing: border-box; }

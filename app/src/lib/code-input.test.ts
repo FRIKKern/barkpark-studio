@@ -1,6 +1,8 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {changeBetween, CODE_LANGUAGES, codeDiffRows, codeLanguage, codeOf, codePreview, codeWrites, isCodeBlock, isCodeField, moveHighlights, toggleLine, withCodeChange} from './code-input.ts'
+import {CODE_LANGUAGES, codeLanguage, codeOf, codePreview, codeWrites, isCodeBlock, isCodeField, withCodeChange} from './code-input.ts'
+import {changeBetween, moveHighlights, toggleLine} from './code-lines.ts'
+import {codeDiffRows} from './code-diff.ts'
 
 // The code field (Sanity's @sanity/code-input): its stored shape, languages, highlighted lines, preview and diff.
 

@@ -7,8 +7,9 @@ import type {Field} from './data'
 // Barkpark refuses an unknown field type, so the schema says it as a named object: a
 // composite whose `namedType` is "code" (Barkpark stamps the same on a field of a
 // registered object type named `code`), with the plugin's `options`. This file is the pure
-// part: the shape, the languages, what a change writes, the highlighted lines, the preview
-// and the diff. The editor is components/CodeInput.tsx.
+// part every page may read: the shape, the languages, what a change writes and the preview.
+// The highlighted lines are lib/code-lines.ts (with the editor's chunk), Review changes' rows
+// lib/code-diff.ts; the input is components/CodeInput.tsx.
 
 export type CodeValue = {_type?: string; _key?: string; language?: string; filename?: string; code?: string; highlightedLines?: number[]}
 export type CodeLanguage = {title: string; value: string; mode?: string}
@@ -128,83 +129,6 @@ export function withCodeChange(value: CodeValue | undefined, change: CodeChange,
   return next as CodeValue
 }
 
-/** A click on a line number: the line highlighted or not, the list kept in line order. */
-export function toggleLine(lines: number[], line: number): number[] {
-  return lines.includes(line) ? lines.filter((n) => n !== line) : [...lines, line].sort((a, b) => a - b)
-}
-
-/** One replaced range of the text before an edit: [from, to) became `insert` characters. */
-export type TextChange = {from: number; to: number; insert: number}
-
-/** The one range that turns `before` into `after` (what is left between their common start and end). */
-export function changeBetween(before: string, after: string): TextChange | null {
-  if (before === after) return null
-  let start = 0
-  const max = Math.min(before.length, after.length)
-  while (start < max && before.charCodeAt(start) === after.charCodeAt(start)) start++
-  let end = 0
-  while (end < max - start && before.charCodeAt(before.length - 1 - end) === after.charCodeAt(after.length - 1 - end)) end++
-  return {from: start, to: before.length - end, insert: after.length - end - start}
-}
-
-/**
- * The highlighted lines after an edit, as the plugin moves them: a highlight follows its
- * line's content (a line added above pushes it down, one removed above pulls it up, a line
- * break typed at its start takes it along), and goes only when its line is deleted (its
- * content and one of its line breaks). `changes` are in the order of the text, not
- * overlapping, in `before`'s offsets.
- */
-export function moveHighlights(lines: number[], before: string, changes: TextChange[], after: string): number[] {
-  if (!lines.length || !changes.length) return lines
-  const starts = lineStarts(before)
-  const afterStarts = lineStarts(after)
-  // Where an offset of `before` lands in `after`, past text inserted at it.
-  const mapPos = (pos: number) => {
-    let shift = 0
-    for (const c of changes) {
-      if (c.from > pos) break
-      // Inside what was replaced: the end of what replaced it.
-      if (pos < c.to) return c.from + shift + c.insert
-      shift += c.insert - (c.to - c.from)
-    }
-    return pos + shift
-  }
-  // The plugin's isRemoved: every character of [from, to) is inside a changed range.
-  const removed = (from: number, to: number) => {
-    let pos = from
-    for (const c of changes) if (c.from <= pos && c.to > pos) pos = c.to
-    return pos >= to
-  }
-  const out: number[] = []
-  for (const n of lines) {
-    if (n > starts.length) continue
-    const from = starts[n - 1]!
-    const to = n < starts.length ? starts[n]! - 1 : before.length
-    const breakGone = (from > 0 && removed(from - 1, from)) || (to < before.length && removed(to, to + 1))
-    if (breakGone && removed(from, to)) continue
-    const line = lineAt(afterStarts, Math.min(mapPos(from), after.length))
-    if (out.at(-1) !== line) out.push(line)
-  }
-  return out
-}
-
-const lineStarts = (text: string) => {
-  const out = [0]
-  for (let i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) out.push(i + 1)
-  return out
-}
-/** The 1-based line an offset is on. */
-function lineAt(starts: number[], pos: number): number {
-  let lo = 0
-  let hi = starts.length - 1
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1
-    if (starts[mid]! <= pos) lo = mid
-    else hi = mid - 1
-  }
-  return lo + 1
-}
-
 /** A language's title for a row or a card: the declared or the plugin's, else its value as stored. */
 export const languageTitle = (language: string | undefined, options: CodeOptions = {}): string | undefined =>
   language ? (codeLanguages(options).find((l) => l.value === language) ?? CODE_LANGUAGES.find((l) => l.value === (ALIASES[language] ?? language)))?.title ?? language : undefined
@@ -222,54 +146,4 @@ export function codePreview(value: unknown, options: CodeOptions = {}): {title: 
   const line = first.length > 80 ? `${first.slice(0, 79)}…` : first
   const rest = [filename, language].filter((x): x is string => !!x)
   return line ? {title: line, subtitle: rest.join(' · ')} : {title: rest[0] ?? '', subtitle: rest.slice(1).join(' · ')}
-}
-
-export type CodeDiffRow = {kind: 'same' | 'removed' | 'added'; text: string; was?: number; now?: number} | {kind: 'skip'; count: number}
-/**
- * Two versions of code as rows, line by line: a removed line with its old number, an added
- * one with its new, and `context` unchanged lines around each change (the rest folded into
- * a skip row). Lines are matched by their longest common run; beyond `limit` cells of work
- * the changed middle is shown as removed then added.
- */
-export function codeDiffRows(before: string, after: string, context = 2, limit = 4_000_000): CodeDiffRow[] {
-  const a = before === '' ? [] : before.split('\n')
-  const b = after === '' ? [] : after.split('\n')
-  let head = 0
-  while (head < a.length && head < b.length && a[head] === b[head]) head++
-  let tail = 0
-  while (tail < a.length - head && tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) tail++
-  const [n, m] = [a.length - head - tail, b.length - head - tail]
-  const rows: Exclude<CodeDiffRow, {kind: 'skip'}>[] = []
-  for (let i = 0; i < head; i++) rows.push({kind: 'same', text: a[i]!, was: i + 1, now: i + 1})
-  if (n * m > limit) {
-    for (let i = 0; i < n; i++) rows.push({kind: 'removed', text: a[head + i]!, was: head + i + 1})
-    for (let j = 0; j < m; j++) rows.push({kind: 'added', text: b[head + j]!, now: head + j + 1})
-  } else {
-    // Longest common subsequence of the changed middle, from the end, so a walk from the start reads it.
-    const width = m + 1
-    const table = new Uint32Array((n + 1) * width)
-    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) table[i * width + j] = a[head + i] === b[head + j] ? table[(i + 1) * width + j + 1]! + 1 : Math.max(table[(i + 1) * width + j]!, table[i * width + j + 1]!)
-    let [i, j] = [0, 0]
-    while (i < n || j < m) {
-      if (i < n && j < m && a[head + i] === b[head + j]) rows.push({kind: 'same', text: a[head + i]!, was: head + ++i, now: head + ++j})
-      else if (i < n && (j >= m || table[(i + 1) * width + j]! >= table[i * width + j + 1]!)) rows.push({kind: 'removed', text: a[head + i]!, was: head + ++i})
-      else rows.push({kind: 'added', text: b[head + j]!, now: head + ++j})
-    }
-  }
-  for (let k = 0; k < tail; k++) rows.push({kind: 'same', text: a[a.length - tail + k]!, was: a.length - tail + k + 1, now: b.length - tail + k + 1})
-  // Unchanged lines further than `context` from a change fold away.
-  const near = new Uint8Array(rows.length)
-  rows.forEach((r, at) => {
-    if (r.kind !== 'same') for (let k = Math.max(0, at - context); k <= Math.min(rows.length - 1, at + context); k++) near[k] = 1
-  })
-  const out: CodeDiffRow[] = []
-  for (let at = 0; at < rows.length; at++) {
-    if (near[at]) out.push(rows[at]!)
-    else {
-      const last = out.at(-1)
-      if (last?.kind === 'skip') last.count++
-      else out.push({kind: 'skip', count: 1})
-    }
-  }
-  return out
 }

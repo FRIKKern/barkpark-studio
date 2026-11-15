@@ -5,7 +5,8 @@ import {defaultKeymap, history, historyKeymap, indentWithTab} from '@codemirror/
 import {bracketMatching, indentOnInput, Language, LanguageSupport, StreamLanguage, syntaxHighlighting} from '@codemirror/language'
 import {classHighlighter, highlightCode} from '@lezer/highlight'
 import {autoClose, groq} from './VisionEditor'
-import {changeBetween, moveHighlights, toggleLine, type CodeMode, type TextChange} from '../lib/code-input'
+import type {CodeMode} from '../lib/code-input'
+import {changeBetween, moveHighlights, toggleLine, type TextChange} from '../lib/code-lines'
 
 // The code field's editor (lib/code-input.ts): CodeMirror 6, as Vision's (VisionEditor.tsx),
 // in its own chunk, fetched with the first code field or code block a form shows. Each

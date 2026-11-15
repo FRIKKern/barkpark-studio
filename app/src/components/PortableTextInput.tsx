@@ -32,7 +32,7 @@ import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches,
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
-import {CodeCard, codeCardLine} from './CodeInput'
+import {CodeCard, codeCardLine} from './CodeCard'
 import type {CodeOptions} from '../lib/code-input'
 import {EditPathContext, ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {DocIdContext} from './doc-ids'
@@ -857,8 +857,13 @@ function ObjectDialog({id, edit, field, stored, schemas, openRef, onClose}: {id:
           : objectFields(field, kind, node._type, stored, schemas),
     [image, code && JSON.stringify(code), title, field, kind, node._type, stored, schemas],
   )
-  const {_key: _k, ...own} = node
-  const request: BlockObjectRequest = {type: node._type, title, inline: kind === 'inline', fields, value: (image ? {type: 'image', image: own} : code ? {type: 'code', code: own} : node) as unknown as BlockObjectRequest['value'], error: null}
+  // Steady while the dialog is open: a new request has the dialog focus its first field again,
+  // which took the caret out of the code editor mid-word whenever this input re-rendered.
+  const isCode = !!code
+  const request = useMemo((): BlockObjectRequest => {
+    const {_key: _k, ...own} = node
+    return {type: node._type, title, inline: kind === 'inline', fields, value: (image ? {type: 'image', image: own} : isCode ? {type: 'code', code: own} : node) as unknown as BlockObjectRequest['value'], error: null}
+  }, [node, title, kind, fields, image, isCode])
   const done = (value: Record<string, unknown> | null) => {
     onClose()
     if (value) {

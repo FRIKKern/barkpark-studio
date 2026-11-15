@@ -23,7 +23,7 @@ import {isObjectMembers, isReferenceMembers, membersOf, mergedReference} from '.
 import {RefArrayInput} from './RefArrayInput'
 import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {CodelistInput} from './CodelistInput'
-import {CodeField} from './CodeInput'
+import {CodeField} from './CodeField'
 import {isCodeField} from '../lib/code-input'
 import {FieldComments} from './Comments'
 import {useStaticCommentHighlights} from './InlineComments'
