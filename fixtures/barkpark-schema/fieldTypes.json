@@ -378,6 +378,42 @@
           "exif"
         ]
       }
+    },
+    {
+      "name": "snippet",
+      "title": "Snippet",
+      "type": "composite",
+      "namedType": "code",
+      "description": "A code field, as Sanity's @sanity/code-input stores it.",
+      "options": {
+        "language": "typescript",
+        "withFilename": true
+      },
+      "fields": [
+        {
+          "name": "language",
+          "title": "Language",
+          "type": "string"
+        },
+        {
+          "name": "filename",
+          "title": "Filename",
+          "type": "string"
+        },
+        {
+          "name": "code",
+          "title": "Code",
+          "type": "text"
+        },
+        {
+          "name": "highlightedLines",
+          "title": "Highlighted lines",
+          "type": "arrayOf",
+          "of": {
+            "type": "number"
+          }
+        }
+      ]
     }
   ]
 }

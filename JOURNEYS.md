@@ -116,7 +116,7 @@ What editors use in Barkpark's own LiveView Studio today, beyond Sanity. Side tr
 | B01 | 1 | Norwegian (nb-NO) Studio UI, chosen per workspace: every word an editor sees or hears, relative times, the untitled placeholder and Barkpark's own copy included | F10 |
 | B02 | 1 | Switch workspace / project / dataset; the URL carries it | F2 |
 | B03 | 1 | Select several list rows → bulk publish / unpublish | F5 F9 |
-| B04 | 2 | Every Barkpark field type renders sanely: color picker, read-only JSON/source, numeric keyboard; never "[object Object]" | F9 F10 |
+| B04 | 2 | Every Barkpark field type renders sanely: color picker, read-only JSON/source, numeric keyboard; never "[object Object]". A code field (Sanity's code-input) is a code editor: language, filename, highlighted lines; also a Portable Text block | F9 F10 |
 | B05 | 2 | Codelist fields (flat and tree): searchable code picker | F2 F5 |
 | B06 | 2 | localizedText: language tabs per field | F1 F5 |
 | B07 | 2 | Unpublish a doc others reference → guard lists them | F9 |

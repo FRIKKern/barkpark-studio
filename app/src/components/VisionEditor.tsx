@@ -30,7 +30,7 @@ const barkparkQuery = StreamLanguage.define<{part: 'type' | 'key' | 'value'}>({
 
 /** GROQ, coloured as Sanity's Vision colours it (measured at 1440, light and dark): fields, strings,
  * constants (`*`, numbers, true, `,` and `:`), operators and `asc`/`desc`, functions, brackets, comments. */
-const groq = StreamLanguage.define<null>({
+export const groq = StreamLanguage.define<null>({
   startState: () => null,
   token(stream) {
     if (stream.eatSpace()) return null
