@@ -115,15 +115,22 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     [id],
   )
   const cellAt = (row: number, column: number) => root.current?.querySelector<HTMLInputElement>(`input[data-row="${row}"][data-column="${column}"]`)
-  /** The caret into a cell, now or once it is drawn (a new row, a row out of a long table's view). */
+  /**
+   * The caret into a cell, now or once it is drawn (a row out of a long table's view). A cell
+   * an edit of this editor's makes (`made`: the row or column count it waits for) is waited
+   * for on the grid itself: the cell at that place now is another one, its text selected, and
+   * the first keys would type over it (or, on the button just pressed, press it again).
+   */
   const focusCell = useCallback(
-    (row: number, column: number, select: 'start' | 'end' | 'all' = 'all') => {
-      let frames = 12
+    (row: number, column: number, select: 'start' | 'end' | 'all' = 'all', made?: {rows?: number; columns?: number}) => {
+      let frames = made ? 60 : 12
+      const drawn = () => !made || ((made.rows === undefined || latest.current.grid.rows.length >= made.rows) && (made.columns === undefined || latest.current.grid.columns >= made.columns))
+      if (!drawn()) win.box.current?.focus({preventScroll: true})
       const go = () => {
-        const el = cellAt(row, column)
+        const el = drawn() ? cellAt(row, column) : null
         if (!el) {
           const box = win.box.current
-          if (box && win.on) box.scrollTop = Math.max(0, row * win.rowH - box.clientHeight / 2)
+          if (box && win.on && drawn()) box.scrollTop = Math.max(0, row * win.rowH - box.clientHeight / 2)
           return void (frames-- > 0 && requestAnimationFrame(go))
         }
         el.focus()
@@ -225,7 +232,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     caret.current = key !== undefined && el.dataset.column !== undefined ? {key, column: Number(el.dataset.column), el: el as HTMLInputElement, at: [(el as HTMLInputElement).selectionStart ?? 0, (el as HTMLInputElement).selectionEnd ?? 0]} : null
   }
 
-  const create = () => (write(createTable(seen.current, rowType, newKey)), focusCell(0, 0))
+  const create = () => (write(createTable(seen.current, rowType, newKey)), focusCell(0, 0, 'all', {rows: 1}))
   const act = (run: () => void) => (setMenu(null), run())
   const open = (m: Menu, el: HTMLElement) => ((anchor.current = el), setMenu(m))
   const closeMenu = useCallback(() => setMenu(null), [])
@@ -250,8 +257,8 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     if (m.kind === 'row')
       return (
         <>
-          {item(t('Insert row above'), () => (write(addRows(seen.current, i, 1, rowType, newKey)), focusCell(i, 0)), {first: true})}
-          {item(t('Insert row below'), () => (write(addRows(seen.current, i + 1, 1, rowType, newKey)), focusCell(i + 1, 0)))}
+          {item(t('Insert row above'), () => (write(addRows(seen.current, i, 1, rowType, newKey)), focusCell(i, 0, 'all', {rows: grid.rows.length + 1})), {first: true})}
+          {item(t('Insert row below'), () => (write(addRows(seen.current, i + 1, 1, rowType, newKey)), focusCell(i + 1, 0, 'all', {rows: grid.rows.length + 1})))}
           <hr />
           {item(t('Move row up'), () => write(moveRow(seen.current, i, i - 1, newKey)), {off: i === 0})}
           {item(t('Move row down'), () => write(moveRow(seen.current, i, i + 1, newKey)), {off: i + 1 >= grid.rows.length})}
@@ -262,8 +269,8 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     if (m.kind === 'column')
       return (
         <>
-          {item(t('Insert column left'), () => (write(addColumns(seen.current, i, 1, newKey)), focusCell(0, i)), {first: true})}
-          {item(t('Insert column right'), () => (write(addColumns(seen.current, i + 1, 1, newKey)), focusCell(0, i + 1)))}
+          {item(t('Insert column left'), () => (write(addColumns(seen.current, i, 1, newKey)), focusCell(0, i, 'all', {columns: grid.columns + 1})), {first: true})}
+          {item(t('Insert column right'), () => (write(addColumns(seen.current, i + 1, 1, newKey)), focusCell(0, i + 1, 'all', {columns: grid.columns + 1})))}
           <hr />
           {item(t('Move column left'), () => write(moveColumn(seen.current, i, i - 1, newKey)), {off: i === 0})}
           {item(t('Move column right'), () => write(moveColumn(seen.current, i, i + 1, newKey)), {off: i + 1 >= grid.columns})}
@@ -320,10 +327,10 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     <div className="table-input" id={id} ref={root}>
       {!shut && (
         <div className="table-bar">
-          <button type="button" className="btn table-add" onClick={() => (write(addRows(seen.current, grid.rows.length, 1, rowType, newKey)), focusCell(grid.rows.length, 0))}>
+          <button type="button" className="btn table-add" onClick={() => (write(addRows(seen.current, grid.rows.length, 1, rowType, newKey)), focusCell(grid.rows.length, 0, 'all', {rows: grid.rows.length + 1}))}>
             <Add /> {t('Add row')}
           </button>
-          <button type="button" className="btn table-add" onClick={() => (write(addColumns(seen.current, grid.columns, 1, newKey)), focusCell(0, grid.columns))}>
+          <button type="button" className="btn table-add" onClick={() => (write(addColumns(seen.current, grid.columns, 1, newKey)), focusCell(0, grid.columns, 'all', {columns: grid.columns + 1}))}>
             <Add /> {t('Add column')}
           </button>
           <span className="menu-wrap">
