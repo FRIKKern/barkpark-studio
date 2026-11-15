@@ -1,4 +1,5 @@
-import {useState, type ReactNode} from 'react'
+import {useRef, useState, type ReactNode} from 'react'
+import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import type {Doc} from '../lib/data'
 import {edit, reasonOf} from '../lib/edits'
@@ -38,6 +39,9 @@ export function TranslationsMenu({doc, config, panes, index, readOnly, reason}: 
   const [busy, setBusy] = useState(false)
   const [managing, setManaging] = useState(false)
   const close = () => setOpen(false)
+  const wrap = useRef<HTMLDivElement>(null)
+  // The dialog was opened from a menu item that is gone by now: focus goes back to the Translations button.
+  const closeManage = () => (setManaging(false), requestAnimationFrame(() => wrap.current?.querySelector<HTMLButtonElement>('.translations-btn')?.focus()))
   const id = doc._publishedId
   const own = languageOf(doc, config)
   const {data: group, isError} = useQuery(groupQuery(id))
@@ -73,7 +77,7 @@ export function TranslationsMenu({doc, config, panes, index, readOnly, reason}: 
   }
 
   return (
-    <div className="menu-wrap translations" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+    <div ref={wrap} className="menu-wrap translations" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
       <button type="button" className="icon-btn translations-btn" aria-label={t('Translations')} data-tip={t('Translations')} aria-haspopup="menu" aria-expanded={open} aria-busy={busy || undefined} onClick={() => setOpen((o) => !o)}>
         <TranslateIcon />
         {own && (
@@ -127,7 +131,8 @@ export function TranslationsMenu({doc, config, panes, index, readOnly, reason}: 
           </button>
         </MenuPopover>
       )}
-      {managing && <ManageTranslations doc={doc} config={config} readOnly={readOnly} reason={reason} hrefOf={(target) => openAfter(panes, index, {kind: 'doc', id: target, type: doc._type})} onClose={() => setManaging(false)} />}
+      {/* Over the whole pane, as the pane's other dialogs: not inside the header's button. */}
+      {managing && createPortal(<ManageTranslations doc={doc} config={config} readOnly={readOnly} reason={reason} hrefOf={(target) => openAfter(panes, index, {kind: 'doc', id: target, type: doc._type})} onClose={closeManage} />, wrap.current?.closest('.pane') ?? document.body)}
     </div>
   )
 }
