@@ -1,6 +1,7 @@
 import type {Doc, Field, Rule, Schema} from './data'
 import {itemPath, refId} from './refs.ts'
 import {isCodeField} from './code-input.ts'
+import {isTableField, tableBlank} from './table-input.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -36,7 +37,8 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   const rules = rulesOf(field)
   const required = rules.find((r) => r.required)
   // A code object with no code in it is empty too (its language alone is not a value).
-  if (required && (blank(value) || (isCodeField(field) && blank((value as {code?: unknown}).code)))) return push(required, t('Required'))
+  // So is a table with no text in any cell.
+  if (required && (blank(value) || (isCodeField(field) && blank((value as {code?: unknown}).code)) || (isTableField(field) && tableBlank(value)))) return push(required, t('Required'))
   if (blank(value)) return
   // A slug's text is its `current` when Sanity-shaped.
   const text = typeof value === 'string' ? value : field.type === 'slug' && typeof (value as {current?: unknown})?.current === 'string' ? (value as {current: string}).current : undefined
@@ -74,7 +76,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // Sanity: an empty row in an array of references is an error on that row.
   if (field.of?.type === 'reference' && Array.isArray(value))
     value.forEach((it, i) => refId(it) || out.push({path: itemPath(path, it, i), title, message: t('Must be a reference to a document'), level: 'error', ...(parents.length ? {parents} : {}), group}))
-  if (field.type === 'composite' && !isCodeField(field))
+  if (field.type === 'composite' && !isCodeField(field) && !isTableField(field))
     for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t)
   // An array's items are checked too (Sanity's "Links / External link / URL"): an object
   // item's fields under the item's kind, a plain item by its type's own rule.

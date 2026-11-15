@@ -1,0 +1,407 @@
+import {memo, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode} from 'react'
+import {EditPathContext, FormDisabledContext} from './Fields'
+import {AnchoredLayer, DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
+import {ConfirmDialog} from './ConfirmDialog'
+import {Add, Close as CloseIcon, Ellipsis, Trash} from './icons'
+import {useT} from '../lib/i18n'
+import {mapCaret} from '../lib/merge'
+import {newKey} from '../lib/pt-value'
+import type {Field} from '../lib/data'
+import {alignColumns} from '../lib/table-merge'
+import {addColumns, addRows, createTable, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, removeTable, setCell, tableGrid, tableOptions, withWrites, type TableWrite} from '../lib/table-input'
+
+// The table field (Sanity's @sanity/table; lib/table-input.ts has the shape and what each
+// edit writes): a grid of text inputs under numbered row and column headers. The plugin's
+// own: Create Table, Add row, Add column, a menu with Add Row(s), Add Column(s) and Remove,
+// each removal asked first. Ours on top: Tab, Enter and the arrow keys move between cells; a
+// block of cells pasted from a spreadsheet fills the grid from the focused cell and grows
+// it; each row and column header is a menu (insert, move, remove). Typing saves its own
+// row's cells, so two editors in one table both keep their words (lib/table-merge.ts).
+// Shut (a read seat, the published version, a revision) it is the same grid, its text
+// selectable, with no menus, and writes nothing. A long table draws the rows in view only.
+
+type Asking = {kind: 'row' | 'column' | 'table'; index: number} | {kind: 'rows' | 'columns'}
+type Menu = {kind: 'row' | 'column' | 'table'; index: number}
+const WINDOW_FROM = 60
+const OVERSCAN = 12
+
+/** One cell. It owns its text between renders (as a text field's input): keys typed faster than the form redraws stay. */
+const Cell = memo(function Cell({row, column, value, label, shut, onCell, onKey, onPaste}: {row: number; column: number; value: string; label: string; shut: boolean; onCell: (row: number, column: number, text: string) => void; onKey: (e: KeyboardEvent<HTMLInputElement>, row: number, column: number) => void; onPaste: (e: ClipboardEvent<HTMLInputElement>, row: number, column: number) => void}) {
+  const [local, setLocal] = useState(value)
+  const [seen, setSeen] = useState(value)
+  const ref = useRef<HTMLInputElement>(null)
+  const caret = useRef<number | null>(null)
+  if (value !== seen) {
+    // Someone else's edit to this cell: the caret stays on the same text.
+    const el = ref.current
+    if (el && el === document.activeElement && el.value !== value) caret.current = mapCaret(el.value, value, el.selectionStart ?? 0)
+    setSeen(value)
+    setLocal(value)
+  }
+  useLayoutEffect(() => {
+    if (caret.current === null) return
+    ref.current?.setSelectionRange(caret.current, caret.current)
+    caret.current = null
+  })
+  return (
+    <input
+      ref={ref}
+      className="input table-cell"
+      value={local}
+      readOnly={shut}
+      aria-label={label}
+      data-row={row}
+      data-column={column}
+      onChange={(e) => (setLocal(e.target.value), onCell(row, column, e.target.value))}
+      onKeyDown={(e) => onKey(e, row, column)}
+      onPaste={(e) => onPaste(e, row, column)}
+    />
+  )
+})
+
+/** The rows to draw of a long table: the ones in view (and a few around), by the box's scroll. */
+function useRowWindow(count: number) {
+  const on = count > WINDOW_FROM
+  const [view, setView] = useState({top: 0, height: 600})
+  const [rowH, setRowH] = useState(36)
+  const frame = useRef(0)
+  const box = useRef<HTMLDivElement | null>(null)
+  const read = useCallback(() => {
+    const el = box.current
+    if (!el) return
+    const h = el.querySelector<HTMLElement>('tbody tr[data-row]')?.offsetHeight
+    if (h) setRowH(h)
+    setView((v) => (v.top === el.scrollTop && v.height === el.clientHeight ? v : {top: el.scrollTop, height: el.clientHeight}))
+  }, [])
+  useLayoutEffect(() => void (on && read()), [on, read])
+  const onScroll = useCallback(() => {
+    cancelAnimationFrame(frame.current)
+    frame.current = requestAnimationFrame(read)
+  }, [read])
+  const start = on ? Math.max(0, Math.floor(view.top / rowH) - OVERSCAN) : 0
+  const end = on ? Math.min(count, Math.ceil((view.top + view.height) / rowH) + OVERSCAN) : count
+  return {on, box, onScroll, start, end, rowH}
+}
+
+export function TableInput({id, field, value, onChange, readOnly}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean}) {
+  const t = useT()
+  const editPath = useContext(EditPathContext)
+  const shut = useContext(FormDisabledContext) || !!readOnly
+  const {rowType} = tableOptions(field)
+  const grid = useMemo(() => tableGrid(value), [value])
+  const hint = useId()
+  const root = useRef<HTMLDivElement>(null)
+  const [menu, setMenu] = useState<Menu | null>(null)
+  const [asking, setAsking] = useState<Asking | null>(null)
+  const [focused, setFocused] = useState(-1)
+  const anchor = useRef<HTMLElement | null>(null)
+  const win = useRowWindow(grid.rows.length)
+  // What the handlers read: the value as drawn, and (where the value is saved whole, in a
+  // dialog) as this input last left it, so two changes in one tick build on each other.
+  const seen = useRef(value)
+  const held = useRef(value)
+  if (seen.current !== value) (seen.current = value), (held.current = value)
+  const latest = useRef({onChange, editPath, grid, shut})
+  latest.current = {onChange, editPath, grid, shut}
+
+  const write = useCallback(
+    (writes: TableWrite[]) => {
+      const now = latest.current
+      if (now.shut || !writes.length) return
+      // Each spot to its own path (lib/edits.ts); where there is no path to write to, the table whole.
+      if (now.editPath) for (const [path, next] of writes) now.editPath(path ? `${id}.${path}` : id, next)
+      else now.onChange((held.current = withWrites(held.current, writes)))
+    },
+    [id],
+  )
+  const cellAt = (row: number, column: number) => root.current?.querySelector<HTMLInputElement>(`input[data-row="${row}"][data-column="${column}"]`)
+  /** The caret into a cell, now or once it is drawn (a new row, a row out of a long table's view). */
+  const focusCell = useCallback(
+    (row: number, column: number, select: 'start' | 'end' | 'all' = 'all') => {
+      let frames = 12
+      const go = () => {
+        const el = cellAt(row, column)
+        if (!el) {
+          const box = win.box.current
+          if (box && win.on) box.scrollTop = Math.max(0, row * win.rowH - box.clientHeight / 2)
+          return void (frames-- > 0 && requestAnimationFrame(go))
+        }
+        el.focus()
+        if (select === 'all') el.select()
+        else el.setSelectionRange(select === 'start' ? 0 : el.value.length, select === 'start' ? 0 : el.value.length)
+      }
+      go()
+    },
+    [win.on, win.rowH, win.box],
+  )
+  const header = (kind: 'row' | 'column', index: number) => root.current?.querySelector<HTMLElement>(`button[data-${kind}-header="${index}"]`)
+
+  const onCell = useCallback((row: number, column: number, text: string) => write(setCell(seen.current, row, column, text, newKey)), [write])
+  const onKey = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>, row: number, column: number) => {
+      if (e.altKey || e.metaKey || e.ctrlKey || e.nativeEvent.isComposing) return
+      const {rows, columns} = latest.current.grid
+      const el = e.currentTarget
+      const [at, to] = [el.selectionStart ?? 0, el.selectionEnd ?? 0]
+      const move = (r: number, c: number, select: 'start' | 'end' | 'all' = 'all') => (e.preventDefault(), focusCell(r, c, select))
+      if (e.key === 'Tab') {
+        // Across the row, then on to the next one; out of the grid at its two ends.
+        const next = row * columns + column + (e.shiftKey ? -1 : 1)
+        if (next >= 0 && next < rows.length * columns) move(Math.floor(next / columns), next % columns)
+      } else if (e.shiftKey) return
+      else if (e.key === 'Enter') row + 1 < rows.length && move(row + 1, column)
+      else if (e.key === 'ArrowDown') row + 1 < rows.length && move(row + 1, column)
+      else if (e.key === 'ArrowUp') row > 0 ? move(row - 1, column) : (e.preventDefault(), header('column', column)?.focus())
+      else if (e.key === 'ArrowLeft' && at === 0 && to === 0) column > 0 ? move(row, column - 1, 'end') : (e.preventDefault(), header('row', row)?.focus())
+      else if (e.key === 'ArrowRight' && at === el.value.length && to === at && column + 1 < columns) move(row, column + 1, 'start')
+    },
+    [focusCell],
+  )
+  const onPaste = useCallback(
+    (e: ClipboardEvent<HTMLInputElement>, row: number, column: number) => {
+      const block = latest.current.shut ? null : parseCells(e.clipboardData.getData('text/plain'))
+      if (!block) return
+      e.preventDefault()
+      write(pasteCells(seen.current, row, column, block, rowType, newKey))
+    },
+    [write, rowType],
+  )
+  /** A header button: arrows walk the headers and step back into the cells. */
+  const onHeaderKey = (e: KeyboardEvent<HTMLButtonElement>, kind: 'row' | 'column', index: number) => {
+    const step = kind === 'row' ? {back: 'ArrowUp', on: 'ArrowDown', into: 'ArrowRight'} : {back: 'ArrowLeft', on: 'ArrowRight', into: 'ArrowDown'}
+    const count = kind === 'row' ? grid.rows.length : grid.columns
+    if (e.key === step.into) (e.preventDefault(), focusCell(kind === 'row' ? index : 0, kind === 'row' ? 0 : index))
+    else if (e.key === step.back && index > 0) (e.preventDefault(), kind === 'row' && win.on ? focusHeaderRow(index - 1) : header(kind, index - 1)?.focus())
+    else if (e.key === step.on && index + 1 < count) (e.preventDefault(), kind === 'row' && win.on ? focusHeaderRow(index + 1) : header(kind, index + 1)?.focus())
+  }
+  const focusHeaderRow = (index: number) => header('row', index)?.focus()
+
+  // The caret follows its column: a column another editor put before it (or took away) moves
+  // the cell this editor is in. Read from the last drawing in which every row was as wide as
+  // the table: a row of this editor's still on its way to be saved is the old width until then.
+  const even = useRef<{rows: [string, string[]][]; columns: number} | null>(null)
+  useLayoutEffect(() => {
+    const was = even.current
+    const stored = (value as {rows?: unknown} | undefined)?.rows
+    const isEven = Array.isArray(stored) && stored.every((r) => Array.isArray((r as {cells?: unknown})?.cells) && (r as {cells: unknown[]}).cells.length === grid.columns)
+    if (isEven) even.current = {rows: grid.rows.map((r) => [r.key, r.cells]), columns: grid.columns}
+    const el = document.activeElement as HTMLInputElement | null
+    if (!was || !isEven || was.columns === grid.columns || !el || !root.current?.contains(el) || el.dataset.column === undefined) return
+    const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
+    const pairs = was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [cells, now.get(k)!])
+    const [row, column] = [Number(el.dataset.row), Number(el.dataset.column)]
+    const to = alignColumns(pairs, was.columns, grid.columns)[column]
+    if (to === undefined || to < 0 || to === column) return
+    const [start, end] = [el.selectionStart, el.selectionEnd]
+    const next = cellAt(row, to)
+    next?.focus()
+    next?.setSelectionRange(start, end)
+  })
+
+  const create = () => (write(createTable(seen.current, rowType, newKey)), focusCell(0, 0))
+  const act = (run: () => void) => (setMenu(null), run())
+  const open = (m: Menu, el: HTMLElement) => ((anchor.current = el), setMenu(m))
+  const closeMenu = useCallback(() => setMenu(null), [])
+  const item = (label: string, run: () => void, {icon, danger, off, first}: {icon?: ReactNode; danger?: boolean; off?: boolean; first?: boolean} = {}) => (
+    <button type="button" role="menuitem" className={danger ? 'menu-item danger' : 'menu-item'} disabled={off} autoFocus={first} onClick={() => act(run)}>
+      <span className="menu-icon-text">
+        {icon} {label}
+      </span>
+    </button>
+  )
+  const menuItems = (m: Menu) => {
+    const i = m.index
+    if (m.kind === 'row')
+      return (
+        <>
+          {item(t('Insert row above'), () => (write(addRows(seen.current, i, 1, rowType, newKey)), focusCell(i, 0)), {first: true})}
+          {item(t('Insert row below'), () => (write(addRows(seen.current, i + 1, 1, rowType, newKey)), focusCell(i + 1, 0)))}
+          <hr />
+          {item(t('Move row up'), () => write(moveRow(seen.current, i, i - 1, newKey)), {off: i === 0})}
+          {item(t('Move row down'), () => write(moveRow(seen.current, i, i + 1, newKey)), {off: i + 1 >= grid.rows.length})}
+          <hr />
+          {item(t('Remove row'), () => setAsking(grid.rows.length <= 1 ? {kind: 'table', index: 0} : {kind: 'row', index: i}), {icon: <Trash />, danger: true})}
+        </>
+      )
+    if (m.kind === 'column')
+      return (
+        <>
+          {item(t('Insert column left'), () => (write(addColumns(seen.current, i, 1, newKey)), focusCell(0, i)), {first: true})}
+          {item(t('Insert column right'), () => (write(addColumns(seen.current, i + 1, 1, newKey)), focusCell(0, i + 1)))}
+          <hr />
+          {item(t('Move column left'), () => write(moveColumn(seen.current, i, i - 1, newKey)), {off: i === 0})}
+          {item(t('Move column right'), () => write(moveColumn(seen.current, i, i + 1, newKey)), {off: i + 1 >= grid.columns})}
+          <hr />
+          {item(t('Remove column'), () => setAsking(grid.columns <= 1 ? {kind: 'table', index: 0} : {kind: 'column', index: i}), {icon: <Trash />, danger: true})}
+        </>
+      )
+    return (
+      <>
+        {item(t('Add Row(s)'), () => setAsking({kind: 'rows'}), {icon: <Add />, first: true})}
+        {item(t('Add Column(s)'), () => setAsking({kind: 'columns'}), {icon: <Add />})}
+        <hr />
+        {item(t('Remove'), () => setAsking({kind: 'table', index: 0}), {icon: <Trash />, danger: true})}
+      </>
+    )
+  }
+  const headerButton = (kind: 'row' | 'column', index: number) =>
+    shut ? (
+      <span className="table-head-text">{index + 1}</span>
+    ) : (
+      <button
+        type="button"
+        className="table-head-btn"
+        tabIndex={-1}
+        data-row-header={kind === 'row' ? index : undefined}
+        data-column-header={kind === 'column' ? index : undefined}
+        aria-label={kind === 'row' ? t('Row {row}', {row: index + 1}) : t('Column {column}', {column: index + 1})}
+        aria-haspopup="menu"
+        aria-expanded={menu?.kind === kind && menu.index === index}
+        onClick={(e) => (menu?.kind === kind && menu.index === index ? setMenu(null) : open({kind, index}, e.currentTarget))}
+        onKeyDown={(e) => onHeaderKey(e, kind, index)}
+      >
+        {index + 1}
+      </button>
+    )
+
+  if (!grid.rows.length)
+    return (
+      <div className="table-input" id={id} ref={root}>
+        {shut ? (
+          <p className="muted table-empty">{t('Empty Table')}</p>
+        ) : (
+          <button type="button" className="btn-create" onClick={create}>
+            <Add /> {t('Create Table')}
+          </button>
+        )}
+      </div>
+    )
+
+  // The rows drawn: all of a short table; of a long one those in view, and the one that holds the caret.
+  const shown = win.on ? [...new Set([...Array.from({length: Math.max(0, win.end - win.start)}, (_, k) => win.start + k), ...(focused >= 0 && focused < grid.rows.length ? [focused] : [])])].sort((a, b) => a - b) : grid.rows.map((_, i) => i)
+  const gap = (from: number, to: number) => to > from && <tr key={`gap-${from}`} className="table-gap" aria-hidden="true" style={{height: (to - from) * win.rowH}}><td colSpan={grid.columns + 1} /></tr>
+  return (
+    <div className="table-input" id={id} ref={root}>
+      {!shut && (
+        <div className="table-bar">
+          <button type="button" className="btn table-add" onClick={() => (write(addRows(seen.current, grid.rows.length, 1, rowType, newKey)), focusCell(grid.rows.length, 0))}>
+            <Add /> {t('Add row')}
+          </button>
+          <button type="button" className="btn table-add" onClick={() => (write(addColumns(seen.current, grid.columns, 1, newKey)), focusCell(0, grid.columns))}>
+            <Add /> {t('Add column')}
+          </button>
+          <span className="menu-wrap">
+            <button type="button" className="icon-btn" aria-label={t('Table options')} data-tip={t('Table options')} data-tip-side="top" aria-haspopup="menu" aria-expanded={menu?.kind === 'table'} onClick={(e) => (menu?.kind === 'table' ? setMenu(null) : open({kind: 'table', index: 0}, e.currentTarget))}>
+              <Ellipsis />
+            </button>
+          </span>
+        </div>
+      )}
+      <div className="table-scroll" ref={win.box} data-windowed={win.on || undefined} onScroll={win.on ? win.onScroll : undefined}>
+        <table role="grid" aria-label={field.title ?? field.name} aria-describedby={shut ? undefined : hint} aria-rowcount={grid.rows.length + 1} aria-colcount={grid.columns + 1} aria-readonly={shut || undefined}>
+          <thead>
+            <tr role="row" aria-rowindex={1}>
+              <td className="table-corner" role="presentation" />
+              {Array.from({length: grid.columns}, (_, j) => (
+                <th key={j} role="columnheader" scope="col" aria-colindex={j + 2}>
+                  {headerButton('column', j)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody
+            onFocus={(e) => setFocused(Number((e.target as HTMLElement).closest<HTMLElement>('tr[data-row]')?.dataset.row ?? -1))}
+            onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setFocused(-1)}
+          >
+            {shown.flatMap((i, n) => {
+              const row = grid.rows[i]!
+              return [
+                gap(n === 0 ? 0 : shown[n - 1]! + 1, i),
+                <tr key={row.key} role="row" data-row={i} aria-rowindex={i + 2}>
+                  <th role="rowheader" scope="row">
+                    {headerButton('row', i)}
+                  </th>
+                  {row.cells.map((cell, j) => (
+                    <td key={j} role="gridcell" aria-colindex={j + 2}>
+                      <Cell row={i} column={j} value={cell} label={t('Row {row}, column {column}', {row: i + 1, column: j + 1})} shut={shut} onCell={onCell} onKey={onKey} onPaste={onPaste} />
+                    </td>
+                  ))}
+                </tr>,
+              ]
+            })}
+            {gap((shown.at(-1) ?? -1) + 1, grid.rows.length)}
+          </tbody>
+        </table>
+      </div>
+      {!shut && (
+        <p className="sr-only" id={hint}>
+          {t('Tab and Enter move between cells, the arrow keys too at the edge of a cell. Arrow left from a row\'s first cell reaches the row\'s menu, arrow up from the first row the column\'s. Paste cells copied from a spreadsheet to fill the table from the focused cell.')}
+        </p>
+      )}
+      {menu && !shut && (
+        <AnchoredLayer anchor={anchor} className="doc-menu-layer table-menu-layer" onClose={closeMenu}>
+          <MenuPopover centered className="popover menu table-menu" onClose={closeMenu}>
+            {menuItems(menu)}
+          </MenuPopover>
+        </AnchoredLayer>
+      )}
+      {asking && 'index' in asking && (
+        <PaneOverlay>
+          <ConfirmDialog
+            title={t(asking.kind === 'table' ? 'Remove table' : asking.kind === 'row' ? 'Remove row' : 'Remove column')}
+            body={t(asking.kind === 'table' ? 'Are you sure you want to remove this table?' : asking.kind === 'row' ? 'Are you sure you want to remove this row?' : 'Are you sure you want to remove this column?')}
+            action={t('Confirm')}
+            run={async () => write(asking.kind === 'table' ? removeTable() : asking.kind === 'row' ? removeRow(seen.current, asking.index, newKey) : removeColumn(seen.current, asking.index, newKey))}
+            onClose={() => setAsking(null)}
+          />
+        </PaneOverlay>
+      )}
+      {asking && !('index' in asking) && (
+        <CountDialog
+          title={t(asking.kind === 'rows' ? 'Add rows' : 'Add columns')}
+          onClose={() => setAsking(null)}
+          onCount={(count) => write(asking.kind === 'rows' ? addRows(seen.current, grid.rows.length, count, rowType, newKey) : addColumns(seen.current, grid.columns, count, newKey))}
+        />
+      )}
+    </div>
+  )
+}
+
+/** The plugin's "Add rows" / "Add columns": how many, a whole number from 0 to 99. */
+function CountDialog({title, onCount, onClose}: {title: string; onCount: (count: number) => void; onClose: () => void}) {
+  const t = useT()
+  const [text, setText] = useState('')
+  const count = Number.parseInt(text, 10)
+  const valid = /^\d+$/.test(text.trim()) && count >= 0 && count < 100
+  const confirm = () => valid && (onClose(), onCount(count))
+  return (
+    <PaneOverlay>
+      <div className="dialog-backdrop pane-confirm-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+        <DialogBox className="dialog pane-confirm table-count" aria-modal="true" aria-label={title} onClose={onClose}>
+          <header>
+            <h2>{title}</h2>
+            <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
+              <CloseIcon />
+            </button>
+          </header>
+          <div className="dialog-body">
+            <input className="input" type="number" min={0} max={99} inputMode="numeric" autoFocus aria-label={title} aria-invalid={text !== '' && !valid} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirm()} />
+            {text !== '' && !valid && (
+              <p className="field-error" role="alert">
+                {t('Enter a whole number from 0 to 99')}
+              </p>
+            )}
+          </div>
+          <footer>
+            <button type="button" className="btn" onClick={onClose}>
+              {t('Cancel')}
+            </button>
+            <button type="button" className="btn btn-primary" disabled={!valid} onClick={confirm}>
+              {t('Confirm')}
+            </button>
+          </footer>
+        </DialogBox>
+      </div>
+    </PaneOverlay>
+  )
+}

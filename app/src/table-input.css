@@ -1,0 +1,51 @@
+/* The table field (components/TableInput.tsx; Sanity's @sanity/table): a grid of text inputs
+   under numbered headers that scrolls sideways inside the field, a card's static grid and
+   Review changes' cell diff. Its own file: styles.css is long enough. */
+.table-input { min-width: 0; max-width: 100%; }
+.table-bar { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.table-bar .btn.table-add { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 4px; line-height: 19px; box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); background: var(--bg-soft); }
+.table-bar .btn.table-add:hover { background: var(--hover); }
+.table-bar .btn.table-add svg { width: 17px; height: 17px; color: var(--btn-secondary-icon); }
+/* Wide tables scroll here, never the page; a long one (rows drawn as they come into view) scrolls down here too. */
+.table-scroll { overflow: auto; max-width: 100%; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--border); background: var(--bg); overscroll-behavior-x: contain; }
+.table-scroll[data-windowed] { max-height: min(70vh, 560px); }
+.table-scroll table { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+.table-scroll th, .table-scroll td { padding: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); font-weight: 400; }
+.table-scroll tr > :last-child { border-right: 0; }
+.table-scroll tbody tr:last-child > * { border-bottom: 0; }
+.table-scroll td[role='gridcell'] { min-width: 112px; }
+/* The headers stay in view while the grid scrolls under them. */
+.table-scroll thead th, .table-scroll .table-corner { position: sticky; top: 0; z-index: 2; background: var(--bg-soft); height: 25px; }
+.table-scroll tbody th { position: sticky; left: 0; z-index: 1; background: var(--bg-soft); width: 33px; min-width: 33px; }
+.table-scroll .table-corner { left: 0; z-index: 3; width: 33px; min-width: 33px; }
+.table-head-btn, .table-head-text { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 25px; border: 0; background: none; font: inherit; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.table-head-btn { cursor: pointer; }
+.table-head-btn:hover, .table-head-btn[aria-expanded='true'] { background: var(--hover); color: var(--fg); }
+.table-head-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--focus-ring); }
+.table-scroll .input.table-cell { display: block; width: 100%; min-width: 0; height: 35px; border-radius: 0; box-shadow: none; background: transparent; }
+.table-scroll .input.table-cell:hover:not(:focus) { box-shadow: inset 0 0 0 1px var(--input-hover-ring); }
+.table-scroll .input.table-cell:focus { box-shadow: inset 0 0 0 2px var(--focus-ring); }
+.table-scroll .input.table-cell[readonly] { background: var(--bg-soft); }
+.table-gap > td { border: 0; padding: 0; }
+.table-empty { margin: 0; }
+.table-menu-layer > .popover.menu.table-menu { top: calc(100% + 2px); min-width: 0; width: max-content; }
+.table-count .dialog-body .input { width: 100%; }
+/* A finger's 44 px on a touch screen: the header menus, the cells and the menus' items. */
+@media (pointer: coarse) {
+  .table-scroll tbody th, .table-scroll .table-corner { width: 44px; min-width: 44px; }
+  .table-scroll thead th, .table-scroll .table-corner { height: 44px; }
+  .table-head-btn { min-height: 44px; min-width: 44px; }
+  .table-scroll .input.table-cell { height: 44px; }
+  .table-bar .btn.table-add, .table-bar .icon-btn { min-height: 44px; min-width: 44px; }
+  .table-menu-layer .menu-item { min-height: 44px; }
+}
+/* A card or a row's static grid (a Portable Text block), and Review changes' grid. */
+.table-static { display: block; overflow: auto; max-width: 100%; max-height: 240px; }
+.table-static table, .review-table table { border-collapse: collapse; font-size: 13px; }
+.table-static td, .review-table td, .review-table th { border: 1px solid var(--border); padding: 3px 8px; min-width: 32px; height: 25px; vertical-align: top; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-table { overflow: auto; max-width: 100%; margin-top: 6px; }
+.review-table th { font-weight: 400; font-size: 12px; color: var(--muted); background: var(--bg-soft); white-space: nowrap; }
+.review-table :is(td, th):is([data-change='added'], [data-change='removed']) { background: var(--user-100, var(--diff-bg)); }
+:root[data-theme='dark'] .review-table :is(td, th):is([data-change='added'], [data-change='removed']) { background: var(--user-900, var(--diff-bg)); }
+.review-table :is(td, th) :is(ins, del) { background: none; }
+.review-table .review-table-note { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
