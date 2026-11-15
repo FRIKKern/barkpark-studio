@@ -3,7 +3,7 @@ import {useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {schemasQuery, type Doc} from '../lib/data'
 import {isDocumentType} from '../lib/creatable'
 import {useLivePausedToast, useReconnectingToast} from '../lib/connection'
-import {frameStep, resolveWidgets, withFrame, withoutFrame, withTaskFrame, type Resolved, type RowsKind} from '../lib/dashboard'
+import {applyRowFrame, quietRead, replayFrames, resolveWidgets, taskFrameKind, withTaskFrame, type Resolved, type RowFrame, type RowsKind} from '../lib/dashboard'
 import {dashboardTasksQuery, type Upcoming} from '../lib/dashboard-data'
 import {onDocFrame, useLive, type Frame} from '../lib/live'
 import {setPresenceSelf, usePresenceStream} from '../lib/presence'
@@ -79,10 +79,13 @@ function usePresence() {
  * Live rows. The tab's stream follows the desk's document types and the studio's tasks. Each
  * frame is put into the rows of every widget it concerns (lib/dashboard.ts withFrame,
  * withTaskFrame): an editor typing somewhere is a frame a second, and none of them may be a
- * read. Only what a frame cannot tell is read again, once per burst: a row gone from a full
- * list, a document not among the rows whose published version is unknown, a list in an order
- * of its own. And a frame that comes while a read of those rows is out (frameStep): that read
- * was answered from before the frame, and would put the older rows back.
+ * read.
+ *
+ * A read that is out was answered from before the frames heard since: they are kept, and put
+ * back onto its answer when it lands (replayFrames). The read is never cancelled or repeated
+ * for a frame. Only what a frame cannot tell (a row gone from a full list, a document not
+ * among the rows whose published version is unknown, a list in an order of its own) asks for
+ * a read, and then ONE per widget once frames have gone quiet (quietRead).
  */
 function useLiveRows() {
   const qc = useQueryClient()
@@ -90,58 +93,126 @@ function useLiveRows() {
   const types = useMemo(() => (schemas ?? []).filter(isDocumentType).map((s) => s.name), [schemas])
   useLive([], types.length ? [...types, TASK_TYPE] : [])
   useEffect(() => {
-    const again = new Map<string, ReturnType<typeof setTimeout>>()
-    // One read per burst, begun after the burst's last write was heard; it takes the place of a read still out.
-    const readAgain = (key: readonly unknown[]) => {
-      const k = JSON.stringify(key)
-      if (again.has(k)) return
-      again.set(k, setTimeout(() => (again.delete(k), void qc.invalidateQueries({queryKey: key, exact: true})), READ_AGAIN_MS))
-    }
-    // Last created lists: a draft's frame cannot say when its document was created (lib/dashboard.ts
-    // docRows), so a document that is no row costs one read, and is then known not to be one.
-    const outside = new Map<string, Set<string>>()
+    const live: Live = {qc, asked: new Map(), heard: new Map(), outside: new Map()}
+    // The frames heard while a read is out, from when it goes out to when it lands.
+    const unsubscribe = qc.getQueryCache().subscribe((e) => {
+      if (e.type !== 'updated' || e.query.queryKey[0] !== 'dashboard') return
+      const k = JSON.stringify(e.query.queryKey)
+      if (e.action.type === 'fetch') live.heard.set(k, [])
+      else if (e.action.type === 'error') live.heard.delete(k)
+      else if (e.action.type === 'success' && !e.action.manual) {
+        const frames = live.heard.get(k)
+        live.heard.delete(k)
+        // After the cache has told everyone of the answer, before any other frame is heard.
+        if (frames?.length) queueMicrotask(() => land(live, e.query.queryKey, frames))
+      }
+    })
     const desk = new Set(types)
-    const off = onDocFrame((f) => (f.type === TASK_TYPE ? applyTaskFrame(qc, f, readAgain) : desk.has(f.type) && applyFrame(qc, f, readAgain, outside)))
-    return () => (off(), again.forEach(clearTimeout))
+    const off = onDocFrame((f) => {
+      if (f.type !== TASK_TYPE && !desk.has(f.type)) return
+      for (const q of qc.getQueryCache().findAll({queryKey: ['dashboard']})) {
+        if (!concerns(q.queryKey, f)) continue
+        if (fetching(qc, q.queryKey)) {
+          // A read begun before this page listened to the cache (a widget's first) is out too.
+          const k = JSON.stringify(q.queryKey)
+          live.heard.set(k, [...(live.heard.get(k) ?? []), f])
+        }
+        applyTo(live, q.queryKey, f, false)
+      }
+    })
+    return () => (off(), unsubscribe(), live.asked.forEach((a) => clearTimeout(a.timer)))
   }, [qc, types])
 }
-const READ_AGAIN_MS = 400
 
-const fetching = (qc: QueryClient, key: readonly unknown[]) => qc.isFetching({queryKey: key, exact: true}) > 0
-
-function applyFrame(qc: QueryClient, f: Frame, readAgain: (key: readonly unknown[]) => void, outside: Map<string, Set<string>>) {
-  const id = f.documentId.replace(/^drafts\./, '')
-  const removed = !f.result || f.mutation === 'delete' || f.mutation === 'discardDraft'
-  for (const [key, rows] of qc.getQueriesData<Doc[]>({queryKey: ['dashboard', 'rows']})) {
-    const kind = {only: key[2], types: key[3], order: key[4], limit: key[5]} as RowsKind
-    if (kind.types && !kind.types.includes(f.type)) continue
-    const out = fetching(qc, key)
-    const next = !rows ? undefined : removed ? withoutFrame(rows, id) : withFrame(rows, f.result!, kind)
-    const step = frameStep(rows, next, out)
-    if (step.set) qc.setQueryData(key, step.set)
-    if (!step.read) continue
-    if (rows && next === null && !out && !removed && kind.order === '_createdAt desc' && f.result!._draft && !rows.some((r) => r._publishedId === id)) {
-      const k = JSON.stringify(key)
-      if (outside.get(k)?.has(id)) continue
-      outside.set(k, (outside.get(k) ?? new Set()).add(id))
-    }
-    readAgain(key)
-  }
-  // A scheduled draft was published (its schedule ran, or someone published it), or is gone: Scheduled reads again.
-  // So does a frame for one of its documents while its read is out (the row shows the document).
-  for (const [key, data] of qc.getQueriesData<Upcoming>({queryKey: ['dashboard', 'scheduled']})) {
-    const mine = data?.rows.some((r) => r.schedule.documentId.replace(/^drafts\./, '') === id)
-    if (fetching(qc, key) || (mine && (removed || !f.documentId.startsWith('drafts.')))) readAgain(key)
-    else if (mine && data && f.result) qc.setQueryData<Upcoming>(key, {...data, rows: data.rows.map((r) => (r.doc && r.doc._publishedId === id && r.doc._updatedAt <= f.result!._updatedAt ? {...r, doc: {...f.result!, _hasPublished: r.doc._hasPublished, _publishedAt: r.doc._publishedAt} as Doc} : r))})
-  }
+type Key = readonly unknown[]
+type Live = {
+  qc: QueryClient
+  /** The one read each widget waits for (quietRead). */
+  asked: Map<string, {first: number; timer: ReturnType<typeof setTimeout>}>
+  heard: Map<string, Frame[]>
+  // Last created lists: a draft's frame cannot say when its document was created (lib/dashboard.ts
+  // docRows), so a document that is no row costs one read, and is then known not to be one.
+  outside: Map<string, Set<string>>
 }
 
-/** A task changed (created, assigned, done, deleted): into My tasks' rows, as documents go into theirs. */
-function applyTaskFrame(qc: QueryClient, f: Frame, readAgain: (key: readonly unknown[]) => void) {
-  const key = dashboardTasksQuery.queryKey
-  const tasks = qc.getQueryData<Task[]>(key)
-  const out = fetching(qc, key)
-  const removed = !f.result || f.mutation === 'delete' || f.mutation === 'discardDraft'
-  if (tasks) qc.setQueryData(key, withTaskFrame(tasks, f.documentId.replace(/^drafts\./, ''), removed ? null : (f.result as unknown as Task)))
-  if (out) readAgain(key)
+const fetching = (qc: QueryClient, key: Key) => qc.isFetching({queryKey: key, exact: true}) > 0
+const publishedIdOf = (f: Frame) => f.documentId.replace(/^drafts\./, '')
+const isRemoved = (f: Frame) => !f.result || f.mutation === 'delete' || f.mutation === 'discardDraft'
+const kindOf = (key: Key) => ({only: key[2], types: key[3], order: key[4], limit: key[5]}) as RowsKind
+
+/** Whether a frame is this widget's business: tasks for My tasks, the desk's documents (of its types) for the others. */
+function concerns(key: Key, f: Frame) {
+  if (key[1] === 'tasks') return f.type === TASK_TYPE
+  if (f.type === TASK_TYPE) return false
+  if (key[1] === 'rows') return !kindOf(key).types || kindOf(key).types!.includes(f.type)
+  return key[1] === 'scheduled'
+}
+
+/** One read of `key`, once frames have stopped asking (or 5 s after the first): never one per frame, never over a read that is out. */
+function ask(live: Live, key: Key) {
+  const k = JSON.stringify(key)
+  const was = live.asked.get(k)
+  if (was) clearTimeout(was.timer)
+  const {first, at} = quietRead(was, Date.now())
+  const timer = setTimeout(() => {
+    live.asked.delete(k)
+    // A read that is out began after the frame that asked (one out before it is replayed onto, and asks again if it must).
+    if (!fetching(live.qc, key)) void live.qc.invalidateQueries({queryKey: key, exact: true})
+  }, at - Date.now())
+  live.asked.set(k, {first, timer})
+}
+
+/**
+ * A frame into one widget's data. `landed`: it is being put back onto a read's answer. While
+ * a read is out (and not `landed`) nothing asks for another: the frame is kept and decides
+ * when the answer lands.
+ */
+function applyTo(live: Live, key: Key, f: Frame, landed: boolean) {
+  const {qc} = live
+  const out = !landed && fetching(qc, key)
+  const id = publishedIdOf(f)
+  if (key[1] === 'tasks') {
+    const tasks = qc.getQueryData<Task[]>(key)
+    const what = taskFrameKind(f.documentId, f.mutation, !!f.result)
+    if (what === 'read') return void (!out && ask(live, key))
+    if (tasks) qc.setQueryData(key, withTaskFrame(tasks, id, what === 'remove' ? null : (f.result as unknown as Task)))
+    return
+  }
+  if (key[1] === 'scheduled') {
+    // Each row shows its document: a draft's frame is the document as it now reads. Published (its
+    // schedule ran, or someone published it) or gone: the schedules are read again.
+    const data = qc.getQueryData<Upcoming>(key)
+    if (!data?.rows.some((r) => r.schedule.documentId.replace(/^drafts\./, '') === id)) return
+    if (isRemoved(f) || !f.documentId.startsWith('drafts.')) return void (!out && ask(live, key))
+    const doc = f.result!
+    return void qc.setQueryData<Upcoming>(key, {...data, rows: data.rows.map((r) => (r.doc && r.doc._publishedId === id && r.doc._updatedAt <= doc._updatedAt ? {...r, doc: {...doc, _hasPublished: r.doc._hasPublished, _publishedAt: r.doc._publishedAt} as Doc} : r))})
+  }
+  const rows = qc.getQueryData<Doc[]>(key)
+  if (!rows) return
+  const frame = rowFrame(f)
+  const next = applyRowFrame(rows, frame, kindOf(key))
+  if (next !== null) return void (next !== rows && qc.setQueryData(key, next))
+  if (!out) askForRow(live, key, rows, frame)
+}
+
+const rowFrame = (f: Frame): RowFrame => ({id: publishedIdOf(f), doc: isRemoved(f) ? null : f.result})
+
+/** A read's answer is in: the frames heard while it was out go back onto it (replayFrames), and only what they cannot tell asks again. */
+function land(live: Live, key: Key, frames: Frame[]) {
+  if (key[1] !== 'rows') return frames.forEach((f) => applyTo(live, key, f, true))
+  const answer = live.qc.getQueryData<Doc[]>(key)
+  if (!answer) return
+  const {rows, unplaced} = replayFrames(answer, frames.map(rowFrame), kindOf(key))
+  if (rows !== answer) live.qc.setQueryData(key, rows)
+  for (const f of unplaced) askForRow(live, key, rows, f)
+}
+
+/** A frame the rows cannot take: one read, unless it is a draft a last-created list already knows is none of its rows. */
+function askForRow(live: Live, key: Key, rows: Doc[], f: RowFrame) {
+  if (f.doc?._draft && kindOf(key).order === '_createdAt desc' && !rows.some((r) => r._publishedId === f.id)) {
+    const k = JSON.stringify(key)
+    if (live.outside.get(k)?.has(f.id)) return
+    live.outside.set(k, (live.outside.get(k) ?? new Set()).add(f.id))
+  }
+  ask(live, key)
 }

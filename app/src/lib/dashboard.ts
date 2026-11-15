@@ -185,20 +185,54 @@ export function withFrame(rows: Doc[], doc: Doc, kind: RowsKind): Doc[] | null {
   return null
 }
 
+/** A frame as the rows take it: the document as editors now see it, or null when it was deleted or its draft discarded. */
+export type RowFrame = {id: string; doc: Doc | null}
+export const applyRowFrame = (rows: Doc[], f: RowFrame, kind: RowsKind): Doc[] | null => (f.doc ? withFrame(rows, f.doc, kind) : withoutFrame(rows, f.id))
+
 /**
- * What a frame does to one widget's rows. `rows`: what the widget holds (undefined: its first
- * read is still out); `next`: withFrame's or withoutFrame's answer; `fetching`: a read of
- * these rows is out right now.
+ * A read's answer, with the frames heard while it was out put back onto it. The read was
+ * answered at some moment after it began; a frame heard since may be newer than the answer,
+ * and the answer alone would put the document back as it was (a draft missing from
+ * Unpublished changes, a title from before the last edit, and nothing to put it right). A
+ * frame the answer already holds changes nothing (withFrame keeps the newer row).
  *
- * A read that is out was answered from before this frame's write. When it lands it replaces
- * the rows, the frame's document as it was: a draft missing from Unpublished changes, a title
- * from before the last edit, and nothing to put it right. So a frame that comes while a read
- * is out always asks for one more read, made after it (the caller's replaces the one out).
+ * Never a read per frame: `unplaced` are the frames the answer cannot take (a document it
+ * does not hold and the frame cannot place), for which the caller asks ONE read once frames
+ * have gone quiet (quietRead).
  */
-export function frameStep(rows: Doc[] | undefined, next: Doc[] | null | undefined, fetching: boolean): {set?: Doc[]; read: boolean} {
-  if (!rows) return {read: fetching}
-  if (next === null || next === undefined) return {read: true}
-  return {...(next !== rows ? {set: next} : {}), read: fetching}
+export function replayFrames(answer: Doc[], frames: RowFrame[], kind: RowsKind): {rows: Doc[]; unplaced: RowFrame[]} {
+  let rows = answer
+  const unplaced: RowFrame[] = []
+  for (const f of frames) {
+    const next = applyRowFrame(rows, f, kind)
+    if (next === null) unplaced.push(f)
+    else rows = next
+  }
+  return {rows, unplaced}
+}
+
+export const QUIET_MS = 1500
+export const CEILING_MS = 5000
+/**
+ * When the one read a widget was asked for goes out: once no frame has asked for QUIET_MS
+ * (an editor saves about every second while typing: a read per save is what this is for),
+ * and CEILING_MS after the first asked at the latest. `pending`: the read already waiting.
+ */
+export function quietRead(pending: {first: number} | undefined, now: number): {first: number; at: number} {
+  const first = pending?.first ?? now
+  return {first, at: Math.min(now + QUIET_MS, first + CEILING_MS)}
+}
+
+/**
+ * What a task frame is to My tasks. A task is always published: a frame of its published
+ * row is the task as it reads (`set`), its deletion the task gone (`remove`). A frame of its
+ * draft that removes the draft (a discard) leaves the published task as it was, which the
+ * frame does not carry: `read`.
+ */
+export function taskFrameKind(documentId: string, mutation: string, hasResult: boolean): 'set' | 'remove' | 'read' {
+  const draft = documentId.startsWith('drafts.')
+  if (mutation === 'discardDraft' || (draft && (mutation === 'delete' || !hasResult))) return 'read'
+  return mutation === 'delete' || !hasResult ? 'remove' : 'set'
 }
 
 /**

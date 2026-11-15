@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {dashboardEnabled, DEFAULT_WIDGETS, docRows, draftsToCheck, dueState, frameStep, memberRows, membersRefused, openTasks, orderExpr, resolveWidgets, upcoming, withFrame, withoutFrame, withTaskFrame, type RowsKind, type WidgetConfig} from './dashboard.ts'
+import {dashboardEnabled, DEFAULT_WIDGETS, docRows, draftsToCheck, dueState, memberRows, membersRefused, openTasks, orderExpr, quietRead, replayFrames, resolveWidgets, taskFrameKind, upcoming, withFrame, withoutFrame, withTaskFrame, type RowsKind, type WidgetConfig} from './dashboard.ts'
 import type {Doc} from './data.ts'
 import type {Task} from './tasks.ts'
 
@@ -99,20 +99,39 @@ test('last created with many drafts open on old documents: a shorter list, never
   assert.deepEqual(docRows([...drafts, ...news], old, 5, '_createdAt desc', 30).map((d) => d._publishedId), ['N5', 'N4', 'N3', 'N2', 'N1'])
 })
 
-test('a frame while a read of the rows is out asks for one more read: the read out is older than the frame', () => {
-  const rows = [row('a', '03'), row('b', '02')]
-  const typed = withFrame(rows, row('b', '04', true, {_hasPublished: undefined}), {only: 'all', types: null, order: '_updatedAt desc', limit: 3})!
-  // No read out: the frame's rows, and no read.
-  assert.deepEqual(frameStep(rows, typed, false), {set: typed, read: false})
-  // A read out (it began before this write): the frame's rows now, and a read after it, or the older rows come back and stay.
-  assert.deepEqual(frameStep(rows, typed, true), {set: typed, read: true})
-  // A frame that changes no row here still may be in the read's answer as it was (a publish the drafts read saw as a draft).
-  assert.deepEqual(frameStep(rows, rows, true), {read: true})
-  assert.deepEqual(frameStep(rows, rows, false), {read: false})
-  // What a frame cannot tell is read, as before; the first read still out is read again too.
-  assert.deepEqual(frameStep(rows, null, false), {read: true})
-  assert.deepEqual(frameStep(undefined, undefined, true), {read: true})
-  assert.deepEqual(frameStep(undefined, undefined, false), {read: false})
+test('a read that lands gets the frames heard while it was out put back: the newer frame wins, with no second read', () => {
+  const all: RowsKind = {only: 'all', types: null, order: '_updatedAt desc', limit: 3}
+  const only: RowsKind = {...all, only: 'drafts'}
+  // The read was answered before b's last edit: its answer has b as it was. The frame heard since is newer.
+  const stale = [row('a', '03'), row('b', '02', false, {title: 'v0'})]
+  const frame = {id: 'b', doc: row('b', '04', true, {_hasPublished: undefined, title: 'typed'})}
+  const {rows, unplaced} = replayFrames(stale, [frame], all)
+  assert.deepEqual([rows.map((d) => [d._publishedId, d.title]), unplaced], [[['b', 'typed'], ['a', undefined]], []])
+  // The answer already holds the frame (the read was answered after it): nothing changes, nothing is doubled.
+  assert.deepEqual(replayFrames(rows, [frame], all).rows.map((d) => d._publishedId), ['b', 'a'])
+  // Unpublished changes: the answer still has the draft that was published while the read was out.
+  assert.deepEqual(replayFrames([row('a', '03', true), row('b', '02', true)], [{id: 'b', doc: row('b', '05')}], only).rows.map((d) => d._publishedId), ['a'])
+  // Only a frame the answer cannot take is left for one read: a draft it does not hold, a discard of a row.
+  const unknown = {id: 'n', doc: row('n', '09', true, {_hasPublished: undefined})}
+  assert.deepEqual(replayFrames(stale, [frame, unknown, {id: 'a', doc: null}], all).unplaced, [unknown, {id: 'a', doc: null}])
+})
+
+test('never a read per frame: frames every 300 ms for 3 s ask for one read; an editor saving for 20 s, one every 5 s', () => {
+  // The page's timer, as components/Dashboard.tsx runs it: each ask pushes the read back, a read goes out when its time comes.
+  const reads = (frames: number[]) => {
+    let pending: {first: number; at: number} | undefined
+    let n = 0
+    for (const t of frames) {
+      if (pending && pending.at <= t) (n++, (pending = undefined))
+      pending = quietRead(pending, t)
+    }
+    return n + (pending ? 1 : 0)
+  }
+  assert.equal(reads(Array.from({length: 11}, (_, i) => i * 300)), 1)
+  assert.equal(reads(Array.from({length: 29}, (_, i) => i * 700)), 4)
+  // Quiet for 1.5 s after one frame, and 5 s after the first at the latest.
+  assert.deepEqual(quietRead(undefined, 1000), {first: 1000, at: 2500})
+  assert.deepEqual(quietRead({first: 1000}, 5500), {first: 1000, at: 6000})
 })
 
 test('a task frame goes into My tasks with no read: changed in place, a new one first, a deleted one gone', () => {
@@ -121,6 +140,9 @@ test('a task frame goes into My tasks with no read: changed in place, a new one 
   assert.deepEqual(withTaskFrame(tasks, 'c', task('c', {assignee: 'me@x.io'})).map((x) => x._id), ['c', 'b', 'a'])
   assert.deepEqual(withTaskFrame(tasks, 'b', null).map((x) => x._id), ['a'])
   assert.equal(withTaskFrame(tasks, 'z', null), tasks)
+  // A published frame is the task; its deletion removes it; a discarded draft leaves the published task, which the frame does not carry.
+  assert.deepEqual([taskFrameKind('t', 'publish', true), taskFrameKind('drafts.t', 'patch', true), taskFrameKind('t', 'delete', true), taskFrameKind('t', 'delete', false)], ['set', 'set', 'remove', 'remove'])
+  assert.deepEqual([taskFrameKind('drafts.t', 'discardDraft', true), taskFrameKind('drafts.t', 'delete', true), taskFrameKind('drafts.t', 'patch', false)], ['read', 'read', 'read'])
   // Assigned to me from someone else's list: it is mine now.
   assert.deepEqual(openTasks(withTaskFrame([task('t', {assignee: 'you@x.io'})], 't', task('t', {assignee: 'me@x.io'})), 'me@x.io', 5).rows.map((x) => x._id), ['t'])
 })
