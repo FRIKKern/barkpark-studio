@@ -8,6 +8,8 @@ import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
 import {docDiff, type AttrChange, type DocBlock, type DocInline, type Piece} from '../lib/doc-diff'
 import {anyDocQuery, docQuery, previewTitle, refId, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from '../lib/data'
 import {arrayDiff} from '../lib/array-diff'
+import {isPortableText} from '../lib/pt-diff'
+import {PtChanges} from './PtChanges'
 import {useItemPreview} from './ObjectArrayInput'
 import {isReferenceMembers, memberFor, membersOf, mergedReference} from '../lib/array-members'
 import {rangeDate, Row} from './HistoryPanel'
@@ -185,6 +187,8 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
         {refId(change.after) && <ins title={by('Added')}><RefLabel id={refId(change.after)!} field={change.field} /></ins>}
       </p>
     )
+  // Portable Text: each changed block's words, a table cell by cell (lib/pt-diff.ts).
+  if (isPortableText(change.before) || isPortableText(change.after)) return <PtChanges before={change.before} after={change.after} author={author} />
   // An array: each item added, removed or moved, as Sanity's array diff.
   if (Array.isArray(change.before) || Array.isArray(change.after)) {
     const items = arrayDiff((change.before ?? []) as unknown[], (change.after ?? []) as unknown[]).filter((x) => x.kind !== 'kept')

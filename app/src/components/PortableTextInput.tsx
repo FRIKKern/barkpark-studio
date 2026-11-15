@@ -21,12 +21,14 @@ import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotat
 import {useQuery} from '@tanstack/react-query'
 import {schemasQuery, type Field} from '../lib/data'
 import {imageRef, imageSrc} from '../lib/image'
-import {keyedPath} from '../lib/paths'
+import {getPath, keyedPath} from '../lib/paths'
+import {tableEdits, tablesIn} from '../lib/pt-table'
+import {insertTable, outerBlock, PtTablePlugin} from './PtTable'
 import {uploadFile, uploadReason} from '../lib/upload'
 import {toast} from './Toasts'
 import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
-import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanText, textPatches, withRemote, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
@@ -37,7 +39,7 @@ import {reportSelection, usePresences} from '../lib/presence'
 import {usePersonNamer} from '../lib/person'
 import {MenuPopover} from './FocusScopes'
 import {PtCommentValue, PtInlineComments, type PtCommentBridge} from './PtInlineComments'
-import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, EditIcon, Ellipsis, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
+import {BlockIcon, TableIcon, BoldIcon, ChevronDown, CodeIcon, EditIcon, Ellipsis, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
 // S4a (task-7f77f41c95cc6d9f): a richText field holding Portable Text, edited with
 // @portabletext/editor (owner decision D2). Text, styles, lists and decorators edit.
@@ -196,9 +198,10 @@ function InlineChip({node, path, title, readOnly, attributes, children}: {node: 
 }
 
 /** Custom blocks and inline objects: a card and a chip by type, each opening its dialog. */
-function objectNodes(schema: PtSchema, title: (kind: ObjectKind, name: string) => string): RegistrableNode[] {
+function objectNodes(schema: PtSchema, title: (kind: ObjectKind, name: string) => string, tables: boolean): RegistrableNode[] {
   return [
-    ...schema.blockObjects.map((o) =>
+    // A table is drawn by its plugin (PtTable), not as a card.
+    ...schema.blockObjects.filter((o) => !(tables && o.name === 'table')).map((o) =>
       defineBlockObject({
         type: o.name as 'x',
         render: ({attributes, children, node, path, readOnly}) => (
@@ -259,7 +262,9 @@ type Shared = {mine: {current: unknown[]}; focused: {current: boolean}; onBlur: 
 function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef, mine, focused, onBlur, comments}: Props & Shared & {stored: PtBlock[]; schemas: SchemaLike[]; comments: PtCommentBridge}) {
   const t = useT()
   const schema = useMemo(() => editorSchema(field, stored, schemas), [field, stored, schemas])
-  const nodes = useMemo(() => [textBlock, decorators, annotations, ...objectNodes(schema, (kind, name) => objectTitle(field, kind, name, schemas))], [schema, field, schemas])
+  // Tables (lib/pt-table.ts): where the field takes them, or the text holds one already.
+  const tables = useMemo(() => tablesIn(field, stored).on, [field, stored])
+  const nodes = useMemo(() => [textBlock, decorators, annotations, ...objectNodes(schema, (kind, name) => objectTitle(field, kind, name, schemas), tables)], [schema, field, schemas, tables])
   const [objectEdit, setObjectEdit] = useState<ObjectEdit | null>(null)
   // A value the editor can't read: it stays read-only and nothing is saved from it.
   const [invalid, setInvalid] = useState(false)
@@ -297,8 +302,9 @@ function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef,
     >
       <EditorProvider initialConfig={{schemaDefinition: schema, initialValue: stored as PortableTextBlock[], readOnly: locked}}>
         <NodePlugin nodes={nodes} />
+        {tables && <PtTablePlugin />}
         {!locked && <SanityPlugins field={field} stored={stored} />}
-        <Saver id={id} stored={stored} incoming={value} onChange={invalid ? () => {} : onChange} editPath={invalid ? null : editPath} onInvalid={() => setInvalid(true)} onReady={() => setReady(true)} mine={mine} focused={focused} onBlur={onBlur} />
+        <Saver id={id} tables={tables} stored={stored} incoming={value} onChange={invalid ? () => {} : onChange} editPath={invalid ? null : editPath} onInvalid={() => setInvalid(true)} onReady={() => setReady(true)} mine={mine} focused={focused} onBlur={onBlur} />
         <PtCommentValue bridge={comments} ready={ready} />
         {invalid && (
           <p className="pt-note" role="status">
@@ -307,7 +313,7 @@ function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef,
         )}
         <EditObject.Provider value={locked ? null : setObjectEdit}>
           <AnnotationOpeners.Provider value={openers}>
-            {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} />}
+            {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} tables={tables} />}
             <Editable id={id} />
             {!locked && <AnnotationPopover field={field} />}
             {!locked && <ImagePaste field={field} />}
@@ -471,7 +477,7 @@ const Text = memo(function Text({id}: {id: string}) {
 })
 
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */
-function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; stored: PtBlock[]; incoming: unknown; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
+function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; tables: boolean; stored: PtBlock[]; incoming: unknown; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
   const editor = useEditor()
   const docId = useContext(DocIdContext)
   const seen = useRef<PtBlock[] | null>(null)
@@ -487,18 +493,27 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
   const sentAt = useRef(new Map<string, number>())
   const sentWhen = useRef(new Map<string, number>())
   const fromServer = useRef(new Map<string, {block: unknown; at: number}[]>())
-  // The editor's value as the server last sent it, and each span's text (`block/span`) as
+  // The editor's value as the server last sent it, and each span's text (`block/span`, a
+  // table's cell's with its table, row and cell before them) as
   // this editor has accounted for it since: its own typing applied, and others' given to it.
   // Text that comes in different from that is another editor's (remoteBlockPatches). The
   // texts its own typing wrote in the last 10 s: an older echo of those is never theirs.
   const known = useRef<unknown>(stored)
   const text = useRef(new Map<string, string>())
   const wrote = useRef<{at: string; text: string; when: number}[]>([])
-  const remember = (blocks: unknown[]) => {
-    for (const b of blocks as PtBlock[]) for (const c of Array.isArray(b?.children) ? (b.children as {_key?: string; text?: unknown}[]) : []) if (typeof c.text === 'string') text.current.set(`${b._key}/${c._key}`, c.text)
+  // `under`: the path to the list `blocks` are items of, when that is in a table.
+  const remember = (blocks: unknown[], under: unknown[] = []) => {
+    const keys = under.filter((s): s is {_key: string} => typeof s === 'object')
+    for (const [at, t] of spanTexts(blocks, keys.map((k) => `${k._key}/`).join(''), keys.length)) text.current.set(at, t)
   }
   const theirs = (key: string, block: unknown) =>
     (fromServer.current.get(key) ?? []).some((r) => r.at > (sentAt.current.get(key) ?? 0) && equal(asEditorHolds(r.block), asEditorHolds(block)))
+  // The same for one spot of a table (a cell's block, a row's cells: lib/pt-table.ts tableEdits).
+  const theirsIn = (key: string, at: string, path: string, value: unknown) => {
+    const depth = path.split('[_key==').length
+    const held = (v: unknown) => (Array.isArray(v) ? v.map((x) => asEditorHolds(x, depth)) : asEditorHolds(v, depth - 1))
+    return (fromServer.current.get(key) ?? []).some((r) => r.at > (sentAt.current.get(at) ?? 0) && equal(held(getPath({v: r.block}, `v${path}`)), held(value)))
+  }
   const on = (event: EditorEmittedEvent) => {
     if (event.type === 'focused') focused.current = true
     if (event.type === 'blurred') (focused.current = false), onBlur(), docId && reportSelection(docId, null)
@@ -521,14 +536,17 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
       last.current = next
       mine.current = [...mine.current.slice(-19), next ?? []]
       for (const t of typed) {
-        const at = `${t.block}/${t.span}`
+        // The span where it is: in a block of the field, or of a table's cell (`t.path`, from the field).
+        const {at} = t
         const own = parsePatch(t.value)
-        const from = text.current.get(at) ?? spanText(known.current, t.block, t.span)
+        const had = getPath({v: known.current}, `v${t.path}`)
+        const from = text.current.get(at) ?? (typeof had === 'string' ? had : '')
         text.current.set(at, applyText(own, from))
         wrote.current = [...wrote.current.filter((w) => Date.now() - w.when < 10_000), {at, text: text.current.get(at)!, when: Date.now()}]
         sentAt.current.set(t.block, ++seq.current)
+        sentAt.current.set(t.inBlock, seq.current)
         sentWhen.current.set(t.block, Date.now())
-        editPath(`${keyedPath(keyedPath(id, t.block) + '.children', t.span)}.text`, (now: unknown) => applyText(own, typeof now === 'string' ? now : ''))
+        editPath(`${id}${t.path}`, (now: unknown) => applyText(own, typeof now === 'string' ? now : ''))
       }
       return
     }
@@ -538,14 +556,39 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
     const parts = editPath && next ? changedBlocks(prior, next)?.filter((p) => !theirs(p.key, p.block)) ?? null : null
     last.current = next
     mine.current = [...mine.current.slice(-19), next ?? []]
-    if (parts && parts.length * 2 <= next!.length)
-      for (const p of parts) {
+    // A table's change goes as the cells, rows and blocks it changed (lib/pt-table.ts), never
+    // the table whole: another editor's words in another cell are not in what is sent.
+    const fine = parts?.map((p) => {
+      const was = Array.isArray(prior) ? (prior as PtBlock[]).find((b) => b?._key === p.key) : undefined
+      return {...p, was, edits: tables ? tableEdits(was, p.block) : null}
+    })
+    if (fine && (fine.length * 2 <= next!.length || fine.every((p) => p.edits)))
+      for (const p of fine) {
         sentAt.current.set(p.key, ++seq.current)
         sentWhen.current.set(p.key, Date.now())
-        editPath!(keyedPath(id, p.key), p.block)
-        remember([p.block])
+        for (const e of p.edits ?? []) {
+          const at = `[_key=="${p.key}"]${e.path}`
+          if (theirsIn(p.key, at, e.path, e.value)) continue
+          sentAt.current.set(at, seq.current)
+          // A list (rows, a row's cells, a cell's blocks): onto the list as it is held now,
+          // so the cells this editor did not touch go as they are there (freshItems).
+          const was = Array.isArray(e.value) ? getPath({v: p.was}, `v${e.path}`) : undefined
+          const list = e.value as unknown[]
+          editPath!(`${id}${at}`, Array.isArray(was) ? (now: unknown) => freshItems(was, list, now, (x) => theirsIn(p.key, `${at}[_key=="${x._key}"]`, `${e.path}[_key=="${x._key}"]`, x)) : e.value)
+        }
+        if (!p.edits) editPath!(keyedPath(id, p.key), p.block)
       }
-    else onChange(next), remember(next ?? [])
+    // The field whole (a block came, went or moved): onto the blocks as they are held now, so
+    // a block this editor did not touch goes as it is there, another editor's newest words in
+    // it (freshItems; sent as this editor last drew it, their keys typed since were undone).
+    else if (editPath && next) editPath(id, (now: unknown) => freshItems(prior, next, now, (b) => theirs(b._key as string, b)))
+    else onChange(next)
+    // The span texts this change made are accounted for. Not a span another editor's patch
+    // still waits for (held until this editor's typing pauses): it stays at their text, or
+    // their next patch was made from what the editor draws now and put the waiting one's words in twice.
+    const had = new Map(spanTexts(prior))
+    const waiting = new Set(held.current.flatMap((p) => (p.type === 'diffMatchPatch' ? [p.path.flatMap((s) => (typeof s === 'string' ? [] : [s._key])).join('/')] : [])))
+    for (const [at, t] of spanTexts(next)) if (had.get(at) !== t && !waiting.has(at)) text.current.set(at, t)
   }
   const typing = useRef(0)
   const held = useRef<RemotePatch[]>([])
@@ -579,7 +622,7 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
     const recent = new Set([...sentWhen.current].filter(([, at]) => Date.now() - at < 10_000).map(([k]) => k))
     const echo = (at: string, t: string) => wrote.current.some((w) => w.at === at && w.text === t && Date.now() - w.when < 10_000)
     const patches = remoteBlockPatches(prev ?? [], incoming ?? [], editor.getSnapshot().context.value ?? [], mine.current, recent, text.current, echo)
-    remember(patches.flatMap((p) => (p.type === 'set' ? [p.value] : p.type === 'insert' ? p.items : [])))
+    for (const p of patches) if (typeof p.path.at(-1) === 'object' && (p.type === 'set' || p.type === 'insert')) remember(p.type === 'set' ? [p.value] : p.items, p.path.slice(0, -1))
     if (!patches.length) return
     // Their text alone waits while this editor is typing a word: put in mid-word it splits
     // this editor's undo step there (the editor merges letters into one step only while each
@@ -594,9 +637,9 @@ function Saver({id, stored, incoming, onChange, editPath, onInvalid, onReady, mi
   return <EventListenerPlugin on={on} />
 }
 
-type ToolbarProps = {id: string; field: Field; stored: PtBlock[]; schemas: SchemaLike[]; openRef: OpenRef; ready: boolean}
+type ToolbarProps = {id: string; field: Field; stored: PtBlock[]; schemas: SchemaLike[]; openRef: OpenRef; ready: boolean; tables: boolean}
 
-function Toolbar({id, field, stored, schemas, openRef, ready}: ToolbarProps) {
+function Toolbar({id, field, stored, schemas, openRef, ready, tables}: ToolbarProps) {
   const t = useT()
   const editor = useEditor()
   const vocab = useMemo(() => declaredVocabulary(field), [field])
@@ -654,7 +697,7 @@ function Toolbar({id, field, stored, schemas, openRef, ready}: ToolbarProps) {
       {annotations.map((a) => (
         <AnnotationButton key={a.name} id={id} name={a.name} field={field} stored={stored} schemas={schemas} openRef={openRef} />
       ))}
-      <InsertMenu field={field} schemas={schemas} />
+      <InsertMenu field={field} schemas={schemas} tables={tables} />
     </fieldset>
   )
 }
@@ -702,14 +745,16 @@ type Tool = {name: string; title?: string; kind: ObjectKind}
  * after the caret's block and an inline object at the caret, with its `_type` and a new
  * 12-hex `_key`, and opens it to fill in. An inline object needs the caret in text.
  */
-function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
+function InsertMenu({field, schemas, tables}: {field: Field; schemas: SchemaLike[]; tables: boolean}) {
   const t = useT()
   const editor = useEditor()
   const edit = useContext(EditObject)
   const inText = !!useEditorSelector(editor, getFocusTextBlock)
   const [open, setOpen] = useState(false)
-  const {blocks, inline} = useMemo(() => insertable(field), [field])
+  const {blocks, inline} = useMemo(() => insertable(field, tables), [field, tables])
   const tools = useMemo<Tool[]>(() => [...blocks.map((b) => ({...b, kind: 'block' as const})), ...inline.map((i) => ({...i, kind: 'inline' as const}))], [blocks, inline])
+  // A table goes in whole and takes the caret (PtTable): it has no dialog.
+  const isTable = (x: {kind: ObjectKind; name: string}) => tables && x.kind === 'block' && x.name === 'table'
   // Sanity's fold: the inserts that don't fit the bar's end go behind Show more. Widths are
   // read with everything shown and kept per insert (as the canvas body's toolbar).
   const group = useRef<HTMLDivElement>(null)
@@ -735,9 +780,11 @@ function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
   if (!tools.length) return null
   const insert = (kind: ObjectKind, name: string) => {
     setOpen(false)
+    if (isTable({kind, name})) return insertTable(editor)
     const _key = newKey()
     // After the caret's block, never splitting its text.
-    if (kind === 'block') editor.send({type: 'insert.block', block: {_type: name, _key}, placement: 'after', select: 'none'})
+    const outer = outerBlock(editor)
+    if (kind === 'block') editor.send({type: 'insert.block', block: {_type: name, _key}, placement: 'after', select: 'none', ...(outer && {at: outer})})
     else editor.send({type: 'insert.child', child: {_type: name, _key}})
     // Where it landed: by its key.
     for (const b of (editor.getSnapshot().context.value ?? []) as PtBlock[]) {
@@ -746,7 +793,8 @@ function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
       if (child) return edit?.({kind, node: child, path: [{_key: b._key}, 'children', {_key}]})
     }
   }
-  const title = (kind: ObjectKind, n: {name: string; title?: string}) => n.title ?? objectTitle(field, kind, n.name, schemas)
+  const title = (kind: ObjectKind, n: {name: string; title?: string}) => n.title ?? (isTable({kind, name: n.name}) && !schemas.some((s) => s.name === 'table' && s.kind === 'object') ? t('Table') : objectTitle(field, kind, n.name, schemas))
+  const icon = (x: Tool) => (isTable(x) ? <TableIcon /> : x.kind === 'block' ? <BlockIcon /> : <InlineIcon />)
   const label = (x: Tool) => t(x.kind === 'block' ? 'Insert {typeName} (block)' : 'Insert {typeName} (inline)', {typeName: title(x.kind, x)})
   const shown = tools.slice(0, tools.length - folded)
   const rest = tools.slice(tools.length - folded)
@@ -756,7 +804,7 @@ function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
       <div ref={group} className="body-tool-group pt-insert-group">
         {shown.map((x) => (
           <button key={`${x.kind}:${x.name}`} type="button" className="body-insert" data-tool={`${x.kind}:${x.name}`} aria-label={label(x)} disabled={x.kind === 'inline' && !inText} onClick={() => insert(x.kind, x.name)}>
-            {x.kind === 'block' ? <BlockIcon /> : <InlineIcon />}
+            {icon(x)}
             <span>{title(x.kind, x)}</span>
           </button>
         ))}
@@ -770,7 +818,7 @@ function InsertMenu({field, schemas}: {field: Field; schemas: SchemaLike[]}) {
               <MenuPopover centered onClose={() => setOpen(false)}>
                 {rest.map((x) => (
                   <button key={`${x.kind}:${x.name}`} type="button" role="menuitem" className="menu-item body-more-item" disabled={x.kind === 'inline' && !inText} onClick={() => insert(x.kind, x.name)}>
-                    {x.kind === 'block' ? <BlockIcon /> : <InlineIcon />}
+                    {icon(x)}
                     <span>{title(x.kind, x)}</span>
                   </button>
                 ))}

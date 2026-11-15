@@ -51,6 +51,33 @@ export function setPath<T extends Record<string, unknown>>(obj: T, path: string,
   return setIn(obj, segments(path), value) as T
 }
 
+/**
+ * `value`, the value at `outer`, with `path` (inside `outer`) set to `inner`. `outer` may end
+ * in an item (`body[_key=="b"]`, a block pending whole when a key is typed in it): setPath on
+ * `{[outer]: value}` found no such field then and left the block as it was, the key not in it.
+ */
+export const setInside = (outer: string, value: unknown, path: string, inner: unknown): unknown => setPath({v: value}, `v${path.slice(outer.length)}`, inner).v
+
+/**
+ * Two sets of pending writes as one, `later` made after `first` (a save that did not land,
+ * and what was edited while it was on its way): one write per spot, as an edit keeps them. A
+ * whole value made later replaces the paths inside it (it was made with them in: sent beside
+ * it they went on top again, a span's older text over the newer one in its block, or its
+ * patch a second time); a later path inside a whole value goes into that value. `dropped`
+ * are the paths that are no longer written on their own.
+ */
+export function mergePending(first: ReadonlyMap<string, unknown>, later: ReadonlyMap<string, unknown>): {pending: Map<string, unknown>; dropped: string[]} {
+  const pending = new Map(first)
+  const dropped: string[] = []
+  for (const [path, value] of later) {
+    for (const f of [...pending.keys()]) if (f !== path && within(f, path)) (pending.delete(f), dropped.push(f))
+    const outer = [...pending.keys()].find((f) => f !== path && within(path, f))
+    if (outer) (pending.set(outer, setInside(outer, pending.get(outer), path, value)), dropped.push(path))
+    else pending.set(path, value)
+  }
+  return {pending, dropped}
+}
+
 /** Apply every path → value of `edits` on top of `obj`, in order. */
 export const applyPaths = <T extends Record<string, unknown>>(obj: T, edits: Iterable<[string, unknown]>): T =>
   [...edits].reduce((acc, [p, v]) => setPath(acc, p, v), obj)
