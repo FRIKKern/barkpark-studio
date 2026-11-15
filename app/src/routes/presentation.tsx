@@ -4,6 +4,7 @@ import {Navbar} from '../components/Navbar'
 import {Presentation} from '../components/Presentation'
 import {localeQuery, translate} from '../lib/i18n'
 import {resumeLive} from '../lib/live'
+import {ownPath} from '../lib/presentation-comlink'
 import studio from '../studio.config'
 import {studioName} from '../lib/studio-name'
 
@@ -13,7 +14,8 @@ type Search = {preview?: string; pane?: string; perspective?: string; viewport?:
 
 export const Route = createFileRoute('/presentation')({
   validateSearch: (search: Record<string, unknown>): Search => ({
-    ...(typeof search.preview === 'string' && search.preview.startsWith('/') ? {preview: search.preview} : {}),
+    // Named even when refused: the router lays the raw search under this one, and a key left out came through as typed.
+    preview: ownPath(search.preview) ? search.preview : undefined,
     ...(typeof search.pane === 'string' && search.pane ? {pane: search.pane} : {}),
     ...(search.perspective === 'published' ? {perspective: 'published'} : {}),
     ...(search.viewport === 'mobile' ? {viewport: 'mobile' as const} : {}),

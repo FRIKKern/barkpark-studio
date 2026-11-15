@@ -1,5 +1,5 @@
 import {expect, test} from '../rig/test'
-import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
+import {BACKEND_POLL, closeAndSettle, signInIfAsked, target} from '../rig/targets'
 
 // A next-sanity site in our Presentation: it speaks Sanity's comlink (<VisualEditing>,
 // useLiveMode), not our bridge, and holds no token. The third copy of reference/preview-site
@@ -8,13 +8,16 @@ import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 const SITE = `http://localhost:${process.env.PREVIEW_SITE_PORT_BARKPARK}` // playwright.config sets both
 const COMLINK = `http://localhost:${process.env.PREVIEW_SITE_PORT_COMLINK}`
 
+// The fixture post a test edits: put back after it.
+let edited = 'post-01'
 test.afterEach(async ({page}, info) => {
   if (info.project.name !== 'studio' || info.status === 'skipped') return
   await closeAndSettle(page)
-  await target(info).resetDoc('post-01', 'post')
+  await target(info).resetDoc(edited, 'post')
 })
 
 test('@local J59–J63 over comlink: a next-sanity page connects, a click focuses the field, typing shows live, Published and the URL follow', async ({page, context}, info) => {
+  edited = 'post-01'
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours only: Sanity speaks comlink to its own site')
   await t.prepare(context)
@@ -63,4 +66,42 @@ test('@local J59–J63 over comlink: a next-sanity page connects, a click focuse
   await site.getByRole('link', {name: 'Reference site'}).click()
   await expect(page.getByLabel('URL')).toHaveValue(`${SITE}/`)
   await expect(site.getByRole('heading', {level: 1})).toHaveText('Posts')
+})
+
+// @local: it needs the preview site (reference/preview-site as a next-sanity site), which CI does not run.
+test('@local J58 over comlink: an overlay carries the schema (document title, the array\'s title on the item menu); an item moved on the page is the draft\'s order, and the form\'s', async ({page, context}, info) => {
+  edited = 'post-09'
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours only: Sanity speaks comlink to its own site')
+  await t.prepare(context)
+  await context.route(`${SITE}/**`, (route) => route.continue({url: route.request().url().replace(SITE, COMLINK)}))
+  await page.goto('/presentation?preview=/posts/fixture-post-09')
+  await signInIfAsked(page)
+  const site = page.frameLocator('iframe')
+  const items = site.locator('ul.links li')
+  await expect(items).toHaveText([/Sanity docs/, /Related post/], {timeout: 20_000})
+  const keys = async () => ((await t.docValue('post-09', 'links')) as {_key: string}[]).map((l) => l._key).join()
+  expect(await keys()).toBe('l1,l2')
+
+  // The outline's label: the document's preview title (preview snapshots), with the drag handle of an array item.
+  const second = items.nth(1)
+  await second.hover({position: {x: 300, y: 8}})
+  const label = site.locator('[data-sanity-overlay-element]').filter({hasText: 'Fixture post 09'})
+  await expect(label.getByText('Fixture post 09')).toBeVisible()
+  await expect(label.locator('.drag-handle')).toBeVisible()
+  // The item menu (Sanity's, from the schema we send): titled as the array's field, with the array actions.
+  await second.click({button: 'right', position: {x: 300, y: 8}})
+  await expect(site.getByText('Links', {exact: true})).toBeVisible()
+  await expect(site.getByRole('menuitem', {name: 'Duplicate'})).toBeVisible()
+  await site.getByRole('button', {name: 'Move', exact: true}).click()
+  await site.getByRole('menuitem', {name: 'Up', exact: true}).click()
+
+  // On the page at once; in the draft through the studio's own write; in the form.
+  await expect(items).toHaveText([/Related post/, /Sanity docs/])
+  await expect.poll(keys, BACKEND_POLL).toBe('l2,l1')
+  await page.locator('.presentation-panel').getByRole('combobox', {name: 'Field groups'}).selectOption('meta')
+  await expect(page.locator('.presentation-panel #links .array-row')).toHaveText([/Related post/, /Sanity docs/])
+  // And the page keeps it once its query has come round again (no snap back to the old order).
+  await page.waitForTimeout(1500)
+  await expect(items).toHaveText([/Related post/, /Sanity docs/])
 })

@@ -38,7 +38,10 @@ PREVIEW_SOURCE=sanity-on-barkpark PREVIEW_DATASET=e2e-local PREVIEW_PORT=4537 PR
   overlays, click-to-edit and live preview work as in Sanity's. The studio shows it when
   its `VITE_PREVIEW_ORIGIN` is this copy's origin; outside a studio it shows nothing.
   The studio hears comlink from that origin only, opens only documents its schema has,
-  and follows the page only on that origin.
+  and follows the page only on that origin. A post's links are the array example: each
+  `<li>` carries `createDataAttribute(…path: links[_key=="…"])`, so its outline has the
+  drag handle and the item menu, and `useOptimistic` shows the new order at once. The
+  studio writes the change itself, to the draft, as a form edit.
 - Barkpark Studio's Presentation (J58) talks to the page through `src/barkpark.ts`:
   the page posts `{bp: 'preview', type: 'hello' | 'location'}` to its parent and
   takes `{bp: 'studio', type: 'navigate' | 'refresh'}` back. Sanity's comlink is
