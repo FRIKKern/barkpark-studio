@@ -1,0 +1,24 @@
+/* Document translations (components/TranslationsMenu.tsx): the header's Translations button
+   with the document's language as its badge, its menu, and "Manage translations". Its own
+   file: styles.css is long enough. */
+.lang-badge { font-size: 11px; font-weight: 600; line-height: 15px; letter-spacing: .3px; text-transform: uppercase; padding: 0 4px; border-radius: 3px; background: var(--fill-soft); color: var(--badge-fg); white-space: nowrap; }
+.preview .badge.lang-badge { font-size: 11px; font-weight: 600; line-height: 17px; border-radius: 3px; }
+.pane-header .icon-btn.translations-btn { width: auto; min-width: 25px; display: inline-flex; align-items: center; gap: 2px; padding: 0 2px; flex-shrink: 0; }
+.translations-btn[aria-busy='true'] > svg { animation: translations-busy 1s ease-in-out infinite alternate; }
+@keyframes translations-busy { from { opacity: 1; } to { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .translations-btn[aria-busy='true'] > svg { animation: none; opacity: .5; } }
+.popover.menu.translations-menu { min-width: 220px; width: max-content; max-width: min(320px, calc(100vw - 24px)); }
+.translations-menu .menu-note { margin: 0; padding: 6px 12px; font-size: 13px; line-height: 19px; color: var(--muted); white-space: normal; }
+.translations-menu .menu-icon-text { display: flex; align-items: center; gap: 8px; width: 100%; }
+.translations-menu .menu-icon-text svg { flex: none; margin-right: -4px; }
+.translations-menu .lang-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.translations-menu .menu-item[aria-current='true'] { cursor: default; color: var(--muted); }
+.translations-menu .menu-item[aria-current='true']:hover { background: none; }
+.translations-list { list-style: none; margin: 0; padding: 0 0 12px; display: flex; flex-direction: column; gap: 8px; }
+.translations-list li { display: flex; align-items: center; gap: 8px; }
+.translations-list .ref-box { flex: 1; min-width: 0; }
+.translations-list .lang-badge { flex: none; min-width: 26px; text-align: center; }
+/* J46: a finger gets a 44 px button. */
+@media (max-width: 768px) and (pointer: coarse) {
+  .pane-header .icon-btn.translations-btn { min-width: 44px; height: 44px; justify-content: center; }
+}
