@@ -1,5 +1,5 @@
 import {useLiveMode, type QueryResponseInitial} from '@sanity/react-loader'
-import {VisualEditing} from '@sanity/visual-editing/react'
+import {useOptimistic, VisualEditing} from '@sanity/visual-editing/react'
 import {createDataAttribute} from '@sanity/visual-editing'
 import {stegaClean} from '@sanity/client/stega'
 import {Link, historyAdapter, usePathname} from './router'
@@ -43,6 +43,25 @@ const marked = (p: Post, field: string): Record<string, string> | undefined =>
   SOURCE === 'barkpark'
     ? p.$edit?.(field)
     : {'data-sanity': createDataAttribute({projectId: 'ecu57yeh', dataset: __DATASET__, baseUrl: __STUDIO_URL__, id: p._id.replace(/^drafts\./, ''), type: 'post', path: field}).toString()}
+
+/**
+ * A post's links, as a list the overlays can reorder (Sanity's Presentation, and Barkpark
+ * Studio's over comlink): each item is marked as its array item, so its outline has the
+ * drag handle and the item menu, and `useOptimistic` shows a move at once, from the
+ * document the studio sends, before the query comes round again.
+ */
+function Links({post}: {post: Post}) {
+  const id = post._id.replace(/^drafts\./, '')
+  const links = useOptimistic<Post['links'], {links?: NonNullable<Post['links']>}>(post.links, (state, action) =>
+    action.id === id && Array.isArray(action.document?.links) ? action.document.links.map((l) => state?.find((s) => s._key === l._key) ?? l) : state,
+  )
+  if (!links?.length) return null
+  return (
+    <ul className="links">
+      {links.map((l) => <li key={l._key} {...(SOURCE !== 'barkpark' && marked(post, `links[_key=="${stegaClean(l._key)}"]`))}><span {...l.$edit?.('title')}>{l.title}</span></li>)}
+    </ul>
+  )
+}
 type Author = {_id: string; name?: string; bio?: string; posts: PostRow[]; $edit?: Edit}
 
 const ROW = `_id, title, "slug": slug.current, excerpt, author->{_id, name}`
@@ -136,11 +155,7 @@ function Page() {
               {p.mainImage && <figure className="image" {...marked(p, 'mainImage')}>{stegaClean(p.mainImage.alt) || 'Main image'}</figure>}
               {paragraphs(p.body).map((b) => <p key={b.key} {...inBlock(p.$edit?.('body'), b.key)}>{b.text}</p>)}
               {p.seo?.metaTitle && <p className="meta">SEO: <span {...p.seo.$edit?.('metaTitle')}>{p.seo.metaTitle}</span></p>}
-              {!!p.links?.length && (
-                <ul className="links">
-                  {p.links.map((l) => <li key={l._key}><span {...l.$edit?.('title')}>{l.title}</span></li>)}
-                </ul>
-              )}
+              <Links post={p} />
               {p.related && (
                 <p className="meta">
                   Related:{' '}

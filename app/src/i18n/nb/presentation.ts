@@ -28,6 +28,8 @@ export default {
   'A QR Code which encodes the URL: {url}': 'En QR-kode som koder URL-en: {url}',
   'The URL is copied to the clipboard': 'URL-en er kopiert til utklippstavlen',
   'Copy failed': 'Kopiering mislyktes',
+  'A change made on the page was not saved': 'En endring gjort på siden ble ikke lagret',
+  'The page shows what is saved.': 'Siden viser det som er lagret.',
   'Used on one page': 'Brukt på én side',
   'Used on {count} pages': 'Brukt på {count} sider',
   'Not used on any pages': 'Ikke brukt på noen sider',

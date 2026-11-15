@@ -104,12 +104,22 @@ export const focusPane = (target: {id: string; type: string; path?: string}) => 
 
 // ── Navigation ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * A path on the preview's own origin. Judged as a URL reads it, not by its letters: `//host`,
+ * `/\host` and `/<tab>/host` (a URL drops tabs and newlines) all name another site.
+ */
+export const ownPath = (path: unknown): path is string => typeof path === 'string' && path.startsWith('/') && framePath(path, 'http://own.invalid') !== null
+
+/** The frame's address for `?preview=`: that path on the preview site, or the site's root for anything that is not one. */
+export const frameSrc = (preview: unknown, previewUrl: string) => new URL(framePath(ownPath(preview) ? preview : '/', new URL(previewUrl).origin) ?? '/', previewUrl).toString()
+
 /** Where the frame says it is, as a path on the preview's own origin; null for anywhere else (the studio never follows it). */
 export function framePath(url: unknown, origin: string): string | null {
   if (typeof url !== 'string' || url.length > 2048) return null
   try {
     const target = new URL(url, origin)
-    return target.origin === origin ? target.pathname + target.search : null
+    // `//host/…` as a path is another site once it is resolved again (new URL(path, origin)).
+    return target.origin === origin && !target.pathname.startsWith('//') ? target.pathname + target.search : null
   } catch {
     return null
   }
@@ -220,6 +230,9 @@ export function sourceMapOf(value: unknown): SourceMap {
   if (!isObj(value) || !Array.isArray(value.documents) || !Array.isArray(value.paths) || !isObj(value.mappings)) return EMPTY_MAP
   return value as unknown as SourceMap
 }
+
+/** Whether a query the studio ran for the page, and still follows, read the document `id`: it is on the page by the studio's own reading, not the page's word. */
+export const readByPage = (book: QueryBook<{map?: SourceMap}>, id: string) => [...book.values()].some((q) => !!q.state?.map && readsDocument(q.state.map, id))
 
 /** Whether a query's result reads the document `id` (its published id). */
 export const readsDocument = (map: SourceMap, id: string) => map.documents.some((d) => typeof d?._id === 'string' && publishedId(d._id) === id)

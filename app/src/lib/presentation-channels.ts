@@ -5,14 +5,18 @@ import type {ChannelInstance} from '@sanity/comlink'
 import type {LoaderControllerMsg, LoaderNodeMsg, VisualEditingControllerMsg, VisualEditingNodeMsg} from '@sanity/presentation-comlink'
 import {anyDocQuery, docQuery, schemaOf, schemasQuery} from './data'
 import {runPreviewQuery} from './presentation-query'
-import {fieldPath, focusPane, focusTarget, forget, framePath, hear, liveResult, loaderListen, mayRead, pageDocuments, readsDocument, refusedMessage, sourceMapOf, type Perspective, type QueryBook, type SourceMap} from './presentation-comlink'
+import {overlayEditing} from './presentation-overlay'
+import {tallyOf} from './presentation-mutate'
+import {fieldPath, focusPane, focusTarget, forget, framePath, hear, liveResult, loaderListen, mayRead, pageDocuments, readByPage, readsDocument, refusedMessage, sourceMapOf, type Perspective, type QueryBook, type SourceMap} from './presentation-comlink'
 
 /**
  * Presentation's comlink side, beside the bridge (components/Presentation.tsx): the two
  * channels Sanity's own Presentation opens to a site, with the real @sanity/comlink.
  *
  *   studio "presentation" ◀── visual-editing ──▶ the site's <VisualEditing>: click to edit,
- *        │                                        its URL and title, documents, overlay, focus
+ *        │                                        its URL and title, documents, overlay, focus;
+ *        │                                        the schema, labels and array edits of its
+ *        │                                        overlays (lib/presentation-overlay.ts)
  *        └──────────────── ◀── loaders ────────▶ the site's useLiveMode: the studio runs its
  *                                                 queries (lib/presentation-query.ts) and
  *                                                 answers again when a document they read changes
@@ -43,6 +47,8 @@ export type ComlinkOptions = {
   perspective: Perspective
   /** The Edit switch, as the tool wants the site's overlay. */
   overlays: boolean
+  /** The document the panel shows (its last pane), if any. */
+  panelDoc: string | null
   /** The field the document panel has focus in. */
   focus: {id: string; path: string} | null
   onConnected: () => void
@@ -70,7 +76,9 @@ export function usePresentationComlink(o: ComlinkOptions) {
     const origin = o.origin
     let stopped = false
     let teardown = () => {}
-    // Before comlink hears anything (capture runs first): only this frame, only its origin.
+    // Before comlink hears anything: only this frame, only its origin. It works by being
+    // registered first (comlink's listener is added below, once its package has loaded): a
+    // window runs its message listeners in the order they were added, capture or not.
     const guard = (e: MessageEvent) => refusedMessage(e, target, origin) && e.stopImmediatePropagation()
     window.addEventListener('message', guard, true)
 
@@ -126,7 +134,8 @@ export function usePresentationComlink(o: ComlinkOptions) {
       })
       const pageDocs = {visual: [] as PageDoc[], loaders: [] as PageDoc[]}
       const types = () => new Set((qc.getQueryData(schemasQuery.queryKey) ?? []).map((s) => s.name))
-      const reportDocs = () => opts.current.onDocuments(pageDocuments([...pageDocs.visual, ...pageDocs.loaders], types()))
+      const docsOnPage = () => pageDocuments([...pageDocs.visual, ...pageDocs.loaders], types())
+      const reportDocs = () => (opts.current.onDocuments(docsOnPage()), editing.documents())
       loaders.on('loader/documents', (data) => ((pageDocs.loaders = pageDocuments(data?.documents, types())), reportDocs()))
       // A page that loaded again holds none of the answers: every query is new to it.
       loaders.onStatus((e) => e.status === 'connected' && (book.clear(), tellLoaders()))
@@ -182,13 +191,21 @@ export function usePresentationComlink(o: ComlinkOptions) {
       })
       visual.on('visual-editing/refreshing', () => (clearTimeout(refreshing.timer), book.forEach((_, key) => void run(key))))
       visual.on('visual-editing/refreshed', () => opts.current.onConnected())
-      // What <VisualEditing> asks of a Studio on connecting. No schema, no optimistic writes:
-      // the page reads, the form edits.
+      // What <VisualEditing> asks of a Studio on connecting; the schema, the labels and the
+      // array edits of its overlays are lib/presentation-overlay.ts.
       visual.on('visual-editing/fetch-perspective', () => ({perspective: opts.current.perspective}))
-      visual.on('visual-editing/features', () => ({features: {optimistic: false}}))
-      visual.on('visual-editing/schema', () => ({schema: []}))
       visual.on('visual-editing/shared-state', () => ({state: {}}))
-      visual.on('visual-editing/preview-snapshots', () => ({snapshots: []}))
+      const editing = overlayEditing({
+        visual,
+        qc,
+        perspective: () => opts.current.perspective,
+        pageDocs: docsOnPage,
+        read: (id) => readByPage(book, id),
+        panelDoc: () => opts.current.panelDoc,
+        tally: tallyOf(origin),
+        putBack: () => opts.current.onReload(),
+        open: (pane) => void navigate({to: '/presentation', search: (prev: Record<string, unknown>) => ({...prev, pane})}),
+      })
       const syncOverlay = () => {
         const want = opts.current.overlays && opts.current.perspective === 'drafts'
         if (overlay.asked || overlay.site === want) return
@@ -221,6 +238,7 @@ export function usePresentationComlink(o: ComlinkOptions) {
         clearTimeout(refreshing.timer)
         book.forEach((q) => clearTimeout(q.state?.timer))
         unwatch()
+        editing.stop()
         stops.forEach((stop) => stop())
         controller.destroy()
         live.current = null
