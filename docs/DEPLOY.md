@@ -29,7 +29,7 @@ with, so any change needs a new deployment.
 | `STUDIO_LOCALE` | no | `nb-NO` or `en` forces the interface language; otherwise the workspace's |
 | `STUDIO_DESK_ID` | no | The published `deskStructure` document this studio's desk is (default `deskStructure`), e.g. `deskStructure.pensum` for a second studio on the same dataset. Letters, digits, `_ . -`, no `drafts.`; another value is refused: every content-model read fails with the reason. A non-default desk needs Barkpark's `/v1/structure?desk=`; without it the desk shows an error, never the other studio's desk |
 | `VITE_STUDIO_TITLE` | no | The studio's name in the navbar and the browser tab |
-| `VITE_STUDIO_TOOLS` | no | e.g. `structure,vision`: only these tools, in this order |
+| `VITE_STUDIO_TOOLS` | no | e.g. `structure,vision`: only these tools, in this order. Ids: `structure`, `dashboard`, `presentation`, `vision`, `media`, `releases`, a config tool's name. Left out, a tool has no navbar entry; `dashboard` left out also answers `/dashboard` with Not Found |
 | `VITE_PREVIEW_ORIGIN_OVERRIDE` | no | Swaps the origin of every schema's `desk.preview` template |
 | `VITE_FORM_VIEW_TITLE`, `VITE_HIDE_JSON_VIEW=1` | no | The form tab's name; drop the JSON tab |
 

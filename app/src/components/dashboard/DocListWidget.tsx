@@ -1,6 +1,5 @@
 import {useQuery} from '@tanstack/react-query'
 import {schemaOf, schemasQuery} from '../../lib/data'
-import {isDocumentType} from '../../lib/creatable'
 import type {Resolved, RowsKind} from '../../lib/dashboard'
 import {rowsQuery} from '../../lib/dashboard-data'
 import {useCanWrite} from '../../lib/session'
@@ -21,11 +20,10 @@ type ListWidget = Extract<Resolved, {kind: 'drafts' | 'recent' | 'documentList'}
 export function DocListWidget({widget}: {widget: ListWidget}) {
   const t = useT()
   const {data: schemas} = useQuery(schemasQuery)
-  // The desk's document types: a list with no `types` of its own shows them all.
-  const desk = (schemas ?? []).filter(isDocumentType).map((s) => s.name)
-  const types = widget.kind === 'documentList' && widget.types ? widget.types : desk
-  const kind: RowsKind = {only: widget.kind === 'drafts' ? 'drafts' : 'all', types, order: widget.kind === 'documentList' ? widget.order : '_updatedAt desc', limit: widget.limit}
-  const q = useQuery({...rowsQuery(kind), enabled: !!schemas})
+  // No `types` of its own: every document type of the desk, which the server names (a 64-type
+  // model's names in each request's address is what a search once outgrew, lib/data.ts).
+  const kind: RowsKind = {only: widget.kind === 'drafts' ? 'drafts' : 'all', types: widget.kind === 'documentList' ? widget.types : null, order: widget.kind === 'documentList' ? widget.order : '_updatedAt desc', limit: widget.limit}
+  const q = useQuery(rowsQuery(kind))
   const {canWrite, createReason} = useCanWrite()
   const title = t(widget.title)
   const createType = widget.kind === 'documentList' && widget.createNew ? widget.types?.[0] : undefined

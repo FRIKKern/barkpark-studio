@@ -20,6 +20,8 @@
   .dashboard { padding: 12px; }
   .dash-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .dash-widget, .dash-widget[data-width] { grid-column: 1 / -1; }
+  /* One column is a long scroll: an empty widget keeps three rows of room, not its whole list's. */
+  .dash-body { min-height: calc(min(var(--rows, 2), 3) * 53px + 8px); }
 }
 
 .dash-widget > header { display: flex; align-items: center; gap: 8px; min-height: 45px; padding: 10px 10px 6px 16px; }

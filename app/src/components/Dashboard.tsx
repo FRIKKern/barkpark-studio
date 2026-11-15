@@ -2,6 +2,7 @@ import {useEffect, useMemo} from 'react'
 import {useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {schemasQuery, type Doc} from '../lib/data'
 import {isDocumentType} from '../lib/creatable'
+import {useLivePausedToast, useReconnectingToast} from '../lib/connection'
 import {resolveWidgets, withFrame, withoutFrame, type Resolved, type RowsKind} from '../lib/dashboard'
 import type {Upcoming} from '../lib/dashboard-data'
 import {onDocFrame, useLive, type Frame} from '../lib/live'
@@ -64,6 +65,9 @@ function Widget({widget}: {widget: Resolved}) {
 /** This tab in the presence room (J07), as Structure's pages are: the Members widget and the rows show who is here. */
 function usePresence() {
   usePresenceStream()
+  // A live page says when it is not: "Trying to connect…", "Live updates paused" (J50).
+  useReconnectingToast()
+  useLivePausedToast()
   const self = useQuery(meQuery).data?.presenceName ?? null
   useEffect(() => setPresenceSelf(self), [self])
 }
@@ -91,9 +95,10 @@ function useLiveRows() {
     // Last created lists: a draft's frame cannot say when its document was created (lib/dashboard.ts
     // docRows), so a document that is no row costs one read, and is then known not to be one.
     const outside = new Map<string, Set<string>>()
-    const off = onDocFrame((f) => applyFrame(qc, f, readAgain, outside))
+    const desk = new Set(types)
+    const off = onDocFrame((f) => desk.has(f.type) && applyFrame(qc, f, readAgain, outside))
     return () => (off(), again.forEach(clearTimeout))
-  }, [qc])
+  }, [qc, types])
 }
 const READ_AGAIN_MS = 400
 

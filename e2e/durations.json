@@ -27,6 +27,7 @@
   "create.spec.ts": 0,
   "custom-validation.spec.ts": 7.1,
   "dark.spec.ts": 0,
+  "dashboard.spec.ts": 4,
   "deploy-flip.spec.ts": 3.1,
   "desk-views.spec.ts": 0,
   "diagnostics.spec.ts": 0,

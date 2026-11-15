@@ -15,6 +15,7 @@ For a Sanity developer: where each Sanity habit lives here. Work in your own lan
 | `components.input` | `form.inputs['<type>.<field>']`, a component of `InputProps` (`value`, `onChange`, `renderDefault`) |
 | `defineIncomingReferenceDecoration` in `renderMembers` | In the type's schema, beside `desk.views`: `"desk": {"incoming": [{"name": "posts", "title": "Posts by this author", "types": [{"type": "post", "by": "author"}]}]}`. The form then lists the posts whose `author` (a reference, or an array of references) points at the open document, live; a row opens in the next pane; "Add item" creates a post with that reference set (it asks which template when the type has several). Optional: `description`, `group` (the tab it shows on), `creationAllowed` (`false`, or template ids), a type's `title` and `orderings` (default: last edited); `{"view": "posts"}` in place of `{type, by}` reuses a `desk.views` entry. It is no field (Barkpark refuses an unknown field type) and holds no value: nothing is written to the document it shows on. Without the schema: `form.incomingReferences: {author: [...]}` in `app/src/studio.config.tsx` (the working example). Shapes: `app/src/lib/incoming-refs.ts`. Sanity's `filter`, `onLinkDocument` and `actions` callbacks are not offered |
 | `presentationTool({previewUrl})` and a next-sanity site | `presentation.previewUrl` in `app/src/studio.config.tsx` (`VITE_PREVIEW_ORIGIN`). The site keeps `<VisualEditing>` and `useLiveMode`; its client gets `apiHost: '<BARKPARK_URL>/w/<workspace>/p/<project>'`, `useProjectHostname: false` and `stega.studioUrl` = this studio. It needs no token: in Presentation the studio runs its queries as the signed-in editor (GROQ reads of the studio's dataset, drafts or published) and answers again as they type. Its overlays get the schema (titles, icons) and each page document's preview title, and an array item marked with `createDataAttribute` gets Sanity's item menu and drag to reorder (`useOptimistic` on the site shows it at once). Only `previewUrl`'s origin is spoken to or heard, so name a site you trust: it reads what the editor may read, and it can reorder, duplicate, remove and add empty items in the arrays of any document its queries read (so: any document of a schema type that editor may write), as that editor, into the draft: never Published, never another field or a value of its own, 30 changes a minute (`app/src/lib/presentation-mutate.ts`). A change to a document the panel is not showing opens it there. The working example: [`reference/preview-site`](../reference/preview-site/README.md) |
+| `dashboardTool({widgets})` (@sanity/dashboard), `documentListWidget` (sanity-plugin-dashboard-widget-document-list) | `dashboard.widgets` in `app/src/studio.config.tsx`: see [The Dashboard](#the-dashboard) |
 | `document.actions` | `document.actions(type)` → `[({doc, set}) => ({label, onHandle, disabled})]`; also `badges`, `tools`, `templates`, `productionUrl` |
 | `sanity build` / deploy | `pnpm --dir app check` (types, unit tests, build), then `pnpm --dir app serve` (build + `vite preview` on :3000). `BARKPARK_*` are read at run time from `.env`; `VITE_*` are baked in at build. Editors sign in with their Barkpark account (J67), kept across restarts by `STUDIO_SESSION_SECRET`; `STUDIO_SIGN_IN=shared` lets everyone work as `BARKPARK_TOKEN` instead. Vercel, and every variable: [DEPLOY](DEPLOY.md) |
 
@@ -28,6 +29,40 @@ An account-only deployment without that token can use the default type list when
 no desk is declared; a declared desk still requires the existing service access.
 `node e2e/account-schema-contract.mjs` (after building the app) checks these two
 paths with a loopback backend and synthetic sessions; it is not live login evidence.
+
+## The Dashboard
+
+`dashboard` in `app/src/studio.config.tsx` turns the Dashboard tool on (`/dashboard`, after
+Structure in the navbar; Structure stays the tool `/` opens). Without `widgets` it shows the
+default five. A deployment that sets `VITE_STUDIO_TOOLS` gets it only by naming `dashboard`.
+
+```tsx
+dashboard: {
+  widgets: [
+    {type: 'drafts'}, // every unpublished change, newest first
+    {type: 'recent', limit: 8}, // the newest edits across the desk's types
+    {type: 'tasks'}, // open tasks assigned to you (J66)
+    {type: 'scheduled'}, // the next scheduled publishes (J40)
+    {type: 'members'}, // the workspace's people, a dot on who is online
+    {type: 'documentList', title: 'Latest posts', types: ['post'], order: '_createdAt desc', limit: 5, createNew: true},
+    {name: 'house-style', title: 'House style', component: HouseStyle, layout: {width: 'small'}},
+  ],
+},
+```
+
+`documentList` is Sanity's widget: `types` (all the desk's when left out), `order` (GROQ's,
+default `_createdAt desc`), `limit` (default 10, at most 25), `createNew` (a "Create new"
+button when there is one type; off for a read-only seat), `createButtonText`. A custom widget
+is `{name, component, title?, layout}`: any React component, drawn in a card. Every widget
+takes `title` and `layout: {width: 'small' | 'medium' | 'large' | 'full'}` (1, 2, 3 columns
+or the row; one column on a phone); `{type: 'projectInfo'}` names the workspace, project and
+dataset. Rows open their document in Structure. Shapes and defaults: `app/src/lib/dashboard.ts`.
+
+What it reads (`app/src/lib/dashboard-data.ts`): one GROQ read per document widget for any
+number of types, a second when drafts are among the rows; then it listens, and a live frame
+is put into the rows without a read. Nothing polls. Barkpark's documents do not say who
+edited them last, so the drafts widget is everyone's; with shared sign-in the tasks widget
+lists every open task and says so.
 
 ## Field types and validation
 
