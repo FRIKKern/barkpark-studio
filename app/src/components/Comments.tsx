@@ -193,15 +193,22 @@ export function Composer({label, placeholder, initial = '', autoFocus, onSend, o
       await onSend(text)
       setText('')
       void qc.invalidateQueries({queryKey: ['comments']})
-      // A composer that stays (a reply box, a task's): the keyboard stays in it for the next
-      // one, unless the editor has gone on to something else by now (lib/comment-threads.ts).
-      requestAnimationFrame(() => composerKeepsFocus(document.activeElement, box.current, document.body) && box.current?.focus())
+      sent.current = true
     } catch (err) {
       toast({tone: 'critical', title: t('Failed to send.'), description: (err as Error).message})
     } finally {
       setSending(false)
     }
   }
+  // A composer that stays (a reply box, a task's): the keyboard stays in it for the next
+  // comment, unless the editor has gone on to something else by now (lib/comment-threads.ts).
+  // Once the box is drawn enabled again: focus() on it while still disabled did nothing.
+  const sent = useRef(false)
+  useEffect(() => {
+    if (sending || !sent.current) return
+    sent.current = false
+    if (composerKeepsFocus(document.activeElement, box.current, document.body)) box.current?.focus()
+  }, [sending])
   const keys = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (men) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {

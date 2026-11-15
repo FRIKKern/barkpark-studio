@@ -1,7 +1,7 @@
 // J66: a task's Activity, read back from its revisions; its duplicate; its thread's place in the comment store.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {activityFeed, changeKind, duplicateOf, fencedChange, followers, snapshotRows, taskChanges, type TaskRevision, type TaskSnapshot} from './task-activity.ts'
+import {activityFeed, boxSaves, boxShows, changeKind, duplicateOf, fencedChange, followers, snapshotRows, taskChanges, type TaskRevision, type TaskSnapshot} from './task-activity.ts'
 import {commentsOn, composerKeepsFocus, threadsOf, type Comment} from './comment-threads.ts'
 
 const A = 'a@example.com'
@@ -141,4 +141,18 @@ test('after a send the composer takes focus back only from itself or from nothin
   assert.equal(composerKeepsFocus(body, box, body), true) // the box was disabled while sending
   assert.equal(composerKeepsFocus(null, box, body), true)
   assert.equal(composerKeepsFocus(title, box, body), false) // reply sent, Title clicked before the answer
+})
+
+test("an untouched title or description follows another editor's save and writes nothing; a touched one keeps and saves the editor's text", () => {
+  // Another editor saved 'New' while this box, untouched, was open on 'Old'.
+  assert.equal(boxShows(null, 'New'), 'New')
+  assert.equal(boxSaves(null, 'New'), undefined) // leaving the box, or the page: no write
+  // Touched: the editor's text stays over the other save, and is what is written.
+  assert.equal(boxShows('Mine', 'New'), 'Mine')
+  assert.equal(boxSaves('Mine', 'New'), 'Mine')
+  // Typed back to what is saved: nothing to write. A title saves trimmed, never empty; a description may be emptied.
+  assert.equal(boxSaves('New', 'New'), undefined)
+  assert.equal(boxSaves('  Mine ', 'New', true), 'Mine')
+  assert.equal(boxSaves('   ', 'New', true), undefined)
+  assert.equal(boxSaves('', 'New'), '')
 })

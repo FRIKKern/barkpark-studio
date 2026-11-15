@@ -2,7 +2,7 @@ import {useEffect, useId, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {deleteTask, tasksQuery, updateTask, type Task, type TaskState} from '../lib/tasks'
-import {duplicateOf} from '../lib/task-activity'
+import {boxSaves, boxShows, duplicateOf} from '../lib/task-activity'
 import {showTasks, useActiveDocument, useTasksView, type TasksTab} from '../lib/tasks-ui'
 import {meQuery, useCanWrite} from '../lib/session'
 import {useLocale, useT} from '../lib/i18n'
@@ -222,11 +222,15 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
   const seen = useRef<string>(undefined)
   if (task) seen.current = id
   const at = list.indexOf(id)
-  const [title, setTitle] = useState(task?.title ?? '')
-  const [description, setDescription] = useState(task?.description ?? '')
+  // What the editor typed into the title and the description and has not saved yet (null:
+  // untouched, so the box follows the task, another editor's save included; lib/task-activity.ts).
+  const [typedTitle, setTitle] = useState<string | null>(null)
+  const [typedDescription, setDescription] = useState<string | null>(null)
+  const title = boxShows(typedTitle, task?.title ?? '')
+  const description = boxShows(typedDescription, task?.description ?? '')
   const [menu, setMenu] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  useEffect(() => void (task && (setTitle(task.title), setDescription(task.description ?? ''))), [task?._id])
+  useEffect(() => (setTitle(null), setDescription(null)), [id])
   const save = async (set: Parameters<typeof updateTask>[0]['data']['set']) => {
     if (!task) return
     qc.setQueryData<Task[]>(
@@ -247,9 +251,11 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
             : x,
         ) as Task[],
     )
+    let saved = true
     try {
       await updateTask({data: {id, set}})
     } catch (e) {
+      saved = false
       toast({
         tone: 'critical',
         title: t('Could not save the task'),
@@ -257,14 +263,24 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
       })
     }
     void qc.invalidateQueries({queryKey: tasksQuery.queryKey})
+    return saved
+  }
+  // Leaving a box saves what was typed in it; saved, the box is the task's again (typed
+  // more meanwhile: that stays unsaved). A failed save keeps the text, still unsaved.
+  const newTitle = task ? boxSaves(typedTitle, task.title, true) : undefined
+  const newDescription = task ? boxSaves(typedDescription, task.description ?? '') : undefined
+  const saveBoxes = async () => {
+    if (newTitle === undefined && newDescription === undefined) return void (setTitle(null), setDescription(null))
+    const was = {typedTitle, typedDescription}
+    if (!(await save({...(newTitle !== undefined && {title: newTitle}), ...(newDescription !== undefined && {description: newDescription})}))) return
+    setTitle((now) => (now === was.typedTitle ? null : now))
+    setDescription((now) => (now === was.typedDescription ? null : now))
   }
   // The title and description save when the box is left. Typed and not left yet, they are
   // unsaved: leaving the page asks first (B11's prompt), and the leaving tries the save.
-  const titleChanged = !!task && !!title.trim() && title !== task.title
-  const descriptionChanged = !!task && description !== (task.description ?? '')
-  const pending = titleChanged || descriptionChanged
+  const pending = newTitle !== undefined || newDescription !== undefined
   const flush = useRef(() => {})
-  flush.current = () => void ((titleChanged || descriptionChanged) && save({...(titleChanged && {title: title.trim()}), ...(descriptionChanged && {description})}))
+  flush.current = () => void (pending && saveBoxes())
   useEffect(() => {
     if (!pending) return
     const unsaved = () => true
@@ -358,7 +374,7 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
                   aria-label={t('Task title')}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  onBlur={() => title.trim() && title !== task.title && void save({title: title.trim()})}
+                  onBlur={() => void saveBoxes()}
                 />
               </div>
               <textarea
@@ -368,7 +384,7 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
                 aria-label={t('Add description')}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                onBlur={() => description !== (task.description ?? '') && void save({description})}
+                onBlur={() => void saveBoxes()}
               />
               <label className="task-label">{t('Target')}</label>
               <TargetField target={task.target ? {id: task.target._ref, type: task.targetType ?? ''} : null} onChange={(next) => void save({target: next})} open />

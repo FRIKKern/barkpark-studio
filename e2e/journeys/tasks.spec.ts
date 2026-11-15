@@ -39,6 +39,12 @@ test('J66: create a task on a document, comment on it, duplicate it, see it unde
     await box.press('Enter')
     await expect(feed.nth(1)).toContainText('Looks ready to me')
     await expect(box).toBeFocused()
+    // The thread is the task's: the target document's own Comments shows none of it.
+    await page.getByRole('button', {name: 'Comments', exact: true}).click()
+    const comments = page.getByRole('complementary', {name: 'Comments'})
+    await expect(comments.getByText('No open comments yet')).toBeVisible()
+    await expect(comments.locator('.comment-thread')).toHaveCount(0)
+    await comments.getByRole('button', {name: 'Close comments'}).click()
     // Duplicate task: the create form, "(copy)" after the title, the same target; Discard goes back to the lists.
     await panel.getByRole('button', {name: 'Task actions'}).click()
     await page.getByRole('menuitem', {name: 'Duplicate task'}).click()

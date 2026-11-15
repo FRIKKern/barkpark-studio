@@ -55,6 +55,20 @@ export async function fencedChange<T extends {_rev?: string}>(read: () => Promis
   throw new Error('The task kept changing. Try again.')
 }
 
+/**
+ * A text box of the open task (its title, its description). `typed` is what the editor has
+ * put in it and not saved yet; null while they have not touched it. An untouched box shows
+ * the task as it is now, so another editor's save shows in it and is never written back;
+ * only a box the editor changed is unsaved, and saves the editor's text.
+ */
+export const boxShows = (typed: string | null, saved: string) => typed ?? saved
+/** What leaving the box writes: nothing when untouched, unchanged, or (a title) empty. */
+export function boxSaves(typed: string | null, saved: string, required = false): string | undefined {
+  if (typed === null) return undefined
+  const text = required ? typed.trim() : typed
+  return text === saved || (required && !text) ? undefined : text
+}
+
 /** Sanity's Duplicate task: the same task, "(copy)" after its title, to do again. */
 export const duplicateOf = (task: Pick<Task, 'title' | 'description' | 'target' | 'targetType' | 'assignee' | 'dueAt'>): TaskInput => ({
   title: `${task.title} (copy)`,
