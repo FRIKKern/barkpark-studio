@@ -2,6 +2,7 @@ import type {DeskNode} from './desk'
 import type {ComponentType, ReactNode} from 'react'
 import type {Doc, Field} from './data'
 import type {CustomRule} from './custom-rules'
+import type {IncomingInput} from './incoming-refs'
 
 // J65, the plugin surface, after Sanity's: a studio config names extra tools,
 // custom field inputs, document actions, document badges and a preview URL.
@@ -35,6 +36,12 @@ export type StudioConfig = {
   form?: {
     /** Keyed `type.path` (`post.excerpt`). */
     inputs?: Record<string, ComponentType<InputProps>>
+    /**
+     * Sanity's defineIncomingReferenceDecoration, keyed by type: lists, in that type's form, of
+     * the documents that reference the open one, with "Add item" (lib/incoming-refs.ts). A
+     * schema declares the same as `desk.incoming`; a name the schema has taken wins.
+     */
+    incomingReferences?: Record<string, IncomingInput[]>
   }
   /** J18: Sanity's initial value templates: more ways to start a type, offered in every Create new. */
   templates?: Template[]

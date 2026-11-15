@@ -89,7 +89,7 @@ export const SCHEMA_KEYS = {
   fieldsets: 'Sanity\'s fieldsets for the document\'s own fields, as a composite\'s.',
   initialValues: 'A new document\'s starting values.',
   initial_values: 'initialValues, as Barkpark spells it.',
-  desk: 'Desk settings: orderings, views; preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark\'s desk while its URLs still open (barkpark#22789).',
+  desk: 'Desk settings: orderings, views; incoming: lists, in the form, of the documents that reference this one, with Add item (Sanity\'s incoming references input); preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark\'s desk while its URLs still open (barkpark#22789).',
   singleton: 'One document, whose id is the type\'s name.',
   layout: 'The Expectation for PortableDoc types (decision 0004).',
   prefill: 'A new PortableDoc document\'s starting blocks.',
@@ -106,6 +106,33 @@ export const BARKPARK_SCHEMA_KEYS = {
 }
 
 type JsonSchema = Record<string, unknown>
+/** `desk.incoming` (lib/incoming-refs.ts): a misspelled key is stored by Barkpark and never read, so the file check names it. */
+const INCOMING: JsonSchema = {
+  type: 'array',
+  description: 'Lists in the form of the documents that reference this one. It is no field and holds no value.',
+  items: {
+    type: 'object',
+    required: ['name', 'types'],
+    additionalProperties: false,
+    properties: {
+      name: {type: 'string', description: 'Its name, unique in the type.'},
+      title: {type: 'string', description: 'Its label; the name, start-cased, without one.'},
+      description: {type: 'string', description: 'Help text under the label.'},
+      group: {type: 'string', description: 'The field group (tab) it shows on; without one, under all fields only.'},
+      types: {
+        type: 'array',
+        minItems: 1,
+        description: 'The referring types: {type, by} (by: the reference field, or array of references, that points here), or {view} for the relation a desk.views entry declares.',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {type: {type: 'string'}, by: {type: 'string'}, view: {type: 'string'}, title: {type: 'string'}, orderings: {type: 'array', items: {type: 'object', required: ['field'], properties: {field: {type: 'string'}, direction: {enum: ['asc', 'desc']}}}}},
+        },
+      },
+      creationAllowed: {description: 'false: no Add item. A list of template ids: only those. Default true.', anyOf: [{type: 'boolean'}, {type: 'array', items: {type: 'string'}}]},
+    },
+  },
+}
 const described = (keys: Record<string, string>, extra: Record<string, JsonSchema> = {}) =>
   Object.fromEntries(Object.entries(keys).map(([k, description]) => [k, {description, ...extra[k]}]))
 
@@ -139,7 +166,7 @@ export function fixtureJsonSchema(): JsonSchema {
     required: ['name', 'fields'],
     additionalProperties: false,
     properties: {
-      ...described(SCHEMA_KEYS, {name: {type: 'string'}, title: {type: 'string'}, fields: {type: 'array', items: {$ref: '#/definitions/field'}}, singleton: {type: 'boolean'}, desk: {type: 'object', properties: {hidden: {type: 'boolean', description: 'Off the desk; the type still opens from a direct URL.'}}}}),
+      ...described(SCHEMA_KEYS, {name: {type: 'string'}, title: {type: 'string'}, fields: {type: 'array', items: {$ref: '#/definitions/field'}}, singleton: {type: 'boolean'}, desk: {type: 'object', properties: {hidden: {type: 'boolean', description: 'Off the desk; the type still opens from a direct URL.'}, incoming: INCOMING}}}),
       ...described(BARKPARK_SCHEMA_KEYS, {visibility: {enum: ['public', 'private']}, kind: {enum: ['document', 'object']}}),
     },
     definitions: {

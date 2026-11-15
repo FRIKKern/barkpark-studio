@@ -4,6 +4,7 @@ import type {ScopeRef} from '../router'
 import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
 import appCss from '../styles.css?url'
 import orderCss from '../order-rows.css?url'
+import incomingCss from '../incoming-input.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
 import {IconTips} from '../components/Tip'
 import {ToastHost} from '../components/Toasts'
@@ -46,6 +47,7 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
       {rel: 'preload', href: interLatin, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous'},
       {rel: 'stylesheet', href: appCss},
       {rel: 'stylesheet', href: orderCss},
+      {rel: 'stylesheet', href: incomingCss},
     ],
   }),
   component: () => (

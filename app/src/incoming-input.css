@@ -1,0 +1,21 @@
+/* Sanity's incoming references input in a document's form: lists of the documents that
+   reference the open one (components/IncomingReferencesInput.tsx). Its own file: styles.css is long enough. */
+/* Spaced and labelled as a field is. */
+.incoming-field { margin-bottom: 59px; }
+.incoming-label { font-size: 13px; line-height: 19px; font-weight: 500; margin-bottom: 15px; }
+.incoming-type + .incoming-type { margin-top: 16px; }
+.incoming-type-title { padding: 8px 0; font-size: 13px; line-height: 19px; font-weight: 500; }
+/* Sanity's card around the rows: one hairline, 4 px in. */
+.incoming-box { margin: 0; padding: 4px; border: 1px solid var(--border); border-radius: 4px; }
+p.incoming-box { padding: 11px 12px; font-size: 13px; line-height: 19px; text-align: center; }
+p.incoming-box.muted { color: var(--muted); }
+.incoming-box .preview { margin-bottom: 2px; }
+.incoming-rows > :last-child > .preview { margin-bottom: 0; }
+.incoming-more { display: block; width: 100%; margin-top: 2px; text-align: center; color: var(--muted); }
+.incoming-note { margin: 8px 0 0; font-size: 13px; line-height: 19px; color: var(--muted); }
+.incoming-field .add-item:disabled { color: var(--disabled); cursor: default; }
+.incoming-field .add-item:disabled svg { color: var(--disabled); }
+/* J46: a finger gets 44 px. */
+@media (max-width: 768px) and (pointer: coarse) {
+  .incoming-more { min-height: 44px; }
+}

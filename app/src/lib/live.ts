@@ -76,6 +76,7 @@ const onFrame = (qc: QueryClient, e: MessageEvent) => {
   if (!f.documentId.startsWith('drafts.')) {
     void qc.invalidateQueries({queryKey: ['doc-published', id]})
     void qc.invalidateQueries({queryKey: ['list-published', f.type]})
+    void qc.invalidateQueries({queryKey: ['related-published', f.type]})
   }
   // J17: who refers to what may have changed: open Incoming references panels read again,
   // once per burst. Barkpark's edges are right as the write returns (#22591), so one read
@@ -87,6 +88,8 @@ const onFrame = (qc: QueryClient, e: MessageEvent) => {
   if (!f.result || f.mutation === 'delete' || f.mutation === 'discardDraft') {
     void qc.invalidateQueries({queryKey: ['doc', id]})
     void qc.invalidateQueries({queryKey: ['list', f.type]})
+    // A form's incoming references (and a B09 view): a row deleted, or a draft discarded back to a version that points elsewhere.
+    void qc.invalidateQueries({queryKey: ['related', f.type]})
     return
   }
   applyServer(qc, f.result)
