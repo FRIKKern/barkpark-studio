@@ -14,7 +14,7 @@ import {heldFor} from './held-for'
 import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
 import {merge3, mergeList3, mergeText, onto, revertSteps} from './merge'
-import {applyPaths, getPath, keyedRoots, mergePending, setInside, setPath, within} from './paths'
+import {answeredInto, anyInside, applyPaths, getPath, keyedRoots, mergePending, setInside, setPath, within} from './paths'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {clientGone} from '../server/client-gone'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
@@ -364,7 +364,9 @@ function rebase(e: DocEdits, d: Doc): string[] {
     // base before it either typed it twice or, in a run of one letter, dropped keys
     // (task-510e753bc62a59f0). A dirty-only one merges now. Advancing `rev` past theirs
     // here let a retry of that write save over theirs, unseen (task-41ba9f3dc3fd81e2).
-    if (!e.dirty.has(f) || e.inflight?.has(f)) {
+    // So does a whole value with a write of this editor's on its way inside it (a span typed
+    // in, then its block moved): merged now, the frame of that own write read as theirs.
+    if (!e.dirty.has(f) || e.inflight?.has(f) || (e.inflight && anyInside(e.inflight.keys(), f))) {
       missed = true
       continue
     }
@@ -779,6 +781,7 @@ async function send(qc: QueryClient, id: string) {
     for (const f of e.inflight.keys()) {
       if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
       else e.base.delete(f)
+      answeredInto(e.base, f, getPath(saved, f))
       e.unsure?.delete(f)
     }
     e.inflight = null

@@ -78,6 +78,20 @@ export function mergePending(first: ReadonlyMap<string, unknown>, later: Readonl
   return {pending, dropped}
 }
 
+/** Whether one of `paths` is a spot inside `outer` (not `outer` itself). */
+export const anyInside = (paths: Iterable<string>, outer: string) => [...paths].some((p) => p !== outer && within(p, outer))
+
+/**
+ * A save of `spot` was answered with `value` there: every whole value pending around it
+ * (`bases`: what each pending spot is measured from) is measured from the server's with that
+ * in. Left at the value from before this editor's own save, the whole value read as changed
+ * by someone else when the answer came, and was merged with it as theirs: a keyed list keeps
+ * their order, so a block (or a table's row) this editor moved meanwhile went back, unsaid.
+ */
+export function answeredInto(bases: Map<string, unknown>, spot: string, value: unknown) {
+  for (const [outer, from] of [...bases]) if (outer !== spot && within(spot, outer)) bases.set(outer, setInside(outer, from, spot, value))
+}
+
 /** Apply every path → value of `edits` on top of `obj`, in order. */
 export const applyPaths = <T extends Record<string, unknown>>(obj: T, edits: Iterable<[string, unknown]>): T =>
   [...edits].reduce((acc, [p, v]) => setPath(acc, p, v), obj)

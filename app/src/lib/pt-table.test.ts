@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import {applyPatches, parsePatch} from '@sanity/diff-match-patch'
 import {isTable, tableEdits, tablesIn, tableText} from './pt-table.ts'
 import {asEditorHolds, caretOf, editorSchema, freshItems, insertable, mergeValue, remoteBlockPatches, spanAt, spanTexts, textPatches, withRemote, type PtBlock} from './pt-value.ts'
-import {getPath, mergePending, setInside, setPath} from './paths.ts'
+import {answeredInto, anyInside, getPath, mergePending, setInside, setPath} from './paths.ts'
 import {mergeList3} from './merge.ts'
 import {ptChanges} from './pt-diff.ts'
 import {blockPoint} from './pt-comment-ranges.ts'
@@ -177,6 +177,38 @@ test('one pending write per spot: a key typed in a block pending whole goes into
   assert.deepEqual(mergePending(new Map([['body[_key=="b1"]', block]]), new Map([[span, 'ab']])), {pending: new Map([['body[_key=="b1"]', {_key: 'b1', children: [{_key: 's', text: 'ab'}]}]]), dropped: [span]})
   // Spots apart stay apart.
   assert.deepEqual([...mergePending(new Map([['title', 'a']]), new Map([['slug', 'b'], ['title', 'c']])).pending], [['title', 'c'], ['slug', 'b']])
+})
+
+test('a block or a table row moved while this editor\'s own typing is on its way: the answer is not merged as theirs, the move stays', () => {
+  // As lib/edits.ts keeps them: typed " typed" in p1 (its patch on its way), then the card dragged last (the field set whole).
+  const span = 'body[_key=="p1"].children[_key=="p1s"].text'
+  const before = [para('p1', 'Alpha'), {_key: 'c1', _type: 'callout'}, para('p2', 'Omega')]
+  const answer = retext(before, '[_key=="p1"].children[_key=="p1s"].text', 'Alpha typed')
+  const mine = [answer[0]!, answer[2]!, answer[1]!]
+  // The whole value's base is the server's from before the typing (the typed span put back to its own base).
+  const bases = new Map<string, unknown>([[span, 'Alpha'], ['body', before]])
+  // While the patch is on its way, a frame for the field waits (the frame may be this editor's own write).
+  assert.equal(anyInside([span], 'body'), true)
+  assert.equal(anyInside(['body'], 'body'), false)
+  assert.equal(anyInside(['title'], 'body'), false)
+  // Merged as someone else's change, the keyed merge keeps the answer's order: the move is gone. That is what must not run.
+  assert.deepEqual((mergeList3(before, mine, answer) as PtBlock[]).map((b) => b._key), ['p1', 'c1', 'p2'])
+  // The answer goes into the whole value's base: it is the answer, so nothing is merged and the moved order is what goes.
+  answeredInto(bases, span, 'Alpha typed')
+  assert.deepEqual(bases.get('body'), answer)
+  assert.equal(bases.get(span), 'Alpha')
+  // The same for a table's row dragged while a cell's typing is on its way (`rows` set whole).
+  const rows = 'body[_key=="9f2c1a7b3d4e"].rows'
+  const cell = `body${GREEN}`
+  const table = SANITY_TABLE()
+  const tb = new Map<string, unknown>([[cell, 'Green'], [rows, table.rows], ['title', 'Tea']])
+  answeredInto(tb, cell, 'Green tea')
+  assert.deepEqual(tb.get(rows), (retext([SANITY_TABLE()], GREEN, 'Green tea')[0] as PtBlock).rows)
+  assert.equal(tb.get('title'), 'Tea')
+  // A spot the whole value no longer holds (its row removed meanwhile): the base stays as it is.
+  const gone = new Map<string, unknown>([[rows, [table.rows as unknown[]][0]!.slice(0, 1)]])
+  answeredInto(gone, cell, 'Green tea')
+  assert.deepEqual(gone.get(rows), (table.rows as unknown[]).slice(0, 1))
 })
 
 test('Review changes names a table\'s changed cell by its row and column, and a paragraph by its words', () => {
