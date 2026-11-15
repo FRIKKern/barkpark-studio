@@ -13,7 +13,7 @@ import {useZone} from '../lib/now'
 import {Composer, newId, ThreadCard, type ThreadHost} from './Comments'
 import {PersonName} from './Presence'
 import {toast} from './Toasts'
-import {Calendar, CheckmarkCircle, EditIcon, LinkIcon, UserIcon} from './icons'
+import {Add, Calendar, CheckmarkCircle, EditIcon, LinkIcon, UserIcon} from './icons'
 import '../task-activity.css'
 
 /**
@@ -143,7 +143,8 @@ export function TaskActivity({task}: {task: Task}) {
         )}
       </header>
       <ol className="task-feed">
-        <li className="task-change">
+        <li className="task-change" data-change="created">
+          <span className="task-change-icon" aria-hidden="true"><Add /></span>
           <p>
             <b>{task.createdBy ? <PersonName who={task.createdBy} /> : t('Unknown user')}</b> {t('created this task')} <When at={task.createdAt} />
           </p>
