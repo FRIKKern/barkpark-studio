@@ -17,6 +17,9 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 
 ## What happened
 
+<!-- news:start -->
+- **News** · 15 Nov 2026 · [Two editors, one paragraph](docs/news/2026-11-15-two-editors-one-paragraph.md) · Two people can now type in the same paragraph at once and both keep every word. On the old code, a third of the words vanished.
+<!-- news:end -->
 <!-- timeline:start -->
 - **Today** · 7 changes
   - feat(J17): incoming references in the form, with Add item (Sanity's incoming references input) ([#1255](https://github.com/FRIKKern/barkpark-studio/pull/1255))
@@ -52,7 +55,6 @@ fixtures/            seed data + Barkpark schema, same content on both sides
 e2e/                 Playwright: few, fast specs for what can break silently
 scripts/             seed Barkpark, README timeline, roadmap picture, doc checks
 spikes/concurrent-text/  reproducible two-browser concurrency comparison (decision 0002)
-docs/                roadmap, decisions (one page each)
 ```
 
 ## Run it
@@ -68,9 +70,7 @@ node --env-file=.env scripts/client-conformance.mjs # read-only: @sanity/client 
 cd app && pnpm install && pnpm dev              # ours, http://localhost:3000 (/structure, /health)
 pnpm check                                      # typecheck + build; fails if client code imports src/server
 cd ../e2e && pnpm install && pnpm test          # journeys on both studios; ours on :3100 against dataset e2e-local
-pnpm reference                                # P0 crown clips, Sanity only; uses the Sanity CLI login
 STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (dev only; app/src/server/auth.ts)
-pnpm --dir ../app serve                         # production build: editors sign in with their Barkpark account; STUDIO_SIGN_IN=shared = one shared token; put it behind HTTPS with HTTP/2 (plain HTTP/1.1 gives a browser 6 connections, 2 per visible tab)
 ```
 
 `pnpm reference` records Sanity; `pnpm recording` records our built app against
