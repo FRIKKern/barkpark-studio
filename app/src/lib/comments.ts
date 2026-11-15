@@ -86,11 +86,11 @@ export const setThreadStatus = createServerFn({method: 'POST'})
  * moved it, or mark its text deleted (Sanity keeps the thread and greys the quote).
  */
 export const moveCommentSelections = createServerFn({method: 'POST'})
-  .validator((d: {moves: {id: string; selection: CommentSelection | null}[]}) => d)
+  .validator((d: {moves: {id: string; selection: CommentSelection | null; text?: string}[]}) => d)
   .handler(async ({data}) => {
     await write(
-      data.moves.flatMap(({id, selection}): Json[] => [
-        {patch: {id, type: COMMENT_TYPE, set: (selection ? {selection: selection as unknown as Json} : {textDeleted: true}) as Json}},
+      data.moves.flatMap(({id, selection, text}): Json[] => [
+        {patch: {id, type: COMMENT_TYPE, set: (selection ? {selection: selection as unknown as Json, ...(typeof text === 'string' ? {selectionText: text} : {})} : {textDeleted: true}) as Json}},
         {publish: {id, type: COMMENT_TYPE}},
       ]),
     )
