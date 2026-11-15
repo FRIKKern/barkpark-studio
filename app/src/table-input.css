@@ -49,3 +49,4 @@
 :root[data-theme='dark'] .review-table :is(td, th):is([data-change='added'], [data-change='removed']) { background: var(--user-900, var(--diff-bg)); }
 .review-table :is(td, th) :is(ins, del) { background: none; }
 .review-table .review-table-note { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+.table-scroll:focus { outline: none; }

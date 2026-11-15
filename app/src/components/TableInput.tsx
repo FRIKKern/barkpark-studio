@@ -176,27 +176,49 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   }
   const focusHeaderRow = (index: number) => header('row', index)?.focus()
 
-  // The caret follows its column: a column another editor put before it (or took away) moves
-  // the cell this editor is in. Read from the last drawing in which every row was as wide as
-  // the table: a row of this editor's still on its way to be saved is the old width until then.
+  // The caret follows its cell. A column another editor put before it (or took away) moves the
+  // cell this editor is in: read from the last drawing in which every row was as wide as the
+  // table (a row of this editor's still on its way to be saved is the old width until then).
+  // A row another editor removed takes its cells with it: the caret then rests on the grid, in
+  // no cell, so the next keys do not land in a neighbour's text (the form would hand the focus
+  // to the nearest control: lib/focus-rescue.ts).
   const even = useRef<{rows: [string, string[]][]; columns: number} | null>(null)
+  const caret = useRef<{key: string; column: number; el: HTMLInputElement; at: [number, number]} | null>(null)
+  if (caret.current?.el.isConnected && typeof document !== 'undefined' && document.activeElement === caret.current.el) caret.current.at = [caret.current.el.selectionStart ?? 0, caret.current.el.selectionEnd ?? 0]
   useLayoutEffect(() => {
     const was = even.current
     const stored = (value as {rows?: unknown} | undefined)?.rows
     const isEven = Array.isArray(stored) && stored.every((r) => Array.isArray((r as {cells?: unknown})?.cells) && (r as {cells: unknown[]}).cells.length === grid.columns)
     if (isEven) even.current = {rows: grid.rows.map((r) => [r.key, r.cells]), columns: grid.columns}
-    const el = document.activeElement as HTMLInputElement | null
-    if (!was || !isEven || was.columns === grid.columns || !el || !root.current?.contains(el) || el.dataset.column === undefined) return
-    const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
-    const pairs = was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [cells, now.get(k)!])
-    const [row, column] = [Number(el.dataset.row), Number(el.dataset.column)]
-    const to = alignColumns(pairs, was.columns, grid.columns)[column]
-    if (to === undefined || to < 0 || to === column) return
-    const [start, end] = [el.selectionStart, el.selectionEnd]
-    const next = cellAt(row, to)
-    next?.focus()
-    next?.setSelectionRange(start, end)
+    const held = caret.current
+    if (!held) return
+    // Moved on by hand (a click elsewhere, Tab out): nothing to follow.
+    if (held.el.isConnected && document.activeElement !== held.el) return void (caret.current = null)
+    const row = grid.rows.findIndex((r) => r.key === held.key)
+    if (row < 0) {
+      caret.current = null
+      if (!held.el.isConnected) win.box.current?.focus({preventScroll: true})
+      return
+    }
+    let column = held.column
+    if (was && isEven && was.columns !== grid.columns) {
+      const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
+      const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [cells, now.get(k)!]), was.columns, grid.columns)[column]
+      column = to === undefined || to < 0 ? Math.min(column, grid.columns - 1) : to
+    }
+    const next = cellAt(row, column)
+    if (!next || next === held.el) return
+    if (column === held.column && held.el.isConnected) return
+    next.focus({preventScroll: true})
+    next.setSelectionRange(Math.min(held.at[0], next.value.length), Math.min(held.at[1], next.value.length))
+    caret.current = {key: held.key, column, el: next, at: held.at}
   })
+  const onGridFocus = (el: HTMLElement) => {
+    const row = Number(el.closest<HTMLElement>('tr[data-row]')?.dataset.row ?? -1)
+    setFocused(row)
+    const key = grid.rows[row]?.key
+    caret.current = key !== undefined && el.dataset.column !== undefined ? {key, column: Number(el.dataset.column), el: el as HTMLInputElement, at: [(el as HTMLInputElement).selectionStart ?? 0, (el as HTMLInputElement).selectionEnd ?? 0]} : null
+  }
 
   const create = () => (write(createTable(seen.current, rowType, newKey)), focusCell(0, 0))
   const act = (run: () => void) => (setMenu(null), run())
@@ -297,7 +319,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
           </span>
         </div>
       )}
-      <div className="table-scroll" ref={win.box} data-windowed={win.on || undefined} onScroll={win.on ? win.onScroll : undefined}>
+      <div className="table-scroll" ref={win.box} tabIndex={-1} data-windowed={win.on || undefined} onScroll={win.on ? win.onScroll : undefined}>
         <table role="grid" aria-label={field.title ?? field.name} aria-describedby={shut ? undefined : hint} aria-rowcount={grid.rows.length + 1} aria-colcount={grid.columns + 1} aria-readonly={shut || undefined}>
           <thead>
             <tr role="row" aria-rowindex={1}>
@@ -310,7 +332,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
             </tr>
           </thead>
           <tbody
-            onFocus={(e) => setFocused(Number((e.target as HTMLElement).closest<HTMLElement>('tr[data-row]')?.dataset.row ?? -1))}
+            onFocus={(e) => onGridFocus(e.target as HTMLElement)}
             onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setFocused(-1)}
           >
             {shown.flatMap((i, n) => {
