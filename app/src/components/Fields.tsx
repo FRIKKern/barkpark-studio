@@ -580,7 +580,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         return (field.options as {layout?: string} | undefined)?.layout === 'tags' ? (
           <TagsInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
         ) : (
-          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
+          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} options={field.options} />
         )
       if (field.of?.type === 'composite' || field.of?.type === 'image') return <ObjectArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       return (

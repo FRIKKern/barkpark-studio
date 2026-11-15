@@ -1,10 +1,13 @@
 import {memo, useContext, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {useRevealed} from '../lib/reveal'
-import {Add, AddDocument, Copy, DragHandle, Ellipsis, InsertAbove, InsertBelow, Search as SearchIcon, Trash} from './icons'
+import {Add, AddDocument, ChevronDown, ChevronUp, Copy, DragHandle, Ellipsis, InsertAbove, InsertBelow, Trash} from './icons'
 import {DocIdContext, fieldClipboard, UrlPathContext} from './Fields'
 import {FieldPresence} from './Presence'
 import {useT} from '../lib/i18n'
+import {InsertMenu} from './InsertMenu'
+import {menuSetup, type Choice, type MenuSetup} from '../lib/insert-menu'
+import {itemLimit} from '../lib/array-tree'
 
 // Sanity's array rows (J34 strings, J33 objects, J09 references): a drag handle
 // (pointer drag; or Space to pick up, arrows, Space to drop, Escape to cancel),
@@ -25,7 +28,9 @@ type Props<T> = {
   /** A new empty item (Add item, Add item before/after), of `type` when the array has several. */
   blank: (type?: string) => T
   /** J33: an array of several item types: every add first asks which (Sanity's insert menu). */
-  types?: {value: string; title: string}[]
+  types?: Choice[]
+  /** The array field's options: Sanity's `insertMenu` (search, groups, list/grid) and `collapseItemsAfter`. */
+  options?: unknown
   /** A copy for Duplicate (new _key etc.). */
   duplicate?: (item: T) => T
   onCopy?: (item: T, index: number) => void
@@ -43,24 +48,37 @@ type Props<T> = {
   grid?: boolean
 }
 
-export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, duplicate = (x) => x, onCopy, keyOf: keyOfProp, onAdded, onDuplicated, addLabel = 'Add item', extraActions, itemId, grid}: Props<T>) {
+export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blank, types, options, duplicate = (x) => x, onCopy, keyOf: keyOfProp, onAdded, onDuplicated, addLabel = 'Add item', extraActions, itemId, grid}: Props<T>) {
   const t = useT()
+  const menu = types ? menuSetup(options, types.length, t('All')) : undefined
   const stable = useStableKeys(items)
   const keyOf = keyOfProp ?? ((_: T, i: number) => stable[i]!)
   // While a row is being moved: which row (original index), and where it is now.
   const [moving, setMoving] = useState<{from: number; to: number} | null>(null)
   const rows = useRef<HTMLDivElement>(null)
   const order = moving ? reorder([...items.keys()], moving.from, moving.to) : [...items.keys()]
+  // Sanity's fold (inputs.array.action.show-all-items): past 4 items (8 in a grid) only the
+  // first ones are drawn, over "Show all N items". It opens by itself, as Sanity's, for a row
+  // that must be seen: the one the URL names (a deep link, a validation jump), one carried
+  // past the fold by keyboard, one added or duplicated there.
+  const limit = itemLimit(options, grid)
+  const collapsible = items.length > limit
+  const [expanded, setExpanded] = useState(false)
+  const urlPath = useContext(UrlPathContext)
+  const pathOf = (orig: number, i: number) => (itemId ? itemId(items[orig]!, orig) : `${id}[${i}]`)
+  const named = collapsible && urlPath?.startsWith(`${id}[`) ? order.findIndex((orig, i) => urlPath === pathOf(orig, i) || urlPath.startsWith(`${pathOf(orig, i)}.`) || urlPath.startsWith(`${pathOf(orig, i)}[`)) : -1
+  const forced = collapsible && (named >= limit || (moving?.to ?? -1) >= limit)
+  const [wasForced, setWasForced] = useState(false)
+  if (forced !== wasForced) (setWasForced(forced), forced && setExpanded(true))
+  const folded = collapsible && !expanded && !forced
   // J44: a long array draws its first rows at once and the rest right after.
-  const revealed = useRevealed(items.length, 50, id)
+  const revealed = useRevealed(folded ? limit : items.length, 50, id)
   // A long array (3,000 items: 70k DOM nodes) draws only the rows near the view, between
   // spacers that keep its height, as Sanity's does. Always drawn too: the row being moved,
   // the row holding focus, and the row the URL names (a deep link, a validation jump).
-  const windowed = !grid && items.length > WINDOW_FROM
+  const windowed = !grid && !folded && items.length > WINDOW_FROM
   const win = useArrayWindow(rows, items.length, windowed)
   const [focusKey, setFocusKey] = useState<string | number | null>(null)
-  const urlPath = useContext(UrlPathContext)
-  const pathOf = (orig: number, i: number) => (itemId ? itemId(items[orig]!, orig) : `${id}[${i}]`)
   const pinned = windowed && urlPath?.startsWith(`${id}[`) ? order.findIndex((orig, i) => urlPath === pathOf(orig, i) || urlPath.startsWith(`${pathOf(orig, i)}.`) || urlPath.startsWith(`${pathOf(orig, i)}[`)) : -1
   // The row the URL last named stays drawn once the URL moves on: closing its item dialog
   // gives that row focus back.
@@ -68,7 +86,7 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
   const pinnedKey = pinned >= 0 ? keyOf(items[order[pinned]!]!, order[pinned]!) : null
   if (pinnedKey !== null && pinnedKey !== lastPinned) setLastPinned(pinnedKey)
   const at = (key: string | number | null) => (windowed && key !== null ? order.findIndex((orig) => keyOf(items[orig]!, orig) === key) : -1)
-  const shown = windowed ? [...new Set([...Array.from({length: Math.max(0, Math.min(win.end, order.length) - win.start)}, (_, k) => win.start + k), at(focusKey), moving?.to ?? -1, pinned, at(lastPinned)])].filter((i) => i >= 0 && i < order.length).sort((a, b) => a - b) : order.slice(0, revealed).map((_, i) => i)
+  const shown = windowed ? [...new Set([...Array.from({length: Math.max(0, Math.min(win.end, order.length) - win.start)}, (_, k) => win.start + k), at(focusKey), moving?.to ?? -1, pinned, at(lastPinned)])].filter((i) => i >= 0 && i < order.length).sort((a, b) => a - b) : order.slice(0, folded ? Math.min(limit, revealed) : revealed).map((_, i) => i)
   // The row the URL names comes into view once drawn.
   useEffect(() => {
     if (pinned >= 0) requestAnimationFrame(() => rows.current?.querySelector(`:scope > .array-row[data-at="${pinned}"]`)?.scrollIntoView({block: 'nearest'}))
@@ -86,6 +104,7 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
   const onBlur = (e: FocusEvent<HTMLDivElement>) => !e.currentTarget.contains(e.relatedTarget) && setFocusKey(null)
   const [adding, setAdding] = useState(false)
   const insert = (at: number, type?: string) => {
+    if (at >= limit) setExpanded(true)
     const next = [...items.slice(0, at), blank(type), ...items.slice(at)]
     onChange(next)
     onAdded?.(at, next)
@@ -139,8 +158,8 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
 
   // What a row does, read at the moment it does it: rows are memoized (J44: editing
   // one row of 300 re-renders that row), so they never hold a stale `items`.
-  const latest = useRef({items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, onDuplicated, extraActions, types})
-  latest.current = {items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, onDuplicated, extraActions, types}
+  const latest = useRef({items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, onDuplicated, extraActions, types, menu, limit})
+  latest.current = {items, onChange, insert, onHandleKey, onPointerDown, onCopy, duplicate, onDuplicated, extraActions, types, menu, limit}
   const [act] = useState<RowActions<T>>(() => ({
     key: (i) => (e) => latest.current.onHandleKey(i)(e),
     pointer: (i) => (e) => latest.current.onPointerDown(i)(e),
@@ -150,11 +169,13 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
     duplicate: (orig) => {
       const xs = latest.current.items
       const next = [...xs.slice(0, orig + 1), latest.current.duplicate(xs[orig]!), ...xs.slice(orig + 1)]
+      if (orig + 1 >= latest.current.limit) setExpanded(true)
       latest.current.onChange(next)
       latest.current.onDuplicated?.(orig + 1, next)
     },
     insert: (at, type) => latest.current.insert(at, type),
     types: () => latest.current.types,
+    menu: () => latest.current.menu,
     extra: (item, orig) => latest.current.extraActions?.(item, orig) ?? [],
   }))
 
@@ -183,6 +204,14 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
         })}
         {windowed && shown.length > 0 && shown.at(-1)! < order.length - 1 && <div key="gap-end" className="array-gap" aria-hidden="true" style={{height: (order.length - 1 - shown.at(-1)!) * win.rowH}} />}
       </div>
+      {collapsible && (
+        <div className="array-items-toggle">
+          <button type="button" className="btn" aria-expanded={!folded} aria-controls={id} onClick={() => setExpanded(folded)}>
+            {folded ? t('Show all {count} items', {count: items.length}) : t('Show fewer items')}
+            {folded ? <ChevronDown /> : <ChevronUp />}
+          </button>
+        </div>
+      )}
       <p id={`${id}-dnd-help`} hidden>
         {t('To pick up an item, press Space or Enter on its handle. Use the arrow keys to move it, Space or Enter to drop, Escape to cancel.')}
       </p>
@@ -192,7 +221,7 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
         </button>
         {adding && types && (
           <MenuPopover className="popover menu" onClose={() => setAdding(false)} aria-label={t(addLabel)}>
-            <TypeItems types={types} pick={(type) => (setAdding(false), insert(items.length, type))} />
+            <InsertMenu choices={types} setup={menu!} pick={(type) => (setAdding(false), insert(items.length, type))} />
           </MenuPopover>
         )}
       </div>
@@ -231,7 +260,8 @@ type RowActions<T> = {
   hasCopy: () => boolean
   duplicate: (orig: number) => void
   insert: (at: number, type?: string) => void
-  types: () => {value: string; title: string}[] | undefined
+  types: () => Choice[] | undefined
+  menu: () => MenuSetup | undefined
   extra: (item: T, orig: number) => {label: string; run: () => void; last?: boolean; icon?: ReactNode}[]
 }
 
@@ -276,6 +306,7 @@ const Row = memo(function Row<T>({rowKey, item, orig, at, moving, readOnly, path
         onCopy={act.hasCopy() ? () => act.copy(orig) : undefined}
         onDuplicate={() => act.duplicate(orig)}
         types={act.types()}
+        menu={act.menu()}
         onAdd={(after, type) => act.insert(orig + (after ? 1 : 0), type)}
       />
     </div>
@@ -348,7 +379,7 @@ export const reorder = <T,>(xs: T[], from: number, to: number) => {
   return out
 }
 
-function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string; run: () => void; last?: boolean; icon?: ReactNode}[]; onRemove: () => void; onCopy?: () => void; onDuplicate: () => void; types?: {value: string; title: string}[]; onAdd: (after: boolean, type?: string) => void}) {
+function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string; run: () => void; last?: boolean; icon?: ReactNode}[]; onRemove: () => void; onCopy?: () => void; onDuplicate: () => void; types?: Choice[]; menu?: MenuSetup; onAdd: (after: boolean, type?: string) => void}) {
   const t = useT()
   const [open, setOpen] = useState(false)
   // With several item types, "Add item before…" turns the menu into the type list (Sanity's).
@@ -364,7 +395,7 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
       </button>
       {open && choosing && props.types && (
         <MenuPopover onClose={close} aria-labelledby={props.id}>
-          <TypeItems types={props.types} pick={(type) => (close(), props.onAdd(choosing === 'after', type))} />
+          <InsertMenu choices={props.types} setup={props.menu ?? menuSetup(undefined, props.types.length)} pick={(type) => (close(), props.onAdd(choosing === 'after', type))} />
         </MenuPopover>
       )}
       {/* Sanity's: centred on the ⋯ (to its left where that won't fit), every item with its icon, a rule before the last group (Open in new tab). */}
@@ -417,38 +448,6 @@ function ItemMenu(props: {id: string; disabled?: boolean; extra: {label: string;
         </MenuPopover>
       )}
     </div>
-  )
-}
-
-/** The item types to add, one menu item each (the first takes focus). */
-/** Sanity's insert menu: past five types it gets a search box that narrows them as you type. */
-function TypeItems({types, pick}: {types: {value: string; title: string}[]; pick: (type: string) => void}) {
-  const t = useT()
-  const [q, setQ] = useState('')
-  const searchable = types.length > 5
-  // The menu puts focus on its first item when it opens; the search box takes it after.
-  const box = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    if (!searchable) return
-    const frame = requestAnimationFrame(() => box.current?.focus())
-    return () => cancelAnimationFrame(frame)
-  }, [searchable])
-  const shown = q.trim() ? types.filter((x) => x.title.toLowerCase().includes(q.trim().toLowerCase())) : types
-  return (
-    <>
-      {searchable && (
-        <div className="menu-search">
-          <SearchIcon />
-          <input ref={box} type="search" className="input" aria-label={t('Search')} placeholder={t('Search')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && shown[0] && (e.preventDefault(), pick(shown[0].value))} />
-        </div>
-      )}
-      {shown.map((x, i) => (
-        <button key={x.value} type="button" role="menuitem" className="menu-item" autoFocus={!searchable && i === 0} onClick={() => pick(x.value)}>
-          {x.title}
-        </button>
-      ))}
-      {searchable && !shown.length && <p className="menu-empty muted">{t('No results')}</p>}
-    </>
   )
 }
 
