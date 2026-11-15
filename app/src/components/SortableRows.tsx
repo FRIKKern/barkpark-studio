@@ -206,10 +206,11 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
       </div>
       {collapsible && (
         <div className="array-items-toggle">
-          <button type="button" className="btn" aria-expanded={!folded} aria-controls={id} onClick={() => setExpanded(folded)}>
+          {/* Not a <button>: a read-only form (Published, a revision) is a disabled fieldset, and looking at every item must still work there. */}
+          <span role="button" tabIndex={0} className="btn" aria-expanded={!folded} aria-controls={id} onClick={() => setExpanded(folded)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setExpanded(folded))}>
             {folded ? t('Show all {count} items', {count: items.length}) : t('Show fewer items')}
             {folded ? <ChevronDown /> : <ChevronUp />}
-          </button>
+          </span>
         </div>
       )}
       <p id={`${id}-dnd-help`} hidden>
