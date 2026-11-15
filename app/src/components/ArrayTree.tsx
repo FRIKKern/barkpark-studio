@@ -44,7 +44,7 @@ export function useSidebar(nested: boolean, dialog: RefObject<HTMLElement | null
   const [open, setOpen] = useState(false)
   const [narrow, setNarrow] = useState(false)
   useLayoutEffect(() => {
-    const thin = (dialog.current?.parentElement?.clientWidth ?? innerWidth) < SIDE_BY_SIDE
+    const thin = (dialog.current?.closest('.dialog-backdrop')?.clientWidth ?? innerWidth) < SIDE_BY_SIDE
     let pref: string | null = null
     try {
       pref = localStorage.getItem(PREF)
@@ -130,7 +130,7 @@ export function ArrayTree({root, nodes, current, onPicked}: {root: TreeRoot; nod
       {rows.length ? (
         <div ref={box} className="item-tree-rows" role="tree" aria-label={root.label} onKeyDown={onKey}>
           {rows.map((r) => (
-            <Row key={r.node.path} row={r} current={r.node.path === current} tab={r.node.path === tabPath} open={!!query.trim() || opened.has(r.node.path)} onPick={steady.pick} onToggle={steady.toggle} onFocusRow={setFocusPath} />
+            <Row key={r.node.path} node={r.node} depth={r.depth} current={r.node.path === current} tab={r.node.path === tabPath} open={!!query.trim() || opened.has(r.node.path)} onPick={steady.pick} onToggle={steady.toggle} onFocusRow={setFocusPath} />
           ))}
         </div>
       ) : (
@@ -145,11 +145,10 @@ export function ArrayTree({root, nodes, current, onPicked}: {root: TreeRoot; nod
 /** The first row whose own title holds the query (not just a row on the way to one). */
 const firstMatch = (rows: TreeRow[], q: string) => (rows.find((r) => r.node.title.toLowerCase().includes(q.trim().toLowerCase())) ?? rows[0]!).node.path
 
-type RowProps = {row: TreeRow; current: boolean; tab: boolean; open: boolean; onPick: (path: string) => void; onToggle: (path: string, open: boolean) => void; onFocusRow: (path: string) => void}
+type RowProps = {node: TreeNode; depth: number; current: boolean; tab: boolean; open: boolean; onPick: (path: string) => void; onToggle: (path: string, open: boolean) => void; onFocusRow: (path: string) => void}
 
 // Steady unless its own node, place or state changes (300 rows: an edit redraws one).
-const Row = memo(function Row({row, current, tab, open, onPick, onToggle, onFocusRow}: RowProps) {
-  const {node, depth} = row
+const Row = memo(function Row({node, depth, current, tab, open, onPick, onToggle, onFocusRow}: RowProps) {
   const has = node.children.length > 0
   return (
     <div
