@@ -17,6 +17,7 @@
   "broken-values.spec.ts": 6.7,
   "bulk.spec.ts": 0,
   "clipboard.spec.ts": 5.8,
+  "code-input.spec.ts": 9.5,
   "codelist.spec.ts": 5.2,
   "collab.spec.ts": 0,
   "comments.spec.ts": 0,

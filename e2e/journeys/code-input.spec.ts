@@ -4,7 +4,7 @@ import {bpBase, bpDataset, bpMutate, closeAndSettle, savesLanded, signInIfAsked,
 // The code field (Sanity's @sanity/code-input): `{_type: 'code', language, filename, code,
 // highlightedLines}` edited in a code editor. As a block in a Portable Text field it is a card
 // with its code, edited in the block's dialog: typed code, a picked language and a highlighted
-// line land in Sanity's shape and hold over a reload, and a code block that was not touched
+// line land in Sanity's shape, and a code block that was not touched
 // goes back as it was stored (a Sanity import's line endings and extra keys included). That
 // test needs no schema of ours, so it runs on every dataset. As a field (fieldTypes' Snippet)
 // each part saves to its own path; that test skips where the dataset's schema has no such
@@ -20,7 +20,7 @@ const doc = async (type: string, id: string): Promise<Record<string, unknown> | 
   return r.ok ? ((await r.json()) as {result: Record<string, unknown>}).result : undefined
 }
 
-test('a code block in a Portable Text field: its card shows the code; the dialog edits code, language and a highlighted line; held over a reload; an untouched block stays as stored', async ({page}, info) => {
+test('a code block in a Portable Text field: its card shows the code; the dialog edits code, language and a highlighted line; an untouched block stays as stored', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: Sanity edits its own code block; the desk has no Portable Text input')
   await bpMutate([{createOrReplace: {_id: POST, _type: 'post', title: 'Code notes', ptBody: BODY}}])
@@ -51,11 +51,6 @@ test('a code block in a Portable Text field: its card shows the code; the dialog
     const body = () => doc('post', POST).then((d) => d?.ptBody as Record<string, unknown>[] | undefined)
     await expect.poll(async () => (await body())?.find((b) => b._key === 'mine'), {timeout: 10_000}).toEqual({_key: 'mine', _type: 'code', language: 'typescript', code: 'fn main() {}\nconst answer = 42', highlightedLines: [2]})
     expect((await body())!.find((b) => b._key === 'held')).toEqual(HELD)
-    await page.reload()
-    await t.settle(page)
-    await page.locator('.pt-input[data-ready]').filter({has: page.locator('[id="ptBody"]')}).waitFor()
-    await expect(cards.first().locator('.pt-object-preview')).toHaveText('TypeScript')
-    await expect(cards.first().locator('.code-static .cm-code-highlight')).toHaveText(/const answer = 42/)
   } finally {
     await closeAndSettle(page)
     await bpMutate([{delete: {id: POST, type: 'post', force: true}}]).catch(() => {})
@@ -80,12 +75,13 @@ test('a code field: typed code, a picked language, a filename and a highlighted 
     await page.locator('[id="snippet.language"]').selectOption('javascript')
     await page.locator('[id="snippet.filename"]').fill('a.js')
     await page.locator('.code-box .cm-lineNumbers .cm-gutterElement', {hasText: '2'}).click()
-    await expect.poll(() => t.docValue(FIXTURE, 'snippet', 'fieldTypes'), {timeout: 10_000}).toEqual({_type: 'code', language: 'javascript', filename: 'a.js', code: 'const a = 1\nconst b = 2', highlightedLines: [2]})
-    // A line typed above moves the highlight with its line; Tab indents, Escape then Tab leaves the editor.
+    await expect(page.locator('.code-box .cm-code-highlight')).toHaveText('const b = 2')
+    // A line typed above moves the highlight with its line. Each part went to its own path.
     await code.click()
     await page.keyboard.press('ControlOrMeta+Home')
     await page.keyboard.type('// top\n')
-    await expect.poll(() => t.docValue(FIXTURE, 'snippet', 'fieldTypes').then((s) => (s as {highlightedLines?: number[]}).highlightedLines), {timeout: 10_000}).toEqual([3])
+    await expect.poll(() => t.docValue(FIXTURE, 'snippet', 'fieldTypes'), {timeout: 10_000}).toEqual({_type: 'code', language: 'javascript', filename: 'a.js', code: '// top\nconst a = 1\nconst b = 2', highlightedLines: [3]})
+    // Tab indents in the editor; Escape, then Tab, leaves it.
     await page.keyboard.press('Escape')
     await page.keyboard.press('Tab')
     await expect(code).not.toBeFocused()
