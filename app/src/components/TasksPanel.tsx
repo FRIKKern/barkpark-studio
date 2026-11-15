@@ -1,22 +1,21 @@
-import {useZone} from '../lib/now'
-import {useEffect, useId, useRef, useState, type ReactNode} from 'react'
+import {useEffect, useId, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {useRouter} from '@tanstack/react-router'
-import {createTask, deleteTask, tasksQuery, updateTask, type Task, type TaskState} from '../lib/tasks'
-import {showTasks, useActiveDocument, useTasksView, type TaskTarget, type TasksTab} from '../lib/tasks-ui'
-import {peopleNamesQuery, peopleQuery} from '../lib/people'
-import {anyDocQuery, previewTitle, schemaOf, schemasQuery, searchAllDocs, type Doc} from '../lib/data'
-import {meQuery} from '../lib/session'
-import {ago, useLocale, useT} from '../lib/i18n'
+import {deleteTask, tasksQuery, updateTask, type Task, type TaskState} from '../lib/tasks'
+import {boxSaves, boxShows, duplicateOf} from '../lib/task-activity'
+import {showTasks, useActiveDocument, useTasksView, type TasksTab} from '../lib/tasks-ui'
+import {meQuery, useCanWrite} from '../lib/session'
+import {useLocale, useT} from '../lib/i18n'
+import {useLive} from '../lib/live'
 import {toast} from './Toasts'
 import {unsavedElsewhere} from '../lib/edits'
-import {MenuPopover} from './FocusScopes'
-import {ActorAvatar, PersonName} from './Presence'
-import {Status} from './Preview'
+import {DialogBox, MenuPopover} from './FocusScopes'
 import {DateTimeInput} from './DateTimeInput'
-import {Add, CheckmarkCircle, ChevronDown, ChevronLeft, ChevronRight, Close, DocumentIcon, LinkIcon, Trash, UserIcon} from './icons'
+import {Add, CheckmarkCircle, ChevronDown, ChevronLeft, ChevronRight, Close, DocumentIcon, Ellipsis, UserIcon} from './icons'
 import {usePrimed} from '../lib/prime'
+import {AssigneeField, DATE_HINT, Header, TargetField, TargetTitle} from './TaskFields'
+import {CreateTask} from './TaskCreate'
+import {TaskActivity} from './TaskActivity'
 
 /**
  * J66, Sanity's Tasks sidebar: the navbar's Tasks button opens it on the Assigned /
@@ -42,28 +41,19 @@ export function TasksPanel() {
     document.body.dataset.tasksOpen = ''
     return () => void delete document.body.dataset.tasksOpen
   }, [open])
+  // Live while open: another editor's change to a task, or a comment on one, shows here (lib/live.ts).
+  useLive([], open ? ['studioTask', 'studioComment'] : [])
   if (!open || typeof document === 'undefined') return null
   return createPortal(
     <aside className="tasks-panel" aria-label={t('Tasks')}>
       {view.kind === 'list' && <TaskList tab={view.tab} />}
-      {view.kind === 'create' && <CreateTask key={view.target?.id ?? 'none'} target={view.target} />}
+      {view.kind === 'create' && <CreateTask key={view.draft ?? view.from?.title ?? view.target?.id ?? 'none'} target={view.target} draft={view.draft} from={view.from} />}
       {view.kind === 'task' && <TaskView id={view.id} list={view.list} />}
     </aside>,
     document.body,
   )
 }
 
-function Header({children}: {children: ReactNode}) {
-  const t = useT()
-  return (
-    <header className="tasks-head">
-      {children}
-      <button type="button" className="icon-btn" aria-label={t('Close sidebar')} data-tip={t('Close sidebar')} onClick={() => showTasks({kind: 'closed'})}>
-        <Close />
-      </button>
-    </header>
-  )
-}
 
 const TABS: [TasksTab, string][] = [
   ['assigned', 'Assigned'],
@@ -80,8 +70,10 @@ function TaskList({tab}: {tab: TasksTab}) {
   const t = useT()
   const me = useQuery(meQuery).data?.email ?? null
   const active = useActiveDocument()
+  const {canWrite, createReason} = useCanWrite()
   const {data: tasks = [], isPending} = useQuery(tasksQuery)
-  const shown = tasks.filter((x) => (tab === 'assigned' ? !!me && x.assignee === me : tab === 'subscribed' ? !!me && (x.subscribers ?? []).includes(me) : !!active && x.target?._ref === active.id))
+  // A draft is not a task yet: it is under the create form's Draft menu (TaskCreate.tsx).
+  const shown = tasks.filter((x) => x.state !== 'draft').filter((x) => (tab === 'assigned' ? !!me && x.assignee === me : tab === 'subscribed' ? !!me && (x.subscribers ?? []).includes(me) : !!active && x.target?._ref === active.id))
   const open = shown.filter((x) => x.state !== 'done')
   const done = shown.filter((x) => x.state === 'done')
   const order = [...open, ...done].map((x) => x._id)
@@ -91,7 +83,8 @@ function TaskList({tab}: {tab: TasksTab}) {
     <>
       <Header>
         <h2>{t('Tasks')}</h2>
-        <button type="button" className="btn-text tasks-new" onClick={() => showTasks({kind: 'create', target: active})}>
+        {/* J49: a read seat cannot write a task (Barkpark refuses it), so it is not offered one. */}
+        <button type="button" className="btn-text tasks-new" disabled={!canWrite} title={createReason} onClick={() => showTasks({kind: 'create', target: active})}>
           <Add /> {t('New task')}
         </button>
       </Header>
@@ -109,7 +102,7 @@ function TaskList({tab}: {tab: TasksTab}) {
           <div className="tasks-empty">
             <h3>{t(heading)}</h3>
             <p>{t(text)}</p>
-            <button type="button" className="btn btn-primary" onClick={() => showTasks({kind: 'create', target: active})}>
+            <button type="button" className="btn btn-primary" disabled={!canWrite} title={createReason} onClick={() => showTasks({kind: 'create', target: active})}>
               <Add /> {t('Create new task')}
             </button>
           </div>
@@ -150,14 +143,13 @@ function TaskList({tab}: {tab: TasksTab}) {
 function StatusToggle({task, box = false}: {task: Task; box?: boolean}) {
   const t = useT()
   const qc = useQueryClient()
+  const {canWrite} = useCanWrite()
   const done = task.state === 'done'
   const flip = async () => {
     const state: TaskState = done ? 'open' : 'done'
     qc.setQueryData<Task[]>(tasksQuery.queryKey, (all) => all?.map((x) => (x._id === task._id ? {...x, state} : x)))
     try {
-      await updateTask({
-        data: {id: task._id, set: {state}, subscribers: task.subscribers},
-      })
+      await updateTask({data: {id: task._id, set: {state}}})
     } catch (e) {
       toast({
         tone: 'critical',
@@ -167,7 +159,7 @@ function StatusToggle({task, box = false}: {task: Task; box?: boolean}) {
     }
     void qc.invalidateQueries({queryKey: tasksQuery.queryKey})
   }
-  if (box) return <input type="checkbox" className="checkbox task-check" checked={done} aria-label={t('Change status')} data-tip={t('Change status')} onChange={() => void flip()} />
+  if (box) return <input type="checkbox" className="checkbox task-check" checked={done} disabled={!canWrite} aria-label={t('Change status')} data-tip={t('Change status')} onChange={() => void flip()} />
   return (
     <button
       type="button"
@@ -177,6 +169,7 @@ function StatusToggle({task, box = false}: {task: Task; box?: boolean}) {
       aria-checked={done}
       aria-label={t('Change status')}
       data-tip={t('Change status')}
+      disabled={!canWrite}
       onClick={() => void flip()}
     >
       {done ? <CheckmarkCircle /> : <span className="task-circle" />}
@@ -217,238 +210,27 @@ function TaskRow({task, list, primed}: {task: Task; list: string[]; primed: (id:
   )
 }
 
-function TargetTitle({id, primed = true}: {id: string; primed?: boolean}) {
-  const t = useT()
-  const {data: doc} = useQuery({...anyDocQuery(id), enabled: primed})
-  const {data: schemas = []} = useQuery(schemasQuery)
-  return (
-    <>
-      <span>{doc ? previewTitle(doc, schemaOf(schemas, doc._type), t) : '…'}</span>
-      {/* Sanity's picked target shows its publish state, as a list row does. */}
-      {doc && <Status doc={doc} />}
-    </>
-  )
-}
-
-/** The task's target: its title, a way to open it, and (editable) to remove or pick one. */
-function TargetField({target, onChange, open}: {target: TaskTarget | null; onChange?: (next: TaskTarget | null) => void; open?: boolean}) {
-  const t = useT()
-  const router = useRouter()
-  const [q, setQ] = useState('')
-  const [hits, setHits] = useState<Doc[]>([])
-  const {data: schemas = []} = useQuery(schemasQuery)
-  useEffect(() => {
-    if (!q.trim()) return setHits([])
-    let live = true
-    void searchAllDocs(q).then((d) => live && setHits(d.slice(0, 8)))
-    return () => void (live = false)
-  }, [q])
-  if (target)
-    return (
-      <div className="task-target">
-        <DocumentIcon />
-        <TargetTitle id={target.id} />
-        {open && (
-          <button
-            type="button"
-            className="btn-text"
-            onClick={() =>
-              void router.navigate({
-                href: `/structure/${target.type};${target.id}`,
-              })
-            }
-          >
-            {t('Open')}
-          </button>
-        )}
-        {onChange && (
-          <button type="button" className="icon-btn" aria-label={t('Remove target content')} data-tip={t('Remove target content')} onClick={() => onChange(null)}>
-            <Close />
-          </button>
-        )}
-      </div>
-    )
-  if (!onChange) return null
-  return (
-    <div className="task-target-search task-field-icon">
-      <DocumentIcon />
-      <input className="input" placeholder={t('Select target document')} aria-label={t('Target')} value={q} onChange={(e) => setQ(e.target.value)} />
-      {hits.length > 0 && (
-        <ul className="task-target-hits">
-          {hits.map((d) => (
-            <li key={d._id}>
-              <button type="button" onClick={() => (onChange({id: d._publishedId, type: d._type}), setQ(''))}>
-                {previewTitle(d, schemaOf(schemas, d._type), t)} <span className="muted">{schemaOf(schemas, d._type)?.title ?? d._type}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-// The deadline's hint, Sanity's: the stored format itself (not words, so not translated).
-const DATE_HINT = 'yyyy-mm-dd'
-
-/**
- * Assign to, as Sanity's: a field that opens a searchable list of the workspace's people
- * (avatar and name; "No assignee" first). The picked one shows as avatar and name.
- */
-function AssigneeField({value, onChange, id}: {value: string | null; onChange: (email: string | null) => void; id: string}) {
-  const t = useT()
-  const {data: people = []} = useQuery(peopleQuery)
-  const [open, setOpen] = useState(false)
-  const [q, setQ] = useState('')
-  const all = [...new Set([...people, ...(value ? [value] : [])])]
-  const {data: known} = useQuery(peopleNamesQuery)
-  const shown = q.trim() ? all.filter((p) => `${p} ${known?.[p] ?? ''}`.toLowerCase().includes(q.trim().toLowerCase())) : all
-  const pick = (email: string | null) => (onChange(email), setOpen(false), setQ(''))
-  return (
-    <div className="menu-wrap task-assignee-field">
-      <button id={id} type="button" className="input task-field-btn" aria-haspopup="menu" aria-expanded={open} data-empty={!value || undefined} onClick={() => setOpen((o) => !o)}>
-        {value ? <ActorAvatar actor={value} /> : <UserIcon />}
-        <span>{value ? <PersonName who={value} /> : t('Select assignee')}</span>
-      </button>
-      {open && (
-        <MenuPopover className="popover menu task-assignee-menu" aria-label={t('Assign to')} onClose={() => (setOpen(false), setQ(''))}>
-          <span className="task-field-icon">
-            <UserIcon />
-            <input className="input" data-autofocus placeholder={t('Select assignee')} aria-label={t('Search people')} value={q} onChange={(e) => setQ(e.target.value)} />
-          </span>
-          <button type="button" role="menuitem" className="menu-item task-person" onClick={() => pick(null)}>
-            <span className="task-person-none">
-              <UserIcon />
-            </span>
-            {t('No assignee')}
-          </button>
-          {shown.map((p) => (
-            <button key={p} type="button" role="menuitem" className="menu-item task-person" aria-current={p === value || undefined} title={p} onClick={() => pick(p)}>
-              <ActorAvatar actor={p} />
-              <PersonName who={p} />
-            </button>
-          ))}
-          {!shown.length && <p className="muted task-person-empty">{t('No users found')}</p>}
-        </MenuPopover>
-      )}
-    </div>
-  )
-}
-
-function CreateTask({target: initial}: {target: TaskTarget | null}) {
-  const t = useT()
-  const qc = useQueryClient()
-  const ids = useId()
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [target, setTarget] = useState<TaskTarget | null>(initial)
-  const [assignee, setAssignee] = useState<string | null>(null)
-  const [dueAt, setDueAt] = useState('')
-  const [more, setMore] = useState(false)
-  const [error, setError] = useState<string>()
-  const [busy, setBusy] = useState(false)
-  const titleRef = useRef<HTMLTextAreaElement>(null)
-  useEffect(() => titleRef.current?.focus(), [])
-  const create = async () => {
-    if (!title.trim()) return setError(t('Title is required'))
-    setBusy(true)
-    try {
-      const id = `task-${crypto.randomUUID()}`
-      await createTask({
-        data: {
-          id,
-          title,
-          description,
-          target,
-          assignee,
-          dueAt: dueAt || null,
-        },
-      })
-      void qc.invalidateQueries({queryKey: tasksQuery.queryKey})
-      toast({tone: 'positive', title: t('Task created')})
-      if (more) {
-        setTitle('')
-        setDescription('')
-        setError(undefined)
-        titleRef.current?.focus()
-      } else showTasks({kind: 'task', id})
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <>
-      <Header>
-        <nav className="tasks-crumbs" aria-label={t('Tasks')}>
-          <button type="button" className="btn-text" onClick={() => showTasks({kind: 'list', tab: 'assigned'})}>
-            {t('Tasks')}
-          </button>
-          <span className="tasks-crumb-sep" aria-hidden="true">
-            <ChevronRight />
-          </span>
-          <h2>{t('Create')}</h2>
-        </nav>
-      </Header>
-      <form className="tasks-body task-form" onSubmit={(e) => (e.preventDefault(), void create())}>
-        <textarea
-          ref={titleRef}
-          className="task-title-input"
-          rows={1}
-          placeholder={t('Task title')}
-          aria-label={t('Task title')}
-          value={title}
-          onChange={(e) => (setTitle(e.target.value), setError(undefined))}
-        />
-        <textarea
-          className="input task-description"
-          rows={9}
-          placeholder={t('Add description')}
-          aria-label={t('Add description')}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <label className="task-label">{t('Target')}</label>
-        <TargetField target={target} onChange={setTarget} />
-        <label className="task-label" htmlFor={`${ids}-assignee`}>
-          {t('Assign to')}
-        </label>
-        <AssigneeField id={`${ids}-assignee`} value={assignee} onChange={setAssignee} />
-        <label className="task-label" htmlFor={`${ids}-due`}>
-          {t('Deadline')}
-        </label>
-        <DateTimeInput id={`${ids}-due`} dateOnly value={dueAt || undefined} onChange={(v) => setDueAt((v as string | undefined) ?? '')} placeholder={DATE_HINT} calendarLabel={t('Open calendar')} />
-        {error && (
-          <p className="field-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="task-form-foot">
-          <label className="task-more">
-            <input type="checkbox" role="switch" checked={more} onChange={(e) => setMore(e.target.checked)} /> {t('Create more')}
-          </label>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {t('Create Task')}
-          </button>
-        </div>
-      </form>
-    </>
-  )
-}
 
 function TaskView({id, list = []}: {id: string; list?: string[]}) {
   const t = useT()
-  const locale = useLocale()
-  const zone = useZone()
   const qc = useQueryClient()
   const ids = useId()
+  const {canWrite} = useCanWrite()
   const {data: tasks, isPending} = useQuery(tasksQuery)
   const task = tasks?.find((x) => x._id === id)
+  // Shown and then gone: someone deleted it while it was open here.
+  const seen = useRef<string>(undefined)
+  if (task) seen.current = id
   const at = list.indexOf(id)
-  const [title, setTitle] = useState(task?.title ?? '')
-  const [description, setDescription] = useState(task?.description ?? '')
-  useEffect(() => void (task && (setTitle(task.title), setDescription(task.description ?? ''))), [task?._id])
+  // What the editor typed into the title and the description and has not saved yet (null:
+  // untouched, so the box follows the task, another editor's save included; lib/task-activity.ts).
+  const [typedTitle, setTitle] = useState<string | null>(null)
+  const [typedDescription, setDescription] = useState<string | null>(null)
+  const title = boxShows(typedTitle, task?.title ?? '')
+  const description = boxShows(typedDescription, task?.description ?? '')
+  const [menu, setMenu] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  useEffect(() => (setTitle(null), setDescription(null)), [id])
   const save = async (set: Parameters<typeof updateTask>[0]['data']['set']) => {
     if (!task) return
     qc.setQueryData<Task[]>(
@@ -469,9 +251,11 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
             : x,
         ) as Task[],
     )
+    let saved = true
     try {
-      await updateTask({data: {id, set, subscribers: task.subscribers}})
+      await updateTask({data: {id, set}})
     } catch (e) {
+      saved = false
       toast({
         tone: 'critical',
         title: t('Could not save the task'),
@@ -479,13 +263,24 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
       })
     }
     void qc.invalidateQueries({queryKey: tasksQuery.queryKey})
-  }  // The title and description save when the box is left. Typed and not left yet, they are
+    return saved
+  }
+  // Leaving a box saves what was typed in it; saved, the box is the task's again (typed
+  // more meanwhile: that stays unsaved). A failed save keeps the text, still unsaved.
+  const newTitle = task ? boxSaves(typedTitle, task.title, true) : undefined
+  const newDescription = task ? boxSaves(typedDescription, task.description ?? '') : undefined
+  const saveBoxes = async () => {
+    if (newTitle === undefined && newDescription === undefined) return void (setTitle(null), setDescription(null))
+    const was = {typedTitle, typedDescription}
+    if (!(await save({...(newTitle !== undefined && {title: newTitle}), ...(newDescription !== undefined && {description: newDescription})}))) return
+    setTitle((now) => (now === was.typedTitle ? null : now))
+    setDescription((now) => (now === was.typedDescription ? null : now))
+  }
+  // The title and description save when the box is left. Typed and not left yet, they are
   // unsaved: leaving the page asks first (B11's prompt), and the leaving tries the save.
-  const titleChanged = !!task && !!title.trim() && title !== task.title
-  const descriptionChanged = !!task && description !== (task.description ?? '')
-  const pending = titleChanged || descriptionChanged
+  const pending = newTitle !== undefined || newDescription !== undefined
   const flush = useRef(() => {})
-  flush.current = () => void ((titleChanged || descriptionChanged) && save({...(titleChanged && {title: title.trim()}), ...(descriptionChanged && {description})}))
+  flush.current = () => void (pending && saveBoxes())
   useEffect(() => {
     if (!pending) return
     const unsaved = () => true
@@ -496,9 +291,23 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
   }, [pending])
 
   const remove = async () => {
-    await deleteTask({data: {id}})
+    setDeleting(false)
+    try {
+      await deleteTask({data: {id}})
+      showTasks({kind: 'list', tab: 'assigned'})
+    } catch (e) {
+      toast({tone: 'critical', title: t('Could not save the task'), description: (e as Error).message})
+    }
     void qc.invalidateQueries({queryKey: tasksQuery.queryKey})
-    showTasks({kind: 'list', tab: 'assigned'})
+  }
+  const copyLink = () => {
+    const url = new URL(location.href)
+    url.searchParams.set('task', id)
+    url.hash = ''
+    navigator.clipboard.writeText(url.toString()).then(
+      () => toast({title: t('Copied link to clipboard')}),
+      () => toast({tone: 'critical', title: t('Unable to copy link to clipboard')}),
+    )
   }
   return (
     <>
@@ -512,79 +321,109 @@ function TaskView({id, list = []}: {id: string; list?: string[]}) {
           </span>
           <h2>{task?.title ?? '…'}</h2>
         </nav>
-        {/* Sanity's: walk the list this task was opened from, and copy a link that opens it. */}
+        {/* Sanity's: walk the list this task was opened from; its menu duplicates it, copies a link that opens it, deletes it. */}
         <button type="button" className="icon-btn" aria-label={t('Go to previous task')} data-tip={t('Go to previous task')} disabled={at <= 0} onClick={() => showTasks({kind: 'task', id: list[at - 1]!, list})}>
           <ChevronLeft />
         </button>
         <button type="button" className="icon-btn" aria-label={t('Go to next task')} data-tip={t('Go to next task')} disabled={at < 0 || at >= list.length - 1} onClick={() => showTasks({kind: 'task', id: list[at + 1]!, list})}>
           <ChevronRight />
         </button>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={t('Copy link to task')}
-          data-tip={t('Copy link to task')}
-          onClick={() => {
-            const url = new URL(location.href)
-            url.searchParams.set('task', id)
-            navigator.clipboard.writeText(url.toString()).then(
-              () => toast({title: t('Copied link to clipboard')}),
-              () => toast({tone: 'critical', title: t('Unable to copy link to clipboard')}),
-            )
-          }}
-        >
-          <LinkIcon />
-        </button>
+        <div className="menu-wrap">
+          <button type="button" className="icon-btn" aria-label={t('Task actions')} data-tip={t('Task actions')} aria-haspopup="menu" aria-expanded={menu} disabled={!task} onClick={() => setMenu((o) => !o)}>
+            <Ellipsis />
+          </button>
+          {menu && task && (
+            <MenuPopover className="popover menu" onClose={() => setMenu(false)}>
+              {/* The copy opens in the create form, kept as a draft until "Create Task" (TaskCreate.tsx). */}
+              <button type="button" role="menuitem" className="menu-item" disabled={!canWrite} onClick={() => (setMenu(false), showTasks({kind: 'create', target: null, from: duplicateOf({...task, title: title.trim() || task.title, description})}))}>
+                {t('Duplicate task')}
+              </button>
+              <button type="button" role="menuitem" className="menu-item" onClick={() => (setMenu(false), copyLink())}>
+                {t('Copy link to task')}
+              </button>
+              <button type="button" role="menuitem" className="menu-item danger" disabled={!canWrite} onClick={() => (setMenu(false), setDeleting(true))}>
+                {t('Delete task')}
+              </button>
+            </MenuPopover>
+          )}
+        </div>
       </Header>
       <div className="tasks-body task-form">
         {isPending && <p className="muted">{t('Loading…')}</p>}
-        {!isPending && !task && <p className="muted">{t('No tasks')}</p>}
-        {task && (
-          <>
-            <div className="task-view-title">
-              <StatusToggle task={task} />
-              <textarea
-                className="task-title-input"
-                rows={1}
-                aria-label={t('Task title')}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => title.trim() && title !== task.title && void save({title: title.trim()})}
-              />
-            </div>
-            <textarea
-              className="input task-description"
-              rows={6}
-              placeholder={t('Add description')}
-              aria-label={t('Add description')}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={() => description !== (task.description ?? '') && void save({description})}
-            />
-            <label className="task-label">{t('Target')}</label>
-            <TargetField target={task.target ? {id: task.target._ref, type: task.targetType ?? ''} : null} onChange={(next) => void save({target: next})} open />
-            <label className="task-label" htmlFor={`${ids}-assignee`}>
-              {t('Assign to')}
-            </label>
-            <AssigneeField id={`${ids}-assignee`} value={task.assignee ?? null} onChange={(assignee) => void save({assignee})} />
-            <label className="task-label" htmlFor={`${ids}-due`}>
-              {t('Deadline')}
-            </label>
-            <DateTimeInput id={`${ids}-due`} dateOnly value={task.dueAt ?? undefined} onChange={(v) => void save({dueAt: (v as string | undefined) ?? null})} placeholder={DATE_HINT} calendarLabel={t('Open calendar')} />
-            <section className="task-activity" aria-label={t('Activity')}>
-              <h3>{t('Activity')}</h3>
-              <p>
-                <b>{task.createdBy ? <PersonName who={task.createdBy} /> : t('Unknown user')}</b> {t('created this task')} <span className="muted">{ago(task.createdAt, locale, undefined, zone)}</span>
-              </p>
-            </section>
-            <div className="task-form-foot">
-              <button type="button" className="btn-text task-delete" onClick={() => void remove()}>
-                <Trash /> {t('Delete task')}
+        {!isPending &&
+          !task &&
+          (seen.current === id ? (
+            <div className="task-gone" role="status">
+              <p>{t('This task has been deleted')}</p>
+              <button type="button" className="btn" onClick={() => showTasks({kind: 'list', tab: 'assigned'})}>
+                {t('Tasks')}
               </button>
             </div>
+          ) : (
+            <p className="muted">{t('No tasks')}</p>
+          ))}
+        {task && (
+          <>
+            {/* J49: a read seat reads the task; only its comments are its to write. */}
+            <fieldset className="task-fields" disabled={!canWrite}>
+              <div className="task-view-title">
+                <StatusToggle task={task} />
+                <textarea
+                  className="task-title-input"
+                  rows={1}
+                  aria-label={t('Task title')}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={() => void saveBoxes()}
+                />
+              </div>
+              <textarea
+                className="input task-description"
+                rows={6}
+                placeholder={t('Add description')}
+                aria-label={t('Add description')}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onBlur={() => void saveBoxes()}
+              />
+              <label className="task-label">{t('Target')}</label>
+              <TargetField target={task.target ? {id: task.target._ref, type: task.targetType ?? ''} : null} onChange={(next) => void save({target: next})} open />
+              <label className="task-label" htmlFor={`${ids}-assignee`}>
+                {t('Assign to')}
+              </label>
+              <AssigneeField id={`${ids}-assignee`} value={task.assignee ?? null} onChange={(assignee) => void save({assignee})} />
+              <label className="task-label" htmlFor={`${ids}-due`}>
+                {t('Deadline')}
+              </label>
+              <DateTimeInput id={`${ids}-due`} dateOnly value={task.dueAt ?? undefined} onChange={(v) => void save({dueAt: (v as string | undefined) ?? null})} placeholder={DATE_HINT} calendarLabel={t('Open calendar')} />
+            </fieldset>
+            <TaskActivity key={task._id} task={task} />
           </>
         )}
       </div>
+      {deleting && (
+        <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setDeleting(false)}>
+          <DialogBox className="dialog confirm-dialog" aria-modal="true" aria-label={t('Delete this task?')} onClose={() => setDeleting(false)}>
+            <header>
+              <h2>{t('Delete this task?')}</h2>
+              <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={() => setDeleting(false)}>
+                <Close />
+              </button>
+            </header>
+            <div className="dialog-body">
+              <p>{t('Once deleted, a task cannot be recovered.')}</p>
+            </div>
+            <footer className="dialog-actions">
+              <button type="button" className="btn" onClick={() => setDeleting(false)}>
+                {t('Cancel')}
+              </button>
+              <button type="button" className="btn danger" onClick={() => void remove()}>
+                {t('Delete')}
+              </button>
+            </footer>
+          </DialogBox>
+        </div>
+      )}
     </>
   )
 }

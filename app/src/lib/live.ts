@@ -65,13 +65,27 @@ export function useLive(ids: string[], types: string[]) {
   }, [key, empty, qc])
 }
 
+// J66: a task changed: the Tasks sidebar and that task's Activity read again, once for a
+// burst of frames (a bulk change from outside was one list read per frame).
+let tasksTimer: ReturnType<typeof setTimeout> | undefined
+const tasksTouched = new Set<string>()
+function tasksChanged(qc: QueryClient, id: string) {
+  tasksTouched.add(id)
+  clearTimeout(tasksTimer)
+  tasksTimer = setTimeout(() => {
+    void qc.invalidateQueries({queryKey: ['tasks']})
+    for (const task of tasksTouched) void qc.invalidateQueries({queryKey: ['task-history', task]})
+    tasksTouched.clear()
+  }, 250)
+}
+
 const onFrame = (qc: QueryClient, e: MessageEvent) => {
   const f = JSON.parse(e.data) as Frame
   ;(window as {__liveFrames?: string[]}).__liveFrames?.push(`${position.lastSeen}|${f.documentId}`) // e2e probe
   // J40: a comment changed somewhere: the comment threads read again.
   if (f.type === 'studioComment') return void qc.invalidateQueries({queryKey: ['comments']})
   // J66: a task changed: the Tasks sidebar reads again.
-  if (f.type === 'studioTask') return void qc.invalidateQueries({queryKey: ['tasks']})
+  if (f.type === 'studioTask') return tasksChanged(qc, f.documentId.replace(/^drafts\./, ''))
   // A translation group changed (lib/translations.ts): open Translations menus read again.
   if (f.type === 'translation.metadata') return void qc.invalidateQueries({queryKey: ['translations']})
   // D14: a task changed: papers' task previews read again (debounced: a bulk

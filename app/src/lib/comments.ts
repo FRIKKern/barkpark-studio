@@ -3,7 +3,8 @@ import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset} from '../server/barkpark'
 import {sendBatches} from '../../../scripts/lib/batches.mjs'
 import {currentEditor} from '../server/auth'
-import {COMMENT_TYPE, mentionsIn, readersMayComment, toggleReaction, type Comment, type CommentSelection, type CommentStatus} from './comment-threads'
+import {COMMENT_TYPE, commentsOn, mentionsIn, readersMayComment, toggleReaction, type Comment, type CommentSelection, type CommentStatus, type CommentTarget} from './comment-threads'
+import {writeFaultFor} from '../server/write-faults'
 import {readCommentSchema} from '../server/schemas'
 
 export {COMMENT_TYPE, threadsOf, type Comment, type CommentStatus, type Thread} from './comment-threads'
@@ -18,14 +19,19 @@ export {COMMENT_TYPE, threadsOf, type Comment, type CommentStatus, type Thread} 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 
 async function write(mutations: Json[]) {
+  // e2e only: a fault set for a comment this write names (server/write-faults.ts).
+  const fault = writeFaultFor(mutations)
+  if (fault?.kind === '500') throw new Error('Could not save the comment (500)')
+  if (fault?.kind === 'hang') await new Promise((go) => setTimeout(go, fault.ms ?? 0))
   // A long thread's delete goes in batches under Barkpark's cap (scripts/lib/batches.mjs).
   const res = await sendBatches(mutations, (part) => bpFetch(`/v1/data/mutate/${dataset()}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({mutations: part})}))
   if (res && !res.ok) throw new Error(`Could not save the comment (${res.status})`)
+  if (fault?.kind === 'reset') throw new Error('Could not save the comment (the answer was lost)')
 }
 
 const COMMENTS_PAGE = 500
 const fetchComments = createServerFn({method: 'GET'})
-  .validator((d: {documentId: string}) => d)
+  .validator((d: {documentId: string; target: CommentTarget}) => d)
   .handler(async ({data}) => {
     // Page by page: one read of 500 left a doc's later threads out (200 threads of three
     // comments showed 167). Twenty pages (10,000 comments) at most.
@@ -38,7 +44,7 @@ const fetchComments = createServerFn({method: 'GET'})
       docs.push(...documents)
       if (!hasMore || documents.length < COMMENTS_PAGE) break
     }
-    return docs.map(({_publishedId, ...c}) => ({...c, _id: _publishedId})) as unknown as Json
+    return commentsOn(docs, data.target).map(({_publishedId, ...c}) => ({...c, _id: _publishedId})) as unknown as Json
   })
 
 const fetchReaderComments = createServerFn({method: 'GET'}).handler(async () => readersMayComment((await readCommentSchema()) as {readerWrites?: unknown} | undefined))
@@ -47,7 +53,11 @@ const fetchReaderComments = createServerFn({method: 'GET'}).handler(async () => 
 export const readerCommentsQuery = queryOptions({queryKey: ['reader-comments'], staleTime: 5 * 60_000, queryFn: () => fetchReaderComments()})
 
 export const commentsQuery = (documentId: string) =>
-  queryOptions({queryKey: ['comments', documentId], staleTime: 10_000, queryFn: async () => (await fetchComments({data: {documentId}})) as unknown as Comment[]})
+  queryOptions({queryKey: ['comments', documentId], staleTime: 10_000, queryFn: async () => (await fetchComments({data: {documentId, target: 'document'}})) as unknown as Comment[]})
+
+/** J66: a task's thread (the comments whose target is the task). Under ['comments']: every comment frame reads it again. */
+export const taskCommentsQuery = (taskId: string) =>
+  queryOptions({queryKey: ['comments', 'task', taskId], staleTime: 10_000, queryFn: async () => (await fetchComments({data: {documentId: taskId, target: 'task'}})) as unknown as Comment[]})
 
 export const postComment = createServerFn({method: 'POST'})
   .validator((d: {id: string; documentId: string; documentType: string; fieldPath: string; message: string; parentCommentId?: string; selection?: CommentSelection; contentSnapshot?: string}) => d)

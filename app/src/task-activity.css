@@ -1,0 +1,29 @@
+/* J66, a task's Activity (components/TaskActivity.tsx): Sanity's feed of changes and comments. */
+.task-activity { margin-top: 12px; }
+.task-activity > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.task-activity > header .btn-text { padding: 4px 8px; font-size: 13px; }
+.task-feed { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.task-change { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 19px; color: var(--muted); }
+.task-change p { min-width: 0; overflow-wrap: anywhere; }
+.task-change b { font-weight: 600; color: var(--fg); }
+.task-change time { white-space: nowrap; }
+.task-change-icon { flex: none; display: grid; place-items: center; width: 19px; height: 19px; }
+.task-change-icon > svg { width: 19px; height: 19px; }
+.task-change-icon .task-circle { width: 11px; height: 11px; }
+.task-change[data-change='status'] .task-change-icon > svg { color: var(--positive-fg); }
+.task-change-target { display: inline; padding: 0; font-weight: 600; color: var(--fg); text-decoration: underline; text-underline-offset: 1px; text-align: left; }
+.task-earlier { padding: 2px 0; font-size: 13px; }
+.task-comment .comment-thread { background: var(--bg); }
+.task-no-comment { font-size: 13px; }
+/* The task's "…" menu, and the create form's Draft menu, open under their buttons at the right. */
+.tasks-head .menu-wrap { position: relative; }
+.tasks-head .menu-wrap > .popover.menu { right: 0; top: 100%; min-width: 200px; }
+.task-drafts-menu .menu-heading { margin: 0; padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--fg-strong); border-bottom: 1px solid var(--border); }
+.task-drafts-menu .menu-item { display: flex; justify-content: space-between; gap: 8px; }
+.task-drafts-menu .menu-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-discard { margin-right: auto; }
+.task-form-foot .task-more + .task-discard { margin-right: 0; }
+/* A read seat's task: its fields are there to read, not to change. */
+.task-fields { display: contents; border: 0; margin: 0; padding: 0; min-width: 0; }
+.task-gone { text-align: center; padding: 80px 16px; }
+.task-gone p { margin: 0 0 16px; }

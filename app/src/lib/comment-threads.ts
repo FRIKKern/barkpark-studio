@@ -57,6 +57,18 @@ export const reactionGroups = (reactions: Reaction[] = []) =>
   })
 export type Thread = {root: Comment; replies: Comment[]; status: CommentStatus}
 
+// J66: a task's thread is the same comment document with the task as its target
+// (`documentId` the task's id, `documentType` the task type). One store, two kinds of target.
+export const TASK_TARGET = 'studioTask'
+export type CommentTarget = 'document' | 'task'
+export const targetOf = (c: Pick<Comment, 'documentType'>): CommentTarget => (c.documentType === TASK_TARGET ? 'task' : 'document')
+/**
+ * The comments one kind of target may show. A document's Comments panel, its field counts
+ * and its inline ranges ask for 'document': a task's thread never reaches them, whatever
+ * id it carries.
+ */
+export const commentsOn = <C extends Pick<Comment, 'documentType'>>(comments: C[], target: CommentTarget): C[] => comments.filter((c) => targetOf(c) === target)
+
 /** Threads in the order Sanity lists them: by field, then oldest first. */
 export function threadsOf(comments: Comment[]): Thread[] {
   // Replies by their thread in one pass: per root over every comment was 120,000 steps for
@@ -93,6 +105,13 @@ export function rangeMoves(threads: Thread[], fieldPath: string, live: ({id: str
     return samePoint(now.anchor, was.anchor) && samePoint(now.head, was.head) ? [] : [{id: th.root._id, selection: {anchor: now.anchor, head: now.head}}]
   })
 }
+
+/**
+ * After a send, the composer takes the keyboard back only when nobody took it elsewhere
+ * meanwhile: focus still in the box, or on nothing (the box was disabled while sending).
+ * An editor who clicked into a field while the comment was on its way keeps typing there.
+ */
+export const composerKeepsFocus = (active: unknown, box: unknown, body: unknown): boolean => active == null || active === box || active === body
 
 // Mentions (J40), as Sanity's: "@" opens the list of users; a pick puts @<email> in
 // the text, shown as a chip with the name. Emails are what Barkpark knows people by.
