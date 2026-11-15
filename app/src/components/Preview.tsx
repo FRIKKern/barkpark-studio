@@ -8,6 +8,7 @@ import {DocumentIcon, BrokenImageIcon} from './icons'
 import {DeskIcon} from './DeskIcon'
 import {PaneLink} from './PaneLink'
 import {ago, useLocale, useT, useWorkspaceZone} from '../lib/i18n'
+import {languageOf, languageTitle} from '../lib/translation-group'
 import {useTip} from './Tip'
 
 /**
@@ -87,6 +88,7 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
   const t = useT()
   const schema = doc ? schemaOf(schemas, doc._type) : undefined
   const title = doc ? previewTitle(doc, schema, t) : '…'
+  const lang = schema?.translations && languageOf(doc, schema.translations)
   // The schema's list_preview.media: an image field or an image URL shows as the row's
   // thumbnail, like Sanity. A list of paths is tried in order (lib/preview.ts rowMedia).
   const candidates = useRowMedia(schema?.listPreview?.media, doc)
@@ -103,6 +105,8 @@ export const DocPreview = memo(function DocPreview({doc, href, selected, active,
         {subtitle && <div className="s">{subtitle}</div>}
       </span>
       {badge && <span className="badge">{badge}</span>}
+      {/* A translated type's rows carry their language (the plugin's badge), wherever a document is previewed. */}
+      {lang && <span className="badge lang-badge" title={languageTitle(schema!.translations!, lang)}>{lang}</span>}
       {extra}
       {doc && <Status doc={doc} />}
     </>
@@ -209,7 +213,7 @@ export function Thumb({value, fallback = <DocumentIcon />}: {value: ImageValue; 
 }
 
 /** Preview of a referenced doc, fetched by id (usually already cached). */
-export function RefPreview({type, id, href, selected, active, primed = true}: {type: string; id: string; href: string; primed?: boolean} & Sel) {
+export function RefPreview({type, id, href, selected, active, primed = true}: {type: string; id: string; href?: string; primed?: boolean} & Sel) {
   const {data} = useQuery({...docQuery(type, id), enabled: primed})
   return <DocPreview doc={data} href={href} selected={selected} active={active} />
 }

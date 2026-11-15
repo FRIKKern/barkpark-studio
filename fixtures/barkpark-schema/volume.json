@@ -4,6 +4,7 @@
   "visibility": "public",
   "list_preview": {"title": "title", "subtitle": "subtitle"},
   "groups": [{"name": "main", "title": "Main", "default": true}, {"name": "metadata", "title": "Metadata"}],
+  "desk": {"translations": {"languages": [{"id": "nb", "title": "Norsk bokmål"}, {"id": "en", "title": "English"}, {"id": "de", "title": "Deutsch"}, {"id": "sv", "title": "Svenska"}], "languageField": "language"}},
   "fields": [
     {"name": "title", "title": "Title", "type": "string", "group": "main", "validation": {"required": true}},
     {"name": "subtitle", "title": "Subtitle", "type": "string", "group": "main"},
@@ -25,7 +26,8 @@
     {"name": "keywords", "title": "Keywords", "type": "tags", "group": "metadata"},
     {"name": "notes", "title": "Notes", "type": "markdown", "group": "metadata"},
     {"name": "metadata", "title": "Metadata (JSON)", "type": "json", "group": "metadata"},
-    {"name": "onixSource", "title": "ONIX source", "type": "source", "group": "metadata"}
+    {"name": "onixSource", "title": "ONIX source", "type": "source", "group": "metadata"},
+    {"name": "language", "title": "Language", "type": "string", "hidden": true}
   ],
   "actions": [
     {"name": "send_for_review", "label": "Send for review", "kind": "modal", "icon": "cloud-upload",

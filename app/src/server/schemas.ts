@@ -26,11 +26,12 @@ async function readContentModel(path: string) {
 export type RawSchema = {name: string; title: string; icon?: unknown; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; fieldsets?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown; kind?: unknown}
 
 /**
- * The studio's own record types (lib/tasks.ts, lib/comments.ts): declared in each
+ * The studio's own record types (lib/tasks.ts, lib/comments.ts; lib/translations.ts's
+ * `translation.metadata`, which a Sanity dataset may declare): declared in each
  * dataset so Barkpark knows them, never content. Kept out of the desk, lists, new
  * documents and search, as Sanity keeps its own task and comment types.
  */
-export const STUDIO_TYPES = ['studioTask', 'studioComment', 'studioVisionQuery']
+export const STUDIO_TYPES = ['studioTask', 'studioComment', 'studioVisionQuery', 'translation.metadata']
 
 export async function readSchemas(): Promise<RawSchema[]> {
   return (await readAllSchemas()).filter((s) => !STUDIO_TYPES.includes(s.name))
