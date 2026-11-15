@@ -14,12 +14,12 @@ import {groqPath} from './vision-groq'
 //   Recently edited      1 + 1 when a draft is among them
 //   Scheduled            1 + 1 when something is scheduled (the documents)
 //   a document list      1 + 1, as Recently edited
-//   My tasks             1 (the Tasks sidebar's own read, shared with it)
+//   My tasks             1 (the Tasks sidebar's read, under the dashboard's own key)
 //   Members              1 per 200 members (the people pickers' read, kept 5 minutes)
 // so at most 8 for the default five, plus the rows' previewed references in one batch per
 // widget (lib/prime.ts). One read per type was the other way: 64 for a 64-type model, on a
 // token that reads 300 a minute. After that the page listens (lib/live.ts): a frame is put
-// into the rows with no read (lib/dashboard.ts withFrame), and nothing polls.
+// into the rows with no read (lib/dashboard.ts withFrame, withTaskFrame), and nothing polls.
 
 type Json = string | number | boolean | null | Json[] | {[k: string]: Json}
 

@@ -60,7 +60,8 @@ dataset. Rows open their document in Structure. Shapes and defaults: `app/src/li
 
 What it reads (`app/src/lib/dashboard-data.ts`): one GROQ read per document widget for any
 number of types, a second when drafts are among the rows; then it listens, and a live frame
-is put into the rows without a read. Nothing polls. Barkpark's documents do not say who
+(a document's or a task's) is put into the rows without a read. Nothing polls. A list of the
+last created is right or, with very many drafts open on old documents, shorter. Barkpark's documents do not say who
 edited them last, so the drafts widget is everyone's; with shared sign-in the tasks widget
 lists every open task and says so.
 
