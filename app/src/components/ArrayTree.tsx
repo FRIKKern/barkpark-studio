@@ -65,9 +65,9 @@ export function useSidebar(nested: boolean, dialog: RefObject<HTMLElement | null
 export function ArrayTree({root, nodes, current, onPicked}: {root: TreeRoot; nodes: TreeNode[]; current: string; onPicked?: () => void}) {
   const t = useT()
   const [query, setQuery] = useState('')
-  // Open: the items around the one shown, and whatever the author opens.
-  const [opened, setOpened] = useState(() => new Set(itemsAbove(current)))
-  useEffect(() => setOpened((s) => (itemsAbove(current).every((p) => s.has(p)) ? s : new Set([...s, ...itemsAbove(current)]))), [current])
+  // Open: the items above the one shown and the one shown (its own items in view), and whatever the author opens.
+  const [opened, setOpened] = useState(() => new Set([...itemsAbove(current), current]))
+  useEffect(() => setOpened((s) => ([...itemsAbove(current), current].every((p) => s.has(p)) ? s : new Set([...s, ...itemsAbove(current), current]))), [current])
   const shown = query.trim() ? filterTree(nodes, query) : nodes
   const rows = treeRows(shown, query.trim() ? () => true : (p) => opened.has(p))
   // One row takes Tab (the one shown, else the first); the arrows move between them.
