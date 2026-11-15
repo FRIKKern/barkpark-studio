@@ -262,3 +262,46 @@ export function holds(value: unknown, op: ArrayOp): boolean {
   const [at, ref] = [keys.indexOf(op.key), keys.indexOf(op.ref)]
   return at >= 0 && ref >= 0 && at === ref + (op.position === 'after' ? 1 : -1)
 }
+
+// ── What a page has spent ──────────────────────────────────────────────────────────────
+
+/** The frame is loaded again (a change not saved) at most this often; twice as long each time a page keeps at it. */
+export const PUT_BACK_GAP = 5_000
+export const PUT_BACK_GAP_MAX = 60_000
+/** Snapshots a page may make the studio read in a minute (each a read on the editor's budget). */
+export const SNAPSHOTS_A_MINUTE = 60
+
+/**
+ * A preview origin's tallies. They outlive the frame: putting a page back loads a new frame,
+ * and a tally that began again with it let a page write 30 per reload, and reload without end.
+ */
+export type PageTally = {writes: number[]; snapshots: number[]; lastPutBack: number; gap: number}
+const tallies = new Map<string, PageTally>()
+export const newTally = (): PageTally => ({writes: [], snapshots: [], lastPutBack: -Infinity, gap: PUT_BACK_GAP})
+/** The one tally of `origin`, for every frame the studio shows of it. */
+export function tallyOf(origin: string): PageTally {
+  const tally = tallies.get(origin) ?? newTally()
+  tallies.set(origin, tally)
+  return tally
+}
+
+/** Whether one more of a counted thing fits the minute; counted when it does. */
+export function fits(stamps: number[], now: number, max: number): boolean {
+  while (stamps.length && stamps[0]! <= now - 60_000) stamps.shift()
+  if (stamps.length >= max) return false
+  stamps.push(now)
+  return true
+}
+
+/**
+ * How long until the page may be put back: 0 is now (and it is counted). A page put back
+ * again and again waits twice as long each time (5 s, 10 s … a minute); a quiet spell of
+ * twice its gap brings the 5 s back.
+ */
+export function putBackIn(tally: PageTally, now: number): number {
+  const since = now - tally.lastPutBack
+  if (since < tally.gap) return tally.gap - since
+  tally.gap = since < 2 * tally.gap ? Math.min(tally.gap * 2, PUT_BACK_GAP_MAX) : PUT_BACK_GAP
+  tally.lastPutBack = now
+  return 0
+}

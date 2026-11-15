@@ -6,7 +6,8 @@ import type {LoaderControllerMsg, LoaderNodeMsg, VisualEditingControllerMsg, Vis
 import {anyDocQuery, docQuery, schemaOf, schemasQuery} from './data'
 import {runPreviewQuery} from './presentation-query'
 import {overlayEditing} from './presentation-overlay'
-import {fieldPath, focusPane, focusTarget, forget, framePath, hear, liveResult, loaderListen, mayRead, pageDocuments, readsDocument, refusedMessage, sourceMapOf, type Perspective, type QueryBook, type SourceMap} from './presentation-comlink'
+import {tallyOf} from './presentation-mutate'
+import {fieldPath, focusPane, focusTarget, forget, framePath, hear, liveResult, loaderListen, mayRead, pageDocuments, readByPage, readsDocument, refusedMessage, sourceMapOf, type Perspective, type QueryBook, type SourceMap} from './presentation-comlink'
 
 /**
  * Presentation's comlink side, beside the bridge (components/Presentation.tsx): the two
@@ -46,6 +47,8 @@ export type ComlinkOptions = {
   perspective: Perspective
   /** The Edit switch, as the tool wants the site's overlay. */
   overlays: boolean
+  /** The document the panel shows (its last pane), if any. */
+  panelDoc: string | null
   /** The field the document panel has focus in. */
   focus: {id: string; path: string} | null
   onConnected: () => void
@@ -197,6 +200,9 @@ export function usePresentationComlink(o: ComlinkOptions) {
         qc,
         perspective: () => opts.current.perspective,
         pageDocs: docsOnPage,
+        read: (id) => readByPage(book, id),
+        panelDoc: () => opts.current.panelDoc,
+        tally: tallyOf(origin),
         putBack: () => opts.current.onReload(),
         open: (pane) => void navigate({to: '/presentation', search: (prev: Record<string, unknown>) => ({...prev, pane})}),
       })

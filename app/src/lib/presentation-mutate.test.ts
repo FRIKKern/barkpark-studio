@@ -1,8 +1,8 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import type {Field, Schema} from './data.ts'
-import {applyArrayOp, arrayField, holds, MUTATE_MAX, pageEdit, type ArrayOp} from './presentation-mutate.ts'
-import {framePath, ownPath} from './presentation-comlink.ts'
+import {applyArrayOp, arrayField, fits, holds, MUTATE_MAX, MUTATES_A_MINUTE, newTally, pageEdit, putBackIn, tallyOf, type ArrayOp} from './presentation-mutate.ts'
+import {framePath, frameSrc, ownPath, readByPage, type QueryBook, type SourceMap} from './presentation-comlink.ts'
 
 // What @sanity/visual-editing 3.2.4 posts (read off the wire in our Presentation): its own
 // copy of the document first, then one patch per step.
@@ -183,4 +183,54 @@ test('a preview path that would resolve to another site is no path (task-ff4190a
   assert.equal(ownPath('/posts/a'), true)
   assert.equal(ownPath('/'), true)
   for (const path of ['//evil.example', '/\\evil.example', '\\\\evil.example', 'posts/a', 'https://evil.example', '', undefined, 7]) assert.equal(ownPath(path), false, String(path))
+  // A URL drops tabs and newlines: these read as //evil.example.
+  for (const path of ['/\t/evil.example', '/\n/evil.example', '/\r/evil.example', '/\t\\evil.example', '/\n\t/evil.example/x']) assert.equal(ownPath(path), false, JSON.stringify(path))
+  // On the origin as written, but its path comes out as //evil.example: read again, another site.
+  assert.equal(ownPath('/.//evil.example'), false)
+  // The frame's address for ?preview=: never another site.
+  const site = 'http://localhost:3537'
+  assert.equal(frameSrc('/posts/a?x=1', site), 'http://localhost:3537/posts/a?x=1')
+  for (const preview of ['//evil.example/x', '/\\evil.example/x', '/\t/evil.example/x', '/\n/evil.example', 'https://evil.example/x', 'javascript:alert(1)', 'posts/a', undefined, 7]) assert.equal(frameSrc(preview, site), 'http://localhost:3537/', JSON.stringify(preview))
+})
+
+test('a page\'s tallies outlive its frame: the write cap and the put-back gap hold across a put-back', () => {
+  // Two frames of one origin (a put-back makes the second) count on one tally.
+  assert.equal(tallyOf('http://site.example'), tallyOf('http://site.example'))
+  assert.notEqual(tallyOf('http://site.example'), tallyOf('http://other.example'))
+  const tally = newTally()
+  let now = 1_000_000
+  for (let n = 0; n < MUTATES_A_MINUTE; n++) assert.equal(fits(tally.writes, now + n, MUTATES_A_MINUTE), true)
+  // The 31st is refused, the page is put back (a new frame, the same tally) and the 31st is still refused.
+  assert.equal(fits(tally.writes, now + 40, MUTATES_A_MINUTE), false)
+  assert.equal(putBackIn(tally, now + 40), 0)
+  assert.equal(fits(tally.writes, now + 3_000, MUTATES_A_MINUTE), false)
+  assert.equal(fits(tally.writes, now + 60_001, MUTATES_A_MINUTE), true)
+  // A second refusal inside the gap does not put the page back: it waits the gap out.
+  const gap = newTally()
+  assert.equal(putBackIn(gap, now), 0)
+  assert.equal(putBackIn(gap, now + 300), 4_700)
+  assert.equal(putBackIn(gap, now + 4_999), 1)
+  // A page that keeps at it: 5 s, 10 s, 20 s, 40 s, then a minute, never sooner.
+  const waits = []
+  for (let n = 0; n < 6; n++) {
+    now += putBackIn(gap, now)
+    assert.equal(putBackIn(gap, now), 0)
+    waits.push(putBackIn(gap, now + 1) + 1)
+  }
+  assert.deepEqual(waits, [10_000, 20_000, 40_000, 60_000, 60_000, 60_000])
+  // Quiet for twice its gap: 5 s again.
+  assert.equal(putBackIn(gap, now + 120_000), 0)
+  assert.equal(putBackIn(gap, now + 120_001), 4_999)
+})
+
+test('readByPage: a document is on the page when a query the studio ran for it read it, not when the page says so', () => {
+  const map: SourceMap = {documents: [{_id: 'drafts.post-09', _type: 'post'}, {_id: 'author-ada', _type: 'author'}], paths: [], mappings: {}}
+  const book: QueryBook<{map?: SourceMap}> = new Map([
+    ['a', {projectId: '', dataset: 'e2e-local', perspective: 'drafts', query: '*', params: {}, heartbeat: false, heardAt: 0, state: {map}}],
+    ['b', {projectId: '', dataset: 'e2e-local', perspective: 'drafts', query: '*[1]', params: {}, heartbeat: false, heardAt: 0}],
+  ])
+  assert.equal(readByPage(book, 'post-09'), true)
+  assert.equal(readByPage(book, 'author-ada'), true)
+  assert.equal(readByPage(book, 'post-10'), false)
+  assert.equal(readByPage(new Map(), 'post-09'), false)
 })

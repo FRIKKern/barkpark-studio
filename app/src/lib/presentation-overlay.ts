@@ -6,8 +6,8 @@ import type {DeskNode} from './desk'
 import {edit, saveStateOf} from './edits'
 import {t} from './i18n'
 import {getPath, keyedPath} from './paths'
-import {focusPane, mayRead, publishedId, type Perspective} from './presentation-comlink'
-import {applyArrayOp, arrayField, holds, MUTATES_A_MINUTE, pageEdit, type PageEdit} from './presentation-mutate'
+import {focusPane, publishedId, type Perspective} from './presentation-comlink'
+import {applyArrayOp, arrayField, fits, holds, MUTATES_A_MINUTE, pageEdit, putBackIn, SNAPSHOTS_A_MINUTE, type PageEdit, type PageTally} from './presentation-mutate'
 import {previewSchema, unionTypes} from './presentation-schema'
 import {scheduleQuery} from './schedules'
 import {meQuery} from './session'
@@ -30,7 +30,10 @@ import {toast} from '../components/Toasts'
  *
  * The page shows its change at once (its own optimistic state). When the studio does not
  * save it (refused, stale, a failed or slow write) the page is loaded again: it shows what
- * is saved, and a toast says so.
+ * is saved, and a toast says so. A document is the page's to ask about or change only when a
+ * query the studio ran for it read that document; a change to one the panel does not show
+ * opens it there, so nothing changes unseen. What a page has spent (writes, reads, reloads)
+ * is counted per preview origin, across the frames a put-back makes (`tally`).
  */
 
 type Visual = ChannelInstance<VisualEditingControllerMsg, VisualEditingNodeMsg>
@@ -40,8 +43,6 @@ type PageDoc = {_id: string; _type: string}
 const TELL_AFTER = 150
 /** A page's change not saved by then is put back. */
 const SAVE_WAIT = 10_000
-/** The page is loaded again at most this often, whatever it sends. */
-const PUT_BACK_GAP = 5_000
 const DOC_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/
 // Ours, not the document's (lib/data.ts): the page gets what Barkpark holds.
 const OURS = new Set(['_publishedId', '_draft', '_hasPublished', '_publishedAt'])
@@ -52,13 +53,19 @@ export type OverlayHost = {
   perspective: () => Perspective
   /** The documents the page named (visual-editing/documents, loader/documents), of schema types. */
   pageDocs: () => PageDoc[]
+  /** A query the studio ran for the page read this document (lib/presentation-comlink.ts readByPage). */
+  read: (id: string) => boolean
+  /** The document the panel shows, if any. */
+  panelDoc: () => string | null
+  /** This preview origin's tallies (lib/presentation-mutate.ts tallyOf): they outlive the frame. */
+  tally: PageTally
   /** The page shows a change the studio did not save: load it again. */
   putBack: () => void
-  /** Open a pane chain in the document panel (a new item). */
+  /** Open a pane chain in the document panel (a new item, a document changed from the page). */
   open: (pane: string) => void
 }
 
-export function overlayEditing({visual, qc, perspective, pageDocs, putBack, open}: OverlayHost) {
+export function overlayEditing({visual, qc, perspective, pageDocs, read, panelDoc, tally, putBack, open}: OverlayHost) {
   let stopped = false
   const timers = new Set<ReturnType<typeof setTimeout>>()
   const later = (run: () => void, ms: number) => {
@@ -86,7 +93,7 @@ export function overlayEditing({visual, qc, perspective, pageDocs, putBack, open
   visual.on('visual-editing/schema-union-types', async (data) => {
     const schemas = await qc.ensureQueryData(schemasQuery)
     const known = new Map(pageDocs().map((d) => [d._id, d._type]))
-    return {types: unionTypes(data?.paths, (id) => (known.has(id) && held(id)?._type === known.get(id) ? held(id)! : undefined), schemas) as never}
+    return {types: unionTypes(data?.paths, (id) => (read(id) && known.has(id) && held(id)?._type === known.get(id) ? held(id)! : undefined), schemas) as never}
   })
   visual.on('visual-editing/features', async () => ({features: {optimistic: await mayWrite()}}))
 
@@ -128,12 +135,20 @@ export function overlayEditing({visual, qc, perspective, pageDocs, putBack, open
     const type = (await qc.fetchQuery(anyDocQuery(id)).catch(() => null))?._type
     return type && schemaOf(await qc.ensureQueryData(schemasQuery), type) ? type : undefined
   }
+  /** The page may draw a result it kept before the studio has run that query again (a page gone back to): a moment for it. */
+  const readSoon = async (id: string) => {
+    for (let tries = 0; tries < 15 && !stopped && !read(id); tries++) await new Promise((go) => later(() => go(null), 200))
+    return !stopped && read(id)
+  }
   visual.on('visual-editing/snapshot-welcome', () => ({event: {type: 'welcome'}}) as never)
   visual.on('visual-editing/fetch-snapshot', async (data) => {
     const asked = typeof data?.documentId === 'string' ? data.documentId : ''
     const id = publishedId(asked)
     // One copy a document: the draft's id carries what the editor sees, the published id nothing.
-    if (!asked.startsWith('drafts.') || !DOC_ID.test(id)) return {snapshot: null} as never
+    // Only a document the page's own queries read, and reads of Barkpark within a minute's allowance.
+    if (!asked.startsWith('drafts.') || !DOC_ID.test(id) || !(await readSoon(id))) return {snapshot: null} as never
+    const fresh = Date.now() - (qc.getQueryState(['doc', id])?.dataUpdatedAt ?? 0) < 30_000
+    if (!fresh && !fits(tally.snapshots, Date.now(), SNAPSHOTS_A_MINUTE)) return {snapshot: null} as never
     const type = await typeOf(id)
     const doc = type ? ((await qc.fetchQuery(docQuery(type, id)).catch(() => null)) ?? null) : null
     if (stopped || !type || !doc) return {snapshot: null} as never
@@ -168,14 +183,19 @@ export function overlayEditing({visual, qc, perspective, pageDocs, putBack, open
   })
 
   // ── A change made on the page: checked, then made here as a form edit ──
-  const writes: number[] = []
-  let lastPutBack = 0
+  let putBackTimer: ReturnType<typeof setTimeout> | undefined
   const notSaved = (why: string) => {
     console.warn(`Presentation did not save a change made on the preview page: ${why}.`)
-    if (stopped || Date.now() - lastPutBack < PUT_BACK_GAP) return
-    lastPutBack = Date.now()
-    toast({tone: 'caution', title: t('A change made on the page was not saved'), description: t('The page shows what is saved.')})
-    putBack()
+    // One put-back is on its way already: it covers this one too.
+    if (stopped || putBackTimer) return
+    const go = () => {
+      toast({key: 'presentation-put-back', tone: 'caution', title: t('A change made on the page was not saved'), description: t('The page shows what is saved.')})
+      putBack()
+    }
+    const wait = putBackIn(tally, Date.now())
+    if (wait === 0) return go()
+    // Too soon after the last one (lib/presentation-mutate.ts putBackIn): once, when the gap is over.
+    putBackTimer = later(() => ((putBackTimer = undefined), putBackIn(tally, Date.now()) === 0 && go()), wait)
   }
   /**
    * The change, made on the studio's copy of the document as it is now: the form's own edit
@@ -208,19 +228,23 @@ export function overlayEditing({visual, qc, perspective, pageDocs, putBack, open
     if (perspective() !== 'drafts') return notSaved('the published version is shown')
     if (!(await mayWrite())) return notSaved('this editor may not write')
     if (stopped) return
-    if (!mayRead(writes, Date.now(), MUTATES_A_MINUTE)) return notSaved(`more than ${MUTATES_A_MINUTE} changes in a minute`)
+    if (!fits(tally.writes, Date.now(), MUTATES_A_MINUTE)) return notSaved(`more than ${MUTATES_A_MINUTE} changes in a minute`)
     const asked = pageEdit(data)
     if ('refused' in asked) return notSaved(asked.refused)
     const {id, path, op} = asked
-    // A document the page named and was given a copy of: no other can be meant.
+    // A document the studio read for this page (its own queries' source maps, not the page's
+    // word), which the page named and was given a copy of: no other can be meant.
     const type = pageDocs().find((d) => d._id === id)?._type
-    if (!type || served.get(id)?.type !== type) return notSaved('not a document on this page')
+    if (!type || !read(id) || served.get(id)?.type !== type) return notSaved('not a document on this page')
     const schedule = await qc.fetchQuery(scheduleQuery(id, type)).catch(() => undefined)
     if (stopped) return
     if (!schedule || schedule.schedule?.status === 'scheduled') return notSaved('the document is scheduled, or its schedule could not be read')
     // After every wait: the document as the form holds it now, the perspective as it is now.
     if (!make(asked, type)) return
+    // A new item opens in the panel; so does a document the panel is not showing, at the
+    // array that changed: the editor sees every change a page makes, and Mod+Z there undoes it.
     if (op.kind === 'insert') open(focusPane({id, type, path: keyedPath(path, op.newKey)}))
+    else if (panelDoc() !== id) open(focusPane({id, type, path}))
     followSave(asked, type, Date.now() + SAVE_WAIT, true)
   }
   visual.on('visual-editing/mutate', (data) => void onMutate(data))
