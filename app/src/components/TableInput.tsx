@@ -122,12 +122,12 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
    * the first keys would type over it (or, on the button just pressed, press it again). The
    * keys typed meanwhile are kept (`early`) and typed into the new cell once it is there.
    */
-  const early = useRef<string | null>(null)
+  const early = useRef<string[] | null>(null)
   const focusCell = useCallback(
     (row: number, column: number, select: 'start' | 'end' | 'all' = 'all', made?: {rows?: number; columns?: number}) => {
       let frames = made ? 60 : 12
       const drawn = () => !made || ((made.rows === undefined || latest.current.grid.rows.length >= made.rows) && (made.columns === undefined || latest.current.grid.columns >= made.columns))
-      if (!drawn()) (early.current = ''), win.box.current?.focus({preventScroll: true})
+      if (!drawn()) (early.current = []), win.box.current?.focus({preventScroll: true})
       const go = () => {
         const el = drawn() ? cellAt(row, column) : null
         if (!el) {
@@ -141,18 +141,24 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
         else el.setSelectionRange(select === 'start' ? 0 : el.value.length, select === 'start' ? 0 : el.value.length)
         const keys = early.current
         early.current = null
-        // As the browser types them: the input's own change, its undo step too.
-        if (keys) document.execCommand('insertText', false, keys)
+        // As the browser types them (the input's own change, its undo step too); Tab and Enter
+        // as pressed, so the text after them goes on into the next cell.
+        for (const k of keys ?? []) {
+          if (k.length === 1) document.execCommand('insertText', false, k)
+          else document.activeElement?.dispatchEvent(new window.KeyboardEvent('keydown', {key: k.replace('Shift', ''), shiftKey: k.startsWith('Shift'), bubbles: true, cancelable: true}))
+        }
       }
       go()
     },
     [win.on, win.rowH, win.box],
   )
-  /** While a new cell is on its way: a letter is kept for it, and Space or Enter presses nothing (a header, the button again). */
+  /** While a new cell is on its way, letters, Tab and Enter are kept for it (not a press of a header, or of the button again). */
   const onEarlyKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (early.current === null || e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent.isComposing) return
-    if (e.key.length === 1) (e.preventDefault(), e.stopPropagation(), (early.current += e.key))
-    else if (e.key === 'Enter') (e.preventDefault(), e.stopPropagation())
+    if (e.key.length !== 1 && e.key !== 'Enter' && e.key !== 'Tab') return
+    e.preventDefault()
+    e.stopPropagation()
+    early.current.push(e.key.length === 1 || !e.shiftKey ? e.key : `Shift${e.key}`)
   }
   const header = (kind: 'row' | 'column', index: number) => root.current?.querySelector<HTMLElement>(`button[data-${kind}-header="${index}"]`)
 
