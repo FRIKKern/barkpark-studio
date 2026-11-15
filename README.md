@@ -18,6 +18,10 @@ Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-back
 ## What happened
 
 <!-- timeline:start -->
+- **Today** · 7 changes
+  - feat(J17): incoming references in the form, with Add item (Sanity's incoming references input) ([#1255](https://github.com/FRIKKern/barkpark-studio/pull/1255))
+- **Yesterday** · 3 changes
+  - feat(J40): inline comments on a Portable Text selection ([#1248](https://github.com/FRIKKern/barkpark-studio/pull/1248))
 - **This week** · 6 changes
   - e2e: the desk proxy paces the compressed bytes a browser gets ([#1246](https://github.com/FRIKKern/barkpark-studio/pull/1246))
 - **Last week** · 7 changes
