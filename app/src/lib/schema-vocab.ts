@@ -45,7 +45,7 @@ export const FIELD_KEYS = {
   fieldsets: 'composite: Sanity\'s fieldsets, [{name, title, options: {collapsible, collapsed, columns}}].',
   fieldset: 'The fieldset (of its composite) it shows in.',
   weak: 'reference: Sanity\'s weak reference; kept, not enforced by Barkpark.',
-  namedType: 'An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type\'s icon.',
+  namedType: 'An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type\'s icon. "code" makes it Sanity\'s code field (options: language, languageAlternatives, withFilename).',
 } satisfies Record<keyof Field, string>
 
 /** Keys Barkpark reads on a field that the studio passes through as they are. */

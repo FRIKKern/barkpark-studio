@@ -15,6 +15,7 @@ import {Close as CloseIcon, Upload} from './icons'
 import {translate, useLocale, useT, useWorkspaceZone} from '../lib/i18n'
 import {usePrimed} from '../lib/prime'
 import {withField} from '../lib/with-field'
+import {codeOptions, codePreview, isCodeField} from '../lib/code-input'
 import {memberChoices, memberFor, memberName, memberPreview, membersOf, newMemberItem, referenceHeads} from '../lib/array-members'
 
 // Arrays of objects (J33), after Sanity's: each item a row with a preview (the
@@ -293,9 +294,11 @@ export function useItemPreview(item: Item, of: Field, named = false) {
     staleTime: Infinity,
     queryFn: () => fetch(`/api/media/${encodeURIComponent(picture!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<{name?: string}>) : null)),
   })
+  // A code item (Sanity's code object): its first line, then its filename and language.
+  const code = isCodeField(of) ? codePreview(item, codeOptions(of)) : undefined
   return {
-    title: (of.type === 'image' ? asset?.name : formatPreview(titleSpec, read, {typeTitle, zone, deref})) || (named ? memberChoices([of], schemas)[0]!.title : '') || translate(locale, 'Untitled'),
-    subtitle: formatPreview(p.subtitle, read, {typeTitle, zone, deref}),
+    title: (code ? code.title : of.type === 'image' ? asset?.name : formatPreview(titleSpec, read, {typeTitle, zone, deref})) || (named ? memberChoices([of], schemas)[0]!.title : '') || translate(locale, 'Untitled'),
+    subtitle: code ? code.subtitle : formatPreview(p.subtitle, read, {typeTitle, zone, deref}),
     // An array of images: each item is its own picture.
     media: (of.type === 'image' && imageRef(item) ? item : firstMedia(p.media, read, (v) => !!imageRef(v))) as ImageValue | undefined,
   }
@@ -394,6 +397,9 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
               {of.type === 'image' ? (
                 // An array of images: the item is the image (upload, select, hotspot and crop, its fields).
                 <FieldView field={{...of, name: 'image', title: t('Image')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _type: named ? memberName(of) : 'image', _key: item._key})} />
+              ) : isCodeField(of) ? (
+                // A code item is the code editor itself, not its four subfields.
+                <FieldView field={{...of, name: memberName(of), title: of.title ?? t('Code')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _key: item._key})} />
               ) : (
                 fieldsOf(of, item).map((f) => (
                   <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange(withField(item, f.name, v))} />

@@ -24,6 +24,7 @@
 
 import {unsupportedAsset} from './broken.ts'
 import {imageRef} from './image.ts'
+import {codePreview, isCodeValue} from './code-input.ts'
 import {matches, type Condition} from './conditions.ts'
 
 type ObjectPart =
@@ -157,7 +158,7 @@ export function formatPreview(spec: PreviewText | undefined, read: (path: string
     const v = read(pathOf(part))
     const mods = part.split('|').slice(1).map((m) => m.trim())
     const textMode = mods.find((m) => m === 'text' || m.startsWith('text:'))
-    const raw = mods.includes('count') ? count(v) : mods.includes('date') ? day(v, opts.zone) : mods.includes('type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : textMode ? portableText(v, textMode.slice(5)) : typeof v === 'string' || typeof v === 'number' ? String(v) : undefined
+    const raw = mods.includes('count') ? count(v) : mods.includes('date') ? day(v, opts.zone) : mods.includes('type') && typeof v === 'string' ? (opts.typeTitle?.(v) ?? v) : textMode ? portableText(v, textMode.slice(5)) : typeof v === 'string' || typeof v === 'number' ? String(v) : isCodeValue(v) ? codePreview(v).title : undefined
     if (!raw?.trim()) return undefined
     const cut = maxCut(raw, mods)
     return mods.includes('lower') ? cut.toLowerCase() : mods.includes('upper') ? cut.toUpperCase() : cut

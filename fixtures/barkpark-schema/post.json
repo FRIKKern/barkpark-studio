@@ -23,7 +23,7 @@
                 "marks": ["strong", "em", "code", "underline", "strikethrough"], "annotations": [{"name": "link"}, {"name": "wikilink"}], "inline": [{"name": "chip", "title": "Chip", "fields": [{"name": "text", "title": "Text", "type": "string"}, {"name": "tone", "title": "Tone", "type": "select", "options": {"list": [{"title": "Neutral", "value": "neutral"}, {"title": "Positive", "value": "positive"}, {"title": "Caution", "value": "caution"}]}}]}],
                 "of": ["image", {"name": "callout", "title": "Callout", "fields": [{"name": "tone", "title": "Tone", "type": "select", "options": {"list": [{"title": "Info", "value": "info"}, {"title": "Warning", "value": "warning"}, {"title": "Danger", "value": "danger"}]}}, {"name": "text", "title": "Text", "type": "text"}]}]}},
     {"name": "ptBody", "title": "Portable Text body", "type": "richText", "group": "content", "format": "portableText",
-     "description": "Stored as Portable Text, as Sanity stores it.", "blocks": {"of": ["table"]}},
+     "description": "Stored as Portable Text, as Sanity stores it.", "blocks": {"of": ["table", {"name": "code", "title": "Code", "options": {"withFilename": true}}]}},
     {"name": "stage", "title": "Stage", "type": "select", "group": "meta", "layout": "radio",
      "options": {"list": ["idea", "writing", "review", "done"], "direction": "horizontal"}},
     {"name": "format", "title": "Format", "type": "select", "group": "meta",

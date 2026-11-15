@@ -23,6 +23,8 @@ import {isObjectMembers, isReferenceMembers, membersOf, mergedReference} from '.
 import {RefArrayInput} from './RefArrayInput'
 import {ColorInput, LocalizedTextInput, ReadOnlyJson, SourceView} from './NativeInputs'
 import {CodelistInput} from './CodelistInput'
+import {CodeField} from './CodeInput'
+import {isCodeField} from '../lib/code-input'
 import {FieldComments} from './Comments'
 import {useStaticCommentHighlights} from './InlineComments'
 import {InvalidValueCard, KeysAlert, RichTextCard, UnsupportedAssetCard} from './BrokenValues'
@@ -593,6 +595,8 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     }
     case 'geopoint':
     case 'composite': {
+      // Sanity's code object (@sanity/code-input): a code editor, not four subfields.
+      if (isCodeField(field)) return <CodeField id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} />
       // Sanity's geopoint is an object of three numbers (no map without its plugin).
       const fields = field.type === 'geopoint' ? GEOPOINT.map((f) => ({...f, title: t(f.title!)})) : (field.fields ?? [])
       const sub = (f: Field) => (

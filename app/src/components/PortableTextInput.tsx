@@ -28,10 +28,12 @@ import {uploadFile, uploadReason} from '../lib/upload'
 import {toast} from './Toasts'
 import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
-import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
+import {CodeCard, codeCardLine} from './CodeInput'
+import type {CodeOptions} from '../lib/code-input'
 import {EditPathContext, ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {DocIdContext} from './doc-ids'
 import {onKeyedMiss} from '../lib/edits'
@@ -116,13 +118,14 @@ function preview(node: Obj): string {
  * A custom block: its type's title, a line of its text, and Sanity's "Open menu" (…) with
  * Edit and Remove. A double click edits it too.
  */
-function BlockCard({node, path, title, readOnly, attributes, children}: {node: Obj; path: unknown[]; title: string; readOnly: boolean; attributes: Record<string, unknown>; children: ReactNode}) {
+function BlockCard({node, path, title, code, readOnly, attributes, children}: {node: Obj; path: unknown[]; title: string; code?: CodeOptions | null; readOnly: boolean; attributes: Record<string, unknown>; children: ReactNode}) {
   const t = useT()
   const editor = useEditor()
   const edit = useContext(EditObject)
   const [menu, setMenu] = useState(false)
   const open = () => !readOnly && edit?.({kind: 'block', node, path})
-  const line = preview(node)
+  // A code block (Sanity's code object): its filename and language, and the code itself under them.
+  const line = code ? codeCardLine(node, code) : preview(node)
   // An image block shows its file's name over the image itself, across the card, as Sanity's.
   const image = node._type === 'image' ? imageRef(node) : undefined
   const {data: file} = useFileInfo(image)
@@ -167,6 +170,11 @@ function BlockCard({node, path, title, readOnly, attributes, children}: {node: O
           </span>
         )}
       </span>
+      {code && (
+        <span className="pt-code-view" contentEditable={false}>
+          <CodeCard value={node} options={code} />
+        </span>
+      )}
       {image && (
         <span className="pt-image-view" contentEditable={false} draggable={!readOnly}>
           <img src={imageSrc(image, 1200, 750)} alt="" decoding="async" />
@@ -198,14 +206,14 @@ function InlineChip({node, path, title, readOnly, attributes, children}: {node: 
 }
 
 /** Custom blocks and inline objects: a card and a chip by type, each opening its dialog. */
-function objectNodes(schema: PtSchema, title: (kind: ObjectKind, name: string) => string, tables: boolean): RegistrableNode[] {
+function objectNodes(schema: PtSchema, title: (kind: ObjectKind, name: string) => string, tables: boolean, code: (name: string) => CodeOptions | null): RegistrableNode[] {
   return [
     // A table is drawn by its plugin (PtTable), not as a card.
     ...schema.blockObjects.filter((o) => !(tables && o.name === 'table')).map((o) =>
       defineBlockObject({
         type: o.name as 'x',
         render: ({attributes, children, node, path, readOnly}) => (
-          <BlockCard node={node as Obj} path={path} title={title('block', o.name)} readOnly={readOnly} attributes={attributes}>
+          <BlockCard node={node as Obj} path={path} title={title('block', o.name)} code={code(o.name)} readOnly={readOnly} attributes={attributes}>
             {children}
           </BlockCard>
         ),
@@ -264,7 +272,7 @@ function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef,
   const schema = useMemo(() => editorSchema(field, stored, schemas), [field, stored, schemas])
   // Tables (lib/pt-table.ts): where the field takes them, or the text holds one already.
   const tables = useMemo(() => tablesIn(field, stored).on, [field, stored])
-  const nodes = useMemo(() => [textBlock, decorators, annotations, ...objectNodes(schema, (kind, name) => objectTitle(field, kind, name, schemas), tables)], [schema, field, schemas, tables])
+  const nodes = useMemo(() => [textBlock, decorators, annotations, ...objectNodes(schema, (kind, name) => objectTitle(field, kind, name, schemas), tables, (name) => codeBlockOptions(field, name))], [schema, field, schemas, tables])
   const [objectEdit, setObjectEdit] = useState<ObjectEdit | null>(null)
   // A value the editor can't read: it stays read-only and nothing is saved from it.
   const [invalid, setInvalid] = useState(false)
@@ -794,7 +802,7 @@ function InsertMenu({field, schemas, tables}: {field: Field; schemas: SchemaLike
     }
   }
   const title = (kind: ObjectKind, n: {name: string; title?: string}) => n.title ?? (isTable({kind, name: n.name}) && !schemas.some((s) => s.name === 'table' && s.kind === 'object') ? t('Table') : objectTitle(field, kind, n.name, schemas))
-  const icon = (x: Tool) => (isTable(x) ? <TableIcon /> : x.kind === 'block' ? <BlockIcon /> : <InlineIcon />)
+  const icon = (x: Tool) => (isTable(x) ? <TableIcon /> : x.kind === 'block' && codeBlockOptions(field, x.name) ? <CodeIcon /> : x.kind === 'block' ? <BlockIcon /> : <InlineIcon />)
   const label = (x: Tool) => t(x.kind === 'block' ? 'Insert {typeName} (block)' : 'Insert {typeName} (inline)', {typeName: title(x.kind, x)})
   const shown = tools.slice(0, tools.length - folded)
   const rest = tools.slice(tools.length - folded)
@@ -838,16 +846,23 @@ function ObjectDialog({id, edit, field, stored, schemas, openRef, onClose}: {id:
   const title = objectTitle(field, kind, node._type, schemas)
   // An image block: Sanity's image input on the block itself (upload, select, hotspot and crop).
   const image = kind === 'block' && node._type === 'image'
+  // A code block: the code editor on the block itself (components/CodeInput.tsx), not its four fields.
+  const code = kind === 'block' ? codeBlockOptions(field, node._type) : null
   const fields = useMemo(
-    () => (image ? [{name: 'image', title, type: 'image', options: {hotspot: true}} as Field] : objectFields(field, kind, node._type, stored, schemas)),
-    [image, title, field, kind, node._type, stored, schemas],
+    () =>
+      image
+        ? [{name: 'image', title, type: 'image', options: {hotspot: true}} as Field]
+        : code
+          ? [{name: 'code', title, type: 'composite', namedType: 'code', options: code} as Field]
+          : objectFields(field, kind, node._type, stored, schemas),
+    [image, code && JSON.stringify(code), title, field, kind, node._type, stored, schemas],
   )
   const {_key: _k, ...own} = node
-  const request: BlockObjectRequest = {type: node._type, title, inline: kind === 'inline', fields, value: (image ? {type: 'image', image: own} : node) as unknown as BlockObjectRequest['value'], error: null}
+  const request: BlockObjectRequest = {type: node._type, title, inline: kind === 'inline', fields, value: (image ? {type: 'image', image: own} : code ? {type: 'code', code: own} : node) as unknown as BlockObjectRequest['value'], error: null}
   const done = (value: Record<string, unknown> | null) => {
     onClose()
     if (value) {
-      const next = image ? {...(value.image as Obj | undefined), _key: node._key, _type: 'image'} : storedShape(fields, value, node)
+      const next = image ? {...(value.image as Obj | undefined), _key: node._key, _type: 'image'} : code ? {...(value.code as Obj | undefined), _key: node._key, _type: node._type} : storedShape(fields, value, node)
       const {set, unset} = objectChanges(node, next)
       const at = path as never
       if (Object.keys(set).length) editor.send(kind === 'block' ? {type: 'block.set', at, props: set} : {type: 'child.set', at, props: set})
