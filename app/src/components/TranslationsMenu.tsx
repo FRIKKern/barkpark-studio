@@ -151,7 +151,10 @@ function ManageTranslations({doc, config, readOnly, reason, hrefOf, onClose}: {d
   const meta = group && groupOf(group.metas, id)
   const [busy, setBusy] = useState<string>()
   const [error, setError] = useState<string>()
+  const closeButton = useRef<HTMLButtonElement>(null)
   const unlink = async (member: string) => {
+    // The pressed Unlink goes with its row: focus moves to Close first, never onto the page.
+    closeButton.current?.focus()
     setBusy(member)
     setError(undefined)
     try {
@@ -168,7 +171,7 @@ function ManageTranslations({doc, config, readOnly, reason, hrefOf, onClose}: {d
       <DialogBox className="dialog translations-dialog" aria-modal="true" aria-labelledby="translations-title" onClose={onClose}>
         <header>
           <h2 id="translations-title">{t('Manage translations')}</h2>
-          <button type="button" className="icon-btn" aria-label={t('Close')} autoFocus onClick={onClose}>
+          <button ref={closeButton} type="button" className="icon-btn" aria-label={t('Close')} autoFocus onClick={onClose}>
             <Close />
           </button>
         </header>
