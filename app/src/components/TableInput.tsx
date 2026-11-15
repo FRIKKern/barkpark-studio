@@ -179,7 +179,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   // The caret follows its cell. A column another editor put before it (or took away) moves the
   // cell this editor is in: read from the last drawing in which every row was as wide as the
   // table (a row of this editor's still on its way to be saved is the old width until then).
-  // A row another editor removed takes its cells with it: the caret then rests on the grid, in
+  // A row or column another editor removed takes its cells with it: the caret then rests on the grid, in
   // no cell, so the next keys do not land in a neighbour's text (the form would hand the focus
   // to the nearest control: lib/focus-rescue.ts).
   const even = useRef<{rows: [string, string[]][]; columns: number} | null>(null)
@@ -204,7 +204,12 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     if (was && isEven && was.columns !== grid.columns) {
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
       const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [cells, now.get(k)!]), was.columns, grid.columns)[column]
-      column = to === undefined || to < 0 ? Math.min(column, grid.columns - 1) : to
+      if (to !== undefined && to < 0) {
+        // Its column was removed: the caret leaves with its cells, as with a removed row.
+        caret.current = null
+        return void win.box.current?.focus({preventScroll: true})
+      }
+      column = to ?? Math.min(column, grid.columns - 1)
     }
     const next = cellAt(row, column)
     if (!next || next === held.el) return
@@ -224,6 +229,15 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   const act = (run: () => void) => (setMenu(null), run())
   const open = (m: Menu, el: HTMLElement) => ((anchor.current = el), setMenu(m))
   const closeMenu = useCallback(() => setMenu(null), [])
+  // No room under a header near the pane's foot: its menu opens above it, as the date field's popover flips.
+  const flip = useCallback((el: HTMLElement | null) => {
+    const list = el?.closest<HTMLElement>('.table-menu')
+    const head = anchor.current
+    if (!list || !head) return
+    const foot = Math.min(document.documentElement.clientHeight, head.closest('.pane-body')?.getBoundingClientRect().bottom ?? Infinity) - 4
+    const r = list.getBoundingClientRect()
+    if (r.bottom > foot && head.getBoundingClientRect().top - r.height - 4 >= 0) list.dataset.side = 'top'
+  }, [])
   const item = (label: string, run: () => void, {icon, danger, off, first}: {icon?: ReactNode; danger?: boolean; off?: boolean; first?: boolean} = {}) => (
     <button type="button" role="menuitem" className={danger ? 'menu-item danger' : 'menu-item'} disabled={off} autoFocus={first} onClick={() => act(run)}>
       <span className="menu-icon-text">
@@ -364,6 +378,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
         <AnchoredLayer anchor={anchor} className="doc-menu-layer table-menu-layer" onClose={closeMenu}>
           <MenuPopover centered className="popover menu table-menu" onClose={closeMenu}>
             {menuItems(menu)}
+            <span ref={flip} hidden />
           </MenuPopover>
         </AnchoredLayer>
       )}

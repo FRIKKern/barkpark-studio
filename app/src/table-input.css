@@ -29,6 +29,7 @@
 .table-gap > td { border: 0; padding: 0; }
 .table-empty { margin: 0; }
 .table-menu-layer > .popover.menu.table-menu { top: calc(100% + 2px); min-width: 0; width: max-content; }
+.table-menu-layer > .popover.menu.table-menu[data-side='top'] { top: auto; bottom: calc(100% + 2px); }
 .table-count .dialog-body .input { width: 100%; }
 /* A finger's 44 px on a touch screen: the header menus, the cells and the menus' items. */
 @media (pointer: coarse) {
