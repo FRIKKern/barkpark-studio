@@ -36,6 +36,7 @@ import {onKeyedMiss} from '../lib/edits'
 import {reportSelection, usePresences} from '../lib/presence'
 import {usePersonNamer} from '../lib/person'
 import {MenuPopover} from './FocusScopes'
+import {PtCommentValue, PtInlineComments, type PtCommentBridge} from './PtInlineComments'
 import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, EditIcon, Ellipsis, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, Trash, UlistIcon, UnderlineIcon} from './icons'
 
 // S4a (task-7f77f41c95cc6d9f): a richText field holding Portable Text, edited with
@@ -241,14 +242,21 @@ export default function PortableTextInput(props: Props) {
   // The editor's schema names every field an annotation may hold, some of them read off the
   // schemas (a reference's targets): it mounts once they are here (the form has them already).
   const {data: schemas} = useQuery(schemasQuery)
+  // J40: comments on spans of the text, kept while the editor remounts (PtInlineComments).
+  const [comments] = useState<PtCommentBridge>(() => ({}))
   if (!schemas) return null
   // The editor takes readOnly once, when it mounts: a change remounts it.
-  return <Editor key={`${base.n}-${!!props.readOnly}`} {...props} schemas={schemas} stored={base.value} mine={mine} focused={focused} onBlur={() => setBlurs((n) => n + 1)} />
+  return (
+    <>
+      <Editor key={`${base.n}-${!!props.readOnly}`} {...props} schemas={schemas} stored={base.value} mine={mine} focused={focused} onBlur={() => setBlurs((n) => n + 1)} comments={comments} />
+      <PtInlineComments bridge={comments} field={props.id} title={props.field.title ?? props.field.name} />
+    </>
+  )
 }
 
 type Shared = {mine: {current: unknown[]}; focused: {current: boolean}; onBlur: () => void}
 
-function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef, mine, focused, onBlur}: Props & Shared & {stored: PtBlock[]; schemas: SchemaLike[]}) {
+function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef, mine, focused, onBlur, comments}: Props & Shared & {stored: PtBlock[]; schemas: SchemaLike[]; comments: PtCommentBridge}) {
   const t = useT()
   const schema = useMemo(() => editorSchema(field, stored, schemas), [field, stored, schemas])
   const nodes = useMemo(() => [textBlock, decorators, annotations, ...objectNodes(schema, (kind, name) => objectTitle(field, kind, name, schemas))], [schema, field, schemas])
@@ -291,6 +299,7 @@ function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef,
         <NodePlugin nodes={nodes} />
         {!locked && <SanityPlugins field={field} stored={stored} />}
         <Saver id={id} stored={stored} incoming={value} onChange={invalid ? () => {} : onChange} editPath={invalid ? null : editPath} onInvalid={() => setInvalid(true)} onReady={() => setReady(true)} mine={mine} focused={focused} onBlur={onBlur} />
+        <PtCommentValue bridge={comments} ready={ready} />
         {invalid && (
           <p className="pt-note" role="status">
             {t('This text holds content the editor cannot read. It is shown read-only and kept as it is.')}

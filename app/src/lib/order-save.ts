@@ -1,8 +1,9 @@
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
+import {currentEditor, signOut} from '../server/auth'
 import {expectEcho} from '../server/listen'
 import {writeFaultFor} from '../server/write-faults'
-import {isRank, RANK_FIELD} from './order-rank'
+import {isRank, RANK_FIELD, rankBatches} from './order-rank'
 import type {Doc} from './data'
 
 // A manual-order move, written (lib/order-rank.ts makes the ranks). Sanity's plugin patches
@@ -24,6 +25,10 @@ export type RankWrite = {id: string; rank: string; direct: boolean}
 /** Sanity's API date; any `v<version>` but v1 is Barkpark's exact-id route. */
 const EXACT = 'v2025-02-19'
 
+const throwLost = (): never => {
+  throw new Error(`mutate 401: ${JSON.stringify({error: {code: 'session_lost', message: "You've been logged out"}})}`)
+}
+
 const send = async (route: string, mutations: Json[]) => {
   const res = await bpFetch(`/${route}/data/mutate/${dataset()}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({mutations})})
   const body = (await res.json().catch(() => ({}))) as {results?: {document: Json}[]; error?: {code?: string; message?: string; details?: {id?: string; draft?: string}}}
@@ -41,32 +46,55 @@ export const saveRanks = createServerFn({method: 'POST'})
     if (fault?.kind === 'hang') await new Promise((go) => setTimeout(go, fault.ms ?? 0))
     const drafts = new Set(writes.filter((w) => !w.direct).map((w) => w.id))
     const patch = (w: RankWrite, type?: string): Json => ({patch: {id: w.id, ...(type && {type}), set: {[RANK_FIELD]: w.rank}}})
-    const fail = (r: Awaited<ReturnType<typeof send>>): never => {
-      throw new Error(`mutate ${r.status}: ${JSON.stringify({error: {code: r.body.error?.code, message: r.body.error?.message}}).slice(0, 600)}`)
-    }
     const docs: Json[] = []
-    // The published rows, one request. A draft made since the list was read (409 naming it):
-    // that document goes to its draft instead, and the rest is asked again.
-    for (let tries = 0; ; tries++) {
-      const direct = writes.filter((w) => !drafts.has(w.id))
-      if (!direct.length) break
-      const r = await send(EXACT, direct.map((w) => patch(w)))
-      if (r.ok) {
-        docs.push(...(r.body.results ?? []).map((x) => x.document))
-        break
+    const waiting: string[] = []
+    let failed: string | undefined
+    // A refusal. A lost session (J48) ends as every write's does (lib/edits.ts mutate): the
+    // editor signs in again. Nothing saved yet: the move failed. Some parts saved: they are
+    // handed back with the reason, so the list shows what Barkpark holds.
+    const refuse = (r: Awaited<ReturnType<typeof send>>) => {
+      if (r.status === 401) {
+        if (r.body.error?.code === 'session_lost') throwLost()
+        if (currentEditor()) (void signOut(), throwLost())
+        throw new Error(`mutate 401: ${JSON.stringify({error: {code: 'token_refused', message: "Barkpark refused this studio's token."}})}`)
       }
-      const twin = r.status === 409 ? r.body.error?.details?.id : undefined
-      if (!twin || !direct.some((w) => w.id === twin) || tries >= direct.length) fail(r)
-      drafts.add(twin!)
+      const message = `mutate ${r.status}: ${JSON.stringify({error: {code: r.body.error?.code, message: r.body.error?.message}}).slice(0, 600)}`
+      if (!docs.length) throw new Error(message)
+      failed = message
     }
-    const viaDraft = writes.filter((w) => drafts.has(w.id))
-    if (viaDraft.length) {
-      const r = await send('v1', viaDraft.map((w) => patch(w, data.type)))
-      if (!r.ok) fail(r)
-      docs.push(...(r.body.results ?? []).map((x) => x.document))
+    // The published rows, in parts Barkpark takes (lib/order-rank.ts rankBatches). A draft made
+    // since the list was read (409 naming it): that document goes to its draft instead, and
+    // the rest of its part is asked again.
+    direct: for (const part of rankBatches(writes.filter((w) => !drafts.has(w.id)))) {
+      let left = part
+      for (let tries = 0; left.length; tries++) {
+        const r = await send(EXACT, left.map((w) => patch(w)))
+        if (r.ok) {
+          docs.push(...(r.body.results ?? []).map((x) => x.document))
+          break
+        }
+        const twin = r.status === 409 ? r.body.error?.details?.id : undefined
+        if (!twin || !left.some((w) => w.id === twin) || tries >= part.length) {
+          refuse(r)
+          break direct
+        }
+        drafts.add(twin)
+        left = left.filter((w) => w.id !== twin)
+      }
     }
+    if (!failed)
+      for (const part of rankBatches(writes.filter((w) => drafts.has(w.id)))) {
+        const r = await send('v1', part.map((w) => patch(w, data.type)))
+        if (!r.ok) {
+          refuse(r)
+          break
+        }
+        docs.push(...(r.body.results ?? []).map((x) => x.document))
+        waiting.push(...part.map((w) => w.id))
+      }
     expectEcho(requestToken(), writes.map((w) => w.id))
-    return {docs, waiting: viaDraft.map((w) => w.id)} as unknown as Json
+    return {docs, waiting, ...(failed && {failed})} as unknown as Json
   })
 
-export type RankSaved = {docs: Doc[]; waiting: string[]}
+/** `failed`: Barkpark's refusal of a later part of a long list; `docs` are the parts saved before it. */
+export type RankSaved = {docs: Doc[]; waiting: string[]; failed?: string}

@@ -1,6 +1,6 @@
 import {useContext, useEffect, useId, useLayoutEffect, useRef, useState, type RefObject} from 'react'
 import {createPortal} from 'react-dom'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {CommentsContext, Composer, newId} from './Comments'
 import {moveCommentSelections, postComment, readerCommentsQuery} from '../lib/comments'
 import {commentRangesOf, rangeMoves, type CommentSelection, type Point} from '../lib/comment-threads'
@@ -24,12 +24,35 @@ type RangeCanvas = HTMLElement & {
 const paintsRanges = (el: HTMLElement | null): el is RangeCanvas => typeof (el as Partial<RangeCanvas> | null)?.setCommentRanges === 'function'
 
 // The span being commented on, highlighted while its composer is open (Sanity's authoring state).
-const DRAFT = '__draft'
+export const DRAFT = '__draft'
 // Moved spans are saved once the edits around them settle.
 const SAVE_AFTER_MS = 1200
 
+/**
+ * Saves spans that edits moved (or whose text went: null), each thread's latest, once the
+ * edits settle. Shared by the canvas body and Portable Text fields (PtInlineComments).
+ */
+export function moveSaver(qc: QueryClient) {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let pending = new Map<string, CommentSelection | null>()
+  const save = () => {
+    clearTimeout(timer)
+    const moves = [...pending].map(([id, selection]) => ({id, selection}))
+    pending = new Map()
+    if (moves.length) void moveCommentSelections({data: {moves}}).then(() => qc.invalidateQueries({queryKey: ['comments']}), () => {})
+  }
+  return {
+    queue(moves: {id: string; selection: CommentSelection | null}[]) {
+      for (const m of moves) pending.set(m.id, m.selection)
+      clearTimeout(timer)
+      timer = setTimeout(save, SAVE_AFTER_MS)
+    },
+    flush: save,
+  }
+}
+
 /** Where the selection is on screen (its whole box: Sanity places the offer under its start), or null when it is not in `el`. */
-function selectionBox(el: HTMLElement) {
+export function selectionBox(el: HTMLElement) {
   const sel = getSelection()
   if (!sel?.rangeCount || sel.isCollapsed || !el.contains(sel.anchorNode)) return null
   const range = sel.getRangeAt(0)
@@ -38,11 +61,8 @@ function selectionBox(el: HTMLElement) {
 
 export function InlineComments({canvas, field, title}: {canvas: HTMLElement | null; field: string; title: string}) {
   const api = useContext(CommentsContext)
-  const t = useT()
   const qc = useQueryClient()
-  const {canWrite} = useCanWrite()
-  // J49: a read seat comments when the comment schema lets it (as FieldComments).
-  const {data: readers} = useQuery({...readerCommentsQuery, enabled: !canWrite})
+  const {canWrite, mayComment} = useMayComment()
   const el = paintsRanges(canvas) ? canvas : null
   const [offer, setOffer] = useState<{selection: CommentSelection; box: DOMRect; overlap: boolean} | null>(null)
   const [draft, setDraft] = useState<{selection: CommentSelection; text: string; box: DOMRect} | null>(null)
@@ -70,22 +90,14 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
 
   useEffect(() => {
     if (!el) return
-    let timer: ReturnType<typeof setTimeout> | undefined
-    let pending = new Map<string, CommentSelection | null>()
-    const save = () => {
-      const moves = [...pending].map(([id, selection]) => ({id, selection}))
-      pending = new Map()
-      if (moves.length) void moveCommentSelections({data: {moves}}).then(() => qc.invalidateQueries({queryKey: ['comments']}), () => {})
-    }
+    const saver = moveSaver(qc)
     const onRanges = (e: Event) => {
       const list = (e as CustomEvent<({id: string} & CommentSelection)[]>).detail.filter((r) => r.id !== DRAFT)
       live.current = new Map(list.map((r) => [r.id, {anchor: r.anchor, head: r.head}]))
       for (const r of list) seen.current.add(r.id)
       // Only a writer's edits move text; a read seat's canvas never sends one.
       if (!canWrite) return
-      for (const m of rangeMoves(threadsRef.current, field, list, seen.current)) pending.set(m.id, m.selection)
-      clearTimeout(timer)
-      timer = setTimeout(save, SAVE_AFTER_MS)
+      saver.queue(rangeMoves(threadsRef.current, field, list, seen.current))
     }
     const onClick = (e: Event) => {
       const {id} = (e as CustomEvent<{id: string}>).detail
@@ -103,8 +115,7 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
       el.removeEventListener('bp-canvas-comment-ranges', onRanges)
       el.removeEventListener('bp-canvas-comment-click', onClick)
       el.removeEventListener('bp-canvas-selection', onSelection)
-      clearTimeout(timer)
-      save()
+      saver.flush()
     }
   }, [el, field, canWrite])
 
@@ -119,12 +130,41 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
     return () => removeEventListener('scroll', place, true)
   }, [el, !!offer])
 
-  if (!el || !api || !(canWrite || readers)) return null
+  if (!el || !api || !mayComment) return null
   const start = () => {
     if (!offer || offer.overlap) return
     setDraft({selection: offer.selection, text: getSelection()?.toString() ?? '', box: offer.box})
     setOffer(null)
   }
+  return <CommentOffer field={field} title={title} offer={offer} draft={draft} selection={() => draft?.selection} onStart={start} onDone={() => setDraft(null)} />
+}
+
+/** J49: a read seat comments when the comment schema lets it (as FieldComments); only a writer's edits move spans. */
+export function useMayComment() {
+  const {canWrite} = useCanWrite()
+  const {data: readers} = useQuery({...readerCommentsQuery, enabled: !canWrite})
+  return {canWrite, mayComment: canWrite || !!readers}
+}
+
+/**
+ * Sanity's "Add comment" by a selection, then its composer there; a sent comment's thread is
+ * on `selection()` (read as it is sent: edits may have moved it) and opens in the panel.
+ * The canvas body's and a Portable Text field's (PtInlineComments).
+ */
+export function CommentOffer({field, title, offer, draft, selection, onStart, onDone}: {
+  field: string
+  title: string
+  offer: {box: DOMRect; overlap: boolean} | null
+  draft: {text: string; box: DOMRect} | null
+  selection: () => CommentSelection | null | undefined
+  onStart: () => void
+  /** The composer closed: `sent` after a comment, not after Escape. */
+  onDone: (sent: boolean) => void
+}) {
+  const api = useContext(CommentsContext)
+  const t = useT()
+  const qc = useQueryClient()
+  if (!api) return null
   return createPortal(
     <>
       {offer && !draft && (
@@ -137,7 +177,7 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
           style={{top: offer.box.bottom + 8, left: Math.max(8, Math.min(offer.box.left - 24, innerWidth - 128))}}
           // Keeps the selection: a press elsewhere would collapse it.
           onMouseDown={(e) => e.preventDefault()}
-          onClick={start}
+          onClick={onStart}
         >
           <AddComment /> {t('Add comment')}
         </button>
@@ -150,14 +190,16 @@ export function InlineComments({canvas, field, title}: {canvas: HTMLElement | nu
             placeholder={t('Create a new comment')}
             autoFocus
             onSend={async (message) => {
+              const at = selection()
+              if (!at) throw new Error(t('The commented text has been deleted'))
               const id = newId()
-              await postComment({data: {id, documentId: api.docId, documentType: api.docType, fieldPath: field, message, selection: draft.selection, contentSnapshot: draft.text}})
+              await postComment({data: {id, documentId: api.docId, documentType: api.docType, fieldPath: field, message, selection: at, contentSnapshot: draft.text}})
               // The thread's own highlight is there before the draft's goes.
               await qc.invalidateQueries({queryKey: ['comments']})
-              setDraft(null)
+              onDone(true)
               api.open(field, id)
             }}
-            onCancel={() => setDraft(null)}
+            onCancel={() => onDone(false)}
           />
         </div>
       )}
@@ -176,6 +218,12 @@ function repaint() {
   const parts = [...statics.values()]
   CSS.highlights.set('bp-comment', new Highlight(...parts.flatMap((p) => p.all)))
   CSS.highlights.set('bp-comment-active', new Highlight(...parts.flatMap((p) => p.active)))
+}
+/** One text's comment spans in that registry (`key` names the text); null takes them out. */
+export function paintCommentHighlights(key: string, parts: {all: Range[]; active: Range[]} | null) {
+  if (parts) statics.set(key, parts)
+  else statics.delete(key)
+  repaint()
 }
 
 /** The text node and offset a Point names in the read-only view, or null. */

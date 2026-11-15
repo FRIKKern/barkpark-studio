@@ -22,6 +22,7 @@ import {groupShows} from '../lib/conditions'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
+import {copyRank} from './OrderableRows'
 import {meQuery, useBoundElsewhere, useCanWrite, useStudioTokenRefused} from '../lib/session'
 import {currentScopeQuery} from '../lib/scope-switch'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
@@ -237,8 +238,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     if (pane.inspect !== 'comments') void navigate({href: withParams(panes, index, {inspect: 'comments', rev: undefined})})
   }
   const commentsApi = useMemo(
-    () => ({docId: pane.id, docType: pane.type, threads: threadsOf(commentsQ.data ?? []), open: (path?: string, thread?: string) => openComments.current(path, thread), active: commentThread, select: setCommentThread}),
-    [pane.id, pane.type, commentsQ.data, commentThread],
+    () => ({docId: pane.id, docType: pane.type, threads: threadsOf(commentsQ.data ?? []), open: (path?: string, thread?: string) => openComments.current(path, thread), active: commentThread, select: setCommentThread, otherVersion: viewingPublished || !!revision}),
+    [pane.id, pane.type, commentsQ.data, commentThread, viewingPublished, revision],
   )
   const schema = schemaOf(schemas, pane.type)
   const fieldLabels = useMemo(() => Object.fromEntries((schema?.fields ?? []).map((f) => [f.name, f.title ?? f.name])), [schema])
@@ -419,7 +420,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const metaButton = useRef<HTMLButtonElement>(null)
   const duplicate = (from: Doc) => {
     const id = crypto.randomUUID()
-    const fields = Object.fromEntries(Object.entries(from).filter(([k]) => !k.startsWith('_')))
+    const fields = {...Object.fromEntries(Object.entries(from).filter(([k]) => !k.startsWith('_'))), ...copyRank(qc, from)}
     const created = createDoc(qc, from._type, id, fields)
     navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined, path: undefined, rev: undefined}])})
     created.then(
