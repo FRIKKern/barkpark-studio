@@ -2,6 +2,8 @@ import {storedHref} from '../lib/link-href'
 import {Fragment, memo, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {DialogBox} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
+import {CodeChanges} from './CodeChanges'
+import {codeOptions, isCodeField} from '../lib/code-input'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
 import {revisionQuery, useTimeline, type HistoryEntry, type Revision} from '../lib/history'
 import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
@@ -150,6 +152,8 @@ function ImageSide({asset, alt}: {asset: string; alt: string}) {
 function ChangeView({change, author}: {change: FieldChange; author?: string}) {
   const t = useT()
   const by = (what: string) => (author ? t(`${what} by {author}`, {author}) : t(what))
+  // A code object: its code line by line.
+  if (isCodeField(change.field)) return <div style={userColorVars(author ?? 'unknown')}><CodeChanges before={change.before} after={change.after} options={codeOptions(change.field)} by={by} /></div>
   // An image: before → after thumbnails, as Sanity's image diff.
   if (imageRefOf(change.before) || imageRefOf(change.after)) {
     const thumb = (v: unknown, what: 'Before' | 'After') =>

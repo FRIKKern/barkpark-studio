@@ -1,3 +1,4 @@
+import {CODE_FIELDS, codeOptions, isCodeBlock, type CodeOptions} from './code-input.ts'
 import type {Field} from './data'
 import {refId} from './refs.ts'
 import {makePatches, stringifyPatches} from '@sanity/diff-match-patch'
@@ -665,12 +666,23 @@ function declaredEntry(field: Pick<Field, 'blocks'>, kind: PtKind, name: string)
   return Array.isArray(entries) ? (entries.find((e) => isObj(e) && named(e)?.name === name) as Obj | undefined) : undefined
 }
 
+/**
+ * The options of the code object (Sanity's @sanity/code-input) as a block type of this field,
+ * or null when `name` is not it (another object the schema happens to call `code`).
+ */
+export function codeBlockOptions(field: Pick<Field, 'blocks'>, name: string): CodeOptions | null {
+  const entry = declaredEntry(field, 'block', name)
+  return isCodeBlock(name, Array.isArray(entry?.fields) ? (entry.fields as Field[]) : undefined) ? codeOptions(entry) : null
+}
+
 /** The fields a dialog for one annotation, custom block or inline object shows (see the order above). */
 export function objectFields(field: Pick<Field, 'blocks'>, kind: PtKind, name: string, value: unknown, schemas: SchemaLike[]): Field[] {
   const entry = declaredEntry(field, kind, name)
   if (entry && Array.isArray(entry.fields) && entry.fields.length) return entry.fields as Field[]
   const named = kind !== 'annotation' ? schemas.find((s) => s.name === name && s.kind === 'object') : undefined
   if (named?.fields?.length) return named.fields
+  // Sanity's code object (lib/code-input.ts): its fields are known, so the editor keeps them all.
+  if (kind === 'block' && name === 'code') return CODE_FIELDS
   const inferred = inferFields(storedObjects(value, kind, name), schemas)
   if (kind === 'annotation' && name === 'link' && !inferred.some((f) => f.name === 'href')) return [{name: 'href', title: 'URL', type: 'url'}, ...inferred]
   return inferred
