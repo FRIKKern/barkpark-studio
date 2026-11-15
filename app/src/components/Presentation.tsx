@@ -15,6 +15,7 @@ import {iconBody} from './DeskIcon'
 import type {DeskNode} from '../lib/desk'
 import {Structure} from './Structure'
 import {usePresentationComlink} from '../lib/presentation-channels'
+import {ownPath} from '../lib/presentation-comlink'
 
 /**
  * J58, Sanity's Presentation tool: the site in an iframe beside the document
@@ -175,7 +176,7 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
         const reply = (tokens: string[] | null) => frame.current?.contentWindow?.postMessage({bp: 'studio', type: 'tokens', id: e.data.id, tokens}, origin)
         void mintPreviewTokens({data: Number(e.data.n) || 1}).then(reply, (err: Error) => (console.error(`Could not mint a preview token: ${err.message}`), reply(null)))
       }
-      if (e.data.type === 'location' && typeof e.data.url === 'string') onPage(e.data.url)
+      if (e.data.type === 'location' && ownPath(e.data.url)) onPage(e.data.url)
       // J59: a click on an outlined value opens its field in the panel.
       if (e.data.type === 'edit' && typeof e.data.doc?.type === 'string' && typeof e.data.doc?.id === 'string' && typeof e.data.path === 'string')
         void navigate({to: '/presentation', search: (prev: Record<string, unknown>) => ({...prev, pane: `${e.data.doc.type};${e.data.doc.id},path=${e.data.path}`})})

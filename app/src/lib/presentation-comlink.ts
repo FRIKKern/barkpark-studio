@@ -104,12 +104,16 @@ export const focusPane = (target: {id: string; type: string; path?: string}) => 
 
 // ── Navigation ─────────────────────────────────────────────────────────────────────────
 
+/** A path on the preview's own origin: one slash, then no second slash or backslash (`//host` and its backslash spellings name another site). */
+export const ownPath = (path: unknown): path is string => typeof path === 'string' && /^\/(?![/\\])/.test(path)
+
 /** Where the frame says it is, as a path on the preview's own origin; null for anywhere else (the studio never follows it). */
 export function framePath(url: unknown, origin: string): string | null {
   if (typeof url !== 'string' || url.length > 2048) return null
   try {
     const target = new URL(url, origin)
-    return target.origin === origin ? target.pathname + target.search : null
+    // `//host/…` as a path is another site once it is resolved again (new URL(path, origin)).
+    return target.origin === origin && !target.pathname.startsWith('//') ? target.pathname + target.search : null
   } catch {
     return null
   }

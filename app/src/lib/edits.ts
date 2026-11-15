@@ -1058,6 +1058,9 @@ export function setCanvasOffline(docId: string, key: string, on: boolean) {
   listeners.forEach((l) => l())
 }
 
+/** How the last write of `id` stands now, outside a component (lib/presentation-overlay.ts: a change made on the preview page). */
+export const saveStateOf = (id: string): SaveState => docs.get(id)?.snap.state ?? 'saved'
+
 export function useSaveState(id: string): Snap {
   return useSyncExternalStore(
     (l) => (listeners.add(l), () => listeners.delete(l)),
