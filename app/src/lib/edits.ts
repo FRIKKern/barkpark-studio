@@ -963,6 +963,7 @@ export function settleClash(qc: QueryClient, id: string, field: string, keep: 'm
     e.dirty.delete(field)
     e.base.delete(field)
     e.notes?.delete(field)
+    e.own?.delete(field)
     const held = qc.getQueryData<Doc>(['doc', id])
     if (held) writeCache(qc, id, e.type, setPath({...held}, field, c.theirs))
   }
@@ -1057,7 +1058,7 @@ export async function unpublish(qc: QueryClient, doc: Doc) {
 export async function discardDraft(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   const e = docs.get(id)
-  if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear(), (e.notes = undefined), keepUnsaved(id, e))
+  if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear(), (e.notes = undefined), (e.own = undefined), keepUnsaved(id, e))
   await whenSaved(id)
   await mutate({data: {mutations: [{discardDraft: {id, type: doc._type}}]}})
   if (e) e.advisories = undefined // what Barkpark said of the draft went with it
@@ -1128,6 +1129,7 @@ export function reapply(qc: QueryClient, restored: Doc, fields: [string, unknown
   e.missedFrom = undefined
   e.base.clear()
   e.notes = undefined
+  e.own = undefined
   e.sentNotes = undefined
   setState(e, 'saved')
   // The edits are made against the restored version, not against what the screen shows

@@ -38,6 +38,8 @@ export type Spots = {
    * editor's rows, the column this editor pressed is known, not read from the cells.
    */
   notes?: Map<string, (unknown | null)[]>
+  /** Spots whose base is this editor's own write, landed: the text in it is mine (a table cell's merge reads it). */
+  own?: Set<string>
   /** How many of each spot's notes went with the write in flight. */
   sentNotes?: Map<string, number>
 }
@@ -62,6 +64,7 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
     if (e.inflight?.has(f) && same(theirs, e.inflight.get(f))) {
       e.base.set(f, theirs)
       sentNotesLanded(e, f)
+      ;(e.own ??= new Set()).add(f)
       continue
     }
     // A field with a write in flight merges when that write comes back (afterInflight, or
@@ -87,7 +90,7 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
     } else if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(theirs)) {
       // A list: their reorder, add or remove stays while I edit an item (else ours wins).
       // A table field's rows and cells merge as a table (cells have no keys: lib/table-merge.ts).
-      const merged = mergeTablePart(f, base, mine, theirs, before, d, e.notes?.get(f)) ?? mergeList3(base, mine, theirs)
+      const merged = mergeTablePart(f, base, mine, theirs, before, d, e.notes?.get(f), !!e.own?.has(f)) ?? mergeList3(base, mine, theirs)
       if (merged) e.dirty.set(f, merged as Json)
       // Merged rows are measured from theirs from here on: where my columns are now, the merge says.
       const note = columnsOf(merged)
@@ -95,6 +98,7 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
       else e.notes?.delete(f)
     }
     e.base.set(f, theirs)
+    e.own?.delete(f)
   }
   if (missed) (e.missed = d), (e.missedFrom ??= before)
   else (e.rev = d._rev), (e.missedFrom = undefined)
@@ -107,7 +111,7 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
  */
 export function unsent(e: Spots) {
   const {pending, dropped} = mergePending(e.inflight!, e.dirty)
-  for (const f of dropped) (e.base.delete(f), e.notes?.delete(f))
+  for (const f of dropped) (e.base.delete(f), e.notes?.delete(f), e.own?.delete(f))
   e.dirty = pending
   e.sentNotes = undefined
 }
@@ -128,6 +132,7 @@ export function takeBase(e: Spots, field: string, held: unknown, value: unknown)
     let from = getPath(held, field)
     for (const [k, was] of e.base) if (k !== field && within(k, field)) from = setInside(field, from, k, was)
     e.base.set(field, from)
+    e.own?.delete(field)
     for (const k of [...e.base.keys()]) if (k !== field && within(k, field) && !e.inflight?.has(k)) (e.base.delete(k), e.notes?.delete(k))
   }
   // The spot's own column notes: what this write did to the columns of the rows it was made on.
@@ -162,8 +167,8 @@ function sentNotesLanded(e: Spots, f: string) {
  */
 export function answered(e: Spots, saved: unknown) {
   for (const f of e.inflight!.keys()) {
-    if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
-    else e.base.delete(f)
+    if (e.dirty.has(f)) (e.base.set(f, getPath(saved, f)), (e.own ??= new Set()).add(f))
+    else (e.base.delete(f), e.own?.delete(f))
     answeredInto(e.base, f, getPath(saved, f))
     for (const k of e.dirty.keys()) if (k !== f && within(k, f) && ![...e.base.keys()].some((b) => within(k, b))) e.base.set(k, getPath(saved, k))
     sentNotesLanded(e, f)
