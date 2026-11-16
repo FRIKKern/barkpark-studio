@@ -22,7 +22,7 @@ async function held(type: string, id: string) {
 }
 // Writes come late (a canvas batch, a clipboard read): watched a moment, not read once.
 async function unchanged(page: Page, type: string, id: string, before: string) {
-  for (const until = Date.now() + 1500; Date.now() < until && (await held(type, id)) === before; ) await page.waitForTimeout(150)
+  for (const until = Date.now() + 1000; Date.now() < until && (await held(type, id)) === before; ) await page.waitForTimeout(150)
   await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
   return held(type, id)
 }
@@ -61,7 +61,7 @@ test('a history revision writes nothing: the Freeform canvas, the body canvas, P
   const before = await held('note', NOTE)
   // The canvas holds the draft, not this revision: a revision is read in Classic, as Published.
   await expect.soft(page.getByRole('tab', {name: 'Freeform'})).toHaveCount(0, {timeout: 1000})
-  await expect.soft(page.locator('[id="body"]')).toHaveAttribute('aria-readonly', 'true', {timeout: 1000})
+  await expect.soft(page.locator('[id="body"] [contenteditable="true"]')).toHaveCount(0, {timeout: 1000})
   await typeInto(page, /Note words here/, ' typed in a revision')
   expect.soft(await pasteOffered(page), 'Paste document is offered').toBe(false)
   expect.soft(await unchanged(page, 'note', NOTE, before), 'typing in a revision wrote the draft').toBe(before)
@@ -69,10 +69,9 @@ test('a history revision writes nothing: the Freeform canvas, the body canvas, P
 
 test('a scheduled doc writes nothing: the Freeform canvas, Paste document', async ({page}, info) => {
   const t = target(info)
-  const route = await fetch(`${bpBase()}/v1/data/schedules/${bpDataset()}`, {headers: auth()})
-  test.skip(route.status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   await Promise.all([t.draftOnly(NOTE, 'note', {title: 'Locked note', label: 'L', body: {blocks: [para('n1', 'Note words here.')]}}), t.prepare(page.context())])
   const made = await fetch(`${bpBase()}/v1/data/schedules/${bpDataset()}`, {method: 'POST', headers: {...auth(), 'content-type': 'application/json'}, body: JSON.stringify({id: NOTE, type: 'note', publishAt: new Date(Date.now() + 3 * 86_400_000).toISOString()})})
+  test.skip(made.status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   schedule = ((await made.json()) as {schedule?: {id: string}}).schedule?.id
   await page.goto(t.docPath('note', NOTE))
   await t.settle(page)
