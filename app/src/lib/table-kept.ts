@@ -54,6 +54,14 @@ export function takeTableKept(doc: string, e: {kept?: TableKept[]}) {
   save(doc, list)
 }
 
+/** The input's text of a cell the other editor removed, typed in since it was focused (TableInput): kept. Its entry's id. */
+export function keepTyped(doc: string, k: TableKept): string {
+  const list = read(doc).map((x) => ({...x}))
+  const id = addKept(list, {...k, id: `${k.at.toString(36)}-${Math.random().toString(36).slice(2, 8)}`}).id
+  save(doc, list)
+  return id
+}
+
 /** Typing on in a kept text (its card input, or keys that reached the cell's input before it moved). */
 export function setKeptText(doc: string, id: string, text: string) {
   save(doc, read(doc).map((k) => (k.id === id ? {...k, text} : k)))

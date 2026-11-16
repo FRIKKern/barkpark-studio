@@ -3,7 +3,7 @@ import {useDocSelect} from './Fields'
 import {useT} from '../lib/i18n'
 import {newKey} from '../lib/pt-value'
 import {setCell, tableGrid, type TableWrite} from '../lib/table-input'
-import {dropKept, setKeptText, useTableKept, type KeptText} from '../lib/table-kept'
+import {dropKept, keepTyped, setKeptText, useTableKept, type KeptText} from '../lib/table-kept'
 
 // Text of mine a table change left out (lib/table-keep.ts: the other editor added or removed a
 // column while I typed, or wrote the same cell), on a card under the table, as the canvas offers
@@ -49,9 +49,12 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
   }
   const fresh = (k: KeptText) => Date.now() - k.at < FRESH_MS
   /** A key that reached a cell's input whose text was just kept (before the card took the caret): onto the kept text. True: taken. */
+  // The cell this editor typed in last (since it went into it).
+  const typed = useRef<{row: string; column: number} | null>(null)
   const capture = useCallback((row: number, column: number, text: string, was: string) => {
     const {doc, kept, grid} = now.current
     const key = grid.rows[row]?.key
+    if (key !== undefined) typed.current = {row: key, column}
     const k = was !== '' && kept.find((k) => k.row === key && k.column === column && k.text === was && fresh(k))
     if (!k || !doc) return false
     setKeptText(doc, k.id, text)
@@ -64,6 +67,14 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     const k = text && kept.find((k) => !followed.current.has(k.id) && fresh(k) && k.row === held.key && k.column === held.column && (k.text.startsWith(text) || text.startsWith(k.text)))
     if (!k) return false
     focusKept(k.id)
+    return true
+  }
+  /** The caret's cell was removed by the other editor: what was typed in it goes to the card, and the caret with it. True: it went. */
+  const lose = (held: {key: string; column: number; text?: string}) => {
+    const t = typed.current
+    if (!doc || !held.text || t?.row !== held.key || t.column !== held.column) return false
+    typed.current = null
+    focusKept(keepTyped(doc, {table, row: held.key, column: held.column, text: held.text, at: Date.now()}))
     return true
   }
   const putBack = (k: KeptText) => {
@@ -83,7 +94,7 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     dropKept(doc, k.id)
     setLost(null)
   }
-  return {doc, kept, box, lost, capture, follow, putBack}
+  return {doc, kept, box, lost, capture, follow, lose, putBack}
 }
 
 export function TableKeptCard({card}: {card: ReturnType<typeof useKeptCard>}) {

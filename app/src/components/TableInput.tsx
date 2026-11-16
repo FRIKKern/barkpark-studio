@@ -243,6 +243,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     if (card.follow(held)) return void (caret.current = null)
     const row = grid.rows.findIndex((r) => r.key === held.key)
     if (row < 0) {
+      if (card.lose(held)) return void (caret.current = null)
       caret.current = null
       if (!held.el.isConnected) win.box.current?.focus({preventScroll: true})
       return
@@ -255,7 +256,8 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       const own = (k: string, cells: string[]) => (k === held.key && held.text !== undefined ? cells.map((c, i) => (i === held.column ? held.text! : c)) : cells)
       const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, (i) => i === column)[column]
       if (to !== undefined && to < 0) {
-        // Its column was removed: the caret leaves with its cells, as with a removed row.
+        // Its column was removed: the caret leaves with its cells, as with a removed row (what was typed there, onto the card).
+        if (card.lose(held)) return void (caret.current = null)
         caret.current = null
         return void win.box.current?.focus({preventScroll: true})
       }
