@@ -54,7 +54,9 @@ export function BulkDialog({action, docs, onClose}: {action: BulkAction; docs: D
     })()
     return () => void (live = false)
   }, [ids.join(',')])
-  const lookups = useQueries({queries: action === 'delete' ? docs.map((d) => ({...backlinksQuery(d._publishedId), refetchOnMount: 'always' as const, retry: false, enabled: primed})) : []})
+  // Only while the confirm is up: during the run each delete sends frames, and every frame
+  // re-read every row's "used in" (the run checks each row itself, just before it goes).
+  const lookups = useQueries({queries: action === 'delete' ? docs.map((d) => ({...backlinksQuery(d._publishedId), refetchOnMount: 'always' as const, retry: false, enabled: primed && phase === 'confirm'})) : []})
   const checking = action === 'delete' && (!primed || lookups.some((q) => q.isPending && q.fetchStatus !== 'idle'))
   const offline = lookups.some((q) => q.fetchStatus === 'paused')
   const lookupFailed = lookups.some((q) => q.isError && !q.isFetching)
@@ -69,7 +71,8 @@ export function BulkDialog({action, docs, onClose}: {action: BulkAction; docs: D
   const cancel = useRef<HTMLButtonElement>(null)
   const closeBtn = useRef<HTMLButtonElement>(null)
   useEffect(() => cancel.current?.focus(), [])
-  useEffect(() => void (phase === 'done' && closeBtn.current?.focus()), [phase])
+  // The focus follows the footer: Stop while running (Cancel's place), Close after.
+  useEffect(() => void (phase === 'running' ? cancel.current?.focus() : phase === 'done' && closeBtn.current?.focus()), [phase])
 
   const title = (d: Doc) => previewTitle(d, schemaOf(schemas, d._type), t)
   const n = docs.length
@@ -111,7 +114,6 @@ export function BulkDialog({action, docs, onClose}: {action: BulkAction; docs: D
     if (alive.current) setPhase('done')
   }
   const start = () => {
-    cancel.current?.focus()
     // Rows held back at the confirm show in the result too, with their reason.
     setResults(new Map(staying.map((s) => [s.row.id, {state: 'skipped', why: s.why, ...(s.refs && {refs: s.refs})} as RowResult])))
     void run(going.map((s) => s.row.id), new Set())
