@@ -150,19 +150,15 @@ export function ownColumns(notes: readonly unknown[] | undefined, wb: number, wm
  * (mergeText). A text merge's patches matched by likeness put a word inside another's (two
  * words typed into one empty cell).
  */
-function cell3(base: unknown, mine: unknown, theirs: unknown, ownBase = false): unknown {
+function cell3(base: unknown, mine: unknown, theirs: unknown): unknown {
   if (mine === base) return theirs
   if (theirs === base || theirs === mine) return mine
   if (typeof base !== 'string' || typeof mine !== 'string' || typeof theirs !== 'string') return mine
   // Both typed into an empty cell: what is saved stays first, mine a word after it (the caret stays
-  // on my text: TableInput's Cell).
+  // on my text: TableInput's Cell). Both typed on at the end: my keys where I typed them, right
+  // after the text, theirs a word after mine.
   if (!base) return joinWords(theirs, mine)
-  if (mine.startsWith(base) && theirs.startsWith(base)) {
-    // Both typed on at the end of the saved text: only one can go on its last word. The one who
-    // saved it does (`ownBase`: my own write, landed); the other's text follows, a word apart.
-    // Never one inside the other: both read whole, the same on both sides.
-    return ownBase ? joinWords(mine, theirs.slice(base.length)) : joinWords(theirs, mine.slice(base.length))
-  }
+  if (mine.startsWith(base) && theirs.startsWith(base)) return joinWords(mine, theirs.slice(base.length))
   // One side changed around the text (it stands whole in that side, once): the other's change goes in its place.
   return around(theirs, base, mine) ?? around(mine, base, theirs) ?? kept(mergeText(base, mine, theirs), base, mine, theirs) ?? joinWords(theirs, mine)
 }
@@ -196,7 +192,7 @@ const commonEnd = (a: string, b: string) => {
  * them the row itself has to (right unless the new column sits beside an equal cell). A cell
  * of mine in a column that was removed goes with its column.
  */
-export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[], before?: unknown, after?: unknown, ownBase = false): unknown[] {
+export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[], before?: unknown, after?: unknown): unknown[] {
   const [was, now] = [Array.isArray(before) ? before : [], Array.isArray(after) ? after : []]
   const [from, to] = [Math.max(width(was), base.length), Math.max(width(now), theirs.length)]
   // This row's own base is read too: it is what my edits are measured from, even when the
@@ -223,7 +219,7 @@ export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[],
       continue
     }
     while (out.length < j) out.push('')
-    out[j] = cell3(at(base, i), at(mine, i), at(out, j), ownBase)
+    out[j] = cell3(at(base, i), at(mine, i), at(out, j))
   }
   for (const [j, cell] of kept) out[j] = keepBeside(at(out, j), cell)
   return out
@@ -341,12 +337,12 @@ export const waitsWithTable = (path: string, inflight: Iterable<string>, doc: un
  * `before` and `after` are the document as the server had it and has it now; `own`, this
  * editor's column notes for the rows since their base (lib/edit-bases.ts).
  */
-export function mergeTablePart(path: string, base: unknown[], mine: unknown[], theirs: unknown[], before: unknown, after: unknown, own?: readonly unknown[], ownBase = false): unknown[] | null {
+export function mergeTablePart(path: string, base: unknown[], mine: unknown[], theirs: unknown[], before: unknown, after: unknown, own?: readonly unknown[]): unknown[] | null {
   const row = ROW_CELLS.exec(path)
   if (row) {
     const [was, table] = [getPath(before, row[1]!), getPath(after, row[1]!)]
     if (!isTable(table) || (was !== undefined && !isTable(was)) || ![base, mine, theirs].every(plain)) return null
-    return mergeCells3(base, mine, theirs, (was as Obj | undefined)?.rows, table.rows, ownBase)
+    return mergeCells3(base, mine, theirs, (was as Obj | undefined)?.rows, table.rows)
   }
   if (!path.endsWith('.rows')) return null
   const [was, table] = [getPath(before, path.slice(0, -5)), getPath(after, path.slice(0, -5))]

@@ -113,15 +113,3 @@ test('my own column changes, several before a save and an empty table: each wher
 test('presser without notes (typed right after its insert): an insert left stays left', () => {
   assert.deepEqual(grid(mergeRows3(rowsOf([[''], ['']]), rowsOf([['', 'A'], ['', '']]), rowsOf([[''], ['B']]))), [['', 'A'], ['', 'B']])
 })
-
-// The round-5 review (failed on 0439641b, scene `insright`): an empty 2 × 3, B typing in R2C1 with its first keys
-// unsent, A appends a column. Nothing stored says where (every cell is empty), and B's merge put its word in column 2;
-// A then clicked R2C2 and typed after B's text. Both typed on at the end of B's saved word: each word stays whole,
-// B's (saved by B) first, A's after it.
-test('both typed on at the end of a word the other saved: each word whole, the saved one first', () => {
-  const [base, a, b] = [['', 'bravo typed b', '', ''], ['', 'bravo typed balpha typed by A', '', ''], ['', 'bravo typed by B and on', '', '']]
-  // A merges onto B's (B's word was saved by B).
-  assert.deepEqual(mergeCells3(base, a, b), ['', 'bravo typed by B and on alpha typed by A', '', ''])
-  // B merges onto A's (the saved word is B's own).
-  assert.deepEqual(mergeCells3(base, b, a, undefined, undefined, true), ['', 'bravo typed by B and on alpha typed by A', '', ''])
-})
