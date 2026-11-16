@@ -1,0 +1,14 @@
+/* Sanity's array item popover (options.modal: {type: 'popover'}): PopoverDialog in sanity 6.17. A card
+   by its row with the popover shadow, a sticky header (the type's "Edit" title and a close button over a
+   hairline), the item's fields 20 px in, at least min(100vh - 200px, 500px) tall as Sanity's object
+   dialog content. Its place and width are set by ItemPopover.tsx. Colours are the theme's tokens
+   (styles.css), so dark mode follows. */
+
+.popover.item-popover { z-index: 60; padding: 0; overflow: auto; scrollbar-gutter: stable; overscroll-behavior: contain; font-size: 13px; }
+.item-popover-box { display: flex; flex-direction: column; min-width: 0; outline: none; }
+.item-popover-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 20px; background: var(--bg); border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0; }
+.item-popover-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; line-height: 17px; color: var(--fg); }
+.item-popover-head > .icon-btn { flex: none; }
+.item-popover-body { padding: 20px; }
+.item-popover-body > .form-fields { min-height: min(calc(100vh - 200px), 500px); }
+@media (max-width: 768px) and (pointer: coarse) { .item-popover-head > .icon-btn { width: 44px; height: 44px; } }
