@@ -1,8 +1,7 @@
 import {useEffect, useState, useSyncExternalStore} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useQuery} from '@tanstack/react-query'
 import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
-import {edit} from '../lib/edits'
 import type {Doc, Schema} from '../lib/data'
 import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, LaunchIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
 import studio from '../studio.config'
@@ -71,9 +70,8 @@ const onPhoneChange = (f: () => void) => {
 }
 const usePhone = () => useSyncExternalStore(onPhoneChange, () => matchMedia(PHONE).matches, () => false)
 
-export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIncoming, onCompare, inline, onInline}: {doc: Doc; schema: Schema; readOnly: boolean; onInspect: () => void; onHistory: () => void; onIncoming: () => void; onCompare?: () => void; inline: boolean; onInline: () => void}) {
+export function DocHeaderMenu({doc, schema, readOnly, onEdit, onInspect, onHistory, onIncoming, onCompare, inline, onInline}: {doc: Doc; schema: Schema; readOnly: boolean; onEdit: (field: string, value: unknown) => unknown; onInspect: () => void; onHistory: () => void; onIncoming: () => void; onCompare?: () => void; inline: boolean; onInline: () => void}) {
   const t = useT()
-  const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const alt = useAltName()
@@ -189,7 +187,8 @@ export function DocHeaderMenu({doc, schema, readOnly, onInspect, onHistory, onIn
                 return pasted && 'value' in pasted ? [[f.name, pasted.value] as const] : []
               })
               if (!matching.length) return toast({tone: 'critical', title: tt('Invalid clipboard item'), description: tt('Source and target schema types are not compatible')})
-              for (const [name, value] of matching) edit(qc, doc, name, value)
+              // The pane's edit: refused if the pane locked while the clipboard was read.
+              for (const [name, value] of matching) onEdit(name, value)
             }}
           >
             <span className="menu-icon-text">
