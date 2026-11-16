@@ -41,6 +41,9 @@ test('same width: rows merge as before; both changed one cell: theirs stays, min
   const kept: [number, unknown][] = []
   assert.deepEqual(mergeCells3(['', ''], ['a', 'b'], ['', 'c'], undefined, undefined, (c, t) => kept.push([c, t])), ['a', 'c'])
   assert.deepEqual(kept, [[1, 'b']])
+  // Both wrote the same: it stands once, nothing kept.
+  assert.deepEqual(mergeCells3([''], ['same'], ['same'], undefined, undefined, (c, t) => kept.push([c, t])), ['same'])
+  assert.equal(kept.length, 1)
 })
 
 test('one kept entry per cell: the same text kept twice is one, a longer one grows it', () => {

@@ -213,7 +213,7 @@ export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[],
     // changed that one.
     // Kept, not guessed (lib/table-keep.ts): my text where nothing says its place, or in a cell
     // theirs changed too, goes to the kept list; theirs stays.
-    if (keep && (j < 0 || at(theirs, j) !== at(base, i))) {
+    if (keep && (j < 0 || (at(theirs, j) !== at(base, i) && at(theirs, j) !== at(mine, i)))) {
       keep(i, at(mine, i))
       continue
     }
