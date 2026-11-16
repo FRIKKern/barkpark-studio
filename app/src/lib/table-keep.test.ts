@@ -2,7 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {rebase} from './edit-bases.ts'
 import {addKept, keepOnShapeChange, type TableKept} from './table-keep.ts'
-import {mergeCells3} from './table-merge.ts'
+import {mergeCells3, mergeRows3} from './table-merge.ts'
 
 // A table's column changed while I typed (lib/table-keep.ts): my unsent text is kept, whole,
 // not guessed into a column; theirs is the table.
@@ -52,4 +52,18 @@ test('one kept entry per cell: the same text kept twice is one, a longer one gro
   addKept(list, {row: 'a', column: 0, text: 'Or'})
   addKept(list, {row: 'a', column: 1, text: 'Ord'})
   assert.deepEqual(list.map((k) => k.text), ['Ord', 'Ord'])
+})
+
+test('rows set whole (my row or column change) and theirs changed a cell I changed too: theirs stays, mine is kept, never joined', () => {
+  const was = doc([['a', ['x', 'y']]])
+  // My rows write: a row added and cell a/0 typed in; theirs typed in a/0 too.
+  const mine = [row('a', ['x mine', 'y']), row('n', ['', ''])]
+  const e = {...spots([['t.rows', mine]], [['t.rows', was.t.rows]]), rev: 'r1'}
+  rebase(e as never, doc([['a', ['x theirs', 'y']]], 'r2') as never, was as never)
+  assert.deepEqual(e.kept?.map(({row, column, text}) => ({row, column, text})), [{row: 'a', column: 0, text: 'x mine'}])
+  assert.deepEqual((e.dirty.get('t.rows') as {cells: string[]}[]).map((r) => r.cells), [['x theirs', 'y'], ['', '']])
+  // Without a keep (a merge that is not a rebase): the two are joined as before.
+  const kept: unknown[] = []
+  assert.deepEqual((mergeRows3([row('a', ['x'])], [row('a', ['x 1'])], [row('a', ['x 2'])], undefined, (...k) => kept.push(k)) as {cells: string[]}[])[0]!.cells, ['x 2'])
+  assert.deepEqual(kept, [['a', 0, 'x 1']])
 })
