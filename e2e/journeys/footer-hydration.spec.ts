@@ -11,7 +11,8 @@ test('hydration: the footer, list, a date field, Vision and Releases hydrate as 
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours: SSR')
   await t.prepare(page.context())
-  await page.clock.install({time: new Date(Date.now() + 3 * 86_400_000)})
+  const start = Date.now()
+  await page.clock.install({time: new Date(start + 3 * 86_400_000)})
   const errors: string[] = []
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
   page.on('pageerror', (e) => errors.push(e.message))
@@ -27,11 +28,16 @@ test('hydration: the footer, list, a date field, Vision and Releases hydrate as 
   await expect(page.locator('.doc-footer .save-state-text').first()).toHaveText(/^Last published 3 days ago$/)
   // Over a week the words turn: last week, then (from a month) the date, read on this browser's
   // calendar (UTC+14) once hydrated, and UTC while it hydrates (lib/now.ts useZone): no mismatch.
+  // The year shows only when it is not this one: 45 days on crosses New Year from mid-November.
   await page.clock.setSystemTime(new Date(Date.now() + 45 * 86_400_000))
   await page.clock.fastForward(31_000)
   const published = await page.locator('.doc-footer .save-state-text').first().textContent()
-  const day = /^Last published ([A-Z][a-z]{2} \d{1,2})$/.exec(published ?? '')?.[1]
-  expect(day, `a date, not ${published}`).toBeTruthy()
+  const shown = /^Last published ([A-Z][a-z]{2}) (\d{1,2})(?:, (\d{4}))?$/.exec(published ?? '')
+  expect(shown, `a date, not ${published}`).toBeTruthy()
+  const thisYear = await page.evaluate(() => new Date().getFullYear())
+  if (shown![3]) expect(Number(shown![3]), `${published}: a year only when it is not this one`).toBeLessThan(thisYear)
+  const on = Date.parse(`${shown![1]} ${shown![2]}, ${shown![3] ?? thisYear} 12:00 UTC`)
+  expect(Math.abs(on - start) / 86_400_000, `${published} names the day it was published`).toBeLessThan(5)
   expect(mismatches()).toEqual([])
   for (const path of [t.listPath('post'), t.docPath('fieldTypes', 'field-types-01'), '/vision', '/releases']) {
     await page.goto(path)
