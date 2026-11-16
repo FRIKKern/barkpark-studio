@@ -34,11 +34,6 @@ test('the Published view writes nothing: a paste on Show all, an array item dial
   await page.getByRole('menuitem', {name: 'Copy field'}).click()
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Section 1 (src)')
 
-  // The Published view, an item's dialog open: its field is locked like the form's.
-  await page.goto(`${t.docPath('fieldTypes', ID)},path=${encodeURIComponent('sections[_key=="s5"].items[_key=="s5i1"]')}?perspective=published`)
-  await t.settle(page)
-  await expect.soft(page.getByRole('dialog').last().getByRole('textbox', {name: 'Label'})).toBeDisabled({timeout: 2000})
-
   // A post's body canvas in the Published view: a click doesn't wake it; typing goes nowhere.
   await page.goto(`${t.docPath('post', POST)}?perspective=published`)
   await t.settle(page)
@@ -48,11 +43,17 @@ test('the Published view writes nothing: a paste on Show all, an array item dial
   await expect.soft(page.locator('[id="body"] [contenteditable="true"]')).toHaveCount(0, {timeout: 1000})
   await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
 
-  // Last, on a page that stays: Cmd/Ctrl+V on "Show all", focusable in the locked form. Old code
-  // wrote once the clipboard was read (async), so the draft is watched a moment, not read once.
-  await page.goto(`${t.docPath('fieldTypes', ID)}?perspective=published`)
+  // Last, on a page that stays: the Published view with an item's dialog open, its field locked
+  // like the form's; closed, Cmd/Ctrl+V on the fold toggle (open: the item is past the fold),
+  // focusable in the locked form. Old code wrote once the clipboard was read (async), so the
+  // draft is watched a moment, not read once.
+  await page.goto(`${t.docPath('fieldTypes', ID)},path=${encodeURIComponent('sections[_key=="s5"].items[_key=="s5i1"]')}?perspective=published`)
   await t.settle(page)
-  await sectionsField.getByRole('button', {name: 'Show all 6 items'}).focus()
+  await expect.soft(page.getByRole('dialog').last().getByRole('textbox', {name: 'Label'})).toBeDisabled({timeout: 2000})
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await sectionsField.getByRole('button', {name: 'Show fewer items'}).focus()
   await page.keyboard.press('ControlOrMeta+v')
   for (const until = Date.now() + 1200; Date.now() < until && !(await t.versions(ID)).draft; ) await page.waitForTimeout(150)
   await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
