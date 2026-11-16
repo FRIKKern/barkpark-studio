@@ -32,8 +32,9 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     const on = (e: FocusEvent) => {
       const input = e.target as HTMLInputElement
       const key = now.current.grid.rows[Number(input.dataset?.row)]?.key
-      const start = typed.current?.row === key && last.current?.row === key ? last.current.start : input.value
-      if (input.matches?.('input.table-cell') && key !== undefined) last.current = {row: key, column: Number(input.dataset.column), at: Date.now(), start}
+      if (!input.matches?.('input.table-cell') || key === undefined) return
+      const was = last.current
+      last.current = {row: key, column: Number(input.dataset.column), at: Date.now(), start: was && typed.current?.row === key && was.row === key ? was.start : input.value}
     }
     el?.addEventListener('focusin', on)
     return () => el?.removeEventListener('focusin', on)
