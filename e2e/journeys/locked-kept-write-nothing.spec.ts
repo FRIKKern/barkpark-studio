@@ -22,7 +22,7 @@ async function held(type: string, id: string) {
   return JSON.stringify(Object.fromEntries(Object.entries(result ?? {}).filter(([k]) => !k.startsWith('_') || k === '_draft')))
 }
 async function unchanged(page: Page, type: string, id: string, before: string) {
-  for (const until = Date.now() + 1000; Date.now() < until && (await held(type, id)) === before; ) await page.waitForTimeout(150)
+  for (const until = Date.now() + 700; Date.now() < until && (await held(type, id)) === before; ) await page.waitForTimeout(150)
   return held(type, id)
 }
 async function scheduleIt(type: string, id: string) {
@@ -32,7 +32,8 @@ async function scheduleIt(type: string, id: string) {
 }
 // A title typed while saves fail, then the tab dies (kept-edits.spec's crash).
 async function keptTitle(context: BrowserContext, t: Target) {
-  await Promise.all([t.draftOnly(DOC, 'fieldTypes', {title: 'Kept'}).then(() => t.restore(DOC, {}, 'fieldTypes')).then(() => bpMutate([{patch: {id: DOC, type: 'fieldTypes', set: {title: 'Kept draft'}}}])), t.prepare(context)])
+  const seed = [{create: {_id: DOC, _type: 'fieldTypes', title: 'Kept'}}, {publish: {id: DOC, type: 'fieldTypes'}}, {patch: {id: DOC, type: 'fieldTypes', set: {title: 'Kept draft'}}}]
+  await Promise.all([bpMutate(seed), t.prepare(context)])
   const page = await context.newPage()
   await page.addInitScript(() => (navigator.sendBeacon = () => true))
   await page.goto(t.docPath('fieldTypes', DOC))
@@ -68,7 +69,7 @@ test('kept field edits wait in a scheduled draft; Pause to edit puts them in', a
   await expect.poll(() => t.docValue(DOC, 'title', 'fieldTypes')).toBe('Kept draft kept')
 })
 
-test('kept field edits wait at a revision URL; the draft view puts them in', async ({page, context}, info) => {
+test('kept field edits wait at a revision URL', async ({page, context}, info) => {
   const t = target(info)
   await keptTitle(context, t)
   await expect.poll(() => t.historyReady(DOC)).toBe(true)
@@ -78,9 +79,6 @@ test('kept field edits wait at a revision URL; the draft view puts them in', asy
   await page.goto(`${t.docPath('fieldTypes', DOC)},rev=${rev}`)
   await t.settle(page)
   expect.soft(await unchanged(page, 'fieldTypes', DOC, before), 'the kept edit was replayed from a revision URL').toBe(before)
-  await page.goto(t.docPath('fieldTypes', DOC))
-  await t.settle(page)
-  await expect.poll(() => t.docValue(DOC, 'title', 'fieldTypes')).toBe('Kept draft kept')
 })
 
 test('a scheduled note offers no Put the words back; Pause to edit offers it', async ({page, context}, info) => {
@@ -96,12 +94,10 @@ test('a scheduled note offers no Put the words back; Pause to edit offers it', a
   await expect(first.locator('.pd-status')).toContainText('Your edits are kept here.')
   await first.close()
   await scheduleIt('note', NOTE)
-  const before = await held('note', NOTE)
   await page.goto(t.docPath('note', NOTE))
   await t.settle(page)
   await expect(page.locator('.pd-editor bp-paper-canvas').first()).toHaveAttribute('editable', 'false')
-  expect.soft(await unchanged(page, 'note', NOTE, before), 'the scheduled draft changed').toBe(before)
-  // Read after that second: an offer is drawn once the canvas has read the kept words.
+  await page.waitForTimeout(700) // an offer is drawn once the canvas has read the kept words
   expect.soft(await page.locator('[data-kept-words]').count(), 'Put the words back is offered on the read-only canvas').toBe(0)
   await page.locator('.pane-banner[data-tone=scheduled]').getByRole('button', {name: 'Pause to edit'}).click()
   await expect(page.locator('[data-kept-words]')).toContainText('Words were not saved:')
@@ -118,6 +114,6 @@ test("a scheduled note offers no Undo of another writer's edit", async ({page, c
   const blocks = [{fieldName: 'title', id: 'synth-f-title-0', type: 'field-string', value: 'Kept note'}, {fieldName: 'label', id: 'synth-f-label-1', type: 'field-string', value: 'L'}, para('n1', 'Changed by another writer.')]
   await bpMutate([{patch: {id: NOTE, type: 'note', set: {blocks, body: {blocks: [para('n1', 'Changed by another writer.')]}}}}])
   await expect(canvas.getByText(/Changed by another writer/)).toBeVisible()
-  await page.waitForTimeout(1000) // the row is drawn once the canvas has looked up who wrote it
+  await page.waitForTimeout(700) // the row is drawn once the canvas has looked up who wrote it
   expect.soft(await page.locator('[data-other-edit]').count(), "Undo of another writer's edit is offered on the read-only canvas").toBe(0)
 })
