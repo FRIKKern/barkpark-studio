@@ -232,6 +232,12 @@ export function bodyHistory(id: string, type: string, field: string, kind: 'step
 const FIELDS_FENCE = {fence: 'fields'} as const
 const MIN_GAP_MS = 100
 const budget = writeBudget(WRITE_BURST, WRITE_GAP_MS)
+/** A bulk run's next write waits for this browser's budget, as typing does (lib/bulk-run.ts). */
+export async function writeSlot() {
+  const wait = budget.wait()
+  if (wait) await new Promise((go) => setTimeout(go, wait))
+  budget.spend()
+}
 const STALL_MS = 4000
 export const OFFLINE_RETRY_MS = 5000
 
