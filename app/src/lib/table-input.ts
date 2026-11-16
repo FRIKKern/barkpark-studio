@@ -103,9 +103,15 @@ export function withCell(cells: unknown, column: number, value: string): unknown
  * as drawn: the same place (a short row of an import grows, up to the grid's width). Another
  * count: another editor's column came in after the grid was drawn and before this key (the
  * key comes from the old grid's input). The column is followed as the caret follows it, so
- * the key lands in its own column, never in a neighbour, and never grows the row back.
+ * the key lands in its own column, never in a neighbour, and never grows the row back. A
+ * column past the table's edge (an input of a grid older still): only the one cell `text`
+ * was typed on from can be it.
  */
-export function columnNow(drawn: unknown[], width: number, now: unknown[], column: number): number {
+export function columnNow(drawn: unknown[], width: number, now: unknown[], column: number, text: string): number {
+  if (column >= width) {
+    const from = now.flatMap((c, j) => (typeof c === 'string' && c !== '' && text.startsWith(c) ? [j] : []))
+    return from.length === 1 ? from[0]! : -1
+  }
   if (now.length === drawn.length) return column
   return alignColumns([[padded(drawn, width), now]], width, now.length)[column] ?? -1
 }
@@ -116,13 +122,13 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
   const target = rows[row]
   if (!target) return []
   if (!keyed(rows)) return rowsWrite(key, (now) => now.map((r, i) => (i === row ? {...r, cells: withCell(r.cells, column, cell)} : r)))
-  const [drawn, width] = [cellsOf(target), Math.max(widthOf(rows), column + 1)]
+  const drawn = cellsOf(target)
   return [
     [
       `${keyedPath('rows', target._key!)}.cells`,
       (now: unknown) => {
         const cells = Array.isArray(now) ? now : drawn
-        const at = columnNow(drawn, width, cells, column)
+        const at = columnNow(drawn, widthOf(rows), cells, column, cell)
         return at < 0 ? cells : withCell(cells, at, cell)
       },
     ],
@@ -209,7 +215,7 @@ export function pasteCells(value: unknown, row: number, column: number, block: s
           const drawn = cellsOf(stored[row])
           const cells = Array.isArray(now) ? now : drawn
           return block[0]!.reduce<unknown[]>((out, c, j) => {
-            const at = columnNow(drawn, widthOf(stored), cells, column + j)
+            const at = columnNow(drawn, widthOf(stored), cells, column + j, c)
             return at < 0 ? out : withCell(out, at, c)
           }, cells)
         },

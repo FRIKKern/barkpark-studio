@@ -64,11 +64,20 @@ test('a key from the old grid\'s input, after another editor\'s column came in: 
   assert.deepEqual(typed(table(row('a', '', 'word'), row('b', '', '')), 1, 'words', ['', '', 'word']), ['', '', 'words'])
   // They remove my own column: the key goes with it, into no neighbour.
   assert.deepEqual(typed(table(row('a', 'x', 'word'), row('b', '', '')), 1, 'words', ['x']), ['x'])
+  // The table as drawn is one column already, the input still the second's: the cell typed on from, or nothing.
+  assert.deepEqual(typed(table(row('a', 'word typed'), row('b', '')), 1, 'word typed ', ['word typed']), ['word typed '])
+  assert.deepEqual(typed(table(row('a', ''), row('b', '')), 1, 'w', ['']), [''])
   // A short row of an import still grows to the grid's width when typed in, and no further.
   assert.deepEqual(typed(table(row('a', 'x'), row('b', '', '')), 1, 'y', ['x']), ['x', 'y'])
   // One row's paste the same way.
   const [[, paste]] = pasteCells(table(row('a', '', 'w', ''), row('b', '', '', '')), 0, 1, [['p', 'q']], 'tableRow', key) as [[string, (now: unknown) => unknown]]
   assert.deepEqual(paste(['w', '']), ['p', 'q'])
+})
+
+test('the table as read before my last save came back (all empty then): my row\'s own base still says where my word\'s column went', () => {
+  // My "word " saved, theirs (a column inserted left) holds it; the rows read then are older than that save.
+  const [before, after] = [[row('a', '', ''), row('b', '', '')], [row('a', '', '', 'word '), row('b', '', '', '')]]
+  assert.deepEqual(mergeCells3(['', 'word '], ['', 'word t'], ['', '', 'word '], before, after), ['', '', 'word t'])
 })
 
 test('a pasted block: tab-separated (a spreadsheet\'s), CSV with quotes, lines; one cell\'s worth is left to the input', () => {

@@ -91,8 +91,10 @@ const cell3 = (base: unknown, mine: unknown, theirs: unknown): unknown =>
 export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[], before?: unknown, after?: unknown): unknown[] {
   const [was, now] = [Array.isArray(before) ? before : [], Array.isArray(after) ? after : []]
   const [from, to] = [Math.max(width(was), base.length), Math.max(width(now), theirs.length)]
+  // This row's own base is read too: it is what my edits are measured from, even when the
+  // table's rows then were read before my last save came back.
   const known = keyed(was) && keyed(now) ? pairs(was, now) : []
-  const map = alignColumns(known.length ? known : [[base, theirs]], from, to)
+  const map = alignColumns([...known, [base, theirs]], from, to)
   const out = [...theirs]
   for (let i = 0; i < Math.max(mine.length, base.length); i++) {
     if (at(mine, i) === at(base, i)) continue
