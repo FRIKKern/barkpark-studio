@@ -71,6 +71,9 @@ export function planRow(action: BulkAction, row: BulkRow | null, refs: Referrer[
   return refs.length ? stay('referenced', refs) : {row, go: true}
 }
 
+/** What a copy starts with: the document's own fields, Barkpark's `_` ones left out (the footer's Duplicate too). */
+export const copyFields = (from: Record<string, unknown>, rank: Record<string, unknown> = {}): Record<string, unknown> => ({...Object.fromEntries(Object.entries(from).filter(([k]) => !k.startsWith('_'))), ...rank})
+
 /** The confirm's plan: every ticked row, in the list's order, and whether it goes. */
 export const planBulk = (action: BulkAction, rows: BulkRow[], perms: Perms, refsOf: (id: string) => Referrer[] | undefined = () => undefined): Step[] =>
   rows.map((row) => planRow(action, row, action === 'delete' ? refsOf(row.id) : [], perms))

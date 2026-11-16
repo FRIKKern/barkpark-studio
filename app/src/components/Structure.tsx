@@ -1089,7 +1089,7 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
             : <p className="list-max">{t('Displaying a maximum of {max} documents', {max: LIST_MAX})}</p>
         )}
       </div>
-      {picked.size > 0 && <BulkBar picked={pickedDocs} onClear={stopSelecting} />}
+      {picked.size > 0 && <BulkBar picked={pickedDocs} onClear={stopSelecting} onKeep={(keep) => (keep.length ? setPicked((m) => new Map([...m].filter(([id]) => keep.includes(id)))) : stopSelecting())} />}
     </section>
   )
 }

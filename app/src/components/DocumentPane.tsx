@@ -23,6 +23,7 @@ import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
 import {copyRank} from './OrderableRows'
+import {copyFields} from '../lib/bulk'
 import {meQuery, useBoundElsewhere, useCanWrite, useStudioTokenRefused} from '../lib/session'
 import {currentScopeQuery} from '../lib/scope-switch'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
@@ -422,7 +423,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const metaButton = useRef<HTMLButtonElement>(null)
   const duplicate = (from: Doc) => {
     const id = crypto.randomUUID()
-    const fields = {...Object.fromEntries(Object.entries(from).filter(([k]) => !k.startsWith('_'))), ...copyRank(qc, from)}
+    const fields = copyFields(from, copyRank(qc, from))
     const created = createDoc(qc, from._type, id, fields)
     navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined, path: undefined, rev: undefined}])})
     created.then(
