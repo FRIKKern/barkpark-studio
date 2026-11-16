@@ -36,7 +36,11 @@ export function BulkDialog({action, docs, onClose}: {action: BulkAction; docs: D
   const rows = frozen ?? docs
   const stop = useRef(false)
   const alive = useRef(true)
-  useEffect(() => () => void (alive.current = false), [])
+  // Set on every mount: React's dev double-mount runs the cleanup once before the real mount.
+  useEffect(() => {
+    alive.current = true
+    return () => void (alive.current = false)
+  }, [])
   // A copy's id, fixed per row: a retry after a lost answer finds that copy instead of making a second.
   const copyIds = useRef(new Map<string, string>())
   const copyId = (id: string) => copyIds.current.get(id) ?? (copyIds.current.set(id, crypto.randomUUID()), copyIds.current.get(id)!)
@@ -111,7 +115,7 @@ export function BulkDialog({action, docs, onClose}: {action: BulkAction; docs: D
       set(id, r)
     }
     if (action === 'duplicate') void qc.invalidateQueries({queryKey: ['list']})
-    if (alive.current) setPhase('done')
+    setPhase('done')
   }
   const start = () => {
     // Rows held back at the confirm show in the result too, with their reason.
