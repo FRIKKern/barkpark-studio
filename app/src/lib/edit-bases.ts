@@ -72,7 +72,7 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
     // So does a whole value with a write of this editor's on its way inside it (a span typed
     // in, then its block moved): merged now, the frame of that own write read as theirs.
     // A table's row waits with its table's other spots on their way (lib/table-merge.ts waitsWithTable).
-    if (!e.dirty.has(f) || e.inflight?.has(f) || (e.inflight && (anyInside(e.inflight.keys(), f) || waitsWithTable(f, e.inflight.keys())))) {
+    if (!e.dirty.has(f) || e.inflight?.has(f) || (e.inflight && (anyInside(e.inflight.keys(), f) || waitsWithTable(f, e.inflight.keys(), d)))) {
       missed = true
       continue
     }

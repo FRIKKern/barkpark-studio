@@ -16,8 +16,14 @@ const grid = (rows: unknown) => (rows as {cells: string[]}[]).map((r) => r.cells
 const apply = (cells: string[], op: Op) => ('insert' in op ? [...cells.slice(0, op.insert), '', ...cells.slice(op.insert)] : cells.filter((_, i) => i !== op.remove))
 /** Where the typed column goes (-1: it is the removed one). */
 const goes = (c: number, op: Op) => ('insert' in op ? (op.insert <= c ? c + 1 : c) : op.remove === c ? -1 : op.remove < c ? c - 1 : c)
+// mulberry32: an integer generator (a float LCG loses precision and falls into a short cycle).
 let seed = 11
-const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648), seed / 2147483648)
+const rnd = () => {
+  seed = (seed + 0x6d2b79f5) | 0
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+}
 let n = 0
 const key = () => `k${++n}`
 

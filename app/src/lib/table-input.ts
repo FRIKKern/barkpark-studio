@@ -124,6 +124,20 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
 }
 
 /**
+ * A key typed in an input that held `was` (now `cell`), onto the cell as it is now (`there`):
+ * where my text stands in it, once (others' words merged beside it), the key changes it there;
+ * an input that was empty adds its text after theirs; else as a text field merges.
+ */
+function keyOnto(was: string | undefined, cell: string, there: string): string {
+  if (was === undefined || there === was) return cell
+  if (was === '') return there ? `${there} ${cell}` : cell
+  if (there.startsWith(was)) return cell + there.slice(was.length)
+  const at = there.indexOf(was)
+  if (at >= 0 && there.indexOf(was, at + 1) < 0) return there.slice(0, at) + cell + there.slice(at + was.length)
+  return mergeText(was, cell, there)
+}
+
+/**
  * Typing in a cell: that row's `cells`, made onto the row as it is now. Rows without keys go
  * whole. `was` is what the input held before this key: when the cell holds something else now
  * (another editor's words merged in, not drawn yet), the key goes onto it as a text field's
@@ -142,8 +156,7 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
         const cells = Array.isArray(now) ? now : drawn
         const at = columnNow(drawn, widthOf(rows), cells, column, cell, was)
         if (at < 0) return cells
-        const there = text(cells[at])
-        return withCell(cells, at, was === undefined || there === was ? cell : mergeText(was, cell, there))
+        return withCell(cells, at, keyOnto(was, cell, text(cells[at])))
       },
     ],
   ]

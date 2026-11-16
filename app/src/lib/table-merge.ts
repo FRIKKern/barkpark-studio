@@ -59,27 +59,28 @@ function alike(a: unknown, b: unknown): number {
  */
 export function alignColumns(rows: [from: unknown[], to: unknown[]][], from: number, to: number, kept?: (i: number) => boolean, loose = false, apart?: (i: number, j: number) => boolean): number[] {
   if (from === to) return Array.from({length: from}, (_, i) => i)
-  // Before the place: column `i` onto `j` would put my words in a cell theirs changed (`apart`):
-  // two editors type in two cells far more often than in one.
-  const away = (to + 2) * (to + 2)
+  // Column `i` onto `j` would put my words in a cell theirs changed (`apart`): that weighs as much
+  // as a cell that reads the same (two editors type in two cells far more often than in one, and a
+  // word may begin as another's text did).
+  const away = (i: number, j: number) => (apart?.(i, j) ? -3 : 0)
   if (from > to) {
     // Columns were removed: place the ones that are left, read the other way round (a kept column scores for being placed).
-    const back = align(rows.map(([a, b]) => [b, a]), to, from, (i, j) => (kept?.(j) ? 1 : 0) - (apart?.(j, i) ? away : 0), loose && 'b')
+    const back = align(rows.map(([a, b]) => [b, a]), to, from, kept && ((_, j) => (kept(j) ? 1 : 0)), loose && 'b', (i, j) => away(j, i))
     const out = new Array<number>(from).fill(-1)
     back.forEach((i, j) => i >= 0 && (out[i] = j))
     return out
   }
   // Columns were added: a kept column scores the further right it sits (the new ones before it).
-  return align(rows, from, to, (i, j) => (kept?.(i) ? j + 1 : 0) - (apart?.(i, j) ? away : 0), loose && 'a')
+  return align(rows, from, to, kept && ((i, j) => (kept(i) ? j + 1 : 0)), loose && 'a', away)
 }
 
 /** `blank`: the side whose empty cells read as alike to text as to an empty cell (text typed since, in a column either old or new). */
-function align(rows: [unknown[], unknown[]][], from: number, to: number, tie?: (i: number, j: number) => number, blank: 'a' | 'b' | false = false): number[] {
+function align(rows: [unknown[], unknown[]][], from: number, to: number, tie?: (i: number, j: number) => number, blank: 'a' | 'b' | false = false, cost?: (i: number, j: number) => number): number[] {
   if (!rows.length && !tie) return Array.from({length: from}, (_, i) => i)
-  // What cells say comes first; the tie-break counts only between equal answers (a step of `K`, more than all of it).
-  const K = 2 * from * (Math.max(from, to) + 2) ** 2 + 2
+  // What cells say comes first; the tie-break counts only between equal answers (a step of `K`).
+  const K = from * (to + 1) + 2
   const like = (a: unknown, b: unknown) => ((blank === 'a' ? a === '' && typeof b === 'string' : blank === 'b' && b === '' && typeof a === 'string') ? 1 : alike(a, b))
-  const score = (i: number, j: number) => rows.reduce((n, [a, b]) => n + like(at(a, i), at(b, j)), 0) * K + (tie?.(i, j) ?? 0)
+  const score = (i: number, j: number) => rows.reduce((n, [a, b]) => n + like(at(a, i), at(b, j)), cost?.(i, j) ?? 0) * K + (tie?.(i, j) ?? 0)
   // best[i][j]: the best score for the first i columns placed among the first j.
   const extra = to - from
   const best: number[][] = Array.from({length: from + 1}, () => new Array<number>(to + 1).fill(-Infinity))
@@ -94,18 +95,16 @@ function align(rows: [unknown[], unknown[]][], from: number, to: number, tie?: (
   return out
 }
 
-/** How much the cells say for a placing of the columns (`map`): what alignColumns weighs first. */
-const cellScore = (rows: [unknown[], unknown[]][], map: number[]) => map.reduce((n, j, i) => (j < 0 ? n : rows.reduce((m, [a, b]) => m + alike(at(a, i), at(b, j)), n)), 0)
-
 /**
- * Where column `i`, placed as removed (`map`), may still be: where the cells read as well with
- * it kept. Its text then stays there, not dropped on a guess (two columns that read alike, one
- * removed: which one, nothing in the cells says). -1 when the cells say it went.
+ * Where column `i`, read as removed, may still be: its place were it kept. A word typed there
+ * stays, not dropped on a guess (two columns that read alike, one removed: which one, nothing in
+ * the cells may say; and text alike by chance says it wrong).
  */
-export function stillThere(rows: [unknown[], unknown[]][], from: number, to: number, map: number[], i: number): number {
-  const alt = alignColumns(rows, from, to, (k) => k === i)
-  return alt[i]! >= 0 && cellScore(rows, alt) >= cellScore(rows, map) ? alt[i]! : -1
+export function stillThere(rows: [unknown[], unknown[]][], from: number, to: number, i: number): number {
+  return alignColumns(rows, from, to, (k) => k === i)[i] ?? -1
 }
+/** A cell's saved text (`was`) that a row (`now`) holds nowhere: its column went, for sure. Nothing saved says nothing. */
+const gone = (was: unknown, now: unknown[]) => typeof was === 'string' && was !== '' && !now.some((c) => alike(was, c) >= 2)
 
 /** A cell kept on a guess, put with the one it may be: whole, after its text (nothing when that holds it already). */
 const keepBeside = (cell: unknown, kept: unknown): unknown =>
@@ -155,9 +154,34 @@ function cell3(base: unknown, mine: unknown, theirs: unknown): unknown {
   if (mine === base) return theirs
   if (theirs === base || theirs === mine) return mine
   if (typeof base !== 'string' || typeof mine !== 'string' || typeof theirs !== 'string') return mine
-  if (!mine.startsWith(base) || !theirs.startsWith(base)) return mergeText(base, mine, theirs)
-  const [m, t] = [mine.slice(base.length), theirs.slice(base.length)]
-  return `${mine}${/\s$/.test(m) || /^\s/.test(t) ? '' : ' '}${t}`
+  // Both typed into an empty cell: what is saved stays first, mine a word after it (the caret stays
+  // on my text: TableInput's Cell). Both typed on at the end: my keys where I typed them, right
+  // after the text, theirs a word after mine.
+  if (!base) return joinWords(theirs, mine)
+  if (mine.startsWith(base) && theirs.startsWith(base)) return joinWords(mine, theirs.slice(base.length))
+  // One side changed around the text (it stands whole in that side, once): the other's change goes in its place.
+  return around(theirs, base, mine) ?? around(mine, base, theirs) ?? kept(mergeText(base, mine, theirs), base, mine, theirs) ?? joinWords(theirs, mine)
+}
+const joinWords = (a: string, b: string) => (!a || !b ? a + b : `${a}${/\s$/.test(a) || /^\s/.test(b) ? '' : ' '}${b}`)
+function around(outer: string, base: string, inner: string): string | undefined {
+  const at = base ? outer.indexOf(base) : -1
+  return at >= 0 && outer.indexOf(base, at + 1) < 0 ? outer.slice(0, at) + inner + outer.slice(at + base.length) : undefined
+}
+/** A text merge, when it keeps what each side added whole. */
+function kept(merged: string, base: string, ...sides: string[]): string | undefined {
+  const added = (s: string) => s.slice(common(s, base), s.length - commonEnd(s, base))
+  return sides.every((s) => merged.includes(added(s))) ? merged : undefined
+}
+const common = (a: string, b: string) => {
+  let n = 0
+  while (n < a.length && n < b.length && a[n] === b[n]) n++
+  return n
+}
+const commonEnd = (a: string, b: string) => {
+  let n = 0
+  const max = Math.min(a.length, b.length) - common(a, b)
+  while (n < max && a[a.length - 1 - n] === b[b.length - 1 - n]) n++
+  return n
 }
 
 /**
@@ -184,10 +208,14 @@ export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[],
     if (at(mine, i) === at(base, i)) continue
     // A cell past the table's edge then (a short row typed in) keeps its distance from the edge now.
     const j = i >= from ? i - from + to : map[i]!
-    // A column read as removed where the cells do not say so keeps my cell, beside the one it may be (stillThere).
+    // A column read as removed, unless the cells say so for sure (what I had saved there is
+    // nowhere in theirs), keeps my cell, beside the one it may be (stillThere), when no one else
+    // changed that one.
     if (j < 0) {
-      const there = i < from ? stillThere(rows, from, to, map, i) : -1
-      if (there >= 0) kept.push([there, at(mine, i)])
+      const there = i < from && !gone(at(base, i), theirs) ? stillThere(rows, from, to, i) : -1
+      // Only beside a cell no one else changed: a guess never runs into another editor's word.
+      const was = there >= 0 ? map.indexOf(there) : -1
+      if (there >= 0 && at(theirs, there) === (was >= 0 ? at(base, was) : '')) kept.push([there, at(mine, i)])
       continue
     }
     while (out.length < j) out.push('')
@@ -295,11 +323,11 @@ const ROW_CELLS = /^(.+)\.rows\[_key=="[^"]*"\]\.cells$/
  * A row's cells (`path`) wait with another spot of their table that is on its way (another
  * row's cells, the rows): merged now, onto a column change, they took the new width while the
  * row on its way kept the old one until its answer. The rows drawn uneven between, a key typed
- * into the narrower row's padding wrote past the table's edge.
+ * into the narrower row's padding wrote past the table's edge. Only a @sanity/table (in `doc`).
  */
-export const waitsWithTable = (path: string, inflight: Iterable<string>): boolean => {
+export const waitsWithTable = (path: string, inflight: Iterable<string>, doc: unknown): boolean => {
   const table = ROW_CELLS.exec(path)?.[1]
-  return !!table && [...inflight].some((k) => k !== path && (k === `${table}.rows` || ROW_CELLS.exec(k)?.[1] === table))
+  return !!table && isTable(getPath(doc, table)) && Array.isArray(getPath(doc, path)) && [...inflight].some((k) => k !== path && (k === `${table}.rows` || ROW_CELLS.exec(k)?.[1] === table))
 }
 
 /**
