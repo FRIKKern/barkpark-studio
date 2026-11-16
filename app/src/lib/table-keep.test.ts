@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {rebase} from './edit-bases.ts'
-import {addKept, keepOnShapeChange} from './table-keep.ts'
+import {addKept, keepOnShapeChange, type TableKept} from './table-keep.ts'
 import {mergeCells3} from './table-merge.ts'
 
 // A table's column changed while I typed (lib/table-keep.ts): my unsent text is kept, whole,
@@ -9,7 +9,7 @@ import {mergeCells3} from './table-merge.ts'
 
 const row = (k: string, cells: string[]) => ({_type: 'tableRow', _key: k, cells})
 const doc = (rows: [string, string[]][], rev = 'r1') => ({_id: 'd', _rev: rev, _updatedAt: rev, t: {_type: 'table', rows: rows.map(([k, c]) => row(k, c))}})
-const spots = (dirty: [string, unknown][], base: [string, unknown][]) => ({dirty: new Map(dirty), base: new Map(base), inflight: null, kept: undefined as undefined | {row: string; column: number; text: string}[]})
+const spots = (dirty: [string, unknown][], base: [string, unknown][]) => ({dirty: new Map(dirty), base: new Map(base), inflight: null, kept: undefined as undefined | TableKept[]})
 
 test('insright: an empty table, my word in row 2 column 1 unsent, theirs added a column: my word is kept, theirs is the table', () => {
   const before = doc([['a', ['', '', '']], ['b', ['', '', '']]])

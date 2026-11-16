@@ -7,7 +7,7 @@ import {useT} from '../lib/i18n'
 import {mapCaret} from '../lib/merge'
 import {newKey} from '../lib/pt-value'
 import type {Field} from '../lib/data'
-import {alignColumns} from '../lib/table-merge'
+import {alignColumns, cellsOf} from '../lib/table-merge'
 import {TableKeptCard, useKeptCard} from './TableKeptCard'
 import {addColumns, addRows, createTable, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, removeTable, setCell, tableGrid, tableOptions, withWrites, type TableWrite} from '../lib/table-input'
 
@@ -224,7 +224,8 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   // to the nearest control: lib/focus-rescue.ts).
   const drawnGrid = useRef<{rows: [string, string[]][]; columns: number; widths: string} | null>(null)
   // `text`: what the input holds as this drawing starts (keys typed since the last one are in it, not yet in the drawing).
-  const caret = useRef<{key: string; column: number; el: HTMLInputElement; at: [number, number]; text?: string} | null>(null)
+  // `width`: its row's width when the caret went in (a row drawn at a new width already has the new column numbers).
+  const caret = useRef<{key: string; column: number; el: HTMLInputElement; at: [number, number]; text?: string; width?: number} | null>(null)
   if (caret.current?.el.isConnected && typeof document !== 'undefined' && document.activeElement === caret.current.el)
     (caret.current.at = [caret.current.el.selectionStart ?? 0, caret.current.el.selectionEnd ?? 0]), (caret.current.text = caret.current.el.value)
   useLayoutEffect(() => {
@@ -247,7 +248,8 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       return
     }
     let column = held.column
-    if (was && settled && was.columns !== grid.columns) {
+    if (was && settled && was.columns !== grid.columns && held.width !== grid.columns) {
+      held.width = grid.columns
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
       // The caret's own cell as its input holds it: a word typed since the last drawing says where its column went.
       const own = (k: string, cells: string[]) => (k === held.key && held.text !== undefined ? cells.map((c, i) => (i === held.column ? held.text! : c)) : cells)
@@ -264,13 +266,13 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     if (column === held.column && held.el.isConnected) return
     next.focus({preventScroll: true})
     next.setSelectionRange(Math.min(held.at[0], next.value.length), Math.min(held.at[1], next.value.length))
-    caret.current = {key: held.key, column, el: next, at: held.at}
+    caret.current = {key: held.key, column, el: next, at: held.at, width: held.width}
   })
   const onGridFocus = (el: HTMLElement) => {
     const row = Number(el.closest<HTMLElement>('tr[data-row]')?.dataset.row ?? -1)
     setFocused(row)
     const key = grid.rows[row]?.key
-    caret.current = key !== undefined && el.dataset.column !== undefined ? {key, column: Number(el.dataset.column), el: el as HTMLInputElement, at: [(el as HTMLInputElement).selectionStart ?? 0, (el as HTMLInputElement).selectionEnd ?? 0]} : null
+    caret.current = key !== undefined && el.dataset.column !== undefined ? {key, column: Number(el.dataset.column), el: el as HTMLInputElement, at: [(el as HTMLInputElement).selectionStart ?? 0, (el as HTMLInputElement).selectionEnd ?? 0], width: cellsOf((value as {rows?: unknown[]})?.rows?.[row]).length} : null
   }
 
   const create = () => (write(createTable(seen.current, rowType, newKey)), focusCell(0, 0, 'all', {rows: 1}))
