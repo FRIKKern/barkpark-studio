@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {addColumns, removeColumn} from './table-input.ts'
+import {addColumns, moveColumn, removeColumn} from './table-input.ts'
 import {mergeCells3, mergeRows3} from './table-merge.ts'
 
 // Two editors in one @sanity/table, one inserting or removing a column while the other types:
@@ -45,8 +45,9 @@ test('fuzz: a column inserted or removed while the other editor types: rows even
               const marks = (v: string) => v.includes('typed') || v === 'wo' || v.endsWith(' t')
               const name = `${w} wide ${kind} ${JSON.stringify(t)}, typed in (${r}, ${c}), ${JSON.stringify(op)}${saved ? ', its first keys saved' : ''}`
               // The one who changed the column: its own write (the column it pressed), merged onto the typed word.
-              const [[, write]] = ('insert' in op ? addColumns({rows: rowsOf(seen)}, op.insert, 1, key) : removeColumn({rows: rowsOf(seen)}, op.remove, key)) as [[string, (now: unknown) => unknown]]
-              const acted = mergeRows3(rowsOf(seen), write(rowsOf(seen)) as unknown[], rowsOf(typed))
+              const held = rowsOf(seen)
+              const [[, write]] = ('insert' in op ? addColumns({rows: held}, op.insert, 1, key) : removeColumn({rows: held}, op.remove, key)) as [[string, (now: unknown) => unknown]]
+              const acted = mergeRows3(held, write(held) as unknown[], rowsOf(typed))
               assert.deepEqual(grid(acted), want, `the one who changed the column: ${name}`)
               // The one typing, onto the column change: its row's cells, and its rows set whole.
               const after = rowsOf(seen.map((cells) => apply(cells, op)))
@@ -55,9 +56,9 @@ test('fuzz: a column inserted or removed while the other editor types: rows even
               for (const [how, out, all] of [['cells', cells, [cells]], ['rows', rows[r]!, rows]] as const) {
                 const label = `the one typing (${how}): ${name} gave ${JSON.stringify(all)}`
                 assert.ok(all.every((cs) => cs.length === want[0]!.length), `rows even: ${label}`)
-                const held = all.flatMap((cs) => cs.filter(marks))
-                assert.ok(held.length <= 1 && held.every((v) => v === word), `no word doubled or split: ${label}`)
-                if (goes(c, op) >= 0) assert.equal(held.length, 1, `no word lost: ${label}`)
+                const words = all.flatMap((cs) => cs.filter(marks))
+                assert.ok(words.length <= 1 && words.every((v) => v === word), `no word doubled or split: ${label}`)
+                if (goes(c, op) >= 0) assert.equal(words.length, 1, `no word lost: ${label}`)
                 if ('insert' in op && op.insert <= c) assert.equal(out[c + 1], word, `an insert to its left: ${label}`)
                 if (kind === 'distinct') assert.deepEqual(out, want[r], `cells all different say exactly where: ${label}`)
               }
@@ -80,4 +81,18 @@ test('A removes column 1 of an empty table; B has typed in column 2: B\'s word s
 
 test('B typing in column 2 of an empty table, A\'s removal of column 1 arrives: B\'s word stays', () => {
   assert.deepEqual(mergeCells3(['', ''], ['', 'word'], [''], rowsOf([['', ''], ['', '']]), rowsOf([[''], ['']])), ['word'])
+})
+
+test('my own column changes, several before a save and an empty table: each where I pressed it, merged onto their typing', () => {
+  const base = rowsOf([['', '', ''], ['', '', '']])
+  const step = (rows: unknown[], writes: unknown) => (writes as [[string, (now: unknown) => unknown[]]])[0][1](rows)
+  // Remove column 1, insert left of (the new) column 2, move column 1 to the end: every step leaves an empty table.
+  const m1 = step(base, removeColumn({rows: base}, 0, key))
+  const m2 = step(m1, addColumns({rows: m1}, 1, 1, key))
+  const m3 = step(m2, moveColumn({rows: m2}, 0, 2, key))
+  // They typed in columns 2 and 3 meanwhile: B1 B2 → (remove 1) B1 B2 → (insert) B1 _ B2 → (move) _ B2 B1.
+  assert.deepEqual(grid(mergeRows3(base, m3, rowsOf([['', 'B1', 'B2'], ['', '', '']]))), [['', 'B2', 'B1'], ['', '', '']])
+  // Rows that only look like mine (a copy, an undo): no note reaches base; between equal answers their typed word is kept.
+  const guessed = grid(mergeRows3(base, rowsOf([['', ''], ['', '']]), rowsOf([['', 'B1', ''], ['', '', '']])))
+  assert.ok(guessed.every((cells) => cells.length === 2) && guessed.flat().filter((v) => v === 'B1').length === 1, JSON.stringify(guessed))
 })

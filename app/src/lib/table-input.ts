@@ -148,9 +148,10 @@ const rowsWrite = (key: () => string, change: (rows: TableRow[]) => TableRow[], 
   [
     'rows',
     (now: unknown) => {
-      const [was, rows] = [rowsOf({rows: now}), withKeys(rowsOf({rows: now}), key)]
+      const rows = withKeys(rowsOf({rows: now}), key)
       const out = change(rows)
-      noteColumns(was, out, columns ? columns(rows) : same(widthOf(rows)))
+      // Noted against the very list it was made on: the one lib/edits.ts keeps as this write's base.
+      if (Array.isArray(now)) noteColumns(now, out, columns ? columns(rows) : same(widthOf(rows)))
       return out
     },
   ],

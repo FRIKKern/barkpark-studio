@@ -91,27 +91,21 @@ export const placeColumns = (from: unknown[], to: unknown[], kept?: (i: number) 
 
 // This editor's own column changes (lib/table-input.ts): which column it pressed is known, so
 // its rows, merged onto theirs, never guess. Each rows write notes how its columns map from
-// the rows it was made on; the merge walks from the rows it holds back to their base. A shape
-// (row keys and widths) names rows: typing does not change it, and the row keys are the table's.
-const shape = (rows: unknown[]) => rows.map((r) => `${keyOf(r)}:${cellsOf(r).length}`).join('|')
-const own = new Map<string, {from: string; map: number[]}>()
-export function noteColumns(before: unknown[], after: unknown[], map: number[]) {
-  const key = shape(after)
-  own.delete(key)
-  own.set(key, {from: shape(before), map})
-  if (own.size > 200) own.delete(own.keys().next().value!)
-}
+// the rows it was made on, by the lists themselves (lib/edits.ts keeps the very lists: the
+// base a write was made on, the pending rows, theirs a merge made them onto). The merge walks
+// from the rows it holds back to their base. Equal-looking tables never stand in for each
+// other (an empty table's columns all read alike): a walk that does not reach base says nothing.
+const own = new WeakMap<object, {from: object; map: number[]}>()
+export const noteColumns = (before: unknown[], after: unknown[], map: number[]) => void own.set(after, {from: before, map})
 /** How `base`'s columns map into `mine`, from this editor's own notes; undefined when the notes do not reach base. */
 export function ownColumns(base: unknown[], mine: unknown[]): number[] | undefined {
-  const [b, wb] = [shape(base), width(base)]
-  let at = shape(mine)
+  let at: object = mine
   let map: number[] | undefined
-  for (let step = 0; step < 16; step++) {
+  for (let step = 0; step < 64; step++) {
+    if (at === base) return map && map.length === width(base) ? map : undefined
     const note = own.get(at)
-    // As wide and as keyed as base with no note from base: no column of mine changed (an undo, typing).
-    if (!note || (step === 0 && at === b && note.from !== b)) return at === b && !map ? Array.from({length: wb}, (_, i) => i) : undefined
+    if (!note) return undefined
     map = map ? note.map.map((i) => (i < 0 ? -1 : (map![i] ?? -1))) : note.map
-    if (note.from === b) return map.length === wb ? map : undefined
     at = note.from
   }
   return undefined
@@ -192,6 +186,14 @@ export function mergeRows3(base: unknown[], mine: unknown[], theirs: unknown[]):
     const agree = (key: string, mv = at(cellsOf(mineBy.get(key)), k), tv = at(cellsOf(theirsBy.get(key)), next!.t)) => mv === tv || mv === '' || tv === ''
     if (next && next.b < 0 && next.m < 0 && shared.every((key) => agree(key))) next.m = k
     else slots.splice(left + 1, 0, {b: -1, m: k, t: -1})
+  }
+  // Only I moved columns (my map is known, theirs kept the order): they go in my order, a new
+  // column of theirs right after the column left of it in theirs.
+  const inOrder = (map: number[]) => map.filter((v) => v >= 0).every((v, i, kept) => i === 0 || kept[i - 1]! < v)
+  if (!inOrder(cm) && inOrder(ct)) {
+    const placed = slots.filter((s) => s.m >= 0).sort((x, y) => x.m - y.m)
+    for (const s of slots.filter((s) => s.m < 0)) placed.splice(placed.findIndex((p) => p.t === s.t - 1) + 1, 0, s)
+    slots.splice(0, slots.length, ...placed)
   }
   // The rows, in order.
   const order = (rows: unknown[], held: (k: string) => boolean) => rows.map((r) => keyOf(r)!).filter(held).join('\n')
