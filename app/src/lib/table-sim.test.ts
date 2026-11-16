@@ -318,6 +318,7 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
     if (alive && n + m === 0) bad.push(`LOST ${w.word}`)
     if (n + m > 1) bad.push(`DOUBLED ${w.word}`)
     if (m) soft.push('KEPT')
+    soft.push('TYPED')
     if (!alive && n > 0) soft.push('REVIVED') // its column or row was removed, the word stayed elsewhere
   }
   for (const c of [...flat, ...kept]) {
@@ -333,6 +334,7 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
       const at = idsAfter.indexOf(w.col)
       if (at > op.at && !got.some((cs) => cs[at]?.includes(w.word)) && flat.some((c) => c.includes(w.word))) bad.push(`INSERT-LEFT-WRONG-SIDE ${w.word}`)
     }
+  if (kept.length) soft.push('KEPT-SCENES')
   if (!bad.length && !kept.length && J(got) !== J(want)) soft.push('MISPLACED')
   return {bad, soft, name: `scene ${i}: ${R}x${C} ${kind} ${J(t0.rows.map((r) => r.cells))} op ${J(op)} P ${J(P)} T ${J(T)} -> ${J(got)}, meant ${J(want)}`}
 }
@@ -361,7 +363,7 @@ export function simulate(n: number, seeds = [1, 2, 3]) {
  * REVIVED (text kept, in another cell) are counted, not failed.
  */
 const SEEDS = Array.from({length: 10}, (_, i) => 1001 + i)
-const SOFT = ['MISPLACED', 'REVIVED', 'KEPT']
+const SOFT = ['MISPLACED', 'REVIVED', 'KEPT', 'KEPT-SCENES', 'TYPED']
 const CEILING: Record<string, number> = {'INSERT-LEFT-WRONG-SIDE': 2, LEFTOVER: 1}
 
 test('two editors, a column or row changed while both type: rows even, both agree, every word whole in one cell or on its typer\'s card', () => {
