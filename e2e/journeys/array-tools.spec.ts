@@ -3,22 +3,19 @@ import {BACKEND_POLL, closeAndSettle, signInIfAsked, target} from '../rig/target
 
 // J33 array power tools, as Sanity's: a long array folds after 4 items ("Show all N items"); the
 // nested item dialog's sidebar tree finds an item in another section and opens it, breadcrumbs
-// in step, in the Published view too, where nothing writes (a dialog, a paste, a body canvas);
-// the six-type insert menu searches as you type, filters by tab and shows a grid. Looking
-// writes nothing. On fieldTypes
-// (fixtures/barkpark-schema/fieldTypes.json): a dataset whose fieldTypes has no insertMenu yet
-// (the CI pool until reseeded with --schemas) skips the insert menu, the last part.
+// in step; the six-type insert menu searches as you type, filters by tab and shows a grid.
+// Looking writes nothing (a read-only view nothing at all: published-writes-nothing.spec.ts).
+// On fieldTypes (fixtures/barkpark-schema/fieldTypes.json): a dataset whose fieldTypes has no
+// insertMenu yet (the CI pool until reseeded with --schemas) skips the insert menu, the last part.
 const ID = `fieldTypes-arraytools-${Date.now().toString(36)}`
-const POST = `post-arraytools-${Date.now().toString(36)}`
-const para = (id: string, value: string) => ({id, type: 'paragraph', content: [{type: 'text', value}]})
 const sections = Array.from({length: 6}, (_, i) => ({_key: `s${i}`, title: `Section ${i + 1}`, items: [1, 2].map((j) => ({_key: `s${i}i${j}`, label: `Item ${i + 1}.${j}`}))}))
 
 test.beforeEach(({}, info) => test.skip(target(info).name === 'sanity', "ours: Sanity's is the reference"))
-test.afterEach(async ({page}, info) => (await closeAndSettle(page), await Promise.all([target(info).deleteDoc(ID, 'fieldTypes'), target(info).deleteDoc(POST, 'post')])))
+test.afterEach(async ({page}, info) => (await closeAndSettle(page), await target(info).deleteDoc(ID, 'fieldTypes')))
 
-test('J33 arrays: Show all N items; the dialog tree opens a nested item; the Published view writes nothing (dialog, paste, body); the insert menu filters, tabs and grids', async ({page}, info) => {
+test('J33 arrays: Show all N items; the dialog tree opens a nested item and writes nothing; the insert menu filters, tabs and grids', async ({page}, info) => {
   const t = target(info)
-  await Promise.all([t.draftOnly(ID, 'fieldTypes', {title: 'Array tools', sections}), t.draftOnly(POST, 'post', {title: 'Array tools body'}), t.prepare(page.context()), page.context().grantPermissions(['clipboard-read', 'clipboard-write'])])
+  await Promise.all([t.draftOnly(ID, 'fieldTypes', {title: 'Array tools', sections}), t.prepare(page.context())])
   await page.goto(t.docPath('fieldTypes', ID))
   await signInIfAsked(page)
   await t.settle(page)
@@ -43,40 +40,6 @@ test('J33 arrays: Show all N items; the dialog tree opens a nested item; the Pub
   await expect.poll(() => decodeURIComponent(page.url())).toContain('path=sections[_key=="s4"].items[_key=="s4i2"]')
   // Nothing was written by looking.
   await expect.poll(() => t.docValue(ID, 'sections', 'fieldTypes'), BACKEND_POLL).toEqual(sections)
-
-  // Read-only views write nothing, however they are reached (lib/form-lock.ts). First a copied
-  // `sections` field (Cmd/Ctrl+C on its Show all toggle), then a published version unlike it.
-  await page.goto(t.docPath('fieldTypes', ID))
-  await t.settle(page)
-  await field('sections').getByRole('button', {name: 'Show all 6 items'}).focus()
-  await page.keyboard.press('ControlOrMeta+c')
-  const published = sections.map((s, i) => (i ? s : {...s, title: 'Section 1, published'}))
-  await Promise.all([t.restore(ID, {title: 'Array tools', sections: published}, 'fieldTypes'), t.restore(POST, {title: 'Array tools body', body: {blocks: [para('p1', 'Published words.')]}}, 'post')])
-  // 1. Paste on "Show all" (a focusable span in the disabled form): refused.
-  await page.goto(`${t.docPath('fieldTypes', ID)}?perspective=published`)
-  await t.settle(page)
-  await field('sections').getByRole('button', {name: 'Show all 6 items'}).focus()
-  await page.keyboard.press('ControlOrMeta+v')
-  // 2. The item dialog (drawn outside the form's fieldset): the tree still finds an item; read-only.
-  await page.goto(`${t.docPath('fieldTypes', ID)},path=${encodeURIComponent('sections[_key=="s0"]')}?perspective=published`)
-  await t.settle(page)
-  const shown = page.getByRole('dialog').last()
-  if ((await shown.getByRole('button', {name: /sidebar/}).getAttribute('aria-expanded')) !== 'true') await shown.getByRole('button', {name: /sidebar/}).click()
-  await shown.getByRole('searchbox', {name: 'Search items'}).fill('6.1')
-  await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog').last().getByRole('navigation', {name: 'Breadcrumb'})).toHaveText(/#6 Section 6\s*\/\s*Items\s*\/\s*#1 Item 6\.1$/)
-  await expect.soft(page.getByRole('dialog').last().getByRole('textbox', {name: 'Label'})).toBeDisabled()
-  // 3. A post's body canvas: a click doesn't wake it to edit; typing goes nowhere.
-  await page.goto(`${t.docPath('post', POST)}?perspective=published`)
-  await t.settle(page)
-  await page.locator('[id="body"]').click()
-  await page.keyboard.type(' xyz')
-  await expect.soft(page.locator('[id="body"]')).toHaveAttribute('aria-readonly', 'true')
-  await expect.soft(page.locator('[id="body"] [contenteditable="true"]')).toHaveCount(0)
-  await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
-  // Soft, so a run on old code names each way that wrote: the paste (ID) and the body (POST).
-  expect.soft((await t.versions(ID)).draft, 'the paste wrote a draft').toBeUndefined()
-  expect.soft((await t.versions(POST)).draft, 'the body canvas wrote a draft').toBeUndefined()
 
   // The insert menu, last: it needs fixtures/barkpark-schema's insertMenu on the dataset.
   await page.goto(t.docPath('fieldTypes', ID))
