@@ -32,11 +32,24 @@ function pairs(a: unknown[], b: unknown[]): [unknown[], unknown[]][] {
 }
 
 /**
+ * How much two cells say they are one cell, before and after: the same text 3, text typed on
+ * at either end (the cell someone is typing in, read a moment apart) 2, both empty 1. Empty
+ * cells count least: in a table that is mostly empty they all agree with each other, and a
+ * word being typed is the one thing that says where its column went.
+ */
+function alike(a: unknown, b: unknown): number {
+  if (a === b) return a === '' ? 1 : 3
+  if (typeof a !== 'string' || typeof b !== 'string' || !a || !b) return 0
+  const [short, long] = a.length < b.length ? [a, b] : [b, a]
+  return long.startsWith(short) || long.endsWith(short) ? 2 : 0
+}
+
+/**
  * Where each of `from`'s columns sits among `to`'s (-1: removed), read from rows both hold
  * (`rows`: their cells before and after). Columns were added or removed, never both at once:
  * with as many columns as before each stays where it was. The places are the ones under
- * which the most cells still read the same; between equal answers (a column added beside an
- * empty one) the new column is the later one.
+ * which the most cells still read alike (`alike`); between equal answers (a column added
+ * beside an empty one) the new column is the later one.
  */
 export function alignColumns(rows: [from: unknown[], to: unknown[]][], from: number, to: number): number[] {
   if (from === to) return Array.from({length: from}, (_, i) => i)
@@ -48,7 +61,7 @@ export function alignColumns(rows: [from: unknown[], to: unknown[]][], from: num
     return out
   }
   if (!rows.length) return Array.from({length: from}, (_, i) => i)
-  const same = (i: number, j: number) => rows.reduce((n, [a, b]) => n + (at(a, i) === at(b, j) ? 1 : 0), 0)
+  const same = (i: number, j: number) => rows.reduce((n, [a, b]) => n + alike(at(a, i), at(b, j)), 0)
   // best[i][j]: the most cells that agree with the first i columns placed among the first j.
   const extra = to - from
   const best: number[][] = Array.from({length: from + 1}, () => new Array<number>(to + 1).fill(-1))

@@ -101,6 +101,19 @@ test('which column became which is read from all the rows; beside an equal colum
   assert.deepEqual(alignColumns([[['a', 'b', 'c'], ['a', 'c']]], 3, 2), [0, -1, 1])
 })
 
+test('a mostly empty table: the word being typed says where its column went, not the empty cells around it', () => {
+  // B types in row 1, column 2 of a fresh 2 x 3 table; A puts a column left of it. B's grid a
+  // moment apart: B's own text has run on since, every other cell is empty. The caret (and
+  // the rest of the word) goes with the word, not into A's new column.
+  assert.deepEqual(alignColumns([[['', 'word typ', ''], ['', '', 'word typed by', '']], [['', '', ''], ['', '', '', '']]], 3, 4), [0, 2, 3])
+  // And the other way round: a column left of it removed.
+  assert.deepEqual(alignColumns([[['', '', 'word typ'], ['', 'word typed by']], [['', '', ''], ['', '']]], 3, 2), [0, -1, 1])
+  // B's unsaved run of the word, onto A's column, read from the rows as the server had them and has them now.
+  const before = [row('a', '', 'word typ', ''), row('b', '', '', '')]
+  const after = [row('a', '', '', 'word typ', ''), row('b', '', '', '', '')]
+  assert.deepEqual(mergeCells3(['', 'word typ', ''], ['', 'word typed by B', ''], ['', '', 'word typ', ''], before, after), ['', '', 'word typed by B', ''])
+})
+
 test('two editors in one row: each cell stays in its own column, empty neighbours or not', () => {
   // The list merge of other fields matches unkeyed items by value: among empty cells it moved the word a column.
   assert.deepEqual(mergeCells3(['', '', ''], ['', 'mine', ''], ['theirs', '', '']), ['theirs', 'mine', ''])
