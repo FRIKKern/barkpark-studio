@@ -224,3 +224,13 @@ test('caret follow: a removed column that reads like its neighbour is read as go
   // An added column: the caret goes on in its own.
   assert.equal(caretColumn(distinct.map((r): [string[], string[]] => [r, ['', ...r]]), 3, 4, 1), 2)
 })
+
+test('caret follow, alike either way: the caret goes on in its own text where that stands in its row now, else it is gone', () => {
+  // 2 × 2 alike, column 0 removed; my word in row 1 column 1, its first keys saved (or all of it).
+  const rows = (now1: string): [string[], string[]][] => [[['x', 'x<T5>'], ['x']], [['x<', 'x<U5>'], [now1]]]
+  assert.equal(caretColumn(rows('x<U5>'), 2, 1, 1, 1), 0)
+  assert.equal(caretColumn(rows('x<U'), 2, 1, 1, 1), 0)
+  assert.equal(caretColumn(rows('x'), 2, 1, 1, 1), -1)
+  // Nothing typed: an alike text is no one's own; read as gone, not followed.
+  assert.equal(caretColumn([[['x', 'x'], ['x']]], 2, 1, 1, 0), -1)
+})

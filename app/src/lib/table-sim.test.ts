@@ -159,7 +159,8 @@ class Client {
     if (was && settled && was.columns !== grid.columns && held.width !== grid.columns) {
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
       const own = (k: string, cells: string[]) => (k === held.key ? cells.map((c, i) => (i === held.column ? this.local : c)) : cells)
-      const to = caretColumn(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, column)
+      const both = was.rows.filter(([k]) => now.has(k))
+      const to = caretColumn(both.map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, column, both.findIndex(([k]) => k === held.key))
       if (to !== undefined && to < 0) return this.lose(held)
       column = to ?? Math.min(column, grid.columns - 1)
     }

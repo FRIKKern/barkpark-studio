@@ -254,7 +254,8 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
       // The caret's own cell as its input holds it: a word typed since the last drawing says where its column went.
       const own = (k: string, cells: string[]) => (k === held.key && held.text !== undefined ? cells.map((c, i) => (i === held.column ? held.text! : c)) : cells)
-      const to = caretColumn(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, column)
+      const both = was.rows.filter(([k]) => now.has(k))
+      const to = caretColumn(both.map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, column, both.findIndex(([k]) => k === held.key))
       if (to !== undefined && to < 0) {
         // Its column was removed: the caret leaves with its cells, as with a removed row (what was typed there, onto the card).
         if (card.lose(held)) return void (caret.current = null)

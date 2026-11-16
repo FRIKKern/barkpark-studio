@@ -68,11 +68,12 @@ test('rows set whole (my row or column change) and theirs changed a cell I chang
   assert.deepEqual(kept, [['a', 0, 'x 1']])
 })
 
-test('a saved text another cell of the row could have become by typing on is not followed there: kept', () => {
-  // Mine: 'x<' saved in column 1, typing on. Theirs removed column 1 and typed '<' after column 0's 'x'.
-  const before = doc([['a', ['x', 'x<']]])
-  const e = spots([['t.rows[_key=="a"].cells', ['x', 'x<T3']]], [['t.rows[_key=="a"].cells', ['x', 'x<']]])
-  keepOnShapeChange(e, doc([['a', ['x<']]], 'r2'), before)
+test('a saved text the table says went with its column is not followed into the cell theirs typed on to read the same: kept', () => {
+  // Mine: 'x<' saved in row c column 1, typing on. Theirs removed column 1 (the other rows say so)
+  // and typed '<' after column 0's 'x'.
+  const before = doc([['a', ['y', 'x']], ['b', ['x', '']], ['c', ['x', 'x<']]])
+  const e = spots([['t.rows[_key=="c"].cells', ['x', 'x<T3']]], [['t.rows[_key=="c"].cells', ['x', 'x<']]])
+  keepOnShapeChange(e, doc([['a', ['y']], ['b', ['x']], ['c', ['x<']]], 'r2'), before)
   assert.deepEqual(e.kept?.map((k) => k.text), ['x<T3'])
   assert.equal(e.dirty.size, 0)
 })
