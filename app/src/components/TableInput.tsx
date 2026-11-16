@@ -203,17 +203,24 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   const focusHeaderRow = (index: number) => header('row', index)?.focus()
 
   // The caret follows its cell. A column another editor put before it (or took away) moves the
-  // cell this editor is in: read from the last drawing to this one, each row padded to the
-  // widest, so a row left short (an import's, or one of this editor's on its way) moves too.
+  // cell this editor is in: read from the last drawing in which every row was as wide as the
+  // table (a row of this editor's still on its way to be saved is the old width until then,
+  // and a drawing of that moment would say the caret's column stayed). A table drawn uneven
+  // from the start (an import's short row) is read from its first drawing, and from each one
+  // after with the same row widths, until a column change makes it even.
   // A row or column another editor removed takes its cells with it: the caret then rests on the grid, in
   // no cell, so the next keys do not land in a neighbour's text (the form would hand the focus
   // to the nearest control: lib/focus-rescue.ts).
-  const drawnGrid = useRef<{rows: [string, string[]][]; columns: number} | null>(null)
+  const drawnGrid = useRef<{rows: [string, string[]][]; columns: number; widths: string} | null>(null)
   const caret = useRef<{key: string; column: number; el: HTMLInputElement; at: [number, number]} | null>(null)
   if (caret.current?.el.isConnected && typeof document !== 'undefined' && document.activeElement === caret.current.el) caret.current.at = [caret.current.el.selectionStart ?? 0, caret.current.el.selectionEnd ?? 0]
   useLayoutEffect(() => {
     const was = drawnGrid.current
-    drawnGrid.current = {rows: grid.rows.map((r) => [r.key, r.cells]), columns: grid.columns}
+    const stored = (value as {rows?: unknown} | undefined)?.rows
+    const widths = (Array.isArray(stored) ? stored : []).map((r) => (Array.isArray((r as {cells?: unknown})?.cells) ? (r as {cells: unknown[]}).cells.length : 0)).join()
+    const isEven = widths.split(',').every((w) => Number(w) === grid.columns)
+    const settled = isEven || !was || was.widths === widths
+    if (settled) drawnGrid.current = {rows: grid.rows.map((r) => [r.key, r.cells]), columns: grid.columns, widths}
     const held = caret.current
     if (!held) return
     // Moved on by hand (a click elsewhere, Tab out): nothing to follow.
@@ -225,7 +232,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       return
     }
     let column = held.column
-    if (was && was.columns !== grid.columns) {
+    if (was && settled && was.columns !== grid.columns) {
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
       const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [cells, now.get(k)!]), was.columns, grid.columns)[column]
       if (to !== undefined && to < 0) {
