@@ -197,6 +197,18 @@ const indexOfKey = (rows: TableRow[], k: string | undefined, otherwise: number) 
   const at = k === undefined ? -1 : rows.findIndex((r) => r._key === k)
   return at < 0 ? otherwise : at
 }
+/**
+ * Where the caret's column went when the grid's width changed (TableInput's caret follow): its
+ * column now, -1 when it was removed, undefined past the last. Columns removed and the cells
+ * read the same whichever went (two columns alike, a word's first keys): the caret's cell is read
+ * as gone (its text to the card), never followed into a neighbour the other editor may type in.
+ */
+export function caretColumn(rows: [string[], string[]][], from: number, to: number, column: number): number | undefined {
+  const kept = alignColumns(rows, from, to, (i) => i === column)[column]
+  if (from <= to || kept === undefined || kept < 0) return kept
+  return alignColumns(rows, from, to, (i) => i !== column)[column] === kept ? kept : -1
+}
+
 /** The key of drawn row `at`, where its rows have keys: what names the row in the rows as they are now. */
 const keyAt = (value: unknown, at: number) => (keyed(rowsOf(value)) ? rowsOf(value)[at]?._key : undefined)
 

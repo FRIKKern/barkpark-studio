@@ -1,6 +1,6 @@
 // Two editors on one @sanity/table field, through the save queue (after the round-4 reviewer's
 // simulation of PR #1260). Real code: rebase, takeBase, answered, unsent and sentNotesOf
-// (lib/edit-bases.ts), every TableWrite (lib/table-input.ts), the caret follow's alignColumns.
+// (lib/edit-bases.ts), every TableWrite (lib/table-input.ts), the caret follow (caretColumn).
 // lib/edits.ts's edit() and send() around them are copied here as they are (it is not
 // importable in a unit test), and so is Barkpark's field fence: a write on a stale rev passes
 // when the fields it writes are unchanged since. Random interleavings of keys, the press,
@@ -11,9 +11,8 @@ import assert from 'node:assert/strict'
 import {answered, rebase, sentNotesOf, takeBase, unsent, type Spots} from './edit-bases.ts'
 import {applyPaths, getPath, setInside, setPath, within} from './paths.ts'
 import {mapCaret} from './merge.ts'
-import {alignColumns} from './table-merge.ts'
 import {addKept} from './table-keep.ts'
-import {addColumns, addRows, removeColumn, removeRow, setCell, tableGrid} from './table-input.ts'
+import {addColumns, addRows, caretColumn, removeColumn, removeRow, setCell, tableGrid} from './table-input.ts'
 
 const J = JSON.stringify
 const clone = <T,>(v: T): T => JSON.parse(J(v))
@@ -160,7 +159,7 @@ class Client {
     if (was && settled && was.columns !== grid.columns && held.width !== grid.columns) {
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
       const own = (k: string, cells: string[]) => (k === held.key ? cells.map((c, i) => (i === held.column ? this.local : c)) : cells)
-      const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, (i) => i === column)[column]
+      const to = caretColumn(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, column)
       if (to !== undefined && to < 0) return this.lose(held)
       column = to ?? Math.min(column, grid.columns - 1)
     }

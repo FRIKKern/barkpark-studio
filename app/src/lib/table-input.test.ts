@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {addColumns, addRows, createTable, isTableField, isTableValue, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, setCell, tableBlank, tableGrid, tableOptions, tablePreview, withWrites} from './table-input.ts'
+import {addColumns, addRows, caretColumn, createTable, isTableField, isTableValue, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, setCell, tableBlank, tableGrid, tableOptions, tablePreview, withWrites} from './table-input.ts'
 import {alignColumns, mergeCells3, mergeRows3, mergeTablePart} from './table-merge.ts'
 import {tableDiff} from './table-diff.ts'
 
@@ -208,4 +208,19 @@ test('a Portable Text table (keyed cells of blocks) is not ours to merge: its ro
   assert.equal(mergeTablePart('body[_key=="t"].rows[_key=="r1"].cells', [...r1], [r1[0]], added, doc(rows), doc(now)), null)
   // Nor a preview's table.
   assert.equal(isTableValue({_type: 'table', rows}), false)
+})
+
+test('caret follow: a removed column that reads like its neighbour is read as gone, never followed into the neighbour', () => {
+  // 3 × 3, the first two columns alike; the other editor removed column 0, my caret was in it (row 0).
+  const was = [['x', 'x', ''], ['x', 'x', 'x'], ['', '', '']]
+  const now = [['x', ''], ['x', 'x'], ['', '']]
+  const rows = was.map((r, i): [string[], string[]] => [r, now[i]!])
+  assert.equal(caretColumn(rows, 3, 2, 0), -1)
+  assert.equal(caretColumn(rows, 3, 2, 1), -1)
+  // The cells say which went: the caret follows.
+  const distinct = [['ae', 'af', 'ag'], ['be', 'bf', 'bg']]
+  const after = distinct.map((r): [string[], string[]] => [r, [r[0]!, r[2]!]])
+  assert.deepEqual([0, 1, 2].map((c) => caretColumn(after, 3, 2, c)), [0, -1, 1])
+  // An added column: the caret goes on in its own.
+  assert.equal(caretColumn(distinct.map((r): [string[], string[]] => [r, ['', ...r]]), 3, 4, 1), 2)
 })

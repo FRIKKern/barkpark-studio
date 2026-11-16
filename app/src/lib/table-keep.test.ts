@@ -67,3 +67,12 @@ test('rows set whole (my row or column change) and theirs changed a cell I chang
   assert.deepEqual((mergeRows3([row('a', ['x'])], [row('a', ['x 1'])], [row('a', ['x 2'])], undefined, (...k) => kept.push(k)) as {cells: string[]}[])[0]!.cells, ['x 2'])
   assert.deepEqual(kept, [['a', 0, 'x 1']])
 })
+
+test('a saved text another cell of the row could have become by typing on is not followed there: kept', () => {
+  // Mine: 'x<' saved in column 1, typing on. Theirs removed column 1 and typed '<' after column 0's 'x'.
+  const before = doc([['a', ['x', 'x<']]])
+  const e = spots([['t.rows[_key=="a"].cells', ['x', 'x<T3']]], [['t.rows[_key=="a"].cells', ['x', 'x<']]])
+  keepOnShapeChange(e, doc([['a', ['x<']]], 'r2'), before)
+  assert.deepEqual(e.kept?.map((k) => k.text), ['x<T3'])
+  assert.equal(e.dirty.size, 0)
+})

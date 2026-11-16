@@ -78,10 +78,12 @@ export function keepOnShapeChange(e: Pending, d: unknown, before: unknown) {
     if (!changes.length) continue
     const rows = now.rows as unknown[]
     // Columns added or removed move a cell by at most their count: its saved text is looked for
-    // there only, and only where no other cell of the row with that text could have gone.
+    // there only, and only where no other cell of the row with that text could have gone (nor
+    // one whose text theirs typed on to read as mine: 'x' and 'x<').
     const shift = width(rows) - width(was.rows as unknown[])
     const near = (from: number, j: number) => from >= 0 && j >= Math.min(from, from + shift) && j <= Math.max(from, from + shift)
-    const only = (c: Change, j: number) => near(c.from, j) && c.was.every((v, i) => i === c.from || v !== c.base || !near(i, j))
+    const could = (v: unknown, base: unknown) => v === base || (typeof v === 'string' && v !== '' && typeof base === 'string' && base.startsWith(v))
+    const only = (c: Change, j: number) => near(c.from, j) && c.was.every((v, i) => i === c.from || !could(v, c.base) || !near(i, j))
     const placed = new Map<string, unknown[]>()
     for (const c of changes) {
       const r = rowBy(rows, c.row)
