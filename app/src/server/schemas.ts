@@ -8,7 +8,7 @@ import {bpFetch, dataset, contentModelToken, serviceToken} from './barkpark'
 import {loginSessionMode, signOut} from './auth'
 import {ACCOUNT_SESSION_LOST} from '../lib/content-model-credential'
 import ICONS from '../lib/desk-icons.json'
-import {withIconBodies} from '../lib/desk-icon-bodies'
+import {withIconBodies, withOptionIconBodies} from '../lib/desk-icon-bodies'
 import {deskId, servesDesk, structurePath} from '../lib/desk-id'
 
 /** This deployment's desk document (STUDIO_DESK_ID, lib/desk-id.ts). An invalid id fails every read here, with the reason. */
@@ -111,6 +111,9 @@ export async function readRest(): Promise<unknown[]> {
  * desk's icons come (lib/desk-icon-bodies.ts). A row with no media draws it, as Sanity draws
  * the type's icon (components/Preview.tsx). No icon, no keys.
  */
+/** A schema's fields with their select options' icons drawn the same way (an insert menu's member types). */
+export const fieldIcons = <T,>(fields: T): T => withOptionIconBodies(fields, ICONS)
+
 export const schemaIcon = (icon: unknown): {icon?: string; iconSvg?: string} => (typeof icon === 'string' && icon ? (withIconBodies({icon}, ICONS) as {icon: string; iconSvg?: string}) : {})
 
 /**

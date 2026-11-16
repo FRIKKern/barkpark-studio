@@ -3,7 +3,7 @@ import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
 import {bpFetch, dataset, requestToken} from '../server/barkpark'
 import {resumeMark} from '../server/listen'
-import {readDesk, readRest, readSchemas, schemaIcon, STUDIO_TYPES} from '../server/schemas'
+import {fieldIcons, readDesk, readRest, readSchemas, schemaIcon, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
 import {paneRetry} from './connection'
 import {collate, translate, type T} from './i18n'
@@ -118,7 +118,7 @@ const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
     .map(({name, title, icon, fields, listPreview, list_preview, groups, fieldsets, initialValues, initial_values, desk, singleton, layout, prefill, kind}) => ({
       name, title,
       // Document translations (desk.translations): the languages, and the language field kept out of the form.
-      ...translatedFields(fields as {name: string}[], desk),
+      ...translatedFields(fieldIcons(fields) as {name: string}[], desk),
       // The type's icon: a row with no media draws it, as Sanity's do.
       ...schemaIcon(icon),
       // "object": a named composite other schemas embed (a page-builder section); it owns

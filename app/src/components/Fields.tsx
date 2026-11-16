@@ -580,7 +580,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         return (field.options as {layout?: string} | undefined)?.layout === 'tags' ? (
           <TagsInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
         ) : (
-          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
+          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} options={field.options} />
         )
       if (field.of?.type === 'composite' || field.of?.type === 'image') return <ObjectArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       return (
@@ -962,7 +962,7 @@ export function RichText({id, value}: {id: string; value: unknown}) {
  * with a body costs nothing extra (no canvas bundle, no block reads), and a remote
  * edit to the body just redraws.
  */
-function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field: string; title: string; value: unknown; vocabulary?: unknown; readOnly?: boolean; openRef: OpenRef}) {
+function BodyCanvas({field, title, value, vocabulary, readOnly: ownReadOnly, openRef}: {field: string; title: string; value: unknown; vocabulary?: unknown; readOnly?: boolean; openRef: OpenRef}) {
   const t = useT()
   const id = useContext(DocIdContext)
   const type = useContext(DocTypeContext)
@@ -971,8 +971,10 @@ function BodyCanvas({field, title, value, vocabulary, readOnly, openRef}: {field
   const qc = useQueryClient()
   const navigate = usePaneNavigate()
   const openDoc = useCallback((docId: string, docType: string) => void navigate({href: openRef(docType, docId, '').href}), [navigate, openRef])
-  // A body that can't be edited (read-only, or a shut form) follows its internal links itself.
-  const linksOpen = useContext(FormDisabledContext) || !!readOnly
+  // A body that can't be edited (read-only, or a shut form: Published, a revision) stays as it
+  // is: no wake to edit, no toolbar, the canvas not editable; it follows its internal links itself.
+  const readOnly = useContext(FormDisabledContext) || !!ownReadOnly
+  const linksOpen = readOnly
   const follow = (docId: string) =>
     void qc.fetchQuery(anyDocQuery(docId)).then((doc) => (doc ? openDoc(docId, doc._type) : toast({tone: 'critical', title: t('This link points to a document that does not exist'), description: docId})))
   const [active, setActive] = useState(false)
