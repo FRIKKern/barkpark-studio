@@ -11,39 +11,53 @@ export type KeptText = TableKept & {id: string}
 const KEY = 'bp-table-kept:'
 const EMPTY: KeptText[] = []
 let scope: string | null = null
-const byDoc = new Map<string, KeptText[]>()
+// Each read goes to localStorage again (another tab of mine may have written meanwhile): a write
+// is read, change, save, so one tab's keep or Dismiss never writes back the other's stale list.
+// The parsed list is cached by its stored string only, so a drawing reads one stable list.
+const cache = new Map<string, {raw: string | null; list: KeptText[]}>()
+const memory = new Map<string, KeptText[]>() // no scope, or no storage: kept on screen only
 const listeners = new Set<() => void>()
 const keyOf = (doc: string) => scope && `${KEY}${scope}|${doc}`
+const tell = () => listeners.forEach((l) => l())
+if (typeof window !== 'undefined') window.addEventListener('storage', (e) => (!e.key || e.key.startsWith(KEY)) && tell())
 
 function read(doc: string): KeptText[] {
-  let list = byDoc.get(doc)
-  if (list) return list
+  const key = keyOf(doc)
+  let raw: string | null
   try {
-    const key = keyOf(doc)
-    const stored: unknown = key ? JSON.parse(localStorage.getItem(key) ?? '[]') : []
-    list = Array.isArray(stored) ? stored.filter((k): k is KeptText => !!k && typeof k.text === 'string' && typeof k.row === 'string' && typeof k.id === 'string') : []
+    if (!key) throw new Error('no scope')
+    raw = localStorage.getItem(key)
   } catch {
-    list = [] // private mode, or blocked: kept on screen only
+    return memory.get(doc) ?? EMPTY
   }
-  byDoc.set(doc, list)
+  const was = cache.get(doc)
+  if (was && was.raw === raw) return was.list
+  let list: KeptText[] = []
+  try {
+    const stored: unknown = JSON.parse(raw ?? '[]')
+    if (Array.isArray(stored)) list = stored.filter((k): k is KeptText => !!k && typeof k.text === 'string' && typeof k.row === 'string' && typeof k.id === 'string')
+  } catch {}
+  cache.set(doc, {raw, list})
   return list
 }
 
 function save(doc: string, list: KeptText[]) {
-  byDoc.set(doc, list)
+  const key = keyOf(doc)
   try {
-    const key = keyOf(doc)
-    if (key) list.length ? localStorage.setItem(key, JSON.stringify(list)) : localStorage.removeItem(key)
-  } catch {}
-  listeners.forEach((l) => l())
+    if (!key) throw new Error('no scope')
+    list.length ? localStorage.setItem(key, JSON.stringify(list)) : localStorage.removeItem(key)
+  } catch {
+    memory.set(doc, list)
+  }
+  tell()
 }
 
 /** Where kept text is stored (set with the edits' keep scope); another scope reads its own. */
 export function setTableKeptScope(next: string | null) {
   if (next === scope) return
   scope = next
-  byDoc.clear()
-  listeners.forEach((l) => l())
+  cache.clear()
+  tell()
 }
 
 /** After a rebase (lib/edits.ts): the text it kept moves here, one entry per cell (a later keep of the same cell grows it). */
