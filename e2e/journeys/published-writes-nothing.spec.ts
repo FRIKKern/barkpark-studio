@@ -40,8 +40,8 @@ test('the Published view writes nothing: a paste on Show all, an array item dial
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  // The paste on "Show all", focusable in the locked form: refused.
-  await sectionsField.getByRole('button', {name: 'Show all 6 items'}).focus()
+  // The paste on the fold toggle (open here: the dialog's item is past the fold), focusable in the locked form: refused.
+  await sectionsField.getByRole('button', {name: 'Show fewer items'}).focus()
   await page.keyboard.press('ControlOrMeta+v')
 
   // A post's body canvas in the Published view: a click doesn't wake it; typing goes nowhere.
