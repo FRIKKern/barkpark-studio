@@ -3,7 +3,8 @@ import {bpMutate, signInIfAsked, target, bpRemove, closeAndSettle} from '../rig/
 
 // Save fault sweep (task-2f360f9920e578b1): a write whose answer is lost on a live connection
 // (a reset mid-request; the server's e2e lever) says "Not saved — retrying", not "Offline", and
-// what was typed is stored once it goes again. A scratch post, deleted after.
+// what was typed is stored once it goes again. A scratch post, deleted after. A 413:
+// save-faults-413.spec; no footer flip per key: save-faults-flip.spec.
 test('a save whose answer is lost says retrying, not offline, and lands once', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the lever is our server')
@@ -28,38 +29,6 @@ test('a save whose answer is lost says retrying, not offline, and lands once', a
   }
 })
 
-
-// A save refused as too large (413) stops: it says why, keeps the text, sends nothing more on
-// its own, and goes again on Retry (it retried every 2 s, saying only "retrying").
-test('a save refused as too large says why, stops, and goes again on Retry', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name === 'sanity', 'the lever is our server')
-  const id = `post-413-${Date.now().toString(36)}`
-  await bpMutate([{createOrReplace: {_id: id, _type: 'post', title: 'Big'}}])
-  const fault = (kind: string, more: Record<string, unknown> = {}) => page.request.post('/api/e2e-listen', {data: {action: 'write-fault', id, kind, ...more}})
-  try {
-    await t.prepare(page.context())
-    await page.goto(t.docPath('post', id))
-    await signInIfAsked(page)
-    await t.settle(page)
-    await fault('413', {count: 1})
-    let sent = 0
-    page.on('request', (r) => r.method() === 'POST' && r.url().includes('_serverFn') && (r.postData() ?? '').includes(id) && sent++)
-    await t.field(page, 'title').fill('Big typed')
-    const footer = page.locator('.doc-footer')
-    await expect(footer).toContainText('This document is too large to save. Remove some content.')
-    const tries = sent
-    await page.waitForTimeout(2200) // it retried every 2 s before
-    expect(sent, 'nothing more sent on its own').toBe(tries)
-    await expect(t.field(page, 'title')).toHaveValue('Big typed')
-    await footer.getByRole('button', {name: 'Retry'}).click()
-    await expect.poll(() => t.docValue(id, 'title'), {timeout: 5_000}).toBe('Big typed')
-  } finally {
-    await fault('none').catch(() => {})
-    await closeAndSettle(page)
-    await bpRemove(id, 'post')
-  }
-})
 
 // The whole sweep, longer (@local): 500s for 15 s, saves hanging 10 s, a storm of twenty 412s,
 // three lost answers, one 413, and 500s with a reload in the middle. Typing goes on through
@@ -120,42 +89,6 @@ test('@local five save faults and a reload mid-fault: every key stored exactly o
   } finally {
     await fault('none').catch(() => {})
     await closeAndSettle(page)
-    await bpRemove(id, 'post')
-  }
-})
-
-// task-9f604a45835a45e3: with saves failing, each key flipped the footer Saving → "Not saved —
-// retrying" and back (and Publish's disabled with it): about 5x the style work per key on a long
-// doc. Now the state holds until a save lands. Every POST is cut and the close-tab beacon (which
-// a route doesn't see) is stubbed out; a scratch post, deleted after.
-test('saves failing: typing on leaves "Not saved — retrying" as it is, no flip per key', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name === 'sanity', 'our footer')
-  const id = `post-flip-${Date.now().toString(36)}`
-  await bpMutate([{createOrReplace: {_id: id, _type: 'post', title: 'Flip'}}])
-  try {
-    await t.prepare(page.context())
-    await page.route('**/*', (r) => (r.request().method() === 'POST' ? r.abort() : r.continue()))
-    await page.goto(t.docPath('post', id))
-    await signInIfAsked(page)
-    await t.settle(page)
-    const status = page.locator('.doc-footer .save-state').first()
-    await t.field(page, 'title').click()
-    await page.keyboard.press('End')
-    await page.keyboard.type(' x')
-    await expect(status).toHaveAttribute('data-state', 'error')
-    await page.evaluate(() => {
-      const seen = {n: 0}
-      new MutationObserver((ms) => (seen.n += ms.length)).observe(document.querySelector('.doc-footer .save-state')!, {attributes: true, attributeFilter: ['data-state']})
-      Object.assign(window, {__flips: seen})
-    })
-    for (const c of 'abcdefgh') (await page.keyboard.type(c), await page.waitForTimeout(80))
-    await page.waitForTimeout(300)
-    expect(await page.evaluate(() => (window as unknown as {__flips: {n: number}}).__flips.n)).toBe(0)
-    await expect(status).toHaveAttribute('data-state', 'error')
-  } finally {
-    await page.evaluate(() => Object.assign(navigator, {sendBeacon: () => true})).catch(() => {})
-    await page.close()
     await bpRemove(id, 'post')
   }
 })
