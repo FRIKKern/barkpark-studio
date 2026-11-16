@@ -1,48 +1,16 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '../rig/test'
-import {bpBase, bpDataset, bpMutate, closeAndSettle, savesLanded, target} from '../rig/targets'
+import {bpMutate, closeAndSettle, savesLanded, target} from '../rig/targets'
+import {BODY, field, openBody, readDoc, selectWarm} from '../rig/portable-text'
 
 // S4a (task-7f77f41c95cc6d9f): a rich text field holding Portable Text edits in place
-// with @portabletext/editor. Opening and closing it writes nothing; one word edited
-// changes that span only, every _key kept; custom blocks, inline objects, unknown marks
-// and markDefs come back byte for byte; discarding the draft leaves the published doc
-// as it was. Made-up content (the repo is public).
+// with @portabletext/editor. Opening and closing it writes nothing; custom blocks, inline
+// objects, unknown marks and markDefs come back byte for byte. One word edited and the
+// draft discarded: portable-text-edit.spec (split for CI's shards, task-c1df532bed870536).
+// The body and the steps both take: rig/portable-text.ts.
 const ID = `post-pt-${Date.now().toString(36)}`
-const BODY = [
-  {_key: 'p1', _type: 'block', style: 'normal', markDefs: [], children: [{_key: 'p1s1', _type: 'span', marks: [], text: 'Brew the tea with warm water.'}]},
-  {
-    _key: 'p2',
-    _type: 'block',
-    style: 'normal',
-    markDefs: [{_key: 'lk1', _type: 'internalLink', reference: {_ref: 'page-kettle', _type: 'reference'}, extra: {deep: [1, 2]}}],
-    children: [
-      {_key: 'p2s1', _type: 'span', marks: ['strong'], text: 'Steep it for '},
-      {_key: 'p2s2', _type: 'span', marks: ['lk1', 'glowMark'], text: 'three minutes'},
-      {_key: 'p2i1', _type: 'teaChip', label: 'Green', tint: 4},
-      {_key: 'p2s3', _type: 'span', marks: [], text: ' at most.'},
-    ],
-  },
-  {_key: 'c1', _type: 'kettleCallout', tone: 'warm', nested: {list: [1, 2, {deep: 'yes'}]}},
-  {_key: 'p3', _type: 'block', style: 'h2', markDefs: [], children: [{_key: 'p3s1', _type: 'span', marks: [], text: 'Cups'}]},
-  {_key: 'p4', _type: 'block', style: 'normal', listItem: 'bullet', level: 1, markDefs: [], children: [{_key: 'p4s1', _type: 'span', marks: ['em'], text: 'Pour slowly'}]},
-  // S4b: a declared annotation with no declared fields; the dialog reads them off this markDef.
-  {
-    _key: 'p5',
-    _type: 'block',
-    style: 'normal',
-    markDefs: [{_key: 'wk1', _type: 'wikilink', author: {_ref: 'author-ada', _type: 'reference'}, shelf: {row: 2}}],
-    children: [
-      {_key: 'p5s1', _type: 'span', marks: [], text: 'Ask '},
-      {_key: 'p5s2', _type: 'span', marks: ['wk1'], text: 'the tea maker'},
-    ],
-  },
-]
-
-type Doc = {_rev: string; _updatedAt?: string; body?: unknown}
-const read = async (perspective: 'drafts' | 'published'): Promise<Doc | undefined> => {
-  const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${ID}?perspective=${perspective}`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
-  return r.ok ? ((await r.json()) as {result: Doc}).result : undefined
-}
+const read = (perspective: 'drafts' | 'published') => readDoc(ID, perspective)
+const open = (page: import('@playwright/test').Page, info: import('@playwright/test').TestInfo) => openBody(page, info, ID)
 
 test.setTimeout(45_000)
 test.beforeEach(async ({}, info) => {
@@ -51,18 +19,6 @@ test.beforeEach(async ({}, info) => {
 })
 test.afterEach(async ({page}) => (await closeAndSettle(page), await bpMutate([{delete: {id: ID, type: 'post', force: true}}]).catch(() => {})))
 
-async function open(page: import('@playwright/test').Page, info: import('@playwright/test').TestInfo) {
-  const t = target(info)
-  await page.goto(t.docPath('post', ID))
-  await t.settle(page)
-  await page.getByRole('tab', {name: 'All fields'}).click()
-  const editor = page.locator('[id="body"][contenteditable="true"]')
-  await expect(editor).toContainText('Brew the tea with warm water.')
-  // The editor has read the value (its 'ready'): a click before that places no caret.
-  await field(page).and(page.locator('[data-ready]')).waitFor()
-  return editor
-}
-
 /** A named insert button, or its Show more item where the bar folds it away (as Sanity's does). */
 async function insert(page: import('@playwright/test').Page, title: string, kind: 'block' | 'inline') {
   const button = field(page).getByRole('button', {name: `Insert ${title} (${kind})`})
@@ -70,22 +26,6 @@ async function insert(page: import('@playwright/test').Page, title: string, kind
   await field(page).getByRole('button', {name: 'Show more'}).click()
   await page.getByRole('menuitem', {name: title, exact: true}).click()
 }
-
-/**
- * "warm" selected by a double click, as a person does. The editor focused first and seen to
- * have read the caret (the style button names its block's style): a double click as the
- * editor first takes focus could be split by that render and select nothing (CI flaked once).
- */
-async function selectWarm(page: import('@playwright/test').Page, editor: import('@playwright/test').Locator) {
-  const text = editor.getByText('Brew the tea with warm water.')
-  await text.click({position: {x: 135, y: 8}})
-  await expect(field(page).locator('.body-style')).toHaveText('Normal')
-  await text.dblclick({position: {x: 135, y: 8}})
-  await expect.poll(() => page.evaluate(() => getSelection()?.toString().trim())).toBe('warm')
-}
-
-/** The body's input: its toolbar, not another Portable Text field's (ptBody is one too). */
-const field = (page: import('@playwright/test').Page) => page.locator('.pt-input').filter({has: page.locator('[id="body"][contenteditable="true"]')})
 
 test('Portable Text: opening, clicking in and closing writes nothing', async ({page}, info) => {
   const before = await read('drafts')
@@ -99,44 +39,6 @@ test('Portable Text: opening, clicking in and closing writes nothing', async ({p
   expect(JSON.stringify(after?.body)).toBe(JSON.stringify(before?.body))
 })
 
-test('Portable Text: one word edited changes that span only, keys and unknown content kept, discard leaves published as it was', async ({page}, info) => {
-  const published = await read('published')
-  const stored = JSON.parse(JSON.stringify(published!.body)) as typeof BODY
-  const editor = await open(page, info)
-  await selectWarm(page, editor)
-  await page.keyboard.type('hot')
-  await savesLanded(page)
-  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Brew the tea with hot water.')
-  const draft = (await read('drafts'))!.body as typeof BODY
-  // Only that span's text differs; every block and span keeps its key.
-  const expected = JSON.parse(JSON.stringify(stored)) as typeof BODY
-  expected[0].children[0].text = 'Brew the tea with hot water.'
-  expect(draft).toEqual(expected)
-  // Custom block, inline object, unknown mark and markDef: byte for byte as stored.
-  for (const i of [1, 2, 3, 4]) expect(JSON.stringify(draft[i])).toBe(JSON.stringify(stored[i]))
-  // Discard the draft: the published doc is untouched.
-  await bpMutate([{discardDraft: {id: ID, type: 'post'}}])
-  const after = await read('published')
-  expect(after?._rev).toBe(published?._rev)
-  expect(JSON.stringify(after?.body)).toBe(JSON.stringify(published?.body))
-})
-
-// task-0b78ed09edd97e6f: after Discard changes the editor kept the discarded words on screen
-// while the stored value was the published one; the next key would have written them back.
-test('Portable Text: Discard changes puts the published text back in the editor', async ({page}, info) => {
-  const t = target(info)
-  const editor = await open(page, info)
-  await selectWarm(page, editor)
-  await page.keyboard.type('hot')
-  await savesLanded(page)
-  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Brew the tea with hot water.')
-  await t.docMenu(page).click()
-  await page.getByRole('menuitem', {name: /Discard changes/}).click()
-  const discard = page.getByRole('dialog').getByRole('button', {name: /^Discard changes$/})
-  await discard.click()
-  await expect(editor).toContainText('Brew the tea with warm water.')
-  await expect(editor).not.toContainText('hot water')
-})
 
 test('@local Portable Text: styles, lists and decorators edit from the toolbar', async ({page}, info) => {
   const editor = await open(page, info)
