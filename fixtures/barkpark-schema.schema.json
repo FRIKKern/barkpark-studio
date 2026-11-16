@@ -337,7 +337,7 @@
           }
         },
         "options": {
-          "description": "Type-specific: select's choices (a list, or {list, direction} as Sanity's), slug's source, image's hotspot, file's accept, reference's filter, …"
+          "description": "Type-specific: select's choices (a list, or {list, direction} as Sanity's), slug's source, image's hotspot, file's accept, reference's filter, an array's insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, …"
         },
         "layout": {
           "description": "arrayOf: \"grid\" or \"list\"."
@@ -521,7 +521,7 @@
           }
         },
         "options": {
-          "description": "Type-specific: select's choices (a list, or {list, direction} as Sanity's), slug's source, image's hotspot, file's accept, reference's filter, …"
+          "description": "Type-specific: select's choices (a list, or {list, direction} as Sanity's), slug's source, image's hotspot, file's accept, reference's filter, an array's insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, …"
         },
         "layout": {
           "description": "arrayOf: \"grid\" or \"list\"."

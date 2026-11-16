@@ -640,3 +640,15 @@ export const ReleaseIllustration = () => (
     <path opacity="0.2" d="M33.4 120.826V189.174C33.4 194.823 39.3456 198.498 44.3988 195.971L80.3988 177.971C82.9736 176.684 84.6 174.052 84.6 171.174V102.826C84.6 97.1765 78.6544 93.502 73.6012 96.0286L37.6012 114.029C35.0264 115.316 33.4 117.948 33.4 120.826Z" />
   </svg>
 )
+
+export const ThLargeIcon = () => (
+  <svg {...s} strokeLinejoin="round">
+    <path d="M12.5 6.5V12.5M12.5 12.5V18.5M12.5 12.5H19.5M12.5 12.5H5.5M19.5 12.5V6.5H5.5V12.5M19.5 12.5V18.5H5.5V12.5" />
+  </svg>
+)
+
+export const PanelLeftIcon = () => (
+  <svg {...s} strokeLinejoin="round">
+    <path d="M10.5 6.5H19.5V18.5H10.5M10.5 6.5H5.5V18.5H10.5M10.5 6.5V18.5" />
+  </svg>
+)

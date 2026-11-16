@@ -13,3 +13,22 @@ export function withIconBodies<T>(node: T, bodies: Record<string, string>): T {
   const svg = typeof rest.icon === 'string' ? (Object.hasOwn(bodies, rest.icon) ? bodies[rest.icon]! : '') : undefined
   return {...rest, ...(svg !== undefined && {iconSvg: svg}), ...(Array.isArray(rest.items) && {items: rest.items.map((i) => withIconBodies(i, bodies))})} as T
 }
+
+/**
+ * A field tree with each select option's icon as its SVG body, the same way: an array's member
+ * types named by a select (decision 0005) show their icons in the insert menu's list and grid.
+ * Only an entry of an `options` list ({value, icon}) gets one; such an entry's carried `iconSvg`
+ * is dropped. Nothing else changes (an initial value is content and stays as written).
+ */
+export function withOptionIconBodies<T>(node: T, bodies: Record<string, string>, option = false): T {
+  if (Array.isArray(node)) return node.map((n) => withOptionIconBodies(n, bodies, option)) as T
+  if (!node || typeof node !== 'object') return node
+  const src = node as Record<string, unknown>
+  if (option && typeof src.value === 'string') {
+    const {iconSvg: _carried, ...rest} = src
+    return (typeof rest.icon === 'string' ? {...rest, iconSvg: Object.hasOwn(bodies, rest.icon) ? bodies[rest.icon]! : ''} : rest) as T
+  }
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(src)) out[k] = k === 'initialValue' || k === 'initialValues' ? v : withOptionIconBodies(v, bodies, k === 'options' && Array.isArray(v))
+  return out as T
+}

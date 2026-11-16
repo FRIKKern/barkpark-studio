@@ -9,15 +9,17 @@ import {uploadMeta} from '../lib/image-meta'
 import {toast} from './Toasts'
 import {Thumb, TypeIcon} from './Preview'
 import {copyItem, signature} from '../lib/clipboard'
-import {EditPathContext, FieldView, UrlPathContext, WriteUrlPathContext, type OpenRef, ParentContext} from './Fields'
+import {EditPathContext, FieldView, FormDisabledContext, UrlPathContext, WriteUrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
-import {Close as CloseIcon, Upload} from './icons'
+import {Close as CloseIcon, PanelLeftIcon, Upload} from './icons'
 import {translate, useLocale, useT, useWorkspaceZone} from '../lib/i18n'
 import {usePrimed} from '../lib/prime'
 import {withField} from '../lib/with-field'
 import {codeOptions, codePreview, isCodeField} from '../lib/code-input'
 import {isTableField, tablePreview} from '../lib/table-input'
 import {memberChoices, memberFor, memberName, memberPreview, membersOf, newMemberItem, referenceHeads} from '../lib/array-members'
+import {ArrayTree, isNested, JumpContext, live, newJump, TreeRootContext, useSidebar, useTreeNodes, type Jump, type TreeRoot} from './ArrayTree'
+import type {Titles} from '../lib/array-tree'
 
 // Arrays of objects (J33), after Sanity's: each item a row with a preview (the
 // item's preview title/subtitle; a reference subtitle shows the referenced doc's
@@ -57,7 +59,8 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
   const {data: schemas = []} = useQuery(schemasQuery)
   const memberOf = useCallback((it: Item) => memberFor(members, it) ?? unknownMember(it), [members])
   const typing = multi ? undefined : memberTypes(of)
-  const choices = multi ? memberChoices(members, schemas) : typing?.types
+  // Each member's type icon, for the insert menu's list and grid (Sanity's).
+  const choices = multi ? memberChoices(members, schemas).map((c, i) => ({...c, icon: members[i]!.namedType ? schemaOf(schemas, members[i]!.namedType!) : undefined})) : typing?.types
   const deref = cachedDoc(useQueryClient())
   const primed = usePrimed(
     items.flatMap((it) => [
@@ -93,6 +96,31 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
     setByLink(true)
     // Only when the URL names another item, not on every edit of this one.
   }, [wantKey])
+  // The nested item dialog's tree (ArrayTree): the outermost array of objects holds it, and the
+  // jumps picked in it, which every array on the way follows.
+  const parentRoot = useContext(TreeRootContext)
+  const parentJump = useContext(JumpContext)
+  const [ownJump, setOwnJump] = useState<Jump | null>(null)
+  const jump = parentRoot ? parentJump : ownJump
+  const titles = useTreeTitles()
+  const root = useMemo<TreeRoot | null>(
+    () => (parentRoot ? null : {id, label: field.title ?? field.name, field, items, title: titles, jump: (path) => setOwnJump(newJump(path))}),
+    [parentRoot, id, field, items, titles],
+  )
+  // A jump in the tree: the array whose item is on the way opens it (naming it in the URL);
+  // one with an item open off the way closes it. The array holding the picked item ends it.
+  useEffect(() => {
+    if (!live(jump)) return
+    const own = `${id}[_key=="`
+    if (!jump.target.startsWith(own)) return void (editing && close())
+    const key = jump.target.slice(own.length).split('"]')[0]!
+    if (!items.some((it) => it._key === key)) return
+    const here = jump.target === `${own}${key}"]`
+    if (editing !== key) open(key)
+    else if (here) writePath?.(jump.target)
+    if (here) jump.done.current = true
+    // On a new jump, and when this array is another item's (its dialog now shows the next item).
+  }, [jump, id])
   const set = (next: Item[]) => onChange(next)
   const t = useT()
   const editPath = useContext(EditPathContext)
@@ -151,7 +179,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
       : {}
   // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
   const renderItem = useCallback((it: Item) => <ItemRow item={it} of={memberOf(it)} named={multi} onOpen={() => open(it._key ?? null)} />, [memberOf, multi, open])
-  return (
+  const out = (
     <PrimedContext.Provider value={primed}>
     <UploadsContext.Provider value={uploads}>
       <div className="array-drop" data-over={over || undefined} {...dropTarget}>
@@ -175,6 +203,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
               : {...of.initialValue, ...(typing && type ? {[typing.field]: type} : {}), _key: newKey()}
         }
         types={choices}
+        options={field.options}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => open(next[i]!._key ?? null)}
         onDuplicated={(i, next) => open(next[i]!._key ?? null)}
@@ -203,6 +232,37 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
     </UploadsContext.Provider>
     </PrimedContext.Provider>
   )
+  return root ? (
+    <TreeRootContext.Provider value={root}>
+      <JumpContext.Provider value={ownJump}>{out}</JumpContext.Provider>
+    </TreeRootContext.Provider>
+  ) : (
+    out
+  )
+}
+
+/** The tree's item titles, as the rows' previews read them, from what is already loaded (no reads of their own). */
+function useTreeTitles(): Titles {
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const deref = cachedDoc(useQueryClient())
+  const t = useT()
+  const zone = useWorkspaceZone()
+  return useCallback<Titles>(
+    (item, of, named) => {
+      const p = memberPreview(of, schemas) ?? {}
+      const read = (path: string) => {
+        const [head, ...rest] = path.split('.')
+        if (of.fields?.find((f) => f.name === head)?.type !== 'reference') return readPath(item, path, deref)
+        const target = deref(refId(item[head!]) ?? '') as Record<string, unknown> | undefined
+        if (!target) return undefined
+        return rest.length ? readPath(target, rest.join('.'), deref) : previewTitle(target as never, schemaOf(schemas, target._type as string), t)
+      }
+      const typeTitle = (type: string) => schemaOf(schemas, type)?.title
+      return formatPreview(itemTitleSpec(of, p), read, {typeTitle, zone, deref}) || (named ? memberChoices([of], schemas)[0]!.title : '') || t('Untitled')
+    },
+    // `deref` reads the query cache: the same cache every render.
+    [schemas, t, zone],
+  )
 }
 
 /**
@@ -212,13 +272,13 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
  * Then adding asks the type (Sanity's insert menu) and an item shows its type's fields
  * only. Barkpark's LiveView ignores these options and shows the select and every field.
  */
-type Typing = {field: string; types: {value: string; title: string}[]; fieldsByType: Record<string, string[]>}
+type Typing = {field: string; types: {value: string; title: string; icon?: {icon: string; iconSvg?: string}}[]; fieldsByType: Record<string, string[]>}
 function memberTypes(of: Field): Typing | undefined {
   const o = (Array.isArray(of.options) ? undefined : of.options) as {typeField?: string; fieldsByType?: Record<string, string[]>} | undefined
   const select = of.fields?.find((f) => f.name === o?.typeField)
-  const list = select && Array.isArray(select.options) ? (select.options as {value: string; title?: string}[]) : undefined
+  const list = select && Array.isArray(select.options) ? (select.options as {value: string; title?: string; icon?: string; iconSvg?: string}[]) : undefined
   if (!o?.typeField || !o.fieldsByType || !list) return undefined
-  return {field: o.typeField, types: list.map((t) => ({value: t.value, title: t.title ?? t.value})), fieldsByType: o.fieldsByType}
+  return {field: o.typeField, types: list.map((t) => ({value: t.value, title: t.title ?? t.value, ...(t.icon ? {icon: {icon: t.icon, iconSvg: t.iconSvg}} : {})})), fieldsByType: o.fieldsByType}
 }
 
 /** The fields an item shows: its type's, without the type select; all of them when it has no type. */
@@ -357,18 +417,39 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
   onClose: () => void
 }) {
   const t = useT()
+  const formDisabled = useContext(FormDisabledContext)
   const {title} = useItemPreview(item, of, named)
   // An array inside an item: its dialog names the whole way down, as Sanity's
   // ("Sections / #1 Intro / Items / #2 …"); a crumb before ours closes back to it.
   const outer = useContext(DialogCrumbsContext)
   const here: Crumb = {label: parentTitle, position, title, close: onClose}
+  // The sidebar tree of the outermost array (not for an image or a code item, whose dialog is one input).
+  const root = useContext(TreeRootContext)
+  const nodes = useTreeNodes(of.type === 'image' || isCodeField(of) ? null : root)
+  const treeOn = !!root && (nodes.length > 1 || isNested(nodes))
+  const side = useSidebar(isNested(nodes))
+  const sideOpen = treeOn && side.open
   // Over the whole document pane, as the other dialogs (not over the field's box).
   return (
     <DialogCrumbsContext.Provider value={[...outer, here]}>
     <PaneOverlay>
     <div className="dialog-backdrop item-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <DialogBox className="dialog item-dialog" aria-modal="true" aria-label={`${parentTitle} / ${title}`} onClose={onClose}>
+      <DialogBox className="dialog item-dialog" data-tree={sideOpen || undefined} aria-modal="true" aria-label={`${parentTitle} / ${title}`} onClose={onClose}>
+        <span ref={side.measure} hidden />
         <header>
+          {treeOn && (
+            <button
+              type="button"
+              className="icon-btn item-tree-toggle"
+              aria-label={sideOpen ? t('Close sidebar') : t('Open sidebar')}
+              data-tip={sideOpen ? t('Close sidebar') : t('Open sidebar')}
+              aria-expanded={sideOpen}
+              aria-pressed={sideOpen}
+              onClick={() => side.set(!sideOpen)}
+            >
+              <PanelLeftIcon />
+            </button>
+          )}
           <nav className="crumbs" aria-label={t('Breadcrumb')}>
             {outer.map((c, i) => (
               <Fragment key={i}>
@@ -394,8 +475,15 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
             <CloseIcon />
           </button>
         </header>
+        <div className="item-dialog-main">
+        {sideOpen && (
+          <aside className="item-tree-side" data-narrow={side.narrow || undefined}>
+            <ArrayTree root={root!} nodes={nodes} current={path} onPicked={side.narrow ? () => side.set(false) : undefined} />
+          </aside>
+        )}
         <div className={of.type === 'image' ? 'dialog-body item-fields image-item' : 'dialog-body item-fields'}>
-          <fieldset className="form-fields" disabled={readOnly}>
+          {/* The dialog is drawn outside the form's own disabled fieldset (PaneOverlay), so a read-only form (Published, a revision) locks it here. */}
+          <fieldset className="form-fields" disabled={readOnly || formDisabled}>
             <ParentContext.Provider value={item}>
               {of.type === 'image' ? (
                 // An array of images: the item is the image (upload, select, hotspot and crop, its fields).
@@ -410,6 +498,7 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
               )}
             </ParentContext.Provider>
           </fieldset>
+        </div>
         </div>
       </DialogBox>
     </div>
