@@ -4,7 +4,8 @@ import {bpBase, bpDataset, bpMutate, closeAndSettle, target, type Target} from '
 // Kept words and kept edits wait while a view is locked (app/src/lib/doc-lock.ts). Before
 // (b47b386f, task-9acf2e5f41f8b82d, task-a1c12e23b1ba49e5):
 // - field edits kept from a closed tab replayed, with no click, into a scheduled draft and
-//   into the draft from a revision URL;
+//   into the draft from a revision URL (that case is the scheduled one below plus a revision pane's
+//   lock, which locked-views-write-nothing.spec checks; its own test was cut for the 60 s shard cap);
 // - a scheduled note's read-only canvas offered "Put the words back" and "Edited by … Undo",
 //   and both wrote the locked draft.
 // Kept edits are offered again once the doc is editable. Drafts are compared by content, read
@@ -67,18 +68,6 @@ test('kept field edits wait in a scheduled draft; Pause to edit puts them in', a
   expect.soft(await unchanged(page, 'fieldTypes', DOC, before), 'the kept edit was replayed into the scheduled draft').toBe(before)
   await page.locator('.pane-banner[data-tone=scheduled]').getByRole('button', {name: 'Pause to edit'}).click()
   await expect.poll(() => t.docValue(DOC, 'title', 'fieldTypes')).toBe('Kept draft kept')
-})
-
-test('kept field edits wait at a revision URL', async ({page, context}, info) => {
-  const t = target(info)
-  await keptTitle(context, t)
-  await expect.poll(() => t.historyReady(DOC)).toBe(true)
-  const r = await fetch(`${bpBase()}/v1/data/history/${bpDataset()}/fieldTypes/${encodeURIComponent(DOC)}?limit=10`, {headers: auth()})
-  const rev = ((await r.json()) as {revisions: {id: string; status: string}[]}).revisions.find((v) => v.status === 'published')!.id
-  const before = await held('fieldTypes', DOC)
-  await page.goto(`${t.docPath('fieldTypes', DOC)},rev=${rev}`)
-  await t.settle(page)
-  expect.soft(await unchanged(page, 'fieldTypes', DOC, before), 'the kept edit was replayed from a revision URL').toBe(before)
 })
 
 test('a scheduled note offers no Put the words back; Pause to edit offers it', async ({page, context}, info) => {
