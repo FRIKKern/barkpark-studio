@@ -7,7 +7,7 @@ import {keepCell, keepOnShapeChange, type TableKept} from './table-keep.ts'
 
 // What lib/edits.ts keeps for a document's unsent edits, and how it changes with a server
 // version (rebase), an edit (takeBase), a save sent (sentNotesOf) and its answer (answered) or
-// failure (unsent). Pure, so the save queue's tests run it (table-sim.test.ts, edit-bases.test.ts).
+// failure (unsent). Pure, so the save queue's tests run it (table-sim.ts, edit-bases.test.ts).
 //
 // Every pending spot (a field, or a path into one) is measured from a base: the server's value
 // there that this editor's edits are made on. A merge reads what changed on each side from it.

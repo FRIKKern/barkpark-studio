@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {rebase} from './edit-bases.ts'
-import {addKept, keepOnShapeChange, type TableKept} from './table-keep.ts'
+import {addKept, keepOnShapeChange, typedSince, type TableKept} from './table-keep.ts'
 import {mergeCells3, mergeRows3} from './table-merge.ts'
 
 // A table's column changed while I typed (lib/table-keep.ts): my unsent text is kept, whole,
@@ -76,4 +76,44 @@ test('a saved text the table says went with its column is not followed into the 
   keepOnShapeChange(e, doc([['a', ['y']], ['b', ['x']], ['c', ['x<']]], 'r2'), before)
   assert.deepEqual(e.kept?.map((k) => k.text), ['x<T3'])
   assert.equal(e.dirty.size, 0)
+})
+
+test('the card takes only what I typed since I went into the cell, when what the cell held then stands in the row', () => {
+  // I clicked a cell holding the other's first keys ('x<Q') and typed '<U8>'; they typed on to 'x<Q8>'.
+  assert.equal(typedSince('x<Q<U8>', 'x<Q', ['x<Q8>', '']), '<U8>')
+  // What it held is gone from the row (their column change took it): kept whole, for its context.
+  assert.equal(typedSince('Total 2024', 'Total', ['Sum', '']), 'Total 2024')
+  // An empty cell, or nothing typed since: as it is.
+  assert.equal(typedSince('<T1>', '', ['<', 'x']), '<T1>')
+  assert.equal(typedSince('x', 'x', ['x']), 'x')
+  // My own first keys saved on from it ('x<'): they are mine, the card holds all of it.
+  assert.equal(typedSince('x<T4>', 'x', ['x<', 'x']), 'x<T4>')
+})
+
+test('price: a filled table, my word in an empty cell unsent, theirs added a column after mine: my word stays in its cell', () => {
+  const filled: [string, string[]][] = [['a', ['ae', 'af', 'ag']], ['b', ['be', 'bf', 'bg']], ['c', ['', '', '']]]
+  const at = (rows: [string, string[]][], f: (c: string[]) => string[]) => doc(rows.map(([k, c]) => [k, f(c)]), 'r2')
+  const mine = () => spots([['t.rows[_key=="c"].cells', ['', 'Ord', '']]], [['t.rows[_key=="c"].cells', ['', '', '']]])
+  // Add column (at the end), and Insert right of my column: my cell did not move.
+  for (const f of [(c: string[]) => [...c, ''], (c: string[]) => [c[0]!, c[1]!, '', c[2]!]]) {
+    const e = mine()
+    keepOnShapeChange(e, at(filled, f), doc(filled))
+    assert.equal(e.kept, undefined)
+    assert.deepEqual(e.dirty.get('t.rows[_key=="c"].cells'), f(['', 'Ord', '']))
+  }
+  // Inserted left of it (it moved), or an empty table (which column is new, nothing says): kept.
+  const left = mine()
+  keepOnShapeChange(left, at(filled, (c) => ['', ...c]), doc(filled))
+  assert.deepEqual(left.kept?.map((k) => k.text), ['Ord'])
+  const empty: [string, string[]][] = filled.map(([k]) => [k, ['', '', '']])
+  const none = mine()
+  keepOnShapeChange(none, at(empty, (c) => [...c, '']), doc(empty))
+  assert.deepEqual(none.kept?.map((k) => k.text), ['Ord'])
+})
+
+test('an empty cell of mine stays only where cells say so even if theirs typed in an empty one since', () => {
+  // ['', ''] → theirs typed '<P1>' in column 1 and inserted a column at 0: '' and '' read alike, so mine is kept.
+  const e = spots([['t.rows[_key=="a"].cells', ['<T1>', '']]], [['t.rows[_key=="a"].cells', ['', '']]])
+  keepOnShapeChange(e, doc([['a', ['', '', '<P1>']]], 'r2'), doc([['a', ['', '']]]))
+  assert.deepEqual(e.kept?.map((k) => k.text), ['<T1>'])
 })

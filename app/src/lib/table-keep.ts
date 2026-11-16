@@ -86,7 +86,14 @@ export function keepOnShapeChange(e: Pending, d: unknown, before: unknown) {
       const n = rowBy(rows, (r as {_key?: string})?._key ?? '')
       return n ? [[cellsOf(r), cellsOf(n)]] : []
     })
-    const fits = (from: number, j: number) => alignColumns(pairs, width(was.rows as unknown[]), width(rows), (i) => i === from)[from] === j
+    const [w0, w1] = [width(was.rows as unknown[]), width(rows)]
+    const fits = (from: number, j: number) => alignColumns(pairs, w0, w1, (i) => i === from)[from] === j
+    // A column theirs changed right of mine (Add column, a removal after it) cannot have moved my
+    // cell: where the table's cells say so whichever way a tie goes, my empty cell, still empty,
+    // keeps my text (a saved text says where it is, above).
+    // (Empty cells read alike to text here: theirs may have typed in one since.)
+    const sure = (from: number, kept: (i: number) => boolean) => alignColumns(pairs, w0, w1, kept, true)[from] === from
+    const stays = (c: Change) => c.from >= 0 && sure(c.from, (i) => i === c.from) && sure(c.from, (i) => i !== c.from)
     const only = (c: Change, j: number) => near(c.from, j) && c.was.every((v, i) => i === c.from || v !== c.base || !near(i, j)) && fits(c.from, j)
     const placed = new Map<string, unknown[]>()
     for (const c of changes) {
@@ -94,6 +101,7 @@ export function keepOnShapeChange(e: Pending, d: unknown, before: unknown) {
       const cells = placed.get(c.row) ?? (r ? [...cellsOf(r)] : null)
       const at = cells && c.base !== '' ? cells.flatMap((v, j) => (v === c.base && near(c.from, j) ? [j] : [])) : []
       if (cells && at.length === 1 && only(c, at[0]!)) placed.set(c.row, ((cells[at[0]!] = c.text), cells))
+      else if (cells && c.base === '' && cells[c.from] === '' && stays(c)) placed.set(c.row, ((cells[c.from] = c.text), cells))
       else if (typeof c.text === 'string' && c.text !== '') (e.kept ??= []).push({table, row: c.row, column: c.column, text: c.text, at: Date.now()})
     }
     for (const k of spots) e.dirty.delete(k), e.base.delete(k), e.notes?.delete(k)
@@ -109,6 +117,18 @@ export function keepOnShapeChange(e: Pending, d: unknown, before: unknown) {
 export function keepCell(e: Pending, path: string, row: string, column: number, text: unknown) {
   const s = tableSpot(path)
   if (s && typeof text === 'string' && text !== '') (e.kept ??= []).push({table: s.table, row, column, text, at: Date.now()})
+}
+
+/**
+ * A kept text of the cell the editor went into (its card, as it takes the caret): what that cell
+ * held then (`start`: saved text, maybe the other editor's first keys) stays in the table when
+ * it still stands in the row (theirs typed on from it), so the card holds only what was typed
+ * since. Not when the row holds my own keys saved on from it: the card then holds them all.
+ */
+export function typedSince(text: string, start: string, row: readonly unknown[]): string {
+  if (start === '' || text.length <= start.length || !text.startsWith(start)) return text
+  const on = row.filter((c): c is string => typeof c === 'string' && c.startsWith(start))
+  return on.length && !on.some((c) => c.length > start.length && text.startsWith(c)) ? text.slice(start.length) : text
 }
 
 /**

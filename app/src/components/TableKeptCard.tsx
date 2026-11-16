@@ -3,6 +3,7 @@ import {useDocSelect} from './Fields'
 import {useT} from '../lib/i18n'
 import {newKey} from '../lib/pt-value'
 import {setCell, tableGrid, type TableWrite} from '../lib/table-input'
+import {typedSince} from '../lib/table-keep'
 import {dropKept, keepTyped, setKeptText, useTableKept, type KeptText} from '../lib/table-kept'
 
 // Text of mine a table change left out (lib/table-keep.ts: the other editor added or removed a
@@ -23,14 +24,16 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
   const box = useRef<HTMLDivElement>(null)
   const followed = useRef(new Set<string>())
   const [lost, setLost] = useState<string | null>(null)
-  // The cell the editor last went into (Put it back writes there when it was after the keep).
-  const last = useRef<{row: string; column: number; at: number} | null>(null)
+  // The cell the editor last went into (Put it back writes there when it was after the keep), and
+  // what it held then (the caret moved on with its cell keeps it: that cell's text is the editor's own).
+  const last = useRef<{row: string; column: number; at: number; start: string} | null>(null)
   useEffect(() => {
     const el = root.current
     const on = (e: FocusEvent) => {
-      const input = e.target as HTMLElement
+      const input = e.target as HTMLInputElement
       const key = now.current.grid.rows[Number(input.dataset?.row)]?.key
-      if (input.matches?.('input.table-cell') && key !== undefined) last.current = {row: key, column: Number(input.dataset.column), at: Date.now()}
+      const start = typed.current?.row === key && last.current?.row === key ? last.current.start : input.value
+      if (input.matches?.('input.table-cell') && key !== undefined) last.current = {row: key, column: Number(input.dataset.column), at: Date.now(), start}
     }
     el?.addEventListener('focusin', on)
     return () => el?.removeEventListener('focusin', on)
@@ -48,6 +51,8 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     if (!go()) requestAnimationFrame(go)
   }
   const fresh = (k: KeptText) => Date.now() - k.at < FRESH_MS
+  /** A kept text of the cell the editor is in: only what was typed since it went in (lib/table-keep.ts typedSince). */
+  const since = (row: string, text: string) => (last.current?.row === row ? typedSince(text, last.current.start, now.current.grid.rows.find((r) => r.key === row)?.cells ?? []) : text)
   /** A key that reached a cell's input whose text was just kept (before the card took the caret): onto the kept text. True: taken. */
   // The cell this editor typed in last (since it went into it).
   const typed = useRef<{row: string; column: number} | null>(null)
@@ -57,7 +62,7 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     if (key !== undefined) typed.current = {row: key, column}
     const k = was !== '' && kept.find((k) => k.row === key && k.column === column && k.text === was && fresh(k))
     if (!k || !doc) return false
-    setKeptText(doc, k.id, text)
+    setKeptText(doc, k.id, since(k.row, text))
     focusKept(k.id)
     return true
   }, [])
@@ -65,7 +70,9 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
   const follow = (held: {key: string; column: number; text?: string}) => {
     const text = held.text
     const k = text && kept.find((k) => !followed.current.has(k.id) && fresh(k) && k.row === held.key && k.column === held.column && (k.text.startsWith(text) || text.startsWith(k.text)))
-    if (!k) return false
+    if (!k || !doc) return false
+    const own = since(k.row, k.text)
+    if (own !== k.text) setKeptText(doc, k.id, own)
     focusKept(k.id)
     return true
   }
