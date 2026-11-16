@@ -34,15 +34,7 @@ test('the Published view writes nothing: a paste on Show all, an array item dial
   await page.getByRole('menuitem', {name: 'Copy field'}).click()
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Section 1 (src)')
 
-  // The Published view: Cmd/Ctrl+V on "Show all", focusable in the locked form, is refused.
-  await page.goto(`${t.docPath('fieldTypes', ID)}?perspective=published`)
-  await t.settle(page)
-  await sectionsField.getByRole('button', {name: 'Show all 6 items'}).focus()
-  await page.keyboard.press('ControlOrMeta+v')
-  // Old code wrote here once the clipboard was read: a moment for that, then its save.
-  await page.waitForTimeout(400)
-  await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
-  // An item's dialog there: its field is locked like the form's.
+  // The Published view, an item's dialog open: its field is locked like the form's.
   await page.goto(`${t.docPath('fieldTypes', ID)},path=${encodeURIComponent('sections[_key=="s5"].items[_key=="s5i1"]')}?perspective=published`)
   await t.settle(page)
   await expect.soft(page.getByRole('dialog').last().getByRole('textbox', {name: 'Label'})).toBeDisabled({timeout: 2000})
@@ -55,6 +47,15 @@ test('the Published view writes nothing: a paste on Show all, an array item dial
   await expect.soft(page.locator('[id="body"]')).toHaveAttribute('aria-readonly', 'true', {timeout: 1000})
   await expect.soft(page.locator('[id="body"] [contenteditable="true"]')).toHaveCount(0, {timeout: 1000})
   await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
-  expect.soft((await t.versions(ID)).draft, 'the paste or the dialog wrote a draft').toBeUndefined()
+
+  // Last, on a page that stays: Cmd/Ctrl+V on "Show all", focusable in the locked form. Old code
+  // wrote once the clipboard was read (async), so the draft is watched a moment, not read once.
+  await page.goto(`${t.docPath('fieldTypes', ID)}?perspective=published`)
+  await t.settle(page)
+  await sectionsField.getByRole('button', {name: 'Show all 6 items'}).focus()
+  await page.keyboard.press('ControlOrMeta+v')
+  for (const until = Date.now() + 1200; Date.now() < until && !(await t.versions(ID)).draft; ) await page.waitForTimeout(150)
+  await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
+  expect.soft((await t.versions(ID)).draft, 'the paste wrote a draft').toBeUndefined()
   expect.soft((await t.versions(POST)).draft, 'the body canvas wrote a draft').toBeUndefined()
 })
