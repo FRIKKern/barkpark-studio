@@ -101,13 +101,14 @@ export function refusedReferrers(message: string): {id: string; type: string}[] 
 /** Only the row's translation group refers to it: unlinking it lets the delete through (lib/translations.ts). */
 export const onlyGroupLink = (referrers: {type: string}[] | null): boolean => !!referrers?.length && referrers.every((r) => r.type === METADATA_TYPE)
 
-/** "Deleted 3 of 5. 1 left alone: …. 1 failed: …" for the toast after a run. */
+/** "Deleted 3 of 5. 1 left alone. 1 not run. 1 failed." on the dialog's result and the toast after. */
 export function bulkResultSummary(action: BulkAction, results: RowResult[], t: Translate = english): {tone: 'positive' | 'critical' | 'caution'; title: string; description?: string} {
   const done = results.filter((r) => r.state === 'done').length
-  const held = results.filter((r) => r.state === 'skipped').length
+  const stopped = results.filter((r) => r.state === 'skipped' && r.why === 'stopped').length
+  const held = results.filter((r) => r.state === 'skipped').length - stopped
   const failed = results.filter((r) => r.state === 'failed').length
   const total = results.length
   const title = action === 'delete' ? t('Deleted {done} of {total}', {done, total}) : action === 'duplicate' ? t('Duplicated {done} of {total}', {done, total}) : t('Discarded changes in {done} of {total}', {done, total})
-  const parts = [held ? t('{n} left alone.', {n: held}) : '', failed ? t('{n} failed.', {n: failed}) : ''].filter(Boolean)
-  return {tone: failed ? 'critical' : held ? 'caution' : 'positive', title, description: parts.join(' ') || undefined}
+  const parts = [held ? t('{n} left alone.', {n: held}) : '', stopped ? t('{n} not run.', {n: stopped}) : '', failed ? t('{n} failed.', {n: failed}) : ''].filter(Boolean)
+  return {tone: failed ? 'critical' : held || stopped ? 'caution' : 'positive', title, description: parts.join(' ') || undefined}
 }

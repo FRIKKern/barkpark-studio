@@ -60,7 +60,7 @@ test('a retry runs failed and stopped rows only, never one done or held back', (
     ['d', {state: 'skipped', why: 'stopped'}],
   ])
   assert.deepEqual(retryIds(results), ['b', 'd'])
-  assert.deepEqual(bulkResultSummary('delete', [...results.values()]), {tone: 'critical', title: 'Deleted 1 of 4', description: '2 left alone. 1 failed.'})
+  assert.deepEqual(bulkResultSummary('delete', [...results.values()]), {tone: 'critical', title: 'Deleted 1 of 4', description: '1 left alone. 1 not run. 1 failed.'})
 })
 
 test("Barkpark's referenced refusal is read for its referrers; only a translation group's link may be unlinked", () => {

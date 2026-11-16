@@ -52,5 +52,6 @@ export default {
   'Duplicated {done} of {total}': 'Duplisert {done} av {total}',
   'Discarded changes in {done} of {total}': 'Forkastet endringer i {done} av {total}',
   '{n} left alone.': '{n} står urørt.',
+  '{n} not run.': '{n} ikke kjørt.',
   '{n} failed.': '{n} mislyktes.',
 }
