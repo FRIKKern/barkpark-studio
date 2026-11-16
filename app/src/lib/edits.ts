@@ -17,6 +17,7 @@ import {merge3, mergeList3, mergeText, onto, revertSteps} from './merge'
 import {answeredInto, anyInside, applyPaths, getPath, keyedRoots, mergePending, setInside, setPath, within} from './paths'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {clientGone} from '../server/client-gone'
+import {docLocked, unlessDocLocked} from './doc-lock'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {paceMs, paced} from './write-pace'
@@ -457,8 +458,14 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   if (e && clashed.length) clash(qc, id, e, clashed, doc)
 }
 
-/** `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. `value` may be a function of the path's value now. */
-export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, record = true) {
+/**
+ * `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. `value` may be a function of the path's value now.
+ * A form edit: refused (false, nothing kept or sent) while every pane showing the doc is locked (lib/doc-lock.ts).
+ */
+export const edit = unlessDocLocked(([, doc]) => doc._publishedId, write)
+
+/** edit(), past the lock: a save's own resend, and Restore's put-back of the edits a delete lost (a document action). */
+function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record = true): void {
   // Scout 7: clearing the last field of an object (or of a geopoint, its _type alone left)
   // unsets the object, as Sanity does: the empty shell ({} or {_type}) read as set to every
   // defined()/coalesce() and showed in diffs. Not inside an array item (the item stays).
@@ -468,14 +475,14 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
     const parent = field.slice(0, field.lastIndexOf('.'))
     const own = field.slice(parent.length + 1)
     const now = getPath(qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc, parent)
-    if (now && typeof now === 'object' && !Array.isArray(now) && Object.entries(now).every(([k, v]) => k === '_type' || k === own || blank(v))) return edit(qc, doc, parent, undefined, record)
+    if (now && typeof now === 'object' && !Array.isArray(now) && Object.entries(now).every(([k, v]) => k === '_type' || k === own || blank(v))) return write(qc, doc, parent, undefined, record)
   }
   const id = doc._publishedId
   const e = entry(id, doc._type)
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
   // A change given as what it does to the spot (a Portable Text span's typing, as its
   // diff-match-patch): made onto the spot as this browser holds it now, others' words in it.
-  if (typeof value === 'function') return edit(qc, held, field, value(getPath(held, field)), record)
+  if (typeof value === 'function') return write(qc, held, field, value(getPath(held, field)), record)
   // `value` was made from `doc`, what the pane last drew. Someone else's version that came
   // in since and is not drawn yet is in `held`: the change goes onto it, or it would go out
   // against held's rev and undo theirs unseen (live-list race, task-8cc2a447b03bf599). A
@@ -540,6 +547,7 @@ function schedule(qc: QueryClient, id: string) {
  * the field it changed, for focus.
  */
 export function undo(qc: QueryClient, id: string, back = true): string | undefined {
+  if (docLocked(id)) return // the step stays where it is, for when the doc is editable again
   const e = docs.get(id)
   const doc = qc.getQueryData<Doc>(['doc', id])
   const list = back ? e?.undo : e?.redo
@@ -804,7 +812,7 @@ async function send(qc: QueryClient, id: string) {
         const own = keyedMisses.get(`${id}\n${root}`)
         const now = qc.getQueryData<Doc>(['doc', id])
         if (own) own()
-        else if (now && sentFrom) edit(qc, now, root, getPath(sentFrom, root), false)
+        else if (now && sentFrom) write(qc, now, root, getPath(sentFrom, root), false)
       }
     setState(e, e.dirty.size ? 'saving' : 'saved')
   } catch (err) {
@@ -1139,7 +1147,8 @@ export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema)
   const e = docs.get(id)
   if (!docKeyOf(id) || doc._rev === '' || (e && (e.dirty.size || e.inflight || e.pendingCreate))) return null
   const kept = await orphaned(id)
-  if (!kept) return null
+  // Locked (a scheduled draft, a revision, …): kept as they are, offered again once editable.
+  if (!kept || docLocked(id)) return null
   const {keys, pending} = kept
   const verdict = judge(pending, doc, schema)
   if (verdict.kind === 'drop') return (keys.forEach((k) => void dropPending(k)), null)
@@ -1154,6 +1163,7 @@ export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema)
 
 /** Restore kept edits over the document as it is now (text merges with what changed since). */
 export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys}: Recovered) {
+  if (docLocked(doc._publishedId)) return
   for (const [f, v] of fields) {
     const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
     ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(f)
@@ -1193,6 +1203,6 @@ export function reapply(qc: QueryClient, restored: Doc, fields: [string, unknown
   // meanwhile read as "the editor changed nothing" and theirs replaced the typing.
   e.rev = restored._rev
   for (const [f] of fields) (e.base.set(f, getPath(restored, f)), (e.noDmp ??= new Set()).add(f))
-  for (const [f, v] of fields) edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? restored, f, v)
+  for (const [f, v] of fields) write(qc, qc.getQueryData<Doc>(['doc', id]) ?? restored, f, v)
   flush(qc, id)
 }

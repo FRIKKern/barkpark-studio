@@ -1,6 +1,6 @@
 import {announce} from '../lib/announce'
 import {GroupIcon} from './GroupIcon'
-import {useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode} from 'react'
+import {useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react'
 import {NarrowContext, OpenedPanesContext} from '../lib/layout'
 import {AnchoredLayer, DialogBox, MenuPopover} from './FocusScopes'
 import {ConfirmDialog} from './ConfirmDialog'
@@ -68,6 +68,7 @@ const INCOMING = 'sanity/structure/incoming-references'
 import {EditIcon, EyeOpenIcon, PreviewView} from './PreviewView'
 import {previewViewTemplate} from '../lib/preview-url'
 import {formLocked, freeformCanvas, unlessLocked} from '../lib/form-lock'
+import {hideDoc, showDoc} from '../lib/doc-lock'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -345,6 +346,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const locked = formLocked(lockState)
   const lockedNow = useRef(locked)
   lockedNow.current = locked
+  // The same lock where edits are written (lib/doc-lock.ts): edit() and the canvas's batches.
+  const lockHolder = useRef({}).current
+  useLayoutEffect(() => showDoc(pane.id, lockHolder, locked), [pane.id, locked])
+  useLayoutEffect(() => () => hideDoc(pane.id, lockHolder), [pane.id])
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
   // Published and a revision are read in Classic: the canvas holds the draft. Locked, it is read-only.
   const canvasMode = freeformCanvas(lockState)
@@ -409,7 +414,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const keepScope = scopeNow && me ? [scopeNow.workspace, scopeNow.project, scopeNow.dataset, me.editorKey ?? '-'].join('|') : null
   useEffect(() => setKeepScope(keepScope), [keepScope])
   const [recovered, setRecovered] = useState<Recovered | null>(null)
-  const editable = !!draftQ.data && !viewingPublished
+  // Kept edits replay into the draft only while this pane may edit it: not in a revision, a
+  // scheduled draft (once its schedule is known), a deleted doc or a seat that can't write.
+  // While locked they stay kept, and are offered again once it is editable (Pause to edit).
+  const editable = !!draftQ.data && !locked && schedule !== undefined
   useEffect(() => {
     setRecovered(null)
     // Judged against the schema as it is now (a field it dropped or retyped is not sent).
@@ -1418,12 +1426,13 @@ async function publishAndTell(qc: QueryClient, doc: Doc) {
  * revision cannot bring one (scheduling goes through this pane's own actions, which read
  * it again): five editors typing made every tab read it on every keystroke's frame.
  */
-function useSchedule(id: string, type: string, rev: string | undefined): Schedule | null {
+/** The doc's schedule: null without one, undefined while that is not known yet. */
+function useSchedule(id: string, type: string, rev: string | undefined): Schedule | null | undefined {
   const qc = useQueryClient()
-  const {data} = useQuery({...scheduleQuery(id, type), refetchInterval: (q) => (q.state.data?.schedule ? 30_000 : false)})
+  const {data, isPending} = useQuery({...scheduleQuery(id, type), refetchInterval: (q) => (q.state.data?.schedule ? 30_000 : false)})
   const pending = !!data?.schedule
   useEffect(() => void (pending && qc.invalidateQueries({queryKey: ['schedule', id]})), [rev])
-  return data?.schedule ?? null
+  return isPending ? undefined : (data?.schedule ?? null)
 }
 
 function DocBadges({doc}: {doc: Doc}) {

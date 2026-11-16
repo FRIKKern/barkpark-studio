@@ -4,6 +4,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Doc, type Schema} from '../lib/data'
 import {canvasAtLeast, loadCanvas} from '../lib/canvas-bundle'
 import {applyBlockOps, readBlocks, type Block, type BlockOp, type Blocks, type OpsResult, type Rev} from '../lib/blocks'
+import {unlessDocLocked} from '../lib/doc-lock'
 import {paceMs, paced} from '../lib/write-pace'
 
 import {toast} from './Toasts'
@@ -34,6 +35,16 @@ import {focusCanvas} from '../lib/canvas-focus'
 // Blocks in; `bp-canvas-ops` batches out, each saved fenced on the doc's rev; the saved
 // doc goes back in as the canvas's own echo, then the batch is acknowledged. A refused
 // batch keeps the edit on screen with Retry / Discard.
+
+// The canvas's one write (a batch, Put the words back, Undo of another's edit), past the lock where
+// edits are written (lib/doc-lock.ts): refused for a doc every pane shows locked, as Barkpark
+// refuses a batch, so its words stay kept on this computer.
+type OpsArgs = Parameters<typeof applyBlockOps>[0]
+const lockedSend = unlessDocLocked(([args]: [OpsArgs]) => args.data.id, applyBlockOps)
+const sendOps = async (args: OpsArgs) => {
+  const sent = lockedSend(args)
+  return sent === false ? ({ok: false, status: 423, message: translate('This document is read-only here: nothing was saved.'), rev: ''} as OpsResult) : ((await sent) as unknown as OpsResult)
+}
 
 /** The element's host-facing surface (barkpark api/assets/paper-editor/src/canvas/index.js). */
 type Canvas = HTMLElement & {
@@ -241,7 +252,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         if (hold > 0) await new Promise((done) => setTimeout(done, hold))
         if (gone) return
         l.lastSent = Date.now()
-        let r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+        let r = await sendOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})
         paced(!!r.throttled || (!r.ok && r.status === 429))
         // Barkpark's write budget ran out (429) on a batch that never landed: it waits its turn
         // and goes again, instead of "Could not save" (five editors on one document,
@@ -250,7 +261,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           await new Promise((done) => setTimeout(done, Math.max(paceMs(), 500) * (0.5 + Math.random())))
           if (gone) return
           l.lastSent = Date.now()
-          r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+          r = await sendOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})
           paced(!!r.throttled || (!r.ok && r.status === 429))
         }
         // Collaboration hour: the other writer changed a block this batch rewrites (both typed
@@ -280,7 +291,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
         }
         for (let tries = 0; !r.ok && r.status === 412 && r.actual !== undefined && r.actual !== null && tries < 3; tries++) {
           l.rev = r.actual
-          r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})) as unknown as OpsResult
+          r = await sendOps({data: {type, id, field, ops: ops as never, ifRev: l.rev}})
         }
         if (gone) return
         // D20: the resends ran out (another writer kept saving): ask, as Barkdown does.
@@ -617,7 +628,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // canvas shows the result; the text it replaced stays in the document's history.
   const [armed, setArmed] = useState(false)
   const putBack = async () => {
-    if (!offer) return
+    if (!offer || !editable) return
     if (!armed) return setArmed(true)
     const l = loop.current
     let held = false
@@ -632,7 +643,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       const fresh = await readBase()
       const ops = putBackOps(fresh.blocks, offer.blocks)
       if (ops.length) {
-        const r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: fresh.rev}})) as unknown as OpsResult
+        const r = await sendOps({data: {type, id, field, ops: ops as never, ifRev: fresh.rev}})
         if (!r.ok) throw new Error(r.message)
       }
       const now = await readBase()
@@ -724,7 +735,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
   // anyone wrote since, nothing is changed and it says so (Barkdown's undoAgentEdit).
   const [undoing, setUndoing] = useState(false)
   const undoOther = async () => {
-    if (!otherEdit) return
+    if (!otherEdit || !editable) return
     const l = loop.current
     setUndoing(true)
     let held = false
@@ -736,7 +747,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       if (fresh.rev !== otherEdit.afterRev) throw new Error(t('The document changed again. Undo was not applied.'))
       const ops = restoreOps(fresh.blocks, otherEdit.before)
       if (ops.length) {
-        const r = (await applyBlockOps({data: {type, id, field, ops: ops as never, ifRev: fresh.rev}})) as unknown as OpsResult
+        const r = await sendOps({data: {type, id, field, ops: ops as never, ifRev: fresh.rev}})
         if (!r.ok) throw new Error(r.status === 412 ? t('The document changed again. Undo was not applied.') : r.message)
       }
       const now = await readBase()
@@ -791,7 +802,8 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
       <div className="pd-status" role="status">
         {save.state === 'saving' ? t('Saving…') : save.state === 'saved' ? t('Saved') : save.state === 'offline' ? t('Offline — not saving. Your edits are kept here.') : save.state === 'error' ? (problem?.conflict ? t('Conflict') : t('Not saved')) : ''}
       </div>
-      {otherEdit && !problem && (
+      {/* A read-only canvas (a locked view) offers no write: the words stay kept for when it is editable. */}
+      {otherEdit && !problem && editable && (
         <div className="pd-other-edit" role="status" data-other-edit>
           <span>{otherEdit.who ? t('Edited by {who}', {who: otherEdit.who}) : t('Edited elsewhere')}</span>
           <button type="button" className="btn-text" disabled={undoing} onClick={() => void undoOther()}>
@@ -828,7 +840,7 @@ export function PortableDocEditor({type, id, field, vocabulary, labels, openDoc,
           </div>
         </div>
       )}
-      {offer && !problem && (
+      {offer && !problem && editable && (
         <div className="pd-conflict" role="alert" data-kept-words>
           <strong>{t('Words were not saved:')}</strong> {t('the last time this document was open, a save did not reach Barkpark. What you had written is kept on this computer from {date}.', {date: new Date(offer.at).toLocaleString(locale)})}
           <div>
