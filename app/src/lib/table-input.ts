@@ -1,6 +1,7 @@
 import type {Field} from './data'
+import {mergeText} from './merge.ts'
 import {getPath, keyedPath, setPath} from './paths.ts'
-import {alignColumns, noteColumns, placeColumns} from './table-merge.ts'
+import {alignColumns, placeColumns, withColumns} from './table-merge.ts'
 
 // The table field (Sanity's @sanity/table 3.1): an object `{_type: 'table', rows: [{_type:
 // 'tableRow', _key, cells: string[]}]}` edited as a grid of text inputs. The stored shape is
@@ -107,7 +108,7 @@ export function withCell(cells: unknown, column: number, value: string): unknown
  * column past the table's edge (an input of a grid older still): only the one cell `text`
  * was typed on from can be it.
  */
-export function columnNow(drawn: unknown[], width: number, now: unknown[], column: number, text: string): number {
+export function columnNow(drawn: unknown[], width: number, now: unknown[], column: number, text: string, was?: string): number {
   if (column >= width) {
     const from = now.flatMap((c, j) => (typeof c === 'string' && c !== '' && text.startsWith(c) ? [j] : []))
     return from.length === 1 ? from[0]! : -1
@@ -115,12 +116,20 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
   if (now.length === drawn.length) return column
   // The row's own cells, as wide as it was (narrower than the table while my write to it was
   // on its way and theirs came in); a cell past its end (a short row's padding), the grid's.
-  const from = column < drawn.length ? drawn : padded(drawn, width)
+  // The cell holds what my input held before this key (`was`): keys typed since the drawing
+  // went there, and a merge put them where their column went. The key follows them.
+  const from = [...(column < drawn.length ? drawn : padded(drawn, width))]
+  if (was !== undefined) from[column] = was
   return alignColumns([[from, now]], from.length, now.length, (i) => i === column)[column] ?? -1
 }
 
-/** Typing in a cell: that row's `cells`, made onto the row as it is now. Rows without keys go whole. */
-export function setCell(value: unknown, row: number, column: number, cell: string, key: () => string): TableWrite[] {
+/**
+ * Typing in a cell: that row's `cells`, made onto the row as it is now. Rows without keys go
+ * whole. `was` is what the input held before this key: when the cell holds something else now
+ * (another editor's words merged in, not drawn yet), the key goes onto it as a text field's
+ * does (mergeText: no word of either dropped), not over it.
+ */
+export function setCell(value: unknown, row: number, column: number, cell: string, key: () => string, was?: string): TableWrite[] {
   const rows = rowsOf(value)
   const target = rows[row]
   if (!target) return []
@@ -131,8 +140,10 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
       `${keyedPath('rows', target._key!)}.cells`,
       (now: unknown) => {
         const cells = Array.isArray(now) ? now : drawn
-        const at = columnNow(drawn, widthOf(rows), cells, column, cell)
-        return at < 0 ? cells : withCell(cells, at, cell)
+        const at = columnNow(drawn, widthOf(rows), cells, column, cell, was)
+        if (at < 0) return cells
+        const there = text(cells[at])
+        return withCell(cells, at, was === undefined || there === was ? cell : mergeText(was, cell, there))
       },
     ],
   ]
@@ -141,18 +152,16 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
 const same = (w: number) => Array.from({length: w}, (_, i) => i)
 /**
  * The rows set whole, made onto the rows as they are when the write is queued (rows without
- * keys: keyed first). How its columns map from those rows is noted (`columns`; else each stays
- * where it was): merged onto another editor's rows, this editor's column change is known.
+ * keys: keyed first). It carries how its columns map from those rows (`columns`; else each
+ * stays where it was): merged onto another editor's rows, this editor's column change is known.
  */
 const rowsWrite = (key: () => string, change: (rows: TableRow[]) => TableRow[], columns?: (rows: TableRow[]) => number[]): TableWrite[] => [
   [
     'rows',
     (now: unknown) => {
       const rows = withKeys(rowsOf({rows: now}), key)
-      const out = change(rows)
-      // Noted against the very list it was made on: the one lib/edits.ts keeps as this write's base.
-      if (Array.isArray(now)) noteColumns(now, out, columns ? columns(rows) : same(widthOf(rows)))
-      return out
+      // The write says where the columns went (lib/edit-bases.ts keeps it with the spot).
+      return withColumns(change(rows), columns ? columns(rows) : same(widthOf(rows)))
     },
   ],
 ]

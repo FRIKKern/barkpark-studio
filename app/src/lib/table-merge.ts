@@ -1,4 +1,4 @@
-import {merge3} from './merge.ts'
+import {mergeText} from './merge.ts'
 import {getPath} from './paths.ts'
 
 // Two editors in one table field (lib/table-input.ts has its shape: rows by `_key`, each a
@@ -33,7 +33,8 @@ function pairs(a: unknown[], b: unknown[]): [unknown[], unknown[]][] {
 
 /**
  * How much two cells say they are one cell, before and after: the same text 3, text typed on
- * at either end (the cell someone is typing in, read a moment apart) 2, both empty 1. Empty
+ * at either end (the cell someone is typing in, read a moment apart) 2, both empty 1, two
+ * texts neither typed on from the other -1 (text then empty, or empty then text: 0). Empty
  * cells count least: in a table that is mostly empty they all agree with each other, and a
  * word being typed is the one thing that says where its column went.
  */
@@ -41,7 +42,8 @@ function alike(a: unknown, b: unknown): number {
   if (a === b) return a === '' ? 1 : 3
   if (typeof a !== 'string' || typeof b !== 'string' || !a || !b) return 0
   const [short, long] = a.length < b.length ? [a, b] : [b, a]
-  return long.startsWith(short) || long.endsWith(short) ? 2 : 0
+  // Two texts neither typed on from the other: not one cell (no one rewrites a cell's words while another types).
+  return long.startsWith(short) || long.endsWith(short) ? 2 : -1
 }
 
 /**
@@ -52,32 +54,38 @@ function alike(a: unknown, b: unknown): number {
  * alike: an empty table), what changed decides, not the place: a column `kept` (one with
  * text typed since, by either editor) is never the removed one, and a column added beside it
  * goes before it (an insert to its left never lands right of a word being typed). Only then
- * the new column is the later one.
+ * the new column is the later one. `loose`: an empty cell before reads as alike to text after
+ * (text typed since, in an old column or a new one).
  */
-export function alignColumns(rows: [from: unknown[], to: unknown[]][], from: number, to: number, kept?: (i: number) => boolean): number[] {
+export function alignColumns(rows: [from: unknown[], to: unknown[]][], from: number, to: number, kept?: (i: number) => boolean, loose = false, apart?: (i: number, j: number) => boolean): number[] {
   if (from === to) return Array.from({length: from}, (_, i) => i)
+  // Before the place: column `i` onto `j` would put my words in a cell theirs changed (`apart`):
+  // two editors type in two cells far more often than in one.
+  const away = (to + 2) * (to + 2)
   if (from > to) {
     // Columns were removed: place the ones that are left, read the other way round (a kept column scores for being placed).
-    const back = align(rows.map(([a, b]) => [b, a]), to, from, kept && ((_, j) => (kept(j) ? 1 : 0)))
+    const back = align(rows.map(([a, b]) => [b, a]), to, from, (i, j) => (kept?.(j) ? 1 : 0) - (apart?.(j, i) ? away : 0), loose && 'b')
     const out = new Array<number>(from).fill(-1)
     back.forEach((i, j) => i >= 0 && (out[i] = j))
     return out
   }
   // Columns were added: a kept column scores the further right it sits (the new ones before it).
-  return align(rows, from, to, kept && ((i, j) => (kept(i) ? j + 1 : 0)))
+  return align(rows, from, to, (i, j) => (kept?.(i) ? j + 1 : 0) - (apart?.(i, j) ? away : 0), loose && 'a')
 }
 
-function align(rows: [unknown[], unknown[]][], from: number, to: number, tie?: (i: number, j: number) => number): number[] {
+/** `blank`: the side whose empty cells read as alike to text as to an empty cell (text typed since, in a column either old or new). */
+function align(rows: [unknown[], unknown[]][], from: number, to: number, tie?: (i: number, j: number) => number, blank: 'a' | 'b' | false = false): number[] {
   if (!rows.length && !tie) return Array.from({length: from}, (_, i) => i)
-  // What cells say comes first; the tie-break counts only between equal answers (a step of `K`).
-  const K = from * (to + 1) + 2
-  const score = (i: number, j: number) => rows.reduce((n, [a, b]) => n + alike(at(a, i), at(b, j)), 0) * K + (tie?.(i, j) ?? 0)
+  // What cells say comes first; the tie-break counts only between equal answers (a step of `K`, more than all of it).
+  const K = 2 * from * (Math.max(from, to) + 2) ** 2 + 2
+  const like = (a: unknown, b: unknown) => ((blank === 'a' ? a === '' && typeof b === 'string' : blank === 'b' && b === '' && typeof a === 'string') ? 1 : alike(a, b))
+  const score = (i: number, j: number) => rows.reduce((n, [a, b]) => n + like(at(a, i), at(b, j)), 0) * K + (tie?.(i, j) ?? 0)
   // best[i][j]: the best score for the first i columns placed among the first j.
   const extra = to - from
-  const best: number[][] = Array.from({length: from + 1}, () => new Array<number>(to + 1).fill(-1))
+  const best: number[][] = Array.from({length: from + 1}, () => new Array<number>(to + 1).fill(-Infinity))
   for (let j = 0; j <= to; j++) best[0]![j] = 0
   for (let i = 1; i <= from; i++)
-    for (let j = i; j <= i + extra; j++) best[i]![j] = Math.max(best[i - 1]![j - 1]! + score(i - 1, j - 1), j > i ? best[i]![j - 1]! : -1)
+    for (let j = i; j <= i + extra; j++) best[i]![j] = Math.max(best[i - 1]![j - 1]! + score(i - 1, j - 1), j > i ? best[i]![j - 1]! : -Infinity)
   const out = new Array<number>(from).fill(-1)
   for (let i = from, j = to; i > 0; j--) {
     if (j > i && best[i]![j - 1]! >= best[i - 1]![j - 1]! + score(i - 1, j - 1)) continue // column j-1 is new
@@ -86,34 +94,71 @@ function align(rows: [unknown[], unknown[]][], from: number, to: number, tie?: (
   return out
 }
 
+/** How much the cells say for a placing of the columns (`map`): what alignColumns weighs first. */
+const cellScore = (rows: [unknown[], unknown[]][], map: number[]) => map.reduce((n, j, i) => (j < 0 ? n : rows.reduce((m, [a, b]) => m + alike(at(a, i), at(b, j)), n)), 0)
+
+/**
+ * Where column `i`, placed as removed (`map`), may still be: where the cells read as well with
+ * it kept. Its text then stays there, not dropped on a guess (two columns that read alike, one
+ * removed: which one, nothing in the cells says). -1 when the cells say it went.
+ */
+export function stillThere(rows: [unknown[], unknown[]][], from: number, to: number, map: number[], i: number): number {
+  const alt = alignColumns(rows, from, to, (k) => k === i)
+  return alt[i]! >= 0 && cellScore(rows, alt) >= cellScore(rows, map) ? alt[i]! : -1
+}
+
+/** A cell kept on a guess, put with the one it may be: whole, after its text (nothing when that holds it already). */
+const keepBeside = (cell: unknown, kept: unknown): unknown =>
+  typeof cell !== 'string' || typeof kept !== 'string' || !kept || cell.includes(kept) ? cell : !cell ? kept : `${cell} ${kept}`
+
 /** Where `from`'s columns went in `to` (rows paired by key), a `kept` column held on to as alignColumns does. */
 export const placeColumns = (from: unknown[], to: unknown[], kept?: (i: number) => boolean): number[] => alignColumns(pairs(from, to), width(from), width(to), kept)
 
-// This editor's own column changes (lib/table-input.ts): which column it pressed is known, so
-// its rows, merged onto theirs, never guess. Each rows write notes how its columns map from
-// the rows it was made on, by the lists themselves (lib/edits.ts keeps the very lists: the
-// base a write was made on, the pending rows, theirs a merge made them onto). The merge walks
-// from the rows it holds back to their base. Equal-looking tables never stand in for each
-// other (an empty table's columns all read alike): a walk that does not reach base says nothing.
-const own = new WeakMap<object, {from: object; map: number[]}>()
-export const noteColumns = (before: unknown[], after: unknown[], map: number[]) => void own.set(after, {from: before, map})
-/** How `base`'s columns map into `mine`, from this editor's own notes; undefined when the notes do not reach base. */
-export function ownColumns(base: unknown[], mine: unknown[]): number[] | undefined {
-  let at: object = mine
-  let map: number[] | undefined
-  for (let step = 0; step < 64; step++) {
-    if (at === base) return map && map.length === width(base) ? map : undefined
-    const note = own.get(at)
-    if (!note) return undefined
-    map = map ? note.map.map((i) => (i < 0 ? -1 : (map![i] ?? -1))) : note.map
-    at = note.from
+// This editor's own column changes: which column it pressed is known, so its rows, merged
+// onto theirs, never guess. A rows write (lib/table-input.ts) carries how its columns map from
+// the rows it was made on (`COLUMNS` on the list it writes, never stored: JSON leaves it out).
+// lib/edit-bases.ts keeps those maps with the pending spot, in order, from the spot's base on
+// (the spot's own notes, not the list's identity: a key typed while the rows are on their way
+// makes a new list, and the notes stay), and hands them to the merge. A merge's own result
+// carries its map from theirs, the spot's base from then on.
+export const COLUMNS = Symbol('columns')
+/** A rows write's columns: where each column of the rows it was made on went (-1: removed), and how many it has. */
+export type ColumnNote = {map: number[]; width: number}
+/** What a list says of its columns, when it says. */
+export const columnsOf = (list: unknown): ColumnNote | undefined => (Array.isArray(list) ? ((list as unknown as Record<symbol, ColumnNote | undefined>)[COLUMNS]) : undefined)
+/** `rows`, saying where each column of the rows they were made from went (`map`). */
+export const withColumns = <T extends unknown[]>(rows: T, map: number[]): T => Object.defineProperty(rows, COLUMNS, {value: {map, width: width(rows)}, enumerable: false})
+
+/** `base`'s columns (`wb`) in `mine` (`wm`) through this editor's notes, in order since base; undefined when they do not say (one unknown, or not adding up). */
+export function ownColumns(notes: readonly unknown[] | undefined, wb: number, wm: number): number[] | undefined {
+  if (!notes) return undefined
+  let map = Array.from({length: wb}, (_, i) => i)
+  let w = wb
+  for (const note of notes) {
+    const n = note as ColumnNote | null
+    if (!n || !Array.isArray(n.map) || n.map.length !== w) return undefined
+    map = map.map((i) => (i < 0 ? -1 : n.map[i]!))
+    w = n.width
   }
-  return undefined
+  return w === wm ? map : undefined
 }
 
-/** One cell both may have changed: the one who changed it, and text both changed as a text field merges it (else mine). */
-const cell3 = (base: unknown, mine: unknown, theirs: unknown): unknown =>
-  mine === base ? theirs : theirs === base || theirs === mine ? mine : typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string' ? (merge3(base, mine, theirs) ?? mine) : mine
+/**
+ * One cell both may have changed: the one who changed it. Text both changed keeps every word
+ * of both: one side holding the other's earlier text (my own save come back) is the newer;
+ * text both added at the end goes mine, then theirs (my next key finds my text where it
+ * was); else as a Portable Text span merges
+ * (mergeText). A text merge's patches matched by likeness put a word inside another's (two
+ * words typed into one empty cell).
+ */
+function cell3(base: unknown, mine: unknown, theirs: unknown): unknown {
+  if (mine === base) return theirs
+  if (theirs === base || theirs === mine) return mine
+  if (typeof base !== 'string' || typeof mine !== 'string' || typeof theirs !== 'string') return mine
+  if (!mine.startsWith(base) || !theirs.startsWith(base)) return mergeText(base, mine, theirs)
+  const [m, t] = [mine.slice(base.length), theirs.slice(base.length)]
+  return `${mine}${/\s$/.test(m) || /^\s/.test(t) ? '' : ' '}${t}`
+}
 
 /**
  * My edits to one row's cells (`base` → `mine`, cell by cell, the row no longer or shorter),
@@ -130,16 +175,25 @@ export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[],
   // table's rows then were read before my last save came back.
   const known = keyed(was) && keyed(now) ? pairs(was, now) : []
   // A cell I typed in is kept between equal answers (an empty table): its column is not the removed one.
-  const map = alignColumns([...known, [base, theirs]], from, to, (i) => at(mine, i) !== at(base, i))
+  const rows: [unknown[], unknown[]][] = [...known, [base, theirs]]
+  const changed = (i: number) => at(mine, i) !== at(base, i)
+  const map = alignColumns(rows, from, to, changed, false, (i, j) => changed(i) && at(theirs, j) !== at(base, i))
   const out = [...theirs]
+  const kept: [number, unknown][] = []
   for (let i = 0; i < Math.max(mine.length, base.length); i++) {
     if (at(mine, i) === at(base, i)) continue
     // A cell past the table's edge then (a short row typed in) keeps its distance from the edge now.
-    const j = i < from ? map[i]! : i - from + to
-    if (j < 0) continue
+    const j = i >= from ? i - from + to : map[i]!
+    // A column read as removed where the cells do not say so keeps my cell, beside the one it may be (stillThere).
+    if (j < 0) {
+      const there = i < from ? stillThere(rows, from, to, map, i) : -1
+      if (there >= 0) kept.push([there, at(mine, i)])
+      continue
+    }
     while (out.length < j) out.push('')
     out[j] = cell3(at(base, i), at(mine, i), at(out, j))
   }
+  for (const [j, cell] of kept) out[j] = keepBeside(at(out, j), cell)
   return out
 }
 
@@ -154,19 +208,21 @@ type Slot = {b: number; m: number; t: number}
  * my own, saved and come back), and a cell merges as mergeCells3's. Every row comes out with the same columns.
  * Null when a row has no key or no cells: the caller merges as for any list.
  */
-export function mergeRows3(base: unknown[], mine: unknown[], theirs: unknown[]): unknown[] | null {
+export function mergeRows3(base: unknown[], mine: unknown[], theirs: unknown[], own?: readonly unknown[]): unknown[] | null {
   if (!keyed(base) || !keyed(mine) || !keyed(theirs)) return null
   const by = (rows: unknown[]) => new Map(rows.map((r) => [keyOf(r)!, r as Obj]))
   const [baseBy, mineBy, theirsBy] = [by(base), by(mine), by(theirs)]
   const [wb, wm, wt] = [width(base), width(mine), width(theirs)]
   // Nothing to read the columns from (no row all hold): they stay where they are.
-  const place = (rows: unknown[], w: number, kept: (i: number) => boolean) =>
-    pairs(base, rows).length ? alignColumns(pairs(base, rows), wb, w, kept) : Array.from({length: wb}, (_, i) => (i < w ? i : -1))
+  const place = (rows: unknown[], w: number, kept: (i: number) => boolean, loose = false) =>
+    pairs(base, rows).length ? alignColumns(pairs(base, rows), wb, w, kept, loose) : Array.from({length: wb}, (_, i) => (i < w ? i : -1))
   // A column someone typed in since base: in theirs where they changed no columns; in mine through my columns.
   const typed = (rowsBy: Map<string, Obj>, col: (i: number) => number) => (i: number) =>
     col(i) >= 0 && [...baseBy].some(([k, b]) => rowsBy.has(k) && at(cellsOf(rowsBy.get(k)), col(i)) !== at(cellsOf(b), i))
-  // My own columns are known (noteColumns): the column I pressed, never guessed.
-  const cm = ownColumns(base, mine) ?? place(mine, wm, typed(theirsBy, (i) => (wt === wb ? i : -1)))
+  // My own columns are known (my notes, `own`): the column I pressed, never guessed. Without
+  // them (a reload), read from the cells: text I typed since says nothing of whether its column
+  // is new or old (loose), so where theirs typed decides: that column is kept, a new one before it.
+  const cm = ownColumns(own, wb, wm) ?? place(mine, wm, typed(theirsBy, (i) => (wt === wb ? i : -1)), true)
   const ct = place(theirs, wt, typed(mineBy, (i) => cm[i]!))
   // The columns of the result: theirs, without the ones I removed, with the ones I added.
   const slots: Slot[] = []
@@ -224,8 +280,7 @@ export function mergeRows3(base: unknown[], mine: unknown[], theirs: unknown[]):
     return {...(t ?? m), cells}
   })
   // Merged, they are my rows now, measured from theirs: a merge onto the next frame reads my columns from here.
-  noteColumns(theirs, out, Array.from({length: wt}, (_, j) => slots.findIndex((s) => s.t === j)))
-  return out
+  return withColumns(out, Array.from({length: wt}, (_, j) => slots.findIndex((s) => s.t === j)))
 }
 
 // A cell of @sanity/table is text. A Portable Text table (lib/pt-table.ts) has the same
@@ -237,12 +292,24 @@ const isTable = (v: unknown): v is Obj => isObj(v) && v._type === 'table' && Arr
 const ROW_CELLS = /^(.+)\.rows\[_key=="[^"]*"\]\.cells$/
 
 /**
+ * A row's cells (`path`) wait with another spot of their table that is on its way (another
+ * row's cells, the rows): merged now, onto a column change, they took the new width while the
+ * row on its way kept the old one until its answer. The rows drawn uneven between, a key typed
+ * into the narrower row's padding wrote past the table's edge.
+ */
+export const waitsWithTable = (path: string, inflight: Iterable<string>): boolean => {
+  const table = ROW_CELLS.exec(path)?.[1]
+  return !!table && [...inflight].some((k) => k !== path && (k === `${table}.rows` || ROW_CELLS.exec(k)?.[1] === table))
+}
+
+/**
  * A pending list at `path`, about to be merged with the server's (lib/edits.ts rebase): when
  * it is an @sanity/table's rows, or one of its rows' cells (text in every cell, on every side),
  * the merge above; null for any other list, a Portable Text table's included.
- * `before` and `after` are the document as the server had it and has it now.
+ * `before` and `after` are the document as the server had it and has it now; `own`, this
+ * editor's column notes for the rows since their base (lib/edit-bases.ts).
  */
-export function mergeTablePart(path: string, base: unknown[], mine: unknown[], theirs: unknown[], before: unknown, after: unknown): unknown[] | null {
+export function mergeTablePart(path: string, base: unknown[], mine: unknown[], theirs: unknown[], before: unknown, after: unknown, own?: readonly unknown[]): unknown[] | null {
   const row = ROW_CELLS.exec(path)
   if (row) {
     const [was, table] = [getPath(before, row[1]!), getPath(after, row[1]!)]
@@ -252,5 +319,5 @@ export function mergeTablePart(path: string, base: unknown[], mine: unknown[], t
   if (!path.endsWith('.rows')) return null
   const [was, table] = [getPath(before, path.slice(0, -5)), getPath(after, path.slice(0, -5))]
   if (!isTable(table) || (was !== undefined && !isTable(was)) || ![base, mine, theirs].every(plainRows)) return null
-  return mergeRows3(base, mine, theirs)
+  return mergeRows3(base, mine, theirs, own)
 }

@@ -13,9 +13,9 @@ import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
 import {slugsTakenNow} from './slug-unique'
 import {plainReason} from './plain-reason'
-import {merge3, mergeList3, mergeText, onto, revertSteps} from './merge'
-import {mergeTablePart} from './table-merge'
-import {answeredInto, anyInside, applyPaths, getPath, keyedRoots, mergePending, setInside, setPath, within} from './paths'
+import {onto, revertSteps} from './merge'
+import {answered, rebase, same, sentNotesOf, takeBase, unsent, type Spots} from './edit-bases'
+import {applyPaths, getPath, keyedRoots, setInside, setPath, within} from './paths'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {clientGone} from '../server/client-gone'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
@@ -128,7 +128,7 @@ const valuesBefore = createServerFn({method: 'GET'})
  */
 export type SaveState = 'saved' | 'saving' | 'stalled' | 'offline' | 'recovering' | 'error' | 'signedOut' | 'refused'
 type Snap = {state: SaveState; error?: string; creating?: boolean; retry?: boolean}
-type DocEdits = {
+type DocEdits = Spots & {
   type: string
   /** What Barkpark's schema check said of the last save (advisory: never blocks, #22406). */
   advisories?: Finding[]
@@ -344,69 +344,6 @@ function writeCache(qc: QueryClient, id: string, type: string, doc: Doc) {
   qc.setQueriesData<ListPage>({queryKey: ['list', type]}, (page) => page && {...page, docs: [keep(page.docs.find((d) => d._publishedId === id)), ...page.docs.filter((d) => d._publishedId !== id)]})
 }
 
-const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
-
-/**
- * Move our unsent edits onto server doc `d`: fields someone else changed meanwhile merge.
- * Returns the fields that could not: text of ours they rewrote. Ours stays (on screen and
- * pending), unsent, until the editor says so.
- */
-function rebase(e: DocEdits, d: Doc, was?: Doc | null): string[] {
-  const clashed: string[] = []
-  let missed = false
-  // The document as the server had it before `d`: what this browser held (`was`), its own
-  // pending edits taken out. A table's merge reads which column became which from it.
-  const before = e.missedFrom ?? (was ? applyPaths(was as Record<string, unknown>, e.base) : undefined)
-  for (const [f, base] of e.base) {
-    const theirs = getPath(d, f)
-    if (same(theirs, base)) continue
-    // Our own write coming back is not someone else's change.
-    if (e.inflight?.has(f) && same(theirs, e.inflight.get(f))) {
-      e.base.set(f, theirs)
-      continue
-    }
-    // A field with a write in flight merges when that write comes back (afterInflight, or
-    // the save's answer): until then theirs may or may not hold it, and a merge from the
-    // base before it either typed it twice or, in a run of one letter, dropped keys
-    // (task-510e753bc62a59f0). A dirty-only one merges now. Advancing `rev` past theirs
-    // here let a retry of that write save over theirs, unseen (task-41ba9f3dc3fd81e2).
-    // So does a whole value with a write of this editor's on its way inside it (a span typed
-    // in, then its block moved): merged now, the frame of that own write read as theirs.
-    if (!e.dirty.has(f) || e.inflight?.has(f) || (e.inflight && anyInside(e.inflight.keys(), f))) {
-      missed = true
-      continue
-    }
-    const mine = e.dirty.get(f)
-    if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') {
-      // A Portable Text span's text (two editors typing in one block): never held, never a
-      // word dropped (mergeText); other text fields hold a clash for the editor to settle.
-      const merged = SPAN_TEXT.test(f) ? mergeText(base, mine, theirs, !!e.unsure?.has(f)) : merge3(base, mine, theirs, !!e.unsure?.has(f))
-      e.unsure?.delete(f)
-      if (merged === null) clashed.push(f)
-      else e.dirty.set(f, merged)
-    } else if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(theirs)) {
-      // A list: their reorder, add or remove stays while I edit an item (else ours wins).
-      // A table field's rows and cells merge as a table (cells have no keys: lib/table-merge.ts).
-      const merged = mergeTablePart(f, base, mine, theirs, before, d) ?? mergeList3(base, mine, theirs)
-      if (merged) e.dirty.set(f, merged as Json)
-    }
-    e.base.set(f, theirs)
-  }
-  if (missed) (e.missed = d), (e.missedFrom ??= before)
-  else (e.rev = d._rev), (e.missedFrom = undefined)
-  return clashed
-}
-
-/**
- * A save that did not land waits again, with what was edited since: one write per spot
- * (lib/paths.ts mergePending), each with the base it is measured from.
- */
-function unsent(e: DocEdits) {
-  const {pending, dropped} = mergePending(e.inflight!, e.dirty)
-  for (const f of dropped) e.base.delete(f)
-  e.dirty = pending as DocEdits['dirty']
-}
-
 /**
  * A write came back without saving (refused, failed): its values wait in `dirty` again,
  * merged with any server version that changed them meanwhile. A clash is said at once.
@@ -500,20 +437,8 @@ export function edit(qc: QueryClient, doc: Doc, field: string, value: unknown, r
   }
   // What this edit is made against: the server's value (and rev) as this browser has it.
   if (!e.dirty.size && !e.inflight) (e.rev = held._rev || undefined), (e.forks = held._draft === false && !e.pendingCreate)
-  // What this spot is made from, unless a pending spot holding it has that already. A whole
-  // value over spots pending inside it (a Portable Text body after its blocks went by key)
-  // takes their place: without its own base its rebase had nothing to go by, kept the old
-  // rev, and the field's fence refused it again and again (412).
-  // Made from what the server had there, not from this browser's own words still on their
-  // way inside it: each spot pending inside (a span typed in, then its table's rows set whole)
-  // is put back to its own base. Left in, the whole value read as unchanged by this editor
-  // where it held them, and the answer to the earlier save took them out again.
-  if (![...e.base.keys()].some((k) => within(field, k))) {
-    let from = getPath(held, field)
-    for (const [k, was] of e.base) if (k !== field && within(k, field)) from = setInside(field, from, k, was)
-    e.base.set(field, from)
-    for (const k of [...e.base.keys()]) if (k !== field && within(k, field) && !e.inflight?.has(k)) e.base.delete(k)
-  }
+  // What this spot is made from (lib/edit-bases.ts).
+  takeBase(e, field, held, value)
   // One pending write per spot: a path inside an object already pending whole goes
   // into that value; a whole value replaces the paths pending inside it.
   const outer = [...e.dirty.keys()].find((k) => k !== field && within(field, k))
@@ -728,6 +653,7 @@ async function send(qc: QueryClient, id: string) {
   if (hold > 0) return void (e.timer ??= setTimeout(() => ((e.timer = undefined), void send(qc, id)), hold))
   e.inflight = e.dirty
   e.dirty = new Map()
+  sentNotesOf(e)
   e.lastSent = Date.now()
   budget.spend()
   const after = e.snap.state === 'offline' || e.snap.state === 'recovering'
@@ -784,13 +710,8 @@ async function send(qc: QueryClient, id: string) {
       if (fix.ignored) dmpOff = true
     }
     for (const f of sets.keys()) e.noDmp?.delete(f)
-    // What we sent is now the server's: a field still being typed builds on it.
-    for (const f of e.inflight.keys()) {
-      if (e.dirty.has(f)) e.base.set(f, getPath(saved, f))
-      else e.base.delete(f)
-      answeredInto(e.base, f, getPath(saved, f))
-      e.unsure?.delete(f)
-    }
+    // What we sent is now the server's: a spot still being typed builds on it (lib/edit-bases.ts).
+    answered(e, saved)
     e.inflight = null
     // The save went through: what it answered is newer than a frame held for it, unless that
     // frame came from a write after ours (it holds ours and theirs): that one folds in next.
@@ -1035,6 +956,7 @@ export function settleClash(qc: QueryClient, id: string, field: string, keep: 'm
   if (keep === 'theirs') {
     e.dirty.delete(field)
     e.base.delete(field)
+    e.notes?.delete(field)
     const held = qc.getQueryData<Doc>(['doc', id])
     if (held) writeCache(qc, id, e.type, setPath({...held}, field, c.theirs))
   }
@@ -1129,7 +1051,7 @@ export async function unpublish(qc: QueryClient, doc: Doc) {
 export async function discardDraft(qc: QueryClient, doc: Doc) {
   const id = doc._publishedId
   const e = docs.get(id)
-  if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear(), keepUnsaved(id, e))
+  if (e) (clearTimeout(e.timer), (e.timer = undefined), e.dirty.clear(), (e.notes = undefined), keepUnsaved(id, e))
   await whenSaved(id)
   await mutate({data: {mutations: [{discardDraft: {id, type: doc._type}}]}})
   if (e) e.advisories = undefined // what Barkpark said of the draft went with it
@@ -1199,6 +1121,8 @@ export function reapply(qc: QueryClient, restored: Doc, fields: [string, unknown
   e.missed = undefined
   e.missedFrom = undefined
   e.base.clear()
+  e.notes = undefined
+  e.sentNotes = undefined
   setState(e, 'saved')
   // The edits are made against the restored version, not against what the screen shows
   // (it already shows them): with the screen as base, a newer version from Barkpark

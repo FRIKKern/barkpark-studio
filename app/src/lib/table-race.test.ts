@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {addColumns, moveColumn, removeColumn} from './table-input.ts'
-import {mergeCells3, mergeRows3} from './table-merge.ts'
+import {columnsOf, mergeCells3, mergeRows3} from './table-merge.ts'
 
 // Two editors in one @sanity/table, one inserting or removing a column while the other types:
 // every table, cell and column of a 2 x 2 and a 2 x 3, the ambiguous ones first (all empty, all
@@ -47,7 +47,8 @@ test('fuzz: a column inserted or removed while the other editor types: rows even
               // The one who changed the column: its own write (the column it pressed), merged onto the typed word.
               const held = rowsOf(seen)
               const [[, write]] = ('insert' in op ? addColumns({rows: held}, op.insert, 1, key) : removeColumn({rows: held}, op.remove, key)) as [[string, (now: unknown) => unknown]]
-              const acted = mergeRows3(held, write(held) as unknown[], rowsOf(typed))
+              const written = write(held) as unknown[]
+              const acted = mergeRows3(held, written, rowsOf(typed), [columnsOf(written)])
               assert.deepEqual(grid(acted), want, `the one who changed the column: ${name}`)
               // The one typing, onto the column change: its row's cells, and its rows set whole.
               const after = rowsOf(seen.map((cells) => apply(cells, op)))
@@ -72,11 +73,13 @@ test('A removes column 1 of an empty table; B has typed in column 2: B\'s word s
   const base = rowsOf([['', ''], ['', '']])
   assert.deepEqual(grid(mergeRows3(base, rowsOf([[''], ['']]), rowsOf([['', 'word'], ['', '']]))), [['word'], ['']])
   // The column A pressed is known: A's own write, merged onto B's word.
-  const [[, write]] = removeColumn({rows: base}, 0, key) as [[string, (now: unknown) => unknown]]
-  assert.deepEqual(grid(mergeRows3(base, write(base) as unknown[], rowsOf([['', 'word'], ['', '']]))), [['word'], ['']])
+  const [[, write]] = removeColumn({rows: base}, 0, key) as [[string, (now: unknown) => unknown[]]]
+  const removed = write(base)
+  assert.deepEqual(grid(mergeRows3(base, removed, rowsOf([['', 'word'], ['', '']]), [columnsOf(removed)])), [['word'], ['']])
   // A pressed column 2, B's: the word goes with its column.
-  const [[, own]] = removeColumn({rows: base}, 1, key) as [[string, (now: unknown) => unknown]]
-  assert.deepEqual(grid(mergeRows3(base, own(base) as unknown[], rowsOf([['', 'word'], ['', '']]))), [[''], ['']])
+  const [[, own]] = removeColumn({rows: base}, 1, key) as [[string, (now: unknown) => unknown[]]]
+  const gone = own(base)
+  assert.deepEqual(grid(mergeRows3(base, gone, rowsOf([['', 'word'], ['', '']]), [columnsOf(gone)])), [[''], ['']])
 })
 
 test('B typing in column 2 of an empty table, A\'s removal of column 1 arrives: B\'s word stays', () => {
@@ -91,8 +94,16 @@ test('my own column changes, several before a save and an empty table: each wher
   const m2 = step(m1, addColumns({rows: m1}, 1, 1, key))
   const m3 = step(m2, moveColumn({rows: m2}, 0, 2, key))
   // They typed in columns 2 and 3 meanwhile: B1 B2 → (remove 1) B1 B2 → (insert) B1 _ B2 → (move) _ B2 B1.
-  assert.deepEqual(grid(mergeRows3(base, m3, rowsOf([['', 'B1', 'B2'], ['', '', '']]))), [['', 'B2', 'B1'], ['', '', '']])
-  // Rows that only look like mine (a copy, an undo): no note reaches base; between equal answers their typed word is kept.
+  // My notes, kept with the spot in order (lib/edit-bases.ts); a key typed meanwhile makes new lists and changes no column.
+  const typedIn = m3.map((r, i) => (i === 1 ? {...(r as object), cells: ['', 'A', '']} : r))
+  assert.deepEqual(grid(mergeRows3(base, typedIn, rowsOf([['', 'B1', 'B2'], ['', '', '']]), [m1, m2, m3].map(columnsOf))), [['', 'B2', 'B1'], ['', 'A', '']])
+  // Rows with no notes (a reload, a copy): between equal answers their typed word is kept.
   const guessed = grid(mergeRows3(base, rowsOf([['', ''], ['', '']]), rowsOf([['', 'B1', ''], ['', '', '']])))
   assert.ok(guessed.every((cells) => cells.length === 2) && guessed.flat().filter((v) => v === 'B1').length === 1, JSON.stringify(guessed))
+})
+
+// The round-4 review (failed on c7a41471): A inserted a column left of column 1 and typed "A" in the old column, its
+// write without notes (lost, as on c7a41471, to the list a key made); B typed "B" in row 2, column 1. An insert left stays left.
+test('presser without notes (typed right after its insert): an insert left stays left', () => {
+  assert.deepEqual(grid(mergeRows3(rowsOf([[''], ['']]), rowsOf([['', 'A'], ['', '']]), rowsOf([[''], ['B']]))), [['', 'A'], ['', 'B']])
 })

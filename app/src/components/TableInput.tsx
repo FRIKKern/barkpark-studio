@@ -26,17 +26,20 @@ const WINDOW_FROM = 60
 const OVERSCAN = 12
 
 /** One cell. It owns its text between renders (as a text field's input): keys typed faster than the form redraws stay. */
-const Cell = memo(function Cell({row, column, value, label, shut, onCell, onKey, onPaste}: {row: number; column: number; value: string; label: string; shut: boolean; onCell: (row: number, column: number, text: string) => void; onKey: (e: KeyboardEvent<HTMLInputElement>, row: number, column: number) => void; onPaste: (e: ClipboardEvent<HTMLInputElement>, row: number, column: number) => void}) {
+const Cell = memo(function Cell({row, column, value, label, shut, onCell, onKey, onPaste}: {row: number; column: number; value: string; label: string; shut: boolean; onCell: (row: number, column: number, text: string, was: string) => void; onKey: (e: KeyboardEvent<HTMLInputElement>, row: number, column: number) => void; onPaste: (e: ClipboardEvent<HTMLInputElement>, row: number, column: number) => void}) {
   const [local, setLocal] = useState(value)
   const [seen, setSeen] = useState(value)
   const ref = useRef<HTMLInputElement>(null)
   const caret = useRef<number | null>(null)
+  // What the input held before the next key (keys faster than a redraw build on each other).
+  const before = useRef(value)
   if (value !== seen) {
     // Someone else's edit to this cell: the caret stays on the same text.
     const el = ref.current
     if (el && el === document.activeElement && el.value !== value) caret.current = mapCaret(el.value, value, el.selectionStart ?? 0)
     setSeen(value)
     setLocal(value)
+    before.current = value
   }
   useLayoutEffect(() => {
     if (caret.current === null) return
@@ -52,7 +55,12 @@ const Cell = memo(function Cell({row, column, value, label, shut, onCell, onKey,
       aria-label={label}
       data-row={row}
       data-column={column}
-      onChange={(e) => (setLocal(e.target.value), onCell(row, column, e.target.value))}
+      onChange={(e) => {
+        const was = before.current
+        before.current = e.target.value
+        setLocal(e.target.value)
+        onCell(row, column, e.target.value, was)
+      }}
       onKeyDown={(e) => onKey(e, row, column)}
       onPaste={(e) => onPaste(e, row, column)}
     />
@@ -162,7 +170,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   }
   const header = (kind: 'row' | 'column', index: number) => root.current?.querySelector<HTMLElement>(`button[data-${kind}-header="${index}"]`)
 
-  const onCell = useCallback((row: number, column: number, text: string) => write(setCell(seen.current, row, column, text, newKey)), [write])
+  const onCell = useCallback((row: number, column: number, text: string, was: string) => write(setCell(seen.current, row, column, text, newKey, was)), [write])
   const onKey = useCallback(
     (e: KeyboardEvent<HTMLInputElement>, row: number, column: number) => {
       if (e.altKey || e.metaKey || e.ctrlKey || e.nativeEvent.isComposing) return
@@ -212,8 +220,10 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   // no cell, so the next keys do not land in a neighbour's text (the form would hand the focus
   // to the nearest control: lib/focus-rescue.ts).
   const drawnGrid = useRef<{rows: [string, string[]][]; columns: number; widths: string} | null>(null)
-  const caret = useRef<{key: string; column: number; el: HTMLInputElement; at: [number, number]} | null>(null)
-  if (caret.current?.el.isConnected && typeof document !== 'undefined' && document.activeElement === caret.current.el) caret.current.at = [caret.current.el.selectionStart ?? 0, caret.current.el.selectionEnd ?? 0]
+  // `text`: what the input holds as this drawing starts (keys typed since the last one are in it, not yet in the drawing).
+  const caret = useRef<{key: string; column: number; el: HTMLInputElement; at: [number, number]; text?: string} | null>(null)
+  if (caret.current?.el.isConnected && typeof document !== 'undefined' && document.activeElement === caret.current.el)
+    (caret.current.at = [caret.current.el.selectionStart ?? 0, caret.current.el.selectionEnd ?? 0]), (caret.current.text = caret.current.el.value)
   useLayoutEffect(() => {
     const was = drawnGrid.current
     const stored = (value as {rows?: unknown} | undefined)?.rows
@@ -234,7 +244,9 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     let column = held.column
     if (was && settled && was.columns !== grid.columns) {
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
-      const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [cells, now.get(k)!]), was.columns, grid.columns, (i) => i === column)[column]
+      // The caret's own cell as its input holds it: a word typed since the last drawing says where its column went.
+      const own = (k: string, cells: string[]) => (k === held.key && held.text !== undefined ? cells.map((c, i) => (i === held.column ? held.text! : c)) : cells)
+      const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, (i) => i === column)[column]
       if (to !== undefined && to < 0) {
         // Its column was removed: the caret leaves with its cells, as with a removed row.
         caret.current = null
