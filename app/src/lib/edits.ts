@@ -795,11 +795,11 @@ async function send(qc: QueryClient, id: string) {
     // The save went through: what it answered is newer than a frame held for it, unless that
     // frame came from a write after ours (it holds ours and theirs): that one folds in next.
     const later = e.missed && e.missed._updatedAt > saved._updatedAt ? e.missed : undefined
-    // The bases moved past our write: the document as it was before the held frame is no
-    // longer what they are measured from (a table's columns read from it put a word typed
-    // on a column back where it was, beside its saved half).
+    // The document as it was before a held frame (missedFrom) is what that frame merges
+    // from (this browser's copy holds the frame already, so a table read from it says no
+    // column moved). With no frame to merge it goes, or a later frame would merge from it.
     e.missed = undefined
-    e.missedFrom = undefined
+    if (!later) e.missedFrom = undefined
     e.conflicts = 0
     clearTimeout(stall)
     keepUnsaved(id, e)
