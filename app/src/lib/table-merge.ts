@@ -12,10 +12,10 @@ import {getPath} from './paths.ts'
 
 type Obj = Record<string, unknown>
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v)
-const cellsOf = (row: unknown): unknown[] => (isObj(row) && Array.isArray(row.cells) ? row.cells : [])
+export const cellsOf = (row: unknown): unknown[] => (isObj(row) && Array.isArray(row.cells) ? row.cells : [])
 const keyOf = (row: unknown) => (isObj(row) && typeof row._key === 'string' ? row._key : null)
 const at = (cells: unknown[], i: number): unknown => cells[i] ?? ''
-const width = (rows: unknown[]) => rows.reduce<number>((w, r) => Math.max(w, cellsOf(r).length), 0)
+export const width = (rows: unknown[]) => rows.reduce<number>((w, r) => Math.max(w, cellsOf(r).length), 0)
 /** Rows a merge can place: each an object with its own key and a list of cells. */
 const keyed = (rows: unknown[]) => rows.every((r) => keyOf(r) !== null && Array.isArray((r as Obj).cells)) && new Set(rows.map(keyOf)).size === rows.length
 
@@ -192,7 +192,7 @@ const commonEnd = (a: string, b: string) => {
  * them the row itself has to (right unless the new column sits beside an equal cell). A cell
  * of mine in a column that was removed goes with its column.
  */
-export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[], before?: unknown, after?: unknown): unknown[] {
+export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[], before?: unknown, after?: unknown, keep?: (column: number, text: unknown) => void): unknown[] {
   const [was, now] = [Array.isArray(before) ? before : [], Array.isArray(after) ? after : []]
   const [from, to] = [Math.max(width(was), base.length), Math.max(width(now), theirs.length)]
   // This row's own base is read too: it is what my edits are measured from, even when the
@@ -211,6 +211,12 @@ export function mergeCells3(base: unknown[], mine: unknown[], theirs: unknown[],
     // A column read as removed, unless the cells say so for sure (what I had saved there is
     // nowhere in theirs), keeps my cell, beside the one it may be (stillThere), when no one else
     // changed that one.
+    // Kept, not guessed (lib/table-keep.ts): my text where nothing says its place, or in a cell
+    // theirs changed too, goes to the kept list; theirs stays.
+    if (keep && (j < 0 || at(theirs, j) !== at(base, i))) {
+      keep(i, at(mine, i))
+      continue
+    }
     if (j < 0) {
       const there = i < from && !gone(at(base, i), theirs) ? stillThere(rows, from, to, i) : -1
       // Only beside a cell no one else changed: a guess never runs into another editor's word.
@@ -236,7 +242,7 @@ type Slot = {b: number; m: number; t: number}
  * my own, saved and come back), and a cell merges as mergeCells3's. Every row comes out with the same columns.
  * Null when a row has no key or no cells: the caller merges as for any list.
  */
-export function mergeRows3(base: unknown[], mine: unknown[], theirs: unknown[], own?: readonly unknown[]): unknown[] | null {
+export function mergeRows3(base: unknown[], mine: unknown[], theirs: unknown[], own?: readonly unknown[], keep?: (row: string, column: number, text: unknown) => void): unknown[] | null {
   if (!keyed(base) || !keyed(mine) || !keyed(theirs)) return null
   const by = (rows: unknown[]) => new Map(rows.map((r) => [keyOf(r)!, r as Obj]))
   const [baseBy, mineBy, theirsBy] = [by(base), by(mine), by(theirs)]
@@ -301,6 +307,8 @@ export function mergeRows3(base: unknown[], mine: unknown[], theirs: unknown[], 
       const tv = t && s.t >= 0 ? at(tc, s.t) : undefined
       if (mv === undefined || tv === undefined) return mv ?? tv ?? ''
       // A row new to both is my own come back: mine is the newer. In a column new to both, the one with text.
+      // Both changed one cell (kept mode): theirs stays, mine is kept.
+      if (keep && b && s.b >= 0 && mv !== at(bc, s.b) && tv !== at(bc, s.b) && mv !== tv) return keep(k, s.m, mv), tv
       return b && s.b >= 0 ? cell3(at(bc, s.b), mv, tv) : b && mv === '' ? tv : mv
     })
     // A row of theirs I changed nothing in stays as stored (a short row of an import too).
@@ -316,8 +324,8 @@ export function mergeRows3(base: unknown[], mine: unknown[], theirs: unknown[], 
 // key as on main (lib/merge.ts mergeList3), never by position here.
 const plain = (cells: unknown[]) => cells.every((c) => c === null || typeof c !== 'object')
 const plainRows = (rows: unknown[]) => rows.every((r) => plain(cellsOf(r)))
-const isTable = (v: unknown): v is Obj => isObj(v) && v._type === 'table' && Array.isArray(v.rows) && plainRows(v.rows)
-const ROW_CELLS = /^(.+)\.rows\[_key=="[^"]*"\]\.cells$/
+export const isTable = (v: unknown): v is Obj => isObj(v) && v._type === 'table' && Array.isArray(v.rows) && plainRows(v.rows)
+const ROW_CELLS = /^(.+)\.rows\[_key=="([^"]*)"\]\.cells$/
 
 /**
  * A row's cells (`path`) wait with another spot of their table that is on its way (another
@@ -335,17 +343,25 @@ export const waitsWithTable = (path: string, inflight: Iterable<string>, doc: un
  * it is an @sanity/table's rows, or one of its rows' cells (text in every cell, on every side),
  * the merge above; null for any other list, a Portable Text table's included.
  * `before` and `after` are the document as the server had it and has it now; `own`, this
- * editor's column notes for the rows since their base (lib/edit-bases.ts).
+ * editor's column notes for the rows since their base (lib/edit-bases.ts); `keep`, where my
+ * text goes when theirs changed the same cell (lib/table-keep.ts).
  */
-export function mergeTablePart(path: string, base: unknown[], mine: unknown[], theirs: unknown[], before: unknown, after: unknown, own?: readonly unknown[]): unknown[] | null {
+export function mergeTablePart(path: string, base: unknown[], mine: unknown[], theirs: unknown[], before: unknown, after: unknown, own?: readonly unknown[], keep?: (row: string, column: number, text: unknown) => void): unknown[] | null {
   const row = ROW_CELLS.exec(path)
   if (row) {
     const [was, table] = [getPath(before, row[1]!), getPath(after, row[1]!)]
     if (!isTable(table) || (was !== undefined && !isTable(was)) || ![base, mine, theirs].every(plain)) return null
-    return mergeCells3(base, mine, theirs, (was as Obj | undefined)?.rows, table.rows)
+    return mergeCells3(base, mine, theirs, (was as Obj | undefined)?.rows, table.rows, keep && ((column, text) => keep(row[2]!, column, text)))
   }
   if (!path.endsWith('.rows')) return null
   const [was, table] = [getPath(before, path.slice(0, -5)), getPath(after, path.slice(0, -5))]
   if (!isTable(table) || (was !== undefined && !isTable(was)) || ![base, mine, theirs].every(plainRows)) return null
-  return mergeRows3(base, mine, theirs, own)
+  return mergeRows3(base, mine, theirs, own, keep)
+}
+
+/** A spot of a @sanity/table: its table's path, and the row for a row's cells (`X.rows[_key=="k"].cells`); null for others. */
+export function tableSpot(path: string): {table: string; row?: string} | null {
+  const m = ROW_CELLS.exec(path)
+  if (m) return {table: m[1]!, row: m[2]!}
+  return path.endsWith('.rows') ? {table: path.slice(0, -5)} : null
 }

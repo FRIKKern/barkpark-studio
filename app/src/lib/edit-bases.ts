@@ -3,6 +3,7 @@ import {merge3, mergeList3, mergeText} from './merge.ts'
 import {answeredInto, anyInside, applyPaths, getPath, mergePending, setInside, within} from './paths.ts'
 import {SPAN_TEXT} from './pt-dmp.ts'
 import {columnsOf, mergeTablePart, waitsWithTable} from './table-merge.ts'
+import {keepCell, keepOnShapeChange, type TableKept} from './table-keep.ts'
 
 // What lib/edits.ts keeps for a document's unsent edits, and how it changes with a server
 // version (rebase), an edit (takeBase), a save sent (sentNotesOf) and its answer (answered) or
@@ -38,6 +39,8 @@ export type Spots = {
    * editor's rows, the column this editor pressed is known, not read from the cells.
    */
   notes?: Map<string, (unknown | null)[]>
+  /** A table's text of mine its rebase did not merge (lib/table-keep.ts), for the editor to take. */
+  kept?: TableKept[]
   /** How many of each spot's notes went with the write in flight. */
   sentNotes?: Map<string, number>
 }
@@ -55,6 +58,8 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
   // The document as the server had it before `d`: what this browser held (`was`), its own
   // pending edits taken out. A table's merge reads which column became which from it.
   const before = e.missedFrom ?? (was ? applyPaths(was as Record<string, unknown>, e.base) : undefined)
+  // A table whose columns or rows changed under my unsent text: that text is kept, not merged.
+  keepOnShapeChange(e, d, before)
   for (const [f, base] of e.base) {
     const theirs = getPath(d, f)
     if (same(theirs, base)) continue
@@ -87,7 +92,7 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
     } else if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(theirs)) {
       // A list: their reorder, add or remove stays while I edit an item (else ours wins).
       // A table field's rows and cells merge as a table (cells have no keys: lib/table-merge.ts).
-      const merged = mergeTablePart(f, base, mine, theirs, before, d, e.notes?.get(f)) ?? mergeList3(base, mine, theirs)
+      const merged = mergeTablePart(f, base, mine, theirs, before, d, e.notes?.get(f), (row, column, text) => keepCell(e, f, row, column, text)) ?? mergeList3(base, mine, theirs)
       if (merged) e.dirty.set(f, merged as Json)
       // Merged rows are measured from theirs from here on: where my columns are now, the merge says.
       const note = columnsOf(merged)

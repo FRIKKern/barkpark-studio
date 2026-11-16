@@ -153,7 +153,10 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
     [
       `${keyedPath('rows', target._key!)}.cells`,
       (now: unknown) => {
-        const cells = Array.isArray(now) ? now : drawn
+        // The row is not in this browser's copy any more (removed meanwhile): the input's text,
+        // whole, where it was typed; the rebase keeps it for the editor (lib/table-keep.ts).
+        if (!Array.isArray(now)) return withCell(drawn, column, cell)
+        const cells = now
         const at = columnNow(drawn, widthOf(rows), cells, column, cell, was)
         if (at < 0) return cells
         return withCell(cells, at, keyOnto(was, cell, text(cells[at])))

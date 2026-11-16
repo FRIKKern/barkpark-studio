@@ -12,6 +12,7 @@ import {answered, rebase, sentNotesOf, takeBase, unsent, type Spots} from './edi
 import {applyPaths, getPath, setInside, setPath, within} from './paths.ts'
 import {mapCaret} from './merge.ts'
 import {alignColumns} from './table-merge.ts'
+import {addKept} from './table-keep.ts'
 import {addColumns, addRows, removeColumn, removeRow, setCell, tableGrid} from './table-input.ts'
 
 const J = JSON.stringify
@@ -59,8 +60,12 @@ class Client {
   cache: Doc
   view: Doc // what React last drew
   drawn: {rows: [string, string[]][]; columns: number; widths: string} | null = null
-  caret: {key: string; column: number} | null = null
+  caret: {key: string; column: number; width?: number} | null = null
   local = '' // the focused input's text
+  // Text of mine a table change left out (lib/table-keep.ts), on TableInput's card; `card`: the
+  // one the caret moved to (its cell's text was kept: typing goes on there).
+  kept: {row: string; column: number; text: string}[] = []
+  card: {row: string; column: number; text: string} | null = null
   at = 0 // its caret
   request: {set: [string, unknown][]; unset: string[]; rev?: string} | null = null
   answer: {ok: true; doc: Doc} | {ok: false} | null = null
@@ -106,7 +111,11 @@ class Client {
   applyServer(doc: Doc) {
     if (this.cache._updatedAt > doc._updatedAt) return
     rebase(this.e, doc as any, this.cache as any)
+    this.takeKept()
     this.cache = this.overlay(doc)
+  }
+  takeKept() {
+    for (const k of this.e.kept?.splice(0) ?? []) addKept(this.kept, {row: k.row, column: k.column, text: k.text})
   }
   // lib/edits.ts send(): its answer, and a 412's read and rebase.
   onAnswer(server: Server) {
@@ -127,6 +136,7 @@ class Client {
       e.inflight = null
       e.missed = undefined
       rebase(e, latest as any, this.cache as any)
+      this.takeKept()
       this.cache = this.overlay(latest)
     }
   }
@@ -141,44 +151,60 @@ class Client {
     this.view = this.cache
     const held = this.caret
     if (!held) return
+    // The caret's own text was kept: TableInput moves it to the card, typing goes on there.
+    const card = this.kept.find((k) => k.row === held.key && k.column === held.column && k.text === this.local)
+    if (card) return void ((this.card = card), (this.caret = null))
     const row = grid.rows.findIndex((r) => r.key === held.key)
-    if (row < 0) return void (this.caret = null)
+    if (row < 0) return this.lose(held)
     let column = held.column
-    if (was && settled && was.columns !== grid.columns) {
+    if (was && settled && was.columns !== grid.columns && held.width !== grid.columns) {
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
       const own = (k: string, cells: string[]) => (k === held.key ? cells.map((c, i) => (i === held.column ? this.local : c)) : cells)
       const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, (i) => i === column)[column]
-      if (to !== undefined && to < 0) return void (this.caret = null)
+      if (to !== undefined && to < 0) return this.lose(held)
       column = to ?? Math.min(column, grid.columns - 1)
     }
-    this.caret = {key: held.key, column}
+    this.caret = {key: held.key, column, width: held.width === grid.columns || (was && settled && was.columns !== grid.columns) ? grid.columns : held.width}
     // TableInput's Cell: someone else's edit to the focused cell keeps the caret on the same text.
     const now = grid.rows[row]!.cells[column] ?? ''
     if (now !== this.local) this.at = mapCaret(this.local, now, this.at)
     this.local = now
   }
+  /** The caret's cell was removed: text typed in it goes to the card (TableInput), typing goes on there. */
+  lose(held: {key: string; column: number}) {
+    this.caret = null
+    if (this.typed && this.local) this.card = addKept(this.kept, {row: held.key, column: held.column, text: this.local})
+  }
+  typed = false
   /** Click a cell by row key and column id (this editor's own idea of the columns). */
   click(row: string, col: number): boolean {
     const grid = tableGrid(this.view.t)
     const column = this.ids().indexOf(col)
     const r = grid.rows.findIndex((x) => x.key === row)
     if (column < 0 || r < 0) return false
-    this.caret = {key: row, column}
+    this.caret = {key: row, column, width: (this.view.t?.rows?.[r]?.cells ?? []).length}
+    ;[this.card, this.typed] = [null, false]
     this.local = grid.rows[r]!.cells[column] ?? ''
     this.at = this.local.length
     return true
   }
   key(ch: string) {
+    if (this.card) return void (this.card.text += ch)
     if (!this.caret) return
     const r = tableGrid(this.view.t).rows.findIndex((x) => x.key === this.caret!.key)
     if (r < 0) return
     const was = this.local
+    this.typed = true
     this.local = was.slice(0, this.at) + ch + was.slice(this.at++)
+    // A key from an input whose text was kept, before the card took the caret: onto the kept text.
+    const kept = this.kept.find((k) => k.row === this.caret!.key && k.column === this.caret!.column && k.text === was)
+    if (kept) return void ((kept.text = this.local), (this.card = kept), (this.caret = null))
     this.write(setCell(this.view.t, r, this.caret.column, this.local, newKey, was))
   }
   press(op: Op) {
     const v = this.view.t
     this.caret = null
+    ;[this.card, this.typed] = [null, false]
     this.write(op.kind === 'inscol' ? addColumns(v, op.at, 1, newKey) : op.kind === 'rmcol' ? removeColumn(v, op.at, newKey) : op.kind === 'insrow' ? addRows(v, op.at, 1, 'tableRow', newKey) : removeRow(v, op.at, newKey))
   }
   done = () => this.pos >= this.script.length
@@ -283,20 +309,31 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
   const soft: string[] = []
   if (!clients.every((c) => J(c.cache.t) === J(server.doc.t))) bad.push('DIVERGED')
   if (!got.every((cs) => cs.length === got[0]?.length)) bad.push('UNEVEN')
+  // Every word typed is whole in exactly one cell, or on its typer's card (kept); none is gone.
+  const kept = clients.flatMap((c) => c.kept.map((k) => k.text))
+  const count = (texts: string[], w: string) => texts.reduce((k, c) => k + c.split(w).length - 1, 0)
   for (const w of words) {
     const alive = rowsAfter.includes(w.row) && idsAfter.includes(w.col)
-    const n = flat.reduce((k, c) => k + c.split(w.word).length - 1, 0)
-    if (alive && n === 0) bad.push(`LOST ${w.word}`)
-    if (n > 1) bad.push(`DOUBLED ${w.word}`)
+    const [n, m] = [count(flat, w.word), count(kept, w.word)]
+    if (alive && n + m === 0) bad.push(`LOST ${w.word}`)
+    if (n + m > 1) bad.push(`DOUBLED ${w.word}`)
+    if (m) soft.push('KEPT')
     if (!alive && n > 0) soft.push('REVIVED') // its column or row was removed, the word stayed elsewhere
   }
-  for (const c of flat) if (WORDCH.test(words.reduce((rest, w) => rest.split(w.word).join(''), c))) bad.push(`SPLIT ${J(c)}`)
+  for (const c of [...flat, ...kept]) {
+    const rest = words.reduce((r, w) => r.split(w.word).join(''), c)
+    if (!WORDCH.test(rest)) continue
+    // A word's first keys, saved, left in a cell whose column the typer could not tell (two cells
+    // held the same text): the whole word is on the typer's card, and its "Put it back" replaces them.
+    if (flat.includes(c) && kept.some((k) => k.startsWith(c))) soft.push('LEFTOVER')
+    else bad.push(`SPLIT ${J(c)}`)
+  }
   if (op.kind === 'inscol')
     for (const w of words) {
       const at = idsAfter.indexOf(w.col)
       if (at > op.at && !got.some((cs) => cs[at]?.includes(w.word)) && flat.some((c) => c.includes(w.word))) bad.push(`INSERT-LEFT-WRONG-SIDE ${w.word}`)
     }
-  if (!bad.length && J(got) !== J(want)) soft.push('MISPLACED')
+  if (!bad.length && !kept.length && J(got) !== J(want)) soft.push('MISPLACED')
   return {bad, soft, name: `scene ${i}: ${R}x${C} ${kind} ${J(t0.rows.map((r) => r.cells))} op ${J(op)} P ${J(P)} T ${J(T)} -> ${J(got)}, meant ${J(want)}`}
 }
 
@@ -316,20 +353,21 @@ export function simulate(n: number, seeds = [1, 2, 3]) {
 }
 
 /**
- * What is left, by class, over 10 seeds (1001-1010) x 4,000 scenes: a ceiling that may only fall
- * (per 12,000 scenes: LOST 9.6, SPLIT 11.4, UNEVEN 6, INSERT-LEFT-WRONG-SIDE 23.4). Each needs a
- * column's identity the stored shape does not carry (cells are bare strings; a column is only a
- * place), from column removals and inserts alike: the typer cannot tell which column the presser
- * removed or where it inserted when the cells read alike, and a word placed a column off is then
- * typed on by the other editor. MISPLACED and REVIVED (text kept, in another cell) are counted, not failed.
+ * 10 seeds (1001-1010) x 4,000 scenes. No word lost, doubled or split, no rows uneven, both agree:
+ * none of these may happen. A column's place is not guessed (lib/table-keep.ts): text of mine
+ * the other's column change leaves without a sure place is kept, on my card (KEPT, counted).
+ * Two ceilings that may only fall: INSERT-LEFT-WRONG-SIDE (both words whole, in one cell: the
+ * typer clicked by column in a row drawn at the old width) and LEFTOVER (above). MISPLACED and
+ * REVIVED (text kept, in another cell) are counted, not failed.
  */
 const SEEDS = Array.from({length: 10}, (_, i) => 1001 + i)
-const CEILING: Record<string, number> = {'INSERT-LEFT-WRONG-SIDE': 78, LOST: 32, SPLIT: 38, UNEVEN: 20}
+const SOFT = ['MISPLACED', 'REVIVED', 'KEPT']
+const CEILING: Record<string, number> = {'INSERT-LEFT-WRONG-SIDE': 2, LEFTOVER: 1}
 
-test('two editors, a column or row changed while both type: rows even, both agree, no word lost, doubled or split, an insert to its left never lands right of it', () => {
+test('two editors, a column or row changed while both type: rows even, both agree, every word whole in one cell or on its typer\'s card', () => {
   const n = Number(process.env.SIM_N || 4000)
   const {tally, examples} = simulate(n, SEEDS)
   const full = n === 4000
-  const broke = [...tally].filter(([k]) => !['MISPLACED', 'REVIVED'].includes(k) && (full ? (tally.get(k) ?? 0) > (CEILING[k] ?? 0) : !(k in CEILING)))
+  const broke = [...tally].filter(([k]) => !SOFT.includes(k) && (full ? (tally.get(k) ?? 0) > (CEILING[k] ?? 0) : !(k in CEILING)))
   assert.deepEqual(broke, [], examples.join('\n'))
 })
