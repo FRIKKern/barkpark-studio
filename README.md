@@ -15,21 +15,16 @@ Past Sanity, the Freeform track: PortableDoc documents open in Barkpark's shared
 canvas, the editor Barkdown hosts ([0004](docs/decisions/0004-portabledoc-freeform.md)).
 Built with TanStack Start on Barkpark ([0001](docs/decisions/0001-stack-and-backend.md)).
 
-## What happened
+## News
 
 <!-- news:start -->
-- **News** · 15 Nov 2026 · [Two editors, one paragraph](docs/news/2026-11-15-two-editors-one-paragraph.md) · Two people can now type in the same paragraph at once and both keep every word. On the old code, a third of the words vanished.
+**Monday 16 November.** Nothing merged yet today.
+
+**Sunday 15 November.** 12 pull requests merged, seven of them parts of Sanity's Studio rebuilt here: document translations, tables, a code field, incoming references, task comments, a Dashboard, and array items you can drag on the page in Presentation (the live preview of your site). Two people typing in one paragraph now both keep every word. None of the new screens was compared side by side with a running Sanity Studio; each was built from Sanity's source. [The full day](docs/news/2026-11-15.md)
+- **Editing:** a Translations menu and language badge on a document; tables edited cell by cell in Portable Text (Sanity's rich text); a code field in a code editor; a form can list the documents that refer to this one ([#1256](https://github.com/FRIKKern/barkpark-studio/pull/1256), [#1254](https://github.com/FRIKKern/barkpark-studio/pull/1254), [#1257](https://github.com/FRIKKern/barkpark-studio/pull/1257), [#1255](https://github.com/FRIKKern/barkpark-studio/pull/1255))
+- **Working together:** two editors in one paragraph merge on Barkpark with no lost words; tasks get comments, an activity log and Duplicate; a Dashboard shows drafts, recent edits, my tasks, schedules and who is in ([#1251](https://github.com/FRIKKern/barkpark-studio/pull/1251), [#1258](https://github.com/FRIKKern/barkpark-studio/pull/1258), [#1259](https://github.com/FRIKKern/barkpark-studio/pull/1259))
+- **Presentation:** hover an outline on the page to see the document's title; right-click an array item to duplicate, remove or move it; drag it to reorder ([#1253](https://github.com/FRIKKern/barkpark-studio/pull/1253))
 <!-- news:end -->
-<!-- timeline:start -->
-- **Today** · 7 changes
-  - feat(J17): incoming references in the form, with Add item (Sanity's incoming references input) ([#1255](https://github.com/FRIKKern/barkpark-studio/pull/1255))
-- **Yesterday** · 3 changes
-  - feat(J40): inline comments on a Portable Text selection ([#1248](https://github.com/FRIKKern/barkpark-studio/pull/1248))
-- **This week** · 6 changes
-  - e2e: the desk proxy paces the compressed bytes a browser gets ([#1246](https://github.com/FRIKKern/barkpark-studio/pull/1246))
-- **Last week** · 7 changes
-- **Last month** · 1212 changes, 183 tasks closed
-<!-- timeline:end -->
 
 ## Where things live (one fact, one home)
 
@@ -53,7 +48,7 @@ reference/sanity/    real Sanity Studio, the bar (project ecu57yeh, dataset prod
 reference/preview-site/  the site its Presentation tool shows (J58–J64; see its README)
 fixtures/            seed data + Barkpark schema, same content on both sides
 e2e/                 Playwright: few, fast specs for what can break silently
-scripts/             seed Barkpark, README timeline, roadmap picture, doc checks
+scripts/             seed Barkpark, roadmap picture, doc checks
 spikes/concurrent-text/  reproducible two-browser concurrency comparison (decision 0002)
 ```
 
@@ -77,4 +72,4 @@ STUDIO_DEV_LOGIN=1 pnpm --dir ../app dev        # sign in as a seated editor (de
 `e2e-local` (requires Barkpark environment variables). Both reuse J01/J02/J08/J17/
 J19/J21/J22/J23 with two-second holds after content is ready. Reports and WebM clips
 live under `e2e/evidence/{reference,studio}/<run>/`. Install dependencies and `pnpm --dir e2e exec playwright install ffmpeg`. Reference auth uses `pnpm --dir reference/sanity exec sanity login` or `SANITY_TOKEN`; credentials stay in memory. Link reviewed clips to tasks; recording alone is not sign-off.
-Locally with no lane token in `.e2e-lane-tokens.json`, studio and rig share one token: refs.spec skips its live-edit timing budgets (values still checked; `sharedLocalToken`).
+Locally with no lane token in `.e2e-lane-tokens.json`, studio and rig share one token: refs-follow.spec and refs-used-in.spec skip their live-edit timing budgets (values still checked; `sharedLocalToken`).

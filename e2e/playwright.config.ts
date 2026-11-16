@@ -79,7 +79,7 @@ export default defineConfig({
       timeout: 60_000,
       stdout: 'pipe',
       // A local lane's studio server writes on its own token (scripts/lane-token.mjs).
-      // STUDIO_E2E_HOOKS: the listen hub's levers (live.spec, /api/e2e-listen).
+      // STUDIO_E2E_HOOKS: the listen hub's levers (live-hub.spec, /api/e2e-listen).
       // STUDIO_SIGN_IN=shared: a production build asks for a Barkpark account (J67); the
       // specs act as the lane's token unless a run asks for account sign-in.
       env: {...process.env, STUDIO_E2E_HOOKS: '1', STUDIO_SIGN_IN: process.env.STUDIO_SIGN_IN ?? 'shared', ...(process.env.BARKPARK_APP_TOKEN && {BARKPARK_TOKEN: process.env.BARKPARK_APP_TOKEN})} as Record<string, string>,

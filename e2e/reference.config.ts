@@ -8,7 +8,7 @@ const output = `evidence/${studio ? 'studio' : 'reference'}/${process.env.RECORD
 const port = studio ? process.env.E2E_PORT || '3100' : process.env.SANITY_PORT || '3333'
 export default defineConfig({
   ...base,
-  testMatch: ['journeys/panes.spec.ts', 'journeys/refs.spec.ts', 'journeys/keyboard.spec.ts'],
+  testMatch: ['journeys/panes.spec.ts', 'journeys/panes-list.spec.ts', 'journeys/refs.spec.ts', 'journeys/refs-follow.spec.ts', 'journeys/refs-used-in.spec.ts', 'journeys/keyboard.spec.ts'],
   grep: /\bJ(02|08|17|19|21|22|23):/,
   grepInvert: undefined,
   globalSetup: undefined,

@@ -1,6 +1,6 @@
-import {expect, test, type Route} from '../rig/test'
-import {installProbes, networkBudget, recordFeel, sharedLocalToken, timeToReady} from '../rig/feel'
-import {bpBase, bpDataset, bpMutate, target, closeAndSettle, reveal} from '../rig/targets'
+import {expect, test} from '../rig/test'
+import {installProbes, timeToReady} from '../rig/feel'
+import {target, closeAndSettle} from '../rig/targets'
 import {referenceHold} from '../rig/reference'
 
 // The URL and the test's own flags cost nothing to read: every 50 ms, not the default
@@ -8,30 +8,22 @@ import {referenceHold} from '../rig/reference'
 const PAGE_POLL = {intervals: [50]}
 
 // Crown references, same steps on both studios: J08 (pick by search, open in the
-// next pane), J22 (create a new doc from the field), J23 (edit the referenced doc;
-// parents follow, live, in a second browser). Budgets apply to ours.
+// next pane), J22 (create a new doc from the field). J23 (parents follow, live, in a
+// second browser) is refs-follow.spec, J17 (where a doc is used) refs-used-in.spec: split
+// for CI's shards (task-c1df532bed870536). Budgets apply to ours.
 const ID = 'post-07' // author: Alan Turing
 
 test.beforeEach(async ({context}, info) => {
   await Promise.all([target(info).prepare(context), installProbes(context)])
 })
 const created: string[] = []
-let alanEdited = false
-let post02Moved = false
 test.afterEach(async ({page}, info) => {
   const t = target(info)
   // A save the page still has on its way (a replaced author, a new author's name) would
   // land after the restore and leave a draft behind for the next run.
   await closeAndSettle(page)
   // Each a different doc: all at once.
-  await Promise.all([
-    t.restore(ID, {author: t.ref('author-alan')}),
-    alanEdited && t.restore('author-alan', {bio: 'Alan Turing writes fixture posts.'}, 'author'),
-    post02Moved && t.restore('post-02', {author: t.ref('author-grace')}),
-    ...created.splice(0).map((id) => t.deleteDoc(id, 'author')),
-  ])
-  post02Moved = false
-  alanEdited = false
+  await Promise.all([t.restore(ID, {author: t.ref('author-alan')}), ...created.splice(0).map((id) => t.deleteDoc(id, 'author'))])
 })
 
 test('J08: replace the author by search, open it in the next pane; then the same by keyboard (F5)', async ({page}, info) => {
@@ -174,243 +166,4 @@ test('J22: create a new author from the reference field, edit it in the next pan
     await page.context().setOffline(false)
     await page.unrouteAll({behavior: 'ignoreErrors'})
   }
-})
-
-test('J23: edit the referenced doc in its pane; parents follow here and in a 2nd browser', async ({browser}, info) => {
-  const t = target(info)
-  const recording = !!process.env.RECORDING_RUN_ID
-  const options = recording ? {recordVideo: {dir: info.outputPath('videos'), size: {width: 1440, height: 900}}, viewport: {width: 1440, height: 900}} : {}
-  const [ctxA, ctxB] = await Promise.all([browser.newContext(options), browser.newContext(options)])
-  await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
-  const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
-  try {
-    await Promise.all([a.goto('/structure/post;post-08;author-grace,type=author,parentRefPath=author'), b.goto(t.docPath('post', 'post-08'))])
-    await Promise.all([t.settle(a), t.settle(b)])
-    await expect(t.field(a, 'name')).toHaveValue('Grace Hopper')
-    const bRef = t.refLink(t.pane(b, 2), 'author')
-    await expect(bRef).toContainText('Grace Hopper')
-    await Promise.all([referenceHold(a, t.field(a, 'name'), 'Grace Hopper'), referenceHold(b, bRef)])
-    // B is typing in its own title, caret mid-word: a remote change must not move it (F6).
-    await t.field(b, 'title').click()
-    await t.field(b, 'title').evaluate((el: HTMLInputElement) => el.setSelectionRange(4, 4))
-
-    await t.field(a, 'name').click()
-    await a.keyboard.press('End')
-    const seen = bRef.evaluate(async (el) => {
-      while (!el.textContent?.includes('Grace Hopper X')) await new Promise(requestAnimationFrame)
-      return performance.timeOrigin + performance.now()
-    })
-    const sent = Date.now()
-    await a.keyboard.type(' X')
-    await expect(t.refLink(t.pane(a, 2), 'author')).toContainText('Grace Hopper X')
-    const ms = (await seen) - sent
-    recordFeel('F4', ms)
-
-    const focus = await b.evaluate(() => ({id: document.activeElement?.id, caret: (document.activeElement as HTMLInputElement)?.selectionStart}))
-    expect(focus, 'F6: focus and caret stay put in B').toEqual({id: 'title', caret: 4})
-    // QUALITY F4 is p95 < 300 ms. Writes are coalesced to one per 750 ms while the
-    // shared token's write budget is 60/min (task-2c31de0cf6597d32), so the last
-    // keystroke of a burst can wait one gap. Back to 300 when that lands.
-    // Local, one token for studio and rig: no budget (sharedLocalToken).
-    if (t.name === 'studio' && !sharedLocalToken()) expect(ms, 'F4 edit seen in 2nd browser').toBeLessThan(networkBudget(1000))
-    console.log(`[J23 ${t.name}] A's edit seen in B after ${Math.round(ms)} ms`)
-    await Promise.all([referenceHold(a, t.field(a, 'name'), 'Grace Hopper X'), referenceHold(b, bRef)])
-    // The list's author subtitle must remain live after B closes its post pane;
-    // subscribing to post mutations alone leaves an already-loaded author stale.
-    // Ours: the write lands after the list rendered on the server but before its
-    // stream opens (held), and still reaches it (task-e888fb12ca6ff84c).
-    let release = () => {}
-    if (t.name === 'studio') {
-      const held = new Promise<void>((r) => (release = r))
-      await b.route('**/api/stream?**', async (route) => (await held, route.continue())) // the tab's one stream (lib/stream.ts)
-    }
-    await b.goto(t.listPath('post'))
-    const row = await reveal(t.listItem(b, 'post-08'))
-    await expect(row).toContainText('Grace Hopper X')
-    // A's edit has forked a draft; Sanity's direct helper names versions explicitly.
-    await t.patch(t.name === 'sanity' ? 'drafts.author-grace' : 'author-grace', {name: 'Grace Hopper live'}, 'author')
-    release()
-    await expect(row).toContainText('Grace Hopper live')
-    await referenceHold(b, row)
-  } finally {
-    try {
-      await t.restore('author-grace', {name: 'Grace Hopper'}, 'author')
-    } finally {
-      await Promise.all([ctxA.close(), ctxB.close()])
-      if (recording) {
-        for (const [name, page] of [['editor', a], ['observer', b]] as const) {
-          await info.attach(`J23-${name}`, {path: await page.video()!.path(), contentType: 'video/webm'})
-        }
-      }
-    }
-  }
-})
-
-test('J17: deleting a referenced author shows where it is used', async ({page}, info) => {
-  const t = target(info)
-  await page.goto(t.docPath('author', 'author-alan'))
-  await t.settle(page)
-  await referenceHold(page, t.field(page, 'name'), 'Alan Turing')
-  // Reads fail until let go: let go only as Retry is pressed, so no other read (a live
-  // frame's "used in" refresh, CI ef7d9e8) can answer first and take the Retry button away.
-  let failReads = true
-  let holdReads = false // failing reads wait here until let go, so a re-read is seen in flight
-  const held: Route[] = []
-  if (t.name === 'studio') {
-    await expect(t.field(page, 'name')).toHaveValue('Alan Turing')
-    await page.route('**/_serverFn/**', (route) => {
-      if (!failReads || route.request().method() !== 'GET') return route.continue()
-      if (holdReads) return void held.push(route)
-      return route.abort('failed')
-    })
-  }
-  await t.docMenu(page).click()
-  await referenceHold(page, page.getByRole('menuitem', {name: 'Delete'}))
-  await page.getByRole('menuitem', {name: 'Delete'}).click()
-  const dialog = page.getByRole('dialog').last()
-  if (t.name === 'studio') {
-    await expect(dialog.getByRole('alert')).toContainText('Could not check where this document is used')
-    await expect(dialog.getByRole('button', {name: 'Delete document'})).toBeDisabled()
-    const retry = dialog.getByRole('button', {name: 'Retry', exact: true})
-    await retry.focus()
-    // Someone saves Alan meanwhile: its live frame has "used in" read again behind the error,
-    // and Retry keeps the focus through that read (it unmounted for it, and Enter went
-    // nowhere: #829's CI, 2026-10-16).
-    holdReads = true
-    alanEdited = true
-    await t.patch('author-alan', {bio: `Edited meanwhile ${Date.now()}`}, 'author')
-    const rereading = dialog.getByText('Looking for documents that refer to it…')
-    await expect(rereading).toBeVisible({timeout: 10_000})
-    await expect(retry).toBeFocused()
-    holdReads = false
-    for (const r of held.splice(0)) await r.abort('failed').catch(() => {})
-    await expect(rereading).toBeHidden() // that read failed too: the error stands
-    await expect(retry).toBeFocused()
-    failReads = false
-    await page.keyboard.press('Enter')
-    await page.unrouteAll({behavior: 'wait'})
-    await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
-  }
-  await expect(dialog).toContainText('10 documents refer to “Alan Turing”')
-  await expect(dialog).toContainText('Fixture post 01')
-  await referenceHold(page, dialog)
-  if (t.name === 'studio') {
-    // Refuse the write before it reaches the API; a failed delete must keep focus. Reads
-    // are slowed, and a live frame (someone saves a referring post) makes the dialog read
-    // "used in" again meanwhile: the buttons must hold still through that re-read (it
-    // disabled Delete under the caret, and Enter went to Close: CI, 2026-10-09).
-    let reading!: () => void
-    const reread = new Promise<void>((r) => (reading = r))
-    await page.route('**/_serverFn/**', async (route) => {
-      if (route.request().method() === 'POST') return route.abort('failed')
-      if (!decodeURIComponent(route.request().url()).includes('author-alan')) return route.continue().catch(() => {})
-      reading() // the "used in" read for Alan
-      await new Promise((r) => setTimeout(r, 1500))
-      await route.continue().catch(() => {})
-    })
-    alanEdited = true
-    await t.patch('author-alan', {bio: `Edited meanwhile ${Date.now()}`}, 'author') // someone saves Alan (afterEach puts it back)
-    await reread // the dialog is reading "used in" again right now
-    const anyway = dialog.getByRole('button', {name: 'Delete anyway'})
-    await expect(anyway).toBeEnabled({timeout: 100})
-    await anyway.focus()
-    await expect(anyway).toBeFocused()
-    await page.keyboard.press('Enter')
-    await expect(dialog.getByRole('alert')).toContainText('Could not delete')
-    await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
-    await page.unrouteAll({behavior: 'ignoreErrors'})
-  }
-  await dialog.getByRole('button', {name: 'Cancel'}).click()
-  await expect(dialog).toBeHidden()
-  await expect(t.field(page, 'name')).toHaveValue('Alan Turing')
-  await referenceHold(page, t.field(page, 'name'), 'Alan Turing')
-})
-
-test('J17: Incoming references from the document menu, any time: opens the referring doc, follows live', async ({page}, info) => {
-  const t = target(info)
-  // post-07 as the seed writes it (createOrReplace): Barkpark then keeps its edge to Alan
-  // some seconds after it points away (task-3fd3c0c53d08a6bd), the case that flaked.
-  // Reset while Alan's page loads; done before the panel reads his references.
-  const reset = t.resetDoc(ID, 'post')
-  await page.goto(t.docPath('author', 'author-alan'))
-  await t.settle(page)
-  await expect(t.field(page, 'name')).toHaveValue('Alan Turing', {timeout: 15_000})
-  await reset
-  const menu = t.name === 'sanity' ? page.locator('[data-testid="document-pane"] [data-testid="pane-context-menu-button"]').first() : page.getByRole('button', {name: 'Show document actions'})
-  await menu.click()
-  await page.getByRole('menuitem', {name: 'Incoming references'}).click()
-  await expect(page.getByText('Incoming references', {exact: true}).first()).toBeVisible()
-  const row = (id: string, title: string) => page.locator(`a[href*="${id}"]`).filter({hasText: title, visible: true}).first()
-  await expect(row('post-07', 'Fixture post 07')).toBeVisible({timeout: 15_000})
-  await expect(row('post-01', 'Fixture post 01')).toBeVisible()
-  await page.screenshot({path: `evidence/J17-${t.name}-incoming.png`})
-  // Live, with the panel in view: a post nowhere on screen starts pointing here (its row
-  // comes), and post-07 is pointed elsewhere (its row goes).
-  post02Moved = true
-  await t.patch('post-02', {author: t.ref('author-alan')})
-  // Ours: one read after the frame, and Barkpark's edges are right by then (#22591). Local,
-  // one token for studio and rig: no budget, only that it comes (sharedLocalToken).
-  const live = t.name === 'studio' && sharedLocalToken() ? 15_000 : undefined
-  await expect(row('post-02', 'Fixture post 02')).toBeVisible({timeout: live ?? (t.name === 'studio' ? 2_000 : 15_000)})
-  await t.patch(ID, {author: t.ref('author-grace')})
-  // At once, from the doc the frame brings: not when Barkpark's backlinks catch up.
-  await expect(row('post-07', 'Fixture post 07')).toHaveCount(0, {timeout: live ?? 3_000})
-  await expect(page.getByText('Incoming references', {exact: true}).first()).toBeVisible() // still the panel, not a strip
-  // A row opens the referring doc in the next pane, at the field that refers.
-  await row('post-01', 'Fixture post 01').click()
-  await expect.poll(() => decodeURIComponent(page.url()), PAGE_POLL).toMatch(/author-alan.*incoming-references.*;post-01.*path=author/)
-})
-
-test('J17: a doc that refers only from its body (an internal link) is used in, and listed', async ({page}, info) => {
-  const t = target(info)
-  // post-11 and post-13 name Ada only in a body paragraph's internal link (Sanity counts
-  // the annotation's reference; Barkpark the wikilink since #22593), never in a field.
-  // Barkpark indexes a doc's links when the doc is written, against the schema it has then:
-  // a lane whose docs predate its schema has none for them. Say so, not a missing row.
-  // The seed's 12 (Sanity's count). A lane can also hold docs of a type the seed doesn't
-  // know (e2e-local's `article`, which a reset leaves): Delete counts those too, so ours
-  // expects what the lane's own index holds (read while Ada's page loads).
-  let referring = 12
-  const index =
-    t.name === 'studio'
-      ? fetch(`${bpBase()}/v1/data/backlinks/${bpDataset()}/author-ada`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}}).then(async (res) => ((await res.json()) as {result: {backlinks: {from_doc_id: string}[]}}).result.backlinks.map((b) => b.from_doc_id))
-      : null
-  await page.goto(t.docPath('author', 'author-ada'))
-  await t.settle(page)
-  if (index) {
-    const from = await index
-    expect(from, `${bpDataset()}'s link index is stale (written before its schema): reset the lane with \`node run.mjs reset\``).toEqual(expect.arrayContaining(['post-11', 'post-13']))
-    referring = new Set(from).size
-  }
-  await expect(t.field(page, 'name')).toHaveValue('Ada Lovelace', {timeout: 15_000})
-  const menu = t.name === 'sanity' ? page.locator('[data-testid="document-pane"] [data-testid="pane-context-menu-button"]').first() : page.getByRole('button', {name: 'Show document actions'})
-  await menu.click()
-  await page.getByRole('menuitem', {name: 'Incoming references'}).click()
-  const row = (id: string, title: string) => page.locator(`a[href*="${id}"]`).filter({hasText: title, visible: true}).first()
-  await expect(row('post-03', 'Fixture post 03')).toBeVisible({timeout: 15_000})
-  await expect(row('post-11', 'Fixture post 11')).toBeVisible()
-  await expect(row('post-13', 'Fixture post 13')).toBeVisible()
-  await page.screenshot({path: `evidence/J17-${t.name}-incoming-body-link.png`})
-  // Delete names them too: Ada is used in 12 docs, two of them only through a link.
-  await t.docMenu(page).click()
-  await page.getByRole('menuitem', {name: 'Delete'}).click()
-  const dialog = page.getByRole('dialog').last()
-  await expect(dialog).toContainText(`${referring} documents refer to “Ada Lovelace”`, {timeout: 15_000})
-  await dialog.getByRole('button', {name: 'Cancel'}).click()
-})
-
-test('@local J17: a draft that points away keeps the row while its published version still refers', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', 'ours: the panel reads the docs from the frames')
-  await page.goto(t.docPath('author', 'author-alan'))
-  await t.settle(page)
-  await page.getByRole('button', {name: 'Show document actions'}).click()
-  await page.getByRole('menuitem', {name: 'Incoming references'}).click()
-  const row = page.locator('a[href*="post-10"]').filter({hasText: 'Fixture post 10', visible: true}).first()
-  await expect(row).toBeVisible({timeout: 15_000})
-  // Only a draft of post-10 points at Grace; the published post-10 still names Alan.
-  await bpMutate([{patch: {id: 'post-10', type: 'post', set: {author: 'author-grace'}}}])
-  await page.waitForTimeout(3000)
-  await expect(row).toBeVisible()
-  await t.resetDoc('post-10', 'post')
 })

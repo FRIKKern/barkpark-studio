@@ -5,6 +5,7 @@ import {bpMutate, signInIfAsked, target, closeAndSettle, savesLanded} from '../r
 // 409 that keeps coming) while someone else's write arrives on the live stream. The
 // field must keep the editor's value, say "Not saved", and never turn "Saved" over it;
 // once Barkpark takes writes again, the value lands. Text, a tag list, an object's field.
+// A rewrite landing while a refused write is in flight: form-refused-inflight.spec.
 const ID = 'post-refused'
 const SEED = {title: 'Refused post', excerpt: 'Short excerpt here.', tags: ['one'], seo: {metaTitle: 'Meta here', metaDescription: 'A description.'}}
 test.setTimeout(60_000)
@@ -216,52 +217,4 @@ test('a clash shows both versions on the field: Take theirs, then Keep mine', as
   await savesLanded(page)
   await expect.poll(async () => (await bpDoc(ID))?.excerpt, {timeout: 15_000}).toBe(mine)
   await expect(footer).not.toContainText('Not saved')
-})
-
-// The race behind the clash flake (task-41ba9f3dc3fd81e2): someone rewrites the field while
-// our write of it is in flight, and that write comes back refused. Before: the rewrite was
-// skipped (the field was inflight) but the doc's rev moved on, so the retry saved ours over
-// theirs, unseen. Now the refused write's values meet the rewrite at once: the clash card.
-test('a rewrite that lands while a refused write is in flight clashes, never saved over', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', 'ours: our save loop')
-  await Promise.all([seeded, t.prepare(page.context())])
-  await page.goto(t.docPath('post', ID))
-  await signInIfAsked(page)
-  await t.settle(page)
-  const excerpt = t.field(page, 'excerpt')
-  const card = page.getByTestId('field-clash')
-  const footer = page.locator('.doc-footer').first()
-  const theirs = 'Rewritten while ours was in flight.'
-  // Every save is refused. The retry carries all the typing (nothing left unsent): that one
-  // is held while the rewrite lands and its live frame reaches this page, then refused.
-  let saves = 0
-  let held: Promise<void> | undefined
-  await page.route('**/_serverFn/**', async (route) => {
-    const req = route.request()
-    if (!(req.postData() ?? '').includes('mutations')) return route.continue()
-    if (++saves === 2)
-      await (held = (async () => {
-        await bpMutate([{patch: {id: ID, type: 'post', set: {excerpt: theirs}}}])
-        await new Promise((r) => setTimeout(r, 600))
-      })())
-    const res = await route.fetch({postData: (req.postData() ?? '').replace('{"t":1,"s":"post"}', '{"t":1,"s":"no-such-type"}')})
-    await route.fulfill({response: res, body: (await res.text()).replace('mutate 404', 'mutate 500').replace('not_found', 'internal')})
-  })
-  // Inside a word theirs replaces: mine cannot be placed in theirs (a merge would be a guess).
-  await excerpt.click()
-  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowUp' : 'Control+Home')
-  for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight')
-  await page.keyboard.type('mine ')
-  await expect(footer).toContainText(/Not saved/i, {timeout: 15_000})
-  await expect.poll(() => saves, {intervals: [50], timeout: 10_000}).toBeGreaterThanOrEqual(2)
-  await held
-  await expect(card).toBeVisible({timeout: 10_000})
-  await expect(card.locator('[data-version="theirs"]')).toHaveText(theirs)
-  // Saves flow again: theirs stands until the editor chooses.
-  await page.unrouteAll({behavior: 'wait'})
-  await page.waitForTimeout(2200) // past the 2 s retry a failed save waits
-  expect((await bpDoc(ID))?.excerpt, 'never saved over theirs unseen').toBe(theirs)
-  await card.getByRole('button', {name: 'Take theirs'}).click()
-  await expect(excerpt).toHaveValue(theirs)
 })

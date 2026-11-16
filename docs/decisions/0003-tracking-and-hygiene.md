@@ -16,10 +16,9 @@
 - **Progress data comes from the mirrored issues**, read with the GitHub API.
   FRIKKern/barkpark is public, so CI needs no Barkpark token. Code:
   `scripts/lib/board.mjs`.
-- **Generated, not hand-kept:** the README timeline (`scripts/readme-timeline.mjs`)
-  and `docs/images/roadmap.svg` (`scripts/generate-roadmap.mjs`). The
-  `housekeeping` Action rebuilds both daily, and commits only
-  when the output changed.
+- **Generated, not hand-kept:** `docs/images/roadmap.svg` (`scripts/generate-roadmap.mjs`).
+  The `housekeeping` Action rebuilds it daily, and commits only when the output
+  changed. (The README timeline is retired: [0008](0008-daily-news.md).)
 - **Hygiene:** squash merge only, branch auto-deleted on merge. A weekly job deletes
   merged branches left behind, comments on PRs idle for 7+ days, lists idle branches
   without a PR, and fails if a doc breaks its size cap.
