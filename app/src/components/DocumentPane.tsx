@@ -67,6 +67,7 @@ import {IncomingReferencesInputs} from './IncomingReferencesInput'
 const INCOMING = 'sanity/structure/incoming-references'
 import {EditIcon, EyeOpenIcon, PreviewView} from './PreviewView'
 import {previewViewTemplate} from '../lib/preview-url'
+import {formLocked, unlessLocked} from '../lib/form-lock'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -386,7 +387,11 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // name, and context values that change only when their content does.
   const latestDoc = useRef(doc)
   latestDoc.current = doc
-  const onEdit = useCallback((field: string, value: unknown) => latestDoc.current && edit(qc, latestDoc.current, field, value), [qc])
+  // A read-only form (lib/form-lock.ts) refuses every edit, however it was reached.
+  const locked = formLocked({published: viewingPublished, revision: !!pane.rev, gone, scheduled: scheduleLocked, canWrite})
+  const lockedNow = useRef(locked)
+  lockedNow.current = locked
+  const onEdit = useCallback(unlessLocked(() => lockedNow.current, (field: string, value: unknown) => latestDoc.current && edit(qc, latestDoc.current, field, value)), [qc])
   const onChangeOf = useMemo(() => {
     const byName = new Map<string, (v: unknown) => void>()
     return (name: string) => byName.get(name) ?? byName.set(name, (v) => onEdit(name, v)).get(name)!
@@ -924,7 +929,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               values: revision ? revision.content : doc,
               changes,
               problems: revision ? NO_PROBLEMS : quiet ? quietProblems : steadyProblems,
-              disabled: viewingPublished || gone || !!revision || !canWrite || scheduleLocked,
+              disabled: locked,
               fields: formFields.slice(0, revealed),
               unknown: !revision && revealed >= formFields.length,
             })}
@@ -1582,6 +1587,8 @@ function copyPasteKey(e: React.KeyboardEvent) {
   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (key !== 'c' && key !== 'v')) return
   const target = e.target as HTMLElement
   if (target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return
+  // Nothing pastes into a read-only form (Published, a revision): no write, no "pasted" toast.
+  if (key === 'v' && target.closest('fieldset:disabled')) return
   if (key === 'c' && getSelection()?.toString()) return
   for (let el: HTMLElement | null = target; el; el = el.parentElement) {
     const entry = fieldClipboard.get(el)

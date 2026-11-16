@@ -37,6 +37,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
       id={id}
       items={items}
       onChange={set}
+      options={field.options}
       readOnly={readOnly}
       keyOf={(it, i) => it._key ?? i}
       blank={() => ({_key: newKey(), _type: 'reference'})}

@@ -242,27 +242,33 @@
             "options": [
               {
                 "value": "hero",
-                "title": "Hero"
+                "title": "Hero",
+                "icon": "image"
               },
               {
                 "value": "quote",
-                "title": "Quote"
+                "title": "Quote",
+                "icon": "double-quote"
               },
               {
                 "value": "cta",
-                "title": "Call to action"
+                "title": "Call to action",
+                "icon": "rocket"
               },
               {
                 "value": "stat",
-                "title": "Stat"
+                "title": "Stat",
+                "icon": "bar-chart"
               },
               {
                 "value": "faq",
-                "title": "FAQ"
+                "title": "FAQ",
+                "icon": "help-circle"
               },
               {
                 "value": "logo",
-                "title": "Logo strip"
+                "title": "Logo strip",
+                "icon": "star"
               }
             ]
           },
@@ -272,6 +278,38 @@
             "type": "string"
           }
         ]
+      },
+      "options": {
+        "insertMenu": {
+          "groups": [
+            {
+              "name": "content",
+              "title": "Content",
+              "of": [
+                "hero",
+                "quote",
+                "faq"
+              ]
+            },
+            {
+              "name": "marketing",
+              "title": "Marketing",
+              "of": [
+                "cta",
+                "stat",
+                "logo"
+              ]
+            }
+          ],
+          "views": [
+            {
+              "name": "list"
+            },
+            {
+              "name": "grid"
+            }
+          ]
+        }
       }
     },
     {
