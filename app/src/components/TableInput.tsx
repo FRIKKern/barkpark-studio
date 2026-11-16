@@ -234,7 +234,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     let column = held.column
     if (was && settled && was.columns !== grid.columns) {
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
-      const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [cells, now.get(k)!]), was.columns, grid.columns)[column]
+      const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [cells, now.get(k)!]), was.columns, grid.columns, (i) => i === column)[column]
       if (to !== undefined && to < 0) {
         // Its column was removed: the caret leaves with its cells, as with a removed row.
         caret.current = null

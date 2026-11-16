@@ -1,6 +1,6 @@
 import type {Field} from './data'
 import {getPath, keyedPath, setPath} from './paths.ts'
-import {alignColumns} from './table-merge.ts'
+import {alignColumns, noteColumns, placeColumns} from './table-merge.ts'
 
 // The table field (Sanity's @sanity/table 3.1): an object `{_type: 'table', rows: [{_type:
 // 'tableRow', _key, cells: string[]}]}` edited as a grid of text inputs. The stored shape is
@@ -116,7 +116,7 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
   // The row's own cells, as wide as it was (narrower than the table while my write to it was
   // on its way and theirs came in); a cell past its end (a short row's padding), the grid's.
   const from = column < drawn.length ? drawn : padded(drawn, width)
-  return alignColumns([[from, now]], from.length, now.length)[column] ?? -1
+  return alignColumns([[from, now]], from.length, now.length, (i) => i === column)[column] ?? -1
 }
 
 /** Typing in a cell: that row's `cells`, made onto the row as it is now. Rows without keys go whole. */
@@ -138,8 +138,35 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
   ]
 }
 
-/** The rows set whole, made onto the rows as they are when the write is queued (rows without keys: keyed first). */
-const rowsWrite = (key: () => string, change: (rows: TableRow[]) => TableRow[]): TableWrite[] => [['rows', (now: unknown) => change(withKeys(rowsOf({rows: now}), key))]]
+const same = (w: number) => Array.from({length: w}, (_, i) => i)
+/**
+ * The rows set whole, made onto the rows as they are when the write is queued (rows without
+ * keys: keyed first). How its columns map from those rows is noted (`columns`; else each stays
+ * where it was): merged onto another editor's rows, this editor's column change is known.
+ */
+const rowsWrite = (key: () => string, change: (rows: TableRow[]) => TableRow[], columns?: (rows: TableRow[]) => number[]): TableWrite[] => [
+  [
+    'rows',
+    (now: unknown) => {
+      const [was, rows] = [rowsOf({rows: now}), withKeys(rowsOf({rows: now}), key)]
+      const out = change(rows)
+      noteColumns(was, out, columns ? columns(rows) : same(widthOf(rows)))
+      return out
+    },
+  ],
+]
+/**
+ * The column pressed (`at`, in the table as drawn, `value`) in the rows as they are now: a
+ * column change of another editor's not drawn yet moves it (-1: it is gone). Past the last
+ * column: the end.
+ */
+function pressed(value: unknown, rows: TableRow[], at: number): number {
+  const drawn = rowsOf(value)
+  const [was, now] = [widthOf(drawn), widthOf(rows)]
+  if (was === now) return at
+  if (at >= was) return now
+  return placeColumns(drawn, rows, (i) => i === at)[at] ?? -1
+}
 const indexOfKey = (rows: TableRow[], k: string | undefined, otherwise: number) => {
   const at = k === undefined ? -1 : rows.findIndex((r) => r._key === k)
   return at < 0 ? otherwise : at
@@ -183,22 +210,50 @@ export function moveRow(value: unknown, from: number, to: number, key: () => str
   })
 }
 
-/** Every row's cells remade by `change`, each first as wide as the table: a column changes all rows at once. */
-const columns = (key: () => string, change: (cells: unknown[]) => unknown[]): TableWrite[] =>
-  rowsWrite(key, (rows, width = widthOf(rows)) => rows.map((r) => ({...r, cells: change(padded(cellsOf(r), width))})))
+/**
+ * A column change of every row, each first as wide as the table: `plan` says, for the rows as
+ * they are now, how each cell list changes and where each column goes (null: nothing to do).
+ */
+type Plan = {cells: (cells: unknown[]) => unknown[]; map: number[]} | null
+const columns = (key: () => string, plan: (rows: TableRow[], width: number) => Plan): TableWrite[] =>
+  rowsWrite(
+    key,
+    (rows, width = widthOf(rows)) => {
+      const p = plan(rows, width)
+      return p ? rows.map((r) => ({...r, cells: p.cells(padded(cellsOf(r), width))})) : rows
+    },
+    (rows) => plan(rows, widthOf(rows))?.map ?? same(widthOf(rows)),
+  )
 
 /** `count` empty columns before column `at` (the column count: at the end). */
-export const addColumns = (_value: unknown, at: number, count: number, key: () => string): TableWrite[] =>
-  count > 0 ? columns(key, (cells) => [...cells.slice(0, at), ...new Array<string>(count).fill(''), ...cells.slice(at)]) : []
+export const addColumns = (value: unknown, at: number, count: number, key: () => string): TableWrite[] =>
+  count > 0
+    ? columns(key, (rows) => {
+        const q = pressed(value, rows, at)
+        const p = q < 0 ? Math.min(at, widthOf(rows)) : q
+        return {cells: (cells) => [...cells.slice(0, p), ...new Array<string>(count).fill(''), ...cells.slice(p)], map: same(widthOf(rows)).map((i) => (i < p ? i : i + count))}
+      })
+    : []
 
-/** A column removed from every row. The last column takes the table with it. */
+/** A column removed from every row (one another editor removed first: nothing). The last column takes the table with it. */
 export const removeColumn = (value: unknown, at: number, key: () => string): TableWrite[] =>
-  widthOf(rowsOf(value)) <= 1 ? removeTable() : columns(key, (cells) => cells.filter((_, i) => i !== at))
+  widthOf(rowsOf(value)) <= 1
+    ? removeTable()
+    : columns(key, (rows) => {
+        const c = pressed(value, rows, at)
+        return c < 0 ? null : {cells: (cells) => cells.filter((_, i) => i !== c), map: same(widthOf(rows)).map((i) => (i < c ? i : i === c ? -1 : i - 1))}
+      })
 
 /** A column moved to place `to` in every row. */
 export const moveColumn = (value: unknown, from: number, to: number, key: () => string): TableWrite[] => {
   const width = widthOf(rowsOf(value))
-  return from !== to && from >= 0 && to >= 0 && from < width && to < width ? columns(key, (cells) => (from < cells.length && to < cells.length ? moved(cells, from, to) : cells)) : []
+  if (from === to || from < 0 || to < 0 || from >= width || to >= width) return []
+  return columns(key, (rows, w) => {
+    const [f, t] = [pressed(value, rows, from), pressed(value, rows, to)]
+    if (f < 0 || t < 0 || f === t || f >= w || t >= w) return null
+    const order = moved(same(w), f, t)
+    return {cells: (cells) => moved(cells, f, t), map: same(w).map((i) => order.indexOf(i))}
+  })
 }
 
 /**

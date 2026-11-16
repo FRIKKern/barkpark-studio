@@ -1,0 +1,83 @@
+import {test} from 'node:test'
+import assert from 'node:assert/strict'
+import {addColumns, removeColumn} from './table-input.ts'
+import {mergeCells3, mergeRows3} from './table-merge.ts'
+
+// Two editors in one @sanity/table, one inserting or removing a column while the other types:
+// every table, cell and column of a 2 x 2 and a 2 x 3, the ambiguous ones first (all empty, all
+// alike), then mixed and all different. Both merges are run: the one who changed the column
+// merging onto the typed word (mergeRows3, its column known), and the one typing merging onto
+// the column change (mergeCells3 for a row's cells, mergeRows3 for rows set whole).
+
+type Op = {insert: number} | {remove: number}
+const row = (k: string, cells: string[]) => ({_type: 'tableRow', _key: k, cells})
+const rowsOf = (t: string[][]) => t.map((cells, i) => row(`r${i + 1}`, cells))
+const grid = (rows: unknown) => (rows as {cells: string[]}[]).map((r) => r.cells)
+const apply = (cells: string[], op: Op) => ('insert' in op ? [...cells.slice(0, op.insert), '', ...cells.slice(op.insert)] : cells.filter((_, i) => i !== op.remove))
+/** Where the typed column goes (-1: it is the removed one). */
+const goes = (c: number, op: Op) => ('insert' in op ? (op.insert <= c ? c + 1 : c) : op.remove === c ? -1 : op.remove < c ? c - 1 : c)
+let seed = 11
+const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648), seed / 2147483648)
+let n = 0
+const key = () => `k${++n}`
+
+function* tables(w: number): Generator<[string, string[][]]> {
+  yield ['empty', [0, 1].map(() => new Array<string>(w).fill(''))]
+  yield ['alike', [0, 1].map(() => new Array<string>(w).fill('x'))]
+  for (let s = 0; s < 6; s++) yield ['mixed', [0, 1].map(() => Array.from({length: w}, () => ['', 'x', 'y'][Math.floor(rnd() * 3)]!))]
+  yield ['distinct', [0, 1].map((r) => Array.from({length: w}, (_, c) => `c${r}${c}`))]
+}
+
+test('fuzz: a column inserted or removed while the other editor types: rows even, no word lost, doubled or split, an insert to its left never lands right of it', () => {
+  let runs = 0
+  for (const w of [2, 3])
+    for (const [kind, t] of tables(w))
+      for (let r = 0; r < 2; r++)
+        for (let c = 0; c < w; c++)
+          for (const op of [...Array.from({length: w + 1}, (_, p): Op => ({insert: p})), ...Array.from({length: w}, (_, p): Op => ({remove: p}))])
+            for (const saved of [false, true]) {
+              const was = t[r]![c]!
+              const word = was ? `${was} typed` : 'word typed'
+              // What both saw: the cell as it was, or with the first keys of the word saved.
+              const seen = t.map((cells, i) => cells.map((v, j) => (i === r && j === c && saved ? (was ? `${was} t` : 'wo') : v)))
+              const typed = t.map((cells, i) => cells.map((v, j) => (i === r && j === c ? word : v)))
+              const want = typed.map((cells) => apply(cells, op))
+              const marks = (v: string) => v.includes('typed') || v === 'wo' || v.endsWith(' t')
+              const name = `${w} wide ${kind} ${JSON.stringify(t)}, typed in (${r}, ${c}), ${JSON.stringify(op)}${saved ? ', its first keys saved' : ''}`
+              // The one who changed the column: its own write (the column it pressed), merged onto the typed word.
+              const [[, write]] = ('insert' in op ? addColumns({rows: rowsOf(seen)}, op.insert, 1, key) : removeColumn({rows: rowsOf(seen)}, op.remove, key)) as [[string, (now: unknown) => unknown]]
+              const acted = mergeRows3(rowsOf(seen), write(rowsOf(seen)) as unknown[], rowsOf(typed))
+              assert.deepEqual(grid(acted), want, `the one who changed the column: ${name}`)
+              // The one typing, onto the column change: its row's cells, and its rows set whole.
+              const after = rowsOf(seen.map((cells) => apply(cells, op)))
+              const cells = mergeCells3(seen[r]!, typed[r]!, apply(seen[r]!, op), rowsOf(seen), after) as string[]
+              const rows = grid(mergeRows3(rowsOf(seen), rowsOf(typed), after))
+              for (const [how, out, all] of [['cells', cells, [cells]], ['rows', rows[r]!, rows]] as const) {
+                const label = `the one typing (${how}): ${name} gave ${JSON.stringify(all)}`
+                assert.ok(all.every((cs) => cs.length === want[0]!.length), `rows even: ${label}`)
+                const held = all.flatMap((cs) => cs.filter(marks))
+                assert.ok(held.length <= 1 && held.every((v) => v === word), `no word doubled or split: ${label}`)
+                if (goes(c, op) >= 0) assert.equal(held.length, 1, `no word lost: ${label}`)
+                if ('insert' in op && op.insert <= c) assert.equal(out[c + 1], word, `an insert to its left: ${label}`)
+                if (kind === 'distinct') assert.deepEqual(out, want[r], `cells all different say exactly where: ${label}`)
+              }
+              runs++
+            }
+  assert.equal(runs, 1116, "every case ran")
+})
+
+// The review of ee5540c7 (both failed there): an empty 2 x 2, A removes column 1, B types in column 2.
+test('A removes column 1 of an empty table; B has typed in column 2: B\'s word stays', () => {
+  const base = rowsOf([['', ''], ['', '']])
+  assert.deepEqual(grid(mergeRows3(base, rowsOf([[''], ['']]), rowsOf([['', 'word'], ['', '']]))), [['word'], ['']])
+  // The column A pressed is known: A's own write, merged onto B's word.
+  const [[, write]] = removeColumn({rows: base}, 0, key) as [[string, (now: unknown) => unknown]]
+  assert.deepEqual(grid(mergeRows3(base, write(base) as unknown[], rowsOf([['', 'word'], ['', '']]))), [['word'], ['']])
+  // A pressed column 2, B's: the word goes with its column.
+  const [[, own]] = removeColumn({rows: base}, 1, key) as [[string, (now: unknown) => unknown]]
+  assert.deepEqual(grid(mergeRows3(base, own(base) as unknown[], rowsOf([['', 'word'], ['', '']]))), [[''], ['']])
+})
+
+test('B typing in column 2 of an empty table, A\'s removal of column 1 arrives: B\'s word stays', () => {
+  assert.deepEqual(mergeCells3(['', ''], ['', 'word'], [''], rowsOf([['', ''], ['', '']]), rowsOf([[''], ['']])), ['word'])
+})
