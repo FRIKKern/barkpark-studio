@@ -53,6 +53,24 @@ test('typing writes its own row\'s cells, made onto the row as it is now; rows a
   assert.deepEqual(rows(setCell(table(...bare), 1, 0, 'c', key), bare), [{cells: ['a'], _key: 'k1'}, {cells: ['c'], _key: 'k2'}])
 })
 
+test('a key from the old grid\'s input, after another editor\'s column came in: it lands in its own column, and no row grows', () => {
+  // React has not drawn the new grid yet, so the key comes from the input of the column as it was drawn.
+  const typed = (drawn: unknown, column: number, text: string, now: unknown[]) => (setCell(drawn, 0, column, text, key)[0]![1] as (now: unknown) => unknown)(now)
+  // 2 x 2, I type in column 2, they remove column 1: my row is one cell, my word in it, once.
+  assert.deepEqual(typed(table(row('a', '', 'word typed'), row('b', '', '')), 1, 'word typed ', ['word typed']), ['word typed '])
+  // 2 x 3, they remove column 1: column 2 is now column 1, and column 3 (now 2) is not touched.
+  assert.deepEqual(typed(table(row('a', '', 'word', 'x'), row('b', '', '', '')), 1, 'words', ['word', 'x']), ['words', 'x'])
+  // They insert a column left of mine: my key goes one column right, not into the new cell.
+  assert.deepEqual(typed(table(row('a', '', 'word'), row('b', '', '')), 1, 'words', ['', '', 'word']), ['', '', 'words'])
+  // They remove my own column: the key goes with it, into no neighbour.
+  assert.deepEqual(typed(table(row('a', 'x', 'word'), row('b', '', '')), 1, 'words', ['x']), ['x'])
+  // A short row of an import still grows to the grid's width when typed in, and no further.
+  assert.deepEqual(typed(table(row('a', 'x'), row('b', '', '')), 1, 'y', ['x']), ['x', 'y'])
+  // One row's paste the same way.
+  const [[, paste]] = pasteCells(table(row('a', '', 'w', ''), row('b', '', '', '')), 0, 1, [['p', 'q']], 'tableRow', key) as [[string, (now: unknown) => unknown]]
+  assert.deepEqual(paste(['w', '']), ['p', 'q'])
+})
+
 test('a pasted block: tab-separated (a spreadsheet\'s), CSV with quotes, lines; one cell\'s worth is left to the input', () => {
   assert.equal(parseCells('just words, with a comma'), null)
   assert.deepEqual(parseCells('a\tb\r\nc\td\r\n'), [['a', 'b'], ['c', 'd']])

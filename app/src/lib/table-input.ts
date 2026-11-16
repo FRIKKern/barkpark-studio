@@ -1,5 +1,6 @@
 import type {Field} from './data'
 import {getPath, keyedPath, setPath} from './paths.ts'
+import {alignColumns} from './table-merge.ts'
 
 // The table field (Sanity's @sanity/table 3.1): an object `{_type: 'table', rows: [{_type:
 // 'tableRow', _key, cells: string[]}]}` edited as a grid of text inputs. The stored shape is
@@ -96,13 +97,36 @@ export function withCell(cells: unknown, column: number, value: string): unknown
   return next
 }
 
+/**
+ * Where the cell drawn at `column` of `drawn` (a row as the grid drew it, `width` wide) is in
+ * the row's cells `now`, when the write is made: -1 when its column is gone. The same count
+ * as drawn: the same place (a short row of an import grows, up to the grid's width). Another
+ * count: another editor's column came in after the grid was drawn and before this key (the
+ * key comes from the old grid's input). The column is followed as the caret follows it, so
+ * the key lands in its own column, never in a neighbour, and never grows the row back.
+ */
+export function columnNow(drawn: unknown[], width: number, now: unknown[], column: number): number {
+  if (now.length === drawn.length) return column
+  return alignColumns([[padded(drawn, width), now]], width, now.length)[column] ?? -1
+}
+
 /** Typing in a cell: that row's `cells`, made onto the row as it is now. Rows without keys go whole. */
 export function setCell(value: unknown, row: number, column: number, cell: string, key: () => string): TableWrite[] {
   const rows = rowsOf(value)
   const target = rows[row]
   if (!target) return []
   if (!keyed(rows)) return rowsWrite(key, (now) => now.map((r, i) => (i === row ? {...r, cells: withCell(r.cells, column, cell)} : r)))
-  return [[`${keyedPath('rows', target._key!)}.cells`, (now: unknown) => withCell(Array.isArray(now) ? now : target.cells, column, cell)]]
+  const [drawn, width] = [cellsOf(target), Math.max(widthOf(rows), column + 1)]
+  return [
+    [
+      `${keyedPath('rows', target._key!)}.cells`,
+      (now: unknown) => {
+        const cells = Array.isArray(now) ? now : drawn
+        const at = columnNow(drawn, width, cells, column)
+        return at < 0 ? cells : withCell(cells, at, cell)
+      },
+    ],
+  ]
 }
 
 /** The rows set whole, made onto the rows as they are when the write is queued (rows without keys: keyed first). */
@@ -178,7 +202,19 @@ export function pasteCells(value: unknown, row: number, column: number, block: s
   const wide = block.reduce((w, r) => Math.max(w, r.length), 0)
   if (!stored[row] || !wide) return []
   if (block.length === 1 && column + wide <= widthOf(stored) && keyed(stored))
-    return [[`${keyedPath('rows', stored[row]!._key!)}.cells`, (now: unknown) => block[0]!.reduce<unknown[]>((cells, c, j) => withCell(cells, column + j, c), Array.isArray(now) ? now : cellsOf(stored[row]))]]
+    return [
+      [
+        `${keyedPath('rows', stored[row]!._key!)}.cells`,
+        (now: unknown) => {
+          const drawn = cellsOf(stored[row])
+          const cells = Array.isArray(now) ? now : drawn
+          return block[0]!.reduce<unknown[]>((out, c, j) => {
+            const at = columnNow(drawn, widthOf(stored), cells, column + j)
+            return at < 0 ? out : withCell(out, at, c)
+          }, cells)
+        },
+      ],
+    ]
   const first = keyAt(value, row)
   return rowsWrite(key, (now) => {
     const rows = [...now]

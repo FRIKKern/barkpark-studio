@@ -203,19 +203,17 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   const focusHeaderRow = (index: number) => header('row', index)?.focus()
 
   // The caret follows its cell. A column another editor put before it (or took away) moves the
-  // cell this editor is in: read from the last drawing in which every row was as wide as the
-  // table (a row of this editor's still on its way to be saved is the old width until then).
+  // cell this editor is in: read from the last drawing to this one, each row padded to the
+  // widest, so a row left short (an import's, or one of this editor's on its way) moves too.
   // A row or column another editor removed takes its cells with it: the caret then rests on the grid, in
   // no cell, so the next keys do not land in a neighbour's text (the form would hand the focus
   // to the nearest control: lib/focus-rescue.ts).
-  const even = useRef<{rows: [string, string[]][]; columns: number} | null>(null)
+  const drawnGrid = useRef<{rows: [string, string[]][]; columns: number} | null>(null)
   const caret = useRef<{key: string; column: number; el: HTMLInputElement; at: [number, number]} | null>(null)
   if (caret.current?.el.isConnected && typeof document !== 'undefined' && document.activeElement === caret.current.el) caret.current.at = [caret.current.el.selectionStart ?? 0, caret.current.el.selectionEnd ?? 0]
   useLayoutEffect(() => {
-    const was = even.current
-    const stored = (value as {rows?: unknown} | undefined)?.rows
-    const isEven = Array.isArray(stored) && stored.every((r) => Array.isArray((r as {cells?: unknown})?.cells) && (r as {cells: unknown[]}).cells.length === grid.columns)
-    if (isEven) even.current = {rows: grid.rows.map((r) => [r.key, r.cells]), columns: grid.columns}
+    const was = drawnGrid.current
+    drawnGrid.current = {rows: grid.rows.map((r) => [r.key, r.cells]), columns: grid.columns}
     const held = caret.current
     if (!held) return
     // Moved on by hand (a click elsewhere, Tab out): nothing to follow.
@@ -227,7 +225,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       return
     }
     let column = held.column
-    if (was && isEven && was.columns !== grid.columns) {
+    if (was && was.columns !== grid.columns) {
       const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
       const to = alignColumns(was.rows.filter(([k]) => now.has(k)).map(([k, cells]): [string[], string[]] => [cells, now.get(k)!]), was.columns, grid.columns)[column]
       if (to !== undefined && to < 0) {
