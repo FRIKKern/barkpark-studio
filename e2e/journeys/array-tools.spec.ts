@@ -45,10 +45,10 @@ test('J33 arrays: Show all N items; the dialog tree opens a nested item; the Pub
   await expect.poll(() => t.docValue(ID, 'sections', 'fieldTypes'), BACKEND_POLL).toEqual(sections)
 
   // Read-only views write nothing, however they are reached (lib/form-lock.ts). First a copied
-  // `sections` field (Cmd/Ctrl+C on its Show fewer toggle), then a published version unlike it.
+  // `sections` field (Cmd/Ctrl+C on its Show all toggle), then a published version unlike it.
   await page.goto(t.docPath('fieldTypes', ID))
   await t.settle(page)
-  await field('sections').getByRole('button', {name: 'Show fewer items'}).focus()
+  await field('sections').getByRole('button', {name: 'Show all 6 items'}).focus()
   await page.keyboard.press('ControlOrMeta+c')
   const published = sections.map((s, i) => (i ? s : {...s, title: 'Section 1, published'}))
   await Promise.all([t.restore(ID, {title: 'Array tools', sections: published}, 'fieldTypes'), t.restore(POST, {title: 'Array tools body', body: {blocks: [para('p1', 'Published words.')]}}, 'post')])
