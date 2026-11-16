@@ -67,6 +67,8 @@ test('a key from the old grid\'s input, after another editor\'s column came in: 
   // The table as drawn is one column already, the input still the second's: the cell typed on from, or nothing.
   assert.deepEqual(typed(table(row('a', 'word typed'), row('b', '')), 1, 'word typed ', ['word typed']), ['word typed '])
   assert.deepEqual(typed(table(row('a', ''), row('b', '')), 1, 'w', ['']), [''])
+  // Drawn while my row was still the old width and the other row the new one: my row's own width counts.
+  assert.deepEqual(typed(table(row('a', '', 'word typed '), row('b', '', '', '')), 1, 'word typed b', ['', '', 'word typed']), ['', '', 'word typed b'])
   // A short row of an import still grows to the grid's width when typed in, and no further.
   assert.deepEqual(typed(table(row('a', 'x'), row('b', '', '')), 1, 'y', ['x']), ['x', 'y'])
   // One row's paste the same way.

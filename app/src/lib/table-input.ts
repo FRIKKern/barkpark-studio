@@ -113,7 +113,10 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
     return from.length === 1 ? from[0]! : -1
   }
   if (now.length === drawn.length) return column
-  return alignColumns([[padded(drawn, width), now]], width, now.length)[column] ?? -1
+  // The row's own cells, as wide as it was (narrower than the table while my write to it was
+  // on its way and theirs came in); a cell past its end (a short row's padding), the grid's.
+  const from = column < drawn.length ? drawn : padded(drawn, width)
+  return alignColumns([[from, now]], from.length, now.length)[column] ?? -1
 }
 
 /** Typing in a cell: that row's `cells`, made onto the row as it is now. Rows without keys go whole. */
