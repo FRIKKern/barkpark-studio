@@ -16,6 +16,7 @@
   "body-wake.spec.ts": 4.4,
   "body.spec.ts": 0,
   "broken-values.spec.ts": 5.3,
+  "bulk-delete.spec.ts": 8.1,
   "bulk.spec.ts": 0,
   "clipboard.spec.ts": 4.9,
   "code-input.spec.ts": 3.9,

@@ -1,0 +1,15 @@
+/* Bulk Delete, Duplicate and Discard changes (components/BulkBar.tsx, BulkDialog.tsx): the
+   bar's Delete in the danger color, and the dialog's per-row list, progress and restore
+   links. Its own file: styles.css is long enough. Colours are the theme's tokens (dark too). */
+.bulk-bar .btn.danger-text:not(:disabled) { color: var(--danger-text); }
+.bulk-dialog .bulk-results { list-style: none; margin: 8px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.bulk-dialog .bulk-results > li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 6px 8px; border-radius: 3px; background: var(--fill-soft); }
+.bulk-dialog .bulk-row-title { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.bulk-dialog .bulk-row-state { flex: 0 1 auto; color: var(--muted); overflow-wrap: anywhere; }
+.bulk-dialog li[data-state='done'] .bulk-row-state { color: var(--positive-fg); }
+.bulk-dialog li[data-state='failed'] .bulk-row-state { color: var(--danger-text); }
+.bulk-dialog .bulk-results .used-in { flex-basis: 100%; margin: 4px 0 0; }
+.bulk-dialog .bulk-progress progress { width: 100%; height: 6px; accent-color: var(--studio-primary); }
+.bulk-dialog .bulk-restore { margin: 0 0 8px; padding-left: 18px; }
+.bulk-dialog .bulk-restore a, .bulk-dialog .bulk-row-state a { color: var(--fg); text-decoration: underline; }
+@media (max-width: 768px) and (pointer: coarse) { .bulk-dialog .bulk-restore a { display: inline-block; min-height: 44px; line-height: 44px; } }
