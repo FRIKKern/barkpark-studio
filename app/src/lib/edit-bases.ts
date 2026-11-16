@@ -58,7 +58,7 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
   // The document as the server had it before `d`: what this browser held (`was`), its own
   // pending edits taken out. A table's merge reads which column became which from it.
   const before = e.missedFrom ?? (was ? applyPaths(was as Record<string, unknown>, e.base) : undefined)
-  // A table whose columns or rows changed under my unsent text: that text is kept, not merged.
+  // A table whose columns changed (or a row of it gone) under my unsent text: that text is kept, not merged.
   keepOnShapeChange(e, d, before)
   for (const [f, base] of e.base) {
     const theirs = getPath(d, f)

@@ -16,6 +16,7 @@ import {plainReason} from './plain-reason'
 import {onto, revertSteps} from './merge'
 import {answered, rebase, same, sentNotesOf, takeBase, unsent, type Spots} from './edit-bases'
 import {applyPaths, getPath, keyedRoots, setInside, setPath, within} from './paths'
+import {setTableKeptScope, takeTableKept} from './table-kept'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {clientGone} from '../server/client-gone'
 import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
@@ -286,6 +287,7 @@ if (typeof window !== 'undefined')
 let keepScope: string | null = null
 export function setKeepScope(scope: string | null) {
   keepScope = scope
+  setTableKeptScope(scope)
 }
 /** Where edits to `id` are kept for any page; this page's own entry is `keepKeyOf`. */
 const docKeyOf = (id: string) => keepScope && `${keepScope}|${id}`
@@ -361,6 +363,7 @@ function afterInflight(qc: QueryClient, id: string, e: DocEdits): boolean {
   const d = e.missed
   e.missed = undefined
   const clashed = d ? rebase(e, d, qc.getQueryData<Doc>(['doc', id])) : []
+  takeTableKept(id, e)
   if (d && clashed.length) clash(qc, id, e, clashed, d)
   // Merged: the field shows it too, or the next keystroke sends the field as it was on
   // screen, over theirs, on the rev that now says it saw them.
@@ -400,6 +403,7 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   if (held && held._updatedAt > doc._updatedAt) return
   const e = docs.get(id)
   const clashed = e ? rebase(e, doc, held) : []
+  if (e) takeTableKept(id, e)
   // A published row (or a publish) proves a published version; a draft keeps what we knew.
   const _hasPublished = !doc._draft || (doc._hasPublished ?? held?._hasPublished ?? false)
   historyChanged(qc, id)
@@ -856,6 +860,7 @@ async function send(qc: QueryClient, id: string) {
         e.inflight = null
         e.missed = undefined // the latest read supersedes it
         const clashed = latest ? rebase(e, latest, qc.getQueryData<Doc>(['doc', id])) : []
+        takeTableKept(id, e)
         if (latest) writeCache(qc, id, e.type, overlay(id, latest))
         if (clashed.length && latest) return clash(qc, id, e, clashed, latest)
         void send(qc, id)

@@ -8,6 +8,7 @@ import {mapCaret} from '../lib/merge'
 import {newKey} from '../lib/pt-value'
 import type {Field} from '../lib/data'
 import {alignColumns} from '../lib/table-merge'
+import {TableKeptCard, useKeptCard} from './TableKeptCard'
 import {addColumns, addRows, createTable, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, removeTable, setCell, tableGrid, tableOptions, withWrites, type TableWrite} from '../lib/table-input'
 
 // The table field (Sanity's @sanity/table; lib/table-input.ts has the shape and what each
@@ -26,7 +27,7 @@ const WINDOW_FROM = 60
 const OVERSCAN = 12
 
 /** One cell. It owns its text between renders (as a text field's input): keys typed faster than the form redraws stay. */
-const Cell = memo(function Cell({row, column, value, label, shut, onCell, onKey, onPaste}: {row: number; column: number; value: string; label: string; shut: boolean; onCell: (row: number, column: number, text: string, was: string) => void; onKey: (e: KeyboardEvent<HTMLInputElement>, row: number, column: number) => void; onPaste: (e: ClipboardEvent<HTMLInputElement>, row: number, column: number) => void}) {
+const Cell = memo(function Cell({row, column, value, label, shut, onCell, onKey, onPaste}: {row: number; column: number; value: string; label: string; shut: boolean; onCell: (row: number, column: number, text: string, was: string) => boolean | void; onKey: (e: KeyboardEvent<HTMLInputElement>, row: number, column: number) => void; onPaste: (e: ClipboardEvent<HTMLInputElement>, row: number, column: number) => void}) {
   const [local, setLocal] = useState(value)
   const [seen, setSeen] = useState(value)
   const ref = useRef<HTMLInputElement>(null)
@@ -57,9 +58,9 @@ const Cell = memo(function Cell({row, column, value, label, shut, onCell, onKey,
       data-column={column}
       onChange={(e) => {
         const was = before.current
-        before.current = e.target.value
-        setLocal(e.target.value)
-        onCell(row, column, e.target.value, was)
+        // Taken by the table's card (its text was kept just now): the cell shows what it holds.
+        before.current = onCell(row, column, e.target.value, was) === true ? value : e.target.value
+        setLocal(before.current)
       }}
       onKeyDown={(e) => onKey(e, row, column)}
       onPaste={(e) => onPaste(e, row, column)}
@@ -170,7 +171,9 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   }
   const header = (kind: 'row' | 'column', index: number) => root.current?.querySelector<HTMLElement>(`button[data-${kind}-header="${index}"]`)
 
-  const onCell = useCallback((row: number, column: number, text: string, was: string) => write(setCell(seen.current, row, column, text, newKey, was)), [write])
+  const card = useKeptCard(id, value, grid, write, root)
+  const capture = card.capture
+  const onCell = useCallback((row: number, column: number, text: string, was: string) => capture(row, column, text, was) || write(setCell(seen.current, row, column, text, newKey, was)), [write, capture])
   const onKey = useCallback(
     (e: KeyboardEvent<HTMLInputElement>, row: number, column: number) => {
       if (e.altKey || e.metaKey || e.ctrlKey || e.nativeEvent.isComposing) return
@@ -235,6 +238,8 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
     if (!held) return
     // Moved on by hand (a click elsewhere, Tab out): nothing to follow.
     if (held.el.isConnected && document.activeElement !== held.el) return void (caret.current = null)
+    // Its own text was kept (lib/table-keep.ts): the caret goes on to the card.
+    if (card.follow(held)) return void (caret.current = null)
     const row = grid.rows.findIndex((r) => r.key === held.key)
     if (row < 0) {
       caret.current = null
@@ -417,6 +422,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
           {t('Tab and Enter move between cells, the arrow keys too at the edge of a cell. Arrow left from a row\'s first cell reaches the row\'s menu, arrow up from the first row the column\'s. Paste cells copied from a spreadsheet to fill the table from the focused cell.')}
         </p>
       )}
+      {!shut && <TableKeptCard card={card} />}
       {menu && !shut && (
         <AnchoredLayer anchor={anchor} className="doc-menu-layer table-menu-layer" onClose={closeMenu}>
           <MenuPopover centered className="popover menu table-menu" onClose={closeMenu}>

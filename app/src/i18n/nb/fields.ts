@@ -262,6 +262,11 @@ export default {
   'Remove row': 'Fjern rad',
   'Remove column': 'Fjern kolonne',
   'Are you sure you want to remove this table?': 'Er du sikker på at du vil fjerne denne tabellen?',
+  // Text a table change left out (components/TableKeptCard.tsx).
+  'The table changed while you typed. Your text was kept:': 'Tabellen ble endret mens du skrev. Teksten din er tatt vare på:',
+  'Kept text': 'Tekst som er tatt vare på',
+  'Put it back': 'Sett den tilbake',
+  'Click a cell in the table first.': 'Klikk i en celle i tabellen først.',
   'Are you sure you want to remove this row?': 'Er du sikker på at du vil fjerne denne raden?',
   'Are you sure you want to remove this column?': 'Er du sikker på at du vil fjerne denne kolonnen?',
   'Insert row above': 'Sett inn rad over',
