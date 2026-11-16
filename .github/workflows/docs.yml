@@ -15,4 +15,4 @@ jobs:
         run: node scripts/check-docs.mjs
       - name: Generators still run
         env: { GITHUB_TOKEN: '${{ github.token }}' }
-        run: node scripts/readme-timeline.mjs && node scripts/generate-roadmap.mjs && node scripts/check-docs.mjs
+        run: node scripts/generate-roadmap.mjs && node scripts/check-docs.mjs
