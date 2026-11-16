@@ -67,7 +67,7 @@ import {IncomingReferencesInputs} from './IncomingReferencesInput'
 const INCOMING = 'sanity/structure/incoming-references'
 import {EditIcon, EyeOpenIcon, PreviewView} from './PreviewView'
 import {previewViewTemplate} from '../lib/preview-url'
-import {formLocked, unlessLocked} from '../lib/form-lock'
+import {formLocked, freeformCanvas, unlessLocked} from '../lib/form-lock'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
 
@@ -340,9 +340,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const saveState = useSaveState(pane.id).state
   const loggedOut = saveState === 'signedOut' || signedOut
   const publishingKey = useRef(false)
+  // A read-only form (lib/form-lock.ts) refuses every edit, however it was reached.
+  const lockState = {published: viewingPublished, revision: !!pane.rev, gone, scheduled: scheduleLocked, canWrite}
+  const locked = formLocked(lockState)
+  const lockedNow = useRef(locked)
+  lockedNow.current = locked
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
-  const freeform = mode !== 'none' && !viewingPublished && (mode === 'main' || Array.isArray(doc?.blocks))
-  // Published is read in Classic: the canvas edits the draft.
+  // Published and a revision are read in Classic: the canvas holds the draft. Locked, it is read-only.
+  const canvasMode = freeformCanvas(lockState)
+  const freeform = mode !== 'none' && canvasMode !== 'hidden' && (mode === 'main' || Array.isArray(doc?.blocks))
   const view: View = viewOf(pane.view, mode) === 'freeform' && !freeform ? 'classic' : viewOf(pane.view, mode)
   const [canvasSeen, setCanvasSeen] = useState<string | null>(null)
   // D02: in Classic, the layout's body regions say they are edited in Freeform, with a button there (LiveView's).
@@ -387,11 +393,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // name, and context values that change only when their content does.
   const latestDoc = useRef(doc)
   latestDoc.current = doc
-  // A read-only form (lib/form-lock.ts) refuses every edit, however it was reached.
-  const locked = formLocked({published: viewingPublished, revision: !!pane.rev, gone, scheduled: scheduleLocked, canWrite})
-  const lockedNow = useRef(locked)
-  lockedNow.current = locked
   const onEdit = useCallback(unlessLocked(() => lockedNow.current, (field: string, value: unknown) => latestDoc.current && edit(qc, latestDoc.current, field, value)), [qc])
+  // F7's undo and redo write the draft too: refused while locked (a revision shows another version).
+  const undoDoc = useCallback(unlessLocked(() => lockedNow.current, (back: boolean) => undo(qc, pane.id, back)), [qc, pane.id])
   const onChangeOf = useMemo(() => {
     const byName = new Map<string, (v: unknown) => void>()
     return (name: string) => byName.get(name) ?? byName.set(name, (v) => onEdit(name, v)).get(name)!
@@ -569,22 +573,20 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // F7: the browser's own undo (Cmd+Z pressed while the focus is outside the pane, the Edit
   // menu) undoes the last field typed in, and the field would record that as a new edit:
   // the next Mod+Z then put it back. It is this document's undo instead, as Mod+Z in the pane.
-  const viewingPublishedRef = useRef(viewingPublished)
-  viewingPublishedRef.current = viewingPublished
   useEffect(() => {
     const root = paneRoot.current
     if (!root) return
     const onBeforeInput = (e: InputEvent) => {
       if (e.inputType !== 'historyUndo' && e.inputType !== 'historyRedo') return
       const target = e.target as HTMLElement
-      if (!target.closest('.form-fields') || target.closest('bp-paper-canvas') || viewingPublishedRef.current) return
+      if (!target.closest('.form-fields') || target.closest('bp-paper-canvas') || lockedNow.current) return
       e.preventDefault()
-      const field = undo(qc, pane.id, e.inputType === 'historyUndo')
+      const field = undoDoc(e.inputType === 'historyUndo')
       if (field) requestAnimationFrame(() => fieldEl(paneRoot.current, field)?.focus())
     }
     root.addEventListener('beforeinput', onBeforeInput, true)
     return () => root.removeEventListener('beforeinput', onBeforeInput, true)
-  }, [qc, pane.id])
+  }, [undoDoc])
   // Sanity's phone document: its header (the chips and buttons) scrolls away with the form while
   // the title and tabs stay. Under 600 px the form's scroll lifts the header out of view (all but
   // 1 px: Sanity's title stops 15 px under the navbar).
@@ -633,9 +635,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         // left lets the key through, and the document's undo goes on into the form.
         const mod = e.metaKey || e.ctrlKey
         const key = e.key.toLowerCase()
-        if (mod && !e.altKey && (key === 'z' || key === 'y') && !viewingPublished && !e.defaultPrevented) {
+        if (mod && !e.altKey && (key === 'z' || key === 'y') && !locked && !e.defaultPrevented) {
           e.preventDefault()
-          const field = undo(qc, pane.id, key === 'z' && !e.shiftKey)
+          const field = undoDoc(key === 'z' && !e.shiftKey)
           if (field) requestAnimationFrame(() => fieldEl(paneRoot.current, field)?.focus())
         }
       }}
@@ -736,7 +738,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
           </button>
         )}
         {doc && schema && (
-          <DocHeaderMenu doc={doc} schema={schema} readOnly={viewingPublished || !canWrite} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} onCompare={comparable ? compare.open : undefined} inline={inline} onInline={compare.toggleInline} />
+          <DocHeaderMenu doc={doc} schema={schema} readOnly={locked} onEdit={onEdit} onInspect={() => setInspectOpen(true)} onHistory={() => navigate({href: withParams(panes, index, {inspect: 'history'})})} onIncoming={() => navigate({href: withParams(panes, index, {inspect: INCOMING, rev: undefined})})} onCompare={comparable ? compare.open : undefined} inline={inline} onInline={compare.toggleInline} />
         )}
         {/* Sanity's Presentation: no focus mode, and a close that goes back to the page's documents. */}
         {inPresentation && (
@@ -902,6 +904,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
               id={pane.id}
               labels={fieldLabels}
               openDoc={(docId, docType) => navigate({href: openAfter(panes, index, {kind: 'doc', id: docId, type: docType})})}
+              editable={canvasMode === 'editable'}
             />
           </div>
         )}

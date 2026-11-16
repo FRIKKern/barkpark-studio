@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {formLocked, unlessLocked} from './form-lock.ts'
+import {formLocked, freeformCanvas, unlessLocked} from './form-lock.ts'
 
 const open = {published: false, revision: false, gone: false, scheduled: false, canWrite: true}
 
@@ -20,4 +20,11 @@ test('form lock: an edit while locked writes nothing, read when it is called, no
   locked = false
   edit('title', 'c')
   assert.deepEqual(writes, [['title', 'a'], ['title', 'c']])
+})
+
+test('form lock: the Freeform canvas is not drawn over Published or a revision, and is read-only where the form is locked', () => {
+  assert.equal(freeformCanvas(open), 'editable')
+  for (const k of ['published', 'revision'] as const) assert.equal(freeformCanvas({...open, [k]: true}), 'hidden', k)
+  for (const k of ['gone', 'scheduled'] as const) assert.equal(freeformCanvas({...open, [k]: true}), 'readOnly', k)
+  assert.equal(freeformCanvas({...open, canWrite: false}), 'readOnly')
 })

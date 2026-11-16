@@ -9,6 +9,10 @@ export type FormState = {published: boolean; revision: boolean; gone: boolean; s
 
 export const formLocked = (s: FormState) => s.published || s.revision || s.gone || s.scheduled || !s.canWrite
 
+/** The whole-document Freeform canvas holds the draft. It is not drawn where the pane shows another
+ * version (Published, a history revision) and is read-only wherever the form is locked. */
+export const freeformCanvas = (s: FormState): 'hidden' | 'readOnly' | 'editable' => (s.published || s.revision ? 'hidden' : formLocked(s) ? 'readOnly' : 'editable')
+
 /** `edit`, refused (false, nothing written) while `locked()` says so when it is called. */
 export const unlessLocked =
   <A extends unknown[], R>(locked: () => boolean, edit: (...a: A) => R) =>
