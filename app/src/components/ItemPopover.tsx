@@ -1,4 +1,4 @@
-import {useCallback, useLayoutEffect, useRef, type CSSProperties, type ReactNode} from 'react'
+import {useCallback, useLayoutEffect, useState, type CSSProperties, type ReactNode} from 'react'
 import {DialogBox, PaneOverlay} from './FocusScopes'
 import {Close as CloseIcon} from './icons'
 import {useT} from '../lib/i18n'
@@ -31,7 +31,8 @@ const rowOf = (arrayId: string, key: string) => {
 
 export function ItemPopover({arrayId, itemKey, typeTitle, readOnly, width, onClose, children}: Props) {
   const t = useT()
-  const box = useRef<HTMLDivElement | null>(null)
+  // The popover's box, once drawn: PaneOverlay draws it a render after this one, in the pane.
+  const [el, setEl] = useState<HTMLDivElement | null>(null)
   const title = typeTitle ? typeTitle[0]!.toUpperCase() + typeTitle.slice(1) : ''
   const header = readOnly ? t('View {name}', {name: title}) : t('Edit {name}', {name: title})
   // Sanity's handleClose: close, then focus the row it opened by.
@@ -44,7 +45,6 @@ export function ItemPopover({arrayId, itemKey, typeTitle, readOnly, width, onClo
   // Placed by hand, in its pane's box: on open, and when the pane scrolls, the window resizes or
   // the popover or its row grows (fields drawn later, a reference search opened).
   useLayoutEffect(() => {
-    const el = box.current
     if (!el) return
     let frame = 0
     const place = () => {
@@ -53,32 +53,34 @@ export function ItemPopover({arrayId, itemKey, typeTitle, readOnly, width, onClo
       const row = rowOf(arrayId, itemKey)
       if (!host || !row) return
       const want = modalWidth(width, innerWidth)
-      el.style.width = want === null ? 'max-content' : `${want}px`
-      el.style.maxHeight = 'none'
-      const at = placePopover(row.getBoundingClientRect(), host.getBoundingClientRect(), want ?? el.offsetWidth, el.scrollHeight)
-      Object.assign(el.style, {left: `${at.left}px`, top: `${at.top}px`, width: `${at.width}px`, maxHeight: `${at.maxHeight}px`})
+      if (want === null) el.style.width = 'max-content'
+      // Its content's own height (the box inside is never cut, the popover scrolls it).
+      const inner = (el.firstElementChild as HTMLElement | null) ?? el
+      const at = placePopover(row.getBoundingClientRect(), host.getBoundingClientRect(), want ?? el.offsetWidth, inner.offsetHeight)
+      Object.assign(el.style, {left: `${at.left + host.scrollLeft}px`, top: `${at.top + host.scrollTop}px`, width: `${at.width}px`, maxHeight: `${at.maxHeight}px`})
       el.dataset.side = at.side
     }
     const soon = () => (frame ||= requestAnimationFrame(place))
+    // Its own scrolling moves nothing.
+    const onScroll = (e: Event) => !el.contains(e.target as Node) && soon()
     place()
     const sizes = new ResizeObserver(soon)
     sizes.observe(el.firstElementChild ?? el)
     const row = rowOf(arrayId, itemKey)
     if (row) sizes.observe(row)
-    addEventListener('scroll', soon, {capture: true, passive: true})
+    addEventListener('scroll', onScroll, {capture: true, passive: true})
     addEventListener('resize', soon)
     return () => {
       sizes.disconnect()
-      removeEventListener('scroll', soon, {capture: true})
+      removeEventListener('scroll', onScroll, {capture: true})
       removeEventListener('resize', soon)
       cancelAnimationFrame(frame)
     }
-  }, [arrayId, itemKey, width])
+  }, [el, arrayId, itemKey, width])
 
-  const ref = useCallback((el: HTMLDivElement | null) => void (box.current = el), [])
   return (
     <PaneOverlay>
-      <div ref={ref} className="popover item-popover">
+      <div ref={setEl} className="popover item-popover">
         <DialogBox className="item-popover-box" aria-label={header} onClose={close}>
           <header className="item-popover-head">
             <span className="item-popover-title">{header}</span>
