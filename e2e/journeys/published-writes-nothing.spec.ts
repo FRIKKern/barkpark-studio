@@ -27,22 +27,25 @@ test('the Published view writes nothing: a paste on Show all, an array item dial
   ])
   const sectionsField = page.locator('[id="sections"]').locator('xpath=ancestor::*[contains(concat(" ", @class, " "), " field ")][1]')
 
-  // A copied `sections` field (Cmd/Ctrl+C on its toggle), from another document.
+  // A copied `sections` field, from another document (its field menu, Copy field).
   await page.goto(t.docPath('fieldTypes', SRC))
   await t.settle(page)
-  await sectionsField.getByRole('button', {name: 'Show all 6 items'}).focus()
-  await page.keyboard.press('ControlOrMeta+c')
+  await sectionsField.getByRole('button', {name: 'Field actions'}).first().click()
+  await page.getByRole('menuitem', {name: 'Copy field'}).click()
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Section 1 (src)')
 
-  // The Published view, an item's dialog open: its field is locked like the form's.
+  // The Published view: Cmd/Ctrl+V on "Show all", focusable in the locked form, is refused.
+  await page.goto(`${t.docPath('fieldTypes', ID)}?perspective=published`)
+  await t.settle(page)
+  await sectionsField.getByRole('button', {name: 'Show all 6 items'}).focus()
+  await page.keyboard.press('ControlOrMeta+v')
+  // Old code wrote here once the clipboard was read: a moment for that, then its save.
+  await page.waitForTimeout(400)
+  await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
+  // An item's dialog there: its field is locked like the form's.
   await page.goto(`${t.docPath('fieldTypes', ID)},path=${encodeURIComponent('sections[_key=="s5"].items[_key=="s5i1"]')}?perspective=published`)
   await t.settle(page)
-  await expect.soft(page.getByRole('dialog').last().getByRole('textbox', {name: 'Label'})).toBeDisabled()
-  await page.keyboard.press('Escape')
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  // The paste on the fold toggle (open here: the dialog's item is past the fold), focusable in the locked form: refused.
-  await sectionsField.getByRole('button', {name: 'Show fewer items'}).focus()
-  await page.keyboard.press('ControlOrMeta+v')
+  await expect.soft(page.getByRole('dialog').last().getByRole('textbox', {name: 'Label'})).toBeDisabled({timeout: 2000})
 
   // A post's body canvas in the Published view: a click doesn't wake it; typing goes nowhere.
   await page.goto(`${t.docPath('post', POST)}?perspective=published`)
