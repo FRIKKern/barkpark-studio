@@ -86,7 +86,11 @@ export function BulkDialog({action, docs, onClose}: {action: BulkAction; docs: D
   const actionLabel = action === 'delete' ? (go === 1 ? t('Delete 1 document') : t('Delete {n} documents', {n: go})) : action === 'duplicate' ? (go === 1 ? t('Duplicate 1 document') : t('Duplicate {n} documents', {n: go})) : go === 1 ? t('Discard changes in 1 document') : t('Discard changes in {n} documents', {n: go})
 
   const set = (id: string, r: RowResult) => alive.current && setResults((m) => new Map(m).set(id, r))
+  // One run at a time: a double click lands twice before the footer re-renders.
+  const busy = useRef(false)
   const run = async (runIds: string[], failedBefore: Set<string>) => {
+    if (busy.current) return
+    busy.current = true
     const byId = new Map(rows.map((d) => [d._publishedId, d]))
     if (!frozen) setFrozen(docs)
     stop.current = false
@@ -115,9 +119,11 @@ export function BulkDialog({action, docs, onClose}: {action: BulkAction; docs: D
       set(id, r)
     }
     if (action === 'duplicate') void qc.invalidateQueries({queryKey: ['list']})
+    busy.current = false
     setPhase('done')
   }
   const start = () => {
+    if (busy.current) return
     // Rows held back at the confirm show in the result too, with their reason.
     setResults(new Map(staying.map((s) => [s.row.id, {state: 'skipped', why: s.why, ...(s.refs && {refs: s.refs})} as RowResult])))
     void run(going.map((s) => s.row.id), new Set())
