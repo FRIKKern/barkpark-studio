@@ -160,20 +160,29 @@ export function mergeRows3(base: unknown[], mine: unknown[], theirs: unknown[]):
   })
 }
 
-const isTable = (v: unknown): v is Obj => isObj(v) && v._type === 'table' && Array.isArray(v.rows)
+// A cell of @sanity/table is text. A Portable Text table (lib/pt-table.ts) has the same
+// `_type: 'table'` and `rows`, but its cells are keyed objects of blocks: those lists merge by
+// key as on main (lib/merge.ts mergeList3), never by position here.
+const plain = (cells: unknown[]) => cells.every((c) => c === null || typeof c !== 'object')
+const plainRows = (rows: unknown[]) => rows.every((r) => plain(cellsOf(r)))
+const isTable = (v: unknown): v is Obj => isObj(v) && v._type === 'table' && Array.isArray(v.rows) && plainRows(v.rows)
 const ROW_CELLS = /^(.+)\.rows\[_key=="[^"]*"\]\.cells$/
 
 /**
  * A pending list at `path`, about to be merged with the server's (lib/edits.ts rebase): when
- * it is a table's rows, or one of its rows' cells, the merge above; null for any other list.
+ * it is an @sanity/table's rows, or one of its rows' cells (text in every cell, on every side),
+ * the merge above; null for any other list, a Portable Text table's included.
  * `before` and `after` are the document as the server had it and has it now.
  */
 export function mergeTablePart(path: string, base: unknown[], mine: unknown[], theirs: unknown[], before: unknown, after: unknown): unknown[] | null {
   const row = ROW_CELLS.exec(path)
   if (row) {
-    const table = getPath(after, row[1]!)
-    return isTable(table) ? mergeCells3(base, mine, theirs, (getPath(before, row[1]!) as Obj | undefined)?.rows, table.rows) : null
+    const [was, table] = [getPath(before, row[1]!), getPath(after, row[1]!)]
+    if (!isTable(table) || (was !== undefined && !isTable(was)) || ![base, mine, theirs].every(plain)) return null
+    return mergeCells3(base, mine, theirs, (was as Obj | undefined)?.rows, table.rows)
   }
-  if (!path.endsWith('.rows') || !isTable(getPath(after, path.slice(0, -5)))) return null
+  if (!path.endsWith('.rows')) return null
+  const [was, table] = [getPath(before, path.slice(0, -5)), getPath(after, path.slice(0, -5))]
+  if (!isTable(table) || (was !== undefined && !isTable(was)) || ![base, mine, theirs].every(plainRows)) return null
   return mergeRows3(base, mine, theirs)
 }

@@ -27,8 +27,8 @@ export const TABLE_FIELDS: Field[] = [
 export const isTableField = (field: Pick<Field, 'type' | 'namedType'> | undefined): boolean => field?.type === 'composite' && field.namedType === 'table'
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
-/** A stored table (Sanity's `_type: 'table'` with its rows), wherever it sits. */
-export const isTableValue = (v: unknown): v is TableValue => isObj(v) && v._type === 'table' && Array.isArray(v.rows)
+/** A stored table (Sanity's `_type: 'table'` with its rows), wherever it sits; not a Portable Text table, whose cells are objects. */
+export const isTableValue = (v: unknown): v is TableValue => isObj(v) && v._type === 'table' && Array.isArray(v.rows) && v.rows.every((r) => !isObj(r) || !Array.isArray(r.cells) || r.cells.every((c) => c === null || typeof c !== 'object'))
 
 /** The plugin's one option: the `_type` a new row gets (`tableRow`). On the field's `options`. */
 export function tableOptions(field: Pick<Field, 'options'> | {options?: unknown} | undefined): Required<TableOptions> {

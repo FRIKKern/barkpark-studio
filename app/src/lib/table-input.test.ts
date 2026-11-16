@@ -145,3 +145,25 @@ test('rows set whole (my column, row or paste) onto theirs: their typing, rows a
   // Not rows of a table: the caller's own merge.
   assert.equal(mergeRows3([{_key: 'a'}], [{_key: 'a'}], [{_key: 'a'}]), null)
 })
+
+test('a Portable Text table (keyed cells of blocks) is not ours to merge: its rows and cells go to the list merge, as on main', () => {
+  // lib/pt-table.ts's shape: the same `_type: 'table'` and `rows`, each cell a keyed object.
+  const blk = (k: string, text: string) => ({_type: 'block', _key: `${k}b`, style: 'normal', markDefs: [], children: [{_type: 'span', _key: `${k}s`, text, marks: []}]})
+  const cell = (k: string, text: string) => ({_type: 'cell', _key: k, value: [blk(k, text)]})
+  const prow = (k: string, ...cells: ReturnType<typeof cell>[]) => ({_type: 'row', _key: k, cells})
+  const rows = [prow('r1', cell('a', 'A1'), cell('b', 'B1')), prow('r2', cell('c', 'C1'), cell('d', 'D1'))]
+  const doc = (r: unknown[]) => ({body: [{_type: 'table', _key: 't', rows: r}]})
+  const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
+  // I add a row while they type in a cell (a reload's kept edit: separate objects).
+  const theirs = copy(rows)
+  theirs[0]!.cells[1]!.value[0]!.children[0]!.text = 'B1 THEIRS'
+  assert.equal(mergeTablePart('body[_key=="t"].rows', copy(rows), [...copy(rows), prow('r3', cell('e', ''))], theirs, doc(copy(rows)), doc(theirs)), null)
+  // I remove a cell of r1 while they add one at its start (the cache's shared objects).
+  const r1 = rows[0]!.cells
+  const added = [cell('n', 'NEW'), ...copy(r1)]
+  const now = copy(rows)
+  now[0]!.cells = added
+  assert.equal(mergeTablePart('body[_key=="t"].rows[_key=="r1"].cells', [...r1], [r1[0]], added, doc(rows), doc(now)), null)
+  // Nor a preview's table.
+  assert.equal(isTableValue({_type: 'table', rows}), false)
+})
