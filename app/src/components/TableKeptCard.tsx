@@ -35,13 +35,17 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     el?.addEventListener('focusin', on)
     return () => el?.removeEventListener('focusin', on)
   })
+  // At once when the card is drawn (TableInput's layout effect runs after it): a key typed in the
+  // frame after would land in the cell, which now holds the other editor's text.
   const focusKept = (id: string) => {
     followed.current.add(id)
-    requestAnimationFrame(() => {
+    const go = () => {
       const input = box.current?.querySelector<HTMLInputElement>(`[data-kept-id="${id}"] input`)
       input?.focus()
       input?.setSelectionRange(input.value.length, input.value.length)
-    })
+      return !!input
+    }
+    if (!go()) requestAnimationFrame(go)
   }
   const fresh = (k: KeptText) => Date.now() - k.at < FRESH_MS
   /** A key that reached a cell's input whose text was just kept (before the card took the caret): onto the kept text. True: taken. */
