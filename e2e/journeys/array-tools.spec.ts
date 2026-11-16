@@ -65,16 +65,18 @@ test('J33 arrays: Show all N items; the dialog tree opens a nested item; the Pub
   await shown.getByRole('searchbox', {name: 'Search items'}).fill('6.1')
   await page.keyboard.press('Enter')
   await expect(page.getByRole('dialog').last().getByRole('navigation', {name: 'Breadcrumb'})).toHaveText(/#6 Section 6\s*\/\s*Items\s*\/\s*#1 Item 6\.1$/)
-  await expect(page.getByRole('dialog').last().getByRole('textbox', {name: 'Label'})).toBeDisabled()
+  await expect.soft(page.getByRole('dialog').last().getByRole('textbox', {name: 'Label'})).toBeDisabled()
   // 3. A post's body canvas: a click doesn't wake it to edit; typing goes nowhere.
   await page.goto(`${t.docPath('post', POST)}?perspective=published`)
   await t.settle(page)
   await page.locator('[id="body"]').click()
   await page.keyboard.type(' xyz')
-  await expect(page.locator('[id="body"]')).toHaveAttribute('aria-readonly', 'true')
-  await expect(page.locator('[id="body"] [contenteditable="true"]')).toHaveCount(0)
+  await expect.soft(page.locator('[id="body"]')).toHaveAttribute('aria-readonly', 'true')
+  await expect.soft(page.locator('[id="body"] [contenteditable="true"]')).toHaveCount(0)
   await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
-  expect([(await t.versions(ID)).draft, (await t.versions(POST)).draft]).toEqual([undefined, undefined])
+  // Soft, so a run on old code names each way that wrote: the paste (ID) and the body (POST).
+  expect.soft((await t.versions(ID)).draft, 'the paste wrote a draft').toBeUndefined()
+  expect.soft((await t.versions(POST)).draft, 'the body canvas wrote a draft').toBeUndefined()
 
   // The insert menu, last: it needs fixtures/barkpark-schema's insertMenu on the dataset.
   await page.goto(t.docPath('fieldTypes', ID))

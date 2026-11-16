@@ -424,8 +424,7 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
   const root = useContext(TreeRootContext)
   const nodes = useTreeNodes(of.type === 'image' || isCodeField(of) ? null : root)
   const treeOn = !!root && (nodes.length > 1 || isNested(nodes))
-  const box = useRef<HTMLDivElement>(null)
-  const side = useSidebar(isNested(nodes), box)
+  const side = useSidebar(isNested(nodes))
   const sideOpen = treeOn && side.open
   // Over the whole document pane, as the other dialogs (not over the field's box).
   return (
@@ -433,7 +432,7 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
     <PaneOverlay>
     <div className="dialog-backdrop item-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog item-dialog" data-tree={sideOpen || undefined} aria-modal="true" aria-label={`${parentTitle} / ${title}`} onClose={onClose}>
-        <span ref={box} hidden />
+        <span ref={side.measure} hidden />
         <header>
           {treeOn && (
             <button

@@ -1,4 +1,4 @@
-import {createContext, memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject} from 'react'
+import {createContext, memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent} from 'react'
 import {filterTree, itemsAbove, treeOf, treeRows, type Titles, type TreeNode, type TreeRow} from '../lib/array-tree'
 import type {Field} from '../lib/data'
 import {ChevronDown, ChevronRight, Search as SearchIcon} from './icons'
@@ -39,12 +39,17 @@ const SIDE_BY_SIDE = 880
 /**
  * Whether the dialog's sidebar is open: on a wide pane as the author last left it, else open
  * when the array holds arrays inside its items; on a narrow one closed, opened over the form.
+ * `measure` goes on an element inside the dialog: the dialog is drawn into the pane a render
+ * after the hook mounts (PaneOverlay), so the pane is measured when that element is attached.
  */
-export function useSidebar(nested: boolean, dialog: RefObject<HTMLElement | null>) {
+export function useSidebar(nested: boolean) {
   const [open, setOpen] = useState(false)
   const [narrow, setNarrow] = useState(false)
-  useLayoutEffect(() => {
-    const thin = (dialog.current?.closest('.dialog-backdrop')?.clientWidth ?? innerWidth) < SIDE_BY_SIDE
+  const measured = useRef(false)
+  const measure = useCallback((el: HTMLElement | null) => {
+    if (!el || measured.current) return
+    measured.current = true
+    const thin = (el.closest('.dialog-backdrop')?.clientWidth ?? innerWidth) < SIDE_BY_SIDE
     let pref: string | null = null
     try {
       pref = localStorage.getItem(PREF)
@@ -59,7 +64,7 @@ export function useSidebar(nested: boolean, dialog: RefObject<HTMLElement | null
         localStorage.setItem(PREF, o ? 'open' : 'closed')
       } catch {}
   }
-  return {open, narrow, set}
+  return {open, narrow, set, measure}
 }
 
 export function ArrayTree({root, nodes, current, onPicked}: {root: TreeRoot; nodes: TreeNode[]; current: string; onPicked?: () => void}) {
