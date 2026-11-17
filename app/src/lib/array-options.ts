@@ -81,16 +81,19 @@ const PAD = 4
 /**
  * Where an item popover goes, in its host's coordinates (both boxes in the viewport's): under its
  * row and centred on it (Sanity's placement 'bottom'), flipped above when it fits only there or
- * there is more room there, shifted to stay inside, as wide as asked or the host allows (constrainSize).
+ * there is more room there, shifted to stay inside, as wide as asked or the host allows (constrainSize),
+ * never taller than the host. `hidden`: the row has left the host's box, above or below, so the
+ * popover hides until it is back (Sanity UI's floating-ui `hide`, strategy referenceHidden).
  */
 export function placePopover(row: Box, host: Box, width: number, height: number) {
   const w = Math.max(0, Math.min(width, host.width - 2 * PAD))
   const below = host.top + host.height - PAD - (row.top + row.height + GAP)
   const above = row.top - GAP - (host.top + PAD)
   const side: 'bottom' | 'top' = height <= below || (height > above && below >= above) ? 'bottom' : 'top'
-  const room = Math.max(0, side === 'bottom' ? below : above)
+  const room = Math.max(0, Math.min(host.height - 2 * PAD, side === 'bottom' ? below : above))
+  const hidden = row.top + row.height <= host.top || row.top >= host.top + host.height
   const top = side === 'bottom' ? row.top + row.height + GAP - host.top : row.top - GAP - Math.min(height, room) - host.top
   const centre = row.left + row.width / 2 - host.left
   const left = Math.round(Math.max(PAD, Math.min(centre - w / 2, host.width - PAD - w)))
-  return {left, top: Math.round(top), width: Math.round(w), maxHeight: Math.round(room), side}
+  return {left, top: Math.round(top), width: Math.round(w), maxHeight: Math.round(room), side, hidden}
 }

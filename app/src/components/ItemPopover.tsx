@@ -65,6 +65,8 @@ export function ItemPopover({arrayId, itemKey, typeTitle, readOnly, width, onClo
       const at = placePopover(r, h, want ?? el.offsetWidth, inner.offsetHeight)
       Object.assign(el.style, {left: `${at.left + host.scrollLeft}px`, top: `${at.top + host.scrollTop}px`, width: `${at.width}px`, maxHeight: `${at.maxHeight}px`})
       el.dataset.side = at.side
+      // Its row out of the pane: hidden until it is back, as Sanity's (never over the title bar or footer).
+      el.style.visibility = at.hidden ? 'hidden' : ''
     }
     const tick = () => (place(), (frame = requestAnimationFrame(tick)))
     tick()
