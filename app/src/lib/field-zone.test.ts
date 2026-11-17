@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {fieldZone, instantIn, listedLocal, onZoneStep, shownIn, typedIn, wallIn, zoneKey, zoneKeyId, zoneList, zoneMatches, zoneOptions, zoneScope} from './field-zone.ts'
+import {fieldZone, fieldZoneName, instantIn, listedLocal, onZoneStep, shownIn, typedIn, wallIn, zoneKey, zoneKeyId, zoneList, zoneMatches, zoneOptions, zoneScope} from './field-zone.ts'
 
 // A datetime field's options.displayTimeZone and allowTimeZoneSwitch, as Sanity's (sanity 6.17
 // DateTimeInput.tsx, useTimeZone.tsx, DialogTimeZone.tsx; @sanity/util legacyDateFormat parse).
@@ -70,4 +70,7 @@ test("the button, the zone shown and the zone list are Sanity's", () => {
   assert.equal(fieldZone(list, null, 'America/New_York', 'Asia/Tokyo')!.name, 'America/New_York')
   assert.equal(fieldZone(list, 'Nowhere/Gone', undefined, 'Asia/Tokyo')!.name, 'Asia/Tokyo')
   assert.equal(listedLocal(list, 'UTC')!.abbreviation, 'GMT')
+  // The box's zone by name alone: the same order.
+  assert.equal(fieldZoneName('Europe/Oslo', 'America/New_York', 'Asia/Tokyo'), 'Europe/Oslo')
+  assert.equal(fieldZoneName(null, 'UTC', 'Asia/Tokyo'), 'Asia/Tokyo')
 })

@@ -1,0 +1,18 @@
+/* A datetime field's time zone (FieldZone.tsx, task-a9e1da2562bec7a4), as Sanity's TimeZoneButton:
+   after the field's title on its row, 8 px from it, the Earth icon and the zone's city, a bleed button
+   (no frame until hovered). With allowTimeZoneSwitch: false the same words as plain text. The dialog's
+   "Select local time zone" sits on the "Time zone" line's right, as Sanity's DialogTimeZone. Colours are
+   the theme's tokens (styles.css), so dark mode follows. */
+.field > label:has(+ .field-zone) { display: inline-flex; vertical-align: middle; }
+.field-zone { display: inline-flex; align-items: center; gap: 6px; height: 25px; margin: 0 0 15px 8px; padding: 0 6px 0 4px; border: 0; border-radius: 3px; background: none; font: inherit; font-size: 13px; line-height: 19px; font-weight: 500; color: var(--menu-fg); vertical-align: middle; }
+button.field-zone { cursor: pointer; }
+button.field-zone:hover { background: var(--icon-btn-hover); color: var(--menu-active-fg); }
+button.field-zone:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.field-zone svg { flex: none; width: 21px; height: 21px; color: var(--icon-muted); }
+.field-zone-city:empty { display: none; }
+
+.zone-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.zone-head .zone-label { margin-bottom: 0; }
+.zone-local { padding: 0; border: 0; background: none; font: inherit; font-weight: 500; color: var(--studio-primary); cursor: pointer; }
+.zone-local:hover { text-decoration: underline; }
+.zone-local:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 2px; }

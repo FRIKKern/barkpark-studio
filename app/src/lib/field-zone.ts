@@ -53,10 +53,11 @@ const allZoneNames = (): string[] => (Intl as {supportedValuesOf?: (k: string) =
  * dropped, with Sanity's warning), whether the editor may switch (default true), and whether the zone
  * button shows at all (a display zone, or allowTimeZoneSwitch set to true itself).
  */
+const warned = new Set<string>()
 export function zoneOptions(options: ZoneOptions | undefined) {
   const o = options ?? {}
   const display = isZone(o.displayTimeZone) ? o.displayTimeZone : undefined
-  if (o.displayTimeZone && !display && typeof console !== 'undefined')
+  if (o.displayTimeZone && !display && !warned.has(String(o.displayTimeZone)) && warned.add(String(o.displayTimeZone)))
     console.warn(`Invalid time zone "${String(o.displayTimeZone)}" supplied to datetime input, defaulting to local time zone or a previously stored preference`)
   const allowSwitch = o.allowTimeZoneSwitch === undefined ? true : !!o.allowTimeZoneSwitch
   return {display, allowSwitch, button: !!display || o.allowTimeZoneSwitch === true}
@@ -96,6 +97,14 @@ const offsetMinutes = (o: string) => (o.startsWith('-') ? -1 : 1) * o.replace(/^
 const zoneName = (zone: string, style: 'short' | 'long', at: Date, locale?: string) =>
   new Intl.DateTimeFormat(locale, {timeZone: zone, timeZoneName: style}).formatToParts(at).find((p) => p.type === 'timeZoneName')?.value ?? ''
 
+/** One zone as Sanity's list names it, at `at`. */
+export const zoneEntry = (name: string, at = new Date(), locale?: string): ListedZone => ({
+  name, city: name.split('/')[1]!.replaceAll('_', ' '), namePretty: name.replaceAll('_', ' '),
+  abbreviation: zoneName(name, 'short', at, locale), alternativeName: zoneName(name, 'long', at, locale), offset: offsetText(name, at),
+})
+let listed: string[] | undefined
+const listedNames = () => (listed ??= allZoneNames().filter((z) => z.includes('/')))
+
 const lists = new Map<string, ListedZone[]>()
 /**
  * Sanity's zone list: every Intl zone with a city (a "/" in its name), named at `at` (offsets change
@@ -106,9 +115,8 @@ export function zoneList(at = new Date(), locale?: string): ListedZone[] {
   const key = `${locale ?? ''}_${at.toISOString().slice(0, 10)}`
   const held = lists.get(key)
   if (held) return held
-  const list = allZoneNames()
-    .filter((z) => z.includes('/'))
-    .map((name) => ({name, city: name.split('/')[1]!.replaceAll('_', ' '), namePretty: name.replaceAll('_', ' '), abbreviation: zoneName(name, 'short', at, locale), alternativeName: zoneName(name, 'long', at, locale), offset: offsetText(name, at)}))
+  const list = listedNames()
+    .map((name) => zoneEntry(name, at, locale))
     .sort((a, b) => offsetMinutes(a.offset) - offsetMinutes(b.offset))
   lists.set(key, list)
   return list
@@ -127,17 +135,30 @@ export function fieldZone(list: ListedZone[], picked: string | null | undefined,
   return (picked ? list.find((z) => z.name === picked) : undefined) ?? (display ? list.find((z) => z.name === display) : undefined) ?? listedLocal(list, local)
 }
 
+/** fieldZone by name alone, without naming the whole list (the box needs only the zone). */
+export function fieldZoneName(picked: string | null | undefined, display: string | undefined, local = Intl.DateTimeFormat().resolvedOptions().timeZone): string | undefined {
+  const names = listedNames()
+  return [picked, display, local].find((z) => z && names.includes(z)) ?? listedLocal(zoneList(), local)?.name
+}
+
 /** An instant down to the time step's grid in the zone shown (15: 09:07 → 09:00). */
 export function onZoneStep(at: Date, step: number | undefined, zone: string): Date {
   const over = step && step > 1 ? wallIn(at, zone).minute % step : 0
   return over ? new Date(at.getTime() - over * 60_000) : at
 }
 
-/** What the box shows for a stored instant, in the zone. */
-export const shownIn = (iso: string, format: string, zone: string) => formatWall(wallIn(new Date(iso), zone), format)
+/** An instant as the zone's clock shows it, in `format` (the datetime box). */
+export const formatIn = (at: Date, format: string, zone: string) => formatWall(wallIn(at, zone), format)
+/** `text` read as the zone's wall time: its instant, or undefined while it doesn't parse. */
+export function parseIn(text: string, format: string, zone: string): Date | undefined {
+  const w = parseWall(text, format)
+  return w && instantIn(w, zone)
+}
 
+/** What the box shows for a stored instant, in the zone. */
+export const shownIn = (iso: string, format: string, zone: string) => formatIn(new Date(iso), format, zone)
 /** What typing `text` in the zone stores: the instant as ISO, on the time step; undefined while it doesn't parse. */
 export function typedIn(text: string, format: string, zone: string, step?: number): string | undefined {
-  const w = parseWall(text, format)
-  return w && onZoneStep(instantIn(w, zone), step, zone).toISOString()
+  const at = parseIn(text, format, zone)
+  return at && onZoneStep(at, step, zone).toISOString()
 }
