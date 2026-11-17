@@ -38,7 +38,7 @@ status lives on the task board. A scout's honest gap adds a row: never a shrinki
 | J28 | 2 | Doc actions menu: Duplicate (opens in place), copy ID / URL; Inspect (Ctrl+Alt+I) raw JSON | F2 F5 |
 | J29 | 2 | Field "…" menu: copy / paste a field or whole doc; clear error when types don't match | F9 |
 | J30 | 2 | Conditional fields: hidden / read-only react instantly, no layout jump, focus kept | F1 F10 |
-| J31 | 2 | Select list (dropdown + radio) and Sanity's date-time picker (calendar, "now"; its past-date warning is scheduling-only) | F5 F10 |
+| J31 | 2 | Select list (dropdown + radio) and Sanity's date-time picker (calendar, "now"; its past-date warning is scheduling-only); a datetime's own zone (displayTimeZone, the zone button by its title, another zone per document field with allowTimeZoneSwitch; the stored UTC instant unchanged) | F5 F10 |
 | J32 | 3 | Someone deletes or changes the doc you have open, or a referenced one: banner + Restore / Reload / Close | F4 F9 |
 | J33 | 4 | Array of objects: insert menu with several types ([0005](docs/decisions/0005-multi-type-array-convention.md)) that searches as you type, with filter tabs and a list/grid of icons or previews; past 4 items "Show all N items"; Sanity's disableActions, sortable: false and modal popover; edit item in dialog, popover or inline, the dialog's sidebar tree (searchable) opens any nested item; preview in list, incl. Barkpark arrayOf-composite items (never "[object Object]") | F2 F5 F7 |
 | J34 | 4 | Tags input (Enter adds, × removes; the reference ignores comma and Backspace) and reorderable rows for plain string arrays | F1 F5 |
