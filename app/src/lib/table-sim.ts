@@ -32,7 +32,7 @@ type Doc = {_rev: string; _updatedAt: string; t?: any}
 type Op = {kind: 'inscol' | 'rmcol' | 'insrow' | 'rmrow'; at: number}
 type Step = {word: string; row: string; col: number} | {op: Op}
 
-class Server {
+export class Server {
   n = 0
   doc: Doc
   history = new Map<string, unknown>()
@@ -53,7 +53,7 @@ class Server {
   }
 }
 
-class Client {
+export class Client {
   e: Spots = {base: new Map(), dirty: new Map(), inflight: null}
   cache: Doc
   view: Doc // what React last drew
