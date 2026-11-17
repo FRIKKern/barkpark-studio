@@ -42,40 +42,33 @@ export function ItemPopover({arrayId, itemKey, typeTitle, readOnly, width, onClo
     row?.focus({preventScroll: true})
   }, [arrayId, itemKey, onClose])
 
-  // Placed by hand, in its pane's box: on open, and when the pane scrolls, the window resizes or
-  // the popover or its row grows (fields drawn later, a reference search opened).
+  // Placed by hand, in its pane's box, and kept by its row as Sanity's (floating-ui's autoUpdate):
+  // each frame it checks where the row, the pane and its own content are, and moves when any did
+  // (a scroll, a resize, fields drawn later, a code editor above loading and pushing the row down).
   useLayoutEffect(() => {
     if (!el) return
     let frame = 0
+    let seen = ''
     const place = () => {
-      frame = 0
       const host = el.offsetParent as HTMLElement | null
       const row = rowOf(arrayId, itemKey)
       if (!host || !row) return
-      const want = modalWidth(width, innerWidth)
-      if (want === null) el.style.width = 'max-content'
       // Its content's own height (the box inside is never cut, the popover scrolls it).
       const inner = (el.firstElementChild as HTMLElement | null) ?? el
-      const at = placePopover(row.getBoundingClientRect(), host.getBoundingClientRect(), want ?? el.offsetWidth, inner.offsetHeight)
+      const r = row.getBoundingClientRect()
+      const h = host.getBoundingClientRect()
+      const now = [r.left, r.top, r.width, r.height, h.left, h.top, h.width, h.height, inner.offsetHeight, innerWidth].join()
+      if (now === seen) return
+      seen = now
+      const want = modalWidth(width, innerWidth)
+      if (want === null) el.style.width = 'max-content'
+      const at = placePopover(r, h, want ?? el.offsetWidth, inner.offsetHeight)
       Object.assign(el.style, {left: `${at.left + host.scrollLeft}px`, top: `${at.top + host.scrollTop}px`, width: `${at.width}px`, maxHeight: `${at.maxHeight}px`})
       el.dataset.side = at.side
     }
-    const soon = () => (frame ||= requestAnimationFrame(place))
-    // Its own scrolling moves nothing.
-    const onScroll = (e: Event) => !el.contains(e.target as Node) && soon()
-    place()
-    const sizes = new ResizeObserver(soon)
-    sizes.observe(el.firstElementChild ?? el)
-    const row = rowOf(arrayId, itemKey)
-    if (row) sizes.observe(row)
-    addEventListener('scroll', onScroll, {capture: true, passive: true})
-    addEventListener('resize', soon)
-    return () => {
-      sizes.disconnect()
-      removeEventListener('scroll', onScroll, {capture: true})
-      removeEventListener('resize', soon)
-      cancelAnimationFrame(frame)
-    }
+    const tick = () => (place(), (frame = requestAnimationFrame(tick)))
+    tick()
+    return () => cancelAnimationFrame(frame)
   }, [el, arrayId, itemKey, width])
 
   return (
