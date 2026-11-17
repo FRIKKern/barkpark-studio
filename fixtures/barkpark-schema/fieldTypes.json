@@ -78,6 +78,15 @@
       }
     },
     {
+      "name": "meetsAt",
+      "title": "Meets at",
+      "type": "datetime",
+      "options": {
+        "displayTimeZone": "America/New_York",
+        "allowTimeZoneSwitch": true
+      }
+    },
+    {
       "name": "handle",
       "title": "Handle",
       "type": "slug",

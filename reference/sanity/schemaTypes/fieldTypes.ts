@@ -17,6 +17,8 @@ export const fieldTypes = defineType({
     defineField({name: 'agree', type: 'boolean', options: {layout: 'checkbox'}}),
     defineField({name: 'day', type: 'date', options: {dateFormat: 'DD.MM.YYYY'}}),
     defineField({name: 'at', type: 'datetime', options: {dateFormat: 'DD.MM.YYYY', timeFormat: 'HH:mm', timeStep: 15}}),
+    // A time in New York's zone, with Sanity's zone button by the title; another zone per document field.
+    defineField({name: 'meetsAt', title: 'Meets at', type: 'datetime', options: {displayTimeZone: 'America/New_York', allowTimeZoneSwitch: true}}),
     defineField({name: 'handle', type: 'slug', options: {source: 'title', maxLength: 20}, validation: (r) => r.required()}),
     defineField({name: 'place', type: 'geopoint'}),
     defineField({name: 'weakRef', title: 'Weak reference', type: 'reference', to: [{type: 'post'}], weak: true, options: {disableNew: true}}),
