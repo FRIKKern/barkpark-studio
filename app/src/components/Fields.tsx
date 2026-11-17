@@ -17,6 +17,7 @@ import {ChevronDown, ResetCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, C
 import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
 import {toast} from './Toasts'
 import {BlockPresence, FieldPresence} from './Presence'
+import {FieldZone} from './FieldZone'
 import {DateTimeInput, type DateOptions} from './DateTimeInput'
 import {StringArrayInput, TagsInput} from './ArrayInputs'
 import {ObjectArrayInput} from './ObjectArrayInput'
@@ -296,6 +297,7 @@ function FieldBody(props: FieldProps) {
         <ProblemMark path={props.path} id={problemId(props.path)} />
         <FieldPresenceHere path={props.path} />
       </label>
+      <FieldZone field={props.field} path={props.path} value={props.value} />
       {props.field.description && <p className="field-desc" id={descId(props.path)}>{props.field.description}</p>}
       <FieldClashCard path={props.path} />
       {changes?.inline && changes.changed.has(props.path) && INLINE_DIFF_TYPES.has(props.field.type) ? (

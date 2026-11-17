@@ -78,6 +78,10 @@ misspelled key and never reads it: VS Code checks these files against
 `scripts/fixture-schema.mjs`, kept in step by a unit test), and `seed-barkpark` refuses one
 that fails it.
 
+A datetime's `options.displayTimeZone` (an IANA name, `America/New_York`) shows and reads its
+time on that zone's clock, with Sanity's zone button after the title; `allowTimeZoneSwitch: false`
+keeps it there, and `true` alone gives the button in local time. The value stays a UTC instant.
+
 Sanity's `Rule.custom` (a field's or the whole document's, with `context.document` /
 `context.parent`, answering at once or with a Promise) is `document.validation(type)` in
 `app/src/studio.config.tsx`: `[{path?, level?, validate(value, {document, parent, path})}]`.

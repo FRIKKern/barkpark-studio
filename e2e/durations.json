@@ -43,6 +43,7 @@
   "field-clipboard.spec.ts": 0,
   "field-types.spec.ts": 4.2,
   "field-url.spec.ts": 0,
+  "field-zone.spec.ts": 2.3,
   "file-field.spec.ts": 0,
   "focus-mode.spec.ts": 0,
   "focus.spec.ts": 0,
