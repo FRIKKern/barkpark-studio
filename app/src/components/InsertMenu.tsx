@@ -1,6 +1,5 @@
 import {useState, type KeyboardEvent} from 'react'
 import {ALL_ITEMS, filterChoices, gridStep, previewUrl, type Choice, type MenuSetup} from '../lib/insert-menu'
-import {firstPickable, insertItemProps} from '../lib/deprecated'
 import {Search as SearchIcon, ThLargeIcon, UlistIcon} from './icons'
 import {TypeIcon} from './Preview'
 import {useT} from '../lib/i18n'
@@ -10,8 +9,7 @@ import '../array-tools.css'
 // search box that narrows the types as you type (Enter adds the first), filter tabs, and a
 // list/grid toggle where the schema offers a grid (`options.insertMenu.views`, lib/insert-menu.ts).
 // Every control is a menu item, so the arrow keys reach them all (Tab closes a menu here); in
-// the grid the arrows move by tile and by row. Escape closes, focus back on the opener. A
-// deprecated member type stays, disabled, its reason the tooltip (lib/deprecated.ts).
+// the grid the arrows move by tile and by row. Escape closes, focus back on the opener.
 
 export function InsertMenu({choices, setup, pick}: {choices: Choice[]; setup: MenuSetup; pick: (value: string) => void}) {
   const t = useT()
@@ -19,8 +17,6 @@ export function InsertMenu({choices, setup, pick}: {choices: Choice[]; setup: Me
   const [group, setGroup] = useState(ALL_ITEMS)
   const [view, setView] = useState(setup.views[0]!)
   const shown = filterChoices(choices, query, setup.groups.find((g) => g.name === group))
-  const choose = (c: Choice) => c.deprecated === undefined && pick(c.value)
-  const first = firstPickable(shown)
   const next = setup.views[(setup.views.indexOf(view) + 1) % setup.views.length]!
   const toggleLabel = next === 'grid' ? t('Toggle grid view') : t('Toggle list view')
   // The grid's arrows, before the menu's own (which only go up and down the items in order).
@@ -49,7 +45,7 @@ export function InsertMenu({choices, setup, pick}: {choices: Choice[]; setup: Me
                 placeholder={t('Search')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && first && (e.preventDefault(), pick(first.value))}
+                onKeyDown={(e) => e.key === 'Enter' && shown[0] && (e.preventDefault(), pick(shown[0].value))}
               />
             </div>
           )}
@@ -76,7 +72,7 @@ export function InsertMenu({choices, setup, pick}: {choices: Choice[]; setup: Me
       ) : view === 'grid' ? (
         <div className="insert-grid" onKeyDownCapture={onGridKey}>
           {shown.map((c, i) => (
-            <button key={c.value} type="button" role="menuitem" className="menu-item insert-tile" autoFocus={!setup.filter && i === 0} {...insertItemProps(c.deprecated)} onClick={() => choose(c)}>
+            <button key={c.value} type="button" role="menuitem" className="menu-item insert-tile" autoFocus={!setup.filter && i === 0} onClick={() => pick(c.value)}>
               <Tile choice={c} src={previewUrl(setup.preview, c.value)} icons={setup.showIcons} />
               <span className="insert-tile-title">{c.title}</span>
             </button>
@@ -84,7 +80,7 @@ export function InsertMenu({choices, setup, pick}: {choices: Choice[]; setup: Me
         </div>
       ) : (
         shown.map((c, i) => (
-          <button key={c.value} type="button" role="menuitem" className="menu-item insert-item" autoFocus={!setup.filter && i === 0} {...insertItemProps(c.deprecated)} onClick={() => choose(c)}>
+          <button key={c.value} type="button" role="menuitem" className="menu-item insert-item" autoFocus={!setup.filter && i === 0} onClick={() => pick(c.value)}>
             {setup.showIcons && c.icon?.iconSvg ? (
               <span className="menu-icon-text">
                 <TypeIcon schema={c.icon} /> {c.title}

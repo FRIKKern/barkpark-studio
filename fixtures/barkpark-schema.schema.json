@@ -461,7 +461,7 @@
           "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
         },
         "deprecated": {
-          "description": "Sanity's deprecated, {reason}: a \"deprecated\" badge by the title and the reason under it; the field stays editable. On an array member, or a richText blocks.of / blocks.inline entry: shown disabled in the insert menu, the reason its tooltip.",
+          "description": "Sanity's deprecated, {reason}: a \"deprecated\" badge by the title and the reason under it; the field stays editable. On a richText blocks.of / blocks.inline entry: shown disabled in Insert, the reason its tooltip. An array member keeps it (Sanity's array menu offers it as usual).",
           "type": "object",
           "required": [
             "reason"
@@ -658,7 +658,7 @@
           "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
         },
         "deprecated": {
-          "description": "Sanity's deprecated, {reason}: a \"deprecated\" badge by the title and the reason under it; the field stays editable. On an array member, or a richText blocks.of / blocks.inline entry: shown disabled in the insert menu, the reason its tooltip.",
+          "description": "Sanity's deprecated, {reason}: a \"deprecated\" badge by the title and the reason under it; the field stays editable. On a richText blocks.of / blocks.inline entry: shown disabled in Insert, the reason its tooltip. An array member keeps it (Sanity's array menu offers it as usual).",
           "type": "object",
           "required": [
             "reason"

@@ -7,8 +7,7 @@
 // ours is a template where `{type}` is the type's name. Without options: a list, searchable
 // past five types (Sanity's 'auto').
 
-/** `deprecated`: the member type's reason (Sanity's deprecated: {reason}); drawn disabled with it as the tooltip. */
-export type Choice = {value: string; title: string; icon?: {icon?: string; iconSvg?: string}; deprecated?: string}
+export type Choice = {value: string; title: string; icon?: {icon?: string; iconSvg?: string}}
 export type MenuGroup = {name: string; title: string; of?: string[]}
 export type MenuView = 'list' | 'grid'
 export type MenuSetup = {filter: boolean; groups: MenuGroup[]; views: MenuView[]; showIcons: boolean; preview?: string}

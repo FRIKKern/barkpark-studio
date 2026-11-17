@@ -78,7 +78,7 @@ export function useFocusScope<T extends HTMLElement>({trap = false, menu = false
     // Nothing to focus yet (a control still loading, disabled): the dialog itself, so a
     // screen reader says where it is (J47).
     // A field marked data-autofocus takes it first (a menu's search box, as Sanity's assignee list).
-    if (root && !root.contains(document.activeElement)) (root.querySelector<HTMLElement>('[data-autofocus]') ?? (menu && !focusMenu ? root.querySelector<HTMLElement>('[role^=menuitem]:not([disabled])') : menu ? null : focusables(root)[0]) ?? ((root.tabIndex = -1), root)).focus()
+    if (root && !root.contains(document.activeElement)) (root.querySelector<HTMLElement>('[data-autofocus]') ?? (menu && !focusMenu ? root.querySelector<HTMLElement>('[role^=menuitem]:not([disabled], [aria-disabled=true])') : menu ? null : focusables(root)[0]) ?? ((root.tabIndex = -1), root)).focus()
     return () => {
       const active = document.activeElement
       const lost = !active || active === document.body || (root && root.contains(active)) || !active.isConnected
