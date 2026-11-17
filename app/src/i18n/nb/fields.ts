@@ -195,6 +195,8 @@ export default {
   'This text holds content the editor cannot read. It is shown read-only and kept as it is.': 'Denne teksten har innhold redigeringsverktøyet ikke kan lese. Den vises skrivebeskyttet og beholdes som den er.',
   // S4b, annotations in the Portable Text input.
   'Edit {name}': 'Rediger {name}',
+  // Sanity's array item popover (options.modal), read-only.
+  'View {name}': 'Vis {name}',
   'Remove {name}': 'Fjern {name}',
   'This type has no fields to edit.': 'Denne typen har ingen felt å redigere.',
   // The popover over an annotation (Sanity's nb pack).
