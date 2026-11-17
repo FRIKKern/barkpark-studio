@@ -1,4 +1,5 @@
 import {useMemo, useState, type KeyboardEvent} from 'react'
+import {createPortal} from 'react-dom'
 import {DialogBox} from './FocusScopes'
 import {ChevronDown, Close, Search} from './icons'
 import {useT} from '../lib/i18n'
@@ -30,7 +31,8 @@ export function ZoneDialog({zone, info, at, onClose, onPick}: {zone: string; inf
     else if (e.key === 'Escape') e.stopPropagation(), setQuery(null)
   }
   const shown = query ?? (picked ? longName(picked) : chosen)
-  return (
+  // On the page's body: a field's own box (a transformed pane) would hold a fixed backdrop inside it.
+  return createPortal(
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <DialogBox className="dialog zone-dialog" aria-modal="true" aria-labelledby="zone-title" onClose={onClose}>
         <header>
@@ -99,6 +101,7 @@ export function ZoneDialog({zone, info, at, onClose, onPick}: {zone: string; inf
           </button>
         </footer>
       </DialogBox>
-    </div>
+    </div>,
+    document.body,
   )
 }
