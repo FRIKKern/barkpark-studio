@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {addColumns, addRows, caretColumn, createTable, isTableField, isTableValue, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, setCell, tableBlank, tableGrid, tableOptions, tablePreview, withWrites} from './table-input.ts'
+import {addColumns, addRows, caretColumn, columnNow, createTable, isTableField, isTableValue, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, setCell, tableBlank, tableGrid, tableOptions, tablePreview, withWrites} from './table-input.ts'
 import {alignColumns, mergeCells3, mergeRows3, mergeTablePart} from './table-merge.ts'
 import {tableDiff} from './table-diff.ts'
 
@@ -233,4 +233,12 @@ test('caret follow, alike either way: the caret goes on in its own text where th
   assert.equal(caretColumn(rows('x'), 2, 1, 1, 1), -1)
   // Nothing typed: an alike text is no one's own; read as gone, not followed.
   assert.equal(caretColumn([[['x', 'x'], ['x']]], 2, 1, 1, 0), -1)
+})
+
+test('a key from the old grid after a removal that reads alike either way: no column (the caret takes it to the card), never into the other editor\'s saved cell', () => {
+  // Review 7, seed 63018 #136: every cell 'x', my '<' saved in column 1; they typed '<P6>' in
+  // column 0, removed column 1 and saved. My next key comes from the old grid's input.
+  assert.equal(columnNow(['x', 'x<'], 2, ['x<P6>'], 1, 'x<T', 'x<'), -1)
+  // The cells say which went: the key follows its column.
+  assert.equal(columnNow(['ae', 'af', 'ag'], 3, ['ae', 'ag'], 2, 'ag!', 'ag'), 1)
 })

@@ -120,7 +120,11 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
   // went there, and a merge put them where their column went. The key follows them.
   const from = [...(column < drawn.length ? drawn : padded(drawn, width))]
   if (was !== undefined) from[column] = was
-  return alignColumns([[from, now]], from.length, now.length, (i) => i === column)[column] ?? -1
+  // Columns removed and the cells read the same whichever went: no column (as caretColumn), so
+  // the key never lands in a neighbour the other editor saved; the caret takes the text to the card.
+  const to = alignColumns([[from, now]], from.length, now.length, (i) => i === column)[column] ?? -1
+  if (from.length > now.length && to >= 0 && alignColumns([[from, now]], from.length, now.length, (i) => i !== column)[column] !== to) return -1
+  return to
 }
 
 /**

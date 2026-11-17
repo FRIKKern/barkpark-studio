@@ -219,6 +219,18 @@ function table(R: number, C: number, kind: (typeof KINDS)[number]) {
 }
 const WORDCH = /[<>A-Z0-9]/
 
+/**
+ * A cell whose text is not only whole words, read as a word's first keys left over (not SPLIT):
+ * those keys, saved, while the whole word is on its typer's card. Either the cell is only them
+ * (its column could not be told: two cells held the same text; Put it back replaces them), or
+ * they begin the cell and the other editor typed on after them, as they saw them (review 7, seed
+ * 96019 #208: P's '<' then T's '<U8>' in one cell, P's '<Q8>' whole on P's card). No word is
+ * lost or cut; the keys stay visible in the table until edited.
+ */
+export function leftover(cell: string, rest: string, kept: readonly string[]): boolean {
+  return kept.some((k) => k.startsWith(cell)) || (rest !== '' && cell.startsWith(rest) && kept.some((k) => k.length > rest.length && k.startsWith(rest)))
+}
+
 /** One scene: P presses a column or row change (maybe typing before and after), T types one or two words. */
 function scene(i: number): {bad: string[]; soft: string[]; name: string} {
   const R = 1 + int(4)
@@ -326,9 +338,7 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
   for (const c of [...flat, ...kept]) {
     const rest = words.reduce((r, w) => r.split(w.word).join(''), c)
     if (!WORDCH.test(rest)) continue
-    // A word's first keys, saved, left in a cell whose column the typer could not tell (two cells
-    // held the same text): the whole word is on the typer's card, and its "Put it back" replaces them.
-    if (flat.includes(c) && kept.some((k) => k.startsWith(c))) soft.push('LEFTOVER')
+    if (flat.includes(c) && leftover(c, rest, kept)) soft.push('LEFTOVER')
     else bad.push(`SPLIT ${J(c)}`)
   }
   if (op.kind === 'inscol')
