@@ -8,6 +8,7 @@ import incomingCss from '../incoming-input.css?url'
 import ptChangesCss from '../pt-changes.css?url'
 import translationsCss from '../translations.css?url'
 import codeInputCss from '../code-input.css?url'
+import tableInputCss from '../table-input.css?url'
 import dashboardCss from '../dashboard.css?url'
 import bulkCss from '../bulk-actions.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
@@ -56,6 +57,7 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
       {rel: 'stylesheet', href: ptChangesCss},
       {rel: 'stylesheet', href: translationsCss},
       {rel: 'stylesheet', href: codeInputCss},
+      {rel: 'stylesheet', href: tableInputCss},
       {rel: 'stylesheet', href: dashboardCss},
       {rel: 'stylesheet', href: bulkCss},
     ],

@@ -461,7 +461,7 @@
           "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
         },
         "namedType": {
-          "description": "An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type's icon. \"code\" makes it Sanity's code field (options: language, languageAlternatives, withFilename)."
+          "description": "An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type's icon. \"code\" makes it Sanity's code field (options: language, languageAlternatives, withFilename). \"table\" makes it Sanity's table field (options: rowType)."
         },
         "ordered": {
           "description": "arrayOf: adds reordering.",
@@ -645,7 +645,7 @@
           "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
         },
         "namedType": {
-          "description": "An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type's icon. \"code\" makes it Sanity's code field (options: language, languageAlternatives, withFilename)."
+          "description": "An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type's icon. \"code\" makes it Sanity's code field (options: language, languageAlternatives, withFilename). \"table\" makes it Sanity's table field (options: rowType)."
         },
         "ordered": {
           "description": "arrayOf: adds reordering.",

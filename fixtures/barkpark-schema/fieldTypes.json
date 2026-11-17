@@ -484,6 +484,34 @@
       ]
     },
     {
+      "name": "sizeChart",
+      "title": "Size chart",
+      "type": "composite",
+      "namedType": "table",
+      "description": "A table field, as Sanity's @sanity/table stores it.",
+      "fields": [
+        {
+          "name": "rows",
+          "title": "Rows",
+          "type": "arrayOf",
+          "of": {
+            "type": "composite",
+            "namedType": "tableRow",
+            "fields": [
+              {
+                "name": "cells",
+                "title": "Cells",
+                "type": "arrayOf",
+                "of": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "steps",
       "title": "Steps",
       "type": "arrayOf",
