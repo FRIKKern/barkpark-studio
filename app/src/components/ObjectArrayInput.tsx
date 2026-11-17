@@ -20,6 +20,8 @@ import {isTableField, tablePreview} from '../lib/table-input'
 import {memberChoices, memberFor, memberName, memberPreview, membersOf, newMemberItem, referenceHeads} from '../lib/array-members'
 import {ArrayTree, isNested, JumpContext, live, newJump, TreeRootContext, useSidebar, useTreeNodes, type Jump, type TreeRoot} from './ArrayTree'
 import type {Titles} from '../lib/array-tree'
+import {actions, modalOf, type Modal} from '../lib/array-options'
+import {dialogWidth, ItemPopover} from './ItemPopover'
 
 // Arrays of objects (J33), after Sanity's: each item a row with a preview (the
 // item's preview title/subtitle; a reference subtitle shows the referenced doc's
@@ -122,6 +124,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
     // On a new jump, and when this array is another item's (its dialog now shows the next item).
   }, [jump, id])
   const set = (next: Item[]) => onChange(next)
+  const modal = modalOf(field.options)
   const t = useT()
   const editPath = useContext(EditPathContext)
   const latest = useRef(items)
@@ -163,7 +166,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
     for (let i = 0; i < Math.min(UPLOAD_LANES, queued.length); i++) void lane()
   }
   const dropTarget =
-    !multi && of.type === 'image' && !readOnly
+    !multi && of.type === 'image' && !readOnly && actions(field.options).add
       ? {
           onDragEnter: (e: DragEvent<HTMLElement>) => carriesFiles(e) && (e.preventDefault(), setOver(true)),
           onDragOver: (e: DragEvent<HTMLElement>) => carriesFiles(e) && e.preventDefault(),
@@ -214,6 +217,12 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
       />
       {index >= 0 && (
         <OpenedByHandContext.Provider value={!byLink}>
+        {/* Sanity's options.modal: a popover by the item's row, or the dialog (ItemPopover.tsx). */}
+        {modal.type === 'popover' ? (
+          <ItemPopover key={editing} arrayId={id} itemKey={editing!} typeTitle={memberChoices([memberOf(items[index]!)], schemas)[0]!.title} readOnly={readOnly} width={modal.width} onClose={close}>
+            <ItemFields item={items[index]!} of={memberOf(items[index]!)} named={multi} path={`${id}[_key=="${items[index]!._key}"]`} readOnly={readOnly} openRef={openRef} onChange={(next) => set(items.map((it, i) => (i === index ? next : it)))} />
+          </ItemPopover>
+        ) : (
         <ItemDialog
           parentTitle={field.title ?? field.name}
           position={index + 1}
@@ -223,9 +232,11 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
           path={`${id}[_key=="${items[index]!._key}"]`}
           readOnly={readOnly}
           openRef={openRef}
+          width={modal.width}
           onChange={(next) => set(items.map((it, i) => (i === index ? next : it)))}
           onClose={close}
         />
+        )}
         </OpenedByHandContext.Provider>
       )}
       </div>
@@ -404,20 +415,10 @@ function ItemRow({item, of, named, onOpen}: {item: Item; of: Field; named?: bool
   )
 }
 
-function ItemDialog({parentTitle, position, item, of, named, path, readOnly, openRef, onChange, onClose}: {
-  parentTitle: string
-  position: number
-  item: Item
-  of: Field
-  named?: boolean
-  path: string
-  readOnly?: boolean
-  openRef: OpenRef
-  onChange: (item: Item) => void
-  onClose: () => void
-}) {
+type ItemProps = {item: Item; of: Field; named?: boolean; path: string; readOnly?: boolean; openRef: OpenRef; onChange: (item: Item) => void}
+
+function ItemDialog({parentTitle, position, item, of, named, path, readOnly, openRef, width, onChange, onClose}: ItemProps & {parentTitle: string; position: number; width: Modal['width']; onClose: () => void}) {
   const t = useT()
-  const formDisabled = useContext(FormDisabledContext)
   const {title} = useItemPreview(item, of, named)
   // An array inside an item: its dialog names the whole way down, as Sanity's
   // ("Sections / #1 Intro / Items / #2 …"); a crumb before ours closes back to it.
@@ -434,7 +435,7 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
     <DialogCrumbsContext.Provider value={[...outer, here]}>
     <PaneOverlay>
     <div className="dialog-backdrop item-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <DialogBox className="dialog item-dialog" data-tree={sideOpen || undefined} aria-modal="true" aria-label={`${parentTitle} / ${title}`} onClose={onClose}>
+      <DialogBox className="dialog item-dialog" style={dialogWidth(width)} data-tree={sideOpen || undefined} aria-modal="true" aria-label={`${parentTitle} / ${title}`} onClose={onClose}>
         <span ref={side.measure} hidden />
         <header>
           {treeOn && (
@@ -482,27 +483,34 @@ function ItemDialog({parentTitle, position, item, of, named, path, readOnly, ope
           </aside>
         )}
         <div className={of.type === 'image' ? 'dialog-body item-fields image-item' : 'dialog-body item-fields'}>
-          {/* The dialog is drawn outside the form's own disabled fieldset (PaneOverlay), so a read-only form (Published, a revision) locks it here. */}
-          <fieldset className="form-fields" disabled={readOnly || formDisabled}>
-            <ParentContext.Provider value={item}>
-              {of.type === 'image' ? (
-                // An array of images: the item is the image (upload, select, hotspot and crop, its fields).
-                <FieldView field={{...of, name: 'image', title: t('Image')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _type: named ? memberName(of) : 'image', _key: item._key})} />
-              ) : isCodeField(of) || isTableField(of) ? (
-                // A code item is the code editor itself, not its four subfields; a table item its grid.
-                <FieldView field={{...of, name: memberName(of), title: of.title ?? t(isTableField(of) ? 'Table' : 'Code')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _key: item._key})} />
-              ) : (
-                fieldsOf(of, item).map((f) => (
-                  <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange(withField(item, f.name, v))} />
-                ))
-              )}
-            </ParentContext.Provider>
-          </fieldset>
+          <ItemFields item={item} of={of} named={named} path={path} readOnly={readOnly} openRef={openRef} onChange={onChange} />
         </div>
         </div>
       </DialogBox>
     </div>
     </PaneOverlay>
     </DialogCrumbsContext.Provider>
+  )
+}
+
+/** An item's fields, in its dialog or its popover. */
+function ItemFields({item, of, named, path, readOnly, openRef, onChange}: ItemProps) {
+  const t = useT()
+  const formDisabled = useContext(FormDisabledContext)
+  return (
+    // The dialog is drawn outside the form's own disabled fieldset (PaneOverlay), so a read-only form (Published, a revision) locks it here.
+    <fieldset className="form-fields" disabled={readOnly || formDisabled}>
+      <ParentContext.Provider value={item}>
+        {of.type === 'image' ? (
+          // An array of images: the item is the image (upload, select, hotspot and crop, its fields).
+          <FieldView field={{...of, name: 'image', title: t('Image')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _type: named ? memberName(of) : 'image', _key: item._key})} />
+        ) : isCodeField(of) || isTableField(of) ? (
+          // A code item is the code editor itself, not its four subfields; a table item its grid.
+          <FieldView field={{...of, name: memberName(of), title: of.title ?? t(isTableField(of) ? 'Table' : 'Code')}} path={path} value={item} openRef={openRef} onChange={(v) => onChange({...((v as Item | undefined) ?? {}), _key: item._key})} />
+        ) : (
+          fieldsOf(of, item).map((f) => <FieldView key={f.name} field={f} path={`${path}.${f.name}`} value={item[f.name]} openRef={openRef} onChange={(v) => onChange(withField(item, f.name, v))} />)
+        )}
+      </ParentContext.Provider>
+    </fieldset>
   )
 }

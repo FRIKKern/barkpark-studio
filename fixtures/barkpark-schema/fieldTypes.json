@@ -480,6 +480,40 @@
           }
         }
       ]
+    },
+    {
+      "name": "steps",
+      "title": "Steps",
+      "type": "arrayOf",
+      "description": "Fixed steps: none removed or duplicated, kept in order, each edited in a popover by its row.",
+      "options": {
+        "disableActions": [
+          "remove",
+          "duplicate"
+        ],
+        "sortable": false,
+        "modal": {
+          "type": "popover",
+          "width": 1
+        }
+      },
+      "of": {
+        "type": "composite",
+        "name": "step",
+        "fields": [
+          {
+            "name": "label",
+            "title": "Label",
+            "type": "string"
+          },
+          {
+            "name": "note",
+            "title": "Note",
+            "type": "text",
+            "rows": 2
+          }
+        ]
+      }
     }
   ]
 }

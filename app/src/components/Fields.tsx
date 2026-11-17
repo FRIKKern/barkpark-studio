@@ -4,6 +4,7 @@ import {descId, fieldAria, problemId} from '../lib/field-aria'
 import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
 import {objectKinds} from '../lib/object-block'
+import {actions} from '../lib/array-options'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
 import {isHidden, isReadOnly} from '../lib/conditions'
@@ -407,13 +408,16 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
     if ('why' in pasted) return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: pasted.why})
     onChange(pasted.value)
   }
-  const latest = useRef({doCopy, doPaste, readOnly})
-  latest.current = {doCopy, doPaste, readOnly}
+  // An array's disableActions (Sanity's): 'copy' takes Copy field, 'add' Paste field, from the menu and the keys alike.
+  const allow = actions(field.options)
+  const latest = useRef({doCopy, doPaste, readOnly, allow})
+  latest.current = {doCopy, doPaste, readOnly, allow}
   const wrap = useRef<HTMLDivElement | null>(null)
   const register = (el: HTMLDivElement | null) => {
     wrap.current = el
     const host = el?.parentElement
-    if (host) fieldClipboard.set(host, {copy: () => latest.current.doCopy(), paste: () => !latest.current.readOnly && latest.current.doPaste()})
+    // Registered even with both taken away: Cmd/Ctrl+C or V then stops here, not at the field around it.
+    if (host) fieldClipboard.set(host, {copy: () => latest.current.allow.copy && latest.current.doCopy(), paste: () => latest.current.allow.paste && !latest.current.readOnly && latest.current.doPaste()})
   }
   // Sanity's opens to the right of the button; with no room before the pane's edge (ours clips), above it.
   useLayoutEffect(() => {
@@ -429,11 +433,14 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
   }, [open])
   return (
     <div ref={register} className="field-actions" data-open={open || undefined} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}>
+      {(allow.copy || allow.paste) && (
       <button type="button" className="icon-btn" aria-label={t('Field actions')} aria-describedby={titleId} data-tip={t('Field actions')} data-tip-side="top" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ellipsis />
       </button>
+      )}
       {open && (
         <MenuPopover className="popover menu field-menu" onClose={close} aria-label={t('Field actions')}>
+          {allow.copy && (
           <button
             type="button"
             role="menuitem"
@@ -448,6 +455,8 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
               <Copy /> {t('Copy field')}
             </span>
           </button>
+          )}
+          {allow.paste && (
           <button
             type="button"
             role="menuitem"
@@ -462,6 +471,7 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
               <ClipboardIcon /> {t('Paste field')}
             </span>
           </button>
+          )}
         </MenuPopover>
       )}
     </div>
