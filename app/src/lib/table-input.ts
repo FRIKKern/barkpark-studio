@@ -142,6 +142,8 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
 function keyOnto(was: string | undefined, cell: string, there: string): string {
   if (was === undefined || there === was) return cell
   if (was === '') return there ? `${there} ${cell}` : cell
+  // My text more than once in the cell, and last: there (an empty input's text goes after theirs, above).
+  if (there.indexOf(was) !== there.lastIndexOf(was) && there.endsWith(was)) return there.slice(0, there.length - was.length) + cell
   if (there.startsWith(was)) return cell + there.slice(was.length)
   const at = there.indexOf(was)
   if (at >= 0 && there.indexOf(was, at + 1) < 0) return there.slice(0, at) + cell + there.slice(at + was.length)

@@ -6,18 +6,21 @@ import {Client, Server, leftover, simGate} from './table-sim.ts'
 // editor's saved cell: LOST and DOUBLED on a7fc7a1c) and 96019 (#208, the other editor's first key
 // left before my word).
 
-test('two editors, a column or row changed while both type (review 7 seeds): rows even, both agree, every word whole in one cell or on its typer\'s card', () => {
-  simGate([63018, 96019], {'INSERT-LEFT-WRONG-SIDE': 1, LEFTOVER: 2})
+test('two editors, a column or row changed while both type (review 7 seeds): rows even, both agree, every word whole in one cell or on its typer\'s card, every key in a cell, on the card or in the input', () => {
+  simGate([63018, 96019], {'INSERT-LEFT-WRONG-SIDE': 1, LEFTOVER: 1})
 })
 
 test('a word\'s first keys left before another word, the whole word on its typer\'s card, read as LEFTOVER, not SPLIT', () => {
   // Seed 96019 #208: P's '<' saved, T typed '<U8>' after it as T saw it; P's '<Q8>' is whole on P's card.
-  assert.equal(leftover('<<U8>', '<', ['<Q8>']), true)
+  assert.equal(leftover('<<U8>', '<', [''], ['<Q8>', '<U8>'], ['<Q8>'], ['<<U8>']), true)
+  // Seed 8806 #2854: the same after the cell's own text 'x' (P's 'x<Q' saved, T's '<U4>' after it).
+  assert.equal(leftover('x<Q<U4>', 'x<Q', ['x'], ['<Q4>', '<U4>'], ['<Q4>'], ['x<Q<U4>']), true)
   // The cell is only the first keys (a column no one could tell): as before.
-  assert.equal(leftover('x<', 'x<', ['x<T6>']), true)
-  // Keys no kept text begins with, or keys after a word: SPLIT.
-  assert.equal(leftover('<<U8>', '<', ['x<Q8>']), false)
-  assert.equal(leftover('<U8>Q8>', 'Q8>', ['<Q8>']), false)
+  assert.equal(leftover('x<', 'x<', ['x'], ['<T6>'], ['x<T6>'], ['x<']), true)
+  // Keys of a word that is in the table too, or of no word on a card, or keys after a word: SPLIT.
+  assert.equal(leftover('x<Q<U4>', 'x<Q', ['x'], ['<Q4>', '<U4>'], ['<Q4>'], ['x<Q<U4>', '<Q4>']), false)
+  assert.equal(leftover('<Q<U4>', '<Q', [''], ['<Q4>', '<U4>'], [], ['<Q<U4>']), false)
+  assert.equal(leftover('<U8>Q8>', 'Q8>', [''], ['<Q8>', '<U8>'], ['<Q8>'], ['<U8>Q8>']), false)
 })
 
 test('the caret in a removed column that reads like its neighbour does not follow into the neighbour, where the other editor saved a word', () => {

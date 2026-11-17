@@ -74,8 +74,8 @@ export class Client {
   keys = 0
   name: string
   script: Step[]
-  ids: () => number[]
-  constructor(name: string, d: Doc, script: Step[], ids: () => number[]) {
+  ids: (width: number) => number[] // column ids of a row drawn this wide
+  constructor(name: string, d: Doc, script: Step[], ids: (width: number) => number[]) {
     ;[this.name, this.script, this.ids] = [name, script, ids]
     this.cache = clone(d)
     this.view = this.cache
@@ -185,8 +185,9 @@ export class Client {
   /** Click a cell by row key and column id (this editor's own idea of the columns). */
   click(row: string, col: number): boolean {
     const grid = tableGrid(this.view.t)
-    const column = this.ids().indexOf(col)
     const r = grid.rows.findIndex((x) => x.key === row)
+    // The editor clicks the cell it sees: by the row as drawn (a row of mine on its way at the old width).
+    const column = this.ids((this.view.t?.rows?.[r]?.cells ?? []).length || grid.columns).indexOf(col)
     if (column < 0 || r < 0) return false
     this.caret = {key: row, column, width: (this.view.t?.rows?.[r]?.cells ?? []).length}
     ;[this.card, this.typed] = [null, false]
@@ -231,15 +232,18 @@ function table(R: number, C: number, kind: (typeof KINDS)[number]) {
 const WORDCH = /[<>A-Z0-9]/
 
 /**
- * A cell whose text is not only whole words, read as a word's first keys left over (not SPLIT):
- * those keys, saved, while the whole word is on its typer's card. Either the cell is only them
- * (its column could not be told: two cells held the same text; Put it back replaces them), or
- * they begin the cell and the other editor typed on after them, as they saw them (review 7, seed
- * 96019 #208: P's '<' then T's '<U8>' in one cell, P's '<Q8>' whole on P's card). No word is
- * lost or cut; the keys stay visible in the table until edited.
+ * A cell whose text is not only whole words (`rest`: the cell less them), read as a word's first
+ * keys left over (not SPLIT): those keys, saved, begin the cell after its own text (`origin`, what
+ * it held before the scene), and a typed word they begin is whole on a card and in no cell. Either
+ * the cell is only them (its column could not be told; Put it back replaces them), or the other
+ * editor typed on after them as they saw them (review 7, seed 96019 #208: P's '<' then T's '<U8>'
+ * in one cell, P's '<Q8>' whole on P's card). No word is lost or cut; the keys stay until edited.
  */
-export function leftover(cell: string, rest: string, kept: readonly string[]): boolean {
-  return kept.some((k) => k.startsWith(cell)) || (rest !== '' && cell.startsWith(rest) && kept.some((k) => k.length > rest.length && k.startsWith(rest)))
+export function leftover(cell: string, rest: string, origin: readonly string[], words: readonly string[], card: readonly string[], table: readonly string[]): boolean {
+  const o = origin.find((t) => t !== '' && rest.startsWith(t) && cell.startsWith(t)) ?? ''
+  const keys = rest.slice(o.length)
+  const on = (texts: readonly string[], w: string) => texts.some((t) => t.includes(w))
+  return keys !== '' && cell.startsWith(o + keys) && words.some((w) => w.length > keys.length && w.startsWith(keys) && on(card, w) && !on(table, w))
 }
 
 /** One scene: P presses a column or row change (maybe typing before and after), T types one or two words. */
@@ -284,7 +288,7 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
   const server = new Server(clone(t0))
   const opAt = P.findIndex((s) => 'op' in s)
   const p: Client = new Client('P', server.doc, P, () => (p.pos > opAt ? idsAfter : initIds))
-  const tc: Client = new Client('T', server.doc, T, () => (tableGrid(tc.view.t).columns === C ? initIds : idsAfter))
+  const tc: Client = new Client('T', server.doc, T, (w) => (w === C ? initIds : idsAfter))
   const clients = [p, tc]
   const clicked = new Set<string>()
   const step = (c: Client) => {
@@ -371,7 +375,7 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
   for (const c of [...flat, ...kept]) {
     const rest = words.reduce((r, w) => r.split(w.word).join(''), c)
     if (!WORDCH.test(rest)) continue
-    if (flat.includes(c) && leftover(c, rest, kept)) soft.push('LEFTOVER')
+    if (flat.includes(c) && leftover(c, rest, t0.rows.flatMap((r) => r.cells), words.map((w) => w.word), kept, flat)) soft.push('LEFTOVER')
     else bad.push(`SPLIT ${J(c)}`)
   }
   if (op.kind === 'inscol')
