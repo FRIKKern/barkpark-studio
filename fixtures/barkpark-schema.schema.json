@@ -232,12 +232,26 @@
           "type": "boolean"
         },
         "min": {
-          "description": "At least this many characters, items, or this number.",
-          "type": "number"
+          "description": "At least this many characters, items, or this number. date, datetime: the earliest date (ISO or \"now\"), studio only.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
         },
         "max": {
-          "description": "At most this many characters, items, or this number.",
-          "type": "number"
+          "description": "At most this many characters, items, or this number. date, datetime: the latest date (ISO or \"now\"), studio only.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
         },
         "pattern": {
           "description": "A regular expression the text (or a slug's current) must match; Barkpark enforces it on write.",
@@ -260,6 +274,50 @@
         "message": {
           "description": "What to say instead of the default text.",
           "type": "string"
+        },
+        "length": {
+          "description": "Studio only: exactly this many characters, or items (blocks in richText).",
+          "type": "number"
+        },
+        "precision": {
+          "description": "Studio only: number: at most this many decimal places.",
+          "type": "number"
+        },
+        "greaterThan": {
+          "description": "Studio only: number: above this.",
+          "type": "number"
+        },
+        "lessThan": {
+          "description": "Studio only: number: below this.",
+          "type": "number"
+        },
+        "positive": {
+          "description": "Studio only: number: 0 or above (Sanity's positive()).",
+          "type": "boolean"
+        },
+        "negative": {
+          "description": "Studio only: number: below 0 (Sanity's negative()).",
+          "type": "boolean"
+        },
+        "lowercase": {
+          "description": "Studio only: text: all lowercase.",
+          "type": "boolean"
+        },
+        "uppercase": {
+          "description": "Studio only: text: all uppercase.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Studio only: pattern: the name its message uses instead of the regex.",
+          "type": "string"
+        },
+        "invert": {
+          "description": "Studio only: pattern: the text must NOT match. Barkpark still checks the pattern itself on a save (it reads no invert), so a save is refused or warned on the opposite values until it does.",
+          "type": "boolean"
+        },
+        "assetRequired": {
+          "description": "Studio only: image, file: a value must hold an asset (alt text alone is not one).",
+          "type": "boolean"
         }
       }
     },

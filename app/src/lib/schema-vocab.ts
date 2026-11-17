@@ -68,12 +68,24 @@ export const BARKPARK_FIELD_KEYS = {
 /** A validation rule's keys (lib/validation.ts). */
 export const RULE_KEYS = {
   required: 'The field must have a value.',
-  min: 'At least this many characters, items, or this number.',
-  max: 'At most this many characters, items, or this number.',
+  min: 'At least this many characters, items, or this number. date, datetime: the earliest date (ISO or "now"), studio only.',
+  max: 'At most this many characters, items, or this number. date, datetime: the latest date (ISO or "now"), studio only.',
   pattern: 'A regular expression the text (or a slug\'s current) must match; Barkpark enforces it on write.',
   unique: 'arrayOf: no two items with the same reference or value.',
   level: '"error" (blocks publishing, the default), "warning" or "info".',
   message: 'What to say instead of the default text.',
+  // Sanity's other rule builders (lib/validation-rules.ts): studio only, as Sanity's; Barkpark stores them and never runs them.
+  length: 'Studio only: exactly this many characters, or items (blocks in richText).',
+  precision: 'Studio only: number: at most this many decimal places.',
+  greaterThan: 'Studio only: number: above this.',
+  lessThan: 'Studio only: number: below this.',
+  positive: 'Studio only: number: 0 or above (Sanity\'s positive()).',
+  negative: 'Studio only: number: below 0 (Sanity\'s negative()).',
+  lowercase: 'Studio only: text: all lowercase.',
+  uppercase: 'Studio only: text: all uppercase.',
+  name: 'Studio only: pattern: the name its message uses instead of the regex.',
+  invert: 'Studio only: pattern: the text must NOT match. Barkpark still checks the pattern itself on a save (it reads no invert), so a save is refused or warned on the opposite values until it does.',
+  assetRequired: 'Studio only: image, file: a value must hold an asset (alt text alone is not one).',
 } satisfies Record<keyof Rule, string>
 export const RULE_LEVELS = ['error', 'warning', 'warn', 'info']
 
@@ -138,7 +150,17 @@ const described = (keys: Record<string, string>, extra: Record<string, JsonSchem
 
 /** The JSON Schema for one file in fixtures/barkpark-schema. */
 export function fixtureJsonSchema(): JsonSchema {
-  const rule = {type: 'object', additionalProperties: false, properties: described(RULE_KEYS, {required: {type: 'boolean'}, min: {type: 'number'}, max: {type: 'number'}, pattern: {type: 'string', format: 'regex'}, unique: {type: 'boolean'}, level: {enum: RULE_LEVELS}, message: {type: 'string'}})}
+  const flag = {type: 'boolean'}
+  const num = {type: 'number'}
+  const bound = {anyOf: [{type: 'number'}, {type: 'string'}]}
+  const rule = {
+    type: 'object',
+    additionalProperties: false,
+    properties: described(RULE_KEYS, {
+      required: flag, min: bound, max: bound, pattern: {type: 'string', format: 'regex'}, unique: flag, level: {enum: RULE_LEVELS}, message: {type: 'string'},
+      length: num, precision: num, greaterThan: num, lessThan: num, positive: flag, negative: flag, lowercase: flag, uppercase: flag, name: {type: 'string'}, invert: flag, assetRequired: flag,
+    }),
+  }
   const field = {
     type: 'object',
     required: ['name', 'type'],

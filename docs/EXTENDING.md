@@ -69,7 +69,7 @@ lists every open task and says so.
 
 ## Field types and validation
 
-Every field type, its options, the validation keys (`required min max pattern unique
+Every field type, its options, Barkpark's validation keys (`required min max pattern unique
 level message`) and what Barkpark ignores: Barkpark's
 [schema reference](https://github.com/FRIKKern/barkpark/blob/main/docs/contracts/schema-reference.md).
 The form draws the types in `app/src/lib/schema-vocab.ts`; copy a field from
@@ -78,6 +78,19 @@ misspelled key and never reads it: VS Code checks these files against
 `fixtures/barkpark-schema.schema.json` (generated from `schema-vocab.ts` by
 `scripts/fixture-schema.mjs`, kept in step by a unit test), and `seed-barkpark` refuses one
 that fails it.
+
+A datetime's `options.displayTimeZone` (an IANA name, `America/New_York`) shows and reads its
+time on that zone's clock, with Sanity's zone button after the title; `allowTimeZoneSwitch: false`
+keeps it there, and `true` alone gives the button in local time. The value stays a UTC instant.
+
+Sanity's other rule builders are rule keys, checked as you type in Sanity's words (an error
+blocks Publish): `length` (characters, items or blocks), `precision`, `greaterThan`, `lessThan`,
+`positive`, `negative`, `lowercase`, `uppercase`, a pattern's `name` and `invert`,
+`assetRequired` (image, file), and on a date or datetime a `min`/`max` date (`"2026-01-01"`,
+`"now"`). They run in the studio only, as Sanity's: Barkpark stores them and never runs them.
+It does check a `pattern` itself and reads no `invert`, so an inverted pattern is refused (or
+warned) on save for the values it allows: keep it out of a schema until Barkpark reads it.
+Examples: `day`, `at`, `width`, `height`, `zip`, `photo` in `fieldTypes.json`.
 
 Sanity's `Rule.custom` (a field's or the whole document's, with `context.document` /
 `context.parent`, answering at once or with a Promise) is `document.validation(type)` in

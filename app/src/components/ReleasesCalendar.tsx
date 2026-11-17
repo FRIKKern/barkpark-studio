@@ -1,9 +1,9 @@
-import {useEffect, useMemo, useRef, useState, type KeyboardEvent} from 'react'
-import {DialogBox} from './FocusScopes'
-import {ChevronDown, ChevronLeft, ChevronRight, Close, EarthGlobe, Search} from './icons'
+import {useEffect, useRef, useState, type KeyboardEvent} from 'react'
+import {ZoneDialog} from './ZoneDialog'
+import {ChevronDown, ChevronLeft, ChevronRight, Close, EarthGlobe} from './icons'
 import {toast} from './Toasts'
 import {intlTag, useLocale, useT} from '../lib/i18n'
-import {dayKey, localZone, storeZone, zoneLabel, zoneLongName, zoneOption, zones} from '../lib/timezone'
+import {dayKey, storeZone, zoneLabel, zoneLongName} from '../lib/timezone'
 import {useNow} from '../lib/now'
 
 // The Releases tool's month calendar and time zone, as Sanity's (task-f8d14f136de4ed6d):
@@ -153,6 +153,7 @@ export function ZonePicker({zone, onChange}: {zone: string; onChange: (zone: str
       {open && (
         <ZoneDialog
           zone={zone}
+          info={t('The selected time zone will change how dates are represented in content releases.')}
           onClose={() => setOpen(false)}
           onPick={(next) => {
             storeZone(next)
@@ -163,87 +164,5 @@ export function ZonePicker({zone, onChange}: {zone: string; onChange: (zone: str
         />
       )}
     </>
-  )
-}
-
-function ZoneDialog({zone, onClose, onPick}: {zone: string; onClose: () => void; onPick: (zone: string) => void}) {
-  const t = useT()
-  const [chosen, setChosen] = useState(zone)
-  const [query, setQuery] = useState<string | null>(null)
-  const [active, setActive] = useState(0)
-  const all = useMemo(() => zones().map((z) => ({zone: z, ...zoneOption(z)})), [])
-  const q = query?.trim().toLowerCase() ?? ''
-  const options = query === null ? [] : all.filter((o) => !q || o.city.toLowerCase().includes(q) || o.zone.toLowerCase().includes(q) || o.name.toLowerCase().includes(q)).slice(0, 50)
-  const choose = (z: string) => (setChosen(z), setQuery(null))
-  const keys = (e: KeyboardEvent) => {
-    if (!options.length) return
-    if (e.key === 'ArrowDown') e.preventDefault(), setActive((i) => Math.min(i + 1, options.length - 1))
-    else if (e.key === 'ArrowUp') e.preventDefault(), setActive((i) => Math.max(i - 1, 0))
-    else if (e.key === 'Enter') e.preventDefault(), choose(options[active]!.zone)
-    else if (e.key === 'Escape') e.stopPropagation(), setQuery(null)
-  }
-  return (
-    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <DialogBox className="dialog zone-dialog" aria-modal="true" aria-labelledby="zone-title" onClose={onClose}>
-        <header>
-          <h2 id="zone-title">{t('Select time zone')}</h2>
-          <button type="button" className="icon-btn" aria-label={t('Close dialog')} onClick={onClose}>
-            <Close />
-          </button>
-        </header>
-        <div className="dialog-body">
-          <p>{t('The selected time zone will change how dates are represented in content releases.')}</p>
-          <label className="zone-label" htmlFor="zone-search">
-            {t('Time zone')} {chosen === localZone() && <span className="muted">{t('local time')}</span>}
-          </label>
-          <div className="zone-combo">
-            <span className="zone-input">
-              <Search />
-              <input
-                id="zone-search"
-                role="combobox"
-                aria-expanded={options.length > 0}
-                aria-controls="zone-options"
-                aria-activedescendant={options.length ? `zone-${active}` : undefined}
-                autoComplete="off"
-                placeholder={t('Search for a city or time zone')}
-                value={query ?? zoneLongName(chosen)}
-                onFocus={(e) => e.currentTarget.select()}
-                onChange={(e) => (setQuery(e.target.value), setActive(0))}
-                onKeyDown={keys}
-              />
-              {(query ?? zoneLongName(chosen)) && (
-                <button type="button" className="icon-btn" aria-label={t('Clear')} onClick={() => (setQuery(''), setActive(0))}>
-                  <Close />
-                </button>
-              )}
-            </span>
-            <button type="button" className="zone-open" aria-label={t('Open')} onClick={() => setQuery((v) => (v === null ? '' : null))}>
-              <ChevronDown />
-            </button>
-            {options.length > 0 && (
-              <div id="zone-options" role="listbox" className="zone-options">
-                {options.map((o, i) => (
-                  <div key={o.zone} id={`zone-${i}`} role="option" aria-selected={i === active} className="zone-option" onMouseDown={(e) => (e.preventDefault(), choose(o.zone))} onMouseEnter={() => setActive(i)}>
-                    <span>
-                      {o.city} <span className="muted">({o.offset})</span>
-                    </span>
-                    <span className="zone-name">{o.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        <footer>
-          <button type="button" className="btn" onClick={onClose}>
-            {t('Cancel')}
-          </button>
-          <button type="button" className="btn btn-primary" disabled={chosen === zone} onClick={() => onPick(chosen)}>
-            {t('Update time zone')}
-          </button>
-        </footer>
-      </DialogBox>
-    </div>
   )
 }

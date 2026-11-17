@@ -65,6 +65,10 @@
       "type": "date",
       "options": {
         "dateFormat": "DD.MM.YYYY"
+      },
+      "validation": {
+        "min": "2020-01-01",
+        "max": "2030-12-31"
       }
     },
     {
@@ -75,6 +79,18 @@
         "dateFormat": "DD.MM.YYYY",
         "timeFormat": "HH:mm",
         "timeStep": 15
+      },
+      "validation": {
+        "min": "2020-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "meetsAt",
+      "title": "Meets at",
+      "type": "datetime",
+      "options": {
+        "displayTimeZone": "America/New_York",
+        "allowTimeZoneSwitch": true
       }
     },
     {
@@ -343,7 +359,10 @@
         {
           "name": "zip",
           "title": "Zip",
-          "type": "string"
+          "type": "string",
+          "validation": {
+            "length": 4
+          }
         }
       ]
     },
@@ -351,13 +370,21 @@
       "name": "width",
       "title": "Width",
       "type": "number",
-      "fieldset": "size"
+      "fieldset": "size",
+      "validation": {
+        "precision": 2,
+        "positive": true
+      }
     },
     {
       "name": "height",
       "title": "Height",
       "type": "number",
-      "fieldset": "size"
+      "fieldset": "size",
+      "validation": {
+        "greaterThan": 0,
+        "lessThan": 10000
+      }
     },
     {
       "name": "count",
@@ -415,6 +442,9 @@
           "palette",
           "exif"
         ]
+      },
+      "validation": {
+        "assetRequired": true
       }
     },
     {

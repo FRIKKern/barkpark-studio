@@ -7,19 +7,32 @@ const TOKENS = /\[[^\]]*\]|YYYY|YY|MMM|MM|M|DD|D|HH|H|hh|h|mm|m|A|a/g
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const pad = (n: number, w = 2) => String(n).padStart(w, '0')
 
+/** A wall-clock time: the fields a clock and calendar show (month 1-12), in no zone of its own. */
+export type Wall = {year: number; month: number; day: number; hour: number; minute: number}
+
 /** `d` (local time) in `format`. */
-export function formatDate(d: Date, format: string): string {
-  const h12 = d.getHours() % 12 || 12
+export const formatDate = (d: Date, format: string): string =>
+  formatWall({year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: d.getHours(), minute: d.getMinutes()}, format)
+
+/** A wall time in `format` (lib/field-zone: a time in a zone that is not this computer's). */
+export function formatWall(w: Wall, format: string): string {
+  const h12 = w.hour % 12 || 12
   const parts: Record<string, string> = {
-    YYYY: String(d.getFullYear()), YY: pad(d.getFullYear() % 100), MMM: MONTHS[d.getMonth()]!, MM: pad(d.getMonth() + 1), M: String(d.getMonth() + 1),
-    DD: pad(d.getDate()), D: String(d.getDate()), HH: pad(d.getHours()), H: String(d.getHours()), hh: pad(h12), h: String(h12),
-    mm: pad(d.getMinutes()), m: String(d.getMinutes()), A: d.getHours() < 12 ? 'AM' : 'PM', a: d.getHours() < 12 ? 'am' : 'pm',
+    YYYY: String(w.year), YY: pad(w.year % 100), MMM: MONTHS[w.month - 1]!, MM: pad(w.month), M: String(w.month),
+    DD: pad(w.day), D: String(w.day), HH: pad(w.hour), H: String(w.hour), hh: pad(h12), h: String(h12),
+    mm: pad(w.minute), m: String(w.minute), A: w.hour < 12 ? 'AM' : 'PM', a: w.hour < 12 ? 'am' : 'pm',
   }
   return format.replace(TOKENS, (t) => (t.startsWith('[') ? t.slice(1, -1) : parts[t]!))
 }
 
 /** `text` read in `format` (local time); undefined if it isn't one, or names a day that doesn't exist. */
 export function parseDate(text: string, format: string): Date | undefined {
+  const w = parseWall(text, format)
+  return w && new Date(w.year, w.month - 1, w.day, w.hour, w.minute)
+}
+
+/** `text` read in `format` as a wall time, in no zone; undefined if it isn't one, or names a day or time that doesn't exist. */
+export function parseWall(text: string, format: string): Wall | undefined {
   const fields: string[] = []
   const source = format.replace(/[.*+?^${}()|\\]/g, '\\$&').replace(/\\\[[^\]]*\]|\[[^\]]*\]|YYYY|YY|MMM|MM|M|DD|D|HH|H|hh|h|mm|m|A|a/g, (t) => {
     if (t.startsWith('[') || t.startsWith('\\[')) return t.replace(/^\\?\[|\]$/g, '').replace(/[.*+?^${}()|\\]/g, '\\$&')
@@ -42,8 +55,9 @@ export function parseDate(text: string, format: string): Date | undefined {
     else pm = /p/i.test(v)
   })
   if (pm !== undefined) h = (h % 12) + (pm ? 12 : 0)
-  const date = new Date(y, mo - 1, d, h, mi)
-  return date.getMonth() === mo - 1 && date.getDate() === d && h < 24 && mi < 60 ? date : undefined
+  // Read in UTC, which skips no hour: only the calendar can refuse (31 April, 29 February 2027).
+  const day = new Date(Date.UTC(y, mo - 1, d))
+  return day.getUTCMonth() === mo - 1 && day.getUTCDate() === d && h < 24 && mi < 60 ? {year: y, month: mo, day: d, hour: h, minute: mi} : undefined
 }
 
 /** `d` down to the time step's grid (minutes), as Sanity's enforceTimeStep: every value a

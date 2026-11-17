@@ -2,12 +2,13 @@ import type {Doc, Field, Rule, Schema} from './data'
 import {itemPath, refId} from './refs.ts'
 import {isCodeField} from './code-input.ts'
 import {isTableField, tableBlank} from './table-input.ts'
+import {patternProblem, sanityRules} from './validation-rules.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
 // Barkpark keeps rules as data on each field: a map or a list of maps
 // (`{required, min, max, pattern, unique, level, message}`, Barkpark's
-// docs/contracts/schema-reference.md). J13: only errors block publishing;
+// docs/contracts/schema-reference.md), and Sanity's other rule builders (lib/validation-rules). J13: only errors block publishing;
 // a warning or an info is shown the same ways in its own colour.
 export type Level = 'error' | 'warning' | 'info'
 /** `parents`: the titles of the objects the field sits in (Sanity's "Seo / Meta Title"). */
@@ -22,13 +23,6 @@ const english: T = (en, vars) => (vars ? en.replace(/\{(\w+)\}/g, (all, k: strin
 const blank = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)
 // Barkpark's levels too: warning and info never block a save or a publish (barkpark#22125).
 const levelOf = (r: Rule): Level => (r.level === 'warning' || r.level === 'warn' ? 'warning' : r.level === 'info' ? 'info' : 'error')
-const regexOf = (pattern: string) => {
-  try {
-    return new RegExp(pattern)
-  } catch {
-    return null
-  }
-}
 const rulesOf = (field: Field): Rule[] => (Array.isArray(field.validation) ? field.validation : field.validation ? [field.validation] : [])
 
 function check(field: Field, value: unknown, path: string, parents: string[], group: string | undefined, out: Problem[], target: RefTarget | undefined, t: T) {
@@ -43,27 +37,28 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // A slug's text is its `current` when Sanity-shaped.
   const text = typeof value === 'string' ? value : field.type === 'slug' && typeof (value as {current?: unknown})?.current === 'string' ? (value as {current: string}).current : undefined
   for (const r of rules) {
-    // Sanity's Rule.regex (Barkpark enforces `pattern` on write); a pattern that isn't a valid regex is skipped.
-    if (r.pattern !== undefined && text !== undefined && text !== '') {
-      const re = regexOf(r.pattern)
-      if (re && !re.test(text)) push(r, t('Does not match "{pattern}"-pattern', {pattern: `/${r.pattern}/`}))
-    }
+    // Sanity's Rule.regex, named or inverted (Barkpark enforces a plain `pattern` on write).
+    const mismatch = text !== undefined && text !== '' ? patternProblem(r, text, t) : undefined
+    if (mismatch) push(r, mismatch)
     // An arrayOf with no two items alike (Sanity's Rule.unique()): the same reference or value.
     if (r.unique && Array.isArray(value)) {
       const seen = value.map((it) => refId(it) ?? JSON.stringify(it && typeof it === 'object' ? {...(it as object), _key: undefined} : it))
       if (new Set(seen).size !== seen.length) push(r, t("Can't be a duplicate"))
     }
+    // A number min / max is a length or a number; a string one on a date is a date (lib/validation-rules).
+    const [min, max] = [typeof r.min === 'number' ? r.min : undefined, typeof r.max === 'number' ? r.max : undefined]
     if (field.type === 'number' && typeof value === 'number') {
-      if (r.max !== undefined && value > r.max) push(r, t('Must be lower than or equal to {max}', {max: r.max}))
-      if (r.min !== undefined && value < r.min) push(r, t('Must be greater than or equal to {min}', {min: r.min}))
+      if (max !== undefined && value > max) push(r, t('Must be lower than or equal to {max}', {max}))
+      if (min !== undefined && value < min) push(r, t('Must be greater than or equal to {min}', {min}))
     } else if (typeof value === 'string') {
-      if (r.max !== undefined && value.length > r.max) push(r, t('Must be at most {max} characters long', {max: r.max}))
-      if (r.min !== undefined && value.length < r.min) push(r, t('Must be at least {min} characters long', {min: r.min}))
+      if (max !== undefined && value.length > max) push(r, t('Must be at most {max} characters long', {max}))
+      if (min !== undefined && value.length < min) push(r, t('Must be at least {min} characters long', {min}))
     } else if (Array.isArray(value)) {
       // An array's item count, as you type (Sanity's); Barkpark's save says the same after.
-      if (r.max !== undefined && value.length > r.max) push(r, t('Must have at most {max} items', {max: r.max}))
-      if (r.min !== undefined && value.length < r.min) push(r, t('Must have at least {min} items', {min: r.min}))
+      if (max !== undefined && value.length > max) push(r, t('Must have at most {max} items', {max}))
+      if (min !== undefined && value.length < min) push(r, t('Must have at least {min} items', {min}))
     }
+    for (const message of sanityRules(field, r, value, t)) push(r, message)
   }
   // Sanity's field types carry rules of their own: a URL, an email, a whole number, a date.
   const wrongShape = typeRule(field.type, value, t)
