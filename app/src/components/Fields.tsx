@@ -117,6 +117,7 @@ export function useDocSelect<T>(select: (doc: Doc | null) => T): T {
 /** The object or array item the fields inside it belong to (a condition's `scope: "parent"`). */
 export const ParentContext = createContext<Record<string, unknown> | undefined>(undefined)
 import {DocIdContext, DocTypeContext} from './doc-ids'
+import {DeprecatedNote} from './DeprecatedNote'
 import {orUnset, withField} from '../lib/with-field'
 export {DocIdContext, DocTypeContext}
 /** J52: the field path the URL asks for (`path=`), so an array can open the item it sits in. */
@@ -245,6 +246,7 @@ function ObjectField(props: FieldProps & {label: string; titleId: string; change
         ) : (
           <span id={titleId}>{label}</span>
         )}
+        <DeprecatedNote field={field.field} path={field.path} />
         <ProblemMark path={field.path} within={!open} />
         <FieldPresenceHere path={field.path} />
       </legend>
@@ -273,6 +275,7 @@ function FieldBody(props: FieldProps) {
         <label className="bool-box">
           <FieldInput {...props} />
           <span id={titleId}>{label}</span>
+          <DeprecatedNote field={props.field} path={props.path} />
         </label>
       </div>
     )
@@ -296,6 +299,7 @@ function FieldBody(props: FieldProps) {
         }
       }}>
         <span id={titleId}>{label}</span>
+        <DeprecatedNote field={props.field} path={props.path} />
         <ProblemMark path={props.path} id={problemId(props.path)} />
         <FieldPresenceHere path={props.path} />
       </label>

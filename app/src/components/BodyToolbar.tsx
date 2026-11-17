@@ -2,6 +2,8 @@ import {Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode, 
 import {MenuPopover} from './FocusScopes'
 import {BlockIcon, BoldIcon, ChevronDown, CodeIcon, DocLinkIcon, Ellipsis, InlineIcon, ItalicIcon, LinkIcon, OlistIcon, StrikeIcon, UlistIcon, UnderlineIcon} from './icons'
 import {useT} from '../lib/i18n'
+import {insertItemProps, ptDeprecated} from '../lib/deprecated'
+import '../deprecated.css'
 import {loadCanvas} from '../lib/canvas-bundle'
 import {linkHref} from '../lib/link-href'
 import {useQuery} from '@tanstack/react-query'
@@ -159,7 +161,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
   // Sanity's fold: a narrow field puts the tail of each group (the marks, lists and links;
   // the inserts) behind a "Show more" menu at that group's end, so nothing spills past the
   // field. Widths are read with everything shown and kept per tool.
-  type Tool = {key: string; label: string; icon: ReactNode; pressed?: boolean; disabled: boolean; run: () => void; node: ReactNode; sep?: boolean}
+  type Tool = {key: string; label: string; icon: ReactNode; pressed?: boolean; disabled: boolean; run: () => void; node: ReactNode; sep?: boolean; extra?: ReturnType<typeof insertItemProps>}
   const linkPopover = linking !== null && <LinkInput initial={linking} onDone={(href) => (setLinking(null), href && act('toggleMark', {mark: 'link', href}))} />
   const docPopover = docLinking && canvas?.wikilinkSource && (
     <DocLinkInput search={canvas.wikilinkSource} types={internalTypes} onDone={(hit) => (setDocLinking(false), hit && act('toggleMark', {mark: 'wikilink', docId: hit.id, target: hit.title}))} />
@@ -195,9 +197,12 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
     const label = kind === 'block' ? t('Insert {typeName} (block)', {typeName: t(title)}) : t('Insert {typeName} (inline)', {typeName: t(title)})
     const command = kind === 'block' ? 'insertBlock' : 'insertInline'
     const disabled = !can(command, {type: name})
-    const run = () => act(command, {type: name})
-    return {key: `${kind}:${name}`, label: t(title), icon, disabled, run, node: (
-      <button type="button" className="body-insert" aria-label={label} disabled={disabled} onClick={run}>
+    // Sanity's: a deprecated type stays, disabled, its reason the tooltip (lib/deprecated.ts).
+    const reason = ptDeprecated({blocks: vocab}, kind, name)
+    const extra = insertItemProps(reason)
+    const run = () => void (reason === undefined && act(command, {type: name}))
+    return {key: `${kind}:${name}`, label: t(title), icon, disabled, run, extra, node: (
+      <button type="button" className="body-insert" aria-label={label} disabled={disabled} {...extra} onClick={run}>
         {icon}
         <span>{t(title)}</span>
       </button>
@@ -269,7 +274,7 @@ export function BodyToolbar({host, vocabulary, onWake}: {host: RefObject<HTMLEle
                   <Fragment key={tool.key}>
                     {/* Sanity's: a rule between the groups (lists | links) */}
                     {tool.sep && i > 0 && <hr />}
-                    <button type="button" role={tool.pressed === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={tool.pressed} className="menu-item body-more-item" disabled={tool.disabled} onClick={() => (setMoreMenu(null), tool.run())}>
+                    <button type="button" role={tool.pressed === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={tool.pressed} className="menu-item body-more-item" disabled={tool.disabled} {...tool.extra} onClick={() => (tool.extra?.['aria-disabled'] || setMoreMenu(null), tool.run())}>
                       {tool.icon}
                       <span>{tool.label}</span>
                     </button>

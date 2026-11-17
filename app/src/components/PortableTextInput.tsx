@@ -28,6 +28,7 @@ import {uploadFile, uploadReason} from '../lib/upload'
 import {toast} from './Toasts'
 import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
+import {insertItemProps, ptDeprecated} from '../lib/deprecated'
 import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
@@ -804,6 +805,9 @@ function InsertMenu({field, schemas, tables}: {field: Field; schemas: SchemaLike
   const title = (kind: ObjectKind, n: {name: string; title?: string}) => n.title ?? (isTable({kind, name: n.name}) && !schemas.some((s) => s.name === 'table' && s.kind === 'object') ? t('Table') : objectTitle(field, kind, n.name, schemas))
   const icon = (x: Tool) => (isTable(x) ? <TableIcon /> : x.kind === 'block' && codeBlockOptions(field, x.name) ? <CodeIcon /> : x.kind === 'block' ? <BlockIcon /> : <InlineIcon />)
   const label = (x: Tool) => t(x.kind === 'block' ? 'Insert {typeName} (block)' : 'Insert {typeName} (inline)', {typeName: title(x.kind, x)})
+  // Sanity's: a deprecated type stays, disabled, its reason the tooltip (lib/deprecated.ts).
+  const reason = (x: Tool) => ptDeprecated(field, x.kind, x.name)
+  const pick = (x: Tool) => reason(x) === undefined && insert(x.kind, x.name)
   const shown = tools.slice(0, tools.length - folded)
   const rest = tools.slice(tools.length - folded)
   return (
@@ -811,7 +815,7 @@ function InsertMenu({field, schemas, tables}: {field: Field; schemas: SchemaLike
       <span className="body-toolbar-sep" />
       <div ref={group} className="body-tool-group pt-insert-group">
         {shown.map((x) => (
-          <button key={`${x.kind}:${x.name}`} type="button" className="body-insert" data-tool={`${x.kind}:${x.name}`} aria-label={label(x)} disabled={x.kind === 'inline' && !inText} onClick={() => insert(x.kind, x.name)}>
+          <button key={`${x.kind}:${x.name}`} type="button" className="body-insert" data-tool={`${x.kind}:${x.name}`} aria-label={label(x)} disabled={x.kind === 'inline' && !inText} {...insertItemProps(reason(x))} onClick={() => pick(x)}>
             {icon(x)}
             <span>{title(x.kind, x)}</span>
           </button>
@@ -825,7 +829,7 @@ function InsertMenu({field, schemas, tables}: {field: Field; schemas: SchemaLike
             {open && (
               <MenuPopover centered onClose={() => setOpen(false)}>
                 {rest.map((x) => (
-                  <button key={`${x.kind}:${x.name}`} type="button" role="menuitem" className="menu-item body-more-item" disabled={x.kind === 'inline' && !inText} onClick={() => insert(x.kind, x.name)}>
+                  <button key={`${x.kind}:${x.name}`} type="button" role="menuitem" className="menu-item body-more-item" disabled={x.kind === 'inline' && !inText} {...insertItemProps(reason(x))} onClick={() => pick(x)}>
                     {icon(x)}
                     <span>{title(x.kind, x)}</span>
                   </button>

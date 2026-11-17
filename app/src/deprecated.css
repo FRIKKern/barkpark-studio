@@ -1,0 +1,17 @@
+/* Sanity's deprecated field (components/DeprecatedNote.tsx): a caution badge after the title, as
+   its Badge tone="caution" (13 px words, a pill, 8 px after the title), and the reason in caution
+   text on its own line under the title (TextWithTone tone="caution", 13 px). Both sit in the
+   label or legend, which wraps for the reason; the problem mark stays on the title's line.
+   Colours are the theme's caution tokens (styles.css), so dark mode follows. */
+.deprecated-badge { flex: none; margin-left: 4px; padding: 0 4px; border-radius: 9999px; font-size: 13px; font-weight: 400; line-height: 17px; background: var(--caution-code-bg); color: var(--caution-code-fg); }
+.deprecated-reason { order: 9; flex: 0 0 100%; min-width: 0; margin-top: 2px; font-size: 13px; font-weight: 400; line-height: 19px; color: var(--caution-code-fg); overflow-wrap: anywhere; }
+:is(.field > label, .object-field > legend, .bool-box):has(> .deprecated-reason) { flex-wrap: wrap; }
+/* A boolean's reason lines up with its title, past the switch (25 px) or checkbox (17 px): Sanity's header sits beside it. */
+.bool-box > .deprecated-reason { margin-top: -6px; padding-left: 33px; }
+.bool-box:has(> .checkbox) > .deprecated-reason { padding-left: 25px; }
+/* A deprecated block or inline object type in the Portable Text toolbar: drawn as Sanity's disabled insert. */
+.body-insert[aria-disabled='true'] { color: var(--placeholder); cursor: default; }
+.body-insert[aria-disabled='true']:hover { background: none; }
+.body-insert[aria-disabled='true'] svg { color: var(--tool-disabled); }
+/* A deprecated type in an insert menu: Sanity's disabled menu item, no hover fill. */
+.menu-item[data-deprecated]:hover { background: none; }

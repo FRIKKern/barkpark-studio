@@ -81,6 +81,8 @@ export type Field = {
   fieldset?: string
   /** reference: Sanity's weak reference (kept as declared; Barkpark doesn't enforce it). */
   weak?: boolean
+  /** Sanity's deprecated: {reason}: a badge and the reason by the field; as a member or block type, disabled in insert menus (lib/deprecated.ts). */
+  deprecated?: {reason: string}
 }
 export type Group = {name: string; title?: string; default?: boolean}
 /** J55: a type's own sort, Sanity's `orderings` (Barkpark: the schema's `desk.orderings`). */
