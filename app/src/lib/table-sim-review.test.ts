@@ -7,7 +7,7 @@ import {Client, Server, leftover, simGate} from './table-sim.ts'
 // left before my word).
 
 test('two editors, a column or row changed while both type (review 7 seeds): rows even, both agree, every word whole in one cell or on its typer\'s card, every key in a cell, on the card or in the input', () => {
-  simGate([63018, 96019], {'INSERT-LEFT-WRONG-SIDE': 1, LEFTOVER: 1})
+  simGate([63018, 96019], {'INSERT-LEFT-WRONG-SIDE': 0, LEFTOVER: 0})
 })
 
 test('a word\'s first keys left before another word, the whole word on its typer\'s card, read as LEFTOVER, not SPLIT', () => {

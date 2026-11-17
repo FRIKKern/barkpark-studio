@@ -347,7 +347,7 @@ export const moveColumn = (value: unknown, from: number, to: number, key: () => 
  * it fills the cells it covers and the table grows by the rows and columns it needs. Inside
  * one row it writes that row's cells; over several, the rows.
  */
-export function pasteCells(value: unknown, row: number, column: number, block: string[][], rowType: string, key: () => string): TableWrite[] {
+export function pasteCells(value: unknown, row: number, column: number, block: string[][], rowType: string, key: () => string, refused?: (column: number, text: string) => void): TableWrite[] {
   const stored = rowsOf(value)
   const wide = block.reduce((w, r) => Math.max(w, r.length), 0)
   if (!stored[row] || !wide) return []
@@ -355,12 +355,14 @@ export function pasteCells(value: unknown, row: number, column: number, block: s
     return [
       [
         `${keyedPath('rows', stored[row]!._key!)}.cells`,
-        (now: unknown) => {
+        (now: unknown, table?: unknown) => {
           const drawn = cellsOf(stored[row])
           const cells = Array.isArray(now) ? now : drawn
+          const wide = table === undefined ? Infinity : widthOf(rowsOf(table))
+          // A cell whose column the row cannot tell (or past the table's width now): to the card, as a key (setCell).
           return block[0]!.reduce<unknown[]>((out, c, j) => {
             const at = columnNow(drawn, widthOf(stored), cells, column + j, c)
-            return at < 0 ? out : withCell(out, at, c)
+            return at < 0 || (at >= out.length && at >= wide) ? (refused?.(column + j, c), out) : withCell(out, at, c)
           }, cells)
         },
       ],

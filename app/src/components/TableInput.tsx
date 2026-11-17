@@ -200,9 +200,9 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       const block = latest.current.shut ? null : parseCells(e.clipboardData.getData('text/plain'))
       if (!block) return
       e.preventDefault()
-      write(pasteCells(seen.current, row, column, block, rowType, newKey))
+      write(pasteCells(seen.current, row, column, block, rowType, newKey, (c, t) => refuse(row, c, t)))
     },
-    [write, rowType],
+    [write, rowType, refuse],
   )
   /** A header button: arrows walk the headers and step back into the cells. */
   const onHeaderKey = (e: KeyboardEvent<HTMLButtonElement>, kind: 'row' | 'column', index: number) => {

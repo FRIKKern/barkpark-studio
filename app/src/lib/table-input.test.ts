@@ -242,3 +242,12 @@ test('a key from the old grid after a removal that reads alike either way: no co
   // The cells say which went: the key follows its column.
   assert.equal(columnNow(['ae', 'af', 'ag'], 3, ['ae', 'ag'], 2, 'ag!', 'ag'), 1)
 })
+
+test('a pasted cell whose column the row cannot tell goes to the card (refused), never dropped', () => {
+  // Drawn: two alike cells; the other editor removed one before the paste's write. Column 1 could be either.
+  const T = table(row('a', 'x', 'x'))
+  const kept: [number, string][] = []
+  const [[, paste]] = pasteCells(T, 0, 1, [['p']], 'tableRow', key, (column: number, text: string) => void kept.push([column, text])) as [[string, (now: unknown) => unknown]]
+  assert.deepEqual(paste(['x']), ['x'])
+  assert.deepEqual(kept, [[1, 'p']])
+})

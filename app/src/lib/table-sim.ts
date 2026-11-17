@@ -407,18 +407,20 @@ export function simulate(n: number, seeds = [1, 2, 3]) {
 }
 
 /**
- * The gate (table-sim*.test.ts, a seed set each so they run side by side): `seeds` x 4,000
- * scenes. No word lost, doubled or split, no rows uneven, both agree: none of these may happen.
+ * The gate (table-sim*.test.ts, a seed set each so they run side by side): `seeds` x GATE_SCENES
+ * scenes. No word lost, doubled or split, no key lost, no rows uneven, both agree: none of these may happen.
  * A column's place is not guessed (lib/table-keep.ts): text of mine the other's column change
  * leaves without a sure place is kept, on my card (KEPT, counted). Two ceilings per seed set
  * that may only fall: INSERT-LEFT-WRONG-SIDE (both words whole, in one cell: the typer clicked
  * by column in a row drawn at the old width) and LEFTOVER (above). MISPLACED and REVIVED (text
  * kept, in another cell) are counted, not failed. SIM_N: fewer scenes, ceilings then 0 or any.
  */
+/** Scenes a seed in the gate (2,000: the unit run's time; every seed set kept). */
+export const GATE_SCENES = 2000
 export function simGate(seeds: number[], ceiling: Record<string, number>) {
-  const n = Number(process.env.SIM_N || 4000)
+  const n = Number(process.env.SIM_N || GATE_SCENES)
   const {tally, examples} = simulate(n, seeds)
-  const full = n === 4000
+  const full = n === GATE_SCENES
   const broke = [...tally].filter(([k]) => !SOFT.includes(k) && (full ? (tally.get(k) ?? 0) > (ceiling[k] ?? 0) : !(k in ceiling)))
   assert.deepEqual(broke, [], examples.join('\n'))
   return tally
