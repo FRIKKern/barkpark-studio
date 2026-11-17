@@ -3,7 +3,8 @@
 // nor hidden), with a caution "deprecated" badge after its title and the reason in caution
 // text under it (FormFieldHeaderText, FormFieldSet). A deprecated block or inline object type
 // stays in the Portable Text insert menu, disabled, its reason the tooltip (PortableText
-// toolbar InsertMenu); the array insert menu does the same here. Barkpark keeps the key on a
+// toolbar InsertMenu). The array insert menu does the same here, which Sanity 6.17's does not
+// (it offers a deprecated member like any other): the task asks for it. Barkpark keeps the key on a
 // field, an array member and a block type as given (a schema_unknown_key advisory: it never
 // reads it). A deprecated document type is not here: Barkpark drops schema-level keys.
 import type {Field} from './data'
@@ -21,8 +22,9 @@ export const deprecatedId = (path: string) => `${path}-deprecated`
 
 /**
  * An insert menu item for a type, as Sanity draws a deprecated one: there, disabled, the reason
- * as its tooltip. aria-disabled, not disabled: the pointer and the arrow keys still reach it, so
- * the reason shows on hover and on keyboard focus (components/Tip.tsx); a pick does nothing.
+ * as its tooltip. aria-disabled, not disabled, so the pointer still raises the tooltip
+ * (components/Tip.tsx) and a toolbar's Tab still reaches it; a menu's arrow keys pass over it,
+ * as Sanity's menus pass a disabled item (lib/focus-scope.ts). A pick does nothing.
  */
 export function insertItemProps(reason: string | undefined): {'aria-disabled'?: true; 'data-tip'?: string; 'data-deprecated'?: ''} {
   return reason === undefined ? {} : {'aria-disabled': true, 'data-tip': reason || undefined, 'data-deprecated': ''}
