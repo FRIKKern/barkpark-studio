@@ -36,7 +36,7 @@ export class Server {
   n = 0
   doc: Doc
   history = new Map<string, unknown>()
-  saved: string[] = [] // every cell text it has stored
+  saved = new Set<string>() // every cell text it has stored
   constructor(t: unknown) {
     this.doc = {_rev: 'v0', _updatedAt: '000000', t}
     this.history.set('v0', clone(t))
@@ -50,7 +50,7 @@ export class Server {
     d._updatedAt = String(this.n).padStart(6, '0')
     this.doc = d
     this.history.set(d._rev, clone(d.t))
-    for (const r of d.t?.rows ?? []) for (const c of r?.cells ?? []) if (typeof c === 'string' && c) this.saved.push(c)
+    for (const r of d.t?.rows ?? []) for (const c of r?.cells ?? []) if (typeof c === 'string' && c) this.saved.add(c)
     return {ok: true, doc: clone(d)}
   }
 }
@@ -314,17 +314,20 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
   // in its save queue, or stored once (then theirs may remove it: the judge below counts the words).
   let keyLost = ''
   const keysKept = () => {
-    for (const c of clients)
-      for (const k of [...c.keysBefore, c.keysNow]) {
-        if (!k) continue
-        const cells: string[] = (c.cache.t?.rows ?? []).flatMap((r: any) => r?.cells ?? [])
+    for (const c of clients) {
+      const ks = c.keysNow ? [...c.keysBefore, c.keysNow] : c.keysBefore
+      if (!ks.length) continue
+      const cells: string[] = (c.cache.t?.rows ?? []).flatMap((r: any) => r?.cells ?? [])
+      for (const k of ks) {
         if (cells.some((x) => typeof x === 'string' && x.includes(k)) || c.kept.some((x) => x.text.includes(k))) continue
-        if ((c.caret && c.local.includes(k)) || server.saved.some((x) => x.includes(k))) continue
+        if ((c.caret && c.local.includes(k)) || [...server.saved].some((x) => x.includes(k))) continue
         // On its way (a write in the queue: its answer keeps it, lib/table-keep.ts).
         if ([...c.e.dirty.values(), ...(c.e.inflight?.values() ?? [])].some((v) => J(v).includes(k))) continue
         keyLost ||= `KEY-LOST ${c.name} ${J(k)}`
       }
+    }
   }
+
   const deliver = (c: Client) => {
     const r = c.request!
     c.request = null
