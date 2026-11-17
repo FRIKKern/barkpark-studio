@@ -120,6 +120,11 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
   // The cell holds what my input held before this key (`was`): keys typed since the drawing
   // went there, and a merge put them where their column went. The key follows them.
   const from = [...(column < drawn.length ? drawn : padded(drawn, width))]
+  // Keys typed since the drawing (the input held more than its cell drew), standing once in the
+  // row now: they are where the cell went (as caretColumn's own text; my first keys, saved, could
+  // read as the start of another's word in a neighbour).
+  const mine = was !== undefined && was !== '' && was !== from[column] && from.every((c, i) => i === column || c !== was) ? now.flatMap((c, j) => (c === was ? [j] : [])) : []
+  if (mine.length === 1) return mine[0]!
   if (was !== undefined) from[column] = was
   // Columns added or removed and the row reads the same whichever way its column went (two
   // cells alike, an empty one beside a new one): no column, so the key never lands in a
@@ -214,33 +219,40 @@ const indexOfKey = (rows: TableRow[], k: string | undefined, otherwise: number) 
  * Columns removed and the cells read the same whichever went (two columns alike, a word's first
  * keys): the caret follows only its own text, where that stands in its row now (saved, or put
  * back); else its cell is read as gone (its text to the card), never followed into a neighbour.
+ * `input`: what the caret's input holds, when not drawn yet (else the drawn cell is it). Keys typed
+ * since the drawing: where that text stands once in its row now, the caret goes there first (the
+ * drawing's other cells may hold text of mine kept since, read as saved).
  */
-export function caretColumn(rows: [string[], string[]][], from: number, to: number, column: number, mine = -1): number | undefined {
+export function caretColumn(rows: [string[], string[]][], from: number, to: number, column: number, mine = -1, input?: string): number | undefined {
+  const keys = input !== undefined && rows[mine] !== undefined && input !== (rows[mine]![0][column] ?? '')
+  if (keys) rows = rows.map((r, i) => (i === mine ? [r[0].map((c, j) => (j === column ? input! : c)), r[1]] : r))
+  const [drawn, now] = rows[mine] ?? [[], []]
+  const text = drawn[column] ?? ''
+  const at = (f: (c: string) => boolean) => now.flatMap((c, j) => (f(c) ? [j] : []))
+  const same = text === '' || drawn.filter((c) => c === text).length > 1 ? [] : at((c) => c === text)
+  if (keys && same.length === 1) return same[0]
   const kept = alignColumns(rows, from, to, (i) => i === column)[column]
   if (from <= to || kept === undefined) return kept
   if (kept >= 0 && alignColumns(rows, from, to, (i) => i !== column)[column] === kept) return kept
-  const [drawn, now] = rows[mine] ?? [[], []]
-  const text = drawn[column] ?? ''
   if (text === '' || drawn.filter((c) => c === text).length > 1) return -1
-  const at = (f: (c: string) => boolean) => now.flatMap((c, j) => (f(c) ? [j] : []))
-  const same = at((c) => c === text)
   const typed = same.length ? same : at((c) => c !== '' && text.startsWith(c) && !drawn.some((d, i) => i !== column && d.startsWith(c)))
   return typed.length === 1 ? typed[0] : -1
 }
 
 /**
  * The rows the caret's column is followed by when the grid's width changed (TableInput's layout
- * effect): each as last drawn and as it is now; null: the caret stays. A grid not settled (rows of
- * two widths: a write of mine on its way keeps some at the old one) waits, unless the caret's own
- * row has the new width already: its input shows another cell now, so the caret follows by the
- * rows that have it.
+ * effect): each as last drawn and as it is now, and the width it goes to; null: the caret stays.
+ * A grid not settled (rows of two widths: a write of mine on its way keeps some at the old one)
+ * waits, unless the caret's own row has another width already: its input shows another cell
+ * now, so the caret follows by the rows as wide as its own (their cells as stored).
  */
-export function caretRows(was: {rows: [string, string[]][]; columns: number} | null, settled: boolean, value: unknown, grid: {rows: {key: string; cells: string[]}[]; columns: number}, held: {key: string; width?: number}): [string, string[], string[]][] | null {
-  if (!was || was.columns === grid.columns || held.width === grid.columns) return null
-  const width = new Map(rowsOf(value).map((r) => [r._key, cellsOf(r).length]))
-  if (!settled && width.get(held.key) !== grid.columns) return null
-  const now = new Map(grid.rows.filter((r) => settled || width.get(r.key) === grid.columns).map((r) => [r.key, r.cells]))
-  return was.rows.flatMap(([k, cells]): [string, string[], string[]][] => (now.has(k) ? [[k, cells, now.get(k)!]] : []))
+export function caretRows(was: {rows: [string, string[]][]; columns: number} | null, settled: boolean, value: unknown, grid: {rows: {key: string; cells: string[]}[]; columns: number}, held: {key: string; width?: number}): {rows: [string, string[], string[]][]; columns: number} | null {
+  if (!was) return null
+  const stored = new Map(rowsOf(value).map((r) => [r._key, cellsOf(r).map((c) => text(c))]))
+  const columns = settled ? grid.columns : (stored.get(held.key)?.length ?? was.columns)
+  if (was.columns === columns || held.width === columns) return null
+  const now = new Map(settled ? grid.rows.map((r) => [r.key, r.cells]) : [...stored].filter(([, cells]) => cells.length === columns))
+  return {rows: was.rows.flatMap(([k, cells]): [string, string[], string[]][] => (now.has(k) ? [[k, cells, now.get(k)!]] : [])), columns}
 }
 
 /** The key of drawn row `at`, where its rows have keys: what names the row in the rows as they are now. */

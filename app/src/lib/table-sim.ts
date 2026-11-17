@@ -159,14 +159,14 @@ export class Client {
     const row = grid.rows.findIndex((r) => r.key === held.key)
     if (row < 0) return this.lose(held)
     let column = held.column
-    const both = caretRows(was, settled, value, grid, held)
-    if (both) {
-      const own = (k: string, cells: string[]) => (k === held.key ? cells.map((c, i) => (i === held.column ? this.local : c)) : cells)
-      const to = caretColumn(both.map(([k, cells, now]): [string[], string[]] => [own(k, cells), now]), was!.columns, grid.columns, column, both.findIndex(([k]) => k === held.key))
+    const follow = caretRows(was, settled, value, grid, held)
+    if (follow) {
+      const both = follow.rows
+      const to = caretColumn(both.map(([, cells, now]): [string[], string[]] => [cells, now]), was!.columns, follow.columns, column, both.findIndex(([k]) => k === held.key), this.local)
       if (to !== undefined && to < 0) return this.lose(held)
-      column = to ?? Math.min(column, grid.columns - 1)
+      column = to ?? Math.min(column, follow.columns - 1)
     }
-    this.caret = {key: held.key, column, width: held.width === grid.columns || both ? grid.columns : held.width}
+    this.caret = {key: held.key, column, width: follow ? follow.columns : held.width === grid.columns ? grid.columns : held.width}
     // TableInput's Cell: someone else's edit to the focused cell keeps the caret on the same text.
     const now = grid.rows[row]!.cells[column] ?? ''
     if (now !== this.local) this.at = mapCaret(this.local, now, this.at)

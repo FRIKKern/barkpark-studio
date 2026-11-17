@@ -250,19 +250,19 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       return
     }
     let column = held.column
-    const both = caretRows(was, settled, value, grid, held)
-    if (both) {
-      held.width = grid.columns
+    const follow = caretRows(was, settled, value, grid, held)
+    if (follow) {
+      const both = follow.rows
+      held.width = follow.columns
       // The caret's own cell as its input holds it: a word typed since the last drawing says where its column went.
-      const own = (k: string, cells: string[]) => (k === held.key && held.text !== undefined ? cells.map((c, i) => (i === held.column ? held.text! : c)) : cells)
-      const to = caretColumn(both.map(([k, cells, now]): [string[], string[]] => [own(k, cells), now]), was!.columns, grid.columns, column, both.findIndex(([k]) => k === held.key))
+      const to = caretColumn(both.map(([, cells, now]): [string[], string[]] => [cells, now]), was!.columns, follow.columns, column, both.findIndex(([k]) => k === held.key), held.text)
       if (to !== undefined && to < 0) {
         // Its column was removed: the caret leaves with its cells, as with a removed row (what was typed there, onto the card).
         if (card.lose(held)) return void (caret.current = null)
         caret.current = null
         return void win.box.current?.focus({preventScroll: true})
       }
-      column = to ?? Math.min(column, grid.columns - 1)
+      column = to ?? Math.min(column, follow.columns - 1)
     }
     const next = cellAt(row, column)
     if (!next || next === held.el) return
