@@ -3,6 +3,7 @@
 // sections are named object types that Barkpark expands and marks with `namedType`. Sanity
 // draws each item with its own member's preview and icon, and "Add item" offers the members.
 import type {Field, Schema} from './data'
+import {deprecatedReason} from './deprecated.ts'
 
 type Item = {_type?: unknown; _key?: string} & Record<string, unknown>
 
@@ -26,11 +27,12 @@ export function memberFor(members: Field[], item: unknown): Field | undefined {
   return members.find((m) => memberName(m) === type) ?? members.find((m) => m.namedType === type)
 }
 
-/** The add menu: one entry per member, titled as the member (or its named type) is. */
-export function memberChoices(members: Field[], schemas: Pick<Schema, 'name' | 'title'>[] = []): {value: string; title: string}[] {
+/** The add menu: one entry per member, titled as the member (or its named type) is; a deprecated member with its reason (lib/deprecated.ts). */
+export function memberChoices(members: Field[], schemas: Pick<Schema, 'name' | 'title'>[] = []): {value: string; title: string; deprecated?: string}[] {
   return members.map((m) => {
     const named = m.namedType ? schemas.find((s) => s.name === m.namedType) : undefined
-    return {value: memberName(m), title: m.title || named?.title || memberName(m)}
+    const deprecated = deprecatedReason(m)
+    return {value: memberName(m), title: m.title || named?.title || memberName(m), ...(deprecated !== undefined && {deprecated})}
   })
 }
 

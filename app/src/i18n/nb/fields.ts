@@ -3,6 +3,8 @@ export default {
   ' or ': ' eller ',
   '(no codelist registered: {id})': '(ingen kodeliste registrert: {id})',
   ', has text': ', har tekst',
+  // Sanity's form.field.deprecated-label (nb-NO pack: 'Utfaset').
+  deprecated: 'Utfaset',
   // Array power tools (Sanity's inputs.array.insert-menu.*, inputs.array.action.show-all-items, tree-editing-dialog.*).
   'Show all {count} items': 'Vis alle {count} elementer',
   'Show fewer items': 'Vis færre elementer',
