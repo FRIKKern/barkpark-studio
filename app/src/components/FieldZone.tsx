@@ -67,7 +67,7 @@ export function useFieldZone(path: string, options: unknown, value: unknown) {
   const key = on ? zoneKey(zoneScope(docId, path, o.allowSwitch)) : undefined
   // With switching off nothing is ever picked: the .fixed key is Sanity's, so an old pick doesn't count.
   const remembered = on && o.allowSwitch ? key : undefined
-  const local = useSyncExternalStore(subscribe, () => (remembered ? picked(remembered) : null), () => null)
+  const mine = useSyncExternalStore(subscribe, () => (remembered ? picked(remembered) : null), () => null)
   // The editor's pick from Barkpark (another browser's), unless they picked here already.
   const qc = useQueryClient()
   const {data: kept} = useQuery({
@@ -84,7 +84,7 @@ export function useFieldZone(path: string, options: unknown, value: unknown) {
     } catch {}
     notify()
   }, [remembered, kept])
-  const zone = on ? fieldZoneName(local, o.display) : undefined
+  const zone = on ? fieldZoneName(mine, o.display) : undefined
   const at = typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? new Date(value) : undefined
   return {zone, at, button: on, allowSwitch: o.allowSwitch, pick: (next: string) => key && (keep(key, next), qc.setQueryData(['pref', key], next))}
 }
