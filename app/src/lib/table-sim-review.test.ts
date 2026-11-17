@@ -46,3 +46,32 @@ test('the caret in a removed column that reads like its neighbour does not follo
   if (t.e.dirty.size) save(t)
   assert.deepEqual(server.doc.t.rows.map((r: {cells: string[]}) => r.cells), [['x<P>'], ['x']])
 })
+
+// Review 8: a word's first key typed after the live frame of a removal, before the drawing. My row
+// reads alike whichever column went, another row says which: the key must not be dropped.
+for (const [name, t0] of [['an empty row', [['a', 'b'], ['', '']]], ['an alike row', [['x', 'y'], ['x', 'x']]]] as const)
+  test(`${name} under one that says which column went: the first key between the frame and the drawing is kept, the word whole in the table or on the card`, () => {
+    const row = (k: string, cells: string[]) => ({_type: 'tableRow', _key: k, cells})
+    const server = new Server({_type: 'table', rows: t0.map((cs, i) => row('r' + i, [...cs]))})
+    const t = new Client('T', server.doc, [], () => [0, 1])
+    const p = new Client('P', server.doc, [], () => [0, 1])
+    const save = (c: Client) => {
+      c.send()
+      const r = c.request!
+      c.request = null
+      c.answer = server.mutate(r.rev, r.set, r.unset)
+      c.onAnswer(server)
+    }
+    assert.ok(t.click('r1', 1))
+    p.press({kind: 'rmcol', at: 0})
+    save(p)
+    t.applyServer(JSON.parse(JSON.stringify(server.doc))) // the live frame; T's grid not drawn again yet
+    t.key('W')
+    if (t.e.dirty.size) save(t)
+    t.render()
+    for (const ch of 'ORD') t.key(ch)
+    if (t.e.dirty.size) save(t)
+    t.render()
+    const stored = server.doc.t.rows.map((r: {cells: string[]}) => r.cells).flat()
+    assert.equal(stored.filter((c: string) => c.includes('WORD')).length + t.kept.filter((k) => k.text.includes('WORD')).length, 1, `stored ${JSON.stringify(stored)}, card ${JSON.stringify(t.kept)}`)
+  })

@@ -67,6 +67,12 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     focusKept(k.id)
     return true
   }, [])
+  /** A key the table could not place (setCell's `refused`): the input's text to the card; the next drawing's follow takes the caret there. */
+  const refuse = useCallback((row: number, column: number, text: string) => {
+    const {doc, grid} = now.current
+    const key = grid.rows[row]?.key
+    if (doc && key !== undefined && text) keepTyped(doc, {table, row: key, column, text, at: Date.now()})
+  }, [table])
   /** TableInput's caret, as a drawing starts: when its own text was just kept, the caret goes to the card. True: it went. */
   const follow = (held: {key: string; column: number; text?: string}) => {
     const text = held.text
@@ -102,7 +108,7 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     dropKept(doc, k.id)
     setLost(null)
   }
-  return {doc, kept, box, lost, capture, follow, lose, putBack}
+  return {doc, kept, box, lost, capture, refuse, follow, lose, putBack}
 }
 
 export function TableKeptCard({card}: {card: ReturnType<typeof useKeptCard>}) {

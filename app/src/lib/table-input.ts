@@ -120,10 +120,11 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
   // went there, and a merge put them where their column went. The key follows them.
   const from = [...(column < drawn.length ? drawn : padded(drawn, width))]
   if (was !== undefined) from[column] = was
-  // Columns removed and the cells read the same whichever went: no column (as caretColumn), so
-  // the key never lands in a neighbour the other editor saved; the caret takes the text to the card.
+  // Columns added or removed and the row reads the same whichever way its column went (two
+  // cells alike, an empty one beside a new one): no column, so the key never lands in a
+  // neighbour or the new column; setCell's `refused` takes the text to the card.
   const to = alignColumns([[from, now]], from.length, now.length, (i) => i === column)[column] ?? -1
-  if (from.length > now.length && to >= 0 && alignColumns([[from, now]], from.length, now.length, (i) => i !== column)[column] !== to) return -1
+  if (to >= 0 && alignColumns([[from, now]], from.length, now.length, (i) => i !== column)[column] !== to) return -1
   return to
 }
 
@@ -145,9 +146,10 @@ function keyOnto(was: string | undefined, cell: string, there: string): string {
  * Typing in a cell: that row's `cells`, made onto the row as it is now. Rows without keys go
  * whole. `was` is what the input held before this key: when the cell holds something else now
  * (another editor's words merged in, not drawn yet), the key goes onto it as a text field's
- * does (mergeText: no word of either dropped), not over it.
+ * does (mergeText: no word of either dropped), not over it. A key whose column the row cannot
+ * tell (columnNow: -1) is written nowhere: `refused` gets the input's text, for the card.
  */
-export function setCell(value: unknown, row: number, column: number, cell: string, key: () => string, was?: string): TableWrite[] {
+export function setCell(value: unknown, row: number, column: number, cell: string, key: () => string, was?: string, refused?: (text: string) => void): TableWrite[] {
   const rows = rowsOf(value)
   const target = rows[row]
   if (!target) return []
@@ -162,7 +164,7 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
         if (!Array.isArray(now)) return withCell(drawn, column, cell)
         const cells = now
         const at = columnNow(drawn, widthOf(rows), cells, column, cell, was)
-        if (at < 0) return cells
+        if (at < 0) return refused?.(cell), cells
         return withCell(cells, at, keyOnto(was, cell, text(cells[at])))
       },
     ],
@@ -220,6 +222,21 @@ export function caretColumn(rows: [string[], string[]][], from: number, to: numb
   const same = at((c) => c === text)
   const typed = same.length ? same : at((c) => c !== '' && text.startsWith(c) && !drawn.some((d, i) => i !== column && d.startsWith(c)))
   return typed.length === 1 ? typed[0] : -1
+}
+
+/**
+ * The rows the caret's column is followed by when the grid's width changed (TableInput's layout
+ * effect): each as last drawn and as it is now; null: the caret stays. A grid not settled (rows of
+ * two widths: a write of mine on its way keeps some at the old one) waits, unless the caret's own
+ * row has the new width already: its input shows another cell now, so the caret follows by the
+ * rows that have it.
+ */
+export function caretRows(was: {rows: [string, string[]][]; columns: number} | null, settled: boolean, value: unknown, grid: {rows: {key: string; cells: string[]}[]; columns: number}, held: {key: string; width?: number}): [string, string[], string[]][] | null {
+  if (!was || was.columns === grid.columns || held.width === grid.columns) return null
+  const width = new Map(rowsOf(value).map((r) => [r._key, cellsOf(r).length]))
+  if (!settled && width.get(held.key) !== grid.columns) return null
+  const now = new Map(grid.rows.filter((r) => settled || width.get(r.key) === grid.columns).map((r) => [r.key, r.cells]))
+  return was.rows.flatMap(([k, cells]): [string, string[], string[]][] => (now.has(k) ? [[k, cells, now.get(k)!]] : []))
 }
 
 /** The key of drawn row `at`, where its rows have keys: what names the row in the rows as they are now. */

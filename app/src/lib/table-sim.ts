@@ -11,7 +11,7 @@ import {answered, rebase, sentNotesOf, takeBase, unsent, type Spots} from './edi
 import {applyPaths, getPath, setInside, setPath, within} from './paths.ts'
 import {mapCaret} from './merge.ts'
 import {addKept, typedSince} from './table-keep.ts'
-import {addColumns, addRows, caretColumn, removeColumn, removeRow, setCell, tableGrid} from './table-input.ts'
+import {addColumns, addRows, caretColumn, caretRows, removeColumn, removeRow, setCell, tableGrid} from './table-input.ts'
 
 const J = JSON.stringify
 const clone = <T,>(v: T): T => JSON.parse(J(v))
@@ -36,6 +36,7 @@ export class Server {
   n = 0
   doc: Doc
   history = new Map<string, unknown>()
+  saved: string[] = [] // every cell text it has stored
   constructor(t: unknown) {
     this.doc = {_rev: 'v0', _updatedAt: '000000', t}
     this.history.set('v0', clone(t))
@@ -49,6 +50,7 @@ export class Server {
     d._updatedAt = String(this.n).padStart(6, '0')
     this.doc = d
     this.history.set(d._rev, clone(d.t))
+    for (const r of d.t?.rows ?? []) for (const c of r?.cells ?? []) if (typeof c === 'string' && c) this.saved.push(c)
     return {ok: true, doc: clone(d)}
   }
 }
@@ -157,15 +159,14 @@ export class Client {
     const row = grid.rows.findIndex((r) => r.key === held.key)
     if (row < 0) return this.lose(held)
     let column = held.column
-    if (was && settled && was.columns !== grid.columns && held.width !== grid.columns) {
-      const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
+    const both = caretRows(was, settled, value, grid, held)
+    if (both) {
       const own = (k: string, cells: string[]) => (k === held.key ? cells.map((c, i) => (i === held.column ? this.local : c)) : cells)
-      const both = was.rows.filter(([k]) => now.has(k))
-      const to = caretColumn(both.map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, column, both.findIndex(([k]) => k === held.key))
+      const to = caretColumn(both.map(([k, cells, now]): [string[], string[]] => [own(k, cells), now]), was!.columns, grid.columns, column, both.findIndex(([k]) => k === held.key))
       if (to !== undefined && to < 0) return this.lose(held)
       column = to ?? Math.min(column, grid.columns - 1)
     }
-    this.caret = {key: held.key, column, width: held.width === grid.columns || (was && settled && was.columns !== grid.columns) ? grid.columns : held.width}
+    this.caret = {key: held.key, column, width: held.width === grid.columns || both ? grid.columns : held.width}
     // TableInput's Cell: someone else's edit to the focused cell keeps the caret on the same text.
     const now = grid.rows[row]!.cells[column] ?? ''
     if (now !== this.local) this.at = mapCaret(this.local, now, this.at)
@@ -178,6 +179,9 @@ export class Client {
   }
   typed = false
   start = '' // what the cell held when this editor clicked it
+  // The keys this editor's inputs (or its card) took: since the last click, and each click's before.
+  keysNow = ''
+  keysBefore: string[] = []
   /** Click a cell by row key and column id (this editor's own idea of the columns). */
   click(row: string, col: number): boolean {
     const grid = tableGrid(this.view.t)
@@ -186,27 +190,34 @@ export class Client {
     if (column < 0 || r < 0) return false
     this.caret = {key: row, column, width: (this.view.t?.rows?.[r]?.cells ?? []).length}
     ;[this.card, this.typed] = [null, false]
+    if (this.keysNow) this.keysBefore.push(this.keysNow)
+    this.keysNow = ''
     this.local = this.start = grid.rows[r]!.cells[column] ?? ''
     this.at = this.local.length
     return true
   }
   key(ch: string) {
-    if (this.card) return void (this.card.text += ch)
+    if (this.card) return void ((this.card.text += ch), (this.keysNow += ch))
     if (!this.caret) return
     const r = tableGrid(this.view.t).rows.findIndex((x) => x.key === this.caret!.key)
     if (r < 0) return
+    this.keysNow += ch
     const was = this.local
     this.typed = true
     this.local = was.slice(0, this.at) + ch + was.slice(this.at++)
     // A key from an input whose text was kept, before the card took the caret: onto the kept text.
     const kept = this.kept.find((k) => k.row === this.caret!.key && k.column === this.caret!.column && k.text === was)
     if (kept) return void ((kept.text = typedSince(this.local, this.start, tableGrid(this.cache.t).rows.find((x) => x.key === this.caret!.key)?.cells ?? [])), (this.card = kept), (this.caret = null))
-    this.write(setCell(this.view.t, r, this.caret.column, this.local, newKey, was))
+    // A key the row cannot place: the input's text to the card (TableKeptCard's refuse).
+    const at = this.caret
+    this.write(setCell(this.view.t, r, at.column, this.local, newKey, was, (text) => void addKept(this.kept, {row: at.key, column: at.column, text})))
   }
   press(op: Op) {
     const v = this.view.t
     this.caret = null
     ;[this.card, this.typed] = [null, false]
+    // What the presser typed before is its own to remove: the scene's judge counts it.
+    ;[this.keysNow, this.keysBefore] = ['', []]
     this.write(op.kind === 'inscol' ? addColumns(v, op.at, 1, newKey) : op.kind === 'rmcol' ? removeColumn(v, op.at, newKey) : op.kind === 'insrow' ? addRows(v, op.at, 1, 'tableRow', newKey) : removeRow(v, op.at, newKey))
   }
   done = () => this.pos >= this.script.length
@@ -286,9 +297,28 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
       if (c === tc && c.pos > 0 && cols !== C && cols !== idsAfter.length) return
       if (!c.click(s.row, s.col)) return void c.pos++
       clicked.add(s.word)
+      // The click is a step of its own: a frame can come in before the first key, and that key
+      // can come before the drawing catches up (review 8).
+      return void (c.keys = -1)
     }
+    if (c.keys < 0) c.keys = 0
     c.key(s.word[c.keys]!)
     if (++c.keys === s.word.length) (c.pos++, (c.keys = 0))
+  }
+  // Every key an input or card took is somewhere: in the editor's table, on its card, in its input,
+  // in its save queue, or stored once (then theirs may remove it: the judge below counts the words).
+  let keyLost = ''
+  const keysKept = () => {
+    for (const c of clients)
+      for (const k of [...c.keysBefore, c.keysNow]) {
+        if (!k) continue
+        const cells: string[] = (c.cache.t?.rows ?? []).flatMap((r: any) => r?.cells ?? [])
+        if (cells.some((x) => typeof x === 'string' && x.includes(k)) || c.kept.some((x) => x.text.includes(k))) continue
+        if ((c.caret && c.local.includes(k)) || server.saved.some((x) => x.includes(k))) continue
+        // On its way (a write in the queue: its answer keeps it, lib/table-keep.ts).
+        if ([...c.e.dirty.values(), ...(c.e.inflight?.values() ?? [])].some((v) => J(v).includes(k))) continue
+        keyLost ||= `KEY-LOST ${c.name} ${J(k)}`
+      }
   }
   const deliver = (c: Client) => {
     const r = c.request!
@@ -296,7 +326,7 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
     c.answer = server.mutate(r.rev, r.set, r.unset)
     if (c.answer.ok) for (const x of clients) x.frames.push(clone(server.doc))
   }
-  step(tc) // T's first key comes first: its column id is the initial one.
+  step(tc) // T clicks first: its column id is the initial one.
   for (let steps = 0; ; steps++) {
     if (steps > 5000) return {bad: ['NO-QUIESCENCE'], soft: [], name: `scene ${i}`}
     const acts: [number, () => void][] = []
@@ -311,15 +341,17 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
     if (!acts.length) break
     let w = rnd() * acts.reduce((n, [x]) => n + x, 0)
     for (const [x, f] of acts) if ((w -= x) <= 0) (f(), (w = Infinity))
+    keysKept()
   }
   for (const c of clients) c.render()
+  keysKept()
   // What is stored, against what both meant: by column ids and row keys.
   const words = [...P, ...T].filter((s): s is Extract<Step, {word: string}> => 'word' in s && clicked.has(s.word))
   const initText = (r: string, c: number) => (c === 100 ? '' : t0.rows.find((x) => x._key === r)!.cells[c]!)
   const want = rowsAfter.map((r) => idsAfter.map((c) => (r === '*new*' ? '' : initText(r, c) + words.filter((w) => w.row === r && w.col === c).map((w) => w.word).join(''))))
   const got: string[][] = (server.doc.t?.rows ?? []).map((r: any) => r.cells)
   const flat = got.flat()
-  const bad: string[] = []
+  const bad: string[] = keyLost ? [keyLost] : []
   const soft: string[] = []
   if (!clients.every((c) => J(c.cache.t) === J(server.doc.t))) bad.push('DIVERGED')
   if (!got.every((cs) => cs.length === got[0]?.length)) bad.push('UNEVEN')

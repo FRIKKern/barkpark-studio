@@ -9,7 +9,7 @@ import {newKey} from '../lib/pt-value'
 import type {Field} from '../lib/data'
 import {cellsOf} from '../lib/table-merge'
 import {TableKeptCard, useKeptCard} from './TableKeptCard'
-import {addColumns, addRows, caretColumn, createTable, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, removeTable, setCell, tableGrid, tableOptions, withWrites, type TableWrite} from '../lib/table-input'
+import {addColumns, addRows, caretColumn, caretRows, createTable, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, removeTable, setCell, tableGrid, tableOptions, withWrites, type TableWrite} from '../lib/table-input'
 
 // The table field (Sanity's @sanity/table; lib/table-input.ts has the shape and what each
 // edit writes): a grid of text inputs under numbered row and column headers. The plugin's
@@ -172,8 +172,8 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   const header = (kind: 'row' | 'column', index: number) => root.current?.querySelector<HTMLElement>(`button[data-${kind}-header="${index}"]`)
 
   const card = useKeptCard(id, value, grid, write, root)
-  const capture = card.capture
-  const onCell = useCallback((row: number, column: number, text: string, was: string) => capture(row, column, text, was) || write(setCell(seen.current, row, column, text, newKey, was)), [write, capture])
+  const {capture, refuse} = card
+  const onCell = useCallback((row: number, column: number, text: string, was: string) => capture(row, column, text, was) || write(setCell(seen.current, row, column, text, newKey, was, (t) => refuse(row, column, t))), [write, capture, refuse])
   const onKey = useCallback(
     (e: KeyboardEvent<HTMLInputElement>, row: number, column: number) => {
       if (e.altKey || e.metaKey || e.ctrlKey || e.nativeEvent.isComposing) return
@@ -249,13 +249,12 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       return
     }
     let column = held.column
-    if (was && settled && was.columns !== grid.columns && held.width !== grid.columns) {
+    const both = caretRows(was, settled, value, grid, held)
+    if (both) {
       held.width = grid.columns
-      const now = new Map(grid.rows.map((r) => [r.key, r.cells]))
       // The caret's own cell as its input holds it: a word typed since the last drawing says where its column went.
       const own = (k: string, cells: string[]) => (k === held.key && held.text !== undefined ? cells.map((c, i) => (i === held.column ? held.text! : c)) : cells)
-      const both = was.rows.filter(([k]) => now.has(k))
-      const to = caretColumn(both.map(([k, cells]): [string[], string[]] => [own(k, cells), now.get(k)!]), was.columns, grid.columns, column, both.findIndex(([k]) => k === held.key))
+      const to = caretColumn(both.map(([k, cells, now]): [string[], string[]] => [own(k, cells), now]), was!.columns, grid.columns, column, both.findIndex(([k]) => k === held.key))
       if (to !== undefined && to < 0) {
         // Its column was removed: the caret leaves with its cells, as with a removed row (what was typed there, onto the card).
         if (card.lose(held)) return void (caret.current = null)
