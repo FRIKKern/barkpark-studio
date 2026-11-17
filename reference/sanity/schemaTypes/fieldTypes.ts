@@ -15,8 +15,8 @@ export const fieldTypes = defineType({
     defineField({name: 'title', type: 'string', validation: (r) => r.required()}),
     defineField({name: 'choice', type: 'string', options: {list: [{title: 'Alpha', value: 'a'}, {title: 'Beta', value: 'b'}, {title: 'Gamma', value: 'c'}], layout: 'dropdown'}}),
     defineField({name: 'agree', type: 'boolean', options: {layout: 'checkbox'}}),
-    defineField({name: 'day', type: 'date', options: {dateFormat: 'DD.MM.YYYY'}}),
-    defineField({name: 'at', type: 'datetime', options: {dateFormat: 'DD.MM.YYYY', timeFormat: 'HH:mm', timeStep: 15}}),
+    defineField({name: 'day', type: 'date', options: {dateFormat: 'DD.MM.YYYY'}, validation: (r) => r.min('2020-01-01').max('2030-12-31')}),
+    defineField({name: 'at', type: 'datetime', options: {dateFormat: 'DD.MM.YYYY', timeFormat: 'HH:mm', timeStep: 15}, validation: (r) => r.min('2020-01-01T00:00:00Z')}),
     // A time in New York's zone, with Sanity's zone button by the title; another zone per document field.
     defineField({name: 'meetsAt', title: 'Meets at', type: 'datetime', options: {displayTimeZone: 'America/New_York', allowTimeZoneSwitch: true}}),
     defineField({name: 'handle', type: 'slug', options: {source: 'title', maxLength: 20}, validation: (r) => r.required()}),
@@ -64,16 +64,17 @@ export const fieldTypes = defineType({
       fields: [
         defineField({name: 'street', type: 'string', fieldset: 'where'}),
         defineField({name: 'city', type: 'string', fieldset: 'where'}),
-        defineField({name: 'zip', type: 'string'}),
+        defineField({name: 'zip', type: 'string', validation: (r) => r.length(4)}),
       ],
     }),
-    defineField({name: 'width', type: 'number', fieldset: 'size'}),
-    defineField({name: 'height', type: 'number', fieldset: 'size'}),
+    // Sanity's other rule builders, as fixtures/barkpark-schema/fieldTypes.json has them (lib/validation-rules.ts).
+    defineField({name: 'width', type: 'number', fieldset: 'size', validation: (r) => r.precision(2).positive()}),
+    defineField({name: 'height', type: 'number', fieldset: 'size', validation: (r) => r.greaterThan(0).lessThan(10000)}),
     defineField({name: 'count', type: 'number', validation: (r) => r.integer().min(0).max(10)}),
     defineField({name: 'hiddenNote', title: 'Shown when agreed', type: 'string', hidden: ({document}) => !document?.agree}),
     defineField({name: 'lockedNote', title: 'Locked when agreed', type: 'string', readOnly: ({document}) => !!document?.agree}),
     defineField({name: 'limit', type: 'number', fieldset: 'more', validation: (r) => r.max(10)}),
     defineField({name: 'attachment', type: 'file', options: {accept: 'image/*'}}),
-    defineField({name: 'photo', type: 'image', options: {hotspot: true, metadata: ['palette', 'exif']}}),
+    defineField({name: 'photo', type: 'image', options: {hotspot: true, metadata: ['palette', 'exif']}, validation: (r) => r.assetRequired()}),
   ],
 })

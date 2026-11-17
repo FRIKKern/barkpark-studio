@@ -29,7 +29,12 @@ export type Doc = {_id: string; _publishedId: string; _type: string; _draft: boo
   unknown
 >
 /** Barkpark's field rule: Sanity's checks, `level` (default error) and a `message` that replaces the generated one. */
-export type Rule = {required?: boolean; min?: number; max?: number; pattern?: string; unique?: boolean; level?: string; message?: string}
+/** min / max: a length, an item count or a number; on a date or datetime, a date (ISO, or "now"). The rest after `message`: studio-only (lib/validation-rules). */
+export type Rule = {
+  required?: boolean; min?: number | string; max?: number | string; pattern?: string; unique?: boolean; level?: string; message?: string
+  length?: number; precision?: number; greaterThan?: number; lessThan?: number; positive?: boolean; negative?: boolean
+  lowercase?: boolean; uppercase?: boolean; name?: string; invert?: boolean; assetRequired?: boolean
+}
 
 export type Field = {
   name: string
