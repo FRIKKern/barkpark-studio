@@ -75,6 +75,7 @@ export const tableText = (value: unknown): string => tableGrid(value).rows.map((
  * unsets it. A function is made onto the spot as it is when the write is queued (a row's
  * cells: another editor's word in the next cell, not drawn yet, stays).
  */
+/** A spot of the table and its value; a function: made onto the spot as held then (and the table as held, its 2nd argument). */
 export type TableWrite = [path: string, value: unknown]
 
 const newRow = (rowType: string, key: string, columns: number): TableRow => ({_type: rowType, _key: key, cells: new Array<string>(columns).fill('')})
@@ -158,13 +159,16 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
   return [
     [
       `${keyedPath('rows', target._key!)}.cells`,
-      (now: unknown) => {
+      (now: unknown, table?: unknown) => {
         // The row is not in this browser's copy any more (removed meanwhile): the input's text,
         // whole, where it was typed; the rebase keeps it for the editor (lib/table-keep.ts).
         if (!Array.isArray(now)) return withCell(drawn, column, cell)
         const cells = now
         const at = columnNow(drawn, widthOf(rows), cells, column, cell, was)
-        if (at < 0) return refused?.(cell), cells
+        // A short row's padding grows it only as wide as the table is now (the grid was drawn
+        // wider by a row of mine at the old width, and the table has narrowed since).
+        const wide = table === undefined ? Infinity : widthOf(rowsOf(table))
+        if (at < 0 || (at >= cells.length && at >= wide)) return refused?.(cell), cells
         return withCell(cells, at, keyOnto(was, cell, text(cells[at])))
       },
     ],
@@ -367,7 +371,7 @@ export function withWrites(value: unknown, writes: TableWrite[]): unknown {
   let held: Record<string, unknown> = {v: value}
   for (const [path, next] of writes) {
     const at = path ? `v.${path}` : 'v'
-    held = setPath(held, at, typeof next === 'function' ? (next as (now: unknown) => unknown)(getPath(held, at)) : next)
+    held = setPath(held, at, typeof next === 'function' ? (next as (now: unknown, table: unknown) => unknown)(getPath(held, at), held.v) : next)
   }
   return held.v
 }

@@ -73,7 +73,12 @@ export function keepOnShapeChange(e: Pending, d: unknown, before: unknown) {
       const row = tableSpot(k)?.row
       return row !== undefined && !rowBy(now.rows as unknown[], row)
     }
-    const spots = [...e.dirty.keys()].filter((k) => tableSpot(k)?.table === table && (columns || gone(k)))
+    // A spot made onto the width the table has now, and as wide (a key after the change came in), stays.
+    const stale = (k: string) => {
+      const w = (v: unknown) => (!Array.isArray(v) ? -1 : tableSpot(k)?.row !== undefined ? v.length : width(v))
+      return w(e.base.get(k)) !== width(now.rows as unknown[]) || w(e.dirty.get(k)) !== width(now.rows as unknown[])
+    }
+    const spots = [...e.dirty.keys()].filter((k) => tableSpot(k)?.table === table && ((columns && stale(k)) || gone(k)))
     const changes = spots.flatMap((k) => changesOf(k, tableSpot(k)!.row, e.base.get(k), e.dirty.get(k), e.notes?.get(k)))
     if (!changes.length) continue
     const rows = now.rows as unknown[]

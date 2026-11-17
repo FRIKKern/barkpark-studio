@@ -435,8 +435,9 @@ function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record 
   const e = entry(id, doc._type)
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
   // A change given as what it does to the spot (a Portable Text span's typing, as its
-  // diff-match-patch): made onto the spot as this browser holds it now, others' words in it.
-  if (typeof value === 'function') return write(qc, held, field, value(getPath(held, field)), record)
+  // diff-match-patch): made onto the spot as this browser holds it now, others' words in it
+  // (and the document as held, for a spot that needs its surroundings: a table cell's row).
+  if (typeof value === 'function') return write(qc, held, field, value(getPath(held, field), held), record)
   // `value` was made from `doc`, what the pane last drew. Someone else's version that came
   // in since and is not drawn yet is in `held`: the change goes onto it, or it would go out
   // against held's rev and undo theirs unseen (live-list race, task-8cc2a447b03bf599). A

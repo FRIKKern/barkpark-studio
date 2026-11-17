@@ -86,7 +86,7 @@ export class Client {
   edit(field: string, value: unknown) {
     const e = this.e
     const held = this.cache
-    if (typeof value === 'function') value = value(getPath(held, field))
+    if (typeof value === 'function') value = value(getPath(held, field), (held as any).t)
     if (!e.dirty.size && !e.inflight) e.rev = held._rev
     takeBase(e, field, held, value)
     const outer = [...e.dirty.keys()].find((k) => k !== field && within(field, k))
@@ -296,12 +296,13 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
       const cols = tableGrid(c.view.t).columns
       if (c === tc && c.pos > 0 && cols !== C && cols !== idsAfter.length) return
       if (!c.click(s.row, s.col)) return void c.pos++
-      clicked.add(s.word)
       // The click is a step of its own: a frame can come in before the first key, and that key
       // can come before the drawing catches up (review 8).
       return void (c.keys = -1)
     }
-    if (c.keys < 0) c.keys = 0
+    // The caret went (its column removed) before a key: the editor sees no caret and clicks again.
+    if (c.keys < 0 && !c.caret && !c.card) return void (c.keys = 0)
+    if (c.keys < 0) (c.keys = 0), clicked.add(s.word)
     c.key(s.word[c.keys]!)
     if (++c.keys === s.word.length) (c.pos++, (c.keys = 0))
   }

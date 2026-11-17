@@ -8,6 +8,7 @@ import {mapCaret} from '../lib/merge'
 import {newKey} from '../lib/pt-value'
 import type {Field} from '../lib/data'
 import {cellsOf} from '../lib/table-merge'
+import {getPath} from '../lib/paths'
 import {TableKeptCard, useKeptCard} from './TableKeptCard'
 import {addColumns, addRows, caretColumn, caretRows, createTable, moveColumn, moveRow, parseCells, pasteCells, removeColumn, removeRow, removeTable, setCell, tableGrid, tableOptions, withWrites, type TableWrite} from '../lib/table-input'
 
@@ -118,7 +119,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       const now = latest.current
       if (now.shut || !writes.length) return
       // Each spot to its own path (lib/edits.ts); where there is no path to write to, the table whole.
-      if (now.editPath) for (const [path, next] of writes) now.editPath(path ? `${id}.${path}` : id, next)
+      if (now.editPath) for (const [path, next] of writes) now.editPath(path ? `${id}.${path}` : id, typeof next === 'function' ? (v: unknown, d: unknown) => next(v, getPath(d, id)) : next)
       else now.onChange((held.current = withWrites(held.current, writes)))
     },
     [id],
