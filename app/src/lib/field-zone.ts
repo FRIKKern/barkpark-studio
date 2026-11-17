@@ -141,6 +141,18 @@ export function fieldZoneName(picked: string | null | undefined, display: string
   return [picked, display, local].find((z) => z && names.includes(z)) ?? listedLocal(zoneList(), local)?.name
 }
 
+const two = (n: number) => String(n).padStart(2, '0')
+/**
+ * What the calendar shows for an instant: its day, as a local Date at noon (no clock change skips
+ * noon, so the day number survives this computer's own DST gap), and its time "HH:mm", read straight
+ * from the zone's clock. No zone: the instant itself and this computer's clock, as before.
+ */
+export function calendarView(at: Date, zone?: string): {day: Date; time: string} {
+  if (!zone) return {day: at, time: `${two(at.getHours())}:${two(at.getMinutes())}`}
+  const w = wallIn(at, zone)
+  return {day: new Date(w.year, w.month - 1, w.day, 12), time: `${two(w.hour)}:${two(w.minute)}`}
+}
+
 /** An instant down to the time step's grid in the zone shown (15: 09:07 → 09:00). */
 export function onZoneStep(at: Date, step: number | undefined, zone: string): Date {
   const over = step && step > 1 ? wallIn(at, zone).minute % step : 0

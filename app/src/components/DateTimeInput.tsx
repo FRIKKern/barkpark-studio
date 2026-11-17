@@ -3,7 +3,7 @@ import {useFocusScope} from '../lib/focus-scope'
 import {Calendar, ChevronLeft, ChevronRight, ChevronDown, EarthGlobe} from './icons'
 import {intlTag, translate, useLocale, useT, type Locale} from '../lib/i18n'
 import {formatDate, formatWall, onTimeStep, parseDate} from '../lib/date-format'
-import {formatIn, instantIn, onZoneStep, parseIn, wallIn} from '../lib/field-zone'
+import {calendarView, formatIn, instantIn, onZoneStep, parseIn} from '../lib/field-zone'
 import {unsavedElsewhere} from '../lib/edits'
 import {localZone, zoneLongName, zoneShort} from '../lib/timezone'
 import {reportParseError} from '../lib/parse-errors'
@@ -164,25 +164,27 @@ function inside(el: HTMLElement) {
 function DatePicker({value: stored, dateOnly, timeStep = 1, min, notice, showZone, zone, onPick, onClose}: {value?: Date; dateOnly: boolean; timeStep?: number; min?: Date; notice?: string; showZone?: boolean; zone?: string; onPick: (d: Date) => void; onClose: () => void}) {
   const t = useT()
   const locale = useLocale()
-  // In a field's own zone the calendar works on that zone's clock: `view` is an instant as the zone
-  // shows it (a Date whose local fields are the zone's), `at` the instant a picked day and time name there.
-  const view = (d: Date) => (zone ? ((w) => new Date(w.year, w.month - 1, w.day, w.hour, w.minute))(wallIn(d, zone)) : d)
+  // In a field's own zone the calendar works on that zone's clock: `view` is an instant's day (a local
+  // Date) and time ("HH:mm") as the zone shows them, `at` the instant a picked day and time name there.
+  // The time never passes through a local Date: this computer's own DST gap would move it an hour.
+  const view = (d: Date) => calendarView(d, zone)
   const at = (y: number, m: number, d: number, h: number, mi: number) => (zone ? instantIn({year: y, month: m + 1, day: d, hour: h, minute: mi}, zone) : new Date(y, m, d, h, mi))
-  const value = stored && view(stored)
-  const [focused, setFocused] = useState(() => value ?? view(new Date()))
+  const shown = stored && view(stored)
+  const value = shown?.day
+  const [focused, setFocused] = useState(() => value ?? view(new Date()).day)
   const [year, setYear] = useState(String(focused.getFullYear()))
   // With no value yet, a picked day takes the current time on the step's grid, as Sanity's: 00:00
   // stored the instant before midnight UTC, the previous day for a site that formats in UTC.
   const [time, setTime] = useState(() => {
-    const then = value ?? view(new Date())
-    const minutes = value ? then.getMinutes() : then.getMinutes() - (then.getMinutes() % timeStep)
-    return `${pad(then.getHours())}:${pad(minutes)}`
+    if (shown) return shown.time
+    const [h, m] = view(new Date()).time.split(':').map(Number)
+    return `${pad(h!)}:${pad(m! - (m! % timeStep))}`
   })
   const root = useRef<HTMLDivElement | null>(null)
   // J43: Tab stays in the picker, Escape closes it, focus goes back to its button.
   const scope = useFocusScope<HTMLDivElement>({trap: true, onDismiss: onClose})
   const grid = useRef<HTMLDivElement>(null)
-  const today = view(new Date())
+  const today = view(new Date()).day
 
   useEffect(() => setYear(String(focused.getFullYear())), [focused])
   // Focus lands on the selected (or today's) day, as in Sanity.
@@ -305,7 +307,7 @@ function DatePicker({value: stored, dateOnly, timeStep = 1, min, notice, showZon
                 onPick(at(value.getFullYear(), value.getMonth(), value.getDate(), Number(m[1]), Number(m[2])))
             }}
             // The stored time is on the step's grid; the box shows it once typing there ends (not per key, so 14:45 can be typed).
-            onBlur={() => value && setTime(`${pad(value.getHours())}:${pad(value.getMinutes())}`)}
+            onBlur={() => shown && setTime(shown.time)}
           />
         </span>
         <button
@@ -316,9 +318,9 @@ function DatePicker({value: stored, dateOnly, timeStep = 1, min, notice, showZon
             // On the time step's grid, as Sanity's picker (15: 11:07 → 11:00), in the zone shown.
             if (zone) (now.setSeconds(0, 0), (now = onZoneStep(now, timeStep, zone)))
             else now.setMinutes(now.getMinutes() - (now.getMinutes() % timeStep), 0, 0)
-            const shown = view(now)
-            setTime(`${pad(shown.getHours())}:${pad(shown.getMinutes())}`)
-            setFocused(shown)
+            const then = view(now)
+            setTime(then.time)
+            setFocused(then.day)
             onPick(now)
           }}
         >

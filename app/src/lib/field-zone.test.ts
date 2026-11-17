@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {fieldZone, fieldZoneName, instantIn, listedLocal, onZoneStep, shownIn, typedIn, wallIn, zoneKey, zoneKeyId, zoneList, zoneMatches, zoneOptions, zoneScope} from './field-zone.ts'
+import {calendarView, fieldZone, fieldZoneName, instantIn, listedLocal, onZoneStep, shownIn, typedIn, wallIn, zoneKey, zoneKeyId, zoneList, zoneMatches, zoneOptions, zoneScope} from './field-zone.ts'
 
 // A datetime field's options.displayTimeZone and allowTimeZoneSwitch, as Sanity's (sanity 6.17
 // DateTimeInput.tsx, useTimeZone.tsx, DialogTimeZone.tsx; @sanity/util legacyDateFormat parse).
@@ -73,4 +73,32 @@ test("the button, the zone shown and the zone list are Sanity's", () => {
   // The box's zone by name alone: the same order.
   assert.equal(fieldZoneName('Europe/Oslo', 'America/New_York', 'Asia/Tokyo'), 'Europe/Oslo')
   assert.equal(fieldZoneName(null, 'UTC', 'Asia/Tokyo'), 'Asia/Tokyo')
+})
+
+test("the calendar's day and time read on the field's clock, even in the hour this computer skips", () => {
+  const tz = process.env.TZ
+  try {
+    // An Oslo computer: 02:00-03:00 on 29 March 2026 never happens here, but 02:30 New York (06:30Z) does.
+    process.env.TZ = 'Europe/Oslo'
+    const stored = new Date('2026-03-29T06:30:00.000Z')
+    const v = calendarView(stored, 'America/New_York')
+    assert.equal(v.time, '02:30')
+    assert.deepEqual([v.day.getFullYear(), v.day.getMonth(), v.day.getDate()], [2026, 2, 29])
+    // Picking the selected day again (day + time box, as the calendar's withTime) stores the same instant.
+    const [h, m] = v.time.split(':').map(Number)
+    assert.equal(instantIn({year: v.day.getFullYear(), month: v.day.getMonth() + 1, day: v.day.getDate(), hour: h!, minute: m!}, 'America/New_York').toISOString(), stored.toISOString())
+    // A Santiago computer skips its midnight on 6 September 2026: New York's 00:30 there stays 00:30, on the 6th.
+    process.env.TZ = 'America/Santiago'
+    const s = calendarView(new Date('2026-09-06T04:30:00.000Z'), 'America/New_York')
+    assert.equal(s.time, '00:30')
+    assert.equal(s.day.getDate(), 6)
+    // No zone of its own: the computer's clock, the instant itself as the day (as before).
+    process.env.TZ = 'Asia/Tokyo'
+    const local = calendarView(new Date('2026-07-01T13:00:00.000Z'))
+    assert.equal(local.time, '22:00')
+    assert.equal(local.day.getTime(), Date.parse('2026-07-01T13:00:00.000Z'))
+  } finally {
+    if (tz === undefined) delete process.env.TZ
+    else process.env.TZ = tz
+  }
 })

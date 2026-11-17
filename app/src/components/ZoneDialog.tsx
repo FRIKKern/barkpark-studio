@@ -4,6 +4,7 @@ import {DialogBox} from './FocusScopes'
 import {ChevronDown, Close, Search} from './icons'
 import {useT} from '../lib/i18n'
 import {listedLocal, zoneList, zoneMatches} from '../lib/field-zone'
+import {zoneLongName} from '../lib/timezone'
 import '../field-zone.css'
 
 // Sanity's "Select time zone" dialog (DialogTimeZone.tsx), for the Releases tool and a datetime field
@@ -30,7 +31,8 @@ export function ZoneDialog({zone, info, at, onClose, onPick}: {zone: string; inf
     else if (e.key === 'Enter') e.preventDefault(), choose(options[active]!.name)
     else if (e.key === 'Escape') e.stopPropagation(), setQuery(null)
   }
-  const shown = query ?? (picked ? longName(picked) : chosen)
+  // A zone the list doesn't hold (UTC, the Releases zone on a computer in UTC) by its long name too.
+  const shown = query ?? (picked ? longName(picked) : zoneLongName(chosen))
   // On the page's body: a field's own box (a transformed pane) would hold a fixed backdrop inside it.
   return createPortal(
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
