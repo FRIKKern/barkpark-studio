@@ -4,6 +4,8 @@ import {DialogBox} from './FocusScopes'
 import {useQueries, useQuery} from '@tanstack/react-query'
 import {CodeChanges} from './CodeChanges'
 import {codeOptions, isCodeField} from '../lib/code-input'
+import {TableChanges} from './TableChanges'
+import {isTableField} from '../lib/table-input'
 import {asText, authorsByField, changedFields, sinceLastPublish, textDiff, type FieldChange} from '../lib/changes'
 import {revisionQuery, useTimeline, type HistoryEntry, type Revision} from '../lib/history'
 import {flatEntries, rangeOptions, reviewRange, timeline} from '../lib/timeline'
@@ -154,6 +156,8 @@ function ChangeView({change, author}: {change: FieldChange; author?: string}) {
   const by = (what: string) => (author ? t(`${what} by {author}`, {author}) : t(what))
   // A code object: its code line by line.
   if (isCodeField(change.field)) return <div style={userColorVars(author ?? 'unknown')}><CodeChanges before={change.before} after={change.after} options={codeOptions(change.field)} by={by} /></div>
+  // A table object: its grid, cell by cell.
+  if (isTableField(change.field)) return <div style={userColorVars(author ?? 'unknown')}><TableChanges before={change.before} after={change.after} title={change.field.title} by={by} /></div>
   // An image: before → after thumbnails, as Sanity's image diff.
   if (imageRefOf(change.before) || imageRefOf(change.after)) {
     const thumb = (v: unknown, what: 'Before' | 'After') =>

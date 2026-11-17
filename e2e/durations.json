@@ -158,6 +158,7 @@
   "string-arrays.spec.ts": 5,
   "svg-file-safety.spec.ts": 0,
   "sync-states.spec.ts": 0,
+  "table-input.spec.ts": 5,
   "tags-fast.spec.ts": 0,
   "tasks-unload.spec.ts": 2.7,
   "tasks.spec.ts": 4.7,
