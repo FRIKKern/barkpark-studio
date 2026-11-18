@@ -377,10 +377,9 @@ export async function bpRemove(id: string, type: string, tries = 2): Promise<voi
     // Gone already is gone: a retry after a delete that landed answers 404 (not_found).
     const res = await sendBatches([{delete: {id, type, force: true}}], (part) => bpSend(part))
     if (res && !res.ok && res.status !== 404) await ok(res)
-    for (const p of ['drafts', 'published']) {
-      const r = await bpRead(`${bpBase()}/v1/data/doc/${bpDataset()}/${type}/${encodeURIComponent(id)}?perspective=${p}`)
-      if (r.status !== 404) throw new Error(`${id} is still there after its delete (${p}: ${r.status})`)
-    }
+    // Both versions read at once: one round trip, not two.
+    const reads = await Promise.all(['drafts', 'published'].map(async (p) => [p, (await bpRead(`${bpBase()}/v1/data/doc/${bpDataset()}/${type}/${encodeURIComponent(id)}?perspective=${p}`)).status] as const))
+    for (const [p, status] of reads) if (status !== 404) throw new Error(`${id} is still there after its delete (${p}: ${status})`)
   } catch (e) {
     // Once more after a moment: a flaky delete shouldn't turn a run red.
     if (tries <= 1) throw e
