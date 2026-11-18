@@ -12,6 +12,7 @@ import {t} from './i18n'
 import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
 import {slugsTakenNow} from './slug-unique'
+import {strengthenPatch} from './ref-publish'
 import {plainReason} from './plain-reason'
 import {onto, revertSteps} from './merge'
 import {answered, rebase, same, sentNotesOf, takeBase, unsent, type Spots} from './edit-bases'
@@ -951,9 +952,12 @@ export async function publish(qc: QueryClient, doc: Doc, {slugsChecked = false} 
   // (A bulk publish asked for all its docs at once: slugsTakenAmong.)
   const taken = slugsChecked ? [] : await slugsTakenNow(qc, now, qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === doc._type))
   if (taken.length) throw new Error(`${taken.join(', ')}: ${t('Slug is already in use')}`)
-  const r = (await mutate({data: {mutations: [{publish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
-  applyServer(qc, r.results[0].document)
-  qc.setQueryData(['doc-published', id], r.results[0].document)
+  // Sanity's strengthen-on-publish, in the same transaction as the publish (lib/ref-publish.ts).
+  const strengthen = await strengthenPatch(now)
+  const r = (await mutate({data: {mutations: [...strengthen, {publish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}
+  const published = r.results.at(-1)!.document
+  applyServer(qc, published)
+  qc.setQueryData(['doc-published', id], published)
 }
 
 /** A field's clash, if one holds (the inline card), and the editor's own unsent value there. */

@@ -12,6 +12,8 @@ import {Add, ChevronDown, Close, Ellipsis, HelpCircle, LaunchIcon, SyncIcon, Tra
 import {DocPreview} from './Preview'
 import {DocIdContext} from './doc-ids'
 import {valueAtRefPath} from './PaneBanners'
+import {pickedRef} from '../lib/refs'
+import {RefStrength} from './RefStrength'
 
 // Survives collapsed parent panes. Only the latest creation for a field may set
 // its reference; picking/clearing it meanwhile cancels that pending assignment.
@@ -26,9 +28,14 @@ type Props = {
   /** Only docs matching this show up in search (Sanity's `options.filter`). */
   filter?: RefFilter
   value: string | undefined
+  /** The value as stored (a bare id, Sanity's object, an array row): a pick keeps its shape (lib/refs.ts pickedRef). */
+  stored?: unknown
+  /** Sanity's `weak: true`: a pick stores `_weak: true`. */
+  weak?: boolean
   /** Red, like Sanity, when the field has a validation error. */
   invalid?: boolean
-  onChange: (v: string | undefined) => void
+  /** The value to store: a bare id or Sanity's reference object (pickedRef), undefined when cleared. */
+  onChange: (v: unknown) => void
   linkFor: (id: string, type: string) => {href: string; selected: boolean; active: boolean}
   /** Focus the search when it mounts (a row just added, Sanity's). */
   autoFocus?: boolean
@@ -41,7 +48,7 @@ type Props = {
  * "…" menu (Clear / Replace / Open in new tab); empty or replacing, a combobox
  * that searches the referenced type. Keyboard: arrows move, Enter picks, Esc cancels.
  */
-export function RefInput({id, referencePath = id, types, filter, value: outer, invalid, onChange, linkFor, autoFocus, disableNew}: Props) {
+export function RefInput({id, referencePath = id, types, filter, value: outer, stored, weak, invalid, onChange, linkFor, autoFocus, disableNew}: Props) {
   const parentId = useContext(DocIdContext)
   const creationKey = JSON.stringify([parentId, referencePath])
   // Show a pick at once; the cache (and so `outer`) catches up a tick later.
@@ -70,27 +77,31 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
   // null: the id points at no doc (deleted, or never there).
   const {data: target} = useQuery({...docQuery(types, value ?? ''), enabled: !!value})
   const targetType = target?._type ?? types[0]
-  const change = (v: string | undefined) => {
+  const change = (v: string | undefined, store: unknown = v) => {
     creatingReferences.delete(creationKey)
     setValue(v)
     setSearching(!v)
-    onChange(v)
+    onChange(v === undefined ? undefined : store)
   }
 
   // Filled, the card carries the field's id and takes focus as Sanity's does (tabindex -1):
   // a `path=` link to the field (an incoming reference's) lands on it, not on <body>.
   if (!searching && value)
     return (
-      <div className="ref-box ref-row" id={id} tabIndex={-1} ref={previewRef} data-invalid={invalid || undefined}>
-        <div className="ref-preview">
-          {target === null ? <Unavailable id={value} /> : <DocPreview doc={target} {...linkFor(value, targetType)} />}
+      <>
+        <div className="ref-box ref-row" id={id} tabIndex={-1} ref={previewRef} data-invalid={invalid || undefined}>
+          <div className="ref-preview">
+            {target === null ? <Unavailable id={value} /> : <DocPreview doc={target} {...linkFor(value, targetType)} />}
+          </div>
+          <RefMenu
+            onClear={() => { focusSearch.current = true; change(undefined) }}
+            onReplace={() => setSearching(true)}
+            newTabHref={`/structure/${targetType};${value}`}
+          />
         </div>
-        <RefMenu
-          onClear={() => { focusSearch.current = true; change(undefined) }}
-          onReplace={() => setSearching(true)}
-          newTabHref={`/structure/${targetType};${value}`}
-        />
-      </div>
+        {/* Sanity's strip, once the target is there (an unavailable one says so instead). */}
+        {target && refId(stored) === value && <RefStrength stored={stored} weak={weak} onConvert={onChange} />}
+      </>
     )
 
   return (
@@ -102,9 +113,9 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
       current={value}
       autoFocus={autoFocus || focusSearch.current}
       invalid={invalid}
-      onPick={(picked) => {
+      onPick={(picked, doc) => {
         focusPreview.current = true
-        change(picked)
+        change(picked, pickedRef(stored, picked, {weak, published: hasPublished(doc), type: doc._type}))
       }}
       onCancel={value ? () => { focusPreview.current = true; setSearching(false) } : undefined}
       onCreate={async (q, start) => {
@@ -130,13 +141,17 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, i
           const parent = qc.getQueryData<Doc>(['doc', parentId])
           const current = valueAtRefPath(parent, referencePath)
           const removedRow = referencePath.includes('[') && current === undefined
-          if (parent && !removedRow && refId(current) === outer) onChange(newId)
+          // A new draft has no published version: weak until this document is published (Sanity's).
+          if (parent && !removedRow && refId(current) === outer) onChange(pickedRef(current, newId, {weak, published: false, type: refType, template: start.id === refType ? undefined : start.id}))
         }
       }}
     />
   )
 }
 
+
+/** Sanity's `hit.published`: a search hit that is not a draft, or a draft of a published doc. */
+export const hasPublished = (doc: Doc) => !doc._draft || doc._hasPublished === true
 
 /** Sanity's card for a reference to a doc that does not exist, with the why on hover. */
 /** Sanity's mark for a reference whose target no document holds: in a reference field and in a reference array row. */
@@ -206,7 +221,8 @@ export function RefSearch({id, types, filter, current, autoFocus, invalid, onPic
   }, [q])
   // A typed search is global search's, as Sanity's: every field and the preview's
   // references ("ada" finds Ada's posts), any word; without one, the recent docs.
-  const recent = useQuery({...searchQuery(types, '', filter), enabled: open && !query, placeholderData: keepPreviousData})
+  // Marked: a pick needs to know whether a draft has a published version (lib/refs.ts pickedRef).
+  const recent = useQuery({...searchQuery(types, '', filter, undefined, undefined, true), enabled: open && !query, placeholderData: keepPreviousData})
   const found = useQuery({...textSearchQuery(query, types.map((type) => ({type, filter: filter ?? {}})), '_score:desc', REF_SEARCH_LIMIT), enabled: open && !!query, placeholderData: keepPreviousData})
   const search = query ? found : recent
   // J18: each type's ways to start it (its templates too).

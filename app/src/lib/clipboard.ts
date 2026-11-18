@@ -1,4 +1,5 @@
 import type {Field} from './data'
+import {pastedRef} from './refs'
 import {toast} from '../components/Toasts'
 import {t} from './i18n'
 
@@ -47,6 +48,11 @@ export function transfer(item: ClipField, f: Field, current: unknown): {value: u
   const raw = f.type === 'select' ? ((Array.isArray(f.options) ? f.options : (f.options as {list?: unknown[]})?.list) ?? []) : []
   const allowed = raw.map((o) => (o && typeof o === 'object' ? (o as {value: unknown}).value : o))
   if (f.type === 'select' && value != null && !allowed.includes(value)) return {why: t('Value "{value}" is not allowed in "{list}"', {value: String(value), list: allowed.join(',')})}
+  // Sanity's: a reference takes the strength of the field it lands in (lib/refs.ts pastedRef).
+  if (f.type === 'reference') value = pastedRef(value, f.weak)
+  // A bare id made an object in a list gets a key, as every list item has one.
+  if (f.type === 'arrayOf' && f.of?.type === 'reference' && Array.isArray(value))
+    value = value.map((v) => (typeof v === 'string' && f.of!.weak ? {_key: crypto.randomUUID().replace(/-/g, '').slice(0, 12), ...(pastedRef(v, true) as object)} : pastedRef(v, f.of!.weak)))
   return {value: append ? [...(Array.isArray(current) ? current : []), ...rekeyed(value as unknown[])] : value}
 }
 

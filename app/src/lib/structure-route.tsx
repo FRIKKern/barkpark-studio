@@ -239,7 +239,7 @@ async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [D
     }
     if (allRefs)
       for (const f of schema.fields) {
-        if (f.type === 'reference') want(f, doc[f.name])
+        if (f.type === 'reference') want(f, refId(doc[f.name]))
         if (f.type === 'arrayOf' && f.of?.type === 'reference') for (const item of (doc[f.name] as unknown[]) ?? []) want(f.of, refId(item))
       }
   }
