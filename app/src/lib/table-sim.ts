@@ -391,10 +391,12 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string; kept?: 
   return {bad, soft, kept, name: `scene ${i}: ${R}x${C} ${kind} ${J(t0.rows.map((r) => r.cells))} op ${J(op)} P ${J(P)} T ${J(T)} -> ${J(got)}, meant ${J(want)}`}
 }
 
-/** Scene `i` of seed `s` as the gate plays it (the scenes before it run first): a named case. */
-export function replay(s: number, i: number) {
-  seed = s
-  for (let k = 0; k < i; k++) scene(k)
+/**
+ * Scene `i` played from the random state `state` it began with (a named case). Pinned by state,
+ * not by its place in a seed: what the code does in the scenes before it moves later ones.
+ */
+export function playAt(state: number, i: number) {
+  seed = state
   return scene(i)
 }
 
