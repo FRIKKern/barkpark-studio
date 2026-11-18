@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {caretColumn, setCell, withWrites} from './table-input.ts'
+import {keepOnShapeChange} from './table-keep.ts'
 import {sureColumn} from './table-merge.ts'
 import {Client, Server} from './table-sim.ts'
 
@@ -104,3 +105,20 @@ test('a key in a padded cell (a short row drawn to the table\'s width) stores ro
   const whole = withWrites(bare, setCell(bare, 1, 1, 'B2', () => 'k', '')) as {rows: {cells: string[]}[]}
   assert.deepEqual(whole.rows.map((r) => r.cells), [['A1', 'A2', 'A3'], ['B1', 'B2', '']])
 })
+
+// Review of #1280: theirs was drawn with a first key ('S'), typed on to 'Size', added a column at
+// the end and began a new word with the same key in the next column. That row reads as a column
+// put in left of mine; it is not, and my unsent word stays in its column or goes to the card.
+for (const [name, drawnA, nowA] of [
+  ['a first key', ['S', '', '', ''], ['Size', 'S', '', '', '']],
+  ['two keys', ['Si', '', '', ''], ['Size', 'Si', '', '', '']],
+] as const)
+  test(`a lookalike in the next column (${name}) never puts my word one cell right`, () => {
+    const table = (a: readonly string[], b: string[], rev: string) => ({_id: 'd', _rev: rev, _updatedAt: rev, t: {_type: 'table', rows: [row('a', [...a]), row('b', b)]}})
+    const path = 't.rows[_key=="b"].cells'
+    const e = {dirty: new Map<string, unknown>([[path, ['', 'Mine', '', '']]]), base: new Map<string, unknown>([[path, ['', '', '', '']]]), inflight: null, kept: undefined as {text: unknown}[] | undefined}
+    keepOnShapeChange(e, table(nowA, ['', '', '', '', ''], 'r2'), table(drawnA, ['', '', '', ''], 'r1'))
+    const placed = e.dirty.get(path) as string[] | undefined
+    if (placed) assert.equal(placed.indexOf('Mine'), 1, `placed ${JSON.stringify(placed)}`)
+    else assert.deepEqual(e.kept?.map((k) => k.text), ['Mine'])
+  })

@@ -184,7 +184,9 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
         // whole, where it was typed; the rebase keeps it for the editor (lib/table-keep.ts).
         if (!Array.isArray(now)) return withCell(drawn, column, cell)
         const cells = now
-        const at = columnNow(drawn, widthOf(rows), cells, column, cell, was, otherRows(rows, table, target._key))
+        // The other rows are read only when the row's width changed (columnNow reads them then only):
+        // a key in a long table costs no pass over every row.
+        const at = columnNow(drawn, widthOf(rows), cells, column, cell, was, cells.length === drawn.length ? [] : otherRows(rows, table, target._key))
         // A short row's padding grows it only as wide as the table is now (the grid was drawn
         // wider by a row of mine at the old width, and the table has narrowed since), and to that
         // width whole: a key in a padded cell stores rows as even as @sanity/table's. A key inside
@@ -379,7 +381,7 @@ export function pasteCells(value: unknown, row: number, column: number, block: s
           const cells = Array.isArray(now) ? now : drawn
           const wide = table === undefined ? Infinity : widthOf(rowsOf(table))
           // A cell whose column the row cannot tell (or past the table's width now): to the card, as a key (setCell).
-          const others = otherRows(stored, table, stored[row]!._key)
+          const others = cells.length === drawn.length ? [] : otherRows(stored, table, stored[row]!._key)
           return block[0]!.reduce<unknown[]>((out, c, j) => {
             const at = columnNow(drawn, widthOf(stored), cells, column + j, c, undefined, others)
             return at < 0 || (at >= out.length && at >= wide) ? (refused?.(column + j, c), out) : withCell(out, at, c)

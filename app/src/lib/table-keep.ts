@@ -87,17 +87,24 @@ export function keepOnShapeChange(e: Pending, d: unknown, before: unknown) {
     // where the whole table's columns can have gone so (theirs typed on another cell to read as mine).
     const shift = width(rows) - width(was.rows as unknown[])
     const near = (from: number, j: number) => from >= 0 && j >= Math.min(from, from + shift) && j <= Math.max(from, from + shift)
-    const pairs = (was.rows as unknown[]).flatMap((r): [unknown[], unknown[]][] => {
-      const n = rowBy(rows, (r as {_key?: string})?._key ?? '')
-      return n ? [[cellsOf(r), cellsOf(n)]] : []
+    const keyedPairs = (was.rows as unknown[]).flatMap((r): [string, unknown[], unknown[]][] => {
+      const key = (r as {_key?: string})?._key ?? ''
+      const n = rowBy(rows, key)
+      return n ? [[key, cellsOf(r), cellsOf(n)]] : []
     })
+    const pairs = keyedPairs.map(([, a, b]): [unknown[], unknown[]] => [a, b])
     const [w0, w1] = [width(was.rows as unknown[]), width(rows)]
     const fits = (from: number, j: number) => alignColumns(pairs, w0, w1, (i) => i === from)[from] === j
     // One alignment for the table, every row read at once: where every best one puts my cell's
     // column (sureColumn; empty cells read alike to text, theirs may have typed in one since),
     // and the cell there still holds what I typed on from, my text goes there. A column theirs
     // added right of mine, or a new empty column the other rows show, says where it is.
-    const sureAt = (c: Change) => (c.from >= 0 ? sureColumn(pairs, w0, w1, c.from, true) : undefined)
+    // Only rows whose drawn text all still stands, each word whole and the only cell that starts
+    // with it, say where columns went. A row theirs typed on since says nothing: the first key it
+    // was drawn with ('S') matches a new word theirs began in the next column ('S' beside 'Size')
+    // as well as the word it grew into, and that lookalike puts my text one cell right (review of #1280).
+    const stands = (a: unknown[], b: unknown[]) => a.every((x) => typeof x !== 'string' || x === '' || (b.includes(x) && b.filter((y) => typeof y === 'string' && y.startsWith(x)).length === 1))
+    const sureAt = (c: Change) => (c.from >= 0 ? sureColumn(keyedPairs.flatMap(([k, a, b]): [unknown[], unknown[]][] => (k === c.row || stands(a, b) ? [[a, b]] : [])), w0, w1, c.from, true) : undefined)
     const only = (c: Change, j: number) => near(c.from, j) && c.was.every((v, i) => i === c.from || v !== c.base || !near(i, j)) && fits(c.from, j)
     const placed = new Map<string, unknown[]>()
     for (const c of changes) {
