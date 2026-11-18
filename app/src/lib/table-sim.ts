@@ -247,7 +247,7 @@ export function leftover(cell: string, rest: string, origin: readonly string[], 
 }
 
 /** One scene: P presses a column or row change (maybe typing before and after), T types one or two words. */
-function scene(i: number): {bad: string[]; soft: string[]; name: string} {
+function scene(i: number): {bad: string[]; soft: string[]; name: string; kept?: string[]} {
   const R = 1 + int(4)
   const C = 1 + int(4)
   const kind = pick(KINDS)
@@ -388,7 +388,14 @@ function scene(i: number): {bad: string[]; soft: string[]; name: string} {
     }
   if (kept.length) soft.push('KEPT-SCENES')
   if (!bad.length && !kept.length && J(got) !== J(want)) soft.push('MISPLACED')
-  return {bad, soft, name: `scene ${i}: ${R}x${C} ${kind} ${J(t0.rows.map((r) => r.cells))} op ${J(op)} P ${J(P)} T ${J(T)} -> ${J(got)}, meant ${J(want)}`}
+  return {bad, soft, kept, name: `scene ${i}: ${R}x${C} ${kind} ${J(t0.rows.map((r) => r.cells))} op ${J(op)} P ${J(P)} T ${J(T)} -> ${J(got)}, meant ${J(want)}`}
+}
+
+/** Scene `i` of seed `s` as the gate plays it (the scenes before it run first): a named case. */
+export function replay(s: number, i: number) {
+  seed = s
+  for (let k = 0; k < i; k++) scene(k)
+  return scene(i)
 }
 
 /** `n` scenes for each seed: what broke, by class. */
@@ -410,10 +417,11 @@ export function simulate(n: number, seeds = [1, 2, 3]) {
  * The gate (table-sim*.test.ts, a seed set each so they run side by side): `seeds` x GATE_SCENES
  * scenes. No word lost, doubled or split, no key lost, no rows uneven, both agree: none of these may happen.
  * A column's place is not guessed (lib/table-keep.ts): text of mine the other's column change
- * leaves without a sure place is kept, on my card (KEPT, counted). Two ceilings per seed set
+ * leaves without a sure place is kept, on my card (KEPT, counted). Three ceilings per seed set
  * that may only fall: INSERT-LEFT-WRONG-SIDE (both words whole, in one cell: the typer clicked
- * by column in a row drawn at the old width) and LEFTOVER (above). MISPLACED and REVIVED (text
- * kept, in another cell) are counted, not failed. SIM_N: fewer scenes, ceilings then 0 or any.
+ * by column in a row drawn at the old width), LEFTOVER (above) and MISPLACED (every word whole,
+ * none kept, one in another cell than meant). REVIVED (text kept, in another cell) is counted,
+ * not failed. SIM_N: fewer scenes, ceilings then 0 or any.
  */
 /** Scenes a seed in the gate (2,000: the unit run's time; every seed set kept). */
 export const GATE_SCENES = 2000
@@ -425,4 +433,4 @@ export function simGate(seeds: number[], ceiling: Record<string, number>) {
   assert.deepEqual(broke, [], examples.join('\n'))
   return tally
 }
-const SOFT = ['MISPLACED', 'REVIVED', 'KEPT', 'KEPT-SCENES', 'TYPED']
+const SOFT = ['REVIVED', 'KEPT', 'KEPT-SCENES', 'TYPED']

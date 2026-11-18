@@ -1,13 +1,13 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {Client, Server, leftover, simGate} from './table-sim.ts'
+import {Client, Server, leftover, replay, simGate} from './table-sim.ts'
 
 // Review 7's seeds (lib/table-sim.ts simGate): 63018 (#136, a key from the old grid into the other
 // editor's saved cell: LOST and DOUBLED on a7fc7a1c) and 96019 (#208, the other editor's first key
 // left before my word).
 
 test('two editors, a column or row changed while both type (review 7 seeds): rows even, both agree, every word whole in one cell or on its typer\'s card, every key in a cell, on the card or in the input', () => {
-  simGate([63018, 96019], {'INSERT-LEFT-WRONG-SIDE': 0, LEFTOVER: 0})
+  simGate([63018, 96019], {'INSERT-LEFT-WRONG-SIDE': 0, LEFTOVER: 1, MISPLACED: 0})
 })
 
 test('a word\'s first keys left before another word, the whole word on its typer\'s card, read as LEFTOVER, not SPLIT', () => {
@@ -78,3 +78,12 @@ for (const [name, t0] of [['an empty row', [['a', 'b'], ['', '']]], ['an alike r
     const stored = server.doc.t.rows.map((r: {cells: string[]}) => r.cells).flat()
     assert.equal(stored.filter((c: string) => c.includes('WORD')).length + t.kept.filter((k) => k.text.includes('WORD')).length, 1, `stored ${JSON.stringify(stored)}, card ${JSON.stringify(t.kept)}`)
   })
+
+test('seed 96019 #273, the one LEFTOVER the gate allows here: my saved first key stands in two cells after their removal, so my word goes whole to my card and the key stays in the cell; nothing lost or split', () => {
+  // T typed 'x<' (saved) then 'T3>' in row 1, column 2 of an alike 2 x 3; P typed 'x<' in column 1 and
+  // removed column 3. Both cells read 'x<': which is T's, nothing says (main's keep makes the same call).
+  const o = replay(96019, 273)
+  assert.deepEqual(o.bad, [], o.name)
+  assert.ok(o.soft.includes('LEFTOVER'), o.name)
+  assert.deepEqual(o.kept, ['x<T3>'], o.name)
+})

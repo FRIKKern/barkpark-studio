@@ -101,10 +101,12 @@ test('price: a filled table, my word in an empty cell unsent, theirs added a col
     assert.equal(e.kept, undefined)
     assert.deepEqual(e.dirty.get('t.rows[_key=="c"].cells'), f(['', 'Ord', '']))
   }
-  // Inserted left of it (it moved), or an empty table (which column is new, nothing says): kept.
+  // Inserted left of it (it moved): the other rows say where its column went (one alignment for the
+  // table), so it goes there, not to the card. An empty table (which column is new, nothing says): kept.
   const left = mine()
   keepOnShapeChange(left, at(filled, (c) => ['', ...c]), doc(filled))
-  assert.deepEqual(left.kept?.map((k) => k.text), ['Ord'])
+  assert.equal(left.kept, undefined)
+  assert.deepEqual(left.dirty.get('t.rows[_key=="c"].cells'), ['', '', 'Ord', ''])
   const empty: [string, string[]][] = filled.map(([k]) => [k, ['', '', '']])
   const none = mine()
   keepOnShapeChange(none, at(empty, (c) => [...c, '']), doc(empty))
