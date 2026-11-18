@@ -35,6 +35,7 @@ export const refOpenType = (types: string[], doc: {_type?: unknown} | null | und
 
 // Weak references, Sanity's ReferenceInput (task-288f7978607cdc89). Barkpark counts a bare id
 // and an object without `_weak: true` as strong: it refuses to delete their target.
+// (Its delete check also stops at `{_ref, _weak: true}` in a reference field today: a Barkpark gap.)
 
 /** Sanity's `_strengthenOnPublish`: a pick of a never-published document, settled when the document holding it is published. */
 export type StrengthenOnPublish = {type: string; weak?: boolean; template?: string}

@@ -79,7 +79,7 @@ export type Field = {
   fieldsets?: {name: string; title?: string; options?: {collapsible?: boolean; collapsed?: boolean; columns?: number}}[]
   /** The fieldset (of its object) this field shows in. */
   fieldset?: string
-  /** reference: Sanity's weak reference: a pick stores `_weak: true` (lib/refs.ts), which Barkpark lets be deleted under it. */
+  /** reference: Sanity's weak reference: a pick stores `{_ref, _weak: true}` (lib/refs.ts pickedRef). */
   weak?: boolean
   /** Sanity's deprecated: {reason}: a badge and the reason by the field; as a member or block type, disabled in insert menus (lib/deprecated.ts). */
   deprecated?: {reason: string}
