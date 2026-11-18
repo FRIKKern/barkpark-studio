@@ -29,7 +29,8 @@ import {toast} from './Toasts'
 import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
 import {insertItemProps, ptDeprecated} from '../lib/deprecated'
-import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {OneLine} from '../lib/pt-one-line'
+import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
@@ -299,6 +300,7 @@ function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef,
       data-readonly={locked || undefined}
       data-ready={ready || undefined}
       data-expanded={expanded || undefined}
+      data-one-line={isOneLine(field) || undefined}
       style={expanded ? area : undefined}
       // Cmd/Ctrl+Enter toggles, as Sanity's; Escape in the text collapses. Not from a dialog
       // (its keys come through React's tree too) and not over an open menu.
@@ -310,6 +312,7 @@ function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef,
       }}
     >
       <EditorProvider initialConfig={{schemaDefinition: schema, initialValue: stored as PortableTextBlock[], readOnly: locked}}>
+        <OneLine field={field} />
         <NodePlugin nodes={nodes} />
         {tables && <PtTablePlugin />}
         {!locked && <SanityPlugins field={field} stored={stored} />}
