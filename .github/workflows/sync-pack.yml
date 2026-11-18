@@ -44,7 +44,8 @@ jobs:
         run: |
           if node scripts/pack-compare.mjs --against .barkpark; then echo same=true >> "$GITHUB_OUTPUT"; else echo same=false >> "$GITHUB_OUTPUT"; fi
       # The renderer runs on the new pack (conformance), so the app's dependencies come first.
-      - if: steps.fresh.outputs.same == 'false'
+      - name: Install the app
+        if: steps.fresh.outputs.same == 'false'
         run: pnpm --dir app install --frozen-lockfile
       - name: Close, or open or update the sync PR, and land it when green
         run: |
