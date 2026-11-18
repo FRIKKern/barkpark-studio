@@ -20,10 +20,8 @@ test('the field clipboard is the system clipboard, in Sanity\'s format', async (
   const t = target(info)
   test.skip(t.name === 'sanity', "ours (Sanity's is the format)")
   await t.prepare(context)
-  // The other tab (it pastes, below) loads beside this one: Paste field reads the system
-  // clipboard when it is pressed (lib/clipboard.ts read), so a tab open before the copy pastes it too.
-  const other = await context.newPage()
-  await Promise.all([page.goto(t.docPath('post', ID)).then(() => t.settle(page)), other.goto(t.docPath('post', ID)).then(() => t.settle(other))])
+  await page.goto(t.docPath('post', ID))
+  await t.settle(page)
 
   // Copy: Sanity's item (schema type, path, value), base64 in text/html, the words as text.
   await fieldMenu(page, 'excerpt', 'Copy field')
@@ -37,6 +35,9 @@ test('the field clipboard is the system clipboard, in Sanity\'s format', async (
   expect(written.text).toBe('Short excerpt for post 22.')
 
   // Another tab pastes it.
+  const other = await context.newPage()
+  await other.goto(t.docPath('post', ID))
+  await t.settle(other)
   await fieldMenu(other, 'title', 'Paste field')
   await expect(t.field(other, 'title')).toHaveValue('Short excerpt for post 22.')
   await expect.poll(() => t.docValue(ID, 'title')).toBe('Short excerpt for post 22.')

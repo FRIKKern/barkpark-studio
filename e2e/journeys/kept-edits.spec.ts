@@ -2,6 +2,7 @@ import {expect, test, type BrowserContext, type Page} from '../rig/test'
 import {readFileSync} from 'node:fs'
 import type {Route} from '../rig/test'
 import {bpMutate, signInIfAsked, target, type Target, closeAndSettle, savesLanded} from '../rig/targets'
+import {stored} from '../rig/kept'
 
 // B11 widen (task-89fecb4915b2f30d): form edits Barkpark never acknowledged survive the
 // tab dying. Saves are cut off (every mutate fails as a network error; a crash sends no
@@ -35,28 +36,6 @@ async function typeThenCrash(context: BrowserContext, t: Target, text: string) {
   await stored(page, ID, 'excerpt', await t.field(page, 'excerpt').inputValue())
   await page.close({runBeforeUnload: false})
 }
-
-// This browser's store keeps `value` for `field` of `id` (app/src/lib/pending-edits.ts), written
-// KEEP_GAP_MS (150 ms) after the last change (lib/edits.ts keepUnsaved). Opened as the app opens it.
-const stored = (page: Page, id: string, field: string, value: string) =>
-  expect.poll(() => page.evaluate(([id, field, value]) => new Promise<boolean>((done) => {
-    const req = indexedDB.open('bp-pending-edits', 1)
-    req.onupgradeneeded = () => req.result.createObjectStore('docs')
-    req.onerror = () => done(false)
-    req.onsuccess = () => {
-      const db = req.result
-      const end = (found: boolean) => (db.close(), done(found))
-      const cursor = db.transaction('docs').objectStore('docs').openCursor()
-      cursor.onerror = () => end(false)
-      cursor.onsuccess = () => {
-        const c = cursor.result
-        if (!c) return end(false)
-        const p = c.value as {fields?: [string, unknown][]}
-        if (String(c.key).includes(`|${id}|`) && p.fields?.some(([f, v]) => f === field && v === value)) return end(true)
-        c.continue()
-      }
-    }
-  }), [id, field, value] as const), {intervals: [50], message: 'kept in the browser store'}).toBe(true)
 
 async function reopen(context: BrowserContext, t: Target): Promise<Page> {
   const page = await context.newPage()
