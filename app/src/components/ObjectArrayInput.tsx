@@ -21,6 +21,7 @@ import {memberChoices, memberFor, memberName, memberPreview, membersOf, newMembe
 import {ArrayTree, isNested, JumpContext, live, newJump, TreeRootContext, useSidebar, useTreeNodes, type Jump, type TreeRoot} from './ArrayTree'
 import type {Titles} from '../lib/array-tree'
 import {actions, modalOf, type Modal} from '../lib/array-options'
+import {MAX_REACHED, maxItems, room} from '../lib/array-max'
 import {dialogWidth, ItemPopover} from './ItemPopover'
 
 // Arrays of objects (J33), after Sanity's: each item a row with a preview (the
@@ -166,7 +167,8 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
     for (let i = 0; i < Math.min(UPLOAD_LANES, queued.length); i++) void lane()
   }
   const dropTarget =
-    !multi && of.type === 'image' && !readOnly && actions(field.options).add
+    // At the max no drop target (Add item is off too); below it, a drop takes only the files that fit.
+    !multi && of.type === 'image' && !readOnly && actions(field.options).add && room(field, items) > 0
       ? {
           onDragEnter: (e: DragEvent<HTMLElement>) => carriesFiles(e) && (e.preventDefault(), setOver(true)),
           onDragOver: (e: DragEvent<HTMLElement>) => carriesFiles(e) && e.preventDefault(),
@@ -176,7 +178,9 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
             e.preventDefault()
             setOver(false)
             const files = imageFiles(e.dataTransfer.files)
-            if (files.length) dropImages(files)
+            const fit = files.slice(0, room(field, latest.current))
+            if (fit.length < files.length) toast({tone: 'caution', title: t(MAX_REACHED)})
+            if (fit.length) dropImages(fit)
           },
         }
       : {}
@@ -207,6 +211,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         }
         types={choices}
         options={field.options}
+        max={maxItems(field.validation)}
         duplicate={(it) => ({...it, _key: newKey()})}
         onAdded={(i, next) => open(next[i]!._key ?? null)}
         onDuplicated={(i, next) => open(next[i]!._key ?? null)}

@@ -5,6 +5,7 @@ import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
 import {objectKinds} from '../lib/object-block'
 import {actions} from '../lib/array-options'
+import {canAdd, MAX_REACHED, maxItems, pasteRefused} from '../lib/array-max'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
 import {isHidden, isReadOnly} from '../lib/conditions'
@@ -412,10 +413,13 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
     if (!item || isEmpty(item.value)) return toast({title: tBrowser('Nothing to paste')})
     const pasted = transfer(item, field, value)
     if ('why' in pasted) return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: pasted.why})
+    // An array at its max takes no paste; nor does one a paste would push past it (lib/array-max.ts).
+    if (Array.isArray(value) && (full || pasteRefused(field, value, pasted.value))) return toast({tone: 'caution', title: tBrowser(MAX_REACHED)})
     onChange(pasted.value)
   }
   // An array's disableActions (Sanity's): 'copy' takes Copy field, 'add' Paste field, from the menu and the keys alike.
   const allow = actions(field.options)
+  const full = field.type === 'arrayOf' && !canAdd(field, value).ok ? t(MAX_REACHED) : undefined
   const latest = useRef({doCopy, doPaste, readOnly, allow})
   latest.current = {doCopy, doPaste, readOnly, allow}
   const wrap = useRef<HTMLDivElement | null>(null)
@@ -468,7 +472,10 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
             role="menuitem"
             className="menu-item"
             disabled={readOnly}
+            aria-disabled={full ? true : undefined}
+            data-tip={full}
             onClick={() => {
+              if (full) return
               close()
               doPaste()
             }}
@@ -601,7 +608,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         return (field.options as {layout?: string} | undefined)?.layout === 'tags' ? (
           <TagsInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
         ) : (
-          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} options={field.options} />
+          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} options={field.options} max={maxItems(field.validation)} />
         )
       if (field.of?.type === 'composite' || field.of?.type === 'image') return <ObjectArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       return (
