@@ -458,7 +458,7 @@
           "description": "The fieldset (of its composite) it shows in."
         },
         "weak": {
-          "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
+          "description": "reference: Sanity's weak reference: a pick stores {_ref, _weak: true}, as Sanity's."
         },
         "deprecated": {
           "description": "Sanity's deprecated, {reason}: a \"deprecated\" badge by the title and the reason under it; the field stays editable. On a richText blocks.of / blocks.inline entry: shown disabled in Insert, the reason its tooltip. An array member keeps it (Sanity's array menu offers it as usual).",
@@ -655,7 +655,7 @@
           "description": "The fieldset (of its composite) it shows in."
         },
         "weak": {
-          "description": "reference: Sanity's weak reference; kept, not enforced by Barkpark."
+          "description": "reference: Sanity's weak reference: a pick stores {_ref, _weak: true}, as Sanity's."
         },
         "deprecated": {
           "description": "Sanity's deprecated, {reason}: a \"deprecated\" badge by the title and the reason under it; the field stays editable. On a richText blocks.of / blocks.inline entry: shown disabled in Insert, the reason its tooltip. An array member keeps it (Sanity's array menu offers it as usual).",

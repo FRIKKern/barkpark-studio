@@ -7,6 +7,7 @@ import {copyItem, signature} from '../lib/clipboard'
 import {ProblemMark, ProblemsContext, type OpenRef} from './Fields'
 import {DocPreview} from './Preview'
 import {RefInput, Unavailable} from './RefInput'
+import {RefStrength} from './RefStrength'
 import {SortableRows} from './SortableRows'
 import {LaunchIcon, SyncIcon} from './icons'
 import {useT} from '../lib/i18n'
@@ -15,7 +16,7 @@ import {useT} from '../lib/i18n'
 // each a preview that opens the doc in the next pane; the row's "…" menu adds
 // Replace; "Add item" adds a row with the reference search open.
 
-type Item = {_key?: string; _type?: string; _ref?: string}
+type Item = {_key?: string; _type?: string; _ref?: string; _weak?: boolean}
 const newKey = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 
 export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; openRef: OpenRef}) {
@@ -23,7 +24,10 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
   // Old data may hold bare ids: give them the keyed shape on the next write.
   const items = (Array.isArray(value) ? value : []).map((v) => (typeof v === 'string' ? {_key: newKey(), _type: 'reference', _ref: v} : (v as Item)))
   const types = refTypesOf(field.of)
+  // Sanity's `of: [{type: 'reference', weak: true}]`: each pick stores `_weak: true`.
+  const weak = field.of?.weak
   const set = (next: Item[]) => onChange(next)
+  const setRow = (i: number, v: unknown) => set(items.map((x, j) => (j === i ? (typeof v === 'string' ? {...x, _type: 'reference', _ref: v} : (v as Item)) : x)))
   // The row just added (or set to Replace): its search takes focus as it mounts, so
   // typing searches at once (Sanity's). Once only.
   const focusKey = useRef<string | undefined>(undefined)
@@ -59,6 +63,8 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
         return ref ? (
           <div className="ref-row-preview">
             <RefRow types={types} id={ref} link={(type) => link(ref, type)} />
+            {/* Sanity's strip on the row; a read-only array's button is disabled (nothing written by looking). */}
+            <RefRowStrength types={types} id={ref} stored={it} weak={weak} readOnly={readOnly} onConvert={(v) => setRow(i, v)} />
           </div>
         ) : (
           <div className="ref-row-search">
@@ -73,7 +79,9 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
               types={types}
               filter={refFilterOf(field.of?.options)}
               value={undefined}
-              onChange={(v) => v && set(items.map((x, j) => (j === i ? {...x, _type: 'reference', _ref: v} : x)))}
+              stored={it}
+              weak={weak}
+              onChange={(v) => v && setRow(i, v)}
               linkFor={(target, type) => link(target, type)}
               autoFocus={it._key !== undefined && it._key === focusKey.current}
             />
@@ -90,6 +98,13 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
  * contributor (task-e0d7229807a2baf7). A target no document holds reads null and shows
  * Sanity's unavailable mark, as RefInput does; it showed "…" forever (task-d7b1d4fefe18fce6).
  */
+/** The strip once the row's target is read and there (an unavailable one says so instead). */
+function RefRowStrength({types, id, stored, weak, readOnly, onConvert}: {types: string[]; id: string; stored: unknown; weak?: boolean; readOnly?: boolean; onConvert: (v: unknown) => void}) {
+  const {data} = useQuery({...docQuery(types, id), enabled: types.length > 0})
+  if (refTarget(data) !== 'found') return null
+  return readOnly ? <fieldset className="readonly-wrap" disabled><RefStrength stored={stored} weak={weak} onConvert={onConvert} /></fieldset> : <RefStrength stored={stored} weak={weak} onConvert={onConvert} />
+}
+
 function RefRow({types, id, link}: {types: string[]; id: string; link: (type: string) => {href: string; selected: boolean; active: boolean}}) {
   const {data} = useQuery({...docQuery(types, id), enabled: types.length > 0})
   if (refTarget(data) === 'missing') return <Unavailable id={id} />
