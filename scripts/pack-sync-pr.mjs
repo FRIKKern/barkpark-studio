@@ -106,7 +106,7 @@ let refused
 try {
   if (existsSync(join(root, 'app/node_modules'))) symlinkSync(join(root, 'app/node_modules'), join(work, 'app/node_modules'))
   const w = (...args) => execFileSync('git', args, {cwd: work, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']}).trim()
-  if (number && spawnSync('git', ['merge', '-q', '--no-edit', main], {cwd: work, stdio: 'inherit'}).status !== 0) {
+  if (number && spawnSync('git', ['merge', '-q', '-m', `Merge ${BASE} into ${BRANCH}`, main], {cwd: work, stdio: 'inherit'}).status !== 0) {
     spawnSync('git', ['merge', '--abort'], {cwd: work})
     refused = `#${number}: ${BRANCH} does not merge with ${BASE}; close the PR and the next run opens a fresh one`
   }
