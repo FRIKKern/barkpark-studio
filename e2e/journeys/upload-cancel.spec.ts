@@ -13,7 +13,7 @@ const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
 // app/src/server/upload-relays.ts); undefined with the hooks off.
 const relays = async (page: Page) => {
   const r = await page.request.get('/api/e2e-listen')
-  return r.ok() ? ((await r.json()) as {uploads?: {relaying: number; ended: number}}).uploads : undefined
+  return r.ok() ? ((await r.json()) as {uploads?: {relaying: number; ended: number; sending: number}}).uploads : undefined
 }
 const named = async (name: string) =>
   ((await (await fetch(`${base()}/v1/media/${process.env.BARKPARK_DATASET}?limit=50`, {headers: auth()})).json()) as {result: {assets: {id: string; originalName?: string}[]}}).result.assets.filter((a) => a.originalName === name)
@@ -40,14 +40,15 @@ test('J54: a cancelled upload leaves no asset on Barkpark', async ({page}, info)
   await expect(card).toBeHidden()
   try {
     // The server's part over: this upload's handler has ended, whatever it did (cut the send
-    // off, or awaited Barkpark's answer and deleted what it made). Then long enough for Barkpark
-    // to have made an asset from a send that had gone on regardless (it answers in 0.6-1.4 s).
+    // off, or awaited Barkpark's answer and deleted what it made), and no send to Barkpark is
+    // still open (one that went on regardless is waited out to its answer). Then long enough
+    // for Barkpark to have made an asset from what it got (it answers in 0.6-1.4 s).
     // Without the hooks: 4 s from the cancel, as before.
     if (before) {
       await expect.poll(async () => {
         const now = await relays(page)
-        return !!now && now.ended > before.ended && now.relaying === 0
-      }, {message: 'the upload has ended on the studio server', timeout: 15_000}).toBe(true)
+        return !!now && now.ended > before.ended && now.relaying === 0 && now.sending === 0
+      }, {message: 'the upload has ended on the studio server and on its way to Barkpark', timeout: 15_000}).toBe(true)
       await page.waitForTimeout(1500)
     } else await page.waitForTimeout(4000)
     expect(await named(name), 'no asset left on Barkpark').toEqual([])
