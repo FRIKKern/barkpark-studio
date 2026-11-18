@@ -16,7 +16,7 @@
 import {execFileSync, spawnSync} from 'node:child_process'
 import {appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
-import {join} from 'node:path'
+import {join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {parseArgs} from 'node:util'
 import {PACK_DIR, compare, ghWrite, landing, sourceDir} from './lib/pack.mjs'
@@ -30,7 +30,9 @@ if (positionals.length !== 1 || !values.out) {
   process.exit(2)
 }
 const root = fileURLToPath(new URL('..', import.meta.url))
-const src = sourceDir(positionals[0])
+// Absolute: pack-sync runs in a scratch worktree.
+const checkout = resolve(positionals[0])
+const src = sourceDir(checkout)
 const out = values.out
 mkdirSync(out, {recursive: true})
 const git = (...args) => execFileSync('git', args, {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']}).trim()
@@ -108,7 +110,7 @@ try {
     spawnSync('git', ['merge', '--abort'], {cwd: work})
     refused = `#${number}: ${BRANCH} does not merge with ${BASE}; close the PR and the next run opens a fresh one`
   }
-  const sync = refused ? {status: 1} : spawnSync(process.execPath, ['scripts/pack-sync.mjs', positionals[0], '--pr-body', join(out, 'body.md'), ...(values.commit ? ['--commit', values.commit] : [])], {cwd: work, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']})
+  const sync = refused ? {status: 1} : spawnSync(process.execPath, ['scripts/pack-sync.mjs', checkout, '--pr-body', join(out, 'body.md'), ...(values.commit ? ['--commit', values.commit] : [])], {cwd: work, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']})
   if (sync.status === 0) {
     title = sync.stdout.trim().split('\n').at(-1)
     w('add', '-A', '--', PACK_DIR, 'conformance/barkpark-studio.json')
