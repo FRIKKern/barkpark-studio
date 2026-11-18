@@ -21,9 +21,9 @@ test.afterEach(async ({page}, info) => {
 test('body words typed offline are saved once back, with a field typed meanwhile', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the Freeform canvas body')
-  const body = await t.docValue(ID, 'body')
+  // The body as it was, read while the page loads (a read: the page writes nothing yet).
+  const [body] = await Promise.all([t.docValue(ID, 'body'), page.goto(t.docPath('post', ID))])
   try {
-    await page.goto(t.docPath('post', ID))
     await t.settle(page)
     await page.locator('.body-canvas').first().click()
     const para = page.locator('.body-canvas .ProseMirror p').first()
@@ -53,7 +53,6 @@ test('body words typed offline are saved once back, with a field typed meanwhile
 test('a body batch answered 404 by a publish race goes again', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the Freeform canvas body')
-  const body = await t.docValue(ID, 'body')
   let raced = false
   await page.route('**/_serverFn/**', (route) => {
     if (raced || route.request().method() !== 'POST' || !(route.request().postData() ?? '').includes('ifRev')) return route.continue()
@@ -62,8 +61,9 @@ test('a body batch answered 404 by a publish race goes again', async ({page}, in
     const result = {t: 10, i: 1, p: {k: ['ok', 'status', 'code', 'message', 'rev', 'throttled'], v: [{t: 2, s: 3}, {t: 0, s: 404}, v('not_found'), v('document not found'), v('stale'), {t: 2, s: 3}]}, o: 0}
     return route.fulfill({status: 200, headers: {'content-type': 'application/json', 'x-tss-serialized': 'true'}, body: JSON.stringify({t: 10, i: 0, p: {k: ['result', 'error', 'context'], v: [result, {t: 2, s: 1}, {t: 11, i: 2, p: {k: [], v: []}, o: 0}]}, o: 0})})
   })
+  // The body as it was, read while the page loads (a read: the page writes nothing yet).
+  const [body] = await Promise.all([t.docValue(ID, 'body'), page.goto(t.docPath('post', ID))])
   try {
-    await page.goto(t.docPath('post', ID))
     await t.settle(page)
     await page.locator('.body-canvas').first().click()
     const para = page.locator('.body-canvas .ProseMirror p').first()

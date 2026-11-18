@@ -37,8 +37,8 @@ const docMenu = (t: Target, page: Page) =>
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
   const t = target(info)
-  await t.resetDoc(FROM, 'post')
-  await t.resetDoc(TO, 'post')
+  // Each a different doc: both at once.
+  await Promise.all([t.resetDoc(FROM, 'post'), t.resetDoc(TO, 'post')])
 })
 
 test('@evidence J29: copy and paste a field and a document', async ({page}, info) => {

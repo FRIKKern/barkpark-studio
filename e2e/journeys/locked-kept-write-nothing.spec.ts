@@ -1,19 +1,13 @@
 import {expect, test, type BrowserContext, type Page} from '../rig/test'
 import {bpBase, bpDataset, bpMutate, closeAndSettle, target, type Target} from '../rig/targets'
 
-// Kept words and kept edits wait while a view is locked (app/src/lib/doc-lock.ts). Before
-// (b47b386f, task-9acf2e5f41f8b82d, task-a1c12e23b1ba49e5):
-// - field edits kept from a closed tab replayed, with no click, into a scheduled draft and
-//   into the draft from a revision URL;
-// - a scheduled note's read-only canvas offered "Put the words back" and "Edited by … Undo",
-//   and both wrote the locked draft.
-// Kept edits are offered again once the doc is editable. Drafts are compared by content, read
-// from Barkpark under the doc's own type.
-const stamp = Date.now().toString(36)
-const DOC = `fieldTypes-kept-${stamp}`
-const NOTE = `note-kept-${stamp}`
+// Kept edits wait while a view is locked (app/src/lib/doc-lock.ts). Before (b47b386f,
+// task-9acf2e5f41f8b82d, task-a1c12e23b1ba49e5) field edits kept from a closed tab replayed,
+// with no click, into a scheduled draft and into the draft from a revision URL. Kept edits are
+// offered again once the doc is editable. Drafts are compared by content, read from Barkpark
+// under the doc's own type. A scheduled note's kept words: locked-kept-note.spec.
+const DOC = `fieldTypes-kept-${Date.now().toString(36)}`
 const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
-const para = (id: string, value: string) => ({id, type: 'paragraph', content: [{type: 'text', value}]})
 let schedule: string | undefined
 
 async function held(type: string, id: string) {
@@ -30,6 +24,28 @@ async function scheduleIt(type: string, id: string) {
   test.skip(r.status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   schedule = ((await r.json()) as {schedule?: {id: string}}).schedule?.id
 }
+// This browser's store keeps `value` for `field` of `id` (app/src/lib/pending-edits.ts), written
+// KEEP_GAP_MS (150 ms) after the last change (lib/edits.ts keepUnsaved). Opened as the app opens it.
+const stored = (page: Page, id: string, field: string, value: string) =>
+  expect.poll(() => page.evaluate(([id, field, value]) => new Promise<boolean>((done) => {
+    const req = indexedDB.open('bp-pending-edits', 1)
+    req.onupgradeneeded = () => req.result.createObjectStore('docs')
+    req.onerror = () => done(false)
+    req.onsuccess = () => {
+      const db = req.result
+      const end = (found: boolean) => (db.close(), done(found))
+      const cursor = db.transaction('docs').objectStore('docs').openCursor()
+      cursor.onerror = () => end(false)
+      cursor.onsuccess = () => {
+        const c = cursor.result
+        if (!c) return end(false)
+        const p = c.value as {fields?: [string, unknown][]}
+        if (String(c.key).includes(`|${id}|`) && p.fields?.some(([f, v]) => f === field && v === value)) return end(true)
+        c.continue()
+      }
+    }
+  }), [id, field, value] as const), {intervals: [50], message: 'kept in the browser store'}).toBe(true)
+
 // A title typed while saves fail, then the tab dies (kept-edits.spec's crash).
 async function keptTitle(context: BrowserContext, t: Target) {
   const seed = [{create: {_id: DOC, _type: 'fieldTypes', title: 'Kept'}}, {publish: {id: DOC, type: 'fieldTypes'}}, {patch: {id: DOC, type: 'fieldTypes', set: {title: 'Kept draft'}}}]
@@ -43,7 +59,7 @@ async function keptTitle(context: BrowserContext, t: Target) {
   await page.keyboard.press('End')
   await page.keyboard.type(' kept')
   await expect(page.locator('.doc-footer').first()).toContainText(/Not saved|Offline|not saving/i)
-  await page.waitForTimeout(500) // the browser store is written a moment after the last keystroke
+  await stored(page, DOC, 'title', await t.field(page, 'title').inputValue())
   await page.close({runBeforeUnload: false})
 }
 
@@ -53,7 +69,7 @@ test.afterEach(async ({page, context}, info) => {
   for (const p of context.pages()) await p.close()
   if (schedule) await fetch(`${bpBase()}/v1/data/schedules/${bpDataset()}/${encodeURIComponent(schedule)}`, {method: 'DELETE', headers: auth()})
   schedule = undefined
-  await Promise.all([target(info).deleteDoc(DOC, 'fieldTypes'), target(info).deleteDoc(NOTE, 'note')])
+  await target(info).deleteDoc(DOC, 'fieldTypes')
 })
 
 test('kept field edits wait in a scheduled draft; Pause to edit puts them in', async ({page, context}, info) => {
@@ -79,41 +95,4 @@ test('kept field edits wait at a revision URL', async ({page, context}, info) =>
   await page.goto(`${t.docPath('fieldTypes', DOC)},rev=${rev}`)
   await t.settle(page)
   expect.soft(await unchanged(page, 'fieldTypes', DOC, before), 'the kept edit was replayed from a revision URL').toBe(before)
-})
-
-test('a scheduled note offers no Put the words back; Pause to edit offers it', async ({page, context}, info) => {
-  const t = target(info)
-  await Promise.all([t.draftOnly(NOTE, 'note', {title: 'Kept note', label: 'L', body: {blocks: [para('n1', 'Note words here.')]}}), t.prepare(context)])
-  const first = await context.newPage()
-  await first.goto(t.docPath('note', NOTE))
-  await t.settle(first)
-  await first.route('**/_serverFn/**', (route) => ((route.request().postData() ?? '').includes('"ifRev"') ? route.abort('internetdisconnected') : route.continue()))
-  await first.locator('bp-paper-canvas').getByText(/Note words here/).click()
-  await first.keyboard.press('End')
-  await first.keyboard.type(' kept')
-  await expect(first.locator('.pd-status')).toContainText('Your edits are kept here.')
-  await first.close()
-  await scheduleIt('note', NOTE)
-  await page.goto(t.docPath('note', NOTE))
-  await t.settle(page)
-  await expect(page.locator('.pd-editor bp-paper-canvas').first()).toHaveAttribute('editable', 'false')
-  await page.waitForTimeout(700) // an offer is drawn once the canvas has read the kept words
-  expect.soft(await page.locator('[data-kept-words]').count(), 'Put the words back is offered on the read-only canvas').toBe(0)
-  await page.locator('.pane-banner[data-tone=scheduled]').getByRole('button', {name: 'Pause to edit'}).click()
-  await expect(page.locator('[data-kept-words]')).toContainText('Words were not saved:')
-})
-
-test("a scheduled note offers no Undo of another writer's edit", async ({page, context}, info) => {
-  const t = target(info)
-  await Promise.all([t.draftOnly(NOTE, 'note', {title: 'Kept note', label: 'L', body: {blocks: [para('n1', 'Note words here.')]}}), t.prepare(context)])
-  await scheduleIt('note', NOTE)
-  await page.goto(t.docPath('note', NOTE))
-  await t.settle(page)
-  const canvas = page.locator('.pd-editor bp-paper-canvas').first()
-  await expect(canvas.getByText(/Note words here/)).toBeVisible()
-  const blocks = [{fieldName: 'title', id: 'synth-f-title-0', type: 'field-string', value: 'Kept note'}, {fieldName: 'label', id: 'synth-f-label-1', type: 'field-string', value: 'L'}, para('n1', 'Changed by another writer.')]
-  await bpMutate([{patch: {id: NOTE, type: 'note', set: {blocks, body: {blocks: [para('n1', 'Changed by another writer.')]}}}}])
-  await expect(canvas.getByText(/Changed by another writer/)).toBeVisible()
-  await page.waitForTimeout(700) // the row is drawn once the canvas has looked up who wrote it
-  expect.soft(await page.locator('[data-other-edit]').count(), "Undo of another writer's edit is offered on the read-only canvas").toBe(0)
 })

@@ -9,8 +9,8 @@ test('live: a reorder by one editor survives the other typing in an item', async
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's result is the scout's (it splits the typing)")
   const id = `post-list-${Date.now().toString(36)}`
-  await t.draftOnly(id, 'post', {title: 'List probe', slug: {_type: 'slug', current: id}, highlights: ['one', 'two', 'three']})
-  const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])
+  // The probe is made while the browsers get ready.
+  const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext(), t.draftOnly(id, 'post', {title: 'List probe', slug: {_type: 'slug', current: id}, highlights: ['one', 'two', 'three']})])
   await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
   const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
   // Flight recorder (task-03691f23ebb60c5c: CI once lost a typed "-", "two-byA", and the run
@@ -31,12 +31,15 @@ test('live: a reorder by one editor survives the other typing in an item', async
   await cdp.send('Network.enable')
   cdp.on('Network.eventSourceMessageReceived', (e) => e.eventName === 'mutation' && e.data.includes(id) && note(`A frame ${e.data.match(/"highlights":(\[[^\]]*\])/)?.[1] ?? '(no list)'}`))
   try {
-    for (const p of [a, b]) {
-      await p.goto(t.docPath('post', id))
-      await signInIfAsked(p)
-      await t.settle(p)
-      await p.getByRole('tab', {name: 'Meta'}).click()
-    }
+    // Both browsers load at once (two contexts, nothing shared).
+    await Promise.all(
+      [a, b].map(async (p) => {
+        await p.goto(t.docPath('post', id))
+        await signInIfAsked(p)
+        await t.settle(p)
+        await p.getByRole('tab', {name: 'Meta'}).click()
+      }),
+    )
     const item = (p: typeof a, n: number) => p.locator(`[id="highlights[${n}]"]`)
     await expect(item(b, 1)).toHaveValue('two')
     await item(a, 1).click()

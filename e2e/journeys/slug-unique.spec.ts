@@ -1,4 +1,4 @@
-import {expect, test} from '../rig/test'
+import {expect, test, type Page} from '../rig/test'
 import {bpMutate, signInIfAsked, target, bpRemove, closeAndSettle} from '../rig/targets'
 
 // J28 guard (a CI gate), as Sanity's slug rule: a duplicate's copied slug is "already in
@@ -42,12 +42,15 @@ test("a slug is in use whether it is stored as a string or as Sanity's {current}
   ])
   try {
     await t.prepare(page.context())
-    const taken = page.locator('.field:has([id="slug"])').getByRole('img', {name: /Slug is already in use/})
-    for (const id of [str, obj]) {
-      await page.goto(t.docPath('post', id))
-      await signInIfAsked(page)
-      await expect(taken, id).toHaveCount(1)
+    const taken = async (p: Page, id: string) => {
+      await p.goto(t.docPath('post', id))
+      await signInIfAsked(p)
+      await expect(p.locator('.field:has([id="slug"])').getByRole('img', {name: /Slug is already in use/}), id).toHaveCount(1)
     }
+    // Both posts at once, the second in its own tab (they only look).
+    const other = await page.context().newPage()
+    await Promise.all([taken(page, str), taken(other, obj)])
+    await closeAndSettle(other)
   } finally {
     await closeAndSettle(page)
     await Promise.all([bpRemove(obj, 'post'), bpRemove(str, 'post')])

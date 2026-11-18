@@ -1,5 +1,5 @@
 import {expect, test} from '../rig/test'
-import {bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
+import {bpBase, bpDataset, bpMutate, signInIfAsked, target} from '../rig/targets'
 
 // J40, Sanity's Schedule publish: a draft is scheduled from the document menu
 // ("Schedule draft for publishing", a future time), the header and a banner say so, the
@@ -13,7 +13,8 @@ test('J40: schedule a draft for publishing; it is locked until Pause to edit; Pu
   const route = await fetch(`${bpBase()}/v1/data/schedules/${bpDataset()}`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
   test.skip(route.status === 404, 'this Barkpark has no scheduled publishes yet (#22775)')
   const id = `post-schedule-${Date.now().toString(36)}`
-  await t.draftOnly(id, 'post', {title: 'Schedule probe', slug: {_type: 'slug', current: id}})
+  // A draft only, created outright: the id is new, so no leftover to delete first (t.draftOnly's).
+  await bpMutate([{create: {_id: id, _type: 'post', title: 'Schedule probe', slug: {_type: 'slug', current: id}}}])
   try {
     await t.prepare(context)
     await page.goto(t.docPath('post', id))

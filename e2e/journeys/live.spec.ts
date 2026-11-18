@@ -1,4 +1,4 @@
-import {expect, test} from '../rig/test'
+import {expect, test, type Page} from '../rig/test'
 import {bpMutate, target} from '../rig/targets'
 
 // Live stream survives a network blip (task-c1b6d7ed2e05b73a, F8): offline while
@@ -9,15 +9,35 @@ const OFFLINE_MS = Number(process.env.LIVE_OFFLINE_MS || 2000)
 const ID = 'post-10'
 const TITLE = 'Fixture post 10'
 
+/**
+ * The stream open, its server listening to `id`: the tab's one stream opened with it (its GET
+ * answers once the hub has it, app/src/routes/api/stream.ts) or a POST added it to the open one.
+ */
+const listening = (page: Page, id: string) => {
+  const open = page.waitForResponse((r) => {
+    if (!new URL(r.url()).pathname.endsWith('/api/stream')) return false
+    const req = r.request()
+    if (req.method() === 'GET') return (new URL(r.url()).searchParams.get('ids') ?? '').split(',').includes(id)
+    try {
+      return r.ok() && ((JSON.parse(req.postData() ?? '{}') as {ids?: string[]}).ids ?? []).includes(id)
+    } catch {
+      return false
+    }
+  })
+  open.catch(() => {}) // awaited by the test; one that fails first leaves it to its page's close
+  return open
+}
+
 test('live: offline, then every missed frame in order, no duplicates', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'our listen proxy; the Sanity side of F8 is J20')
   test.setTimeout(40_000)
   await context.addInitScript(() => ((window as {__liveFrames?: string[]}).__liveFrames = []))
   try {
+    const open = listening(page, ID)
     await page.goto(t.docPath('post', ID))
     await t.settle(page)
-    await page.waitForTimeout(500) // stream open
+    await open
 
     // Chrome's offline emulation keeps an open SSE stream alive, so cut it from the
     // page side (what a dead network does) and go offline as well.

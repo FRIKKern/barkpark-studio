@@ -1,5 +1,5 @@
 import {expect, test} from '../rig/test'
-import {target, closeAndSettle} from '../rig/targets'
+import {target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // J10, F8 (nothing lost): the body is read-only until a click wakes Barkpark's canvas,
 // which takes a moment on a fresh page (its bundle, the blocks). Keys typed in that
@@ -16,8 +16,9 @@ test('J10: keys typed while the body wakes up are all kept', async ({page}, info
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the wake-up is our read-only body')
   await t.prepare(page.context())
-  before = await t.docValue(ID, 'body')
-  await page.goto(t.docPath('post', ID))
+  // The body to put back, read while the page loads (it writes nothing before the click below).
+  const [stored] = await Promise.all([t.docValue(ID, 'body'), page.goto(t.docPath('post', ID))])
+  before = stored
   await t.settle(page)
   const body = page.locator('[id="body"]')
   await body.scrollIntoViewIfNeeded()
@@ -33,6 +34,7 @@ test('J10: keys typed while the body wakes up are all kept', async ({page}, info
   await expect(body.locator('.ProseMirror')).toContainText('Plugh', {timeout: 15_000})
   expect(await height()).toBe(306)
   const lines = async () => (((await t.docValue(ID, 'body')) as {blocks?: {content?: {value?: string}[]}[]} | undefined)?.blocks ?? []).map((b) => (b.content ?? []).map((c) => c.value ?? '').join(''))
+  await savesLanded(page)
   await expect.poll(async () => (await lines()).join('|'), {timeout: 15_000}).toMatch(/XYZZY\|Plugh(\||$)/)
 })
 

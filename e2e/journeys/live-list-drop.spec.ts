@@ -11,17 +11,20 @@ test('live: a reorder dropped before the typing is drawn keeps the typed words',
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours: a lever on our own page')
   const id = `post-list-${Date.now().toString(36)}`
-  await t.draftOnly(id, 'post', {title: 'List probe', slug: {_type: 'slug', current: id}, highlights: ['one', 'two', 'three']})
-  const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])
+  // The probe is made while the browsers get ready.
+  const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext(), t.draftOnly(id, 'post', {title: 'List probe', slug: {_type: 'slug', current: id}, highlights: ['one', 'two', 'three']})])
   await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
   const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
   try {
-    for (const p of [a, b]) {
-      await p.goto(t.docPath('post', id))
-      await signInIfAsked(p)
-      await t.settle(p)
-      await p.getByRole('tab', {name: 'Meta'}).click()
-    }
+    // Both browsers load at once (two contexts, nothing shared).
+    await Promise.all(
+      [a, b].map(async (p) => {
+        await p.goto(t.docPath('post', id))
+        await signInIfAsked(p)
+        await t.settle(p)
+        await p.getByRole('tab', {name: 'Meta'}).click()
+      }),
+    )
     const item = (p: typeof a, n: number) => p.locator(`[id="highlights[${n}]"]`)
     await expect(item(b, 1)).toHaveValue('two')
     await b.evaluate(() => (((window as {__liveFrames?: string[]}).__liveFrames = []), (window as {__holdRenders?: (on: boolean) => void}).__holdRenders?.(true)))

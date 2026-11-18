@@ -32,9 +32,31 @@ async function typeThenCrash(context: BrowserContext, t: Target, text: string) {
   await page.keyboard.type(text)
   // The write failed (a network error with the browser online: Not saved — retrying).
   await expect(page.locator('.doc-footer').first()).toContainText(/Not saved|Offline|not saving/i)
-  await page.waitForTimeout(500) // the browser store is written a moment after the last keystroke
+  await stored(page, ID, 'excerpt', await t.field(page, 'excerpt').inputValue())
   await page.close({runBeforeUnload: false})
 }
+
+// This browser's store keeps `value` for `field` of `id` (app/src/lib/pending-edits.ts), written
+// KEEP_GAP_MS (150 ms) after the last change (lib/edits.ts keepUnsaved). Opened as the app opens it.
+const stored = (page: Page, id: string, field: string, value: string) =>
+  expect.poll(() => page.evaluate(([id, field, value]) => new Promise<boolean>((done) => {
+    const req = indexedDB.open('bp-pending-edits', 1)
+    req.onupgradeneeded = () => req.result.createObjectStore('docs')
+    req.onerror = () => done(false)
+    req.onsuccess = () => {
+      const db = req.result
+      const end = (found: boolean) => (db.close(), done(found))
+      const cursor = db.transaction('docs').objectStore('docs').openCursor()
+      cursor.onerror = () => end(false)
+      cursor.onsuccess = () => {
+        const c = cursor.result
+        if (!c) return end(false)
+        const p = c.value as {fields?: [string, unknown][]}
+        if (String(c.key).includes(`|${id}|`) && p.fields?.some(([f, v]) => f === field && v === value)) return end(true)
+        c.continue()
+      }
+    }
+  }), [id, field, value] as const), {intervals: [50], message: 'kept in the browser store'}).toBe(true)
 
 async function reopen(context: BrowserContext, t: Target): Promise<Page> {
   const page = await context.newPage()

@@ -8,7 +8,8 @@
 // A spec's time is wall time: from the line before its test's result to that result, so its
 // beforeAll / afterAll hooks count (a test's own "(2.1s)" leaves them out: search-quality's
 // seeding was 10 s nobody planned for, and ci-4 ran past the 60 s cap). A failed test is
-// left out (a timeout is not its time). With several runs each spec takes its median, and
+// left out (a timeout is not its time); a skipped one counts (a skip after a page load cost
+// translations.spec 2 s, recorded 0). With several runs each spec takes its median, and
 // one that did not run in a timed-out shard still counts from the others.
 import {execSync} from 'node:child_process'
 import {readdirSync, readFileSync, writeFileSync} from 'node:fs'
@@ -30,9 +31,9 @@ if (process.argv[2] === '--update') {
         if (!at) continue
         const t = Date.parse(at[1]) / 1000
         if (/Running \d+ tests? using/.test(line)) last = t
-        const m = /([✓✘]) +\d+ \[studio\] › journeys\/([^:]+):\d+:\d+ › /.exec(line)
+        const m = /([✓✘-]) +\d+ \[studio\] › journeys\/([^:]+):\d+:\d+ › /.exec(line)
         if (!m || last === null) continue
-        if (m[1] === '✓') inRun[m[2]] = (inRun[m[2]] ?? 0) + (t - last)
+        if (m[1] !== '✘') inRun[m[2]] = (inRun[m[2]] ?? 0) + (t - last)
         last = t
       }
     }

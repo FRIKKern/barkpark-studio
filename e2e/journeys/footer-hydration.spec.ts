@@ -16,7 +16,8 @@ test('hydration: the footer, list, a date field, Vision and Releases hydrate as 
   const errors: string[] = []
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
   page.on('pageerror', (e) => errors.push(e.message))
-  const mismatches = () => errors.filter((e) => /hydrat|react\.dev\/errors\/4(18|19|20|21|22|23|24|25)/i.test(e))
+  const mismatching = (list: string[]) => list.filter((e) => /hydrat|react\.dev\/errors\/4(18|19|20|21|22|23|24|25)/i.test(e))
+  const mismatches = () => mismatching(errors)
   // The footer: the words this very page load's HTML carries (a second request would be seconds later).
   const html = await (await page.goto(t.docPath('post', 'post-01')))!.text()
   const ssr = /class="save-state-text"[^>]*>([^<]*)</.exec(html)?.[1]
@@ -39,10 +40,22 @@ test('hydration: the footer, list, a date field, Vision and Releases hydrate as 
   const on = Date.parse(`${shown![1]} ${shown![2]}, ${shown![3] ?? thisYear} 12:00 UTC`)
   expect(Math.abs(on - start) / 86_400_000, `${published} names the day it was published`).toBeLessThan(5)
   expect(mismatches()).toEqual([])
-  for (const path of [t.listPath('post'), t.docPath('fieldTypes', 'field-types-01'), '/vision', '/releases']) {
-    await page.goto(path)
-    await t.settle(page)
-    await page.waitForTimeout(300)
-    expect(mismatches(), path).toEqual([])
-  }
+  // The other pages each in a tab of their own, loaded at once: the context's clock (its zone,
+  // the day 48 days on) is every tab's. Each tab's own errors, by its path. This one closes
+  // first: a tab holds one of the site's 6 connections for its stream (lib/stream.ts).
+  const context = page.context()
+  await page.close()
+  const seen = await Promise.all(
+    [t.listPath('post'), t.docPath('fieldTypes', 'field-types-01'), '/vision', '/releases'].map(async (path) => {
+      const tab = await context.newPage()
+      const own: string[] = []
+      tab.on('console', (m) => m.type() === 'error' && own.push(m.text()))
+      tab.on('pageerror', (e) => own.push(e.message))
+      await tab.goto(path)
+      await t.settle(tab)
+      await tab.waitForTimeout(300)
+      return {path, own}
+    }),
+  )
+  for (const {path, own} of seen) expect(mismatching(own), path).toEqual([])
 })
