@@ -8,7 +8,7 @@ import '@tanstack/react-start/server-only'
 import {bpFetch, forgetMemberReads, requestToken} from './barkpark'
 import {currentEditor, describeToken, signInRequired} from './auth'
 import {fakeFetch, fakeMembers} from './members-fake'
-import {OWNER, type Access, type AccessRequest, type Change, type Invitation, type MembersData, type Seat} from '../lib/members-admin'
+import {OWNER, readsRequests, type Access, type AccessRequest, type Change, type Invitation, type MembersData, type Seat} from '../lib/members-admin'
 
 type Answer = {status: number; body: {error?: {code?: string; message?: string}} & Record<string, unknown>}
 
@@ -53,12 +53,16 @@ export async function loadMembers(): Promise<MembersData> {
     if (!body.hasMore || body.nextOffset === undefined || body.nextOffset <= offset) break
     offset = body.nextOffset
   }
-  const [requests, invitations] = await Promise.all([call('/v1/access-requests'), call('/v1/invitations')])
   // The editor's role as the roster has it: the seat itself, over what their token said a minute ago.
   const mine = who.email ? seats.find((s) => s.principal_type === 'user' && s.identity?.toLowerCase() === who.email!.toLowerCase()) : undefined
+  const role = mine?.role ?? who.role
+  // Requests and invitations name people who have no seat yet: read only for an owner or admin
+  // (never in shared sign-in, whose token is the studio's), so they never reach anyone else's browser.
+  const none: Answer = {status: 200, body: {}}
+  const [requests, invitations] = readsRequests(who.access, role) ? await Promise.all([call('/v1/access-requests'), call('/v1/invitations')]) : [none, none]
   return {
     access: who.access,
-    me: {email: who.email, role: mine?.role ?? who.role},
+    me: {email: who.email, role},
     people: seats.filter((s) => s.principal_type === 'user'),
     owners: seats.filter((s) => s.role === OWNER).length,
     tokens: seats.filter((s) => s.principal_type !== 'user').length,
@@ -70,7 +74,7 @@ export async function loadMembers(): Promise<MembersData> {
 /** How many access requests wait, for an owner or admin seat only (null for anyone else: nothing is read). */
 export async function waitingRequests(): Promise<number | null> {
   const who = await actor()
-  if (who.access !== 'manage' || !(who.role === 'owner' || who.role === 'admin')) return null
+  if (!readsRequests(who.access, who.role)) return null
   const a = await call('/v1/access-requests')
   return a.status < 300 ? ((a.body.access_requests as unknown[] | undefined)?.length ?? 0) : null
 }

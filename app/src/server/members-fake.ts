@@ -6,6 +6,7 @@
 // is not added twice (409 already_member), an unknown id is 404; a non-admin is refused (403).
 // `ms`: each write waits that long first (a slow answer). `writes`: how many writes came in.
 import type {AccessRequest, Invitation, Seat} from '../lib/members-admin'
+import {signInRequired} from './auth'
 
 type Fake = {email: string; role: string; ms: number; writes: number; seats: Seat[]; requests: AccessRequest[]; invitations: Invitation[]; next: number}
 let fake: Fake | null = null
@@ -34,7 +35,8 @@ export function setMembersFake(role: string | null, ms = 0) {
   }
 }
 
-export const fakeMembers = () => (process.env.STUDIO_E2E_HOOKS === '1' ? fake : null)
+// Only under shared sign-in, as the access stand-in (server/access-stub.ts): the fake plays one admin.
+export const fakeMembers = () => (process.env.STUDIO_E2E_HOOKS === '1' && !signInRequired() ? fake : null)
 export const fakeWrites = () => fake?.writes ?? 0
 
 const json = (status: number, body: unknown) => Response.json(body, {status})

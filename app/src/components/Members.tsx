@@ -48,9 +48,10 @@ export function Members() {
       setErrors((e) => ({...e, [row]: t('The answer did not arrive. The list now shows what Barkpark has.')}))
       return false
     } finally {
+      // The flight ends once the list has read again: a press in between would act on a row that is already done.
+      await refresh().catch(() => {})
       once.end(key)
       setBusy((b) => (b.delete(key), new Set(b)))
-      await refresh()
     }
   }
   const open = adminUrl ? (

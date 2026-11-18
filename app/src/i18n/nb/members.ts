@@ -59,7 +59,6 @@ export default {
   'Waiting for an answer': 'Venter på svar',
   'Invited {ago}': 'Invitert {ago}',
   'Withdraw': 'Trekk tilbake',
-  'Withdrawing…': 'Trekker tilbake …',
   'Invitation to {email} withdrawn.': 'Invitasjonen til {email} er trukket tilbake.',
   // Barkpark's refusals, in words
   "You've been logged out. Sign in again to manage members.": 'Du er logget ut. Logg inn igjen for å administrere medlemmer.',

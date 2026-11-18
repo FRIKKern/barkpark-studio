@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {approveBody, invited, inviteEmail, knownRoles, mayChangeTo, ownRequest, refusal, rolesOffered, seatRule, singleFlight, type Seat} from './members-admin.ts'
+import {approveBody, invited, inviteEmail, knownRoles, mayChangeTo, ownRequest, readsRequests, refusal, rolesOffered, seatRule, singleFlight, type Seat} from './members-admin.ts'
 
 const seat = (role: string, identity = `${role}@example.com`): Seat => ({principal_type: 'user', principal_id: `id-${identity}`, role, identity})
 const t = (en: string, vars: Record<string, string | number> = {}) => en.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k]))
@@ -66,4 +66,13 @@ test("J69 members: each refusal is said in words, Barkpark's codes first", () =>
   assert.match(invited(201, {reclaimed: true}, 'a@b.no', t), /reset/)
   assert.equal(inviteEmail(' ada@example.com '), 'ada@example.com')
   for (const bad of ['ada', 'ada@', '@example.com', 'a b@c.no', 'ada@example']) assert.equal(inviteEmail(bad), null)
+})
+
+test('J69 members: requests and invitations are read only for an owner or admin acting as themselves', () => {
+  assert.equal(readsRequests('manage', 'owner'), true)
+  assert.equal(readsRequests('manage', 'admin'), true)
+  // Shared sign-in reads as the studio, whatever role its seat holds: no requests, no invitations.
+  for (const role of ['owner', 'admin', null]) assert.equal(readsRequests('read_only', role), false)
+  for (const role of ['member', 'contributor', 'viewer', null, undefined]) assert.equal(readsRequests('manage', role), false)
+  for (const access of ['not_admin', 'signed_out'] as const) assert.equal(readsRequests(access, 'owner'), false)
 })

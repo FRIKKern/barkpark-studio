@@ -41,6 +41,11 @@ export const DEFAULT_ROLE = 'member'
 
 export const isAdminRole = (role: string | null | undefined) => role === 'owner' || role === 'admin'
 
+/** Whether the server reads the access requests and invitations (askers' emails and notes,
+ * invitees' emails) at all: only for an owner or admin acting as themselves. Shared sign-in reads
+ * with the studio's token, so it never gets them, whatever that token's seat may see. */
+export const readsRequests = (access: Access, role: string | null | undefined) => access === 'manage' && isAdminRole(role)
+
 /** The roles the workspace is seen to use: the built-ins, then any custom role on a seat or invitation. */
 export const knownRoles = (seen: Iterable<string>) => [...new Set([...BUILT_IN, ...[...seen].filter((r) => !!r)])]
 
