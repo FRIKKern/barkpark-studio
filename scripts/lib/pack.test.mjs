@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import test from 'node:test'
 
-import {COPIED, PACK_DIR, SOURCE_PATH, compare, rowsMoved, selfCheck, sha256, sourceNote, sourcePack} from './pack.mjs'
+import {COPIED, PACK_DIR, SOURCE_PATH, compare, landing, rowsMoved, selfCheck, sha256, sourceNote, sourcePack} from './pack.mjs'
 
 // A Barkpark checkout with a pack of two blocks, and a studio holding it as the sync writes it.
 const put = (path, text) => (mkdirSync(dirname(path), {recursive: true}), writeFileSync(path, text))
@@ -106,4 +106,19 @@ test('rows moved: the report takes a new stamp only when no row the studio rende
   assert.equal(rowsMoved(before, report([before.rows[0], before.rows[2]])).length, 1, 'a rendered type gone')
   assert.equal(rowsMoved(before, report([...before.rows.slice(0, 2), {type: 'chart', status: 'pass'}])).length, 1, 'a type now rendered')
   assert.equal(rowsMoved(before, {...report(before.rows), compare: 'text'}).length, 1)
+})
+
+test('landing: merge only when every required check passed at the head; a red one is the alarm', () => {
+  const required = ['check', 'unit', 'studio (1, ci)']
+  const at = (bucket, name, startedAt = '2026-11-18T10:00:00Z') => ({name, bucket, startedAt})
+  const all = (bucket) => required.map((n) => at(bucket, n))
+  assert.deepEqual(landing(required, all('pass')), {verdict: 'merge', names: required})
+  assert.deepEqual(landing(required, [...all('pass'), at('fail', 'docs-extra')]), {verdict: 'merge', names: required}, 'a check main does not require')
+  assert.deepEqual(landing(required, [at('pass', 'check'), at('fail', 'unit'), at('pending', 'studio (1, ci)')]), {verdict: 'red', names: ['unit']})
+  assert.deepEqual(landing(required, [at('pass', 'check'), at('pass', 'unit'), at('cancel', 'studio (1, ci)')]), {verdict: 'red', names: ['studio (1, ci)']})
+  assert.deepEqual(landing(required, [at('pass', 'check'), at('pass', 'unit')]), {verdict: 'wait', names: ['studio (1, ci)']}, 'one not started yet')
+  assert.deepEqual(landing(required, [at('pass', 'check'), at('pending', 'unit'), at('pass', 'studio (1, ci)')]), {verdict: 'wait', names: ['unit']})
+  assert.equal(landing(required, [...all('pass'), at('fail', 'unit', '2026-11-18T09:00:00Z')]).verdict, 'merge', 'an older failed run, rerun green')
+  assert.equal(landing(required, [...all('pass'), at('fail', 'unit', '2026-11-18T11:00:00Z')]).verdict, 'red', 'the newest run failed')
+  assert.equal(landing([], all('pass')).verdict, 'wait', 'no ruleset read: never merges')
 })

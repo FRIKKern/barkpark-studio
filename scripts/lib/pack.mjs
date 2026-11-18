@@ -104,6 +104,23 @@ export function rowsMoved(committed, report) {
   return moved
 }
 
+/**
+ * May the sync PR land? `required`: the check names main's ruleset requires. `checks`: the PR head's
+ * checks (`gh pr checks --json name,bucket,startedAt`), the newest run of each name counting.
+ * red: a required check failed or was cancelled. wait: one is running or has not started. merge:
+ * every one passed. An empty `required` never merges: the ruleset could not be read.
+ */
+export function landing(required, checks) {
+  const newest = new Map()
+  for (const c of checks) if (!newest.has(c.name) || (c.startedAt ?? '') > (newest.get(c.name).startedAt ?? '')) newest.set(c.name, c)
+  const bucket = (name) => newest.get(name)?.bucket ?? 'absent'
+  const red = required.filter((name) => ['fail', 'cancel'].includes(bucket(name)))
+  if (red.length) return {verdict: 'red', names: red}
+  const open = required.filter((name) => bucket(name) !== 'pass')
+  if (open.length || required.length === 0) return {verdict: 'wait', names: open.length ? open : ['the ruleset (no required check read)']}
+  return {verdict: 'merge', names: required}
+}
+
 /** SOURCE.md as pack-sync writes it: the commit, and the sha256 of every file the stamp does not cover. */
 export function sourceNote(commit, files) {
   const rows = Object.keys(COPIED).map((f) => `| \`${f}\` | \`${files[f]}\` |`)
