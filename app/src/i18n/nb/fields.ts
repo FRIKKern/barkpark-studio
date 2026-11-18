@@ -95,6 +95,8 @@ export default {
   'Not a valid date. Use the format {format}.': 'Ikke en gyldig dato. Bruk formatet {format}.',
   'Not in the list': 'Ikke i listen',
   'Nothing to paste': 'Ingenting å lime inn',
+  // @sanity/locale-nb-no 1.1.39, inputs.array.action.max-reached
+  'Maximum items reached': 'Maksimalt antall elementer nådd',
   'Open in new tab': 'Åpne i ny fane',
   'Paste field': 'Lim inn felt',
   'Reference to {types}': 'Referanse til {types}',

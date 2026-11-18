@@ -12,3 +12,7 @@
 .item-popover-body { padding: 20px; }
 .item-popover-body > .form-fields { min-height: min(calc(100vh - 200px), 500px); }
 @media (max-width: 768px) and (pointer: coarse) { .item-popover-head > .icon-btn { width: 44px; height: 44px; } }
+/* An array at its max (lib/array-max.ts): Add item stays hoverable for its "Maximum items reached" tip but
+   reads as disabled, as Sanity's disabled button in its Tooltip; the hover look stays off. */
+.add-item.add-item[aria-disabled='true'], .add-item.add-item[aria-disabled='true']:hover { background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--disabled); cursor: default; }
+.add-item.add-item[aria-disabled='true'] svg { color: var(--disabled); }

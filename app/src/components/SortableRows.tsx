@@ -10,6 +10,7 @@ import {menuSetup, type Choice, type MenuSetup} from '../lib/insert-menu'
 import {itemLimit} from '../lib/array-tree'
 import {rowParts, type ItemEntry} from '../lib/array-options'
 import {MAX_REACHED} from '../lib/array-max'
+import '../array-options.css'
 
 // Sanity's array rows (J34 strings, J33 objects, J09 references): a drag handle
 // (pointer drag; or Space to pick up, arrows, Space to drop, Escape to cancel),
