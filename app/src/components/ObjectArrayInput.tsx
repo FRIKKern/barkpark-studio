@@ -167,10 +167,11 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
     for (let i = 0; i < Math.min(UPLOAD_LANES, queued.length); i++) void lane()
   }
   const dropTarget =
-    // At the max no drop target (Add item is off too); below it, a drop takes only the files that fit.
-    !multi && of.type === 'image' && !readOnly && actions(field.options).add && room(field, items) > 0
+    // A drop takes only the files that fit; at the max it takes none and says why (Add item is off too).
+    // The target stays at the max, so the browser never opens a dropped file in place of the studio.
+    !multi && of.type === 'image' && !readOnly && actions(field.options).add
       ? {
-          onDragEnter: (e: DragEvent<HTMLElement>) => carriesFiles(e) && (e.preventDefault(), setOver(true)),
+          onDragEnter: (e: DragEvent<HTMLElement>) => carriesFiles(e) && (e.preventDefault(), setOver(room(field, latest.current) > 0)),
           onDragOver: (e: DragEvent<HTMLElement>) => carriesFiles(e) && e.preventDefault(),
           onDragLeave: (e: DragEvent<HTMLElement>) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setOver(false),
           onDrop: (e: DragEvent<HTMLElement>) => {

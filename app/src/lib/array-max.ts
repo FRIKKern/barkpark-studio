@@ -1,9 +1,9 @@
 // Sanity's array at its maximum (sanity 6.17: arrays/common/ArrayValidationContext,
 // ArrayOfObjectsFunctions, ArrayOfPrimitivesFunctions, List/PreviewItem, Grid/GridItem, ItemRow,
 // ReferenceItem): with Rule.max(n) and n items or more, Add item and the item menu's Add item
-// before/after are unavailable, "Maximum items reached". Ours takes Duplicate, Paste field and a
-// file drop away too: each adds an item. Nothing is removed from an array already past its max
-// (imported data); its validation says so as before (lib/validation.ts).
+// before/after are unavailable, "Maximum items reached". Ours takes Duplicate away too, and refuses
+// a paste or a file drop that would add past the max, with the same words. Nothing is removed from
+// an array already past its max (imported data); its validation says so as before (lib/validation.ts).
 
 export const MAX_REACHED = 'Maximum items reached'
 
@@ -16,13 +16,9 @@ export function maxItems(validation: unknown): number | undefined {
   return undefined
 }
 
-export type CanAdd = {ok: true} | {ok: false; reason: typeof MAX_REACHED}
-
-/** May one more item go into this array? Not when it holds its max or more. */
-export function canAdd(field: {validation?: unknown}, items: unknown): CanAdd {
-  const max = maxItems(field.validation)
-  const count = Array.isArray(items) ? items.length : 0
-  return max !== undefined && count >= max ? {ok: false, reason: MAX_REACHED} : {ok: true}
+/** Is an array with this many items at its max (or past it)? Then nothing more may be added. */
+export function atMax(max: number | undefined, count: number): boolean {
+  return max !== undefined && count >= max
 }
 
 /** How many more items fit (Infinity with no max, 0 at or past it): a drop of files takes only these. */
@@ -31,12 +27,18 @@ export function room(field: {validation?: unknown}, items: unknown): number {
   return max === undefined ? Infinity : Math.max(0, max - (Array.isArray(items) ? items.length : 0))
 }
 
+type PasteField = {type?: string; validation?: unknown; options?: unknown}
+
 /**
- * A paste into an array (Paste field, Cmd/Ctrl+V): refused when it would leave the array longer than
- * its max and longer than it is. A paste that replaces a long array with a shorter one is fine.
+ * May this paste (Paste field, Cmd/Ctrl+V) land in the field? An array of items may not end longer than
+ * its max and longer than it was: an item appended at the max is refused, while a paste that replaces
+ * the array with one at or under the max (or a shorter over-full one) is fine. The tags layout and an
+ * options.list checkbox list are left out, as Sanity leaves them out of the max.
  */
-export function pasteRefused(field: {validation?: unknown}, before: unknown, after: unknown): boolean {
+export function pasteAllowed(field: PasteField, before: unknown, after: unknown): boolean {
+  const options = field.options && !Array.isArray(field.options) ? (field.options as {layout?: unknown; list?: unknown}) : {}
+  if (field.type !== 'arrayOf' || options.layout === 'tags' || Array.isArray(options.list)) return true
   const max = maxItems(field.validation)
-  if (max === undefined || !Array.isArray(after)) return false
-  return after.length > max && after.length > (Array.isArray(before) ? before.length : 0)
+  if (max === undefined || !Array.isArray(after)) return true
+  return !(after.length > max && after.length > (Array.isArray(before) ? before.length : 0))
 }

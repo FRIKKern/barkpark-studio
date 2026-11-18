@@ -9,7 +9,7 @@ import {InsertMenu} from './InsertMenu'
 import {menuSetup, type Choice, type MenuSetup} from '../lib/insert-menu'
 import {itemLimit} from '../lib/array-tree'
 import {rowParts, type ItemEntry} from '../lib/array-options'
-import {MAX_REACHED} from '../lib/array-max'
+import {atMax, MAX_REACHED} from '../lib/array-max'
 import '../array-options.css'
 
 // Sanity's array rows (J34 strings, J33 objects, J09 references): a drag handle
@@ -60,7 +60,7 @@ export function SortableRows<T>({id, items, onChange, readOnly, renderItem, blan
   // What the rows draw and do (Sanity's disableActions, sortable): one object while the options stay.
   const parts = useMemo(() => rowParts(options, !!onCopy), [options, !!onCopy])
   // Sanity's maxReached: Add item, Add item before/after (and ours: Duplicate) say why they are off.
-  const full = max !== undefined && items.length >= max ? t(MAX_REACHED) : undefined
+  const full = atMax(max, items.length) ? t(MAX_REACHED) : undefined
   const stable = useStableKeys(items)
   const keyOf = keyOfProp ?? ((_: T, i: number) => stable[i]!)
   // While a row is being moved: which row (original index), and where it is now.

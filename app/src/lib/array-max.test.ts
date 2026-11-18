@@ -1,20 +1,15 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {canAdd, maxItems, MAX_REACHED, pasteRefused, room} from './array-max.ts'
+import {atMax, maxItems, MAX_REACHED, pasteAllowed, room} from './array-max.ts'
 
-test('canAdd: max 2 with two items is full, "Maximum items reached"; one below it is not', () => {
-  const field = {validation: {max: 2}}
-  assert.deepEqual(canAdd(field, ['a', 'b']), {ok: false, reason: 'Maximum items reached'})
+test('atMax: max 2 with two items is full; one below it is not; past it (imported) is full too', () => {
+  assert.equal(atMax(2, 2), true)
   assert.equal(MAX_REACHED, 'Maximum items reached')
-  assert.deepEqual(canAdd(field, ['a']), {ok: true}, 'removing an item lets adding back in')
-  assert.deepEqual(canAdd(field, []), {ok: true})
-  assert.deepEqual(canAdd(field, undefined), {ok: true}, 'an unset array')
-})
-
-test('canAdd: an array already past its max (imported) refuses adding and keeps its items', () => {
-  const items = ['a', 'b', 'c', 'd']
-  assert.deepEqual(canAdd({validation: {max: 2}}, items), {ok: false, reason: MAX_REACHED})
-  assert.deepEqual(items, ['a', 'b', 'c', 'd'])
+  assert.equal(atMax(2, 1), false, 'removing an item lets adding back in')
+  assert.equal(atMax(2, 0), false)
+  assert.equal(atMax(2, 4), true, 'an array already past its max')
+  assert.equal(atMax(0, 0), true, 'max(0): nothing may be added, as Sanity')
+  assert.equal(atMax(undefined, 500), false, 'no max, no limit')
 })
 
 test('maxItems: Sanity reads the first max at any level; no max, no limit', () => {
@@ -23,7 +18,6 @@ test('maxItems: Sanity reads the first max at any level; no max, no limit', () =
   assert.equal(maxItems([{min: 1}]), undefined)
   assert.equal(maxItems({max: '2026-01-01'}), undefined, 'a date max is not an item count')
   assert.equal(maxItems(undefined), undefined)
-  assert.deepEqual(canAdd({}, Array(500).fill('x')), {ok: true})
 })
 
 test('room: a drop of files takes only what fits', () => {
@@ -32,11 +26,21 @@ test('room: a drop of files takes only what fits', () => {
   assert.equal(room({}, ['a']), Infinity)
 })
 
-test('pasteRefused: a paste may not push an array past its max; a shorter one may replace it', () => {
-  const field = {validation: {max: 2}}
-  assert.equal(pasteRefused(field, ['a'], ['a', 'b']), false)
-  assert.equal(pasteRefused(field, ['a', 'b'], ['a', 'b', 'c']), true, 'an appended item past the max')
-  assert.equal(pasteRefused(field, ['a'], ['x', 'y', 'z']), true, 'a longer array pasted over')
-  assert.equal(pasteRefused(field, ['a', 'b', 'c', 'd'], ['x']), false, 'a shorter one over an over-full array')
-  assert.equal(pasteRefused({}, [], ['a', 'b', 'c']), false)
+test('pasteAllowed: an item appended at the max is refused; a paste that replaces the array is not', () => {
+  const field = {type: 'arrayOf', validation: {max: 2}}
+  assert.equal(pasteAllowed(field, ['a', 'b'], ['a', 'b', 'c']), false, 'an item paste (append) at the max')
+  assert.equal(pasteAllowed(field, ['a', 'b'], ['x', 'y']), true, 'a copied 2-item field replaces a full max-2 array')
+  assert.equal(pasteAllowed(field, ['a'], ['a', 'b']), true)
+  assert.equal(pasteAllowed(field, ['a'], ['x', 'y', 'z']), false, 'a longer array pasted over')
+  assert.equal(pasteAllowed(field, ['a', 'b', 'c', 'd'], ['x']), true, 'a shorter one over an over-full array')
+  assert.equal(pasteAllowed(field, ['a', 'b', 'c', 'd'], ['w', 'x', 'y']), true, 'a shorter over-full one over an over-full array')
+  assert.equal(pasteAllowed({type: 'arrayOf'}, [], ['a', 'b', 'c']), true, 'no max')
+})
+
+test('pasteAllowed: the tags layout and an options.list checkbox list are not held to the max', () => {
+  // fixtures/barkpark-schema/post.json post.tags
+  const tags = {type: 'arrayOf', options: {layout: 'tags'}, validation: {max: 3, level: 'warning'}}
+  assert.equal(pasteAllowed(tags, ['a', 'b', 'c'], ['a', 'b', 'c', 'd']), true)
+  const list = {type: 'arrayOf', options: {list: ['a', 'b', 'c']}, validation: {max: 1}}
+  assert.equal(pasteAllowed(list, ['a'], ['a', 'b']), true)
 })
