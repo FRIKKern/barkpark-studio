@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {caretColumn, setCell, withWrites} from './table-input.ts'
-import {keepOnShapeChange} from './table-keep.ts'
+import {keepOnShapeChange, type TableKept} from './table-keep.ts'
 import {sureColumn} from './table-merge.ts'
 import {Client, Server} from './table-sim.ts'
 
@@ -116,7 +116,7 @@ for (const [name, drawnA, nowA] of [
   test(`a lookalike in the next column (${name}) never puts my word one cell right`, () => {
     const table = (a: readonly string[], b: string[], rev: string) => ({_id: 'd', _rev: rev, _updatedAt: rev, t: {_type: 'table', rows: [row('a', [...a]), row('b', b)]}})
     const path = 't.rows[_key=="b"].cells'
-    const e = {dirty: new Map<string, unknown>([[path, ['', 'Mine', '', '']]]), base: new Map<string, unknown>([[path, ['', '', '', '']]]), inflight: null, kept: undefined as {text: unknown}[] | undefined}
+    const e = {dirty: new Map<string, unknown>([[path, ['', 'Mine', '', '']]]), base: new Map<string, unknown>([[path, ['', '', '', '']]]), inflight: null, kept: undefined as TableKept[] | undefined}
     keepOnShapeChange(e, table(nowA, ['', '', '', '', ''], 'r2'), table(drawnA, ['', '', '', ''], 'r1'))
     const placed = e.dirty.get(path) as string[] | undefined
     if (placed) assert.equal(placed.indexOf('Mine'), 1, `placed ${JSON.stringify(placed)}`)

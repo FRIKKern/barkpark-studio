@@ -97,5 +97,5 @@ for (const [found, state, i] of [['77540 #3142, an insert at the end', -38322878
     const o = playAt(state, i)
     assert.deepEqual(o.bad, [], o.name)
     assert.ok(!o.soft.includes('MISPLACED'), o.name)
-    for (const k of o.kept) assert.match(k, /<T\d>$/, o.name)
+    for (const k of o.kept ?? []) assert.match(k, /<T\d>$/, o.name)
   })
