@@ -6,6 +6,7 @@ import appCss from '../styles.css?url'
 import orderCss from '../order-rows.css?url'
 import incomingCss from '../incoming-input.css?url'
 import ptChangesCss from '../pt-changes.css?url'
+import ptOneLineCss from '../pt-one-line.css?url'
 import translationsCss from '../translations.css?url'
 import codeInputCss from '../code-input.css?url'
 import tableInputCss from '../table-input.css?url'
@@ -56,6 +57,7 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
       {rel: 'stylesheet', href: orderCss},
       {rel: 'stylesheet', href: incomingCss},
       {rel: 'stylesheet', href: ptChangesCss},
+      {rel: 'stylesheet', href: ptOneLineCss},
       {rel: 'stylesheet', href: translationsCss},
       {rel: 'stylesheet', href: codeInputCss},
       {rel: 'stylesheet', href: tableInputCss},
