@@ -25,9 +25,10 @@
 import '@tanstack/react-start/server-only'
 import {createHash, randomBytes} from 'node:crypto'
 import {devToken, editorPermissions, keepDevToken, sweepDevTokens} from '../../../scripts/lib/dev-tokens.mjs'
-import {getCookie, setCookie, deleteCookie} from '@tanstack/react-start/server'
+import {getCookie, setCookie, deleteCookie, getRequest} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
 import {seal, unseal} from './session-cookie'
+import {refusedLately} from '../lib/gate-head-start'
 import {tokenSelf, type TokenBody, type TokenSelf} from '../lib/token-self'
 import {CLOUD_COOKIE, CLOUD_PATH, CLOUD_TTL_SECONDS, cloudConfig, cloudExchange, cloudStart, publicOrigin, ssoConfig, stateMatches, type CloudError, type CloudPending} from '../lib/cloud-signin'
 import {returnPath} from '../lib/return-path'
@@ -228,7 +229,15 @@ async function endBarkparkSession(session: string) {
   await fetch(`${process.env.BARKPARK_URL}/v1/auth/logout`, {method: 'DELETE', headers: {authorization: `Bearer ${session}`}, signal: AbortSignal.timeout(5000)}).catch(() => undefined)
 }
 
+// A request signs out once: who-am-I and each content-model read that hears the token
+// refused (server/schemas.ts) ask for it, and one Barkpark logout ends the session.
+const signedOut = new WeakSet<Request>()
 export async function signOut() {
+  const request = thisRequest()
+  if (request) {
+    if (signedOut.has(request)) return
+    signedOut.add(request)
+  }
   const editor = readSession()
   deleteCookie(COOKIE, {path: '/'})
   // Dev sign-in keeps its token (other sessions and lanes share it); an account's ends.
@@ -237,6 +246,14 @@ export async function signOut() {
   // Barkpark just now, so forget what we knew of that token: the next request asks again,
   // hears 401, and the copy is signed out at once, not after the minute's cache.
   if (editor?.session) forgetToken(editor.session)
+}
+
+const thisRequest = (): Request | undefined => {
+  try {
+    return getRequest()
+  } catch {
+    return undefined // outside a request: no one to sign out twice
+  }
 }
 
 /** Forget what a token was described as, in every workspace: the next request asks Barkpark again. */
@@ -289,6 +306,15 @@ const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
 // When Barkpark last said each token ends (unix seconds; null, never), for currentEditor.
 const ends = new Map<string, number | null>()
 const knownEnd = (token: string) => ends.get(token)
+// Dead tokens (401) of the last minute: a sign-out forgets describeToken's answer, not this.
+const refused = refusedLately()
+/** What Barkpark said of `token` here within the minute, as describeToken holds it; refused when it answered 401 in the last minute; undefined when not asked lately. Never a Barkpark read. */
+export function knownTokenSelf(token: string): Promise<TokenSelf> | undefined {
+  if (refused.has(`${token} ${scope().workspace}`)) return Promise.resolve({permissions: [], boundDataset: null, refused: true})
+  const held = described.get(`${token} ${scope().workspace}`)
+  return held && Date.now() - held.at < 60_000 ? held.self : undefined
+}
+
 export function describeToken(token: string): Promise<TokenSelf> {
   // A login session holds a seat per workspace: what it may do depends on where it is.
   const key = `${token} ${scope().workspace}`
@@ -298,7 +324,7 @@ export function describeToken(token: string): Promise<TokenSelf> {
   const self = (async (): Promise<TokenSelf> => {
     const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}}).catch(() => undefined)
     // 401: dead (revoked or expired). 403: alive but not allowed here: nothing to write with.
-    if (res?.status === 401) return {permissions: [], boundDataset: null, refused: true}
+    if (res?.status === 401) return refused.note(`${token} ${workspace}`), {permissions: [], boundDataset: null, refused: true}
     if (res?.status === 403) return {permissions: [], boundDataset: null}
     if (!res?.ok) return {permissions: ['read', 'write'], boundDataset: null}
     const me = tokenSelf((await res.json()) as TokenBody, workspace)
