@@ -86,6 +86,6 @@ test('hidden by role: its group tab goes when nothing in it shows, and Paste doc
   const editorPaste = pasteDocument(fields, {title: 'P', internal: 'pasted', stage: 'idea'}, {type: 'post', doc, user: editor, rules})
   assert.deepEqual(editorPaste.writes, [['title', 'P']])
   assert.deepEqual(editorPaste.named, ['Stage'])
-  assert.deepEqual([...pasteSkips('post', fields, doc, editor, rules).skip], ['stage'])
+  assert.deepEqual([...pasteSkips('post', fields, doc, editor, rules).skip], ['internal', 'stage'])
   assert.equal(pasteDocument(fields, {title: 'P', internal: 'pasted', stage: 'idea'}, {type: 'post', doc, user: currentUserOf(me('owner')), rules}).writes.length, 3)
 })

@@ -140,18 +140,46 @@ export function fieldState(type: string, f: Field, doc: Record<string, unknown>,
 }
 
 /**
+ * What a paste keeps (lib/paste-locked.ts): a field read-only for this person (the schema's
+ * `readOnly`, or the config's callback), or hidden from them by a config role rule: a
+ * `form.conditions` hidden callback that reads `currentUser` (or nothing) and not `document`,
+ * `parent` or `value`. Visibility from the data (`visibleWhen`, the schema's `hidden`, a
+ * callback reading the document) is no lock: such a field pastes as any other.
+ */
+export function fieldLock(type: string, f: Field, doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}) {
+  const readOnly = fieldState(type, f, doc, currentUser, rules, at).readOnly
+  const key = conditionKey(type, at.path)
+  const hidden = rules?.[key]?.hidden
+  if (typeof hidden !== 'function') return {readOnly, roleHidden: hidden === true}
+  let readsData = false
+  const read = <T,>(v: T) => ((readsData = true), v)
+  const context = {
+    currentUser,
+    path: sanityPath(at.path),
+    get document() {
+      return read(doc)
+    },
+    get parent() {
+      return read(at.parent ?? doc)
+    },
+    get value() {
+      return read(at.value)
+    },
+  } as ConditionContext
+  return {readOnly, roleHidden: resolveConditional(hidden, context, `form.conditions['${key}'].hidden`) && !readsData}
+}
+
+/**
  * Paste document (J29) leaves a read-only field as it is and names it, as Sanity's paste
- * does (one hidden now is left unnamed). Read-only is judged on the document as it is;
- * hidden on the document as the paste leaves it (lib/paste-locked.ts pasteDocument).
+ * does, and a field a role rule hides as it is, unnamed (fieldLock).
  */
 export function pasteSkips(type: string, fields: Field[], doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined) {
   const skip = new Set<string>()
   const named: string[] = []
   for (const f of fields) {
-    const s = fieldState(type, f, doc, currentUser, rules)
-    if (!s.readOnly) continue
-    skip.add(f.name)
-    if (!s.hidden) named.push(f.title ?? f.name)
+    const l = fieldLock(type, f, doc, currentUser, rules)
+    if (l.readOnly || l.roleHidden) skip.add(f.name)
+    if (l.readOnly && !l.roleHidden) named.push(f.title ?? f.name)
   }
   return {skip, named}
 }

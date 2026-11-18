@@ -9,7 +9,6 @@ import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
 import {conditionKey, fieldState} from '../lib/conditions'
 import {keepLocked} from '../lib/paste-locked'
-import {setPath} from '../lib/paths'
 import {useCurrentUser} from '../lib/session'
 import {mapCaret} from '../lib/merge'
 import {textDiff} from '../lib/changes'
@@ -429,9 +428,9 @@ function FieldActions({field, path, value, onChange, readOnly, titleId}: FieldPr
     if (!item || isEmpty(item.value)) return toast({title: tBrowser('Nothing to paste')})
     const pasted = transfer(item, field, value)
     if ('why' in pasted) return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: pasted.why})
-    // Inside this object or its items, a read-only field keeps its value, and a hidden one as the paste leaves the document (lib/paste-locked.ts).
+    // Inside this object or its items, a field read-only or hidden by a role rule keeps its value (lib/paste-locked.ts).
     const doc = docStore.doc
-    onChange(doc && doc._type ? keepLocked(field, path, pasted.value, value, {type: doc._type, doc, after: setPath(doc, path, pasted.value), user, rules: studio.form?.conditions}) : pasted.value)
+    onChange(doc && doc._type ? keepLocked(field, path, pasted.value, value, {type: doc._type, doc, user, rules: studio.form?.conditions}) : pasted.value)
   }
   // An array's disableActions (Sanity's): 'copy' takes Copy field, 'add' Paste field, from the menu and the keys alike.
   const allow = actions(field.options)
