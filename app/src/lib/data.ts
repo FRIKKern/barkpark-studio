@@ -79,7 +79,7 @@ export type Field = {
   fieldsets?: {name: string; title?: string; options?: {collapsible?: boolean; collapsed?: boolean; columns?: number}}[]
   /** The fieldset (of its object) this field shows in. */
   fieldset?: string
-  /** reference: Sanity's weak reference (kept as declared; Barkpark doesn't enforce it). */
+  /** reference: Sanity's weak reference: a pick stores `_weak: true` (lib/refs.ts), which Barkpark lets be deleted under it. */
   weak?: boolean
   /** Sanity's deprecated: {reason}: a badge and the reason by the field; as a member or block type, disabled in insert menus (lib/deprecated.ts). */
   deprecated?: {reason: string}
@@ -342,7 +342,7 @@ async function groqKept<D extends {_id: string; _publishedId?: string}>(filter: 
 }
 
 const fetchSearch = createServerFn({method: 'GET'})
-  .validator((d: {type: string; q: string; filter?: RefFilter; order?: string; limit?: number}) => d)
+  .validator((d: {type: string; q: string; filter?: RefFilter; order?: string; limit?: number; marked?: boolean}) => d)
   .handler(async ({data}) => {
     // `contains` is case-insensitive; `title` is the row's preview title for every type.
     // `order` (J38): `_updatedAt:desc` (default) or `_createdAt:desc`.
@@ -352,7 +352,9 @@ const fetchSearch = createServerFn({method: 'GET'})
     const r = await bpJson<{result: {documents: Doc[]}}>(
       `/v1/data/query/${dataset()}/${encodeURIComponent(data.type)}?perspective=drafts&order=${encodeURIComponent(data.order ?? '_updatedAt:desc')}&limit=${isGroqFilter(data.filter) ? 100 : limit}${filter}`,
     )
-    return (await groqKept(data.filter, r.result.documents)).slice(0, limit) as unknown as Json
+    const docs = (await groqKept(data.filter, r.result.documents)).slice(0, limit)
+    // `marked`: which drafts have a published version too (a reference pick stores weak without one).
+    return (data.marked ? await withHasPublished(data.type, docs) : docs) as unknown as Json
   })
 
 /**
@@ -640,13 +642,13 @@ export const docQuery = (type: string | string[], id: string) =>
     },
   })
 
-export const searchQuery = (type: string | string[], q: string, filter?: RefFilter, order?: string, limit?: number) =>
+export const searchQuery = (type: string | string[], q: string, filter?: RefFilter, order?: string, limit?: number, marked?: boolean) =>
   queryOptions({
-    queryKey: ['search', [type].flat().join(','), q, filter, order, limit],
+    queryKey: ['search', [type].flat().join(','), q, filter, order, limit, marked],
     staleTime: 10_000,
     queryFn: async ({client}) => {
       const types = [type].flat()
-      const found = (await Promise.all(types.map((t) => fetchSearch({data: {type: t, q, filter, order, limit}})))).flat() as unknown as Doc[]
+      const found = (await Promise.all(types.map((t) => fetchSearch({data: {type: t, q, filter, order, limit, marked}})))).flat() as unknown as Doc[]
       const docs = types.length > 1 ? found.sort((a, b) => b._updatedAt.localeCompare(a._updatedAt)).slice(0, limit ?? 20) : found
       for (const d of docs) if (!client.getQueryData(['doc', d._publishedId])) client.setQueryData(['doc', d._publishedId], d)
       return docs

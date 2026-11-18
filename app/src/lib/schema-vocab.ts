@@ -44,7 +44,7 @@ export const FIELD_KEYS = {
   readOnly: 'true, or a condition like visibleWhen.',
   fieldsets: 'composite: Sanity\'s fieldsets, [{name, title, options: {collapsible, collapsed, columns}}].',
   fieldset: 'The fieldset (of its composite) it shows in.',
-  weak: 'reference: Sanity\'s weak reference; kept, not enforced by Barkpark.',
+  weak: 'reference: Sanity\'s weak reference: a pick stores _weak: true, and Barkpark lets its target be deleted.',
   deprecated: 'Sanity\'s deprecated, {reason}: a "deprecated" badge by the title and the reason under it; the field stays editable. On a richText blocks.of / blocks.inline entry: shown disabled in Insert, the reason its tooltip. An array member keeps it (Sanity\'s array menu offers it as usual).',
   namedType: 'An array member or composite that is a named object type: Barkpark sets it when it expands the type. Its item row draws that type\'s icon. "code" makes it Sanity\'s code field (options: language, languageAlternatives, withFilename). "table" makes it Sanity\'s table field (options: rowType).',
 } satisfies Record<keyof Field, string>

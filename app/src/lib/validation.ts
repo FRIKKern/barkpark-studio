@@ -63,9 +63,11 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // Sanity's field types carry rules of their own: a URL, an email, a whole number, a date.
   const wrongShape = typeRule(field.type, value, t)
   if (wrongShape) push({}, wrongShape)
-  // Sanity: a reference must point at a published doc (a missing one fails the same way).
-  if (field.type === 'reference' && typeof value === 'string' && target) {
-    const doc = target(value)
+  // Sanity: a strong reference must point at a published doc (a missing one fails the same
+  // way), a bare id or Sanity's object alike. A weak field's may point anywhere (Sanity's).
+  const ref = field.type === 'reference' && !field.weak ? refId(value) : undefined
+  if (ref && target) {
+    const doc = target(ref)
     if (doc === null || doc?._hasPublished === false) push({}, t('Referenced document must be published'))
   }
   // Sanity: an empty row in an array of references is an error on that row.
