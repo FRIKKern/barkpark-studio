@@ -7,18 +7,22 @@ import {objectFields, type PtKind} from './pt-value.ts'
 // A locked field keeps the document's value at any depth: object fields by name; array items,
 // Portable Text blocks, their inline objects and annotations by `_key` and `_type`. Locked
 // means read-only for this person (the schema's `readOnly`, as Sanity's, or a config callback),
-// or hidden from them by a config role rule (conditions.ts fieldLock). Visibility from the
-// data (`visibleWhen`, the schema's `hidden`, a callback reading the document) is no lock:
-// such a field pastes as on main. An item only the copy has comes in whole; an item, block or
+// or hidden from them but shown to another role by a config rule, on the document as it is or
+// as the paste leaves it (conditions.ts fieldLock). Visibility from the data (`visibleWhen`,
+// the schema's `hidden`, a rule hiding the field from every role) is no lock: such a field
+// pastes as on main. An item only the copy has comes in whole; an item, block or
 // object the paste removes stays only while it holds a locked value. With no lock anywhere the
 // paste is the copy. Sanity's paste checks top-level read-only fields only.
 
-export type PasteContext = {type: string; doc: Record<string, unknown>; user: CurrentUser | null; rules: Record<string, FieldConditions> | undefined}
+/** `after`: the document as the paste leaves it (Paste document works it out itself). */
+export type PasteContext = {type: string; doc: Record<string, unknown>; after?: Record<string, unknown>; user: CurrentUser | null; rules: Record<string, FieldConditions> | undefined}
 type Obj = Record<string, unknown>
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v)
-const locked = (sub: Field, at: string, was: Obj, c: PasteContext) => {
-  const l = fieldLock(c.type, sub, c.doc, c.user, c.rules, {path: at, value: was[sub.name], parent: was})
+/** `sub` at `at`, in the document's object `was` and, when the paste writes one, the copy's object `now`. */
+const locked = (sub: Field, at: string, was: Obj, c: PasteContext, now?: Obj) => {
+  const after = now && c.after ? {doc: c.after, at: {path: at, value: now[sub.name], parent: now}} : undefined
+  const l = fieldLock(c.type, sub, c.doc, c.user, c.rules, {path: at, value: was[sub.name], parent: was}, after)
   return l.readOnly || l.roleHidden
 }
 const itemPath = (path: string, key: unknown) => `${path}[_key=="${String(key)}"]`
@@ -75,7 +79,7 @@ export function keepLocked(f: Field, path: string, pasted: unknown, target: unkn
     const out: Obj = isObj(pasted) ? {...pasted} : {}
     for (const sub of f.fields) {
       const at = `${path}.${sub.name}`
-      if (locked(sub, at, was, c)) {
+      if (locked(sub, at, was, c, isObj(pasted) ? pasted : undefined)) {
         if (sub.name in was) out[sub.name] = was[sub.name]
         else delete out[sub.name]
       } else if (sub.name in out || holdsLocked(sub, at, was[sub.name], c)) {
@@ -129,8 +133,9 @@ function keepLockedPt(f: Field, path: string, pasted: unknown[], target: unknown
  * is locked (pasteSkips), with keepLocked inside each. `named` are the read-only ones skipped
  * (Sanity's toast); one a role rule hides is never named.
  */
-export function pasteDocument(fields: Field[], values: Obj, c: PasteContext): {writes: [string, unknown][]; named: string[]} {
-  const {skip, named} = pasteSkips(c.type, fields, c.doc, c.user, c.rules)
+export function pasteDocument(fields: Field[], values: Obj, context: PasteContext): {writes: [string, unknown][]; named: string[]} {
+  const c = {...context, after: {...context.doc, ...values}}
+  const {skip, named} = pasteSkips(c.type, fields, c.doc, c.user, c.rules, c.after)
   const writes: [string, unknown][] = []
   for (const f of fields) if (f.name in values && !skip.has(f.name)) writes.push([f.name, keepLocked(f, f.name, values[f.name], c.doc[f.name], c)])
   return {writes, named}

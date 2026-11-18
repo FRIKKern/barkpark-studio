@@ -139,45 +139,47 @@ export function fieldState(type: string, f: Field, doc: Record<string, unknown>,
   return {hidden, readOnly}
 }
 
+const KNOWN_ROLES = Object.keys(ROLE_TITLES)
 /**
- * What a paste keeps (lib/paste-locked.ts): a field read-only for this person (the schema's
- * `readOnly`, or the config's callback), or hidden from them by a config role rule: a
- * `form.conditions` hidden callback that reads `currentUser` (or nothing) and not `document`,
- * `parent` or `value`. Visibility from the data (`visibleWhen`, the schema's `hidden`, a
- * callback reading the document) is no lock: such a field pastes as any other.
+ * Hidden from this person by a config role rule: the `form.conditions` hidden for `type.path`
+ * hides the field from them on this data and shows it to some other role on the same data
+ * (asked once per role: administrator, editor, contributor, viewer and their own). Hidden from
+ * every role on this data is visibility from the data, no lock; so is anything with nobody
+ * signed in (shared sign-in).
  */
-export function fieldLock(type: string, f: Field, doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}) {
-  const readOnly = fieldState(type, f, doc, currentUser, rules, at).readOnly
+export function roleHidden(type: string, doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, at: Where): boolean {
   const key = conditionKey(type, at.path)
   const hidden = rules?.[key]?.hidden
-  if (typeof hidden !== 'function') return {readOnly, roleHidden: hidden === true}
-  let readsData = false
-  const read = <T,>(v: T) => ((readsData = true), v)
-  const context = {
-    currentUser,
-    path: sanityPath(at.path),
-    get document() {
-      return read(doc)
-    },
-    get parent() {
-      return read(at.parent ?? doc)
-    },
-    get value() {
-      return read(at.value)
-    },
-  } as ConditionContext
-  return {readOnly, roleHidden: resolveConditional(hidden, context, `form.conditions['${key}'].hidden`) && !readsData}
+  if (!currentUser || hidden === undefined) return false
+  const ask = (user: CurrentUser) => resolveConditional(hidden, {currentUser: user, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)}, `form.conditions['${key}'].hidden`)
+  if (!ask(currentUser)) return false
+  const roles = new Set([...KNOWN_ROLES, ...currentUser.roles.map((r) => r.name)])
+  return [...roles].some((name) => !ask({...currentUser, roles: [{name, title: ROLE_TITLES[name] ?? name}]}))
+}
+
+/**
+ * What a paste keeps (lib/paste-locked.ts): a field read-only for this person (the schema's
+ * `readOnly` or the config's, on the document as it is), or hidden from them by a role rule
+ * (roleHidden) on the document as it is or as the paste leaves it (`after`). Visibility from
+ * the data (`visibleWhen`, the schema's `hidden`, a rule hiding the field from every role) is
+ * no lock: such a field pastes as on main.
+ */
+export function fieldLock(type: string, f: Field, doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}, after?: {doc: Record<string, unknown>; at: Where}) {
+  const readOnly = fieldState(type, f, doc, currentUser, rules, at).readOnly
+  const hidden = roleHidden(type, doc, currentUser, rules, at) || (!!after && roleHidden(type, after.doc, currentUser, rules, after.at))
+  return {readOnly, roleHidden: hidden}
 }
 
 /**
  * Paste document (J29) leaves a read-only field as it is and names it, as Sanity's paste
- * does, and a field a role rule hides as it is, unnamed (fieldLock).
+ * does, and a field a role rule hides as it is, unnamed (fieldLock). `after` is the document
+ * as the paste leaves it.
  */
-export function pasteSkips(type: string, fields: Field[], doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined) {
+export function pasteSkips(type: string, fields: Field[], doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, after?: Record<string, unknown>) {
   const skip = new Set<string>()
   const named: string[] = []
   for (const f of fields) {
-    const l = fieldLock(type, f, doc, currentUser, rules)
+    const l = fieldLock(type, f, doc, currentUser, rules, undefined, after && {doc: after, at: {path: f.name, value: after[f.name]}})
     if (l.readOnly || l.roleHidden) skip.add(f.name)
     if (l.readOnly && !l.roleHidden) named.push(f.title ?? f.name)
   }
