@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {test} from 'node:test'
 import {adopt, modelMemory, modelWithReadsAhead, type Ahead} from './early-reads.ts'
+import {letsIn, readMeWithHeadStart, type Me} from './gate-head-start.ts'
 
 /** A read whose answer the test gives when it chooses. */
 const deferred = <T,>() => {
@@ -82,6 +83,26 @@ test('a fresh model read that fails fails the chain as before', async () => {
   assert.deepEqual(memory.get(KEY)?.model, {desk: null, schemas: ['post']}, 'a failed read is never remembered')
 })
 
+// A remembered model is only a guess at the URL's reads: one that no longer parses (the route's
+// panesOf throws in begin) must never fail a page main would serve from the fresh model.
+test('a remembered model the reads ahead cannot use never fails the render: it goes on as main does', async () => {
+  const memory = modelMemory<Model>()
+  memory.put(KEY, {desk: 'broken', schemas: ['post']})
+  const fresh = {desk: null, schemas: ['post']}
+  let tried = 0
+  const {model, ahead} = await modelWithReadsAhead<Model, string>({key: KEY, memory, model: Promise.resolve(fresh), begin: () => {
+    tried++
+    throw new Error('the remembered desk no longer parses')
+  }})
+  assert.equal(tried, 1)
+  assert.equal(ahead, undefined, 'nothing to adopt: the chain reads as on main')
+  assert.deepEqual(model, fresh)
+  assert.deepEqual(memory.get(KEY)?.model, fresh, 'the fresh model replaces the bad one')
+  const page = new Map<string, unknown>()
+  await adopt<string>(ahead, (k) => page.has(k), (k, v) => void page.set(k, v))
+  assert.equal(page.size, 0)
+})
+
 test('the memory keeps the most recent scopes, at most cap', () => {
   const memory = modelMemory<number>(2)
   memory.put('a', 1)
@@ -109,4 +130,51 @@ test('the structure route reads ahead only on a render the head start let in, af
   assert.match(chain, /readAhead && onServer\s*\? await modelWithReadsAhead\(/)
   assert.match(route, /const own = new QueryClient\(/, 'the reads ahead run on a client of their own')
   assert.equal(count(route, /\badopt\(/), 1, 'one way into the page')
+})
+
+// The gate path end to end. render() wires the pure helpers as the route does: requireEditor's
+// readMeWithHeadStart (cookie, then `me` and letsIn), loadPanes' `!!ahead`, then loadPaneChain's
+// modelWithReadsAhead and adopt. The test after it pins that the route really wires them so:
+// letsIn itself, not a stand-in, and the model keyed by the request's scope.
+const seated: Me = {signIn: 'account', email: 'ada@example.com'}
+
+/** One server render of a doc page: what began early, what reached the page, what is remembered. */
+async function render(me: Me, cookie: boolean, remembered: Model | undefined, fresh: Model) {
+  const memory = modelMemory<Model>()
+  if (remembered) memory.put(KEY, remembered)
+  const begun: Model[] = []
+  const gate = await readMeWithHeadStart({cookieLetsIn: async () => cookie, readMe: async () => me, start: () => 'scratch', letsIn})
+  const readAhead = !!gate.ahead
+  const begin = (known: Model): Ahead<string> => (begun.push(known), {done: Promise.resolve(), read: () => [['doc post-03', {_id: 'post-03', from: 'early'}]]})
+  const {ahead} = readAhead ? await modelWithReadsAhead({key: KEY, memory, model: Promise.resolve(fresh), begin}) : {ahead: undefined}
+  const page = new Map<string, unknown>()
+  await adopt(ahead, (k) => page.has(k), (k, v) => void page.set(k, v))
+  return {begun, page, remembered: memory.get(KEY)?.model}
+}
+const m1 = {desk: null, schemas: ['post', 'author']}
+
+test('a seated member, the cookie and me both say yes: reads ahead adopted only on an equal model', async () => {
+  const same = await render(seated, true, m1, {desk: null, schemas: ['post', 'author']})
+  assert.equal(same.begun.length, 1)
+  assert.deepEqual(same.page.get('doc post-03'), {_id: 'post-03', from: 'early'})
+  const changed = await render(seated, true, m1, {desk: null, schemas: ['post']})
+  assert.equal(changed.begun.length, 1, 'they had begun')
+  assert.equal(changed.page.size, 0, 'a changed model: nothing reaches the page')
+  assert.deepEqual(changed.remembered, {desk: null, schemas: ['post']}, 'the fresh model is remembered')
+})
+
+test('the gate refuses (no seat, signed out, studio token refused, or the cookie says no): nothing begins, nothing is remembered', async () => {
+  for (const [me, cookie] of [[{...seated, noSeat: true}, true], [{signIn: 'account', email: null}, true], [{signIn: 'shared', email: null, studioTokenRefused: true}, true], [seated, false]] as [Me, boolean][]) {
+    const r = await render(me, cookie, m1, m1)
+    assert.deepEqual(r.begun, [], JSON.stringify(me))
+    assert.equal(r.page.size, 0)
+    assert.deepEqual(r.remembered, m1, 'the memory is untouched by a refused render')
+  }
+})
+
+test('the route passes letsIn itself and keys the model by the request scope', () => {
+  const route = code('./structure-route.tsx')
+  assert.match(route, /readMeWithHeadStart\(\{[^}]*(^|[,{]\s*)letsIn\s*\}\)/, 'letsIn as imported, never a stand-in')
+  assert.match(route, /modelWithReadsAhead\(\{key: await fetchModelScope\(\), /)
+  assert.match(code('./data.ts'), /const at = scope\(\)\n\s*return `\$\{at\.workspace\} \$\{at\.project\} \$\{at\.dataset\}`/)
 })

@@ -6,7 +6,9 @@
 // project and dataset last read, while the fresh one is read. They run on a client of their own,
 // with this request's token, after the live stream's resume mark like every document read.
 // Only when the fresh model is the same as the remembered one does what they read join the
-// page; a changed model drops them and the chain reads as it always did.
+// page; a changed model drops them and the chain reads as it always did. The model is taken to
+// be the same for everyone in a scope (it is read with the studio's tokens); were it to differ by
+// person, each load would only begin reads it then drops.
 
 /** The content model last read per `<workspace> <project> <dataset>`, at most `cap` of them. */
 export function modelMemory<M>(cap = 50) {
@@ -31,7 +33,13 @@ export type Ahead<K> = {done: Promise<unknown>; read: () => [K, unknown][]}
  */
 export async function modelWithReadsAhead<M, K>({key, memory, model, begin}: {key: string; memory: ModelMemory<M>; model: Promise<M>; begin: (known: M) => Ahead<K>}): Promise<{model: M; ahead?: Ahead<K>}> {
   const known = memory.get(key)
-  const ahead = known ? begin(known.model) : undefined
+  // A remembered model that no longer parses never fails a render: it just begins nothing.
+  let ahead: Ahead<K> | undefined
+  try {
+    ahead = known ? begin(known.model) : undefined
+  } catch {
+    ahead = undefined
+  }
   const fresh = await model
   const text = JSON.stringify(fresh)
   memory.put(key, fresh, text)
