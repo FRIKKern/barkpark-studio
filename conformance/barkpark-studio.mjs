@@ -2,6 +2,8 @@ import {createRequire} from 'node:module'
 import {pathToFileURL} from 'node:url'
 
 import {MISSING, conform, counts, diffShapes, modeFromEnv, settle, shapeOf} from './pack/conformance.mjs'
+import {readFileSync, writeFileSync} from 'node:fs'
+import {rowsMoved} from '../scripts/lib/pack.mjs'
 
 const require = createRequire(new URL('../app/package.json', import.meta.url))
 const load = (specifier) => import(pathToFileURL(require.resolve(specifier)).href)
@@ -37,6 +39,13 @@ async function main() {
       judge,
       pack: process.env.CONFORMANCE_PACK || PACK,
     })
+    // CONFORMANCE_RESTAMP=1 (scripts/pack-sync.mjs, after a new pack): the report takes the new
+    // pack's stamp only when no row moved; otherwise it stays, and the check below fails.
+    if (process.env.CONFORMANCE_RESTAMP === '1') {
+      const moved = rowsMoved(JSON.parse(readFileSync(REPORT, 'utf8')), report)
+      if (moved.length === 0) writeFileSync(REPORT, JSON.stringify(report, null, 2) + '\n')
+      for (const line of moved) console.log(`moved: ${line}`)
+    }
     const problems = settle(report, {...modeFromEnv(), path: REPORT})
     const result = counts(report)
     console.log(
