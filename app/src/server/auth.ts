@@ -236,7 +236,12 @@ export async function signOut() {
   // A copy of the sealed cookie still unseals until it expires. Its login session ended at
   // Barkpark just now, so forget what we knew of that token: the next request asks again,
   // hears 401, and the copy is signed out at once, not after the minute's cache.
-  if (editor?.session) for (const key of described.keys()) if (key.startsWith(`${editor.session} `)) described.delete(key)
+  if (editor?.session) forgetToken(editor.session)
+}
+
+/** Forget what a token was described as, in every workspace: the next request asks Barkpark again. */
+export function forgetToken(token: string) {
+  for (const key of described.keys()) if (key.startsWith(`${token} `)) described.delete(key)
 }
 
 const admin = () => {
