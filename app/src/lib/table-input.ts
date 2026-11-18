@@ -141,7 +141,10 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
  */
 const otherRows = (drawn: TableRow[], now: unknown, row: string | undefined): [unknown[], unknown[]][] => {
   const by = new Map(rowsOf(now).map((r) => [r._key, cellsOf(r)]))
-  return drawn.flatMap((r) => (r._key !== row && by.has(r._key) ? [[cellsOf(r), by.get(r._key)!] as [unknown[], unknown[]]] : []))
+  // A row whose drawn text is gone or cut now is left out: my unsent text taken to the card (seed
+  // 41009 #1350: it read as a column kept, and my key went into the other editor's word), or a removed column's.
+  const held = (was: unknown[], now: unknown[]) => was.every((c) => typeof c !== 'string' || c === '' || now.some((n) => typeof n === 'string' && n.startsWith(c)))
+  return drawn.flatMap((r) => (r._key !== row && by.has(r._key) && held(cellsOf(r), by.get(r._key)!) ? [[cellsOf(r), by.get(r._key)!] as [unknown[], unknown[]]] : []))
 }
 
 /**
@@ -171,7 +174,7 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
   const rows = rowsOf(value)
   const target = rows[row]
   if (!target) return []
-  if (!keyed(rows)) return rowsWrite(key, (now) => now.map((r, i) => (i === row ? {...r, cells: withCell(padded(cellsOf(r), widthOf(now)), column, cell)} : r)))
+  if (!keyed(rows)) return rowsWrite(key, (now) => now.map((r, i) => (i === row ? {...r, cells: withCell(column >= cellsOf(r).length ? padded(cellsOf(r), widthOf(now)) : r.cells, column, cell)} : r)))
   const drawn = cellsOf(target)
   return [
     [
@@ -184,10 +187,11 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
         const at = columnNow(drawn, widthOf(rows), cells, column, cell, was, otherRows(rows, table, target._key))
         // A short row's padding grows it only as wide as the table is now (the grid was drawn
         // wider by a row of mine at the old width, and the table has narrowed since), and to that
-        // width whole: a key in a padded cell stores rows as even as @sanity/table's.
+        // width whole: a key in a padded cell stores rows as even as @sanity/table's. A key inside
+        // the row leaves its length (a row of mine on its way at the old width: the merge widens it).
         const wide = table === undefined ? Infinity : widthOf(rowsOf(table))
         if (at < 0 || (at >= cells.length && at >= wide)) return refused?.(cell), cells
-        return withCell(wide < Infinity ? padded(cells, wide) : cells, at, keyOnto(was, cell, text(cells[at])))
+        return withCell(at >= cells.length && wide < Infinity ? padded(cells, wide) : cells, at, keyOnto(was, cell, text(cells[at])))
       },
     ],
   ]
