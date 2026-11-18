@@ -142,7 +142,8 @@ function readsAhead(splat: string | undefined, published: boolean, [desk, schema
   const {panes, nodes} = panesOf(splat, desk, schemas)
   const typed = panes.filter((p) => !(p.kind === 'doc' && p.untyped))
   return {
-    done: hints.then(([, listPrefs]) => paneReads(own, typed, nodes, schemas, listPrefs, published)).catch(() => {}),
+    // The docs now; the lists once the list prefs say their sort (signed in, a read of its own).
+    done: Promise.all([paneReads(own, typed.filter((p) => p.kind !== 'list'), nodes, schemas, {}, published), hints.then(([, listPrefs]) => paneReads(own, typed.filter((p) => p.kind === 'list'), nodes, schemas, listPrefs, published))]).catch(() => {}),
     read: () => own.getQueryCache().getAll().flatMap((q) => (q.state.status === 'success' ? [[q.queryKey, q.state.data] as [readonly unknown[], unknown]] : [])),
   }
 }
