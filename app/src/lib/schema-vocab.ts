@@ -27,7 +27,7 @@ export const FIELD_KEYS = {
   rows: 'text: the textarea\'s height.',
   of: 'arrayOf: the member field.',
   fields: 'composite, image: the subfields.',
-  options: 'Type-specific: select\'s choices (a list, or {list, direction} as Sanity\'s), slug\'s source, image\'s hotspot, file\'s accept, reference\'s filter, an array\'s insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, …',
+  options: 'Type-specific: select\'s choices (a list, or {list, direction} as Sanity\'s), slug\'s source, image\'s hotspot, file\'s accept, reference\'s filter, an array\'s insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, a Portable Text field\'s oneLine (its text one block, as Sanity\'s), …',
   layout: 'arrayOf: "grid" or "list".',
   group: 'The field group (tab) it shows in.',
   validation: 'A rule, or a list of rules.',

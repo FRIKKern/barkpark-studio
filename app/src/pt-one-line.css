@@ -1,0 +1,5 @@
+/* A one-line Portable Text field (options.oneLine, lib/pt-one-line.ts), as Sanity's: the text box
+   is as tall as its line, not 271 px, and has no drag corner and no room under the last block.
+   Expanded over the pane it is the same as any other. Its own file: styles.css is long enough. */
+.pt-input[data-one-line]:not([data-expanded]) .pt-editable { height: auto; min-height: 0; resize: none; }
+.pt-input[data-one-line] .pt-editable .pt-block:last-child { margin-bottom: 0; }

@@ -36,7 +36,7 @@ import {FieldComments} from './Comments'
 import {useStaticCommentHighlights} from './InlineComments'
 import {InvalidValueCard, KeysAlert, RichTextCard, UnsupportedAssetCard} from './BrokenValues'
 import {invalidValue, keyProblem, richTextProblem, sanityPortableText, unsupportedAsset} from '../lib/broken'
-import {isPortableTextField, type PtBlock} from '../lib/pt-value'
+import {isOneLine, isPortableTextField, type PtBlock} from '../lib/pt-value'
 import {FileInput, ImageInput, PortableDocEditor} from './DocEditors'
 import {BodyToolbar} from './BodyToolbar'
 import {PortableDocView} from './PortableDocView'
@@ -63,7 +63,7 @@ function PortableTextField(props: {id: string; field: Field; value: PtBlock[] | 
 function PortableTextAtRest({field, value}: {field: Field; value: unknown}) {
   const lines = sanityPortableText(field, value)?.lines ?? []
   return (
-    <div className="pt-input" data-loading="">
+    <div className="pt-input" data-loading="" data-one-line={isOneLine(field) || undefined}>
       <div className="pt-editable">
         {lines.map((line, i) => (
           <p key={i} className="pt-block" data-style={line.style}>
