@@ -150,11 +150,16 @@ test('a11y: Vision says how a run went; Releases, Vision and Media have one h1',
   await query.fill('*[_type == "post"')
   await page.getByRole('button', {name: 'Fetch'}).click()
   await expect(heard).toHaveText(/^Query error: /)
+  // At each width the three tools load at once, each in its own tab (they only look).
   for (const width of [1440, 390]) {
-    await page.setViewportSize({width, height: width < 600 ? 844 : 900})
-    for (const tool of ['/releases', '/vision', '/media']) {
-      await page.goto(tool)
-      await expect(page.getByRole('heading', {level: 1}), `${tool} at ${width}`).toHaveCount(1)
-    }
+    await Promise.all(
+      ['/releases', '/vision', '/media'].map(async (tool, i) => {
+        const tab = i === 0 ? page : await page.context().newPage()
+        await tab.setViewportSize({width, height: width < 600 ? 844 : 900})
+        await tab.goto(tool)
+        await expect(tab.getByRole('heading', {level: 1}), `${tool} at ${width}`).toHaveCount(1)
+        if (tab !== page) await tab.close()
+      }),
+    )
   }
 })

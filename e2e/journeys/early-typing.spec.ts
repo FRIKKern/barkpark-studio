@@ -61,7 +61,8 @@ test('a checkbox, select and checkbox list changed before hydration are saved', 
     holding = false
     for (const go of held) go()
     await t.settle(page)
-    await expect.poll(async () => [await t.docValue(id, 'agree', 'fieldTypes'), await t.docValue(id, 'choice', 'fieldTypes'), await t.docValue(id, 'colours', 'fieldTypes')], {timeout: 10_000}).toEqual([true, 'b', ['red']])
+    // The three fields read at once each round, not one after another.
+    await expect.poll(() => Promise.all(['agree', 'choice', 'colours'].map((f) => t.docValue(id, f, 'fieldTypes'))), {timeout: 10_000}).toEqual([true, 'b', ['red']])
     await expect(page.locator('[id="agree"]')).toBeChecked()
   } finally {
     // Closed first: a save still on its way would write the draft again after the delete.

@@ -1,6 +1,12 @@
-import {test as base, type Browser, type BrowserContext, type Page} from '@playwright/test'
+import {test as base, expect as baseExpect, type Browser, type BrowserContext, type Page} from '@playwright/test'
 
 export * from '@playwright/test'
+
+// expect.poll asks again every 250 ms at most (BACKEND_POLL's steps), not after Playwright's
+// 500 ms and 1 s waits: on CI a value that landed just after a try waited up to a second for the
+// next one (44 polls on main, 21 s; task-c1df532bed870536). A spec's own intervals still win.
+const poll: typeof baseExpect.poll = (generator, options) => baseExpect.poll(generator, {intervals: [100, 250], ...(typeof options === 'string' ? {message: options} : options)})
+export const expect = new Proxy(baseExpect, {get: (target, key, receiver) => (key === 'poll' ? poll : Reflect.get(target, key, receiver))})
 
 // Every spec takes `test` from here, not from @playwright/test: a test also fails on an
 // uncaught error in any of its pages, or the studio's error screen (StudioError). The

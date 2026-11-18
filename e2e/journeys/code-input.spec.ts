@@ -1,5 +1,6 @@
 import {expect, test} from '../rig/test'
 import {bpBase, bpDataset, bpMutate, closeAndSettle, savesLanded, signInIfAsked, target} from '../rig/targets'
+import {schemaHasField} from '../rig/schema'
 
 // The code field (Sanity's @sanity/code-input): `{_type: 'code', language, filename, code,
 // highlightedLines}` edited in a code editor. As a block in a Portable Text field it is a card
@@ -60,6 +61,7 @@ test('a code block in a Portable Text field: its card shows the code; the dialog
 test('a code field: typed code, a picked language, a filename and a highlighted line each save to their own path and hold over a reload', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the reference studio has no code-input plugin installed')
+  test.skip(!(await schemaHasField('fieldTypes', 'snippet')), "this dataset's fieldTypes schema has no Snippet field yet (fixtures/barkpark-schema/fieldTypes.json; reseed with --schemas)")
   await t.prepare(context)
   await page.goto(t.docPath('fieldTypes', FIXTURE))
   await signInIfAsked(page)

@@ -1,5 +1,6 @@
 import {expect, test} from '../rig/test'
 import {BACKEND_POLL, closeAndSettle, signInIfAsked, target} from '../rig/targets'
+import {schemaHasField} from '../rig/schema'
 
 // J31 a datetime field's time zone, as Sanity's (task-a9e1da2562bec7a4), on fieldTypes.meetsAt
 // (fixtures/barkpark-schema/fieldTypes.json: displayTimeZone America/New_York, allowTimeZoneSwitch):
@@ -16,6 +17,7 @@ test.afterEach(async ({page}, info) => (await closeAndSettle(page), await target
 
 test('J31 datetime zones: displayTimeZone shows New York, a switch to Oslo moves the time and writes nothing', async ({page}, info) => {
   const t = target(info)
+  test.skip(!(await schemaHasField('fieldTypes', 'meetsAt')), "this dataset's fieldTypes schema has no meetsAt yet (reseed with --schemas)")
   await Promise.all([t.draftOnly(ID, 'fieldTypes', {title: 'Zones', meetsAt: AT}), t.prepare(page.context())])
   await page.goto(t.docPath('fieldTypes', ID))
   await signInIfAsked(page)

@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '../rig/test'
-import {target, type Target, BACKEND_POLL, closeAndSettle} from '../rig/targets'
+import {target, type Target, BACKEND_POLL, closeAndSettle, savesLanded} from '../rig/targets'
 
 // J03 + J04 + J13, both studios, three tests on three docs (QUALITY.md rule 5: each
 // under 5 s, and three tests spread over the CI shards). J03: typing is local-first —
@@ -24,7 +24,8 @@ async function docMenuItem(t: Target, page: Page, name: RegExp) {
 
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
-  for (const id of [ID, CHECKED, UNPUBLISHED]) await target(info).resetDoc(id, 'post')
+  // Each a different doc: all at once.
+  await Promise.all([ID, CHECKED, UNPUBLISHED].map((id) => target(info).resetDoc(id, 'post')))
 })
 
 test('J03 J04: type without drops, undo, a draft beside the published version, reload, publish', async ({page}, info) => {
@@ -47,6 +48,7 @@ test('J03 J04: type without drops, undo, a draft beside the published version, r
   await expect(title).toHaveValue(TYPED)
 
   // J04: the edit is a draft next to the published version; J03: it survives a reload.
+  await savesLanded(page)
   await expect.poll(versions, BACKEND_POLL).toEqual({draft: TYPED, published: TITLE})
   await page.reload()
   await t.settle(page)

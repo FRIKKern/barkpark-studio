@@ -2,7 +2,7 @@ import {expect, test, type Page} from '../rig/test'
 import {createHash} from 'node:crypto'
 import {readFileSync} from 'node:fs'
 import {seedAssets} from '../../scripts/lib/seed-assets.mjs'
-import {bpBase, bpDataset, bpMutate, signInIfAsked, target, bpRemove, closeAndSettle} from '../rig/targets'
+import {bpBase, bpDataset, bpMutate, signInIfAsked, target, bpRemove, closeAndSettle, savesLanded} from '../rig/targets'
 
 // An image's stored shape (task-fd8c8097867ebe9f): a new pick stores Sanity's canonical
 // {_type: 'image', asset: {_type: 'reference', _ref}}; the bare {asset: {_ref}} older content
@@ -22,19 +22,23 @@ test('image shape: the old and the canonical read the same; an untouched old one
   ])
   try {
     await t.prepare(page.context())
-    const drawn = async (id: string) => {
-      await page.goto(`${t.docPath('post', id)},path=mainImage`)
-      await signInIfAsked(page)
-      const field = page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')})
+    const drawn = async (p: Page, id: string) => {
+      await p.goto(`${t.docPath('post', id)},path=mainImage`)
+      await signInIfAsked(p)
+      const field = p.locator('fieldset.field').filter({has: p.locator('[id="mainImage"]')})
       const img = field.getByRole('img', {name: 'Preview of uploaded image'})
       await expect(img).toBeVisible()
       return {src: await img.getAttribute('src'), alt: await field.getByRole('textbox', {name: 'Alternative text'}).inputValue()}
     }
-    expect(await drawn(OLD)).toEqual(await drawn(NEW))
-    // An edit elsewhere saves the doc; its image keeps the shape it had.
-    await page.goto(t.docPath('post', OLD))
+    // Both drawn at once, the new one in a second tab (it only looks, it writes nothing).
+    const other = await page.context().newPage()
+    const [oldDrawn, newDrawn] = await Promise.all([drawn(page, OLD), drawn(other, NEW)])
+    await other.close()
+    expect(oldDrawn).toEqual(newDrawn)
+    // An edit elsewhere saves the doc; its image keeps the shape it had. The old one's page is open already.
     await t.settle(page)
     await editTitle(page, t.field(page, 'title'))
+    await savesLanded(page)
     await expect.poll(() => t.docValue(OLD, 'title'), {timeout: 10_000}).toMatch(/ edited$/)
     expect(await t.docValue(OLD, 'mainImage')).toEqual(old)
     // A new pick (Upload, the same file: the library has it) stores the canonical shape.

@@ -187,10 +187,15 @@ test('J19: Ctrl+Alt+P and Ctrl+Alt+D do nothing from the list; Delete from the p
     await expect(t.field(page, 'title')).toHaveValue('Scope probe')
     const row = t.listItem(page, id).first()
     await row.focus()
+    // An absence. A publish by the key goes out at once (DocumentPane.tsx docShortcut, then
+    // lib/edits.ts publish: nothing waiting to save, no slug to ask about, so its mutate is the
+    // first request): any write the page sends from here is seen as it leaves.
+    const writes: string[] = []
+    page.on('request', (r) => r.method() === 'POST' && r.url().includes('/_serverFn/') && (r.postData() ?? '').includes('mutations') && writes.push(r.postData()!))
     await page.keyboard.press('Control+Alt+KeyP')
     await page.keyboard.press('Control+Alt+KeyD')
-    // An absence: give a publish its time to land, then look.
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(500)
+    expect(writes, 'no write leaves the page').toEqual([])
     await expect(page.getByRole('dialog').filter({hasText: 'Delete'})).toHaveCount(0)
     expect(await t.versions(id)).toEqual({draft: 'Scope probe', published: undefined})
     await t.field(page, 'title').click()

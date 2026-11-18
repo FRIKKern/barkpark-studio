@@ -1,5 +1,6 @@
 import {expect, test} from '../rig/test'
 import {bpMutate, closeAndSettle, signInIfAsked, target} from '../rig/targets'
+import {schemaHasDesk} from '../rig/schema'
 
 // Document translations (Sanity's @sanity/document-internationalization), ours: a type
 // whose schema carries `desk.translations` (the fixture `volume`: nb, en). What can break
@@ -26,6 +27,7 @@ test.afterEach(async ({page}) => {
 test('translations: create the other language, it opens linked in the next pane; delete it, creatable again', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "Barkpark-native: Sanity's is the plugin, not installed in the reference")
+  test.skip(!(await schemaHasDesk('volume', 'translations')), "this dataset's volume schema has no desk.translations yet (reseed with --schemas)")
   await bpMutate([{create: {_id: ID, _type: 'volume', title: TITLE, language: 'nb'}}])
   await page.goto(t.docPath('volume', ID))
   await signInIfAsked(page)

@@ -1,5 +1,5 @@
 import {expect, test} from '../rig/test'
-import {signInIfAsked, target} from '../rig/targets'
+import {bpMutate, signInIfAsked, target} from '../rig/targets'
 
 // J08, the picker's order for a typed search, as Sanity's: best matches first, then by
 // title with numbers in order (it read "Fixture post 30, 28, 15…", newest first).
@@ -7,7 +7,8 @@ test('J08: reference search lists "Fixture post" in title order', async ({page},
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's order is the scout's")
   const id = `post-reforder-${Date.now().toString(36)}`
-  await t.draftOnly(id, 'post', {title: 'Ref order probe', slug: {_type: 'slug', current: id}})
+  // A draft only, created outright: the id is new, so no leftover to delete first (t.draftOnly's).
+  await bpMutate([{create: {_id: id, _type: 'post', title: 'Ref order probe', slug: {_type: 'slug', current: id}}}])
   try {
     await t.prepare(page.context())
     await page.goto(t.docPath('post', id))

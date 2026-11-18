@@ -1,5 +1,5 @@
 import {expect, test, type Route} from '../rig/test'
-import {bpMutate, bpRemove, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {bpMutate, bpRemove, signInIfAsked, target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // J32 widen (task-6612fd882f8b8b63): someone deletes the doc while you type. The save
 // that was on its way meets the delete (404); every keystroke is kept, the deleted
@@ -49,5 +49,6 @@ test(`keystrokes typed as the doc is deleted come back with Restore (${frames})`
   await expect(page.locator('.pane-header .chip[data-off]')).toHaveText('Published')
   await banner.getByRole('button', {name: 'Restore most recent revision'}).click()
   await expect(t.field(page, 'name')).toHaveValue('Kept Author typed', {timeout: 15_000})
+  await savesLanded(page)
   await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author typed')
 })
