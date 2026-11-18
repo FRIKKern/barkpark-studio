@@ -9,6 +9,7 @@ import {startsAtStudioItem, studioDesk} from './structure-config'
 import {loadRefs, mediaRefs, previewRefs, textRefs} from './preview'
 import {meQuery, provisionalMe} from './session'
 import {withinBudget} from './ssr-budget'
+import {readMeWithHeadStart} from './gate-head-start'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useEffect, useState} from 'react'
 import {useLivePausedToast, useReconnectingToast} from './connection'
@@ -23,13 +24,37 @@ import {redirect, useRouter} from '@tanstack/react-router'
 // In the browser, a pane opens as soon as its own doc is there; references load
 // behind it (their previews fill in), so opening never waits on the network for
 // data the pane can paint without.
-/** With sign-in on, the structure needs an editor: send others to /login. */
-export async function requireEditor(queryClient: QueryClient, href: string) {
+/**
+ * With sign-in on, the structure needs an editor: send others to /login. `chain`: a
+ * structure route, whose pane chain's first reads start beside `me` on the server
+ * (lib/gate-head-start.ts).
+ */
+export async function requireEditor(queryClient: QueryClient, href: string, chain = false) {
   // On the server, Barkpark gets 600 ms to say who this is; late, the session cookie says
   // (provisionalMe: signed in as they are, nothing allowed until the browser asks again).
   // The sign-in check below runs either way.
-  const me = typeof window === 'undefined' ? await withinBudget(queryClient, meQuery, 600, () => provisionalMe()) : await queryClient.ensureQueryData(meQuery)
+  const readMe = () => (typeof window === 'undefined' ? withinBudget(queryClient, meQuery, 600, () => provisionalMe()) : queryClient.ensureQueryData(meQuery))
+  const {me, ahead} = typeof window === 'undefined' && chain ? await readMeWithHeadStart({cookieLetsIn: async () => letsIn(await provisionalMe()), readMe, start: startChain, letsIn}) : {me: await readMe()}
   if (me.signIn !== 'shared' && !me.email) throw redirect({to: '/login', search: {redirect: href}})
+  // Held for this request's loader only: a route's beforeLoad context goes to the browser.
+  if (ahead) headStarts.set(queryClient, ahead)
+}
+
+type Me = {signIn: string; email: string | null; noSeat?: boolean; studioTokenRefused?: boolean}
+/** In, and able to read: signed in (or shared sign-in), a seat here, the studio's token alive. */
+const letsIn = (me: Me) => (me.signIn === 'shared' || !!me.email) && !me.noSeat && !me.studioTokenRefused
+
+/** A server render's pane chain begun early: on its own client, as loadPanes runs it. */
+type HeadStart = {scratch: QueryClient; resume: Promise<number | null>}
+const headStarts = new WeakMap<QueryClient, HeadStart>()
+function startChain(): HeadStart {
+  const scratch = new QueryClient({defaultOptions: {queries: {retry: false}}})
+  // Awaited by the chain, which rethrows a failure where it always did.
+  const resume = fetchResumeMark()
+  resume.catch(() => {})
+  void scratch.prefetchQuery(deskQuery)
+  void scratch.prefetchQuery(schemasQuery)
+  return {scratch, resume}
 }
 
 /** How long a server render waits on Barkpark before it sends the shell instead (task-9379f9fa115b156f). */
@@ -49,9 +74,12 @@ export type PanesData = {panes: Pane[]; widthHint: number; listPrefs: ListPrefs;
 export async function loadPanes(queryClient: QueryClient, splat: string | undefined, published = false): Promise<PanesData> {
   if (typeof window !== 'undefined') return loadPaneChain(queryClient, splat, published)
   // On a scratch client, so a chain past the budget never holds the page: the request's
-  // client streams every query it holds, and the page waited for each to land.
-  const scratch = new QueryClient({defaultOptions: {queries: {retry: false}}})
-  const chain = loadPaneChain(scratch, splat, published)
+  // client streams every query it holds, and the page waited for each to land. The one
+  // requireEditor began beside `me`, when it let this person in.
+  const ahead = headStarts.get(queryClient)
+  headStarts.delete(queryClient)
+  const scratch = ahead?.scratch ?? new QueryClient({defaultOptions: {queries: {retry: false}}})
+  const chain = loadPaneChain(scratch, splat, published, ahead?.resume)
   const inTime = await Promise.race([chain, new Promise<null>((r) => setTimeout(r, SSR_BUDGET_MS, null))])
   if (!inTime) {
     chain.catch(() => {})
@@ -62,10 +90,14 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   return inTime
 }
 
-async function loadPaneChain(queryClient: QueryClient, splat: string | undefined, published = false): Promise<PanesData> {
+async function loadPaneChain(queryClient: QueryClient, splat: string | undefined, published = false, resumed?: Promise<number | null>): Promise<PanesData> {
   const onServer = typeof window === 'undefined'
-  // Before any read: frames after this point reach the page once its stream opens.
-  const resume = onServer ? await fetchResumeMark() : undefined
+  // The desk and the schemas are settled reads, kept across the resume mark (server/barkpark.ts
+  // forgetReads): they start with it rather than after it.
+  const model = Promise.all([queryClient.ensureQueryData(deskQuery), queryClient.ensureQueryData(schemasQuery)])
+  model.catch(() => {})
+  // Before any document read: frames after this point reach the page once its stream opens.
+  const resume = onServer ? await (resumed ?? fetchResumeMark()) : undefined
   // The list prefs and the width hint need nothing below: asked for now, they ride the
   // desk + schemas round trip instead of adding one of their own (fetchListPrefs never throws).
   const hints = Promise.all([
@@ -74,7 +106,7 @@ async function loadPaneChain(queryClient: QueryClient, splat: string | undefined
   ])
   // B12: a declared desk decides what the URL's segments name.
   // B13: without a desk, a singleton type's segment is its one doc, so schemas come first too.
-  const [desk, schemas] = await Promise.all([queryClient.ensureQueryData(deskQuery), queryClient.ensureQueryData(schemasQuery)])
+  const [desk, schemas] = await model
   // J18: without one, the studio's own structure items still name their segments.
   const own = desk ? null : studioDesk()
   const parsed = desk ? parseDeskPanes(splat, desk) : own && startsAtStudioItem(splat) ? parseDeskPanes(splat, own) : parseSingletonPanes(splat, new Set(schemas.filter((s) => s.singleton).map((s) => s.name)))
