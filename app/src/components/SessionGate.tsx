@@ -1,12 +1,12 @@
 import {useEffect, useMemo, type ReactNode} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {useNavigate, useRouterState} from '@tanstack/react-router'
+import {useRouterState} from '@tanstack/react-router'
+import {RequestAccess} from './RequestAccess'
 import {SignInForm} from './SignInForm'
 import {editorIs, resumeSaving} from '../lib/edits'
 import {useT} from '../lib/i18n'
 import {meQuery} from '../lib/session'
 import {onSessionChange} from '../lib/session-channel'
-import {signOutHere} from '../lib/sign-out'
 import {typedWithin} from '../lib/typing'
 
 // What stays cached while signed out: who is signed in, and what the sign-in screen needs.
@@ -17,7 +17,8 @@ const KEEP = ['me', 'locale', 'scope']
  * expired cookie), the page shows the sign-in screen where it is, as Sanity's does, and keeps
  * nothing it read as that editor. Edits held here wait for the same editor (J48,
  * lib/edits.ts editorIs): signing in brings the page back at the same URL and sends them.
- * Signed in with no seat in this workspace (or one that doesn't exist): NoAccess instead.
+ * Signed in with no seat in this workspace (or one that doesn't exist): Sanity's request-access
+ * screen instead (task-3982426459d4c4c1, task-cc6a6d85be054b17; components/RequestAccess.tsx).
  */
 export function SessionGate({children}: {children: ReactNode}) {
   const t = useT()
@@ -32,7 +33,7 @@ export function SessionGate({children}: {children: ReactNode}) {
   // Signed out under the editor's fingers (another tab signed out mid-word): Email waits for
   // a click, as Sanity's provider buttons take no keys, or the rest of the words went into it.
   const focusEmail = useMemo(() => signedOut && !typedWithin(1500), [signedOut])
-  if (me?.noSeat && !atLogin) return <NoAccess email={me.email!} />
+  if (me?.noSeat && !atLogin) return <RequestAccess email={me.email!} />
   if (!signedOut || atLogin) return children
   return (
     <main className="login">
@@ -43,40 +44,6 @@ export function SessionGate({children}: {children: ReactNode}) {
           </button>
         )}
       </SignInForm>
-    </main>
-  )
-}
-
-/**
- * task-3982426459d4c4c1, Sanity's no-access screen: signed in, but with no seat in the
- * URL's workspace (or no such workspace). Nothing of it is read; the account is named, and
- * Sign out leads to the sign-in screen for this same page. Barkpark has no access requests
- * yet, so the card says whom to ask instead of offering one.
- */
-function NoAccess({email}: {email: string}) {
-  const t = useT()
-  const qc = useQueryClient()
-  const navigate = useNavigate()
-  const here = useRouterState({select: (s) => s.location.href})
-  return (
-    <main className="login">
-      <section className="card" role="alert">
-        <h1>{t("You don't have access to this workspace")}</h1>
-        <p>{t("Your account doesn't have access to this content. Ask a workspace admin to add you.")}</p>
-        <p>
-          {t('Signed in as')} <strong>{email}</strong>
-        </p>
-        <button
-          type="button"
-          className="btn"
-          onClick={async () => {
-            await signOutHere(qc)
-            await navigate({to: '/login', search: {redirect: here}})
-          }}
-        >
-          {t('Wrong account? Sign out')}
-        </button>
-      </section>
     </main>
   )
 }

@@ -1,3 +1,4 @@
+import access from './nb/access'
 import barkpark from './nb/barkpark'
 import bulk from './nb/bulk'
 import dashboard from './nb/dashboard'
@@ -14,4 +15,4 @@ import translations from './nb/translations'
 // Sources: Barkpark's own Studio (api/priv/gettext/nb_NO) wins wherever it has the
 // string (nb/barkpark.ts, spread last), then Sanity's nb-NO pack (@sanity/locale-nb-no,
 // MIT) where our English is Sanity's, then ours.
-export const NB: Record<string, string> = {...structure, ...document, ...fields, ...search, ...media, ...presentation, ...tasks, ...translations, ...dashboard, ...bulk, ...barkpark}
+export const NB: Record<string, string> = {...structure, ...document, ...fields, ...search, ...media, ...presentation, ...tasks, ...translations, ...dashboard, ...bulk, ...access, ...barkpark}
