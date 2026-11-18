@@ -28,8 +28,9 @@ if (process.argv[2] === '--update') {
     const jobs = execSync(`gh api repos/{owner}/{repo}/actions/runs/${id}${attempt ? `/attempts/${attempt}` : ''}/jobs -q '.jobs[] | select(.name|startswith("studio")) | .id'`).toString().split('\n').filter(Boolean)
     for (const job of jobs) {
       let last = null
-      for (const line of execSync(`gh run view --job ${job} --log`, {maxBuffer: 64 << 20}).toString().split('\n')) {
-        const at = /\t(\d{4}-\d\d-\d\dT[\d:.]+Z) /.exec(line)
+      // The job's own log (`gh run view --job --log` reads the run's latest attempt, whatever the job).
+      for (const line of execSync(`gh api repos/{owner}/{repo}/actions/jobs/${job}/logs`, {maxBuffer: 64 << 20}).toString().split('\n')) {
+        const at = /^\uFEFF?(\d{4}-\d\d-\d\dT[\d:.]+Z) /.exec(line)
         if (!at) continue
         const t = Date.parse(at[1]) / 1000
         if (/Running \d+ tests? using/.test(line)) last = t
