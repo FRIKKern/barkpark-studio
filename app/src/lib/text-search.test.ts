@@ -109,3 +109,17 @@ test("equal hits rank as Sanity's best match: a matching link target first, then
     .sort((a, b) => b.score - a.score || tieLength(a.d, q, linked) - tieLength(b.d, q, linked))
   assert.deepEqual(ranked.map((r) => r.d._id), ['post-09', 'post-01', 'post-04'])
 })
+
+test('a reference stored as Sanity\'s {_ref} is found by its exact id as a bare id is: in a field, a list and an object', () => {
+  const schema: Schema = {...post, fields: [...post.fields, {name: 'tags', type: 'arrayOf', of: {name: 'tag', type: 'reference', refType: 'tag'}}]}
+  const score = (doc: Record<string, unknown>, q: string) => textScore({_id: 'p', title: 'Plain', ...doc}, parseTextQuery(q), schema)
+  // Weak, or picked while its target was unpublished: the object. Main found only the bare id.
+  assert.equal(score({author: {_type: 'reference', _ref: 'author-ada', _weak: true}}, 'author-ada'), score({author: 'author-ada'}, 'author-ada'))
+  assert.equal(score({author: {_type: 'reference', _ref: 'author-ada', _weak: true}}, 'author-ada'), 1)
+  assert.equal(score({tags: [{_key: 't1', _type: 'reference', _ref: 'tag-x'}]}, 'tag-x'), 1)
+  assert.equal(score({links: [{_key: 'l1', _type: 'link', title: 'Read', target: {_type: 'reference', _ref: 'post-09', _strengthenOnPublish: {type: 'post'}}}]}, 'post-09'), 1)
+  // Still an exact id, never a word: part of it finds nothing, as for a bare id.
+  assert.equal(score({author: {_type: 'reference', _ref: 'author-ada'}}, 'author'), 0)
+  // And the boost a doc gets for referencing a matched target counts the object too.
+  assert.equal(refBoost({author: {_type: 'reference', _ref: 'author-ada'}}, new Set(['author-ada']), schema), 5)
+})
