@@ -49,7 +49,7 @@
   "focus.spec.ts": 0,
   "footer-hydration.spec.ts": 2.5,
   "footer-live.spec.ts": 1.5,
-  "form-refused-inflight.spec.ts": 3.5,
+  "form-refused-inflight.spec.ts": 6.9,
   "form-refused.spec.ts": 3.1,
   "forms.spec.ts": 3.9,
   "freeform-blocks.spec.ts": 0,
