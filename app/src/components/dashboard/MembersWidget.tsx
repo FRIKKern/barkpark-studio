@@ -1,4 +1,5 @@
 import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {Link} from '@tanstack/react-router'
 import {memberRows, membersRefused, type Resolved} from '../../lib/dashboard'
 import {peopleNamesQuery, peopleQuery} from '../../lib/people'
 import {usePresences} from '../../lib/presence'
@@ -8,6 +9,7 @@ import {studioName} from '../../lib/studio-name'
 import {useT} from '../../lib/i18n'
 import {ActorAvatar} from '../Presence'
 import {WidgetEmpty, WidgetError, WidgetFrame, WidgetSkeleton} from './Widget'
+import {waitingRequestsQuery} from '../../lib/members-api'
 
 /**
  * Members (Sanity's Project users): the workspace's people, with a dot on who is in the
@@ -26,6 +28,15 @@ export function MembersWidget({widget}: {widget: Extract<Resolved, {kind: 'membe
   const {rows, total, onlineCount} = memberRows(people.data ?? [], names, here.map((p) => p.name), signedIn ? me!.email : null, widget.limit)
   const title = t(widget.title)
   const refused = people.isError && membersRefused(people.error)
+  // J69: an owner or admin seat gets the Members screen from here, with how many requests wait.
+  const waiting = useQuery(waitingRequestsQuery).data ?? null
+  const count = people.data && total > 0 ? <span className="dash-count muted">{signedIn ? t('{online} of {total} online', {online: onlineCount, total}) : t('{total} members', {total})}</span> : null
+  const manage =
+    waiting === null ? null : (
+      <Link className="btn btn-ghost" to="/members">
+        {waiting ? t('Manage members ({count} waiting)', {count: waiting}) : t('Manage members')}
+      </Link>
+    )
   // Both views of the roster are one query: its key reads it again.
   const refresh = () => void qc.refetchQueries({queryKey: peopleQuery.queryKey})
   return (
@@ -38,7 +49,14 @@ export function MembersWidget({widget}: {widget: Extract<Resolved, {kind: 'membe
       note={signedIn || !people.data?.length ? undefined : t('Everyone works as one identity in this studio, so it cannot tell who is online.')}
       onRefresh={refresh}
       refreshing={people.isFetching && !people.isPending}
-      footer={people.data && total > 0 ? <span className="dash-count muted">{signedIn ? t('{online} of {total} online', {online: onlineCount, total}) : t('{total} members', {total})}</span> : undefined}
+      footer={
+        count || manage ? (
+          <>
+            {count}
+            {manage}
+          </>
+        ) : undefined
+      }
     >
       {people.isError && !refused ? (
         <WidgetError error={people.error} onRetry={refresh} retrying={people.isFetching} />

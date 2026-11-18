@@ -15,6 +15,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MediaRouteImport } from './routes/media'
+import { Route as MembersRouteImport } from './routes/members'
 import { Route as PresentationRouteImport } from './routes/presentation'
 import { Route as ReleasesRouteImport } from './routes/releases'
 import { Route as VisionRouteImport } from './routes/vision'
@@ -74,6 +75,11 @@ const LoginRoute = LoginRouteImport.update({
 const MediaRoute = MediaRouteImport.update({
   id: '/media',
   path: '/media',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MembersRoute = MembersRouteImport.update({
+  id: '/members',
+  path: '/members',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PresentationRoute = PresentationRouteImport.update({
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
+  '/members': typeof MembersRoute
   '/presentation': typeof PresentationRoute
   '/releases': typeof ReleasesRoute
   '/vision': typeof VisionRoute
@@ -272,6 +279,7 @@ export interface FileRoutesByTo {
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
+  '/members': typeof MembersRoute
   '/presentation': typeof PresentationRoute
   '/releases': typeof ReleasesRoute
   '/vision': typeof VisionRoute
@@ -311,6 +319,7 @@ export interface FileRoutesById {
   '/health': typeof HealthRoute
   '/login': typeof LoginRoute
   '/media': typeof MediaRoute
+  '/members': typeof MembersRoute
   '/presentation': typeof PresentationRoute
   '/releases': typeof ReleasesRoute
   '/vision': typeof VisionRoute
@@ -351,6 +360,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/login'
     | '/media'
+    | '/members'
     | '/presentation'
     | '/releases'
     | '/vision'
@@ -389,6 +399,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/login'
     | '/media'
+    | '/members'
     | '/presentation'
     | '/releases'
     | '/vision'
@@ -427,6 +438,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/login'
     | '/media'
+    | '/members'
     | '/presentation'
     | '/releases'
     | '/vision'
@@ -466,6 +478,7 @@ export interface RootRouteChildren {
   HealthRoute: typeof HealthRoute
   LoginRoute: typeof LoginRoute
   MediaRoute: typeof MediaRoute
+  MembersRoute: typeof MembersRoute
   PresentationRoute: typeof PresentationRoute
   ReleasesRoute: typeof ReleasesRoute
   VisionRoute: typeof VisionRoute
@@ -540,6 +553,13 @@ declare module '@tanstack/react-router' {
       path: '/media'
       fullPath: '/media'
       preLoaderRoute: typeof MediaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/members': {
+      id: '/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof MembersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/presentation': {
@@ -762,6 +782,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthRoute: HealthRoute,
   LoginRoute: LoginRoute,
   MediaRoute: MediaRoute,
+  MembersRoute: MembersRoute,
   PresentationRoute: PresentationRoute,
   ReleasesRoute: ReleasesRoute,
   VisionRoute: VisionRoute,

@@ -162,6 +162,10 @@ const SETTLED_MS = 5_000
 export const forgetReads = () => {
   for (const key of recent.keys()) if (!SETTLED.test(key.slice(key.indexOf('/v1/')))) recent.delete(key)
 }
+/** A seat changed (J69 Members): the shared roster reads (the people pickers') answer from after it. */
+export const forgetMemberReads = () => {
+  for (const key of recent.keys()) if (key.includes('/v1/members?')) recent.delete(key)
+}
 /**
  * Someone (anyone) wrote this doc: no read of it may answer from before that. Nor may any
  * "used in" read: the write can add or drop an edge to any doc (J17; Barkpark's edges are

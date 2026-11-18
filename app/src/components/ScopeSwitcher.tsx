@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState, type CSSProperties} from 'react'
 import {useQuery} from '@tanstack/react-query'
+import {Link} from '@tanstack/react-router'
 import {currentScopeQuery, placesQuery, switchedPath, type Place} from '../lib/scope-switch'
 import type {Scope} from '../lib/scope'
 import {DialogBox} from './FocusScopes'
@@ -8,6 +9,8 @@ import {useT} from '../lib/i18n'
 import {meQuery} from '../lib/session'
 import {barkparkInfoQuery} from '../lib/diagnostics'
 import {GroupIcon} from './GroupIcon'
+import {waitingRequestsQuery} from '../lib/members-api'
+import {Users} from './icons'
 
 // B02: switch workspace / project / dataset, like Barkpark's LiveView Studio. The choice
 // goes into the URL (/w/<ws>/p/<project>/d/<dataset>/…) and opens as a fresh page, so
@@ -24,6 +27,8 @@ export function ScopeSwitcher({brand}: {brand: Brand}) {
   const t = useT()
   const {data: current} = useQuery(currentScopeQuery)
   const [open, setOpen] = useState(false)
+  // J69: an owner or admin sees how many access requests wait (null for anyone else).
+  const waiting = useQuery(waitingRequestsQuery).data ?? null
   // A click outside the card closes it, as Sanity's workspace menu.
   const wrap = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -45,9 +50,11 @@ export function ScopeSwitcher({brand}: {brand: Brand}) {
         onClick={() => setOpen((o) => !o)}
       >
         <span className="brand-name">{brand.name}</span>
+        {/* Requests wait: the Members entry inside says how many. */}
+        {!!waiting && <span className="members-dot" aria-hidden="true" />}
         <ChevronDown />
       </button>
-      {open && <ScopeDialog brand={brand} current={current} onClose={() => setOpen(false)} />}
+      {open && <ScopeDialog brand={brand} current={current} waiting={waiting} onClose={() => setOpen(false)} />}
     </div>
   )
 }
@@ -58,7 +65,7 @@ const initials = (name: string) => (name.split(/[\s_-]+/).filter(Boolean).slice(
 const HUES = [230, 270, 0, 160, 30, 200, 320, 100]
 const hue = (slug: string) => HUES[[...slug].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % HUES.length]!
 
-function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; onClose: () => void}) {
+function ScopeDialog({brand, current, waiting, onClose}: {brand: Brand; current: Scope; waiting: number | null; onClose: () => void}) {
   const t = useT()
   // Switching opens a fresh page, which takes a moment: the row says so meanwhile.
   const [switching, setSwitching] = useState<string | null>(null)
@@ -98,12 +105,21 @@ function ScopeDialog({brand, current, onClose}: {brand: Brand; current: Scope; o
             <span className="scope-card-name">{brand.name}</span>
           </span>
         </div>
-        {/* J69: Sanity's Manage project; ours is Barkpark's admin page (members & roles). */}
-        {adminUrl && (
-          <a className="btn btn-ghost manage-project" href={adminUrl} target="_blank" rel="noreferrer">
-            <GroupIcon name="cog" /> {t('Manage project')}
-          </a>
-        )}
+        {/* J69: Sanity's Manage project; ours is Barkpark's admin page. An owner or admin also
+            gets Members here (the studio's own screen), with how many requests wait. */}
+        <div className="scope-head-links">
+          {adminUrl && (
+            <a className="btn btn-ghost manage-project" href={adminUrl} target="_blank" rel="noreferrer">
+              <GroupIcon name="cog" /> {t('Manage project')}
+            </a>
+          )}
+          {waiting !== null && (
+            <Link className="btn btn-ghost manage-project manage-members" to="/members" onClick={onClose} aria-label={waiting ? t('Members, {count} waiting for access', {count: waiting}) : undefined}>
+              <Users /> {t('Members')}
+              {waiting > 0 && <span className="members-count">{waiting}</span>}
+            </Link>
+          )}
+        </div>
       </div>
       {/* Sanity's workspace list: one row a place, the current one checked, one click to go. */}
       <div className="scope-places" ref={list}>
