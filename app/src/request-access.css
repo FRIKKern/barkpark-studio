@@ -1,0 +1,24 @@
+/* Sanity's request-access screen (@sanity/access-ui RequestAccessForm, components/RequestAccess.tsx):
+   one bordered card, the state's title and muted words, the message box with its count on the
+   right, a full-width button, and a footer under a line with the account and "Wrong account?".
+   Colours are the theme's tokens (styles.css), so dark mode follows. */
+.login .card.request-access { padding: 0; gap: 0; overflow: hidden; }
+.access-body { display: flex; flex-direction: column; gap: 12px; padding: 24px; }
+/* The heading takes focus when the state changes (a pressed button is gone): not a control, no ring. */
+.access-body h1:focus { outline: none; }
+.access-form { display: flex; flex-direction: column; gap: 12px; }
+.login .access-form { width: auto; padding: 0; box-shadow: none; border-radius: 0; background: none; }
+.access-form p { margin: 0; font-size: 13px; }
+.access-message { display: flex; flex-direction: column; gap: 4px; }
+.access-message textarea { width: 100%; box-sizing: border-box; min-height: 64px; font: inherit; font-size: 13px; }
+.access-count { align-self: flex-end; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.access-wide { justify-content: center; width: 100%; padding: 8px 12px; }
+.access-body > .btn:not(.access-wide) { align-self: center; }
+/* Sanity's caution card (a decline) and critical card (a refusal), muted words inside. */
+.access-caution, .login .card p.access-alert { margin: 0; padding: 12px; border-radius: 3px; font-size: 13px; }
+.access-caution { background: var(--caution-card-bg); color: var(--caution-card-fg); box-shadow: inset 0 0 0 1px var(--caution-code-bg); }
+.login .card p.access-alert { background: var(--danger-bg); color: var(--fg); box-shadow: inset 0 0 0 1px var(--input-invalid-ring); }
+.access-note { margin: 0; padding: 8px 12px; border-left: 2px solid var(--line); font-size: 13px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.access-footer { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.login .card .access-footer p { color: var(--muted); text-align: center; }
+.access-footer .btn { color: var(--muted); font-weight: 400; }

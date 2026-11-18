@@ -1,0 +1,61 @@
+/* J69 Members for admins (components/Members.tsx, MembersRequests.tsx) and the waiting count in
+   the workspace menu (ScopeSwitcher). Its own file: styles.css is long enough. Colours are the
+   studio's tokens, so dark mode follows. */
+.members-page { height: calc(100vh - var(--nav-h)); overflow-y: auto; padding: 24px 16px 48px; background: var(--bg-soft); color: var(--fg); font-size: 13px; line-height: 19px; }
+.members-inner { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.members-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.members-head h1 { margin: 0 0 2px; font-size: 21px; line-height: 27px; font-weight: 600; color: var(--fg-strong); }
+.members-head p { margin: 0; }
+.members-head-actions { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.members-open { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+.members-open > svg { width: 21px; height: 21px; }
+
+.members-section { border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); padding: 12px 16px 16px; }
+.members-section h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 14px; line-height: 21px; font-weight: 600; color: var(--fg-header); }
+.members-subhead { margin: 16px 0 4px; font-size: 13px; font-weight: 600; color: var(--fg-header); }
+.members-count { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 6px; border-radius: 10px; background: var(--badge-primary-bg); color: var(--badge-primary-fg); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.members-empty { margin: 4px 0; }
+.members-banner { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 0; padding: 12px 16px; border-radius: 6px; background: var(--caution-card-bg); color: var(--caution-card-fg); }
+.members-banner p { margin: 0; }
+.members-banner .muted { color: inherit; opacity: 0.8; }
+.members-foot { margin: 12px 0 0; font-size: 12px; }
+
+.members-rows { list-style: none; margin: 0; padding: 0; }
+.members-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 0; border-top: 1px solid var(--border); }
+.members-row:first-child { border-top: 0; }
+.members-row[aria-busy] { opacity: 0.7; }
+.members-avatar { flex: none; display: inline-flex; }
+.members-who { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; }
+.members-name { font-weight: 500; color: var(--fg-strong); overflow-wrap: anywhere; }
+.members-email, .members-why, .members-when { font-size: 12px; line-height: 17px; overflow-wrap: anywhere; }
+.members-note { margin-top: 2px; font-style: italic; overflow-wrap: anywhere; }
+.members-actions { flex: none; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.members-role select { height: 33px; min-width: 140px; }
+.members-badge { display: inline-flex; align-items: center; height: 25px; padding: 0 8px; border-radius: 3px; background: var(--fill-soft); color: var(--badge-fg); font-size: 12px; font-weight: 500; }
+.members-badge[data-role='owner'] { background: var(--badge-primary-bg); color: var(--badge-primary-fg); }
+.members-remove:disabled { opacity: 0.4; cursor: not-allowed; }
+.members-error { flex-basis: 100%; margin: 0; }
+
+.members-invite { display: flex; flex-direction: column; gap: 4px; }
+.members-label { font-weight: 500; color: var(--fg-strong); }
+.members-invite-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.members-invite-row > .input { flex: 1 1 240px; min-width: 0; }
+.members-filter { position: relative; display: block; margin-bottom: 8px; }
+.members-filter > svg { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 21px; height: 21px; color: var(--icon-muted); pointer-events: none; }
+.members-filter > .input { padding-left: 32px; }
+
+/* The workspace menu: Members, with how many requests wait. */
+.scope-head-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.manage-members .members-count { margin-left: 2px; }
+.scope-button .members-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--selected); flex: none; }
+
+/* A phone: the actions go under the person, full width. */
+@media (max-width: 599px) {
+  .members-page { padding: 16px 12px 32px; }
+  .members-head { flex-direction: column; }
+  .members-actions { flex: 1 1 100%; }
+  .members-actions .btn { flex: 1; min-height: 44px; }
+  .members-role { flex: 1 1 100%; }
+  .members-role select { width: 100%; min-height: 44px; }
+  .members-remove { min-width: 44px; min-height: 44px; }
+}

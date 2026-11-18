@@ -2,6 +2,7 @@ import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {accountRequestReset, accountSignIn, cloudSignIn, currentEditor, describeToken, displayName, editorKey, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {requestToken} from '../server/barkpark'
+import {stubPerson} from '../server/access-stub'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
 import {serviceAccess} from './token-self'
@@ -22,7 +23,7 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
   const ended = !!editor && !!self?.refused
   if (ended) void signOut()
   const mode = signInMode()
-  return {
+  const me = {
     /** How editors sign in: their Barkpark account, dev (an email), or nobody (shared). */
     signIn: mode,
     devLogin: mode === 'dev',
@@ -49,6 +50,9 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     /** Barkpark's answer (false), or provisionalMe's stand-in while it is late (true). */
     provisional: false as boolean,
   }
+  // e2e only (server/access-stub.ts): a signed-in person with no seat here, until one is given.
+  const stand = stubPerson()
+  return stand && !stand.seated ? {...me, email: stand.email, noSeat: true} : me
 })
 
 /**

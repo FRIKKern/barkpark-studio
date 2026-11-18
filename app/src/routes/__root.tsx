@@ -11,6 +11,7 @@ import codeInputCss from '../code-input.css?url'
 import tableInputCss from '../table-input.css?url'
 import dashboardCss from '../dashboard.css?url'
 import bulkCss from '../bulk-actions.css?url'
+import membersCss from '../members.css?url'
 // Preloaded so text doesn't reflow (a layout shift) when the font arrives late.
 import {IconTips} from '../components/Tip'
 import {ToastHost} from '../components/Toasts'
@@ -60,6 +61,7 @@ export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope
       {rel: 'stylesheet', href: tableInputCss},
       {rel: 'stylesheet', href: dashboardCss},
       {rel: 'stylesheet', href: bulkCss},
+      {rel: 'stylesheet', href: membersCss},
     ],
   }),
   component: () => (
