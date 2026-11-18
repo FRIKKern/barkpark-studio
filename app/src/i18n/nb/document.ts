@@ -236,6 +236,7 @@ export default {
   'Sign in again to save your edits. They are kept in this page until you do.': 'Logg inn igjen for å lagre endringene dine. De tas vare på i denne siden til du gjør det.',
   'Signing in…': 'Logger inn…',
   'Skipped read-only fields: {fieldNames}': 'Hoppet over skrivebeskyttede felt: {fieldNames}',
+  'Skipped read-only fields: {fieldNames} and {count} more': 'Hoppet over skrivebeskyttede felt: {fieldNames} og {count} til',
   'Source and target schema types are not compatible': 'Kilde- og målskjematyper er ikke kompatible',
   'Split pane right': 'Del panel til høyre',
   'That does not look like an email address.': 'Det ser ikke ut som en e-postadresse.',

@@ -6,6 +6,7 @@ import type {Doc, Schema} from '../lib/data'
 import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, LaunchIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
 import studio from '../studio.config'
 import {pasteSkips} from '../lib/conditions'
+import {keepLocked} from '../lib/paste-locked'
 import {useCurrentUser} from '../lib/session'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
@@ -185,13 +186,18 @@ export function DocHeaderMenu({doc, schema, readOnly, onEdit, onInspect, onHisto
               const clip = await read()
               if (clip?.kind !== 'document') return toast({title: tt('Nothing to paste')})
               // A read-only or hidden field (its schema's condition or the studio config's callback) keeps its value.
-              const {skip, named} = pasteSkips(schema.name, schema.fields, doc, user, studio.form?.conditions)
-              if (named.length) toast({title: tt('Skipped read-only fields: {fieldNames}', {fieldNames: named.join(', ')})})
+              const rules = studio.form?.conditions
+              const {skip, named} = pasteSkips(schema.name, schema.fields, doc, user, rules)
+              // Sanity's toast: three names, then how many more.
+              const fieldNames = named.slice(0, 3).join(', ')
+              if (named.length > 3) toast({title: tt('Skipped read-only fields: {fieldNames} and {count} more', {fieldNames, count: String(named.length - 3)})})
+              else if (named.length) toast({title: tt('Skipped read-only fields: {fieldNames}', {fieldNames})})
               const matching = schema.fields.flatMap((f) => {
                 if (skip.has(f.name)) return []
                 const from = clip.fields.find((c) => c.name === f.name)
                 const pasted = from && !isEmpty(from.value) ? transfer(from, f, doc[f.name]) : undefined
-                return pasted && 'value' in pasted ? [[f.name, pasted.value] as const] : []
+                // A hidden or read-only field inside an object or an array item keeps its value too.
+                return pasted && 'value' in pasted ? [[f.name, keepLocked(f, f.name, pasted.value, doc[f.name], {type: schema.name, doc, user, rules})] as const] : []
               })
               if (!matching.length) return toast({tone: 'critical', title: tt('Invalid clipboard item'), description: tt('Source and target schema types are not compatible')})
               // The pane's edit: refused if the pane locked while the clipboard was read.

@@ -8,6 +8,7 @@ import {actions} from '../lib/array-options'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
 import {conditionKey, fieldState} from '../lib/conditions'
+import {keepLocked} from '../lib/paste-locked'
 import {useCurrentUser} from '../lib/session'
 import {mapCaret} from '../lib/merge'
 import {textDiff} from '../lib/changes'
@@ -411,8 +412,10 @@ function ChangeBar({onClick}: {onClick: () => void}) {
  */
 export const fieldClipboard = new WeakMap<Element, {copy: () => void; paste?: () => void}>()
 
-function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & {titleId: string}) {
+function FieldActions({field, path, value, onChange, readOnly, titleId}: FieldProps & {titleId: string}) {
   const t = useT()
+  const docStore = useContext(DocContext)
+  const user = useCurrentUser()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const doc = {id: useContext(DocIdContext) ?? undefined, type: useContext(DocTypeContext) ?? undefined}
@@ -425,7 +428,9 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
     if (!item || isEmpty(item.value)) return toast({title: tBrowser('Nothing to paste')})
     const pasted = transfer(item, field, value)
     if ('why' in pasted) return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: pasted.why})
-    onChange(pasted.value)
+    // A hidden or read-only field inside this object or its items keeps the value it has.
+    const doc = docStore.doc
+    onChange(doc && doc._type ? keepLocked(field, path, pasted.value, value, {type: doc._type, doc, user, rules: studio.form?.conditions}) : pasted.value)
   }
   // An array's disableActions (Sanity's): 'copy' takes Copy field, 'add' Paste field, from the menu and the keys alike.
   const allow = actions(field.options)
