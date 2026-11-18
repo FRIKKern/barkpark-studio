@@ -1,4 +1,5 @@
 import type {Field} from './data'
+import {segments} from './paths.ts'
 
 // Conditional fields (J30). Barkpark's schema says when a field shows with
 // `visibleWhen: {field, operator, value}` (api content/field_visibility.ex); these are
@@ -58,4 +59,97 @@ export const isReadOnly = (f: Field, doc: Record<string, unknown>, parent?: Reco
   f.readOnly === true || (typeof f.readOnly === 'object' && f.readOnly !== null && matches(f.readOnly, base(f.readOnly, doc, parent)))
 
 /** Sanity shows a group's tab only while some field in it shows (`visibleGroups`): one whose fields are all hidden has none. */
-export const groupShows = (fields: Field[], group: string, doc: Record<string, unknown>) => fields.some((f) => f.group === group && !isHidden(f, doc))
+export const groupShows = (fields: Field[], group: string, doc: Record<string, unknown>, hidden = (f: Field) => isHidden(f, doc)) => fields.some((f) => f.group === group && !hidden(f))
+
+// Sanity's hidden and readOnly callbacks: `({currentUser, document, parent, value, path}) => boolean`.
+// Barkpark's schemas are JSON, so the callbacks live in the studio config, `form.conditions`
+// keyed `type.path` (lib/plugins.ts). A form convenience, as Sanity's: Barkpark's roles decide writes.
+
+/** Sanity's CurrentUser: who is signed in, their role here under Sanity's role names. */
+export type CurrentUser = {id: string; name: string; email: string; roles: {name: string; title: string}[]}
+/** Sanity's Path: field names and array items by `_key`. */
+export type PathSegment = string | {_key: string}
+export type ConditionContext = {currentUser: CurrentUser | null; document: Record<string, unknown>; parent: unknown; value: unknown; path: PathSegment[]}
+/** Sanity's ConditionalProperty. */
+export type ConditionalProperty = boolean | ((context: ConditionContext) => boolean) | undefined
+export type FieldConditions = {hidden?: ConditionalProperty; readOnly?: ConditionalProperty}
+
+const ROLE_TITLES: Record<string, string> = {administrator: 'Administrator', editor: 'Editor', contributor: 'Contributor', viewer: 'Viewer'}
+
+/**
+ * A Barkpark seat's role under Sanity's name: owner and admin are `administrator`, member
+ * `editor`, contributor `contributor`; a seat that may not write is `viewer`, as the studio
+ * calls it (J49). Any other role keeps its own name.
+ */
+export function sanityRole(role: string | null | undefined, canWrite = true): string | null {
+  if (!canWrite) return 'viewer'
+  if (!role) return null
+  return role === 'owner' || role === 'admin' ? 'administrator' : role === 'member' ? 'editor' : role
+}
+
+type Me = {email: string | null; name: string | null; userId: string | null; role: string | null; canWrite: boolean; provisional?: boolean}
+/** whoAmI as Sanity's currentUser; null with nobody signed in (shared sign-in) or while Barkpark has not said who. */
+export function currentUserOf(me: Me | undefined): CurrentUser | null {
+  if (!me?.email || me.provisional) return null
+  const role = sanityRole(me.role, me.canWrite)
+  return {id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles: role ? [{name: role, title: ROLE_TITLES[role] ?? role}] : []}
+}
+
+/** The config key of a field path: its type, then field names with array items left out (`post.links.title`). */
+export const conditionKey = (type: string, path: string) => `${type}.${segments(path).flatMap((s) => ('name' in s ? [s.name] : [])).join('.')}`
+export const sanityPath = (path: string): PathSegment[] => segments(path).map((s) => ('name' in s ? s.name : {_key: s.key}))
+
+const told = new Set<string>()
+const tell = (msg: string) => told.has(msg) || (told.add(msg), console.error(msg))
+
+/**
+ * A callback's answer, as Sanity's form: only `true` counts. One that throws or returns a
+ * Promise leaves the field shown and editable, with the error in the console once
+ * (Sanity's useCheckCondition).
+ */
+export function resolveConditional(property: ConditionalProperty, context: ConditionContext, name: string): boolean {
+  if (typeof property !== 'function') return property === true
+  let out: unknown
+  try {
+    out = property(context)
+  } catch (err) {
+    tell(`An error occurred while running the callback from \`${name}\`: ${(err as Error)?.message ?? err}`)
+    return false
+  }
+  if (out && typeof (out as {then?: unknown}).then === 'function') {
+    tell(`The \`${name}\` option is either a promise or a promise returning function. Async callbacks for \`${name}\` option is not currently supported.`)
+    return false
+  }
+  return out === true
+}
+
+type Where = {path: string; value: unknown; parent?: Record<string, unknown>}
+/**
+ * A field's hidden and readOnly: the schema's (`hidden`, `visibleWhen`, `readOnly`) or the
+ * studio config's callbacks for `type.path`. `at` defaults to a top-level field (its parent
+ * the document), what the group tabs and Paste document ask about.
+ */
+export function fieldState(type: string, f: Field, doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}) {
+  const key = conditionKey(type, at.path)
+  const rule = rules?.[key]
+  const context = (): ConditionContext => ({currentUser, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)})
+  const name = (p: string) => `form.conditions['${key}'].${p}`
+  const hidden = isHidden(f, doc, at.parent) || (rule?.hidden !== undefined && resolveConditional(rule.hidden, context(), name('hidden')))
+  const readOnly = isReadOnly(f, doc, at.parent) || (rule?.readOnly !== undefined && resolveConditional(rule.readOnly, context(), name('readOnly')))
+  return {hidden, readOnly}
+}
+
+/**
+ * Paste document (J29) leaves a read-only field as it is and names it, as Sanity's paste
+ * does; a hidden one is left alone and unnamed: the clipboard never writes either.
+ */
+export function pasteSkips(type: string, fields: Field[], doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined) {
+  const skip = new Set<string>()
+  const named: string[] = []
+  for (const f of fields) {
+    const s = fieldState(type, f, doc, currentUser, rules)
+    if (s.hidden || s.readOnly) skip.add(f.name)
+    if (s.readOnly && !s.hidden) named.push(f.title ?? f.name)
+  }
+  return {skip, named}
+}

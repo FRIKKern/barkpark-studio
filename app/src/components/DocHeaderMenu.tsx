@@ -5,6 +5,8 @@ import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
 import type {Doc, Schema} from '../lib/data'
 import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, LaunchIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
 import studio from '../studio.config'
+import {pasteSkips} from '../lib/conditions'
+import {useCurrentUser} from '../lib/session'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
 import {t as tt, useT} from '../lib/i18n'
@@ -76,6 +78,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onEdit, onInspect, onHisto
   const close = () => setOpen(false)
   const alt = useAltName()
   const phone = usePhone()
+  const user = useCurrentUser()
   const previewUrl = studio.document?.productionUrl?.(doc)
   // LiveView's paper header: "Open standalone", Barkpark's reader for the paper (its slug is its id).
   const barkpark = useQuery({...barkparkInfoQuery, enabled: PAPER_TYPES.has(doc._type)}).data?.url
@@ -181,7 +184,11 @@ export function DocHeaderMenu({doc, schema, readOnly, onEdit, onInspect, onHisto
               close()
               const clip = await read()
               if (clip?.kind !== 'document') return toast({title: tt('Nothing to paste')})
+              // A read-only or hidden field (its schema's condition or the studio config's callback) keeps its value.
+              const {skip, named} = pasteSkips(schema.name, schema.fields, doc, user, studio.form?.conditions)
+              if (named.length) toast({title: tt('Skipped read-only fields: {fieldNames}', {fieldNames: named.join(', ')})})
               const matching = schema.fields.flatMap((f) => {
+                if (skip.has(f.name)) return []
                 const from = clip.fields.find((c) => c.name === f.name)
                 const pasted = from && !isEmpty(from.value) ? transfer(from, f, doc[f.name]) : undefined
                 return pasted && 'value' in pasted ? [[f.name, pasted.value] as const] : []

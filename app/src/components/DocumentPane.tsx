@@ -11,20 +11,20 @@ import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, formOrder, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
-import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Schema} from '../lib/data'
+import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {choiceById} from '../lib/templates'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
-import {groupShows} from '../lib/conditions'
+import {fieldState, groupShows} from '../lib/conditions'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
 import {copyRank} from './OrderableRows'
 import {copyFields} from '../lib/bulk'
-import {meQuery, useBoundElsewhere, useCanWrite, useStudioTokenRefused} from '../lib/session'
+import {meQuery, useBoundElsewhere, useCanWrite, useCurrentUser, useStudioTokenRefused} from '../lib/session'
 import {currentScopeQuery} from '../lib/scope-switch'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {InPresentationContext, PaneLink, usePaneNavigate, useStructureNavigate} from './PaneLink'
@@ -1082,8 +1082,11 @@ const LEVEL_WORD = {error: 'error', warning: 'warning', info: 'info'} as const
 
 function GroupTabs({schema, doc, value, onChange, problems, disabled}: {schema: Schema; doc: Record<string, unknown>; value: string; onChange: (g: string) => void; problems: Problem[]; disabled?: boolean}) {
   const t = useT()
+  const user = useCurrentUser()
   if (!schema.groups?.length) return null
-  const tabs = [{name: '', title: t('All fields')}, ...schema.groups.filter((g) => groupShows(schema.fields, g.name, doc))]
+  // A field hidden by its condition or the studio config's callback (a role) shows no tab (Sanity's visibleGroups).
+  const hidden = (f: Field) => fieldState(schema.name, f, doc, user, studio.form?.conditions).hidden
+  const tabs = [{name: '', title: t('All fields')}, ...schema.groups.filter((g) => groupShows(schema.fields, g.name, doc, hidden))]
   return (
     <div className="group-tabs-root">
       <span className="select-box group-select">

@@ -7,7 +7,8 @@ import {objectKinds} from '../lib/object-block'
 import {actions} from '../lib/array-options'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
-import {isHidden, isReadOnly} from '../lib/conditions'
+import {conditionKey, fieldState} from '../lib/conditions'
+import {useCurrentUser} from '../lib/session'
 import {mapCaret} from '../lib/merge'
 import {textDiff} from '../lib/changes'
 import {FieldClashCard} from './FieldClash'
@@ -184,16 +185,28 @@ export function ProblemMark({path, within, id}: {path: string; within?: boolean;
  * condition reads the whole doc. Hidden and read-only follow the doc as it is edited (J30).
  */
 export const FieldView = memo(function FieldView(props: FieldProps) {
+  // The studio config's hidden / readOnly callbacks for this field (Sanity's, with currentUser).
+  const type = useContext(DocTypeContext)
+  const rules = studio.form?.conditions
+  const byConfig = !!rules && !!type && !!rules[conditionKey(type, props.path)]
   // Barkpark's `hidden: true` (Sanity's): never in the form, its value kept (a manual order's orderRank).
   if (props.field.hidden === true) return null
-  const conditional = !!props.field.visibleWhen || (typeof props.field.readOnly === 'object' && props.field.readOnly !== null)
+  const conditional = byConfig || !!props.field.visibleWhen || (typeof props.field.readOnly === 'object' && props.field.readOnly !== null)
   return conditional ? <ConditionalField {...props} /> : <FieldBody {...props} />
 })
 
 function ConditionalField(props: FieldProps) {
   const parent = useContext(ParentContext)
-  const hidden = useDocSelect((doc) => !!doc && isHidden(props.field, doc, parent))
-  const readOnly = useDocSelect((doc) => (doc ? isReadOnly(props.field, doc, parent) : false))
+  const type = useContext(DocTypeContext) ?? ''
+  const user = useCurrentUser()
+  // Hidden by a condition or a role: not drawn, its value kept as it is (never cleared, never written).
+  // One number (hidden 1, read-only 2), so each callback runs once a change and the field re-renders only when it flips.
+  const bits = useDocSelect((doc) => {
+    const s = doc && fieldState(type, props.field, doc, user, studio.form?.conditions, {path: props.path, value: props.value, parent})
+    return s ? (s.hidden ? 1 : 0) | (s.readOnly ? 2 : 0) : 0
+  })
+  const hidden = (bits & 1) !== 0
+  const readOnly = (bits & 2) !== 0
   useSteadyFocus(hidden)
   if (hidden) return null
   return <FieldBody {...props} readOnly={props.readOnly || readOnly} />

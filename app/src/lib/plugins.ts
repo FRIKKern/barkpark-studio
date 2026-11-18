@@ -4,6 +4,7 @@ import type {Doc, Field} from './data'
 import type {CustomRule} from './custom-rules'
 import type {IncomingInput} from './incoming-refs'
 import type {DashboardConfig} from './dashboard'
+import type {FieldConditions} from './conditions'
 
 // J65, the plugin surface, after Sanity's: a studio config names extra tools,
 // custom field inputs, document actions, document badges and a preview URL.
@@ -45,6 +46,13 @@ export type StudioConfig = {
   form?: {
     /** Keyed `type.path` (`post.excerpt`). */
     inputs?: Record<string, ComponentType<InputProps>>
+    /**
+     * Sanity's `hidden` and `readOnly` callbacks, keyed `type.path` (`post.stage`; a field in an
+     * array's items leaves the item out, `post.links.title`): `({currentUser, document, parent,
+     * value, path}) => boolean`, `currentUser.roles` under Sanity's role names
+     * (lib/conditions.ts). Added to the schema's own; a form convenience, not access control.
+     */
+    conditions?: Record<string, FieldConditions>
     /**
      * Sanity's defineIncomingReferenceDecoration, keyed by type: lists, in that type's form, of
      * the documents that reference the open one, with "Add item" (lib/incoming-refs.ts). A

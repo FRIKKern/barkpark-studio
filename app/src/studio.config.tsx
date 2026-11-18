@@ -67,6 +67,9 @@ export default defineStudio({
   },
   form: {
     inputs: {'post.excerpt': CountedInput},
+    // Sanity's readOnly callback with currentUser: only an administrator (a Barkpark owner or
+    // admin) moves a post's stage. Nobody signed in (shared sign-in): no currentUser, open.
+    conditions: {'post.stage': {readOnly: ({currentUser}) => !!currentUser && !currentUser.roles.some((r) => r.name === 'administrator')}},
     // Sanity's defineIncomingReferenceDecoration: an author's form lists the posts that name them,
     // last edited first, with "Add item" (a schema says the same in its `desk.incoming`).
     incomingReferences: {author: [{name: 'posts', title: 'Posts by this author', types: [{type: 'post', by: 'author'}]}]},
