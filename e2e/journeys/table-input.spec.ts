@@ -1,5 +1,6 @@
 import {expect, test} from '../rig/test'
 import {bpMutate, closeAndSettle, savesLanded, signInIfAsked, target} from '../rig/targets'
+import {schemaHasField} from '../rig/schema'
 
 // The table field (Sanity's @sanity/table): `{_type: 'table', rows: [{_type: 'tableRow',
 // _key, cells: string[]}]}` edited as a grid. What can break silently: a column put in
@@ -17,6 +18,7 @@ const row = (key: string, ...cells: string[]) => ({_type: 'tableRow', _key: key,
 test('a table field: a column put in left of the caret takes the keys typed next, a block pasted from a spreadsheet fills and grows the grid, stored in Sanity\'s shape', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the reference studio has no table plugin installed')
+  test.skip(!(await schemaHasField('fieldTypes', 'sizeChart')), "this dataset's fieldTypes schema has no sizeChart field yet (fixtures/barkpark-schema/fieldTypes.json; reseed with --schemas)")
   await bpMutate([{createOrReplace: {_id: ID, _type: 'fieldTypes', title: 'Table scratch', sizeChart: {_type: 'table', rows: [row('a', 'Size', 'Chest'), row('b', 'S', '88')]}}}])
   try {
     await page.goto(t.docPath('fieldTypes', ID))

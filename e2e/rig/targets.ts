@@ -433,9 +433,9 @@ const studio: Target = {
   // and is published: whatever a journey changed (a pasted document, J29) is gone.
   resetDoc: async (id, type) => {
     // A draft the run left would otherwise survive the replace and be what gets published.
-    await bpMutate([{discardDraft: {id, type}}]).catch(() => {}) // none: nothing to discard
+    // The seed's files looked up meanwhile: they don't depend on the draft (one round trip, not two).
     const doc = seedDoc(id)
-    const asset = await seedAssets([doc], {base: bpBase(), dataset: bpDataset(), token: need('BARKPARK_TOKEN')})
+    const [asset] = await Promise.all([seedAssets([doc], {base: bpBase(), dataset: bpDataset(), token: need('BARKPARK_TOKEN')}), bpMutate([{discardDraft: {id, type}}]).catch(() => {})]) // none: nothing to discard
     await bpMutate([{createOrReplace: {_id: id, _type: type, ...toBarkpark(doc, asset)}}, {publish: {id, type}}])
   },
   publishedTitle: async (id) => {
