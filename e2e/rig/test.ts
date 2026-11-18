@@ -1,4 +1,3 @@
-import {navProfile} from './nav-profile'
 import {test as base, expect as baseExpect, type Browser, type BrowserContext, type Page} from '@playwright/test'
 
 export * from '@playwright/test'
@@ -72,7 +71,6 @@ export const test = base.extend<{errorWatch: void}>({
         if (session) await c.addCookies(session)
         await c.exposeBinding(SCREEN, ({page}, text: string) => void problems.push(`the studio's error screen in ${page.url()}: ${text}`))
         await c.addInitScript(watchScreen, SCREEN)
-        await navProfile(c, () => `${info.file.replace(/.*\/journeys\//, '')}:${info.line}`)
       }
       await watch(context)
       // A context the test opens itself (two editors, two browsers) is watched too.
