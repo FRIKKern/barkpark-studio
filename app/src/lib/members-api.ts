@@ -9,8 +9,8 @@ import type {Change, MembersData} from './members-admin'
 const fetchMembers = createServerFn({method: 'GET'}).handler(() => loadMembers())
 const fetchWaiting = createServerFn({method: 'GET'}).handler(() => waitingRequests())
 
-/** The screen's data. Read again when the tab comes back (another admin may have acted). */
-export const membersAdminQuery = queryOptions({queryKey: ['members-admin'], queryFn: async () => (await fetchMembers()) as unknown as MembersData, staleTime: 10_000, refetchOnWindowFocus: true})
+/** The screen's data. Read again each time the tab comes back (another admin may have acted meanwhile). */
+export const membersAdminQuery = queryOptions({queryKey: ['members-admin'], queryFn: async () => (await fetchMembers()) as unknown as MembersData, staleTime: 0, refetchOnWindowFocus: true})
 /** How many access requests wait (null: not an owner or admin seat), for the workspace menu. */
 export const waitingRequestsQuery = queryOptions({queryKey: ['members-waiting'], queryFn: async () => (await fetchWaiting()) as number | null, staleTime: 60_000, refetchOnWindowFocus: true})
 
