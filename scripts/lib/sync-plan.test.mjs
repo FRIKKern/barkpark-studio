@@ -20,11 +20,9 @@ test('ghWrite: reads pass; every PR write, a non-GET API call and anything else 
 })
 
 test('a keyed checkout is followed by no project code, in every workflow', () => {
-  // housekeeping.yml's refresh job regenerates the roadmap after its keyed checkout: moved to a job of its own in the next PR.
-  const known = new Set(['housekeeping.yml refresh: name: Regenerate and push (from origin/main, retried if main moves)'])
   const found = readdirSync(workflows).filter((f) => f.endsWith('.yml')).flatMap((f) => codeAfterKey(readFileSync(join(workflows, f), 'utf8')).map((v) => `${f} ${v}`))
-  assert.deepEqual(found.filter((v) => !known.has(v)), [])
-  assert.ok(readFileSync(join(workflows, 'sync-pack.yml'), 'utf8').includes('ssh-key'), 'the sync pushes with the key')
+  assert.deepEqual(found, [])
+  for (const f of ['sync-pack.yml', 'housekeeping.yml']) assert.ok(readFileSync(join(workflows, f), 'utf8').includes('ssh-key'), `${f} pushes with the key`)
 })
 
 test('the key lint: project code after a keyed checkout is named; before it, or with no key, it is not', () => {
