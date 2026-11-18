@@ -130,6 +130,7 @@ test('the structure route reads ahead only on a render the head start let in, af
   assert.match(chain, /readAhead && onServer\s*\? await modelWithReadsAhead\(/)
   assert.match(route, /const own = new QueryClient\(/, 'the reads ahead run on a client of their own')
   assert.equal(count(route, /\badopt\(/), 1, 'one way into the page')
+  assert.match(route, /adopt\(ahead, \(key\) => queryClient\.getQueryData\(key\) !== undefined, /, 'never over what the page holds: what it has is asked of its own client')
 })
 
 // The gate path end to end. render() wires the pure helpers as the route does: requireEditor's
@@ -165,7 +166,8 @@ test('a seated member, the cookie and me both say yes: reads ahead adopted only 
 
 test('the gate refuses (no seat, signed out, studio token refused, or the cookie says no): nothing begins, nothing is remembered', async () => {
   for (const [me, cookie] of [[{...seated, noSeat: true}, true], [{signIn: 'account', email: null}, true], [{signIn: 'shared', email: null, studioTokenRefused: true}, true], [seated, false]] as [Me, boolean][]) {
-    const r = await render(me, cookie, m1, m1)
+    // A fresh model unlike the remembered one: had the refused render read and kept it, the memory would say so.
+    const r = await render(me, cookie, m1, {desk: 'changed since', schemas: ['post']})
     assert.deepEqual(r.begun, [], JSON.stringify(me))
     assert.equal(r.page.size, 0)
     assert.deepEqual(r.remembered, m1, 'the memory is untouched by a refused render')
