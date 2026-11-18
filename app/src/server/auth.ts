@@ -25,7 +25,7 @@
 import '@tanstack/react-start/server-only'
 import {createHash, randomBytes} from 'node:crypto'
 import {devToken, editorPermissions, keepDevToken, sweepDevTokens} from '../../../scripts/lib/dev-tokens.mjs'
-import {getCookie, setCookie, deleteCookie} from '@tanstack/react-start/server'
+import {getCookie, setCookie, deleteCookie, getRequest} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
 import {seal, unseal} from './session-cookie'
 import {tokenSelf, type TokenBody, type TokenSelf} from '../lib/token-self'
@@ -228,7 +228,15 @@ async function endBarkparkSession(session: string) {
   await fetch(`${process.env.BARKPARK_URL}/v1/auth/logout`, {method: 'DELETE', headers: {authorization: `Bearer ${session}`}, signal: AbortSignal.timeout(5000)}).catch(() => undefined)
 }
 
+// A request signs out once: who-am-I and each content-model read that hears the token
+// refused (server/schemas.ts) ask for it, and one Barkpark logout ends the session.
+const signedOut = new WeakSet<Request>()
 export async function signOut() {
+  const request = thisRequest()
+  if (request) {
+    if (signedOut.has(request)) return
+    signedOut.add(request)
+  }
   const editor = readSession()
   deleteCookie(COOKIE, {path: '/'})
   // Dev sign-in keeps its token (other sessions and lanes share it); an account's ends.
@@ -237,6 +245,14 @@ export async function signOut() {
   // Barkpark just now, so forget what we knew of that token: the next request asks again,
   // hears 401, and the copy is signed out at once, not after the minute's cache.
   if (editor?.session) forgetToken(editor.session)
+}
+
+const thisRequest = (): Request | undefined => {
+  try {
+    return getRequest()
+  } catch {
+    return undefined // outside a request: no one to sign out twice
+  }
 }
 
 /** Forget what a token was described as, in every workspace: the next request asks Barkpark again. */
@@ -289,6 +305,12 @@ const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
 // When Barkpark last said each token ends (unix seconds; null, never), for currentEditor.
 const ends = new Map<string, number | null>()
 const knownEnd = (token: string) => ends.get(token)
+/** What Barkpark said of `token` here within the minute, as describeToken holds it; undefined when not asked lately. Never a Barkpark read. */
+export function knownTokenSelf(token: string): Promise<TokenSelf> | undefined {
+  const held = described.get(`${token} ${scope().workspace}`)
+  return held && Date.now() - held.at < 60_000 ? held.self : undefined
+}
+
 export function describeToken(token: string): Promise<TokenSelf> {
   // A login session holds a seat per workspace: what it may do depends on where it is.
   const key = `${token} ${scope().workspace}`

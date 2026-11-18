@@ -1,11 +1,12 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
-import {accountRequestReset, accountSignIn, cloudSignIn, currentEditor, describeToken, displayName, editorKey, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
+import {accountRequestReset, accountSignIn, cloudSignIn, currentEditor, describeToken, displayName, editorKey, knownTokenSelf, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {requestToken} from '../server/barkpark'
 import {stubPerson} from '../server/access-stub'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
 import {serviceAccess} from './token-self'
+import {headStartAllowed} from './gate-head-start'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
 // httpOnly and the token never leaves the server.
@@ -54,6 +55,9 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
   const stand = stubPerson()
   return stand && !stand.seated ? {...me, email: stand.email, noSeat: true} : me
 })
+
+/** A server render: may the pane chain's first reads start beside whoAmI (lib/gate-head-start.ts)? From the cookie and memory, never a Barkpark read. */
+export const chainMayStart = createServerFn({method: 'GET'}).handler(async () => headStartAllowed(signInMode(), currentEditor(), requestToken(), knownTokenSelf))
 
 /**
  * task-f2bc22f7401aae9e: who is signed in when Barkpark is too slow to say more, for the

@@ -7,9 +7,9 @@ import {deskIndex, deskSort, listFilter, parseDeskPanes, rootDesk, unsupportedOp
 import {parseSingletonPanes, type Pane} from './panes'
 import {startsAtStudioItem, studioDesk} from './structure-config'
 import {loadRefs, mediaRefs, previewRefs, textRefs} from './preview'
-import {meQuery, provisionalMe} from './session'
+import {chainMayStart, meQuery, provisionalMe} from './session'
 import {withinBudget} from './ssr-budget'
-import {readMeWithHeadStart} from './gate-head-start'
+import {handOff, letsIn, readMeWithHeadStart} from './gate-head-start'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useEffect, useState} from 'react'
 import {useLivePausedToast, useReconnectingToast} from './connection'
@@ -34,27 +34,21 @@ export async function requireEditor(queryClient: QueryClient, href: string, chai
   // (provisionalMe: signed in as they are, nothing allowed until the browser asks again).
   // The sign-in check below runs either way.
   const readMe = () => (typeof window === 'undefined' ? withinBudget(queryClient, meQuery, 600, () => provisionalMe()) : queryClient.ensureQueryData(meQuery))
-  const {me, ahead} = typeof window === 'undefined' && chain ? await readMeWithHeadStart({cookieLetsIn: async () => letsIn(await provisionalMe()), readMe, start: startChain, letsIn}) : {me: await readMe()}
+  const {me, ahead} = typeof window === 'undefined' && chain ? await readMeWithHeadStart({cookieLetsIn: () => chainMayStart(), readMe, start: startChain, letsIn}) : {me: await readMe()}
   if (me.signIn !== 'shared' && !me.email) throw redirect({to: '/login', search: {redirect: href}})
-  // Held for this request's loader only: a route's beforeLoad context goes to the browser.
-  if (ahead) headStarts.set(queryClient, ahead)
+  if (ahead) headStarts.put(queryClient, ahead)
 }
 
-type Me = {signIn: string; email: string | null; noSeat?: boolean; studioTokenRefused?: boolean}
-/** In, and able to read: signed in (or shared sign-in), a seat here, the studio's token alive. */
-const letsIn = (me: Me) => (me.signIn === 'shared' || !!me.email) && !me.noSeat && !me.studioTokenRefused
-
-/** A server render's pane chain begun early: on its own client, as loadPanes runs it. */
-type HeadStart = {scratch: QueryClient; resume: Promise<number | null>}
-const headStarts = new WeakMap<QueryClient, HeadStart>()
-function startChain(): HeadStart {
+/**
+ * A server render's desk and schema reads begun early, on the pane chain's own client. Only
+ * those: the live stream's resume mark (a listen with this person's token) waits for `me`.
+ */
+const headStarts = handOff<QueryClient, QueryClient>()
+function startChain(): QueryClient {
   const scratch = new QueryClient({defaultOptions: {queries: {retry: false}}})
-  // Awaited by the chain, which rethrows a failure where it always did.
-  const resume = fetchResumeMark()
-  resume.catch(() => {})
   void scratch.prefetchQuery(deskQuery)
   void scratch.prefetchQuery(schemasQuery)
-  return {scratch, resume}
+  return scratch
 }
 
 /** How long a server render waits on Barkpark before it sends the shell instead (task-9379f9fa115b156f). */
@@ -76,10 +70,8 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   // On a scratch client, so a chain past the budget never holds the page: the request's
   // client streams every query it holds, and the page waited for each to land. The one
   // requireEditor began beside `me`, when it let this person in.
-  const ahead = headStarts.get(queryClient)
-  headStarts.delete(queryClient)
-  const scratch = ahead?.scratch ?? new QueryClient({defaultOptions: {queries: {retry: false}}})
-  const chain = loadPaneChain(scratch, splat, published, ahead?.resume)
+  const scratch = headStarts.take(queryClient) ?? new QueryClient({defaultOptions: {queries: {retry: false}}})
+  const chain = loadPaneChain(scratch, splat, published)
   const inTime = await Promise.race([chain, new Promise<null>((r) => setTimeout(r, SSR_BUDGET_MS, null))])
   if (!inTime) {
     chain.catch(() => {})
@@ -90,14 +82,14 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   return inTime
 }
 
-async function loadPaneChain(queryClient: QueryClient, splat: string | undefined, published = false, resumed?: Promise<number | null>): Promise<PanesData> {
+async function loadPaneChain(queryClient: QueryClient, splat: string | undefined, published = false): Promise<PanesData> {
   const onServer = typeof window === 'undefined'
   // The desk and the schemas are settled reads, kept across the resume mark (server/barkpark.ts
   // forgetReads): they start with it rather than after it.
   const model = Promise.all([queryClient.ensureQueryData(deskQuery), queryClient.ensureQueryData(schemasQuery)])
   model.catch(() => {})
   // Before any document read: frames after this point reach the page once its stream opens.
-  const resume = onServer ? await (resumed ?? fetchResumeMark()) : undefined
+  const resume = onServer ? await fetchResumeMark() : undefined
   // The list prefs and the width hint need nothing below: asked for now, they ride the
   // desk + schemas round trip instead of adding one of their own (fetchListPrefs never throws).
   const hints = Promise.all([
