@@ -6,7 +6,8 @@ import {useT} from '../lib/i18n'
 // A destructive action's confirmation (discard, delete, unpublish). Its own module so the
 // releases page can use it without importing the document pane, which kept the pane and
 // its fields in the chunk every page loads.
-export function ConfirmDialog({title, body, action, run, onClose}: {title: string; body: string; action: string; run: () => Promise<unknown>; onClose: () => void}) {
+// `tone` primary: a change that is not destructive (a member's new role).
+export function ConfirmDialog({title, body, action, run, onClose, tone = 'danger'}: {title: string; body: string; action: string; run: () => Promise<unknown>; onClose: () => void; tone?: 'danger' | 'primary'}) {
   const t = useT()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -33,7 +34,7 @@ export function ConfirmDialog({title, body, action, run, onClose}: {title: strin
           </button>
           <button
             type="button"
-            className="btn danger"
+            className={tone === 'primary' ? 'btn btn-primary' : 'btn danger'}
             disabled={busy}
             onClick={async () => {
               setBusy(true)
