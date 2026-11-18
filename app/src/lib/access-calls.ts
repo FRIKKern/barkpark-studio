@@ -21,4 +21,4 @@ export const answerInvite = createServerFn({method: 'POST'})
   .handler(({data}) => answerInvitation(data.id, data.accept))
 
 /** This person's requests and invitations for the page's workspace (a scope switch reloads the page). */
-export const accessQuery = queryOptions({queryKey: ['access'], queryFn: () => readAccess(), staleTime: 5_000, refetchOnWindowFocus: true})
+export const accessQuery = queryOptions({queryKey: ['access'], queryFn: () => readAccess(), staleTime: 2_000, refetchOnWindowFocus: true})

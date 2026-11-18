@@ -4,8 +4,8 @@
    Colours are the theme's tokens (styles.css), so dark mode follows. */
 .login .card.request-access { padding: 0; gap: 0; overflow: hidden; }
 .access-body { display: flex; flex-direction: column; gap: 12px; padding: 24px; }
+/* The heading takes focus when the state changes (a pressed button is gone): not a control, no ring. */
 .access-body h1:focus { outline: none; }
-.access-body h1:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px; }
 .access-form { display: flex; flex-direction: column; gap: 12px; }
 .login .access-form { width: auto; padding: 0; box-shadow: none; border-radius: 0; background: none; }
 .access-form p { margin: 0; font-size: 13px; }

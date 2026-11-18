@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {NOTE_MAX, noteToSend, pollEvery, POLL_MS, refusal, screenFor, type OwnRequest} from './access-request.ts'
+import nb from '../i18n/nb/access.ts'
 
 // task-cc6a6d85be054b17: each Barkpark answer maps to the request-access screen and its words.
 const row = (over: Partial<OwnRequest> = {}): OwnRequest => ({id: 'r1', workspace: 'acme', status: 'pending', note: null, inserted_at: '2026-11-18T10:00:00Z', decided_at: null, ...over})
@@ -46,6 +47,15 @@ test('each refusal has its words and its next step', () => {
   assert.equal(refusal('accept', {status: 404}).then, 'refetch')
   assert.equal(refusal('accept', {status: 422}).then, 'stay')
   assert.equal(refusal('decline', {status: 500}).words.en, 'The invitation could not be answered. Try again.')
+})
+
+test('every refusal has its nb-NO words', () => {
+  const answers = [{status: 401}, {status: 409, code: 'already_member'}, {status: 403, code: 'email_unconfirmed'}, {status: 409, code: 'too_many_pending'}, {status: 429}, {status: 422, message: 'note'}, {status: 422}, {status: 404}, {status: 0}]
+  for (const action of ['ask', 'withdraw', 'accept', 'decline', 'load'] as const)
+    for (const a of answers) {
+      const {en} = refusal(action, a).words
+      assert.ok(nb[en], `nb-NO for "${en}"`)
+    }
 })
 
 test('the note goes trimmed, and an empty one not at all', () => {
