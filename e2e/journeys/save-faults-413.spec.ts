@@ -14,6 +14,9 @@ test('a save refused as too large says why, stops, and goes again on Retry', asy
   const fault = (kind: string, more: Record<string, unknown> = {}) => page.request.post('/api/e2e-listen', {data: {action: 'write-fault', id, kind, ...more}})
   try {
     await t.prepare(page.context())
+    // The page's clock, run on by the test past the 2 s it retried after instead of waited out;
+    // otherwise it keeps real time.
+    await page.clock.install()
     await page.goto(t.docPath('post', id))
     await signInIfAsked(page)
     await t.settle(page)
@@ -24,7 +27,10 @@ test('a save refused as too large says why, stops, and goes again on Retry', asy
     const footer = page.locator('.doc-footer')
     await expect(footer).toContainText('This document is too large to save. Remove some content.')
     const tries = sent
-    await page.waitForTimeout(2200) // it retried every 2 s before
+    // It retried every 2 s before (lib/edits.ts): the page's clock run past that, then 200 ms for
+    // a send it started to leave.
+    await page.clock.runFor(2200)
+    await page.waitForTimeout(200)
     expect(sent, 'nothing more sent on its own').toBe(tries)
     await expect(t.field(page, 'title')).toHaveValue('Big typed')
     await footer.getByRole('button', {name: 'Retry'}).click()

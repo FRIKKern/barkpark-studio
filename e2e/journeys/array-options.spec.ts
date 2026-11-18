@@ -1,5 +1,6 @@
 import {expect, test} from '../rig/test'
 import {BACKEND_POLL, closeAndSettle, signInIfAsked, target} from '../rig/targets'
+import {schemaHasField} from '../rig/schema'
 
 // J33 array options, as Sanity's, on fieldTypes.steps (fixtures/barkpark-schema/fieldTypes.json):
 // disableActions ['remove', 'duplicate'] leaves the item menu Copy and the two inserts; sortable: false
@@ -14,6 +15,7 @@ test.afterEach(async ({page}, info) => (await closeAndSettle(page), await target
 
 test('J33 array options: disableActions and sortable: false shape the rows; a popover item opens by its row', async ({page}, info) => {
   const t = target(info)
+  test.skip(!(await schemaHasField('fieldTypes', 'steps')), "this dataset's fieldTypes schema has no steps yet (reseed with --schemas)")
   await Promise.all([t.draftOnly(ID, 'fieldTypes', {title: 'Array options', steps}), t.prepare(page.context())])
   await page.goto(t.docPath('fieldTypes', ID))
   await signInIfAsked(page)

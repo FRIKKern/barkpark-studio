@@ -16,76 +16,79 @@ const BROKEN = {
 }
 const shot = (name: string, step: string) => `evidence/J39-${name}-${step}.png`
 test.setTimeout(60_000)
-test.beforeEach(async ({}, info) => target(info).draftOnly(ID, 'post', BROKEN))
-test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).deleteDoc(ID, 'post')))
+// The three tests on post-broken: made before each, deleted after (the asset test below never reads it).
+test.describe('post-broken', () => {
+  test.beforeEach(async ({}, info) => target(info).draftOnly(ID, 'post', BROKEN))
+  test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).deleteDoc(ID, 'post')))
 
-test('@evidence J39: broken values side by side', async ({page, context}, info) => {
-  const t = target(info)
-  await t.prepare(context)
-  await page.setViewportSize({width: 1440, height: 2400})
-  await page.goto(t.docPath('post', ID))
-  await signInIfAsked(page)
-  await t.settle(page)
-  await page.waitForTimeout(2500)
-  await page.screenshot({path: shot(t.name, '1-doc'), fullPage: true})
-})
+  test('@evidence J39: broken values side by side', async ({page, context}, info) => {
+    const t = target(info)
+    await t.prepare(context)
+    await page.setViewportSize({width: 1440, height: 2400})
+    await page.goto(t.docPath('post', ID))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await page.waitForTimeout(2500)
+    await page.screenshot({path: shot(t.name, '1-doc'), fullPage: true})
+  })
 
-test('@local J39: convert, reset, add keys, remove unknown, fix rich text', async ({page, context}, info) => {
-  const t = target(info)
-  test.skip(t.name === 'sanity', 'the fixes run on ours; Sanity is the evidence still')
-  await t.prepare(context)
-  await page.goto(t.docPath('post', ID))
-  await signInIfAsked(page)
-  await t.settle(page)
-  await page.getByRole('tab', {name: 'All fields'}).click()
-  const field = (name: string) => page.locator('.field').filter({has: page.locator(`label[for="${name}"]`)})
+  test('@local J39: convert, reset, add keys, remove unknown, fix rich text', async ({page, context}, info) => {
+    const t = target(info)
+    test.skip(t.name === 'sanity', 'the fixes run on ours; Sanity is the evidence still')
+    await t.prepare(context)
+    await page.goto(t.docPath('post', ID))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await page.getByRole('tab', {name: 'All fields'}).click()
+    const field = (name: string) => page.locator('.field').filter({has: page.locator(`label[for="${name}"]`)})
 
-  await page.getByRole('button', {name: 'Convert to number'}).click()
-  await expect.poll(() => t.docValue(ID, 'rating'), BACKEND_POLL).toBe(4)
-  await expect(t.field(page, 'rating')).toHaveValue('4')
+    await page.getByRole('button', {name: 'Convert to number'}).click()
+    await expect.poll(() => t.docValue(ID, 'rating'), BACKEND_POLL).toBe(4)
+    await expect(t.field(page, 'rating')).toHaveValue('4')
 
-  await field('featured').getByRole('button', {name: 'Reset value'}).click()
-  await expect.poll(() => t.docValue(ID, 'featured'), BACKEND_POLL).toBeUndefined()
+    await field('featured').getByRole('button', {name: 'Reset value'}).click()
+    await expect.poll(() => t.docValue(ID, 'featured'), BACKEND_POLL).toBeUndefined()
 
-  await page.getByRole('button', {name: 'Add missing keys'}).click()
-  await expect.poll(async () => ((await t.docValue(ID, 'categories')) as {_key?: string}[])[0]?._key, BACKEND_POLL).toMatch(/\w{12}/)
-  await expect(page.getByText('News', {exact: true})).toBeVisible()
+    await page.getByRole('button', {name: 'Add missing keys'}).click()
+    await expect.poll(async () => ((await t.docValue(ID, 'categories')) as {_key?: string}[])[0]?._key, BACKEND_POLL).toMatch(/\w{12}/)
+    await expect(page.getByText('News', {exact: true})).toBeVisible()
 
-  await page.getByRole('button', {name: 'Remove field oldField'}).click()
-  await expect.poll(() => t.docValue(ID, 'oldField'), BACKEND_POLL).toBeUndefined()
-  await expect(page.getByText('Unknown field found')).toBeHidden()
+    await page.getByRole('button', {name: 'Remove field oldField'}).click()
+    await expect.poll(() => t.docValue(ID, 'oldField'), BACKEND_POLL).toBeUndefined()
+    await expect(page.getByText('Unknown field found')).toBeHidden()
 
-  await field('body').getByRole('button', {name: 'Reset value'}).click()
-  await expect.poll(() => t.docValue(ID, 'body'), BACKEND_POLL).toBeUndefined()
-  // Rich text from another client with a block the canvas can't draw (no id).
-  await t.patch(ID, {body: {blocks: [{type: 'paragraph', content: [{type: 'text', value: 'Kept text'}]}]}})
-  await page.getByRole('button', {name: 'Add missing block ids'}).click()
-  await expect.poll(async () => ((await t.docValue(ID, 'body')) as {blocks: {id?: string}[]}).blocks[0]?.id, BACKEND_POLL).toMatch(/\w{12}/)
-  await expect(page.getByText('Kept text')).toBeVisible()
-})
+    await field('body').getByRole('button', {name: 'Reset value'}).click()
+    await expect.poll(() => t.docValue(ID, 'body'), BACKEND_POLL).toBeUndefined()
+    // Rich text from another client with a block the canvas can't draw (no id).
+    await t.patch(ID, {body: {blocks: [{type: 'paragraph', content: [{type: 'text', value: 'Kept text'}]}]}})
+    await page.getByRole('button', {name: 'Add missing block ids'}).click()
+    await expect.poll(async () => ((await t.docValue(ID, 'body')) as {blocks: {id?: string}[]}).blocks[0]?.id, BACKEND_POLL).toMatch(/\w{12}/)
+    await expect(page.getByText('Kept text')).toBeVisible()
+  })
 
-// A team moving over from Sanity: its data keeps Sanity's shapes (a reference as {_ref},
-// a slug as {current}). The editor opens and reads them as their values; it crashed on
-// the reference (scout 2026-10-10: every imported post and author).
-// @local: about 9 s in CI, over rule 5's 5 s, with the shards near 60 s (2026-10-10).
-test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {current} slug, a Portable Text body', async ({page, context}, info) => {
-  const t = target(info)
-  test.skip(t.name === 'sanity', 'the shapes are Sanity\'s own there')
-  await t.prepare(context)
-  const body = [{_key: 'p1', _type: 'block', style: 'normal', markDefs: [], children: [{_key: 's1', _type: 'span', marks: [], text: 'Sanity paragraph'}]}]
-  await t.patch(ID, {author: {_type: 'reference', _ref: 'author-ada'}, slug: {_type: 'slug', current: 'broken-post'}, body})
-  await page.goto(t.docPath('post', ID))
-  await signInIfAsked(page)
-  await t.settle(page)
-  await page.getByRole('tab', {name: 'All fields'}).click()
-  await expect(page.getByText('Could not render the document editor')).toHaveCount(0)
-  await expect(t.field(page, 'slug')).toHaveValue('broken-post')
-  await expect(t.refLink(page.locator('body'), 'author')).toContainText('Ada Lovelace')
-  // S4a: a Portable Text body opens in the Portable Text input (portable-text.spec.ts), with
-  // no Reset value: it deleted the whole body (task-3396abb1524c3045).
-  await expect(page.locator('[id="body"][contenteditable="true"]')).toContainText('Sanity paragraph')
-  await expect(page.locator('.field').filter({has: page.locator('label[for="body"]')}).getByRole('button', {name: 'Reset value'})).toHaveCount(0)
-  expect(await t.docValue(ID, 'body')).toEqual(body)
+  // A team moving over from Sanity: its data keeps Sanity's shapes (a reference as {_ref},
+  // a slug as {current}). The editor opens and reads them as their values; it crashed on
+  // the reference (scout 2026-10-10: every imported post and author).
+  // @local: about 9 s in CI, over rule 5's 5 s, with the shards near 60 s (2026-10-10).
+  test('@local Sanity-shaped values open in the editor: a {_ref} reference, a {current} slug, a Portable Text body', async ({page, context}, info) => {
+    const t = target(info)
+    test.skip(t.name === 'sanity', 'the shapes are Sanity\'s own there')
+    await t.prepare(context)
+    const body = [{_key: 'p1', _type: 'block', style: 'normal', markDefs: [], children: [{_key: 's1', _type: 'span', marks: [], text: 'Sanity paragraph'}]}]
+    await t.patch(ID, {author: {_type: 'reference', _ref: 'author-ada'}, slug: {_type: 'slug', current: 'broken-post'}, body})
+    await page.goto(t.docPath('post', ID))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await page.getByRole('tab', {name: 'All fields'}).click()
+    await expect(page.getByText('Could not render the document editor')).toHaveCount(0)
+    await expect(t.field(page, 'slug')).toHaveValue('broken-post')
+    await expect(t.refLink(page.locator('body'), 'author')).toContainText('Ada Lovelace')
+    // S4a: a Portable Text body opens in the Portable Text input (portable-text.spec.ts), with
+    // no Reset value: it deleted the whole body (task-3396abb1524c3045).
+    await expect(page.locator('[id="body"][contenteditable="true"]')).toContainText('Sanity paragraph')
+    await expect(page.locator('.field').filter({has: page.locator('label[for="body"]')}).getByRole('button', {name: 'Reset value'})).toHaveCount(0)
+    expect(await t.docValue(ID, 'body')).toEqual(body)
+  })
 })
 
 // task-ec9b4c0c78185fa4: a team moving over from Sanity brings asset values Barkpark has
@@ -114,7 +117,7 @@ test('unsupported asset values: shown as they are, kept byte-identical by a save
     await expect(page.locator(`a[href$=";${FOREIGN}"] .media-broken`)).toHaveAttribute('title', `Unsupported asset value: ${SANITY_IMAGE.asset._ref}`)
     // A save elsewhere sends that field only: the raw values stay exactly as stored
     // (as Barkpark stores them: compared to its own copy from before the save).
-    const stored = async () => JSON.stringify([await t.docValue(FOREIGN, 'mainImage'), await t.docValue(FOREIGN, 'attachment')])
+    const stored = async () => JSON.stringify(await Promise.all([t.docValue(FOREIGN, 'mainImage'), t.docValue(FOREIGN, 'attachment')]))
     const before = await stored()
     expect(JSON.parse(before)).toEqual([SANITY_IMAGE, SANITY_FILE])
     await t.field(page, 'title').fill('Foreign assets, edited')

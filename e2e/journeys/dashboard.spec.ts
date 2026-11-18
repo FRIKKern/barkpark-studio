@@ -15,6 +15,19 @@ test('dashboard: widgets show their rows, an edit from outside comes in live, a 
   await t.prepare(page.context())
   // A document that is only a draft: Unpublished changes has it, whatever else the dataset holds.
   await t.draftOnly(draft, 'post', {title: `Draft ${draft}`, slug: {_type: 'slug', current: draft}})
+  // The stream open, its server listening to posts: the tab's one stream opened with them (its
+  // GET answers once the hub has them, app/src/routes/api/stream.ts) or a POST added them.
+  const listening = page.waitForResponse((r) => {
+    if (!new URL(r.url()).pathname.endsWith('/api/stream')) return false
+    const req = r.request()
+    if (req.method() === 'GET') return (new URL(r.url()).searchParams.get('types') ?? '').split(',').includes('post')
+    try {
+      return r.ok() && ((JSON.parse(req.postData() ?? '{}') as {types?: string[]}).types ?? []).includes('post')
+    } catch {
+      return false
+    }
+  })
+  listening.catch(() => {}) // awaited below; a test that fails first leaves it to its page's close
   try {
     await page.goto('/dashboard')
     await signInIfAsked(page)
@@ -31,7 +44,7 @@ test('dashboard: widgets show their rows, an edit from outside comes in live, a 
     await expect(region('House style')).toContainText('Headlines in sentence case')
     // Shared sign-in (the e2e default) has no "me": the tasks widget says what it lists.
     for (const name of [/^(My|Open) tasks$/, 'Scheduled', 'Members']) await expect(region(name)).toBeVisible()
-    await page.waitForTimeout(500) // stream open
+    await listening
     // Another client edits and publishes a post: its row is first, there once, with no reload.
     await t.patch(ID, {title})
     await expect(recent.getByTestId('dash-doc').first()).toContainText(title)
@@ -42,7 +55,7 @@ test('dashboard: widgets show their rows, an edit from outside comes in live, a 
     // The document's own field, not the pane's "Loading document…" (its chunk is fetched from the dashboard while idle).
     await expect(t.field(page, 'title')).toHaveValue(title, {timeout: 10_000})
   } finally {
-    await t.restore(ID, {title: 'Fixture post 19'})
-    await t.deleteDoc(draft, 'post')
+    // Two documents: put back at once.
+    await Promise.all([t.restore(ID, {title: 'Fixture post 19'}), t.deleteDoc(draft, 'post')])
   }
 })

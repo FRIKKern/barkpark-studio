@@ -1,5 +1,5 @@
 import {expect, test} from '../rig/test'
-import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
+import {closeAndSettle, savesLanded, signInIfAsked, target} from '../rig/targets'
 
 // The field-type matrix (2026-10-13), ours: what Sanity draws for these options and we
 // didn't. An array of strings from a list is checkboxes and keeps the list's order; a
@@ -18,13 +18,23 @@ test('field types store as Sanity: a dateFormat date, a list in its order, "1,50
   await signInIfAsked(page)
   await t.settle(page)
   const value = (field: string) => t.docValue(ID, field, 'fieldTypes')
-  // dateFormat (DD.MM.YYYY): typed in it, stored as Sanity stores it.
+  // dateFormat (DD.MM.YYYY): typed in it, stored as Sanity stores it. The first edit makes
+  // the draft: landed before the next click (a Green ticked while it was on its way did not
+  // stay ticked, a local run).
   await page.locator('[id="day"]').fill('14.10.2026')
   await page.keyboard.press('Enter')
   await expect.poll(() => value('day'), {timeout: 10_000}).toBe('2026-10-14')
+  // Two fields no later step touches, edited together and read in parallel once their saves
+  // have landed (one wait, not two save-then-poll rounds).
   // An array of strings from a list keeps the list's order, whatever order it was ticked in.
   await page.getByRole('group').filter({has: page.getByRole('checkbox', {name: 'Green'})}).getByRole('checkbox', {name: 'Green'}).check()
-  await expect.poll(() => value('colours'), {timeout: 10_000}).toEqual(['red', 'green', 'blue'])
+  // A geopoint stays a geopoint.
+  await page.locator('[id="place.lat"]').fill('60.5')
+  await savesLanded(page)
+  await Promise.all([
+    expect.poll(() => value('colours'), {timeout: 10_000}).toEqual(['red', 'green', 'blue']),
+    expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522}),
+  ])
   // English: "1,500" is one thousand five hundred, never 1.5 (a decimal comma is nb's,
   // lib/number.ts): not a number, so the field is unset and keeps what was typed.
   await page.locator('[id="width"]').fill('1,500')
@@ -47,9 +57,6 @@ test('field types store as Sanity: a dateFormat date, a list in its order, "1,50
   await width.pressSequentially('x')
   await expect.poll(() => value('width'), {timeout: 10_000}).toBe(123456789012)
   await expect(width).toHaveValue('123456789012')
-  // A geopoint stays a geopoint.
-  await page.locator('[id="place.lat"]').fill('60.5')
-  await expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522})
 })
 
 test("@local field types: Sanity's options drawn: dates, grid tiles, a checkbox, Add item, slugs, fieldsets, a reference without Create", async ({page, context}, info) => {

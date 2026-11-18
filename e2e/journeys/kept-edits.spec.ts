@@ -2,6 +2,7 @@ import {expect, test, type BrowserContext, type Page} from '../rig/test'
 import {readFileSync} from 'node:fs'
 import type {Route} from '../rig/test'
 import {bpMutate, signInIfAsked, target, type Target, closeAndSettle, savesLanded} from '../rig/targets'
+import {stored} from '../rig/kept'
 
 // B11 widen (task-89fecb4915b2f30d): form edits Barkpark never acknowledged survive the
 // tab dying. Saves are cut off (every mutate fails as a network error; a crash sends no
@@ -32,7 +33,7 @@ async function typeThenCrash(context: BrowserContext, t: Target, text: string) {
   await page.keyboard.type(text)
   // The write failed (a network error with the browser online: Not saved — retrying).
   await expect(page.locator('.doc-footer').first()).toContainText(/Not saved|Offline|not saving/i)
-  await page.waitForTimeout(500) // the browser store is written a moment after the last keystroke
+  await stored(page, ID, 'excerpt', await t.field(page, 'excerpt').inputValue())
   await page.close({runBeforeUnload: false})
 }
 

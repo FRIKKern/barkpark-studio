@@ -17,8 +17,9 @@ test.afterEach(async ({page}, info) => {
 test('J10: the body toolbar marks, sets a style, and refuses a script link', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's toolbar is the evidence spec's reference")
-  original = await t.docValue(ID, 'body')
-  await page.goto(t.docPath('post', ID))
+  // The body to put back, read while the page loads (it writes nothing before the click below).
+  const [body] = await Promise.all([t.docValue(ID, 'body'), page.goto(t.docPath('post', ID))])
+  original = body
   await signInIfAsked(page)
   await t.settle(page)
   const field = page.locator('.body-canvas')

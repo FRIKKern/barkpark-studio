@@ -67,8 +67,16 @@ test('J01 J02: open the post list, open a post, reload the deep URL', async ({pa
 
   // A link in Sanity's own form opens the same in both: a followed doc without type=,
   // and an inspector by Sanity's name (History, on its Review changes tab).
-  await page.goto('/structure/post;post-02;author-alan')
-  await expect(page).toHaveTitle(/^Alan Turing \| /)
-  await page.goto('/structure/post;post-02,since=@lastPublished,changesInspectorTab=review,inspect=sanity%2Fstructure%2Fhistory')
-  await expect(page.getByRole('tab', {name: 'Review changes'})).toHaveAttribute('aria-selected', 'true')
+  // The two links at once, the second in a tab of its own.
+  const other = await page.context().newPage()
+  await Promise.all([
+    (async () => {
+      await page.goto('/structure/post;post-02;author-alan')
+      await expect(page).toHaveTitle(/^Alan Turing \| /)
+    })(),
+    (async () => {
+      await other.goto('/structure/post;post-02,since=@lastPublished,changesInspectorTab=review,inspect=sanity%2Fstructure%2Fhistory')
+      await expect(other.getByRole('tab', {name: 'Review changes'})).toHaveAttribute('aria-selected', 'true')
+    })(),
+  ])
 })

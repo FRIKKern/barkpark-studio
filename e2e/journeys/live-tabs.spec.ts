@@ -41,8 +41,14 @@ test('live: many tabs: four visible save, three hidden let go, six still save, a
     await type(tabs[3]!, ' four')
     await expect.poll(() => t.docValue(ID, 'title'), {timeout: 10_000, message: 'four visible tabs: the save reached the server'}).toBe(`${TITLE} four`)
     await expect(t.field(tabs[0]!, 'title'), 'and the first tab, live').toHaveValue(`${TITLE} four`, {timeout: 5_000})
-    for (const p of tabs.slice(0, 3)) await hide(p, true)
-    await tabs[3]!.waitForTimeout(600)
+    // Each hidden tab lets go: its stream closed (lib/stream.ts, __hiddenReleaseMs after it hides).
+    await Promise.all(
+      tabs.slice(0, 3).map(async (p) => {
+        const gone = p.waitForEvent('requestfailed', (r) => new URL(r.url()).pathname.endsWith('/api/stream') && r.method() === 'GET')
+        await hide(p, true)
+        await gone
+      }),
+    )
     tabs.push(...(await open(2)))
     await type(tabs[5]!, ' six')
     await expect.poll(() => t.docValue(ID, 'title'), {timeout: 10_000, message: 'six tabs, three hidden: the save reached the server'}).toBe(`${TITLE} four six`)

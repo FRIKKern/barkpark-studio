@@ -10,9 +10,10 @@ const NAMES = ['B03 delete A', 'B03 delete B', 'B03 delete C']
 const POST = 'post-b03-del-ref'
 const get = (path: string) => fetch(`${bpBase()}${path}`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
 const exists = async (id: string) => (await Promise.all(['drafts', 'published'].map((p) => get(`/v1/data/doc/${bpDataset()}/author/${id}?perspective=${p}`)))).some((r) => r.status !== 404)
+// The post first (it refers to an author), then the authors at once.
 const cleanup = async () => {
   await bpRemove(POST, 'post')
-  for (const id of AUTHORS) await bpRemove(id, 'author')
+  await Promise.all(AUTHORS.map((id) => bpRemove(id, 'author')))
 }
 test.afterEach(async ({page}) => {
   await closeAndSettle(page)

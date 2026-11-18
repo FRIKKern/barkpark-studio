@@ -51,9 +51,11 @@ test('J11: a table inserted in a Portable Text field takes typing cell by cell w
   await expect(table.locator('tr')).toHaveCount(4)
   await savesLanded(page)
 
-  const landed = () => stored().then((body) => body?.filter((b): b is Table => b._type === 'table'))
-  await expect.poll(async () => texts((await landed())?.[0]), {timeout: 10_000}).toEqual([['Tea', 'Minutes', ''], ['', '', ''], ['', '', ''], ['', '', '']])
-  const [made, held] = (await landed())!
+  // The body as the poll last read it: the checks below look at that read, not two more.
+  let body: Awaited<ReturnType<typeof stored>>
+  const landed = () => body?.filter((b): b is Table => b._type === 'table')
+  await expect.poll(async () => ((body = await stored()), texts(landed()?.[0])), {timeout: 10_000}).toEqual([['Tea', 'Minutes', ''], ['', '', ''], ['', '', ''], ['', '', '']])
+  const [made, held] = landed()!
   // Sanity's shape: a header row, rows of cells of blocks, each with its own 12-hex key.
   expect(made!.headerRows).toBe(1)
   const keys = [made!, ...made!.rows, ...made!.rows.flatMap((r) => r.cells), ...made!.rows.flatMap((r) => r.cells.flatMap((c) => c.value))].map((n) => n._key)
@@ -62,7 +64,7 @@ test('J11: a table inserted in a Portable Text field takes typing cell by cell w
   expect(made!.rows.every((r) => r._type === 'row' && r.cells.every((c) => c._type === 'cell'))).toBe(true)
   // The table the text held, and the text around it, went back as stored.
   expect(held).toEqual(HELD)
-  expect((await stored())!.map((b) => b._type)).toEqual(['block', 'table', 'block', 'table'])
+  expect(body!.map((b) => b._type)).toEqual(['block', 'table', 'block', 'table'])
 
   await page.reload()
   await t.settle(page)

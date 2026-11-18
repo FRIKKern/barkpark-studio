@@ -20,9 +20,11 @@ async function held(type: string, id: string) {
   const {result} = (await r.json()) as {result?: Record<string, unknown>}
   return JSON.stringify(Object.fromEntries(Object.entries(result ?? {}).filter(([k]) => !k.startsWith('_') || k === '_draft')))
 }
-// Writes come late (a canvas batch, a clipboard read): watched a moment, not read once.
-async function unchanged(page: Page, type: string, id: string, before: string) {
-  for (const until = Date.now() + 1000; Date.now() < until && (await held(type, id)) === before; ) await page.waitForTimeout(150)
+// Read once nothing of this page is on its way. Every write here is on its way from the moment
+// it is made: a form edit (a key, Cmd+Z) is pending at once (app/src/lib/edits.ts __savesPending),
+// a canvas batch from its first key (the canvas's hasPendingChanges reads the DOM's typing and
+// counts its debounce timer and the batch in flight until Barkpark has it). No paste is made here.
+async function unchanged(page: Page, type: string, id: string) {
   await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending())
   return held(type, id)
 }
@@ -64,7 +66,7 @@ test('a history revision writes nothing: the Freeform canvas, the body canvas, P
   await expect.soft(page.locator('[id="body"] [contenteditable="true"]')).toHaveCount(0, {timeout: 1000})
   await typeInto(page, /Note words here/, ' typed in a revision')
   expect.soft(await pasteOffered(page), 'Paste document is offered').toBe(false)
-  expect.soft(await unchanged(page, 'note', NOTE, before), 'typing in a revision wrote the draft').toBe(before)
+  expect.soft(await unchanged(page, 'note', NOTE), 'typing in a revision wrote the draft').toBe(before)
 })
 
 test('a scheduled doc writes nothing: the Freeform canvas, Paste document', async ({page}, info) => {
@@ -81,7 +83,7 @@ test('a scheduled doc writes nothing: the Freeform canvas, Paste document', asyn
   await expect.soft(page.locator('.pd-editor bp-paper-canvas').first()).toHaveAttribute('editable', 'false', {timeout: 2000})
   await typeInto(page, /Note words here/, ' typed while scheduled')
   expect.soft(await pasteOffered(page), 'Paste document is offered').toBe(false)
-  expect.soft(await unchanged(page, 'note', NOTE, before), 'typing in a scheduled doc wrote the draft').toBe(before)
+  expect.soft(await unchanged(page, 'note', NOTE), 'typing in a scheduled doc wrote the draft').toBe(before)
 })
 
 test('Cmd+Z in a history revision leaves the draft alone', async ({page}, info) => {
@@ -100,5 +102,5 @@ test('Cmd+Z in a history revision leaves the draft alone', async ({page}, info) 
   const before = await held('fieldTypes', DOC)
   await page.getByRole('button', {name: 'Show document actions'}).first().focus()
   await page.keyboard.press('ControlOrMeta+z')
-  expect.soft(await unchanged(page, 'fieldTypes', DOC, before), 'Cmd+Z in a revision wrote the draft').toBe(before)
+  expect.soft(await unchanged(page, 'fieldTypes', DOC), 'Cmd+Z in a revision wrote the draft').toBe(before)
 })

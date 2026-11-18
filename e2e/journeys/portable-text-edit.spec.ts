@@ -19,20 +19,21 @@ test.afterEach(async ({page}) => (await closeAndSettle(page), await bpMutate([{d
 
 
 test('Portable Text: one word edited changes that span only, keys and unknown content kept, discard leaves published as it was', async ({page}, info) => {
-  const published = await read('published')
+  // The published doc read while the page loads (nothing is typed before both are done).
+  const [published, editor] = await Promise.all([read('published'), open(page, info)])
   const stored = JSON.parse(JSON.stringify(published!.body)) as typeof BODY
-  const editor = await open(page, info)
   await selectWarm(page, editor)
   await page.keyboard.type('hot')
   await savesLanded(page)
-  await expect.poll(async () => JSON.stringify((await read('drafts'))?.body), {timeout: 10_000}).toContain('Brew the tea with hot water.')
-  const draft = (await read('drafts'))!.body as typeof BODY
+  // The draft as the poll last read it: the checks below look at that read.
+  let draft: typeof BODY | undefined
+  await expect.poll(async () => JSON.stringify((draft = (await read('drafts'))?.body as typeof BODY | undefined)), {timeout: 10_000}).toContain('Brew the tea with hot water.')
   // Only that span's text differs; every block and span keeps its key.
   const expected = JSON.parse(JSON.stringify(stored)) as typeof BODY
   expected[0].children[0].text = 'Brew the tea with hot water.'
   expect(draft).toEqual(expected)
   // Custom block, inline object, unknown mark and markDef: byte for byte as stored.
-  for (const i of [1, 2, 3, 4]) expect(JSON.stringify(draft[i])).toBe(JSON.stringify(stored[i]))
+  for (const i of [1, 2, 3, 4]) expect(JSON.stringify(draft![i])).toBe(JSON.stringify(stored[i]))
   // Discard the draft: the published doc is untouched.
   await bpMutate([{discardDraft: {id: ID, type: 'post'}}])
   const after = await read('published')

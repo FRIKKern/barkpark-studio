@@ -1,5 +1,5 @@
 import {expect, test} from '../rig/test'
-import {bpMutate, bpRemove, closeAndSettle, signInIfAsked, target} from '../rig/targets'
+import {bpMutate, bpRemove, closeAndSettle, savesLanded, signInIfAsked, target} from '../rig/targets'
 
 // task-01b4134d487dd298: Sanity's Rule.custom from the studio config (app/src/studio.config.tsx,
 // as reference/sanity/schemaTypes/post.ts): a document rule gates Publish, and a rule answering
@@ -52,7 +52,13 @@ test('custom rules: a document rule gates Publish; an async rule says Validating
     })
     await t.field(page, 'featuredNote').press('End')
     await page.keyboard.type(' again')
-    await page.waitForTimeout(1600)
+    // Watched until the edit's own answer is in: the rule runs 300 ms after the typing settles
+    // (app/src/lib/use-custom-rules.ts SETTLE_MS) and answers 500 ms later (studio.config.tsx),
+    // Publish busy meanwhile; nothing in the rules moves after that. Its save landed too.
+    await expect(publish).toHaveAttribute('aria-busy', 'true')
+    await expect(publish).not.toHaveAttribute('aria-busy')
+    await savesLanded(page)
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null)))))
     expect(await page.evaluate(() => (window as unknown as {lost: number}).lost)).toBe(0)
     await expect(panel).toContainText('Remove the TODO before publishing')
     // task-17c587477e6bfe1c: picking a problem is a step in history, as Sanity's: the URL names

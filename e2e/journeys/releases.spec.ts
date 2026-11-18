@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import {expect, test} from '../rig/test'
-import {bpBase, bpDataset, signInIfAsked, target} from '../rig/targets'
+import {bpBase, bpDataset, bpMutate, signInIfAsked, target} from '../rig/targets'
 
 // J40's Releases tool (the schedule itself, from the document: schedule.spec; split for
 // CI's shards, task-c1df532bed870536).
@@ -23,8 +23,9 @@ test('Releases tool: scheduled drafts, calendar day filter and time zone, Active
   const at = new Date(Date.now() + 2 * 86_400_000)
   at.setUTCHours(8, 0, 0, 0)
   // The draft and its schedule are made while the browser gets ready (as refs.spec, #935).
+  // A draft only, created outright: the id is new, so no leftover to delete first (t.draftOnly's).
   const [made] = await Promise.all([
-    t.draftOnly(id, 'post', {title, slug: {_type: 'slug', current: id}}).then(() => fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: at.toISOString()})})),
+    bpMutate([{create: {_id: id, _type: 'post', title, slug: {_type: 'slug', current: id}}}]).then(() => fetch(api, {method: 'POST', headers, body: JSON.stringify({id, type: 'post', publishAt: at.toISOString()})})),
     t.prepare(context),
   ])
   try {
