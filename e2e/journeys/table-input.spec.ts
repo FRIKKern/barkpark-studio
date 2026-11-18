@@ -63,6 +63,7 @@ test('a table field: a column put in left of the caret takes the keys typed next
 test('a table field: the caret in an empty cell when another editor adds a column at the end does not jump right; the keys typed go to the card', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: the reference studio has no table plugin installed')
+  test.skip(!(await schemaHasField('fieldTypes', 'sizeChart')), "this dataset's fieldTypes schema has no sizeChart field yet (fixtures/barkpark-schema/fieldTypes.json; reseed with --schemas)")
   const id = `${ID}-wide`
   const empty = (w: number) => ({_type: 'table', rows: [row('a', ...Array(w).fill('')), row('b', ...Array(w).fill(''))]})
   await bpMutate([{createOrReplace: {_id: id, _type: 'fieldTypes', title: 'Table scratch', sizeChart: empty(3)}}])
