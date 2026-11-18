@@ -26,6 +26,8 @@ test("a scheduled note offers no Undo of another writer's edit", async ({page, c
   await t.settle(page)
   const canvas = page.locator('.pd-editor bp-paper-canvas').first()
   await expect(canvas.getByText(/Note words here/)).toBeVisible()
+  // Locked before their edit lands (the schedule is read on the client: DocumentPane).
+  await expect(canvas).toHaveAttribute('editable', 'false')
   const blocks = [{fieldName: 'title', id: 'synth-f-title-0', type: 'field-string', value: 'Kept note'}, {fieldName: 'label', id: 'synth-f-label-1', type: 'field-string', value: 'L'}, para('n1', 'Changed by another writer.')]
   await bpMutate([{patch: {id: NOTE, type: 'note', set: {blocks, body: {blocks: [para('n1', 'Changed by another writer.')]}}}}])
   await expect(canvas.getByText(/Changed by another writer/)).toBeVisible()
