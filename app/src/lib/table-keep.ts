@@ -1,5 +1,5 @@
 import {getPath, within} from './paths.ts'
-import {alignColumns, cellsOf, isTable, ownColumns, tableSpot, width} from './table-merge.ts'
+import {alignColumns, cellsOf, isTable, ownColumns, sureColumn, tableSpot, width} from './table-merge.ts'
 
 // Two editors in one @sanity/table, when the other changed its columns or rows while I had
 // text not saved yet. A cell has no key: a column is only a place, and nothing stored says
@@ -93,20 +93,20 @@ export function keepOnShapeChange(e: Pending, d: unknown, before: unknown) {
     })
     const [w0, w1] = [width(was.rows as unknown[]), width(rows)]
     const fits = (from: number, j: number) => alignColumns(pairs, w0, w1, (i) => i === from)[from] === j
-    // A column theirs changed right of mine (Add column, a removal after it) cannot have moved my
-    // cell: where the table's cells say so whichever way a tie goes, my empty cell, still empty,
-    // keeps my text (a saved text says where it is, above).
-    // (Empty cells read alike to text here: theirs may have typed in one since.)
-    const sure = (from: number, kept: (i: number) => boolean) => alignColumns(pairs, w0, w1, kept, true)[from] === from
-    const stays = (c: Change) => c.from >= 0 && sure(c.from, (i) => i === c.from) && sure(c.from, (i) => i !== c.from)
+    // One alignment for the table, every row read at once: where every best one puts my cell's
+    // column (sureColumn; empty cells read alike to text, theirs may have typed in one since),
+    // and the cell there still holds what I typed on from, my text goes there. A column theirs
+    // added right of mine, or a new empty column the other rows show, says where it is.
+    const sureAt = (c: Change) => (c.from >= 0 ? sureColumn(pairs, w0, w1, c.from, true) : undefined)
     const only = (c: Change, j: number) => near(c.from, j) && c.was.every((v, i) => i === c.from || v !== c.base || !near(i, j)) && fits(c.from, j)
     const placed = new Map<string, unknown[]>()
     for (const c of changes) {
       const r = rowBy(rows, c.row)
       const cells = placed.get(c.row) ?? (r ? [...cellsOf(r)] : null)
       const at = cells && c.base !== '' ? cells.flatMap((v, j) => (v === c.base && near(c.from, j) ? [j] : [])) : []
-      if (cells && at.length === 1 && only(c, at[0]!)) placed.set(c.row, ((cells[at[0]!] = c.text), cells))
-      else if (cells && c.base === '' && cells[c.from] === '' && stays(c)) placed.set(c.row, ((cells[c.from] = c.text), cells))
+      const p = cells ? sureAt(c) : undefined
+      if (cells && p !== undefined && p >= 0 && (cells[p] ?? '') === c.base) placed.set(c.row, ((cells[p] = c.text), cells))
+      else if (cells && at.length === 1 && only(c, at[0]!)) placed.set(c.row, ((cells[at[0]!] = c.text), cells))
       else if (typeof c.text === 'string' && c.text !== '') (e.kept ??= []).push({table, row: c.row, column: c.column, text: c.text, at: Date.now()})
     }
     for (const k of spots) e.dirty.delete(k), e.base.delete(k), e.notes?.delete(k)

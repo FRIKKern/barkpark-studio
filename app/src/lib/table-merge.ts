@@ -74,6 +74,25 @@ export function alignColumns(rows: [from: unknown[], to: unknown[]][], from: num
   return align(rows, from, to, kept && ((i, j) => (kept(i) ? j + 1 : 0)), loose && 'a', away)
 }
 
+/**
+ * Where column `i` of `from` sits among `to`'s (-1: removed) when the whole table says so: every
+ * best alignment of the rows (`rows`, all of them at once) puts it there. Undefined when two best
+ * ones place it apart (cells that read alike either way: an empty table, a row of the same text),
+ * so a caller keeps the text or the caret where nothing is guessed. `loose` as alignColumns'.
+ */
+export function sureColumn(rows: [from: unknown[], to: unknown[]][], from: number, to: number, i: number, loose = false): number | undefined {
+  if (from === to) return i
+  if (i < 0 || i >= from) return undefined
+  // The same best alignment, tie-broken once to put column i as far right as it can go and once as far left (or out).
+  const place = (high: boolean) => {
+    if (from < to) return align(rows, from, to, (c, j) => (c === i ? (high ? j + 1 : to - j) : 0), loose && 'a')[i]!
+    const back = align(rows.map(([a, b]) => [b, a]), to, from, (c, j) => (j === i ? (high ? c + 2 : -(c + 1)) : 0), loose && 'b')
+    return back.indexOf(i)
+  }
+  const [hi, lo] = [place(true), place(false)]
+  return hi === lo ? hi : undefined
+}
+
 /** `blank`: the side whose empty cells read as alike to text as to an empty cell (text typed since, in a column either old or new). */
 function align(rows: [unknown[], unknown[]][], from: number, to: number, tie?: (i: number, j: number) => number, blank: 'a' | 'b' | false = false, cost?: (i: number, j: number) => number): number[] {
   if (!rows.length && !tie) return Array.from({length: from}, (_, i) => i)
