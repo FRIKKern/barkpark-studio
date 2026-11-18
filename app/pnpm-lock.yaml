@@ -60,6 +60,9 @@ importers:
       '@portabletext/plugin-markdown-shortcuts':
         specifier: 9.0.17
         version: 9.0.17(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
+      '@portabletext/plugin-one-line':
+        specifier: 8.0.16
+        version: 8.0.16(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       '@portabletext/plugin-paste-link':
         specifier: 5.0.16
         version: 5.0.16(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -524,6 +527,13 @@ packages:
 
   '@portabletext/plugin-markdown-shortcuts@9.0.17':
     resolution: {integrity: sha512-xgoogNYIA5k9g8s0h7sGC2+dpbRIesXBQ9NbAgdOtfrS9WDgae2ye6IwfL+cbdU/F9pZbiOkVmUhtzGTK81ymA==}
+    engines: {node: '>=22.12'}
+    peerDependencies:
+      '@portabletext/editor': ^8.2.3
+      react: ^19.2
+
+  '@portabletext/plugin-one-line@8.0.16':
+    resolution: {integrity: sha512-edICr0yxzoIyDTWn2Rd8FAIBeQ+PtYkARce0j4xhgfmXV3unCAaywEQF7Y14BEROTKimjYBr6FA64qi7STYuTA==}
     engines: {node: '>=22.12'}
     peerDependencies:
       '@portabletext/editor': ^8.2.3
@@ -2182,6 +2192,11 @@ snapshots:
       react: 19.3.0
     transitivePeerDependencies:
       - '@types/react'
+
+  '@portabletext/plugin-one-line@8.0.16(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@portabletext/editor': 8.2.5(@types/react@19.3.0)(react@19.3.0)
+      react: 19.3.0
 
   '@portabletext/plugin-paste-link@5.0.16(@portabletext/editor@8.2.5(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)':
     dependencies:
