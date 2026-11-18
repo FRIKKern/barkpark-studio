@@ -5,6 +5,7 @@
 // longer: shard 5 past the 60 s cap on #856 and #863), and the log names it.
 //   node scripts/shard-files.mjs 2 4                    # the spec files for shard 2 of 4
 //   node scripts/shard-files.mjs --update <run> [<run>…] # re-record from CI runs (gh)
+//   node scripts/shard-files.mjs --update <run>:1 <run>:2  # …or attempts of one run (a re-run of the same code)
 // A spec's time is wall time: from the line before its test's result to that result, so its
 // beforeAll / afterAll hooks count (a test's own "(2.1s)" leaves them out: search-quality's
 // seeding was 10 s nobody planned for, and ci-4 ran past the 60 s cap). A failed test is
@@ -23,7 +24,8 @@ if (process.argv[2] === '--update') {
   const seen = {}
   for (const run of runs) {
     const inRun = {}
-    const jobs = execSync(`gh api repos/{owner}/{repo}/actions/runs/${run}/jobs -q '.jobs[] | select(.name|startswith("studio")) | .id'`).toString().split('\n').filter(Boolean)
+    const [id, attempt] = run.split(':')
+    const jobs = execSync(`gh api repos/{owner}/{repo}/actions/runs/${id}${attempt ? `/attempts/${attempt}` : ''}/jobs -q '.jobs[] | select(.name|startswith("studio")) | .id'`).toString().split('\n').filter(Boolean)
     for (const job of jobs) {
       let last = null
       for (const line of execSync(`gh run view --job ${job} --log`, {maxBuffer: 64 << 20}).toString().split('\n')) {

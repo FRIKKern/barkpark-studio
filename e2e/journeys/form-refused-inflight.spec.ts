@@ -28,6 +28,9 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: our save loop')
   await Promise.all([seeded, t.prepare(page.context())])
+  // The page's clock, run on by the test past the save loop's 2 s retry (lib/edits.ts) instead of
+  // waited out; otherwise it keeps real time.
+  await page.clock.install()
   await page.goto(t.docPath('post', ID))
   await signInIfAsked(page)
   await t.settle(page)
@@ -56,13 +59,20 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
   for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight')
   await page.keyboard.type('mine ')
   await expect(footer).toContainText(/Not saved/i, {timeout: 15_000})
+  await page.clock.runFor(2100) // the refused save's retry, due 2 s after it
   await expect.poll(() => saves, {intervals: [50], timeout: 10_000}).toBeGreaterThanOrEqual(2)
   await held
   await expect(card).toBeVisible({timeout: 10_000})
   await expect(card.locator('[data-version="theirs"]')).toHaveText(theirs)
   // Saves flow again: theirs stands until the editor chooses.
   await page.unrouteAll({behavior: 'wait'})
-  await page.waitForTimeout(2200) // past the 2 s retry a failed save waits
+  // Past the 2 s retry a failed save waits, on the page's clock; a write that sends has left
+  // 200 ms later, and its answer is in before Barkpark is read.
+  const sent: Promise<unknown>[] = []
+  page.on('request', (r) => r.method() === 'POST' && (r.postData() ?? '').includes('mutations') && sent.push(r.response()))
+  await page.clock.runFor(2200)
+  await page.waitForTimeout(200)
+  await Promise.all(sent)
   expect((await bpDoc(ID))?.excerpt, 'never saved over theirs unseen').toBe(theirs)
   await card.getByRole('button', {name: 'Take theirs'}).click()
   await expect(excerpt).toHaveValue(theirs)
