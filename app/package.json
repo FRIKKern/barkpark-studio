@@ -11,9 +11,9 @@
     "build:vercel": "NITRO_PRESET=vercel vite build",
     "check": "tsc --noEmit && pnpm -s test && vite build",
     "hosts": "node --test --test-timeout=300000 --experimental-strip-types src/lib/host-profile.test.ts",
-    "conformance": "node ../conformance/barkpark-studio.mjs && node --test ../conformance/conformance.test.mjs",
-    "conformance:write": "CONFORMANCE_WRITE=1 node ../conformance/barkpark-studio.mjs",
-    "test": "node --test --experimental-strip-types src/lib/*.test.ts ../scripts/seed-bulk.test.mjs ../scripts/ci-lease.test.mjs ../scripts/spec-imports.test.mjs ../scripts/lib/seed-map.test.mjs ../scripts/lib/batches.test.mjs ../scripts/lib/remove-type.test.mjs ../scripts/lib/retry.test.mjs ../scripts/lib/dev-tokens.test.mjs ../scripts/lib/seed-plan.test.mjs",
+    "conformance": "node ../conformance/barkpark-studio.mjs && node ../conformance/barkpark-studio-host.mjs && node --test ../conformance/conformance.test.mjs",
+    "conformance:write": "CONFORMANCE_WRITE=1 node ../conformance/barkpark-studio.mjs && CONFORMANCE_WRITE=1 node ../conformance/barkpark-studio-host.mjs",
+    "test": "node --test --experimental-strip-types src/lib/*.test.ts ../scripts/react-body-adapter.test.mjs ../scripts/seed-bulk.test.mjs ../scripts/ci-lease.test.mjs ../scripts/spec-imports.test.mjs ../scripts/lib/seed-map.test.mjs ../scripts/lib/batches.test.mjs ../scripts/lib/remove-type.test.mjs ../scripts/lib/retry.test.mjs ../scripts/lib/dev-tokens.test.mjs ../scripts/lib/seed-plan.test.mjs",
     "serve": "vite build && vite preview --port 3000 --strictPort"
   },
   "dependencies": {

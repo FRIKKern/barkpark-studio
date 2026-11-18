@@ -1,104 +1,132 @@
-import {storedHref} from '../lib/link-href'
-import type {ReactNode} from 'react'
+import {
+  renderPortableDocument,
+  type Block as PortableBlock,
+  type CoreBlockRenderer,
+  type InlineObjectRenderer,
+  type PortableDocProps,
+} from '@portable-doc/react'
+import {embedBlocks} from '@portable-doc/react/embed'
+import {fieldBlocks} from '@portable-doc/react/field-blocks'
 import {useT} from '../lib/i18n'
 import {imageFileName} from '../lib/image'
-import {DocumentIcon, Ellipsis} from './icons'
 import {objectBlockTitle, type ObjectKind} from '../lib/object-block'
 
 // A PortableDoc block list drawn read-only (J10): the body field before its canvas
-// is activated, and anywhere a body is only shown. Covers what the post vocabulary
-// can hold: headings, paragraphs, lists, quotes, callouts, images, and the inline
-// marks and links inside them. An unknown block draws as its text. Blocks carry
-// data-bp-id like the canvas's, so a caret maps from one to the other.
+// is activated, and anywhere a body is only shown. Host hooks keep Studio's card,
+// caret and navigation DOM while the canonical package owns the document walk.
 
-type Inline = {type: string; value?: string; text?: string; href?: string; docId?: string; target?: string; children?: Inline[]}
-type Block = {id: string; type: string; level?: number; tone?: string; text?: string; content?: Inline[]; items?: Inline[][]; ordered?: boolean; src?: string; url?: string; alt?: string}
+type Inline = {
+  type: string
+  value?: string
+  text?: string
+  docId?: string
+  children?: Inline[]
+  attrs?: Record<string, unknown>
+}
+type Block = PortableBlock & {id: string; content?: Inline[]; items?: Inline[][]}
 
-const MARKS: Record<string, string> = {strong: 'strong', em: 'em', code: 'code', underline: 'u', strikethrough: 's', highlight: 'mark', sub: 'sub', sup: 'sup'}
+const DOCUMENT_ICON =
+  '<svg width="25" height="25" viewBox="0 0 25 25" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M11.5 4.5V9.5H6.5"></path><path d="M18.5 20.5H6.5V9.5L11.5 4.5H18.5V20.5Z"></path></svg>'
+const ELLIPSIS =
+  '<svg width="25" height="25" viewBox="0 0 25 25" fill="none"><path d="M6.5 11C7.32843 11 8 11.6716 8 12.5C8 13.3284 7.32843 14 6.5 14C5.67157 14 5 13.3284 5 12.5C5 11.6716 5.67157 11 6.5 11Z" fill="currentColor"></path><path d="M12.5 11C13.3284 11 14 11.6716 14 12.5C14 13.3284 13.3284 14 12.5 14C11.6716 14 11 13.3284 11 12.5C11 11.6716 11.6716 11 12.5 11Z" fill="currentColor"></path><path d="M18.5 11C19.3284 11 20 11.6716 20 12.5C20 13.3284 19.3284 14 18.5 14C17.6716 14 17 13.3284 17 12.5C17 11.6716 17.6716 11 18.5 11Z" fill="currentColor"></path></svg>'
 
-function inline(nodes: Inline[] = [], key = '', linksOpen = false): ReactNode[] {
-  return nodes.map((n, i) => {
-    const k = `${key}${i}`
-    if (n.type === 'text' || n.value !== undefined) return n.value ?? ''
-    // An inline object (J11, post-11's chip): its words, as a chip.
-    if (!n.children && typeof n.text === 'string') return <span key={k} className="inline-object" data-type={n.type}>{n.text}</span>
-    const kids = inline(n.children, `${k}.`, linksOpen)
-    // A stored address the reader allowlist refuses (javascript:, data:) is drawn as its words.
-    if (n.type === 'link' && n.href) {
-      const href = storedHref(n.href)
-      return href ? <a key={k} href={href} target="_blank" rel="noopener noreferrer">{kids}</a> : <span key={k}>{kids}</span>
+const escapeHtml = (value: unknown) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+function inlineObjectTypes(blocks: unknown): string[] {
+  const found = new Set<string>()
+  const visit = (nodes: unknown) => {
+    if (!Array.isArray(nodes)) return
+    for (const value of nodes) {
+      if (!value || typeof value !== 'object') continue
+      const node = value as Inline
+      if (typeof node.type === 'string' && node.type !== 'text' && !node.children && typeof node.text === 'string') found.add(node.type)
+      visit(node.children)
     }
-    // A link to a document (Sanity's internal link; portable-doc's wikilink): drawn as a
-    // link, as the canvas draws it, so the body reads the same before it is clicked.
-    // `linksOpen` (a read-only body): it is a link the reader follows, by click or Enter.
-    if (n.type === 'wikilink')
-      return (
-        <span key={k} className="wikilink" data-wikilink="" data-doc-id={n.docId ?? undefined} {...(linksOpen && n.docId ? {role: 'link', tabIndex: 0} : {})}>
-          {kids.length ? kids : n.target}
-        </span>
-      )
-    const Tag = (MARKS[n.type] ?? 'span') as 'span'
-    return <Tag key={k}>{kids}</Tag>
-  })
+  }
+  if (!Array.isArray(blocks)) return []
+  for (const value of blocks) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+    const block = value as Block
+    visit(block.content)
+    if (Array.isArray(block.items)) for (const item of block.items) visit(item)
+  }
+  return [...found]
+}
+
+function docId(node: Record<string, unknown>): string | undefined {
+  if (typeof node.docId === 'string') return node.docId
+  return node.attrs && typeof node.attrs === 'object' && typeof (node.attrs as {docId?: unknown}).docId === 'string'
+    ? (node.attrs as {docId: string}).docId
+    : undefined
+}
+
+function externalLinks(html: string): string {
+  return html.replace(/<a href="(https?:\/\/[^"]*)"([^>]*)>/gi, (whole, href: string, attrs: string) =>
+    /\starget=/.test(attrs)
+      ? whole
+      : `<a href="${href}"${attrs} target="_blank" rel="noopener noreferrer">`,
+  )
+}
+
+/** Pure inner HTML form, exported so the candidate adapter can be contract-tested. */
+export function renderPortableDocView(
+  blocks: Block[],
+  linksOpen: boolean,
+  objects: ObjectKind[],
+  t: (key: string) => string,
+): string {
+  const extensionBlocks = Object.assign(Object.create(null), fieldBlocks, embedBlocks()) as NonNullable<PortableDocProps['blocks']>
+  const blockOverrides = Object.create(null) as Record<string, CoreBlockRenderer>
+  blockOverrides.image = (raw, _ctx, renderDefault) => {
+    const block = raw as Block
+    const directSrc = typeof block.src === 'string' ? block.src : ''
+    const src = directSrc || (typeof block.url === 'string' ? block.url : '')
+    if (!src.trim()) return ''
+    const alt = typeof block.alt === 'string' ? block.alt : ''
+    let image = directSrc ? renderDefault() : renderPortableDocument([{...block, src}])
+    if (src.toLowerCase().startsWith('data:image/'))
+      image = image.replace('src="#"', () => `src="${escapeHtml(src)}"`)
+    return `<figure class="pd-image"><div class="pd-image-head"><span class="pd-image-name">${escapeHtml(imageFileName(src, alt, t('Image')))}</span><span class="pd-image-more" aria-hidden="true">${ELLIPSIS}</span></div>${image}</figure>`
+  }
+  for (const kind of objects) {
+    const renderObject = (raw: PortableBlock) =>
+      `<div class="pd-object" data-object-type="${escapeHtml(raw.type)}"><span class="pd-object-media" aria-hidden="true">${DOCUMENT_ICON}</span><span class="pd-object-title">${escapeHtml(objectBlockTitle(kind, raw, (value) => t(value ? 'Yes' : 'No')))}</span><span class="pd-image-more" aria-hidden="true">${ELLIPSIS}</span></div>`
+    extensionBlocks[kind.name] = (raw) => renderObject(raw as PortableBlock)
+    blockOverrides[kind.name] = (raw) => renderObject(raw)
+  }
+
+  const inlineObjects = Object.create(null) as Record<string, InlineObjectRenderer>
+  for (const type of inlineObjectTypes(blocks))
+    inlineObjects[type] = (node) =>
+      `<span class="inline-object" data-type="${escapeHtml(type)}">${escapeHtml(node.text)}</span>`
+
+  return externalLinks(renderPortableDocument(blocks, {
+    blocks: extensionBlocks,
+    blockOverrides,
+    blockAttributes: (block) =>
+      typeof block.id === 'string' ? {'data-bp-id': block.id} : undefined,
+    inlineObjects,
+    wikilink: (node, defaultHtml) => {
+      const id = docId(node)
+      const attrs = id
+        ? ` data-doc-id="${escapeHtml(id)}"${linksOpen ? ' role="link" tabindex="0"' : ''}`
+        : ''
+      return defaultHtml
+        .replace(/^<span/, () => `<span${attrs}`)
+        .replace('class="bp-wikilink ', 'class="wikilink bp-wikilink ')
+    },
+  }))
 }
 
 /** `objects`: the body field's declared object kinds (`blocks.of`): those draw as the canvas's card. */
 export function PortableDocView({blocks, linksOpen = false, objects = []}: {blocks: Block[]; linksOpen?: boolean; objects?: ObjectKind[]}) {
   const t = useT()
-  return (
-    <>
-      {blocks.map((b) => {
-        const body = b.content ? inline(b.content, '', linksOpen) : b.text
-        // A declared object block (the callout) is Sanity's block object card, as the canvas
-        // draws it (1.12.0): a tile with its icon, its preview title, a "…".
-        const kind = objects.find((k) => k.name === b.type)
-        if (kind)
-          return (
-            <div key={b.id} className="pd-object" data-bp-id={b.id} data-object-type={b.type}>
-              <span className="pd-object-media" aria-hidden="true">
-                <DocumentIcon />
-              </span>
-              <span className="pd-object-title">{objectBlockTitle(kind, b as unknown as Record<string, unknown>, (v) => t(v ? 'Yes' : 'No'))}</span>
-              <span className="pd-image-more" aria-hidden="true">
-                <Ellipsis />
-              </span>
-            </div>
-          )
-        switch (b.type) {
-          case 'heading': {
-            const H = `h${Math.min(6, Math.max(1, b.level ?? 2))}` as 'h2'
-            return <H key={b.id} data-bp-id={b.id}>{body}</H>
-          }
-          case 'list': {
-            const L = b.ordered ? 'ol' : 'ul'
-            return <L key={b.id} data-bp-id={b.id}>{(b.items ?? []).map((item, i) => <li key={i}>{inline(item, '', linksOpen)}</li>)}</L>
-          }
-          case 'pullquote':
-          case 'blockquote':
-            return <blockquote key={b.id} data-bp-id={b.id}>{body}</blockquote>
-          case 'callout':
-            return <div key={b.id} className="callout" data-tone={b.tone} data-bp-id={b.id}>{body}</div>
-          case 'image': {
-            // Barkpark's image block keeps its picture in `src` (the canvas writes it; an
-            // older import may say `url`). Drawn as the canvas's card, as Sanity's at rest.
-            const src = b.src ?? b.url
-            if (!src) return null
-            return (
-              <figure key={b.id} className="pd-image" data-bp-id={b.id}>
-                <div className="pd-image-head">
-                  <span className="pd-image-name">{imageFileName(src, b.alt, t('Image'))}</span>
-                  <span className="pd-image-more" aria-hidden="true">
-                    <Ellipsis />
-                  </span>
-                </div>
-                <img src={src} alt={b.alt ?? ''} />
-              </figure>
-            )
-          }
-          default:
-            return <p key={b.id} data-bp-id={b.id}>{body}</p>
-        }
-      })}
-    </>
-  )
+  const html = renderPortableDocView(blocks, linksOpen, objects, t)
+  return <div className="portable-doc-view" dangerouslySetInnerHTML={{__html: html}} />
 }

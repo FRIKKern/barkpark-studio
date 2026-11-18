@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {mkdirSync, mkdtempSync, writeFileSync} from 'node:fs'
+import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import test from 'node:test'
@@ -29,4 +29,15 @@ test('the freshness gate rejects a drifted committed report', () => {
     settle({...report, rows: [{type: 'paragraph', status: 'fail', diff: ['drift']}]}, {path}).join('\n'),
     /row paragraph drifted/,
   )
+})
+
+test('the host contract stays separate from the raw canonical report', () => {
+  const raw = JSON.parse(readFileSync(new URL('./barkpark-studio.json', import.meta.url)))
+  const host = JSON.parse(readFileSync(new URL('./barkpark-studio-host.json', import.meta.url)))
+  assert.equal(host.pack_stamp, raw.pack_stamp)
+  assert.deepEqual(raw.rows.filter((row) => row.status !== 'pass').map((row) => row.type), [
+    'action', 'card', 'image', 'lineage', 'paragraph', 'pre-gate-badge',
+  ])
+  assert.equal(host.rows.length, 80)
+  assert.equal(host.rows.every((row) => row.status === 'pass'), true)
 })

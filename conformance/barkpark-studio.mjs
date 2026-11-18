@@ -12,19 +12,20 @@ const {createServer} = await load('vite')
 
 const PACK = new URL('./pack/goldens', import.meta.url).pathname
 const REPORT = new URL('./barkpark-studio.json', import.meta.url).pathname
-const KNOWN_TYPES = new Set(['blockquote', 'callout', 'heading', 'image', 'list', 'paragraph', 'pullquote'])
 let PortableDocView
 
-function nodesOf(html) {
+function rendered(html) {
   const document = new Window().document
   document.body.innerHTML = html
-  return document.body.childNodes
+  const view = document.body.querySelector('.portable-doc-view')
+  return {document, nodes: view?.childNodes ?? document.body.childNodes}
 }
 
 function judge(golden) {
-  if (!KNOWN_TYPES.has(golden.type)) return MISSING
   const actual = renderToStaticMarkup(createElement(PortableDocView, {blocks: [golden.input]}))
-  return diffShapes(shapeOf(nodesOf(actual)), shapeOf(nodesOf(golden.expectedHtml)))
+  const output = rendered(actual)
+  if (output.document.querySelector('.bp-unknown-block')) return MISSING
+  return diffShapes(shapeOf(output.nodes), shapeOf(rendered(golden.expectedHtml).nodes))
 }
 
 async function main() {
