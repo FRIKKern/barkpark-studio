@@ -28,6 +28,7 @@ import {devToken, editorPermissions, keepDevToken, sweepDevTokens} from '../../.
 import {getCookie, setCookie, deleteCookie, getRequest} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
 import {seal, unseal} from './session-cookie'
+import {refusedLately} from '../lib/gate-head-start'
 import {tokenSelf, type TokenBody, type TokenSelf} from '../lib/token-self'
 import {CLOUD_COOKIE, CLOUD_PATH, CLOUD_TTL_SECONDS, cloudConfig, cloudExchange, cloudStart, publicOrigin, ssoConfig, stateMatches, type CloudError, type CloudPending} from '../lib/cloud-signin'
 import {returnPath} from '../lib/return-path'
@@ -305,8 +306,11 @@ const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
 // When Barkpark last said each token ends (unix seconds; null, never), for currentEditor.
 const ends = new Map<string, number | null>()
 const knownEnd = (token: string) => ends.get(token)
-/** What Barkpark said of `token` here within the minute, as describeToken holds it; undefined when not asked lately. Never a Barkpark read. */
+// Dead tokens (401) of the last minute: a sign-out forgets describeToken's answer, not this.
+const refused = refusedLately()
+/** What Barkpark said of `token` here within the minute, as describeToken holds it; refused when it answered 401 in the last minute; undefined when not asked lately. Never a Barkpark read. */
 export function knownTokenSelf(token: string): Promise<TokenSelf> | undefined {
+  if (refused.has(`${token} ${scope().workspace}`)) return Promise.resolve({permissions: [], boundDataset: null, refused: true})
   const held = described.get(`${token} ${scope().workspace}`)
   return held && Date.now() - held.at < 60_000 ? held.self : undefined
 }
@@ -320,7 +324,7 @@ export function describeToken(token: string): Promise<TokenSelf> {
   const self = (async (): Promise<TokenSelf> => {
     const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}}).catch(() => undefined)
     // 401: dead (revoked or expired). 403: alive but not allowed here: nothing to write with.
-    if (res?.status === 401) return {permissions: [], boundDataset: null, refused: true}
+    if (res?.status === 401) return refused.note(`${token} ${workspace}`), {permissions: [], boundDataset: null, refused: true}
     if (res?.status === 403) return {permissions: [], boundDataset: null}
     if (!res?.ok) return {permissions: ['read', 'write'], boundDataset: null}
     const me = tokenSelf((await res.json()) as TokenBody, workspace)

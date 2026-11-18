@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {handOff, headStartAllowed, letsIn, readMeWithHeadStart} from './gate-head-start.ts'
+import {handOff, headStartAllowed, letsIn, readMeWithHeadStart, refusedLately} from './gate-head-start.ts'
 import type {TokenSelf} from './token-self.ts'
 
 /** A read whose answer the test gives when it chooses. */
@@ -88,24 +88,28 @@ test('the hand-off to the loader is per request and taken once', () => {
   assert.equal(held.take(a), undefined, 'taken once')
 })
 
-test('a dead token, loaded twice: the first load costs main\'s calls plus the two content-model reads, a replay what main costs; one logout per load', async () => {
-  // A fake Barkpark that refuses the token, and the studio's minute-long memory of what it said.
+test("a dead login session, loaded again and again: the first load costs main's calls plus the two content-model reads, each replay what main costs; one logout per load", async () => {
+  // A fake Barkpark that refuses the token. As a real login, the token is the session: a
+  // sign-out forgets what was said of it (server/auth.ts forgetToken), so the next request asks
+  // again; the refusal is also noted apart, for the head start only (server/auth.ts).
+  const ws = 'studio-parity'
   const calls: string[] = []
   const said = new Map<string, Promise<TokenSelf>>()
+  const refused = refusedLately()
   const describe = (token: string) => {
-    if (!said.has(token)) said.set(token, (calls.push('GET /v1/auth/token'), Promise.resolve({permissions: [], boundDataset: null, refused: true})))
+    if (!said.has(token)) said.set(token, (calls.push('GET /v1/auth/token'), refused.note(`${token} ${ws}`), Promise.resolve({permissions: [], boundDataset: null, refused: true})))
     return said.get(token)!
   }
+  const known = (token: string) => (refused.has(`${token} ${ws}`) ? Promise.resolve<TokenSelf>({permissions: [], boundDataset: null, refused: true}) : said.get(token))
+  const editor = {email: 'ada@example.com', token: 'login-1', session: 'login-1'}
   let named = false
   const load = async () => {
     const before = calls.length
-    let logouts = 0
-    const signedOut = new Set<string>() // this request's (server/auth.ts signOut)
-    const signOut = () => signedOut.has('done') || (signedOut.add('done'), logouts++, calls.push('DELETE /v1/auth/logout'))
-    const read = (path: string) => async () => (calls.push(`GET ${path}`), signOut()) // 401: signs out
-    const editor = {token: 'dead'}
+    let once = false // this request's (server/auth.ts signOut)
+    const signOut = () => once || ((once = true), calls.push('DELETE /v1/auth/logout'), said.delete(editor.session))
+    const read = (path: string) => async () => (calls.push(`GET ${path}`), await tick(), signOut()) // its 401, a round trip later: signs out
     await readMeWithHeadStart({
-      cookieLetsIn: () => headStartAllowed('account', editor, 'studio', (t) => said.get(t)),
+      cookieLetsIn: () => headStartAllowed('account', editor, 'studio', known),
       readMe: async () => {
         if (!named) (named = true), calls.push('GET /v1/auth/me') // displayName, kept a minute
         const self = await describe(editor.token)
@@ -116,11 +120,21 @@ test('a dead token, loaded twice: the first load costs main\'s calls plus the tw
       letsIn,
     })
     await tick()
-    return {made: calls.slice(before), logouts}
+    await tick()
+    return calls.slice(before).sort()
   }
-  const first = await load()
-  assert.deepEqual(first.made.sort(), ['DELETE /v1/auth/logout', 'GET /v1/auth/me', 'GET /v1/auth/token', 'GET /v1/data/doc/…/deskStructure', 'GET /v1/schemas'])
-  assert.equal(first.logouts, 1)
-  const replay = await load()
-  assert.deepEqual(replay.made, ['DELETE /v1/auth/logout'], "a replay of the cookie: main's one call")
+  assert.deepEqual(await load(), ['DELETE /v1/auth/logout', 'GET /v1/auth/me', 'GET /v1/auth/token', 'GET /v1/data/doc/…/deskStructure', 'GET /v1/schemas'])
+  for (let i = 0; i < 6; i++) assert.deepEqual(await load(), ['DELETE /v1/auth/logout', 'GET /v1/auth/token'], "a replay: main's two calls, no content-model read")
+})
+
+test('refused lately: a minute, bounded, and only what was noted', () => {
+  const r = refusedLately(60_000, 2)
+  r.note('dead studio-parity', 0)
+  assert.equal(r.has('dead studio-parity', 59_999), true)
+  assert.equal(r.has('dead other-ws', 1), false, 'per workspace')
+  assert.equal(r.has('good studio-parity', 1), false)
+  assert.equal(r.has('dead studio-parity', 60_000), false, 'a minute')
+  for (const k of ['a', 'b', 'c']) r.note(k, 1)
+  assert.equal(r.has('a', 2), false, 'the oldest goes past the cap')
+  assert.equal(r.has('c', 2), true)
 })

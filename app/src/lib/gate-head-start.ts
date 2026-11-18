@@ -56,3 +56,25 @@ export function handOff<K extends object, H>() {
     },
   }
 }
+
+/**
+ * Tokens Barkpark answered 401 (dead: revoked, or the login ended) in the last minute, keyed
+ * `<token> <workspace>`, at most `cap` of them. Kept apart from describeToken's memory, which a
+ * sign-out forgets so the next request asks again: this only stops the head start for them.
+ * A key is noted only on its own 401, and only ever says "refused".
+ */
+export function refusedLately(ms = 60_000, cap = 10_000) {
+  const at = new Map<string, number>()
+  return {
+    note: (key: string, now = Date.now()) => {
+      at.delete(key)
+      at.set(key, now)
+      if (at.size > cap) at.delete(at.keys().next().value!)
+    },
+    has: (key: string, now = Date.now()) => {
+      const t = at.get(key)
+      if (t !== undefined && now - t >= ms) at.delete(key)
+      return t !== undefined && now - t < ms
+    },
+  }
+}
