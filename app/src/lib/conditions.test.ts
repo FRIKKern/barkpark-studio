@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Field} from './data.ts'
 import {currentUserOf, fieldState, groupShows, isHidden, pasteSkips, type FieldConditions} from './conditions.ts'
+import {roleConditions} from './conditions.fixture.ts'
 
 test('scope "parent" reads the enclosing object, the default reads the document', () => {
   const url = {name: 'url', type: 'url', visibleWhen: {field: 'kind', operator: 'eq', value: 'url', scope: 'parent'}} as unknown as Field
@@ -30,7 +31,7 @@ const isAdmin = ({currentUser}: {currentUser: {roles: {name: string}[]} | null})
 
 test('readOnly ({currentUser}) locks the field for an editor and leaves it open for an administrator', () => {
   const stage = {name: 'stage', type: 'select'} as unknown as Field
-  const rules: Record<string, FieldConditions> = {'post.stage': {readOnly: (c) => !isAdmin(c)}}
+  const rules = roleConditions
   const doc = {stage: 'draft'}
   assert.equal(fieldState('post', stage, doc, currentUserOf(me('member')), rules).readOnly, true)
   assert.equal(fieldState('post', stage, doc, currentUserOf(me('owner')), rules).readOnly, false)
@@ -38,7 +39,8 @@ test('readOnly ({currentUser}) locks the field for an editor and leaves it open 
   // A seat that may not write is Sanity's viewer; another type's field is not this rule's.
   assert.deepEqual(currentUserOf(me('member', false))?.roles, [{name: 'viewer', title: 'Viewer'}])
   assert.equal(fieldState('author', stage, doc, currentUserOf(me('member')), rules).readOnly, false)
-  // Nobody signed in (shared sign-in) or Barkpark not answered yet: currentUser is null.
+  // Nobody signed in (shared sign-in) or Barkpark not answered yet: currentUser is null, and this config leaves the field open.
+  assert.equal(fieldState('post', stage, doc, null, rules).readOnly, false)
   assert.equal(currentUserOf({...me('owner'), email: null}), null)
   assert.equal(currentUserOf({...me('owner'), provisional: true}), null)
 })
