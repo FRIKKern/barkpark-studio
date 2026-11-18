@@ -74,12 +74,43 @@ export function alignColumns(rows: [from: unknown[], to: unknown[]][], from: num
   return align(rows, from, to, kept && ((i, j) => (kept(i) ? j + 1 : 0)), loose && 'a', away)
 }
 
-/** `blank`: the side whose empty cells read as alike to text as to an empty cell (text typed since, in a column either old or new). */
-function align(rows: [unknown[], unknown[]][], from: number, to: number, tie?: (i: number, j: number) => number, blank: 'a' | 'b' | false = false, cost?: (i: number, j: number) => number): number[] {
+/**
+ * Whether a row read as drawn (`drawn`) still says where its columns went (`now`): each drawn word
+ * is in the row whole, and no other cell starts with it. A row typed on since says nothing: a word
+ * that grew ('S' to 'Size') and a new one begun beside it with the same keys ('S') read as a column
+ * put in left of it, and a cell placed by that lands one cell right (review of #1280).
+ */
+export function stillStands(drawn: unknown[], now: unknown[]): boolean {
+  return drawn.every((x) => typeof x !== 'string' || x === '' || (now.includes(x) && now.filter((y) => typeof y === 'string' && y.startsWith(x)).length === 1))
+}
+
+/**
+ * Where column `i` of `from` sits among `to`'s (-1: removed) when the whole table says so: every
+ * best alignment of the rows (`rows`, all of them at once) puts it there. Undefined when two best
+ * ones place it apart (cells that read alike either way: an empty table, a row of the same text),
+ * so a caller keeps the text or the caret where nothing is guessed. `loose`: an empty cell on either
+ * side reads as alike to text (text typed since; or text gone since, as my own unsaved text taken to the card).
+ */
+export function sureColumn(rows: [from: unknown[], to: unknown[]][], from: number, to: number, i: number, loose = false): number | undefined {
+  if (from === to) return i
+  if (i < 0 || i >= from) return undefined
+  // The same best alignment, tie-broken once to put column i as far right as it can go and once as far left (or out).
+  const place = (high: boolean) => {
+    if (from < to) return align(rows, from, to, (c, j) => (c === i ? (high ? j + 1 : to - j) : 0), loose && 'both')[i]!
+    const back = align(rows.map(([a, b]) => [b, a]), to, from, (c, j) => (j === i ? (high ? c + 2 : -(c + 1)) : 0), loose && 'both')
+    return back.indexOf(i)
+  }
+  const [hi, lo] = [place(true), place(false)]
+  return hi === lo ? hi : undefined
+}
+
+/** `blank`: the side whose empty cells read as alike to text as to an empty cell (text typed since, in a column either old or new; `both`: or text gone since, kept off the table). */
+function align(rows: [unknown[], unknown[]][], from: number, to: number, tie?: (i: number, j: number) => number, blank: 'a' | 'b' | 'both' | false = false, cost?: (i: number, j: number) => number): number[] {
   if (!rows.length && !tie) return Array.from({length: from}, (_, i) => i)
   // What cells say comes first; the tie-break counts only between equal answers (a step of `K`).
   const K = from * (to + 1) + 2
-  const like = (a: unknown, b: unknown) => ((blank === 'a' ? a === '' && typeof b === 'string' : blank === 'b' && b === '' && typeof a === 'string') ? 1 : alike(a, b))
+  const empty = (x: unknown, y: unknown) => x === '' && typeof y === 'string'
+  const like = (a: unknown, b: unknown) => ((blank === 'a' || blank === 'both') && empty(a, b)) || ((blank === 'b' || blank === 'both') && empty(b, a)) ? 1 : alike(a, b)
   const score = (i: number, j: number) => rows.reduce((n, [a, b]) => n + like(at(a, i), at(b, j)), cost?.(i, j) ?? 0) * K + (tie?.(i, j) ?? 0)
   // best[i][j]: the best score for the first i columns placed among the first j.
   const extra = to - from

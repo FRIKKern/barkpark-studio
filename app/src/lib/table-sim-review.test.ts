@@ -1,13 +1,13 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {Client, Server, leftover, simGate} from './table-sim.ts'
+import {Client, Server, leftover, playAt, simGate} from './table-sim.ts'
 
 // Review 7's seeds (lib/table-sim.ts simGate): 63018 (#136, a key from the old grid into the other
 // editor's saved cell: LOST and DOUBLED on a7fc7a1c) and 96019 (#208, the other editor's first key
 // left before my word).
 
 test('two editors, a column or row changed while both type (review 7 seeds): rows even, both agree, every word whole in one cell or on its typer\'s card, every key in a cell, on the card or in the input', () => {
-  simGate([63018, 96019], {'INSERT-LEFT-WRONG-SIDE': 0, LEFTOVER: 0})
+  simGate([63018, 96019], {'INSERT-LEFT-WRONG-SIDE': 0, LEFTOVER: 1, MISPLACED: 0})
 })
 
 test('a word\'s first keys left before another word, the whole word on its typer\'s card, read as LEFTOVER, not SPLIT', () => {
@@ -77,4 +77,25 @@ for (const [name, t0] of [['an empty row', [['a', 'b'], ['', '']]], ['an alike r
     t.render()
     const stored = server.doc.t.rows.map((r: {cells: string[]}) => r.cells).flat()
     assert.equal(stored.filter((c: string) => c.includes('WORD')).length + t.kept.filter((k) => k.text.includes('WORD')).length, 1, `stored ${JSON.stringify(stored)}, card ${JSON.stringify(t.kept)}`)
+  })
+
+test('seed 96019 #273, the one LEFTOVER the gate allows here: my saved first key stands in two cells after their removal, so my word goes whole to my card and the key stays in the cell; nothing lost or split', () => {
+  // T typed 'x<' (saved) then 'T3>' in row 1, column 2 of an alike 2 x 3; P typed 'x<' in column 1 and
+  // removed column 3. Both cells read 'x<': which is T's, nothing says (main's keep makes the same call).
+  // Pinned by the random state the scene began with (index 273 of seed 96019 when it was found).
+  const o = playAt(-2118523863, 273)
+  assert.deepEqual(o.bad, [], o.name)
+  assert.ok(o.soft.includes('LEFTOVER'), o.name)
+  assert.deepEqual(o.kept, ['x<T3>'], o.name)
+})
+
+// Review of #1280: three scenes where a row the other editor typed on since the drawing read as a
+// column moved, and my unsent word was stored one cell right with no card. Each is placed where it
+// was meant or kept whole on the card, never put in another cell. Pinned by random state (seed #index when found).
+for (const [found, state, i] of [['77540 #3142, an insert at the end', -383228784, 3142], ['8810 #1340, a removed column', 1486963451, 1340], ['23402 #2562, a removed column in an alike table', 886015404, 2562]] as const)
+  test(`seed ${found}: my word is in its own cell or whole on my card, never in a neighbour`, () => {
+    const o = playAt(state, i)
+    assert.deepEqual(o.bad, [], o.name)
+    assert.ok(!o.soft.includes('MISPLACED'), o.name)
+    for (const k of o.kept ?? []) assert.match(k, /<T\d>$/, o.name)
   })

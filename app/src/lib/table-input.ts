@@ -1,7 +1,7 @@
 import type {Field} from './data'
 import {mergeText} from './merge.ts'
 import {getPath, keyedPath, setPath} from './paths.ts'
-import {alignColumns, placeColumns, withColumns} from './table-merge.ts'
+import {alignColumns, placeColumns, stillStands, sureColumn, withColumns} from './table-merge.ts'
 
 // The table field (Sanity's @sanity/table 3.1): an object `{_type: 'table', rows: [{_type:
 // 'tableRow', _key, cells: string[]}]}` edited as a grid of text inputs. The stored shape is
@@ -109,7 +109,7 @@ export function withCell(cells: unknown, column: number, value: string): unknown
  * column past the table's edge (an input of a grid older still): only the one cell `text`
  * was typed on from can be it.
  */
-export function columnNow(drawn: unknown[], width: number, now: unknown[], column: number, text: string, was?: string): number {
+export function columnNow(drawn: unknown[], width: number, now: unknown[], column: number, text: string, was?: string, others: [unknown[], unknown[]][] = []): number {
   if (column >= width) {
     const from = now.flatMap((c, j) => (typeof c === 'string' && c !== '' && text.startsWith(c) ? [j] : []))
     return from.length === 1 ? from[0]! : -1
@@ -126,12 +126,25 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
   const mine = was !== undefined && was !== '' && was !== from[column] && from.every((c, i) => i === column || c !== was) ? now.flatMap((c, j) => (c === was ? [j] : [])) : []
   if (mine.length === 1) return mine[0]!
   if (was !== undefined) from[column] = was
-  // Columns added or removed and the row reads the same whichever way its column went (two
-  // cells alike, an empty one beside a new one): no column, so the key never lands in a
-  // neighbour or the new column; setCell's `refused` takes the text to the card.
-  const to = alignColumns([[from, now]], from.length, now.length, (i) => i === column)[column] ?? -1
-  if (to >= 0 && alignColumns([[from, now]], from.length, now.length, (i) => i !== column)[column] !== to) return -1
-  return to
+  // The table's other rows as drawn and now (`others`, as wide as this one each way) are read with
+  // it: one alignment for the table. Columns added or removed and the table reads the same
+  // whichever way its column went (two cells alike, an empty one beside a new one): no column,
+  // so the key never lands in a neighbour or the new column; setCell's `refused` takes the text to the card.
+  const rows: [unknown[], unknown[]][] = [[from, now], ...others.filter(([a, b]) => a.length === from.length && b.length === now.length)]
+  return sureColumn(rows, from.length, now.length, column, true) ?? -1
+}
+
+/**
+ * The other rows of a table as stored when drawn (`drawn`) and as they are now (`now`), paired by
+ * key: what columnNow reads with a row. As stored, not padded: a row drawn at the new width
+ * already (the drawing uneven while a row of mine is on its way) says nothing of the change.
+ */
+const otherRows = (drawn: TableRow[], now: unknown, row: string | undefined): [unknown[], unknown[]][] => {
+  const by = new Map(rowsOf(now).map((r) => [r._key, cellsOf(r)]))
+  // Only a row whose drawn text still stands (stillStands) is read. One whose text is gone or cut
+  // (my unsent text taken to the card, seed 41009 #1350: it read as a column kept, and my key went
+  // into the other editor's word; a removed column's), or grew beside a lookalike, is left out.
+  return drawn.flatMap((r) => (r._key !== row && by.has(r._key) && stillStands(cellsOf(r), by.get(r._key)!) ? [[cellsOf(r), by.get(r._key)!] as [unknown[], unknown[]]] : []))
 }
 
 /**
@@ -161,7 +174,7 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
   const rows = rowsOf(value)
   const target = rows[row]
   if (!target) return []
-  if (!keyed(rows)) return rowsWrite(key, (now) => now.map((r, i) => (i === row ? {...r, cells: withCell(r.cells, column, cell)} : r)))
+  if (!keyed(rows)) return rowsWrite(key, (now) => now.map((r, i) => (i === row ? {...r, cells: withCell(column >= cellsOf(r).length ? padded(cellsOf(r), widthOf(now)) : r.cells, column, cell)} : r)))
   const drawn = cellsOf(target)
   return [
     [
@@ -171,12 +184,16 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
         // whole, where it was typed; the rebase keeps it for the editor (lib/table-keep.ts).
         if (!Array.isArray(now)) return withCell(drawn, column, cell)
         const cells = now
-        const at = columnNow(drawn, widthOf(rows), cells, column, cell, was)
+        // The other rows are read only when the row's width changed (columnNow reads them then only):
+        // a key in a long table costs no pass over every row.
+        const at = columnNow(drawn, widthOf(rows), cells, column, cell, was, cells.length === drawn.length ? [] : otherRows(rows, table, target._key))
         // A short row's padding grows it only as wide as the table is now (the grid was drawn
-        // wider by a row of mine at the old width, and the table has narrowed since).
+        // wider by a row of mine at the old width, and the table has narrowed since), and to that
+        // width whole: a key in a padded cell stores rows as even as @sanity/table's. A key inside
+        // the row leaves its length (a row of mine on its way at the old width: the merge widens it).
         const wide = table === undefined ? Infinity : widthOf(rowsOf(table))
         if (at < 0 || (at >= cells.length && at >= wide)) return refused?.(cell), cells
-        return withCell(cells, at, keyOnto(was, cell, text(cells[at])))
+        return withCell(at >= cells.length && wide < Infinity ? padded(cells, wide) : cells, at, keyOnto(was, cell, text(cells[at])))
       },
     ],
   ]
@@ -218,9 +235,10 @@ const indexOfKey = (rows: TableRow[], k: string | undefined, otherwise: number) 
  * Where the caret's column went when the grid's width changed (TableInput's caret follow): its
  * column now, -1 when it was removed, undefined past the last. `rows`: each row as drawn (the
  * caret's own cell as its input holds it) and as it is now; `mine`: the caret's row among them.
- * Columns removed and the cells read the same whichever went (two columns alike, a word's first
- * keys): the caret follows only its own text, where that stands in its row now (saved, or put
- * back); else its cell is read as gone (its text to the card), never followed into a neighbour.
+ * Every row is read at once (sureColumn): a column added or removed and the cells read the same
+ * whichever way it went (an empty table, two columns alike, a word's first keys): the caret follows
+ * only its own text, where that stands in its row now (saved, or put back); else its cell is read
+ * as gone (its text to the card; keys typed after it, too), never followed into a neighbour.
  * `input`: what the caret's input holds, when not drawn yet (else the drawn cell is it). Keys typed
  * since the drawing: where that text stands once in its row now, the caret goes there first (the
  * drawing's other cells may hold text of mine kept since, read as saved).
@@ -233,9 +251,12 @@ export function caretColumn(rows: [string[], string[]][], from: number, to: numb
   const at = (f: (c: string) => boolean) => now.flatMap((c, j) => (f(c) ? [j] : []))
   const same = text === '' || drawn.filter((c) => c === text).length > 1 ? [] : at((c) => c === text)
   if (keys && same.length === 1) return same[0]
-  const kept = alignColumns(rows, from, to, (i) => i === column)[column]
-  if (from <= to || kept === undefined) return kept
-  if (kept >= 0 && alignColumns(rows, from, to, (i) => i !== column)[column] === kept) return kept
+  if (column >= from) return undefined
+  // Every row read at once: a place the whole table says. An insert is no surer than a removal:
+  // in cells that read alike either way (an empty table, a column added at its end) the caret
+  // does not go one cell right on a tie; it follows its own text, or leaves (its text to the card).
+  const sure = sureColumn(rows, from, to, column, true)
+  if (sure !== undefined && sure >= 0) return sure
   if (text === '' || drawn.filter((c) => c === text).length > 1) return -1
   const typed = same.length ? same : at((c) => c !== '' && text.startsWith(c) && !drawn.some((d, i) => i !== column && d.startsWith(c)))
   return typed.length === 1 ? typed[0] : -1
@@ -360,8 +381,9 @@ export function pasteCells(value: unknown, row: number, column: number, block: s
           const cells = Array.isArray(now) ? now : drawn
           const wide = table === undefined ? Infinity : widthOf(rowsOf(table))
           // A cell whose column the row cannot tell (or past the table's width now): to the card, as a key (setCell).
+          const others = cells.length === drawn.length ? [] : otherRows(stored, table, stored[row]!._key)
           return block[0]!.reduce<unknown[]>((out, c, j) => {
-            const at = columnNow(drawn, widthOf(stored), cells, column + j, c)
+            const at = columnNow(drawn, widthOf(stored), cells, column + j, c, undefined, others)
             return at < 0 || (at >= out.length && at >= wide) ? (refused?.(column + j, c), out) : withCell(out, at, c)
           }, cells)
         },

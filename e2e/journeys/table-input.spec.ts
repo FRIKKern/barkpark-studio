@@ -7,7 +7,8 @@ import {schemaHasField} from '../rig/schema'
 // before the caret's cell, and the first keys typed over the cell that stood there (its
 // text selected, gone); a block pasted from a spreadsheet stops filling and growing the
 // grid; the stored shape drifts from Sanity's. Its own scratch document, so no fixture is
-// edited. Two editors in one table: lib/table-input.test.ts.
+// edited. Two editors in one table: lib/table-input.test.ts, lib/table-align.test.ts; here only
+// the caret a column of theirs leaves unplaced (its keys go to the card, never one cell right).
 //
 // It runs in CI on a PR that changes the fixture schemas (the studio reads them from the
 // checkout) and on a dataset seeded with them; on a dataset whose fieldTypes schema has no
@@ -56,5 +57,38 @@ test('a table field: a column put in left of the caret takes the keys typed next
   } finally {
     await closeAndSettle(page)
     await bpMutate([{delete: {id: ID, type: 'fieldTypes', force: true}}]).catch(() => {})
+  }
+})
+
+test('a table field: the caret in an empty cell when another editor adds a column at the end does not jump right; the keys typed go to the card', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', 'ours: the reference studio has no table plugin installed')
+  test.skip(!(await schemaHasField('fieldTypes', 'sizeChart')), "this dataset's fieldTypes schema has no sizeChart field yet (fixtures/barkpark-schema/fieldTypes.json; reseed with --schemas)")
+  const id = `${ID}-wide`
+  const empty = (w: number) => ({_type: 'table', rows: [row('a', ...Array(w).fill('')), row('b', ...Array(w).fill(''))]})
+  await bpMutate([{createOrReplace: {_id: id, _type: 'fieldTypes', title: 'Table scratch', sizeChart: empty(3)}}])
+  try {
+    await page.goto(t.docPath('fieldTypes', id))
+    await signInIfAsked(page)
+    await t.settle(page)
+    await page.locator('[id="title"]').waitFor()
+    const table = page.locator('[id="sizeChart"]')
+    test.skip((await table.count()) === 0, "this dataset's fieldTypes schema has no sizeChart field yet (fixtures/barkpark-schema/fieldTypes.json; reseed with --schemas)")
+    const cell = (r: number, c: number) => table.getByRole('textbox', {name: `Row ${r}, column ${c}`, exact: true})
+    await cell(2, 2).click()
+    // The other editor (a write from outside this browser) puts a fourth column in: nothing in the
+    // empty cells says whether it went left or right of mine, so the caret does not go to column 3.
+    await bpMutate([{createOrReplace: {_id: id, _type: 'fieldTypes', title: 'Table scratch', sizeChart: empty(4)}}])
+    await expect(cell(1, 4)).toBeVisible()
+    await expect(cell(2, 3)).not.toBeFocused()
+    await page.keyboard.type('word')
+    const kept = page.locator('[data-table-kept] [data-kept-id] input')
+    await expect(kept).toHaveValue('word')
+    await expect(kept).toBeFocused()
+    expect(await table.locator('input.table-cell').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value).join(''))).toBe('')
+    await page.locator('[data-table-kept]').getByRole('button', {name: 'Dismiss'}).click()
+  } finally {
+    await closeAndSettle(page)
+    await bpMutate([{delete: {id, type: 'fieldTypes', force: true}}]).catch(() => {})
   }
 })

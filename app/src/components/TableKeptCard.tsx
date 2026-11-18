@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState, type RefObject} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject} from 'react'
 import {useDocSelect} from './Fields'
 import {useT} from '../lib/i18n'
 import {newKey} from '../lib/pt-value'
@@ -31,6 +31,7 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     const el = root.current
     const on = (e: FocusEvent) => {
       const input = e.target as HTMLInputElement
+      if (input !== parked.current?.box) parked.current = null
       const key = now.current.grid.rows[Number(input.dataset?.row)]?.key
       if (!input.matches?.('input.table-cell') || key === undefined) return
       const was = last.current
@@ -91,6 +92,22 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     focusKept(keepTyped(doc, {table, row: held.key, column: held.column, text: held.text, at: Date.now()}))
     return true
   }
+  // The caret left a cell whose column the table could not tell (the other editor's column change),
+  // before a key was typed there: it rests on the grid (`box`), and the keys typed then go to a card
+  // for that cell, whole, never into a neighbour. Any other focus ends it.
+  const parked = useRef<{row: string; column: number; box: HTMLElement; id?: string; text: string} | null>(null)
+  const park = (held: {key: string; column: number}, box: HTMLElement | null) => void (parked.current = box && {row: held.key, column: held.column, box, text: ''})
+  /** A key on the grid while the caret is parked: onto its card. True: taken. */
+  const parkedKey = (e: KeyboardEvent<HTMLElement>) => {
+    const p = parked.current
+    if (!p || !doc || e.target !== p.box || e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent.isComposing) return false
+    e.preventDefault()
+    e.stopPropagation()
+    p.text += e.key
+    if (p.id) setKeptText(doc, p.id, p.text)
+    else focusKept((p.id = keepTyped(doc, {table, row: p.row, column: p.column, text: p.text, at: Date.now()})))
+    return true
+  }
   const putBack = (k: KeptText) => {
     const {doc, grid, value} = now.current
     const at = (key: string, column: number) => {
@@ -108,7 +125,7 @@ export function useKeptCard(table: string, value: unknown, grid: ReturnType<type
     dropKept(doc, k.id)
     setLost(null)
   }
-  return {doc, kept, box, lost, capture, refuse, follow, lose, putBack}
+  return {doc, kept, box, lost, capture, refuse, follow, lose, park, parkedKey, putBack}
 }
 
 export function TableKeptCard({card}: {card: ReturnType<typeof useKeptCard>}) {
